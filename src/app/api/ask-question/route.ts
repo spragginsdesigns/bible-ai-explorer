@@ -3,10 +3,7 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
-export const config = {
-	runtime: "edge",
-	maxDuration: 300 // 5 minutes, adjust as needed
-};
+export const runtime = "edge";
 
 export async function POST(req: Request) {
 	try {
