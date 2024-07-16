@@ -11,8 +11,8 @@ export async function POST(request: Request) {
 
 		const model = new ChatOpenAI({
 			openAIApiKey: process.env.OPENAI_API_KEY, // This is correct for server-side usage
-			modelName: "gpt-4",
-			temperature: 0.7
+			modelName: "gpt-4o",
+			temperature: 0.1
 		});
 
 		const promptTemplate = ChatPromptTemplate.fromMessages([
