@@ -12,6 +12,7 @@
     "@langchain/core": "^0.2.16",
     "@langchain/openai": "^0.2.2",
     "@radix-ui/react-slot": "^1.1.0",
+    "@types/react-autosuggest": "^10.1.11",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "langchain": "^0.2.10",
@@ -20,6 +21,7 @@
     "next-themes": "^0.3.0",
     "openai": "^4.52.7",
     "react": "^18",
+    "react-autosuggest": "^10.1.0",
     "react-dom": "^18",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7"

@@ -13,6 +13,28 @@ import {
 } from "@/components/ui/card";
 import { Moon, Sun, Book, Brain, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
+import Autosuggest from "react-autosuggest";
+
+const LoadingAnimation = () => (
+	<div className="flex flex-col items-center mt-2">
+		<div className="text-sm mb-2">Referencing Scripture...</div>
+		<div className="relative w-16 h-16">
+			<div className="absolute inset-0 animate-page-turn">
+				<svg viewBox="0 0 24 24" className="w-full h-full">
+					<path
+						fill="currentColor"
+						d="M6 2h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm0 2v16h12V4H6z"
+					/>
+					<path
+						fill="currentColor"
+						className="animate-page-content"
+						d="M8 6h8v2H8V6zm0 4h8v2H8v-2zm0 4h8v2H8v-2z"
+					/>
+				</svg>
+			</div>
+		</div>
+	</div>
+);
 
 export const FormattedResponse = ({ response }: { response: string }) => {
 	const [isClient, setIsClient] = useState(false);
@@ -67,24 +89,54 @@ const BibleAIExplorer: React.FC = () => {
 	const [isClient, setIsClient] = useState(false);
 	const { theme, setTheme } = useTheme();
 
+	const commonQuestions = [
+		"What is the story of creation?",
+		"What is the purpose of life according to the Bible?",
+		"Where was Jesus born?",
+		"What are the Ten Commandments?",
+		"Who wrote the Book of Revelation?",
+		"What is the Sermon on the Mount?",
+		"How many disciples did Jesus have?",
+		"What is the story of Noah's Ark?",
+		"Who was Moses in the Bible?",
+		"What is the Book of Psalms about?",
+		"What is the significance of the Last Supper?",
+		"Who was King David?",
+		"What is the story of Adam and Eve?",
+		"What does the Bible say about love?",
+		"Who was the Apostle Paul?",
+		"What is the story of Daniel in the lion's den?",
+		"What is the significance of baptism in Christianity?",
+		"What are the Beatitudes?",
+		"What is the story of Jonah and the whale?",
+		"What does the Bible say about forgiveness?"
+	];
+
 	useEffect(() => {
 		setIsClient(true);
 	}, []);
 
-	const LoadingBible = () => (
-		<div className="flex justify-center items-center">
-			<svg className="animate-pulse w-16 h-16" viewBox="0 0 24 24">
-				<path
-					fill="currentColor"
-					d="M6 2h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm0 2v16h12V4H6z"
-				/>
-				<path
-					fill="currentColor"
-					d="M8 6h8v2H8V6zm0 4h8v2H8v-2zm0 4h8v2H8v-2z"
-				/>
-			</svg>
-		</div>
-	);
+	const [suggestions, setSuggestions] = useState<string[]>([]);
+
+	const getSuggestions = (value: string) => {
+		const inputValue = value.trim().toLowerCase();
+		const inputLength = inputValue.length;
+
+		return inputLength === 0
+			? []
+			: commonQuestions.filter(
+					(question) =>
+						question.toLowerCase().slice(0, inputLength) === inputValue
+			  );
+	};
+
+	const onSuggestionsFetchRequested = ({ value }: { value: string }) => {
+		setSuggestions(getSuggestions(value));
+	};
+
+	const onSuggestionsClearRequested = () => {
+		setSuggestions([]);
+	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -160,11 +212,11 @@ const BibleAIExplorer: React.FC = () => {
 						</Button>
 					</div>
 					<CardDescription className="flex items-center justify-center space-x-4 text-gray-600 dark:text-gray-300">
-						<div className="flex items-center space-x-2 animate-bounce">
+						<div className="flex items-center space-x-2">
 							<Book className="h-5 w-5 text-blue-500" />
 							<span>Ask questions</span>
 						</div>
-						<div className="flex items-center space-x-2 animate-pulse">
+						<div className="flex items-center space-x-2">
 							<Brain className="h-5 w-5 text-green-500" />
 							<span>Get AI answers</span>
 						</div>
@@ -172,27 +224,50 @@ const BibleAIExplorer: React.FC = () => {
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
-						<Input
-							type="text"
-							placeholder="Enter your question about the Bible..."
-							value={query}
-							onChange={(e) => setQuery(e.target.value)}
-							className="w-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-						/>
+						<div className="relative">
+							<Autosuggest
+								suggestions={suggestions}
+								onSuggestionsFetchRequested={onSuggestionsFetchRequested}
+								onSuggestionsClearRequested={onSuggestionsClearRequested}
+								getSuggestionValue={(suggestion) => suggestion}
+								renderSuggestion={(suggestion) => <div>{suggestion}</div>}
+								inputProps={{
+									placeholder: "Enter your question about the Bible...",
+									value: query,
+									onChange: (_, { newValue }) => setQuery(newValue),
+									className:
+										"w-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 p-2 rounded-md"
+								}}
+								theme={{
+									container: "relative",
+									suggestionsContainer:
+										"absolute z-10 w-full bg-white dark:bg-gray-700 shadow-lg rounded-md mt-1",
+									suggestionsList: "list-none p-0 m-0",
+									suggestion:
+										"p-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+								}}
+							/>
+							<button
+								type="button"
+								onClick={() => setQuery("")}
+								className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gray-200 dark:bg-gray-600 rounded-full p-1"
+							>
+								Clear
+							</button>
+						</div>
 						<Button
 							type="submit"
 							className="w-full bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
 							disabled={loading || isTyping}
 						>
-							{loading ? (
-								<LoadingBible />
-							) : isTyping ? (
-								"Processing..."
-							) : (
-								"Ask Question"
-							)}
+							Ask Question
 						</Button>
 					</form>
+					{(loading || isTyping) && (
+						<div className="mt-4">
+							<LoadingAnimation />
+						</div>
+					)}
 					{response && (
 						<Card
 							id="response-card"

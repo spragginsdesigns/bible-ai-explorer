@@ -80,3 +80,67 @@
 .animate-fadeIn {
 	animation: fadeIn 0.5s ease-in;
 }
+
+@keyframes page-turn {
+	0% {
+		transform: perspective(1200px) rotateY(0deg);
+	}
+	50% {
+		transform: perspective(1200px) rotateY(-180deg);
+	}
+	100% {
+		transform: perspective(1200px) rotateY(-360deg);
+	}
+}
+
+@keyframes page-content {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0;
+	}
+}
+
+.animate-page-turn {
+	animation: page-turn 3s linear infinite;
+}
+
+.animate-page-content {
+	animation: page-content 3s linear infinite;
+}
+.react-autosuggest__input {
+	width: 100%;
+	padding: 0.5rem;
+	border: 1px solid #ccc;
+	border-radius: 0.25rem;
+}
+
+.react-autosuggest__suggestions-container--open {
+	display: block;
+	position: absolute;
+	top: 100%;
+	width: 100%;
+	border: 1px solid #ccc;
+	background-color: #fff;
+	font-size: 1rem;
+	border-bottom-left-radius: 0.25rem;
+	border-bottom-right-radius: 0.25rem;
+	z-index: 2;
+}
+
+.react-autosuggest__suggestions-list {
+	margin: 0;
+	padding: 0;
+	list-style-type: none;
+}
+
+.react-autosuggest__suggestion {
+	cursor: pointer;
+	padding: 0.5rem;
+}
+
+.react-autosuggest__suggestion--highlighted {
+	background-color: #ddd;
+}
