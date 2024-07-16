@@ -1,0 +1,7 @@
+{
+	"functions": {
+		"api/ask-question/route.ts": {
+			"maxDuration": 60
+		}
+	}
+}

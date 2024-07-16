@@ -1,18 +1,20 @@
-// Documents\Github_Repositories\bible-ai-explorer\src\app\api\ask-question\route.ts
-
 import { NextResponse } from "next/server";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
-export async function POST(request: Request) {
+export const runtime = "edge"; // This enables Edge runtime
+
+export async function POST(req: Request) {
 	try {
-		const { question } = await request.json();
+		const { question } = await req.json();
 
 		const model = new ChatOpenAI({
-			openAIApiKey: process.env.OPENAI_API_KEY, // This is correct for server-side usage
+			openAIApiKey: process.env.OPENAI_API_KEY,
 			modelName: "gpt-4o",
-			temperature: 0.1
+			temperature: 0.1,
+			maxTokens: 500, // Limit the response length
+			timeout: 60000 // 60 seconds timeout
 		});
 
 		const promptTemplate = ChatPromptTemplate.fromMessages([
