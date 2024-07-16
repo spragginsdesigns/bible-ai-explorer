@@ -3,7 +3,10 @@ import { ChatOpenAI } from "@langchain/openai";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 
-export const runtime = "edge"; // This enables Edge runtime
+export const config = {
+	runtime: "edge",
+	maxDuration: 300 // 5 minutes, adjust as needed
+};
 
 export async function POST(req: Request) {
 	try {
@@ -11,10 +14,9 @@ export async function POST(req: Request) {
 
 		const model = new ChatOpenAI({
 			openAIApiKey: process.env.OPENAI_API_KEY,
-			modelName: "gpt-4o",
+			modelName: "gpt-4o", // Using the latest GPT-4o model
 			temperature: 0.1,
-			maxTokens: 500, // Limit the response length
-			timeout: 60000 // 60 seconds timeout
+			maxTokens: 1000 // Increased token limit
 		});
 
 		const promptTemplate = ChatPromptTemplate.fromMessages([
