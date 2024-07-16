@@ -1,51 +1,48 @@
-<<<<<<< HEAD
+# Bible AI Explorer
 
-# Bible-AI-Explorer
+## Overview
 
-This is an amazing cutting-edge Biblical web application utilizing AI Agents to read the bible and give you answers on it.
-==========================================================================================================================
+Bible AI Explorer is an innovative web application that combines the power of artificial intelligence with comprehensive biblical knowledge. This tool is designed to assist users in exploring and understanding the Bible, Christian theology, and related topics through an AI-powered question-answering system.
 
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## Features
 
-## Getting Started
+- **AI-Powered Biblical Insights**: Utilizes advanced language models (GPT-4) to provide in-depth answers to Bible-related questions.
+- **Strict Biblical Focus**: The AI assistant is programmed to answer questions exclusively about the Bible, Christianity, and directly related theological, historical, or cultural topics.
+- **Scriptural References**: Every response includes multiple Bible references, ensuring answers are grounded in scripture.
+- **Multi-Translation Support**: Quotes scripture from various reputable translations (NIV, KJV, ESV, NASB), always specifying the version used.
+- **Original Language Insights**: Offers explanations from Hebrew, Greek, and Aramaic when relevant to enhance understanding.
+- **Historical and Cultural Context**: Provides historical, cultural, and literary context for biblical passages.
+- **Theological Depth**: Explains complex theological concepts in accessible language while maintaining depth.
+- **Christian Worldview**: Approaches all questions from a devout Christian perspective, defending the faith and addressing apologetics.
+- **Practical Application**: Offers practical applications of biblical principles for daily Christian living.
+- **Church History Integration**: Includes insights from respected Christian thinkers and relevant anecdotes from church history.
 
-First, run the development server:
+## User Interface
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Clean, intuitive interface for asking questions and receiving responses.
+- Dark/Light mode toggle for comfortable viewing in any environment.
+- Responsive design suitable for various screen sizes.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Technology Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Built with React and Next.js for a modern, efficient web application.
+- Utilizes the Langchain framework for AI integration.
+- Styled with Tailwind CSS for a sleek, customizable design.
+- Incorporates custom UI components for enhanced user experience.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Purpose
 
-## Learn More
+The Bible AI Explorer aims to:
 
-To learn more about Next.js, take a look at the following resources:
+1. Assist users in deepening their understanding of the Bible and Christian faith.
+2. Provide biblically accurate, well-referenced answers to theological questions.
+3. Encourage personal Bible study, prayer, and church involvement.
+4. Offer a trustworthy, AI-powered resource for exploring Christian teachings.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Future Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+While currently a web application, there are plans to develop an Android app version of the Bible AI Explorer, making this powerful tool even more accessible to users on mobile devices.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
-
->>>>>>> master
->>>>>>>
->>>>>>
->>>>>
->>>>
->>>
->>
+Bible AI Explorer: Illuminating Scripture through Artificial Intelligence
