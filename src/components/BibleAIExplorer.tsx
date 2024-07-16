@@ -14,6 +14,8 @@ import {
 import { Moon, Sun, Book, Brain, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import Autosuggest from "react-autosuggest";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const LoadingAnimation = () => (
 	<div className="flex flex-col items-center mt-2">
@@ -47,37 +49,20 @@ export const FormattedResponse = ({ response }: { response: string }) => {
 		return null; // or a loading placeholder
 	}
 
-	const paragraphs = response.split("\n\n");
 	return (
-		<>
-			{paragraphs.map((paragraph, index) => (
-				<p key={index} className="text-sm font-medium mb-4">
-					<FormattedText text={paragraph} />
-				</p>
-			))}
-		</>
-	);
-};
-
-const FormattedText = ({ text }: { text: string }) => {
-	const bibleReferenceRegex = /(\d?\s?[A-Za-z]+\s\d+:\d+(?:-\d+)?)/g;
-	const parts = text.split(bibleReferenceRegex);
-
-	return (
-		<>
-			{parts.map((part, index) =>
-				part.match(bibleReferenceRegex) ? (
-					<span
-						key={index}
-						className="font-bold text-blue-600 dark:text-blue-400"
-					>
-						{part}
+		<ReactMarkdown
+			remarkPlugins={[remarkGfm]}
+			components={{
+				p: ({ children }) => <p className="mb-4">{children}</p>,
+				strong: ({ children }) => (
+					<span className="font-bold text-blue-600 dark:text-blue-400">
+						{children}
 					</span>
-				) : (
-					<span key={index}>{part}</span>
 				)
-			)}
-		</>
+			}}
+		>
+			{response}
+		</ReactMarkdown>
 	);
 };
 
