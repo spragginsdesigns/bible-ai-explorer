@@ -6,6 +6,7 @@ import { ThemeProvider } from "../components/ThemeProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+	metadataBase: new URL("https://bible-ai-explorer.vercel.app"),
 	title: "Bible AI Explorer",
 	description: "Explore the Bible with AI-powered insights and answers",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "Explorer"],
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "Bible AI Explorer",
 		description: "Explore the Bible with AI-powered insights and answers",
-		url: "https://your-domain.com",
+		url: "https://bible-ai-explorer.vercel.app",
 		siteName: "Bible AI Explorer",
 		images: [
 			{
@@ -55,12 +56,13 @@ export const metadata: Metadata = {
 		],
 		shortcut: "/favicon.ico"
 	},
-	manifest: "/site.webmanifest",
-	viewport: {
-		width: "device-width",
-		initialScale: 1,
-		maximumScale: 1
-	}
+	manifest: "/site.webmanifest"
+};
+
+export const viewport = {
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 1
 };
 
 export default function RootLayout({
