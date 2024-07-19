@@ -1,4 +1,7 @@
 # Bible AI Explorer
+---
+![image](https://github.com/user-attachments/assets/dc4669ea-d3fe-40e0-9210-fef9814acad4)
+
 
 ## Overview
 
