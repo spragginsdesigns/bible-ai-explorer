@@ -2,8 +2,18 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { ChatOpenAI } from "@langchain/openai";
 import { NextResponse } from "next/server";
+//  import axios
 
 export const runtime = "edge";
+
+// Upcoming feature: Add perplexity AI model to search internet if needed.
+interface PerplexityResponse {
+	choices: Array<{
+		message: {
+			content: string;
+		};
+	}>;
+}
 
 export async function POST(req: Request) {
 	try {
