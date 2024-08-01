@@ -272,7 +272,7 @@ const BibleAIExplorer: React.FC = () => {
 				</CardContent>
 				<CardFooter className="text-center text-sm text-gray-500 dark:text-gray-400">
 					Powered by Bible AI Explorer | Use with discernment and in conjunction
-					with personal Bible study
+					with personal Bible study | Created By Austin Spraggins
 				</CardFooter>
 			</Card>
 		</div>
