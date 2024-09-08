@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import ChatHistory from "./ChatHistory";
@@ -13,6 +14,12 @@ const FormattedResponse = dynamic(() => import("./FormattedResponse"), {
 	ssr: false
 });
 
+interface FormattedResponseType {
+	content: string;
+	keyTakeaways: string[];
+	reflectionQuestion: string;
+	biblicalReferences: string[]; // Add this line
+}
 const BibleAIExplorer: React.FC = () => {
 	const [showHistory, setShowHistory] = useState(false);
 	const {

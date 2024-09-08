@@ -1,12 +1,15 @@
-"use client";
-
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 
 interface ClientResponseProps {
-	response: string;
+	response: {
+		content: string;
+		keyTakeaways: string[];
+		reflectionQuestion: string;
+		biblicalReferences: string[]; // Add this line
+	};
 }
 
 const ClientResponse: React.FC<ClientResponseProps> = ({ response }) => (
@@ -18,7 +21,7 @@ const ClientResponse: React.FC<ClientResponseProps> = ({ response }) => (
 			<div className="flex items-center mb-2">
 				<Sparkles className="h-5 w-5 text-yellow-500 mr-2" />
 				<h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-					AI Response
+					Biblical Insight
 				</h3>
 			</div>
 			<FormattedResponse response={response} />

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 	title: "Bible AI Explorer",
 	description: "Explore the Bible with AI-powered insights and answers",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "Explorer"],
-	authors: [{ name: "Your Name", url: "https://your-website.com" }],
+	authors: [{ name: "Austin Spraggins", url: "https://your-website.com" }],
 	creator: "Your Name or Company",
 	publisher: "Your Name or Company",
 	openGraph: {

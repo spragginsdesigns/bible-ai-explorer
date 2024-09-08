@@ -1,23 +1,23 @@
 import React from "react";
+import { Search, Database, Brain, BookOpen } from "lucide-react";
+
+const steps = [
+	{ icon: Search, text: "Searching for relevant verses..." },
+	{ icon: Database, text: "Performing vector similarity search..." },
+	{ icon: Brain, text: "Generating AI response..." },
+	{ icon: BookOpen, text: "Compiling biblical insights..." }
+];
 
 const LoadingAnimation: React.FC = () => (
-	<div className="flex flex-col items-center mt-2">
-		<div className="text-sm mb-2">Referencing Scripture...</div>
-		<div className="relative w-16 h-16">
-			<div className="absolute inset-0 animate-page-turn">
-				<svg viewBox="0 0 24 24" className="w-full h-full">
-					<path
-						fill="currentColor"
-						d="M6 2h12a2 2 0 012 2v16a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2zm0 2v16h12V4H6z"
-					/>
-					<path
-						fill="currentColor"
-						className="animate-page-content"
-						d="M8 6h8v2H8V6zm0 4h8v2H8v-2zm0 4h8v2H8v-2z"
-					/>
-				</svg>
+	<div className="flex flex-col items-center mt-4 space-y-4">
+		{steps.map((step, index) => (
+			<div key={index} className="flex items-center space-x-2">
+				<step.icon className="h-5 w-5 text-blue-500 animate-pulse" />
+				<span className="text-sm text-gray-600 dark:text-gray-300 animate-fade-in">
+					{step.text}
+				</span>
 			</div>
-		</div>
+		))}
 	</div>
 );
 
