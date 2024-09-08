@@ -44,7 +44,9 @@ The Bible AI Explorer aims to:
 
 ## Future Development
 
-While currently a web application, there are plans to develop an Android app version of the Bible AI Explorer, making this powerful tool even more accessible to users on mobile devices.
+While currently a web application, there are plans to develop an Android app version of the Bible AI Explorer, making this powerful tool even more accessible to users on mobile devices, which is in development now:
+![image](https://github.com/user-attachments/assets/167eb7ad-18cb-439f-8e10-7db0dac8d7e2)
+
 
 ---
 

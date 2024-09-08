@@ -44,7 +44,8 @@ const BibleAIExplorer: React.FC = () => {
 					</div>
 				</CardContent>
 				<CardFooter className="text-center text-sm text-gray-500 dark:text-gray-400">
-					Powered by AI - Use responsibly and verify with Scripture
+					Powered by Bible AI Explorer | Use with discernment and in conjunction
+					with personal Bible study
 				</CardFooter>
 			</Card>
 		</div>
