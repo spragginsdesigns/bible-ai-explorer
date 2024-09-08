@@ -7,6 +7,11 @@ import SelectedConversation from "./SelectedConversation";
 import LoadingAnimation from "./LoadingAnimation";
 import { useChat } from "./useChat";
 import Header from "./Header";
+import dynamic from "next/dynamic";
+
+const FormattedResponse = dynamic(() => import("./FormattedResponse"), {
+	ssr: false
+});
 
 const BibleAIExplorer: React.FC = () => {
 	const [showHistory, setShowHistory] = useState(false);
@@ -41,11 +46,12 @@ const BibleAIExplorer: React.FC = () => {
 							isTyping={isTyping}
 						/>
 						{(loading || isTyping) && <LoadingAnimation />}
+						{response && <FormattedResponse response={response} />}
 					</div>
 				</CardContent>
 				<CardFooter className="text-center text-sm text-gray-500 dark:text-gray-400">
-					Powered by Bible AI Explorer | Use with discernment and in conjunction
-					with personal Bible study
+					Powered by AI Models| Use with discernment and in conjunction with
+					personal Bible study
 				</CardFooter>
 			</Card>
 		</div>
