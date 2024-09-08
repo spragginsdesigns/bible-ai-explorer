@@ -23,7 +23,14 @@ const SelectedConversation: React.FC<SelectedConversationProps> = ({
 			<CardContent className="pt-4">
 				<h3 className="text-lg font-semibold mb-2">Selected Conversation</h3>
 				<p className="font-medium">{selectedItem.question}</p>
-				<FormattedResponse response={selectedItem.answer} />
+				<FormattedResponse
+					response={{
+						content: selectedItem.answer,
+						keyTakeaways: [],
+						reflectionQuestion: "",
+						biblicalReferences: []
+					}}
+				/>
 			</CardContent>
 		</Card>
 	);
