@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
-import { FormattedResponse } from "./BibleAIExplorer";
+import FormattedResponse from "./FormattedResponse";
 
 interface ClientResponseProps {
 	response: string;
