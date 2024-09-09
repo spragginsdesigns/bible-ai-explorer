@@ -7,16 +7,21 @@ import { useTheme } from "next-themes";
 interface HeaderProps {
 	showHistory: boolean;
 	setShowHistory: (show: boolean) => void;
+	onClearHistory: () => void; // Add onClearHistory prop
 }
 
-const Header: React.FC<HeaderProps> = ({ showHistory, setShowHistory }) => {
+const Header: React.FC<HeaderProps> = ({
+	showHistory,
+	setShowHistory,
+	onClearHistory
+}) => {
 	const { theme, setTheme } = useTheme();
 
 	return (
 		<CardHeader>
 			<div className="flex justify-between items-center">
 				<CardTitle className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-					Bible AI Explorer
+					VerseMind
 				</CardTitle>
 				<div className="flex space-x-2">
 					<Button
@@ -39,11 +44,12 @@ const Header: React.FC<HeaderProps> = ({ showHistory, setShowHistory }) => {
 					</Button>
 				</div>
 			</div>
-			<CardDescription className="flex items-center justify-center space-x-4 text-gray-600 dark:text-gray-300">
-				<div className="flex items-center space-x-2">
+			<CardDescription className="text-gray-600 dark:text-gray-300">
+				<span className="flex items-center justify-center space-x-2">
 					<Brain className="h-5 w-5 text-green-500" />
-					<span>Ask questions about the Bible</span>
-				</div>
+					<span>Ask your questions about the Bible...</span>
+				</span>
+				<button onClick={onClearHistory}>Clear History</button>
 			</CardDescription>
 		</CardHeader>
 	);

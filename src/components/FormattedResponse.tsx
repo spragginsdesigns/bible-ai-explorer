@@ -43,9 +43,9 @@ const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 					remarkPlugins={[remarkGfm]}
 					components={{
 						p: ({ children }) => (
-							<div className="mb-4 text-gray-700 dark:text-gray-300">
+							<p className="mb-4 text-gray-700 dark:text-gray-300">
 								{children}
-							</div>
+							</p>
 						),
 						h1: ({ children }) => (
 							<h1 className="text-2xl font-bold mb-4 text-blue-800 dark:text-blue-300">
@@ -222,29 +222,5 @@ const markdownComponents = {
 		</span>
 	)
 };
-
-function parseResponse(response: string) {
-	const sections = response.split(/\d+\.\s+/);
-
-	return {
-		content: sections[1]?.replace("Content:", "").trim() || "",
-		keyTakeaways:
-			sections[2]
-				?.replace("Key Takeaways:", "")
-				.trim()
-				.split("-")
-				.filter(Boolean)
-				.map((item) => item.trim()) || [],
-		reflectionQuestion:
-			sections[3]?.replace("Reflection Question:", "").trim() || "",
-		biblicalReferences:
-			sections[4]
-				?.replace("Biblical References:", "")
-				.trim()
-				.split("-")
-				.filter(Boolean)
-				.map((item) => item.trim()) || []
-	};
-}
 
 export default FormattedResponse;

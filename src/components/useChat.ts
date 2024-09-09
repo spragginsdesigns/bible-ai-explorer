@@ -14,8 +14,8 @@ interface HistoryItem {
 	selected: boolean;
 }
 
-export const useChat = () => {
-	const [query, setQuery] = useState<string>("");
+export const useChat = (initialQuery: string = "") => {
+	const [query, setQuery] = useState<string>(initialQuery);
 	const [response, setResponse] = useState<FormattedResponseType | null>(null);
 	const [loading, setLoading] = useState<boolean>(false);
 	const [isTyping, setIsTyping] = useState<boolean>(false);
@@ -100,6 +100,10 @@ export const useChat = () => {
 		);
 	};
 
+	const clearHistory = () => {
+		setHistory([]);
+	};
+
 	return {
 		query,
 		setQuery,
@@ -108,7 +112,8 @@ export const useChat = () => {
 		isTyping,
 		history,
 		handleSubmit,
-		selectHistoryItem
+		selectHistoryItem,
+		clearHistory
 	};
 };
 

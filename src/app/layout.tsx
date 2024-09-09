@@ -7,12 +7,14 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://bible-ai-explorer.vercel.app"),
-	title: "Bible AI Explorer",
+	title: "VerseMind",
 	description: "Explore the Bible with AI-powered insights and answers",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "Explorer"],
-	authors: [{ name: "Austin Spraggins", url: "https://your-website.com" }],
-	creator: "Your Name or Company",
-	publisher: "Your Name or Company",
+	authors: [
+		{ name: "Austin Spraggins", url: "https://bible-ai-explorer.vercel.app" }
+	],
+	creator: "Austin Spraggins",
+	publisher: "Spraggins Designs",
 	openGraph: {
 		title: "Bible AI Explorer",
 		description: "Explore the Bible with AI-powered insights and answers",
@@ -23,7 +25,7 @@ export const metadata: Metadata = {
 				url: "/android-chrome-512x512.png",
 				width: 512,
 				height: 512,
-				alt: "Bible AI Explorer Logo"
+				alt: "Verse Mind Logo"
 			}
 		],
 		locale: "en_US",
@@ -31,9 +33,9 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Bible AI Explorer",
+		title: "VerseMind",
 		description: "Explore the Bible with AI-powered insights and answers",
-		creator: "@yourtwitter",
+		creator: "@spragginsdesign",
 		images: ["/android-chrome-512x512.png"]
 	},
 	icons: {
