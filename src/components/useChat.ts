@@ -53,7 +53,10 @@ export const useChat = (initialQuery: string = "") => {
 				throw new Error("Invalid response format");
 			}
 
+			console.log("Raw response from API:", data.response);
+
 			const parsedResponse = parseResponse(data.response);
+			console.log("Parsed response:", parsedResponse);
 
 			setIsTyping(true);
 			let i = 0;
@@ -118,12 +121,14 @@ export const useChat = (initialQuery: string = "") => {
 };
 
 function parseResponse(response: string): FormattedResponseType {
+	console.log("Parsing response:", response);
+
 	const contentMatch = response.match(/Content:([\s\S]*?)(?=Key Takeaways:|$)/i);
 	const keyTakeawaysMatch = response.match(/Key Takeaways:([\s\S]*?)(?=Reflection Question:|$)/i);
 	const reflectionQuestionMatch = response.match(/Reflection Question:([\s\S]*?)(?=Biblical References:|$)/i);
 	const biblicalReferencesMatch = response.match(/Biblical References:([\s\S]*?)$/i);
 
-	return {
+	const parsed: FormattedResponseType = {
 		content: contentMatch ? contentMatch[1].trim() : "",
 		keyTakeaways: keyTakeawaysMatch
 			? keyTakeawaysMatch[1]
@@ -139,4 +144,7 @@ function parseResponse(response: string): FormattedResponseType {
 					.map((item) => item.trim())
 			: [],
 	};
+
+	console.log("Parsed response:", parsed);
+	return parsed;
 }

@@ -49,7 +49,7 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 	useEffect(
 		() => {
 			if (response) {
-				console.log("Parsed Response:", response);
+				console.log("Final formatted response in BibleAIExplorer:", response);
 			}
 		},
 		[response]

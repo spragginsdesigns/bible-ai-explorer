@@ -32,7 +32,7 @@ const model = new ChatOpenAI({
 
 const embeddings = new OpenAIEmbeddings({
   openAIApiKey: process.env.OPENAI_API_KEY,
-  modelName: "text-embedding-3-large", // Changed to large model for 3072 dimensions
+  modelName: "text-embedding-3-large",
   timeout: 30000,
 });
 
@@ -85,6 +85,7 @@ export async function POST(req: Request): Promise<NextResponse> {
 		// Check cache first
 		const cachedResponse = cache.get(question);
 		if (cachedResponse) {
+			console.log("Returning cached response:", cachedResponse);
 			return NextResponse.json({ response: cachedResponse });
 		}
 
@@ -101,6 +102,8 @@ export async function POST(req: Request): Promise<NextResponse> {
 		if (typeof result !== "string") {
 			throw new Error("Unexpected response format from OpenAI");
 		}
+
+		console.log("Raw API response:", result);
 
 		// Cache the result
 		cache.set(question, result);
@@ -127,7 +130,7 @@ async function performSimilaritySearch(query: string): Promise<string> {
 			embeddings.embedQuery(query)
 		);
 
-		if (queryVector.length !== 3072) { // Changed to expect 3072 dimensions
+		if (queryVector.length !== 3072) {
 			throw new Error(
 				`Expected vector of length 3072, but got ${queryVector.length}`
 			);
@@ -160,6 +163,6 @@ async function performSimilaritySearch(query: string): Promise<string> {
 			.join("\n");
 	} catch (error) {
 		console.error("Error performing similarity search:", error);
-		throw error; // Re-throw the error to be caught by the retry mechanism
+		throw error;
 	}
 }
