@@ -34,18 +34,19 @@ const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 			</div>
 
 			{/* Content Section */}
-			<div className="mb-8">
-				<h3 className="text-2xl font-semibold mb-4 text-indigo-600 dark:text-indigo-400 flex items-center">
-					<ChevronRight className="w-6 h-6 mr-2 text-indigo-500" />
-					Content
-				</h3>
-				<ReactMarkdown
-					remarkPlugins={[remarkGfm]}
-					components={markdownComponents}
-				>
-					{parsedResponse.content}
-				</ReactMarkdown>
-			</div>
+			{parsedResponse.content &&
+				<div className="mb-8">
+					<h3 className="text-2xl font-semibold mb-4 text-indigo-600 dark:text-indigo-400 flex items-center">
+						<ChevronRight className="w-6 h-6 mr-2 text-indigo-500" />
+						Content
+					</h3>
+					<ReactMarkdown
+						remarkPlugins={[remarkGfm]}
+						components={markdownComponents}
+					>
+						{parsedResponse.content}
+					</ReactMarkdown>
+				</div>}
 
 			{/* Key Takeaways Section */}
 			{parsedResponse.keyTakeaways.length > 0 &&
@@ -67,16 +68,16 @@ const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 				</div>}
 
 			{/* Reflection Question Section */}
-			<div className="mb-8 bg-yellow-50 dark:bg-yellow-900 rounded-lg p-4 border-l-4 border-yellow-500">
-				<h3 className="text-xl font-semibold text-yellow-700 dark:text-yellow-300 mb-2 flex items-center">
-					<Lightbulb className="w-6 h-6 mr-2" />
-					Reflection Question
-				</h3>
-				<div className="text-gray-700 dark:text-gray-300 italic">
-					{parsedResponse.reflectionQuestion ||
-						"No reflection question provided."}
-				</div>
-			</div>
+			{parsedResponse.reflectionQuestion &&
+				<div className="mb-8 bg-yellow-50 dark:bg-yellow-900 rounded-lg p-4 border-l-4 border-yellow-500">
+					<h3 className="text-xl font-semibold text-yellow-700 dark:text-yellow-300 mb-2 flex items-center">
+						<Lightbulb className="w-6 h-6 mr-2" />
+						Reflection Question
+					</h3>
+					<div className="text-gray-700 dark:text-gray-300 italic">
+						{parsedResponse.reflectionQuestion}
+					</div>
+				</div>}
 
 			{/* Biblical References Section */}
 			{parsedResponse.biblicalReferences.length > 0 &&

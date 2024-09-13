@@ -123,28 +123,36 @@ export const useChat = (initialQuery: string = "") => {
 function parseResponse(response: string): FormattedResponseType {
 	console.log("Parsing response:", response);
 
-	const contentMatch = response.match(/Content:([\s\S]*?)(?=Key Takeaways:|$)/i);
-	const keyTakeawaysMatch = response.match(/Key Takeaways:([\s\S]*?)(?=Reflection Question:|$)/i);
-	const reflectionQuestionMatch = response.match(/Reflection Question:([\s\S]*?)(?=Biblical References:|$)/i);
-	const biblicalReferencesMatch = response.match(/Biblical References:([\s\S]*?)$/i);
-
-	const parsed: FormattedResponseType = {
-		content: contentMatch ? contentMatch[1].trim() : "",
-		keyTakeaways: keyTakeawaysMatch
-			? keyTakeawaysMatch[1]
-					.split("-")
-					.filter(Boolean)
-					.map((item) => item.trim())
-			: [],
-		reflectionQuestion: reflectionQuestionMatch ? reflectionQuestionMatch[1].trim() : "",
-		biblicalReferences: biblicalReferencesMatch
-			? biblicalReferencesMatch[1]
-					.split("-")
-					.filter(Boolean)
-					.map((item) => item.trim())
-			: [],
+	const sections = response.split(/\d+\.\s+\*\*([^:]+):\*\*/);
+	const parsedResponse: FormattedResponseType = {
+		content: "",
+		keyTakeaways: [],
+		reflectionQuestion: "",
+		biblicalReferences: []
 	};
 
-	console.log("Parsed response:", parsed);
-	return parsed;
+	for (let i = 1; i < sections.length; i += 2) {
+		const sectionTitle = sections[i].trim().toLowerCase();
+		const sectionContent = sections[i + 1].trim();
+
+		switch (sectionTitle) {
+			case "content":
+				parsedResponse.content = sectionContent;
+				break;
+			case "reflection question":
+				parsedResponse.reflectionQuestion = sectionContent;
+				break;
+			case "biblical references":
+				parsedResponse.biblicalReferences = sectionContent.split("\n").map(ref => ref.trim()).filter(Boolean);
+				break;
+			default:
+				// Assume any other section is part of key takeaways
+				const takeaways = sectionContent.split("-").map(item => item.trim()).filter(Boolean);
+				parsedResponse.keyTakeaways.push(...takeaways);
+				break;
+		}
+	}
+
+	console.log("Parsed response:", parsedResponse);
+	return parsedResponse;
 }
