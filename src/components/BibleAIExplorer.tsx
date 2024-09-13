@@ -1,26 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import ChatHistory from "./ChatHistory";
 import QuestionInput from "./QuestionInput";
 import SelectedConversation from "./SelectedConversation";
-import LoadingAnimation from "./LoadingAnimation";
 import { useChat } from "./useChat";
 import Header from "./Header";
-import dynamic from "next/dynamic";
 import Link from "next/link";
-
-const FormattedResponse = dynamic(() => import("./FormattedResponse"), {
-	ssr: false
-});
-
-interface FormattedResponseType {
-	content: string;
-	keyTakeaways: string[];
-	reflectionQuestion: string;
-	biblicalReferences: string[];
-}
+import ClientResponse from "./ClientResponse";
 
 interface BibleAIExplorerProps {
 	initialQuery?: string;
@@ -30,6 +18,7 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 	initialQuery = ""
 }) => {
 	const [showHistory, setShowHistory] = useState(false);
+	const [timeoutError, setTimeoutError] = useState(false);
 	const {
 		query,
 		setQuery,
@@ -39,8 +28,29 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 		history,
 		handleSubmit,
 		selectHistoryItem,
-		clearHistory
+		clearHistory,
+		error: apiError
 	} = useChat(initialQuery);
+
+	useEffect(
+		() => {
+			let timer: NodeJS.Timeout;
+			if (loading) {
+				setTimeoutError(false);
+				timer = setTimeout(() => {
+					setTimeoutError(true);
+				}, 30000); // 30 seconds timeout
+			}
+			return () => clearTimeout(timer);
+		},
+		[loading]
+	);
+
+	const error = apiError
+		? apiError
+		: timeoutError
+			? "The request is taking longer than expected. Please wait or try again later."
+			: null;
 
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center p-4">
@@ -48,7 +58,7 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 				<Header
 					showHistory={showHistory}
 					setShowHistory={setShowHistory}
-					onClearHistory={clearHistory} // Pass clearHistory as onClearHistory prop
+					onClearHistory={clearHistory}
 				/>
 				<CardContent>
 					<div className="flex flex-col space-y-4">
@@ -65,8 +75,11 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 							loading={loading}
 							isTyping={isTyping}
 						/>
-						{(loading || isTyping) && <LoadingAnimation />}
-						{response && <FormattedResponse response={response} />}
+						<ClientResponse
+							response={response}
+							loading={loading || isTyping}
+							error={error}
+						/>
 					</div>
 				</CardContent>
 				<CardFooter className="text-center text-sm text-gray-500 dark:text-gray-400">

@@ -20,6 +20,7 @@ export const useChat = (initialQuery: string = "") => {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [isTyping, setIsTyping] = useState<boolean>(false);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
+	const [error, setError] = useState<string | null>(null);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -27,6 +28,7 @@ export const useChat = (initialQuery: string = "") => {
 
 		setLoading(true);
 		setResponse(null);
+		setError(null);
 
 		try {
 			const response = await fetch("/api/ask-question", {
@@ -42,6 +44,10 @@ export const useChat = (initialQuery: string = "") => {
 			}
 
 			const data = await response.json();
+
+			if (data.error) {
+				throw new Error(data.error);
+			}
 
 			if (!data.response || typeof data.response !== "string") {
 				throw new Error("Invalid response format");
@@ -77,14 +83,7 @@ export const useChat = (initialQuery: string = "") => {
 			}, 10);
 		} catch (error) {
 			console.error("Error:", error);
-			setResponse({
-				content: `An error occurred while processing your request: ${
-					error instanceof Error ? error.message : "Unknown error"
-				}`,
-				keyTakeaways: [],
-				reflectionQuestion: "",
-				biblicalReferences: []
-			});
+			setError(error instanceof Error ? error.message : "An unknown error occurred");
 		} finally {
 			setLoading(false);
 			setQuery("");
@@ -113,7 +112,8 @@ export const useChat = (initialQuery: string = "") => {
 		history,
 		handleSubmit,
 		selectHistoryItem,
-		clearHistory
+		clearHistory,
+		error
 	};
 };
 
