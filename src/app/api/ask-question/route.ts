@@ -51,7 +51,9 @@ Please provide your response in the following format:
    - First main point from your answer
    - Second main point from your answer
 
-3. Biblical References:
+3. Reflection Question: End with a thought-provoking question related to the topic.
+
+4. Biblical References:
    - Most relevant Bible reference
 
 Question: {question}`

@@ -118,24 +118,25 @@ export const useChat = (initialQuery: string = "") => {
 };
 
 function parseResponse(response: string): FormattedResponseType {
-	const sections = response.split(/\d+\.\s+/);
+	const contentMatch = response.match(/Content:([\s\S]*?)(?=Key Takeaways:|$)/i);
+	const keyTakeawaysMatch = response.match(/Key Takeaways:([\s\S]*?)(?=Reflection Question:|$)/i);
+	const reflectionQuestionMatch = response.match(/Reflection Question:([\s\S]*?)(?=Biblical References:|$)/i);
+	const biblicalReferencesMatch = response.match(/Biblical References:([\s\S]*?)$/i);
+
 	return {
-		content: sections[1]?.replace("Content:", "").trim() || "",
-		keyTakeaways:
-			sections[2]
-				?.replace("Key Takeaways:", "")
-				.trim()
-				.split("-")
-				.filter(Boolean)
-				.map((item) => item.trim()) || [],
-		reflectionQuestion:
-			sections[3]?.replace("Reflection Question:", "").trim() || "",
-		biblicalReferences:
-			sections[4]
-				?.replace("Biblical References:", "")
-				.trim()
-				.split("-")
-				.filter(Boolean)
-				.map((item) => item.trim()) || []
+		content: contentMatch ? contentMatch[1].trim() : "",
+		keyTakeaways: keyTakeawaysMatch
+			? keyTakeawaysMatch[1]
+					.split("-")
+					.filter(Boolean)
+					.map((item) => item.trim())
+			: [],
+		reflectionQuestion: reflectionQuestionMatch ? reflectionQuestionMatch[1].trim() : "",
+		biblicalReferences: biblicalReferencesMatch
+			? biblicalReferencesMatch[1]
+					.split("-")
+					.filter(Boolean)
+					.map((item) => item.trim())
+			: [],
 	};
 }

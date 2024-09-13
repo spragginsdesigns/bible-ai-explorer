@@ -46,6 +46,15 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 		[loading]
 	);
 
+	useEffect(
+		() => {
+			if (response) {
+				console.log("Parsed Response:", response);
+			}
+		},
+		[response]
+	);
+
 	const error = apiError
 		? apiError
 		: timeoutError
