@@ -9,7 +9,7 @@ Bible AI Explorer is an innovative web application that combines the power of ar
 
 ## Features
 
-- **AI-Powered Biblical Insights**: Utilizes advanced language models (GPT-4) to provide in-depth answers to Bible-related questions.
+- **AI-Powered Biblical Insights**: Utilizes advanced language models (GPT-4o) to provide in-depth answers to Bible-related questions.
 - **Strict Biblical Focus**: The AI assistant is programmed to answer questions exclusively about the Bible, Christianity, and directly related theological, historical, or cultural topics.
 - **Scriptural References**: Every response includes multiple Bible references, ensuring answers are grounded in scripture.
 - **Multi-Translation Support**: Quotes scripture from various reputable translations (NIV, KJV, ESV, NASB), always specifying the version used.
