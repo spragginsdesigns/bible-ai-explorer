@@ -14,6 +14,7 @@ export const useChat = (initialQuery: string = "") => {
 	const [isTyping, setIsTyping] = useState<boolean>(false);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [error, setError] = useState<string | null>(null);
+	const [tavilyResults, setTavilyResults] = useState<any>(null);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -22,8 +23,28 @@ export const useChat = (initialQuery: string = "") => {
 		setLoading(true);
 		setResponse(null);
 		setError(null);
+		setTavilyResults(null);
 
 		try {
+			// Perform Tavily search
+			const tavilyResponse = await fetch("/api/tavily-search", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json"
+				},
+				body: JSON.stringify({ query })
+			});
+
+			if (!tavilyResponse.ok) {
+				throw new Error(
+					`Tavily API response was not ok: ${tavilyResponse.status}`
+				);
+			}
+
+			const tavilyData = await tavilyResponse.json();
+			setTavilyResults(tavilyData.results);
+
+			// Existing API call for Bible AI
 			const response = await fetch("/api/ask-question", {
 				method: "POST",
 				headers: {
@@ -71,7 +92,9 @@ export const useChat = (initialQuery: string = "") => {
 			}, 10);
 		} catch (error) {
 			console.error("Error:", error);
-			setError(error instanceof Error ? error.message : "An unknown error occurred");
+			setError(
+				error instanceof Error ? error.message : "An unknown error occurred"
+			);
 		} finally {
 			setLoading(false);
 			setQuery("");
@@ -101,6 +124,7 @@ export const useChat = (initialQuery: string = "") => {
 		handleSubmit,
 		selectHistoryItem,
 		clearHistory,
-		error
+		error,
+		tavilyResults
 	};
 };
