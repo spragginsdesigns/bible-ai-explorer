@@ -4,12 +4,7 @@ import { Sparkles, AlertCircle } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 
 interface ClientResponseProps {
-	response: {
-		content: string;
-		keyTakeaways: string[];
-		reflectionQuestion: string;
-		biblicalReferences: string[];
-	} | null;
+	response: string | null;
 	loading: boolean;
 	error: string | null;
 }
@@ -68,12 +63,6 @@ const ClientResponse: React.FC<ClientResponseProps> = ({
 			className="mt-4 animate-fadeIn bg-gray-50 dark:bg-gray-700"
 		>
 			<CardContent className="pt-4">
-				<div className="flex items-center mb-2">
-					<Sparkles className="h-5 w-5 text-yellow-500 mr-2" />
-					<h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-						Biblical Insight
-					</h3>
-				</div>
 				<FormattedResponse response={response} />
 			</CardContent>
 		</Card>
