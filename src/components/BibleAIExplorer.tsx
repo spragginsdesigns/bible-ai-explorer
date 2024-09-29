@@ -95,14 +95,41 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 					</div>
 				</CardContent>
 				<CardFooter className="text-center text-sm text-gray-500 dark:text-gray-400">
-					<div className="w-full">
-						Powered by AI Models | Use with discernment and in conjunction with
-						personal Bible study | Created by{" "}
-						<Link href="https://www.spragginsdesigns.com">
-							<span className="text-blue-500 hover:text-blue-600">
-								Austin Spraggins
-							</span>
-						</Link>
+					<div className="w-full flex flex-col items-center space-y-4 text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+						<div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg shadow-inner">
+							<h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
+								How VerseMind Works
+							</h4>
+							<p className="mb-2">
+								VerseMind utilizes advanced AI and database technologies to
+								provide insightful biblical answers:
+							</p>
+							<ul className="list-disc list-inside text-left space-y-1">
+								<li>
+									Vector database (AstraDB) storing the entire KJV Bible for
+									efficient retrieval
+								</li>
+								<li>AI-powered similarity search to find relevant verses</li>
+								<li>OpenAI Model for generating responses</li>
+								<li>
+									Integration with Tavily for additional context from trusted
+									sources
+								</li>
+							</ul>
+						</div>
+						<p>
+							Powered by AI Models trained on the KJV Bible. Please use with
+							discernment in conjunction with personal Bible study
+						</p>
+						<p>
+							Created by{" "}
+							<Link href="https://www.spragginsdesigns.com">
+								<span className="text-blue-500 hover:text-blue-600">
+									Austin Spraggins
+								</span>
+							</Link>{" "}
+							and Emmanuel Sanchez
+						</p>
 					</div>
 				</CardFooter>
 			</Card>
