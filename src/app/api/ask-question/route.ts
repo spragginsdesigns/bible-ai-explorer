@@ -72,21 +72,30 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     // Perform similarity search to retrieve relevant Bible verses
-    const similarVerses = await retryWithExponentialBackoff(() => performSimilaritySearch(question));
+    const searchResult = await retryWithExponentialBackoff(() => performSimilaritySearch(question));
 
     // Prepare the prompt with similar verses and the user's question
     const messages = await promptTemplate.formatMessages({
-      similarVerses,
+      similarVerses: searchResult.formatted,
       question,
     });
 
-    // Stream the response
+    // Stream the response, prefixed with source metadata
     const stream = await model.stream(messages);
 
     const encoder = new TextEncoder();
+    const sourcesPayload = JSON.stringify({
+      verses: searchResult.verses,
+      averageSimilarity: searchResult.averageSimilarity,
+    });
+    const sourcesMarker = `<!--SOURCES:${sourcesPayload}-->`;
+
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
+          // Send sources metadata first
+          controller.enqueue(encoder.encode(sourcesMarker));
+
           for await (const chunk of stream) {
             const text = typeof chunk.content === 'string' ? chunk.content : '';
             if (text) {
@@ -123,8 +132,39 @@ export async function POST(req: Request): Promise<Response> {
   }
 }
 
+export interface RetrievedVerse {
+  reference: string;
+  similarity: number;
+}
+
+// Standard book number to name mapping (matches common Bible database numbering)
+const BOOK_NAMES: Record<string, string> = {
+  "1": "Genesis", "2": "Exodus", "3": "Leviticus", "4": "Numbers", "5": "Deuteronomy",
+  "6": "Joshua", "7": "Judges", "8": "Ruth", "9": "1 Samuel", "10": "2 Samuel",
+  "11": "1 Kings", "12": "2 Kings", "13": "1 Chronicles", "14": "2 Chronicles",
+  "15": "Ezra", "16": "Nehemiah", "17": "Esther", "18": "Job", "19": "Psalms",
+  "20": "Proverbs", "21": "Ecclesiastes", "22": "Song of Solomon", "23": "Isaiah",
+  "24": "Jeremiah", "25": "Lamentations", "26": "Ezekiel", "27": "Daniel",
+  "28": "Hosea", "29": "Joel", "30": "Amos", "31": "Obadiah", "32": "Jonah",
+  "33": "Micah", "34": "Nahum", "35": "Habakkuk", "36": "Zephaniah", "37": "Haggai",
+  "38": "Zechariah", "39": "Malachi",
+  "40": "Matthew", "41": "Mark", "42": "Luke", "43": "John", "44": "Acts",
+  "45": "Romans", "46": "1 Corinthians", "47": "2 Corinthians", "48": "Galatians",
+  "49": "Ephesians", "50": "Philippians", "51": "Colossians",
+  "52": "1 Thessalonians", "53": "2 Thessalonians", "54": "1 Timothy", "55": "2 Timothy",
+  "56": "Titus", "57": "Philemon", "58": "Hebrews", "59": "James",
+  "60": "1 Peter", "61": "2 Peter", "62": "1 John", "63": "2 John", "64": "3 John",
+  "65": "Jude", "66": "Revelation",
+};
+
+interface SimilaritySearchResult {
+  formatted: string;
+  verses: RetrievedVerse[];
+  averageSimilarity: number;
+}
+
 // Function to perform similarity search and retrieve relevant Bible verses
-async function performSimilaritySearch(query: string): Promise<string> {
+async function performSimilaritySearch(query: string): Promise<SimilaritySearchResult> {
   try {
     const queryVector = await retryWithExponentialBackoff(() =>
       embeddings.embedQuery(query)
@@ -153,7 +193,7 @@ async function performSimilaritySearch(query: string): Promise<string> {
               $vector: queryVector
             },
             limit: 5,
-            projection: { v: 1 },
+            projection: { b: 1, c: 1, v: 1 },
             includeSimilarity: true
           }
         )
@@ -161,24 +201,26 @@ async function performSimilaritySearch(query: string): Promise<string> {
     );
 
     if (!results || results.length === 0) {
-      return "No relevant Bible verses found.";
+      return { formatted: "No relevant Bible verses found.", verses: [], averageSimilarity: 0 };
     }
 
+    const verses: RetrievedVerse[] = [];
     const formattedResults = results
       .map((doc: any) => {
-        const verse = doc.v;
-        const similarity = doc.$similarity;
-        if (typeof verse !== 'string') {
-          return '';
-        }
-        return similarity !== undefined
-          ? `${verse} (Similarity: ${similarity.toFixed(2)})`
-          : verse;
+        const bookName = BOOK_NAMES[String(doc.b)] ?? `Book ${doc.b}`;
+        const ref = `${bookName} ${doc.c}:${doc.v}`;
+        const similarity = doc.$similarity ?? 0;
+        verses.push({ reference: ref, similarity });
+        return `${ref} (Similarity: ${similarity.toFixed(2)})`;
       })
       .filter(Boolean)
       .join("\n");
 
-    return formattedResults;
+    const averageSimilarity = verses.length > 0
+      ? verses.reduce((sum, v) => sum + v.similarity, 0) / verses.length
+      : 0;
+
+    return { formatted: formattedResults, verses, averageSimilarity };
   } catch (error) {
     console.error("Error performing similarity search:", error);
     throw error;

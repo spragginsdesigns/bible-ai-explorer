@@ -2,11 +2,19 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
+export interface RetrievedVerse {
+	reference: string;
+	similarity: number;
+}
+
 export interface ChatMessage {
 	id: string;
 	role: "user" | "assistant";
 	content: string;
 	tavilyResults?: TavilyResult[];
+	retrievedVerses?: RetrievedVerse[];
+	averageSimilarity?: number;
+	followUps?: string[];
 	isStreaming?: boolean;
 	timestamp: number;
 }
@@ -199,18 +207,57 @@ export const useChat = () => {
 
 					const decoder = new TextDecoder();
 					let accumulated = "";
+					let sourcesParsed = false;
 
 					while (true) {
 						const { done, value } = await reader.read();
 						if (done) break;
 						accumulated += decoder.decode(value, { stream: true });
-						updateAssistant((m) => ({ ...m, content: accumulated }));
+
+						// Parse sources marker from stream prefix
+						if (!sourcesParsed && accumulated.includes("-->")) {
+							const markerMatch = accumulated.match(/<!--SOURCES:(.*?)-->/);
+							if (markerMatch) {
+								try {
+									const sourcesData = JSON.parse(markerMatch[1]);
+									updateAssistant((m) => ({
+										...m,
+										retrievedVerses: sourcesData.verses,
+										averageSimilarity: sourcesData.averageSimilarity,
+									}));
+								} catch {
+									// Ignore parse errors
+								}
+								accumulated = accumulated.replace(/<!--SOURCES:.*?-->/, "");
+								sourcesParsed = true;
+							}
+						}
+
+						const displayContent = sourcesParsed
+							? accumulated
+							: accumulated.replace(/<!--SOURCES:.*/, "");
+						updateAssistant((m) => ({ ...m, content: displayContent }));
 					}
 
 					accumulated += decoder.decode();
-					updateAssistant((m) => ({ ...m, content: accumulated }));
+					accumulated = accumulated.replace(/<!--SOURCES:.*?-->/, "");
 
-					return accumulated;
+					// Parse follow-up questions from completed response
+					const followUpRegex = /\[FOLLOWUP\]\s*(.+)/g;
+					const followUps: string[] = [];
+					let match;
+					while ((match = followUpRegex.exec(accumulated)) !== null) {
+						followUps.push(match[1].trim());
+					}
+					const cleanContent = accumulated.replace(/\[FOLLOWUP\]\s*.+/g, "").trimEnd();
+
+					updateAssistant((m) => ({
+						...m,
+						content: cleanContent,
+						...(followUps.length > 0 ? { followUps } : {}),
+					}));
+
+					return cleanContent;
 				});
 
 				const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);

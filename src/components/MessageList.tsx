@@ -6,9 +6,10 @@ import type { ChatMessage as ChatMessageType } from "./useChat";
 
 interface MessageListProps {
 	messages: ChatMessageType[];
+	onFollowUp?: (question: string) => void;
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp }) => {
 	const bottomRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -19,7 +20,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages }) => {
 		<div className="flex-1 overflow-y-auto custom-scrollbar">
 			<div className="max-w-3xl mx-auto px-4 py-6">
 				{messages.map((msg) => (
-					<ChatMessage key={msg.id} message={msg} />
+					<ChatMessage key={msg.id} message={msg} onFollowUp={onFollowUp} />
 				))}
 				<div ref={bottomRef} />
 			</div>
