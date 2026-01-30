@@ -1,156 +1,266 @@
-import { useState, useRef, useCallback } from "react";
+"use client";
 
-interface HistoryItem {
+import { useState, useRef, useCallback, useEffect } from "react";
+
+export interface ChatMessage {
 	id: string;
-	question: string;
-	answer: string;
-	selected: boolean;
+	role: "user" | "assistant";
+	content: string;
+	tavilyResults?: TavilyResult[];
+	isStreaming?: boolean;
+	timestamp: number;
 }
 
-export const useChat = (initialQuery: string = "") => {
-	const [query, setQuery] = useState<string>(initialQuery);
-	const [response, setResponse] = useState<string | null>(null);
-	const [loading, setLoading] = useState<boolean>(false);
-	const [isStreaming, setIsStreaming] = useState<boolean>(false);
-	const [history, setHistory] = useState<HistoryItem[]>([]);
+export interface TavilyResult {
+	title: string;
+	content: string;
+	url: string;
+}
+
+export interface Conversation {
+	id: string;
+	title: string;
+	messages: ChatMessage[];
+	createdAt: number;
+}
+
+const STORAGE_KEY = "versemind-conversations";
+
+function loadConversations(): Conversation[] {
+	if (typeof window === "undefined") return [];
+	try {
+		const raw = localStorage.getItem(STORAGE_KEY);
+		if (!raw) return [];
+		return JSON.parse(raw);
+	} catch {
+		return [];
+	}
+}
+
+function saveConversations(convos: Conversation[]) {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(STORAGE_KEY, JSON.stringify(convos));
+}
+
+export const useChat = () => {
+	const [conversations, setConversations] = useState<Conversation[]>([]);
+	const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+	const [isStreaming, setIsStreaming] = useState(false);
+	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [tavilyResults, setTavilyResults] = useState<any>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const initialized = useRef(false);
 
-	const handleSubmit = useCallback(async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!query.trim()) return;
+	// Load from localStorage on mount
+	useEffect(() => {
+		if (initialized.current) return;
+		initialized.current = true;
+		const loaded = loadConversations();
+		setConversations(loaded);
+	}, []);
 
-		// Abort any in-flight request
-		if (abortControllerRef.current) {
-			abortControllerRef.current.abort();
+	// Persist on change
+	useEffect(() => {
+		if (initialized.current) {
+			saveConversations(conversations);
 		}
-		const abortController = new AbortController();
-		abortControllerRef.current = abortController;
+	}, [conversations]);
 
-		setLoading(true);
-		setResponse(null);
+	const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
+	const messages = activeConversation?.messages ?? [];
+
+	const newConversation = useCallback(() => {
+		setActiveConversationId(null);
 		setError(null);
-		setTavilyResults(null);
+	}, []);
 
-		const currentQuery = query;
-		setQuery("");
+	const switchConversation = useCallback((id: string) => {
+		setActiveConversationId(id);
+		setError(null);
+	}, []);
 
-		try {
-			// Run Tavily and Bible AI in parallel
-			const tavilyPromise = fetch("/api/tavily-search", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ query: currentQuery }),
-				signal: abortController.signal,
-			}).then(async (res) => {
-				if (!res.ok) throw new Error(`Tavily API error: ${res.status}`);
-				const data = await res.json();
-				setTavilyResults(data.results);
-			});
+	const deleteConversation = useCallback(
+		(id: string) => {
+			setConversations((prev) => prev.filter((c) => c.id !== id));
+			if (activeConversationId === id) {
+				setActiveConversationId(null);
+			}
+		},
+		[activeConversationId]
+	);
 
-			const bibleAiPromise = fetch("/api/ask-question", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ question: currentQuery }),
-				signal: abortController.signal,
-			}).then(async (res) => {
-				if (!res.ok) {
-					// Try to parse error JSON
-					const contentType = res.headers.get("content-type");
-					if (contentType?.includes("application/json")) {
-						const data = await res.json();
-						throw new Error(data.error || `API error: ${res.status}`);
+	const clearAllConversations = useCallback(() => {
+		setConversations([]);
+		setActiveConversationId(null);
+	}, []);
+
+	const sendMessage = useCallback(
+		async (text: string) => {
+			if (!text.trim()) return;
+
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+			}
+			const abortController = new AbortController();
+			abortControllerRef.current = abortController;
+
+			setError(null);
+			setLoading(true);
+
+			const userMsg: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: "user",
+				content: text,
+				timestamp: Date.now(),
+			};
+
+			const assistantMsg: ChatMessage = {
+				id: crypto.randomUUID(),
+				role: "assistant",
+				content: "",
+				isStreaming: true,
+				timestamp: Date.now(),
+			};
+
+			let convoId = activeConversationId;
+
+			if (!convoId) {
+				// Create new conversation
+				convoId = crypto.randomUUID();
+				const newConvo: Conversation = {
+					id: convoId,
+					title: text.slice(0, 60),
+					messages: [userMsg, assistantMsg],
+					createdAt: Date.now(),
+				};
+				setConversations((prev) => [newConvo, ...prev]);
+				setActiveConversationId(convoId);
+			} else {
+				// Add to existing conversation
+				setConversations((prev) =>
+					prev.map((c) =>
+						c.id === convoId
+							? { ...c, messages: [...c.messages, userMsg, assistantMsg] }
+							: c
+					)
+				);
+			}
+
+			const currentConvoId = convoId;
+
+			const updateAssistant = (updater: (msg: ChatMessage) => ChatMessage) => {
+				setConversations((prev) =>
+					prev.map((c) =>
+						c.id === currentConvoId
+							? {
+									...c,
+									messages: c.messages.map((m) =>
+										m.id === assistantMsg.id ? updater(m) : m
+									),
+								}
+							: c
+					)
+				);
+			};
+
+			try {
+				// Run Tavily and Bible AI in parallel
+				const tavilyPromise = fetch("/api/tavily-search", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ query: text }),
+					signal: abortController.signal,
+				}).then(async (res) => {
+					if (!res.ok) throw new Error(`Tavily API error: ${res.status}`);
+					const data = await res.json();
+					return data.results as TavilyResult[];
+				});
+
+				const bibleAiPromise = fetch("/api/ask-question", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ question: text }),
+					signal: abortController.signal,
+				}).then(async (res) => {
+					if (!res.ok) {
+						const contentType = res.headers.get("content-type");
+						if (contentType?.includes("application/json")) {
+							const data = await res.json();
+							throw new Error(data.error || `API error: ${res.status}`);
+						}
+						throw new Error(`API error: ${res.status}`);
 					}
-					throw new Error(`API error: ${res.status}`);
+
+					const reader = res.body?.getReader();
+					if (!reader) throw new Error("No response body");
+
+					setLoading(false);
+					setIsStreaming(true);
+
+					const decoder = new TextDecoder();
+					let accumulated = "";
+
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+						accumulated += decoder.decode(value, { stream: true });
+						updateAssistant((m) => ({ ...m, content: accumulated }));
+					}
+
+					accumulated += decoder.decode();
+					updateAssistant((m) => ({ ...m, content: accumulated }));
+
+					return accumulated;
+				});
+
+				const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);
+
+				// Attach tavily results
+				if (results[0].status === "fulfilled" && results[0].value) {
+					updateAssistant((m) => ({ ...m, tavilyResults: results[0].status === "fulfilled" ? results[0].value : undefined }));
 				}
 
-				// Read the stream
-				const reader = res.body?.getReader();
-				if (!reader) throw new Error("No response body");
+				// Check for Bible AI failure
+				if (results[1].status === "rejected") {
+					throw results[1].reason;
+				}
 
+				// Mark streaming done
+				updateAssistant((m) => ({ ...m, isStreaming: false }));
+
+				if (results[0].status === "rejected") {
+					console.warn("Tavily search failed:", results[0].reason);
+				}
+			} catch (err) {
+				if (err instanceof Error && err.name === "AbortError") return;
+				console.error("Error:", err);
+				const errorMsg = err instanceof Error ? err.message : "An unknown error occurred";
+				setError(errorMsg);
+				updateAssistant((m) => ({
+					...m,
+					content: m.content || "Sorry, an error occurred while generating a response.",
+					isStreaming: false,
+				}));
+			} finally {
 				setLoading(false);
-				setIsStreaming(true);
-
-				const decoder = new TextDecoder();
-				let accumulated = "";
-
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					accumulated += decoder.decode(value, { stream: true });
-					setResponse(accumulated);
-				}
-
-				// Flush decoder
-				accumulated += decoder.decode();
-				setResponse(accumulated);
-
-				return accumulated;
-			});
-
-			const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);
-
-			// Check for Bible AI failure
-			const bibleResult = results[1];
-			if (bibleResult.status === "rejected") {
-				throw bibleResult.reason;
+				setIsStreaming(false);
 			}
-
-			// Add to history
-			const finalContent = bibleResult.status === "fulfilled" ? bibleResult.value as string : "";
-			if (finalContent) {
-				setHistory((prev) => [
-					...prev,
-					{
-						id: Date.now().toString(),
-						question: currentQuery,
-						answer: finalContent,
-						selected: false
-					}
-				]);
-			}
-
-			// Log Tavily failure but don't throw (it's supplementary)
-			if (results[0].status === "rejected") {
-				console.warn("Tavily search failed:", results[0].reason);
-			}
-		} catch (err) {
-			if (err instanceof Error && err.name === "AbortError") return;
-			console.error("Error:", err);
-			setError(
-				err instanceof Error ? err.message : "An unknown error occurred"
-			);
-		} finally {
-			setLoading(false);
-			setIsStreaming(false);
-		}
-	}, [query]);
-
-	const selectHistoryItem = (id: string) => {
-		setHistory((prev) =>
-			prev.map((item) => ({
-				...item,
-				selected: item.id === id
-			}))
-		);
-	};
-
-	const clearHistory = () => {
-		setHistory([]);
-	};
+		},
+		[activeConversationId]
+	);
 
 	return {
-		query,
-		setQuery,
-		response,
-		loading,
+		messages,
+		conversations,
+		activeConversationId,
+		activeConversation,
 		isStreaming,
-		history,
-		handleSubmit,
-		selectHistoryItem,
-		clearHistory,
+		loading,
 		error,
-		tavilyResults
+		sendMessage,
+		newConversation,
+		switchConversation,
+		deleteConversation,
+		clearAllConversations,
 	};
 };

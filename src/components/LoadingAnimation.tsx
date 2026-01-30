@@ -12,7 +12,7 @@ const LoadingAnimation: React.FC = () => (
 	<div className="flex flex-col items-center mt-4 space-y-4">
 		{steps.map((step, index) => (
 			<div key={index} className="flex items-center space-x-2">
-				<step.icon className="h-5 w-5 text-blue-500 animate-pulse" />
+				<step.icon className="h-5 w-5 text-amber-500 animate-pulse" />
 				<span className="text-sm text-gray-600 dark:text-gray-300 animate-fade-in">
 					{step.text}
 				</span>

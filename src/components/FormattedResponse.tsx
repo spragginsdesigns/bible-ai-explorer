@@ -2,7 +2,6 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-	Book,
 	Quote,
 	Lightbulb,
 	ChevronRight,
@@ -23,13 +22,7 @@ const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 	}
 
 	return (
-		<div className="bg-gradient-to-br from-black/80 to-gray-900/90 rounded-lg shadow-lg p-4 sm:p-6 border border-amber-700/30 max-h-[500px] overflow-y-auto custom-scrollbar">
-			<div className="flex items-center mb-6 pb-2 border-b border-amber-700/20">
-				<Book className="w-6 h-6 text-amber-500 mr-3" />
-				<h2 className="text-2xl sm:text-3xl font-bold text-amber-500">
-					Biblical Insight
-				</h2>
-			</div>
+		<div className="prose-amber">
 			<ReactMarkdown
 				remarkPlugins={[remarkGfm]}
 				components={markdownComponents}
