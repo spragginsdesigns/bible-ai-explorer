@@ -144,7 +144,7 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 							<p className="text-amber-100/60 flex items-center">
 								<span className="hidden sm:inline mx-2">•</span>
 								Created by{" "}
-								<Link href="https://www.spragginsdesigns.com">
+								<Link href="https://www.spragginsdesigns.xyz">
 									<span className="text-amber-500 hover:text-amber-400 transition-colors ml-1">
 										Austin Spraggins
 									</span>
