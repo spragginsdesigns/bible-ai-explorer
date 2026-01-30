@@ -61,7 +61,10 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 					</button>
 				</div>
 				<p className="text-center text-xs text-amber-100/30 mt-2">
-					VerseMind uses AI trained on the KJV Bible. Use with discernment.
+					VerseMind uses AI trained on the KJV Bible. Use with discernment. Created by{" "}
+					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-amber-500/50 hover:text-amber-400 transition-colors">
+						Austin Spraggins
+					</a>
 				</p>
 			</div>
 		</div>
