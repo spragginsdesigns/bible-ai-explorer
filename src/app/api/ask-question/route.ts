@@ -9,8 +9,6 @@ import { systemPrompt } from "../../../utils/systemPrompt";
 import { LRUCache } from 'lru-cache';
 import { BaseMessage } from "@langchain/core/messages";
 
-export const runtime = "edge";
-
 interface DocResult {
   v?: string;
   $similarity?: number;
