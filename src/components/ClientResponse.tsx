@@ -94,7 +94,7 @@ const ClientResponse: React.FC<ClientResponseProps> = ({
 				<div className="flex items-center mb-4 border-b border-amber-700/20 pb-3">
 					<Sparkles className="h-5 w-5 text-amber-500 mr-2" />
 					<h3 className="text-lg font-semibold text-amber-500">
-						Bible AI Response
+						VerseMind Response
 					</h3>
 				</div>
 				<FormattedResponse response={response} />

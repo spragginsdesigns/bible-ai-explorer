@@ -25,7 +25,7 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 		setQuery,
 		response,
 		loading,
-		isTyping,
+		isStreaming,
 		history,
 		handleSubmit,
 		selectHistoryItem,
@@ -94,14 +94,14 @@ const BibleAIExplorer: React.FC<BibleAIExplorerProps> = ({
 							setQuery={setQuery}
 							handleSubmit={handleSubmit}
 							loading={loading}
-							isTyping={isTyping}
+							isStreaming={isStreaming}
 						/>
 
 						<div className="flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-4">
 							<div className="w-full lg:w-3/5">
 								<ClientResponse
 									response={response}
-									loading={loading || isTyping}
+									loading={loading || isStreaming}
 									error={error}
 								/>
 							</div>

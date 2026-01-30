@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 
 interface HistoryItem {
 	id: string;
@@ -11,95 +11,121 @@ export const useChat = (initialQuery: string = "") => {
 	const [query, setQuery] = useState<string>(initialQuery);
 	const [response, setResponse] = useState<string | null>(null);
 	const [loading, setLoading] = useState<boolean>(false);
-	const [isTyping, setIsTyping] = useState<boolean>(false);
+	const [isStreaming, setIsStreaming] = useState<boolean>(false);
 	const [history, setHistory] = useState<HistoryItem[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [tavilyResults, setTavilyResults] = useState<any>(null);
+	const abortControllerRef = useRef<AbortController | null>(null);
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = useCallback(async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!query.trim()) return;
+
+		// Abort any in-flight request
+		if (abortControllerRef.current) {
+			abortControllerRef.current.abort();
+		}
+		const abortController = new AbortController();
+		abortControllerRef.current = abortController;
 
 		setLoading(true);
 		setResponse(null);
 		setError(null);
 		setTavilyResults(null);
 
+		const currentQuery = query;
+		setQuery("");
+
 		try {
-			// Perform Tavily search
-			const tavilyResponse = await fetch("/api/tavily-search", {
+			// Run Tavily and Bible AI in parallel
+			const tavilyPromise = fetch("/api/tavily-search", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({ query })
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ query: currentQuery }),
+				signal: abortController.signal,
+			}).then(async (res) => {
+				if (!res.ok) throw new Error(`Tavily API error: ${res.status}`);
+				const data = await res.json();
+				setTavilyResults(data.results);
 			});
 
-			if (!tavilyResponse.ok) {
-				throw new Error(
-					`Tavily API response was not ok: ${tavilyResponse.status}`
-				);
-			}
-
-			const tavilyData = await tavilyResponse.json();
-			setTavilyResults(tavilyData.results);
-
-			// Existing API call for Bible AI
-			const response = await fetch("/api/ask-question", {
+			const bibleAiPromise = fetch("/api/ask-question", {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify({ question: query })
-			});
-
-			if (!response.ok) {
-				throw new Error(`API response was not ok: ${response.status}`);
-			}
-
-			const data = await response.json();
-
-			if (data.error) {
-				throw new Error(data.error);
-			}
-
-			if (!data.response || typeof data.response !== "string") {
-				throw new Error("Invalid response format");
-			}
-
-			console.log("Raw response from API:", data.response);
-
-			setIsTyping(true);
-			let i = 0;
-			const content = data.response;
-			const intervalId = setInterval(() => {
-				setResponse(content.slice(0, i));
-				i += 5;
-				if (i > content.length) {
-					clearInterval(intervalId);
-					setIsTyping(false);
-					setResponse(content);
-					setHistory((prev) => [
-						...prev,
-						{
-							id: Date.now().toString(),
-							question: query,
-							answer: content,
-							selected: false
-						}
-					]);
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ question: currentQuery }),
+				signal: abortController.signal,
+			}).then(async (res) => {
+				if (!res.ok) {
+					// Try to parse error JSON
+					const contentType = res.headers.get("content-type");
+					if (contentType?.includes("application/json")) {
+						const data = await res.json();
+						throw new Error(data.error || `API error: ${res.status}`);
+					}
+					throw new Error(`API error: ${res.status}`);
 				}
-			}, 10);
-		} catch (error) {
-			console.error("Error:", error);
+
+				// Read the stream
+				const reader = res.body?.getReader();
+				if (!reader) throw new Error("No response body");
+
+				setLoading(false);
+				setIsStreaming(true);
+
+				const decoder = new TextDecoder();
+				let accumulated = "";
+
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					accumulated += decoder.decode(value, { stream: true });
+					setResponse(accumulated);
+				}
+
+				// Flush decoder
+				accumulated += decoder.decode();
+				setResponse(accumulated);
+
+				return accumulated;
+			});
+
+			const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);
+
+			// Check for Bible AI failure
+			const bibleResult = results[1];
+			if (bibleResult.status === "rejected") {
+				throw bibleResult.reason;
+			}
+
+			// Add to history
+			const finalContent = bibleResult.status === "fulfilled" ? bibleResult.value as string : "";
+			if (finalContent) {
+				setHistory((prev) => [
+					...prev,
+					{
+						id: Date.now().toString(),
+						question: currentQuery,
+						answer: finalContent,
+						selected: false
+					}
+				]);
+			}
+
+			// Log Tavily failure but don't throw (it's supplementary)
+			if (results[0].status === "rejected") {
+				console.warn("Tavily search failed:", results[0].reason);
+			}
+		} catch (err) {
+			if (err instanceof Error && err.name === "AbortError") return;
+			console.error("Error:", err);
 			setError(
-				error instanceof Error ? error.message : "An unknown error occurred"
+				err instanceof Error ? err.message : "An unknown error occurred"
 			);
 		} finally {
 			setLoading(false);
-			setQuery("");
+			setIsStreaming(false);
 		}
-	};
+	}, [query]);
 
 	const selectHistoryItem = (id: string) => {
 		setHistory((prev) =>
@@ -119,7 +145,7 @@ export const useChat = (initialQuery: string = "") => {
 		setQuery,
 		response,
 		loading,
-		isTyping,
+		isStreaming,
 		history,
 		handleSubmit,
 		selectHistoryItem,
