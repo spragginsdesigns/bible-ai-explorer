@@ -62,10 +62,21 @@
 @layer base {
 	* {
 		@apply border-border;
+		touch-action: manipulation;
 	}
 	body {
 		@apply bg-background text-foreground;
+		overscroll-behavior-y: contain;
 	}
+}
+
+/* Safe area insets for notched phones */
+.pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+	padding-top: env(safe-area-inset-top);
 }
 
 @keyframes fadeIn {

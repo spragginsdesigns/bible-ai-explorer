@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 		siteName: "Bible AI Explorer",
 		images: [
 			{
-				url: "/android-chrome-512x512.png",
+				url: "/web-app-manifest-512x512.png",
 				width: 512,
 				height: 512,
 				alt: "Verse Mind Logo"
@@ -36,27 +36,20 @@ export const metadata: Metadata = {
 		title: "VerseMind",
 		description: "Explore the Bible with AI-powered insights and answers",
 		creator: "@spragginsdesign",
-		images: ["/android-chrome-512x512.png"]
+		images: ["/web-app-manifest-512x512.png"]
 	},
 	icons: {
 		icon: [
-			{ url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-			{ url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-			{
-				url: "/android-chrome-192x192.png",
-				sizes: "192x192",
-				type: "image/png"
-			},
-			{
-				url: "/android-chrome-512x512.png",
-				sizes: "512x512",
-				type: "image/png"
-			}
+			{ url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+			{ url: "/favicon.svg", type: "image/svg+xml" },
 		],
 		apple: [
 			{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
 		],
 		shortcut: "/favicon.ico"
+	},
+	appleWebApp: {
+		title: "VerseMind",
 	},
 	manifest: "/site.webmanifest"
 };
@@ -64,7 +57,7 @@ export const metadata: Metadata = {
 export const viewport = {
 	width: "device-width",
 	initialScale: 1,
-	maximumScale: 1
+	themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -74,8 +67,10 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en">
-				<head>
+			<head>
 				<meta name="google-site-verification" content="Oz-B3ljjCVJn4t_50kIHVJxEct57K1FqysvU8ZU3beI" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
+				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 			</head>
 			<body className={inter.className}>
 				<ThemeProvider

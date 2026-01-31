@@ -38,7 +38,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			{/* Sidebar */}
 			<aside
 				className={`
-					fixed lg:relative z-50 top-0 left-0 h-full w-72
+					fixed lg:relative z-50 top-0 left-0 h-full w-[85vw] max-w-72
 					bg-gray-950 border-r border-amber-700/20
 					flex flex-col
 					transition-transform duration-200 ease-in-out

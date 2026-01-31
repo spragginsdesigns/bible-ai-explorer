@@ -17,7 +17,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar }) => {
 			<div className="flex items-center gap-3 min-w-0">
 				<button
 					onClick={onToggleSidebar}
-					className="text-amber-100/60 hover:text-amber-100 transition-colors"
+					className="text-amber-100/60 hover:text-amber-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
 				>
 					<Menu className="w-5 h-5" />
 				</button>
@@ -27,7 +27,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar }) => {
 			</div>
 			<button
 				onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-				className="text-amber-100/60 hover:text-amber-100 transition-colors"
+				className="text-amber-100/60 hover:text-amber-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
 			>
 				{theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
 			</button>

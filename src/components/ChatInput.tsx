@@ -35,7 +35,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 	};
 
 	return (
-		<div className="border-t border-amber-700/20 bg-black/80 backdrop-blur-sm">
+		<div className="border-t border-amber-700/20 bg-black/80 backdrop-blur-sm pb-safe">
 			<div className="max-w-3xl mx-auto px-4 py-3">
 				<div className="flex items-end gap-2 bg-gray-900/80 border border-amber-700/30 rounded-xl px-3 py-2">
 					<textarea
@@ -51,7 +51,7 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 					<button
 						onClick={handleSubmit}
 						disabled={disabled || !text.trim()}
-						className="flex-shrink-0 p-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+						className="flex-shrink-0 p-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 					>
 						{loading || isStreaming ? (
 							<Loader2 className="w-4 h-4 animate-spin" />
