@@ -1,5 +1,5 @@
 // src\app\api\ask-question\route.ts
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { ChatOpenAI } from "@langchain/openai";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { NextResponse } from "next/server";
@@ -22,24 +22,11 @@ const embeddings = new OpenAIEmbeddings({
   timeout: 30000,
 });
 
-// Define the prompt template with natural response format
-const promptTemplate = ChatPromptTemplate.fromMessages([
-  ["system", systemPrompt],
-  [
-    "human",
-    `Here are relevant Bible verses from the vector database:
-{similarVerses}
-
-Answer the following question with a thorough, natural response.
+const HUMAN_PROMPT_SUFFIX = `
 - Every claim MUST be supported by exact KJV Bible verse quotes (word-for-word, not paraphrased)
 - Format verse quotes as blockquotes with the reference (e.g., > "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life." — John 3:16 KJV)
 - Use the similar verses provided above when relevant, but also reference other verses you know
-- End with a thought-provoking question for deeper study
-
-Question: {question}
-`
-  ]
-]);
+- End with a thought-provoking question for deeper study`;
 
 // Exponential backoff retry mechanism for robust API calls
 async function retryWithExponentialBackoff<T>(
@@ -60,9 +47,17 @@ async function retryWithExponentialBackoff<T>(
   throw new Error("This should never be reached");
 }
 
+interface HistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Cap history to avoid exceeding token limits
+const MAX_HISTORY_MESSAGES = 20;
+
 export async function POST(req: Request): Promise<Response> {
   try {
-    const { question } = await req.json();
+    const { question, history } = await req.json();
 
     if (!question || typeof question !== 'string') {
       return NextResponse.json(
@@ -74,14 +69,30 @@ export async function POST(req: Request): Promise<Response> {
     // Perform similarity search to retrieve relevant Bible verses
     const searchResult = await retryWithExponentialBackoff(() => performSimilaritySearch(question));
 
-    // Prepare the prompt with similar verses and the user's question
-    const messages = await promptTemplate.formatMessages({
-      similarVerses: searchResult.formatted,
-      question,
-    });
+    // Build messages array with conversation history
+    const langchainMessages = [
+      new SystemMessage(systemPrompt),
+    ];
+
+    // Add prior conversation history (skip the last message since it's the current question)
+    const priorHistory: HistoryMessage[] = Array.isArray(history) ? history.slice(0, -1) : [];
+    const trimmedHistory = priorHistory.slice(-MAX_HISTORY_MESSAGES);
+
+    for (const msg of trimmedHistory) {
+      if (msg.role === "user") {
+        langchainMessages.push(new HumanMessage(msg.content));
+      } else if (msg.role === "assistant") {
+        langchainMessages.push(new AIMessage(msg.content));
+      }
+    }
+
+    // Add the current question with verse context
+    langchainMessages.push(new HumanMessage(
+      `Here are relevant Bible verses from the vector database:\n${searchResult.formatted}\n\nAnswer the following question with a thorough, natural response.\n${HUMAN_PROMPT_SUFFIX}\n\nQuestion: ${question}`
+    ));
 
     // Stream the response, prefixed with source metadata
-    const stream = await model.stream(messages);
+    const stream = await model.stream(langchainMessages);
 
     const encoder = new TextEncoder();
     const sourcesPayload = JSON.stringify({

@@ -131,6 +131,7 @@ export const useChat = () => {
 			};
 
 			let convoId = activeConversationId;
+			let previousMessages: { role: string; content: string }[] = [];
 
 			if (!convoId) {
 				// Create new conversation
@@ -144,6 +145,14 @@ export const useChat = () => {
 				setConversations((prev) => [newConvo, ...prev]);
 				setActiveConversationId(convoId);
 			} else {
+				// Capture history from existing conversation before updating state
+				const existingConvo = conversations.find((c) => c.id === convoId);
+				if (existingConvo) {
+					previousMessages = existingConvo.messages
+						.filter((m) => m.content.trim())
+						.map((m) => ({ role: m.role, content: m.content }));
+				}
+
 				// Add to existing conversation
 				setConversations((prev) =>
 					prev.map((c) =>
@@ -155,6 +164,12 @@ export const useChat = () => {
 			}
 
 			const currentConvoId = convoId;
+
+			// Build the full history including the new user message
+			const history = [
+				...previousMessages,
+				{ role: "user", content: text },
+			];
 
 			const updateAssistant = (updater: (msg: ChatMessage) => ChatMessage) => {
 				setConversations((prev) =>
@@ -187,7 +202,7 @@ export const useChat = () => {
 				const bibleAiPromise = fetch("/api/ask-question", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ question: text }),
+					body: JSON.stringify({ question: text, history }),
 					signal: abortController.signal,
 				}).then(async (res) => {
 					if (!res.ok) {
@@ -293,7 +308,7 @@ export const useChat = () => {
 				setIsStreaming(false);
 			}
 		},
-		[activeConversationId]
+		[activeConversationId, conversations]
 	);
 
 	return {
