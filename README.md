@@ -1,53 +1,87 @@
-# Bible AI Explorer
+<p align="center">
+  <img src="public/web-app-manifest-512x512.png" alt="VerseMind Logo" width="200" />
+</p>
+
+<h1 align="center">VerseMind — Bible AI Explorer</h1>
+
+<p align="center">
+  An AI-powered Bible study companion for believers, grounded entirely in the King James Version.
+</p>
+
+<p align="center">
+  <a href="https://bible-ai-explorer.vercel.app">Live App</a>
+</p>
+
 ---
-![image](https://github.com/user-attachments/assets/dc4669ea-d3fe-40e0-9210-fef9814acad4)
 
+## What Is VerseMind?
 
-## Overview
+VerseMind is a web app that helps Christians study the Bible using AI. It answers questions about Scripture, theology, church history, and daily Christian living — always from the perspective of a saved, born-again believer who holds the KJV Bible as the inerrant, infallible Word of God.
 
-Bible AI Explorer is an innovative web application that combines the power of artificial intelligence with comprehensive biblical knowledge. This tool is designed to assist users in exploring and understanding the Bible, Christian theology, and related topics through an AI-powered question-answering system.
+Every response is backed by exact KJV verse quotes, not paraphrases.
 
 ## Features
 
-- **AI-Powered Biblical Insights**: Utilizes advanced language models (GPT-4o) to provide in-depth answers to Bible-related questions.
-- **Strict Biblical Focus**: The AI assistant is programmed to answer questions exclusively about the Bible, Christianity, and directly related theological, historical, or cultural topics.
-- **Scriptural References**: Every response includes multiple Bible references, ensuring answers are grounded in scripture.
-- **Multi-Translation Support**: Quotes scripture from various reputable translations (NIV, KJV, ESV, NASB), always specifying the version used.
-- **Original Language Insights**: Offers explanations from Hebrew, Greek, and Aramaic when relevant to enhance understanding.
-- **Historical and Cultural Context**: Provides historical, cultural, and literary context for biblical passages.
-- **Theological Depth**: Explains complex theological concepts in accessible language while maintaining depth.
-- **Christian Worldview**: Approaches all questions from a devout Christian perspective, defending the faith and addressing apologetics.
-- **Practical Application**: Offers practical applications of biblical principles for daily Christian living.
-- **Church History Integration**: Includes insights from respected Christian thinkers and relevant anecdotes from church history.
+- **KJV-Only Scripture** — All verse quotes are word-for-word from the King James Version
+- **Vector Search (RAG)** — Queries a vector database of Bible verse embeddings to find the most relevant passages for each question
+- **Web Search Integration** — Tavily search provides supplementary context from trusted sources alongside the AI response
+- **Conversation History** — Full chat history stored locally so you can continue past studies
+- **Follow-Up Questions** — Suggested questions for deeper study after each response
+- **Verse Attribution** — Clickable references and confidence indicators for retrieved passages
+- **Dark / Light Mode** — Comfortable viewing in any environment
+- **PWA Support** — Installable on mobile devices for an app-like experience
 
-## User Interface
+## Tech Stack
 
-- Clean, intuitive interface for asking questions and receiving responses.
-- Dark/Light mode toggle for comfortable viewing in any environment.
-- Responsive design suitable for various screen sizes.
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS + Shadcn/Radix UI |
+| AI | OpenAI GPT-4o via LangChain |
+| Embeddings | OpenAI text-embedding-3-large |
+| Vector DB | DataStax AstraDB |
+| Web Search | Tavily API |
+| Hosting | Vercel (auto-deploy on push to `main`) |
 
-## Technology Stack
+## Getting Started
 
-- Built with React and Next.js for a modern, efficient web application.
-- Utilizes the Langchain framework for AI integration.
-- Styled with Tailwind CSS for a sleek, customizable design.
-- Incorporates custom UI components for enhanced user experience.
+### Prerequisites
 
-## Purpose
+- Node.js 18+
+- pnpm
 
-The Bible AI Explorer aims to:
+### Setup
 
-1. Assist users in deepening their understanding of the Bible and Christian faith.
-2. Provide biblically accurate, well-referenced answers to theological questions.
-3. Encourage personal Bible study, prayer, and church involvement.
-4. Offer a trustworthy, AI-powered resource for exploring Christian teachings.
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/spragginsdesigns/bible-ai-explorer.git
+   cd bible-ai-explorer
+   ```
 
-## Future Development
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
 
-While currently a web application, there are plans to develop an Android app version of the Bible AI Explorer, making this powerful tool even more accessible to users on mobile devices, which is in development now:
-![image](https://github.com/user-attachments/assets/167eb7ad-18cb-439f-8e10-7db0dac8d7e2)
+3. Create `.env.local` with the required keys:
+   ```
+   OPENAI_API_KEY=
+   ASTRA_DB_APPLICATION_TOKEN=
+   ASTRA_DB_API_ENDPOINT=
+   ASTRA_DB_COLLECTION=
+   TAVILY_API_KEY=
+   ```
 
+4. Start the dev server:
+   ```bash
+   pnpm dev
+   ```
+
+### Deployment
+
+Push to `main` and Vercel handles the rest. Make sure the same environment variables from `.env.local` are configured in your Vercel project under **Settings > Environment Variables**.
 
 ---
 
-Bible AI Explorer: Illuminating Scripture through Artificial Intelligence
+*VerseMind: Illuminating Scripture through Artificial Intelligence*
