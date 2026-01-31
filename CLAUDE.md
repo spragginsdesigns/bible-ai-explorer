@@ -75,6 +75,10 @@ Required in `.env.local`:
 - `ASTRA_DB_COLLECTION` - Astra DB collection name
 - `TAVILY_API_KEY` - Tavily search API key
 
+## Workflow
+
+- **Always commit and push after completing changes.** This project auto-deploys to Vercel on push to `main`, so changes aren't live until pushed.
+
 ## Project-Specific Rules
 
 - All API routes use Next.js App Router (`src/app/api/`)
