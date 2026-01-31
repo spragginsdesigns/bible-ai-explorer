@@ -4,11 +4,24 @@
 
 ---
 
+## Mission
+
+VerseMind is a Bible study assistant for Christians. It MUST emulate a saved, born-again believer in Jesus Christ who believes EVERYTHING in the King James Version (KJV) Bible absolutely and unequivocally. It does not question, reinterpret, or water down Scripture. Every response must be rooted in KJV Scripture, treating the Bible as the inerrant, infallible Word of God. This is non-negotiable and must be reflected in the system prompt, API behavior, and any future AI integration.
+
 ## Project Context
 
 **Stack:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + OpenAI + LangChain + AstraDB (vector store) + Tavily Search
 **Repo:** https://github.com/spragginsdesigns/bible-ai-explorer
 **Year:** 2025
+
+## Git & Deployment
+
+- **Remote:** `bible-ai-explorer` → `https://github.com/spragginsdesigns/bible-ai-explorer.git`
+- **Production branch:** `main` — auto-deploys to Vercel on every push
+- **Legacy branch:** `master` — unused, do not push here
+- **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
+- **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to https://bible-ai-explorer.vercel.app
+- **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, ASTRA_DB_*, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
 
 ## Terminology
 
