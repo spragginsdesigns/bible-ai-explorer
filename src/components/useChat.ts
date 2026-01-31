@@ -58,6 +58,12 @@ export const useChat = () => {
 	const [error, setError] = useState<string | null>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const initialized = useRef(false);
+	const conversationsRef = useRef<Conversation[]>([]);
+
+	// Keep ref in sync with state
+	useEffect(() => {
+		conversationsRef.current = conversations;
+	}, [conversations]);
 
 	// Load from localStorage on mount
 	useEffect(() => {
@@ -145,8 +151,8 @@ export const useChat = () => {
 				setConversations((prev) => [newConvo, ...prev]);
 				setActiveConversationId(convoId);
 			} else {
-				// Capture history from existing conversation before updating state
-				const existingConvo = conversations.find((c) => c.id === convoId);
+				// Use ref to get the latest conversations (avoids stale closure)
+				const existingConvo = conversationsRef.current.find((c) => c.id === convoId);
 				if (existingConvo) {
 					previousMessages = existingConvo.messages
 						.filter((m) => m.content.trim())
@@ -308,7 +314,7 @@ export const useChat = () => {
 				setIsStreaming(false);
 			}
 		},
-		[activeConversationId, conversations]
+		[activeConversationId]
 	);
 
 	return {
