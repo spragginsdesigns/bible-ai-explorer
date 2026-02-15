@@ -17,8 +17,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 	if (message.role === "user") {
 		return (
 			<div className="flex justify-end mb-4 animate-message-in">
-				<div className="max-w-[80%] sm:max-w-[70%] bg-white/[0.06] border border-white/[0.08] rounded-2xl rounded-br-sm px-4 py-3">
-					<p className="text-neutral-200 whitespace-pre-wrap">{message.content}</p>
+				<div className="max-w-[80%] sm:max-w-[70%] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.08] rounded-2xl rounded-br-sm px-4 py-3">
+					<p className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>
 				</div>
 			</div>
 		);
@@ -29,8 +29,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 	return (
 		<div className="flex gap-3 mb-4 animate-message-in">
 			<div className="flex-shrink-0 mt-1">
-				<div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-					<Brain className="w-4 h-4 text-amber-400" />
+				<div className="w-8 h-8 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center">
+					<Brain className="w-4 h-4 text-amber-600 dark:text-amber-400" />
 				</div>
 			</div>
 			<div className="flex-1 min-w-0">
@@ -44,7 +44,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 					</div>
 				) : null}
 				{message.isStreaming && message.content && (
-					<span className="inline-block w-2 h-4 bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
+					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
 				{doneStreaming && message.retrievedVerses && message.retrievedVerses.length > 0 && (
 					<RetrievedVersesCollapsible

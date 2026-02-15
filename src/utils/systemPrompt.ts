@@ -28,3 +28,15 @@ After your main response, provide exactly 3 follow-up questions that would help 
 [FOLLOWUP] What other passages in Paul's letters address this same theme?
 [FOLLOWUP] How does the Old Testament foreshadow this teaching?
 [FOLLOWUP] What is the original Greek/Hebrew meaning of the key word in this passage?)`;
+
+export function noteAISystemPrompt(noteTitle: string, noteContent: string): string {
+	return `${systemPrompt}
+
+You are also currently helping the user with their Bible study note titled "${noteTitle}". The user's note content is provided below for context. When answering, relate your response to the content of their note where relevant, while still grounding everything in KJV Scripture.
+
+--- USER'S BIBLE STUDY NOTE ---
+${noteContent || "(Empty note)"}
+--- END OF NOTE ---
+
+Keep your responses focused and helpful for their Bible study. If the note content is relevant to the question, reference specific parts of their note in your answer.`;
+}

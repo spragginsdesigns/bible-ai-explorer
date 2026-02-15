@@ -73,7 +73,7 @@ export default function RootLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<html lang="en">
+		<html lang="en" suppressHydrationWarning>
 			<head>
 				<meta name="google-site-verification" content="Oz-B3ljjCVJn4t_50kIHVJxEct57K1FqysvU8ZU3beI" />
 				<meta name="apple-mobile-web-app-capable" content="yes" />

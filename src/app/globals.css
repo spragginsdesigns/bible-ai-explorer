@@ -4,25 +4,25 @@
 
 @layer base {
 	:root {
-		--background: 0 0% 100%;
-		--foreground: 0 0% 5%;
+		--background: 40 20% 98%;
+		--foreground: 20 15% 8%;
 		--card: 0 0% 100%;
-		--card-foreground: 0 0% 5%;
+		--card-foreground: 20 15% 8%;
 		--popover: 0 0% 100%;
-		--popover-foreground: 0 0% 5%;
+		--popover-foreground: 20 15% 8%;
 		--primary: 0 0% 10%;
 		--primary-foreground: 0 0% 98%;
-		--secondary: 0 0% 96%;
+		--secondary: 40 15% 95%;
 		--secondary-foreground: 0 0% 10%;
-		--muted: 0 0% 96%;
+		--muted: 40 15% 95%;
 		--muted-foreground: 0 0% 45%;
-		--accent: 0 0% 96%;
+		--accent: 40 15% 93%;
 		--accent-foreground: 0 0% 10%;
 		--destructive: 0 84% 60%;
 		--destructive-foreground: 0 0% 98%;
-		--border: 0 0% 90%;
-		--input: 0 0% 90%;
-		--ring: 0 0% 10%;
+		--border: 40 10% 88%;
+		--input: 40 10% 88%;
+		--ring: 42 80% 42%;
 		--radius: 0.5rem;
 		--chart-1: 12 76% 61%;
 		--chart-2: 173 58% 39%;
@@ -83,6 +83,10 @@
    GRADIENT MESH BACKGROUND
    ═══════════════════════════════════════ */
 .gradient-mesh {
+	background: linear-gradient(180deg, hsl(40 20% 97%) 0%, hsl(40 15% 95%) 40%, hsl(40 12% 93%) 100%);
+}
+
+.dark .gradient-mesh {
 	background:
 		radial-gradient(ellipse at 15% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
 		radial-gradient(ellipse at 85% 15%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
@@ -94,21 +98,33 @@
    GLASSMORPHISM UTILITIES
    ═══════════════════════════════════════ */
 .glass {
-	background: rgba(8, 8, 8, 0.7);
+	background: rgba(255, 255, 255, 0.75);
 	backdrop-filter: blur(16px);
 	-webkit-backdrop-filter: blur(16px);
 }
 
+.dark .glass {
+	background: rgba(8, 8, 8, 0.7);
+}
+
 .glass-light {
-	background: rgba(14, 14, 14, 0.55);
+	background: rgba(255, 255, 255, 0.6);
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
 }
 
+.dark .glass-light {
+	background: rgba(14, 14, 14, 0.55);
+}
+
 .glass-card {
-	background: rgba(10, 10, 10, 0.6);
+	background: rgba(255, 255, 255, 0.65);
 	backdrop-filter: blur(12px);
 	-webkit-backdrop-filter: blur(12px);
+}
+
+.dark .glass-card {
+	background: rgba(10, 10, 10, 0.6);
 }
 
 /* ═══════════════════════════════════════
@@ -126,9 +142,9 @@
 	padding: 1px;
 	background: linear-gradient(
 		135deg,
-		rgba(255, 255, 255, 0.15) 0%,
-		rgba(255, 255, 255, 0.05) 50%,
-		rgba(255, 255, 255, 0.12) 100%
+		rgba(0, 0, 0, 0.1) 0%,
+		rgba(0, 0, 0, 0.04) 50%,
+		rgba(0, 0, 0, 0.08) 100%
 	);
 	-webkit-mask:
 		linear-gradient(#fff 0 0) content-box,
@@ -138,7 +154,25 @@
 	pointer-events: none;
 }
 
+.dark .gradient-border::before {
+	background: linear-gradient(
+		135deg,
+		rgba(255, 255, 255, 0.15) 0%,
+		rgba(255, 255, 255, 0.05) 50%,
+		rgba(255, 255, 255, 0.12) 100%
+	);
+}
+
 .gradient-border-gold::before {
+	background: linear-gradient(
+		135deg,
+		rgba(180, 120, 20, 0.2) 0%,
+		rgba(0, 0, 0, 0.04) 50%,
+		rgba(180, 120, 20, 0.15) 100%
+	);
+}
+
+.dark .gradient-border-gold::before {
 	background: linear-gradient(
 		135deg,
 		rgba(200, 160, 40, 0.3) 0%,
@@ -152,11 +186,23 @@
    ═══════════════════════════════════════ */
 .glow-white {
 	box-shadow:
+		0 2px 8px rgba(0, 0, 0, 0.06),
+		0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dark .glow-white {
+	box-shadow:
 		0 0 15px rgba(255, 255, 255, 0.07),
 		0 0 40px rgba(255, 255, 255, 0.03);
 }
 
 .glow-white-sm {
+	box-shadow:
+		0 1px 4px rgba(0, 0, 0, 0.05),
+		0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.dark .glow-white-sm {
 	box-shadow:
 		0 0 8px rgba(255, 255, 255, 0.05),
 		0 0 20px rgba(255, 255, 255, 0.02);
@@ -164,11 +210,23 @@
 
 .glow-amber {
 	box-shadow:
+		0 2px 10px rgba(180, 120, 20, 0.12),
+		0 1px 4px rgba(180, 120, 20, 0.06);
+}
+
+.dark .glow-amber {
+	box-shadow:
 		0 0 15px rgba(200, 160, 40, 0.15),
 		0 0 40px rgba(200, 160, 40, 0.05);
 }
 
 .glow-amber-sm {
+	box-shadow:
+		0 1px 6px rgba(180, 120, 20, 0.08),
+		0 1px 3px rgba(180, 120, 20, 0.04);
+}
+
+.dark .glow-amber-sm {
 	box-shadow:
 		0 0 8px rgba(200, 160, 40, 0.1),
 		0 0 20px rgba(200, 160, 40, 0.04);
@@ -229,11 +287,34 @@
 	background: linear-gradient(
 		90deg,
 		transparent 0%,
-		rgba(255, 255, 255, 0.03) 50%,
+		rgba(0, 0, 0, 0.03) 50%,
 		transparent 100%
 	);
 	background-size: 200% 100%;
 	animation: shimmer 3s ease-in-out infinite;
+}
+
+.dark .animate-shimmer {
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(255, 255, 255, 0.03) 50%,
+		transparent 100%
+	);
+	background-size: 200% 100%;
+}
+
+@keyframes pulse-glow-light {
+	0%, 100% {
+		box-shadow:
+			0 2px 8px rgba(0, 0, 0, 0.06),
+			0 1px 3px rgba(0, 0, 0, 0.04);
+	}
+	50% {
+		box-shadow:
+			0 4px 16px rgba(0, 0, 0, 0.1),
+			0 2px 6px rgba(0, 0, 0, 0.06);
+	}
 }
 
 @keyframes pulse-glow {
@@ -250,6 +331,10 @@
 }
 
 .animate-pulse-glow {
+	animation: pulse-glow-light 3s ease-in-out infinite;
+}
+
+.dark .animate-pulse-glow {
 	animation: pulse-glow 3s ease-in-out infinite;
 }
 
@@ -285,6 +370,11 @@
 	z-index: 2;
 }
 
+.dark .react-autosuggest__suggestions-container--open {
+	border-color: #333;
+	background-color: #1a1a1a;
+}
+
 .react-autosuggest__suggestions-list {
 	margin: 0;
 	padding: 0;
@@ -300,6 +390,10 @@
 	background-color: #ddd;
 }
 
+.dark .react-autosuggest__suggestion--highlighted {
+	background-color: #333;
+}
+
 /* ═══════════════════════════════════════
    CUSTOM SCROLLBAR
    ═══════════════════════════════════════ */
@@ -309,16 +403,28 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-	background: rgba(255, 255, 255, 0.03);
+	background: rgba(0, 0, 0, 0.03);
 	border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-	background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.08));
 	border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.15));
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+	background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
 	background: linear-gradient(to bottom, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
 }
 
@@ -331,4 +437,209 @@
 		-ms-overflow-style: none;
 		scrollbar-width: none;
 	}
+}
+
+/* ═══════════════════════════════════════
+   TIPTAP / PROSEMIRROR EDITOR
+   ═══════════════════════════════════════ */
+.prose-editor {
+	color: rgba(0, 0, 0, 0.85);
+	font-size: 0.9375rem;
+	line-height: 1.7;
+}
+
+.dark .prose-editor {
+	color: rgba(229, 229, 229, 1);
+}
+
+.prose-editor:focus {
+	outline: none;
+}
+
+.prose-editor p.is-editor-empty:first-child::before {
+	content: attr(data-placeholder);
+	float: left;
+	color: rgba(0, 0, 0, 0.3);
+	pointer-events: none;
+	height: 0;
+}
+
+.dark .prose-editor p.is-editor-empty:first-child::before {
+	color: rgba(255, 255, 255, 0.25);
+}
+
+.prose-editor h1 {
+	font-size: 1.75rem;
+	font-weight: 700;
+	margin-top: 1.5rem;
+	margin-bottom: 0.75rem;
+	color: rgba(0, 0, 0, 0.9);
+}
+
+.dark .prose-editor h1 {
+	color: rgba(229, 229, 229, 1);
+}
+
+.prose-editor h2 {
+	font-size: 1.375rem;
+	font-weight: 600;
+	margin-top: 1.25rem;
+	margin-bottom: 0.5rem;
+	color: rgba(0, 0, 0, 0.85);
+}
+
+.dark .prose-editor h2 {
+	color: rgba(212, 212, 212, 1);
+}
+
+.prose-editor h3 {
+	font-size: 1.125rem;
+	font-weight: 600;
+	margin-top: 1rem;
+	margin-bottom: 0.5rem;
+	color: rgba(0, 0, 0, 0.8);
+}
+
+.dark .prose-editor h3 {
+	color: rgba(163, 163, 163, 1);
+}
+
+.prose-editor p {
+	margin-bottom: 0.625rem;
+}
+
+.prose-editor blockquote {
+	border-left: 3px solid rgba(180, 120, 20, 0.5);
+	padding-left: 1rem;
+	margin: 0.75rem 0;
+	color: rgba(0, 0, 0, 0.6);
+	font-style: italic;
+}
+
+.dark .prose-editor blockquote {
+	border-left-color: rgba(200, 160, 40, 0.4);
+	color: rgba(163, 163, 163, 1);
+}
+
+.prose-editor ul {
+	list-style: disc;
+	padding-left: 1.5rem;
+	margin: 0.5rem 0;
+}
+
+.prose-editor ol {
+	list-style: decimal;
+	padding-left: 1.5rem;
+	margin: 0.5rem 0;
+}
+
+.prose-editor li {
+	margin-bottom: 0.25rem;
+}
+
+.prose-editor ul[data-type="taskList"] {
+	list-style: none;
+	padding-left: 0;
+}
+
+.prose-editor ul[data-type="taskList"] li {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+}
+
+.prose-editor ul[data-type="taskList"] li label {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.prose-editor ul[data-type="taskList"] li input[type="checkbox"] {
+	accent-color: rgb(180, 120, 20);
+	margin-top: 0.15rem;
+}
+
+.dark .prose-editor ul[data-type="taskList"] li input[type="checkbox"] {
+	accent-color: rgb(200, 160, 40);
+}
+
+.prose-editor pre {
+	background: rgba(0, 0, 0, 0.05);
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: 0.5rem;
+	padding: 0.75rem 1rem;
+	margin: 0.75rem 0;
+	overflow-x: auto;
+	font-family: ui-monospace, monospace;
+	font-size: 0.8125rem;
+}
+
+.dark .prose-editor pre {
+	background: rgba(255, 255, 255, 0.04);
+	border-color: rgba(255, 255, 255, 0.06);
+}
+
+.prose-editor code {
+	background: rgba(0, 0, 0, 0.06);
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.375rem;
+	font-size: 0.8125rem;
+	font-family: ui-monospace, monospace;
+}
+
+.dark .prose-editor code {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.prose-editor pre code {
+	background: none;
+	padding: 0;
+}
+
+.prose-editor mark {
+	background: rgba(200, 160, 40, 0.25);
+	border-radius: 2px;
+	padding: 0 2px;
+}
+
+.dark .prose-editor mark {
+	background: rgba(200, 160, 40, 0.3);
+}
+
+.prose-editor a {
+	color: rgb(180, 120, 20);
+	text-decoration: underline;
+}
+
+.dark .prose-editor a {
+	color: rgb(251, 191, 36);
+}
+
+.prose-editor a:hover {
+	color: rgb(160, 100, 10);
+}
+
+.dark .prose-editor a:hover {
+	color: rgb(252, 211, 77);
+}
+
+.prose-editor hr {
+	border: none;
+	border-top: 1px solid rgba(0, 0, 0, 0.1);
+	margin: 1.5rem 0;
+}
+
+.dark .prose-editor hr {
+	border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.bible-verse-link {
+	color: rgb(180, 120, 20);
+	cursor: pointer;
+	text-decoration: underline;
+	text-decoration-style: dotted;
+}
+
+.dark .bible-verse-link {
+	color: rgb(251, 191, 36);
 }
