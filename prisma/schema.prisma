@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model User {
+  id            String         @id // Clerk userId used directly
+  email         String?
+  name          String?
+  createdAt     DateTime       @default(now())
+  conversations Conversation[]
+  notes         Note[]
+  folders       Folder[]
+  tags          Tag[]
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  role           String       // "user" | "assistant"
+  content        String       @db.Text
+  metadata       Json?        // { tavilyResults, retrievedVerses, averageSimilarity, followUps }
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  parentId  String?
+  sortOrder Int      @default(0)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     Note[]
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Tag {
+  id        String    @id @default(cuid())
+  name      String
+  color     String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes     NoteTag[]
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Note {
+  id          String          @id @default(cuid())
+  title       String
+  content     String          @db.Text // Tiptap JSON
+  htmlContent String          @db.Text
+  plainText   String          @db.Text
+  folderId    String?
+  folder      Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags        NoteTag[]
+  aiMessages  NoteAIMessage[]
+  isPinned    Boolean         @default(false)
+  wordCount   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([userId])
+  @@index([folderId])
+}
+
+model NoteTag {
+  noteId String
+  tagId  String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+}
+
+model NoteAIMessage {
+  id        String   @id @default(cuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  role      String   // "user" | "assistant"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+}

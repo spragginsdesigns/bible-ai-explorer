@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Pirata_One, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "../components/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -80,14 +81,16 @@ export default function RootLayout({
 				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 			</head>
 			<body className={`${inter.className} ${pirataOne.variable} ${cormorantGaramond.variable}`}>
-				<ThemeProvider
-					attribute="class"
-					defaultTheme="system"
-					enableSystem
-					disableTransitionOnChange
-				>
-					{children}
-				</ThemeProvider>
+				<ClerkProvider>
+					<ThemeProvider
+						attribute="class"
+						defaultTheme="system"
+						enableSystem
+						disableTransitionOnChange
+					>
+						{children}
+					</ThemeProvider>
+				</ClerkProvider>
 			</body>
 		</html>
 	);

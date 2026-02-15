@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { getAuthUser } from "@/lib/auth";
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 const TAVILY_API_URL = "https://api.tavily.com/search";
 
 export async function POST(req: Request) {
 	try {
+		await getAuthUser();
+
 		const { query } = await req.json();
 
 		const response = await fetch(TAVILY_API_URL, {
@@ -31,6 +34,7 @@ export async function POST(req: Request) {
 		const data = await response.json();
 		return NextResponse.json(data);
 	} catch (error) {
+		if (error instanceof Response) return error;
 		console.error("Error in Tavily search:", error);
 		return NextResponse.json(
 			{ error: "An error occurred during the search" },

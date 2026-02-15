@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Menu, Sun, Moon, SquarePen, MessageSquare, BookOpen } from "lucide-react";
 import { useTheme } from "next-themes";
+import { UserButton } from "@clerk/nextjs";
 
 interface ChatTopBarProps {
 	title: string;
@@ -55,11 +56,14 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 						const isDark = document.documentElement.classList.contains("dark");
 						setTheme(isDark ? "light" : "dark");
 					}}
-					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
+					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 				>
 					<Sun className="w-4 h-4 hidden dark:block" />
 					<Moon className="w-4 h-4 block dark:hidden" />
 				</button>
+				<div className="ml-1 flex items-center">
+					<UserButton afterSignOutUrl="/sign-in" />
+				</div>
 			</div>
 		</div>
 	);

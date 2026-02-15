@@ -29,25 +29,28 @@ export interface Conversation {
 	id: string;
 	title: string;
 	messages: ChatMessage[];
-	createdAt: number;
+	createdAt: string;
 }
 
-const STORAGE_KEY = "versemind-conversations";
-
-function loadConversations(): Conversation[] {
-	if (typeof window === "undefined") return [];
-	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return [];
-		return JSON.parse(raw);
-	} catch {
-		return [];
-	}
-}
-
-function saveConversations(convos: Conversation[]) {
-	if (typeof window === "undefined") return;
-	localStorage.setItem(STORAGE_KEY, JSON.stringify(convos));
+/** Map a DB message to our client ChatMessage shape */
+function toClientMessage(dbMsg: {
+	id: string;
+	role: string;
+	content: string;
+	metadata?: Record<string, unknown> | null;
+	createdAt: string;
+}): ChatMessage {
+	const meta = dbMsg.metadata ?? {};
+	return {
+		id: dbMsg.id,
+		role: dbMsg.role as "user" | "assistant",
+		content: dbMsg.content,
+		tavilyResults: (meta as Record<string, unknown>).tavilyResults as TavilyResult[] | undefined,
+		retrievedVerses: (meta as Record<string, unknown>).retrievedVerses as RetrievedVerse[] | undefined,
+		averageSimilarity: (meta as Record<string, unknown>).averageSimilarity as number | undefined,
+		followUps: (meta as Record<string, unknown>).followUps as string[] | undefined,
+		timestamp: new Date(dbMsg.createdAt).getTime(),
+	};
 }
 
 export const useChat = () => {
@@ -56,6 +59,7 @@ export const useChat = () => {
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [initialLoading, setInitialLoading] = useState(true);
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const initialized = useRef(false);
 	const conversationsRef = useRef<Conversation[]>([]);
@@ -65,47 +69,93 @@ export const useChat = () => {
 		conversationsRef.current = conversations;
 	}, [conversations]);
 
-	// Load from localStorage on mount
+	// Load conversations from API on mount
 	useEffect(() => {
 		if (initialized.current) return;
 		initialized.current = true;
-		const loaded = loadConversations();
-		setConversations(loaded);
-	}, []);
 
-	// Persist on change
-	useEffect(() => {
-		if (initialized.current) {
-			saveConversations(conversations);
-		}
-	}, [conversations]);
+		(async () => {
+			try {
+				const res = await fetch("/api/conversations");
+				if (res.ok) {
+					const data = await res.json();
+					setConversations(
+						data.map((c: { id: string; title: string; createdAt: string }) => ({
+							id: c.id,
+							title: c.title,
+							messages: [],
+							createdAt: c.createdAt,
+						}))
+					);
+				}
+			} catch {
+				// Silent fail on initial load
+			} finally {
+				setInitialLoading(false);
+			}
+		})();
+	}, []);
 
 	const activeConversation = conversations.find((c) => c.id === activeConversationId) ?? null;
 	const messages = activeConversation?.messages ?? [];
+
+	// Load messages when switching conversations
+	const switchConversation = useCallback(async (id: string) => {
+		setActiveConversationId(id);
+		setError(null);
+
+		// Check if messages are already loaded
+		const existing = conversationsRef.current.find((c) => c.id === id);
+		if (existing && existing.messages.length > 0) return;
+
+		try {
+			const res = await fetch(`/api/conversations/${id}`);
+			if (res.ok) {
+				const data = await res.json();
+				const msgs = (data.messages ?? []).map(toClientMessage);
+				setConversations((prev) =>
+					prev.map((c) =>
+						c.id === id ? { ...c, messages: msgs } : c
+					)
+				);
+			}
+		} catch {
+			// Silent fail
+		}
+	}, []);
 
 	const newConversation = useCallback(() => {
 		setActiveConversationId(null);
 		setError(null);
 	}, []);
 
-	const switchConversation = useCallback((id: string) => {
-		setActiveConversationId(id);
-		setError(null);
-	}, []);
-
 	const deleteConversation = useCallback(
-		(id: string) => {
+		async (id: string) => {
 			setConversations((prev) => prev.filter((c) => c.id !== id));
 			if (activeConversationId === id) {
 				setActiveConversationId(null);
+			}
+			try {
+				await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+			} catch {
+				// Silent fail
 			}
 		},
 		[activeConversationId]
 	);
 
-	const clearAllConversations = useCallback(() => {
+	const clearAllConversations = useCallback(async () => {
+		const ids = conversationsRef.current.map((c) => c.id);
 		setConversations([]);
 		setActiveConversationId(null);
+		// Delete all in background
+		for (const id of ids) {
+			try {
+				await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+			} catch {
+				// Continue
+			}
+		}
 	}, []);
 
 	const sendMessage = useCallback(
@@ -138,20 +188,45 @@ export const useChat = () => {
 
 			let convoId = activeConversationId;
 			let previousMessages: { role: string; content: string }[] = [];
+			let dbConvoId: string | null = null;
 
 			if (!convoId) {
-				// Create new conversation
-				convoId = crypto.randomUUID();
+				// Create new conversation via API
+				const tempId = crypto.randomUUID();
 				const newConvo: Conversation = {
-					id: convoId,
+					id: tempId,
 					title: text.slice(0, 60),
 					messages: [userMsg, assistantMsg],
-					createdAt: Date.now(),
+					createdAt: new Date().toISOString(),
 				};
 				setConversations((prev) => [newConvo, ...prev]);
-				setActiveConversationId(convoId);
+				setActiveConversationId(tempId);
+				convoId = tempId;
+
+				try {
+					const res = await fetch("/api/conversations", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ title: text.slice(0, 60) }),
+					});
+					if (res.ok) {
+						const created = await res.json();
+						dbConvoId = created.id;
+						// Update local state with real DB id
+						setConversations((prev) =>
+							prev.map((c) =>
+								c.id === tempId ? { ...c, id: created.id } : c
+							)
+						);
+						setActiveConversationId(created.id);
+						convoId = created.id;
+					}
+				} catch {
+					// Continue with streaming even if create fails
+				}
 			} else {
-				// Use ref to get the latest conversations (avoids stale closure)
+				dbConvoId = convoId;
+				// Use ref to get the latest conversations
 				const existingConvo = conversationsRef.current.find((c) => c.id === convoId);
 				if (existingConvo) {
 					previousMessages = existingConvo.messages
@@ -171,7 +246,7 @@ export const useChat = () => {
 
 			const currentConvoId = convoId;
 
-			// Build the full history including the new user message
+			// Build the full history
 			const history = [
 				...previousMessages,
 				{ role: "user", content: text },
@@ -191,6 +266,39 @@ export const useChat = () => {
 					)
 				);
 			};
+
+			// Save user message to DB in background
+			if (dbConvoId) {
+				fetch(`/api/conversations/${dbConvoId}/messages`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						messages: { role: "user", content: text },
+					}),
+				}).then((res) => {
+					if (res.ok) {
+						res.json().then((saved) => {
+							if (saved?.[0]?.id) {
+								// Update the user message ID with the real DB id
+								setConversations((prev) =>
+									prev.map((c) =>
+										c.id === currentConvoId
+											? {
+													...c,
+													messages: c.messages.map((m) =>
+														m.id === userMsg.id
+															? { ...m, id: saved[0].id }
+															: m
+													),
+												}
+											: c
+									)
+								);
+							}
+						});
+					}
+				}).catch(() => {});
+			}
 
 			try {
 				// Run Tavily and Bible AI in parallel
@@ -235,7 +343,6 @@ export const useChat = () => {
 						if (done) break;
 						accumulated += decoder.decode(value, { stream: true });
 
-						// Parse sources marker from stream prefix
 						if (!sourcesParsed && accumulated.includes("-->")) {
 							const markerMatch = accumulated.match(/<!--SOURCES:(.*?)-->/);
 							if (markerMatch) {
@@ -263,7 +370,6 @@ export const useChat = () => {
 					accumulated += decoder.decode();
 					accumulated = accumulated.replace(/<!--SOURCES:.*?-->/, "");
 
-					// Parse follow-up questions from completed response
 					const followUpRegex = /\[FOLLOWUP\]\s*(.+)/g;
 					const followUps: string[] = [];
 					let match;
@@ -278,23 +384,56 @@ export const useChat = () => {
 						...(followUps.length > 0 ? { followUps } : {}),
 					}));
 
-					return cleanContent;
+					return { cleanContent, followUps };
 				});
 
 				const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);
 
-				// Attach tavily results
+				let tavilyResults: TavilyResult[] | undefined;
 				if (results[0].status === "fulfilled" && results[0].value) {
-					updateAssistant((m) => ({ ...m, tavilyResults: results[0].status === "fulfilled" ? results[0].value : undefined }));
+					tavilyResults = results[0].value;
+					updateAssistant((m) => ({ ...m, tavilyResults }));
 				}
 
-				// Check for Bible AI failure
 				if (results[1].status === "rejected") {
 					throw results[1].reason;
 				}
 
 				// Mark streaming done
 				updateAssistant((m) => ({ ...m, isStreaming: false }));
+
+				// Save assistant message to DB
+				if (dbConvoId && results[1].status === "fulfilled") {
+					const { cleanContent, followUps } = results[1].value;
+
+					// Get the latest assistant message state for metadata
+					const latestConvo = conversationsRef.current.find(
+						(c) => c.id === currentConvoId
+					);
+					const latestAssistant = latestConvo?.messages.find(
+						(m) => m.id === assistantMsg.id
+					);
+
+					const metadata: Record<string, unknown> = {};
+					if (tavilyResults) metadata.tavilyResults = tavilyResults;
+					if (latestAssistant?.retrievedVerses)
+						metadata.retrievedVerses = latestAssistant.retrievedVerses;
+					if (latestAssistant?.averageSimilarity !== undefined)
+						metadata.averageSimilarity = latestAssistant.averageSimilarity;
+					if (followUps.length > 0) metadata.followUps = followUps;
+
+					fetch(`/api/conversations/${dbConvoId}/messages`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							messages: {
+								role: "assistant",
+								content: cleanContent,
+								metadata: Object.keys(metadata).length > 0 ? metadata : null,
+							},
+						}),
+					}).catch(() => {});
+				}
 
 				if (results[0].status === "rejected") {
 					console.warn("Tavily search failed:", results[0].reason);
@@ -324,6 +463,7 @@ export const useChat = () => {
 		activeConversation,
 		isStreaming,
 		loading,
+		initialLoading,
 		error,
 		sendMessage,
 		newConversation,

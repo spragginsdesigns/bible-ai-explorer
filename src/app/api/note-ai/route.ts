@@ -4,6 +4,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { NextResponse } from "next/server";
 import { astraDb } from "../../../utils/astraDb";
 import { noteAISystemPrompt } from "../../../utils/systemPrompt";
+import { getAuthUser } from "@/lib/auth";
 
 const model = new ChatOpenAI({
 	openAIApiKey: process.env.OPENAI_API_KEY,
@@ -72,6 +73,8 @@ const MAX_NOTE_CONTENT_LENGTH = 16000;
 
 export async function POST(req: Request): Promise<Response> {
 	try {
+		await getAuthUser();
+
 		const { question, noteContent, noteTitle, history } = await req.json();
 
 		if (!question || typeof question !== "string") {
@@ -147,6 +150,7 @@ export async function POST(req: Request): Promise<Response> {
 			},
 		});
 	} catch (error) {
+		if (error instanceof Response) return error;
 		console.error("Error in note-ai route:", error);
 		if (error instanceof Error) {
 			return NextResponse.json(

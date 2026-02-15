@@ -5,6 +5,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { NextResponse } from "next/server";
 import { astraDb } from "../../../utils/astraDb";
 import { systemPrompt } from "../../../utils/systemPrompt";
+import { getAuthUser } from "@/lib/auth";
 
 // Initialize OpenAI model and embeddings outside the handler for performance
 const model = new ChatOpenAI({
@@ -57,6 +58,8 @@ const MAX_HISTORY_MESSAGES = 20;
 
 export async function POST(req: Request): Promise<Response> {
   try {
+    const userId = await getAuthUser();
+
     const { question, history } = await req.json();
 
     if (!question || typeof question !== 'string') {
@@ -129,6 +132,7 @@ export async function POST(req: Request): Promise<Response> {
       },
     });
   } catch (error) {
+    if (error instanceof Response) return error;
     console.error("Error in API route:", error);
     if (error instanceof Error) {
       return NextResponse.json(

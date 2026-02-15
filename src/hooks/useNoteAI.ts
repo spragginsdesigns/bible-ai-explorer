@@ -1,23 +1,32 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { notesDb } from "@/lib/notesDb";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { NoteAIMessage } from "@/types/notes";
 
 export function useNoteAI(noteId: string) {
+	const [messages, setMessages] = useState<NoteAIMessage[]>([]);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const loadedNoteId = useRef<string | null>(null);
 
-	const messages = useLiveQuery(
-		() =>
-			notesDb.noteAIMessages
-				.where("noteId")
-				.equals(noteId)
-				.sortBy("timestamp"),
-		[noteId]
-	);
+	// Load AI messages from API when noteId changes
+	useEffect(() => {
+		if (!noteId || loadedNoteId.current === noteId) return;
+		loadedNoteId.current = noteId;
+
+		(async () => {
+			try {
+				const res = await fetch(`/api/notes/${noteId}/ai-messages`);
+				if (res.ok) {
+					const data = await res.json();
+					setMessages(data);
+				}
+			} catch {
+				// Silent fail
+			}
+		})();
+	}, [noteId]);
 
 	const sendMessage = useCallback(
 		async (
@@ -40,7 +49,7 @@ export function useNoteAI(noteId: string) {
 				noteId,
 				role: "user",
 				content: text,
-				timestamp: Date.now(),
+				createdAt: new Date().toISOString(),
 			};
 
 			const assistantMsg: NoteAIMessage = {
@@ -48,21 +57,36 @@ export function useNoteAI(noteId: string) {
 				noteId,
 				role: "assistant",
 				content: "",
-				timestamp: Date.now() + 1,
+				createdAt: new Date().toISOString(),
 				isStreaming: true,
 			};
 
-			await notesDb.noteAIMessages.bulkAdd([userMsg, assistantMsg]);
+			setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
-			// Build history from existing messages
-			const existingMsgs = await notesDb.noteAIMessages
-				.where("noteId")
-				.equals(noteId)
-				.sortBy("timestamp");
+			// Save user message to DB in background
+			fetch(`/api/notes/${noteId}/ai-messages`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ role: "user", content: text }),
+			}).then((res) => {
+				if (res.ok) {
+					res.json().then((saved) => {
+						if (saved?.id) {
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === userMsg.id ? { ...m, id: saved.id } : m
+								)
+							);
+						}
+					});
+				}
+			}).catch(() => {});
 
-			const history = existingMsgs
-				.filter((m) => m.content.trim() && m.id !== assistantMsg.id)
-				.map((m) => ({ role: m.role, content: m.content }));
+			// Build history from current messages
+			const history = messages
+				.filter((m) => m.content.trim())
+				.map((m) => ({ role: m.role, content: m.content }))
+				.concat({ role: "user", content: text });
 
 			try {
 				const res = await fetch("/api/note-ai", {
@@ -110,46 +134,75 @@ export function useNoteAI(noteId: string) {
 						? accumulated
 						: accumulated.replace(/<!--SOURCES:.*/, "");
 
-					await notesDb.noteAIMessages.update(assistantMsg.id, {
-						content: displayContent,
-					});
+					setMessages((prev) =>
+						prev.map((m) =>
+							m.id === assistantMsg.id
+								? { ...m, content: displayContent }
+								: m
+						)
+					);
 				}
 
 				accumulated += decoder.decode();
 				accumulated = accumulated.replace(/<!--SOURCES:.*?-->/, "");
 
-				// Parse follow-ups and clean content
 				const cleanContent = accumulated
 					.replace(/\[FOLLOWUP\]\s*.+/g, "")
 					.trimEnd();
 
-				await notesDb.noteAIMessages.update(assistantMsg.id, {
-					content: cleanContent,
-					isStreaming: false,
-				});
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantMsg.id
+							? { ...m, content: cleanContent, isStreaming: false }
+							: m
+					)
+				);
+
+				// Save assistant message to DB
+				fetch(`/api/notes/${noteId}/ai-messages`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ role: "assistant", content: cleanContent }),
+				}).then((res) => {
+					if (res.ok) {
+						res.json().then((saved) => {
+							if (saved?.id) {
+								setMessages((prev) =>
+									prev.map((m) =>
+										m.id === assistantMsg.id ? { ...m, id: saved.id } : m
+									)
+								);
+							}
+						});
+					}
+				}).catch(() => {});
 			} catch (err) {
 				if (err instanceof Error && err.name === "AbortError") return;
 				console.error("Note AI error:", err);
 				const errorContent =
 					err instanceof Error ? err.message : "An error occurred";
-				await notesDb.noteAIMessages.update(assistantMsg.id, {
-					content: `Error: ${errorContent}`,
-					isStreaming: false,
-				});
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantMsg.id
+							? { ...m, content: `Error: ${errorContent}`, isStreaming: false }
+							: m
+					)
+				);
 			} finally {
 				setLoading(false);
 				setIsStreaming(false);
 			}
 		},
-		[noteId]
+		[noteId, messages]
 	);
 
 	const clearHistory = useCallback(async () => {
-		await notesDb.noteAIMessages.where("noteId").equals(noteId).delete();
+		setMessages([]);
+		await fetch(`/api/notes/${noteId}/ai-messages`, { method: "DELETE" });
 	}, [noteId]);
 
 	return {
-		messages: messages ?? [],
+		messages,
 		isStreaming,
 		loading,
 		sendMessage,

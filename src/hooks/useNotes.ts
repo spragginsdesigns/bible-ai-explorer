@@ -1,32 +1,55 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { notesDb } from "@/lib/notesDb";
-import type { Note, Folder, Tag } from "@/types/notes";
+import { useState, useCallback, useEffect, useRef } from "react";
+import type { Note, Folder, Tag, NoteApiResponse } from "@/types/notes";
+import { toNote } from "@/types/notes";
 
 export type SortOption = "updatedAt" | "createdAt" | "title";
 
 export function useNotes() {
+	const [notes, setNotes] = useState<Note[]>([]);
+	const [folders, setFolders] = useState<Folder[]>([]);
+	const [tags, setTags] = useState<Tag[]>([]);
 	const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
 	const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
 	const [activeTagId, setActiveTagId] = useState<string | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [sortBy, setSortBy] = useState<SortOption>("updatedAt");
+	const [isLoading, setIsLoading] = useState(true);
+	const initialized = useRef(false);
 
-	const notes = useLiveQuery(
-		() => notesDb.notes.orderBy("updatedAt").reverse().toArray(),
-		[]
-	);
+	// Load all data from API on mount
+	useEffect(() => {
+		if (initialized.current) return;
+		initialized.current = true;
 
-	const folders = useLiveQuery(
-		() => notesDb.folders.orderBy("sortOrder").toArray(),
-		[]
-	);
+		(async () => {
+			try {
+				const [notesRes, foldersRes, tagsRes] = await Promise.all([
+					fetch("/api/notes"),
+					fetch("/api/folders"),
+					fetch("/api/tags"),
+				]);
 
-	const tags = useLiveQuery(() => notesDb.tags.toArray(), []);
+				if (notesRes.ok) {
+					const data: NoteApiResponse[] = await notesRes.json();
+					setNotes(data.map(toNote));
+				}
+				if (foldersRes.ok) {
+					setFolders(await foldersRes.json());
+				}
+				if (tagsRes.ok) {
+					setTags(await tagsRes.json());
+				}
+			} catch {
+				// Silent fail
+			} finally {
+				setIsLoading(false);
+			}
+		})();
+	}, []);
 
-	const filteredNotes = (notes ?? []).filter((note) => {
+	const filteredNotes = notes.filter((note) => {
 		if (activeFolderId && note.folderId !== activeFolderId) return false;
 		if (activeTagId && !note.tagIds.includes(activeTagId)) return false;
 		if (searchQuery) {
@@ -44,9 +67,9 @@ export function useNotes() {
 		if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
 		switch (sortBy) {
 			case "updatedAt":
-				return b.updatedAt - a.updatedAt;
+				return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 			case "createdAt":
-				return b.createdAt - a.createdAt;
+				return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 			case "title":
 				return a.title.localeCompare(b.title);
 			default:
@@ -54,118 +77,174 @@ export function useNotes() {
 		}
 	});
 
-	const activeNote = (notes ?? []).find((n) => n.id === activeNoteId) ?? null;
+	const activeNote = notes.find((n) => n.id === activeNoteId) ?? null;
 
 	const createNote = useCallback(async (folderId?: string | null): Promise<Note> => {
-		const now = Date.now();
-		const note: Note = {
-			id: crypto.randomUUID(),
+		const body = {
 			title: "Untitled Note",
 			content: "",
 			htmlContent: "",
 			plainText: "",
 			folderId: folderId ?? activeFolderId,
-			tagIds: [],
-			createdAt: now,
-			updatedAt: now,
-			isPinned: false,
 			wordCount: 0,
 		};
-		await notesDb.notes.add(note);
+
+		const res = await fetch("/api/notes", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		});
+
+		if (!res.ok) throw new Error("Failed to create note");
+		const data: NoteApiResponse = await res.json();
+		const note = toNote(data);
+		setNotes((prev) => [note, ...prev]);
 		setActiveNoteId(note.id);
 		return note;
 	}, [activeFolderId]);
 
 	const updateNote = useCallback(async (id: string, changes: Partial<Note>) => {
-		await notesDb.notes.update(id, {
-			...changes,
-			updatedAt: Date.now(),
+		// Optimistic update
+		setNotes((prev) =>
+			prev.map((n) =>
+				n.id === id ? { ...n, ...changes, updatedAt: new Date().toISOString() } : n
+			)
+		);
+
+		const res = await fetch(`/api/notes/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(changes),
 		});
-	}, []);
 
-	const deleteNote = useCallback(async (id: string) => {
-		await notesDb.notes.delete(id);
-		await notesDb.noteAIMessages.where("noteId").equals(id).delete();
-		if (activeNoteId === id) setActiveNoteId(null);
-	}, [activeNoteId]);
-
-	const togglePin = useCallback(async (id: string) => {
-		const note = await notesDb.notes.get(id);
-		if (note) {
-			await notesDb.notes.update(id, { isPinned: !note.isPinned });
+		if (res.ok) {
+			const data: NoteApiResponse = await res.json();
+			const updated = toNote(data);
+			setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
 		}
 	}, []);
 
+	const deleteNote = useCallback(async (id: string) => {
+		setNotes((prev) => prev.filter((n) => n.id !== id));
+		if (activeNoteId === id) setActiveNoteId(null);
+
+		await fetch(`/api/notes/${id}`, { method: "DELETE" });
+	}, [activeNoteId]);
+
+	const togglePin = useCallback(async (id: string) => {
+		const note = notes.find((n) => n.id === id);
+		if (!note) return;
+		const newPinned = !note.isPinned;
+
+		setNotes((prev) =>
+			prev.map((n) => (n.id === id ? { ...n, isPinned: newPinned } : n))
+		);
+
+		await fetch(`/api/notes/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ isPinned: newPinned }),
+		});
+	}, [notes]);
+
 	// Folder CRUD
 	const createFolder = useCallback(async (name: string): Promise<Folder> => {
-		const existing = await notesDb.folders.toArray();
-		const folder: Folder = {
-			id: crypto.randomUUID(),
-			name,
-			parentId: null,
-			sortOrder: existing.length,
-			createdAt: Date.now(),
-		};
-		await notesDb.folders.add(folder);
+		const res = await fetch("/api/folders", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name }),
+		});
+
+		if (!res.ok) throw new Error("Failed to create folder");
+		const folder: Folder = await res.json();
+		setFolders((prev) => [...prev, folder]);
 		return folder;
 	}, []);
 
 	const renameFolder = useCallback(async (id: string, name: string) => {
-		await notesDb.folders.update(id, { name });
+		setFolders((prev) =>
+			prev.map((f) => (f.id === id ? { ...f, name } : f))
+		);
+
+		await fetch(`/api/folders/${id}`, {
+			method: "PATCH",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name }),
+		});
 	}, []);
 
 	const deleteFolder = useCallback(async (id: string) => {
-		// Move notes in this folder to unfiled
-		await notesDb.notes.where("folderId").equals(id).modify({ folderId: null });
-		await notesDb.folders.delete(id);
+		// Move notes to unfiled locally
+		setNotes((prev) =>
+			prev.map((n) => (n.folderId === id ? { ...n, folderId: null } : n))
+		);
+		setFolders((prev) => prev.filter((f) => f.id !== id));
 		if (activeFolderId === id) setActiveFolderId(null);
+
+		await fetch(`/api/folders/${id}`, { method: "DELETE" });
 	}, [activeFolderId]);
 
 	// Tag CRUD
 	const createTag = useCallback(async (name: string, color: string): Promise<Tag> => {
-		const tag: Tag = {
-			id: crypto.randomUUID(),
-			name,
-			color,
-			createdAt: Date.now(),
-		};
-		await notesDb.tags.add(tag);
+		const res = await fetch("/api/tags", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name, color }),
+		});
+
+		if (!res.ok) throw new Error("Failed to create tag");
+		const tag: Tag = await res.json();
+		setTags((prev) => [...prev, tag]);
 		return tag;
 	}, []);
 
 	const deleteTag = useCallback(async (id: string) => {
-		// Remove tag from all notes
-		const notesWithTag = await notesDb.notes.where("tagIds").equals(id).toArray();
-		for (const note of notesWithTag) {
-			await notesDb.notes.update(note.id, {
-				tagIds: note.tagIds.filter((t) => t !== id),
-			});
-		}
-		await notesDb.tags.delete(id);
+		// Remove tag from all notes locally
+		setNotes((prev) =>
+			prev.map((n) => ({
+				...n,
+				tagIds: n.tagIds.filter((t) => t !== id),
+			}))
+		);
+		setTags((prev) => prev.filter((t) => t.id !== id));
 		if (activeTagId === id) setActiveTagId(null);
+
+		await fetch(`/api/tags/${id}`, { method: "DELETE" });
 	}, [activeTagId]);
 
 	const toggleNoteTag = useCallback(async (noteId: string, tagId: string) => {
-		const note = await notesDb.notes.get(noteId);
+		const note = notes.find((n) => n.id === noteId);
 		if (!note) return;
 		const hasTag = note.tagIds.includes(tagId);
-		await notesDb.notes.update(noteId, {
-			tagIds: hasTag
-				? note.tagIds.filter((t) => t !== tagId)
-				: [...note.tagIds, tagId],
-		});
-	}, []);
+
+		// Optimistic update
+		setNotes((prev) =>
+			prev.map((n) =>
+				n.id === noteId
+					? {
+							...n,
+							tagIds: hasTag
+								? n.tagIds.filter((t) => t !== tagId)
+								: [...n.tagIds, tagId],
+						}
+					: n
+			)
+		);
+
+		await fetch(`/api/notes/${noteId}/tags/${tagId}`, { method: "POST" });
+	}, [notes]);
 
 	return {
 		notes: sortedNotes,
-		folders: folders ?? [],
-		tags: tags ?? [],
+		folders,
+		tags,
 		activeNote,
 		activeNoteId,
 		activeFolderId,
 		activeTagId,
 		searchQuery,
 		sortBy,
+		isLoading,
 		setActiveNoteId,
 		setActiveFolderId,
 		setActiveTagId,
