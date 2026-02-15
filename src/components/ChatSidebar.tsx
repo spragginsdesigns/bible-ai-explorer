@@ -30,7 +30,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			{/* Mobile backdrop */}
 			{open && (
 				<div
-					className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+					className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
 					onClick={onClose}
 				/>
 			)}
@@ -39,16 +39,16 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			<aside
 				className={`
 					fixed lg:relative z-50 top-0 left-0 h-full w-[85vw] max-w-72
-					bg-gray-950 border-r border-amber-700/20
+					glass border-r border-white/[0.06]
 					flex flex-col
 					transition-transform duration-200 ease-in-out
 					${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:hidden"}
 				`}
 			>
 				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b border-amber-700/20">
-					<span className="text-amber-500 font-bold text-lg font-[family-name:var(--font-orbitron)]">VerseMind</span>
-					<button onClick={onClose} className="lg:hidden text-amber-100/60 hover:text-amber-100">
+				<div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
+					<span className="text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">VerseMind</span>
+					<button onClick={onClose} className="lg:hidden text-neutral-500 hover:text-neutral-300 transition-colors">
 						<X className="w-5 h-5" />
 					</button>
 				</div>
@@ -60,9 +60,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 							onNewChat();
 							onClose();
 						}}
-						className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-amber-700/30 text-amber-100/80 hover:bg-amber-600/10 transition-colors text-sm"
+						className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl gradient-border bg-white/[0.03] text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-200 transition-colors text-sm"
 					>
-						<Plus className="w-4 h-4" />
+						<Plus className="w-4 h-4 text-amber-400" />
 						New Chat
 					</button>
 				</div>
@@ -73,10 +73,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 						<div
 							key={convo.id}
 							className={`
-								group flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer text-sm mb-0.5
+								group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer text-sm mb-0.5 transition-all duration-150
 								${convo.id === activeConversationId
-									? "bg-amber-600/15 text-amber-100"
-									: "text-amber-100/60 hover:bg-amber-600/10 hover:text-amber-100/80"
+									? "bg-white/[0.06] text-neutral-200 border border-white/[0.1] glow-white-sm"
+									: "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300 border border-transparent"
 								}
 							`}
 							onClick={() => {
@@ -91,7 +91,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 									e.stopPropagation();
 									onDeleteConversation(convo.id);
 								}}
-								className="opacity-0 group-hover:opacity-100 text-amber-100/40 hover:text-red-400 transition-opacity"
+								className="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-400 transition-opacity"
 							>
 								<Trash2 className="w-3.5 h-3.5" />
 							</button>
@@ -101,10 +101,10 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
 				{/* Clear all */}
 				{conversations.length > 0 && (
-					<div className="p-3 border-t border-amber-700/20">
+					<div className="p-3 border-t border-white/[0.06]">
 						<button
 							onClick={onClearAll}
-							className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-amber-100/40 hover:text-red-400 hover:bg-red-400/10 transition-colors text-xs"
+							className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-400/10 transition-colors text-xs"
 						>
 							<Trash2 className="w-3.5 h-3.5" />
 							Clear all conversations

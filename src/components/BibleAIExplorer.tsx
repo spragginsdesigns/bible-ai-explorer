@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import ChatSidebar from "./ChatSidebar";
 import ChatTopBar from "./ChatTopBar";
 import MessageList from "./MessageList";
@@ -29,7 +29,7 @@ const BibleAIExplorer: React.FC = () => {
 		const touch = e.changedTouches[0];
 		const dx = touch.clientX - touchStartX.current;
 		const dy = Math.abs(touch.clientY - touchStartY.current);
-		if (dy > Math.abs(dx)) return; // vertical scroll, ignore
+		if (dy > Math.abs(dx)) return;
 
 		if (dx > SWIPE_THRESHOLD && !sidebarOpen) {
 			setSidebarOpen(true);
@@ -60,7 +60,7 @@ const BibleAIExplorer: React.FC = () => {
 
 	return (
 		<div
-			className="flex h-[100dvh] bg-black overflow-hidden"
+			className="flex h-[100dvh] gradient-mesh overflow-hidden"
 			onTouchStart={handleTouchStart}
 			onTouchEnd={handleTouchEnd}
 		>
@@ -82,6 +82,7 @@ const BibleAIExplorer: React.FC = () => {
 				<ChatTopBar
 					title={title}
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+					onNewChat={newConversation}
 				/>
 
 				{messages.length === 0 ? (

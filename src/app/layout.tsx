@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Orbitron, Cormorant_Garamond } from "next/font/google";
+import { Inter, Pirata_One, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
-const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
+const pirataOne = Pirata_One({ subsets: ["latin"], weight: "400", variable: "--font-pirata" });
 const cormorantGaramond = Cormorant_Garamond({
 	subsets: ["latin"],
 	weight: ["400", "500", "600", "700"],
@@ -79,7 +79,7 @@ export default function RootLayout({
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 			</head>
-			<body className={`${inter.className} ${orbitron.variable} ${cormorantGaramond.variable}`}>
+			<body className={`${inter.className} ${pirataOne.variable} ${cormorantGaramond.variable}`}>
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"

@@ -17,8 +17,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 	if (message.role === "user") {
 		return (
 			<div className="flex justify-end mb-4 animate-message-in">
-				<div className="max-w-[80%] sm:max-w-[70%] bg-amber-600/20 border border-amber-600/30 rounded-2xl rounded-br-sm px-4 py-3">
-					<p className="text-amber-100 whitespace-pre-wrap">{message.content}</p>
+				<div className="max-w-[80%] sm:max-w-[70%] bg-white/[0.06] border border-white/[0.08] rounded-2xl rounded-br-sm px-4 py-3">
+					<p className="text-neutral-200 whitespace-pre-wrap">{message.content}</p>
 				</div>
 			</div>
 		);
@@ -29,8 +29,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 	return (
 		<div className="flex gap-3 mb-4 animate-message-in">
 			<div className="flex-shrink-0 mt-1">
-				<div className="w-8 h-8 rounded-full bg-amber-600/20 border border-amber-600/30 flex items-center justify-center">
-					<Brain className="w-4 h-4 text-amber-500" />
+				<div className="w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+					<Brain className="w-4 h-4 text-amber-400" />
 				</div>
 			</div>
 			<div className="flex-1 min-w-0">
@@ -38,13 +38,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 					<FormattedResponse response={message.content} />
 				) : message.isStreaming ? (
 					<div className="flex items-center gap-1 py-2">
-						<span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce" />
-						<span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce animation-delay-200" />
-						<span className="w-2 h-2 rounded-full bg-amber-500 animate-bounce animation-delay-500" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-200" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-500" />
 					</div>
 				) : null}
 				{message.isStreaming && message.content && (
-					<span className="inline-block w-2 h-4 bg-amber-500 animate-pulse ml-0.5 align-text-bottom" />
+					<span className="inline-block w-2 h-4 bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
 				{doneStreaming && message.retrievedVerses && message.retrievedVerses.length > 0 && (
 					<RetrievedVersesCollapsible

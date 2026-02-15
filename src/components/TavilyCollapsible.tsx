@@ -15,25 +15,25 @@ const TavilyCollapsible: React.FC<TavilyCollapsibleProps> = ({ results }) => {
 		<div className="mt-3">
 			<button
 				onClick={() => setOpen(!open)}
-				className="flex items-center gap-1.5 text-xs text-amber-500/70 hover:text-amber-500 transition-colors"
+				className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
 			>
 				{open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
 				{results.length} source{results.length !== 1 ? "s" : ""} found
 			</button>
 			{open && (
-				<div className="mt-2 space-y-2 pl-1 border-l-2 border-amber-700/20 ml-1">
+				<div className="mt-2 space-y-2 pl-1 border-l border-white/[0.08] ml-1">
 					{results.map((result, i) => (
 						<div key={i} className="pl-3 py-1.5">
 							<div className="flex items-start gap-2">
-								<Globe className="w-3.5 h-3.5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+								<Globe className="w-3.5 h-3.5 text-neutral-600 mt-0.5 flex-shrink-0" />
 								<div>
-									<p className="text-sm text-amber-300 font-medium">{result.title}</p>
-									<p className="text-xs text-amber-100/50 mt-0.5 line-clamp-2">{result.content}</p>
+									<p className="text-sm text-neutral-300 font-medium">{result.title}</p>
+									<p className="text-xs text-neutral-500 mt-0.5 line-clamp-2">{result.content}</p>
 									<a
 										href={result.url}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-xs text-amber-500/70 hover:text-amber-400 flex items-center gap-1 mt-1 w-fit"
+										className="text-xs text-neutral-500 hover:text-neutral-300 flex items-center gap-1 mt-1 w-fit"
 									>
 										View source <ExternalLink className="w-3 h-3" />
 									</a>

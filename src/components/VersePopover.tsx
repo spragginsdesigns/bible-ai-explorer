@@ -73,13 +73,13 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 		<span className="relative inline" ref={popoverRef}>
 			<button
 				onClick={fetchVerse}
-				className="text-amber-400 hover:text-amber-300 underline decoration-amber-500/40 hover:decoration-amber-400 underline-offset-2 transition-colors cursor-pointer"
+				className="text-amber-400 hover:text-amber-300 underline decoration-white/20 hover:decoration-white/40 underline-offset-2 transition-colors cursor-pointer"
 				title={`Look up ${reference} in KJV`}
 			>
 				{children}
 			</button>
 			{open && (
-				<div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 max-w-[90vw] bg-stone-900 border border-amber-700/40 rounded-lg shadow-xl shadow-black/50 p-3">
+				<div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 max-w-[90vw] glass-card border border-white/[0.1] rounded-xl shadow-xl shadow-black/60 p-3">
 					<div className="flex items-center justify-between mb-2">
 						<div className="flex items-center gap-1.5 text-amber-400 text-sm font-semibold">
 							<BookOpen className="w-4 h-4" />
@@ -87,13 +87,13 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 						</div>
 						<button
 							onClick={() => setOpen(false)}
-							className="text-amber-500/50 hover:text-amber-400 transition-colors"
+							className="text-neutral-600 hover:text-neutral-300 transition-colors"
 						>
 							<X className="w-3.5 h-3.5" />
 						</button>
 					</div>
 					{loading && (
-						<div className="flex items-center gap-2 text-amber-500/60 text-xs py-2">
+						<div className="flex items-center gap-2 text-neutral-500 text-xs py-2">
 							<Loader2 className="w-3.5 h-3.5 animate-spin" />
 							Loading KJV text...
 						</div>
@@ -103,16 +103,16 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 					)}
 					{verseData && (
 						<div className="max-h-48 overflow-y-auto custom-scrollbar font-[family-name:var(--font-cormorant)]">
-							<p className="text-base text-amber-100/90 leading-relaxed italic">
+							<p className="text-base text-neutral-300 leading-relaxed italic">
 								{verseData.text}
 							</p>
-							<p className="text-xs text-amber-500/50 mt-2">
+							<p className="text-xs text-neutral-600 mt-2">
 								— {verseData.reference} ({verseData.translation})
 							</p>
 						</div>
 					)}
 					{/* Arrow */}
-					<div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-amber-700/40" />
+					<div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-8 border-x-transparent border-t-8 border-t-white/[0.1]" />
 				</div>
 			)}
 		</span>

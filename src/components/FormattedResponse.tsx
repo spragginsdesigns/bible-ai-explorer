@@ -42,14 +42,14 @@ function processChildren(children: React.ReactNode): React.ReactNode {
 const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 	if (!response || typeof response !== "string") {
 		return (
-			<div className="text-amber-500 font-semibold">
+			<div className="text-neutral-400 font-semibold">
 				No valid response available.
 			</div>
 		);
 	}
 
 	return (
-		<div className="prose-amber">
+		<div className="prose-neutral">
 			<ReactMarkdown
 				remarkPlugins={[remarkGfm]}
 				components={markdownComponents}
@@ -64,32 +64,32 @@ const markdownComponents: React.ComponentProps<
 	typeof ReactMarkdown
 >["components"] = {
 	p: ({ children }) => (
-		<p className="mb-4 text-amber-100/80 leading-relaxed">
+		<p className="mb-4 text-neutral-300 leading-relaxed">
 			{processChildren(children)}
 		</p>
 	),
 	h1: ({ children }) => (
-		<h1 className="text-2xl sm:text-3xl font-bold mb-4 text-amber-500 border-b-2 border-amber-700/30 pb-2">
+		<h1 className="text-2xl sm:text-3xl font-bold mb-4 text-white border-b border-white/[0.08] pb-2">
 			{processChildren(children)}
 		</h1>
 	),
 	h2: ({ children }) => (
-		<h2 className="text-xl sm:text-2xl font-semibold mb-3 text-amber-500 flex items-center">
+		<h2 className="text-xl sm:text-2xl font-semibold mb-3 text-neutral-200 flex items-center">
 			<Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-400" />
 			{processChildren(children)}
 		</h2>
 	),
 	h3: ({ children }) => (
-		<h3 className="text-lg sm:text-xl font-medium mb-2 text-amber-400 flex items-center">
-			<ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-500" />
+		<h3 className="text-lg sm:text-xl font-medium mb-2 text-neutral-300 flex items-center">
+			<ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-neutral-500" />
 			{processChildren(children)}
 		</h3>
 	),
 	ul: ({ children }) => (
-		<ul className="list-none mb-4 text-amber-100/80 space-y-2">
+		<ul className="list-none mb-4 text-neutral-300 space-y-2">
 			{React.Children.map(children, child => (
 				<li className="flex items-start">
-					<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-500 mt-0.5" />
+					<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-neutral-500 mt-0.5" />
 					<span>
 						{child}
 					</span>
@@ -98,25 +98,25 @@ const markdownComponents: React.ComponentProps<
 		</ul>
 	),
 	ol: ({ children }) => (
-		<ol className="list-decimal list-inside mb-4 text-amber-100/80 space-y-2">
+		<ol className="list-decimal list-inside mb-4 text-neutral-300 space-y-2">
 			{children}
 		</ol>
 	),
 	li: ({ children }) => (
-		<li className="text-amber-100/80">
+		<li className="text-neutral-300">
 			{processChildren(children)}
 		</li>
 	),
 	strong: ({ children }) => (
-		<strong className="text-amber-400 font-semibold">{processChildren(children)}</strong>
+		<strong className="text-white font-semibold">{processChildren(children)}</strong>
 	),
 	em: ({ children }) => (
-		<em className="text-amber-200/90 italic">{processChildren(children)}</em>
+		<em className="text-neutral-200 italic">{processChildren(children)}</em>
 	),
 	blockquote: ({ children }) => (
-		<blockquote className="border-l-4 border-amber-500 pl-4 my-4 italic text-amber-100/70 bg-black/40 py-3 pr-3 rounded-r-lg font-[family-name:var(--font-cormorant)] text-lg">
+		<blockquote className="border-l-2 border-white/20 pl-4 my-4 italic text-neutral-400 bg-white/[0.02] py-3 pr-3 rounded-r-lg font-[family-name:var(--font-cormorant)] text-lg">
 			<div className="flex items-start">
-				<Quote className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-500 mt-1 flex-shrink-0" />
+				<Quote className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-400/60 mt-1 flex-shrink-0" />
 				<div>
 					{processChildren(children)}
 				</div>

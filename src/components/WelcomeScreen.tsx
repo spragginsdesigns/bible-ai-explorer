@@ -15,11 +15,13 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 		<div className="flex-1 flex items-center justify-center">
 			<div className="max-w-2xl mx-auto px-4 text-center">
 				<div className="mb-6">
-					<div className="w-16 h-16 rounded-full bg-amber-600/20 border border-amber-600/30 flex items-center justify-center mx-auto mb-4">
-						<Brain className="w-8 h-8 text-amber-500" />
+					<div className="w-20 h-20 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow">
+						<Brain className="w-10 h-10 text-amber-400" />
 					</div>
-					<h1 className="text-2xl sm:text-3xl font-bold text-amber-500 mb-2 font-[family-name:var(--font-orbitron)]">VerseMind</h1>
-					<p className="text-amber-100/50 text-sm">
+					<h1 className="text-5xl sm:text-7xl font-bold text-white mb-3 font-[family-name:var(--font-pirata)]">
+						<span className="bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">VerseMind</span>
+					</h1>
+					<p className="text-neutral-500 text-sm">
 						AI-powered biblical exploration. Ask anything about the Bible.
 					</p>
 				</div>
@@ -29,9 +31,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 						<button
 							key={i}
 							onClick={() => onSelectQuestion(q)}
-							className="text-left px-4 py-3 rounded-xl border border-amber-700/20 bg-gray-900/50 text-amber-100/70 hover:bg-amber-600/10 hover:border-amber-600/30 hover:text-amber-100 transition-colors text-sm"
+							className="text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04] transition-all duration-200 text-sm group"
 						>
-							{q}
+							<span className="group-hover:text-neutral-200 transition-colors">{q}</span>
 						</button>
 					))}
 				</div>

@@ -11,7 +11,7 @@ interface FollowUpChipsProps {
 const FollowUpChips: React.FC<FollowUpChipsProps> = ({ questions, onSelect }) => {
 	return (
 		<div className="mt-4 space-y-2">
-			<p className="text-xs text-amber-500/60 flex items-center gap-1">
+			<p className="text-xs text-neutral-600 flex items-center gap-1">
 				<MessageCircleQuestion className="w-3.5 h-3.5" />
 				Continue studying:
 			</p>
@@ -20,7 +20,7 @@ const FollowUpChips: React.FC<FollowUpChipsProps> = ({ questions, onSelect }) =>
 					<button
 						key={i}
 						onClick={() => onSelect(q)}
-						className="text-sm text-amber-300 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-600/30 hover:border-amber-500/50 rounded-full px-3 py-1.5 transition-colors text-left"
+						className="text-sm text-neutral-400 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] rounded-full px-3 py-1.5 transition-all duration-200 text-left hover:text-neutral-200"
 					>
 						{q}
 					</button>

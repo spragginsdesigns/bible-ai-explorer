@@ -35,9 +35,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 	};
 
 	return (
-		<div className="border-t border-amber-700/20 bg-black/80 backdrop-blur-sm pb-safe">
+		<div className="border-t border-white/[0.06] glass pb-safe">
 			<div className="max-w-3xl mx-auto px-4 py-3">
-				<div className="flex items-end gap-2 bg-gray-900/80 border border-amber-700/30 rounded-xl px-3 py-2">
+				<div className="flex items-end gap-2 gradient-border rounded-xl bg-white/[0.03] px-3 py-2">
 					<textarea
 						ref={textareaRef}
 						value={text}
@@ -46,12 +46,12 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 						placeholder="Ask a question about the Bible..."
 						rows={1}
 						disabled={disabled}
-						className="flex-1 bg-transparent text-amber-100 placeholder:text-amber-100/40 resize-none outline-none py-1.5 max-h-[200px] text-sm sm:text-base"
+						className="flex-1 bg-transparent text-neutral-200 placeholder:text-neutral-600 resize-none outline-none py-1.5 max-h-[200px] text-sm sm:text-base"
 					/>
 					<button
 						onClick={handleSubmit}
 						disabled={disabled || !text.trim()}
-						className="flex-shrink-0 p-2.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-black disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+						className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-white/15 to-white/5 hover:from-white/20 hover:to-white/10 text-white border border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
 					>
 						{loading || isStreaming ? (
 							<Loader2 className="w-4 h-4 animate-spin" />
@@ -60,9 +60,9 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) =
 						)}
 					</button>
 				</div>
-				<p className="text-center text-xs text-amber-100/30 mt-2">
+				<p className="text-center text-xs text-neutral-700 mt-2">
 					VerseMind uses AI trained on the KJV Bible. Use with discernment. Created by{" "}
-					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-amber-500/50 hover:text-amber-400 transition-colors">
+					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-neutral-600 hover:text-neutral-400 transition-colors">
 						Austin Spraggins
 					</a>
 				</p>
