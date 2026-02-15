@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Orbitron, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "../components/ThemeProvider";
 
 const inter = Inter({ subsets: ["latin"] });
+const orbitron = Orbitron({ subsets: ["latin"], variable: "--font-orbitron" });
+const cormorantGaramond = Cormorant_Garamond({
+	subsets: ["latin"],
+	weight: ["400", "500", "600", "700"],
+	style: ["normal", "italic"],
+	variable: "--font-cormorant",
+});
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://bible-ai-explorer.vercel.app"),
@@ -72,7 +79,7 @@ export default function RootLayout({
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 			</head>
-			<body className={inter.className}>
+			<body className={`${inter.className} ${orbitron.variable} ${cormorantGaramond.variable}`}>
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="system"

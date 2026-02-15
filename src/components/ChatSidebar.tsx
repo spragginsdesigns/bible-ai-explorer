@@ -47,7 +47,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-amber-700/20">
-					<span className="text-amber-500 font-bold text-lg">VerseMind</span>
+					<span className="text-amber-500 font-bold text-lg font-[family-name:var(--font-orbitron)]">VerseMind</span>
 					<button onClick={onClose} className="lg:hidden text-amber-100/60 hover:text-amber-100">
 						<X className="w-5 h-5" />
 					</button>

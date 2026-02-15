@@ -102,8 +102,8 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 						<p className="text-red-400 text-xs">{error}</p>
 					)}
 					{verseData && (
-						<div className="max-h-48 overflow-y-auto custom-scrollbar">
-							<p className="text-sm text-amber-100/90 leading-relaxed italic">
+						<div className="max-h-48 overflow-y-auto custom-scrollbar font-[family-name:var(--font-cormorant)]">
+							<p className="text-base text-amber-100/90 leading-relaxed italic">
 								{verseData.text}
 							</p>
 							<p className="text-xs text-amber-500/50 mt-2">

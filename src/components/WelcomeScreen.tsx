@@ -18,7 +18,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 					<div className="w-16 h-16 rounded-full bg-amber-600/20 border border-amber-600/30 flex items-center justify-center mx-auto mb-4">
 						<Brain className="w-8 h-8 text-amber-500" />
 					</div>
-					<h1 className="text-2xl sm:text-3xl font-bold text-amber-500 mb-2">VerseMind</h1>
+					<h1 className="text-2xl sm:text-3xl font-bold text-amber-500 mb-2 font-[family-name:var(--font-orbitron)]">VerseMind</h1>
 					<p className="text-amber-100/50 text-sm">
 						AI-powered biblical exploration. Ask anything about the Bible.
 					</p>

@@ -114,7 +114,7 @@ const markdownComponents: React.ComponentProps<
 		<em className="text-amber-200/90 italic">{processChildren(children)}</em>
 	),
 	blockquote: ({ children }) => (
-		<blockquote className="border-l-4 border-amber-500 pl-4 my-4 italic text-amber-100/70 bg-black/40 py-3 pr-3 rounded-r-lg">
+		<blockquote className="border-l-4 border-amber-500 pl-4 my-4 italic text-amber-100/70 bg-black/40 py-3 pr-3 rounded-r-lg font-[family-name:var(--font-cormorant)] text-lg">
 			<div className="flex items-start">
 				<Quote className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-amber-500 mt-1 flex-shrink-0" />
 				<div>
