@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import NoteEditorTopBar from "./NoteEditorTopBar";
 import TiptapEditor from "./TiptapEditor";
 import NoteAIPanel from "./NoteAIPanel";
@@ -32,6 +32,15 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	onDeleteTag,
 }) => {
 	const [aiPanelOpen, setAiPanelOpen] = useState(false);
+	const [isMobile, setIsMobile] = useState(false);
+
+	useEffect(() => {
+		const mq = window.matchMedia("(max-width: 1023px)");
+		setIsMobile(mq.matches);
+		const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+		mq.addEventListener("change", handler);
+		return () => mq.removeEventListener("change", handler);
+	}, []);
 
 	const handleSave = useCallback(
 		(data: {
@@ -62,23 +71,37 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				aiPanelOpen={aiPanelOpen}
 				onToggleAIPanel={() => setAiPanelOpen(!aiPanelOpen)}
 			/>
-			<div className="flex-1 flex min-h-0">
-				<div className={`flex flex-col min-h-0 ${aiPanelOpen ? "w-3/5" : "flex-1"}`}>
+			<div className="flex-1 flex min-h-0 relative">
+				{/* Editor - always full width on mobile, 3/5 on desktop when AI open */}
+				<div className={`flex flex-col min-h-0 ${aiPanelOpen && !isMobile ? "w-3/5" : "flex-1"}`}>
 					<TiptapEditor
 						content={note.content}
 						noteId={note.id}
 						onSave={handleSave}
 					/>
 				</div>
+
+				{/* AI Panel - fullscreen overlay on mobile, side panel on desktop */}
 				{aiPanelOpen && (
-					<div className="w-2/5 min-w-[280px] max-w-[400px]">
-						<NoteAIPanel
-							noteId={note.id}
-							noteTitle={note.title}
-							noteContent={note.plainText}
-							onClose={() => setAiPanelOpen(false)}
-						/>
-					</div>
+					isMobile ? (
+						<div className="absolute inset-0 z-40 bg-neutral-950/95 backdrop-blur-sm">
+							<NoteAIPanel
+								noteId={note.id}
+								noteTitle={note.title}
+								noteContent={note.plainText}
+								onClose={() => setAiPanelOpen(false)}
+							/>
+						</div>
+					) : (
+						<div className="w-2/5 min-w-[280px] max-w-[400px]">
+							<NoteAIPanel
+								noteId={note.id}
+								noteTitle={note.title}
+								noteContent={note.plainText}
+								onClose={() => setAiPanelOpen(false)}
+							/>
+						</div>
+					)
 				)}
 			</div>
 		</div>

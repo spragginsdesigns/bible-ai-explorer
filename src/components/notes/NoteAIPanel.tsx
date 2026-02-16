@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, Send, Sparkles, Trash2 } from "lucide-react";
+import { X, Send, Sparkles, Trash2, ArrowLeft } from "lucide-react";
 import NoteAIMessage from "./NoteAIMessage";
 import { useNoteAI } from "@/hooks/useNoteAI";
 
@@ -54,8 +54,14 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 	return (
 		<div className="flex flex-col h-full border-l border-white/[0.06] glass">
 			{/* Header */}
-			<div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06]">
+			<div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] pt-safe">
 				<div className="flex items-center gap-2">
+					<button
+						onClick={onClose}
+						className="lg:hidden text-neutral-400 hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
+					>
+						<ArrowLeft className="w-5 h-5" />
+					</button>
 					<Sparkles className="w-4 h-4 text-amber-400" />
 					<span className="text-neutral-300 text-xs font-medium">
 						AI Assistant
@@ -66,14 +72,14 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 						<button
 							onClick={clearHistory}
 							title="Clear chat"
-							className="text-neutral-600 hover:text-red-400 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+							className="text-neutral-600 hover:text-red-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 						>
 							<Trash2 className="w-3.5 h-3.5" />
 						</button>
 					)}
 					<button
 						onClick={onClose}
-						className="text-neutral-500 hover:text-neutral-300 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+						className="hidden lg:flex text-neutral-500 hover:text-neutral-300 transition-colors min-w-[32px] min-h-[32px] items-center justify-center"
 					>
 						<X className="w-4 h-4" />
 					</button>
@@ -124,7 +130,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 			)}
 
 			{/* Input */}
-			<div className="p-3 border-t border-white/[0.06]">
+			<div className="p-3 border-t border-white/[0.06] pb-safe">
 				<div className="flex items-end gap-2">
 					<textarea
 						ref={inputRef}

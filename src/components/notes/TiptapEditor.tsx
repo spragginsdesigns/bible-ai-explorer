@@ -40,6 +40,7 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ content, noteId, onSave }) 
 	);
 
 	const editor = useEditor({
+		immediatelyRender: false,
 		extensions: [
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
@@ -59,7 +60,7 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ content, noteId, onSave }) 
 		],
 		editorProps: {
 			attributes: {
-				class: "prose-editor outline-none min-h-[300px] px-4 py-3",
+				class: "prose-editor outline-none min-h-[200px] md:min-h-[300px] px-3 py-3 md:px-4 break-words",
 			},
 		},
 		onUpdate: ({ editor: ed }) => {

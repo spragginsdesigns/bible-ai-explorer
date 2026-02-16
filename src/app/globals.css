@@ -446,6 +446,8 @@
 	color: rgba(0, 0, 0, 0.85);
 	font-size: 0.9375rem;
 	line-height: 1.7;
+	overflow-wrap: break-word;
+	word-break: break-word;
 }
 
 .dark .prose-editor {

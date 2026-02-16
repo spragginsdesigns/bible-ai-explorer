@@ -44,7 +44,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 		}
 	};
 
-	const groups: ToolbarButton[][] = [
+	// Primary buttons shown on mobile, all buttons on desktop
+	const primaryGroups: ToolbarButton[][] = [
 		[
 			{
 				icon: <Undo className="w-4 h-4" />,
@@ -103,6 +104,10 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 				isActive: editor.isActive("heading", { level: 3 }),
 			},
 		],
+	];
+
+	// Secondary buttons hidden on mobile, shown on desktop
+	const secondaryGroups: ToolbarButton[][] = [
 		[
 			{
 				icon: <List className="w-4 h-4" />,
@@ -165,31 +170,36 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 		],
 	];
 
-	return (
-		<div className="flex items-center gap-0.5 px-3 py-2 border-b border-white/[0.06] glass-light overflow-x-auto scrollbar-hide">
-			{groups.map((group, gi) => (
-				<React.Fragment key={gi}>
-					{gi > 0 && (
-						<div className="w-px h-5 bg-white/[0.06] mx-1 flex-shrink-0" />
-					)}
-					{group.map((btn, bi) => (
-						<button
-							key={bi}
-							onClick={btn.action}
-							title={btn.title}
-							className={`
-								min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-colors flex-shrink-0
-								${btn.isActive
-									? "text-amber-400 bg-white/[0.06]"
-									: "text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.03]"
-								}
-							`}
-						>
-							{btn.icon}
-						</button>
-					))}
-				</React.Fragment>
+	const renderGroup = (group: ToolbarButton[], gi: number, showSep: boolean) => (
+		<React.Fragment key={gi}>
+			{showSep && (
+				<div className="w-px h-5 bg-white/[0.06] mx-1 flex-shrink-0" />
+			)}
+			{group.map((btn, bi) => (
+				<button
+					key={bi}
+					onClick={btn.action}
+					title={btn.title}
+					className={`
+						min-w-[32px] min-h-[32px] flex items-center justify-center rounded-md transition-colors flex-shrink-0
+						${btn.isActive
+							? "text-amber-400 bg-white/[0.06]"
+							: "text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.03]"
+						}
+					`}
+				>
+					{btn.icon}
+				</button>
 			))}
+		</React.Fragment>
+	);
+
+	return (
+		<div className="flex items-center gap-0.5 px-2 py-1.5 lg:px-3 lg:py-2 border-b border-white/[0.06] glass-light overflow-x-auto scrollbar-hide">
+			{primaryGroups.map((group, gi) => renderGroup(group, gi, gi > 0))}
+			<div className="hidden md:contents">
+				{secondaryGroups.map((group, gi) => renderGroup(group, gi + primaryGroups.length, true))}
+			</div>
 		</div>
 	);
 };
