@@ -5,6 +5,12 @@ import { NextResponse } from "next/server";
 import { astraDb } from "../../../utils/astraDb";
 import { noteAISystemPrompt } from "../../../utils/systemPrompt";
 import { getAuthUser } from "@/lib/auth";
+import {
+	ChatHistoryValidationError,
+	MAX_CHAT_MESSAGE_CHARACTERS,
+	parseConversationHistory,
+} from "@/utils/chatContext";
+import { getKjvBookName, getKjvVerseText } from "@/utils/kjvBible";
 
 const model = new ChatOpenAI({
 	openAIApiKey: process.env.OPENAI_API_KEY,
@@ -22,29 +28,10 @@ const embeddings = new OpenAIEmbeddings({
 });
 
 const HUMAN_PROMPT_SUFFIX = `
-- Every claim MUST be supported by exact KJV Bible verse quotes (word-for-word, not paraphrased)
-- Format verse quotes as blockquotes with the reference
-- Use the similar verses provided above when relevant, but also reference other verses you know
+- Support every substantive biblical claim with exact KJV wording from the passages supplied above when a relevant passage is available
+- Quote Scripture only by copying word-for-word from <retrieved_kjv_passages>, and format full-verse quotations as blockquotes with the reference
+- You may cite other KJV passages by reference, but do not invent or quote wording that was not supplied
 - End with a thought-provoking question for deeper study`;
-
-const BOOK_NAMES: Record<string, string> = {
-	"1": "Genesis", "2": "Exodus", "3": "Leviticus", "4": "Numbers", "5": "Deuteronomy",
-	"6": "Joshua", "7": "Judges", "8": "Ruth", "9": "1 Samuel", "10": "2 Samuel",
-	"11": "1 Kings", "12": "2 Kings", "13": "1 Chronicles", "14": "2 Chronicles",
-	"15": "Ezra", "16": "Nehemiah", "17": "Esther", "18": "Job", "19": "Psalms",
-	"20": "Proverbs", "21": "Ecclesiastes", "22": "Song of Solomon", "23": "Isaiah",
-	"24": "Jeremiah", "25": "Lamentations", "26": "Ezekiel", "27": "Daniel",
-	"28": "Hosea", "29": "Joel", "30": "Amos", "31": "Obadiah", "32": "Jonah",
-	"33": "Micah", "34": "Nahum", "35": "Habakkuk", "36": "Zephaniah", "37": "Haggai",
-	"38": "Zechariah", "39": "Malachi",
-	"40": "Matthew", "41": "Mark", "42": "Luke", "43": "John", "44": "Acts",
-	"45": "Romans", "46": "1 Corinthians", "47": "2 Corinthians", "48": "Galatians",
-	"49": "Ephesians", "50": "Philippians", "51": "Colossians",
-	"52": "1 Thessalonians", "53": "2 Thessalonians", "54": "1 Timothy", "55": "2 Timothy",
-	"56": "Titus", "57": "Philemon", "58": "Hebrews", "59": "James",
-	"60": "1 Peter", "61": "2 Peter", "62": "1 John", "63": "2 John", "64": "3 John",
-	"65": "Jude", "66": "Revelation",
-};
 
 async function retryWithExponentialBackoff<T>(
 	operation: () => Promise<T>,
@@ -63,31 +50,64 @@ async function retryWithExponentialBackoff<T>(
 	throw new Error("This should never be reached");
 }
 
-interface HistoryMessage {
-	role: "user" | "assistant";
-	content: string;
-}
-
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_NOTE_CONTENT_LENGTH = 16000;
+const MAX_NOTE_TITLE_LENGTH = 200;
 
 export async function POST(req: Request): Promise<Response> {
 	try {
 		await getAuthUser();
 
-		const { question, noteContent, noteTitle, history } = await req.json();
+		const body: unknown = await req.json();
+		const requestData =
+			typeof body === "object" && body !== null
+				? (body as Record<string, unknown>)
+				: {};
+		const rawQuestion = requestData.question;
 
-		if (!question || typeof question !== "string") {
+		if (typeof rawQuestion !== "string" || !rawQuestion.trim()) {
 			return NextResponse.json(
 				{ error: "Invalid input: 'question' must be a non-empty string." },
 				{ status: 400 }
 			);
 		}
 
+		const question = rawQuestion.trim();
+		if (question.length > MAX_CHAT_MESSAGE_CHARACTERS) {
+			return NextResponse.json(
+				{ error: `Invalid input: 'question' is limited to ${MAX_CHAT_MESSAGE_CHARACTERS} characters.` },
+				{ status: 400 }
+			);
+		}
+		if (
+			requestData.noteContent !== undefined &&
+			typeof requestData.noteContent !== "string"
+		) {
+			return NextResponse.json(
+				{ error: "Invalid input: 'noteContent' must be a string." },
+				{ status: 400 }
+			);
+		}
+		if (requestData.noteTitle !== undefined && typeof requestData.noteTitle !== "string") {
+			return NextResponse.json(
+				{ error: "Invalid input: 'noteTitle' must be a string." },
+				{ status: 400 }
+			);
+		}
+
+		const noteContent =
+			typeof requestData.noteContent === "string" ? requestData.noteContent : "";
+		const noteTitle =
+			typeof requestData.noteTitle === "string" && requestData.noteTitle.trim()
+				? requestData.noteTitle.trim().slice(0, MAX_NOTE_TITLE_LENGTH)
+				: "Untitled Note";
+		const trimmedHistory = parseConversationHistory(
+			requestData.history,
+			question
+		).slice(-MAX_HISTORY_MESSAGES);
+
 		// Truncate note content if too long
-		const truncatedContent = noteContent
-			? noteContent.slice(0, MAX_NOTE_CONTENT_LENGTH)
-			: "";
+		const truncatedContent = noteContent.slice(0, MAX_NOTE_CONTENT_LENGTH);
 
 		// Perform similarity search
 		const searchResult = await retryWithExponentialBackoff(() =>
@@ -96,13 +116,10 @@ export async function POST(req: Request): Promise<Response> {
 
 		// Build messages with note context
 		const langchainMessages = [
-			new SystemMessage(noteAISystemPrompt(noteTitle || "Untitled Note", truncatedContent)),
+			new SystemMessage(noteAISystemPrompt(noteTitle, truncatedContent)),
 		];
 
 		// Add conversation history
-		const priorHistory: HistoryMessage[] = Array.isArray(history) ? history.slice(0, -1) : [];
-		const trimmedHistory = priorHistory.slice(-MAX_HISTORY_MESSAGES);
-
 		for (const msg of trimmedHistory) {
 			if (msg.role === "user") {
 				langchainMessages.push(new HumanMessage(msg.content));
@@ -112,7 +129,7 @@ export async function POST(req: Request): Promise<Response> {
 		}
 
 		langchainMessages.push(new HumanMessage(
-			`Here are relevant Bible verses from the vector database:\n${searchResult.formatted}\n\nAnswer the following question about my Bible study note.\n${HUMAN_PROMPT_SUFFIX}\n\nQuestion: ${question}`
+			`<retrieved_kjv_passages>\n${searchResult.formatted}\n</retrieved_kjv_passages>\n\nAnswer the following question about my Bible study note.\n${HUMAN_PROMPT_SUFFIX}\n\nQuestion: ${question}`
 		));
 
 		const stream = await model.stream(langchainMessages);
@@ -151,6 +168,9 @@ export async function POST(req: Request): Promise<Response> {
 		});
 	} catch (error) {
 		if (error instanceof Response) return error;
+		if (error instanceof ChatHistoryValidationError) {
+			return NextResponse.json({ error: error.message }, { status: 400 });
+		}
 		console.error("Error in note-ai route:", error);
 		if (error instanceof Error) {
 			return NextResponse.json(
@@ -168,12 +188,44 @@ export async function POST(req: Request): Promise<Response> {
 interface RetrievedVerse {
 	reference: string;
 	similarity: number;
+	text?: string;
 }
 
 interface SimilaritySearchResult {
 	formatted: string;
 	verses: RetrievedVerse[];
 	averageSimilarity: number;
+}
+
+interface VerseCoordinates {
+	book: number;
+	chapter: number;
+	verse: number;
+	similarity: number;
+}
+
+function asPositiveInteger(value: unknown): number | undefined {
+	const numberValue = typeof value === "number" ? value : Number(value);
+	return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : undefined;
+}
+
+function asSimilarity(value: unknown): number {
+	return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function toVerseCoordinates(doc: Record<string, unknown>): VerseCoordinates | undefined {
+	const book = asPositiveInteger(doc.b);
+	const chapter = asPositiveInteger(doc.c);
+	const verse = asPositiveInteger(doc.v);
+
+	if (!book || !chapter || !verse) return undefined;
+
+	return {
+		book,
+		chapter,
+		verse,
+		similarity: asSimilarity(doc.$similarity),
+	};
 }
 
 async function performSimilaritySearch(query: string): Promise<SimilaritySearchResult> {
@@ -206,16 +258,27 @@ async function performSimilaritySearch(query: string): Promise<SimilaritySearchR
 			return { formatted: "No relevant Bible verses found.", verses: [], averageSimilarity: 0 };
 		}
 
-		const verses: RetrievedVerse[] = [];
-		const formattedResults = results
-			.map((doc: Record<string, unknown>) => {
-				const bookName = BOOK_NAMES[String(doc.b)] ?? `Book ${doc.b}`;
-				const ref = `${bookName} ${doc.c}:${doc.v}`;
-				const similarity = (doc.$similarity as number) ?? 0;
-				verses.push({ reference: ref, similarity });
-				return `${ref} (Similarity: ${similarity.toFixed(2)})`;
+		const coordinates = results.flatMap((doc: Record<string, unknown>) => {
+			const parsed = toVerseCoordinates(doc);
+			return parsed ? [parsed] : [];
+		});
+
+		const verses: RetrievedVerse[] = await Promise.all(
+			coordinates.map(async ({ book, chapter, verse, similarity }) => {
+				const bookName = getKjvBookName(book) ?? `Book ${book}`;
+				const reference = `${bookName} ${chapter}:${verse}`;
+				const text = await getKjvVerseText(book, chapter, verse);
+
+				return { reference, similarity, ...(text ? { text } : {}) };
 			})
-			.filter(Boolean)
+		);
+
+		const formattedResults = verses
+			.map((verse) =>
+				verse.text
+					? `${verse.reference} KJV: "${verse.text}"`
+					: `${verse.reference} KJV (reference only; do not quote)`
+			)
 			.join("\n");
 
 		const averageSimilarity = verses.length > 0

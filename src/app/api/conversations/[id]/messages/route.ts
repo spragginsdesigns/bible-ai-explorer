@@ -3,11 +3,12 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
+		const { id } = await params;
 		const conversation = await prisma.conversation.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!conversation) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -22,19 +23,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 				role: m.role,
 				content: m.content,
 				metadata: m.metadata ?? Prisma.JsonNull,
-				conversationId: params.id,
+				conversationId: id,
 			})),
 		});
 
 		// Also touch the conversation's updatedAt
 		await prisma.conversation.update({
-			where: { id: params.id },
+			where: { id },
 			data: { updatedAt: new Date() },
 		});
 
 		// Return the created messages
 		const latestMessages = await prisma.message.findMany({
-			where: { conversationId: params.id },
+			where: { conversationId: id },
 			orderBy: { createdAt: "desc" },
 			take: msgArray.length,
 		});

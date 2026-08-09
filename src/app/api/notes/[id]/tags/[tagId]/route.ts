@@ -4,20 +4,21 @@ import { getAuthUser } from "@/lib/auth";
 
 export async function POST(
 	_req: Request,
-	{ params }: { params: { id: string; tagId: string } }
+	{ params }: { params: Promise<{ id: string; tagId: string }> }
 ) {
 	try {
 		const userId = await getAuthUser();
+		const { id, tagId } = await params;
 		// Verify note ownership
 		const note = await prisma.note.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!note) {
 			return NextResponse.json({ error: "Note not found" }, { status: 404 });
 		}
 		// Verify tag ownership
 		const tag = await prisma.tag.findFirst({
-			where: { id: params.tagId, userId },
+			where: { id: tagId, userId },
 		});
 		if (!tag) {
 			return NextResponse.json({ error: "Tag not found" }, { status: 404 });
@@ -25,17 +26,17 @@ export async function POST(
 
 		// Toggle: if exists, remove; if not, add
 		const existing = await prisma.noteTag.findUnique({
-			where: { noteId_tagId: { noteId: params.id, tagId: params.tagId } },
+			where: { noteId_tagId: { noteId: id, tagId } },
 		});
 
 		if (existing) {
 			await prisma.noteTag.delete({
-				where: { noteId_tagId: { noteId: params.id, tagId: params.tagId } },
+				where: { noteId_tagId: { noteId: id, tagId } },
 			});
 			return NextResponse.json({ action: "removed" });
 		} else {
 			await prisma.noteTag.create({
-				data: { noteId: params.id, tagId: params.tagId },
+				data: { noteId: id, tagId },
 			});
 			return NextResponse.json({ action: "added" }, { status: 201 });
 		}

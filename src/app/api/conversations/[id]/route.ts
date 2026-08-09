@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
+		const { id } = await params;
 		const conversation = await prisma.conversation.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 			include: {
 				messages: { orderBy: { createdAt: "asc" } },
 			},
@@ -21,16 +22,17 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 	}
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
+		const { id } = await params;
 		const conversation = await prisma.conversation.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!conversation) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
 		}
-		await prisma.conversation.delete({ where: { id: params.id } });
+		await prisma.conversation.delete({ where: { id } });
 		return NextResponse.json({ success: true });
 	} catch (err) {
 		if (err instanceof Response) return err;

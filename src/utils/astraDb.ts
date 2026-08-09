@@ -10,8 +10,7 @@ export const astraDb = db;
 
 export async function testAstraDbConnection() {
 	try {
-		const colls = await db.listCollections();
-		console.log("Connected to AstraDB:", colls);
+		await db.listCollections();
 		return true;
 	} catch (error) {
 		console.error("Failed to connect to AstraDB:", error);

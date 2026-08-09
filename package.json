@@ -7,13 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.37.4",
+    "@clerk/nextjs": "^6.39.3",
     "@datastax/astra-db-ts": "^1.4.1",
-    "@langchain/core": "^0.2.34",
-    "@langchain/openai": "^0.2.11",
+    "@langchain/core": "^0.3.80",
+    "@langchain/openai": "^0.3.0",
     "@prisma/client": "^6.19.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@tiptap/extension-highlight": "^3.19.0",
@@ -26,18 +27,14 @@
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
-    "ai": "^3.3.41",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^11.5.4",
-    "langchain": "^0.2.20",
     "lru-cache": "^11.0.1",
     "lucide-react": "^0.408.0",
-    "next": "14.2.8",
+    "next": "15.5.21",
     "next-pwa": "^5.6.0",
     "next-themes": "^0.3.0",
-    "openai": "^4.62.0",
-    "openai-edge": "^1.2.2",
     "react": "^18.3.1",
     "react-autosuggest": "^10.1.0",
     "react-dom": "^18.3.1",
@@ -47,14 +44,6 @@
     "tailwindcss-animate": "^1.0.7",
     "turndown": "^7.2.2"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
-      "@clerk/shared"
-    ]
-  },
   "devDependencies": {
     "@types/node": "^20.16.5",
     "@types/react": "^18.3.7",
@@ -62,7 +51,7 @@
     "@types/react-dom": "^18.3.0",
     "@types/turndown": "^5.0.6",
     "eslint": "^8.57.1",
-    "eslint-config-next": "14.2.5",
+    "eslint-config-next": "15.5.21",
     "postcss": "^8.4.47",
     "prisma": "^6.19.2",
     "tailwindcss": "^3.4.12",

@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
+		const { id } = await params;
 		const existing = await prisma.folder.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!existing) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -14,7 +15,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 		const { name } = await req.json();
 		const folder = await prisma.folder.update({
-			where: { id: params.id },
+			where: { id },
 			data: { name },
 		});
 		return NextResponse.json(folder);
@@ -24,11 +25,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 	}
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
+		const { id } = await params;
 		const existing = await prisma.folder.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!existing) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -36,10 +38,10 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
 		// Move notes in this folder to unfiled
 		await prisma.note.updateMany({
-			where: { folderId: params.id },
+			where: { folderId: id },
 			data: { folderId: null },
 		});
-		await prisma.folder.delete({ where: { id: params.id } });
+		await prisma.folder.delete({ where: { id } });
 		return NextResponse.json({ success: true });
 	} catch (err) {
 		if (err instanceof Response) return err;

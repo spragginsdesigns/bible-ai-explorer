@@ -1,7 +1,12 @@
 import withPWA from "next-pwa";
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+	outputFileTracingIncludes: {
+		"/api/ask-question": ["./biblical-texts/KJV-Bible.txt"],
+		"/api/note-ai": ["./biblical-texts/KJV-Bible.txt"],
+	},
+};
 
 export default withPWA({
 	dest: "public",

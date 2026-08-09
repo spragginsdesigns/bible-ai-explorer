@@ -7,12 +7,18 @@ interface ChatInputProps {
 	onSend: (text: string) => void;
 	loading: boolean;
 	isStreaming: boolean;
+	disabled?: boolean;
 }
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSend, loading, isStreaming }) => {
+const ChatInput: React.FC<ChatInputProps> = ({
+	onSend,
+	loading,
+	isStreaming,
+	disabled: externallyDisabled = false,
+}) => {
 	const [text, setText] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
-	const disabled = loading || isStreaming;
+	const disabled = externallyDisabled || loading || isStreaming;
 
 	useEffect(() => {
 		if (textareaRef.current) {

@@ -1,10 +1,15 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import {
+	buildConversationRequestHistory,
+	type ConversationHistoryMessage,
+} from "@/utils/chatContext";
 
 export interface RetrievedVerse {
 	reference: string;
 	similarity: number;
+	text?: string;
 }
 
 export interface ChatMessage {
@@ -32,24 +37,124 @@ export interface Conversation {
 	createdAt: string;
 }
 
-/** Map a DB message to our client ChatMessage shape */
-function toClientMessage(dbMsg: {
-	id: string;
-	role: string;
-	content: string;
-	metadata?: Record<string, unknown> | null;
-	createdAt: string;
-}): ChatMessage {
-	const meta = dbMsg.metadata ?? {};
+interface SourcesMetadata {
+	verses: RetrievedVerse[];
+	averageSimilarity: number;
+}
+
+const HISTORY_LOAD_ERROR =
+	"We couldn't load this conversation. Retry to restore its context, or start a new chat.";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function parseSourcesMetadata(value: unknown): SourcesMetadata | undefined {
+	if (!isRecord(value) || !Array.isArray(value.verses)) return undefined;
+
+	const verses = value.verses.flatMap((verse): RetrievedVerse[] => {
+		if (!isRecord(verse)) return [];
+		if (typeof verse.reference !== "string" || typeof verse.similarity !== "number") {
+			return [];
+		}
+
+		return [{
+			reference: verse.reference,
+			similarity: verse.similarity,
+			...(typeof verse.text === "string" ? { text: verse.text } : {}),
+		}];
+	});
+
 	return {
-		id: dbMsg.id,
-		role: dbMsg.role as "user" | "assistant",
-		content: dbMsg.content,
-		tavilyResults: (meta as Record<string, unknown>).tavilyResults as TavilyResult[] | undefined,
-		retrievedVerses: (meta as Record<string, unknown>).retrievedVerses as RetrievedVerse[] | undefined,
-		averageSimilarity: (meta as Record<string, unknown>).averageSimilarity as number | undefined,
-		followUps: (meta as Record<string, unknown>).followUps as string[] | undefined,
-		timestamp: new Date(dbMsg.createdAt).getTime(),
+		verses,
+		averageSimilarity:
+			typeof value.averageSimilarity === "number" ? value.averageSimilarity : 0,
+	};
+}
+
+function parseTavilyResults(value: unknown): TavilyResult[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+
+	return value.flatMap((result): TavilyResult[] => {
+		if (
+			!isRecord(result) ||
+			typeof result.title !== "string" ||
+			typeof result.content !== "string" ||
+			typeof result.url !== "string"
+		) {
+			return [];
+		}
+
+		return [{ title: result.title, content: result.content, url: result.url }];
+	});
+}
+
+function visibleResponseContent(content: string): string {
+	return content.replace(/\r?\n?\[FOLLOWUP\][\s\S]*$/, "").trimEnd();
+}
+
+function parseCompletedResponse(content: string): {
+	cleanContent: string;
+	followUps: string[];
+} {
+	const followUps: string[] = [];
+	const seen = new Set<string>();
+	const followUpRegex = /\[FOLLOWUP\]\s*([^\r\n]+)/g;
+	let match: RegExpExecArray | null;
+
+	while ((match = followUpRegex.exec(content)) !== null && followUps.length < 2) {
+		const question = match[1].trim();
+		const normalized = question.toLowerCase();
+		if (question && !seen.has(normalized)) {
+			seen.add(normalized);
+			followUps.push(question);
+		}
+	}
+
+	return {
+		cleanContent: content.replace(/\r?\n?\[FOLLOWUP\][^\r\n]*/g, "").trimEnd(),
+		followUps,
+	};
+}
+
+/** Map a DB message to our client ChatMessage shape */
+function toClientMessage(value: unknown): ChatMessage {
+	if (
+		!isRecord(value) ||
+		typeof value.id !== "string" ||
+		(value.role !== "user" && value.role !== "assistant") ||
+		typeof value.content !== "string" ||
+		typeof value.createdAt !== "string"
+	) {
+		throw new Error("Conversation history response contained an invalid message.");
+	}
+
+	const timestamp = Date.parse(value.createdAt);
+	if (!Number.isFinite(timestamp)) {
+		throw new Error("Conversation history response contained an invalid timestamp.");
+	}
+
+	const meta = isRecord(value.metadata) ? value.metadata : {};
+	const sources = parseSourcesMetadata({
+		verses: meta.retrievedVerses,
+		averageSimilarity: meta.averageSimilarity,
+	});
+	const followUps = Array.isArray(meta.followUps)
+		? meta.followUps.filter((item): item is string => typeof item === "string")
+		: undefined;
+	const tavilyResults = parseTavilyResults(meta.tavilyResults);
+
+	return {
+		id: value.id,
+		role: value.role,
+		content: value.content,
+		...(tavilyResults ? { tavilyResults } : {}),
+		...(sources ? {
+			retrievedVerses: sources.verses,
+			averageSimilarity: sources.averageSimilarity,
+		} : {}),
+		...(followUps ? { followUps } : {}),
+		timestamp,
 	};
 }
 
@@ -60,9 +165,15 @@ export const useChat = () => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [initialLoading, setInitialLoading] = useState(true);
+	const [historyLoading, setHistoryLoading] = useState(false);
+	const [historyError, setHistoryError] = useState<string | null>(null);
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const initialized = useRef(false);
 	const conversationsRef = useRef<Conversation[]>([]);
+	const historyLoadVersionRef = useRef(0);
+	const historyLoadingRef = useRef(false);
+	const historyErrorConversationIdRef = useRef<string | null>(null);
+	const loadedConversationIdsRef = useRef(new Set<string>());
 
 	// Keep ref in sync with state
 	useEffect(() => {
@@ -101,36 +212,82 @@ export const useChat = () => {
 
 	// Load messages when switching conversations
 	const switchConversation = useCallback(async (id: string) => {
+		const loadVersion = ++historyLoadVersionRef.current;
 		setActiveConversationId(id);
 		setError(null);
+		setHistoryError(null);
+		historyErrorConversationIdRef.current = null;
 
 		// Check if messages are already loaded
 		const existing = conversationsRef.current.find((c) => c.id === id);
-		if (existing && existing.messages.length > 0) return;
+		if (loadedConversationIdsRef.current.has(id) || (existing && existing.messages.length > 0)) {
+			loadedConversationIdsRef.current.add(id);
+			historyLoadingRef.current = false;
+			setHistoryLoading(false);
+			return;
+		}
+
+		historyLoadingRef.current = true;
+		setHistoryLoading(true);
 
 		try {
 			const res = await fetch(`/api/conversations/${id}`);
-			if (res.ok) {
-				const data = await res.json();
-				const msgs = (data.messages ?? []).map(toClientMessage);
-				setConversations((prev) =>
-					prev.map((c) =>
-						c.id === id ? { ...c, messages: msgs } : c
-					)
-				);
+			if (!res.ok) {
+				throw new Error("Conversation history request failed.");
 			}
+
+			const data: unknown = await res.json();
+			if (loadVersion !== historyLoadVersionRef.current) return;
+			if (!isRecord(data) || !Array.isArray(data.messages)) {
+				throw new Error("Conversation history response was invalid.");
+			}
+
+			const msgs = data.messages.map(toClientMessage);
+			loadedConversationIdsRef.current.add(id);
+			setConversations((prev) =>
+				prev.map((c) =>
+					c.id === id ? { ...c, messages: msgs } : c
+				)
+			);
 		} catch {
-			// Silent fail
+			if (loadVersion === historyLoadVersionRef.current) {
+				historyErrorConversationIdRef.current = id;
+				setHistoryError(HISTORY_LOAD_ERROR);
+			}
+		} finally {
+			if (loadVersion === historyLoadVersionRef.current) {
+				historyLoadingRef.current = false;
+				setHistoryLoading(false);
+			}
 		}
 	}, []);
 
+	const retryHistory = useCallback(() => {
+		if (activeConversationId) {
+			void switchConversation(activeConversationId);
+		}
+	}, [activeConversationId, switchConversation]);
+
 	const newConversation = useCallback(() => {
+		historyLoadVersionRef.current += 1;
+		historyLoadingRef.current = false;
+		historyErrorConversationIdRef.current = null;
+		setHistoryLoading(false);
+		setHistoryError(null);
 		setActiveConversationId(null);
 		setError(null);
 	}, []);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
+			loadedConversationIdsRef.current.delete(id);
+			if (activeConversationId === id) {
+				historyLoadVersionRef.current += 1;
+				historyLoadingRef.current = false;
+				historyErrorConversationIdRef.current = null;
+				setHistoryLoading(false);
+				setHistoryError(null);
+			}
 			setConversations((prev) => prev.filter((c) => c.id !== id));
 			if (activeConversationId === id) {
 				setActiveConversationId(null);
@@ -145,6 +302,12 @@ export const useChat = () => {
 	);
 
 	const clearAllConversations = useCallback(async () => {
+		historyLoadVersionRef.current += 1;
+		historyLoadingRef.current = false;
+		historyErrorConversationIdRef.current = null;
+		loadedConversationIdsRef.current.clear();
+		setHistoryLoading(false);
+		setHistoryError(null);
 		const ids = conversationsRef.current.map((c) => c.id);
 		setConversations([]);
 		setActiveConversationId(null);
@@ -160,11 +323,13 @@ export const useChat = () => {
 
 	const sendMessage = useCallback(
 		async (text: string) => {
-			if (!text.trim()) return;
+			if (
+				!text.trim() ||
+				historyLoadingRef.current ||
+				historyErrorConversationIdRef.current !== null ||
+				abortControllerRef.current
+			) return;
 
-			if (abortControllerRef.current) {
-				abortControllerRef.current.abort();
-			}
 			const abortController = new AbortController();
 			abortControllerRef.current = abortController;
 
@@ -187,7 +352,7 @@ export const useChat = () => {
 			};
 
 			let convoId = activeConversationId;
-			let previousMessages: { role: string; content: string }[] = [];
+			let previousMessages: ConversationHistoryMessage[] = [];
 			let dbConvoId: string | null = null;
 
 			if (!convoId) {
@@ -246,11 +411,7 @@ export const useChat = () => {
 
 			const currentConvoId = convoId;
 
-			// Build the full history
-			const history = [
-				...previousMessages,
-				{ role: "user", content: text },
-			];
+			const history = buildConversationRequestHistory(previousMessages, text);
 
 			const updateAssistant = (updater: (msg: ChatMessage) => ChatMessage) => {
 				setConversations((prev) =>
@@ -305,7 +466,7 @@ export const useChat = () => {
 				const tavilyPromise = fetch("/api/tavily-search", {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ query: text }),
+					body: JSON.stringify({ query: text, history }),
 					signal: abortController.signal,
 				}).then(async (res) => {
 					if (!res.ok) throw new Error(`Tavily API error: ${res.status}`);
@@ -337,6 +498,7 @@ export const useChat = () => {
 					const decoder = new TextDecoder();
 					let accumulated = "";
 					let sourcesParsed = false;
+					let sourcesMetadata: SourcesMetadata | undefined;
 
 					while (true) {
 						const { done, value } = await reader.read();
@@ -347,12 +509,16 @@ export const useChat = () => {
 							const markerMatch = accumulated.match(/<!--SOURCES:(.*?)-->/);
 							if (markerMatch) {
 								try {
-									const sourcesData = JSON.parse(markerMatch[1]);
-									updateAssistant((m) => ({
-										...m,
-										retrievedVerses: sourcesData.verses,
-										averageSimilarity: sourcesData.averageSimilarity,
-									}));
+									const parsedJson: unknown = JSON.parse(markerMatch[1]);
+									const sourcesData = parseSourcesMetadata(parsedJson);
+									if (sourcesData) {
+										sourcesMetadata = sourcesData;
+										updateAssistant((m) => ({
+											...m,
+											retrievedVerses: sourcesData.verses,
+											averageSimilarity: sourcesData.averageSimilarity,
+										}));
+									}
 								} catch {
 									// Ignore parse errors
 								}
@@ -361,22 +527,19 @@ export const useChat = () => {
 							}
 						}
 
-						const displayContent = sourcesParsed
+						const responseContent = sourcesParsed
 							? accumulated
 							: accumulated.replace(/<!--SOURCES:.*/, "");
-						updateAssistant((m) => ({ ...m, content: displayContent }));
+						updateAssistant((m) => ({
+							...m,
+							content: visibleResponseContent(responseContent),
+						}));
 					}
 
 					accumulated += decoder.decode();
 					accumulated = accumulated.replace(/<!--SOURCES:.*?-->/, "");
 
-					const followUpRegex = /\[FOLLOWUP\]\s*(.+)/g;
-					const followUps: string[] = [];
-					let match;
-					while ((match = followUpRegex.exec(accumulated)) !== null) {
-						followUps.push(match[1].trim());
-					}
-					const cleanContent = accumulated.replace(/\[FOLLOWUP\]\s*.+/g, "").trimEnd();
+					const { cleanContent, followUps } = parseCompletedResponse(accumulated);
 
 					updateAssistant((m) => ({
 						...m,
@@ -384,7 +547,7 @@ export const useChat = () => {
 						...(followUps.length > 0 ? { followUps } : {}),
 					}));
 
-					return { cleanContent, followUps };
+					return { cleanContent, followUps, sourcesMetadata };
 				});
 
 				const results = await Promise.allSettled([tavilyPromise, bibleAiPromise]);
@@ -404,22 +567,14 @@ export const useChat = () => {
 
 				// Save assistant message to DB
 				if (dbConvoId && results[1].status === "fulfilled") {
-					const { cleanContent, followUps } = results[1].value;
-
-					// Get the latest assistant message state for metadata
-					const latestConvo = conversationsRef.current.find(
-						(c) => c.id === currentConvoId
-					);
-					const latestAssistant = latestConvo?.messages.find(
-						(m) => m.id === assistantMsg.id
-					);
+					const { cleanContent, followUps, sourcesMetadata } = results[1].value;
 
 					const metadata: Record<string, unknown> = {};
 					if (tavilyResults) metadata.tavilyResults = tavilyResults;
-					if (latestAssistant?.retrievedVerses)
-						metadata.retrievedVerses = latestAssistant.retrievedVerses;
-					if (latestAssistant?.averageSimilarity !== undefined)
-						metadata.averageSimilarity = latestAssistant.averageSimilarity;
+					if (sourcesMetadata?.verses.length)
+						metadata.retrievedVerses = sourcesMetadata.verses;
+					if (sourcesMetadata)
+						metadata.averageSimilarity = sourcesMetadata.averageSimilarity;
 					if (followUps.length > 0) metadata.followUps = followUps;
 
 					fetch(`/api/conversations/${dbConvoId}/messages`, {
@@ -449,6 +604,9 @@ export const useChat = () => {
 					isStreaming: false,
 				}));
 			} finally {
+				if (abortControllerRef.current === abortController) {
+					abortControllerRef.current = null;
+				}
 				setLoading(false);
 				setIsStreaming(false);
 			}
@@ -464,10 +622,13 @@ export const useChat = () => {
 		isStreaming,
 		loading,
 		initialLoading,
+		historyLoading,
+		historyError,
 		error,
 		sendMessage,
 		newConversation,
 		switchConversation,
+		retryHistory,
 		deleteConversation,
 		clearAllConversations,
 	};

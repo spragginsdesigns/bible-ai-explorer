@@ -43,6 +43,7 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 		<div className="mt-3">
 			<div className="flex items-center gap-2 flex-wrap">
 				<button
+					type="button"
 					onClick={() => setOpen(!open)}
 					className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
 				>
@@ -66,13 +67,18 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 					{verses.map((verse, i) => {
 						const pct = Math.round(verse.similarity * 100);
 						return (
-							<div key={i} className="pl-3 py-1.5">
+							<div key={`${verse.reference}-${i}`} className="pl-3 py-1.5">
 								<div className="flex items-start gap-2">
 									<BookOpen className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600 mt-0.5 flex-shrink-0" />
 									<div className="flex-1 min-w-0">
 										<p className="text-sm text-neutral-700 dark:text-neutral-300 font-medium">
 											{verse.reference}
 										</p>
+										{verse.text && (
+											<p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400 font-[family-name:var(--font-cormorant)] sm:text-base">
+												{verse.text}
+											</p>
+										)}
 										<span
 											className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded ${
 												pct >= 85

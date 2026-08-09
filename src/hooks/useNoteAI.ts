@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { NoteAIMessage } from "@/types/notes";
+import { buildConversationRequestHistory } from "@/utils/chatContext";
 
 export function useNoteAI(noteId: string) {
 	const [messages, setMessages] = useState<NoteAIMessage[]>([]);
@@ -82,11 +83,10 @@ export function useNoteAI(noteId: string) {
 				}
 			}).catch(() => {});
 
-			// Build history from current messages
-			const history = messages
+			const previousMessages = messages
 				.filter((m) => m.content.trim())
-				.map((m) => ({ role: m.role, content: m.content }))
-				.concat({ role: "user", content: text });
+				.map((m) => ({ role: m.role, content: m.content }));
+			const history = buildConversationRequestHistory(previousMessages, text);
 
 			try {
 				const res = await fetch("/api/note-ai", {

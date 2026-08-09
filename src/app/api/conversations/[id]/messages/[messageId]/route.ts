@@ -4,13 +4,14 @@ import { getAuthUser } from "@/lib/auth";
 
 export async function PATCH(
 	req: Request,
-	{ params }: { params: { id: string; messageId: string } }
+	{ params }: { params: Promise<{ id: string; messageId: string }> }
 ) {
 	try {
 		const userId = await getAuthUser();
+		const { id, messageId } = await params;
 		// Verify ownership via conversation
 		const conversation = await prisma.conversation.findFirst({
-			where: { id: params.id, userId },
+			where: { id, userId },
 		});
 		if (!conversation) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -18,7 +19,7 @@ export async function PATCH(
 
 		const body = await req.json();
 		const message = await prisma.message.update({
-			where: { id: params.messageId, conversationId: params.id },
+			where: { id: messageId, conversationId: id },
 			data: {
 				...(body.content !== undefined && { content: body.content }),
 				...(body.metadata !== undefined && { metadata: body.metadata }),

@@ -1,0 +1,6 @@
+allowBuilds:
+  '@clerk/shared': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  sharp: true

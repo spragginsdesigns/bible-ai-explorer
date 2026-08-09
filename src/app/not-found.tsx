@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const dynamic = "force-dynamic";
 
 export default function NotFound() {
@@ -6,12 +8,12 @@ export default function NotFound() {
 			<div className="text-center">
 				<h1 className="text-4xl font-bold text-neutral-200 mb-2">404</h1>
 				<p className="text-neutral-500 mb-4">Page not found</p>
-				<a
+				<Link
 					href="/"
 					className="text-amber-400 hover:text-amber-300 transition-colors underline"
 				>
 					Return to VerseMind
-				</a>
+				</Link>
 			</div>
 		</div>
 	);
