@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -13,6 +14,31 @@ import {
 	parseConversationHistory,
 } from "../src/utils/chatContext.ts";
 import { getKjvBookName, getKjvVerseText } from "../src/utils/kjvBible.ts";
+import { createVerseMindChatModel } from "../src/utils/chatModel.ts";
+
+test("configures both chat routes for Terra with high reasoning", async () => {
+	const model = createVerseMindChatModel("test-api-key");
+	const request = model.invocationParams({});
+
+	assert.equal(request.model, "gpt-5.6-terra");
+	assert.equal(request.reasoning_effort, "high");
+	assert.equal(request.max_completion_tokens, 2000);
+	assert.equal(model.maxTokens, undefined);
+	assert.equal(request.max_tokens, undefined);
+	assert.equal(request.temperature, 1);
+	assert.equal(request.stream, true);
+
+	for (const route of ["ask-question", "note-ai"]) {
+		const source = await readFile(
+			new URL(`../src/app/api/${route}/route.ts`, import.meta.url),
+			"utf8"
+		);
+
+		assert.match(source, /const model = createVerseMindChatModel\(\);/, route);
+		assert.doesNotMatch(source, /\bnew ChatOpenAI\b/, route);
+		assert.doesNotMatch(source, /\b(?:maxTokens|temperature)\s*:/, route);
+	}
+});
 
 test("recognizes modal, elliptical, and existing contextual follow-ups", () => {
 	const followUps = [

@@ -1,6 +1,5 @@
 // src\app\api\ask-question\route.ts
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
-import { ChatOpenAI } from "@langchain/openai";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { NextResponse } from "next/server";
 import { astraDb } from "../../../utils/astraDb";
@@ -14,16 +13,10 @@ import {
   parseConversationHistory,
 } from "@/utils/chatContext";
 import { getKjvBookName, getKjvVerseText } from "@/utils/kjvBible";
+import { createVerseMindChatModel } from "@/utils/chatModel";
 
 // Initialize OpenAI model and embeddings outside the handler for performance
-const model = new ChatOpenAI({
-  openAIApiKey: process.env.OPENAI_API_KEY,
-  modelName: "gpt-4o",
-  temperature: 0.2,
-  maxTokens: 2000,
-  timeout: 60000,
-  streaming: true,
-});
+const model = createVerseMindChatModel();
 
 const embeddings = new OpenAIEmbeddings({
   openAIApiKey: process.env.OPENAI_API_KEY,
