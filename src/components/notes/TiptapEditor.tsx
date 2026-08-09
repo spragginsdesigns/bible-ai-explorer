@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -23,7 +23,15 @@ interface TiptapEditorProps {
 	}) => void;
 }
 
-const TiptapEditor: React.FC<TiptapEditorProps> = ({ content, noteId, onSave }) => {
+export interface TiptapEditorHandle {
+	/** Append HTML (e.g. AI-authored content) to the end of the document. */
+	appendHtml: (html: string) => void;
+}
+
+const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
+	{ content, noteId, onSave },
+	ref
+) {
 	const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 	const lastNoteIdRef = useRef(noteId);
 
@@ -116,6 +124,19 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ content, noteId, onSave }) 
 		};
 	}, []);
 
+	useImperativeHandle(
+		ref,
+		() => ({
+			appendHtml: (html: string) => {
+				if (!editor) return;
+				editor.commands.insertContentAt(editor.state.doc.content.size, html);
+				if (debounceRef.current) clearTimeout(debounceRef.current);
+				doSave(editor);
+			},
+		}),
+		[editor, doSave]
+	);
+
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
 			<EditorToolbar editor={editor} />
@@ -124,6 +145,6 @@ const TiptapEditor: React.FC<TiptapEditorProps> = ({ content, noteId, onSave }) 
 			</div>
 		</div>
 	);
-};
+});
 
 export default TiptapEditor;

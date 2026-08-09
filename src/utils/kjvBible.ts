@@ -145,6 +145,34 @@ export function getKjvBookName(bookNumber: number): string | undefined {
 	return KJV_BOOKS[bookNumber - 1]?.name;
 }
 
+const BOOK_NAME_ALIASES: Record<string, string> = {
+	"psalm": "psalms",
+	"song of songs": "song of solomon",
+	"canticles": "song of solomon",
+	"revelations": "revelation",
+};
+
+function normalizeBookName(name: string): string {
+	const normalized = name
+		.trim()
+		.toLowerCase()
+		.replace(/\./g, "")
+		.replace(/^(i{1,3})\s/, (_, numerals: string) => `${numerals.length} `)
+		.replace(/^1st\s/, "1 ")
+		.replace(/^2nd\s/, "2 ")
+		.replace(/^3rd\s/, "3 ")
+		.replace(/\s+/g, " ");
+	return BOOK_NAME_ALIASES[normalized] ?? normalized;
+}
+
+export function getKjvBookNumber(name: string): number | undefined {
+	const normalized = normalizeBookName(name);
+	const index = KJV_BOOKS.findIndex(
+		(book) => book.name.toLowerCase() === normalized
+	);
+	return index >= 0 ? index + 1 : undefined;
+}
+
 export async function getKjvVerseText(
 	bookNumber: number,
 	chapter: number,

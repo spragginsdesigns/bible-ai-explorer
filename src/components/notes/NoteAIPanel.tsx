@@ -3,23 +3,21 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Send, Sparkles, Trash2, ArrowLeft } from "lucide-react";
 import NoteAIMessage from "./NoteAIMessage";
-import { useNoteAI } from "@/hooks/useNoteAI";
+import { useNoteAI, type NoteAppendEvent } from "@/hooks/useNoteAI";
 
 interface NoteAIPanelProps {
 	noteId: string;
-	noteTitle: string;
-	noteContent: string;
 	onClose: () => void;
+	onNoteAppended?: (event: NoteAppendEvent) => void;
 }
 
 const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 	noteId,
-	noteTitle,
-	noteContent,
 	onClose,
+	onNoteAppended,
 }) => {
 	const { messages, isStreaming, loading, sendMessage, clearHistory } =
-		useNoteAI(noteId);
+		useNoteAI(noteId, { onNoteAppended });
 	const [input, setInput] = useState("");
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -32,15 +30,13 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 		const text = input.trim();
 		if (!text || loading || isStreaming) return;
 		setInput("");
-		sendMessage(text, noteContent, noteTitle);
+		sendMessage(text);
 	};
 
 	const handleSuggestVerses = () => {
 		if (loading || isStreaming) return;
 		sendMessage(
-			"Suggest the most relevant KJV Bible verses for this note and explain how each relates to the content.",
-			noteContent,
-			noteTitle
+			"Suggest the most relevant KJV Bible verses for this note and explain how each relates to the content."
 		);
 	};
 

@@ -17,6 +17,19 @@ model User {
   notes         Note[]
   folders       Folder[]
   tags          Tag[]
+  memories      UserMemory[]
+}
+
+model UserMemory {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  category  String   @default("general") // profile | prayer | study | preference | general
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Conversation {
@@ -104,6 +117,7 @@ model NoteAIMessage {
   note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   role      String   // "user" | "assistant"
   content   String   @db.Text
+  metadata  Json?    // { parts: UIMessagePart[] }
   createdAt DateTime @default(now())
 
   @@index([noteId])

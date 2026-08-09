@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Brain } from "lucide-react";
+import Link from "next/link";
+import { Brain, Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -36,15 +37,40 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 			<div className="flex-1 min-w-0">
 				{message.content ? (
 					<FormattedResponse response={message.content} />
-				) : message.isStreaming ? (
+				) : message.isStreaming && !message.activity ? (
 					<div className="flex items-center gap-1 py-2">
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce" />
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-200" />
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-500" />
 					</div>
 				) : null}
-				{message.isStreaming && message.content && (
+				{message.isStreaming && message.activity && (
+					<div className="flex items-center gap-2 py-2 text-sm text-neutral-500 dark:text-neutral-400">
+						<Loader2 className="w-3.5 h-3.5 animate-spin" />
+						<span className="animate-pulse">{message.activity}...</span>
+					</div>
+				)}
+				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
+				)}
+				{message.noteActions && message.noteActions.length > 0 && (
+					<div className="mt-3 space-y-2">
+						{message.noteActions.map((action, index) => (
+							<Link
+								key={`${action.noteId}-${index}`}
+								href="/notes"
+								className="flex items-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 transition-colors hover:bg-amber-400/[0.12]"
+							>
+								<NotebookPen className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+								<span className="text-sm text-neutral-700 dark:text-neutral-300 truncate">
+									{action.created ? "Created note" : "Added to note"}{" "}
+									<span className="font-medium text-amber-700 dark:text-amber-400">
+										{action.noteTitle}
+									</span>
+								</span>
+							</Link>
+						))}
+					</div>
 				)}
 				{doneStreaming && message.retrievedVerses && message.retrievedVerses.length > 0 && (
 					<RetrievedVersesCollapsible
