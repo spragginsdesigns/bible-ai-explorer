@@ -101,8 +101,21 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 
 	const responseHeaders = new Headers();
 	upstream.headers.forEach((value, key) => {
-		if (!STRIPPED_RESPONSE_HEADERS.has(key.toLowerCase())) responseHeaders.set(key, value);
+		const lower = key.toLowerCase();
+		if (STRIPPED_RESPONSE_HEADERS.has(lower)) return;
+		// Set-Cookie is handled separately below. forEach collapses repeated
+		// headers into one comma-joined value, which is meaningless for cookies:
+		// the browser would receive a single malformed cookie instead of several.
+		// That corrupted Clerk's client/session cookies on the OAuth callback and
+		// made every Google sign-in come back as err_code=authorization_invalid.
+		if (lower === "set-cookie") return;
+		responseHeaders.set(key, value);
 	});
+
+	// getSetCookie preserves each Set-Cookie as its own header.
+	for (const cookie of upstream.headers.getSetCookie()) {
+		responseHeaders.append("set-cookie", cookie);
+	}
 
 	return new Response(upstream.body, {
 		status: upstream.status,
