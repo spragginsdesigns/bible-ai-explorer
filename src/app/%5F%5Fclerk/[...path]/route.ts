@@ -46,6 +46,17 @@ const STRIPPED_RESPONSE_HEADERS = new Set([
 	"connection",
 ]);
 
+/**
+ * Remove the Domain attribute from a Set-Cookie value so the cookie binds to
+ * whatever host served it - ours - instead of Clerk's.
+ */
+function stripCookieDomain(cookie: string): string {
+	return cookie
+		.split(";")
+		.filter((part) => !/^\s*domain=/i.test(part))
+		.join(";");
+}
+
 function proxyUrl(): string {
 	const configured = process.env.NEXT_PUBLIC_CLERK_PROXY_URL;
 	if (!configured) {
@@ -113,8 +124,16 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 	});
 
 	// getSetCookie preserves each Set-Cookie as its own header.
+	//
+	// Every cookie Clerk sends is scoped to its own host
+	// (Domain=.frontend-api.clerk.dev, Domain=clerkprod-cloudflare.net). Served
+	// from our origin the browser rejects all of them outright, so Clerk's client
+	// cookie was never stored and the OAuth callback could not be matched to the
+	// sign-in attempt - which Clerk reports as authorization_invalid. Dropping
+	// the Domain attribute makes each cookie host-only for our domain, which is
+	// what a reverse proxy has to do.
 	for (const cookie of upstream.headers.getSetCookie()) {
-		responseHeaders.append("set-cookie", cookie);
+		responseHeaders.append("set-cookie", stripCookieDomain(cookie));
 	}
 
 	// Clerk answers the OAuth callback with a relative redirect, e.g.
@@ -131,7 +150,15 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 		// redirect to somewhere in this app - which is what the success path
 		// produces - must be left exactly as-is, or signing in successfully would
 		// land on /__clerk/<app route> and break just as badly as the failure did.
-		if (location.startsWith("/v1/") && !location.startsWith(`${prefix}/`)) {
+		// An err_code redirect means Clerk rejected the attempt. Prefixing it
+		// would send the browser straight back into this same proxy route, which
+		// answers with the identical redirect forever. Surface it on /sign-in.
+		const errCode = location.includes("err_code=")
+			? new URLSearchParams(location.split("?")[1] ?? "").get("err_code")
+			: null;
+		if (errCode) {
+			responseHeaders.set("location", `/sign-in?clerk_error=${encodeURIComponent(errCode)}`);
+		} else if (location.startsWith("/v1/") && !location.startsWith(`${prefix}/`)) {
 			responseHeaders.set("location", `${prefix}${location}`);
 		} else if (location.startsWith(CLERK_FAPI)) {
 			responseHeaders.set("location", `${prefix}${location.slice(CLERK_FAPI.length)}`);
