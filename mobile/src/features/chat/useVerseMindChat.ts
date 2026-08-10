@@ -4,6 +4,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAuth } from "@clerk/clerk-expo";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
+import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
 
 export interface Conversation {
 	id: string;
@@ -25,6 +26,10 @@ export interface VerseMindChat {
 	/** Draft text of the chat input, so screens can prefill it (e.g. ?prompt=). */
 	input: string;
 	setInput: (text: string) => void;
+	/** Verse/chapter context attached to the next outgoing message. */
+	attachment: VerseAttachment | null;
+	setAttachment: (attachment: VerseAttachment) => void;
+	clearAttachment: () => void;
 	sendMessage: (text: string) => Promise<void>;
 	stop: () => void;
 	retrySend: () => void;
@@ -75,6 +80,9 @@ export function useVerseMindChat(): VerseMindChat {
 	const [historyError, setHistoryError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [input, setInput] = useState("");
+	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
+	const setAttachment = useCallback((next: VerseAttachment) => setAttachmentState(next), []);
+	const clearAttachment = useCallback(() => setAttachmentState(null), []);
 
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
@@ -208,9 +216,9 @@ export function useVerseMindChat(): VerseMindChat {
 
 	const sendMessage = useCallback(
 		async (text: string) => {
-			const trimmed = text.trim();
+			const composed = composeMessageWithAttachment(text, attachment);
 			if (
-				!trimmed ||
+				!composed ||
 				historyLoadingRef.current ||
 				historyErrorRef.current ||
 				status === "submitted" ||
@@ -224,7 +232,7 @@ export function useVerseMindChat(): VerseMindChat {
 
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
-				const title = trimmed.slice(0, 60);
+				const title = composed.slice(0, 60);
 				try {
 					const created = await apiJson<{ id: string }>(authToken, "/api/conversations", {
 						method: "POST",
@@ -241,9 +249,10 @@ export function useVerseMindChat(): VerseMindChat {
 				}
 			}
 
-			void sendUIMessage({ text: trimmed });
+			setAttachmentState(null);
+			void sendUIMessage({ text: composed });
 		},
-		[authToken, clearError, sendUIMessage, status]
+		[attachment, authToken, clearError, sendUIMessage, status]
 	);
 
 	const retrySend = useCallback(() => {
@@ -299,6 +308,9 @@ export function useVerseMindChat(): VerseMindChat {
 		error: sendError ?? (chatError ? chatError.message : null),
 		input,
 		setInput,
+		attachment,
+		setAttachment,
+		clearAttachment,
 		sendMessage,
 		stop,
 		retrySend,

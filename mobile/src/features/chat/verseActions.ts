@@ -2,6 +2,7 @@ import { Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import type { GetToken } from "@/lib/api";
 import type { RetrievedVerse } from "@/lib/chatView";
+import type { TranslationId } from "@/features/bible/translations";
 import { createNote, deleteNote, patchNote } from "@/features/notes/api";
 
 /** "John 3:16 — \"For God so loved...\" (KJV)" plain-text form for copy/share. */
@@ -11,6 +12,28 @@ export function formatVerseForSharing(
 ): string {
 	const body = verse.text?.trim();
 	return body ? `${verse.reference} — "${body}" (${translation})` : `${verse.reference} (${translation})`;
+}
+
+/** A verse or whole chapter the user attached to their next chat question. */
+export interface VerseAttachment {
+	reference: string;
+	text: string;
+	translation: TranslationId;
+}
+
+/**
+ * Compose the outgoing user message for /api/ask-question: the formatted
+ * passage first, then the user's own question. No canned prompt — when the
+ * question is empty the passage goes out on its own.
+ */
+export function composeMessageWithAttachment(
+	question: string,
+	attachment: VerseAttachment | null
+): string {
+	const trimmed = question.trim();
+	if (!attachment) return trimmed;
+	const verseBlock = formatVerseForSharing(attachment, attachment.translation);
+	return trimmed ? `${verseBlock}\n\n${trimmed}` : verseBlock;
 }
 
 export async function copyVerse(verse: Pick<RetrievedVerse, "reference" | "text">): Promise<void> {

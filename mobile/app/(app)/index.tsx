@@ -18,16 +18,27 @@ import { WelcomeState } from "@/features/chat/WelcomeState";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useVerseMindChat } from "@/features/chat/useVerseMindChat";
+import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { colors, radius, spacing } from "@/theme";
 
 export default function ChatScreen() {
 	const chat = useVerseMindChat();
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const tabBarSpace = useTabBarSpace();
-	const params = useLocalSearchParams<{ prompt?: string }>();
+	const params = useLocalSearchParams<{
+		prompt?: string;
+		attachRef?: string;
+		attachText?: string;
+		attachTranslation?: string;
+	}>();
 	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
+	const attachRefParam = typeof params.attachRef === "string" ? params.attachRef : "";
+	const attachTextParam = typeof params.attachText === "string" ? params.attachText : "";
+	const attachTranslationParam =
+		typeof params.attachTranslation === "string" ? params.attachTranslation : "";
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
+	const lastSeededAttachment = useRef("");
 
 	// Ask-AI entry points (e.g. the Bible tab) push here with ?prompt= — prefill
 	// the input and focus it, but leave sending to the user.
@@ -37,6 +48,20 @@ export default function ChatScreen() {
 		chat.setInput(promptParam);
 		setFocusSignal((signal) => signal + 1);
 	}, [promptParam, chat.setInput]);
+
+	// Verse/chapter attachments (?attachRef= etc.): pin the passage above the
+	// input and focus so the user can type their own question — the draft text
+	// they may have typed stays untouched.
+	useEffect(() => {
+		if (!attachRefParam) return;
+		const key = `${attachRefParam}${attachTranslationParam}${attachTextParam}`;
+		if (key === lastSeededAttachment.current) return;
+		lastSeededAttachment.current = key;
+		const translation: TranslationId =
+			attachTranslationParam in TRANSLATIONS ? (attachTranslationParam as TranslationId) : "KJV";
+		chat.setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
+		setFocusSignal((signal) => signal + 1);
+	}, [attachRefParam, attachTextParam, attachTranslationParam, chat.setAttachment]);
 
 	const {
 		messages,
@@ -165,6 +190,8 @@ export default function ChatScreen() {
 						onLocalCommand={onLocalCommand}
 						value={chat.input}
 						onChangeText={chat.setInput}
+						attachment={chat.attachment}
+						onClearAttachment={chat.clearAttachment}
 						focusSignal={focusSignal}
 					/>
 				</View>

@@ -8,13 +8,14 @@ import {
 	TextInput,
 	View,
 } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { colors, fonts, radius, spacing } from "@/theme";
 import {
 	matchSlashCommands,
 	parseSlashCommand,
 	type LocalCommandAction,
 	type SlashCommand,
 } from "./slashCommands";
+import type { VerseAttachment } from "./verseActions";
 
 interface ChatInputBarProps {
 	onSend: (text: string) => void;
@@ -25,6 +26,9 @@ interface ChatInputBarProps {
 	placeholder?: string;
 	commands?: SlashCommand[];
 	onLocalCommand?: (action: LocalCommandAction, args: string) => void;
+	/** Verse/chapter context attached to the next message (dismissible pill). */
+	attachment?: VerseAttachment | null;
+	onClearAttachment?: () => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
 	value?: string;
 	onChangeText?: (text: string) => void;
@@ -41,6 +45,8 @@ export function ChatInputBar({
 	placeholder = "Ask a question about the Bible...",
 	commands = [],
 	onLocalCommand,
+	attachment = null,
+	onClearAttachment,
 	value,
 	onChangeText,
 	focusSignal,
@@ -92,7 +98,7 @@ export function ChatInputBar({
 
 	const submit = useCallback(() => {
 		const trimmed = text.trim();
-		if (!trimmed || locked) return;
+		if ((!trimmed && !attachment) || locked) return;
 
 		const parsed = commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
 		if (parsed) {
@@ -104,10 +110,29 @@ export function ChatInputBar({
 
 		setText("");
 		onSend(trimmed);
-	}, [commands, locked, onSend, runCommand, text]);
+	}, [attachment, commands, locked, onSend, runCommand, text]);
+
+	const canSend = Boolean(text.trim()) || Boolean(attachment);
 
 	return (
 		<View style={styles.wrap}>
+			{attachment && (
+				<View style={styles.pill}>
+					<Text style={styles.pillGlyph}>✦</Text>
+					<Text style={styles.pillLabel} numberOfLines={1}>
+						{attachment.reference} · {attachment.translation}
+					</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Remove attachment"
+						onPress={onClearAttachment}
+						hitSlop={8}
+						style={({ pressed }) => pressed && { opacity: 0.6 }}
+					>
+						<Text style={styles.pillClose}>×</Text>
+					</Pressable>
+				</View>
+			)}
 			{suggestions.length > 0 && !locked && (
 				<View style={styles.palette}>
 					<ScrollView keyboardShouldPersistTaps="always" style={styles.paletteScroll}>
@@ -159,13 +184,13 @@ export function ChatInputBar({
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Send"
-						disabled={!text.trim() || locked}
+						disabled={!canSend || locked}
 						onPress={submit}
 						style={({ pressed }) => [
 							styles.action,
 							styles.send,
 							pressed && { backgroundColor: colors.accentPressed },
-							(!text.trim() || locked) && styles.sendDisabled,
+							(!canSend || locked) && styles.sendDisabled,
 						]}
 					>
 						<Text style={styles.sendGlyph}>↑</Text>
@@ -178,6 +203,30 @@ export function ChatInputBar({
 
 const styles = StyleSheet.create({
 	wrap: { position: "relative" },
+	pill: {
+		flexDirection: "row",
+		alignItems: "center",
+		alignSelf: "flex-start",
+		maxWidth: "100%",
+		gap: spacing.sm,
+		marginBottom: spacing.sm,
+		paddingLeft: spacing.md,
+		paddingRight: spacing.sm,
+		paddingVertical: spacing.xs,
+		backgroundColor: colors.surface,
+		borderColor: colors.borderStrong,
+		borderWidth: StyleSheet.hairlineWidth,
+		borderRadius: radius.full,
+	},
+	pillGlyph: { color: colors.accent, fontSize: 11 },
+	pillLabel: {
+		flexShrink: 1,
+		color: colors.accent,
+		fontSize: 12.5,
+		fontFamily: fonts.sans,
+		fontWeight: "600",
+	},
+	pillClose: { color: colors.textMuted, fontSize: 15, lineHeight: 16, paddingHorizontal: 2 },
 	palette: {
 		position: "absolute",
 		bottom: "100%",

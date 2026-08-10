@@ -15,7 +15,7 @@ vi.mock("@/features/notes/api", () => ({
 }));
 
 import { createNote, deleteNote, patchNote } from "@/features/notes/api";
-import { formatVerseForSharing, saveVerseToNote } from "./verseActions";
+import { composeMessageWithAttachment, formatVerseForSharing, saveVerseToNote } from "./verseActions";
 
 const getToken = async () => "token";
 
@@ -30,6 +30,43 @@ describe("formatVerseForSharing", () => {
 
 	it("handles a missing text", () => {
 		expect(formatVerseForSharing({ reference: "Psalm 23:1" })).toBe("Psalm 23:1 (KJV)");
+	});
+});
+
+describe("composeMessageWithAttachment", () => {
+	const attachment = {
+		reference: "John 3:16",
+		text: "For God so loved the world…",
+		translation: "KJV" as const,
+	};
+
+	it("puts the formatted passage before the user's own question", () => {
+		expect(composeMessageWithAttachment("what does this mean?", attachment)).toBe(
+			'John 3:16 — "For God so loved the world…" (KJV)\n\nwhat does this mean?'
+		);
+	});
+
+	it("sends just the passage when the question is empty", () => {
+		expect(composeMessageWithAttachment("", attachment)).toBe(
+			'John 3:16 — "For God so loved the world…" (KJV)'
+		);
+		expect(composeMessageWithAttachment("   ", attachment)).toBe(
+			'John 3:16 — "For God so loved the world…" (KJV)'
+		);
+	});
+
+	it("labels the passage with the attached translation", () => {
+		expect(
+			composeMessageWithAttachment("where else does this occur?", {
+				...attachment,
+				translation: "NKJV",
+			})
+		).toBe('John 3:16 — "For God so loved the world…" (NKJV)\n\nwhere else does this occur?');
+	});
+
+	it("passes the trimmed question through when there is no attachment", () => {
+		expect(composeMessageWithAttachment("  hi there  ", null)).toBe("hi there");
+		expect(composeMessageWithAttachment("   ", null)).toBe("");
 	});
 });
 

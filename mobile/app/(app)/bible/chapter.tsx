@@ -143,11 +143,18 @@ export default function BibleChapterScreen() {
 	}, []);
 
 	const askAI = useCallback(
-		(prompt: string) => {
+		(verse: { reference: string; text: string }) => {
 			closeSheet();
-			router.push({ pathname: "/", params: { prompt } });
+			router.push({
+				pathname: "/",
+				params: {
+					attachRef: verse.reference,
+					attachText: verse.text,
+					attachTranslation: translation,
+				},
+			});
 		},
-		[router, closeSheet]
+		[router, closeSheet, translation]
 	);
 
 	const onCopyVerse = useCallback(async () => {
@@ -336,9 +343,10 @@ export default function BibleChapterScreen() {
 						accessibilityRole="button"
 						accessibilityLabel={`Ask AI about ${reference}`}
 						onPress={() =>
-							askAI(
-								`What is ${reference} about? Summarize the chapter and its key themes.`
-							)
+							askAI({
+								reference,
+								text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
+							})
 						}
 						style={({ pressed }) => [
 							styles.askButton,
@@ -367,7 +375,7 @@ export default function BibleChapterScreen() {
 					glyph="✦"
 					label="Ask AI about this verse"
 					onPress={() => {
-						if (actionVerse) askAI(`Explain ${actionReference}: "${actionVerse.text}"`);
+						if (actionVerse) askAI({ reference: actionReference, text: actionVerse.text });
 					}}
 				/>
 				{saveError ? <Text style={styles.sheetError}>{saveError}</Text> : null}
