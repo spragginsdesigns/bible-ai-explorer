@@ -1,5 +1,12 @@
 /**
- * Clerk Frontend API proxy.
+ * Clerk Frontend API proxy, serving `/__clerk/*`.
+ *
+ * NOTE THE DIRECTORY NAME. This lives in `src/app/%5F%5Fclerk/`, not
+ * `src/app/__clerk/`. Next.js treats a folder whose name starts with `_` as a
+ * private folder and excludes it from routing entirely, so the literal
+ * `__clerk` directory produced a silent 404 rather than a route. `%5F` is the
+ * documented escape for a leading underscore in a URL segment; the folder still
+ * serves `/__clerk/*`. Renaming it back will take auth down without any error.
  *
  * The production Clerk instance is configured with
  * `proxy_url = https://bible-ai-explorer.vercel.app/__clerk` because the app is
