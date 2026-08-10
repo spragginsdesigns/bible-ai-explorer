@@ -3,6 +3,23 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.4.1] — 2026-08-10
+
+### Changed
+- **Instant notes.** The notes library and editor now load from a persistent
+  on-device cache (AsyncStorage) and revalidate silently in the background —
+  the list and previously-opened notes render immediately with no spinner, and
+  edits sync between the editor and the list with no pull-to-refresh.
+  Revalidation also runs on tab focus and when the app returns to the
+  foreground.
+
+### Fixed
+- **Faster notes API.** Read routes no longer write a User row on every
+  request, the notes list endpoint serves a lightweight summary payload
+  (bodies load per note), the single-note GET no longer ships the whole AI
+  chat history, and note PATCH/DELETE are single database round-trips.
+- Returning from the editor no longer flashes a refresh spinner over the list.
+
 ## [1.4.0] — 2026-08-10
 
 ### Added

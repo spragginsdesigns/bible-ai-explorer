@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, getAuthUserId } from "@/lib/auth";
 
 export async function GET() {
 	try {
-		const userId = await getAuthUser();
+		const userId = await getAuthUserId();
 		const folders = await prisma.folder.findMany({
 			where: { userId },
 			orderBy: { sortOrder: "asc" },

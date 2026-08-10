@@ -1,8 +1,9 @@
 import { apiJson, type GetToken } from "@/lib/api";
 import type { Folder, NoteApiResponse, NotePatch, Tag } from "./types";
 
+/** List rows come back without content/htmlContent; the editor fetches those per note. */
 export function fetchNotes(getToken: GetToken) {
-	return apiJson<NoteApiResponse[]>(getToken, "/api/notes");
+	return apiJson<NoteApiResponse[]>(getToken, "/api/notes?summary=1");
 }
 
 export function fetchNote(getToken: GetToken, id: string) {

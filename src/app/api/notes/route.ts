@@ -1,23 +1,44 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, getAuthUserId } from "@/lib/auth";
+
+// Summary payloads omit the heavy content/htmlContent columns - list views
+// only need metadata + plainText, and full rows can make the list response
+// orders of magnitude larger.
+const NOTE_SUMMARY_SELECT = {
+	id: true,
+	title: true,
+	plainText: true,
+	folderId: true,
+	isPinned: true,
+	wordCount: true,
+	createdAt: true,
+	updatedAt: true,
+	tags: { include: { tag: true } },
+} as const;
 
 export async function GET(req: Request) {
 	try {
-		const userId = await getAuthUser();
+		const userId = await getAuthUserId();
 		const { searchParams } = new URL(req.url);
 		const folderId = searchParams.get("folderId");
 		const tagId = searchParams.get("tagId");
+		const summary = searchParams.get("summary") === "1";
 
-		const notes = await prisma.note.findMany({
-			where: {
-				userId,
-				...(folderId && { folderId }),
-				...(tagId && { tags: { some: { tagId } } }),
-			},
-			include: { tags: { include: { tag: true } } },
-			orderBy: { updatedAt: "desc" },
-		});
+		const where = {
+			userId,
+			...(folderId && { folderId }),
+			...(tagId && { tags: { some: { tagId } } }),
+		};
+		const orderBy = { updatedAt: "desc" as const };
+
+		const notes = summary
+			? await prisma.note.findMany({ where, orderBy, select: NOTE_SUMMARY_SELECT })
+			: await prisma.note.findMany({
+					where,
+					orderBy,
+					include: { tags: { include: { tag: true } } },
+				});
 		return NextResponse.json(notes);
 	} catch (err) {
 		if (err instanceof Response) return err;

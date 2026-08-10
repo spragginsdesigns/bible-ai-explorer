@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, getAuthUserId } from "@/lib/auth";
+
+function isNotFound(err: unknown): boolean {
+	return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
-		const userId = await getAuthUser();
+		const userId = await getAuthUserId();
 		const { id } = await params;
+		// AI messages load through /api/notes/[id]/ai-messages; including them
+		// here made every editor open carry the whole chat history.
 		const note = await prisma.note.findFirst({
 			where: { id, userId },
-			include: { tags: { include: { tag: true } }, aiMessages: { orderBy: { createdAt: "asc" } } },
+			include: { tags: { include: { tag: true } } },
 		});
 		if (!note) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -24,16 +31,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
-		const existing = await prisma.note.findFirst({
-			where: { id, userId },
-		});
-		if (!existing) {
-			return NextResponse.json({ error: "Not found" }, { status: 404 });
-		}
-
 		const body = await req.json();
+
+		// Single round trip: the userId guard lives in the update itself
+		// (extendedWhereUnique) instead of a separate findFirst.
 		const note = await prisma.note.update({
-			where: { id },
+			where: { id, userId },
 			data: {
 				...(body.title !== undefined && { title: body.title }),
 				...(body.content !== undefined && { content: body.content }),
@@ -48,6 +51,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 		return NextResponse.json(note);
 	} catch (err) {
 		if (err instanceof Response) return err;
+		if (isNotFound(err)) {
+			return NextResponse.json({ error: "Not found" }, { status: 404 });
+		}
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
 }
@@ -56,16 +62,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
-		const existing = await prisma.note.findFirst({
-			where: { id, userId },
-		});
-		if (!existing) {
-			return NextResponse.json({ error: "Not found" }, { status: 404 });
-		}
-		await prisma.note.delete({ where: { id } });
+		await prisma.note.delete({ where: { id, userId } });
 		return NextResponse.json({ success: true });
 	} catch (err) {
 		if (err instanceof Response) return err;
+		if (isNotFound(err)) {
+			return NextResponse.json({ error: "Not found" }, { status: 404 });
+		}
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
 }

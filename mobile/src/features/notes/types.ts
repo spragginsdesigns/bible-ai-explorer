@@ -31,14 +31,20 @@ export interface Note {
 	updatedAt: string;
 	isPinned: boolean;
 	wordCount: number;
+	/**
+	 * Cache bookkeeping: true when content/htmlContent are the real body (from a
+	 * single-note fetch, create, or save), false/undefined on summary list rows.
+	 */
+	hasBody?: boolean;
 }
 
 /** Raw note row as returned by /api/notes (tags come through a join table). */
 export interface NoteApiResponse {
 	id: string;
 	title: string;
-	content: string;
-	htmlContent: string;
+	/** Omitted by the list endpoint's summary payload; present on single-note GETs. */
+	content?: string;
+	htmlContent?: string;
 	plainText: string;
 	folderId: string | null;
 	isPinned: boolean;
@@ -70,8 +76,8 @@ export function toNote(api: NoteApiResponse): Note {
 	return {
 		id: api.id,
 		title: api.title,
-		content: api.content,
-		htmlContent: api.htmlContent,
+		content: api.content ?? "",
+		htmlContent: api.htmlContent ?? "",
 		plainText: api.plainText,
 		folderId: api.folderId,
 		tagIds: (api.tags ?? []).map((entry) => entry.tag.id),

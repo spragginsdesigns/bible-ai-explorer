@@ -1,6 +1,6 @@
 {
 	"name": "versemind-mobile",
-	"version": "1.4.0",
+	"version": "1.4.1",
 	"main": "expo-router/entry",
 	"scripts": {
 		"start": "expo start",
@@ -16,6 +16,7 @@
 		"@clerk/clerk-expo": "^2.19.31",
 		"@expo-google-fonts/cormorant-garamond": "^0.4.1",
 		"@expo-google-fonts/pirata-one": "^0.4.1",
+		"@react-native-async-storage/async-storage": "1.24.0",
 		"@react-navigation/bottom-tabs": "^7.18.16",
 		"ai": "^7.0.58",
 		"expo": "^57.0.11",

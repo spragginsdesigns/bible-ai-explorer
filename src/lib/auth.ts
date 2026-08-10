@@ -2,8 +2,27 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "./prisma";
 
 /**
+ * Auth-only check for read routes: verifies the session and returns the Clerk
+ * userId without the User upsert, saving a database write round-trip on every
+ * GET. Mutating routes should use getAuthUser so the User row (an FK target)
+ * exists before they write.
+ */
+export async function getAuthUserId(): Promise<string> {
+	const { userId } = await auth();
+
+	if (!userId) {
+		throw new Response(JSON.stringify({ error: "Unauthorized" }), {
+			status: 401,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
+	return userId;
+}
+
+/**
  * Get the authenticated user's ID and lazily upsert their User record.
- * Call this at the top of every API route that needs auth.
+ * Call this at the top of every mutating API route that needs auth.
  * Returns the Clerk userId string, or throws a Response with 401.
  */
 export async function getAuthUser(): Promise<string> {

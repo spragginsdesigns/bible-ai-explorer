@@ -74,7 +74,12 @@ export default function NoteEditorScreen() {
 	);
 
 	const note = data.note;
-	const initialHtml = useMemo(() => (note ? initialHtmlFor(note) : ""), [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+	// Keyed on id + body availability: a cached summary row (no body yet) must
+	// not pin initialHtml to "" once the real body arrives.
+	const initialHtml = useMemo(
+		() => (note?.hasBody ? initialHtmlFor(note) : ""),
+		[note?.id, note?.hasBody] // eslint-disable-line react-hooks/exhaustive-deps
+	);
 
 	return (
 		<Screen>

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
@@ -30,17 +30,13 @@ export default function NotesListScreen() {
 	const [createKind, setCreateKind] = useState<"folder" | "tag" | null>(null);
 	const [isCreatingNote, setIsCreatingNote] = useState(false);
 
-	// Pick up edits made on the editor screen when coming back to the list.
-	const firstFocus = useRef(true);
+	// Silently pick up edits made on the editor screen when coming back to the
+	// list; the store already reflects them, this only revalidates.
 	useFocusEffect(
 		useCallback(() => {
-			if (firstFocus.current) {
-				firstFocus.current = false;
-				return;
-			}
-			void library.refresh();
+			library.revalidate();
 			// eslint-disable-next-line react-hooks/exhaustive-deps
-		}, [library.refresh])
+		}, [library.revalidate])
 	);
 
 	const handleNewNote = async () => {

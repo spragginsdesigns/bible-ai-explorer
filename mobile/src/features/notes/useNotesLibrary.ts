@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import * as api from "./api";
-import { toNote, type Folder, type Note, type Tag } from "./types";
+import {
+	addFolderToCache,
+	addTagToCache,
+	applyServerSnapshot,
+	hydrateNotesCache,
+	patchNoteInCache,
+	removeFolderFromCache,
+	removeNoteFromCache,
+	removeTagFromCache,
+	upsertNoteInCache,
+	useNotesSnapshot,
+} from "./notesStore";
+import { toNote, type Note, type Tag } from "./types";
 import { useStableGetToken } from "./useStableGetToken";
 
 export type NoteSort = "updatedAt" | "createdAt" | "title";
@@ -20,14 +33,16 @@ export function nextSort(sort: NoteSort): NoteSort {
 /**
  * List-screen data layer: notes + folders + tags with local filtering and the
  * same pinned-first sorting the web useNotes hook applies.
+ *
+ * Data lives in the shared persisted notesStore, so the list renders the cached
+ * snapshot instantly and every fetch is a silent background revalidation - only
+ * an explicit pull-to-refresh shows a spinner.
  */
 export function useNotesLibrary() {
 	const getToken = useStableGetToken();
+	const { notes, folders, tags, hydrated } = useNotesSnapshot();
 
-	const [notes, setNotes] = useState<Note[]>([]);
-	const [folders, setFolders] = useState<Folder[]>([]);
-	const [tags, setTags] = useState<Tag[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [hasLoaded, setHasLoaded] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +60,7 @@ export function useNotesLibrary() {
 	}, []);
 
 	const load = useCallback(
-		async (mode: "initial" | "refresh") => {
+		async (mode: "initial" | "refresh" | "silent") => {
 			if (mode === "refresh") setIsRefreshing(true);
 			try {
 				const [noteRows, folderRows, tagRows] = await Promise.all([
@@ -54,16 +69,16 @@ export function useNotesLibrary() {
 					api.fetchTags(getToken),
 				]);
 				if (!mounted.current) return;
-				setNotes(noteRows.map(toNote));
-				setFolders(folderRows);
-				setTags(tagRows);
+				applyServerSnapshot(noteRows.map(toNote), folderRows, tagRows);
 				setError(null);
 			} catch (err) {
 				if (!mounted.current) return;
+				// Cached data stays on screen; only surface errors when there is
+				// nothing cached to show.
 				setError(err instanceof Error ? err.message : "Could not load your notes.");
 			} finally {
 				if (!mounted.current) return;
-				setIsLoading(false);
+				setHasLoaded(true);
 				setIsRefreshing(false);
 			}
 		},
@@ -71,10 +86,28 @@ export function useNotesLibrary() {
 	);
 
 	useEffect(() => {
-		void load("initial");
+		void hydrateNotesCache().then(() => {
+			if (mounted.current) void load("initial");
+		});
 	}, [load]);
 
+	// Pick up edits made on the web (or another device) when the app returns
+	// to the foreground.
+	useEffect(() => {
+		const subscription = AppState.addEventListener("change", (state) => {
+			if (state === "active") void load("silent");
+		});
+		return () => subscription.remove();
+	}, [load]);
+
+	/** Pull-to-refresh: the only mode that shows a spinner. */
 	const refresh = useCallback(() => load("refresh"), [load]);
+	/** Focus/foreground revalidation: silent, cached data stays put. */
+	const revalidate = useCallback(() => load("silent"), [load]);
+
+	// With a hydrated cache there is something to show immediately; the spinner
+	// is reserved for a first-ever load with nothing cached.
+	const isLoading = !hydrated || (!hasLoaded && notes.length === 0);
 
 	const visibleNotes = useMemo(() => {
 		const query = searchQuery.trim().toLowerCase();
@@ -105,60 +138,55 @@ export function useNotesLibrary() {
 		const created = toNote(
 			await api.createNote(getToken, { title: "Untitled Note", folderId: activeFolderId })
 		);
-		setNotes((prev) => [created, ...prev]);
+		upsertNoteInCache({ ...created, hasBody: true });
 		return created;
 	}, [getToken, activeFolderId]);
 
 	const deleteNote = useCallback(
 		async (id: string) => {
-			const previous = notes;
-			setNotes((prev) => prev.filter((note) => note.id !== id));
+			removeNoteFromCache(id);
 			try {
 				await api.deleteNote(getToken, id);
 			} catch {
-				setNotes(previous);
+				void load("silent");
 			}
 		},
-		[getToken, notes]
+		[getToken, load]
 	);
-
-	const patchNoteLocal = useCallback((id: string, changes: Partial<Note>) => {
-		setNotes((prev) => prev.map((note) => (note.id === id ? { ...note, ...changes } : note)));
-	}, []);
 
 	const togglePin = useCallback(
 		async (id: string) => {
 			const note = notes.find((entry) => entry.id === id);
 			if (!note) return;
 			const isPinned = !note.isPinned;
-			patchNoteLocal(id, { isPinned });
+			patchNoteInCache(id, { isPinned });
 			try {
 				await api.patchNote(getToken, id, { isPinned });
 			} catch {
-				patchNoteLocal(id, { isPinned: note.isPinned });
+				patchNoteInCache(id, { isPinned: note.isPinned });
 			}
 		},
-		[getToken, notes, patchNoteLocal]
+		[getToken, notes]
 	);
 
 	const moveNoteToFolder = useCallback(
 		async (id: string, folderId: string | null) => {
 			const note = notes.find((entry) => entry.id === id);
 			if (!note) return;
-			patchNoteLocal(id, { folderId });
+			patchNoteInCache(id, { folderId });
 			try {
 				await api.patchNote(getToken, id, { folderId });
 			} catch {
-				patchNoteLocal(id, { folderId: note.folderId });
+				patchNoteInCache(id, { folderId: note.folderId });
 			}
 		},
-		[getToken, notes, patchNoteLocal]
+		[getToken, notes]
 	);
 
 	const createFolder = useCallback(
 		async (name: string) => {
 			const folder = await api.createFolder(getToken, name);
-			setFolders((prev) => [...prev, folder]);
+			addFolderToCache(folder);
 			return folder;
 		},
 		[getToken]
@@ -166,20 +194,21 @@ export function useNotesLibrary() {
 
 	const deleteFolder = useCallback(
 		async (id: string) => {
-			setFolders((prev) => prev.filter((folder) => folder.id !== id));
-			setNotes((prev) =>
-				prev.map((note) => (note.folderId === id ? { ...note, folderId: null } : note))
-			);
+			removeFolderFromCache(id);
 			setActiveFolderId((current) => (current === id ? null : current));
-			await api.deleteFolder(getToken, id);
+			try {
+				await api.deleteFolder(getToken, id);
+			} catch {
+				void load("silent");
+			}
 		},
-		[getToken]
+		[getToken, load]
 	);
 
 	const createTag = useCallback(
 		async (name: string, color: string) => {
-			const tag = await api.createTag(getToken, name, color);
-			setTags((prev) => [...prev, tag]);
+			const tag: Tag = await api.createTag(getToken, name, color);
+			addTagToCache(tag);
 			return tag;
 		},
 		[getToken]
@@ -187,14 +216,15 @@ export function useNotesLibrary() {
 
 	const deleteTag = useCallback(
 		async (id: string) => {
-			setTags((prev) => prev.filter((tag) => tag.id !== id));
-			setNotes((prev) =>
-				prev.map((note) => ({ ...note, tagIds: note.tagIds.filter((tagId) => tagId !== id) }))
-			);
+			removeTagFromCache(id);
 			setActiveTagId((current) => (current === id ? null : current));
-			await api.deleteTag(getToken, id);
+			try {
+				await api.deleteTag(getToken, id);
+			} catch {
+				void load("silent");
+			}
 		},
-		[getToken]
+		[getToken, load]
 	);
 
 	return {
@@ -214,6 +244,7 @@ export function useNotesLibrary() {
 		setActiveTagId,
 		setSortBy,
 		refresh,
+		revalidate,
 		createNote,
 		deleteNote,
 		togglePin,

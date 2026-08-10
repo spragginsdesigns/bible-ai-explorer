@@ -1,17 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
-import { toNote, type Folder, type Note, type NoteSavePayload, type Tag } from "./types";
+import {
+	addTagToCache,
+	applyFoldersAndTags,
+	getCachedNote,
+	hydrateNotesCache,
+	patchNoteInCache,
+	removeNoteFromCache,
+	upsertNoteInCache,
+	useNotesSnapshot,
+} from "./notesStore";
+import { toNote, type Note, type NoteSavePayload } from "./types";
 import { initialHtmlFor } from "./utils";
 import { useStableGetToken } from "./useStableGetToken";
 
-/** Editor-screen data layer for a single note. */
+/**
+ * Editor-screen data layer for a single note.
+ *
+ * The note is seeded synchronously from the shared notesStore, so a note whose
+ * body was loaded before opens instantly; the network fetch then revalidates
+ * in the background. Folders/tags also come from the store. Every mutation
+ * writes through to the store, keeping the list screen in sync with no
+ * pull-to-refresh.
+ */
 export function useNoteEditorData(noteId: string) {
 	const getToken = useStableGetToken();
+	const { folders, tags } = useNotesSnapshot();
 
-	const [note, setNote] = useState<Note | null>(null);
-	const [tags, setTags] = useState<Tag[]>([]);
-	const [folders, setFolders] = useState<Folder[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [note, setNote] = useState<Note | null>(() => getCachedNote(noteId));
+	// A cached summary row (no body yet) can fill the top bar, but the editor
+	// itself waits for the real body so it never seeds - or autosaves - an
+	// empty document over a note that has content.
+	const [isLoading, setIsLoading] = useState(() => !getCachedNote(noteId)?.hasBody);
 	const [error, setError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 
@@ -25,13 +45,22 @@ export function useNoteEditorData(noteId: string) {
 
 	useEffect(() => {
 		let cancelled = false;
-		setIsLoading(true);
 
 		(async () => {
+			// The cache may still be hydrating (deep link straight to a note).
+			await hydrateNotesCache();
+			if (cancelled) return;
+			const cached = getCachedNote(noteId);
+			if (cached) {
+				setNote((prev) => prev ?? cached);
+				if (cached.hasBody) setIsLoading(false);
+			}
+
 			try {
-				const loaded = toNote(await api.fetchNote(getToken, noteId));
+				const loaded: Note = { ...toNote(await api.fetchNote(getToken, noteId)), hasBody: true };
 				if (cancelled) return;
 				setNote(loaded);
+				upsertNoteInCache(loaded);
 				setError(null);
 			} catch (err) {
 				if (cancelled) return;
@@ -47,8 +76,7 @@ export function useNoteEditorData(noteId: string) {
 					api.fetchFolders(getToken),
 				]);
 				if (cancelled) return;
-				setTags(tagRows);
-				setFolders(folderRows);
+				applyFoldersAndTags(folderRows, tagRows);
 			} catch {
 				// Tag/folder controls stay empty.
 			}
@@ -63,11 +91,15 @@ export function useNoteEditorData(noteId: string) {
 		async (payload: NoteSavePayload) => {
 			setIsSaving(true);
 			try {
-				const updated = toNote(await api.patchNote(getToken, noteId, payload));
+				const updated: Note = {
+					...toNote(await api.patchNote(getToken, noteId, payload)),
+					hasBody: true,
+				};
 				if (mounted.current) {
 					setNote(updated);
 					setError(null);
 				}
+				upsertNoteInCache(updated);
 			} catch (err) {
 				if (mounted.current) {
 					setError(err instanceof Error ? err.message : "Changes could not be saved.");
@@ -86,11 +118,13 @@ export function useNoteEditorData(noteId: string) {
 			const previous = note;
 			const trimmed = title.trim() || "Untitled Note";
 			setNote((prev) => (prev ? { ...prev, title: trimmed } : prev));
+			patchNoteInCache(noteId, { title: trimmed });
 			try {
 				await api.patchNote(getToken, noteId, { title: trimmed });
 			} catch (err) {
 				if (!mounted.current) return;
 				setNote(previous);
+				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The title could not be saved.");
 			}
 		},
@@ -105,11 +139,13 @@ export function useNoteEditorData(noteId: string) {
 			next = !prev.isPinned;
 			return { ...prev, isPinned: next };
 		});
+		patchNoteInCache(noteId, { isPinned: !previous?.isPinned });
 		try {
 			await api.patchNote(getToken, noteId, { isPinned: next });
 		} catch (err) {
 			if (!mounted.current) return;
 			setNote(previous);
+			if (previous) upsertNoteInCache(previous);
 			setError(err instanceof Error ? err.message : "The pin could not be saved.");
 		}
 	}, [getToken, noteId, note]);
@@ -118,11 +154,13 @@ export function useNoteEditorData(noteId: string) {
 		async (folderId: string | null) => {
 			const previous = note;
 			setNote((prev) => (prev ? { ...prev, folderId } : prev));
+			patchNoteInCache(noteId, { folderId });
 			try {
 				await api.patchNote(getToken, noteId, { folderId });
 			} catch (err) {
 				if (!mounted.current) return;
 				setNote(previous);
+				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The move could not be saved.");
 			}
 		},
@@ -132,19 +170,20 @@ export function useNoteEditorData(noteId: string) {
 	const toggleTag = useCallback(
 		async (tagId: string) => {
 			const previous = note;
-			setNote((prev) => {
-				if (!prev) return prev;
-				const has = prev.tagIds.includes(tagId);
-				return {
-					...prev,
-					tagIds: has ? prev.tagIds.filter((id) => id !== tagId) : [...prev.tagIds, tagId],
-				};
-			});
+			const has = previous?.tagIds.includes(tagId) ?? false;
+			const tagIds = previous
+				? has
+					? previous.tagIds.filter((id) => id !== tagId)
+					: [...previous.tagIds, tagId]
+				: [];
+			setNote((prev) => (prev ? { ...prev, tagIds } : prev));
+			patchNoteInCache(noteId, { tagIds });
 			try {
 				await api.toggleNoteTag(getToken, noteId, tagId);
 			} catch (err) {
 				if (!mounted.current) return;
 				setNote(previous);
+				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The tag could not be saved.");
 			}
 		},
@@ -154,7 +193,7 @@ export function useNoteEditorData(noteId: string) {
 	const createTag = useCallback(
 		async (name: string, color: string) => {
 			const tag = await api.createTag(getToken, name, color);
-			setTags((prev) => [...prev, tag]);
+			addTagToCache(tag);
 			return tag;
 		},
 		[getToken]
@@ -163,6 +202,7 @@ export function useNoteEditorData(noteId: string) {
 	const removeNote = useCallback(async () => {
 		try {
 			await api.deleteNote(getToken, noteId);
+			removeNoteFromCache(noteId);
 		} catch (err) {
 			if (!mounted.current) return;
 			setError(err instanceof Error ? err.message : "The note could not be deleted.");
@@ -175,8 +215,9 @@ export function useNoteEditorData(noteId: string) {
 	 */
 	const refetchHtml = useCallback(async (): Promise<string | null> => {
 		try {
-			const fresh = toNote(await api.fetchNote(getToken, noteId));
+			const fresh: Note = { ...toNote(await api.fetchNote(getToken, noteId)), hasBody: true };
 			if (mounted.current) setNote(fresh);
+			upsertNoteInCache(fresh);
 			return initialHtmlFor(fresh);
 		} catch {
 			return null;
