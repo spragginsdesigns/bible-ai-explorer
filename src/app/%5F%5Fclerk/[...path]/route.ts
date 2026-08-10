@@ -92,6 +92,21 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 	const forwardBody =
 		request.method === "GET" || request.method === "HEAD" ? undefined : await request.text();
 
+	// TEMPORARY: web sign-in still fails where native now succeeds. Clerk reports
+	// only err_code=authorization_invalid, which says nothing about why. Log the
+	// requested redirect and whether the client cookie actually came back on the
+	// callback - no cookie values, only presence.
+	const joined = path.join("/");
+	if (joined.includes("client/sign_ins") && forwardBody) {
+		console.log(`[clerk-proxy] sign_ins redirect_url=${new URLSearchParams(forwardBody).get("redirect_url") ?? "(none)"}`);
+	}
+	if (joined.includes("oauth_callback")) {
+		const jar = request.headers.get("cookie") ?? "";
+		console.log(
+			`[clerk-proxy] oauth_callback __client=${jar.includes("__client=")} __client_uat=${jar.includes("__client_uat")} query=${new URL(request.url).searchParams.has("code") ? "has-code" : "no-code"}`
+		);
+	}
+
 	const upstream = await fetch(target, {
 		method: request.method,
 		headers,
