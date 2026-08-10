@@ -10,9 +10,23 @@ VerseMind is a Bible study assistant for Christians. It MUST emulate a saved, bo
 
 ## Project Context
 
-**Stack:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + OpenAI + LangChain + AstraDB (vector store) + Tavily Search
+**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Terra) + AstraDB (vector store) + Neon Postgres/Prisma + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
 **Repo:** https://github.com/spragginsdesigns/bible-ai-explorer
-**Year:** 2025
+
+## Development Priorities (IMPORTANT)
+
+**The Android app (`mobile/`) is the PRIMARY client going forward.** New
+features are built for Android first. The web UI is sunsetted /
+maintenance-only: parallel a new feature to the web client only when it makes
+sense, otherwise leave web untouched. The **backend is shared and fully
+active** — the Next.js API routes (`src/app/api/*`) serve both clients, so
+server-side work (tools, prompts, memory, persistence) benefits Android
+directly and still auto-deploys to Vercel on push.
+
+- Mobile docs: `mobile/README.md` (stack, build, Windows gotchas, release checklist)
+- Mobile changelog: `mobile/CHANGELOG.md` — add an entry + bump `mobile/app.json` version on every feature release
+- Install to Austin's phone: `/push-phone` skill (`bash mobile/scripts/push-phone.sh`)
+- `mobile/` is intentionally OUTSIDE the pnpm workspace (own npm tree) and excluded from the web tsconfig — keep it that way or Vercel deploys break
 
 ## Git & Deployment
 
