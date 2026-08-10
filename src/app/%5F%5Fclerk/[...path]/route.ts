@@ -117,6 +117,23 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 		responseHeaders.append("set-cookie", cookie);
 	}
 
+	// Clerk answers the OAuth callback with a relative redirect, e.g.
+	// `Location: /v1/oauth_callback?...`. The browser resolves that against our
+	// origin, which drops the /__clerk prefix and lands on a path this app does
+	// not serve - so even a successful Google sign-in ended up on a 404 that the
+	// middleware bounced to /sign-in. Put the proxy prefix back on any relative
+	// redirect, and pull absolute ones pointing at the Frontend API back through
+	// the proxy so the browser never talks to Clerk's host directly.
+	const location = upstream.headers.get("location");
+	if (location) {
+		const prefix = new URL(proxyUrl()).pathname.replace(/\/$/, "");
+		if (location.startsWith("/") && !location.startsWith(`${prefix}/`)) {
+			responseHeaders.set("location", `${prefix}${location}`);
+		} else if (location.startsWith(CLERK_FAPI)) {
+			responseHeaders.set("location", `${prefix}${location.slice(CLERK_FAPI.length)}`);
+		}
+	}
+
 	return new Response(upstream.body, {
 		status: upstream.status,
 		statusText: upstream.statusText,
