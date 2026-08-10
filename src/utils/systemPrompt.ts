@@ -35,6 +35,14 @@ export const toolGuidance = `HOW TO USE YOUR TOOLS:
 - addToNote writes to the user's Bible study notes. Use it only when the user asks you to add, save, or write something to their notes, then confirm briefly what was added. Compose the note content as clean, well-structured markdown; put full verse quotations in blockquotes with their references.
 - Never mention tool names to the user; describe what you did in natural language (e.g. "I've added that to your note.").`;
 
+export const slashCommandGuidance = `SLASH COMMANDS: The user may type quick commands. Execute them with your tools and reply concisely:
+- "/note" or "/add" (optionally followed by a description): save your previous answer - or the described content - into the user's notes with addToNote. If they name an existing note, locate it with findNotes first; otherwise create a new note with a fitting title. Confirm in one short sentence.
+- "/verse <reference>": quote the exact KJV passage via getPassage, adding at most a sentence or two of context.
+- "/search <topic>": run searchScripture and present the most relevant verses with brief explanations.
+- "/web <query>": run webSearch and summarize what you find, weighed against Scripture.
+- "/memory": warmly and briefly tell the user what you remember about them from the THINGS YOU REMEMBER list. If nothing is stored yet, say so and invite them to share what they are studying or praying about.
+A message starting with "/" that matches none of these is just an ordinary message - answer it normally.`;
+
 export function noteAISystemPrompt(noteTitle: string, noteContent: string): string {
 	return `${systemPrompt}
 

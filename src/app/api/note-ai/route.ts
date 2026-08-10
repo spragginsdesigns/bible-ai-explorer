@@ -14,7 +14,7 @@ import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildVerseMindTools, type VerseMindUIMessage } from "@/lib/ai-tools";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
-import { noteAISystemPrompt, toolGuidance } from "@/utils/systemPrompt";
+import { noteAISystemPrompt, slashCommandGuidance, toolGuidance } from "@/utils/systemPrompt";
 
 export const maxDuration = 120;
 
@@ -136,7 +136,7 @@ export async function POST(req: Request): Promise<Response> {
 		const system = `${noteAISystemPrompt(
 			note.title,
 			note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
-		)}\n\n${toolGuidance}${formatMemoryBlock(memories)}`;
+		)}\n\n${toolGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
 
 		const result = streamText({
 			model: openai("gpt-5.6-terra"),

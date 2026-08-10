@@ -14,7 +14,7 @@ import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildVerseMindTools, type VerseMindUIMessage } from "@/lib/ai-tools";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
-import { systemPrompt, toolGuidance } from "@/utils/systemPrompt";
+import { slashCommandGuidance, systemPrompt, toolGuidance } from "@/utils/systemPrompt";
 
 export const maxDuration = 120;
 
@@ -148,7 +148,7 @@ export async function POST(req: Request): Promise<Response> {
 
 		const result = streamText({
 			model: openai("gpt-5.6-terra"),
-			system: `${systemPrompt}\n\n${toolGuidance}${formatMemoryBlock(memories)}`,
+			system: `${systemPrompt}\n\n${toolGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`,
 			messages: await convertToModelMessages(messages),
 			tools,
 			stopWhen: isStepCount(8),
