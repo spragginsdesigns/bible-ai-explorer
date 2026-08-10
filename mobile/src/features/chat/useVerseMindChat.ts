@@ -54,12 +54,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export function useVerseMindChat(): VerseMindChat {
 	const { getToken } = useAuth();
-	const getTokenRef = useRef<GetToken>(getToken);
+	const getTokenRef = useRef(getToken);
 	useEffect(() => {
 		getTokenRef.current = getToken;
 	}, [getToken]);
 	// Stable indirection: Clerk hands back a new getToken on every render.
-	const authToken = useCallback<GetToken>(() => getTokenRef.current(), []);
+	// `{ fresh: true }` skips the token cache (API layer's 401 retry).
+	const authToken = useCallback<GetToken>(
+		(opts) => getTokenRef.current(opts?.fresh ? { skipCache: true } : undefined),
+		[]
+	);
 
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
