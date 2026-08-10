@@ -13,13 +13,23 @@ const MAX_MEMORIES_PER_USER = 60;
 const MAX_MEMORY_CONTENT_LENGTH = 500;
 const MAX_EXCHANGE_CHARACTERS = 8000;
 
+/**
+ * Load a user's memories. Runs on the chat request path, so a memory-layer
+ * outage must never take chat down with it: on failure we log and behave like
+ * a user with no memories yet.
+ */
 export async function loadUserMemories(userId: string): Promise<UserMemoryRecord[]> {
-	return prisma.userMemory.findMany({
-		where: { userId },
-		orderBy: { updatedAt: "desc" },
-		take: MAX_MEMORIES_PER_USER,
-		select: { id: true, content: true, category: true },
-	});
+	try {
+		return await prisma.userMemory.findMany({
+			where: { userId },
+			orderBy: { updatedAt: "desc" },
+			take: MAX_MEMORIES_PER_USER,
+			select: { id: true, content: true, category: true },
+		});
+	} catch (error) {
+		console.error("Loading user memories failed; continuing without them:", error);
+		return [];
+	}
 }
 
 /**
@@ -59,17 +69,22 @@ const memoryUpdateSchema = z.object({
 		.describe("Ids of existing memories the user contradicted or asked to forget. Empty if none."),
 });
 
-const MEMORY_EXTRACTION_INSTRUCTIONS = `You maintain the long-term memory of VerseMind, a KJV Bible study assistant, about one specific user. From the latest exchange, extract only DURABLE facts about the user that would help future conversations feel personal and continuous. Worth remembering: their name and family, church background, spiritual state and journey (e.g. new believer, backslidden, seeking assurance), prayer requests and life circumstances, ongoing studies or reading plans, and stable preferences about how they like to study. NOT worth remembering: the theological content of answers, one-off curiosities, or anything the Bible itself says. Prefer updating an existing memory over adding a near-duplicate. Remove memories the user contradicted or asked to forget. Most exchanges contain nothing worth remembering - returning three empty arrays is the normal outcome.`;
+const MEMORY_EXTRACTION_INSTRUCTIONS = `You maintain the long-term memory of VerseMind, a KJV Bible study assistant, about one specific user. From what the user themselves said, extract only DURABLE facts about the user that would help future conversations feel personal and continuous. Worth remembering: their name and family, church background, spiritual state and journey (e.g. new believer, backslidden, seeking assurance), prayer requests and life circumstances, ongoing studies or reading plans, and stable preferences about how they like to study. NOT worth remembering: the theological content of answers, one-off curiosities, or anything the Bible itself says. Prefer updating an existing memory over adding a near-duplicate. Remove memories the user contradicted or asked to forget. Most exchanges contain nothing worth remembering - returning three empty arrays is the normal outcome.`;
 
 /**
- * Extract durable user facts from the latest exchange and reconcile them with
+ * Extract durable user facts from what the user said and reconcile them with
  * the stored memories. Designed to run in the background after a reply has
  * streamed; all failures are logged and swallowed.
+ *
+ * Only the user's own words are extracted from - never the assistant's reply.
+ * The assistant's turn can contain webSearch results, i.e. arbitrary text from
+ * the open web, and feeding that to a model whose job is to write durable rows
+ * would turn any prompt injection on a fetched page into a permanent memory
+ * that is re-injected into every future conversation.
  */
 export async function extractAndStoreMemories(options: {
 	userId: string;
 	userText: string;
-	assistantText: string;
 }): Promise<void> {
 	try {
 		const existing = await loadUserMemories(options.userId);
@@ -86,7 +101,6 @@ export async function extractAndStoreMemories(options: {
 			prompt: [
 				`Existing memories:\n${existingBlock}`,
 				`User said:\n${options.userText.slice(0, MAX_EXCHANGE_CHARACTERS)}`,
-				`Assistant replied:\n${options.assistantText.slice(0, MAX_EXCHANGE_CHARACTERS)}`,
 			].join("\n\n"),
 		});
 
@@ -106,9 +120,12 @@ export async function extractAndStoreMemories(options: {
 			...(removals.length > 0
 				? [prisma.userMemory.deleteMany({ where: { userId: options.userId, id: { in: removals } } })]
 				: []),
+			// updateMany, not update: the userId in the filter makes it structurally
+			// impossible to write across users even if an id ever reaches here from
+			// somewhere other than this user's own rows.
 			...updates.map((u) =>
-				prisma.userMemory.update({
-					where: { id: u.id },
+				prisma.userMemory.updateMany({
+					where: { id: u.id, userId: options.userId },
 					data: { content: u.content.trim().slice(0, MAX_MEMORY_CONTENT_LENGTH) },
 				})
 			),

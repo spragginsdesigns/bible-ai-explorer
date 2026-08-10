@@ -92,12 +92,8 @@ async function persistExchange(options: {
 			},
 		});
 
-		if (userText && cleanText) {
-			await extractAndStoreMemories({
-				userId: options.userId,
-				userText,
-				assistantText: cleanText,
-			});
+		if (userText) {
+			await extractAndStoreMemories({ userId: options.userId, userText });
 		}
 	} catch (error) {
 		console.error("Failed to persist chat exchange:", error);

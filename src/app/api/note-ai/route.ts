@@ -73,12 +73,8 @@ async function persistExchange(options: {
 			},
 		});
 
-		if (userText && assistantText) {
-			await extractAndStoreMemories({
-				userId: options.userId,
-				userText,
-				assistantText,
-			});
+		if (userText) {
+			await extractAndStoreMemories({ userId: options.userId, userText });
 		}
 	} catch (error) {
 		console.error("Failed to persist note AI exchange:", error);
