@@ -4,6 +4,10 @@ const isPublicRoute = createRouteMatcher([
 	"/sign-in(.*)",
 	"/sign-up(.*)",
 	"/api/webhooks(.*)",
+	// The Clerk Frontend API proxy (src/app/__clerk) carries the sign-in traffic
+	// itself, so protecting it would deadlock: you would need a session to be
+	// allowed to make the calls that establish a session.
+	"/__clerk(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

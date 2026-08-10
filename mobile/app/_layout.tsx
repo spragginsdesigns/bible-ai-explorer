@@ -10,7 +10,7 @@ import {
 	CormorantGaramond_500Medium_Italic,
 } from "@expo-google-fonts/cormorant-garamond";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { CLERK_PUBLISHABLE_KEY } from "@/lib/api";
+import { CLERK_PROXY_URL, CLERK_PUBLISHABLE_KEY } from "@/lib/api";
 import { colors } from "@/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -29,7 +29,11 @@ export default function RootLayout() {
 	if (!fontsLoaded) return null;
 
 	return (
-		<ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+		<ClerkProvider
+			publishableKey={CLERK_PUBLISHABLE_KEY}
+			proxyUrl={CLERK_PROXY_URL}
+			tokenCache={tokenCache}
+		>
 			<GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
 				<StatusBar style="light" />
 				<Stack

@@ -10,6 +10,22 @@ export const CLERK_PUBLISHABLE_KEY: string =
 	typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "";
 
 /**
+ * Clerk Frontend API proxy URL, or undefined when the proxy must not be used.
+ *
+ * The production Clerk instance is served through a proxy on our own domain
+ * (`/__clerk`) because a *.vercel.app host cannot have the CNAME records Clerk
+ * normally requires. Clerk supports proxying on production instances ONLY -
+ * pointing a development instance at a proxy breaks sign-in outright. Gating on
+ * the key prefix means this stays inert on `pk_test_` and switches itself on the
+ * moment the production key ships, so the two never have to change together.
+ */
+export const CLERK_PROXY_URL: string | undefined = CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")
+	? typeof extra.clerkProxyUrl === "string" && extra.clerkProxyUrl
+		? extra.clerkProxyUrl
+		: `${API_URL}/__clerk`
+	: undefined;
+
+/**
  * Token getter. Pass `{ fresh: true }` to bypass the Clerk token cache - used
  * by the automatic 401 retry so an expired cached token never kills a request.
  * Zero-arg call sites remain valid.
