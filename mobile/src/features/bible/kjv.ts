@@ -3,7 +3,7 @@
  * Metro needs literal require paths, so every book is listed by hand; a book's
  * JSON is only parsed on first access and then cached for the session.
  */
-import { bookByOrder } from "./books";
+import { BOOKS, bookByOrder } from "./books";
 
 type RawBook = string[][];
 
@@ -95,4 +95,40 @@ export function getKjvChapter(order: number, chapter: number): string[] {
 		throw new Error(`Unknown chapter: book ${order}, chapter ${chapter}`);
 	}
 	return getKjvBook(order)[chapter - 1];
+}
+
+export interface KjvSearchHit {
+	order: number;
+	chapter: number;
+	verse: number;
+	text: string;
+}
+
+/**
+ * Case-insensitive substring match over every verse of the bundled KJV, in
+ * canonical book/chapter/verse order, capped at `limit` hits. Empty or
+ * whitespace-only queries return []. First call parses all book JSONs.
+ */
+export function searchKjv(query: string, limit = 100): KjvSearchHit[] {
+	const needle = query.trim().toLowerCase();
+	if (!needle) return [];
+	const hits: KjvSearchHit[] = [];
+	for (const book of BOOKS) {
+		const chapters = getKjvBook(book.order);
+		for (let chapterIndex = 0; chapterIndex < chapters.length; chapterIndex++) {
+			const verses = chapters[chapterIndex];
+			for (let verseIndex = 0; verseIndex < verses.length; verseIndex++) {
+				if (verses[verseIndex].toLowerCase().includes(needle)) {
+					hits.push({
+						order: book.order,
+						chapter: chapterIndex + 1,
+						verse: verseIndex + 1,
+						text: verses[verseIndex],
+					});
+					if (hits.length >= limit) return hits;
+				}
+			}
+		}
+	}
+	return hits;
 }

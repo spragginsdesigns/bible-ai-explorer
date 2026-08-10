@@ -26,6 +26,45 @@ export function bookByOrder(order: number): Book | null {
 	return BOOKS.find((book) => book.order === order) ?? null;
 }
 
+/** Genre groupings used to subdivide each testament on the book list. */
+export type BookGroup =
+	| "Law"
+	| "History"
+	| "Poetry & Wisdom"
+	| "Major Prophets"
+	| "Minor Prophets"
+	| "Gospels"
+	| "Paul's Epistles"
+	| "General Epistles"
+	| "Prophecy";
+
+export const BOOK_GROUPS: BookGroup[] = [
+	"Law",
+	"History",
+	"Poetry & Wisdom",
+	"Major Prophets",
+	"Minor Prophets",
+	"Gospels",
+	"Paul's Epistles",
+	"General Epistles",
+	"Prophecy",
+];
+
+/** Map a book's canonical order (1–66) to its genre group. */
+export function bookGroup(order: number): BookGroup | null {
+	if (order >= 1 && order <= 5) return "Law";
+	if (order >= 6 && order <= 17) return "History";
+	if (order >= 18 && order <= 22) return "Poetry & Wisdom";
+	if (order >= 23 && order <= 27) return "Major Prophets";
+	if (order >= 28 && order <= 39) return "Minor Prophets";
+	if (order >= 40 && order <= 43) return "Gospels";
+	if (order === 44) return "History";
+	if (order >= 45 && order <= 57) return "Paul's Epistles";
+	if (order >= 58 && order <= 65) return "General Epistles";
+	if (order === 66) return "Prophecy";
+	return null;
+}
+
 /** Lowercase, drop punctuation, collapse whitespace: "1 Sam." → "1 sam". */
 function normalizeName(value: string): string {
 	return value

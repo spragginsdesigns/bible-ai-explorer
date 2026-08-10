@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bookByOrder, resolveReference } from "./books";
+import { bookByOrder, bookGroup, resolveReference } from "./books";
 
 describe("bookByOrder", () => {
 	it("returns the book for a valid order", () => {
@@ -11,6 +11,27 @@ describe("bookByOrder", () => {
 	it("returns null out of range", () => {
 		expect(bookByOrder(0)).toBeNull();
 		expect(bookByOrder(67)).toBeNull();
+	});
+});
+
+describe("bookGroup", () => {
+	it("maps books to their genre group", () => {
+		expect(bookGroup(1)).toBe("Law");
+		expect(bookGroup(5)).toBe("Law");
+		expect(bookGroup(6)).toBe("History");
+		expect(bookGroup(18)).toBe("Poetry & Wisdom");
+		expect(bookGroup(23)).toBe("Major Prophets");
+		expect(bookGroup(39)).toBe("Minor Prophets");
+		expect(bookGroup(40)).toBe("Gospels");
+		expect(bookGroup(44)).toBe("History");
+		expect(bookGroup(57)).toBe("Paul's Epistles");
+		expect(bookGroup(58)).toBe("General Epistles");
+		expect(bookGroup(66)).toBe("Prophecy");
+	});
+
+	it("returns null out of range", () => {
+		expect(bookGroup(0)).toBeNull();
+		expect(bookGroup(67)).toBeNull();
 	});
 });
 
