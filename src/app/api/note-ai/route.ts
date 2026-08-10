@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import {
 	convertToModelMessages,
+	createIdGenerator,
 	createUIMessageStreamResponse,
 	isStepCount,
 	streamText,
@@ -20,6 +21,10 @@ export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 16;
 const MAX_NOTE_CONTENT_LENGTH = 16000;
+
+// Same empty-id guard as ask-question: without a server-generated id the
+// response message id is "" and every persist upsert collides on one row.
+const generateMessageId = createIdGenerator({ prefix: "msg", size: 24 });
 
 function extractText(message: UIMessage): string {
 	return message.parts
@@ -61,11 +66,16 @@ async function persistExchange(options: {
 			JSON.stringify({ parts: options.responseMessage.parts })
 		);
 
+		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
+		const responseMessageId = options.responseMessage.id.trim()
+			? options.responseMessage.id
+			: generateMessageId();
+
 		await prisma.noteAIMessage.upsert({
-			where: { id: options.responseMessage.id },
+			where: { id: responseMessageId },
 			update: { content: assistantText, metadata: metadataJson },
 			create: {
-				id: options.responseMessage.id,
+				id: responseMessageId,
 				noteId: note.id,
 				role: "assistant",
 				content: assistantText,
@@ -152,6 +162,7 @@ export async function POST(req: Request): Promise<Response> {
 				stream: result.stream,
 				tools,
 				originalMessages: messages,
+				generateMessageId,
 				onEnd: ({ responseMessage, isAborted }) => {
 					if (isAborted) return;
 					waitUntil(

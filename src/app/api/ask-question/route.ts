@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import {
 	convertToModelMessages,
+	createIdGenerator,
 	createUIMessageStreamResponse,
 	isStepCount,
 	streamText,
@@ -19,6 +20,12 @@ import { slashCommandGuidance, systemPrompt, toolGuidance } from "@/utils/system
 export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 24;
+
+// The assistant message id MUST be generated server-side: without it the UI
+// message stream leaves responseMessage.id as "", and every exchange's
+// persist upsert collides on the same empty primary key, overwriting one
+// shared row (this bug wiped assistant messages from history on 2026-08-10).
+const generateMessageId = createIdGenerator({ prefix: "msg", size: 24 });
 
 function extractText(message: UIMessage): string {
 	return message.parts
@@ -80,11 +87,16 @@ async function persistExchange(options: {
 		if (followUps.length > 0) metadata.followUps = followUps;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
+		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
+		const responseMessageId = options.responseMessage.id.trim()
+			? options.responseMessage.id
+			: generateMessageId();
+
 		await prisma.message.upsert({
-			where: { id: options.responseMessage.id },
+			where: { id: responseMessageId },
 			update: { content: cleanText, metadata: metadataJson },
 			create: {
-				id: options.responseMessage.id,
+				id: responseMessageId,
 				conversationId: conversation.id,
 				role: "assistant",
 				content: cleanText,
@@ -162,6 +174,7 @@ export async function POST(req: Request): Promise<Response> {
 				stream: result.stream,
 				tools,
 				originalMessages: messages,
+				generateMessageId,
 				onEnd: ({ responseMessage, isAborted }) => {
 					if (isAborted || !conversationId) return;
 					waitUntil(
