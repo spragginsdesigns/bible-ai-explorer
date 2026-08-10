@@ -10,7 +10,11 @@ import {
 import { Redirect, useRouter } from "expo-router";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
-import { useAuth, useSignIn, useSSO } from "@clerk/clerk-expo";
+import { useAuth, useSSO } from "@clerk/expo";
+// @clerk/expo 3.x reshaped the root useSignIn into the signal-based API
+// (SignInFutureResource). The email-code flow below is written against the
+// original resource API, which the package still ships under /legacy.
+import { useSignIn } from "@clerk/expo/legacy";
 import { AccentButton, BrandTitle, GhostButton, GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";

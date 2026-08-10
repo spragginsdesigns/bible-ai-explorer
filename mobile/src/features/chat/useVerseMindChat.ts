@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";

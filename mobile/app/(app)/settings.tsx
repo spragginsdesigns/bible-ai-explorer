@@ -1,7 +1,7 @@
 import React from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/expo";
 import Constants from "expo-constants";
 import { GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import { useAuth } from "@clerk/clerk-expo";
+import { useAuth } from "@clerk/expo";
 import type { GetToken } from "@/lib/api";
 
 /**

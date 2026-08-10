@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@10play/tentap-editor": "^1.0.1",
 		"@ai-sdk/react": "^4.0.61",
-		"@clerk/clerk-expo": "^2.19.31",
+		"@clerk/expo": "^3.7.8",
 		"@expo-google-fonts/cormorant-garamond": "^0.4.1",
 		"@expo-google-fonts/pirata-one": "^0.4.1",
 		"@react-native-async-storage/async-storage": "1.24.0",
@@ -50,7 +50,7 @@
 	},
 	"allowScripts": true,
 	"devDependencies": {
-		"vitest": "^3.2.4",
-		"typescript": "~5.9.2"
+		"typescript": "~5.9.2",
+		"vitest": "^3.2.4"
 	}
 }
