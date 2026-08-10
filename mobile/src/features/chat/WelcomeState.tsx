@@ -1,7 +1,9 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BrandTitle } from "@/components/ui";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { commonQuestions } from "./commonQuestions";
 
 export function WelcomeState({
@@ -11,6 +13,8 @@ export function WelcomeState({
 	onSelectQuestion: (question: string) => void;
 	bottomInset: number;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<ScrollView
 			style={styles.fill}
@@ -46,48 +50,49 @@ export function WelcomeState({
 	);
 }
 
-const styles = StyleSheet.create({
-	fill: { flex: 1 },
-	content: {
-		flexGrow: 1,
-		justifyContent: "center",
-		alignItems: "center",
-		paddingHorizontal: spacing.xl,
-		paddingTop: spacing.xxl,
-	},
-	halo: {
-		width: 72,
-		height: 72,
-		borderRadius: radius.full,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-		marginBottom: spacing.lg,
-	},
-	haloGlyph: { color: colors.accent, fontSize: 30 },
-	brand: { color: colors.accent },
-	tagline: {
-		marginTop: spacing.sm,
-		color: colors.textMuted,
-		fontSize: 14,
-		lineHeight: 21,
-		textAlign: "center",
-		maxWidth: 320,
-	},
-	chips: { alignSelf: "stretch", marginTop: spacing.xxl, gap: spacing.sm },
-	chip: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-	},
-	chipLabel: { flex: 1, color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
-	chipGlyph: { color: colors.textGhost, fontSize: 13 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		fill: { flex: 1 },
+		content: {
+			flexGrow: 1,
+			justifyContent: "center",
+			alignItems: "center",
+			paddingHorizontal: spacing.xl,
+			paddingTop: spacing.xxl,
+		},
+		halo: {
+			width: 72,
+			height: 72,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			marginBottom: spacing.lg,
+		},
+		haloGlyph: { color: c.accent, fontSize: 30 },
+		brand: { color: c.accent },
+		tagline: {
+			marginTop: spacing.sm,
+			color: c.textMuted,
+			fontSize: 14,
+			lineHeight: 21,
+			textAlign: "center",
+			maxWidth: 320,
+		},
+		chips: { alignSelf: "stretch", marginTop: spacing.xxl, gap: spacing.sm },
+		chip: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+		},
+		chipLabel: { flex: 1, color: c.textSecondary, fontSize: 14, lineHeight: 20 },
+		chipGlyph: { color: c.textGhost, fontSize: 13 },
+	});

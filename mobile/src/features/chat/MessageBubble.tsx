@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { ChatViewMessage } from "@/lib/chatView";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FollowUpChips } from "./FollowUpChips";
 import { MarkdownBody } from "./MarkdownBody";
@@ -25,6 +27,8 @@ export const MessageBubble = React.memo(function MessageBubble({
 	onFollowUp,
 	defaultNoteTitle,
 }: MessageBubbleProps) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 
@@ -119,60 +123,61 @@ export const MessageBubble = React.memo(function MessageBubble({
 	);
 });
 
-const styles = StyleSheet.create({
-	userRow: {
-		flexDirection: "row",
-		justifyContent: "flex-end",
-		marginBottom: spacing.xl,
-	},
-	userBubble: {
-		maxWidth: "85%",
-		backgroundColor: colors.surfaceStrong,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-		borderBottomRightRadius: radius.sm,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-	},
-	userText: { color: colors.text, fontSize: 15, lineHeight: 22 },
-	userRefLink: { color: colors.accent, textDecorationLine: "underline" },
-	assistantRow: {
-		flexDirection: "row",
-		gap: spacing.md,
-		marginBottom: spacing.xl,
-	},
-	avatar: {
-		width: 30,
-		height: 30,
-		borderRadius: radius.full,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		marginTop: 2,
-	},
-	avatarGlyph: { color: colors.accent, fontSize: 14 },
-	assistantBody: { flex: 1, minWidth: 0 },
-	activityRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingVertical: spacing.sm,
-	},
-	activityLabel: { color: colors.textMuted, fontSize: 13, fontStyle: "italic" },
-	addToNote: {
-		flexDirection: "row",
-		alignItems: "center",
-		alignSelf: "flex-start",
-		gap: 6,
-		marginTop: spacing.sm,
-		paddingVertical: spacing.xs,
-		paddingHorizontal: spacing.sm,
-		borderRadius: radius.md,
-	},
-	addToNotePressed: { backgroundColor: colors.surfacePressed },
-	addToNoteGlyph: { color: colors.textFaint, fontSize: 12 },
-	addToNoteLabel: { color: colors.textFaint, fontSize: 12.5 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		userRow: {
+			flexDirection: "row",
+			justifyContent: "flex-end",
+			marginBottom: spacing.xl,
+		},
+		userBubble: {
+			maxWidth: "85%",
+			backgroundColor: c.surfaceStrong,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			borderBottomRightRadius: radius.sm,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		userText: { color: c.text, fontSize: 15, lineHeight: 22 },
+		userRefLink: { color: c.accent, textDecorationLine: "underline" },
+		assistantRow: {
+			flexDirection: "row",
+			gap: spacing.md,
+			marginBottom: spacing.xl,
+		},
+		avatar: {
+			width: 30,
+			height: 30,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			marginTop: 2,
+		},
+		avatarGlyph: { color: c.accent, fontSize: 14 },
+		assistantBody: { flex: 1, minWidth: 0 },
+		activityRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			paddingVertical: spacing.sm,
+		},
+		activityLabel: { color: c.textMuted, fontSize: 13, fontStyle: "italic" },
+		addToNote: {
+			flexDirection: "row",
+			alignItems: "center",
+			alignSelf: "flex-start",
+			gap: 6,
+			marginTop: spacing.sm,
+			paddingVertical: spacing.xs,
+			paddingHorizontal: spacing.sm,
+			borderRadius: radius.md,
+		},
+		addToNotePressed: { backgroundColor: c.surfacePressed },
+		addToNoteGlyph: { color: c.textFaint, fontSize: 12 },
+		addToNoteLabel: { color: c.textFaint, fontSize: 12.5 },
+	});

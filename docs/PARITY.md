@@ -7,7 +7,7 @@ superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on either client.
 
-Last full audit: 2026-08-10 (Android v1.4.1).
+Last full audit: 2026-08-10 (Android v1.7.0).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ web-only (allowed superset)
 
@@ -16,10 +16,20 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Feature | Android | Web | Notes |
 |---|---|---|---|
 | Clerk email-code + Google SSO sign-in | ✅ | ✅ | |
-| Sign-out / account UI | ❌ (none) | ➕ `UserButton` in top bar | Web superset, keep |
-| Dark theme (amber-on-black glass) | ✅ dark-only | ✅ + ➕ light mode toggle | Web superset, keep |
+| Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | Android gained sign-out in 1.7.0 |
+| Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | Android was dark-only until 1.7.0 |
 | Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | 🟡 top-bar tabs | Bible tab added with reader |
 | Link to Android APK for install | n/a | ✅ | Stable Drive link in `src/lib/constants.ts` |
+
+## Settings
+
+| Feature | Android | Web | Notes |
+|---|---|---|---|
+| Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | Added 2026-08-10 |
+| Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | |
+| Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ shared with reader chips + chat attach fallback | AI answers quote KJV by design on both |
+| Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | |
+| About (version, KJV mission note) | ✅ | ✅ | |
 
 ## Chat
 

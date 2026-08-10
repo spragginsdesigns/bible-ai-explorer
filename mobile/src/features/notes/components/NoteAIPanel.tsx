@@ -10,7 +10,9 @@ import {
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import {
 	NOTE_SLASH_COMMANDS,
 	matchSlashCommands,
@@ -37,6 +39,8 @@ export function NoteAIPanel({
 	onNoteAppended: (event: NoteAppendEvent) => void;
 }) {
 	const insets = useSafeAreaInsets();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry } = useNoteAI(
 		noteId,
 		{ onNoteAppended }
@@ -217,111 +221,112 @@ export function NoteAIPanel({
 	);
 }
 
-const styles = StyleSheet.create({
-	root: { flex: 1, justifyContent: "flex-end" },
-	backdrop: {
-		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
-		bottom: 0,
-		backgroundColor: "rgba(0,0,0,0.7)",
-	},
-	panel: {
-		height: "85%",
-		backgroundColor: colors.bgElevated,
-		borderTopLeftRadius: radius.xl,
-		borderTopRightRadius: radius.xl,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		overflow: "hidden",
-	},
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		root: { flex: 1, justifyContent: "flex-end" },
+		backdrop: {
+			position: "absolute",
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			backgroundColor: "rgba(0,0,0,0.7)",
+		},
+		panel: {
+			height: "85%",
+			backgroundColor: c.bgElevated,
+			borderTopLeftRadius: radius.xl,
+			borderTopRightRadius: radius.xl,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			overflow: "hidden",
+		},
 
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
-	},
-	headerTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
-	headerGlyph: { color: colors.accent, fontSize: 13 },
-	headerLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
-	headerSpacer: { width: 32 },
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
+		},
+		headerTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
+		headerGlyph: { color: c.accent, fontSize: 13 },
+		headerLabel: { color: c.textSecondary, fontSize: 13, fontWeight: "600" },
+		headerSpacer: { width: 32 },
 
-	messages: { flex: 1 },
-	messagesContent: { padding: spacing.lg, paddingBottom: spacing.sm, flexGrow: 1 },
+		messages: { flex: 1 },
+		messagesContent: { padding: spacing.lg, paddingBottom: spacing.sm, flexGrow: 1 },
 
-	empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: spacing.xl },
-	emptyGlyph: { color: colors.accentDim, fontSize: 28, marginBottom: spacing.sm },
-	emptyTitle: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
-	emptyBody: { color: colors.textGhost, fontSize: 12.5, textAlign: "center", lineHeight: 18 },
-	suggestButton: {
-		marginTop: spacing.lg,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: 10,
-		borderRadius: radius.lg,
-		backgroundColor: colors.accentSoft,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-	},
-	suggestLabel: { color: colors.accent, fontSize: 13, fontWeight: "600" },
-	suggestInline: { paddingHorizontal: spacing.lg, paddingBottom: 6 },
-	suggestInlineLabel: { color: colors.accentDim, fontSize: 12 },
+		empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: spacing.xl },
+		emptyGlyph: { color: c.accentDim, fontSize: 28, marginBottom: spacing.sm },
+		emptyTitle: { color: c.textMuted, fontSize: 14, fontWeight: "600" },
+		emptyBody: { color: c.textGhost, fontSize: 12.5, textAlign: "center", lineHeight: 18 },
+		suggestButton: {
+			marginTop: spacing.lg,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: 10,
+			borderRadius: radius.lg,
+			backgroundColor: c.accentSoft,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+		},
+		suggestLabel: { color: c.accent, fontSize: 13, fontWeight: "600" },
+		suggestInline: { paddingHorizontal: spacing.lg, paddingBottom: 6 },
+		suggestInlineLabel: { color: c.accentDim, fontSize: 12 },
 
-	palette: {
-		marginHorizontal: spacing.md,
-		marginBottom: spacing.sm,
-		backgroundColor: colors.surface,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.md,
-		overflow: "hidden",
-	},
-	paletteRow: {
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
-	},
-	paletteCommand: { color: colors.accent, fontSize: 13, fontWeight: "600" },
-	paletteHint: { color: colors.textFaint, fontWeight: "400" },
-	paletteDescription: { color: colors.textMuted, fontSize: 11.5, marginTop: 1 },
+		palette: {
+			marginHorizontal: spacing.md,
+			marginBottom: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+			overflow: "hidden",
+		},
+		paletteRow: {
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
+		},
+		paletteCommand: { color: c.accent, fontSize: 13, fontWeight: "600" },
+		paletteHint: { color: c.textFaint, fontWeight: "400" },
+		paletteDescription: { color: c.textMuted, fontSize: 11.5, marginTop: 1 },
 
-	inputBar: {
-		flexDirection: "row",
-		alignItems: "flex-end",
-		gap: spacing.sm,
-		paddingHorizontal: spacing.md,
-		paddingTop: spacing.md,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderTopColor: colors.border,
-	},
-	input: {
-		flex: 1,
-		maxHeight: 110,
-		minHeight: 42,
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-		borderRadius: radius.lg,
-		paddingHorizontal: spacing.md,
-		paddingTop: 11,
-		paddingBottom: 11,
-		color: colors.text,
-		fontSize: 14,
-	},
-	send: {
-		width: 42,
-		height: 42,
-		borderRadius: radius.lg,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.accentSoft,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-	},
-	sendGlyph: { color: colors.accent, fontSize: 18, fontWeight: "700" },
-});
+		inputBar: {
+			flexDirection: "row",
+			alignItems: "flex-end",
+			gap: spacing.sm,
+			paddingHorizontal: spacing.md,
+			paddingTop: spacing.md,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.border,
+		},
+		input: {
+			flex: 1,
+			maxHeight: 110,
+			minHeight: 42,
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+			borderRadius: radius.lg,
+			paddingHorizontal: spacing.md,
+			paddingTop: 11,
+			paddingBottom: 11,
+			color: c.text,
+			fontSize: 14,
+		},
+		send: {
+			width: 42,
+			height: 42,
+			borderRadius: radius.lg,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.accentSoft,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+		},
+		sendGlyph: { color: c.accent, fontSize: 18, fontWeight: "700" },
+	});

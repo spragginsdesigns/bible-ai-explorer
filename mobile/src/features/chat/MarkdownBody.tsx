@@ -2,7 +2,9 @@ import React, { useCallback } from "react";
 import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import Markdown, { MarkdownIt, type MarkdownProps } from "react-native-markdown-display";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from "./verseLinks";
 
 /**
@@ -10,9 +12,9 @@ import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from ".
  * node down to its leaf Text nodes, so `blockquote` can carry both the card
  * chrome and the Cormorant Scripture typography in one entry.
  */
-const markdownStyles = {
+const createMarkdownStyles = (c: Colors) => ({
 	body: {
-		color: colors.text,
+		color: c.text,
 		fontSize: 15,
 		lineHeight: 24,
 	},
@@ -21,7 +23,7 @@ const markdownStyles = {
 		marginBottom: spacing.md,
 	},
 	heading1: {
-		color: colors.text,
+		color: c.text,
 		fontSize: 21,
 		lineHeight: 28,
 		fontWeight: "700" as const,
@@ -29,7 +31,7 @@ const markdownStyles = {
 		marginBottom: spacing.xs,
 	},
 	heading2: {
-		color: colors.text,
+		color: c.text,
 		fontSize: 18,
 		lineHeight: 25,
 		fontWeight: "700" as const,
@@ -37,7 +39,7 @@ const markdownStyles = {
 		marginBottom: spacing.xs,
 	},
 	heading3: {
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		fontSize: 16,
 		lineHeight: 23,
 		fontWeight: "700" as const,
@@ -45,7 +47,7 @@ const markdownStyles = {
 		marginBottom: spacing.xs,
 	},
 	heading4: {
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		fontSize: 15,
 		lineHeight: 22,
 		fontWeight: "600" as const,
@@ -53,19 +55,19 @@ const markdownStyles = {
 		marginBottom: spacing.xs,
 	},
 	heading5: {
-		color: colors.textMuted,
+		color: c.textMuted,
 		fontSize: 14,
 		fontWeight: "600" as const,
 		marginTop: spacing.sm,
 	},
 	heading6: {
-		color: colors.textMuted,
+		color: c.textMuted,
 		fontSize: 13,
 		fontWeight: "600" as const,
 		marginTop: spacing.sm,
 	},
 	strong: {
-		color: colors.text,
+		color: c.text,
 		fontWeight: "700" as const,
 	},
 	em: {
@@ -73,30 +75,30 @@ const markdownStyles = {
 	},
 	// The signature look: quoted Scripture as an amber-edged glass slab.
 	blockquote: {
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accent,
+		backgroundColor: c.accentSoft,
+		borderColor: c.accent,
 		borderLeftWidth: 3,
 		borderRadius: radius.md,
 		marginLeft: 0,
 		marginBottom: spacing.md,
 		paddingHorizontal: spacing.lg,
 		paddingVertical: spacing.md,
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		fontFamily: fonts.verse,
 		fontSize: 18,
 		lineHeight: 26,
 	},
 	hr: {
-		backgroundColor: colors.borderStrong,
+		backgroundColor: c.borderStrong,
 		height: StyleSheet.hairlineWidth,
 		marginVertical: spacing.lg,
 	},
 	link: {
-		color: colors.accent,
+		color: c.accent,
 		textDecorationLine: "underline" as const,
 	},
 	blocklink: {
-		borderColor: colors.accentBorder,
+		borderColor: c.accentBorder,
 	},
 	bullet_list: {
 		marginBottom: spacing.md,
@@ -108,62 +110,62 @@ const markdownStyles = {
 		marginBottom: spacing.xs,
 	},
 	bullet_list_icon: {
-		color: colors.accent,
+		color: c.accent,
 		marginLeft: 0,
 		marginRight: spacing.sm,
 	},
 	ordered_list_icon: {
-		color: colors.accent,
+		color: c.accent,
 		marginLeft: 0,
 		marginRight: spacing.sm,
 	},
 	code_inline: {
-		backgroundColor: colors.surfaceStrong,
+		backgroundColor: c.surfaceStrong,
 		borderWidth: 0,
 		borderRadius: radius.sm,
-		color: colors.accent,
+		color: c.accent,
 		fontSize: 14,
 		// The library default is a 10px box, which pushes inline code off the line.
 		padding: 0,
 		paddingHorizontal: spacing.xs,
 	},
 	code_block: {
-		backgroundColor: colors.bgElevated,
-		borderColor: colors.border,
+		backgroundColor: c.bgElevated,
+		borderColor: c.border,
 		borderWidth: StyleSheet.hairlineWidth,
 		borderRadius: radius.md,
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		padding: spacing.md,
 		marginBottom: spacing.md,
 	},
 	fence: {
-		backgroundColor: colors.bgElevated,
-		borderColor: colors.border,
+		backgroundColor: c.bgElevated,
+		borderColor: c.border,
 		borderWidth: StyleSheet.hairlineWidth,
 		borderRadius: radius.md,
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		padding: spacing.md,
 		marginBottom: spacing.md,
 	},
 	table: {
-		borderColor: colors.border,
+		borderColor: c.border,
 		borderWidth: StyleSheet.hairlineWidth,
 		borderRadius: radius.md,
 		marginBottom: spacing.md,
 	},
 	th: {
-		color: colors.textMuted,
+		color: c.textMuted,
 		fontWeight: "600" as const,
 		padding: spacing.sm,
 	},
 	td: {
-		color: colors.textSecondary,
+		color: c.textSecondary,
 		padding: spacing.sm,
 	},
 	tr: {
-		borderColor: colors.border,
+		borderColor: c.border,
 	},
-};
+});
 
 /**
  * The shipped MarkdownProps typing omits several props the component actually
@@ -186,6 +188,7 @@ const imageHandlers = ["https://", "http://"];
 const truncationMarker = <Text key="markdown-truncated">…</Text>;
 
 export const MarkdownBody = React.memo(function MarkdownBody({ content }: { content: string }) {
+	const markdownStyles = useThemedStyles(createMarkdownStyles);
 	const router = useRouter();
 	// Returning false keeps react-native-markdown-display from Linking.openURL;
 	// ordinary links return true to keep the previous open-in-browser behavior.

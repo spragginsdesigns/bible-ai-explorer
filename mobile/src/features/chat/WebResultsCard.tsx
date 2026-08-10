@@ -1,10 +1,14 @@
 import React, { useCallback } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import type { TavilyResult } from "@/lib/chatView";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { Collapsible } from "./Collapsible";
 
 function WebResultRow({ result }: { result: TavilyResult }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const open = useCallback(() => {
 		void Linking.openURL(result.url).catch(() => {
 			// A malformed or unhandled URL is not worth interrupting the chat for.
@@ -43,16 +47,17 @@ export function WebResultsCard({ results }: { results: TavilyResult[] }) {
 	);
 }
 
-const styles = StyleSheet.create({
-	row: {
-		paddingVertical: spacing.md,
-		paddingHorizontal: spacing.sm,
-		marginHorizontal: -spacing.sm,
-		borderRadius: radius.md,
-	},
-	title: { color: colors.text, fontSize: 13, fontWeight: "600" },
-	snippet: { marginTop: spacing.xs, color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-	linkRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
-	link: { flexShrink: 1, color: colors.textGhost, fontSize: 11 },
-	linkGlyph: { color: colors.textGhost, fontSize: 11 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		row: {
+			paddingVertical: spacing.md,
+			paddingHorizontal: spacing.sm,
+			marginHorizontal: -spacing.sm,
+			borderRadius: radius.md,
+		},
+		title: { color: c.text, fontSize: 13, fontWeight: "600" },
+		snippet: { marginTop: spacing.xs, color: c.textMuted, fontSize: 12, lineHeight: 18 },
+		linkRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
+		link: { flexShrink: 1, color: c.textGhost, fontSize: 11 },
+		linkGlyph: { color: c.textGhost, fontSize: 11 },
+	});

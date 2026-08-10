@@ -10,7 +10,9 @@ import {
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { formatRelativeDate } from "./format";
 import type { Conversation } from "./useVerseMindChat";
 
@@ -39,6 +41,8 @@ export function HistoryModal({
 	onNewChat,
 	onClearAll,
 }: HistoryModalProps) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const insets = useSafeAreaInsets();
 	const [mounted, setMounted] = useState(visible);
 	const [confirmClear, setConfirmClear] = useState(false);
@@ -187,98 +191,99 @@ export function HistoryModal({
 	);
 }
 
-const styles = StyleSheet.create({
-	root: { flex: 1, justifyContent: "flex-end" },
-	backdrop: {
-		position: "absolute",
-		top: 0,
-		left: 0,
-		right: 0,
-		bottom: 0,
-		backgroundColor: "rgba(0, 0, 0, 0.65)",
-	},
-	backdropFill: { flex: 1 },
-	sheet: {
-		maxHeight: "80%",
-		backgroundColor: colors.bgElevated,
-		borderTopLeftRadius: 28,
-		borderTopRightRadius: 28,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		paddingHorizontal: spacing.xl,
-		paddingTop: spacing.md,
-	},
-	grabber: {
-		alignSelf: "center",
-		width: 36,
-		height: 4,
-		borderRadius: radius.full,
-		backgroundColor: colors.surfacePressed,
-		marginBottom: spacing.lg,
-	},
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: spacing.lg,
-	},
-	heading: { color: colors.text, fontSize: 17, fontWeight: "700" },
-	iconButton: {
-		width: 34,
-		height: 34,
-		borderRadius: radius.full,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-	},
-	pressed: { backgroundColor: colors.surfacePressed },
-	iconGlyph: { color: colors.textMuted, fontSize: 13 },
-	trashGlyph: { fontSize: 13 },
-	newChat: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: spacing.sm,
-		paddingVertical: spacing.md,
-		borderRadius: radius.lg,
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-	},
-	newChatGlyph: { color: colors.accent, fontSize: 14 },
-	newChatLabel: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	list: { marginTop: spacing.lg },
-	listContent: { gap: spacing.sm, paddingBottom: spacing.sm },
-	empty: {
-		color: colors.textFaint,
-		fontSize: 13,
-		lineHeight: 20,
-		paddingVertical: spacing.xl,
-		textAlign: "center",
-	},
-	row: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingLeft: spacing.md,
-		paddingRight: spacing.sm,
-		paddingVertical: spacing.sm,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-	},
-	rowActive: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-	rowMain: { flex: 1, paddingVertical: spacing.xs, borderRadius: radius.md },
-	rowTitle: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
-	rowDate: { marginTop: 2, color: colors.textGhost, fontSize: 11 },
-	clearAll: {
-		marginTop: spacing.md,
-		paddingVertical: spacing.md,
-		borderRadius: radius.lg,
-		alignItems: "center",
-	},
-	clearAllLabel: { color: colors.danger, fontSize: 13, fontWeight: "500" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		root: { flex: 1, justifyContent: "flex-end" },
+		backdrop: {
+			position: "absolute",
+			top: 0,
+			left: 0,
+			right: 0,
+			bottom: 0,
+			backgroundColor: "rgba(0, 0, 0, 0.65)",
+		},
+		backdropFill: { flex: 1 },
+		sheet: {
+			maxHeight: "80%",
+			backgroundColor: c.bgElevated,
+			borderTopLeftRadius: 28,
+			borderTopRightRadius: 28,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			paddingHorizontal: spacing.xl,
+			paddingTop: spacing.md,
+		},
+		grabber: {
+			alignSelf: "center",
+			width: 36,
+			height: 4,
+			borderRadius: radius.full,
+			backgroundColor: c.surfacePressed,
+			marginBottom: spacing.lg,
+		},
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			marginBottom: spacing.lg,
+		},
+		heading: { color: c.text, fontSize: 17, fontWeight: "700" },
+		iconButton: {
+			width: 34,
+			height: 34,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+		},
+		pressed: { backgroundColor: c.surfacePressed },
+		iconGlyph: { color: c.textMuted, fontSize: 13 },
+		trashGlyph: { fontSize: 13 },
+		newChat: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: spacing.sm,
+			paddingVertical: spacing.md,
+			borderRadius: radius.lg,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+		},
+		newChatGlyph: { color: c.accent, fontSize: 14 },
+		newChatLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		list: { marginTop: spacing.lg },
+		listContent: { gap: spacing.sm, paddingBottom: spacing.sm },
+		empty: {
+			color: c.textFaint,
+			fontSize: 13,
+			lineHeight: 20,
+			paddingVertical: spacing.xl,
+			textAlign: "center",
+		},
+		row: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			paddingLeft: spacing.md,
+			paddingRight: spacing.sm,
+			paddingVertical: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+		},
+		rowActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
+		rowMain: { flex: 1, paddingVertical: spacing.xs, borderRadius: radius.md },
+		rowTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "500" },
+		rowDate: { marginTop: 2, color: c.textGhost, fontSize: 11 },
+		clearAll: {
+			marginTop: spacing.md,
+			paddingVertical: spacing.md,
+			borderRadius: radius.lg,
+			alignItems: "center",
+		},
+		clearAllLabel: { color: c.danger, fontSize: 13, fontWeight: "500" },
+	});

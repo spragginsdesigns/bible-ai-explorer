@@ -203,3 +203,7 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | System prompt | `src/utils/systemPrompt.ts` |
 | Chat hook | `src/components/useChat.ts` |
 | Global styles | `src/app/globals.css` |
+| Web settings page | `src/app/settings/page.tsx` |
+| Web client preferences | `src/lib/preferences.ts` |
+| Mobile settings screen | `mobile/app/(app)/settings.tsx` |
+| Mobile settings store + theme hooks | `mobile/src/features/settings/settingsStore.ts` |

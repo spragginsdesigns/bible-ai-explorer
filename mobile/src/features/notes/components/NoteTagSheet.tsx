@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { PRESET_TAG_COLORS, type Tag } from "../types";
 import { BottomSheet } from "./primitives";
 
@@ -23,6 +25,8 @@ export function NoteTagSheet({
 	const [isCreating, setIsCreating] = useState(false);
 	const [name, setName] = useState("");
 	const [color, setColor] = useState<string>(PRESET_TAG_COLORS[0]);
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 
 	const resetCreate = () => {
 		setIsCreating(false);
@@ -128,51 +132,52 @@ export function NoteTagSheet({
 	);
 }
 
-const styles = StyleSheet.create({
-	list: { maxHeight: 260 },
-	row: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingVertical: 12,
-		paddingHorizontal: spacing.sm,
-		borderRadius: radius.md,
-	},
-	rowPressed: { backgroundColor: colors.surfacePressed },
-	dot: { width: 13, height: 13, borderRadius: 7, borderWidth: 1.5 },
-	rowLabel: { flex: 1, color: colors.textSecondary, fontSize: 14.5 },
-	check: { color: colors.accent, fontSize: 14 },
-	empty: { color: colors.textGhost, fontSize: 13, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		list: { maxHeight: 260 },
+		row: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingVertical: 12,
+			paddingHorizontal: spacing.sm,
+			borderRadius: radius.md,
+		},
+		rowPressed: { backgroundColor: c.surfacePressed },
+		dot: { width: 13, height: 13, borderRadius: 7, borderWidth: 1.5 },
+		rowLabel: { flex: 1, color: c.textSecondary, fontSize: 14.5 },
+		check: { color: c.accent, fontSize: 14 },
+		empty: { color: c.textGhost, fontSize: 13, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
 
-	newTag: {
-		paddingVertical: 12,
-		paddingHorizontal: spacing.sm,
-		borderRadius: radius.md,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderTopColor: colors.border,
-	},
-	newTagLabel: { color: colors.textFaint, fontSize: 13.5 },
+		newTag: {
+			paddingVertical: 12,
+			paddingHorizontal: spacing.sm,
+			borderRadius: radius.md,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.border,
+		},
+		newTagLabel: { color: c.textFaint, fontSize: 13.5 },
 
-	createBox: {
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderTopColor: colors.border,
-		paddingTop: spacing.md,
-		gap: spacing.md,
-	},
-	input: {
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-		borderRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: 10,
-		color: colors.text,
-		fontSize: 14.5,
-	},
-	swatches: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-	swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
-	swatchActive: { borderColor: colors.text },
-	createActions: { flexDirection: "row", alignItems: "center", gap: spacing.xl, paddingBottom: spacing.sm },
-	createLabel: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	cancelLabel: { color: colors.textFaint, fontSize: 14 },
-});
+		createBox: {
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.border,
+			paddingTop: spacing.md,
+			gap: spacing.md,
+		},
+		input: {
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+			borderRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 10,
+			color: c.text,
+			fontSize: 14.5,
+		},
+		swatches: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+		swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: "transparent" },
+		swatchActive: { borderColor: c.text },
+		createActions: { flexDirection: "row", alignItems: "center", gap: spacing.xl, paddingBottom: spacing.sm },
+		createLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		cancelLabel: { color: c.textFaint, fontSize: 14 },
+	});

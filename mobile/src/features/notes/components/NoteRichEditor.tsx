@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import {
 	CoreBridge,
@@ -8,7 +8,9 @@ import {
 	Toolbar,
 	useEditorBridge,
 } from "@10play/tentap-editor";
-import { colors, radius } from "@/theme";
+import { radius } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
 
@@ -19,15 +21,15 @@ const BRIDGE_TIMEOUT = 1200;
  * The webview cannot use the app's loaded fonts, so Scripture blockquotes fall
  * back to a system serif. Everything else mirrors the theme tokens.
  */
-const EDITOR_CSS = `
+const editorCss = (c: Colors) => `
 	html, body {
-		background-color: ${colors.bgMid};
+		background-color: ${c.bgMid};
 		margin: 0;
 	}
 	.ProseMirror {
-		background-color: ${colors.bgMid};
-		color: ${colors.text};
-		caret-color: ${colors.accent};
+		background-color: ${c.bgMid};
+		color: ${c.text};
+		caret-color: ${c.accent};
 		font-size: 16px;
 		line-height: 1.7;
 		padding: 16px 18px 120px;
@@ -47,39 +49,39 @@ const EDITOR_CSS = `
 	.ProseMirror h2 { font-size: 1.35em; }
 	.ProseMirror h3 { font-size: 1.15em; }
 	.ProseMirror blockquote {
-		border-left: 2px solid ${colors.accent};
-		background-color: ${colors.accentSoft};
+		border-left: 2px solid ${c.accent};
+		background-color: ${c.accentSoft};
 		border-radius: 0 12px 12px 0;
 		padding: 10px 14px;
 		margin: 0;
 		font-family: Georgia, "Times New Roman", serif;
 		font-size: 1.1em;
-		color: ${colors.textSecondary};
+		color: ${c.textSecondary};
 	}
-	.ProseMirror a { color: ${colors.accent}; text-decoration: underline; }
+	.ProseMirror a { color: ${c.accent}; text-decoration: underline; }
 	.ProseMirror code {
-		background-color: ${colors.surfaceStrong};
+		background-color: ${c.surfaceStrong};
 		border-radius: 6px;
 		padding: 1px 5px;
 		font-size: 0.9em;
 	}
 	.ProseMirror pre {
-		background-color: ${colors.surface};
-		border: 1px solid ${colors.border};
+		background-color: ${c.surface};
+		border: 1px solid ${c.border};
 		border-radius: 12px;
 		padding: 12px;
 	}
 	.ProseMirror ul, .ProseMirror ol { padding-left: 1.2em; margin: 0; }
 	.ProseMirror li { margin: 0.15em 0; }
 	.ProseMirror ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-	.ProseMirror hr { border: none; border-top: 1px solid ${colors.borderStrong}; }
+	.ProseMirror hr { border: none; border-top: 1px solid ${c.borderStrong}; }
 	.ProseMirror mark, .highlight-background {
 		background-color: rgba(251, 191, 36, 0.25);
 		color: #ffffff;
 	}
 	.ProseMirror ::selection { background-color: rgba(251, 191, 36, 0.3); }
 	.ProseMirror p.is-editor-empty:first-child::before {
-		color: ${colors.textGhost};
+		color: ${c.textGhost};
 		content: attr(data-placeholder);
 		float: left;
 		height: 0;
@@ -87,49 +89,49 @@ const EDITOR_CSS = `
 	}
 `;
 
-const BRIDGE_EXTENSIONS = [
+const bridgeExtensions = (c: Colors) => [
 	...TenTapStartKit,
-	CoreBridge.configureCSS(EDITOR_CSS),
+	CoreBridge.configureCSS(editorCss(c)),
 	PlaceholderBridge.configureExtension({
 		placeholder: "Start writing your Bible study notes…",
 	}),
 ];
 
-const EDITOR_THEME = {
-	webview: { backgroundColor: colors.bgMid },
-	webviewContainer: { backgroundColor: colors.bgMid },
+const editorTheme = (c: Colors) => ({
+	webview: { backgroundColor: c.bgMid },
+	webviewContainer: { backgroundColor: c.bgMid },
 	toolbar: {
 		toolbarBody: {
 			flex: 0,
 			flexGrow: 0,
 			height: 48,
 			minWidth: "100%" as const,
-			backgroundColor: colors.bgElevated,
+			backgroundColor: c.bgElevated,
 			borderTopWidth: StyleSheet.hairlineWidth,
 			borderBottomWidth: 0,
-			borderTopColor: colors.borderStrong,
+			borderTopColor: c.borderStrong,
 			borderBottomColor: "transparent",
 		},
 		toolbarButton: { backgroundColor: "transparent", paddingHorizontal: 5 },
 		iconWrapper: { borderRadius: radius.sm, backgroundColor: "transparent", padding: 2 },
-		iconWrapperActive: { backgroundColor: colors.accentSoft },
+		iconWrapperActive: { backgroundColor: c.accentSoft },
 		iconWrapperDisabled: { opacity: 0.25 },
-		icon: { width: 26, height: 26, tintColor: colors.textMuted },
-		iconActive: { tintColor: colors.accent },
-		iconDisabled: { tintColor: colors.textGhost },
+		icon: { width: 26, height: 26, tintColor: c.textMuted },
+		iconActive: { tintColor: c.accent },
+		iconDisabled: { tintColor: c.textGhost },
 		linkBarTheme: {
 			addLinkContainer: {
-				backgroundColor: colors.bgElevated,
-				borderTopColor: colors.borderStrong,
+				backgroundColor: c.bgElevated,
+				borderTopColor: c.borderStrong,
 				borderBottomColor: "transparent",
 			},
-			linkInput: { backgroundColor: colors.bgElevated, color: colors.text },
-			placeholderTextColor: colors.textGhost,
-			doneButton: { backgroundColor: colors.accentSoft },
-			doneButtonText: { color: colors.accent },
+			linkInput: { backgroundColor: c.bgElevated, color: c.text },
+			placeholderTextColor: c.textGhost,
+			doneButton: { backgroundColor: c.accentSoft },
+			doneButtonText: { color: c.accent },
 		},
 	},
-};
+});
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 	return new Promise((resolve) => {
@@ -168,14 +170,19 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		const latestHtmlRef = useRef(initialHtml);
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+		const { colors } = useTheme();
+		const styles = useThemedStyles(createStyles);
+		const extensions = useMemo(() => bridgeExtensions(colors), [colors]);
+		const theme = useMemo(() => editorTheme(colors), [colors]);
+
 		const onSaveRef = useRef(onSave);
 		onSaveRef.current = onSave;
 
 		const editor = useEditorBridge({
 			initialContent: initialHtml,
 			avoidIosKeyboard: true,
-			bridgeExtensions: BRIDGE_EXTENSIONS,
-			theme: EDITOR_THEME,
+			bridgeExtensions: extensions,
+			theme,
 			onChange: () => scheduleSave(),
 		});
 
@@ -257,7 +264,8 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 	}
 );
 
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: colors.bgMid },
-	toolbarWrap: { backgroundColor: colors.bgMid },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		container: { flex: 1, backgroundColor: c.bgMid },
+		toolbarWrap: { backgroundColor: c.bgMid },
+	});

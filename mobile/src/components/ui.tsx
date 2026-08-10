@@ -11,9 +11,11 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, fonts, meshGradient, radius, spacing } from "@/theme";
+import { fonts, radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
-/** Full-screen dark mesh background with safe-area padding. */
+/** Full-screen mesh background with safe-area padding, following the active theme. */
 export function Screen({
 	children,
 	edges = ["top"],
@@ -23,6 +25,7 @@ export function Screen({
 	edges?: ("top" | "bottom" | "left" | "right")[];
 	style?: StyleProp<ViewStyle>;
 }) {
+	const { meshGradient } = useTheme();
 	return (
 		<LinearGradient colors={[...meshGradient]} style={styles.fill}>
 			<SafeAreaView edges={edges} style={[styles.fill, style]}>
@@ -32,7 +35,7 @@ export function Screen({
 	);
 }
 
-/** Frosted glass card matching the web's .glass + white/[0.06] borders. */
+/** Frosted glass card matching the web's .glass + subtle borders. */
 export function GlassCard({
 	children,
 	style,
@@ -42,6 +45,8 @@ export function GlassCard({
 	style?: StyleProp<ViewStyle>;
 	strong?: boolean;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<View
 			style={[
@@ -57,6 +62,7 @@ export function GlassCard({
 
 /** The VerseMind wordmark in Pirata One. */
 export function BrandTitle({ size = 34, style }: { size?: number; style?: StyleProp<TextStyle> }) {
+	const { colors } = useTheme();
 	return (
 		<Text style={[{ fontFamily: fonts.brand, fontSize: size, color: colors.text }, style]}>
 			VerseMind
@@ -71,6 +77,8 @@ export function AccentButton({
 	disabled,
 	...props
 }: PressableProps & { label: string; style?: StyleProp<ViewStyle> }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -95,6 +103,8 @@ export function GhostButton({
 	disabled,
 	...props
 }: PressableProps & { label: string; style?: StyleProp<ViewStyle> }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -114,40 +124,44 @@ export function GhostButton({
 
 const styles = StyleSheet.create({
 	fill: { flex: 1 },
-	card: {
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-	},
-	accentButton: {
-		minHeight: 48,
-		borderRadius: radius.lg,
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-		alignItems: "center",
-		justifyContent: "center",
-		paddingHorizontal: spacing.xl,
-	},
-	accentButtonLabel: {
-		color: colors.accent,
-		fontSize: 15,
-		fontWeight: "600",
-	},
-	ghostButton: {
-		minHeight: 48,
-		borderRadius: radius.lg,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		alignItems: "center",
-		justifyContent: "center",
-		paddingHorizontal: spacing.xl,
-	},
-	ghostButtonLabel: {
-		color: colors.textSecondary,
-		fontSize: 15,
-		fontWeight: "500",
-	},
 });
+
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		card: {
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+		},
+		accentButton: {
+			minHeight: 48,
+			borderRadius: radius.lg,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			alignItems: "center",
+			justifyContent: "center",
+			paddingHorizontal: spacing.xl,
+		},
+		accentButtonLabel: {
+			color: c.accent,
+			fontSize: 15,
+			fontWeight: "600",
+		},
+		ghostButton: {
+			minHeight: 48,
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			alignItems: "center",
+			justifyContent: "center",
+			paddingHorizontal: spacing.xl,
+		},
+		ghostButtonLabel: {
+			color: c.textSecondary,
+			fontSize: 15,
+			fontWeight: "500",
+		},
+	});

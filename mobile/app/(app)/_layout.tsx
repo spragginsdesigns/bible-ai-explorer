@@ -5,7 +5,8 @@ import { useAuth } from "@clerk/clerk-expo";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { colors, spacing } from "@/theme";
+import { spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 const TAB_LABELS: Record<string, string> = {
 	index: "Chat",
@@ -21,9 +22,11 @@ const TAB_GLYPHS: Record<string, string> = {
 
 function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 	const insets = useSafeAreaInsets();
+	const { colors, isDark } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<View style={[styles.tabBarWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-			<BlurView intensity={40} tint="dark" style={styles.tabBar}>
+			<BlurView intensity={40} tint={isDark ? "dark" : "light"} style={styles.tabBar}>
 				{state.routes.map((route: { key: string; name: string }, index: number) => {
 					// Routes hidden with options.href === null (e.g. push-only screens)
 					// must not render in the bar.
@@ -58,6 +61,7 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export default function AppLayout() {
 	const { isLoaded, isSignedIn } = useAuth();
+	const { colors } = useTheme();
 
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 
@@ -72,38 +76,41 @@ export default function AppLayout() {
 			<Tabs.Screen name="index" />
 			<Tabs.Screen name="bible" />
 			<Tabs.Screen name="notes" />
+			{/* Push-only screen: reachable from the chat header gear, hidden from the tab bar. */}
+			<Tabs.Screen name="settings" options={{ href: null }} />
 		</Tabs>
 	);
 }
 
-const styles = StyleSheet.create({
-	tabBarWrap: {
-		position: "absolute",
-		left: 0,
-		right: 0,
-		bottom: 0,
-		paddingHorizontal: spacing.xl,
-		backgroundColor: "transparent",
-	},
-	tabBar: {
-		flexDirection: "row",
-		borderRadius: 24,
-		overflow: "hidden",
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		backgroundColor: colors.glass,
-	},
-	tabItem: {
-		flex: 1,
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 6,
-		paddingVertical: 14,
-	},
-	tabItemActive: {
-		backgroundColor: colors.accentSoft,
-	},
-	tabGlyph: { color: colors.textFaint, fontSize: 15 },
-	tabLabel: { color: colors.textFaint, fontSize: 13, fontWeight: "600" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		tabBarWrap: {
+			position: "absolute",
+			left: 0,
+			right: 0,
+			bottom: 0,
+			paddingHorizontal: spacing.xl,
+			backgroundColor: "transparent",
+		},
+		tabBar: {
+			flexDirection: "row",
+			borderRadius: 24,
+			overflow: "hidden",
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.glass,
+		},
+		tabItem: {
+			flex: 1,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: 6,
+			paddingVertical: 14,
+		},
+		tabItemActive: {
+			backgroundColor: c.accentSoft,
+		},
+		tabGlyph: { color: c.textFaint, fontSize: 15 },
+		tabLabel: { color: c.textFaint, fontSize: 13, fontWeight: "600" },
+	});

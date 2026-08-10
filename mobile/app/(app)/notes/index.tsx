@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { CreateItemSheet } from "@/features/notes/components/CreateItemSheet";
 import { NoteActionSheet } from "@/features/notes/components/NoteActionSheet";
 import { NoteCard } from "@/features/notes/components/NoteCard";
@@ -24,6 +25,8 @@ const TAB_BAR_CLEARANCE = 100;
 
 export default function NotesListScreen() {
 	const router = useRouter();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const library = useNotesLibrary();
 
 	const [actionNote, setActionNote] = useState<Note | null>(null);
@@ -216,56 +219,57 @@ export default function NotesListScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.sm,
-		paddingBottom: spacing.md,
-	},
-	heading: { fontFamily: fonts.brand, fontSize: 34, color: colors.text },
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+			paddingBottom: spacing.md,
+		},
+		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
 
-	searchWrap: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		marginHorizontal: spacing.lg,
-		paddingLeft: spacing.md,
-		paddingRight: 6,
-		borderRadius: radius.lg,
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-	},
-	searchGlyph: { color: colors.textFaint, fontSize: 16 },
-	searchInput: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 11 },
+		searchWrap: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginHorizontal: spacing.lg,
+			paddingLeft: spacing.md,
+			paddingRight: 6,
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+		},
+		searchGlyph: { color: c.textFaint, fontSize: 16 },
+		searchInput: { flex: 1, color: c.text, fontSize: 15, paddingVertical: 11 },
 
-	chipScroll: { flexGrow: 0 },
-	chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, alignItems: "center" },
-	list: { flex: 1 },
+		chipScroll: { flexGrow: 0 },
+		chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, alignItems: "center" },
+		list: { flex: 1 },
 
-	metaRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.lg,
-		paddingBottom: spacing.sm,
-	},
-	metaText: { color: colors.textFaint, fontSize: 12 },
-	error: {
-		color: colors.danger,
-		fontSize: 12.5,
-		paddingHorizontal: spacing.lg,
-		paddingBottom: spacing.sm,
-	},
+		metaRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
+		metaText: { color: c.textFaint, fontSize: 12 },
+		error: {
+			color: c.danger,
+			fontSize: 12.5,
+			paddingHorizontal: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
 
-	loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-	listContent: { paddingHorizontal: spacing.lg, paddingBottom: TAB_BAR_CLEARANCE },
-	separator: { height: spacing.sm },
-	empty: { alignItems: "center", paddingTop: 64, gap: 6 },
-	emptyTitle: { color: colors.textMuted, fontSize: 15, fontWeight: "600" },
-	emptyBody: { color: colors.textGhost, fontSize: 13, textAlign: "center", paddingHorizontal: spacing.xl },
-});
+		loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+		listContent: { paddingHorizontal: spacing.lg, paddingBottom: TAB_BAR_CLEARANCE },
+		separator: { height: spacing.sm },
+		empty: { alignItems: "center", paddingTop: 64, gap: 6 },
+		emptyTitle: { color: c.textMuted, fontSize: 15, fontWeight: "600" },
+		emptyBody: { color: c.textGhost, fontSize: 13, textAlign: "center", paddingHorizontal: spacing.xl },
+	});

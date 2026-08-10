@@ -1,9 +1,14 @@
 /**
- * VerseMind mobile design system — dark monochrome glassmorphism, ported from
+ * VerseMind mobile design system — monochrome glassmorphism, ported from
  * the web app (globals.css + Tailwind neutral/amber usage). No Material UI:
  * every surface is built from these tokens.
+ *
+ * Two palettes live here: dark (the original VerseMind look) and light.
+ * Components should never read these directly — use `useTheme()` /
+ * `useThemedStyles()` from `@/features/settings/settingsStore`, which pick
+ * the active palette from the user's appearance setting.
  */
-export const colors = {
+export const darkColors = {
 	// Backgrounds (web: linear-gradient #000 → #050505 → #080808)
 	bg: "#000000",
 	bgMid: "#050505",
@@ -39,6 +44,51 @@ export const colors = {
 	dangerBorder: "rgba(248, 113, 113, 0.20)",
 } as const;
 
+/** Light palette — same roles as dark, mirrored from the web's light mode. */
+export const lightColors: Colors = {
+	// Backgrounds (web light: near-white neutrals)
+	bg: "#fafafa",
+	bgMid: "#f5f5f5",
+	bgEnd: "#ececec",
+	bgElevated: "#ffffff",
+
+	// Glass surfaces
+	glass: "rgba(255, 255, 255, 0.75)",
+	glassLight: "rgba(255, 255, 255, 0.6)",
+	surface: "rgba(0, 0, 0, 0.04)",
+	surfaceStrong: "rgba(0, 0, 0, 0.06)",
+	surfacePressed: "rgba(0, 0, 0, 0.10)",
+	border: "rgba(0, 0, 0, 0.08)",
+	borderStrong: "rgba(0, 0, 0, 0.12)",
+
+	// Text (web: neutral-900/800/600/500/400)
+	text: "#171717",
+	textSecondary: "#262626",
+	textMuted: "#525252",
+	textFaint: "#737373",
+	textGhost: "#a3a3a3",
+
+	// Accent (web light mode uses amber-600 for contrast)
+	accent: "#d97706",
+	accentSoft: "rgba(217, 119, 6, 0.10)",
+	accentBorder: "rgba(217, 119, 6, 0.25)",
+	accentPressed: "rgba(217, 119, 6, 0.16)",
+	accentDim: "rgba(217, 119, 6, 0.75)",
+
+	// Semantic
+	danger: "#dc2626",
+	dangerSoft: "rgba(220, 38, 38, 0.08)",
+	dangerBorder: "rgba(220, 38, 38, 0.20)",
+} as const;
+
+export type Colors = { [K in keyof typeof darkColors]: string };
+export type ResolvedTheme = "dark" | "light";
+
+export const palettes: Record<ResolvedTheme, Colors> = {
+	dark: darkColors,
+	light: lightColors,
+};
+
 export const fonts = {
 	/** Pirata One — VerseMind brand title only */
 	brand: "PirataOne_400Regular",
@@ -67,4 +117,7 @@ export const spacing = {
 } as const;
 
 /** Radial-ish mesh imitation: vertical gradient stops for expo-linear-gradient. */
-export const meshGradient = [colors.bg, colors.bgMid, colors.bgEnd] as const;
+export const meshGradients: Record<ResolvedTheme, readonly [string, string, string]> = {
+	dark: [darkColors.bg, darkColors.bgMid, darkColors.bgEnd],
+	light: [lightColors.bg, lightColors.bgMid, lightColors.bgEnd],
+} as const;

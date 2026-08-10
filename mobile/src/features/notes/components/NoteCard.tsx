@@ -1,6 +1,8 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import type { Note, Tag } from "../types";
 import { relativeTime, tagsForNote } from "../utils";
 
@@ -17,6 +19,7 @@ export function NoteCard({
 }) {
 	const noteTags = tagsForNote(note, tags);
 	const preview = note.plainText.trim() || "Empty note";
+	const styles = useThemedStyles(createStyles);
 
 	return (
 		<Pressable
@@ -60,29 +63,30 @@ export function NoteCard({
 	);
 }
 
-const styles = StyleSheet.create({
-	card: {
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-		borderRadius: radius.lg,
-		padding: spacing.lg,
-		gap: 6,
-	},
-	cardPinned: { borderColor: colors.accentBorder },
-	cardPressed: { backgroundColor: colors.surfacePressed },
-	titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-	title: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "600" },
-	pin: { fontSize: 12 },
-	preview: { color: colors.textFaint, fontSize: 13, lineHeight: 19 },
-	metaRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		gap: spacing.sm,
-		marginTop: 2,
-	},
-	dots: { flexDirection: "row", alignItems: "center", gap: 5 },
-	tagDot: { width: 7, height: 7, borderRadius: 4 },
-	meta: { color: colors.textGhost, fontSize: 11 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		card: {
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+			borderRadius: radius.lg,
+			padding: spacing.lg,
+			gap: 6,
+		},
+		cardPinned: { borderColor: c.accentBorder },
+		cardPressed: { backgroundColor: c.surfacePressed },
+		titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+		title: { flex: 1, color: c.text, fontSize: 15, fontWeight: "600" },
+		pin: { fontSize: 12 },
+		preview: { color: c.textFaint, fontSize: 13, lineHeight: 19 },
+		metaRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: spacing.sm,
+			marginTop: 2,
+		},
+		dots: { flexDirection: "row", alignItems: "center", gap: 5 },
+		tagDot: { width: 7, height: 7, borderRadius: 4 },
+		meta: { color: c.textGhost, fontSize: 11 },
+	});

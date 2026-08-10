@@ -1,13 +1,18 @@
 import React, { useMemo } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import Markdown, { hasParents, type RenderRules } from "react-native-markdown-display";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 /**
  * Markdown for AI answers. Blockquotes are the Scripture treatment: Cormorant
  * Garamond at 18pt behind an amber rule, matching the web FormattedResponse.
  */
 export function NoteMarkdown({ content }: { content: string }) {
+	const styles = useThemedStyles(createStyles);
+	const markdownStyles = useThemedStyles(createMarkdownStyles);
+
 	const rules: RenderRules = useMemo(
 		() => ({
 			blockquote: (node, children) => (
@@ -26,7 +31,7 @@ export function NoteMarkdown({ content }: { content: string }) {
 				</Text>
 			),
 		}),
-		[]
+		[styles]
 	);
 
 	return (
@@ -43,68 +48,70 @@ export function NoteMarkdown({ content }: { content: string }) {
 	);
 }
 
-const styles = StyleSheet.create({
-	blockquote: {
-		backgroundColor: colors.accentSoft,
-		borderLeftWidth: 2,
-		borderLeftColor: colors.accent,
-		borderTopRightRadius: radius.md,
-		borderBottomRightRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		marginVertical: spacing.sm,
-	},
-	verse: {
-		fontFamily: fonts.verse,
-		fontSize: 18,
-		lineHeight: 26,
-		color: colors.textSecondary,
-	},
-	textgroup: {
-		fontSize: 14,
-		lineHeight: 21,
-		color: colors.textSecondary,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		blockquote: {
+			backgroundColor: c.accentSoft,
+			borderLeftWidth: 2,
+			borderLeftColor: c.accent,
+			borderTopRightRadius: radius.md,
+			borderBottomRightRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			marginVertical: spacing.sm,
+		},
+		verse: {
+			fontFamily: fonts.verse,
+			fontSize: 18,
+			lineHeight: 26,
+			color: c.textSecondary,
+		},
+		textgroup: {
+			fontSize: 14,
+			lineHeight: 21,
+			color: c.textSecondary,
+		},
+	});
 
-const markdownStyles = StyleSheet.create({
-	body: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 },
-	paragraph: { marginTop: 0, marginBottom: spacing.sm },
-	heading1: { color: colors.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
-	heading2: { color: colors.text, fontSize: 16, fontWeight: "700", marginBottom: 6 },
-	heading3: { color: colors.textSecondary, fontSize: 15, fontWeight: "600", marginBottom: 4 },
-	strong: { color: colors.text, fontWeight: "700" },
-	em: { fontStyle: "italic" },
-	link: { color: colors.accent, textDecorationLine: "underline" },
-	bullet_list: { marginBottom: spacing.sm },
-	ordered_list: { marginBottom: spacing.sm },
-	list_item: { marginBottom: 2 },
-	bullet_list_icon: { color: colors.accentDim, marginRight: 6 },
-	ordered_list_icon: { color: colors.accentDim, marginRight: 6 },
-	code_inline: {
-		backgroundColor: colors.surfaceStrong,
-		color: colors.text,
-		borderRadius: radius.sm,
-		paddingHorizontal: 5,
-	},
-	fence: {
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.md,
-		color: colors.textSecondary,
-		padding: spacing.md,
-	},
-	code_block: {
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.md,
-		color: colors.textSecondary,
-		padding: spacing.md,
-	},
-	hr: { backgroundColor: colors.border, height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
-	table: { borderColor: colors.border, borderRadius: radius.sm },
-	th: { color: colors.text },
-	td: { color: colors.textSecondary },
-});
+const createMarkdownStyles = (c: Colors) =>
+	StyleSheet.create({
+		body: { color: c.textSecondary, fontSize: 14, lineHeight: 21 },
+		paragraph: { marginTop: 0, marginBottom: spacing.sm },
+		heading1: { color: c.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
+		heading2: { color: c.text, fontSize: 16, fontWeight: "700", marginBottom: 6 },
+		heading3: { color: c.textSecondary, fontSize: 15, fontWeight: "600", marginBottom: 4 },
+		strong: { color: c.text, fontWeight: "700" },
+		em: { fontStyle: "italic" },
+		link: { color: c.accent, textDecorationLine: "underline" },
+		bullet_list: { marginBottom: spacing.sm },
+		ordered_list: { marginBottom: spacing.sm },
+		list_item: { marginBottom: 2 },
+		bullet_list_icon: { color: c.accentDim, marginRight: 6 },
+		ordered_list_icon: { color: c.accentDim, marginRight: 6 },
+		code_inline: {
+			backgroundColor: c.surfaceStrong,
+			color: c.text,
+			borderRadius: radius.sm,
+			paddingHorizontal: 5,
+		},
+		fence: {
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+			color: c.textSecondary,
+			padding: spacing.md,
+		},
+		code_block: {
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+			color: c.textSecondary,
+			padding: spacing.md,
+		},
+		hr: { backgroundColor: c.border, height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
+		table: { borderColor: c.border, borderRadius: radius.sm },
+		th: { color: c.text },
+		td: { color: c.textSecondary },
+	});

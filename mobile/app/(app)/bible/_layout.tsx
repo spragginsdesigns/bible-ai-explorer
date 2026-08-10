@@ -1,6 +1,6 @@
 import React from "react";
 import { Stack } from "expo-router/stack";
-import { colors } from "@/theme";
+import { useTheme } from "@/features/settings/settingsStore";
 
 /**
  * Nested stack so the bible tab can push the chapter grid and reading screens
@@ -8,6 +8,7 @@ import { colors } from "@/theme";
  * as a single route.
  */
 export default function BibleLayout() {
+	const { colors } = useTheme();
 	return (
 		<Stack
 			screenOptions={{

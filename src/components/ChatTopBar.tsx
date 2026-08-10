@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Menu, Sun, Moon, SquarePen, MessageSquare, BookOpen, BookMarked, Smartphone } from "lucide-react";
+import { Menu, Sun, Moon, SquarePen, MessageSquare, BookOpen, BookMarked, Smartphone, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
 import { ANDROID_APK_URL } from "@/lib/constants";
@@ -79,6 +79,14 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 					<Sun className="w-4 h-4 hidden dark:block" />
 					<Moon className="w-4 h-4 block dark:hidden" />
 				</button>
+				<Link
+					href="/settings"
+					title="Settings"
+					aria-label="Settings"
+					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+				>
+					<Settings className="w-4 h-4" />
+				</Link>
 				<div className="ml-1 flex items-center">
 					<UserButton afterSignOutUrl="/sign-in" />
 				</div>

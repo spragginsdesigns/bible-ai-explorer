@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { NoteAIPanel } from "@/features/notes/components/NoteAIPanel";
 import { NoteEditorTopBar } from "@/features/notes/components/NoteEditorTopBar";
@@ -27,6 +28,8 @@ import { initialHtmlFor } from "@/features/notes/utils";
 
 export default function NoteEditorScreen() {
 	const router = useRouter();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const params = useLocalSearchParams<{ id: string | string[] }>();
 	const noteId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
 
@@ -140,8 +143,9 @@ export default function NoteEditorScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	fill: { flex: 1 },
-	center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-	error: { color: colors.danger, fontSize: 14, textAlign: "center" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		fill: { flex: 1 },
+		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+		error: { color: c.danger, fontSize: 14, textAlign: "center" },
+	});

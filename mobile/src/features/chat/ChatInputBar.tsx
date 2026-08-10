@@ -8,7 +8,9 @@ import {
 	TextInput,
 	View,
 } from "react-native";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import {
 	matchSlashCommands,
 	parseSlashCommand,
@@ -51,6 +53,8 @@ export function ChatInputBar({
 	onChangeText,
 	focusSignal,
 }: ChatInputBarProps) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const [innerText, setInnerText] = useState("");
 	const inputRef = useRef<TextInput>(null);
 	const text = value ?? innerText;
@@ -201,89 +205,90 @@ export function ChatInputBar({
 	);
 }
 
-const styles = StyleSheet.create({
-	wrap: { position: "relative" },
-	pill: {
-		flexDirection: "row",
-		alignItems: "center",
-		alignSelf: "flex-start",
-		maxWidth: "100%",
-		gap: spacing.sm,
-		marginBottom: spacing.sm,
-		paddingLeft: spacing.md,
-		paddingRight: spacing.sm,
-		paddingVertical: spacing.xs,
-		backgroundColor: colors.surface,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.full,
-	},
-	pillGlyph: { color: colors.accent, fontSize: 11 },
-	pillLabel: {
-		flexShrink: 1,
-		color: colors.accent,
-		fontSize: 12.5,
-		fontFamily: fonts.sans,
-		fontWeight: "600",
-	},
-	pillClose: { color: colors.textMuted, fontSize: 15, lineHeight: 16, paddingHorizontal: 2 },
-	palette: {
-		position: "absolute",
-		bottom: "100%",
-		left: 0,
-		right: 0,
-		marginBottom: spacing.sm,
-		backgroundColor: colors.bgElevated,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-		overflow: "hidden",
-	},
-	paletteScroll: { maxHeight: 264 },
-	paletteRow: {
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
-	},
-	paletteCommand: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	paletteHint: { color: colors.textFaint, fontWeight: "400" },
-	paletteDescription: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		wrap: { position: "relative" },
+		pill: {
+			flexDirection: "row",
+			alignItems: "center",
+			alignSelf: "flex-start",
+			maxWidth: "100%",
+			gap: spacing.sm,
+			marginBottom: spacing.sm,
+			paddingLeft: spacing.md,
+			paddingRight: spacing.sm,
+			paddingVertical: spacing.xs,
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.full,
+		},
+		pillGlyph: { color: c.accent, fontSize: 11 },
+		pillLabel: {
+			flexShrink: 1,
+			color: c.accent,
+			fontSize: 12.5,
+			fontFamily: fonts.sans,
+			fontWeight: "600",
+		},
+		pillClose: { color: c.textMuted, fontSize: 15, lineHeight: 16, paddingHorizontal: 2 },
+		palette: {
+			position: "absolute",
+			bottom: "100%",
+			left: 0,
+			right: 0,
+			marginBottom: spacing.sm,
+			backgroundColor: c.bgElevated,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			overflow: "hidden",
+		},
+		paletteScroll: { maxHeight: 264 },
+		paletteRow: {
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
+		},
+		paletteCommand: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		paletteHint: { color: c.textFaint, fontWeight: "400" },
+		paletteDescription: { color: c.textMuted, fontSize: 12.5, marginTop: 2 },
 
-	bar: {
-		flexDirection: "row",
-		alignItems: "flex-end",
-		gap: spacing.sm,
-		padding: spacing.sm,
-		paddingLeft: spacing.lg,
-		backgroundColor: colors.glassLight,
-		borderColor: colors.borderStrong,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.xl,
-	},
-	input: {
-		flex: 1,
-		maxHeight: 140,
-		paddingTop: spacing.md,
-		paddingBottom: spacing.md,
-		color: colors.text,
-		fontSize: 15,
-		lineHeight: 21,
-	},
-	action: {
-		width: 40,
-		height: 40,
-		borderRadius: radius.full,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-	},
-	send: {
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-	},
-	sendDisabled: { opacity: 0.35 },
-	sendGlyph: { color: colors.accent, fontSize: 18, fontWeight: "700", lineHeight: 20 },
-});
+		bar: {
+			flexDirection: "row",
+			alignItems: "flex-end",
+			gap: spacing.sm,
+			padding: spacing.sm,
+			paddingLeft: spacing.lg,
+			backgroundColor: c.glassLight,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.xl,
+		},
+		input: {
+			flex: 1,
+			maxHeight: 140,
+			paddingTop: spacing.md,
+			paddingBottom: spacing.md,
+			color: c.text,
+			fontSize: 15,
+			lineHeight: 21,
+		},
+		action: {
+			width: 40,
+			height: 40,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+		},
+		send: {
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+		},
+		sendDisabled: { opacity: 0.35 },
+		sendGlyph: { color: c.accent, fontSize: 18, fontWeight: "700", lineHeight: 20 },
+	});

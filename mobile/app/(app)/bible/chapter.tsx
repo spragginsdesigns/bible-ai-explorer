@@ -17,13 +17,17 @@ import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import {
+	setBibleTranslation,
+	useSettings,
+	useThemedStyles,
+	useTheme,
+} from "@/features/settings/settingsStore";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
-/** Last translation picked, kept across screens for the session. */
-let sessionTranslation: TranslationId = "KJV";
 
 interface ActionVerse {
 	number: number;
@@ -39,6 +43,8 @@ export default function BibleChapterScreen() {
 	const router = useRouter();
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
+	const styles = useThemedStyles(createStyles);
+	const { colors } = useTheme();
 	const params = useLocalSearchParams<{ book?: string; chapter?: string; verse?: string }>();
 
 	const [order, setOrder] = useState(() =>
@@ -52,11 +58,9 @@ export default function BibleChapterScreen() {
 	);
 
 	const book: Book | null = bookByOrder(order);
-	const [translation, setTranslationState] = useState<TranslationId>(sessionTranslation);
-	const setTranslation = useCallback((id: TranslationId) => {
-		sessionTranslation = id;
-		setTranslationState(id);
-	}, []);
+	// The reader's translation chips and Settings share one persisted default.
+	const translation = useSettings().translation;
+	const setTranslation = setBibleTranslation;
 	const [verses, setVerses] = useState<string[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -384,117 +388,118 @@ export default function BibleChapterScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	topBar: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-	},
-	back: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-	title: {
-		flex: 1,
-		color: colors.text,
-		fontSize: 15,
-		fontWeight: "600",
-		textAlign: "center",
-	},
-	fontControls: { flexDirection: "row", gap: spacing.sm },
-	translationRow: {
-		flexDirection: "row",
-		justifyContent: "flex-end",
-		gap: 4,
-		paddingHorizontal: spacing.lg,
-		paddingBottom: spacing.sm,
-	},
-	translationChip: {
-		borderRadius: radius.full,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		backgroundColor: colors.surface,
-		paddingHorizontal: spacing.sm,
-		paddingVertical: 4,
-	},
-	translationChipActive: {
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentSoft,
-	},
-	translationChipLabel: { color: colors.textMuted, fontSize: 11, fontWeight: "700" },
-	center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-	loadingLabel: { marginTop: spacing.md, color: colors.textFaint, fontSize: 13 },
-	errorCard: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
-	errorText: { color: colors.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
-	retry: {
-		borderRadius: radius.md,
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-		paddingHorizontal: spacing.xl,
-		paddingVertical: spacing.sm,
-	},
-	retryLabel: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	body: { flex: 1 },
-	content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
-	verseRow: { borderRadius: radius.md, paddingHorizontal: spacing.xs },
-	verseRowHighlighted: { backgroundColor: colors.accentSoft },
-	verseText: {
-		color: colors.textSecondary,
-		fontFamily: fonts.verse,
-		marginBottom: spacing.md,
-	},
-	verseNumber: { color: colors.accentDim, fontSize: 12, fontFamily: fonts.sans, fontWeight: "700" },
-	copyright: {
-		marginTop: spacing.lg,
-		color: colors.textGhost,
-		fontSize: 12,
-		textAlign: "center",
-		fontStyle: "italic",
-	},
-	navRow: {
-		flexDirection: "row",
-		gap: spacing.md,
-		marginTop: spacing.xl,
-	},
-	navChip: {
-		flex: 1,
-		minHeight: 44,
-		borderRadius: radius.lg,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		backgroundColor: colors.surface,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	navChipAccent: {
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentSoft,
-	},
-	navChipLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
-	askButton: {
-		position: "absolute",
-		right: spacing.xl,
-		borderRadius: radius.full,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentSoft,
-		paddingHorizontal: spacing.xl,
-		paddingVertical: spacing.md,
-	},
-	askButtonLabel: { color: colors.accent, fontSize: 14, fontWeight: "700" },
-	sheetError: {
-		color: colors.danger,
-		fontSize: 12.5,
-		paddingHorizontal: spacing.sm,
-		paddingVertical: spacing.md,
-	},
-	fontButton: {
-		borderRadius: radius.md,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		backgroundColor: colors.surface,
-		paddingHorizontal: spacing.sm,
-		paddingVertical: 4,
-	},
-	fontButtonLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		topBar: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		title: {
+			flex: 1,
+			color: c.text,
+			fontSize: 15,
+			fontWeight: "600",
+			textAlign: "center",
+		},
+		fontControls: { flexDirection: "row", gap: spacing.sm },
+		translationRow: {
+			flexDirection: "row",
+			justifyContent: "flex-end",
+			gap: 4,
+			paddingHorizontal: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
+		translationChip: {
+			borderRadius: radius.full,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: 4,
+		},
+		translationChipActive: {
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		translationChipLabel: { color: c.textMuted, fontSize: 11, fontWeight: "700" },
+		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+		loadingLabel: { marginTop: spacing.md, color: c.textFaint, fontSize: 13 },
+		errorCard: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
+		errorText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		retry: {
+			borderRadius: radius.md,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			paddingHorizontal: spacing.xl,
+			paddingVertical: spacing.sm,
+		},
+		retryLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		body: { flex: 1 },
+		content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+		verseRow: { borderRadius: radius.md, paddingHorizontal: spacing.xs },
+		verseRowHighlighted: { backgroundColor: c.accentSoft },
+		verseText: {
+			color: c.textSecondary,
+			fontFamily: fonts.verse,
+			marginBottom: spacing.md,
+		},
+		verseNumber: { color: c.accentDim, fontSize: 12, fontFamily: fonts.sans, fontWeight: "700" },
+		copyright: {
+			marginTop: spacing.lg,
+			color: c.textGhost,
+			fontSize: 12,
+			textAlign: "center",
+			fontStyle: "italic",
+		},
+		navRow: {
+			flexDirection: "row",
+			gap: spacing.md,
+			marginTop: spacing.xl,
+		},
+		navChip: {
+			flex: 1,
+			minHeight: 44,
+			borderRadius: radius.lg,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		navChipAccent: {
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		navChipLabel: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
+		askButton: {
+			position: "absolute",
+			right: spacing.xl,
+			borderRadius: radius.full,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			paddingHorizontal: spacing.xl,
+			paddingVertical: spacing.md,
+		},
+		askButtonLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		sheetError: {
+			color: c.danger,
+			fontSize: 12.5,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: spacing.md,
+		},
+		fontButton: {
+			borderRadius: radius.md,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: 4,
+		},
+		fontButtonLabel: { color: c.textSecondary, fontSize: 12, fontWeight: "700" },
+	});

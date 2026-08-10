@@ -4,7 +4,8 @@ import { useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
@@ -57,6 +58,7 @@ function buildRows(collapsed: Record<Testament, boolean>): ListRow[] {
  */
 export default function BibleBooksScreen() {
 	const router = useRouter();
+	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [collapsed, setCollapsed] = useState(sessionCollapsed);
 
@@ -135,70 +137,71 @@ export default function BibleBooksScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	header: {
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.sm,
-		paddingBottom: spacing.md,
-	},
-	heading: { fontFamily: fonts.brand, fontSize: 34, color: colors.text },
-	searchPill: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		marginTop: spacing.md,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.full,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: 10,
-	},
-	searchGlyph: { fontSize: 14 },
-	searchText: { color: colors.textMuted, fontSize: 14 },
-	listContent: { paddingHorizontal: spacing.lg },
-	testamentHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingTop: spacing.lg,
-		paddingBottom: spacing.sm,
-	},
-	testamentHeaderPressed: { opacity: 0.7 },
-	chevron: { color: colors.textFaint, fontSize: 12, width: 12 },
-	testamentTitle: {
-		flex: 1,
-		color: colors.textFaint,
-		fontSize: 12,
-		fontWeight: "700",
-		textTransform: "uppercase",
-		letterSpacing: 1.2,
-	},
-	testamentCount: { color: colors.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
-	groupHeader: {
-		fontFamily: fonts.sans,
-		color: colors.textMuted,
-		fontSize: 11,
-		fontWeight: "600",
-		textTransform: "uppercase",
-		letterSpacing: 1,
-		paddingTop: spacing.sm,
-		paddingBottom: spacing.xs,
-	},
-	bookRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		gap: spacing.md,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: 14,
-		marginBottom: spacing.sm,
-	},
-	bookRowPressed: { backgroundColor: colors.surfacePressed },
-	bookName: { color: colors.textSecondary, fontSize: 15, fontWeight: "600" },
-	bookMeta: { color: colors.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		header: {
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+			paddingBottom: spacing.md,
+		},
+		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
+		searchPill: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginTop: spacing.md,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.full,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: 10,
+		},
+		searchGlyph: { fontSize: 14 },
+		searchText: { color: c.textMuted, fontSize: 14 },
+		listContent: { paddingHorizontal: spacing.lg },
+		testamentHeader: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			paddingTop: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
+		testamentHeaderPressed: { opacity: 0.7 },
+		chevron: { color: c.textFaint, fontSize: 12, width: 12 },
+		testamentTitle: {
+			flex: 1,
+			color: c.textFaint,
+			fontSize: 12,
+			fontWeight: "700",
+			textTransform: "uppercase",
+			letterSpacing: 1.2,
+		},
+		testamentCount: { color: c.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
+		groupHeader: {
+			fontFamily: fonts.sans,
+			color: c.textMuted,
+			fontSize: 11,
+			fontWeight: "600",
+			textTransform: "uppercase",
+			letterSpacing: 1,
+			paddingTop: spacing.sm,
+			paddingBottom: spacing.xs,
+		},
+		bookRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: spacing.md,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: 14,
+			marginBottom: spacing.sm,
+		},
+		bookRowPressed: { backgroundColor: c.surfacePressed },
+		bookName: { color: c.textSecondary, fontSize: 15, fontWeight: "600" },
+		bookMeta: { color: c.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
+	});

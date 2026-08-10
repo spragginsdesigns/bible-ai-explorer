@@ -6,10 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
+import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const FONT_STEP_KEY = "bible-reader-font-step";
-const TRANSLATION_KEY = "bible-reader-translation";
 const HIGHLIGHT_MS = 2400;
 
 interface ActionVerse {
@@ -22,11 +22,6 @@ function readFontStep(): number {
   const raw = Number.parseInt(window.sessionStorage.getItem(FONT_STEP_KEY) ?? "", 10);
   if (!Number.isInteger(raw)) return 1;
   return Math.min(FONT_STEPS.length - 1, Math.max(0, raw));
-}
-
-function readTranslation(): TranslationId {
-  if (typeof window === "undefined") return "KJV";
-  return window.sessionStorage.getItem(TRANSLATION_KEY) === "NKJV" ? "NKJV" : "KJV";
 }
 
 /**
@@ -44,7 +39,7 @@ const ChapterReader: React.FC = () => {
   const verseParam = Number.parseInt(searchParams.get("verse") ?? "", 10) || null;
 
   const book = bookByOrder(order);
-  const [translation, setTranslationState] = useState<TranslationId>(readTranslation);
+  const [translation, setTranslationState] = useState<TranslationId>(readTranslationPref);
   const [verses, setVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,8 +107,9 @@ const ChapterReader: React.FC = () => {
     return () => clearTimeout(scrollTimer);
   }, [loading, error, verses, translation, order, chapter, verseParam]);
 
+  // The reader's chips and Settings share one persisted default (localStorage).
   const setTranslation = useCallback((id: TranslationId) => {
-    window.sessionStorage.setItem(TRANSLATION_KEY, id);
+    writeTranslationPref(id);
     setTranslationState(id);
   }, []);
 

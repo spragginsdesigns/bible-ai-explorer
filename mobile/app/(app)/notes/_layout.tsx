@@ -1,12 +1,13 @@
 import React from "react";
 import { Stack } from "expo-router/stack";
-import { colors } from "@/theme";
+import { useTheme } from "@/features/settings/settingsStore";
 
 /**
  * Nested stack so the notes tab can push the editor while the tab bar (owned by
  * the parent (app) layout) keeps treating "notes" as a single route.
  */
 export default function NotesLayout() {
+	const { colors } = useTheme();
 	return (
 		<Stack
 			screenOptions={{

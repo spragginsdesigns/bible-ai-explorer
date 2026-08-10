@@ -5,7 +5,8 @@ import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder, resolveReference, type Reference } from "@/features/bible/books";
 import { searchKjv, type KjvSearchHit } from "@/features/bible/kjv";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 const SEARCH_LIMIT = 100;
 const DEBOUNCE_MS = 300;
@@ -18,6 +19,8 @@ const DEBOUNCE_MS = 300;
  */
 export default function BibleSearchScreen() {
 	const router = useRouter();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [input, setInput] = useState("");
 	const [hits, setHits] = useState<KjvSearchHit[]>([]);
@@ -157,75 +160,76 @@ export default function BibleSearchScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-	},
-	back: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-	title: {
-		flex: 1,
-		color: colors.text,
-		fontSize: 15,
-		fontWeight: "600",
-		textAlign: "center",
-	},
-	headerSpacer: { width: 44 },
-	inputCard: {
-		flexDirection: "row",
-		alignItems: "center",
-		marginHorizontal: spacing.lg,
-		marginBottom: spacing.sm,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-		paddingHorizontal: spacing.md,
-	},
-	input: {
-		flex: 1,
-		minHeight: 44,
-		color: colors.text,
-		fontFamily: fonts.sans,
-		fontSize: 15,
-	},
-	clearButton: { padding: spacing.xs },
-	clearLabel: { color: colors.textMuted, fontSize: 20, fontWeight: "600" },
-	content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-	hint: {
-		color: colors.textFaint,
-		fontSize: 13,
-		textAlign: "center",
-		paddingVertical: spacing.lg,
-	},
-	count: {
-		color: colors.textFaint,
-		fontSize: 12,
-		paddingVertical: spacing.sm,
-	},
-	jumpRow: {
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-		borderRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.md,
-		marginBottom: spacing.sm,
-	},
-	jumpLabel: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	resultRow: {
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.md,
-		marginBottom: spacing.sm,
-	},
-	rowPressed: { backgroundColor: colors.surfacePressed },
-	resultRef: { color: colors.accent, fontSize: 13, fontWeight: "700", marginBottom: spacing.xs },
-	resultText: { color: colors.textSecondary, fontFamily: fonts.verse, fontSize: 16, lineHeight: 22 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		title: {
+			flex: 1,
+			color: c.text,
+			fontSize: 15,
+			fontWeight: "600",
+			textAlign: "center",
+		},
+		headerSpacer: { width: 44 },
+		inputCard: {
+			flexDirection: "row",
+			alignItems: "center",
+			marginHorizontal: spacing.lg,
+			marginBottom: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			paddingHorizontal: spacing.md,
+		},
+		input: {
+			flex: 1,
+			minHeight: 44,
+			color: c.text,
+			fontFamily: fonts.sans,
+			fontSize: 15,
+		},
+		clearButton: { padding: spacing.xs },
+		clearLabel: { color: c.textMuted, fontSize: 20, fontWeight: "600" },
+		content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+		hint: {
+			color: c.textFaint,
+			fontSize: 13,
+			textAlign: "center",
+			paddingVertical: spacing.lg,
+		},
+		count: {
+			color: c.textFaint,
+			fontSize: 12,
+			paddingVertical: spacing.sm,
+		},
+		jumpRow: {
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			borderRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.md,
+			marginBottom: spacing.sm,
+		},
+		jumpLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		resultRow: {
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.md,
+			marginBottom: spacing.sm,
+		},
+		rowPressed: { backgroundColor: c.surfacePressed },
+		resultRef: { color: c.accent, fontSize: 13, fontWeight: "700", marginBottom: spacing.xs },
+		resultText: { color: c.textSecondary, fontFamily: fonts.verse, fontSize: 16, lineHeight: 22 },
+	});

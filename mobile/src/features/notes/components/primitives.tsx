@@ -10,7 +10,9 @@ import {
 	type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 /**
  * Round glyph button. Icons across the notes feature are text glyphs, not an
@@ -35,6 +37,8 @@ export function GlyphButton({
 	size?: number;
 	style?: StyleProp<ViewStyle>;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -82,6 +86,7 @@ export function Chip({
 	style?: StyleProp<ViewStyle>;
 	labelStyle?: StyleProp<TextStyle>;
 }) {
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -121,6 +126,7 @@ export function BottomSheet({
 	heightRatio?: number;
 }) {
 	const insets = useSafeAreaInsets();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Modal
 			visible={visible}
@@ -164,6 +170,8 @@ export function SheetRow({
 	danger?: boolean;
 	selected?: boolean;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -181,74 +189,75 @@ export function SheetRow({
 	);
 }
 
-const styles = StyleSheet.create({
-	glyphButton: {
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-	},
-	glyphButtonActive: {
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-	},
-	glyphButtonPressed: { backgroundColor: colors.surfacePressed },
-	glyph: { color: colors.textMuted },
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		glyphButton: {
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+		},
+		glyphButtonActive: {
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+		},
+		glyphButtonPressed: { backgroundColor: c.surfacePressed },
+		glyph: { color: c.textMuted },
 
-	chip: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 6,
-		paddingHorizontal: spacing.md,
-		paddingVertical: 7,
-		borderRadius: radius.full,
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-	},
-	chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-	chipPressed: { backgroundColor: colors.surfacePressed },
-	chipDot: { width: 7, height: 7, borderRadius: 4 },
-	chipLabel: { color: colors.textMuted, fontSize: 12.5, fontWeight: "500", maxWidth: 150 },
-	chipLabelActive: { color: colors.accent },
+		chip: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 7,
+			borderRadius: radius.full,
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+		},
+		chipActive: { backgroundColor: c.accentSoft, borderColor: c.accentBorder },
+		chipPressed: { backgroundColor: c.surfacePressed },
+		chipDot: { width: 7, height: 7, borderRadius: 4 },
+		chipLabel: { color: c.textMuted, fontSize: 12.5, fontWeight: "500", maxWidth: 150 },
+		chipLabelActive: { color: c.accent },
 
-	backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)" },
-	sheet: {
-		backgroundColor: colors.bgElevated,
-		borderTopLeftRadius: radius.xl,
-		borderTopRightRadius: radius.xl,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.sm,
-	},
-	grabber: {
-		alignSelf: "center",
-		width: 38,
-		height: 4,
-		borderRadius: 2,
-		backgroundColor: colors.surfacePressed,
-		marginBottom: spacing.md,
-	},
-	sheetHeader: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: spacing.sm,
-	},
-	sheetTitle: { color: colors.text, fontSize: 15, fontWeight: "600" },
+		backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)" },
+		sheet: {
+			backgroundColor: c.bgElevated,
+			borderTopLeftRadius: radius.xl,
+			borderTopRightRadius: radius.xl,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+		},
+		grabber: {
+			alignSelf: "center",
+			width: 38,
+			height: 4,
+			borderRadius: 2,
+			backgroundColor: c.surfacePressed,
+			marginBottom: spacing.md,
+		},
+		sheetHeader: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			marginBottom: spacing.sm,
+		},
+		sheetTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
 
-	sheetRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingVertical: 14,
-		paddingHorizontal: spacing.sm,
-		borderRadius: radius.md,
-	},
-	sheetRowPressed: { backgroundColor: colors.surfacePressed },
-	sheetRowGlyph: { color: colors.textMuted, fontSize: 15, width: 20, textAlign: "center" },
-	sheetRowLabel: { color: colors.textSecondary, fontSize: 15, flex: 1 },
-	sheetRowCheck: { color: colors.accent, fontSize: 15 },
-});
+		sheetRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingVertical: 14,
+			paddingHorizontal: spacing.sm,
+			borderRadius: radius.md,
+		},
+		sheetRowPressed: { backgroundColor: c.surfacePressed },
+		sheetRowGlyph: { color: c.textMuted, fontSize: 15, width: 20, textAlign: "center" },
+		sheetRowLabel: { color: c.textSecondary, fontSize: 15, flex: 1 },
+		sheetRowCheck: { color: c.accent, fontSize: 15 },
+	});

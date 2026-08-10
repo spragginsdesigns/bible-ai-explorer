@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder } from "@/features/bible/books";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing, type Colors } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
 
 const GRID_COLUMNS = 5;
 
@@ -14,6 +15,7 @@ const GRID_COLUMNS = 5;
  */
 export default function BibleChaptersScreen() {
 	const router = useRouter();
+	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const params = useLocalSearchParams<{ book?: string }>();
 	const order = Number.parseInt(typeof params.book === "string" ? params.book : "", 10);
@@ -75,37 +77,38 @@ export default function BibleChaptersScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-	},
-	back: { color: colors.accent, fontSize: 15, fontWeight: "600" },
-	title: {
-		flex: 1,
-		color: colors.text,
-		fontSize: 15,
-		fontWeight: "600",
-		textAlign: "center",
-	},
-	headerSpacer: { width: 44 },
-	center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-	missing: { color: colors.textMuted, fontSize: 14 },
-	grid: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-	gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
-	cell: {
-		flex: 1,
-		aspectRatio: 1,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.md,
-	},
-	cellPressed: { backgroundColor: colors.surfacePressed },
-	cellLabel: { color: colors.textSecondary, fontSize: 15, fontWeight: "600" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		title: {
+			flex: 1,
+			color: c.text,
+			fontSize: 15,
+			fontWeight: "600",
+			textAlign: "center",
+		},
+		headerSpacer: { width: 44 },
+		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+		missing: { color: c.textMuted, fontSize: 14 },
+		grid: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+		gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
+		cell: {
+			flex: 1,
+			aspectRatio: 1,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+		},
+		cellPressed: { backgroundColor: c.surfacePressed },
+		cellLabel: { color: c.textSecondary, fontSize: 15, fontWeight: "600" },
+	});

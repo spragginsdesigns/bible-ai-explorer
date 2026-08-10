@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
+import * as SystemUI from "expo-system-ui";
 import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { useFonts, PirataOne_400Regular } from "@expo-google-fonts/pirata-one";
@@ -11,7 +12,7 @@ import {
 } from "@expo-google-fonts/cormorant-garamond";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { CLERK_PROXY_URL, CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
-import { colors } from "@/theme";
+import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -34,18 +35,47 @@ function AuthFailureBridge({ children }: { children: React.ReactNode }) {
 	return <>{children}</>;
 }
 
+/** Chrome that follows the appearance setting: status bar + window background. */
+function ThemedShell() {
+	const { colors, isDark } = useTheme();
+
+	useEffect(() => {
+		SystemUI.setBackgroundColorAsync(colors.bg).catch(() => {});
+	}, [colors.bg]);
+
+	return (
+		<GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+			<StatusBar style={isDark ? "light" : "dark"} />
+			<Stack
+				screenOptions={{
+					headerShown: false,
+					contentStyle: { backgroundColor: colors.bg },
+					animation: "fade",
+				}}
+			/>
+		</GestureHandlerRootView>
+	);
+}
+
 export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
 		PirataOne_400Regular,
 		CormorantGaramond_500Medium,
 		CormorantGaramond_500Medium_Italic,
 	});
+	const [settingsReady, setSettingsReady] = useState(false);
 
 	useEffect(() => {
-		if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
-	}, [fontsLoaded]);
+		hydrateSettings()
+			.catch(() => {})
+			.finally(() => setSettingsReady(true));
+	}, []);
 
-	if (!fontsLoaded) return null;
+	useEffect(() => {
+		if (fontsLoaded && settingsReady) SplashScreen.hideAsync().catch(() => {});
+	}, [fontsLoaded, settingsReady]);
+
+	if (!fontsLoaded || !settingsReady) return null;
 
 	return (
 		<ClerkProvider
@@ -54,16 +84,7 @@ export default function RootLayout() {
 			tokenCache={tokenCache}
 		>
 			<AuthFailureBridge>
-				<GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
-					<StatusBar style="light" />
-					<Stack
-						screenOptions={{
-							headerShown: false,
-							contentStyle: { backgroundColor: colors.bg },
-							animation: "fade",
-						}}
-					/>
-				</GestureHandlerRootView>
+				<ThemedShell />
 			</AuthFailureBridge>
 		</ClerkProvider>
 	);

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, spacing } from "@/theme";
+import { spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { GlyphButton } from "./primitives";
 
 /** Editor chrome: back, inline title, pin, tags and the AI panel toggle. */
@@ -31,6 +33,8 @@ export function NoteEditorTopBar({
 	onToggleAI: () => void;
 }) {
 	const [draft, setDraft] = useState(title);
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 
 	// Keep in sync when the server rewrites the title (e.g. AI-created notes).
 	useEffect(() => setDraft(title), [title]);
@@ -86,24 +90,25 @@ export function NoteEditorTopBar({
 	);
 }
 
-const styles = StyleSheet.create({
-	bar: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: 6,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		borderBottomWidth: StyleSheet.hairlineWidth,
-		borderBottomColor: colors.border,
-		backgroundColor: colors.bg,
-	},
-	titleWrap: { flex: 1, paddingHorizontal: 2 },
-	title: {
-		color: colors.text,
-		fontSize: 17,
-		fontWeight: "600",
-		paddingVertical: 4,
-	},
-	saving: { color: colors.textGhost, fontSize: 10.5, marginTop: -2 },
-	saveError: { color: colors.danger, fontSize: 10.5, marginTop: -2 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		bar: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
+			backgroundColor: c.bg,
+		},
+		titleWrap: { flex: 1, paddingHorizontal: 2 },
+		title: {
+			color: c.text,
+			fontSize: 17,
+			fontWeight: "600",
+			paddingVertical: 4,
+		},
+		saving: { color: c.textGhost, fontSize: 10.5, marginTop: -2 },
+		saveError: { color: c.danger, fontSize: 10.5, marginTop: -2 },
+	});

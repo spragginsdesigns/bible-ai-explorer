@@ -1,6 +1,8 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 interface CollapsibleProps {
 	/** Leading glyph, e.g. "📖". */
@@ -13,6 +15,8 @@ interface CollapsibleProps {
 
 /** Glass disclosure card used for retrieved verses and web sources. */
 export function Collapsible({ glyph, title, badge, children }: CollapsibleProps) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const [open, setOpen] = useState(false);
 	const spin = useRef(new Animated.Value(0)).current;
 
@@ -53,41 +57,42 @@ export function Collapsible({ glyph, title, badge, children }: CollapsibleProps)
 	);
 }
 
-const styles = StyleSheet.create({
-	card: {
-		marginTop: spacing.md,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-		overflow: "hidden",
-	},
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.md,
-	},
-	glyph: { fontSize: 13 },
-	title: { flexShrink: 1, color: colors.textSecondary, fontSize: 13, fontWeight: "600" },
-	badge: {
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.full,
-		paddingHorizontal: spacing.sm,
-		paddingVertical: 2,
-	},
-	badgeLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
-	chevron: {
-		marginLeft: "auto",
-		color: colors.textFaint,
-		fontSize: 16,
-		lineHeight: 18,
-	},
-	body: {
-		borderTopColor: colors.border,
-		borderTopWidth: StyleSheet.hairlineWidth,
-		paddingHorizontal: spacing.md,
-		paddingBottom: spacing.sm,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		card: {
+			marginTop: spacing.md,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			overflow: "hidden",
+		},
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.md,
+		},
+		glyph: { fontSize: 13 },
+		title: { flexShrink: 1, color: c.textSecondary, fontSize: 13, fontWeight: "600" },
+		badge: {
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.full,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: 2,
+		},
+		badgeLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
+		chevron: {
+			marginLeft: "auto",
+			color: c.textFaint,
+			fontSize: 16,
+			lineHeight: 18,
+		},
+		body: {
+			borderTopColor: c.border,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			paddingHorizontal: spacing.md,
+			paddingBottom: spacing.sm,
+		},
+	});

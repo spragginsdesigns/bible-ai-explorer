@@ -1,12 +1,14 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
-import { colors } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 const DELAYS = [0, 160, 320];
 
 /** Three pulsing dots shown while the assistant is thinking. */
 export function TypingDots() {
 	const values = useRef(DELAYS.map(() => new Animated.Value(0.3))).current;
+	const styles = useThemedStyles(createStyles);
 
 	useEffect(() => {
 		const animations = values.map((value, index) =>
@@ -41,7 +43,8 @@ export function TypingDots() {
 	);
 }
 
-const styles = StyleSheet.create({
-	row: { flexDirection: "row", gap: 5, paddingVertical: 8 },
-	dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textFaint },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		row: { flexDirection: "row", gap: 5, paddingVertical: 8 },
+		dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.textFaint },
+	});

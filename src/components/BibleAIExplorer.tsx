@@ -10,6 +10,7 @@ import WelcomeScreen from "./WelcomeScreen";
 import { useChat } from "./useChat";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCommands";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { readTranslationPref } from "@/lib/preferences";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
 const SWIPE_THRESHOLD = 50;
@@ -93,7 +94,7 @@ const BibleAIExplorerInner: React.FC = () => {
 		const translation: TranslationId =
 			attachTranslationParam in TRANSLATIONS
 				? (attachTranslationParam as TranslationId)
-				: "KJV";
+				: readTranslationPref();
 		setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
 		setFocusSignal((signal) => signal + 1);
 	}, [attachRefParam, attachTextParam, attachTranslationParam, setAttachment]);

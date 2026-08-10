@@ -9,7 +9,9 @@ import {
 	View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { fetchNotes } from "@/features/notes/api";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import type { NoteApiResponse } from "@/features/notes/types";
@@ -40,6 +42,8 @@ interface AddToNoteSheetProps {
 }
 
 export function AddToNoteSheet({ visible, markdown, defaultTitle, onClose }: AddToNoteSheetProps) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const getToken = useStableGetToken();
 
@@ -240,86 +244,87 @@ export function AddToNoteSheet({ visible, markdown, defaultTitle, onClose }: Add
 	);
 }
 
-const styles = StyleSheet.create({
-	newNote: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: spacing.sm,
-		paddingVertical: spacing.md,
-		borderRadius: radius.lg,
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-	},
-	newNoteGlyph: { color: colors.accent, fontSize: 14 },
-	newNoteLabel: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-	search: {
-		marginTop: spacing.md,
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-		borderRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: 10,
-		color: colors.text,
-		fontSize: 14,
-	},
-	errorBar: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		marginTop: spacing.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		borderRadius: radius.md,
-		backgroundColor: colors.dangerSoft,
-		borderColor: colors.dangerBorder,
-		borderWidth: 1,
-	},
-	errorText: { flex: 1, color: colors.danger, fontSize: 12.5, lineHeight: 18 },
-	errorRetry: { color: colors.danger, fontSize: 12.5, fontWeight: "600" },
-	list: { marginTop: spacing.md, flexGrow: 0 },
-	listContent: { gap: spacing.sm, paddingBottom: spacing.sm },
-	empty: {
-		color: colors.textFaint,
-		fontSize: 13,
-		lineHeight: 20,
-		paddingVertical: spacing.xl,
-		textAlign: "center",
-	},
-	noteRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: spacing.sm,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderRadius: radius.lg,
-	},
-	noteRowPressed: { backgroundColor: colors.surfacePressed },
-	noteRowBody: { flex: 1, minWidth: 0, paddingVertical: spacing.xs },
-	noteTitle: { color: colors.textSecondary, fontSize: 14, fontWeight: "500" },
-	notePreview: { marginTop: 2, color: colors.textFaint, fontSize: 12.5 },
-	noteMeta: { marginTop: 2, color: colors.textGhost, fontSize: 11 },
-	dimmed: { opacity: 0.5 },
-	successCard: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		marginTop: spacing.sm,
-		marginBottom: spacing.md,
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.md,
-		backgroundColor: colors.accentSoft,
-		borderColor: colors.accentBorder,
-		borderWidth: 1,
-		borderRadius: radius.lg,
-	},
-	successGlyph: { color: colors.accent, fontSize: 15 },
-	successLabel: { flex: 1, color: colors.textSecondary, fontSize: 14, lineHeight: 20 },
-	successTitle: { color: colors.accent, fontWeight: "600" },
-	successChevron: { color: colors.accent, fontSize: 18 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		newNote: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: spacing.sm,
+			paddingVertical: spacing.md,
+			borderRadius: radius.lg,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+		},
+		newNoteGlyph: { color: c.accent, fontSize: 14 },
+		newNoteLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		search: {
+			marginTop: spacing.md,
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+			borderRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 10,
+			color: c.text,
+			fontSize: 14,
+		},
+		errorBar: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginTop: spacing.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			borderRadius: radius.md,
+			backgroundColor: c.dangerSoft,
+			borderColor: c.dangerBorder,
+			borderWidth: 1,
+		},
+		errorText: { flex: 1, color: c.danger, fontSize: 12.5, lineHeight: 18 },
+		errorRetry: { color: c.danger, fontSize: 12.5, fontWeight: "600" },
+		list: { marginTop: spacing.md, flexGrow: 0 },
+		listContent: { gap: spacing.sm, paddingBottom: spacing.sm },
+		empty: {
+			color: c.textFaint,
+			fontSize: 13,
+			lineHeight: 20,
+			paddingVertical: spacing.xl,
+			textAlign: "center",
+		},
+		noteRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+		},
+		noteRowPressed: { backgroundColor: c.surfacePressed },
+		noteRowBody: { flex: 1, minWidth: 0, paddingVertical: spacing.xs },
+		noteTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "500" },
+		notePreview: { marginTop: 2, color: c.textFaint, fontSize: 12.5 },
+		noteMeta: { marginTop: 2, color: c.textGhost, fontSize: 11 },
+		dimmed: { opacity: 0.5 },
+		successCard: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginTop: spacing.sm,
+			marginBottom: spacing.md,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			borderRadius: radius.lg,
+		},
+		successGlyph: { color: c.accent, fontSize: 15 },
+		successLabel: { flex: 1, color: c.textSecondary, fontSize: 14, lineHeight: 20 },
+		successTitle: { color: c.accent, fontWeight: "600" },
+		successChevron: { color: c.accent, fontSize: 18 },
+	});

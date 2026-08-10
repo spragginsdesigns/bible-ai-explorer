@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "@/theme";
+import { spacing } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import type { Folder, Note } from "../types";
 import { BottomSheet, SheetRow } from "./primitives";
 
@@ -23,6 +25,7 @@ export function NoteActionSheet({
 	onDelete: (id: string) => void;
 }) {
 	const [mode, setMode] = useState<Mode>("actions");
+	const styles = useThemedStyles(createStyles);
 
 	const close = () => {
 		setMode("actions");
@@ -103,19 +106,20 @@ export function NoteActionSheet({
 	);
 }
 
-const styles = StyleSheet.create({
-	scroll: { maxHeight: 320 },
-	empty: {
-		color: colors.textGhost,
-		fontSize: 13,
-		paddingVertical: spacing.md,
-		paddingHorizontal: spacing.sm,
-	},
-	confirm: {
-		color: colors.textMuted,
-		fontSize: 14,
-		lineHeight: 21,
-		paddingHorizontal: spacing.sm,
-		paddingBottom: spacing.md,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		scroll: { maxHeight: 320 },
+		empty: {
+			color: c.textGhost,
+			fontSize: 13,
+			paddingVertical: spacing.md,
+			paddingHorizontal: spacing.sm,
+		},
+		confirm: {
+			color: c.textMuted,
+			fontSize: 14,
+			lineHeight: 21,
+			paddingHorizontal: spacing.sm,
+			paddingBottom: spacing.md,
+		},
+	});

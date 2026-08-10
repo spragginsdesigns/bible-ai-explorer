@@ -1,11 +1,14 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
-import { colors, spacing } from "@/theme";
+import { spacing } from "@/theme";
+import { useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 const DOTS = [0, 1, 2];
 
 /** Three-dot "thinking" indicator shown before the first token arrives. */
 export function TypingDots() {
+	const styles = useThemedStyles(createStyles);
 	const progress = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
@@ -42,7 +45,8 @@ export function TypingDots() {
 	);
 }
 
-const styles = StyleSheet.create({
-	row: { flexDirection: "row", gap: spacing.xs, paddingVertical: spacing.sm },
-	dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textFaint },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		row: { flexDirection: "row", gap: spacing.xs, paddingVertical: spacing.sm },
+		dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.textFaint },
+	});

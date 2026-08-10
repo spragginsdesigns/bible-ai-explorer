@@ -4,7 +4,9 @@ import { useRouter } from "expo-router";
 import type { RetrievedVerse } from "@/lib/chatView";
 import { resolveReference } from "@/features/bible/books";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { Collapsible } from "./Collapsible";
 import { copyVerse, saveVerseToNote, shareVerse } from "./verseActions";
 
@@ -13,15 +15,16 @@ import { copyVerse, saveVerseToNote, shareVerse } from "./verseActions";
  * palette stays inside the monochrome + amber system: amber for a strong hit,
  * dimmed amber for a moderate one, grey for a broad topical sweep.
  */
-function matchStrength(average: number): { label: string; color: string } {
-	if (average > 0.75) return { label: "Strong match", color: colors.accent };
-	if (average > 0.6) return { label: "Moderate match", color: colors.accentDim };
-	return { label: "Broad match", color: colors.textFaint };
+function matchStrength(c: Colors, average: number): { label: string; color: string } {
+	if (average > 0.75) return { label: "Strong match", color: c.accent };
+	if (average > 0.6) return { label: "Moderate match", color: c.accentDim };
+	return { label: "Broad match", color: c.textFaint };
 }
 
 type ActionStatus = "idle" | "busy" | "done" | "error";
 
 function VerseActions({ verse }: { verse: RetrievedVerse }) {
+	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const getToken = useStableGetToken();
 	const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
@@ -108,6 +111,8 @@ function ActionChip({
 	accent?: boolean;
 	disabled?: boolean;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -132,11 +137,13 @@ export function RetrievedVersesCard({
 	verses: RetrievedVerse[];
 	averageSimilarity: number;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<Collapsible
 			glyph="📖"
 			title={`Retrieved Verses (${verses.length})`}
-			badge={matchStrength(averageSimilarity)}
+			badge={matchStrength(colors, averageSimilarity)}
 		>
 			{verses.map((verse, index) => (
 				<View key={`${verse.reference}-${index}`} style={styles.row}>
@@ -152,40 +159,41 @@ export function RetrievedVersesCard({
 	);
 }
 
-const styles = StyleSheet.create({
-	row: { paddingVertical: spacing.md },
-	referenceRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		justifyContent: "space-between",
-		gap: spacing.sm,
-	},
-	reference: { flexShrink: 1, color: colors.accent, fontSize: 13, fontWeight: "600" },
-	percent: { color: colors.textGhost, fontSize: 11, fontVariant: ["tabular-nums"] },
-	verse: {
-		marginTop: spacing.xs,
-		color: colors.textSecondary,
-		fontFamily: fonts.verse,
-		fontSize: 17,
-		lineHeight: 25,
-	},
-	actions: {
-		flexDirection: "row",
-		flexWrap: "wrap",
-		gap: spacing.sm,
-		marginTop: spacing.sm,
-	},
-	chip: {
-		borderRadius: radius.full,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.borderStrong,
-		backgroundColor: colors.surface,
-		paddingHorizontal: spacing.md,
-		paddingVertical: 6,
-	},
-	chipAccent: {
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentSoft,
-	},
-	chipLabel: { color: colors.textMuted, fontSize: 12, fontWeight: "600" },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		row: { paddingVertical: spacing.md },
+		referenceRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: spacing.sm,
+		},
+		reference: { flexShrink: 1, color: c.accent, fontSize: 13, fontWeight: "600" },
+		percent: { color: c.textGhost, fontSize: 11, fontVariant: ["tabular-nums"] },
+		verse: {
+			marginTop: spacing.xs,
+			color: c.textSecondary,
+			fontFamily: fonts.verse,
+			fontSize: 17,
+			lineHeight: 25,
+		},
+		actions: {
+			flexDirection: "row",
+			flexWrap: "wrap",
+			gap: spacing.sm,
+			marginTop: spacing.sm,
+		},
+		chip: {
+			borderRadius: radius.full,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 6,
+		},
+		chipAccent: {
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		chipLabel: { color: c.textMuted, fontSize: 12, fontWeight: "600" },
+	});

@@ -8,7 +8,7 @@ import {
 	Text,
 	View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { BrandTitle, Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
 import { ErrorCard } from "@/features/chat/ErrorCard";
@@ -19,10 +19,15 @@ import { useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useVerseMindChat } from "@/features/chat/useVerseMindChat";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing, type Colors } from "@/theme";
+import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
 
 export default function ChatScreen() {
+	const router = useRouter();
 	const chat = useVerseMindChat();
+	const styles = useThemedStyles(createStyles);
+	const { colors } = useTheme();
+	const { translation: defaultTranslation } = useSettings();
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const tabBarSpace = useTabBarSpace();
 	const params = useLocalSearchParams<{
@@ -58,10 +63,12 @@ export default function ChatScreen() {
 		if (key === lastSeededAttachment.current) return;
 		lastSeededAttachment.current = key;
 		const translation: TranslationId =
-			attachTranslationParam in TRANSLATIONS ? (attachTranslationParam as TranslationId) : "KJV";
+			attachTranslationParam in TRANSLATIONS
+				? (attachTranslationParam as TranslationId)
+				: defaultTranslation;
 		chat.setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
 		setFocusSignal((signal) => signal + 1);
-	}, [attachRefParam, attachTextParam, attachTranslationParam, chat.setAttachment]);
+	}, [attachRefParam, attachTextParam, attachTranslationParam, defaultTranslation, chat.setAttachment]);
 
 	const {
 		messages,
@@ -154,6 +161,14 @@ export default function ChatScreen() {
 					>
 						<Text style={styles.headerGlyph}>☰</Text>
 					</Pressable>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Settings"
+						onPress={() => router.push("/settings")}
+						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+					>
+						<Text style={styles.headerGlyph}>⚙</Text>
+					</Pressable>
 				</View>
 
 				{historyLoading ? (
@@ -217,35 +232,36 @@ export default function ChatScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	fill: { flex: 1 },
-	header: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.sm,
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.sm,
-		paddingBottom: spacing.md,
-	},
-	headerTitle: { flex: 1, minWidth: 0 },
-	subtitle: { color: colors.textFaint, fontSize: 12, marginTop: 2 },
-	headerButton: {
-		width: 38,
-		height: 38,
-		borderRadius: radius.full,
-		alignItems: "center",
-		justifyContent: "center",
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-	},
-	headerButtonPressed: { backgroundColor: colors.surfacePressed },
-	headerGlyph: { color: colors.textMuted, fontSize: 15 },
-	center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-	centerLabel: { color: colors.textFaint, fontSize: 13 },
-	centerPadded: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.lg },
-	inputWrap: {
-		paddingHorizontal: spacing.lg,
-		paddingTop: spacing.sm,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		fill: { flex: 1 },
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+			paddingBottom: spacing.md,
+		},
+		headerTitle: { flex: 1, minWidth: 0 },
+		subtitle: { color: c.textFaint, fontSize: 12, marginTop: 2 },
+		headerButton: {
+			width: 38,
+			height: 38,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+		},
+		headerButtonPressed: { backgroundColor: c.surfacePressed },
+		headerGlyph: { color: c.textMuted, fontSize: 15 },
+		center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
+		centerLabel: { color: c.textFaint, fontSize: 13 },
+		centerPadded: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.lg },
+		inputWrap: {
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+		},
+	});

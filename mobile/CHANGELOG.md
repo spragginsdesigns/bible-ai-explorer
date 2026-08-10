@@ -3,6 +3,27 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.7.0] — 2026-08-10
+
+### Added
+- **Settings.** A new gear (⚙) button in the chat header opens a Settings
+  screen with three sections:
+  - **Appearance** — System / Dark / Light. The whole app (every screen,
+    sheet, editor, and the tab bar) now follows the choice; System tracks the
+    phone's own dark or light mode. `userInterfaceStyle` is now `automatic`.
+  - **Bible translation** — a persisted KJV/NKJV default shared with the
+    Bible reader's chips and used as the chat verse-attachment fallback.
+    (VerseMind's AI answers still quote the KJV by design.)
+  - **Account** — your profile and a Sign out button, which the app has
+    never had (previously only the web client's Clerk menu could sign out).
+- Settings persist across launches (AsyncStorage, hydrated before the splash
+  screen hides, so there is no theme flash on startup).
+
+### Changed
+- **The design system is now theme-driven.** `src/theme` ships dark and light
+  palettes, and every screen resolves colors through the settings store
+  (`useTheme` / `useThemedStyles`) instead of a hardcoded dark palette.
+
 ## [1.6.1] — 2026-08-10
 
 ### Fixed

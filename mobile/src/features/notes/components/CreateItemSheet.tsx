@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AccentButton } from "@/components/ui";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 import { PRESET_TAG_COLORS } from "../types";
 import { BottomSheet } from "./primitives";
 
@@ -22,6 +24,8 @@ export function CreateItemSheet({
 }) {
 	const [name, setName] = useState("");
 	const [color, setColor] = useState<string>(PRESET_TAG_COLORS[0]);
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 
 	useEffect(() => {
 		if (visible) {
@@ -88,37 +92,38 @@ export function CreateItemSheet({
 	);
 }
 
-const styles = StyleSheet.create({
-	input: {
-		backgroundColor: colors.surface,
-		borderWidth: StyleSheet.hairlineWidth,
-		borderColor: colors.border,
-		borderRadius: radius.md,
-		paddingHorizontal: spacing.md,
-		paddingVertical: 12,
-		color: colors.text,
-		fontSize: 15,
-	},
-	swatches: {
-		flexDirection: "row",
-		flexWrap: "wrap",
-		gap: spacing.md,
-		marginTop: spacing.lg,
-	},
-	swatch: {
-		width: 30,
-		height: 30,
-		borderRadius: 15,
-		borderWidth: 2,
-		borderColor: "transparent",
-	},
-	swatchActive: { borderColor: colors.text },
-	submit: { marginTop: spacing.xl },
-	hint: {
-		color: colors.textGhost,
-		fontSize: 12,
-		textAlign: "center",
-		marginTop: spacing.md,
-		lineHeight: 17,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		input: {
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+			borderRadius: radius.md,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 12,
+			color: c.text,
+			fontSize: 15,
+		},
+		swatches: {
+			flexDirection: "row",
+			flexWrap: "wrap",
+			gap: spacing.md,
+			marginTop: spacing.lg,
+		},
+		swatch: {
+			width: 30,
+			height: 30,
+			borderRadius: 15,
+			borderWidth: 2,
+			borderColor: "transparent",
+		},
+		swatchActive: { borderColor: c.text },
+		submit: { marginTop: spacing.xl },
+		hint: {
+			color: c.textGhost,
+			fontSize: 12,
+			textAlign: "center",
+			marginTop: spacing.md,
+			lineHeight: 17,
+		},
+	});

@@ -1,6 +1,8 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radius, spacing } from "@/theme";
+import { radius, spacing } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import type { Colors } from "@/theme";
 
 export function FollowUpChips({
 	questions,
@@ -9,6 +11,8 @@ export function FollowUpChips({
 	questions: string[];
 	onSelect: (question: string) => void;
 }) {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	return (
 		<View style={styles.wrap}>
 			<Text style={styles.caption}>If you&apos;d like to keep exploring</Text>
@@ -26,24 +30,25 @@ export function FollowUpChips({
 	);
 }
 
-const styles = StyleSheet.create({
-	wrap: { marginTop: spacing.lg, gap: spacing.sm },
-	caption: {
-		color: colors.textGhost,
-		fontSize: 11,
-		fontWeight: "600",
-		letterSpacing: 0.6,
-		textTransform: "uppercase",
-	},
-	chip: {
-		alignSelf: "flex-start",
-		maxWidth: "100%",
-		paddingHorizontal: spacing.lg,
-		paddingVertical: spacing.sm,
-		borderRadius: radius.full,
-		borderWidth: 1,
-		borderColor: colors.accentBorder,
-		backgroundColor: colors.accentSoft,
-	},
-	chipLabel: { color: colors.accent, fontSize: 13, lineHeight: 19 },
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		wrap: { marginTop: spacing.lg, gap: spacing.sm },
+		caption: {
+			color: c.textGhost,
+			fontSize: 11,
+			fontWeight: "600",
+			letterSpacing: 0.6,
+			textTransform: "uppercase",
+		},
+		chip: {
+			alignSelf: "flex-start",
+			maxWidth: "100%",
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.sm,
+			borderRadius: radius.full,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		chipLabel: { color: c.accent, fontSize: 13, lineHeight: 19 },
+	});
