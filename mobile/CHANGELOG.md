@@ -5,6 +5,20 @@ delivered to the Drive share link and installed via `/push-phone`.
 
 ## [1.5.0] — 2026-08-10
 
+### Changed
+- **Moved to the Clerk production instance.** Sign-in previously ran through a
+  Clerk *development* instance, so the Google consent screen asked users to
+  continue to `helpful-jawfish-28.clerk.accounts.dev` — an unfamiliar hostname
+  for a Bible study app, and capped at 100 users. It now reads **VerseMind**,
+  backed by our own Google OAuth credentials.
+- **This build is required.** Tokens issued by the old development instance are
+  no longer accepted by the backend, so 1.4.x and earlier cannot sign in. Users
+  keep all of their data: accounts are matched by verified email on first
+  sign-in and re-attached to their existing conversations, notes and memories.
+- Clerk's Frontend API is reached through a proxy on our own domain
+  (`/__clerk`), which is what a production instance requires when the app is
+  served from a `*.vercel.app` host.
+
 ### Added
 - **Tap a verse reference, jump to the Bible.** References like "John 3:16"
   or "1 John 5:1–4" in chat messages (assistant and user alike) are now
