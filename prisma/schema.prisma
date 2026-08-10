@@ -20,6 +20,24 @@ model User {
   memories      UserMemory[]
 }
 
+/// Maps a verified email to the Clerk user id it had on the DEVELOPMENT Clerk
+/// instance, so accounts survive the move to the production instance.
+///
+/// Clerk dev and prod instances have completely separate user pools, and
+/// User.id IS the Clerk id. Without this table, the 40 accounts that existed
+/// before the switch would each be handed a brand new id on their first
+/// production sign-in, orphaning every conversation, note and memory they own.
+/// On first sign-in we match by verified email and re-key User.id, which
+/// cascades to every child row (all FKs to User are ON UPDATE CASCADE).
+model LegacyClerkAccount {
+  email        String    @id
+  legacyUserId String    @unique
+  /// Set once the mapping has been consumed, so a re-key can never run twice.
+  claimedAt    DateTime?
+  claimedByUserId String?
+  createdAt    DateTime  @default(now())
+}
+
 model UserMemory {
   id        String   @id @default(cuid())
   userId    String
