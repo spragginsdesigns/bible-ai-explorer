@@ -76,12 +76,26 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 		request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip");
 	if (forwardedFor) headers.set("X-Forwarded-For", forwardedFor);
 
+	// TEMPORARY (remove once native SSO is confirmed working): log the redirect
+	// URL the client asks for on sign-in creation. Clerk silently omits
+	// external_verification_redirect_url when the value is not in the instance
+	// allowlist, which surfaces in the app only as "Missing external
+	// verification redirect URL for SSO flow" with no indication of which URL
+	// was rejected.
+	let forwardBody: BodyInit | undefined;
+	if (request.method !== "GET" && request.method !== "HEAD") {
+		const raw = await request.text();
+		forwardBody = raw;
+		if (path.join("/").includes("client/sign_ins")) {
+			const redirect = new URLSearchParams(raw).get("redirect_url");
+			console.log(`[clerk-proxy] sign_ins redirect_url=${redirect ?? "(none)"}`);
+		}
+	}
+
 	const upstream = await fetch(target, {
 		method: request.method,
 		headers,
-		body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-		// Streaming a request body requires duplex; harmless for bodyless methods.
-		...({ duplex: "half" } as Record<string, unknown>),
+		body: forwardBody,
 		redirect: "manual",
 	});
 
