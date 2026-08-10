@@ -88,7 +88,11 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 					<Settings className="w-4 h-4" />
 				</Link>
 				<div className="ml-1 flex items-center">
-					<UserButton afterSignOutUrl="/sign-in" />
+					{/* afterSignOutUrl was removed from UserButton in @clerk/nextjs v7.
+					    Nothing is lost: signing out drops the session, the next
+					    protected page hits the middleware, and that redirects to
+					    /sign-in. */}
+					<UserButton />
 				</div>
 			</div>
 		</div>
