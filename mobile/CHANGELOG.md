@@ -3,6 +3,17 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.5.0] — 2026-08-10
+
+### Added
+- **Tap a verse reference, jump to the Bible.** References like "John 3:16"
+  or "1 John 5:1–4" in chat messages (assistant and user alike) are now
+  tappable amber links that open the Bible reader at that exact verse, with
+  the same scroll-and-flash highlight as the Read chip. Ranges jump to the
+  start verse; trailing translation tags ("John 3:16 KJV") are handled;
+  anything unparseable stays plain text. Parity with the web client, whose
+  verse popover now also has a "Read in the Bible" link.
+
 ## [1.4.1] — 2026-08-10
 
 ### Changed

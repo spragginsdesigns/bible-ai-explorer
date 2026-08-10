@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { StyleSheet, Text } from "react-native";
+import { useRouter } from "expo-router";
 import Markdown, { MarkdownIt, type MarkdownProps } from "react-native-markdown-display";
 import { colors, fonts, radius, spacing } from "@/theme";
+import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from "./verseLinks";
 
 /**
  * react-native-markdown-display cascades text-only style props from a parent
@@ -178,14 +180,30 @@ type FullMarkdownProps = MarkdownProps & {
 const MarkdownView = Markdown as React.ComponentType<React.PropsWithChildren<FullMarkdownProps>>;
 
 const markdownIt = MarkdownIt({ typographer: true, linkify: true });
+// Tappable Bible references ("John 3:16") as amber links deep-linking to the reader.
+markdownIt.use(verseReferencePlugin);
 const imageHandlers = ["https://", "http://"];
 const truncationMarker = <Text key="markdown-truncated">…</Text>;
 
 export const MarkdownBody = React.memo(function MarkdownBody({ content }: { content: string }) {
+	const router = useRouter();
+	// Returning false keeps react-native-markdown-display from Linking.openURL;
+	// ordinary links return true to keep the previous open-in-browser behavior.
+	const onLinkPress = useCallback(
+		(url: string) => {
+			if (url.startsWith(VERSE_REF_SCHEME)) {
+				openReferenceInReader(router, url.slice(VERSE_REF_SCHEME.length));
+				return false;
+			}
+			return true;
+		},
+		[router]
+	);
 	return (
 		<MarkdownView
 			style={markdownStyles}
 			markdownit={markdownIt}
+			onLinkPress={onLinkPress}
 			allowedImageHandlers={imageHandlers}
 			topLevelMaxExceededItem={truncationMarker}
 		>

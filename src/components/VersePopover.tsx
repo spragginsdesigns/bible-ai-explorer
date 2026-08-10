@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { BookOpen, X, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, X, Loader2, BookMarked } from "lucide-react";
+import { chapterHrefForReference } from "@/lib/chat/verseActions";
 
 interface VersePopoverProps {
 	reference: string;
@@ -20,6 +22,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 	const [verseData, setVerseData] = useState<VerseData | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const popoverRef = useRef<HTMLDivElement>(null);
+	const bibleHref = chapterHrefForReference(reference);
 
 	useEffect(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -109,6 +112,18 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 							<p className="text-xs text-neutral-400 dark:text-neutral-600 mt-2">
 								— {verseData.reference} ({verseData.translation})
 							</p>
+						</div>
+					)}
+					{bibleHref && (
+						<div className="mt-2 pt-2 border-t border-black/[0.06] dark:border-white/[0.06]">
+							<Link
+								href={bibleHref}
+								onClick={() => setOpen(false)}
+								className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+							>
+								<BookMarked className="w-3.5 h-3.5" />
+								Read in the Bible →
+							</Link>
 						</div>
 					)}
 					{/* Arrow */}

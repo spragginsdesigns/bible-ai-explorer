@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "VerseMind",
 		"slug": "versemind",
-		"version": "1.4.1",
+		"version": "1.5.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "versemind",
@@ -50,7 +50,7 @@
 		},
 		"extra": {
 			"apiUrl": "https://bible-ai-explorer.vercel.app",
-			"clerkPublishableKey": "pk_test_aGVscGZ1bC1qYXdmaXNoLTI4LmNsZXJrLmFjY291bnRzLmRldiQ"
+			"clerkPublishableKey": "pk_live_Y2xlcmsuYmlibGUtYWktZXhwbG9yZXIudmVyY2VsLmFwcCQ"
 		}
 	}
 }

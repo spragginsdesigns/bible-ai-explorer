@@ -61,7 +61,12 @@ export async function shareVerse(
  * reference cannot be resolved (the caller hides the Read chip).
  */
 export function chapterHrefForReference(reference: string): string | null {
-	const target = resolveReference(reference);
+	// verseParser may capture a trailing translation tag ("John 3:16 KJV") —
+	// strip it before resolving or the anchored pattern fails to match.
+	const cleaned = reference
+		.trim()
+		.replace(/\s+(?:KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i, "");
+	const target = resolveReference(cleaned);
 	if (!target) return null;
 	const params = new URLSearchParams({
 		book: String(target.order),

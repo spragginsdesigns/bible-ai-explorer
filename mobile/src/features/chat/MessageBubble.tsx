@@ -1,5 +1,6 @@
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import type { ChatViewMessage } from "@/lib/chatView";
 import { colors, radius, spacing } from "@/theme";
 import { FollowUpChips } from "./FollowUpChips";
@@ -7,6 +8,7 @@ import { MarkdownBody } from "./MarkdownBody";
 import { NoteActionCard } from "./NoteActionCard";
 import { RetrievedVersesCard } from "./RetrievedVersesCard";
 import { TypingDots } from "./TypingDots";
+import { openReferenceInReader, segmentVerseReferences } from "./verseLinks";
 import { WebResultsCard } from "./WebResultsCard";
 
 interface MessageBubbleProps {
@@ -19,11 +21,31 @@ export const MessageBubble = React.memo(function MessageBubble({
 	message,
 	onFollowUp,
 }: MessageBubbleProps) {
+	const router = useRouter();
+
 	if (message.role === "user") {
+		// Plain-text bubble, but Bible references still become tappable links
+		// into the reader (assistant messages get this via MarkdownBody).
+		const segments = segmentVerseReferences(message.content);
 		return (
 			<View style={styles.userRow}>
 				<View style={styles.userBubble}>
-					<Text style={styles.userText}>{message.content}</Text>
+					<Text style={styles.userText}>
+						{segments.map((segment, index) =>
+							segment.type === "verse-ref" ? (
+								<Text
+									key={`ref-${index}`}
+									accessibilityRole="link"
+									style={styles.userRefLink}
+									onPress={() => openReferenceInReader(router, segment.value)}
+								>
+									{segment.value}
+								</Text>
+							) : (
+								<Text key={`text-${index}`}>{segment.value}</Text>
+							)
+						)}
+					</Text>
 				</View>
 			</View>
 		);
@@ -90,6 +112,7 @@ const styles = StyleSheet.create({
 		paddingVertical: spacing.md,
 	},
 	userText: { color: colors.text, fontSize: 15, lineHeight: 22 },
+	userRefLink: { color: colors.accent, textDecorationLine: "underline" },
 	assistantRow: {
 		flexDirection: "row",
 		gap: spacing.md,

@@ -30,7 +30,8 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | History restore from `metadata.parts` | ✅ | ✅ | |
 | Tool activity labels while streaming | ✅ | ✅ | |
 | Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | Thresholds aligned 2026-08-10 |
-| Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | 🟡 | Share = Web Share/clipboard fallback |
+| Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | Share = Web Share/clipboard fallback |
+| Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | Web shows KJV popover first; both deep-link to reader scroll+flash |
 | Tavily web-results card | ✅ | ✅ | |
 | Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | |
 | Note-action receipt cards | ✅ | ✅ | |
