@@ -127,7 +127,11 @@ async function handler(request: Request, context: { params: Promise<{ path: stri
 	const location = upstream.headers.get("location");
 	if (location) {
 		const prefix = new URL(proxyUrl()).pathname.replace(/\/$/, "");
-		if (location.startsWith("/") && !location.startsWith(`${prefix}/`)) {
+		// Only Frontend API paths (/v1/...) belong behind the proxy. A relative
+		// redirect to somewhere in this app - which is what the success path
+		// produces - must be left exactly as-is, or signing in successfully would
+		// land on /__clerk/<app route> and break just as badly as the failure did.
+		if (location.startsWith("/v1/") && !location.startsWith(`${prefix}/`)) {
 			responseHeaders.set("location", `${prefix}${location}`);
 		} else if (location.startsWith(CLERK_FAPI)) {
 			responseHeaders.set("location", `${prefix}${location.slice(CLERK_FAPI.length)}`);
