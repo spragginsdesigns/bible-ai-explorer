@@ -8,10 +8,12 @@ import {
 	View,
 } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useAuth, useSignIn, useSSO } from "@clerk/clerk-expo";
 import { AccentButton, BrandTitle, GhostButton, GlassCard, Screen } from "@/components/ui";
-import { colors, fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,6 +26,8 @@ function clerkErrorMessage(err: unknown, fallback: string): string {
 }
 
 export default function SignInScreen() {
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
 	const { isSignedIn, isLoaded: authLoaded } = useAuth();
 	const { signIn, setActive, isLoaded } = useSignIn();
 	const { startSSOFlow } = useSSO();
@@ -48,6 +52,17 @@ export default function SignInScreen() {
 		try {
 			const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
 				strategy: "oauth_google",
+				// Native MUST pass an explicit scheme. Without redirectUrl, clerk-expo
+				// falls back to makeRedirectUri() with no scheme, which does not
+				// resolve to versemind:// in a standalone build. Clerk then finds the
+				// requested redirect is not in the instance allowlist and silently
+				// omits external_verification_redirect_url, which surfaces only as
+				// "Missing external verification redirect URL for SSO flow".
+				// This URL must stay in sync with Clerk's allowed redirect URLs.
+				redirectUrl: AuthSession.makeRedirectUri({
+					scheme: "versemind",
+					path: "sso-callback",
+				}),
 			});
 			if (createdSessionId && setActiveSSO) {
 				await setActiveSSO({ session: createdSessionId });
@@ -213,74 +228,75 @@ export default function SignInScreen() {
 	);
 }
 
-const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		justifyContent: "center",
-		paddingHorizontal: spacing.xl,
-	},
-	hero: { alignItems: "center", marginBottom: spacing.xxl },
-	tagline: {
-		color: colors.textMuted,
-		fontSize: 14,
-		marginTop: spacing.sm,
-		textAlign: "center",
-	},
-	card: { padding: spacing.xl },
-	label: {
-		color: colors.textFaint,
-		fontSize: 12,
-		fontWeight: "600",
-		textTransform: "uppercase",
-		letterSpacing: 0.8,
-		marginBottom: spacing.xs,
-		marginTop: spacing.md,
-	},
-	input: {
-		minHeight: 48,
-		borderRadius: radius.md,
-		backgroundColor: colors.surface,
-		borderColor: colors.border,
-		borderWidth: StyleSheet.hairlineWidth,
-		color: colors.text,
-		paddingHorizontal: spacing.lg,
-		fontSize: 15,
-	},
-	codeInput: {
-		fontSize: 22,
-		letterSpacing: 12,
-		textAlign: "center",
-	},
-	codeHint: {
-		color: colors.textMuted,
-		fontSize: 13,
-		lineHeight: 19,
-	},
-	error: {
-		color: colors.danger,
-		fontSize: 13,
-		marginTop: spacing.md,
-	},
-	dividerRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		gap: spacing.md,
-		marginVertical: spacing.lg,
-	},
-	divider: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.borderStrong },
-	dividerLabel: { color: colors.textGhost, fontSize: 12 },
-	verse: {
-		fontFamily: fonts.verseItalic,
-		color: colors.textMuted,
-		fontSize: 19,
-		textAlign: "center",
-		marginTop: spacing.xxl,
-		paddingHorizontal: spacing.xl,
-	},
-	verseRef: {
-		color: colors.textGhost,
-		fontSize: 12,
-		textAlign: "center",
-		marginTop: spacing.xs,
-	},
-});
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		container: {
+			flex: 1,
+			justifyContent: "center",
+			paddingHorizontal: spacing.xl,
+		},
+		hero: { alignItems: "center", marginBottom: spacing.xxl },
+		tagline: {
+			color: c.textMuted,
+			fontSize: 14,
+			marginTop: spacing.sm,
+			textAlign: "center",
+		},
+		card: { padding: spacing.xl },
+		label: {
+			color: c.textFaint,
+			fontSize: 12,
+			fontWeight: "600",
+			textTransform: "uppercase",
+			letterSpacing: 0.8,
+			marginBottom: spacing.xs,
+			marginTop: spacing.md,
+		},
+		input: {
+			minHeight: 48,
+			borderRadius: radius.md,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			color: c.text,
+			paddingHorizontal: spacing.lg,
+			fontSize: 15,
+		},
+		codeInput: {
+			fontSize: 22,
+			letterSpacing: 12,
+			textAlign: "center",
+		},
+		codeHint: {
+			color: c.textMuted,
+			fontSize: 13,
+			lineHeight: 19,
+		},
+		error: {
+			color: c.danger,
+			fontSize: 13,
+			marginTop: spacing.md,
+		},
+		dividerRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginVertical: spacing.lg,
+		},
+		divider: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong },
+		dividerLabel: { color: c.textGhost, fontSize: 12 },
+		verse: {
+			fontFamily: fonts.verseItalic,
+			color: c.textMuted,
+			fontSize: 19,
+			textAlign: "center",
+			marginTop: spacing.xxl,
+			paddingHorizontal: spacing.xl,
+		},
+		verseRef: {
+			color: c.textGhost,
+			fontSize: 12,
+			textAlign: "center",
+			marginTop: spacing.xs,
+		},
+	});
