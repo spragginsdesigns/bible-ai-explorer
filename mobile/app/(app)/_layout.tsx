@@ -66,6 +66,8 @@ export default function AppLayout() {
 		>
 			<Tabs.Screen name="index" />
 			<Tabs.Screen name="notes" />
+			{/* Reading mode: reachable via router.push, hidden from the tab bar. */}
+			<Tabs.Screen name="reader" options={{ href: null }} />
 		</Tabs>
 	);
 }
