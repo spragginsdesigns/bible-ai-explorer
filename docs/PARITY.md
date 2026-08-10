@@ -35,6 +35,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Tavily web-results card | ✅ | ✅ | |
 | Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | |
 | Note-action receipt cards | ✅ | ✅ | |
+| Save whole answer to notes (new note or append via picker) | ✅ | ✅ | Shared route `POST /api/notes/append`; added 2026-08-10 |
 | Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory`) | ✅ | ✅ | Added 2026-08-10 |
 | Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | Added 2026-08-10 |
 | Welcome screen, 6 suggested questions | ✅ | ✅ | |

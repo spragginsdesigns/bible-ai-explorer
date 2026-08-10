@@ -22,8 +22,16 @@ export async function appendMarkdownToNote(options: {
 	markdown: string;
 	noteId?: string;
 	title?: string;
+	/**
+	 * Per-call markdown cap. Defaults to the AI tool-call limit; the
+	 * /api/notes/append route passes a larger one for whole chat answers.
+	 */
+	maxLength?: number;
 }): Promise<AppendToNoteResult> {
-	const markdown = options.markdown.slice(0, MAX_APPEND_MARKDOWN_LENGTH);
+	const markdown = options.markdown.slice(
+		0,
+		options.maxLength ?? MAX_APPEND_MARKDOWN_LENGTH
+	);
 	const appendedHtml = markdownToNoteHtml(markdown);
 	if (!appendedHtml) {
 		throw new Error("Nothing to add: the provided content was empty.");

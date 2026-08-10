@@ -168,7 +168,12 @@ export default function ChatScreen() {
 				) : showWelcome ? (
 					<WelcomeState onSelectQuestion={send} bottomInset={spacing.lg} />
 				) : (
-					<MessageList messages={messages} onFollowUp={send} bottomInset={spacing.lg}>
+					<MessageList
+						messages={messages}
+						onFollowUp={send}
+						bottomInset={spacing.lg}
+						defaultNoteTitle={chat.activeConversation?.title}
+					>
 						{error && (
 							<ErrorCard
 								message={`Something went wrong while answering: ${error}`}

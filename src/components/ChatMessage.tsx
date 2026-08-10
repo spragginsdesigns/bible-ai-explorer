@@ -1,20 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Brain, Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
 import FollowUpChips from "./FollowUpChips";
+import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
 	onFollowUp?: (question: string) => void;
+	/** Active conversation title, used as the default title for new notes. */
+	conversationTitle?: string;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversationTitle }) => {
+	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
 	if (message.role === "user") {
 		return (
 			<div className="flex justify-end mb-4 animate-message-in">
@@ -52,6 +56,23 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp }) => {
 				)}
 				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
+				)}
+				{doneStreaming && message.content && (
+					<button
+						type="button"
+						onClick={() => setAddToNoteOpen(true)}
+						className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+					>
+						<NotebookPen className="w-3.5 h-3.5" />
+						Add to notes
+					</button>
+				)}
+				{addToNoteOpen && (
+					<AddToNoteDialog
+						markdown={message.content}
+						conversationTitle={conversationTitle}
+						onClose={() => setAddToNoteOpen(false)}
+					/>
 				)}
 				{message.noteActions && message.noteActions.length > 0 && (
 					<div className="mt-3 space-y-2">

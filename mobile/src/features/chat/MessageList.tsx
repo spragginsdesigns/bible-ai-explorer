@@ -11,10 +11,12 @@ interface MessageListProps {
 	messages: ChatViewMessage[];
 	onFollowUp: (question: string) => void;
 	bottomInset: number;
+	/** Active conversation title — default title for "Add to notes" → new note. */
+	defaultNoteTitle?: string;
 	children?: React.ReactNode;
 }
 
-export function MessageList({ messages, onFollowUp, bottomInset, children }: MessageListProps) {
+export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, children }: MessageListProps) {
 	const scrollRef = useRef<ScrollView>(null);
 	const nearBottom = useRef(true);
 	const previousCount = useRef(messages.length);
@@ -61,6 +63,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, children }: Mes
 					key={message.id}
 					message={message}
 					onFollowUp={message.id === latestAssistantId ? onFollowUp : undefined}
+					defaultNoteTitle={defaultNoteTitle}
 				/>
 			))}
 			{children}

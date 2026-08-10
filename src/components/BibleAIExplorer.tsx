@@ -197,7 +197,11 @@ const BibleAIExplorerInner: React.FC = () => {
 				) : messages.length === 0 ? (
 					<WelcomeScreen onSelectQuestion={handleSend} />
 				) : (
-					<MessageList messages={messages} onFollowUp={handleSend} />
+					<MessageList
+						messages={messages}
+						onFollowUp={handleSend}
+						conversationTitle={activeConversation?.title}
+					/>
 				)}
 
 				<ChatInput

@@ -3,6 +3,15 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.6.0] — 2026-08-10
+
+### Added
+- **Add any answer to your notes.** Settled assistant messages now have an
+  "✎ Add to notes" action that opens a picker sheet: create a new note from
+  the whole answer, or append it to any existing note (searchable list).
+  Uses the new shared `POST /api/notes/append` route; the same feature ships
+  on the web client in the same release (parity rule).
+
 ## [1.5.0] — 2026-08-10
 
 ### Changed

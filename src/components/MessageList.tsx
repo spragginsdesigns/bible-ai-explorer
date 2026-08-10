@@ -7,11 +7,13 @@ import type { ChatMessage as ChatMessageType } from "./useChat";
 interface MessageListProps {
 	messages: ChatMessageType[];
 	onFollowUp?: (question: string) => void;
+	/** Active conversation title, used as the default title for new notes. */
+	conversationTitle?: string;
 }
 
 const SCROLL_THRESHOLD = 100; // px from bottom to count as "at bottom"
 
-const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp, conversationTitle }) => {
 	const bottomRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const isNearBottomRef = useRef(true);
@@ -56,6 +58,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp }) => {
 						key={msg.id}
 						message={msg}
 						onFollowUp={msg.id === latestAssistantId ? onFollowUp : undefined}
+						conversationTitle={conversationTitle}
 					/>
 				))}
 				<div ref={bottomRef} />

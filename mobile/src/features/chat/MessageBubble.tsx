@@ -1,8 +1,9 @@
-import React from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { ChatViewMessage } from "@/lib/chatView";
 import { colors, radius, spacing } from "@/theme";
+import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FollowUpChips } from "./FollowUpChips";
 import { MarkdownBody } from "./MarkdownBody";
 import { NoteActionCard } from "./NoteActionCard";
@@ -15,13 +16,17 @@ interface MessageBubbleProps {
 	message: ChatViewMessage;
 	/** Only supplied for the newest assistant message. */
 	onFollowUp?: (question: string) => void;
+	/** Active conversation title — default title when saving to a new note. */
+	defaultNoteTitle?: string;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
 	message,
 	onFollowUp,
+	defaultNoteTitle,
 }: MessageBubbleProps) {
 	const router = useRouter();
+	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 
 	if (message.role === "user") {
 		// Plain-text bubble, but Bible references still become tappable links
@@ -71,6 +76,25 @@ export const MessageBubble = React.memo(function MessageBubble({
 						<Text style={styles.activityLabel}>{message.activity}...</Text>
 					</View>
 				)}
+
+				{settled && message.content.length > 0 && (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Add this answer to your notes"
+						onPress={() => setNoteSheetOpen(true)}
+						style={({ pressed }) => [styles.addToNote, pressed && styles.addToNotePressed]}
+					>
+						<Text style={styles.addToNoteGlyph}>✎</Text>
+						<Text style={styles.addToNoteLabel}>Add to notes</Text>
+					</Pressable>
+				)}
+
+				<AddToNoteSheet
+					visible={noteSheetOpen}
+					markdown={message.content}
+					defaultTitle={defaultNoteTitle}
+					onClose={() => setNoteSheetOpen(false)}
+				/>
 
 				{message.noteActions?.map((action, index) => (
 					<NoteActionCard key={`${action.noteId}-${index}`} action={action} />
@@ -138,4 +162,17 @@ const styles = StyleSheet.create({
 		paddingVertical: spacing.sm,
 	},
 	activityLabel: { color: colors.textMuted, fontSize: 13, fontStyle: "italic" },
+	addToNote: {
+		flexDirection: "row",
+		alignItems: "center",
+		alignSelf: "flex-start",
+		gap: 6,
+		marginTop: spacing.sm,
+		paddingVertical: spacing.xs,
+		paddingHorizontal: spacing.sm,
+		borderRadius: radius.md,
+	},
+	addToNotePressed: { backgroundColor: colors.surfacePressed },
+	addToNoteGlyph: { color: colors.textFaint, fontSize: 12 },
+	addToNoteLabel: { color: colors.textFaint, fontSize: 12.5 },
 });
