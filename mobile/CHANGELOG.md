@@ -3,6 +3,17 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.6.1] — 2026-08-10
+
+### Fixed
+- **A stale session can no longer masquerade as "signed in".** When the
+  backend rejects the session token even after a fresh-token retry (the
+  signature of a session cached from the old development Clerk instance after
+  the production migration), the app now signs out locally and returns to the
+  sign-in screen instead of rendering a signed-in UI where every request
+  silently fails. Fixes "ask a question and nothing happens" for any install
+  carrying pre-migration credentials.
+
 ## [1.6.0] — 2026-08-10
 
 ### Added

@@ -6,7 +6,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 
 import { fetch as expoFetch } from "expo/fetch";
-import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, type GetToken } from "./api";
+import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, type GetToken } from "./api";
 
 const jsonResponse = (status: number, body: unknown) =>
 	new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -130,5 +130,33 @@ describe("apiJson", () => {
 		const error = await apiJson(async () => "tok", "/api/x").catch((e) => e);
 		expect(error).toBeInstanceOf(ApiError);
 		expect(isOfflineMessage(error)).toBe(true);
+	});
+});
+
+describe("auth failure reporting", () => {
+	let fetchSpy: MockInstance<typeof fetch>;
+
+	beforeEach(() => {
+		fetchSpy = vi.spyOn(globalThis, "fetch");
+	});
+	afterEach(() => {
+		fetchSpy.mockRestore();
+		setAuthFailureHandler(null);
+	});
+
+	it("fires the handler when the fresh-token retry still 401s", async () => {
+		respondWith(fetchSpy, jsonResponse(401, {}));
+		const handler = vi.fn();
+		setAuthFailureHandler(handler);
+		await expect(apiJson(async () => "tok", "/api/x")).rejects.toThrow();
+		expect(handler).toHaveBeenCalledTimes(1);
+	});
+
+	it("does not fire when the fresh-token retry recovers", async () => {
+		respondWith(fetchSpy, jsonResponse(401, {}), jsonResponse(200, { ok: true }));
+		const handler = vi.fn();
+		setAuthFailureHandler(handler);
+		await expect(apiJson(async () => "tok", "/api/x")).resolves.toEqual({ ok: true });
+		expect(handler).not.toHaveBeenCalled();
 	});
 });

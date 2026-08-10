@@ -67,6 +67,32 @@ export function isOfflineMessage(error: unknown): boolean {
 	return error instanceof ApiError && (error.isNetworkError || error.isTimeout);
 }
 
+/**
+ * Called when a request still answers 401 after the fresh-token retry: the
+ * cached session itself is invalid (e.g. issued by a different Clerk instance
+ * after the dev→production migration) and only a real sign-in can fix it. The
+ * auth bridge in app/_layout registers a handler that signs out locally, and
+ * the (app) layout's signed-out redirect takes the user to /sign-in. Without
+ * this the app renders "signed in" forever while every call silently 401s.
+ */
+type AuthFailureHandler = () => void;
+let authFailureHandler: AuthFailureHandler | null = null;
+let lastAuthFailureAt = 0;
+
+export function setAuthFailureHandler(handler: AuthFailureHandler | null): void {
+	authFailureHandler = handler;
+}
+
+function reportAuthFailure(): void {
+	if (!authFailureHandler) return;
+	const now = Date.now();
+	// One sign-out per 30s at most — a burst of failing requests must not
+	// fire the handler repeatedly.
+	if (now - lastAuthFailureAt < 30_000) return;
+	lastAuthFailureAt = now;
+	authFailureHandler();
+}
+
 function isNetworkFailure(error: unknown): boolean {
 	if (error instanceof ApiError) return error.isNetworkError;
 	if (!(error instanceof Error)) return false;
@@ -159,6 +185,7 @@ export function makeAuthedFetch(getToken: GetToken) {
 
 		let res = await attempt(false);
 		if (res.status === 401) res = await attempt(true);
+		if (res.status === 401) reportAuthFailure();
 		return res;
 	};
 }
@@ -191,6 +218,7 @@ export async function apiJson<T>(
 
 	let res = await attempt(false);
 	if (res.status === 401) res = await attempt(true);
+	if (res.status === 401) reportAuthFailure();
 
 	if (!res.ok) {
 		let message = `Request failed: ${res.status}`;
