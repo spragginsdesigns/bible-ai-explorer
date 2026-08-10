@@ -16,3 +16,4 @@ ios/
 *.log
 .DS_Store
 *.apk
+.phone-addr
