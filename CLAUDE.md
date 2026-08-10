@@ -93,14 +93,57 @@ pnpm lint
 pnpm build
 ```
 
+## Database
+
+There is exactly ONE application database, and the Android app never touches it directly:
+
+```
+Android app (Expo)  ──HTTPS + Clerk token──>  Next.js API routes on Vercel
+                                                      │ Prisma Client
+                                                      v
+                              Neon Postgres · project `versemind` · db `neondb`
+```
+
+| Fact | Value |
+|------|-------|
+| Provider | Neon Postgres (via the **Vercel Neon marketplace integration**) |
+| Neon project | `versemind` — `small-cell-57936982` |
+| Database | `neondb` on `ep-mute-waterfall-akrqxqaz`, us-west-2 |
+| ORM | Prisma (`src/lib/prisma.ts`) — Neon is the database, Prisma is how code talks to it |
+| Env vars | `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `NEON_PROJECT_ID` are **injected automatically** by the integration. Do not hand-set them in Vercel. |
+
+**Schema changes use migrations.** Production was baselined on 2026-08-10
+(`prisma migrate resolve --applied`), so `prisma migrate status` is clean and
+`prisma migrate deploy` is the correct way to ship schema changes. Do not use
+`prisma db push` against production any more - it was how the schema originally
+got there, and it left no history, which made a routine change look like an outage.
+
+**Two traps, both of which have already cost a debugging session:**
+
+1. **The decoy database.** `ai-bible-explorer` on `ep-morning-star-a6x9ce52` has a
+   byte-identical schema and **zero rows**. Nothing reads it. Its name looks more
+   "correct" than `neondb`, which is exactly why it is dangerous. **Identify the
+   database by row count, not by name** - real production has data (39 users /
+   106 conversations / 371 messages as of 2026-08-10).
+2. **An inherited `DATABASE_URL`.** A `DATABASE_URL` may already exist in the shell
+   environment pointing at an unrelated database. Neither Node's `--env-file` nor
+   Prisma's dotenv loader overrides an already-set variable, so it silently beats
+   every `.env` file. Before any Prisma command, pin the URL explicitly for that
+   command and confirm with `SELECT current_database()`.
+
 ## Environment Variables
 
-Required in `.env.local`:
+`DATABASE_URL` and `DATABASE_URL_UNPOOLED` come from the Neon integration (see above).
+Also required in `.env.local`:
 - `OPENAI_API_KEY` - OpenAI API key
-- `ASTRA_DB_APPLICATION_TOKEN` - DataStax Astra DB token
-- `ASTRA_DB_API_ENDPOINT` - Astra DB API endpoint
-- `ASTRA_DB_COLLECTION` - Astra DB collection name
+- `ASTRA_DB_TOKEN` - DataStax Astra DB token (Bible verse embeddings only, no user data)
+- `ASTRA_DB_ENDPOINT` - Astra DB API endpoint
 - `TAVILY_API_KEY` - Tavily search API key
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` - Clerk auth
+
+Note the Astra variable names: the code reads `ASTRA_DB_TOKEN` / `ASTRA_DB_ENDPOINT`
+(`src/utils/astraDb.ts`), and the collection name is hardcoded in
+`src/lib/scripture-search.ts` rather than read from the environment.
 
 ## Workflow
 
