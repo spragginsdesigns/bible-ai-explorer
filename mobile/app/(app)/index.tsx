@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	KeyboardAvoidingView,
 	Pressable,
 	StyleSheet,
@@ -14,6 +15,7 @@ import { HistoryModal } from "@/features/chat/HistoryModal";
 import { MessageList } from "@/features/chat/MessageList";
 import { WelcomeState } from "@/features/chat/WelcomeState";
 import { useTabBarSpace } from "@/features/chat/layout";
+import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useVerseMindChat } from "@/features/chat/useVerseMindChat";
 import { colors, radius, spacing } from "@/theme";
 
@@ -50,6 +52,35 @@ export default function ChatScreen() {
 		newConversation();
 		setHistoryOpen(false);
 	}, [newConversation]);
+
+	const onLocalCommand = useCallback(
+		(action: LocalCommandAction) => {
+			if (action === "new") {
+				onNewChat();
+			} else if (action === "history") {
+				setHistoryOpen(true);
+			} else if (action === "clear") {
+				const activeId = chat.activeConversationId;
+				if (!activeId) {
+					onNewChat();
+					return;
+				}
+				Alert.alert(
+					"Delete this conversation?",
+					"The conversation and its messages will be removed.",
+					[
+						{ text: "Cancel", style: "cancel" },
+						{
+							text: "Delete",
+							style: "destructive",
+							onPress: () => void chat.deleteConversation(activeId),
+						},
+					]
+				);
+			}
+		},
+		[chat, onNewChat]
+	);
 
 	const showWelcome = messages.length === 0 && !historyLoading && !historyError;
 
@@ -116,6 +147,8 @@ export default function ChatScreen() {
 						loading={loading}
 						isStreaming={isStreaming}
 						disabled={historyLoading || historyError !== null}
+						commands={CHAT_SLASH_COMMANDS}
+						onLocalCommand={onLocalCommand}
 					/>
 				</View>
 			</KeyboardAvoidingView>

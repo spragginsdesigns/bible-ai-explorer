@@ -11,6 +11,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing } from "@/theme";
+import {
+	NOTE_SLASH_COMMANDS,
+	matchSlashCommands,
+	parseSlashCommand,
+} from "@/features/chat/slashCommands";
 import { useNoteAI, type NoteAppendEvent } from "../useNoteAI";
 import { NoteAIMessage } from "./NoteAIMessage";
 import { GlyphButton } from "./primitives";
@@ -38,10 +43,26 @@ export function NoteAIPanel({
 	const scrollRef = useRef<ScrollView>(null);
 
 	const busy = loading || isStreaming;
+	const suggestions = matchSlashCommands(input, NOTE_SLASH_COMMANDS);
 
 	const handleSend = () => {
 		const text = input.trim();
 		if (!text || busy) return;
+
+		const parsed = parseSlashCommand(text, NOTE_SLASH_COMMANDS);
+		if (parsed) {
+			if (parsed.def.requiresArgs && !parsed.args) return;
+			setInput("");
+			if (parsed.def.localAction === "suggest") {
+				sendMessage(SUGGEST_VERSES_PROMPT);
+			} else if (parsed.def.localAction === "clear-note-chat") {
+				void clearHistory();
+			} else {
+				sendMessage(parsed.args ? `${parsed.def.command} ${parsed.args}` : parsed.def.command);
+			}
+			return;
+		}
+
 		setInput("");
 		sendMessage(text);
 	};
@@ -123,6 +144,36 @@ export function NoteAIPanel({
 							</Text>
 						</Pressable>
 					) : null}
+
+					{suggestions.length > 0 && !busy && (
+						<View style={styles.palette}>
+							{suggestions.map((def) => (
+								<Pressable
+									key={def.command}
+									accessibilityRole="button"
+									onPress={() => {
+										if (def.requiresArgs || def.hint) {
+											setInput(`${def.command} `);
+										} else {
+											setInput(`${def.command}`);
+										}
+									}}
+									style={({ pressed }) => [
+										styles.paletteRow,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<Text style={styles.paletteCommand}>
+										{def.command}
+										{def.hint ? <Text style={styles.paletteHint}> {def.hint}</Text> : null}
+									</Text>
+									<Text style={styles.paletteDescription} numberOfLines={1}>
+										{def.description}
+									</Text>
+								</Pressable>
+							))}
+						</View>
+					)}
 
 					<View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
 						<TextInput
@@ -206,6 +257,25 @@ const styles = StyleSheet.create({
 	suggestLabel: { color: colors.accent, fontSize: 13, fontWeight: "600" },
 	suggestInline: { paddingHorizontal: spacing.lg, paddingBottom: 6 },
 	suggestInlineLabel: { color: colors.accentDim, fontSize: 12 },
+
+	palette: {
+		marginHorizontal: spacing.md,
+		marginBottom: spacing.sm,
+		backgroundColor: colors.surface,
+		borderColor: colors.borderStrong,
+		borderWidth: StyleSheet.hairlineWidth,
+		borderRadius: radius.md,
+		overflow: "hidden",
+	},
+	paletteRow: {
+		paddingHorizontal: spacing.md,
+		paddingVertical: spacing.sm,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: colors.border,
+	},
+	paletteCommand: { color: colors.accent, fontSize: 13, fontWeight: "600" },
+	paletteHint: { color: colors.textFaint, fontWeight: "400" },
+	paletteDescription: { color: colors.textMuted, fontSize: 11.5, marginTop: 1 },
 
 	inputBar: {
 		flexDirection: "row",
