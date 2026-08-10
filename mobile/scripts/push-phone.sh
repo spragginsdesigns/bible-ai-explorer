@@ -69,6 +69,40 @@ ensure_device() {
     fi
   fi
 
+  # Wireless debugging rotates its port; the phone's IP is usually stable.
+  # Port-scan the last-known IP for the new adb-tls port (mDNS is often
+  # blocked by the Windows firewall - this is what works in practice).
+  if [[ -f "$ADDR_FILE" ]]; then
+    local ip
+    ip="$(cut -d: -f1 "$ADDR_FILE")"
+    log "Port-scanning $ip for the rotated debug port..."
+    local ports
+    ports="$(node -e '
+      const net = require("net");
+      const HOST = process.argv[1];
+      const open = []; let port = 30000;
+      const probe = (p) => new Promise((res) => {
+        const s = net.connect({ host: HOST, port: p, timeout: 400 });
+        s.on("connect", () => { open.push(p); s.destroy(); res(); });
+        s.on("timeout", () => { s.destroy(); res(); });
+        s.on("error", () => res());
+      });
+      const worker = async () => { while (port <= 49999) await probe(port++); };
+      Promise.all(Array.from({ length: 400 }, worker)).then(() => console.log(open.join(" ")));
+    ' "$ip")"
+    local p
+    for p in $ports; do
+      "$ADB" disconnect >/dev/null 2>&1 || true
+      "$ADB" connect "$ip:$p" >/dev/null 2>&1 || true
+      sleep 2
+      if device_ready; then
+        echo "$ip:$p" > "$ADDR_FILE"
+        log "Reconnected on rotated port $p."
+        return 0
+      fi
+    done
+  fi
+
   return 1
 }
 
