@@ -16,6 +16,7 @@ import {
 	matchSlashCommands,
 	parseSlashCommand,
 } from "@/features/chat/slashCommands";
+import { ErrorCard } from "@/features/chat/ErrorCard";
 import { useNoteAI, type NoteAppendEvent } from "../useNoteAI";
 import { NoteAIMessage } from "./NoteAIMessage";
 import { GlyphButton } from "./primitives";
@@ -36,9 +37,10 @@ export function NoteAIPanel({
 	onNoteAppended: (event: NoteAppendEvent) => void;
 }) {
 	const insets = useSafeAreaInsets();
-	const { messages, isStreaming, loading, sendMessage, clearHistory } = useNoteAI(noteId, {
-		onNoteAppended,
-	});
+	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry } = useNoteAI(
+		noteId,
+		{ onNoteAppended }
+	);
 	const [input, setInput] = useState("");
 	const scrollRef = useRef<ScrollView>(null);
 
@@ -128,7 +130,18 @@ export function NoteAIPanel({
 								</Pressable>
 							</View>
 						) : (
-							messages.map((message) => <NoteAIMessage key={message.id} message={message} />)
+							<>
+									{messages.map((message) => (
+										<NoteAIMessage key={message.id} message={message} />
+									))}
+									{error ? (
+										<ErrorCard
+											message={`Something went wrong: ${error}`}
+											retryLabel="Try again"
+											onRetry={retry}
+										/>
+									) : null}
+								</>
 						)}
 					</ScrollView>
 

@@ -64,7 +64,10 @@ export function useNoteEditorData(noteId: string) {
 			setIsSaving(true);
 			try {
 				const updated = toNote(await api.patchNote(getToken, noteId, payload));
-				if (mounted.current) setNote(updated);
+				if (mounted.current) {
+					setNote(updated);
+					setError(null);
+				}
 			} catch (err) {
 				if (mounted.current) {
 					setError(err instanceof Error ? err.message : "Changes could not be saved.");
@@ -76,35 +79,59 @@ export function useNoteEditorData(noteId: string) {
 		[getToken, noteId]
 	);
 
+	// Optimistic mutations roll back to the pre-change note when the server
+	// rejects them; callers fire these with `void`, so failures surface via `error`.
 	const renameNote = useCallback(
 		async (title: string) => {
+			const previous = note;
 			const trimmed = title.trim() || "Untitled Note";
 			setNote((prev) => (prev ? { ...prev, title: trimmed } : prev));
-			await api.patchNote(getToken, noteId, { title: trimmed });
+			try {
+				await api.patchNote(getToken, noteId, { title: trimmed });
+			} catch (err) {
+				if (!mounted.current) return;
+				setNote(previous);
+				setError(err instanceof Error ? err.message : "The title could not be saved.");
+			}
 		},
-		[getToken, noteId]
+		[getToken, noteId, note]
 	);
 
 	const togglePin = useCallback(async () => {
+		const previous = note;
 		let next = false;
 		setNote((prev) => {
 			if (!prev) return prev;
 			next = !prev.isPinned;
 			return { ...prev, isPinned: next };
 		});
-		await api.patchNote(getToken, noteId, { isPinned: next });
-	}, [getToken, noteId]);
+		try {
+			await api.patchNote(getToken, noteId, { isPinned: next });
+		} catch (err) {
+			if (!mounted.current) return;
+			setNote(previous);
+			setError(err instanceof Error ? err.message : "The pin could not be saved.");
+		}
+	}, [getToken, noteId, note]);
 
 	const moveToFolder = useCallback(
 		async (folderId: string | null) => {
+			const previous = note;
 			setNote((prev) => (prev ? { ...prev, folderId } : prev));
-			await api.patchNote(getToken, noteId, { folderId });
+			try {
+				await api.patchNote(getToken, noteId, { folderId });
+			} catch (err) {
+				if (!mounted.current) return;
+				setNote(previous);
+				setError(err instanceof Error ? err.message : "The move could not be saved.");
+			}
 		},
-		[getToken, noteId]
+		[getToken, noteId, note]
 	);
 
 	const toggleTag = useCallback(
 		async (tagId: string) => {
+			const previous = note;
 			setNote((prev) => {
 				if (!prev) return prev;
 				const has = prev.tagIds.includes(tagId);
@@ -113,9 +140,15 @@ export function useNoteEditorData(noteId: string) {
 					tagIds: has ? prev.tagIds.filter((id) => id !== tagId) : [...prev.tagIds, tagId],
 				};
 			});
-			await api.toggleNoteTag(getToken, noteId, tagId);
+			try {
+				await api.toggleNoteTag(getToken, noteId, tagId);
+			} catch (err) {
+				if (!mounted.current) return;
+				setNote(previous);
+				setError(err instanceof Error ? err.message : "The tag could not be saved.");
+			}
 		},
-		[getToken, noteId]
+		[getToken, noteId, note]
 	);
 
 	const createTag = useCallback(
@@ -128,7 +161,12 @@ export function useNoteEditorData(noteId: string) {
 	);
 
 	const removeNote = useCallback(async () => {
-		await api.deleteNote(getToken, noteId);
+		try {
+			await api.deleteNote(getToken, noteId);
+		} catch (err) {
+			if (!mounted.current) return;
+			setError(err instanceof Error ? err.message : "The note could not be deleted.");
+		}
 	}, [getToken, noteId]);
 
 	/**

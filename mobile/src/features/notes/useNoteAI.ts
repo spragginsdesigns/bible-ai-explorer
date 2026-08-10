@@ -54,6 +54,7 @@ export function useNoteAI(
 ) {
 	const getToken = useStableGetToken();
 	const [historyLoading, setHistoryLoading] = useState(false);
+	const [clearError, setClearError] = useState<string | null>(null);
 
 	const noteIdRef = useRef(noteId);
 	noteIdRef.current = noteId;
@@ -78,8 +79,11 @@ export function useNoteAI(
 		messages: uiMessages,
 		sendMessage: sendUIMessage,
 		setMessages: setUIMessages,
+		regenerate,
+		clearError: clearChatError,
 		stop,
 		status,
+		error: chatError,
 	} = useChat<UIMessage>({ transport });
 
 	// Restore the persisted conversation whenever the note changes.
@@ -130,12 +134,28 @@ export function useNoteAI(
 		[sendUIMessage, status]
 	);
 
+	// Clear the server copy first: wiping local state before the DELETE would
+	// leave a failed clear looking like a fresh conversation.
 	const clearHistory = useCallback(async () => {
+		try {
+			await api.clearNoteAIMessages(getToken, noteIdRef.current);
+		} catch (err) {
+			setClearError(
+				err instanceof Error ? err.message : "The conversation could not be cleared."
+			);
+			return;
+		}
+		setClearError(null);
 		stop();
 		setUIMessages([]);
 		appliedToolCallsRef.current.clear();
-		await api.clearNoteAIMessages(getToken, noteIdRef.current);
 	}, [getToken, stop, setUIMessages]);
+
+	const retry = useCallback(() => {
+		setClearError(null);
+		clearChatError();
+		void regenerate();
+	}, [clearChatError, regenerate]);
 
 	const messages: ChatViewMessage[] = useMemo(() => {
 		const lastAssistantId = [...uiMessages]
@@ -163,5 +183,13 @@ export function useNoteAI(
 		return viewMessages;
 	}, [uiMessages, isStreaming, status]);
 
-	return { messages, isStreaming, loading, sendMessage, clearHistory };
+	return {
+		messages,
+		isStreaming,
+		loading,
+		error: clearError ?? (chatError ? chatError.message : null),
+		sendMessage,
+		clearHistory,
+		retry,
+	};
 }

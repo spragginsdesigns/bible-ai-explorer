@@ -52,6 +52,44 @@ describe("makeAuthedFetch", () => {
 		expect(res.status).toBe(500);
 		expect(vi.mocked(expoFetch)).toHaveBeenCalledTimes(1);
 	});
+
+	it("aborts a stalled connection after the stream timeout", async () => {
+		vi.useFakeTimers();
+		try {
+			vi.mocked(expoFetch).mockImplementation(
+				((_url: string, init?: { signal?: AbortSignal }) =>
+					new Promise((_resolve, reject) => {
+						init?.signal?.addEventListener("abort", () =>
+							reject(new Error("The operation was aborted."))
+						);
+					})) as never
+			);
+			const getToken: GetToken = async () => "tok";
+			const promise = makeAuthedFetch(getToken)("https://api.test/x");
+			const assertion = expect(promise).rejects.toThrow("timed out");
+			await vi.advanceTimersByTimeAsync(45_000);
+			const error = await promise.catch((e) => e);
+			expect(error).toBeInstanceOf(ApiError);
+			expect(error.isTimeout).toBe(true);
+			expect(isOfflineMessage(error)).toBe(true);
+			await assertion;
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("clears the timeout once response headers arrive", async () => {
+		vi.useFakeTimers();
+		try {
+			vi.mocked(expoFetch).mockResolvedValue(jsonResponse(200, {}) as never);
+			const getToken: GetToken = async () => "tok";
+			await makeAuthedFetch(getToken)("https://api.test/x");
+			// No abort should fire later: a resolved fetch must not be killed.
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
 
 describe("apiJson", () => {

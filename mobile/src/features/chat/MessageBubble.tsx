@@ -15,7 +15,10 @@ interface MessageBubbleProps {
 	onFollowUp?: (question: string) => void;
 }
 
-export function MessageBubble({ message, onFollowUp }: MessageBubbleProps) {
+export const MessageBubble = React.memo(function MessageBubble({
+	message,
+	onFollowUp,
+}: MessageBubbleProps) {
 	if (message.role === "user") {
 		return (
 			<View style={styles.userRow}>
@@ -68,7 +71,7 @@ export function MessageBubble({ message, onFollowUp }: MessageBubbleProps) {
 			</View>
 		</View>
 	);
-}
+});
 
 const styles = StyleSheet.create({
 	userRow: {

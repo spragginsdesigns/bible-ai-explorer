@@ -7,7 +7,10 @@ import { colors, radius, spacing } from "@/theme";
 /** "Added to note …" receipt shown when the assistant wrote into a note. */
 export function NoteActionCard({ action }: { action: NoteAction }) {
 	const router = useRouter();
-	const openNotes = useCallback(() => router.push("/notes"), [router]);
+	const openNotes = useCallback(
+		() => router.push(action.noteId ? `/notes/${action.noteId}` : "/notes"),
+		[router, action.noteId]
+	);
 
 	return (
 		<Pressable

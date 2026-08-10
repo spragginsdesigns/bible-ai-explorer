@@ -22,6 +22,9 @@ export interface VerseMindChat {
 	historyLoading: boolean;
 	historyError: string | null;
 	error: string | null;
+	/** Draft text of the chat input, so screens can prefill it (e.g. ?prompt=). */
+	input: string;
+	setInput: (text: string) => void;
 	sendMessage: (text: string) => Promise<void>;
 	stop: () => void;
 	retrySend: () => void;
@@ -71,6 +74,7 @@ export function useVerseMindChat(): VerseMindChat {
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [historyError, setHistoryError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<string | null>(null);
+	const [input, setInput] = useState("");
 
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
@@ -99,7 +103,7 @@ export function useVerseMindChat(): VerseMindChat {
 		stop,
 		status,
 		error: chatError,
-	} = useAIChat<UIMessage>({ transport });
+	} = useAIChat<UIMessage>({ transport, experimental_throttle: 50 });
 
 	useEffect(() => {
 		if (initialized.current) return;
@@ -293,6 +297,8 @@ export function useVerseMindChat(): VerseMindChat {
 		historyLoading,
 		historyError,
 		error: sendError ?? (chatError ? chatError.message : null),
+		input,
+		setInput,
 		sendMessage,
 		stop,
 		retrySend,

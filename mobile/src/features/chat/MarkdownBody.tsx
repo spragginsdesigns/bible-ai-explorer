@@ -181,7 +181,7 @@ const markdownIt = MarkdownIt({ typographer: true, linkify: true });
 const imageHandlers = ["https://", "http://"];
 const truncationMarker = <Text key="markdown-truncated">…</Text>;
 
-export function MarkdownBody({ content }: { content: string }) {
+export const MarkdownBody = React.memo(function MarkdownBody({ content }: { content: string }) {
 	return (
 		<MarkdownView
 			style={markdownStyles}
@@ -192,4 +192,4 @@ export function MarkdownBody({ content }: { content: string }) {
 			{content}
 		</MarkdownView>
 	);
-}
+});

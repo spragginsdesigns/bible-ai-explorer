@@ -3,6 +3,36 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.4.0] — 2026-08-10
+
+### Added
+- **Bible tab.** A new YouVersion-style tab between Chat and Notes: all 66
+  books grouped by testament, a chapter-number grid per book, and a full
+  chapter reading screen with adjustable type size (A−/A+, remembered for the
+  session).
+- **Offline KJV.** The complete King James text (31,102 verses) is bundled
+  with the app and loads instantly without a network connection.
+- **NKJV via network.** A KJV/NKJV toggle on the reading screen fetches NKJV
+  chapters from bolls.life (15s timeout, per-session in-memory cache) with a
+  friendly error + retry on failure.
+- **Verse actions.** Long-press any verse for Copy, Share (Android share
+  sheet), Save to note (same Scripture-blockquote note as chat verse cards),
+  and Ask AI.
+- **Ask AI hand-off.** A floating "✦ Ask AI" button asks about the current
+  chapter, and the verse sheet can ask about a single verse; both push to the
+  Chat tab with a prefilled, focused input (`?prompt=` — never auto-sent).
+
+### Changed
+- **Reading mode replaced.** The old `/reader` screen is gone; verse-card
+  "Read" buttons now resolve the reference and open it inside the Bible tab
+  (scrolling to and briefly highlighting the exact verse), with prev/next
+  navigation that rolls into adjacent books.
+- **Tab bar fix.** The custom glass tab bar now skips routes whose
+  `options.href === null`, so hidden push-only screens no longer render a
+  ghost tab.
+- **Chat streaming.** `experimental_throttle: 50` on the AI SDK's `useChat`
+  smooths token-by-token rendering during streams.
+
 ## [1.3.0] — 2026-08-10
 
 ### Added

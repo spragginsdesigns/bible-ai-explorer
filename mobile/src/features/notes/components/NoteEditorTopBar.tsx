@@ -8,6 +8,7 @@ export function NoteEditorTopBar({
 	title,
 	isPinned,
 	isSaving,
+	saveError,
 	tagCount,
 	aiOpen,
 	onBack,
@@ -19,6 +20,8 @@ export function NoteEditorTopBar({
 	title: string;
 	isPinned: boolean;
 	isSaving: boolean;
+	/** Set when the last save/mutation failed; shown in place of "Saving…". */
+	saveError: string | null;
 	tagCount: number;
 	aiOpen: boolean;
 	onBack: () => void;
@@ -53,6 +56,9 @@ export function NoteEditorTopBar({
 					numberOfLines={1}
 				/>
 				{isSaving ? <Text style={styles.saving}>Saving…</Text> : null}
+				{!isSaving && saveError ? (
+					<Text style={styles.saveError}>Couldn't save — will retry on next edit</Text>
+				) : null}
 			</View>
 
 			<GlyphButton
@@ -99,4 +105,5 @@ const styles = StyleSheet.create({
 		paddingVertical: 4,
 	},
 	saving: { color: colors.textGhost, fontSize: 10.5, marginTop: -2 },
+	saveError: { color: colors.danger, fontSize: 10.5, marginTop: -2 },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -8,6 +8,7 @@ import {
 	Text,
 	View,
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 import { BrandTitle, Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
 import { ErrorCard } from "@/features/chat/ErrorCard";
@@ -23,6 +24,19 @@ export default function ChatScreen() {
 	const chat = useVerseMindChat();
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const tabBarSpace = useTabBarSpace();
+	const params = useLocalSearchParams<{ prompt?: string }>();
+	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
+	const [focusSignal, setFocusSignal] = useState(0);
+	const lastSeededPrompt = useRef("");
+
+	// Ask-AI entry points (e.g. the Bible tab) push here with ?prompt= — prefill
+	// the input and focus it, but leave sending to the user.
+	useEffect(() => {
+		if (!promptParam || promptParam === lastSeededPrompt.current) return;
+		lastSeededPrompt.current = promptParam;
+		chat.setInput(promptParam);
+		setFocusSignal((signal) => signal + 1);
+	}, [promptParam, chat.setInput]);
 
 	const {
 		messages,
@@ -149,6 +163,9 @@ export default function ChatScreen() {
 						disabled={historyLoading || historyError !== null}
 						commands={CHAT_SLASH_COMMANDS}
 						onLocalCommand={onLocalCommand}
+						value={chat.input}
+						onChangeText={chat.setInput}
+						focusSignal={focusSignal}
 					/>
 				</View>
 			</KeyboardAvoidingView>

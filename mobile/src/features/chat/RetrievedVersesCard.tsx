@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { RetrievedVerse } from "@/lib/chatView";
+import { resolveReference } from "@/features/bible/books";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { colors, fonts, radius, spacing } from "@/theme";
 import { Collapsible } from "./Collapsible";
@@ -59,7 +60,18 @@ function VerseActions({ verse }: { verse: RetrievedVerse }) {
 	}, [getToken, verse, saveStatus, flash, router]);
 
 	const onRead = useCallback(() => {
-		router.push({ pathname: "/reader", params: { reference: verse.reference } });
+		const target = resolveReference(verse.reference);
+		// Unresolvable references (unexpected formats) simply do nothing rather
+		// than crashing or pushing a broken route.
+		if (!target) return;
+		router.push({
+			pathname: "/bible/chapter",
+			params: {
+				book: String(target.order),
+				chapter: String(target.chapter),
+				...(target.verse ? { verse: String(target.verse) } : {}),
+			},
+		});
 	}, [router, verse.reference]);
 
 	return (

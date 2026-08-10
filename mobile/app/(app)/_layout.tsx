@@ -9,20 +9,25 @@ import { colors, spacing } from "@/theme";
 
 const TAB_LABELS: Record<string, string> = {
 	index: "Chat",
+	bible: "Bible",
 	notes: "Notes",
 };
 
 const TAB_GLYPHS: Record<string, string> = {
 	index: "✦",
+	bible: "✝",
 	notes: "✎",
 };
 
-function GlassTabBar({ state, navigation }: BottomTabBarProps) {
+function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 	const insets = useSafeAreaInsets();
 	return (
 		<View style={[styles.tabBarWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
 			<BlurView intensity={40} tint="dark" style={styles.tabBar}>
 				{state.routes.map((route: { key: string; name: string }, index: number) => {
+					// Routes hidden with options.href === null (e.g. push-only screens)
+					// must not render in the bar.
+					if (descriptors[route.key]?.options?.href === null) return null;
 					const focused = state.index === index;
 					const label = TAB_LABELS[route.name] ?? route.name;
 					return (
@@ -65,9 +70,8 @@ export default function AppLayout() {
 			}}
 		>
 			<Tabs.Screen name="index" />
+			<Tabs.Screen name="bible" />
 			<Tabs.Screen name="notes" />
-			{/* Reading mode: reachable via router.push, hidden from the tab bar. */}
-			<Tabs.Screen name="reader" options={{ href: null }} />
 		</Tabs>
 	);
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Pressable,
@@ -25,6 +25,11 @@ interface ChatInputBarProps {
 	placeholder?: string;
 	commands?: SlashCommand[];
 	onLocalCommand?: (action: LocalCommandAction, args: string) => void;
+	/** Controlled mode: when both are provided they replace the internal state. */
+	value?: string;
+	onChangeText?: (text: string) => void;
+	/** Bump this number to focus the input (e.g. after a ?prompt= prefill). */
+	focusSignal?: number;
 }
 
 export function ChatInputBar({
@@ -36,10 +41,26 @@ export function ChatInputBar({
 	placeholder = "Ask a question about the Bible...",
 	commands = [],
 	onLocalCommand,
+	value,
+	onChangeText,
+	focusSignal,
 }: ChatInputBarProps) {
-	const [text, setText] = useState("");
+	const [innerText, setInnerText] = useState("");
+	const inputRef = useRef<TextInput>(null);
+	const text = value ?? innerText;
+	const setText = useCallback(
+		(next: string) => {
+			if (onChangeText) onChangeText(next);
+			else setInnerText(next);
+		},
+		[onChangeText]
+	);
 	const busy = loading || isStreaming;
 	const locked = busy || disabled;
+
+	useEffect(() => {
+		if (focusSignal) inputRef.current?.focus();
+	}, [focusSignal]);
 
 	const suggestions = useMemo(
 		() => (commands.length > 0 ? matchSlashCommands(text, commands) : []),
@@ -115,6 +136,7 @@ export function ChatInputBar({
 
 			<View style={styles.bar}>
 				<TextInput
+					ref={inputRef}
 					value={text}
 					onChangeText={setText}
 					editable={!locked}

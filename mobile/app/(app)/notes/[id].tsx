@@ -86,6 +86,7 @@ export default function NoteEditorScreen() {
 					title={note?.title ?? ""}
 					isPinned={note?.isPinned ?? false}
 					isSaving={data.isSaving}
+					saveError={note ? data.error : null}
 					tagCount={note?.tagIds.length ?? 0}
 					aiOpen={aiOpen}
 					onBack={() => void goBack()}

@@ -2,12 +2,15 @@ import { Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import type { GetToken } from "@/lib/api";
 import type { RetrievedVerse } from "@/lib/chatView";
-import { createNote, patchNote } from "@/features/notes/api";
+import { createNote, deleteNote, patchNote } from "@/features/notes/api";
 
 /** "John 3:16 — \"For God so loved...\" (KJV)" plain-text form for copy/share. */
-export function formatVerseForSharing(verse: Pick<RetrievedVerse, "reference" | "text">): string {
+export function formatVerseForSharing(
+	verse: Pick<RetrievedVerse, "reference" | "text">,
+	translation = "KJV"
+): string {
 	const body = verse.text?.trim();
-	return body ? `${verse.reference} — "${body}" (KJV)` : `${verse.reference} (KJV)`;
+	return body ? `${verse.reference} — "${body}" (${translation})` : `${verse.reference} (${translation})`;
 }
 
 export async function copyVerse(verse: Pick<RetrievedVerse, "reference" | "text">): Promise<void> {
@@ -25,18 +28,31 @@ export async function shareVerse(verse: Pick<RetrievedVerse, "reference" | "text
  */
 export async function saveVerseToNote(
 	getToken: GetToken,
-	verse: Pick<RetrievedVerse, "reference" | "text">
+	verse: Pick<RetrievedVerse, "reference" | "text">,
+	translation = "KJV"
 ): Promise<string> {
 	const text = verse.text?.trim() ?? "";
 	const htmlContent =
 		`<blockquote><p><strong>${escapeHtml(verse.reference)}</strong></p>` +
 		(text ? `<p>${escapeHtml(text)}</p>` : "") +
+		`<p>(${escapeHtml(translation)})</p>` +
 		"</blockquote>";
-	const plainText = formatVerseForSharing(verse);
+	const plainText = formatVerseForSharing(verse, translation);
 	const wordCount = plainText.split(/\s+/).filter(Boolean).length;
 
 	const note = await createNote(getToken, { title: verse.reference, folderId: null });
-	await patchNote(getToken, note.id, { htmlContent, plainText, wordCount });
+	try {
+		await patchNote(getToken, note.id, { htmlContent, plainText, wordCount });
+	} catch (error) {
+		// Best-effort cleanup: without the content PATCH the note is an empty
+		// orphan titled by the reference, so remove it before reporting failure.
+		try {
+			await deleteNote(getToken, note.id);
+		} catch {
+			// Keep the original failure.
+		}
+		throw error;
+	}
 	return note.id;
 }
 

@@ -106,6 +106,17 @@ Required in `.env.local`:
 
 - **Always commit and push after completing changes.** This project auto-deploys to Vercel on push to `main`, so changes aren't live until pushed.
 
+## Autonomous Workflow
+
+Standard loop for any task, mirrored from Context-Pro-AI and adapted to this repo — the command files live in `.claude/commands/`:
+
+1. `/start-workflow` — triage → investigate → design gate (features) → implement.
+2. `/prove-it` — adversarial proof through the real product path (device gate for mobile via `/push-phone`, real request for API routes). Static gates (`cd mobile && npm run typecheck && npm test`, `pnpm lint`/`pnpm build` for web) are support checks, never proof alone.
+3. `/review-code` — deep review of the actual working diff; any post-proof code change re-invalidates the proof.
+4. `/ship-it` — commit touched files only (never `git add -A`), Conventional Commit, push to `main`.
+
+**Standing authorization (Austin, 2026-08-10):** once `/prove-it` and `/review-code` are both green on the final diff, ship autonomously — commit and push to `main` WITHOUT waiting for explicit approval. Git safety still applies: no force-push, no auto-resolving conflicts, never commit secrets or `mobile/.phone-addr` changes. If a gate fails, fix and re-verify; do not ship around a red gate.
+
 ## Project-Specific Rules
 
 - All API routes use Next.js App Router (`src/app/api/`)

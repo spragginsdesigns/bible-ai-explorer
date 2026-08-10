@@ -23,6 +23,12 @@ export interface ApiRequestOptions {
 
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * Streaming endpoints keep the body open for as long as the model writes, so
+ * this only bounds the time until the first response headers arrive.
+ */
+export const STREAM_TIMEOUT_MS = 45_000;
+
 /** Error with enough context for the UI to show offline vs server failures. */
 export class ApiError extends Error {
 	readonly status?: number;
@@ -103,10 +109,36 @@ export function makeAuthedFetch(getToken: GetToken) {
 		const attempt = async (fresh: boolean): Promise<Response> => {
 			const token = await getToken(fresh ? { fresh: true } : undefined);
 			const headers = await buildHeaders(token, init);
-			return expoFetch(url, {
-				...(init as object),
-				headers: Object.fromEntries(headers.entries()),
-			} as Parameters<typeof expoFetch>[1]) as unknown as Response;
+
+			// Bound the time to first headers; the timer clears once expoFetch
+			// resolves so long-running streams are not cut off mid-body. A caller
+			// abort signal (the AI SDK's stop()) is forwarded, but only the timer
+			// reports a timeout.
+			const callerSignal = init?.signal ?? null;
+			const controller = new AbortController();
+			const onCallerAbort = () => controller.abort();
+			if (callerSignal?.aborted) controller.abort();
+			else callerSignal?.addEventListener("abort", onCallerAbort);
+			const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+
+			try {
+				return (await expoFetch(url, {
+					...(init as object),
+					headers: Object.fromEntries(headers.entries()),
+					signal: controller.signal,
+				} as Parameters<typeof expoFetch>[1])) as unknown as Response;
+			} catch (error) {
+				if (controller.signal.aborted && !callerSignal?.aborted) {
+					throw new ApiError(
+						"The request timed out. Check your connection and try again.",
+						{ isTimeout: true }
+					);
+				}
+				throw error;
+			} finally {
+				clearTimeout(timer);
+				callerSignal?.removeEventListener("abort", onCallerAbort);
+			}
 		};
 
 		let res = await attempt(false);
