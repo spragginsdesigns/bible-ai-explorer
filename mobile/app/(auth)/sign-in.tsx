@@ -15,6 +15,14 @@ import { colors, fonts, radius, spacing } from "@/theme";
 
 WebBrowser.maybeCompleteAuthSession();
 
+function clerkErrorMessage(err: unknown, fallback: string): string {
+	if (err && typeof err === "object" && "errors" in err) {
+		const first = (err as { errors?: { longMessage?: string; message?: string }[] }).errors?.[0];
+		return first?.longMessage ?? first?.message ?? fallback;
+	}
+	return err instanceof Error ? err.message : fallback;
+}
+
 export default function SignInScreen() {
 	const { isSignedIn, isLoaded: authLoaded } = useAuth();
 	const { signIn, setActive, isLoaded } = useSignIn();
@@ -22,7 +30,8 @@ export default function SignInScreen() {
 	const router = useRouter();
 
 	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
+	const [code, setCode] = useState("");
+	const [step, setStep] = useState<"email" | "code">("email");
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -45,43 +54,71 @@ export default function SignInScreen() {
 				router.replace("/");
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Google sign-in failed.");
+			setError(clerkErrorMessage(err, "Google sign-in failed."));
 		} finally {
 			setPending(false);
 		}
 	}, [startSSOFlow, router]);
 
-	const onEmailSignIn = useCallback(async () => {
-		if (!isLoaded || !email.trim() || !password) return;
+	// The Clerk instance signs in with an emailed one-time code (plus Google).
+	const onSendCode = useCallback(async () => {
+		if (!isLoaded || !email.trim()) return;
 		setError(null);
 		setPending(true);
 		try {
-			const attempt = await signIn.create({ identifier: email.trim(), password });
+			const attempt = await signIn.create({ identifier: email.trim() });
+			const factor = attempt.supportedFirstFactors?.find(
+				(f) => f.strategy === "email_code"
+			);
+			if (!factor || !("emailAddressId" in factor)) {
+				setError("This account cannot sign in with an email code. Try Google instead.");
+				return;
+			}
+			await signIn.prepareFirstFactor({
+				strategy: "email_code",
+				emailAddressId: factor.emailAddressId,
+			});
+			setStep("code");
+		} catch (err) {
+			setError(clerkErrorMessage(err, "We couldn't find that account."));
+		} finally {
+			setPending(false);
+		}
+	}, [isLoaded, email, signIn]);
+
+	const onVerifyCode = useCallback(async () => {
+		if (!isLoaded || code.trim().length < 6) return;
+		setError(null);
+		setPending(true);
+		try {
+			const attempt = await signIn.attemptFirstFactor({
+				strategy: "email_code",
+				code: code.trim(),
+			});
 			if (attempt.status === "complete") {
 				await setActive({ session: attempt.createdSessionId });
 				router.replace("/");
 			} else {
-				setError("Additional verification is required. Please sign in on the web once, or use Google.");
+				setError("That code didn't complete the sign-in. Request a new one and try again.");
 			}
 		} catch (err) {
-			const message =
-				err && typeof err === "object" && "errors" in err
-					? ((err as { errors?: { message?: string }[] }).errors?.[0]?.message ?? "Sign-in failed.")
-					: "Sign-in failed.";
-			setError(message);
+			setError(clerkErrorMessage(err, "That code is incorrect or has expired."));
 		} finally {
 			setPending(false);
 		}
-	}, [isLoaded, email, password, signIn, setActive, router]);
+	}, [isLoaded, code, signIn, setActive, router]);
+
+	const onBackToEmail = useCallback(() => {
+		setStep("email");
+		setCode("");
+		setError(null);
+	}, []);
 
 	if (authLoaded && isSignedIn) return <Redirect href="/" />;
 
 	return (
 		<Screen edges={["top", "bottom"]}>
-			<KeyboardAvoidingView
-				behavior="padding"
-				style={styles.container}
-			>
+			<KeyboardAvoidingView behavior="padding" style={styles.container}>
 				<View style={styles.hero}>
 					<BrandTitle size={52} />
 					<Text style={styles.tagline}>
@@ -90,42 +127,79 @@ export default function SignInScreen() {
 				</View>
 
 				<GlassCard style={styles.card}>
-					<Text style={styles.label}>Email</Text>
-					<TextInput
-						value={email}
-						onChangeText={setEmail}
-						autoCapitalize="none"
-						autoComplete="email"
-						keyboardType="email-address"
-						placeholder="you@example.com"
-						placeholderTextColor={colors.textGhost}
-						style={styles.input}
-					/>
-					<Text style={styles.label}>Password</Text>
-					<TextInput
-						value={password}
-						onChangeText={setPassword}
-						secureTextEntry
-						autoComplete="password"
-						placeholder="••••••••"
-						placeholderTextColor={colors.textGhost}
-						style={styles.input}
-						onSubmitEditing={onEmailSignIn}
-					/>
+					{step === "email" ? (
+						<>
+							<Text style={styles.label}>Email</Text>
+							<TextInput
+								value={email}
+								onChangeText={setEmail}
+								autoCapitalize="none"
+								autoComplete="email"
+								keyboardType="email-address"
+								placeholder="you@example.com"
+								placeholderTextColor={colors.textGhost}
+								style={styles.input}
+								onSubmitEditing={onSendCode}
+							/>
 
-					{error && <Text style={styles.error}>{error}</Text>}
+							{error && <Text style={styles.error}>{error}</Text>}
 
-					{pending ? (
-						<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+							{pending ? (
+								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+							) : (
+								<>
+									<AccentButton
+										label="Email me a sign-in code"
+										onPress={onSendCode}
+										style={{ marginTop: spacing.lg }}
+									/>
+									<View style={styles.dividerRow}>
+										<View style={styles.divider} />
+										<Text style={styles.dividerLabel}>or</Text>
+										<View style={styles.divider} />
+									</View>
+									<GhostButton label="Continue with Google" onPress={onGoogle} />
+								</>
+							)}
+						</>
 					) : (
 						<>
-							<AccentButton label="Sign in" onPress={onEmailSignIn} style={{ marginTop: spacing.md }} />
-							<View style={styles.dividerRow}>
-								<View style={styles.divider} />
-								<Text style={styles.dividerLabel}>or</Text>
-								<View style={styles.divider} />
-							</View>
-							<GhostButton label="Continue with Google" onPress={onGoogle} />
+							<Text style={styles.codeHint}>
+								We sent a 6-digit code to{" "}
+								<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
+							</Text>
+							<Text style={styles.label}>Code</Text>
+							<TextInput
+								value={code}
+								onChangeText={setCode}
+								autoCapitalize="none"
+								keyboardType="number-pad"
+								maxLength={6}
+								placeholder="••••••"
+								placeholderTextColor={colors.textGhost}
+								style={[styles.input, styles.codeInput]}
+								onSubmitEditing={onVerifyCode}
+								autoFocus
+							/>
+
+							{error && <Text style={styles.error}>{error}</Text>}
+
+							{pending ? (
+								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+							) : (
+								<>
+									<AccentButton
+										label="Sign in"
+										onPress={onVerifyCode}
+										style={{ marginTop: spacing.lg }}
+									/>
+									<GhostButton
+										label="Use a different email"
+										onPress={onBackToEmail}
+										style={{ marginTop: spacing.md }}
+									/>
+								</>
+							)}
 						</>
 					)}
 				</GlassCard>
@@ -171,6 +245,16 @@ const styles = StyleSheet.create({
 		color: colors.text,
 		paddingHorizontal: spacing.lg,
 		fontSize: 15,
+	},
+	codeInput: {
+		fontSize: 22,
+		letterSpacing: 12,
+		textAlign: "center",
+	},
+	codeHint: {
+		color: colors.textMuted,
+		fontSize: 13,
+		lineHeight: 19,
 	},
 	error: {
 		color: colors.danger,

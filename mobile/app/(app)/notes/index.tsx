@@ -92,6 +92,7 @@ export default function NotesListScreen() {
 
 			<ScrollView
 				horizontal
+				style={styles.chipScroll}
 				showsHorizontalScrollIndicator={false}
 				contentContainerStyle={styles.chipRow}
 				keyboardShouldPersistTaps="handled"
@@ -118,6 +119,7 @@ export default function NotesListScreen() {
 
 			<ScrollView
 				horizontal
+				style={styles.chipScroll}
 				showsHorizontalScrollIndicator={false}
 				contentContainerStyle={styles.chipRow}
 				keyboardShouldPersistTaps="handled"
@@ -158,6 +160,7 @@ export default function NotesListScreen() {
 				</View>
 			) : (
 				<FlatList
+					style={styles.list}
 					data={library.notes}
 					keyExtractor={(note) => note.id}
 					contentContainerStyle={styles.listContent}
@@ -243,7 +246,9 @@ const styles = StyleSheet.create({
 	searchGlyph: { color: colors.textFaint, fontSize: 16 },
 	searchInput: { flex: 1, color: colors.text, fontSize: 15, paddingVertical: 11 },
 
-	chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+	chipScroll: { flexGrow: 0 },
+	chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, alignItems: "center" },
+	list: { flex: 1 },
 
 	metaRow: {
 		flexDirection: "row",
