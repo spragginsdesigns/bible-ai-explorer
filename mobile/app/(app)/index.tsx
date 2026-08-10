@@ -2,7 +2,6 @@ import React, { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
-	Platform,
 	Pressable,
 	StyleSheet,
 	Text,
@@ -58,7 +57,7 @@ export default function ChatScreen() {
 		<Screen>
 			<KeyboardAvoidingView
 				style={styles.fill}
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior="padding"
 			>
 				<View style={styles.header}>
 					<View style={styles.headerTitle}>

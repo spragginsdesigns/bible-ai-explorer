@@ -4,15 +4,14 @@ import {
 	AppState,
 	BackHandler,
 	KeyboardAvoidingView,
-	Platform,
 	StyleSheet,
 	Text,
 	View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Screen } from "@/components/ui";
 import { colors, spacing } from "@/theme";
+import { useTabBarSpace } from "@/features/chat/layout";
 import { NoteAIPanel } from "@/features/notes/components/NoteAIPanel";
 import { NoteEditorTopBar } from "@/features/notes/components/NoteEditorTopBar";
 import {
@@ -25,11 +24,9 @@ import { useNoteEditorData } from "@/features/notes/useNoteEditorData";
 import { initialHtmlFor } from "@/features/notes/utils";
 
 /** Height of the parent layout's floating glass tab bar, which overlays this screen. */
-const TAB_BAR_HEIGHT = 48;
 
 export default function NoteEditorScreen() {
 	const router = useRouter();
-	const insets = useSafeAreaInsets();
 	const params = useLocalSearchParams<{ id: string | string[] }>();
 	const noteId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
 
@@ -38,7 +35,7 @@ export default function NoteEditorScreen() {
 	const [aiOpen, setAiOpen] = useState(false);
 	const [tagsOpen, setTagsOpen] = useState(false);
 
-	const bottomInset = TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm);
+	const bottomInset = useTabBarSpace();
 
 	const goBack = useCallback(async () => {
 		await editorRef.current?.flush();
@@ -83,7 +80,7 @@ export default function NoteEditorScreen() {
 		<Screen>
 			<KeyboardAvoidingView
 				style={styles.fill}
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior="padding"
 			>
 				<NoteEditorTopBar
 					title={note?.title ?? ""}

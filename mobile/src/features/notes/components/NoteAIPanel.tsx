@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import {
 	KeyboardAvoidingView,
 	Modal,
-	Platform,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -59,7 +58,7 @@ export function NoteAIPanel({
 				<Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close AI panel" />
 
 				<KeyboardAvoidingView
-					behavior={Platform.OS === "ios" ? "padding" : undefined}
+					behavior="padding"
 					style={styles.panel}
 				>
 					<View style={styles.header}>

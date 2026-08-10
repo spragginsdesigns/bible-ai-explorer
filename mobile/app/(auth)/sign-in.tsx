@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
-	Platform,
 	StyleSheet,
 	Text,
 	TextInput,
@@ -80,7 +79,7 @@ export default function SignInScreen() {
 	return (
 		<Screen edges={["top", "bottom"]}>
 			<KeyboardAvoidingView
-				behavior={Platform.OS === "ios" ? "padding" : undefined}
+				behavior="padding"
 				style={styles.container}
 			>
 				<View style={styles.hero}>
