@@ -124,17 +124,25 @@ export function buildVerseMindTools(context: VerseMindToolContext) {
 			: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. Write the content as clean markdown (headings, lists, blockquotes for verses).",
 		inputSchema: z.object({
 			markdown: z.string().describe("The content to append, as markdown."),
-			noteId: z.string().optional().describe("Target note id. Omit to use the open note or create a new one."),
+			noteId: z
+				.string()
+				.optional()
+				.describe(
+					"Target note id from findNotes. OMIT THIS FIELD ENTIRELY (do not pass an empty string) to write to the currently open note, or to create a new note when none is open."
+				),
 			title: z
 				.string()
 				.optional()
 				.describe("Title for a new note when no noteId is given and no note is open."),
 		}),
 		execute: async ({ markdown, noteId, title }): Promise<AddToNoteToolOutput> => {
+			// Models sometimes send noteId as an empty string; treat any blank
+			// value as "not specified" so the open note (defaultNoteId) wins.
+			const targetNoteId = noteId?.trim() || context.defaultNoteId;
 			return appendMarkdownToNote({
 				userId: context.userId,
 				markdown,
-				noteId: noteId ?? context.defaultNoteId,
+				noteId: targetNoteId,
 				title,
 			});
 		},
