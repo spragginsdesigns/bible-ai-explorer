@@ -120,7 +120,7 @@ export function buildVerseMindTools(context: VerseMindToolContext) {
 
 	const addToNoteTool = tool({
 		description: context.defaultNoteId
-			? "Add content to the user's Bible study notes. Only call this when the user asks you to add, save, or write something to their note. Omit noteId to add to the note that is currently open. Write the content as clean markdown (headings, lists, blockquotes for verses)."
+			? "Add content to the user's Bible study notes. Only call this when the user asks you to add, save, or write something to their note. ALWAYS omit noteId in this conversation - \"this note\" or \"my note\" means the note that is currently open, even if earlier tool results in this conversation mention another note id. Pass a noteId only when the user explicitly names a DIFFERENT note. Write the content as clean markdown (headings, lists, blockquotes for verses)."
 			: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. Write the content as clean markdown (headings, lists, blockquotes for verses).",
 		inputSchema: z.object({
 			markdown: z.string().describe("The content to append, as markdown."),
