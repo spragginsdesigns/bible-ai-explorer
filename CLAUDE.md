@@ -15,13 +15,35 @@ VerseMind is a Bible study assistant for Christians. It MUST emulate a saved, bo
 
 ## Development Priorities (IMPORTANT)
 
-**The Android app (`mobile/`) is the PRIMARY client going forward.** New
-features are built for Android first. The web UI is sunsetted /
-maintenance-only: parallel a new feature to the web client only when it makes
-sense, otherwise leave web untouched. The **backend is shared and fully
-active** — the Next.js API routes (`src/app/api/*`) serve both clients, so
-server-side work (tools, prompts, memory, persistence) benefits Android
-directly and still auto-deploys to Vercel on push.
+**The Android app (`mobile/`) is the PRIMARY client and the source of truth
+for features.** New features are built for Android first — and the **web
+client MUST be brought to 1:1 feature parity with Android**. Web is NOT
+sunsetted; it is a first-class client that mirrors Android.
+
+### The Parity Rule (non-negotiable)
+
+1. **Android leads, web follows — always.** When a feature ships on Android,
+   the same feature MUST ship on web in the same release cycle. A release is
+   not done until both clients have it.
+2. **Parity means feature parity.** Every user-visible Android capability must
+   exist on web with the same behavior (same API calls, same message/tool
+   rendering, same actions). Layout may adapt to the form factor (sidebar vs
+   bottom sheet, click vs long-press), but no capability may be missing.
+3. **Never remove a web feature Android lacks** — web may be a superset
+   (e.g. light-mode toggle, sign-out button), but never a subset.
+4. **The parity tracker is `docs/PARITY.md`.** It lists every Android feature
+   and its web status. Update it whenever either client changes. A feature is
+   only "done" when its row says ✅ on both sides.
+5. **The backend is shared and fully active** — the Next.js API routes
+   (`src/app/api/*`) serve both clients, so server-side work (tools, prompts,
+   memory, persistence) automatically benefits both and auto-deploys to Vercel
+   on push. Prefer server-side changes over duplicating logic per client.
+
+**The web app must also always link to the Android APK** so web users can
+install the native app. The APK is distributed via a stable Google Drive file
+(updated in place on each release — see `mobile/README.md`):
+`https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view`
+This link must stay visible in the web UI (see `src/lib/constants.ts`).
 
 - Mobile docs: `mobile/README.md` (stack, build, Windows gotchas, release checklist)
 - Mobile changelog: `mobile/CHANGELOG.md` — add an entry + bump `mobile/app.json` version on every feature release

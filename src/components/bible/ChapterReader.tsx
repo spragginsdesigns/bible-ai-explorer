@@ -1,0 +1,435 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { bookByOrder } from "@/lib/bible/books";
+import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
+
+const FONT_STEPS = [17, 20, 24, 28] as const;
+const FONT_STEP_KEY = "bible-reader-font-step";
+const TRANSLATION_KEY = "bible-reader-translation";
+const HIGHLIGHT_MS = 2400;
+
+interface ActionVerse {
+  number: number;
+  text: string;
+}
+
+function readFontStep(): number {
+  if (typeof window === "undefined") return 1;
+  const raw = Number.parseInt(window.sessionStorage.getItem(FONT_STEP_KEY) ?? "", 10);
+  if (!Number.isInteger(raw)) return 1;
+  return Math.min(FONT_STEPS.length - 1, Math.max(0, raw));
+}
+
+function readTranslation(): TranslationId {
+  if (typeof window === "undefined") return "KJV";
+  return window.sessionStorage.getItem(TRANSLATION_KEY) === "NKJV" ? "NKJV" : "KJV";
+}
+
+/**
+ * Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), verse
+ * click actions (copy/share/save/Ask AI), adjustable type size, and prev/next
+ * navigation that rolls into adjacent books like YouVersion. Mirrors
+ * mobile/app/(app)/bible/chapter.tsx.
+ */
+const ChapterReader: React.FC = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const order = Number.parseInt(searchParams.get("book") ?? "1", 10);
+  const chapter = Number.parseInt(searchParams.get("chapter") ?? "1", 10);
+  const verseParam = Number.parseInt(searchParams.get("verse") ?? "", 10) || null;
+
+  const book = bookByOrder(order);
+  const [translation, setTranslationState] = useState<TranslationId>(readTranslation);
+  const [verses, setVerses] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [fontStep, setFontStep] = useState(readFontStep);
+  const [highlighted, setHighlighted] = useState<number | null>(null);
+  const [actionVerse, setActionVerse] = useState<ActionVerse | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const lastFlashed = useRef<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const next = await getChapter(translation, order, chapter);
+      setVerses(next);
+    } catch (err) {
+      setVerses([]);
+      setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }, [translation, order, chapter]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const next = await getChapter(translation, order, chapter);
+        if (cancelled) return;
+        setVerses(next);
+        window.scrollTo(0, 0);
+      } catch (err) {
+        if (cancelled) return;
+        setVerses([]);
+        setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [translation, order, chapter]);
+
+  // ?verse= deep link: scroll to the verse once the chapter is on screen and
+  // flash it briefly so the eye lands there.
+  useEffect(() => {
+    if (loading || error || !verses.length) return;
+    if (!verseParam || verseParam < 1 || verseParam > verses.length) return;
+    const flashKey = `${translation}:${order}:${chapter}:${verseParam}`;
+    if (lastFlashed.current === flashKey) return;
+    lastFlashed.current = flashKey;
+    const scrollTimer = setTimeout(() => {
+      document
+        .getElementById(`bible-verse-${verseParam}`)
+        ?.scrollIntoView({ block: "start" });
+      setHighlighted(verseParam);
+      setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
+    }, 250);
+    return () => clearTimeout(scrollTimer);
+  }, [loading, error, verses, translation, order, chapter, verseParam]);
+
+  const setTranslation = useCallback((id: TranslationId) => {
+    window.sessionStorage.setItem(TRANSLATION_KEY, id);
+    setTranslationState(id);
+  }, []);
+
+  const stepFont = useCallback((delta: number) => {
+    setFontStep((step) => {
+      const next = Math.min(FONT_STEPS.length - 1, Math.max(0, step + delta));
+      window.sessionStorage.setItem(FONT_STEP_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const neighbors = useMemo(() => {
+    const current = bookByOrder(order);
+    if (!current) return { prev: null, next: null };
+    const at = (o: number, c: number) => ({ order: o, chapter: c });
+    const prevBook = bookByOrder(order - 1);
+    const nextBook = bookByOrder(order + 1);
+    return {
+      prev:
+        chapter > 1 ? at(order, chapter - 1) : prevBook ? at(prevBook.order, prevBook.chapters) : null,
+      next:
+        chapter < current.chapters ? at(order, chapter + 1) : nextBook ? at(nextBook.order, 1) : null,
+    };
+  }, [order, chapter]);
+
+  const reference = book ? `${book.name} ${chapter}` : "";
+  const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
+
+  const closePanel = useCallback(() => {
+    setActionVerse(null);
+    setCopied(false);
+    setSaveError(null);
+  }, []);
+
+  const askAI = useCallback(
+    (verse: { reference: string; text: string }) => {
+      closePanel();
+      router.push(
+        `/?attachRef=${encodeURIComponent(verse.reference)}` +
+          `&attachText=${encodeURIComponent(verse.text)}` +
+          `&attachTranslation=${translation}`
+      );
+    },
+    [router, closePanel, translation]
+  );
+
+  const onCopyVerse = useCallback(async () => {
+    if (!actionVerse) return;
+    await navigator.clipboard.writeText(
+      formatVerseForSharing({ reference: actionReference, text: actionVerse.text }, translation)
+    );
+    setCopied(true);
+    setTimeout(closePanel, 600);
+  }, [actionVerse, actionReference, translation, closePanel]);
+
+  const onShareVerse = useCallback(async () => {
+    if (!actionVerse) return;
+    const message = formatVerseForSharing(
+      { reference: actionReference, text: actionVerse.text },
+      translation
+    );
+    if (typeof navigator.share === "function") {
+      navigator.share({ text: message }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(message).catch(() => {});
+    }
+    closePanel();
+  }, [actionVerse, actionReference, translation, closePanel]);
+
+  const onSaveVerse = useCallback(async () => {
+    if (!actionVerse || saveBusy) return;
+    setSaveBusy(true);
+    setSaveError(null);
+    try {
+      await saveVerseToNote({ reference: actionReference, text: actionVerse.text }, translation);
+      closePanel();
+      router.push("/notes");
+    } catch {
+      setSaveError("The note could not be saved. Check your connection and try again.");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, [actionVerse, actionReference, saveBusy, router, closePanel, translation]);
+
+  const fontSize = FONT_STEPS[fontStep];
+  const lineHeight = Math.round(fontSize * 1.55);
+
+  const navHref = (target: { order: number; chapter: number }) =>
+    `/bible/chapter?book=${target.order}&chapter=${target.chapter}`;
+
+  if (!book) {
+    return (
+      <div className="min-h-[100dvh] gradient-mesh">
+        <div className="mx-auto w-full max-w-2xl px-5">
+          <div className="flex items-center py-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+            >
+              ‹ Back
+            </button>
+          </div>
+          <div className="flex items-center justify-center p-8">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">That book could not be found.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-[100dvh] gradient-mesh">
+      <div className="mx-auto w-full max-w-2xl px-5 pb-32">
+        {/* Top bar */}
+        <div className="flex items-center gap-4 py-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+          >
+            ‹ Back
+          </button>
+          <h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+            {reference}
+          </h1>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              aria-label="Decrease text size"
+              disabled={fontStep === 0}
+              onClick={() => stepFont(-1)}
+              className={`rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-xs font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === 0 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
+            >
+              A−
+            </button>
+            <button
+              type="button"
+              aria-label="Increase text size"
+              disabled={fontStep === FONT_STEPS.length - 1}
+              onClick={() => stepFont(1)}
+              className={`rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-base font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === FONT_STEPS.length - 1 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
+            >
+              A+
+            </button>
+          </div>
+        </div>
+
+        {/* Translation chips */}
+        <div className="flex justify-end gap-1 pb-2">
+          {(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={translation === id}
+              onClick={() => setTranslation(id)}
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                translation === id
+                  ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                  : "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+              }`}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-12">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500 dark:border-amber-400/30 dark:border-t-amber-400" />
+            <p className="mt-4 text-[13px] text-neutral-400 dark:text-neutral-500">
+              {translation === "NKJV" ? "Loading the NKJV…" : "Opening the chapter…"}
+            </p>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center p-8">
+            <div className="glass-card gradient-border flex flex-col items-center gap-4 rounded-2xl p-8">
+              <p className="text-center text-sm leading-5 text-neutral-600 dark:text-neutral-300">
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={() => void load()}
+                className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="pt-2">
+              {verses.map((text, index) => {
+                const verseNumber = index + 1;
+                return (
+                  <button
+                    key={verseNumber}
+                    type="button"
+                    id={`bible-verse-${verseNumber}`}
+                    onClick={() => setActionVerse({ number: verseNumber, text })}
+                    className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
+                      highlighted === verseNumber ? "bg-amber-500/10 dark:bg-amber-400/10" : ""
+                    }`}
+                  >
+                    <span
+                      className="font-[family-name:var(--font-cormorant)] text-neutral-700 dark:text-neutral-300"
+                      style={{ fontSize, lineHeight: `${lineHeight}px` }}
+                    >
+                      <span className="mr-1 align-super font-sans text-xs font-bold small-caps text-amber-700/60 dark:text-amber-500/50">
+                        {verseNumber}
+                      </span>
+                      {text}
+                    </span>
+                    <span className="block h-4" aria-hidden />
+                  </button>
+                );
+              })}
+
+              {/* Footer */}
+              <p className="mt-6 text-center text-xs italic text-neutral-400/70 dark:text-neutral-600">
+                {TRANSLATIONS[translation].label} — {TRANSLATIONS[translation].copyright}
+              </p>
+              <div className="mt-6 flex gap-4">
+                {neighbors.prev ? (
+                  <Link
+                    href={navHref(neighbors.prev)}
+                    className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-sm font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+                  >
+                    ‹ Previous
+                  </Link>
+                ) : (
+                  <span className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-sm font-semibold text-neutral-600 dark:text-neutral-300 opacity-35">
+                    ‹ Previous
+                  </span>
+                )}
+                {neighbors.next ? (
+                  <Link
+                    href={navHref(neighbors.next)}
+                    className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+                  >
+                    Next ›
+                  </Link>
+                ) : (
+                  <span className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-sm font-semibold text-amber-600 dark:text-amber-400 opacity-35">
+                    Next ›
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Floating Ask AI button */}
+            <button
+              type="button"
+              aria-label={`Ask AI about ${reference}`}
+              onClick={() =>
+                askAI({
+                  reference,
+                  text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
+                })
+              }
+              className="fixed bottom-6 right-6 z-40 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-3 text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber backdrop-blur-md hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+            >
+              ✦ Ask AI
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Verse action panel (web analog of Android's long-press sheet) */}
+      {actionVerse && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={closePanel}
+            aria-hidden
+          />
+          <div className="glass relative w-full max-w-lg rounded-t-2xl border-t border-black/[0.08] dark:border-white/[0.08] p-4 pb-safe animate-message-in">
+            <p className="px-2 pb-3 text-center text-sm font-bold text-amber-600 dark:text-amber-400">
+              {actionReference}
+            </p>
+            {[
+              {
+                glyph: "⧉",
+                label: copied ? "Copied ✓" : "Copy",
+                onPress: () => void onCopyVerse(),
+              },
+              { glyph: "↗", label: "Share", onPress: () => void onShareVerse() },
+              {
+                glyph: "✎",
+                label: saveBusy ? "Saving…" : "Save to note",
+                onPress: () => void onSaveVerse(),
+              },
+              {
+                glyph: "✦",
+                label: "Ask AI about this verse",
+                onPress: () => askAI({ reference: actionReference, text: actionVerse.text }),
+              },
+            ].map((row) => (
+              <button
+                key={row.glyph + row.label}
+                type="button"
+                onClick={row.onPress}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+              >
+                <span className="w-5 text-center text-amber-600 dark:text-amber-400">{row.glyph}</span>
+                {row.label}
+              </button>
+            ))}
+            {saveError && (
+              <p className="px-3 py-2 text-[12.5px] text-red-500 dark:text-red-400">{saveError}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ChapterReader;

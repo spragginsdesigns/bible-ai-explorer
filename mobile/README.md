@@ -4,9 +4,13 @@ The native Android app for **VerseMind** — a KJV Bible study companion that
 answers from a believing perspective, quotes Scripture word-for-word, writes
 into your study notes on request, and remembers you between conversations.
 
-**This is the primary VerseMind client.** The web app
-(bible-ai-explorer.vercel.app) is in maintenance mode: new features land here
-first and are paralleled to web only when it makes sense.
+**This is the primary VerseMind client and the source of truth for
+features.** New features land here first — and the web app
+(bible-ai-explorer.vercel.app) MUST be brought to 1:1 feature parity in the
+same release cycle. Web may be a superset, never a subset. The parity rule
+lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
+update it on every feature release. The web app links to this app's APK
+(Drive file below) so web users can install it.
 
 ## Stack
 

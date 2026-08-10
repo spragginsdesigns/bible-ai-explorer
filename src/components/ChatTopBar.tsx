@@ -2,9 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
-import { Menu, Sun, Moon, SquarePen, MessageSquare, BookOpen } from "lucide-react";
+import { Menu, Sun, Moon, SquarePen, MessageSquare, BookOpen, BookMarked, Smartphone } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
+import { ANDROID_APK_URL } from "@/lib/constants";
 
 interface ChatTopBarProps {
 	title: string;
@@ -35,6 +36,13 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 						Chat
 					</Link>
 					<Link
+						href="/bible"
+						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+					>
+						<BookMarked className="w-3.5 h-3.5" />
+						Bible
+					</Link>
+					<Link
 						href="/notes"
 						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
 					>
@@ -51,6 +59,16 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 				>
 					<SquarePen className="w-4 h-4" />
 				</button>
+				<a
+					href={ANDROID_APK_URL}
+					target="_blank"
+					rel="noopener noreferrer"
+					title="Get the Android app"
+					aria-label="Get the Android app"
+					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+				>
+					<Smartphone className="w-4 h-4" />
+				</a>
 				<button
 					onClick={() => {
 						const isDark = document.documentElement.classList.contains("dark");

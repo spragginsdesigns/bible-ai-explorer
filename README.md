@@ -9,8 +9,22 @@
 </p>
 
 <p align="center">
-  <a href="https://bible-ai-explorer.vercel.app">Live App</a>
+  <a href="https://bible-ai-explorer.vercel.app">Live Web App</a> ·
+  <a href="https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view">Download the Android App (APK)</a>
 </p>
+
+---
+
+## Clients & the Parity Rule
+
+VerseMind has two first-class clients over one shared backend (this repo's Next.js API routes + Postgres):
+
+- **Android** (`mobile/`, Expo / React Native) — the **primary client and source of truth for features**
+- **Web** (`src/`, Next.js) — must stay at **1:1 feature parity with Android**
+
+**Parity rule:** every feature that ships on Android must ship on web in the same release cycle (layout may adapt to the form factor; capabilities may not be dropped). Web may be a superset, never a subset. The living tracker is [`docs/PARITY.md`](docs/PARITY.md); project rules are in [`CLAUDE.md`](CLAUDE.md).
+
+The Android APK is distributed via a stable Google Drive link (updated in place each release — see `mobile/README.md`): **[Download VerseMind for Android](https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view)**. The web app links to it so web users can install the native app.
 
 ---
 

@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { Suspense, useState, useRef, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import ChatSidebar from "./ChatSidebar";
 import ChatTopBar from "./ChatTopBar";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
 import WelcomeScreen from "./WelcomeScreen";
 import { useChat } from "./useChat";
+import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCommands";
+import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
 const SWIPE_THRESHOLD = 50;
 const EDGE_ZONE = 30;
 
-const BibleAIExplorer: React.FC = () => {
+const BibleAIExplorerInner: React.FC = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const touchStartX = useRef(0);
 	const touchStartY = useRef(0);
@@ -48,6 +51,11 @@ const BibleAIExplorer: React.FC = () => {
 		loading,
 		historyLoading,
 		historyError,
+		input,
+		setInput,
+		attachment,
+		setAttachment,
+		clearAttachment,
 		sendMessage,
 		newConversation,
 		switchConversation,
@@ -56,9 +64,64 @@ const BibleAIExplorer: React.FC = () => {
 		clearAllConversations,
 	} = useChat();
 
+	// Deep links from the Bible reader (/bible): ?prompt= prefills the input,
+	// ?attachRef/&attachText=/&attachTranslation= pins a passage above it.
+	const searchParams = useSearchParams();
+	const promptParam = searchParams.get("prompt") ?? "";
+	const attachRefParam = searchParams.get("attachRef") ?? "";
+	const attachTextParam = searchParams.get("attachText") ?? "";
+	const attachTranslationParam = searchParams.get("attachTranslation") ?? "";
+	const [focusSignal, setFocusSignal] = useState(0);
+	const lastSeededPrompt = useRef("");
+	const lastSeededAttachment = useRef("");
+
+	// ?prompt= — prefill the input and focus it, but leave sending to the user.
+	useEffect(() => {
+		if (!promptParam || promptParam === lastSeededPrompt.current) return;
+		lastSeededPrompt.current = promptParam;
+		setInput(promptParam);
+		setFocusSignal((signal) => signal + 1);
+	}, [promptParam, setInput]);
+
+	// ?attachRef= etc. — pin the passage above the input and focus so the user
+	// can type their own question; any draft they already typed stays untouched.
+	useEffect(() => {
+		if (!attachRefParam) return;
+		const key = `${attachRefParam} ${attachTranslationParam} ${attachTextParam}`;
+		if (key === lastSeededAttachment.current) return;
+		lastSeededAttachment.current = key;
+		const translation: TranslationId =
+			attachTranslationParam in TRANSLATIONS
+				? (attachTranslationParam as TranslationId)
+				: "KJV";
+		setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
+		setFocusSignal((signal) => signal + 1);
+	}, [attachRefParam, attachTextParam, attachTranslationParam, setAttachment]);
+
 	const handleSend = (text: string) => {
 		sendMessage(text);
 	};
+
+	const onLocalCommand = useCallback(
+		(action: LocalCommandAction) => {
+			if (action === "new") {
+				newConversation();
+				setSidebarOpen(false);
+			} else if (action === "history") {
+				setSidebarOpen(true);
+			} else if (action === "clear") {
+				if (!activeConversationId) {
+					newConversation();
+					return;
+				}
+				const confirmed = window.confirm(
+					"Delete this conversation?\n\nThe conversation and its messages will be removed."
+				);
+				if (confirmed) void deleteConversation(activeConversationId);
+			}
+		},
+		[activeConversationId, newConversation, deleteConversation]
+	);
 
 	const title = activeConversation?.title ?? "New Chat";
 
@@ -142,10 +205,23 @@ const BibleAIExplorer: React.FC = () => {
 					loading={loading}
 					isStreaming={isStreaming}
 					disabled={historyLoading || Boolean(historyError)}
+					commands={CHAT_SLASH_COMMANDS}
+					onLocalCommand={onLocalCommand}
+					value={input}
+					onChangeText={setInput}
+					attachment={attachment}
+					onClearAttachment={clearAttachment}
+					focusSignal={focusSignal}
 				/>
 			</div>
 		</div>
 	);
 };
+
+const BibleAIExplorer: React.FC = () => (
+	<Suspense fallback={null}>
+		<BibleAIExplorerInner />
+	</Suspense>
+);
 
 export default BibleAIExplorer;

@@ -2,7 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import { Menu, FilePlus, MessageSquare, BookOpen } from "lucide-react";
+import { Menu, FilePlus, MessageSquare, BookOpen, BookMarked, Smartphone } from "lucide-react";
+import { ANDROID_APK_URL } from "@/lib/constants";
 
 interface NotesTopBarProps {
 	onToggleSidebar: () => void;
@@ -30,6 +31,13 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 						Chat
 					</Link>
 					<Link
+						href="/bible"
+						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.03] transition-colors"
+					>
+						<BookMarked className="w-3.5 h-3.5" />
+						Bible
+					</Link>
+					<Link
 						href="/notes"
 						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-amber-400 bg-white/[0.04] border-b-2 border-amber-400 transition-colors"
 					>
@@ -39,6 +47,16 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 				</nav>
 			</div>
 			<div className="flex items-center gap-0">
+				<a
+					href={ANDROID_APK_URL}
+					target="_blank"
+					rel="noopener noreferrer"
+					title="Get the Android app"
+					aria-label="Get the Android app"
+					className="text-neutral-500 hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+				>
+					<Smartphone className="w-4 h-4" />
+				</a>
 				<button
 					onClick={onNewNote}
 					title="New Note"

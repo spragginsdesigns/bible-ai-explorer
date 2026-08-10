@@ -13,7 +13,7 @@ const FollowUpChips: React.FC<FollowUpChipsProps> = ({ questions, onSelect }) =>
 		<div className="mt-4 space-y-2">
 			<p className="text-xs text-neutral-500 dark:text-neutral-600 flex items-center gap-1">
 				<MessageCircleQuestion className="w-3.5 h-3.5" />
-				If you&apos;d like to keep exploring:
+				If you&apos;d like to keep exploring
 			</p>
 			<div className="flex flex-wrap gap-2">
 				{questions.map((q) => (

@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { VerseMindUIMessage } from "@/lib/ai-tools";
+import {
+	composeMessageWithAttachment,
+	type VerseAttachment,
+} from "@/lib/chat/verseActions";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -246,6 +250,13 @@ export const useChat = () => {
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [historyError, setHistoryError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<string | null>(null);
+	const [input, setInput] = useState("");
+	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
+	const setAttachment = useCallback(
+		(next: VerseAttachment) => setAttachmentState(next),
+		[]
+	);
+	const clearAttachment = useCallback(() => setAttachmentState(null), []);
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
 	const historyLoadVersionRef = useRef(0);
@@ -393,9 +404,9 @@ export const useChat = () => {
 
 	const sendMessage = useCallback(
 		async (text: string) => {
-			const trimmed = text.trim();
+			const composed = composeMessageWithAttachment(text, attachment);
 			if (
-				!trimmed ||
+				!composed ||
 				historyLoadingRef.current ||
 				historyErrorRef.current ||
 				status === "submitted" ||
@@ -412,7 +423,7 @@ export const useChat = () => {
 					const res = await fetch("/api/conversations", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ title: trimmed.slice(0, 60) }),
+						body: JSON.stringify({ title: composed.slice(0, 60) }),
 					});
 					if (res.ok) {
 						const created = await res.json();
@@ -421,7 +432,7 @@ export const useChat = () => {
 						setConversations((prev) => [
 							{
 								id: created.id,
-								title: trimmed.slice(0, 60),
+								title: composed.slice(0, 60),
 								createdAt: new Date().toISOString(),
 							},
 							...prev,
@@ -432,9 +443,10 @@ export const useChat = () => {
 				}
 			}
 
-			void sendUIMessage({ text: trimmed });
+			setAttachmentState(null);
+			void sendUIMessage({ text: composed });
 		},
-		[sendUIMessage, status]
+		[attachment, sendUIMessage, status]
 	);
 
 	const isStreaming = status === "streaming";
@@ -485,6 +497,11 @@ export const useChat = () => {
 		historyLoading,
 		historyError,
 		error,
+		input,
+		setInput,
+		attachment,
+		setAttachment,
+		clearAttachment,
 		sendMessage,
 		newConversation,
 		switchConversation,
