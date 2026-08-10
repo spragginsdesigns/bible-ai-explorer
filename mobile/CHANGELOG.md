@@ -3,6 +3,45 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.3.0] — 2026-08-10
+
+### Added
+- **Verse actions.** Every retrieved-verse card now has Copy, Share (Android
+  share sheet), Save to note (creates a note titled by the reference with a
+  Scripture blockquote, then opens it), and Read.
+- **Reading mode.** New full-screen passage view (`/reader`) that fetches the
+  exact KJV text via `/api/get-verse`, with adjustable type size (A−/A+),
+  per-verse numbering, and copy/share of the whole passage. Reachable from
+  verse cards; hidden from the tab bar.
+- **EAS build pipeline.** `eas.json` with `development` (debug APK),
+  `preview` (internal APK), and `production` (AAB, auto-increment) profiles.
+- **OTA updates.** `expo-updates` wired with the `appVersion` runtime policy —
+  JS-only fixes can ship via `eas update` instead of a fresh APK.
+- **Test harness.** Vitest + `npm test` / `npm run typecheck` scripts. 41
+  tests cover slash-command parsing, the chat view-model (tool outputs,
+  follow-ups, DB history mapping), relative-date formatting, verse actions
+  (share formatting, HTML escaping, create→patch note flow), and the API
+  layer's retry/timeout/offline behavior.
+
+### Changed
+- **API resilience.** `apiJson` and `makeAuthedFetch` now retry once with a
+  freshly-fetched Clerk token on 401 (an expired cached token used to surface
+  as a user-facing failure), time out REST calls after 30s, and map network
+  failures to a clear "you appear to be offline" error (`ApiError`).
+- **Versions synced.** `package.json` and `app.json` both track the app
+  version (1.3.0); `appVersionSource: local` in EAS keeps it that way.
+- **Typed routes re-enabled** (`experiments.typedRoutes: true`); new
+  navigation uses the object form (`router.push({ pathname, params })`).
+
+### Notes for release
+- Run `eas init` once to link the EAS project, then `eas update:configure`
+  to stamp the updates URL into `app.json` (project id is intentionally not
+  committed).
+- `package-lock.json` needs a local `npm install` in `mobile/` to pick up the
+  new dependencies (the lockfile is too large to commit via the API).
+- Clerk publishable key is still the dev instance (`pk_test_…`); swap to the
+  live key and configure the Play Store OAuth redirect before distribution.
+
 ## [1.2.0] — 2026-08-09
 
 ### Added

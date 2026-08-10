@@ -1,0 +1,33 @@
+{
+	"cli": {
+		"version": ">= 14.0.0",
+		"appVersionSource": "local"
+	},
+	"build": {
+		"development": {
+			"developmentClient": true,
+			"distribution": "internal",
+			"android": {
+				"buildType": "apk"
+			},
+			"channel": "development"
+		},
+		"preview": {
+			"distribution": "internal",
+			"android": {
+				"buildType": "apk"
+			},
+			"channel": "preview"
+		},
+		"production": {
+			"autoIncrement": true,
+			"android": {
+				"buildType": "app-bundle"
+			},
+			"channel": "production"
+		}
+	},
+	"submit": {
+		"production": {}
+	}
+}

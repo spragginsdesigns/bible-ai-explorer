@@ -2,13 +2,21 @@
 	"expo": {
 		"name": "VerseMind",
 		"slug": "versemind",
-		"version": "1.2.0",
+		"version": "1.3.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "versemind",
 		"userInterfaceStyle": "dark",
 		"backgroundColor": "#0a0a0a",
 		"newArchEnabled": true,
+		"runtimeVersion": {
+			"policy": "appVersion"
+		},
+		"updates": {
+			"enabled": true,
+			"checkAutomatically": "ON_LOAD",
+			"fallbackToCacheTimeout": 0
+		},
 		"android": {
 			"package": "com.spragginsdesigns.versemind",
 			"adaptiveIcon": {
@@ -38,7 +46,7 @@
 			]
 		],
 		"experiments": {
-			"typedRoutes": false
+			"typedRoutes": true
 		},
 		"extra": {
 			"apiUrl": "https://bible-ai-explorer.vercel.app",
