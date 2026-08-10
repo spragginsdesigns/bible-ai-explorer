@@ -13,19 +13,25 @@ const MAX_MEMORIES_PER_USER = 60;
 const MAX_MEMORY_CONTENT_LENGTH = 500;
 const MAX_EXCHANGE_CHARACTERS = 8000;
 
+function fetchUserMemories(userId: string): Promise<UserMemoryRecord[]> {
+	return prisma.userMemory.findMany({
+		where: { userId },
+		orderBy: { updatedAt: "desc" },
+		take: MAX_MEMORIES_PER_USER,
+		select: { id: true, content: true, category: true },
+	});
+}
+
 /**
- * Load a user's memories. Runs on the chat request path, so a memory-layer
- * outage must never take chat down with it: on failure we log and behave like
- * a user with no memories yet.
+ * Load a user's memories for prompt injection. Runs on the chat request path,
+ * so a memory-layer outage must never take chat down with it: on failure we log
+ * and behave like a user with no memories yet.
+ *
+ * Read-side only. Extraction must NOT use this - see extractAndStoreMemories.
  */
 export async function loadUserMemories(userId: string): Promise<UserMemoryRecord[]> {
 	try {
-		return await prisma.userMemory.findMany({
-			where: { userId },
-			orderBy: { updatedAt: "desc" },
-			take: MAX_MEMORIES_PER_USER,
-			select: { id: true, content: true, category: true },
-		});
+		return await fetchUserMemories(userId);
 	} catch (error) {
 		console.error("Loading user memories failed; continuing without them:", error);
 		return [];
@@ -87,7 +93,13 @@ export async function extractAndStoreMemories(options: {
 	userText: string;
 }): Promise<void> {
 	try {
-		const existing = await loadUserMemories(options.userId);
+		// fetchUserMemories, not loadUserMemories: the read must be allowed to
+		// throw here. Reconciliation is only correct if the model is shown the
+		// memories that actually exist - if a transient read failure silently
+		// yielded [], every stored fact would look new and get re-added as a
+		// duplicate. Failing the whole extraction is the safe outcome; the outer
+		// catch swallows it and the next exchange retries.
+		const existing = await fetchUserMemories(options.userId);
 		const existingBlock =
 			existing.length > 0
 				? existing.map((m) => `[${m.id}] (${m.category}) ${m.content}`).join("\n")
