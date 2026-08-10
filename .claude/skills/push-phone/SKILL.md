@@ -26,21 +26,25 @@ broken on this machine — see memory).
 
 Exit code 2 means no phone was reachable.
 
-## If no phone is reachable
+## If no phone is reachable (exit 2)
 
-Wireless debugging ports rotate when the phone toggles the feature, so a stale
-saved address is normal. Ask Austin to open **Settings → Developer options →
-Wireless debugging** on the phone (must be on the same Wi-Fi as the PC) and:
+Walk Austin through the script's printed ladder ONE step at a time — don't dump
+all five steps at once. The usual fix is just step 2:
 
-- **Already paired before:** read the IP:port shown on that screen, then
-  `bash mobile/scripts/push-phone.sh connect <ip:port>` and re-run the push.
-- **First-time pairing:** tap **Pair device with pairing code**, then
-  `bash mobile/scripts/push-phone.sh pair <pair-ip:port> <6-digit-code>`
-  (the pairing screen's port differs from the connect port), then the
-  `connect` step above with the main screen's IP:port.
-- **Developer options not enabled yet:** Settings → About phone → Software
-  information → tap **Build number** 7 times, then find Developer options in
-  Settings and enable **Wireless debugging**.
+1. Phone on the same Wi-Fi as the PC? (Wireless debugging is per-network.)
+2. **Settings → Developer options → Wireless debugging** — toggle it ON
+   (Samsung silently turns it off after some reboots), then simply re-run the
+   push; the script rescans and self-heals rotated ports by port-scanning the
+   saved IP.
+3. Still failing: have him read the **IP address & port** under the toggle →
+   `bash mobile/scripts/push-phone.sh connect <ip:port>` → re-run the push.
+4. Pairing reset ("failed to authenticate"): **Pair device with pairing code**
+   on that screen → `bash mobile/scripts/push-phone.sh pair <pair-ip:port> <code>`
+   → then step 3 with the MAIN screen's ip:port (pairing uses a different port).
+5. Last resort: USB cable with USB debugging on, or fall back to Drive (below).
+
+If Developer options aren't enabled at all: Settings → About phone → Software
+information → tap **Build number** 7 times.
 
 If Austin can't do the phone-side steps right now, fall back to updating the
 Google Drive APK in place (same link he already has):

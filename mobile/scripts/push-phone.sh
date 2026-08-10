@@ -121,12 +121,24 @@ fi
 
 if ! ensure_device; then
   cat <<'EOF'
-[push-phone] No phone reachable.
-  - If Wireless debugging is ON: get the IP:port from Settings > Developer options >
-    Wireless debugging and run:  push-phone.sh connect <ip:port>
-  - If this is the FIRST time: tap "Pair device with pairing code" on that screen and run:
-    push-phone.sh pair <pair-ip:port> <6-digit-code>   then the connect step above.
-  - Or plug in USB with USB debugging enabled.
+[push-phone] Couldn't reach the phone. Try these in order, on the S24 Ultra:
+
+  1. Is the phone on the same Wi-Fi as the PC? (Wireless debugging is per-network.)
+
+  2. Settings -> Developer options -> Wireless debugging
+     Make sure the toggle is ON (Samsung turns it off after some reboots).
+     Then just re-run this command - it rescans automatically.
+
+  3. Still failing? On that same Wireless debugging screen, read the
+     "IP address & port" shown under the toggle and run:
+       bash mobile/scripts/push-phone.sh connect <ip:port>
+
+  4. Says "failed to authenticate" or pairing was reset? On the same screen tap
+     "Pair device with pairing code" (shows its own ip:port + 6-digit code):
+       bash mobile/scripts/push-phone.sh pair <pair-ip:port> <code>
+     then do step 3 with the MAIN screen's ip:port (different port than pairing).
+
+  5. Last resort: plug in a USB cable (with USB debugging on) and re-run.
 EOF
   exit 2
 fi
