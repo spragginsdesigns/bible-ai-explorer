@@ -26,6 +26,7 @@ import {
 } from "@/features/settings/settingsStore";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
+const HIGHLIGHT_MS = 2400;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
@@ -47,21 +48,26 @@ export default function BibleChapterScreen() {
 	const { colors } = useTheme();
 	const params = useLocalSearchParams<{ book?: string; chapter?: string; verse?: string }>();
 
-	const [order, setOrder] = useState(() =>
-		Number.parseInt(typeof params.book === "string" ? params.book : "1", 10)
-	);
-	const [chapter, setChapter] = useState(() =>
-		Number.parseInt(typeof params.chapter === "string" ? params.chapter : "1", 10)
-	);
-	const targetVerse = useRef(
-		Number.parseInt(typeof params.verse === "string" ? params.verse : "", 10) || null
-	);
+	// The params ARE what the reader shows — they must never be copied into
+	// state. `bible` is a nested stack that keeps this screen mounted, so a
+	// second deep link from chat reuses the instance and only updates the
+	// params; anything seeded once at mount would keep rendering the first
+	// chapter forever. Mirrors src/components/bible/ChapterReader.tsx on web.
+	const order = Number.parseInt(typeof params.book === "string" ? params.book : "1", 10);
+	const chapter = Number.parseInt(typeof params.chapter === "string" ? params.chapter : "1", 10);
+	const verseParam =
+		Number.parseInt(typeof params.verse === "string" ? params.verse : "", 10) || null;
 
 	const book: Book | null = bookByOrder(order);
 	// The reader's translation chips and Settings share one persisted default.
 	const translation = useSettings().translation;
 	const setTranslation = setBibleTranslation;
 	const [verses, setVerses] = useState<string[]>([]);
+	// Which chapter `verses` actually holds. Params change a render before the
+	// new text arrives, so without this the effects below would run once against
+	// the previous chapter's verses while `order`/`chapter` already point at the
+	// new one.
+	const [loadedKey, setLoadedKey] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [fontStep, setFontStep] = useState(sessionFontStep);
@@ -72,18 +78,31 @@ export default function BibleChapterScreen() {
 	const [saveError, setSaveError] = useState<string | null>(null);
 
 	const listRef = useRef<FlatList<string>>(null);
-	const didScrollToTarget = useRef(false);
+	const lastFlashed = useRef<string | null>(null);
+	const requestId = useRef(0);
+
+	const chapterKey = `${translation}:${order}:${chapter}`;
 
 	const load = useCallback(async () => {
+		// Paging quickly, or deep-linking while a fetch is in flight, can leave
+		// two loads racing; only the newest may write. NKJV comes over the network,
+		// so the slower one is not always the older one.
+		const id = ++requestId.current;
+		const key = `${translation}:${order}:${chapter}`;
 		setLoading(true);
 		setError(null);
 		try {
-			setVerses(await getChapter(translation, order, chapter));
+			const next = await getChapter(translation, order, chapter);
+			if (requestId.current !== id) return;
+			setVerses(next);
+			setLoadedKey(key);
 		} catch (err) {
+			if (requestId.current !== id) return;
 			setVerses([]);
+			setLoadedKey(null);
 			setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
 		} finally {
-			setLoading(false);
+			if (requestId.current === id) setLoading(false);
 		}
 	}, [translation, order, chapter]);
 
@@ -91,20 +110,38 @@ export default function BibleChapterScreen() {
 		void load();
 	}, [load]);
 
-	// ?verse= deep link: scroll to the verse once the chapter is on screen and
-	// flash it briefly so the eye lands there.
+	// A newly opened chapter starts at the top; the ?verse= effect below scrolls
+	// on from there. Needed because the reused screen keeps the previous
+	// chapter's scroll offset.
 	useEffect(() => {
-		if (loading || error || !verses.length || didScrollToTarget.current) return;
-		const verse = targetVerse.current;
-		if (!verse || verse < 1 || verse > verses.length) return;
-		didScrollToTarget.current = true;
-		const timer = setTimeout(() => {
-			listRef.current?.scrollToIndex({ index: verse - 1, viewPosition: 0.15, animated: false });
-			setHighlighted(verse);
-			setTimeout(() => setHighlighted(null), 2400);
+		listRef.current?.scrollToOffset({ offset: 0, animated: false });
+	}, [translation, order, chapter]);
+
+	// ?verse= deep link: scroll to the verse once the chapter is on screen and
+	// flash it briefly so the eye lands there. Guarded by the reference it last
+	// flashed rather than a one-shot flag, so every new deep link re-arms it —
+	// and gated on loadedKey, or the stale-verses render would burn that guard
+	// on the incoming reference before its text was ever on screen.
+	useEffect(() => {
+		if (loading || error || loadedKey !== chapterKey || !verses.length) return;
+		if (!verseParam || verseParam < 1 || verseParam > verses.length) return;
+		const flashKey = `${chapterKey}:${verseParam}`;
+		if (lastFlashed.current === flashKey) return;
+		lastFlashed.current = flashKey;
+		const scrollTimer = setTimeout(() => {
+			listRef.current?.scrollToIndex({
+				index: verseParam - 1,
+				viewPosition: 0.15,
+				animated: false,
+			});
+			setHighlighted(verseParam);
 		}, 250);
-		return () => clearTimeout(timer);
-	}, [loading, error, verses]);
+		const clearTimer = setTimeout(() => setHighlighted(null), 250 + HIGHLIGHT_MS);
+		return () => {
+			clearTimeout(scrollTimer);
+			clearTimeout(clearTimer);
+		};
+	}, [loading, error, loadedKey, chapterKey, verses, verseParam]);
 
 	const stepFont = useCallback((delta: number) => {
 		setFontStep((step) => {
@@ -128,14 +165,22 @@ export default function BibleChapterScreen() {
 		};
 	}, [order, chapter]);
 
-	const goTo = useCallback((target: { order: number; chapter: number } | null) => {
-		if (!target) return;
-		didScrollToTarget.current = true; // don't re-trigger the ?verse= scroll
-		targetVerse.current = null;
-		listRef.current?.scrollToOffset({ offset: 0, animated: false });
-		setOrder(target.order);
-		setChapter(target.chapter);
-	}, []);
+	const goTo = useCallback(
+		(target: { order: number; chapter: number } | null) => {
+			if (!target) return;
+			// setParams rather than local state, so params stay the one description
+			// of what is on screen. Clearing ?verse= stops the flash effect from
+			// firing again in the chapter we just paged into, and forgetting the
+			// last flash lets a later deep link back to that same verse re-flash it.
+			lastFlashed.current = null;
+			router.setParams({
+				book: String(target.order),
+				chapter: String(target.chapter),
+				verse: "",
+			});
+		},
+		[router]
+	);
 
 	const reference = book ? `${book.name} ${chapter}` : "";
 	const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";

@@ -3,6 +3,27 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.8.2] — 2026-08-10
+
+### Fixed
+- **Tapping a second verse in a chat answer opens the right chapter.** Only the
+  first "Read" worked per app session: every later one dropped you back on the
+  chapter you had opened first, with nothing highlighted. `bible` is a nested
+  stack, so the reader stays mounted once opened and a second deep link reuses
+  it and merely updates its params — but the screen read those params only in
+  its `useState`/`useRef` initializers, which run at mount and never again. The
+  params are now what the reader renders, and chapter paging goes through
+  `router.setParams` so they always describe what is on screen.
+- **The verse highlight fires on every deep link, not just the first.** The
+  scroll-and-flash was armed by a one-shot flag; it is now keyed by the
+  reference, and gated on the loaded chapter matching the requested one. Params
+  change a render before the new text arrives, and in that gap the effect used
+  to burn its guard on the incoming verse while the previous chapter's text was
+  still on screen — so the flash never ran once the right chapter loaded.
+- Chapter loads can no longer land out of order. Two loads racing (paging fast,
+  or deep-linking mid-fetch) could paint the loser's text, since NKJV is fetched
+  over the network and the slower response is not always the older request.
+
 ## [1.8.1] — 2026-08-10
 
 ### Changed
