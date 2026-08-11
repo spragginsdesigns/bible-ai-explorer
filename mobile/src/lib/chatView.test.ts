@@ -122,6 +122,29 @@ describe("dbMessageToUIMessage", () => {
 		expect(ui.parts).toEqual([{ type: "text", text: "Hi" }]);
 	});
 
+	it("restores durable attachment file parts and ids", () => {
+		const ui = dbMessageToUIMessage({
+			id: "with-file",
+			role: "user",
+			content: "What is shown here?",
+			attachments: [{
+				id: "att-1",
+				filename: "screenshot.png",
+				mediaType: "image/png",
+				size: 1200,
+				previewUrl: "https://example.test/private-signed",
+				previewExpiresAt: "2030-01-01T00:00:00.000Z",
+			}],
+		});
+		expect(ui.parts[0]).toMatchObject({
+			type: "file",
+			filename: "screenshot.png",
+			mediaType: "image/png",
+			url: "https://example.test/private-signed",
+		});
+		expect(ui.metadata).toMatchObject({ attachmentIds: ["att-1"] });
+	});
+
 	it("preserves stored parts and strips them from metadata", () => {
 		const ui = dbMessageToUIMessage({
 			id: "d2",

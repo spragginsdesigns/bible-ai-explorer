@@ -212,6 +212,14 @@ export default function ChatScreen() {
 						onChangeText={chat.setInput}
 						attachment={chat.attachment}
 						onClearAttachment={chat.clearAttachment}
+						fileAttachments={chat.fileAttachments}
+						uploadingAttachments={chat.uploadingAttachments}
+						attachmentError={chat.attachmentError}
+						onTakePhoto={() => void chat.takePhoto()}
+						onChooseImages={() => void chat.chooseImages()}
+						onChooseFiles={() => void chat.chooseFiles()}
+						onPasteImage={() => void chat.pasteImage()}
+						onRemoveFileAttachment={(id) => void chat.removeFileAttachment(id)}
 						focusSignal={focusSignal}
 					/>
 				</View>

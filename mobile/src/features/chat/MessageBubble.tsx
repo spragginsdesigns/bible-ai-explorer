@@ -13,6 +13,7 @@ import { RetrievedVersesCard } from "./RetrievedVersesCard";
 import { TypingDots } from "./TypingDots";
 import { openReferenceInReader, segmentVerseReferences } from "./verseLinks";
 import { WebResultsCard } from "./WebResultsCard";
+import { FileAttachmentCards } from "./FileAttachmentCards";
 
 interface MessageBubbleProps {
 	message: ChatViewMessage;
@@ -39,7 +40,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 		return (
 			<View style={styles.userRow}>
 				<View style={styles.userBubble}>
-					<Text style={styles.userText}>
+					{message.attachments && message.attachments.length > 0 && (
+						<View style={message.content ? styles.userFiles : undefined}>
+							<FileAttachmentCards attachments={message.attachments} />
+						</View>
+					)}
+					{message.content.length > 0 && <Text style={styles.userText}>
 						{segments.map((segment, index) =>
 							segment.type === "verse-ref" ? (
 								<Text
@@ -54,7 +60,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								<Text key={`text-${index}`}>{segment.value}</Text>
 							)
 						)}
-					</Text>
+					</Text>}
 				</View>
 			</View>
 		);
@@ -141,6 +147,7 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		userText: { color: c.text, fontSize: 15, lineHeight: 22 },
+		userFiles: { marginBottom: spacing.sm },
 		userRefLink: { color: c.accent, textDecorationLine: "underline" },
 		assistantRow: {
 			flexDirection: "row",

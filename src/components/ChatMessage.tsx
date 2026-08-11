@@ -9,6 +9,7 @@ import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
 import FollowUpChips from "./FollowUpChips";
 import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
+import ChatFileAttachments from "./ChatFileAttachments";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -23,7 +24,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 		return (
 			<div className="flex justify-end mb-4 animate-message-in">
 				<div className="max-w-[80%] sm:max-w-[70%] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.08] rounded-2xl rounded-br-sm px-4 py-3">
-					<p className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>
+					{message.attachments && message.attachments.length > 0 && (
+						<div className={message.content ? "mb-2" : ""}>
+							<ChatFileAttachments attachments={message.attachments} />
+						</div>
+					)}
+					{message.content && <p className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>}
 				</div>
 			</div>
 		);

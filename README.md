@@ -39,7 +39,8 @@ Every response is backed by exact KJV verse quotes, not paraphrases.
 - **KJV-Only Scripture** — All verse quotes are word-for-word from the King James Version
 - **Vector Search (RAG)** — Queries a vector database of Bible verse embeddings to find the most relevant passages for each question
 - **Web Search Integration** — Tavily search provides supplementary context from trusted sources alongside the AI response
-- **Conversation History** — Full chat history stored locally so you can continue past studies
+- **Private Multimodal Chat** — Ask from screenshots, photos, PDFs, and text-based study files on Android or web
+- **Conversation History** — Durable chat and attachment history so you can continue past studies
 - **Follow-Up Questions** — Suggested questions for deeper study after each response
 - **Verse Attribution** — Clickable references and confidence indicators for retrieved passages
 - **Dark / Light Mode** — Comfortable viewing in any environment

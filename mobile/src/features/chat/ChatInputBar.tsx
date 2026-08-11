@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -18,6 +19,8 @@ import {
 	type SlashCommand,
 } from "./slashCommands";
 import type { VerseAttachment } from "./verseActions";
+import type { ChatAttachmentDescriptor } from "./fileAttachments";
+import { FileAttachmentCards } from "./FileAttachmentCards";
 
 interface ChatInputBarProps {
 	onSend: (text: string) => void;
@@ -31,6 +34,14 @@ interface ChatInputBarProps {
 	/** Verse/chapter context attached to the next message (dismissible pill). */
 	attachment?: VerseAttachment | null;
 	onClearAttachment?: () => void;
+	fileAttachments?: ChatAttachmentDescriptor[];
+	uploadingAttachments?: boolean;
+	attachmentError?: string | null;
+	onTakePhoto?: () => void;
+	onChooseImages?: () => void;
+	onChooseFiles?: () => void;
+	onPasteImage?: () => void;
+	onRemoveFileAttachment?: (id: string) => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
 	value?: string;
 	onChangeText?: (text: string) => void;
@@ -49,6 +60,14 @@ export function ChatInputBar({
 	onLocalCommand,
 	attachment = null,
 	onClearAttachment,
+	fileAttachments = [],
+	uploadingAttachments = false,
+	attachmentError = null,
+	onTakePhoto,
+	onChooseImages,
+	onChooseFiles,
+	onPasteImage,
+	onRemoveFileAttachment,
 	value,
 	onChangeText,
 	focusSignal,
@@ -65,8 +84,8 @@ export function ChatInputBar({
 		},
 		[onChangeText]
 	);
-	const busy = loading || isStreaming;
-	const locked = busy || disabled;
+	const generating = loading || isStreaming;
+	const locked = generating || uploadingAttachments || disabled;
 
 	useEffect(() => {
 		if (focusSignal) inputRef.current?.focus();
@@ -102,7 +121,7 @@ export function ChatInputBar({
 
 	const submit = useCallback(() => {
 		const trimmed = text.trim();
-		if ((!trimmed && !attachment) || locked) return;
+		if ((!trimmed && !attachment && fileAttachments.length === 0) || locked) return;
 
 		const parsed = commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
 		if (parsed) {
@@ -114,9 +133,19 @@ export function ChatInputBar({
 
 		setText("");
 		onSend(trimmed);
-	}, [attachment, commands, locked, onSend, runCommand, text]);
+	}, [attachment, commands, fileAttachments.length, locked, onSend, runCommand, text]);
 
-	const canSend = Boolean(text.trim()) || Boolean(attachment);
+	const canSend = Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
+
+	const showAttachmentMenu = useCallback(() => {
+		Alert.alert("Add an attachment", "Choose a source", [
+			{ text: "Take photo", onPress: onTakePhoto },
+			{ text: "Photo library", onPress: onChooseImages },
+			{ text: "Choose files", onPress: onChooseFiles },
+			{ text: "Paste screenshot", onPress: onPasteImage },
+			{ text: "Cancel", style: "cancel" },
+		]);
+	}, [onChooseFiles, onChooseImages, onPasteImage, onTakePhoto]);
 
 	return (
 		<View style={styles.wrap}>
@@ -137,6 +166,12 @@ export function ChatInputBar({
 					</Pressable>
 				</View>
 			)}
+			{fileAttachments.length > 0 && (
+				<View style={styles.files}>
+					<FileAttachmentCards attachments={fileAttachments} onRemove={onRemoveFileAttachment} />
+				</View>
+			)}
+			{attachmentError && <Text style={styles.attachmentError}>{attachmentError}</Text>}
 			{suggestions.length > 0 && !locked && (
 				<View style={styles.palette}>
 					<ScrollView keyboardShouldPersistTaps="always" style={styles.paletteScroll}>
@@ -164,6 +199,19 @@ export function ChatInputBar({
 			)}
 
 			<View style={styles.bar}>
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Add an attachment"
+					disabled={locked}
+					onPress={showAttachmentMenu}
+					style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surfacePressed }, locked && styles.sendDisabled]}
+				>
+					{uploadingAttachments ? (
+						<ActivityIndicator size="small" color={colors.accentDim} />
+					) : (
+						<Text style={styles.attachGlyph}>＋</Text>
+					)}
+				</Pressable>
 				<TextInput
 					ref={inputRef}
 					value={text}
@@ -175,7 +223,7 @@ export function ChatInputBar({
 					style={styles.input}
 					submitBehavior="newline"
 				/>
-				{busy ? (
+				{generating ? (
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Stop generating"
@@ -232,6 +280,8 @@ const createStyles = (c: Colors) =>
 			fontWeight: "600",
 		},
 		pillClose: { color: c.textMuted, fontSize: 15, lineHeight: 16, paddingHorizontal: 2 },
+		files: { marginBottom: spacing.sm },
+		attachmentError: { color: c.danger, fontSize: 12, marginBottom: spacing.sm },
 		palette: {
 			position: "absolute",
 			bottom: "100%",
@@ -275,6 +325,7 @@ const createStyles = (c: Colors) =>
 			fontSize: 15,
 			lineHeight: 21,
 		},
+		attachGlyph: { color: c.accent, fontSize: 21, lineHeight: 23 },
 		action: {
 			width: 40,
 			height: 40,

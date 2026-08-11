@@ -1,4 +1,5 @@
 import { tool, type InferUITools, type UIDataTypes, type UIMessage } from "ai";
+import type { SureWordMessageMetadata } from "@/lib/chat-attachment-types";
 import { z } from "zod";
 import {
 	formatVersesForModel,
@@ -177,7 +178,7 @@ export type SureWordTools = ReturnType<typeof buildSureWordTools>;
 
 /** UIMessage typed with the SureWord tool set, shared by server and client. */
 export type SureWordUIMessage = UIMessage<
-	unknown,
+	SureWordMessageMetadata,
 	UIDataTypes,
 	InferUITools<SureWordTools>
 >;

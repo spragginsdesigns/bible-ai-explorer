@@ -5,6 +5,11 @@ import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { SureWordUIMessage } from "@/lib/ai-tools";
 import {
+	AttachmentValidationError,
+	type ChatAttachmentDescriptor,
+	validateAttachmentBatch,
+} from "@/lib/chat-attachment-types";
+import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
@@ -37,6 +42,7 @@ export interface ChatMessage {
 	averageSimilarity?: number;
 	followUps?: string[];
 	noteActions?: NoteAction[];
+	attachments?: ChatAttachmentDescriptor[];
 	/** Human-readable label for the tool currently running, e.g. "Searching the Scriptures". */
 	activity?: string;
 	isStreaming?: boolean;
@@ -144,6 +150,18 @@ export function toViewMessage(
 	const similarities: number[] = [];
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
 	const noteActions: NoteAction[] = [];
+	const fileParts = message.parts.filter((part) => part.type === "file");
+	const fileIds = Array.isArray(message.metadata?.attachmentIds)
+		? message.metadata.attachmentIds
+		: [];
+	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) => ({
+		id: fileIds[index] ?? `${message.id}-file-${index}`,
+		filename: part.filename ?? `Attachment ${index + 1}`,
+		mediaType: part.mediaType as ChatAttachmentDescriptor["mediaType"],
+		size: 0,
+		previewUrl: part.url,
+		previewExpiresAt: "",
+	}));
 	let activity: string | undefined;
 
 	for (const part of message.parts) {
@@ -212,6 +230,7 @@ export function toViewMessage(
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),
 		...(followUps.length > 0 ? { followUps } : {}),
 		...(noteActions.length > 0 ? { noteActions } : {}),
+		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
 		timestamp: Date.now(),
@@ -230,9 +249,31 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 	}
 
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
-	const parts = Array.isArray(metadata.parts)
+	const restoredParts = Array.isArray(metadata.parts)
 		? (metadata.parts as SureWordUIMessage["parts"])
 		: [{ type: "text" as const, text: value.content }];
+	const storedAttachments = Array.isArray(value.attachments)
+		? value.attachments.filter(isRecord)
+		: [];
+	const attachmentParts = storedAttachments.flatMap((attachment) =>
+		typeof attachment.id === "string" &&
+		typeof attachment.filename === "string" &&
+		typeof attachment.mediaType === "string" &&
+		typeof attachment.previewUrl === "string"
+			? [{
+				type: "file" as const,
+				filename: attachment.filename,
+				mediaType: attachment.mediaType,
+				url: attachment.previewUrl,
+			}]
+			: [],
+	);
+	const parts = attachmentParts.length > 0
+		? [...attachmentParts, ...restoredParts.filter((part) => part.type !== "file")]
+		: restoredParts;
+	const attachmentIds = storedAttachments.flatMap((attachment) =>
+		typeof attachment.id === "string" ? [attachment.id] : [],
+	);
 
 	const { parts: _ignored, ...legacyMetadata } = metadata;
 
@@ -240,7 +281,11 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 		id: value.id,
 		role: value.role,
 		parts,
-		...(Object.keys(legacyMetadata).length > 0 ? { metadata: legacyMetadata } : {}),
+		...(
+			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0
+				? { metadata: { ...legacyMetadata, ...(attachmentIds.length > 0 ? { attachmentIds } : {}) } }
+				: {}
+		),
 	};
 }
 
@@ -253,11 +298,104 @@ export const useChat = () => {
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [input, setInput] = useState("");
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
+	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
+	const [uploadingAttachments, setUploadingAttachments] = useState(false);
+	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	const attachmentDraftVersionRef = useRef(0);
 	const setAttachment = useCallback(
 		(next: VerseAttachment) => setAttachmentState(next),
 		[]
 	);
 	const clearAttachment = useCallback(() => setAttachmentState(null), []);
+	const discardFileAttachments = useCallback((attachments: ChatAttachmentDescriptor[]) => {
+		for (const item of attachments) {
+			void fetch(`/api/chat/attachments/${item.id}`, { method: "DELETE" });
+		}
+	}, []);
+
+	const addFileAttachments = useCallback(async (files: File[]) => {
+		if (files.length === 0 || uploadingAttachments) return;
+		const draftVersion = attachmentDraftVersionRef.current;
+		setAttachmentError(null);
+		let initializedIds: string[] = [];
+		try {
+			validateAttachmentBatch([
+				...fileAttachments.map((item) => ({
+					filename: item.filename,
+					mediaType: item.mediaType,
+					size: item.size,
+				})),
+				...files.map((file) => ({
+					filename: file.name,
+					mediaType: file.type,
+					size: file.size,
+				})),
+			]);
+			setUploadingAttachments(true);
+			const initResponse = await fetch("/api/chat/attachments", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					files: files.map((file) => ({
+						filename: file.name,
+						mediaType: file.type,
+						size: file.size,
+					})),
+				}),
+			});
+			const initialized = await initResponse.json();
+			if (!initResponse.ok || !Array.isArray(initialized.uploads)) {
+				throw new Error(initialized.error ?? "Could not prepare the upload.");
+			}
+			initializedIds = initialized.uploads.map((upload: { id: string }) => upload.id);
+
+			const completed = await Promise.all(initialized.uploads.map(async (
+				upload: { id: string; uploadUrl: string; mediaType: string },
+				index: number,
+			) => {
+				const putResponse = await fetch(upload.uploadUrl, {
+					method: "PUT",
+					headers: { "Content-Type": upload.mediaType },
+					body: files[index],
+				});
+				if (!putResponse.ok) throw new Error(`Could not upload ${files[index].name}.`);
+				const completeResponse = await fetch(`/api/chat/attachments/${upload.id}/complete`, {
+					method: "POST",
+				});
+				const result = await completeResponse.json();
+				if (!completeResponse.ok || !result.attachment) {
+					throw new Error(result.error ?? `Could not verify ${files[index].name}.`);
+				}
+				return result.attachment as ChatAttachmentDescriptor;
+			}));
+			if (draftVersion !== attachmentDraftVersionRef.current) {
+				discardFileAttachments(completed);
+			} else {
+				setFileAttachments((current) => [...current, ...completed]);
+			}
+		} catch (error) {
+			for (const id of initializedIds) {
+				void fetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
+			}
+			setAttachmentError(
+				error instanceof AttachmentValidationError || error instanceof Error
+					? error.message
+					: "Could not upload the selected files.",
+			);
+		} finally {
+			setUploadingAttachments(false);
+		}
+	}, [discardFileAttachments, fileAttachments, uploadingAttachments]);
+
+	const removeFileAttachment = useCallback(async (id: string) => {
+		const response = await fetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
+		if (!response.ok) {
+			const body = await response.json().catch(() => ({}));
+			setAttachmentError(body.error ?? "Could not remove the attachment.");
+			return;
+		}
+		setFileAttachments((current) => current.filter((item) => item.id !== id));
+	}, []);
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
 	const historyLoadVersionRef = useRef(0);
@@ -320,7 +458,10 @@ export const useChat = () => {
 		async (id: string) => {
 			if (id === conversationIdRef.current) return;
 			const loadVersion = ++historyLoadVersionRef.current;
+			attachmentDraftVersionRef.current += 1;
 
+			discardFileAttachments(fileAttachments);
+			setFileAttachments([]);
 			stop();
 			setActiveConversationId(id);
 			conversationIdRef.current = id;
@@ -354,7 +495,7 @@ export const useChat = () => {
 				}
 			}
 		},
-		[stop, setUIMessages]
+		[discardFileAttachments, fileAttachments, stop, setUIMessages]
 	);
 
 	const retryHistory = useCallback(() => {
@@ -367,8 +508,11 @@ export const useChat = () => {
 
 	const newConversation = useCallback(() => {
 		historyLoadVersionRef.current += 1;
+		attachmentDraftVersionRef.current += 1;
 		historyLoadingRef.current = false;
 		historyErrorRef.current = false;
+		discardFileAttachments(fileAttachments);
+		setFileAttachments([]);
 		stop();
 		setHistoryLoading(false);
 		setHistoryError(null);
@@ -376,7 +520,7 @@ export const useChat = () => {
 		conversationIdRef.current = null;
 		setSendError(null);
 		setUIMessages([]);
-	}, [stop, setUIMessages]);
+	}, [discardFileAttachments, fileAttachments, stop, setUIMessages]);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
@@ -410,7 +554,8 @@ export const useChat = () => {
 		async (text: string) => {
 			const composed = composeMessageWithAttachment(text, attachment);
 			if (
-				!composed ||
+				(!composed && fileAttachments.length === 0) ||
+				uploadingAttachments ||
 				historyLoadingRef.current ||
 				historyErrorRef.current ||
 				status === "submitted" ||
@@ -424,10 +569,11 @@ export const useChat = () => {
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
 				try {
+					const title = composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`;
 					const res = await fetch("/api/conversations", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ title: composed.slice(0, 60) }),
+						body: JSON.stringify({ title: title.slice(0, 60) }),
 					});
 					if (res.ok) {
 						const created = await res.json();
@@ -436,21 +582,41 @@ export const useChat = () => {
 						setConversations((prev) => [
 							{
 								id: created.id,
-								title: composed.slice(0, 60),
+								title: title.slice(0, 60),
 								createdAt: new Date().toISOString(),
 							},
 							...prev,
 						]);
+					} else if (fileAttachments.length > 0) {
+						throw new Error("Could not create a conversation for the attachments.");
 					}
-				} catch {
-					// Continue without persistence if conversation creation fails
+				} catch (error) {
+					if (fileAttachments.length > 0) {
+						setSendError(error instanceof Error ? error.message : "Could not create the conversation.");
+						return;
+					}
 				}
 			}
 
 			setAttachmentState(null);
-			void sendUIMessage({ text: composed });
+			const sendingAttachments = fileAttachments;
+			setFileAttachments([]);
+			void sendUIMessage({
+				metadata: sendingAttachments.length > 0
+					? { attachmentIds: sendingAttachments.map((item) => item.id) }
+					: {},
+				parts: [
+					...sendingAttachments.map((item) => ({
+						type: "file" as const,
+						filename: item.filename,
+						mediaType: item.mediaType,
+						url: item.previewUrl,
+					})),
+					...(composed ? [{ type: "text" as const, text: composed }] : []),
+				],
+			});
 		},
-		[attachment, sendUIMessage, status]
+		[attachment, fileAttachments, sendUIMessage, status, uploadingAttachments]
 	);
 
 	const isStreaming = status === "streaming";
@@ -504,8 +670,13 @@ export const useChat = () => {
 		input,
 		setInput,
 		attachment,
+		fileAttachments,
+		uploadingAttachments,
+		attachmentError,
 		setAttachment,
 		clearAttachment,
+		addFileAttachments,
+		removeFileAttachment,
 		sendMessage,
 		newConversation,
 		switchConversation,

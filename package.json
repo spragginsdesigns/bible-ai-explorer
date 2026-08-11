@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-		"test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs",
+		"test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "@tiptap/pm": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
+    "@vercel/blob": "^2.8.0",
     "@vercel/functions": "^3.9.1",
     "ai": "^7.0.58",
     "class-variance-authority": "^0.7.0",

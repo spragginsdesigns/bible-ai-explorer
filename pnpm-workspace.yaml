@@ -7,3 +7,6 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   sharp: true
+
+minimumReleaseAgeExclude:
+  - '@vercel/blob@2.8.0'

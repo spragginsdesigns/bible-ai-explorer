@@ -21,6 +21,7 @@ model User {
   folders       Folder[]
   tags          Tag[]
   memories      UserMemory[]
+  attachments   ChatAttachment[]
 }
 
 /// Maps a verified email to the Clerk user id it had on the DEVELOPMENT Clerk
@@ -73,8 +74,34 @@ model Message {
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
+  attachments    ChatAttachment[]
 
   @@index([conversationId])
+}
+
+enum ChatAttachmentStatus {
+  PENDING
+  READY
+}
+
+model ChatAttachment {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  messageId String?
+  message   Message?             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pathname  String               @unique
+  filename  String
+  mediaType String
+  size      Int
+  etag      String?
+  status    ChatAttachmentStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  readyAt   DateTime?
+
+  @@index([userId])
+  @@index([messageId])
+  @@index([status, createdAt])
 }
 
 model Folder {

@@ -3,5 +3,11 @@
 		"src/app/api/ask-question/route.ts": {
 			"maxDuration": 60
 		}
-	}
+	},
+	"crons": [
+		{
+			"path": "/api/cron/chat-attachments",
+			"schedule": "17 4 * * *"
+		}
+	]
 }

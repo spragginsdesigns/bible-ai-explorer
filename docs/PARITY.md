@@ -7,7 +7,7 @@ superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on either client.
 
-Last full audit: 2026-08-10 (Android v1.7.0).
+Last full audit: 2026-08-11 (Android v1.10.0).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ web-only (allowed superset)
 
@@ -50,6 +50,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Save whole answer to notes (new note or append via picker) | ✅ | ✅ | Shared route `POST /api/notes/append`; added 2026-08-10 |
 | Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory`) | ✅ | ✅ | Added 2026-08-10 |
 | Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | Added 2026-08-10 |
+| Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard | ✅ picker, drag/drop, pasted screenshots | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message; added 2026-08-11 |
 | Welcome screen, 6 suggested questions | ✅ | ✅ | |
 
 ## Bible Reader

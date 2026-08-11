@@ -3,6 +3,23 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.10.0] — 2026-08-11
+
+### Added
+- **Attach images and study files directly to chat.** Take a photo, select up
+  to five images, choose a PDF/TXT/Markdown/CSV/JSON file, or paste a
+  screenshot from the clipboard. SureWord can answer from the attachment even
+  when the message has no typed text.
+- **Private, durable attachment history.** Files are stored in a private Vercel
+  Blob store, reopened with short-lived signed links, and restored with the
+  conversation on Android and web. Deleting the conversation removes its
+  stored files too.
+
+### Security
+- Uploads use exact-path, size-limited signed URLs and are downloaded again by
+  the server for MIME, extension, size, signature, UTF-8, and JSON validation
+  before the model can see them. Client-provided file URLs are never trusted.
+
 ## [1.9.0] — 2026-08-11
 
 ### Added

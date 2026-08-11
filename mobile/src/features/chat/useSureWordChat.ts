@@ -2,10 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAuth } from "@clerk/expo";
+import * as Clipboard from "expo-clipboard";
+import * as DocumentPicker from "expo-document-picker";
+import { File, Paths } from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
+import {
+	type ChatAttachmentDescriptor,
+	type LocalChatAttachment,
+	deleteChatAttachment,
+	normalizeLocalAttachment,
+	uploadChatAttachments,
+	validateLocalAttachmentBatch,
+} from "./fileAttachments";
 
 export interface Conversation {
 	id: string;
@@ -31,6 +43,14 @@ export interface SureWordChat {
 	attachment: VerseAttachment | null;
 	setAttachment: (attachment: VerseAttachment) => void;
 	clearAttachment: () => void;
+	fileAttachments: ChatAttachmentDescriptor[];
+	uploadingAttachments: boolean;
+	attachmentError: string | null;
+	takePhoto: () => Promise<void>;
+	chooseImages: () => Promise<void>;
+	chooseFiles: () => Promise<void>;
+	pasteImage: () => Promise<void>;
+	removeFileAttachment: (id: string) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
 	stop: () => void;
 	retrySend: () => void;
@@ -82,8 +102,122 @@ export function useSureWordChat(): SureWordChat {
 	const [sendError, setSendError] = useState<string | null>(null);
 	const [input, setInput] = useState("");
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
+	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
+	const [uploadingAttachments, setUploadingAttachments] = useState(false);
+	const [attachmentError, setAttachmentError] = useState<string | null>(null);
+	const attachmentDraftVersionRef = useRef(0);
 	const setAttachment = useCallback((next: VerseAttachment) => setAttachmentState(next), []);
 	const clearAttachment = useCallback(() => setAttachmentState(null), []);
+
+	const addLocalAttachments = useCallback(async (files: LocalChatAttachment[]) => {
+		if (files.length === 0 || uploadingAttachments) return;
+		const draftVersion = attachmentDraftVersionRef.current;
+		setAttachmentError(null);
+		try {
+			validateLocalAttachmentBatch(files, fileAttachments);
+			setUploadingAttachments(true);
+			const completed = await uploadChatAttachments(authToken, files);
+			if (draftVersion !== attachmentDraftVersionRef.current) {
+				for (const item of completed) void deleteChatAttachment(authToken, item.id).catch(() => undefined);
+			} else {
+				setFileAttachments((current) => [...current, ...completed]);
+			}
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not upload the selected files.");
+		} finally {
+			setUploadingAttachments(false);
+		}
+	}, [authToken, fileAttachments, uploadingAttachments]);
+
+	const imageAssetToLocal = useCallback((asset: ImagePicker.ImagePickerAsset): LocalChatAttachment => {
+		const mediaType = asset.mimeType ?? "application/octet-stream";
+		const fallbackExtension = mediaType === "image/png" ? "png" : mediaType === "image/webp" ? "webp" : "jpg";
+		return normalizeLocalAttachment({
+			uri: asset.uri,
+			filename: asset.fileName ?? `photo-${Date.now()}.${fallbackExtension}`,
+			mediaType,
+			size: asset.fileSize,
+		});
+	}, []);
+
+	const takePhoto = useCallback(async () => {
+		try {
+			const permission = await ImagePicker.requestCameraPermissionsAsync();
+			if (!permission.granted) throw new Error("Camera permission is required to take a photo.");
+			const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
+			if (!result.canceled) await addLocalAttachments(result.assets.map(imageAssetToLocal));
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not open the camera.");
+		}
+	}, [addLocalAttachments, imageAssetToLocal]);
+
+	const chooseImages = useCallback(async () => {
+		try {
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ["images"],
+				allowsMultipleSelection: true,
+				selectionLimit: Math.max(1, 5 - fileAttachments.length),
+				quality: 1,
+			});
+			if (!result.canceled) await addLocalAttachments(result.assets.map(imageAssetToLocal));
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not open the photo library.");
+		}
+	}, [addLocalAttachments, fileAttachments.length, imageAssetToLocal]);
+
+	const chooseFiles = useCallback(async () => {
+		try {
+			const result = await DocumentPicker.getDocumentAsync({
+				type: [
+					"image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf",
+					"text/plain", "text/markdown", "text/csv", "application/json",
+				],
+				copyToCacheDirectory: true,
+				multiple: true,
+			});
+			if (!result.canceled) {
+				await addLocalAttachments(result.assets.map((asset) => normalizeLocalAttachment({
+					uri: asset.uri,
+					filename: asset.name,
+					mediaType: asset.mimeType ?? "application/octet-stream",
+					size: asset.size,
+				})));
+			}
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not open the file picker.");
+		}
+	}, [addLocalAttachments]);
+
+	const pasteImage = useCallback(async () => {
+		try {
+			const image = await Clipboard.getImageAsync({ format: "png" });
+			if (!image) throw new Error("There isn't an image on the clipboard.");
+			const file = new File(Paths.cache, `clipboard-${Date.now()}.png`);
+			file.create({ overwrite: true });
+			file.write(image.data.split(",", 2)[1], { encoding: "base64" });
+			await addLocalAttachments([normalizeLocalAttachment({
+				uri: file.uri,
+				filename: file.name,
+				mediaType: "image/png",
+				size: file.size,
+			})]);
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not paste the clipboard image.");
+		}
+	}, [addLocalAttachments]);
+
+	const removeFileAttachment = useCallback(async (id: string) => {
+		try {
+			await deleteChatAttachment(authToken, id);
+			setFileAttachments((current) => current.filter((attachment) => attachment.id !== id));
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not remove the attachment.");
+		}
+	}, [authToken]);
+
+	const discardFileAttachments = useCallback((attachments: ChatAttachmentDescriptor[]) => {
+		for (const item of attachments) void deleteChatAttachment(authToken, item.id).catch(() => undefined);
+	}, [authToken]);
 
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
@@ -140,7 +274,10 @@ export function useSureWordChat(): SureWordChat {
 		async (id: string) => {
 			if (id === conversationIdRef.current) return;
 			const loadVersion = ++historyLoadVersionRef.current;
+			attachmentDraftVersionRef.current += 1;
 
+			discardFileAttachments(fileAttachments);
+			setFileAttachments([]);
 			stop();
 			setActiveConversationId(id);
 			conversationIdRef.current = id;
@@ -170,7 +307,7 @@ export function useSureWordChat(): SureWordChat {
 				}
 			}
 		},
-		[authToken, stop, setUIMessages]
+		[authToken, discardFileAttachments, fileAttachments, stop, setUIMessages]
 	);
 
 	const retryHistory = useCallback(() => {
@@ -182,8 +319,11 @@ export function useSureWordChat(): SureWordChat {
 
 	const newConversation = useCallback(() => {
 		historyLoadVersionRef.current += 1;
+		attachmentDraftVersionRef.current += 1;
 		historyLoadingRef.current = false;
 		historyErrorRef.current = false;
+		discardFileAttachments(fileAttachments);
+		setFileAttachments([]);
 		stop();
 		setHistoryLoading(false);
 		setHistoryError(null);
@@ -191,7 +331,7 @@ export function useSureWordChat(): SureWordChat {
 		conversationIdRef.current = null;
 		setSendError(null);
 		setUIMessages([]);
-	}, [stop, setUIMessages]);
+	}, [discardFileAttachments, fileAttachments, stop, setUIMessages]);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
@@ -223,7 +363,8 @@ export function useSureWordChat(): SureWordChat {
 		async (text: string) => {
 			const composed = composeMessageWithAttachment(text, attachment);
 			if (
-				!composed ||
+				(!composed && fileAttachments.length === 0) ||
+				uploadingAttachments ||
 				historyLoadingRef.current ||
 				historyErrorRef.current ||
 				status === "submitted" ||
@@ -237,7 +378,7 @@ export function useSureWordChat(): SureWordChat {
 
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
-				const title = composed.slice(0, 60);
+				const title = (composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`).slice(0, 60);
 				try {
 					const created = await apiJson<{ id: string }>(authToken, "/api/conversations", {
 						method: "POST",
@@ -249,15 +390,33 @@ export function useSureWordChat(): SureWordChat {
 						{ id: created.id, title, createdAt: new Date().toISOString() },
 						...prev,
 					]);
-				} catch {
-					// Continue unpersisted rather than dropping the user's question.
+				} catch (error) {
+					if (fileAttachments.length > 0) {
+						setSendError(error instanceof Error ? error.message : "Could not create the conversation.");
+						return;
+					}
 				}
 			}
 
 			setAttachmentState(null);
-			void sendUIMessage({ text: composed });
+			const sendingAttachments = fileAttachments;
+			setFileAttachments([]);
+			void sendUIMessage({
+				metadata: sendingAttachments.length > 0
+					? { attachmentIds: sendingAttachments.map((item) => item.id) }
+					: {},
+				parts: [
+					...sendingAttachments.map((item) => ({
+						type: "file" as const,
+						filename: item.filename,
+						mediaType: item.mediaType,
+						url: item.previewUrl,
+					})),
+					...(composed ? [{ type: "text" as const, text: composed }] : []),
+				],
+			});
 		},
-		[attachment, authToken, clearError, sendUIMessage, status]
+		[attachment, authToken, clearError, fileAttachments, sendUIMessage, status, uploadingAttachments]
 	);
 
 	const retrySend = useCallback(() => {
@@ -314,8 +473,16 @@ export function useSureWordChat(): SureWordChat {
 		input,
 		setInput,
 		attachment,
+		fileAttachments,
+		uploadingAttachments,
+		attachmentError,
 		setAttachment,
 		clearAttachment,
+		takePhoto,
+		chooseImages,
+		chooseFiles,
+		pasteImage,
+		removeFileAttachment,
 		sendMessage,
 		stop,
 		retrySend,

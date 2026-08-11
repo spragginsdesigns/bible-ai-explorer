@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
 
 /** View-model types ported from the web app (src/components/useChat.ts). */
 export interface RetrievedVerse {
@@ -28,6 +29,7 @@ export interface ChatViewMessage {
 	averageSimilarity?: number;
 	followUps?: string[];
 	noteActions?: NoteAction[];
+	attachments?: ChatAttachmentDescriptor[];
 	activity?: string;
 	isStreaming?: boolean;
 }
@@ -109,6 +111,18 @@ export function toViewMessage(
 	const similarities: number[] = [];
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
 	const noteActions: NoteAction[] = [];
+	const fileParts = message.parts.filter((part) => part.type === "file");
+	const fileIds = Array.isArray(legacy.attachmentIds)
+		? legacy.attachmentIds.filter((id): id is string => typeof id === "string")
+		: [];
+	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) => ({
+		id: fileIds[index] ?? `${message.id}-file-${index}`,
+		filename: part.filename ?? `Attachment ${index + 1}`,
+		mediaType: part.mediaType,
+		size: 0,
+		previewUrl: part.url,
+		previewExpiresAt: "",
+	}));
 	let activity: string | undefined;
 
 	for (const part of message.parts) {
@@ -172,6 +186,7 @@ export function toViewMessage(
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),
 		...(followUps.length > 0 ? { followUps } : {}),
 		...(noteActions.length > 0 ? { noteActions } : {}),
+		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
 	};
@@ -189,9 +204,30 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 	}
 
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
-	const parts = Array.isArray(metadata.parts)
+	const restoredParts = Array.isArray(metadata.parts)
 		? (metadata.parts as UIMessage["parts"])
 		: [{ type: "text" as const, text: value.content }];
+	const storedAttachments = Array.isArray(value.attachments)
+		? value.attachments.filter(isRecord)
+		: [];
+	const attachmentParts = storedAttachments.flatMap((attachment) =>
+		typeof attachment.filename === "string" &&
+		typeof attachment.mediaType === "string" &&
+		typeof attachment.previewUrl === "string"
+			? [{
+				type: "file" as const,
+				filename: attachment.filename,
+				mediaType: attachment.mediaType,
+				url: attachment.previewUrl,
+			}]
+			: [],
+	);
+	const parts = attachmentParts.length > 0
+		? [...attachmentParts, ...restoredParts.filter((part) => part.type !== "file")]
+		: restoredParts;
+	const attachmentIds = storedAttachments.flatMap((attachment) =>
+		typeof attachment.id === "string" ? [attachment.id] : [],
+	);
 
 	const { parts: _ignored, ...legacyMetadata } = metadata;
 
@@ -199,6 +235,10 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 		id: value.id,
 		role: value.role,
 		parts,
-		...(Object.keys(legacyMetadata).length > 0 ? { metadata: legacyMetadata } : {}),
+		...(
+			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0
+				? { metadata: { ...legacyMetadata, ...(attachmentIds.length > 0 ? { attachmentIds } : {}) } }
+				: {}
+		),
 	};
 }
