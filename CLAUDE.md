@@ -183,6 +183,46 @@ redirect not on the list, silently, by omitting `external_verification_redirect_
 Web needs `/sign-in/sso-callback` (not just `/sso-callback`); native needs
 `sureword://sso-callback`.
 
+**The two clients' Clerk keys must move together.** The publishable key *encodes its
+Frontend API host*, so `mobile/app.json`'s `extra.clerkPublishableKey` and the web's
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` must be the same key. Android shipped 1.7.0 with a
+key encoding `clerk.bible-ai-explorer.vercel.app` after Clerk moved to
+`clerk.sureword.app`; that host stopped resolving, so native sign-in was dead, not
+degraded. Production key is `pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA` (base64 →
+`clerk.sureword.app$`) — decode a key to see which instance it points at.
+
+**A custom-domain instance needs no `proxyUrl`.** The `/__clerk` proxy is gone; passing
+`proxyUrl` at a route that no longer exists is its own outage. `ClerkProvider` takes
+the publishable key and nothing else.
+
+**Google OAuth is a third allowlist, separate from Clerk's.** The GCP client's
+*Authorized redirect URIs* must contain `https://clerk.sureword.app/v1/oauth_callback`,
+or sign-in dies at Google with `Error 400: redirect_uri_mismatch` — on both clients at
+once, since they share one Google client. Google warns changes take "5 minutes to a few
+hours" to propagate. To check what is actually being sent, start the web Google flow and
+read the `redirect_uri` query param on the `accounts.google.com` URL.
+
+## Rebuilding the Android app
+
+**`mobile/android/` is a gitignored prebuild, and renaming things in `app.json` does not
+touch it.** The VerseMind→SureWord rename sat in `app.json` for a whole release while the
+installed app still had package `com.spragginsdesigns.versemind` and a launcher reading
+"VerseMind". Anything that changes the package, app name, scheme, or icons needs
+`npx expo prebuild --platform android --clean` to actually reach the device.
+
+Two things bite every time you do that:
+
+- **`local.properties` is deleted with the rest of `android/`** and must be rewritten with
+  *both* `sdk.dir` and `cmake.dir` (forward slashes). Without `cmake.dir` the build picks
+  the SDK default CMake 3.22.1 and loops forever on `ninja: manifest 'build.ninja' still
+  dirty` compiling reanimated. `push-phone.sh` now rewrites it automatically.
+- **`prebuild --clean` fails with `EBUSY … rmdir` while `adb.exe` holds a handle** on
+  `mobile/android`. `adb kill-server` first (then reconnect — the wireless address is in
+  `mobile/.phone-addr`). A running Gradle daemon does the same thing.
+
+Changing the package name means the new APK installs **alongside** the old app rather than
+over it; the old one must be uninstalled by hand.
+
 ## Environment Variables
 
 `DATABASE_URL` and `DATABASE_URL_UNPOOLED` come from the Neon integration (see above).
