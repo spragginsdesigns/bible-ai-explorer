@@ -3,6 +3,23 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.9.0] — 2026-08-11
+
+### Added
+- **SureWord can now remember you.** A new Memory section in Settings carries
+  the ChatGPT-style memory feature: as you chat, SureWord learns the things
+  worth holding onto — who you are, what you're praying about, what you're
+  studying — so later answers start from knowing you instead of from zero.
+- **An "Enable memory" switch, and off really means off.** Turn it off and
+  SureWord stops both using what it remembers and learning anything new —
+  but nothing is thrown away. Your saved memories are kept untouched, waiting
+  for whenever you turn it back on.
+- **A Manage memories screen, because it's your memory, not ours.** From
+  Settings you can see everything SureWord has saved, grouped by what it's
+  about; ask for an AI-written summary of the whole picture; add a memory by
+  hand; delete any single one; or clear the lot in one tap. Nothing it
+  remembers is hidden from you.
+
 ## [1.8.2] — 2026-08-10
 
 ### Fixed

@@ -32,7 +32,8 @@ export function WelcomeState({
 			</View>
 			<BrandTitle size={52} style={styles.brand} />
 			<Text style={styles.tagline}>
-				Ask anything about the Bible. Every answer is rooted in the King James Scriptures.
+				Ask anything about the Bible — answered by an AI that actually believes it. Every answer
+				stands on the King James Scriptures as God&apos;s inerrant, final authority.
 			</Text>
 
 			<View style={styles.chips}>

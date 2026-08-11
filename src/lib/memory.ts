@@ -2,6 +2,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { allowsMemoryUse } from "@/lib/memory-policy";
 
 export interface UserMemoryRecord {
 	id: string;
@@ -9,9 +10,13 @@ export interface UserMemoryRecord {
 	category: string;
 }
 
-const MAX_MEMORIES_PER_USER = 60;
-const MAX_MEMORY_CONTENT_LENGTH = 500;
+export const MAX_MEMORIES_PER_USER = 60;
+export const MAX_MEMORY_CONTENT_LENGTH = 500;
 const MAX_EXCHANGE_CHARACTERS = 8000;
+
+/** Keep in sync with the zod enum in memoryUpdateSchema below. */
+export const MEMORY_CATEGORIES = ["profile", "prayer", "study", "preference", "general"] as const;
+export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];
 
 function fetchUserMemories(userId: string): Promise<UserMemoryRecord[]> {
 	return prisma.userMemory.findMany({
@@ -23,6 +28,24 @@ function fetchUserMemories(userId: string): Promise<UserMemoryRecord[]> {
 }
 
 /**
+ * The Settings → Memory toggle. Fails closed when the row is missing or the
+ * read errors: we must never use or learn personal data unless the persisted
+ * preference was read successfully and is explicitly enabled.
+ */
+async function isMemoryEnabled(userId: string): Promise<boolean> {
+	try {
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { memoryEnabled: true },
+		});
+		return allowsMemoryUse(user?.memoryEnabled);
+	} catch (error) {
+		console.error("Reading memoryEnabled failed; disabling memory for this request:", error);
+		return false;
+	}
+}
+
+/**
  * Load a user's memories for prompt injection. Runs on the chat request path,
  * so a memory-layer outage must never take chat down with it: on failure we log
  * and behave like a user with no memories yet.
@@ -31,6 +54,7 @@ function fetchUserMemories(userId: string): Promise<UserMemoryRecord[]> {
  */
 export async function loadUserMemories(userId: string): Promise<UserMemoryRecord[]> {
 	try {
+		if (!(await isMemoryEnabled(userId))) return [];
 		return await fetchUserMemories(userId);
 	} catch (error) {
 		console.error("Loading user memories failed; continuing without them:", error);
@@ -93,6 +117,11 @@ export async function extractAndStoreMemories(options: {
 	userText: string;
 }): Promise<void> {
 	try {
+		// The Settings toggle turns off writes too: nothing new is learned while
+		// memory is disabled, but existing rows are kept for when it is turned
+		// back on.
+		if (!(await isMemoryEnabled(options.userId))) return;
+
 		// fetchUserMemories, not loadUserMemories: the read must be allowed to
 		// throw here. Reconciliation is only correct if the model is shown the
 		// memories that actually exist - if a transient read failure silently

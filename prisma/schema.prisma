@@ -12,6 +12,9 @@ model User {
   id            String         @id // Clerk userId used directly
   email         String?
   name          String?
+  // When false, memories are neither injected into prompts nor extracted from
+  // chats (Settings → Memory toggle). Existing UserMemory rows are kept.
+  memoryEnabled Boolean        @default(true)
   createdAt     DateTime       @default(now())
   conversations Conversation[]
   notes         Note[]

@@ -7,6 +7,8 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import {
 	ArrowLeft,
 	BookMarked,
+	Brain,
+	ChevronRight,
 	LogOut,
 	Monitor,
 	Moon,
@@ -16,6 +18,8 @@ import {
 import { ANDROID_APK_URL } from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
+import MemoryManager from "@/components/MemoryManager";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -34,7 +38,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 /**
  * Settings: appearance (system/dark/light via next-themes), the default Bible
  * translation for the reader and verse attachments (mirrors the Android
- * settings screen), and account (profile + sign out).
+ * settings screen), memory (enable toggle + manage dialog), and account
+ * (profile + sign out).
  */
 export default function SettingsPage() {
 	const { theme, setTheme } = useTheme();
@@ -42,15 +47,52 @@ export default function SettingsPage() {
 	const { signOut } = useClerk();
 	const [mounted, setMounted] = useState(false);
 	const [translation, setTranslation] = useState<TranslationId>("KJV");
+	const [memoryEnabled, setMemoryEnabledState] = useState<boolean | null>(null);
+	const [memoryCount, setMemoryCount] = useState<number | null>(null);
+	const [memoryLoadFailed, setMemoryLoadFailed] = useState(false);
+	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
+	const [memoryToggleError, setMemoryToggleError] = useState<string | null>(null);
+	const [memoryManagerOpen, setMemoryManagerOpen] = useState(false);
+
+	const loadMemories = async () => {
+		setMemoryLoadFailed(false);
+		try {
+			const data = await fetchMemories();
+			setMemoryEnabledState(data.enabled);
+			setMemoryCount(data.memories.length);
+			setMemoryLoadFailed(false);
+		} catch {
+			setMemoryLoadFailed(true);
+		}
+	};
 
 	useEffect(() => {
 		setMounted(true);
 		setTranslation(readTranslationPref());
+		void loadMemories();
 	}, []);
 
 	const pickTranslation = (id: TranslationId) => {
 		setTranslation(id);
 		writeTranslationPref(id);
+	};
+
+	// Optimistic toggle; reverts and surfaces the server error on failure.
+	const toggleMemory = async (next: boolean) => {
+		if (memoryTogglePending) return;
+		setMemoryEnabledState(next);
+		setMemoryTogglePending(true);
+		setMemoryToggleError(null);
+		try {
+			await setMemoryEnabled(next);
+		} catch (err) {
+			setMemoryEnabledState(!next);
+			setMemoryToggleError(
+				err instanceof Error ? err.message : "Couldn't update memory settings."
+			);
+		} finally {
+			setMemoryTogglePending(false);
+		}
 	};
 
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
@@ -139,6 +181,83 @@ export default function SettingsPage() {
 						</div>
 					</section>
 
+					{/* Memory */}
+					<section className="flex flex-col gap-2">
+						<SectionLabel>MEMORY</SectionLabel>
+						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
+							<div className="flex items-center gap-3">
+								<span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
+									<Brain className="w-5 h-5" />
+								</span>
+								<div className="min-w-0 flex-1">
+									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										Enable memory
+									</p>
+									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+										When off, SureWord won&apos;t use or save memories. Your saved
+										memories are kept.
+									</p>
+								</div>
+								<button
+									type="button"
+									role="switch"
+									aria-checked={memoryEnabled ?? false}
+									aria-label="Enable memory"
+									disabled={
+										!mounted || memoryEnabled === null || memoryLoadFailed || memoryTogglePending
+									}
+									onClick={() => {
+										if (memoryEnabled !== null) void toggleMemory(!memoryEnabled);
+									}}
+									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+										memoryEnabled
+											? "bg-amber-500 dark:bg-amber-400"
+											: "bg-black/[0.15] dark:bg-white/[0.15]"
+									}`}
+								>
+									<span
+										className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+											memoryEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+										}`}
+									/>
+								</button>
+							</div>
+							{memoryToggleError && (
+								<p className="text-xs text-red-600 dark:text-red-400">{memoryToggleError}</p>
+							)}
+							{memoryLoadFailed ? (
+								<div className="flex items-center justify-between gap-3">
+									<p className="text-xs text-neutral-400 dark:text-neutral-500">
+										Couldn&apos;t load memory settings.
+									</p>
+									<button
+										type="button"
+										onClick={() => void loadMemories()}
+										className="text-xs font-bold text-amber-600 dark:text-amber-400"
+									>
+										Retry
+									</button>
+								</div>
+							) : (
+								<button
+									type="button"
+									onClick={() => setMemoryManagerOpen(true)}
+									className="flex min-h-[44px] items-center gap-3 rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3.5 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+								>
+									<span className="min-w-0 flex-1 text-left">
+										<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+											Manage memories
+										</span>
+										<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
+											{memoryCount === null ? "…" : `${memoryCount} saved`}
+										</span>
+									</span>
+									<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+								</button>
+							)}
+						</div>
+					</section>
+
 					{/* Account */}
 					<section className="flex flex-col gap-2">
 						<SectionLabel>ACCOUNT</SectionLabel>
@@ -195,17 +314,34 @@ export default function SettingsPage() {
 					{/* About */}
 					<section className="flex flex-col gap-2">
 						<SectionLabel>ABOUT</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-1">
+						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-2">
 							<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
 								SureWord
 							</p>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
 								A Bible study assistant rooted in the King James Version.
 							</p>
+							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
+								Why it&apos;s different: ask a generic AI if the Bible is really the Word of God
+								and you&apos;ll hear &ldquo;it depends on your viewpoint.&rdquo; SureWord never
+								hedges — it answers as a Bible-believing Christian, standing on Scripture as the
+								inerrant, infallible, final authority for every answer. &ldquo;All scripture is
+								given by inspiration of God&rdquo; — 2 Timothy 3:16.
+							</p>
 						</div>
 					</section>
 				</div>
 			</div>
+
+			{memoryManagerOpen && (
+				<MemoryManager
+					open={memoryManagerOpen}
+					onClose={() => {
+						setMemoryManagerOpen(false);
+						void loadMemories();
+					}}
+				/>
+			)}
 		</div>
 	);
 }

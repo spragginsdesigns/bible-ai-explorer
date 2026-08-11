@@ -30,8 +30,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 					<h1 className="text-5xl sm:text-7xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
 						<span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 dark:from-amber-300 dark:via-amber-400 dark:to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">SureWord</span>
 					</h1>
-					<p className="text-neutral-500 text-sm">
-						AI-powered biblical exploration. Ask anything about the Bible.
+					<p className="text-neutral-500 text-sm max-w-md mx-auto">
+						Ask anything about the Bible — answered by an AI that actually believes it. Every answer stands on Scripture as God&apos;s inerrant, infallible, final authority.
 					</p>
 				</div>
 

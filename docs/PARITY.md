@@ -29,6 +29,8 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | |
 | Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ shared with reader chips + chat attach fallback | AI answers quote the selected translation (sent as `translation` in the `/api/ask-question` body); note AI stays KJV |
 | Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | |
+| Memory: enable toggle (off = not used/learned, rows kept) | ✅ Settings → Memory | ✅ Settings → Memory | Enforced server-side in `src/lib/memory.ts` (injection + extraction); added 2026-08-11 |
+| Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires); added 2026-08-11 |
 | About (version, KJV mission note) | ✅ | ✅ | |
 
 ## Chat

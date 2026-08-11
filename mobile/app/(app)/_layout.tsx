@@ -78,6 +78,8 @@ export default function AppLayout() {
 			<Tabs.Screen name="notes" />
 			{/* Push-only screen: reachable from the chat header gear, hidden from the tab bar. */}
 			<Tabs.Screen name="settings" options={{ href: null }} />
+			{/* Push-only screen: reachable from Settings → Manage memories. */}
+			<Tabs.Screen name="memories" options={{ href: null }} />
 		</Tabs>
 	);
 }

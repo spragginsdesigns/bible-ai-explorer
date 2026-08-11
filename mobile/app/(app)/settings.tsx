@@ -1,6 +1,6 @@
-import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth, useUser } from "@clerk/expo";
 import Constants from "expo-constants";
 import { GlassCard, Screen } from "@/components/ui";
@@ -14,6 +14,8 @@ import {
 	type ThemeMode,
 } from "@/features/settings/settingsStore";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import * as memoriesApi from "@/features/memories/api";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "system", label: "System", glyph: "◐" },
@@ -69,11 +71,60 @@ export default function SettingsScreen() {
 	const { signOut } = useAuth();
 	const { user } = useUser();
 	const settings = useSettings();
+	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const getToken = useStableGetToken();
 
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 	const name = user?.fullName ?? user?.username ?? "";
 	const version = Constants.expoConfig?.version ?? "";
+
+	const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null);
+	const [memoryCount, setMemoryCount] = useState<number | null>(null);
+	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
+
+	// Re-fetched on focus so the saved count stays fresh after returning from
+	// the manage screen. A failure leaves the toggle disabled rather than
+	// breaking the rest of Settings.
+	useFocusEffect(
+		useCallback(() => {
+			let cancelled = false;
+			void (async () => {
+				try {
+					const data = await memoriesApi.fetchMemories(getToken);
+					if (cancelled) return;
+					setMemoryEnabled(data.enabled);
+					setMemoryCount(data.memories.length);
+				} catch {
+					if (cancelled) return;
+					setMemoryEnabled(null);
+					setMemoryCount(null);
+				}
+			})();
+			return () => {
+				cancelled = true;
+			};
+		}, [getToken])
+	);
+
+	const toggleMemory = (enabled: boolean) => {
+		if (memoryTogglePending) return;
+		setMemoryEnabled(enabled);
+		setMemoryTogglePending(true);
+		void (async () => {
+			try {
+				await memoriesApi.setMemoryEnabled(getToken, enabled);
+			} catch (err) {
+				setMemoryEnabled(!enabled);
+				Alert.alert(
+					"Could not update memory",
+					err instanceof Error && err.message ? err.message : "Your setting was not changed. Try again."
+				);
+			} finally {
+				setMemoryTogglePending(false);
+			}
+		})();
+	};
 
 	const confirmSignOut = () => {
 		Alert.alert("Sign out?", "You can sign back in at any time.", [
@@ -135,6 +186,40 @@ export default function SettingsScreen() {
 					</Text>
 				</GlassCard>
 
+				<SectionLabel label="MEMORY" />
+				<GlassCard style={styles.card}>
+					<View style={styles.settingRow}>
+						<Text style={styles.rowTitle}>Enable memory</Text>
+						<Switch
+							accessibilityLabel="Enable memory"
+							value={memoryEnabled ?? false}
+							disabled={memoryEnabled === null || memoryTogglePending}
+							onValueChange={toggleMemory}
+							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+							thumbColor={memoryEnabled ? colors.accent : colors.textFaint}
+						/>
+					</View>
+					<Text style={styles.hint}>
+						When off, SureWord won&apos;t use or save memories. Your saved memories are kept.
+					</Text>
+					<Pressable
+						accessibilityRole="button"
+						onPress={() => router.push("/memories")}
+						style={({ pressed }) => [
+							styles.manageRow,
+							pressed && { backgroundColor: colors.surfacePressed },
+						]}
+					>
+						<View style={styles.manageText}>
+							<Text style={styles.rowTitle}>Manage memories</Text>
+							<Text style={styles.hint}>
+								{memoryCount === null ? "…" : `${memoryCount} saved`}
+							</Text>
+						</View>
+						<Text style={styles.chevron}>›</Text>
+					</Pressable>
+				</GlassCard>
+
 				<SectionLabel label="ACCOUNT" />
 				<GlassCard style={styles.card}>
 					<View style={styles.accountRow}>
@@ -171,6 +256,13 @@ export default function SettingsScreen() {
 					<Text style={styles.aboutName}>SureWord</Text>
 					<Text style={styles.hint}>
 						Version {version} · A Bible study assistant rooted in the King James Version.
+					</Text>
+					<Text style={styles.hint}>
+						Why it&apos;s different: ask a generic AI if the Bible is really the Word of God and
+						you&apos;ll hear &ldquo;it depends on your viewpoint.&rdquo; SureWord never hedges — it
+						answers as a Bible-believing Christian, standing on Scripture as the inerrant,
+						infallible, final authority for every answer. &ldquo;All scripture is given by
+						inspiration of God&rdquo; — 2 Timothy 3:16.
 					</Text>
 				</GlassCard>
 			</ScrollView>
@@ -240,6 +332,24 @@ const createStyles = (c: Colors) =>
 		chipGlyph: { color: c.textMuted, fontSize: 14 },
 		chipLabel: { color: c.textMuted, fontSize: 13, fontWeight: "700" },
 		hint: { color: c.textFaint, fontSize: 12, lineHeight: 17 },
+		settingRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: spacing.md,
+		},
+		rowTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
+		manageRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginHorizontal: -spacing.sm,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: spacing.sm,
+			borderRadius: radius.md,
+		},
+		manageText: { flex: 1, minWidth: 0, gap: 2 },
+		chevron: { color: c.textFaint, fontSize: 22, marginTop: -2 },
 		accountRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		avatar: {
 			width: 44,

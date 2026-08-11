@@ -314,6 +314,8 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | RAG API route | `src/app/api/ask-question/route.ts` |
 | Search API route | `src/app/api/tavily-search/route.ts` |
 | Vector DB config | `src/utils/astraDb.ts` |
+| Memory extraction/injection + caps | `src/lib/memory.ts` |
+| Memory management API | `src/app/api/memories/` |
 | System prompt | `src/utils/systemPrompt.ts` |
 | Chat hook | `src/components/useChat.ts` |
 | Global styles | `src/app/globals.css` |
