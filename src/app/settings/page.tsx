@@ -336,6 +336,7 @@ export default function SettingsPage() {
 			{memoryManagerOpen && (
 				<MemoryManager
 					open={memoryManagerOpen}
+					onMemoryCountChange={setMemoryCount}
 					onClose={() => {
 						setMemoryManagerOpen(false);
 						void loadMemories();

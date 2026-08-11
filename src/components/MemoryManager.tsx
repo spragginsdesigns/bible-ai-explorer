@@ -16,6 +16,7 @@ import {
 interface MemoryManagerProps {
 	open: boolean;
 	onClose: () => void;
+	onMemoryCountChange?: (count: number) => void;
 }
 
 function relativeTime(iso: string): string {
@@ -38,7 +39,7 @@ const CONFIRM_TIMEOUT_MS = 3000;
  * manual add, and grouped saved-memories list with delete / clear-all.
  * Rendered only while `open` is true.
  */
-const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
+const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCountChange }) => {
 	const [memories, setMemories] = useState<MemoryRecord[] | null>(null);
 	const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 				const data = await fetchMemories();
 				if (!cancelled) {
 					setMemories(data.memories);
+					onMemoryCountChange?.(data.memories.length);
 					setLoadError(null);
 				}
 			} catch (err) {
@@ -80,7 +82,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [open]);
+	}, [open, onMemoryCountChange]);
 
 	// Close on Escape.
 	useEffect(() => {
@@ -125,6 +127,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 		try {
 			const data = await fetchMemories();
 			setMemories(data.memories);
+			onMemoryCountChange?.(data.memories.length);
 		} catch (err) {
 			setLoadError(err instanceof Error ? err.message : "Couldn't load memories.");
 		}
@@ -152,8 +155,10 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 		setAddError(null);
 		try {
 			const memory = await addMemory(content);
+			const nextMemories = [memory, ...(memories ?? [])];
 			setDraft("");
-			setMemories((prev) => [memory, ...(prev ?? [])]);
+			setMemories(nextMemories);
+			onMemoryCountChange?.(nextMemories.length);
 			setSummary(undefined);
 			setSummaryGeneratedAt(null);
 		} catch (err) {
@@ -174,7 +179,9 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 		setListError(null);
 		try {
 			await deleteMemory(id);
-			setMemories((prev) => (prev ? prev.filter((m) => m.id !== id) : prev));
+			const nextMemories = (memories ?? []).filter((memory) => memory.id !== id);
+			setMemories(nextMemories);
+			onMemoryCountChange?.(nextMemories.length);
 			setSummary(undefined);
 			setSummaryGeneratedAt(null);
 		} catch (err) {
@@ -196,6 +203,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose }) => {
 		try {
 			await clearMemories();
 			setMemories([]);
+			onMemoryCountChange?.(0);
 			setSummary(undefined);
 			setSummaryGeneratedAt(null);
 			setSummaryError(null);
