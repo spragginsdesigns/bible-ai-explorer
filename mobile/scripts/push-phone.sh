@@ -10,11 +10,14 @@
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ADB="${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk/platform-tools/adb.exe"
+SDK_ROOT="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
+SDK_ROOT="${SDK_ROOT//\\//}"
+ADB="$SDK_ROOT/platform-tools/adb.exe"
 JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
 APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 ADDR_FILE="$MOBILE_DIR/.phone-addr"
 PACKAGE="com.spragginsdesigns.sureword"
+PHONE_MODEL="SM-S928U"
 
 export ADB_MDNS_OPENSCREEN=1
 
@@ -35,8 +38,12 @@ if [[ "${1:-}" == "connect" ]]; then
   exit 0
 fi
 
+phone_serial() {
+  "$ADB" devices -l | awk -v model="$PHONE_MODEL" '$2=="device" && $0 ~ ("model:" model) {print $1; exit}'
+}
+
 device_ready() {
-  "$ADB" devices | awk 'NR>1 && $2=="device" {found=1} END {exit !found}'
+  [[ -n "$(phone_serial)" ]]
 }
 
 ensure_device() {
@@ -116,8 +123,7 @@ if [[ "${1:-}" != "--skip-build" ]]; then
   # SDK default CMake 3.22.1, which loops forever on
   # "ninja: manifest 'build.ninja' still dirty" building reanimated.
   if [[ ! -f local.properties ]]; then
-    SDK_DIR="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
-    SDK_DIR="${SDK_DIR//\\//}"
+    SDK_DIR="$SDK_ROOT"
     {
       printf 'sdk.dir=%s\n' "$SDK_DIR"
       printf 'cmake.dir=%s/cmake/3.31.6\n' "$SDK_DIR"
@@ -158,7 +164,35 @@ EOF
   exit 2
 fi
 
-log "Installing on $("$ADB" devices | awk 'NR==2 {print $1}') ..."
-"$ADB" install -r "$APK"
-"$ADB" shell am start -n "$PACKAGE/.MainActivity" >/dev/null
+SERIAL="$(phone_serial)"
+[[ -n "$SERIAL" ]] || { echo "The connected device is not Austin's $PHONE_MODEL - refusing to install."; exit 3; }
+
+# Streaming installs can deadlock over Samsung's encrypted wireless-ADB
+# transport even while the connection remains healthy. Non-streaming first
+# pushes the APK through the sync protocol (fast and observable), then asks
+# Package Manager to commit it. Some Samsung builds commit successfully but do
+# not return from that final command, so cap the client and verify the exact
+# installed base.apk hash instead of guessing from a hung process.
+EXPECTED_SHA="$(sha256sum "$APK" | awk '{print toupper($1)}')"
+log "Installing on $SERIAL (non-streaming wireless-safe path) ..."
+set +e
+timeout 240 "$ADB" -s "$SERIAL" install --no-streaming -r "$APK"
+INSTALL_STATUS=$?
+set -e
+
+INSTALLED_APK="$("$ADB" -s "$SERIAL" shell pm path "$PACKAGE" 2>/dev/null | sed -n 's/^package://p' | head -n 1 | tr -d '\r')"
+INSTALLED_SHA=""
+if [[ -n "$INSTALLED_APK" ]]; then
+  INSTALLED_SHA="$("$ADB" -s "$SERIAL" shell sha256sum "$INSTALLED_APK" 2>/dev/null | awk '{print toupper($1)}')"
+fi
+
+if [[ "$INSTALLED_SHA" != "$EXPECTED_SHA" ]]; then
+  echo "Install verification failed (adb status $INSTALL_STATUS): installed APK hash does not match the build."
+  exit 4
+fi
+if [[ $INSTALL_STATUS -ne 0 ]]; then
+  log "Installer client returned $INSTALL_STATUS after Package Manager committed; exact APK hash verified."
+fi
+
+"$ADB" -s "$SERIAL" shell am start -n "$PACKAGE/.MainActivity" >/dev/null
 log "Installed and launched. To God be the glory."
