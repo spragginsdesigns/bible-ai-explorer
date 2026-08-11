@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="public/web-app-manifest-512x512.png" alt="VerseMind Logo" width="200" />
+  <img src="public/web-app-manifest-512x512.png" alt="SureWord Logo" width="200" />
 </p>
 
-<h1 align="center">VerseMind — Bible AI Explorer</h1>
+<h1 align="center">SureWord</h1>
 
 <p align="center">
   An AI-powered Bible study companion for believers, grounded entirely in the King James Version.
 </p>
 
 <p align="center">
-  <a href="https://bible-ai-explorer.vercel.app">Live Web App</a> ·
+  <a href="https://sureword.app">Live Web App</a> ·
   <a href="https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view">Download the Android App (APK)</a>
 </p>
 
@@ -17,20 +17,20 @@
 
 ## Clients & the Parity Rule
 
-VerseMind has two first-class clients over one shared backend (this repo's Next.js API routes + Postgres):
+SureWord has two first-class clients over one shared backend (this repo's Next.js API routes + Postgres):
 
 - **Android** (`mobile/`, Expo / React Native) — the **primary client and source of truth for features**
 - **Web** (`src/`, Next.js) — must stay at **1:1 feature parity with Android**
 
 **Parity rule:** every feature that ships on Android must ship on web in the same release cycle (layout may adapt to the form factor; capabilities may not be dropped). Web may be a superset, never a subset. The living tracker is [`docs/PARITY.md`](docs/PARITY.md); project rules are in [`CLAUDE.md`](CLAUDE.md).
 
-The Android APK is distributed via a stable Google Drive link (updated in place each release — see `mobile/README.md`): **[Download VerseMind for Android](https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view)**. The web app links to it so web users can install the native app.
+The Android APK is distributed via a stable Google Drive link (updated in place each release — see `mobile/README.md`): **[Download SureWord for Android](https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view)**. The web app links to it so web users can install the native app.
 
 ---
 
-## What Is VerseMind?
+## What Is SureWord?
 
-VerseMind is a web app that helps Christians study the Bible using AI. It answers questions about Scripture, theology, church history, and daily Christian living — always from the perspective of a saved, born-again believer who holds the KJV Bible as the inerrant, infallible Word of God.
+SureWord is a Bible study assistant that helps Christians study the Bible using AI. It answers questions about Scripture, theology, church history, and daily Christian living — always from the perspective of a saved, born-again believer who holds the KJV Bible as the inerrant, infallible Word of God.
 
 Every response is backed by exact KJV verse quotes, not paraphrases.
 
@@ -98,4 +98,4 @@ Push to `main` and Vercel handles the rest. Make sure the same environment varia
 
 ---
 
-*VerseMind: Illuminating Scripture through Artificial Intelligence*
+*SureWord: Illuminating Scripture through Artificial Intelligence*

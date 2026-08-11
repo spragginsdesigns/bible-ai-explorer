@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the VerseMind arm64 APK and install it on Austin's Galaxy S24 Ultra
+# Build the SureWord arm64 APK and install it on Austin's Galaxy S24 Ultra
 # over wireless ADB (or USB if plugged in).
 #
 # Usage:
@@ -14,7 +14,7 @@ ADB="${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk/platform-tools/ad
 JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
 APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 ADDR_FILE="$MOBILE_DIR/.phone-addr"
-PACKAGE="com.spragginsdesigns.versemind"
+PACKAGE="com.spragginsdesigns.sureword"
 
 export ADB_MDNS_OPENSCREEN=1
 
@@ -109,6 +109,21 @@ ensure_device() {
 if [[ "${1:-}" != "--skip-build" ]]; then
   log "Building arm64 release APK..."
   cd "$MOBILE_DIR/android"
+  # local.properties is gitignored and `expo prebuild --clean` deletes it along
+  # with the rest of android/, so a prebuild is otherwise always followed by a
+  # failing build. Both lines matter, with forward slashes: without sdk.dir the
+  # build dies with "SDK location not found", and without cmake.dir it picks the
+  # SDK default CMake 3.22.1, which loops forever on
+  # "ninja: manifest 'build.ninja' still dirty" building reanimated.
+  if [[ ! -f local.properties ]]; then
+    SDK_DIR="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
+    SDK_DIR="${SDK_DIR//\\//}"
+    {
+      printf 'sdk.dir=%s\n' "$SDK_DIR"
+      printf 'cmake.dir=%s/cmake/3.31.6\n' "$SDK_DIR"
+    } > local.properties
+    log "Recreated local.properties (sdk.dir + cmake.dir 3.31.6)."
+  fi
   grep -q '^reactNativeArchitectures=arm64-v8a$' gradle.properties || {
     sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' gradle.properties
     rm -rf ../node_modules/*/android/.cxx ../node_modules/@*/*/android/.cxx app/.cxx

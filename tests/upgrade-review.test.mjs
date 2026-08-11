@@ -14,7 +14,7 @@ test("both chat routes run GPT-5.6 Terra through the AI SDK with tools", async (
 
 		assert.match(source, /openai\("gpt-5\.6-terra"\)/, route);
 		assert.match(source, /reasoningEffort/, route);
-		assert.match(source, /buildVerseMindTools/, route);
+		assert.match(source, /buildSureWordTools/, route);
 		assert.match(source, /toUIMessageStream/, route);
 		assert.match(source, /result\.consumeStream\(\)/, route);
 		assert.doesNotMatch(source, /langchain/i, route);

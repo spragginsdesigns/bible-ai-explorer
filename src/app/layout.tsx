@@ -14,26 +14,26 @@ const cormorantGaramond = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://bible-ai-explorer.vercel.app"),
+	metadataBase: new URL("https://sureword.app"),
 	title: "SureWord",
 	description: "Explore the Bible with AI-powered insights and answers",
-	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "Explorer"],
+	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "KJV", "SureWord"],
 	authors: [
-		{ name: "Austin Spraggins", url: "https://bible-ai-explorer.vercel.app" }
+		{ name: "Austin Spraggins", url: "https://sureword.app" }
 	],
 	creator: "Austin Spraggins",
 	publisher: "Spraggins Designs",
 	openGraph: {
-		title: "Bible AI Explorer",
+		title: "SureWord",
 		description: "Explore the Bible with AI-powered insights and answers",
-		url: "https://bible-ai-explorer.vercel.app",
-		siteName: "Bible AI Explorer",
+		url: "https://sureword.app",
+		siteName: "SureWord",
 		images: [
 			{
 				url: "/web-app-manifest-512x512.png",
 				width: 512,
 				height: 512,
-				alt: "Verse Mind Logo"
+				alt: "SureWord logo"
 			}
 		],
 		locale: "en_US",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
 export const viewport = {
 	width: "device-width",
 	initialScale: 1,
-	themeColor: "#000000",
+	themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({

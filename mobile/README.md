@@ -1,10 +1,10 @@
-# VerseMind for Android
+# SureWord for Android
 
-The native Android app for **VerseMind** — a KJV Bible study companion that
+The native Android app for **SureWord** — a KJV Bible study companion that
 answers from a believing perspective, quotes Scripture word-for-word, writes
 into your study notes on request, and remembers you between conversations.
 
-**This is the primary VerseMind client and the source of truth for
+**This is the primary SureWord client and the source of truth for
 features.** New features land here first — and the web app
 (bible-ai-explorer.vercel.app) MUST be brought to 1:1 feature parity in the
 same release cycle. Web may be a superset, never a subset. The parity rule
@@ -96,8 +96,8 @@ script self-heals by port-scanning the phone's last-known IP.
 
 1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry.
 2. `npx tsc --noEmit` clean.
-3. Test on the emulator when the change is risky (AVD `VerseMind_Test`).
+3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
 4. `bash mobile/scripts/push-phone.sh` to Austin's phone.
 5. Update the Drive APK in place (same file id, keeps the share link):
-   `gws drive files update --params '{"fileId":"1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu"}' --json '{"name":"VerseMind-<version>.apk"}' --upload <apk> --upload-content-type application/vnd.android.package-archive`
+   `gws drive files update --params '{"fileId":"1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu"}' --json '{"name":"SureWord-<version>.apk"}' --upload <apk> --upload-content-type application/vnd.android.package-archive`
 6. Commit `mobile/` changes (the generated `android/` dir stays gitignored).

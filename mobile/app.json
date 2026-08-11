@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "SureWord",
 		"slug": "sureword",
-		"version": "1.7.0",
+		"version": "1.8.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "sureword",
@@ -23,7 +23,6 @@
 				"foregroundImage": "./assets/adaptive-icon.png",
 				"backgroundColor": "#0a0a0a"
 			},
-			"edgeToEdgeEnabled": true,
 			"softwareKeyboardLayoutMode": "resize"
 		},
 		"splash": {
@@ -49,8 +48,8 @@
 			"typedRoutes": true
 		},
 		"extra": {
-			"apiUrl": "https://bible-ai-explorer.vercel.app",
-			"clerkPublishableKey": "pk_live_Y2xlcmsuYmlibGUtYWktZXhwbG9yZXIudmVyY2VsLmFwcCQ"
+			"apiUrl": "https://sureword.app",
+			"clerkPublishableKey": "pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA"
 		}
 	}
 }

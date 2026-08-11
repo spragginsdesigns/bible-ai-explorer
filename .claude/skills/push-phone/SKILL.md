@@ -1,9 +1,9 @@
 ---
 name: push-phone
-description: Build the VerseMind Android APK and install it directly onto Austin's Galaxy S24 Ultra over wireless ADB (or USB). Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device without Google Drive.
+description: Build the SureWord Android APK and install it directly onto Austin's Galaxy S24 Ultra over wireless ADB (or USB). Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device without Google Drive.
 ---
 
-# Push VerseMind to Austin's Galaxy S24 Ultra
+# Push SureWord to Austin's Galaxy S24 Ultra
 
 Build the arm64 release APK and install it straight onto the phone via ADB. The
 helper script handles building, device discovery, install, and launch:
@@ -51,7 +51,7 @@ Google Drive APK in place (same link he already has):
 
 ```bash
 gws drive files update --params '{"fileId":"1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu"}' \
-  --json '{"name":"VerseMind-<version>.apk"}' \
+  --json '{"name":"SureWord-<version>.apk"}' \
   --upload mobile/android/app/build/outputs/apk/release/app-release.apk \
   --upload-content-type application/vnd.android.package-archive
 ```

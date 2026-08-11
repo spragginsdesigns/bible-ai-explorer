@@ -1,7 +1,32 @@
-# VerseMind for Android — Changelog
+# SureWord for Android — Changelog
 
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
+
+## [1.8.0] — 2026-08-10
+
+### Fixed
+- **Sign-in works again.** The app shipped a Clerk publishable key encoding
+  `clerk.bible-ai-explorer.vercel.app`, a host that no longer resolves, and it
+  still passed a `proxyUrl` pointing at the `/__clerk` proxy that was deleted
+  when Clerk moved to its own domain. Both are gone: the app now uses the
+  production key for `clerk.sureword.app` and lets Clerk reach its Frontend API
+  directly, the way a custom-domain instance is meant to work.
+- The API base URL now points at `https://sureword.app` instead of the legacy
+  `bible-ai-explorer.vercel.app` host.
+
+### Changed
+- **The app is now SureWord on the device, not just in the code.** The native
+  project was a stale prebuild still carrying `com.spragginsdesigns.versemind`
+  and a launcher reading "VerseMind" — the earlier rename only ever touched
+  `app.json`. Regenerated it, so the package is now
+  `com.spragginsdesigns.sureword` and the launcher reads **SureWord**.
+- Dropped the obsolete `edgeToEdgeEnabled` flag (Android 16 makes edge-to-edge
+  mandatory and Expo now warns on it).
+
+> **Upgrading:** the package name changed, so this installs alongside the old
+> VerseMind app rather than over it. Uninstall VerseMind after confirming
+> SureWord signs in.
 
 ## [1.7.0] — 2026-08-10
 

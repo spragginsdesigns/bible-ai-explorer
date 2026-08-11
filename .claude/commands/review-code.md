@@ -13,7 +13,7 @@ The review verdict is PASS or NEEDS ATTENTION with three mandatory sections:
 - **Spec Trace** — each requirement from the user's request, quoted, with what shipped and what was verified.
 - **Devil's Advocate** — at least one real concern, risk, or question. A non-trivial diff with zero concerns means the review wasn't deep.
 
-VerseMind-specific checks:
+SureWord-specific checks:
 
 - **Mission alignment:** anything touching prompts, AI tools, or verse rendering must stay rooted in KJV Scripture per `CLAUDE.md`.
 - **Contract drift:** mobile (`mobile/src/lib/api.ts`, feature hooks) vs backend routes (`src/app/api/`) — request/response shapes must match on both sides.

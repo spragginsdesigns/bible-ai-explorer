@@ -1,5 +1,5 @@
 ---
-description: Run the standard VerseMind task workflow end-to-end
+description: Run the standard SureWord task workflow end-to-end
 argument-hint: <task description>
 ---
 

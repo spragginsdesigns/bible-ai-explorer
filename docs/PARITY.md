@@ -1,4 +1,4 @@
-# VerseMind Client Parity Tracker
+# SureWord Client Parity Tracker
 
 **Rule (see `CLAUDE.md`):** Android (`mobile/`) is the primary client and the
 source of truth. The web client (`src/`) must reach and maintain **1:1 feature

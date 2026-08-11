@@ -41,7 +41,7 @@ If you cannot fill this out with concrete values, stop and reread the request an
 3. **Any code change after proof invalidates the proof** — re-verify the affected path.
 4. **Capture at least one raw artifact**: device screenshot, copied response body, or test/log output.
 5. **Match certainty to evidence.** "Proven" means you saw the exact output. "Looks correct" means you guessed.
-6. **User-facing AI output needs product-quality proof.** VerseMind's answers must be rooted in KJV Scripture per the mission in `CLAUDE.md`. If the change touches prompts, tools, or retrieval, run 2-3 real questions through the real chat path and judge the answers: KJV-grounded, no watering down, citations render correctly. Generic or off-mission output means `Incomplete` or `Failed`, not Done.
+6. **User-facing AI output needs product-quality proof.** SureWord's answers must be rooted in KJV Scripture per the mission in `CLAUDE.md`. If the change touches prompts, tools, or retrieval, run 2-3 real questions through the real chat path and judge the answers: KJV-grounded, no watering down, citations render correctly. Generic or off-mission output means `Incomplete` or `Failed`, not Done.
 
 ## Required proof by change type
 

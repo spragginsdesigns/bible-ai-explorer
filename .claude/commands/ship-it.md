@@ -5,7 +5,7 @@ argument-hint: [additional instructions]
 
 # Ship It
 
-Executes the full VerseMind deploy workflow. Authorization is the green-gate rule (`CLAUDE.md` → Autonomous Workflow): run this autonomously once `/prove-it` and `/review-code` are both green on the final diff — no human approval required. Never run this workflow with a failed or unsatisfied gate; a failed gate means fix and re-verify, not ship.
+Executes the full SureWord deploy workflow. Authorization is the green-gate rule (`CLAUDE.md` → Autonomous Workflow): run this autonomously once `/prove-it` and `/review-code` are both green on the final diff — no human approval required. Never run this workflow with a failed or unsatisfied gate; a failed gate means fix and re-verify, not ship.
 
 ## Modifiers in `$ARGUMENTS`
 

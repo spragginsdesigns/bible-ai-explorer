@@ -4,26 +4,18 @@ import { fetch as expoFetch } from "expo/fetch";
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
 
 export const API_URL: string =
-	typeof extra.apiUrl === "string" ? extra.apiUrl : "https://bible-ai-explorer.vercel.app";
-
-export const CLERK_PUBLISHABLE_KEY: string =
-	typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "";
+	typeof extra.apiUrl === "string" ? extra.apiUrl : "https://sureword.app";
 
 /**
- * Clerk Frontend API proxy URL, or undefined when the proxy must not be used.
- *
- * The production Clerk instance is served through a proxy on our own domain
- * (`/__clerk`) because a *.vercel.app host cannot have the CNAME records Clerk
- * normally requires. Clerk supports proxying on production instances ONLY -
- * pointing a development instance at a proxy breaks sign-in outright. Gating on
- * the key prefix means this stays inert on `pk_test_` and switches itself on the
- * moment the production key ships, so the two never have to change together.
+ * The production key encodes the Frontend API host it must talk to
+ * (`clerk.sureword.app`), so Clerk needs no `proxyUrl`/`domain` override here.
+ * The old `/__clerk` proxy this app used to point at is gone, and the host the
+ * previous key encoded (`clerk.bible-ai-explorer.vercel.app`) no longer
+ * resolves — a key from the wrong instance takes sign-in down outright rather
+ * than degrading, so this must be updated in lockstep with the web app's key.
  */
-export const CLERK_PROXY_URL: string | undefined = CLERK_PUBLISHABLE_KEY.startsWith("pk_live_")
-	? typeof extra.clerkProxyUrl === "string" && extra.clerkProxyUrl
-		? extra.clerkProxyUrl
-		: `${API_URL}/__clerk`
-	: undefined;
+export const CLERK_PUBLISHABLE_KEY: string =
+	typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "";
 
 /**
  * Token getter. Pass `{ fresh: true }` to bypass the Clerk token cache - used
