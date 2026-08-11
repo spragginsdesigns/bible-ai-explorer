@@ -14,7 +14,7 @@ import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { formatRelativeDate } from "./format";
-import type { Conversation } from "./useVerseMindChat";
+import type { Conversation } from "./useSureWordChat";
 
 interface HistoryModalProps {
 	visible: boolean;

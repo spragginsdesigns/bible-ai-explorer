@@ -12,7 +12,7 @@ export default function NotFound() {
 					href="/"
 					className="text-amber-400 hover:text-amber-300 transition-colors underline"
 				>
-					Return to VerseMind
+					Return to SureWord
 				</Link>
 			</div>
 		</div>

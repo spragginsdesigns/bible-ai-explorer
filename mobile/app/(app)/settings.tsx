@@ -131,7 +131,7 @@ export default function SettingsScreen() {
 					</View>
 					<Text style={styles.hint}>
 						Used by the Bible reader and verse attachments. KJV works fully offline; NKJV is
-						streamed from bolls.life. VerseMind&apos;s AI answers always quote the KJV.
+						streamed from bolls.life. SureWord&apos;s AI answers always quote the KJV.
 					</Text>
 				</GlassCard>
 
@@ -168,7 +168,7 @@ export default function SettingsScreen() {
 
 				<SectionLabel label="ABOUT" />
 				<GlassCard style={styles.card}>
-					<Text style={styles.aboutName}>VerseMind</Text>
+					<Text style={styles.aboutName}>SureWord</Text>
 					<Text style={styles.hint}>
 						Version {version} · A Bible study assistant rooted in the King James Version.
 					</Text>

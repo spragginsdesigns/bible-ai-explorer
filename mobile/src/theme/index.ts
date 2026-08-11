@@ -1,9 +1,9 @@
 /**
- * VerseMind mobile design system — monochrome glassmorphism, ported from
+ * SureWord mobile design system — monochrome glassmorphism, ported from
  * the web app (globals.css + Tailwind neutral/amber usage). No Material UI:
  * every surface is built from these tokens.
  *
- * Two palettes live here: dark (the original VerseMind look) and light.
+ * Two palettes live here: dark (the original SureWord look) and light.
  * Components should never read these directly — use `useTheme()` /
  * `useThemedStyles()` from `@/features/settings/settingsStore`, which pick
  * the active palette from the user's appearance setting.
@@ -90,7 +90,7 @@ export const palettes: Record<ResolvedTheme, Colors> = {
 };
 
 export const fonts = {
-	/** Pirata One — VerseMind brand title only */
+	/** Pirata One — SureWord brand title only */
 	brand: "PirataOne_400Regular",
 	/** Cormorant Garamond — quoted Scripture */
 	verse: "CormorantGaramond_500Medium",

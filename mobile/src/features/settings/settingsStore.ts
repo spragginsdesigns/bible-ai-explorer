@@ -19,7 +19,7 @@ export interface Settings {
 	translation: TranslationId;
 }
 
-const STORAGE_KEY = "versemind.settings.v1";
+const STORAGE_KEY = "sureword.settings.v1";
 
 const DEFAULT_SETTINGS: Settings = {
 	themeMode: "system",

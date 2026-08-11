@@ -15,7 +15,7 @@ const cormorantGaramond = Cormorant_Garamond({
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://bible-ai-explorer.vercel.app"),
-	title: "VerseMind",
+	title: "SureWord",
 	description: "Explore the Bible with AI-powered insights and answers",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "Explorer"],
 	authors: [
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "VerseMind",
+		title: "SureWord",
 		description: "Explore the Bible with AI-powered insights and answers",
 		creator: "@spragginsdesign",
 		images: ["/web-app-manifest-512x512.png"]
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 		shortcut: "/favicon.ico"
 	},
 	appleWebApp: {
-		title: "VerseMind",
+		title: "SureWord",
 	},
 	manifest: "/site.webmanifest"
 };

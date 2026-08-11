@@ -13,7 +13,7 @@ import { waitUntil } from "@vercel/functions";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildVerseMindTools, type VerseMindUIMessage } from "@/lib/ai-tools";
+import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { noteAISystemPrompt, slashCommandGuidance, toolGuidance } from "@/utils/systemPrompt";
 
@@ -122,10 +122,10 @@ export async function POST(req: Request): Promise<Response> {
 			return NextResponse.json({ error: "Note not found." }, { status: 404 });
 		}
 
-		const tools = buildVerseMindTools({ userId, defaultNoteId: note.id });
+		const tools = buildSureWordTools({ userId, defaultNoteId: note.id });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
-		const messages = await validateUIMessages<VerseMindUIMessage>({
+		const messages = await validateUIMessages<SureWordUIMessage>({
 			messages: recentMessages,
 			tools,
 		});

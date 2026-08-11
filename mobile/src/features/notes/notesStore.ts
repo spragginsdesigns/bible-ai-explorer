@@ -17,7 +17,7 @@ import type { Folder, Note, Tag } from "./types";
  * body fields are real rather than summary placeholders.
  */
 
-const STORAGE_KEY = "versemind.notes-cache.v1";
+const STORAGE_KEY = "sureword.notes-cache.v1";
 
 export interface NotesSnapshot {
 	notes: Note[];

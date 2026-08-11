@@ -58,13 +58,13 @@ export default function SignInScreen() {
 				strategy: "oauth_google",
 				// Native MUST pass an explicit scheme. Without redirectUrl, clerk-expo
 				// falls back to makeRedirectUri() with no scheme, which does not
-				// resolve to versemind:// in a standalone build. Clerk then finds the
+				// resolve to sureword:// in a standalone build. Clerk then finds the
 				// requested redirect is not in the instance allowlist and silently
 				// omits external_verification_redirect_url, which surfaces only as
 				// "Missing external verification redirect URL for SSO flow".
 				// This URL must stay in sync with Clerk's allowed redirect URLs.
 				redirectUrl: AuthSession.makeRedirectUri({
-					scheme: "versemind",
+					scheme: "sureword",
 					path: "sso-callback",
 				}),
 			});

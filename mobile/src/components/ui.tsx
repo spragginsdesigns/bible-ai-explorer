@@ -60,12 +60,12 @@ export function GlassCard({
 	);
 }
 
-/** The VerseMind wordmark in Pirata One. */
+/** The SureWord wordmark in Pirata One. */
 export function BrandTitle({ size = 34, style }: { size?: number; style?: StyleProp<TextStyle> }) {
 	const { colors } = useTheme();
 	return (
 		<Text style={[{ fontFamily: fonts.brand, fontSize: size, color: colors.text }, style]}>
-			VerseMind
+			SureWord
 		</Text>
 	);
 }

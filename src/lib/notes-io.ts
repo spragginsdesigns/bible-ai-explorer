@@ -71,7 +71,7 @@ export async function appendMarkdownToNote(options: {
 		};
 	}
 
-	const title = options.title?.trim() || "Note from VerseMind";
+	const title = options.title?.trim() || "Note from SureWord";
 	const note = await prisma.note.create({
 		data: {
 			userId: options.userId,

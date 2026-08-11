@@ -189,7 +189,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 					</div>
 				</div>
 				<p className="text-center text-xs text-neutral-400 dark:text-neutral-700 mt-2">
-					VerseMind uses AI trained on the KJV Bible. Use with discernment. Created by{" "}
+					SureWord uses AI trained on the KJV Bible. Use with discernment. Created by{" "}
 					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-neutral-500 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-400 transition-colors">
 						Austin Spraggins
 					</a>

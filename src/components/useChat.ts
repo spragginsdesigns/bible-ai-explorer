@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { VerseMindUIMessage } from "@/lib/ai-tools";
+import type { SureWordUIMessage } from "@/lib/ai-tools";
 import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
@@ -131,7 +131,7 @@ interface LegacyMessageMetadata {
  * marker lines become chips.
  */
 export function toViewMessage(
-	message: VerseMindUIMessage,
+	message: SureWordUIMessage,
 	options: { isStreaming: boolean }
 ): ChatMessage {
 	const legacy = isRecord(message.metadata)
@@ -218,7 +218,7 @@ export function toViewMessage(
 }
 
 /** Map a stored DB message row to a UIMessage for the AI SDK chat state. */
-export function dbMessageToUIMessage(value: unknown): VerseMindUIMessage {
+export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 	if (
 		!isRecord(value) ||
 		typeof value.id !== "string" ||
@@ -230,7 +230,7 @@ export function dbMessageToUIMessage(value: unknown): VerseMindUIMessage {
 
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
 	const parts = Array.isArray(metadata.parts)
-		? (metadata.parts as VerseMindUIMessage["parts"])
+		? (metadata.parts as SureWordUIMessage["parts"])
 		: [{ type: "text" as const, text: value.content }];
 
 	const { parts: _ignored, ...legacyMetadata } = metadata;
@@ -265,7 +265,7 @@ export const useChat = () => {
 
 	const transport = useMemo(
 		() =>
-			new DefaultChatTransport<VerseMindUIMessage>({
+			new DefaultChatTransport<SureWordUIMessage>({
 				api: "/api/ask-question",
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
@@ -284,7 +284,7 @@ export const useChat = () => {
 		stop,
 		status,
 		error: chatError,
-	} = useAIChat<VerseMindUIMessage>({ transport });
+	} = useAIChat<SureWordUIMessage>({ transport });
 
 	// Load conversation list on mount
 	useEffect(() => {

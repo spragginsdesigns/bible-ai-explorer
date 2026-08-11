@@ -47,7 +47,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 			>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-black/[0.08] dark:border-white/[0.06]">
-					<span className="text-amber-600 dark:text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">VerseMind</span>
+					<span className="text-amber-600 dark:text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">SureWord</span>
 					<button onClick={onClose} className="lg:hidden text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors">
 						<X className="w-5 h-5" />
 					</button>

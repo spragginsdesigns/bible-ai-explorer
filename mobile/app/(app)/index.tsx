@@ -17,14 +17,14 @@ import { MessageList } from "@/features/chat/MessageList";
 import { WelcomeState } from "@/features/chat/WelcomeState";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
-import { useVerseMindChat } from "@/features/chat/useVerseMindChat";
+import { useSureWordChat } from "@/features/chat/useSureWordChat";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { radius, spacing, type Colors } from "@/theme";
 import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
 
 export default function ChatScreen() {
 	const router = useRouter();
-	const chat = useVerseMindChat();
+	const chat = useSureWordChat();
 	const styles = useThemedStyles(createStyles);
 	const { colors } = useTheme();
 	const { translation: defaultTranslation } = useSettings();

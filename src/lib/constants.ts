@@ -1,4 +1,4 @@
-// Stable Google Drive URL for the VerseMind Android APK.
+// Stable Google Drive URL for the SureWord Android APK.
 // The file is updated in place with each release, so this link always serves
 // the latest build.
 export const ANDROID_APK_URL =

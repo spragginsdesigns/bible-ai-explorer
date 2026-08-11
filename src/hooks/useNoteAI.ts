@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import type { VerseMindUIMessage } from "@/lib/ai-tools";
+import type { SureWordUIMessage } from "@/lib/ai-tools";
 import {
 	dbMessageToUIMessage,
 	toViewMessage,
@@ -16,7 +16,7 @@ export interface NoteAppendEvent {
 }
 
 function collectAddToNoteCalls(
-	messages: VerseMindUIMessage[]
+	messages: SureWordUIMessage[]
 ): Array<{ toolCallId: string; noteId: string; appendedHtml: string }> {
 	const calls: Array<{ toolCallId: string; noteId: string; appendedHtml: string }> = [];
 	for (const message of messages) {
@@ -50,7 +50,7 @@ export function useNoteAI(
 
 	const transport = useMemo(
 		() =>
-			new DefaultChatTransport<VerseMindUIMessage>({
+			new DefaultChatTransport<SureWordUIMessage>({
 				api: "/api/note-ai",
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
@@ -68,7 +68,7 @@ export function useNoteAI(
 		setMessages: setUIMessages,
 		stop,
 		status,
-	} = useAIChat<VerseMindUIMessage>({ transport });
+	} = useAIChat<SureWordUIMessage>({ transport });
 
 	// Load persisted AI messages when the note changes
 	useEffect(() => {

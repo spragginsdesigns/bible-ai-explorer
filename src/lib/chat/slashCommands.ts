@@ -49,7 +49,7 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 	},
 	{
 		command: "/memory",
-		description: "What VerseMind remembers about you",
+		description: "What SureWord remembers about you",
 		kind: "ai",
 	},
 	{

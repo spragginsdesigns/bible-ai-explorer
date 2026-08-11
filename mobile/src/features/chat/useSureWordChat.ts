@@ -12,7 +12,7 @@ export interface Conversation {
 	createdAt: string;
 }
 
-export interface VerseMindChat {
+export interface SureWordChat {
 	messages: ChatViewMessage[];
 	conversations: Conversation[];
 	activeConversationId: string | null;
@@ -60,7 +60,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * conversation list + persistence, history restore, and the AI SDK stream
  * mapped into the ChatViewMessage render model.
  */
-export function useVerseMindChat(): VerseMindChat {
+export function useSureWordChat(): SureWordChat {
 	const { getToken } = useAuth();
 	const getTokenRef = useRef(getToken);
 	useEffect(() => {

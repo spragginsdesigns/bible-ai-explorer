@@ -38,13 +38,13 @@ export type AddToNoteToolOutput = AppendToNoteResult;
 
 const MAX_PASSAGE_VERSES = 30;
 
-export interface VerseMindToolContext {
+export interface SureWordToolContext {
 	userId: string;
 	/** When set (note chat), addToNote defaults to this note. */
 	defaultNoteId?: string;
 }
 
-export function buildVerseMindTools(context: VerseMindToolContext) {
+export function buildSureWordTools(context: SureWordToolContext) {
 	const searchScriptureTool = tool({
 		description:
 			"Semantic search over the entire King James Bible. Returns the most relevant verses with their exact KJV text. Call this before quoting or citing Scripture whenever you do not already have the exact wording in this conversation, and call it again with a different phrasing if the first results do not answer the question.",
@@ -169,11 +169,11 @@ export function buildVerseMindTools(context: VerseMindToolContext) {
 	};
 }
 
-export type VerseMindTools = ReturnType<typeof buildVerseMindTools>;
+export type SureWordTools = ReturnType<typeof buildSureWordTools>;
 
-/** UIMessage typed with the VerseMind tool set, shared by server and client. */
-export type VerseMindUIMessage = UIMessage<
+/** UIMessage typed with the SureWord tool set, shared by server and client. */
+export type SureWordUIMessage = UIMessage<
 	unknown,
 	UIDataTypes,
-	InferUITools<VerseMindTools>
+	InferUITools<SureWordTools>
 >;

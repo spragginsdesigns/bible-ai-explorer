@@ -20,7 +20,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 						<Brain className="w-10 h-10 text-amber-600 dark:text-amber-400" />
 					</div>
 					<h1 className="text-5xl sm:text-7xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
-						<span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 dark:from-amber-300 dark:via-amber-400 dark:to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">VerseMind</span>
+						<span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 dark:from-amber-300 dark:via-amber-400 dark:to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">SureWord</span>
 					</h1>
 					<p className="text-neutral-500 text-sm">
 						AI-powered biblical exploration. Ask anything about the Bible.
@@ -40,7 +40,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 				</div>
 
 				<div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm text-neutral-500 dark:text-neutral-400">
-					<span>✦ VerseMind is also an Android app — same account, same chats.</span>
+					<span>✦ SureWord is also an Android app — same account, same chats.</span>
 					<a
 						href={ANDROID_APK_URL}
 						target="_blank"

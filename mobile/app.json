@@ -1,11 +1,11 @@
 {
 	"expo": {
-		"name": "VerseMind",
-		"slug": "versemind",
+		"name": "SureWord",
+		"slug": "sureword",
 		"version": "1.7.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
-		"scheme": "versemind",
+		"scheme": "sureword",
 		"userInterfaceStyle": "automatic",
 		"backgroundColor": "#0a0a0a",
 		"newArchEnabled": true,
@@ -18,7 +18,7 @@
 			"fallbackToCacheTimeout": 0
 		},
 		"android": {
-			"package": "com.spragginsdesigns.versemind",
+			"package": "com.spragginsdesigns.sureword",
 			"adaptiveIcon": {
 				"foregroundImage": "./assets/adaptive-icon.png",
 				"backgroundColor": "#0a0a0a"

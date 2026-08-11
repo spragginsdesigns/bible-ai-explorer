@@ -90,7 +90,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
 					<span className="text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">
-						VerseMind
+						SureWord
 					</span>
 					<button
 						onClick={onClose}
