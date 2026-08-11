@@ -3,6 +3,17 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.8.1] — 2026-08-10
+
+### Changed
+- **New logo.** The old mark was a brain wired into a book — a VerseMind idea,
+  since "mind" was the name. SureWord is from 2 Peter 1:19 ("a light that
+  shineth in a dark place, until the day dawn, and the day star arise in your
+  hearts"), so the mark is now the day star rising over the open Word, its rays
+  doubling as the pages. Gold on the app's own near-black.
+- The launcher, adaptive, splash, and chat-home icons all come from that one
+  master now, so they can no longer drift apart between releases.
+
 ## [1.8.0] — 2026-08-10
 
 ### Fixed

@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BrandTitle } from "@/components/ui";
 import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -23,7 +23,12 @@ export function WelcomeState({
 			keyboardShouldPersistTaps="handled"
 		>
 			<View style={styles.halo}>
-				<Text style={styles.haloGlyph}>✦</Text>
+				<Image
+					source={require("../../../assets/icon.png")}
+					style={styles.haloMark}
+					resizeMode="cover"
+					accessibilityIgnoresInvertColors
+				/>
 			</View>
 			<BrandTitle size={52} style={styles.brand} />
 			<Text style={styles.tagline}>
@@ -71,7 +76,9 @@ const createStyles = (c: Colors) =>
 			borderWidth: 1,
 			marginBottom: spacing.lg,
 		},
-		haloGlyph: { color: c.accent, fontSize: 30 },
+		// Slightly oversized inside the halo so the mark's own padding does not
+		// read as a gap between the artwork and the ring.
+		haloMark: { width: "100%", height: "100%", borderRadius: radius.full, transform: [{ scale: 1.1 }] },
 		brand: { color: c.accent },
 		tagline: {
 			marginTop: spacing.sm,

@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Brain, Smartphone } from "lucide-react";
+import Image from "next/image";
+import { Smartphone } from "lucide-react";
 import { commonQuestions } from "@/utils/commonQuestions";
 import { ANDROID_APK_URL } from "@/lib/constants";
 
@@ -16,8 +17,15 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 		<div className="flex-1 flex items-center justify-center">
 			<div className="max-w-2xl mx-auto px-4 text-center">
 				<div className="mb-6">
-					<div className="w-20 h-20 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow">
-						<Brain className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+					<div className="w-20 h-20 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow overflow-hidden">
+						<Image
+							src="/web-app-manifest-512x512.png"
+							alt="SureWord"
+							width={80}
+							height={80}
+							priority
+							className="w-full h-full object-cover scale-110"
+						/>
 					</div>
 					<h1 className="text-5xl sm:text-7xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
 						<span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 dark:from-amber-300 dark:via-amber-400 dark:to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">SureWord</span>
