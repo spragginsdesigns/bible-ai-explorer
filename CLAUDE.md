@@ -1,4 +1,4 @@
-# Project: Bible AI Explorer (VerseMind)
+# Project: SureWord (formerly VerseMind / Bible AI Explorer)
 
 @~/.claude/CLAUDE.md
 
@@ -6,7 +6,7 @@
 
 ## Mission
 
-VerseMind is a Bible study assistant for Christians. It MUST emulate a saved, born-again believer in Jesus Christ who believes EVERYTHING in the King James Version (KJV) Bible absolutely and unequivocally. It does not question, reinterpret, or water down Scripture. Every response must be rooted in KJV Scripture, treating the Bible as the inerrant, infallible Word of God. This is non-negotiable and must be reflected in the system prompt, API behavior, and any future AI integration.
+SureWord is a Bible study assistant for Christians. It MUST emulate a saved, born-again believer in Jesus Christ who believes EVERYTHING in the King James Version (KJV) Bible absolutely and unequivocally. It does not question, reinterpret, or water down Scripture. Every response must be rooted in KJV Scripture, treating the Bible as the inerrant, infallible Word of God. This is non-negotiable and must be reflected in the system prompt, API behavior, and any future AI integration.
 
 ## Project Context
 
@@ -63,7 +63,7 @@ This link must stay visible in the web UI (see `src/lib/constants.ts`).
 
 | Term | Meaning | Location |
 |------|---------|----------|
-| VerseMind | Product name / brand for the Bible AI Explorer | Header, layout |
+| SureWord | Product name / brand (renamed from VerseMind on 2026-08-10) | Header, layout |
 | AstraDB | DataStax Astra vector database for Bible verse embeddings | `src/utils/astraDb.ts` |
 | Tavily | External search API for supplementary web results | `src/app/api/tavily-search/route.ts` |
 | RAG | Retrieval-Augmented Generation - queries vector DB for relevant Bible passages | `src/app/api/ask-question/route.ts` |
@@ -152,6 +152,36 @@ got there, and it left no history, which made a routine change look like an outa
    Prisma's dotenv loader overrides an already-set variable, so it silently beats
    every `.env` file. Before any Prisma command, pin the URL explicitly for that
    command and confirm with `SELECT current_database()`.
+
+## Domains & Auth
+
+| Fact | Value |
+|------|-------|
+| Primary domain | `sureword.app` (Namecheap, DNS on Vercel nameservers) |
+| Legacy domain | `bible-ai-explorer.vercel.app` — still connected, still the API host baked into older APKs. Do NOT rename the Vercel project. |
+| Clerk Frontend API | `clerk.sureword.app` (CNAME → `frontend-api.clerk.services`) |
+| Account Portal | `accounts.sureword.app` |
+| Google OAuth | GCP project `versemind-auth` (project IDs are permanent; the *display* name and consent-screen name are SureWord) |
+
+**Clerk does not support `*.vercel.app` for production instances.** Its API says so
+outright: `provider_domain_operation_not_allowed`. Running production Clerk on the
+vercel.app host is what caused every web auth failure on 2026-08-10 - a hand-rolled
+Frontend API proxy was tried first and produced five separate bugs (a folder Next.js
+excluded from routing, merged Set-Cookie headers, cookies scoped to Clerk's domain so
+the browser discarded them, relative redirects losing the path prefix, and an
+over-broad fix for that). The custom domain is the fix; the proxy was never viable.
+
+**Android needs `@clerk/expo`, not `@clerk/clerk-expo`.** The old package builds the
+native Clerk instance without passing `proxyUrl`/`domain` through, so on native it
+silently falls back to the publishable key's host. Deep-link scheme is `sureword://`
+and **must** stay in sync with Clerk's allowed redirect URLs - `useSSO` requires
+native callers to pass `redirectUrl` explicitly or Clerk rejects the sign-in with a
+bare "Missing external verification redirect URL for SSO flow".
+
+**Redirect URLs are allowlisted per instance.** Production instances reject any
+redirect not on the list, silently, by omitting `external_verification_redirect_url`.
+Web needs `/sign-in/sso-callback` (not just `/sso-callback`); native needs
+`sureword://sso-callback`.
 
 ## Environment Variables
 
