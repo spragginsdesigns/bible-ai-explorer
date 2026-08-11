@@ -15,8 +15,8 @@ import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
-import { slashCommandGuidance, systemPrompt, toolGuidance } from "@/utils/systemPrompt";
-
+import { chatSystemPrompt } from "@/utils/systemPrompt";
+import type { TranslationId } from "@/lib/bible/translations";
 export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 24;
@@ -134,7 +134,12 @@ export async function POST(req: Request): Promise<Response> {
 				? requestData.conversationId
 				: null;
 
-		const tools = buildSureWordTools({ userId });
+		// The client sends the Bible translation chosen in settings; the system
+		// prompt and Scripture tools quote that translation instead of the KJV.
+		const translation: TranslationId =
+			requestData.translation === "NKJV" ? "NKJV" : "KJV";
+
+		const tools = buildSureWordTools({ userId, translation });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const messages = await validateUIMessages<SureWordUIMessage>({
@@ -156,7 +161,7 @@ export async function POST(req: Request): Promise<Response> {
 
 		const result = streamText({
 			model: openai("gpt-5.6-terra"),
-			system: `${systemPrompt}\n\n${toolGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`,
+			system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
 			messages: await convertToModelMessages(messages),
 			tools,
 			stopWhen: isStepCount(8),

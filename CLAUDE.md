@@ -56,7 +56,7 @@ This link must stay visible in the web UI (see `src/lib/constants.ts`).
 - **Production branch:** `main` — auto-deploys to Vercel on every push
 - **Legacy branch:** `master` — unused, do not push here
 - **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
-- **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to https://bible-ai-explorer.vercel.app
+- **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to production at https://sureword.app (legacy host https://bible-ai-explorer.vercel.app serves the same deployment). The Android app calls `https://sureword.app/api/*`, so server-side changes reach the phone only through this deploy — `/push-phone` alone never updates the API.
 - **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, ASTRA_DB_*, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
 
 ## Terminology

@@ -79,6 +79,11 @@ export function useSettings(): Settings {
 	return useSyncExternalStore(subscribe, () => snapshot);
 }
 
+/** Non-reactive read of the current settings, for one-shot request bodies. */
+export function getSettings(): Settings {
+	return snapshot;
+}
+
 /** The theme the app should actually render, resolving "system" via the OS. */
 export function useResolvedTheme(): ResolvedTheme {
 	const { themeMode } = useSettings();

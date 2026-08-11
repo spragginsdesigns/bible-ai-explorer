@@ -12,7 +12,8 @@ import {
 	type AppendToNoteResult,
 	type NoteSummary,
 } from "@/lib/notes-io";
-import { getKjvBookNumber, getKjvBookName, getKjvVerseText } from "@/utils/kjvBible";
+import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 
 export interface ScriptureSearchToolOutput {
 	verses: RetrievedVerse[];
@@ -42,12 +43,15 @@ export interface SureWordToolContext {
 	userId: string;
 	/** When set (note chat), addToNote defaults to this note. */
 	defaultNoteId?: string;
+	/** Bible translation the user selected in settings; Scripture tools quote it. */
+	translation?: TranslationId;
 }
 
 export function buildSureWordTools(context: SureWordToolContext) {
+	const translation: TranslationId = context.translation ?? "KJV";
 	const searchScriptureTool = tool({
 		description:
-			"Semantic search over the entire King James Bible. Returns the most relevant verses with their exact KJV text. Call this before quoting or citing Scripture whenever you do not already have the exact wording in this conversation, and call it again with a different phrasing if the first results do not answer the question.",
+			`Semantic search over the entire Bible. Returns the most relevant verses with their exact ${translation} text. Call this before quoting or citing Scripture whenever you do not already have the exact wording in this conversation, and call it again with a different phrasing if the first results do not answer the question.`,
 		inputSchema: z.object({
 			query: z
 				.string()
@@ -57,16 +61,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			limit: z.number().int().min(1).max(10).optional().describe("How many verses to return (default 5)."),
 		}),
 		execute: async ({ query, limit }): Promise<ScriptureSearchToolOutput> => {
-			const result = await searchScripture(query, limit ?? 5);
-			return { ...result, formatted: formatVersesForModel(result.verses) };
+			const result = await searchScripture(query, limit ?? 5, translation);
+			return { ...result, formatted: formatVersesForModel(result.verses, translation) };
 		},
 	});
 
 	const getPassageTool = tool({
 		description:
-			"Look up the exact KJV text of a specific passage by reference, e.g. John 3:16 or Romans 8:28-39. Use this when you or the user name a specific reference, so every quotation is word-for-word.",
+			`Look up the exact ${translation} text of a specific passage by reference, e.g. John 3:16 or Romans 8:28-39. Use this when you or the user name a specific reference, so every quotation is word-for-word.`,
 		inputSchema: z.object({
-			book: z.string().describe('KJV book name, e.g. "Genesis", "Psalms", "1 John".'),
+			book: z.string().describe('Bible book name, e.g. "Genesis", "Psalms", "1 John".'),
 			chapter: z.number().int().min(1),
 			verseStart: z.number().int().min(1),
 			verseEnd: z
@@ -86,7 +90,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 			const verses: RetrievedVerse[] = [];
 			for (let verse = verseStart; verse <= end; verse++) {
-				const text = await getKjvVerseText(bookNumber, chapter, verse);
+				const text = await getVerseText(translation, bookNumber, chapter, verse);
 				if (!text) break;
 				verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text });
 			}
@@ -102,13 +106,13 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					? `${bookName} ${chapter}:${verseStart}-${verseStart + verses.length - 1}`
 					: verses[0].reference;
 
-			return { reference, verses, formatted: formatVersesForModel(verses) };
+			return { reference, verses, formatted: formatVersesForModel(verses, translation) };
 		},
 	});
 
 	const webSearchTool = tool({
 		description:
-			"Search the web for supplementary material: church history, archaeology, apologetics, current events, or original-language word studies. Never use it as an authority above or alongside Scripture; weigh everything it returns against the KJV.",
+			`Search the web for supplementary material: church history, archaeology, apologetics, current events, or original-language word studies. Never use it as an authority above or alongside Scripture; weigh everything it returns against the ${translation}.`,
 		inputSchema: z.object({
 			query: z.string().describe("A self-contained web search query."),
 		}),

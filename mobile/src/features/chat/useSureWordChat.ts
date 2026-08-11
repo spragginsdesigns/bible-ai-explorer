@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/expo";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
+import { getSettings } from "@/features/settings/settingsStore";
 
 export interface Conversation {
 	id: string;
@@ -96,7 +97,11 @@ export function useSureWordChat(): SureWordChat {
 				api: `${API_URL}/api/ask-question`,
 				fetch: makeAuthedFetch(authToken) as unknown as TransportFetch,
 				prepareSendMessagesRequest: ({ messages }) => ({
-					body: { messages, conversationId: conversationIdRef.current },
+					body: {
+						messages,
+						conversationId: conversationIdRef.current,
+						translation: getSettings().translation,
+					},
 				}),
 			}),
 		[authToken]

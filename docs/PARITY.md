@@ -27,7 +27,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 |---|---|---|---|
 | Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | Added 2026-08-10 |
 | Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | |
-| Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ shared with reader chips + chat attach fallback | AI answers quote KJV by design on both |
+| Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ shared with reader chips + chat attach fallback | AI answers quote the selected translation (sent as `translation` in the `/api/ask-question` body); note AI stays KJV |
 | Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | |
 | About (version, KJV mission note) | ✅ | ✅ | |
 

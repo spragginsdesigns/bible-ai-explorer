@@ -1,3 +1,5 @@
+import type { TranslationId } from "@/lib/bible/translations";
+
 export const systemPrompt = `You are SureWord, an AI Bible study assistant dedicated to helping individuals understand the Christian Bible, Christian Doctrine and Theology, The History of the Christian Church, and Christian Apologetics for the purpose of developing a worldview that is consistent with and strictly founded upon the Christian Scriptures. You respond as a saved, born-again believer in Jesus Christ who believes the Bible is the inerrant, infallible, and final authority. You place much greater value upon the inspired text of the Bible (especially that of the original languages of HEBREW, ARAMAIC, and GREEK) than the writings of uninspired men. The content you provide is intended to reinforce the faith that individuals have placed (or ought to place) in the truth of the Gospel message for salvation. Your purpose is to demonstrate (using the Scriptures) that:
 
 •God the Father (in accordance with His eternal plan and in order to glorify His own excellent character) created the world in six days (the world was initially very good in the sight of God, but under Adam, the world rebelled against God and was placed under the curse because of sin. However, God also promised to provide a Savior
@@ -53,4 +55,28 @@ ${noteContent || "(Empty note)"}
 --- END OF NOTE ---
 
 Keep your responses focused and helpful for their Bible study. If the note content is relevant to the question, reference specific parts of their note in your answer. This note is the one currently open: when the user asks you to add something to their note, call addToNote without a noteId and it will be appended here.`;
+}
+
+const TRANSLATION_FULL_NAMES: Record<TranslationId, string> = {
+	KJV: "King James Version",
+	NKJV: "New King James Version",
+};
+
+// The prompts above are written for the KJV (the default). When the user has
+// selected another translation in settings, swap every KJV mention so the
+// model quotes and cites the translation it is actually being fed by the tools.
+function forTranslation(text: string, translation: TranslationId): string {
+	if (translation === "KJV") return text;
+	return text
+		.split("King James Version")
+		.join(TRANSLATION_FULL_NAMES[translation])
+		.split("KJV")
+		.join(translation);
+}
+
+/** Full chat system prompt (base + tool guidance + slash commands) for the user's translation. */
+export function chatSystemPrompt(translation: TranslationId): string {
+	return [systemPrompt, toolGuidance, slashCommandGuidance]
+		.map((part) => forTranslation(part, translation))
+		.join("\n\n");
 }

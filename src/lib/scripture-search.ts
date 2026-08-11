@@ -1,7 +1,8 @@
 import { openai } from "@ai-sdk/openai";
 import { embed } from "ai";
 import { astraDb } from "@/utils/astraDb";
-import { getKjvBookName, getKjvVerseText } from "@/utils/kjvBible";
+import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { getKjvBookName } from "@/utils/kjvBible";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -67,12 +68,15 @@ function toVerseCoordinates(doc: Record<string, unknown>): VerseCoordinates | un
 
 /**
  * Semantic search over the KJV verse embeddings in AstraDB. Exact verse text is
- * looked up from the bundled KJV corpus so quotations are never reconstructed
- * from embeddings.
+ * looked up from the bundled corpus (or bolls.life for NKJV) so quotations are
+ * never reconstructed from embeddings. The embeddings themselves are
+ * translation-agnostic enough to locate the right verses; `translation` only
+ * controls which wording is returned.
  */
 export async function searchScripture(
 	query: string,
-	limit: number = 5
+	limit: number = 5,
+	translation: TranslationId = "KJV"
 ): Promise<ScriptureSearchResult> {
 	const { embedding: queryVector } = await retryWithExponentialBackoff(() =>
 		embed({ model: embeddingModel, value: query })
@@ -111,7 +115,7 @@ export async function searchScripture(
 		coordinates.map(async ({ book, chapter, verse, similarity }) => {
 			const bookName = getKjvBookName(book) ?? `Book ${book}`;
 			const reference = `${bookName} ${chapter}:${verse}`;
-			const text = await getKjvVerseText(book, chapter, verse);
+			const text = await getVerseText(translation, book, chapter, verse);
 
 			return { reference, similarity, ...(text ? { text } : {}) };
 		})
@@ -126,13 +130,16 @@ export async function searchScripture(
 }
 
 /** Format retrieved verses for inclusion in a model prompt or tool result. */
-export function formatVersesForModel(verses: RetrievedVerse[]): string {
+export function formatVersesForModel(
+	verses: RetrievedVerse[],
+	translation: TranslationId = "KJV"
+): string {
 	if (verses.length === 0) return "No relevant Bible verses found.";
 	return verses
 		.map((verse) =>
 			verse.text
-				? `${verse.reference} KJV: "${verse.text}"`
-				: `${verse.reference} KJV (reference only; do not quote)`
+				? `${verse.reference} ${translation}: "${verse.text}"`
+				: `${verse.reference} ${translation} (reference only; do not quote)`
 		)
 		.join("\n");
 }

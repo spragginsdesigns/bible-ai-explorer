@@ -1,18 +1,72 @@
 import { NextResponse } from "next/server";
+import { bookByOrder, resolveReference } from "@/lib/bible/books";
+import { getChapter, type TranslationId } from "@/lib/bible/translations";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
 
+/** Resolve the reference and fetch its text from the reader's translation source. */
+async function lookupSelectedTranslation(reference: string, translation: TranslationId) {
+	const cleaned = reference.replace(/\s+(?:KJV|NKJV)$/i, "").trim();
+	const target = resolveReference(cleaned);
+	if (!target) return null;
+
+	// resolveReference drops the range end, so recover it from the reference
+	// text ("John 3:16-18") to quote the whole range.
+	const rangeEnd = cleaned.match(/[-–—]\s*(\d+)\s*$/);
+	const verseStart = target.verse ?? 1;
+	const verseEnd = rangeEnd ? Number.parseInt(rangeEnd[1], 10) : verseStart;
+
+	const book = bookByOrder(target.order);
+	if (!book) return null;
+
+	try {
+		const chapterVerses = await getChapter(translation, target.order, target.chapter);
+		const selected = chapterVerses.slice(verseStart - 1, verseEnd);
+		if (selected.length === 0) return null;
+		return {
+			reference: `${book.name} ${target.chapter}:${verseStart}${verseEnd > verseStart ? `-${verseEnd}` : ""}`,
+			text: selected.join(" "),
+			verses: selected.map((text, index) => ({
+				book: book.name,
+				chapter: target.chapter,
+				verse: verseStart + index,
+				text,
+			})),
+			translation,
+		};
+	} catch {
+		return null;
+	}
+}
+
 export async function POST(req: Request) {
 	try {
-		const { reference } = await req.json();
+		const body: unknown = await req.json();
+		const reference = isRecord(body) ? body.reference : undefined;
+		const translation: TranslationId =
+			isRecord(body) && body.translation === "NKJV" ? "NKJV" : "KJV";
 
 		if (!reference || typeof reference !== "string") {
 			return NextResponse.json(
 				{ error: "Invalid input: 'reference' must be a non-empty string." },
 				{ status: 400 }
 			);
+		}
+
+		// KJV keeps the legacy bible-api.com lookup; other translations go
+		// through the reader's chapter loader (NKJV via bolls.life).
+		if (translation !== "KJV") {
+			const result = await lookupSelectedTranslation(reference, translation);
+			if (!result) {
+				return NextResponse.json({
+					verses: [],
+					reference,
+					error: `Verse not found in ${translation}.`,
+				});
+			}
+			return NextResponse.json(result);
 		}
 
 		// Use bible-api.com to fetch actual KJV verse text

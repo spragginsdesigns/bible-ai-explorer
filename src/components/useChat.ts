@@ -8,6 +8,7 @@ import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
+import { readTranslationPref } from "@/lib/preferences";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -271,6 +272,9 @@ export const useChat = () => {
 					body: {
 						messages,
 						conversationId: conversationIdRef.current,
+						// Read per request so a settings change applies to the next
+						// message without remounting the hook.
+						translation: readTranslationPref(),
 					},
 				}),
 			}),

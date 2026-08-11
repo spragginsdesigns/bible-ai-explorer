@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { BookOpen, X, Loader2, BookMarked } from "lucide-react";
 import { chapterHrefForReference } from "@/lib/chat/verseActions";
+import { readTranslationPref } from "@/lib/preferences";
 
 interface VersePopoverProps {
 	reference: string;
@@ -23,6 +24,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 	const [error, setError] = useState<string | null>(null);
 	const popoverRef = useRef<HTMLDivElement>(null);
 	const bibleHref = chapterHrefForReference(reference);
+	const translation = readTranslationPref();
 
 	useEffect(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -47,22 +49,23 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 		setError(null);
 
 		try {
+			const translation = readTranslationPref();
 			const res = await fetch("/api/get-verse", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ reference }),
+				body: JSON.stringify({ reference, translation }),
 			});
 
 			if (!res.ok) throw new Error("Failed to fetch verse");
 
 			const data = await res.json();
 			if (data.error || !data.text) {
-				setError("Verse not found in KJV.");
+				setError(`Verse not found in ${translation}.`);
 			} else {
 				setVerseData({
 					reference: data.reference ?? reference,
 					text: data.text,
-					translation: data.translation ?? "King James Version",
+					translation: data.translation ?? translation,
 				});
 			}
 		} catch {
@@ -77,7 +80,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 			<button
 				onClick={fetchVerse}
 				className="text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 underline decoration-black/20 dark:decoration-white/20 hover:decoration-black/40 dark:hover:decoration-white/40 underline-offset-2 transition-colors cursor-pointer"
-				title={`Look up ${reference} in KJV`}
+				title={`Look up ${reference} in ${translation}`}
 			>
 				{children}
 			</button>
@@ -98,7 +101,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 					{loading && (
 						<div className="flex items-center gap-2 text-neutral-500 text-xs py-2">
 							<Loader2 className="w-3.5 h-3.5 animate-spin" />
-							Loading KJV text...
+							Loading {translation} text...
 						</div>
 					)}
 					{error && (

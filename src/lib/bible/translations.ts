@@ -66,3 +66,18 @@ export async function getChapter(
   }
   return fetchNkjvChapter(order, chapter);
 }
+
+/**
+ * A single verse's text in the requested translation (1-indexed chapter and
+ * verse). Returns undefined when the coordinates are out of range. Used by the
+ * chat tools so the AI quotes the translation the user selected.
+ */
+export async function getVerseText(
+  translation: TranslationId,
+  order: number,
+  chapter: number,
+  verse: number
+): Promise<string | undefined> {
+  const verses = await getChapter(translation, order, chapter);
+  return verses[verse - 1];
+}
