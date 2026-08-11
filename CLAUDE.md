@@ -161,7 +161,26 @@ got there, and it left no history, which made a routine change look like an outa
 | Legacy domain | `bible-ai-explorer.vercel.app` — still connected, still the API host baked into older APKs. Do NOT rename the Vercel project. |
 | Clerk Frontend API | `clerk.sureword.app` (CNAME → `frontend-api.clerk.services`) |
 | Account Portal | `accounts.sureword.app` |
-| Google OAuth | GCP project `versemind-auth` (project IDs are permanent; the *display* name and consent-screen name are SureWord) |
+| Google OAuth | GCP project id `versemind-auth` — **permanent and not renameable**; every *name* in it now reads SureWord (project display name, consent-screen App name, OAuth client) |
+
+Concrete identifiers, all verified on 2026-08-10. The console IDs are here because
+none of them are guessable and every one costs a dashboard hunt to re-find:
+
+| Thing | Value |
+|-------|-------|
+| DNS — `sureword.app` | `216.150.16.1` (Vercel) |
+| DNS — `clerk.sureword.app` / `accounts.sureword.app` | `worker.clerkprod-cloudflare.net` |
+| Clerk app / instance | `app_39iwNRGxzWPXBdZqJXfTOYkfVP0` / `ins_3Hjf4TUT4SG5ZfUFizZG3HP8RqH` |
+| Clerk application name | **SureWord** — this is the string in "Sign in to …" and in auth emails, and it is *not* the domain; renaming the app renames both |
+| Google OAuth client | `SureWord Clerk Production`, `130130092883-52koot97cjtq58toi3gifbacab0kcklr.apps.googleusercontent.com` |
+| Google authorized redirect URIs | `https://clerk.sureword.app/v1/oauth_callback` **and** the legacy `https://bible-ai-explorer.vercel.app/__clerk/v1/oauth_callback` |
+| Google authorized domains | `sureword.app` and `bible-ai-explorer.vercel.app` |
+
+The legacy `bible-ai-explorer.vercel.app` entries in Google and in Clerk's redirect
+allowlist are deliberate, not leftovers: that host is still the API baked into older
+APKs. The `versemind://` scheme entries *were* leftovers and are deleted — Clerk's
+native allowlist is 14 entries, all `sureword.app` / `sureword://` plus those legacy
+web ones.
 
 **Clerk does not support `*.vercel.app` for production instances.** Its API says so
 outright: `provider_domain_operation_not_allowed`. Running production Clerk on the
