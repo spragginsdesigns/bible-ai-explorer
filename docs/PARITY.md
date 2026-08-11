@@ -18,7 +18,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Clerk email-code + Google SSO sign-in | ✅ | ✅ | |
 | Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | Android gained sign-out in 1.7.0 |
 | Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | Android was dark-only until 1.7.0 |
-| Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | 🟡 top-bar tabs | Bible tab added with reader |
+| Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | ✅ bottom tab bar on mobile (`MobileBottomNav`, 1:1 port); top-bar tabs on desktop | Web bottom nav ported 1:1 from `mobile/app/(app)/_layout.tsx` 2026-08-11 |
 | Link to Android APK for install | n/a | ✅ | Stable Drive link in `src/lib/constants.ts` |
 
 ## Settings

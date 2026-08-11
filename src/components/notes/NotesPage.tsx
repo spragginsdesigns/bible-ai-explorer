@@ -100,7 +100,7 @@ const NotesPage: React.FC = () => {
 				onCreateNote={handleCreateNote}
 			/>
 
-			<div className="flex-1 flex flex-col min-w-0">
+			<div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
 				<NotesTopBar
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
 					onNewNote={handleCreateNote}

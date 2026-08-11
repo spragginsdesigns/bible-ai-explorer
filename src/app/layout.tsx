@@ -3,6 +3,7 @@ import { Inter, Pirata_One, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "../components/ThemeProvider";
+import MobileBottomNav from "../components/MobileBottomNav";
 
 const inter = Inter({ subsets: ["latin"] });
 const pirataOne = Pirata_One({ subsets: ["latin"], weight: "400", variable: "--font-pirata" });
@@ -89,6 +90,7 @@ export default function RootLayout({
 						disableTransitionOnChange
 					>
 						{children}
+						<MobileBottomNav />
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>

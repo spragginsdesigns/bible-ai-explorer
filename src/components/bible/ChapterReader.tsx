@@ -370,7 +370,7 @@ const ChapterReader: React.FC = () => {
                   text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
                 })
               }
-              className="fixed bottom-6 right-6 z-40 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-3 text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber backdrop-blur-md hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+              className="fixed bottom-24 right-6 lg:bottom-6 z-40 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-3 text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber backdrop-blur-md hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
             >
               ✦ Ask AI
             </button>

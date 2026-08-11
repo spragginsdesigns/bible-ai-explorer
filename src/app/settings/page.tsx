@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
 	return (
 		<div className="min-h-[100dvh] gradient-mesh">
-			<div className="mx-auto w-full max-w-xl px-5 pb-16">
+			<div className="mx-auto w-full max-w-xl px-5 pb-28 lg:pb-16">
 				{/* Top bar */}
 				<div className="flex items-center gap-4 py-4">
 					<Link

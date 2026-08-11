@@ -68,7 +68,7 @@ const BibleBookPicker: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl px-5 pb-10">
+      <div className="mx-auto w-full max-w-2xl px-5 pb-28 lg:pb-10">
         <div className="pt-3 pb-4">
           <h1 className="font-[family-name:var(--font-pirata)] text-4xl text-neutral-900 dark:text-neutral-100 drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">
             Bible

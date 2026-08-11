@@ -65,7 +65,7 @@ const BibleSearch: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl px-5 pb-10">
+      <div className="mx-auto w-full max-w-2xl px-5 pb-28 lg:pb-10">
         <div className="flex items-center gap-4 py-3">
           <button
             type="button"

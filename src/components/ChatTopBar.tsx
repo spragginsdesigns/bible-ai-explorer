@@ -26,8 +26,8 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 					<Menu className="w-5 h-5" />
 				</button>
 
-				{/* Navigation tabs */}
-				<nav className="flex items-center gap-1 ml-1">
+				{/* Navigation tabs (desktop; mobile uses MobileBottomNav) */}
+				<nav className="hidden lg:flex items-center gap-1 ml-1">
 					<Link
 						href="/"
 						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-amber-600 dark:text-amber-400 bg-black/[0.04] dark:bg-white/[0.04] border-b-2 border-amber-600 dark:border-amber-400 transition-colors"

@@ -21,8 +21,8 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 					<Menu className="w-5 h-5" />
 				</button>
 
-				{/* Navigation tabs */}
-				<nav className="flex items-center gap-1 ml-1">
+				{/* Navigation tabs (desktop; mobile uses MobileBottomNav) */}
+				<nav className="hidden lg:flex items-center gap-1 ml-1">
 					<Link
 						href="/"
 						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-300 hover:bg-white/[0.03] transition-colors"
