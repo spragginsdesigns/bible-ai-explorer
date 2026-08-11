@@ -2,44 +2,75 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { useAuth } from "@clerk/expo";
+import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { spacing, type Colors } from "@/theme";
+import { radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 
-const TAB_LABELS: Record<string, string> = {
+const TAB_LABELS: Record<PrimaryTabRoute, string> = {
 	index: "Chat",
 	bible: "Bible",
 	notes: "Notes",
 };
 
-const TAB_GLYPHS: Record<string, string> = {
-	index: "✦",
-	bible: "✝",
-	notes: "✎",
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+type TabRoute = { key: string; name: string };
+type TabRouteEntry = { route: TabRoute; index: number };
+
+const TAB_ICONS: Record<
+	PrimaryTabRoute,
+	{ active: IoniconName; inactive: IoniconName }
+> = {
+	index: {
+		active: "chatbubble-ellipses",
+		inactive: "chatbubble-ellipses-outline",
+	},
+	bible: { active: "book", inactive: "book-outline" },
+	notes: { active: "document-text", inactive: "document-text-outline" },
 };
 
-function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 	const insets = useSafeAreaInsets();
 	const { colors, isDark } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const primaryRoutes: TabRouteEntry[] = state.routes
+		.map((route: TabRoute, index: number) => ({ route, index }))
+		.filter(({ route }: TabRouteEntry) => isPrimaryTabRoute(route.name));
+
 	return (
-		<View style={[styles.tabBarWrap, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-			<BlurView intensity={40} tint={isDark ? "dark" : "light"} style={styles.tabBar}>
-				{state.routes.map((route: { key: string; name: string }, index: number) => {
-					// Routes hidden with options.href === null (e.g. push-only screens)
-					// must not render in the bar.
-					if (descriptors[route.key]?.options?.href === null) return null;
+		<View
+			style={[
+				styles.tabBarWrap,
+				{ paddingBottom: Math.max(insets.bottom, spacing.sm) },
+			]}
+		>
+			<BlurView
+				intensity={60}
+				tint={isDark ? "dark" : "light"}
+				style={styles.tabBar}
+			>
+				{primaryRoutes.map(({ route, index }) => {
 					const focused = state.index === index;
-					const label = TAB_LABELS[route.name] ?? route.name;
+					const routeName = route.name as PrimaryTabRoute;
+					const label = TAB_LABELS[routeName];
+					const icon = TAB_ICONS[routeName];
 					return (
 						<Pressable
 							key={route.key}
 							accessibilityRole="tab"
+							accessibilityLabel={`${label} tab`}
 							accessibilityState={{ selected: focused }}
 							onPress={() => {
-								if (!focused) navigation.navigate(route.name);
+								const event = navigation.emit({
+									type: "tabPress",
+									target: route.key,
+									canPreventDefault: true,
+								});
+								if (!focused && !event.defaultPrevented)
+									navigation.navigate(route.name);
 							}}
 							style={({ pressed }) => [
 								styles.tabItem,
@@ -47,10 +78,16 @@ function GlassTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 								pressed && { opacity: 0.7 },
 							]}
 						>
-							<Text style={[styles.tabGlyph, focused && { color: colors.accent }]}>
-								{TAB_GLYPHS[route.name] ?? "•"}
+							<Ionicons
+								name={focused ? icon.active : icon.inactive}
+								size={21}
+								color={focused ? colors.accent : colors.textFaint}
+							/>
+							<Text
+								style={[styles.tabLabel, focused && { color: colors.accent }]}
+							>
+								{label}
 							</Text>
-							<Text style={[styles.tabLabel, focused && { color: colors.accent }]}>{label}</Text>
 						</Pressable>
 					);
 				})}
@@ -91,12 +128,13 @@ const createStyles = (c: Colors) =>
 			left: 0,
 			right: 0,
 			bottom: 0,
-			paddingHorizontal: spacing.xl,
+			paddingHorizontal: spacing.lg,
 			backgroundColor: "transparent",
 		},
 		tabBar: {
 			flexDirection: "row",
-			borderRadius: 24,
+			padding: spacing.xs,
+			borderRadius: radius.xl,
 			overflow: "hidden",
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.borderStrong,
@@ -104,15 +142,14 @@ const createStyles = (c: Colors) =>
 		},
 		tabItem: {
 			flex: 1,
-			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "center",
-			gap: 6,
-			paddingVertical: 14,
+			gap: 3,
+			minHeight: 52,
+			borderRadius: radius.lg,
 		},
 		tabItemActive: {
 			backgroundColor: c.accentSoft,
 		},
-		tabGlyph: { color: c.textFaint, fontSize: 15 },
-		tabLabel: { color: c.textFaint, fontSize: 13, fontWeight: "600" },
+		tabLabel: { color: c.textFaint, fontSize: 11, fontWeight: "600" },
 	});

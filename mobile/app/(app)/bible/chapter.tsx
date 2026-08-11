@@ -17,6 +17,7 @@ import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
+import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -370,11 +371,13 @@ export default function BibleChapterScreen() {
 						}
 						renderItem={({ item, index }) => {
 							const verseNumber = index + 1;
+							const plainText = bibleVersePlainText(item);
+							const segments = parseBibleVerseMarkup(item);
 							return (
 								<Pressable
 									accessibilityRole="button"
 									delayLongPress={300}
-									onLongPress={() => setActionVerse({ number: verseNumber, text: item })}
+									onLongPress={() => setActionVerse({ number: verseNumber, text: plainText })}
 									style={[
 										styles.verseRow,
 										highlighted === verseNumber && styles.verseRowHighlighted,
@@ -382,7 +385,14 @@ export default function BibleChapterScreen() {
 								>
 									<Text style={[styles.verseText, { fontSize, lineHeight }]}>
 										<Text style={styles.verseNumber}>{verseNumber} </Text>
-										{item}
+										{segments.map((segment, segmentIndex) => (
+											<Text
+												key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
+												style={segment.italic ? styles.verseItalic : undefined}
+											>
+												{segment.text}
+											</Text>
+										))}
 									</Text>
 								</Pressable>
 							);
@@ -394,7 +404,9 @@ export default function BibleChapterScreen() {
 						onPress={() =>
 							askAI({
 								reference,
-								text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
+								text: verses
+									.map((text, index) => `${index + 1} ${bibleVersePlainText(text)}`)
+									.join("\n"),
 							})
 						}
 						style={({ pressed }) => [
@@ -493,6 +505,7 @@ const createStyles = (c: Colors) =>
 			fontFamily: fonts.verse,
 			marginBottom: spacing.md,
 		},
+		verseItalic: { fontFamily: fonts.verseItalic },
 		verseNumber: { color: c.accentDim, fontSize: 12, fontFamily: fonts.sans, fontWeight: "700" },
 		copyright: {
 			marginTop: spacing.lg,

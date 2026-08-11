@@ -1,7 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import {
 	ActivityIndicator,
-	Alert,
+	Keyboard,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -21,6 +27,7 @@ import {
 import type { VerseAttachment } from "./verseActions";
 import type { ChatAttachmentDescriptor } from "./fileAttachments";
 import { FileAttachmentCards } from "./FileAttachmentCards";
+import { AttachmentSourceSheet } from "./AttachmentSourceSheet";
 
 interface ChatInputBarProps {
 	onSend: (text: string) => void;
@@ -75,6 +82,7 @@ export function ChatInputBar({
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const [innerText, setInnerText] = useState("");
+	const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
 	const inputRef = useRef<TextInput>(null);
 	const text = value ?? innerText;
 	const setText = useCallback(
@@ -82,7 +90,7 @@ export function ChatInputBar({
 			if (onChangeText) onChangeText(next);
 			else setInnerText(next);
 		},
-		[onChangeText]
+		[onChangeText],
 	);
 	const generating = loading || isStreaming;
 	const locked = generating || uploadingAttachments || disabled;
@@ -93,7 +101,7 @@ export function ChatInputBar({
 
 	const suggestions = useMemo(
 		() => (commands.length > 0 ? matchSlashCommands(text, commands) : []),
-		[text, commands]
+		[text, commands],
 	);
 
 	const runCommand = useCallback(
@@ -104,7 +112,7 @@ export function ChatInputBar({
 			}
 			onSend(args ? `${def.command} ${args}` : def.command);
 		},
-		[onLocalCommand, onSend]
+		[onLocalCommand, onSend],
 	);
 
 	const selectSuggestion = useCallback(
@@ -116,14 +124,16 @@ export function ChatInputBar({
 			setText("");
 			runCommand(def, "");
 		},
-		[runCommand]
+		[runCommand],
 	);
 
 	const submit = useCallback(() => {
 		const trimmed = text.trim();
-		if ((!trimmed && !attachment && fileAttachments.length === 0) || locked) return;
+		if ((!trimmed && !attachment && fileAttachments.length === 0) || locked)
+			return;
 
-		const parsed = commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
+		const parsed =
+			commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
 		if (parsed) {
 			if (parsed.def.requiresArgs && !parsed.args) return; // keep typing the argument
 			setText("");
@@ -133,22 +143,34 @@ export function ChatInputBar({
 
 		setText("");
 		onSend(trimmed);
-	}, [attachment, commands, fileAttachments.length, locked, onSend, runCommand, text]);
+	}, [
+		attachment,
+		commands,
+		fileAttachments.length,
+		locked,
+		onSend,
+		runCommand,
+		text,
+	]);
 
-	const canSend = Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
+	const canSend =
+		Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
 
 	const showAttachmentMenu = useCallback(() => {
-		Alert.alert("Add an attachment", "Choose a source", [
-			{ text: "Take photo", onPress: onTakePhoto },
-			{ text: "Photo library", onPress: onChooseImages },
-			{ text: "Choose files", onPress: onChooseFiles },
-			{ text: "Paste screenshot", onPress: onPasteImage },
-			{ text: "Cancel", style: "cancel" },
-		]);
-	}, [onChooseFiles, onChooseImages, onPasteImage, onTakePhoto]);
+		Keyboard.dismiss();
+		setAttachmentMenuVisible(true);
+	}, []);
 
 	return (
 		<View style={styles.wrap}>
+			<AttachmentSourceSheet
+				visible={attachmentMenuVisible}
+				onClose={() => setAttachmentMenuVisible(false)}
+				onTakePhoto={onTakePhoto}
+				onChooseImages={onChooseImages}
+				onChooseFiles={onChooseFiles}
+				onPasteImage={onPasteImage}
+			/>
 			{attachment && (
 				<View style={styles.pill}>
 					<Text style={styles.pillGlyph}>✦</Text>
@@ -168,13 +190,21 @@ export function ChatInputBar({
 			)}
 			{fileAttachments.length > 0 && (
 				<View style={styles.files}>
-					<FileAttachmentCards attachments={fileAttachments} onRemove={onRemoveFileAttachment} />
+					<FileAttachmentCards
+						attachments={fileAttachments}
+						onRemove={onRemoveFileAttachment}
+					/>
 				</View>
 			)}
-			{attachmentError && <Text style={styles.attachmentError}>{attachmentError}</Text>}
+			{attachmentError && (
+				<Text style={styles.attachmentError}>{attachmentError}</Text>
+			)}
 			{suggestions.length > 0 && !locked && (
 				<View style={styles.palette}>
-					<ScrollView keyboardShouldPersistTaps="always" style={styles.paletteScroll}>
+					<ScrollView
+						keyboardShouldPersistTaps="always"
+						style={styles.paletteScroll}
+					>
 						{suggestions.map((def) => (
 							<Pressable
 								key={def.command}
@@ -187,7 +217,9 @@ export function ChatInputBar({
 							>
 								<Text style={styles.paletteCommand}>
 									{def.command}
-									{def.hint ? <Text style={styles.paletteHint}> {def.hint}</Text> : null}
+									{def.hint ? (
+										<Text style={styles.paletteHint}> {def.hint}</Text>
+									) : null}
 								</Text>
 								<Text style={styles.paletteDescription} numberOfLines={1}>
 									{def.description}
@@ -204,7 +236,11 @@ export function ChatInputBar({
 					accessibilityLabel="Add an attachment"
 					disabled={locked}
 					onPress={showAttachmentMenu}
-					style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surfacePressed }, locked && styles.sendDisabled]}
+					style={({ pressed }) => [
+						styles.action,
+						pressed && { backgroundColor: colors.surfacePressed },
+						locked && styles.sendDisabled,
+					]}
 				>
 					{uploadingAttachments ? (
 						<ActivityIndicator size="small" color={colors.accentDim} />
@@ -228,7 +264,10 @@ export function ChatInputBar({
 						accessibilityRole="button"
 						accessibilityLabel="Stop generating"
 						onPress={onStop}
-						style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.surfacePressed }]}
+						style={({ pressed }) => [
+							styles.action,
+							pressed && { backgroundColor: colors.surfacePressed },
+						]}
 					>
 						<ActivityIndicator size="small" color={colors.accentDim} />
 					</Pressable>
@@ -279,9 +318,18 @@ const createStyles = (c: Colors) =>
 			fontFamily: fonts.sans,
 			fontWeight: "600",
 		},
-		pillClose: { color: c.textMuted, fontSize: 15, lineHeight: 16, paddingHorizontal: 2 },
+		pillClose: {
+			color: c.textMuted,
+			fontSize: 15,
+			lineHeight: 16,
+			paddingHorizontal: 2,
+		},
 		files: { marginBottom: spacing.sm },
-		attachmentError: { color: c.danger, fontSize: 12, marginBottom: spacing.sm },
+		attachmentError: {
+			color: c.danger,
+			fontSize: 12,
+			marginBottom: spacing.sm,
+		},
 		palette: {
 			position: "absolute",
 			bottom: "100%",
@@ -341,5 +389,10 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 		},
 		sendDisabled: { opacity: 0.35 },
-		sendGlyph: { color: c.accent, fontSize: 18, fontWeight: "700", lineHeight: 20 },
+		sendGlyph: {
+			color: c.accent,
+			fontSize: 18,
+			fontWeight: "700",
+			lineHeight: 20,
+		},
 	});

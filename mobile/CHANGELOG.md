@@ -15,6 +15,17 @@ delivered to the Drive share link and installed via `/push-phone`.
   conversation on Android and web. Deleting the conversation removes its
   stored files too.
 
+### Fixed
+- **The Android bottom bar is a normal three-destination app nav again.** It
+  now shows only Chat, Bible, and Notes with consistent icons and active-state
+  treatment; push-only Settings and Memories routes cannot leak into it.
+- **The attachment source menu matches SureWord instead of Android's stock
+  Material alert.** Camera, library, file, and clipboard actions now live in a
+  dark branded bottom sheet.
+- **NKJV supplied words render as italics instead of raw HTML.** Inline
+  `<i>...</i>` markup is converted into the loaded Scripture italic face and
+  stripped from copied, shared, saved, and Ask AI text.
+
 ### Security
 - Uploads use exact-path, size-limited signed URLs and are downloaded again by
   the server for MIME, extension, size, signature, UTF-8, and JSON validation
