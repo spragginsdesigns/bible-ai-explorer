@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { resolveModel } from "@/lib/ai/provider";
 import { prisma } from "@/lib/prisma";
 import { getAuthUserId } from "@/lib/auth";
 import { MAX_MEMORIES_PER_USER } from "@/lib/memory";
@@ -46,9 +46,10 @@ export async function POST() {
 			return NextResponse.json({ summary: null, generatedAt: null });
 		}
 
+		const { model, providerOptions } = resolveModel({ effort: "low" });
 		const { output } = await generateText({
-			model: openai("gpt-5.6-terra"),
-			providerOptions: { openai: { reasoningEffort: "low" } },
+			model,
+			providerOptions,
 			output: Output.object({ schema: summarySchema }),
 			instructions: SUMMARY_INSTRUCTIONS,
 			prompt: `Saved memories:\n${memories.map((m) => `(${m.category}) ${m.content}`).join("\n")}`,

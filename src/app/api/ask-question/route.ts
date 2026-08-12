@@ -1,4 +1,3 @@
-import { openai } from "@ai-sdk/openai";
 import {
 	convertToModelMessages,
 	createIdGenerator,
@@ -20,6 +19,7 @@ import {
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
+import { resolveModel } from "@/lib/ai/provider";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -332,18 +332,17 @@ export async function POST(req: Request): Promise<Response> {
 		const isOpeningQuestion =
 			messages.filter((message) => message.role === "user").length === 1;
 
+		const { model, providerOptions } = resolveModel({
+			effort: isOpeningQuestion ? "high" : "medium",
+			attachments: true,
+		});
 		const result = streamText({
-			model: openai("gpt-5.6-terra"),
+			model,
 			system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
 			messages: await convertToModelMessages(messages),
 			tools,
 			stopWhen: isStepCount(8),
-			providerOptions: {
-				openai: {
-					reasoningEffort: isOpeningQuestion ? "high" : "medium",
-					passThroughUnsupportedFiles: true,
-				},
-			},
+			providerOptions,
 		});
 
 		// Run to completion even if the client disconnects, so persistence and

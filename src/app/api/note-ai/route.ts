@@ -1,4 +1,3 @@
-import { openai } from "@ai-sdk/openai";
 import {
 	convertToModelMessages,
 	createIdGenerator,
@@ -14,6 +13,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
+import { resolveModel } from "@/lib/ai/provider";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { noteAISystemPrompt, slashCommandGuidance, toolGuidance } from "@/utils/systemPrompt";
 
@@ -144,15 +144,14 @@ export async function POST(req: Request): Promise<Response> {
 			note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
 		)}\n\n${toolGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
 
+		const { model, providerOptions } = resolveModel({ effort: "medium" });
 		const result = streamText({
-			model: openai("gpt-5.6-terra"),
+			model,
 			system,
 			messages: await convertToModelMessages(messages),
 			tools,
 			stopWhen: isStepCount(8),
-			providerOptions: {
-				openai: { reasoningEffort: "medium" },
-			},
+			providerOptions,
 		});
 
 		result.consumeStream();

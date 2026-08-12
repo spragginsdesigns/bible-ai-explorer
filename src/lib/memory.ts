@@ -1,6 +1,6 @@
-import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { resolveModel } from "@/lib/ai/provider";
 import { prisma } from "@/lib/prisma";
 import { allowsMemoryUse } from "@/lib/memory-policy";
 
@@ -134,9 +134,10 @@ export async function extractAndStoreMemories(options: {
 				? existing.map((m) => `[${m.id}] (${m.category}) ${m.content}`).join("\n")
 				: "(none)";
 
+		const { model, providerOptions } = resolveModel({ effort: "low" });
 		const { output } = await generateText({
-			model: openai("gpt-5.6-terra"),
-			providerOptions: { openai: { reasoningEffort: "low" } },
+			model,
+			providerOptions,
 			output: Output.object({ schema: memoryUpdateSchema }),
 			instructions: MEMORY_EXTRACTION_INSTRUCTIONS,
 			prompt: [
