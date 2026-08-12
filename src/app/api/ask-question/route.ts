@@ -19,7 +19,8 @@ import {
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { resolveModel } from "@/lib/ai/provider";
+import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -332,10 +333,47 @@ export async function POST(req: Request): Promise<Response> {
 		const isOpeningQuestion =
 			messages.filter((message) => message.role === "user").length === 1;
 
-		const { model, providerOptions } = resolveModel({
-			effort: isOpeningQuestion ? "high" : "medium",
-			attachments: true,
-		});
+		// Optional per-request picker values; anything invalid is ignored and
+		// the user's stored default (then the app default) applies instead.
+		const requestedModelId =
+			typeof requestData.modelId === "string" ? requestData.modelId : null;
+		const requestedEffort = isReasoningEffort(requestData.effort) ? requestData.effort : null;
+
+		let resolved;
+		try {
+			resolved = await resolveModel({
+				userId,
+				modelId: requestedModelId,
+				effort: requestedEffort,
+				fallbackEffort: isOpeningQuestion ? "high" : "medium",
+				attachments: true,
+			});
+		} catch (error) {
+			if (error instanceof AiCredentialError) {
+				return NextResponse.json({ error: error.message }, { status: 403 });
+			}
+			throw error;
+		}
+		const { model, providerOptions, definition } = resolved;
+
+		// The picker's last choice becomes the default for every client. An
+		// invalid requested id resolves to a fallback model — don't record that
+		// fallback as if the user picked it.
+		const pickedModel = requestedModelId === definition.id ? definition.id : null;
+		if (pickedModel || requestedEffort) {
+			waitUntil(
+				prisma.user
+					.update({
+						where: { id: userId },
+						data: {
+							...(pickedModel ? { defaultModelId: pickedModel } : {}),
+							...(requestedEffort ? { defaultEffort: requestedEffort } : {}),
+						},
+					})
+					.catch((error) => console.error("Failed to persist model choice:", error)),
+			);
+		}
+
 		const result = streamText({
 			model,
 			system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,

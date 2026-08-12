@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-		"test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs",
+    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.38",
     "@ai-sdk/openai": "^4.0.36",
+    "@ai-sdk/openai-compatible": "^3.0.30",
     "@ai-sdk/react": "^4.0.61",
     "@clerk/nextjs": "^7.7.1",
     "@datastax/astra-db-ts": "^1.4.1",

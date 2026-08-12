@@ -21,6 +21,7 @@ import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
+import ProviderSettings from "@/components/ProviderSettings";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -257,6 +258,12 @@ export default function SettingsPage() {
 								</button>
 							)}
 						</div>
+					</section>
+
+					{/* AI providers */}
+					<section className="flex flex-col gap-2">
+						<SectionLabel>AI PROVIDERS</SectionLabel>
+						<ProviderSettings />
 					</section>
 
 					{/* Account */}

@@ -15,6 +15,11 @@ model User {
   // When false, memories are neither injected into prompts nor extracted from
   // chats (Settings → Memory toggle). Existing UserMemory rows are kept.
   memoryEnabled Boolean        @default(true)
+  // Last model/effort the user picked in the chat picker; validated against
+  // the registry in src/lib/ai/models.ts on every use, so a stale id here
+  // falls back to the default rather than erroring.
+  defaultModelId String?
+  defaultEffort  String?
   createdAt     DateTime       @default(now())
   conversations Conversation[]
   notes         Note[]
@@ -22,6 +27,31 @@ model User {
   tags          Tag[]
   memories      UserMemory[]
   attachments   ChatAttachment[]
+  providerCredentials ProviderCredential[]
+}
+
+enum AiProvider {
+  OPENAI
+  ANTHROPIC
+  MOONSHOT
+}
+
+/// A user's own API key for an AI provider (BYOK). The key is encrypted at
+/// rest with AES-256-GCM under CREDENTIAL_ENCRYPTION_KEY and is never
+/// returned to clients after entry — only last4 is.
+model ProviderCredential {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  provider     AiProvider
+  encryptedKey String     @db.Text
+  last4        String
+  validatedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
 }
 
 /// Maps a verified email to the Clerk user id it had on the DEVELOPMENT Clerk

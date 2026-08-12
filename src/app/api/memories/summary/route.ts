@@ -46,7 +46,7 @@ export async function POST() {
 			return NextResponse.json({ summary: null, generatedAt: null });
 		}
 
-		const { model, providerOptions } = resolveModel({ effort: "low" });
+		const { model, providerOptions } = await resolveModel({ userId, utility: true });
 		const { output } = await generateText({
 			model,
 			providerOptions,

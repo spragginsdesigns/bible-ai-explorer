@@ -134,7 +134,7 @@ export async function extractAndStoreMemories(options: {
 				? existing.map((m) => `[${m.id}] (${m.category}) ${m.content}`).join("\n")
 				: "(none)";
 
-		const { model, providerOptions } = resolveModel({ effort: "low" });
+		const { model, providerOptions } = await resolveModel({ userId: options.userId, utility: true });
 		const { output } = await generateText({
 			model,
 			providerOptions,

@@ -11,6 +11,7 @@ import {
 import type { VerseAttachment } from "@/lib/chat/verseActions";
 import type { ChatAttachmentDescriptor } from "@/lib/chat-attachment-types";
 import ChatFileAttachments from "./ChatFileAttachments";
+import ModelPicker from "./ModelPicker";
 
 interface ChatInputProps {
 	onSend: (text: string) => void;
@@ -212,6 +213,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</div>
 					)}
 					<div className="flex items-end gap-1 gradient-border rounded-xl bg-black/[0.03] dark:bg-white/[0.03] px-2 py-2">
+						<ModelPicker />
 						<input
 							ref={fileInputRef}
 							type="file"
