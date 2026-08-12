@@ -53,7 +53,7 @@ final class BibleModel {
     var toast: String?
 
     var fontStep: Int {
-        didSet { UserDefaults.standard.set(fontStep, forKey: Key.fontStep) }
+        didSet { defaults.set(fontStep, forKey: Key.fontStep) }
     }
 
     // MARK: Searching
@@ -66,12 +66,18 @@ final class BibleModel {
     // MARK: Collaborators
 
     private let api: APIClient
+    /// Where `fontStep` is persisted. Injected so the tests can hand in a
+    /// throwaway suite: under `TEST_HOST` `.standard` *is* the shipping app's
+    /// domain, and a test run must not rewrite the reader's real type size.
+    private let defaults: UserDefaults
     private var saveTask: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
+    private var flashTask: Task<Void, Never>?
 
-    init(api: APIClient) {
+    init(api: APIClient, defaults: UserDefaults = .standard) {
         self.api = api
-        let stored = UserDefaults.standard.object(forKey: Key.fontStep) as? Int
+        self.defaults = defaults
+        let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
     }
 
@@ -287,10 +293,17 @@ final class BibleModel {
     }
 
     /// Bring a deep-linked verse into view exactly once, then flash it.
+    ///
+    /// Clearing `pendingVerse` is what lets a second jump to the *same* verse
+    /// re-arm the reader: the view watches that value, so it has to fall back to
+    /// nil before it can change again.
     func flash(verse: Int) {
         highlightedVerse = verse
         pendingVerse = nil
-        Task {
+        // Re-flashing while an earlier flash is still counting down would
+        // otherwise let the old timer clear the new highlight early.
+        flashTask?.cancel()
+        flashTask = Task {
             try? await Task.sleep(for: Self.highlightDuration)
             guard !Task.isCancelled, highlightedVerse == verse else { return }
             highlightedVerse = nil

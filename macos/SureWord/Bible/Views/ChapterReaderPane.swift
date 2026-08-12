@@ -167,14 +167,35 @@ struct ChapterReaderPane: View {
                     footer
                 }
                 .padding(.horizontal, Spacing.xxl)
-                .padding(.vertical, Spacing.lg)
                 .frame(maxWidth: 760, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
+            // The reader's breathing room is a content margin rather than
+            // padding inside the stack, so that scrolling verse 1 to the top
+            // keeps it instead of scrolling it away.
+            .contentMargins(.vertical, Spacing.lg, for: .scrollContent)
             // A deep link only lands once the chapter it names is the one on
             // screen — `loadedKey` is what proves that, since the selection
             // changes a render before the text does.
             .onChange(of: model.loadedKey, initial: true) { _, _ in
+                if model.pendingVerse == nil {
+                    // A newly opened chapter starts at the top. SwiftUI reuses
+                    // the row identities `1...n` across chapters and keeps the
+                    // old offset, so paging out of the middle of John 3 would
+                    // otherwise land in the middle of John 4
+                    // (`mobile/app/(app)/bible/chapter.tsx` scrolls to offset 0
+                    // for the same reason). Verse 1 is the top anchor.
+                    proxy.scrollTo(1, anchor: .top)
+                } else {
+                    scrollToPendingVerse(proxy)
+                }
+            }
+            // A jump into the chapter already on screen changes nothing but the
+            // pending verse — no reload, so `loadedKey` never moves and the
+            // effect above never re-fires. Android keys its effect on the verse
+            // param for the same reason.
+            .onChange(of: model.pendingVerse) { _, verse in
+                guard verse != nil else { return }
                 scrollToPendingVerse(proxy)
             }
         }

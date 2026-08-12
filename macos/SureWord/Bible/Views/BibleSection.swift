@@ -8,11 +8,10 @@ struct BibleSection: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
 
-    @State private var model: BibleModel
-
-    init(app: AppModel) {
-        _model = State(initialValue: BibleModel(api: app.api))
-    }
+    /// Owned by `AppModel`, not by this view: switching to chat and back
+    /// destroys `BibleSection`, and reader state that died with it would send
+    /// the user back to "Choose a book" every time.
+    private var model: BibleModel { app.bible }
 
     var body: some View {
         HStack(spacing: 0) {
