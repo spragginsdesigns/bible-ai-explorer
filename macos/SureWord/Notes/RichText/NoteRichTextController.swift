@@ -23,6 +23,10 @@ final class NoteRichTextController {
     private(set) var activeMarks: Set<NoteMark.Kind> = []
     /// The block at the caret, for the heading/list/quote pressed states.
     private(set) var activeBlock = NoteBlock()
+    /// Whether the caret's item can be nested one level deeper / lifted one
+    /// level out — drives both the toolbar buttons and Tab / Shift-Tab.
+    private(set) var canIndentList = false
+    private(set) var canOutdentList = false
 
     var theme: SureWordColors = .dark {
         didSet {
@@ -34,17 +38,46 @@ final class NoteRichTextController {
     /// Fired on every user edit; the editor model debounces it into an autosave.
     var onChange: (@MainActor () -> Void)?
 
-    @ObservationIgnored weak var textView: NoteTextView?
+    /// Attaching the view is what flushes a document that was loaded before it
+    /// existed — see `pendingHTML`.
+    @ObservationIgnored weak var textView: NoteTextView? {
+        didSet {
+            guard textView != nil, let html = pendingHTML else { return }
+            pendingHTML = nil
+            load(html: html)
+        }
+    }
+
     /// Suppresses `onChange` while the document is being replaced by code.
     @ObservationIgnored private var isRendering = false
     @ObservationIgnored private var ids = NoteContainerIDGenerator()
+    /// HTML that arrived before the text view was attached.
+    ///
+    /// The editor model fetches the note in a `.task`, while the text view is
+    /// created by SwiftUI's own view lifecycle — and for a note whose body is
+    /// not already cached, the fetch wins. Dropping the HTML there left the
+    /// editor blank on a note that had content, and the first keystroke would
+    /// then autosave that blankness over it.
+    @ObservationIgnored private var pendingHTML: String?
 
     // MARK: - Content
 
     func load(html: String) {
+        guard textView != nil else {
+            pendingHTML = html
+            return
+        }
+        pendingHTML = nil
         let document = NoteHTMLParser.parse(html)
         ids = NoteContainerIDGenerator(after: document)
         render(document, selection: NSRange(location: 0, length: 0), registersUndo: false)
+    }
+
+    /// True once a document has actually reached the text view. The editor
+    /// model checks this before saving, so a pane that never got its content
+    /// cannot persist an empty document over a real note.
+    var hasLoadedDocument: Bool {
+        textView != nil && pendingHTML == nil
     }
 
     /// The HTML to persist. Serialising from the model — not from the text view
@@ -200,30 +233,60 @@ final class NoteRichTextController {
 
             // Replace any existing list membership, then wrap the whole
             // selection in one list so consecutive paragraphs become siblings.
-            let listID = ids.take()
-            let listTag = kind == .orderedList ? "ol" : "ul"
-            var listAttributes: [HTMLAttribute] = []
-            if kind == .taskList { listAttributes.append(HTMLAttribute("data-type", "taskList")) }
+            let list = Self.makeList(kind: kind, ids: &ids)
 
             for index in range {
                 blocks[index].containers.removeAll { $0.isList || $0.kind == .listItem }
-                var itemAttributes: [HTMLAttribute] = []
-                if kind == .taskList {
-                    itemAttributes = [
-                        HTMLAttribute("data-checked", "false"),
-                        HTMLAttribute("data-type", "taskItem"),
-                    ]
-                }
-                blocks[index].containers.append(
-                    NoteContainer(kind: kind, id: listID, tag: listTag, attributes: listAttributes)
-                )
-                blocks[index].containers.append(
-                    NoteContainer(kind: .listItem, id: ids.take(), tag: "li", attributes: itemAttributes)
-                )
+                blocks[index].containers.append(list)
+                blocks[index].containers.append(Self.makeListItem(kind: kind, ids: &ids))
                 if blocks[index].tag == nil { blocks[index].tag = "p" }
                 if case .codeLine = blocks[index].kind { blocks[index].kind = .paragraph }
             }
         }
+    }
+
+    // MARK: - List nesting
+
+    /// Nest the selected items one level deeper, the way TenTap's indent button
+    /// does on Android. Also bound to Tab.
+    func indentList() {
+        var generator = ids
+        mutateBlocks { blocks, range in
+            // Front to back, so the second of two selected siblings nests into
+            // the list the first one just created.
+            for index in range {
+                Self.indent(&blocks, at: index, ids: &generator)
+            }
+        }
+        ids = generator
+    }
+
+    /// Lift the selected items one level out; at depth 1 they leave the list
+    /// entirely and become paragraphs.
+    func outdentList() {
+        var generator = ids
+        mutateBlocks { blocks, range in
+            // Back to front: lifting an item must not change the depth its
+            // still-unprocessed siblings are measured against.
+            for index in range.reversed() {
+                Self.outdent(&blocks, at: index, ids: &generator)
+            }
+        }
+        ids = generator
+    }
+
+    /// Tab and Shift-Tab only take over while the caret is in a list — anywhere
+    /// else they keep their normal meaning.
+    func indentListIfPossible() -> Bool {
+        guard canIndentList else { return false }
+        indentList()
+        return true
+    }
+
+    func outdentListIfPossible() -> Bool {
+        guard canOutdentList else { return false }
+        outdentList()
+        return true
     }
 
     func toggleBlockquote() {
@@ -385,7 +448,7 @@ final class NoteRichTextController {
         textView.setSelectedRange(NSRange(location: location, length: length))
 
         updateDecorations(for: document)
-        refreshState()
+        refreshState(document: document)
     }
 
     /// Re-derive display attributes after an appearance change without touching
@@ -404,7 +467,9 @@ final class NoteRichTextController {
         guard !isRendering else { return }
         let document = currentDocument()
         updateDecorations(for: document)
-        refreshState()
+        // Hand the document over rather than letting `refreshState` extract a
+        // second one — this runs on every keystroke.
+        refreshState(document: document)
         notifyChange()
     }
 
@@ -439,7 +504,7 @@ final class NoteRichTextController {
         textView.theme = theme
     }
 
-    private func refreshState() {
+    private func refreshState(document: NoteDocument? = nil) {
         guard let textView, let storage = textView.textStorage else { return }
         let selection = textView.selectedRange()
 
@@ -468,12 +533,160 @@ final class NoteRichTextController {
             ?? (textView.typingAttributes[NoteAttributedText.blockKey]
                 as? NoteAttributedText.BlockBox)?.block
             ?? NoteBlock()
+
+        let current = document ?? currentDocument()
+        let starts = Self.paragraphStarts(of: current)
+        if let index = Self.blockIndex(containing: selection.location, in: starts, document: current),
+           current.blocks.indices.contains(index) {
+            canIndentList = Self.canIndent(current.blocks, at: index)
+            canOutdentList = current.blocks[index].listDepth >= 1
+        } else {
+            canIndentList = false
+            canOutdentList = false
+        }
     }
 
     private func block(in storage: NSTextStorage, at location: Int) -> NoteBlock? {
         guard storage.length > 0, location >= 0, location < storage.length else { return nil }
         return (storage.attribute(NoteAttributedText.blockKey, at: location, effectiveRange: nil)
             as? NoteAttributedText.BlockBox)?.block
+    }
+
+    // MARK: - Nesting mechanics
+
+    /// All of the nesting logic is pure and lives off the main actor, because
+    /// the thing that has to be right about it is the *HTML it produces* —
+    /// `<ul><li><p>a</p><ul><li><p>b</p></li></ul></li></ul>`, with the nested
+    /// list inside the previous item, exactly as Tiptap and TenTap write it.
+    /// Keeping it out of the view layer is what lets the tests assert that
+    /// directly instead of through an `NSTextView`.
+
+    nonisolated static func makeList(
+        kind: NoteContainer.Kind,
+        ids: inout NoteContainerIDGenerator
+    ) -> NoteContainer {
+        var attributes: [HTMLAttribute] = []
+        if kind == .taskList { attributes.append(HTMLAttribute("data-type", "taskList")) }
+        return NoteContainer(
+            kind: kind,
+            id: ids.take(),
+            tag: kind == .orderedList ? "ol" : "ul",
+            attributes: attributes
+        )
+    }
+
+    nonisolated static func makeListItem(
+        kind: NoteContainer.Kind,
+        ids: inout NoteContainerIDGenerator
+    ) -> NoteContainer {
+        var attributes: [HTMLAttribute] = []
+        if kind == .taskList {
+            attributes = [
+                HTMLAttribute("data-checked", "false"),
+                HTMLAttribute("data-type", "taskItem"),
+            ]
+        }
+        return NoteContainer(kind: .listItem, id: ids.take(), tag: "li", attributes: attributes)
+    }
+
+    /// The container path down to and including the list item that belongs to
+    /// the `depth`-th list. Depth 0 means "outside every list", which keeps an
+    /// enclosing blockquote while dropping the list membership.
+    nonisolated static func containerPrefix(
+        _ containers: [NoteContainer],
+        upToListDepth depth: Int
+    ) -> [NoteContainer] {
+        guard depth > 0 else {
+            return containers.filter { !$0.isList && $0.kind != .listItem }
+        }
+        var result: [NoteContainer] = []
+        var lists = 0
+        for container in containers {
+            result.append(container)
+            if container.isList { lists += 1 }
+            if lists == depth, container.kind == .listItem { return result }
+        }
+        return result
+    }
+
+    nonisolated static func listContainer(
+        _ containers: [NoteContainer],
+        atDepth depth: Int
+    ) -> NoteContainer? {
+        var lists = 0
+        for container in containers where container.isList {
+            lists += 1
+            if lists == depth { return container }
+        }
+        return nil
+    }
+
+    /// The first item of a list has nothing to nest under, and two adjacent
+    /// lists must never be merged by an indent — both are why this checks the
+    /// previous block shares the *same* list, not merely the same depth.
+    nonisolated static func canIndent(_ blocks: [NoteBlock], at index: Int) -> Bool {
+        guard index > 0, blocks.indices.contains(index) else { return false }
+        let depth = blocks[index].listDepth
+        guard depth >= 1 else { return false }
+
+        let previous = blocks[index - 1]
+        guard previous.listDepth >= depth else { return false }
+        guard
+            let here = listContainer(blocks[index].containers, atDepth: depth),
+            let there = listContainer(previous.containers, atDepth: depth),
+            here.id == there.id
+        else { return false }
+        return true
+    }
+
+    nonisolated static func indent(
+        _ blocks: inout [NoteBlock],
+        at index: Int,
+        ids: inout NoteContainerIDGenerator
+    ) {
+        guard canIndent(blocks, at: index) else { return }
+        let depth = blocks[index].listDepth
+        let previous = blocks[index - 1]
+        let kind = blocks[index].listContainer?.kind ?? .bulletList
+
+        var path: [NoteContainer]
+        if previous.listDepth > depth {
+            // The previous item already contains a deeper list — join it as a
+            // sibling rather than opening a second one beside it.
+            path = containerPrefix(previous.containers, upToListDepth: depth + 1)
+            if path.last?.kind == .listItem { path.removeLast() }
+            let joined = listContainer(path, atDepth: depth + 1)?.kind ?? kind
+            path.append(makeListItem(kind: joined, ids: &ids))
+        } else {
+            // Same depth: open a new list inside the previous item.
+            path = containerPrefix(previous.containers, upToListDepth: depth)
+            path.append(makeList(kind: kind, ids: &ids))
+            path.append(makeListItem(kind: kind, ids: &ids))
+        }
+        blocks[index].containers = path
+    }
+
+    nonisolated static func outdent(
+        _ blocks: inout [NoteBlock],
+        at index: Int,
+        ids: inout NoteContainerIDGenerator
+    ) {
+        guard blocks.indices.contains(index) else { return }
+        let depth = blocks[index].listDepth
+        guard depth >= 1 else { return }
+
+        if depth == 1 {
+            blocks[index].containers = containerPrefix(blocks[index].containers, upToListDepth: 0)
+            if blocks[index].tag == nil { blocks[index].tag = "p" }
+            return
+        }
+
+        // Becomes a sibling of the item it was nested inside.
+        var path = containerPrefix(blocks[index].containers, upToListDepth: depth - 1)
+        if path.last?.kind == .listItem { path.removeLast() }
+        let parent = listContainer(path, atDepth: depth - 1)?.kind ?? .bulletList
+        path.append(makeListItem(kind: parent, ids: &ids))
+        blocks[index].containers = path
     }
 
     // MARK: - Offsets

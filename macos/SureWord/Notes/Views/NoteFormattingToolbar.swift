@@ -36,6 +36,19 @@ struct NoteFormattingToolbar: View {
                     listButton("list.bullet", .bulletList, help: "Bullet list")
                     listButton("list.number", .orderedList, help: "Numbered list")
                     listButton("checklist", .taskList, help: "Task list")
+                    // Nesting is only meaningful inside a list, and indent needs
+                    // a previous sibling to nest under — so both dim out rather
+                    // than silently doing nothing.
+                    button("decrease.indent", help: "Outdent (⇧⇥)") {
+                        controller.outdentList()
+                    }
+                    .disabled(!controller.canOutdentList)
+                    .opacity(controller.canOutdentList ? 1 : 0.35)
+                    button("increase.indent", help: "Indent (⇥)") {
+                        controller.indentList()
+                    }
+                    .disabled(!controller.canIndentList)
+                    .opacity(controller.canIndentList ? 1 : 0.35)
                 }
                 separator
                 group {

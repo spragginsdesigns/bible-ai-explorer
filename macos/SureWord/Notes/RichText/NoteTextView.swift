@@ -44,24 +44,34 @@ final class NoteTextView: NSTextView {
         else { return }
 
         let origin = textContainerOrigin
+        let containerWidth = textContainer?.size.width ?? bounds.width
+        // The gutter is measured from the text container's left edge, NOT from
+        // the paragraph frame: `boundingRect(forGlyphRange:in:)` returns the
+        // bounds of the *glyphs*, which already begin at the paragraph's head
+        // indent. Measuring from there put every bullet on top of the first
+        // letter of its own list item.
+        let left = origin.x
+
         enumerateParagraphFrames { offset, frame in
-            let rect = frame.offsetBy(dx: origin.x, dy: origin.y)
-            guard rect.intersects(dirtyRect.insetBy(dx: 0, dy: -rect.height)) else { return }
+            let top = frame.minY + origin.y
+            let height = max(frame.height, 4)
+            guard NSRect(x: left, y: top, width: containerWidth, height: height)
+                .intersects(dirtyRect) else { return }
 
             if let depth = decorations.quoteDepth[offset], depth > 0 {
                 for level in 0..<depth {
-                    let x = rect.minX + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent + 3
+                    let x = left + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent + 3
                     NSColor(theme.accent).withAlphaComponent(0.55).setFill()
-                    NSRect(x: x, y: rect.minY + 2, width: 2, height: max(rect.height - 4, 4)).fill()
+                    NSRect(x: x, y: top + 2, width: 2, height: max(height - 4, 4)).fill()
                 }
             }
 
             if decorations.rules.contains(offset) {
                 NSColor(theme.borderStrong).setFill()
                 NSRect(
-                    x: rect.minX,
-                    y: rect.midY,
-                    width: max(rect.width - 24, 40),
+                    x: left,
+                    y: top + height / 2,
+                    width: max(containerWidth - 24, 40),
                     height: 1
                 ).fill()
             }
@@ -75,41 +85,37 @@ final class NoteTextView: NSTextView {
                 let string = NSAttributedString(string: marker, attributes: attributes)
                 let size = string.size()
                 // Right-aligned into the gutter the paragraph indent opened up.
-                let x = rect.minX + indent - size.width - 8
-                string.draw(at: NSPoint(x: max(x, rect.minX), y: rect.minY + 2))
+                let x = left + indent - size.width - 8
+                string.draw(at: NSPoint(x: max(x, left), y: top + 2))
             }
         }
     }
 
     /// Walks laid-out paragraphs, handing back each one's starting character
-    /// offset and its frame in text-container coordinates. Written against
-    /// TextKit 2, which is what `NSTextView` uses on macOS 15, with a TextKit 1
-    /// fallback for the case where something forced the compatibility path.
+    /// offset and its frame in text-container coordinates.
+    ///
+    /// This is TextKit 1 (`NSLayoutManager.boundingRect(forGlyphRange:in:)`) and
+    /// the view is built on a TextKit 1 stack to match. TextKit 2 was tried
+    /// first and drew nothing: `NSTextLayoutFragment` enumeration inside
+    /// `draw(_:)` did not yield usable frames, so list items indented correctly
+    /// but their bullets never appeared. The classic geometry API is the
+    /// well-trodden path for gutter drawing and it simply works.
     private func enumerateParagraphFrames(_ body: (Int, NSRect) -> Void) {
-        if let layoutManager = textLayoutManager, let content = layoutManager.textContentManager {
-            layoutManager.enumerateTextLayoutFragments(
-                from: layoutManager.documentRange.location,
-                options: [.ensuresLayout]
-            ) { fragment in
-                let offset = content.offset(
-                    from: content.documentRange.location,
-                    to: fragment.rangeInElement.location
-                )
-                body(offset, fragment.layoutFragmentFrame)
-                return true
-            }
-            return
-        }
-
         guard let layoutManager = self.layoutManager, let container = textContainer else { return }
         let text = string as NSString
         var offset = 0
         while offset <= text.length {
-            let paragraph = text.paragraphRange(for: NSRange(location: offset, length: 0))
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: paragraph, actualCharacterRange: nil)
+            let paragraph = text.paragraphRange(
+                for: NSRange(location: min(offset, text.length), length: 0)
+            )
+            let glyphRange = layoutManager.glyphRange(
+                forCharacterRange: paragraph,
+                actualCharacterRange: nil
+            )
             body(offset, layoutManager.boundingRect(forGlyphRange: glyphRange, in: container))
-            if paragraph.upperBound <= offset { break }
-            offset = paragraph.upperBound
+            let next = paragraph.upperBound
+            if next <= offset { break }
+            offset = next
         }
     }
 
