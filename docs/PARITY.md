@@ -11,6 +11,20 @@ Last full audit: 2026-08-11 (Android v1.10.0).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ web-only (allowed superset)
 
+## Clients
+
+| Client | Path | Status |
+|---|---|---|
+| Android | `mobile/` | Source of truth (v1.10.0) |
+| Web | `src/` | Tracked column-by-column below |
+| **macOS** | `macos/` | **Phase 1 — chat only.** Native SwiftUI, sidebar + menu bar. See `macos/README.md`. |
+
+The macOS client is not yet columned below because only Chat exists: Bible
+reader, Notes, Memories and chat file attachments are still to come, and a
+column of mostly ❌ would say less than this line does. It gets its own column
+once those land. Layout adapts to the form factor (sidebar rather than a bottom
+tab bar), which the parity rule allows; no *capability* may be missing.
+
 ## Shell & Auth
 
 | Feature | Android | Web | Notes |

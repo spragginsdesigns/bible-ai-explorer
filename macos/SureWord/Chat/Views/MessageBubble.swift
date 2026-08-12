@@ -1,0 +1,124 @@
+import SwiftUI
+
+/// One chat turn: the bubble plus every card the answer earned.
+/// Port of `mobile/src/features/chat/MessageBubble.tsx`.
+struct MessageBubble: View {
+    @Environment(\.theme) private var theme
+
+    let message: ChatViewMessage
+    var onVerseCopy: (RetrievedVerse) -> Void
+    var onVerseSaveToNote: (RetrievedVerse) -> Void
+    var onVerseReadInBible: (RetrievedVerse) -> Void
+    var onOpenNote: (NoteAction) -> Void
+    var onFollowUp: (String) -> Void
+
+    private var isUser: Bool { message.role == .user }
+
+    var body: some View {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: Spacing.md) {
+            if isUser {
+                userBubble
+            } else {
+                assistantBody
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+    }
+
+    private var userBubble: some View {
+        Text(message.content)
+            .font(.system(size: 14))
+            .foregroundStyle(theme.text)
+            .textSelection(.enabled)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .background(theme.surfaceStrong, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.border, lineWidth: 1)
+            }
+            .frame(maxWidth: 560, alignment: .trailing)
+    }
+
+    @ViewBuilder
+    private var assistantBody: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            // Tool activity, shown only while the answer is still being written.
+            if let activity = message.activity {
+                HStack(spacing: Spacing.sm) {
+                    Text("✦").foregroundStyle(theme.accent)
+                    Text(activity).foregroundStyle(theme.textMuted)
+                    TypingDots()
+                }
+                .font(.system(size: 12))
+            }
+
+            if !message.retrievedVerses.isEmpty {
+                RetrievedVersesCard(
+                    verses: message.retrievedVerses,
+                    strength: message.matchStrength,
+                    onCopy: onVerseCopy,
+                    onSaveToNote: onVerseSaveToNote,
+                    onReadInBible: onVerseReadInBible
+                )
+            }
+
+            if !message.content.isEmpty {
+                MarkdownBody(text: message.content)
+            } else if message.isStreaming, message.activity == nil {
+                TypingDots()
+            }
+
+            if !message.tavilyResults.isEmpty {
+                WebResultsCard(results: message.tavilyResults)
+            }
+
+            ForEach(message.noteActions) { action in
+                NoteActionCard(action: action) { onOpenNote(action) }
+            }
+
+            // Chips only once the answer has settled, so they don't flicker in
+            // and out as the `[FOLLOWUP]` block streams in.
+            if !message.followUps.isEmpty, !message.isStreaming {
+                FollowUpChips(followUps: message.followUps, onSelect: onFollowUp)
+            }
+        }
+        .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
+/// Renders the answer body. SwiftUI's `AttributedString` understands the inline
+/// Markdown the model emits (bold, italics, links); block structure is handled
+/// by splitting on blank lines so paragraphs and simple lists keep their shape.
+struct MarkdownBody: View {
+    @Environment(\.theme) private var theme
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                Text(attributed(block))
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.textSecondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var blocks: [String] {
+        text.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func attributed(_ block: String) -> AttributedString {
+        // `.inlineOnlyPreservingWhitespace` keeps hard line breaks inside a
+        // paragraph — verse lists rely on them.
+        (try? AttributedString(
+            markdown: block,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(block)
+    }
+}
