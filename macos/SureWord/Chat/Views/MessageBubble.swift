@@ -10,6 +10,7 @@ struct MessageBubble: View {
     var onVerseSaveToNote: (RetrievedVerse) -> Void
     var onVerseReadInBible: (RetrievedVerse) -> Void
     var onOpenNote: (NoteAction) -> Void
+    var onAddToNote: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
     private var isUser: Bool { message.role == .user }
@@ -84,6 +85,22 @@ struct MessageBubble: View {
                 MarkdownBody(text: message.content)
             } else if message.isStreaming, message.activity == nil {
                 TypingDots()
+            }
+
+            // Only on a settled answer — mid-stream the markdown is a fragment.
+            if !message.isStreaming, !message.content.isEmpty {
+                Button {
+                    onAddToNote(message)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.pencil")
+                        Text("Add to notes")
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.textFaint)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .accessibilityLabel("Add this answer to your notes")
             }
 
             if !message.tavilyResults.isEmpty {
