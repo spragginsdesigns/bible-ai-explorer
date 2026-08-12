@@ -110,6 +110,9 @@ final class NoteEditorModel {
     }
 
     private func persist() async {
+        // Never write from an editor that never received its document — that
+        // would PATCH an empty body over a note that has content.
+        guard controller.hasLoadedDocument else { return }
         let html = controller.html()
         guard html != savedHTML else { return }
         savedHTML = html
