@@ -135,7 +135,10 @@ def main() -> int:
 
     draw_arrow(draw)
 
-    centered(draw, 776, "First launch: right-click SureWord → Open", hint, (*MUTED, 210))
+    # macOS 15 removed the right-click→Open bypass for unnotarized apps; the
+    # only path is Privacy & Security → Open Anyway, so say exactly that.
+    centered(draw, 776, "First launch: allow SureWord in System Settings → Privacy & Security",
+             hint, (*MUTED, 210))
 
     canvas.alpha_composite(crisp)
     final = canvas.convert("RGB")

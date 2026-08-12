@@ -168,8 +168,11 @@ and the icon coordinates in `build-dmg.sh` must match the arrow/pools in
 
 Bump `MARKETING_VERSION` in `project.yml` first. The build is signed with the
 local Development certificate but **not notarized** (needs the paid Apple
-Developer Program), so first launch on another Mac requires right-click →
-Open — say so in the release notes.
+Developer Program). macOS 15 removed the right-click→Open bypass for
+unnotarized apps, so a downloaded copy's first launch is: open (blocked) →
+Done → System Settings → Privacy & Security → **Open Anyway** — or
+`xattr -dr com.apple.quarantine /Applications/SureWord.app`. Say so in the
+release notes; the DMG background bakes the same hint in.
 
 ## Status
 

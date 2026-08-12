@@ -324,7 +324,8 @@ export default function SettingsPage() {
 									SureWord for macOS
 								</span>
 								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
-									Native Mac app (macOS 15+). First launch: right-click → Open.
+									Native Mac app (macOS 15+). First launch: allow it in System
+									Settings → Privacy &amp; Security.
 								</span>
 							</span>
 						</a>
