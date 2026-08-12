@@ -1,0 +1,530 @@
+[
+ {
+  "order": 1,
+  "name": "Genesis",
+  "abbr": "Gen",
+  "testament": "OT",
+  "chapters": 50,
+  "file": "01-genesis.json"
+ },
+ {
+  "order": 2,
+  "name": "Exodus",
+  "abbr": "Ex",
+  "testament": "OT",
+  "chapters": 40,
+  "file": "02-exodus.json"
+ },
+ {
+  "order": 3,
+  "name": "Leviticus",
+  "abbr": "Lev",
+  "testament": "OT",
+  "chapters": 27,
+  "file": "03-leviticus.json"
+ },
+ {
+  "order": 4,
+  "name": "Numbers",
+  "abbr": "Num",
+  "testament": "OT",
+  "chapters": 36,
+  "file": "04-numbers.json"
+ },
+ {
+  "order": 5,
+  "name": "Deuteronomy",
+  "abbr": "Deut",
+  "testament": "OT",
+  "chapters": 34,
+  "file": "05-deuteronomy.json"
+ },
+ {
+  "order": 6,
+  "name": "Joshua",
+  "abbr": "Josh",
+  "testament": "OT",
+  "chapters": 24,
+  "file": "06-joshua.json"
+ },
+ {
+  "order": 7,
+  "name": "Judges",
+  "abbr": "Judg",
+  "testament": "OT",
+  "chapters": 21,
+  "file": "07-judges.json"
+ },
+ {
+  "order": 8,
+  "name": "Ruth",
+  "abbr": "Ruth",
+  "testament": "OT",
+  "chapters": 4,
+  "file": "08-ruth.json"
+ },
+ {
+  "order": 9,
+  "name": "1 Samuel",
+  "abbr": "1 Sam",
+  "testament": "OT",
+  "chapters": 31,
+  "file": "09-1-samuel.json"
+ },
+ {
+  "order": 10,
+  "name": "2 Samuel",
+  "abbr": "2 Sam",
+  "testament": "OT",
+  "chapters": 24,
+  "file": "10-2-samuel.json"
+ },
+ {
+  "order": 11,
+  "name": "1 Kings",
+  "abbr": "1 Kgs",
+  "testament": "OT",
+  "chapters": 22,
+  "file": "11-1-kings.json"
+ },
+ {
+  "order": 12,
+  "name": "2 Kings",
+  "abbr": "2 Kgs",
+  "testament": "OT",
+  "chapters": 25,
+  "file": "12-2-kings.json"
+ },
+ {
+  "order": 13,
+  "name": "1 Chronicles",
+  "abbr": "1 Chr",
+  "testament": "OT",
+  "chapters": 29,
+  "file": "13-1-chronicles.json"
+ },
+ {
+  "order": 14,
+  "name": "2 Chronicles",
+  "abbr": "2 Chr",
+  "testament": "OT",
+  "chapters": 36,
+  "file": "14-2-chronicles.json"
+ },
+ {
+  "order": 15,
+  "name": "Ezra",
+  "abbr": "Ezra",
+  "testament": "OT",
+  "chapters": 10,
+  "file": "15-ezra.json"
+ },
+ {
+  "order": 16,
+  "name": "Nehemiah",
+  "abbr": "Neh",
+  "testament": "OT",
+  "chapters": 13,
+  "file": "16-nehemiah.json"
+ },
+ {
+  "order": 17,
+  "name": "Esther",
+  "abbr": "Esth",
+  "testament": "OT",
+  "chapters": 10,
+  "file": "17-esther.json"
+ },
+ {
+  "order": 18,
+  "name": "Job",
+  "abbr": "Job",
+  "testament": "OT",
+  "chapters": 42,
+  "file": "18-job.json"
+ },
+ {
+  "order": 19,
+  "name": "Psalms",
+  "abbr": "Ps",
+  "testament": "OT",
+  "chapters": 150,
+  "file": "19-psalms.json"
+ },
+ {
+  "order": 20,
+  "name": "Proverbs",
+  "abbr": "Prov",
+  "testament": "OT",
+  "chapters": 31,
+  "file": "20-proverbs.json"
+ },
+ {
+  "order": 21,
+  "name": "Ecclesiastes",
+  "abbr": "Eccl",
+  "testament": "OT",
+  "chapters": 12,
+  "file": "21-ecclesiastes.json"
+ },
+ {
+  "order": 22,
+  "name": "Song of Solomon",
+  "abbr": "Song",
+  "testament": "OT",
+  "chapters": 8,
+  "file": "22-song-of-solomon.json"
+ },
+ {
+  "order": 23,
+  "name": "Isaiah",
+  "abbr": "Isa",
+  "testament": "OT",
+  "chapters": 66,
+  "file": "23-isaiah.json"
+ },
+ {
+  "order": 24,
+  "name": "Jeremiah",
+  "abbr": "Jer",
+  "testament": "OT",
+  "chapters": 52,
+  "file": "24-jeremiah.json"
+ },
+ {
+  "order": 25,
+  "name": "Lamentations",
+  "abbr": "Lam",
+  "testament": "OT",
+  "chapters": 5,
+  "file": "25-lamentations.json"
+ },
+ {
+  "order": 26,
+  "name": "Ezekiel",
+  "abbr": "Ezek",
+  "testament": "OT",
+  "chapters": 48,
+  "file": "26-ezekiel.json"
+ },
+ {
+  "order": 27,
+  "name": "Daniel",
+  "abbr": "Dan",
+  "testament": "OT",
+  "chapters": 12,
+  "file": "27-daniel.json"
+ },
+ {
+  "order": 28,
+  "name": "Hosea",
+  "abbr": "Hos",
+  "testament": "OT",
+  "chapters": 14,
+  "file": "28-hosea.json"
+ },
+ {
+  "order": 29,
+  "name": "Joel",
+  "abbr": "Joel",
+  "testament": "OT",
+  "chapters": 3,
+  "file": "29-joel.json"
+ },
+ {
+  "order": 30,
+  "name": "Amos",
+  "abbr": "Amos",
+  "testament": "OT",
+  "chapters": 9,
+  "file": "30-amos.json"
+ },
+ {
+  "order": 31,
+  "name": "Obadiah",
+  "abbr": "Obad",
+  "testament": "OT",
+  "chapters": 1,
+  "file": "31-obadiah.json"
+ },
+ {
+  "order": 32,
+  "name": "Jonah",
+  "abbr": "Jonah",
+  "testament": "OT",
+  "chapters": 4,
+  "file": "32-jonah.json"
+ },
+ {
+  "order": 33,
+  "name": "Micah",
+  "abbr": "Mic",
+  "testament": "OT",
+  "chapters": 7,
+  "file": "33-micah.json"
+ },
+ {
+  "order": 34,
+  "name": "Nahum",
+  "abbr": "Nah",
+  "testament": "OT",
+  "chapters": 3,
+  "file": "34-nahum.json"
+ },
+ {
+  "order": 35,
+  "name": "Habakkuk",
+  "abbr": "Hab",
+  "testament": "OT",
+  "chapters": 3,
+  "file": "35-habakkuk.json"
+ },
+ {
+  "order": 36,
+  "name": "Zephaniah",
+  "abbr": "Zeph",
+  "testament": "OT",
+  "chapters": 3,
+  "file": "36-zephaniah.json"
+ },
+ {
+  "order": 37,
+  "name": "Haggai",
+  "abbr": "Hag",
+  "testament": "OT",
+  "chapters": 2,
+  "file": "37-haggai.json"
+ },
+ {
+  "order": 38,
+  "name": "Zechariah",
+  "abbr": "Zech",
+  "testament": "OT",
+  "chapters": 14,
+  "file": "38-zechariah.json"
+ },
+ {
+  "order": 39,
+  "name": "Malachi",
+  "abbr": "Mal",
+  "testament": "OT",
+  "chapters": 4,
+  "file": "39-malachi.json"
+ },
+ {
+  "order": 40,
+  "name": "Matthew",
+  "abbr": "Matt",
+  "testament": "NT",
+  "chapters": 28,
+  "file": "40-matthew.json"
+ },
+ {
+  "order": 41,
+  "name": "Mark",
+  "abbr": "Mark",
+  "testament": "NT",
+  "chapters": 16,
+  "file": "41-mark.json"
+ },
+ {
+  "order": 42,
+  "name": "Luke",
+  "abbr": "Luke",
+  "testament": "NT",
+  "chapters": 24,
+  "file": "42-luke.json"
+ },
+ {
+  "order": 43,
+  "name": "John",
+  "abbr": "John",
+  "testament": "NT",
+  "chapters": 21,
+  "file": "43-john.json"
+ },
+ {
+  "order": 44,
+  "name": "Acts",
+  "abbr": "Acts",
+  "testament": "NT",
+  "chapters": 28,
+  "file": "44-acts.json"
+ },
+ {
+  "order": 45,
+  "name": "Romans",
+  "abbr": "Rom",
+  "testament": "NT",
+  "chapters": 16,
+  "file": "45-romans.json"
+ },
+ {
+  "order": 46,
+  "name": "1 Corinthians",
+  "abbr": "1 Cor",
+  "testament": "NT",
+  "chapters": 16,
+  "file": "46-1-corinthians.json"
+ },
+ {
+  "order": 47,
+  "name": "2 Corinthians",
+  "abbr": "2 Cor",
+  "testament": "NT",
+  "chapters": 13,
+  "file": "47-2-corinthians.json"
+ },
+ {
+  "order": 48,
+  "name": "Galatians",
+  "abbr": "Gal",
+  "testament": "NT",
+  "chapters": 6,
+  "file": "48-galatians.json"
+ },
+ {
+  "order": 49,
+  "name": "Ephesians",
+  "abbr": "Eph",
+  "testament": "NT",
+  "chapters": 6,
+  "file": "49-ephesians.json"
+ },
+ {
+  "order": 50,
+  "name": "Philippians",
+  "abbr": "Phil",
+  "testament": "NT",
+  "chapters": 4,
+  "file": "50-philippians.json"
+ },
+ {
+  "order": 51,
+  "name": "Colossians",
+  "abbr": "Col",
+  "testament": "NT",
+  "chapters": 4,
+  "file": "51-colossians.json"
+ },
+ {
+  "order": 52,
+  "name": "1 Thessalonians",
+  "abbr": "1 Thess",
+  "testament": "NT",
+  "chapters": 5,
+  "file": "52-1-thessalonians.json"
+ },
+ {
+  "order": 53,
+  "name": "2 Thessalonians",
+  "abbr": "2 Thess",
+  "testament": "NT",
+  "chapters": 3,
+  "file": "53-2-thessalonians.json"
+ },
+ {
+  "order": 54,
+  "name": "1 Timothy",
+  "abbr": "1 Tim",
+  "testament": "NT",
+  "chapters": 6,
+  "file": "54-1-timothy.json"
+ },
+ {
+  "order": 55,
+  "name": "2 Timothy",
+  "abbr": "2 Tim",
+  "testament": "NT",
+  "chapters": 4,
+  "file": "55-2-timothy.json"
+ },
+ {
+  "order": 56,
+  "name": "Titus",
+  "abbr": "Titus",
+  "testament": "NT",
+  "chapters": 3,
+  "file": "56-titus.json"
+ },
+ {
+  "order": 57,
+  "name": "Philemon",
+  "abbr": "Phlm",
+  "testament": "NT",
+  "chapters": 1,
+  "file": "57-philemon.json"
+ },
+ {
+  "order": 58,
+  "name": "Hebrews",
+  "abbr": "Heb",
+  "testament": "NT",
+  "chapters": 13,
+  "file": "58-hebrews.json"
+ },
+ {
+  "order": 59,
+  "name": "James",
+  "abbr": "Jas",
+  "testament": "NT",
+  "chapters": 5,
+  "file": "59-james.json"
+ },
+ {
+  "order": 60,
+  "name": "1 Peter",
+  "abbr": "1 Pet",
+  "testament": "NT",
+  "chapters": 5,
+  "file": "60-1-peter.json"
+ },
+ {
+  "order": 61,
+  "name": "2 Peter",
+  "abbr": "2 Pet",
+  "testament": "NT",
+  "chapters": 3,
+  "file": "61-2-peter.json"
+ },
+ {
+  "order": 62,
+  "name": "1 John",
+  "abbr": "1 John",
+  "testament": "NT",
+  "chapters": 5,
+  "file": "62-1-john.json"
+ },
+ {
+  "order": 63,
+  "name": "2 John",
+  "abbr": "2 John",
+  "testament": "NT",
+  "chapters": 1,
+  "file": "63-2-john.json"
+ },
+ {
+  "order": 64,
+  "name": "3 John",
+  "abbr": "3 John",
+  "testament": "NT",
+  "chapters": 1,
+  "file": "64-3-john.json"
+ },
+ {
+  "order": 65,
+  "name": "Jude",
+  "abbr": "Jude",
+  "testament": "NT",
+  "chapters": 1,
+  "file": "65-jude.json"
+ },
+ {
+  "order": 66,
+  "name": "Revelation",
+  "abbr": "Rev",
+  "testament": "NT",
+  "chapters": 22,
+  "file": "66-revelation.json"
+ }
+]
