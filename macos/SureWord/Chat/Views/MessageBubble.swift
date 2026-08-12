@@ -25,19 +25,36 @@ struct MessageBubble: View {
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
     }
 
+    @ViewBuilder
     private var userBubble: some View {
-        Text(message.content)
-            .font(.system(size: 14))
-            .foregroundStyle(theme.text)
-            .textSelection(.enabled)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
-            .background(theme.surfaceStrong, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.border, lineWidth: 1)
+        VStack(alignment: .trailing, spacing: Spacing.sm) {
+            // Receipts for what was sent, above the text that came with them.
+            if !message.attachments.isEmpty {
+                attachmentCards
             }
-            .frame(maxWidth: 560, alignment: .trailing)
+            if !message.content.isEmpty {
+                Text(message.content)
+                    .font(.system(size: 14))
+                    .foregroundStyle(theme.text)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.md)
+                    .background(theme.surfaceStrong, in: .rect(cornerRadius: Radius.lg))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.lg)
+                            .strokeBorder(theme.border, lineWidth: 1)
+                    }
+            }
+        }
+        .frame(maxWidth: 560, alignment: .trailing)
+    }
+
+    private var attachmentCards: some View {
+        HStack(alignment: .top, spacing: Spacing.sm) {
+            ForEach(message.attachments) { attachment in
+                AttachmentCard(attachment: attachment)
+            }
+        }
     }
 
     @ViewBuilder

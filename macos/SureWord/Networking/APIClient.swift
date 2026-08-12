@@ -17,6 +17,8 @@ final class APIClient: Sendable {
     /// Streaming endpoints hold the body open for as long as the model writes,
     /// so this bounds only the time until the first response headers arrive.
     static let streamTimeout: TimeInterval = 45
+    /// A 10 MB attachment on a slow link needs more than the REST budget.
+    static let uploadTimeout: TimeInterval = 120
 
     private let baseURL: URL
     private let token: TokenProvider
@@ -142,6 +144,31 @@ final class APIClient: Sendable {
             throw APIError.server(status: response.statusCode, message: Self.errorMessage(in: payload))
         }
         return bytes
+    }
+
+    // MARK: - Blob upload
+
+    /// PUT raw bytes to an absolute presigned URL.
+    ///
+    /// Deliberately unauthenticated: the signature is in the URL, the host is
+    /// Vercel Blob rather than our API, and sending a Clerk bearer to a third
+    /// party would leak it. Uploads get their own timeout because a 10 MB file on
+    /// a slow link legitimately outlasts `defaultTimeout`.
+    func upload(to url: URL, data: Data, contentType: String) async throws {
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.timeoutInterval = Self.uploadTimeout
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+
+        do {
+            let (body, response) = try await session.upload(for: request, from: data)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status) else {
+                throw APIError.server(status: status, message: Self.errorMessage(in: body))
+            }
+        } catch {
+            throw Self.translate(error)
+        }
     }
 
     // MARK: - Plumbing

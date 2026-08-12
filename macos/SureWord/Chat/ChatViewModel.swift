@@ -36,6 +36,11 @@ final class ChatViewModel {
     var input = ""
     /// Verse or chapter context attached to the next outgoing message.
     var attachment: VerseAttachment?
+
+    /// Files uploaded and waiting to ride on the next message.
+    private(set) var fileAttachments: [ChatAttachmentDescriptor] = []
+    private(set) var uploadingAttachments = false
+    private(set) var attachmentError: String?
     /// Raised by `/history` and by ⌘K; the shell presents the picker.
     var isHistoryPresented = false
 
@@ -45,13 +50,18 @@ final class ChatViewModel {
 
     private let api: APIClient
     private let settings: SettingsStore
+    private let uploader: AttachmentUploader
     private var streamTask: Task<Void, Never>?
     /// Guards against a slow history load landing after the user moved on.
     private var historyLoadVersion = 0
+    /// Bumped whenever the draft is abandoned, so an upload that lands afterwards
+    /// deletes itself instead of attaching to a conversation the user has left.
+    private var attachmentDraftVersion = 0
 
     init(api: APIClient, settings: SettingsStore) {
         self.api = api
         self.settings = settings
+        self.uploader = AttachmentUploader(api: api)
     }
 
     // MARK: Derived
@@ -84,9 +94,14 @@ final class ChatViewModel {
         return views
     }
 
+    /// Files alone are a valid message — the model is asked to look at them.
     var canSend: Bool {
         let composed = VerseAttachment.compose(input, attachment: attachment)
-        return !composed.isEmpty && !isBusy && !historyLoading && historyError == nil
+        return (!composed.isEmpty || !fileAttachments.isEmpty)
+            && !isBusy
+            && !uploadingAttachments
+            && !historyLoading
+            && historyError == nil
     }
 
     // MARK: Conversations
@@ -102,6 +117,7 @@ final class ChatViewModel {
 
     func newConversation() {
         historyLoadVersion += 1
+        discardStagedAttachments()
         stop()
         historyLoading = false
         historyError = nil
@@ -113,6 +129,7 @@ final class ChatViewModel {
     func switchConversation(to id: String) async {
         guard id != activeConversationID else { return }
         historyLoadVersion += 1
+        discardStagedAttachments()
         let version = historyLoadVersion
 
         stop()
@@ -161,6 +178,91 @@ final class ChatViewModel {
         }
     }
 
+    // MARK: File attachments
+
+    /// Stage local files: validate, upload, and hold the descriptors for the next
+    /// message. Port of `addLocalAttachments`.
+    func addAttachments(_ files: [LocalAttachment]) async {
+        guard !files.isEmpty, !uploadingAttachments else { return }
+        let draftVersion = attachmentDraftVersion
+        attachmentError = nil
+
+        do {
+            try AttachmentValidator.validateBatch(files, existing: fileAttachments)
+            uploadingAttachments = true
+            defer { uploadingAttachments = false }
+
+            let completed = try await uploader.upload(files)
+            if draftVersion != attachmentDraftVersion {
+                // The user started a new chat while this was in flight; the files
+                // would otherwise sit in Blob storage forever, uncounted.
+                await uploader.deleteAll(completed.map(\.id))
+            } else {
+                fileAttachments.append(contentsOf: completed)
+            }
+        } catch let error as AttachmentError {
+            attachmentError = error.message
+        } catch {
+            attachmentError = (error as? APIError)?.message ?? "Could not upload the selected files."
+        }
+    }
+
+    /// Read files off disk and stage them. Used by the picker and by drag-and-drop.
+    func addAttachments(fileURLs urls: [URL]) async {
+        var files: [LocalAttachment] = []
+        do {
+            for url in urls {
+                // Harmless with the sandbox off, and correct if it is ever turned on.
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+                guard let data = try? Data(contentsOf: url) else {
+                    throw AttachmentError(
+                        message: "\(url.lastPathComponent) is empty or unreadable."
+                    )
+                }
+                files.append(
+                    try AttachmentValidator.normalize(
+                        filename: url.lastPathComponent,
+                        declaredMediaType: "",
+                        data: data
+                    )
+                )
+            }
+        } catch let error as AttachmentError {
+            attachmentError = error.message
+            return
+        } catch {
+            attachmentError = "Could not open the file picker."
+            return
+        }
+        await addAttachments(files)
+    }
+
+    func removeAttachment(_ id: String) async {
+        do {
+            try await uploader.delete(id)
+            fileAttachments.removeAll { $0.id == id }
+        } catch {
+            attachmentError = "Could not remove the attachment."
+        }
+    }
+
+    func clearAttachmentError() {
+        attachmentError = nil
+    }
+
+    /// Abandon the staged draft, deleting anything already uploaded.
+    private func discardStagedAttachments() {
+        attachmentDraftVersion += 1
+        let staged = fileAttachments
+        fileAttachments = []
+        attachmentError = nil
+        guard !staged.isEmpty else { return }
+        let uploader = uploader
+        Task { await uploader.deleteAll(staged.map(\.id)) }
+    }
+
     // MARK: Sending
 
     func send() async {
@@ -194,15 +296,39 @@ final class ChatViewModel {
         input = ""
         attachment = nil
 
+        let sending = fileAttachments
+
         // Create the conversation first so the server can persist the exchange.
         if activeConversationID == nil {
-            await createConversation(titledAfter: composed)
+            let title = composed.isEmpty
+                ? "Attachment: \(sending.first?.filename ?? "New chat")"
+                : composed
+            await createConversation(titledAfter: title)
+
+            // `/api/ask-question` rejects attachments without a conversation, so
+            // unlike a text-only message this failure is fatal — sending anyway
+            // would 400 and lose the files.
+            if activeConversationID == nil, !sending.isEmpty {
+                sendError = "Could not create the conversation. Retry to send your files."
+                return
+            }
         }
+
+        attachmentDraftVersion += 1
+        fileAttachments = []
+
+        var parts: [UIMessagePart] = sending.map {
+            .file(FilePart(url: $0.previewUrl, mediaType: $0.mediaType, filename: $0.filename))
+        }
+        if !composed.isEmpty { parts.append(.text(id: "0", text: composed)) }
 
         let userMessage = UIMessage(
             id: "user-\(UUID().uuidString)",
             role: .user,
-            parts: [.text(id: "0", text: composed)]
+            parts: parts,
+            metadata: sending.isEmpty
+                ? nil
+                : .object(["attachmentIds": .array(sending.map { .string($0.id) })])
         )
         uiMessages.append(userMessage)
         status = .submitted
