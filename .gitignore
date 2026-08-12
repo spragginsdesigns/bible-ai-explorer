@@ -47,3 +47,4 @@ Frontend-Codebase-ContextPro.md
 
 # Logo generation working directory (scripts/generate-logo.mjs)
 .logo-work/
+.claude/worktrees/
