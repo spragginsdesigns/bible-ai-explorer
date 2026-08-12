@@ -8,6 +8,15 @@ struct ChatView: View {
     var onReadInBible: (RetrievedVerse) -> Void
 
     @State private var toast: String?
+    /// The answer whose "Add to notes" picker is open, if any.
+    @State private var noteTarget: PendingNoteSave?
+
+    /// A settled answer waiting to be saved. Identifiable so `.sheet(item:)`
+    /// re-presents cleanly when a second answer is picked.
+    private struct PendingNoteSave: Identifiable {
+        let id: String
+        let markdown: String
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,6 +37,19 @@ struct ChatView: View {
                     .overlay { Capsule().strokeBorder(theme.border, lineWidth: 1) }
                     .padding(.top, Spacing.md)
                     .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .sheet(item: $noteTarget) { target in
+            AddToNoteSheet(
+                api: api,
+                markdown: target.markdown,
+                defaultTitle: chat.activeConversation?.title
+            ) { result in
+                show(
+                    toast: result.created
+                        ? "Created \(result.noteTitle)"
+                        : "Added to \(result.noteTitle)"
+                )
             }
         }
     }
@@ -66,6 +88,12 @@ struct ChatView: View {
                             onVerseSaveToNote: { verse in save(verse) },
                             onVerseReadInBible: onReadInBible,
                             onOpenNote: { _ in show(toast: "Notes arrive in a later phase.") },
+                            onAddToNote: { answer in
+                                noteTarget = PendingNoteSave(
+                                    id: answer.id,
+                                    markdown: answer.content
+                                )
+                            },
                             onFollowUp: { question in
                                 chat.input = question
                                 Task { await chat.send() }
