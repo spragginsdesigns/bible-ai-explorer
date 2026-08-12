@@ -257,7 +257,10 @@ final class ChatViewModel {
             guard let self else { return }
             do {
                 let bytes = try await api.stream("/api/ask-question", body: request)
-                await consume(bytes.lines)
+                // Deliberately NOT `bytes.lines` — Foundation drops the blank
+                // lines that terminate each SSE event, which silently reduces the
+                // whole answer to nothing. See `ServerSentEvents.lines(from:)`.
+                await consume(bytes)
             } catch {
                 // A cancelled URLSession surfaces as an NSURLError, not a
                 // CancellationError, so catching only the latter would show the
@@ -270,12 +273,12 @@ final class ChatViewModel {
         }
     }
 
-    private func consume(_ lines: some AsyncSequence<String, any Error> & Sendable) async {
+    private func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
         var accumulator = UIMessageAccumulator(id: "assistant-\(UUID().uuidString)")
         var appended = false
 
         do {
-            for try await chunk in UIMessageChunk.stream(from: lines) {
+            for try await chunk in UIMessageChunk.stream(fromBytes: bytes) {
                 try Task.checkCancellation()
                 accumulator.apply(chunk)
 
@@ -295,10 +298,20 @@ final class ChatViewModel {
             }
         }
 
-        if let errorText = accumulator.errorText { sendError = errorText }
+        if let errorText = accumulator.errorText {
+            sendError = errorText
+        } else if !appended, !accumulator.isAborted, !Task.isCancelled, sendError == nil {
+            // A 200 whose body yielded no chunk at all is a broken answer, not an
+            // empty one. Saying so beats the silent dead end that the SSE framing
+            // bug produced for every single message.
+            sendError = Self.emptyStreamError
+        }
         status = .idle
     }
 
     static let historyLoadError =
         "We couldn't load this conversation. Retry to restore its context, or start a new chat."
+
+    static let emptyStreamError =
+        "The answer stream ended before anything arrived. Retry to ask again."
 }

@@ -142,6 +142,57 @@ struct UIMessageAccumulator: Sendable {
 /// SDK emits one line per event today, but honouring the general rule costs
 /// nothing and avoids a silent truncation if that ever changes.
 enum ServerSentEvents {
+    /// Split raw response bytes into lines, **keeping the empty ones**.
+    ///
+    /// This exists because Foundation's `AsyncLineSequence` — what you get from
+    /// `URLSession.AsyncBytes.lines` — *discards* empty lines: its iterator only
+    /// returns once its buffer is non-empty, so a bare `\n` is swallowed. In SSE
+    /// the blank line **is** the event terminator, so feeding `.lines` into
+    /// `payloads(from:)` means no event is ever dispatched: every `data:` payload
+    /// piles up in the buffer and is emitted as one un-parseable blob when the
+    /// response ends. That produced a chat that streamed nothing at all and
+    /// raised no error (fixed 2026-08-12) — and it was invisible to the tests,
+    /// which fed the decoder hand-split lines that *did* include the blanks.
+    ///
+    /// CR, LF and CRLF all terminate a line, per the SSE spec.
+    static func lines(
+        from bytes: some AsyncSequence<UInt8, any Error> & Sendable
+    ) -> AsyncThrowingStream<String, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                let carriageReturn = UInt8(ascii: "\r")
+                let lineFeed = UInt8(ascii: "\n")
+                var buffer: [UInt8] = []
+                var lastWasCarriageReturn = false
+
+                do {
+                    for try await byte in bytes {
+                        switch byte {
+                        case lineFeed where lastWasCarriageReturn:
+                            // Second half of a CRLF; the line already ended.
+                            lastWasCarriageReturn = false
+                        case lineFeed, carriageReturn:
+                            lastWasCarriageReturn = byte == carriageReturn
+                            continuation.yield(String(decoding: buffer, as: UTF8.self))
+                            buffer.removeAll(keepingCapacity: true)
+                        default:
+                            lastWasCarriageReturn = false
+                            buffer.append(byte)
+                        }
+                    }
+                    // A final line with no terminator still counts.
+                    if !buffer.isEmpty {
+                        continuation.yield(String(decoding: buffer, as: UTF8.self))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
     static func payloads(
         from lines: some AsyncSequence<String, any Error> & Sendable
     ) -> AsyncThrowingStream<String, any Error> {
@@ -180,7 +231,15 @@ enum ServerSentEvents {
 }
 
 extension UIMessageChunk {
-    /// Decode a live response body into chunks.
+    /// Decode a live response body into chunks. This is the entry point callers
+    /// should use — never `bytes.lines`, see `ServerSentEvents.lines(from:)`.
+    static func stream(
+        fromBytes bytes: some AsyncSequence<UInt8, any Error> & Sendable
+    ) -> AsyncThrowingStream<UIMessageChunk, any Error> {
+        stream(from: ServerSentEvents.lines(from: bytes))
+    }
+
+    /// Decode already-split lines. Blank lines must be preserved in `lines`.
     static func stream(
         from lines: some AsyncSequence<String, any Error> & Sendable
     ) -> AsyncThrowingStream<UIMessageChunk, any Error> {
