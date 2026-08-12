@@ -65,10 +65,7 @@ struct MainWindow: View {
         case .bible:
             BibleSection(app: app)
         case .notes:
-            PlaceholderPane(
-                title: "Notes",
-                detail: "The rich-text editor, folders, tags and per-note AI arrive in a later phase."
-            )
+            NotesSection(api: app.api)
         }
     }
 }
