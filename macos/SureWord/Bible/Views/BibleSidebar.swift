@@ -92,7 +92,9 @@ struct BibleSidebar: View {
                         .font(.system(size: 11))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.xs)
-                } else if model.searchedQuery.isEmpty && model.referenceJump == nil {
+                } else if model.searchedQuery.isEmpty {
+                    // Shown whenever no search has run yet, reference or not —
+                    // `search.tsx` renders the hint on the same condition.
                     Text("Search the King James text by word or phrase.")
                         .font(.system(size: 12))
                         .foregroundStyle(theme.textFaint)

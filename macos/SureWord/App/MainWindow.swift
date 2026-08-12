@@ -65,7 +65,7 @@ struct MainWindow: View {
             }
             .navigationTitle(app.chat.activeConversation?.title ?? "New chat")
         case .bible:
-            BibleSection(app: app)
+            BibleSection()
         case .notes:
             PlaceholderPane(
                 title: "Notes",

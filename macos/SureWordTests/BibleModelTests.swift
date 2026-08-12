@@ -9,11 +9,23 @@ import Testing
 @MainActor
 @Suite("Bible reader state")
 struct BibleModelTests {
-    private static func makeModel() -> BibleModel {
+    /// A throwaway defaults domain. `UserDefaults.standard` under `TEST_HOST` is
+    /// the shipping app's own domain, so persisting through it would rewrite the
+    /// developer's real saved type size every time the suite runs.
+    private static let suiteName = "SureWordTests.BibleModel"
+
+    private static func makeDefaults(reset: Bool = true) -> UserDefaults {
+        if reset { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
+        return UserDefaults(suiteName: suiteName) ?? .standard
+    }
+
+    private static func makeModel(defaults: UserDefaults? = nil) -> BibleModel {
         // The font step is persisted, so start every case from the default
-        // rather than from whatever the last run (or the real app) left behind.
-        UserDefaults.standard.removeObject(forKey: "bible.fontStep")
-        return BibleModel(api: APIClient(token: { _ in nil }, onAuthFailure: {}))
+        // rather than from whatever the last case left behind.
+        BibleModel(
+            api: APIClient(token: { _ in nil }, onAuthFailure: {}),
+            defaults: defaults ?? makeDefaults()
+        )
     }
 
     @Test("selecting a book shows its chapter grid")
@@ -127,9 +139,10 @@ struct BibleModelTests {
         model.stepFont(1)
         #expect(model.fontStep == 2)
 
-        let reopened = BibleModel(api: APIClient(token: { _ in nil }, onAuthFailure: {}))
+        // Same domain, fresh reader — the app's own relaunch path.
+        let reopened = Self.makeModel(defaults: Self.makeDefaults(reset: false))
         #expect(reopened.fontStep == 2)
-        UserDefaults.standard.removeObject(forKey: "bible.fontStep")
+        UserDefaults.standard.removePersistentDomain(forName: Self.suiteName)
     }
 
     @Test("the reference quick-jump only appears for a resolvable reference")
@@ -200,5 +213,21 @@ struct BibleModelTests {
         model.flash(verse: 16)
         #expect(model.highlightedVerse == 16)
         #expect(model.pendingVerse == nil)
+    }
+
+    @Test("jumping to the same verse again re-arms the flash")
+    func repeatedJumpReArms() {
+        let model = Self.makeModel()
+        model.open(order: 43, chapter: 3, verse: 16)
+        model.flash(verse: 16)
+        #expect(model.pendingVerse == nil)
+
+        // The reader watches `pendingVerse`, so a second quick-jump to the verse
+        // already flashed has to move that value again — the chapter itself is
+        // unchanged, and nothing else tells the reader to scroll.
+        model.open(order: 43, chapter: 3, verse: 16)
+        #expect(model.chapter == 3)
+        #expect(model.pendingVerse == 16)
+        #expect(model.highlightedVerse == nil)
     }
 }
