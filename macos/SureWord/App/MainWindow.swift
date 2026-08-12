@@ -70,10 +70,7 @@ struct MainWindow: View {
                 detail: "The reader, offline search and verse actions arrive in the next phase."
             )
         case .notes:
-            PlaceholderPane(
-                title: "Notes",
-                detail: "The rich-text editor, folders, tags and per-note AI arrive in a later phase."
-            )
+            NotesSection(api: app.api)
         }
     }
 }
