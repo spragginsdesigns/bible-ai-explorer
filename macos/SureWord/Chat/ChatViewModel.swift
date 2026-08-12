@@ -273,7 +273,9 @@ final class ChatViewModel {
         }
     }
 
-    private func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
+    /// Internal rather than private so the tests can drive it with a recorded or
+    /// malformed body directly — `startStream` is the only production caller.
+    func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
         var accumulator = UIMessageAccumulator(id: "assistant-\(UUID().uuidString)")
         var appended = false
 
@@ -300,10 +302,14 @@ final class ChatViewModel {
 
         if let errorText = accumulator.errorText {
             sendError = errorText
-        } else if !appended, !accumulator.isAborted, !Task.isCancelled, sendError == nil {
+        } else if !appended, !Task.isCancelled, sendError == nil {
             // A 200 whose body yielded no chunk at all is a broken answer, not an
             // empty one. Saying so beats the silent dead end that the SSE framing
             // bug produced for every single message.
+            //
+            // An abort needs no test here: `appended` flips on the *first* decoded
+            // chunk, `abort` included, so reaching this branch means nothing was
+            // decoded at all and the stream cannot have been aborted.
             sendError = Self.emptyStreamError
         }
         status = .idle
