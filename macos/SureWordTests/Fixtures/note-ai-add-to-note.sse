@@ -1,0 +1,420 @@
+data: {"type":"start","messageId":"msg-w49R13uYkjMrNsMCLHnAgDeq"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-start","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","toolName":"searchScripture"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"query"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"E"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"phesians"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"2"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"-"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"9"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" exact"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" K"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"JV"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" grace"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" saved"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" through"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" faith"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" not"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" of"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":" works"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"limit"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"2"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","inputTextDelta":"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","toolName":"searchScripture","input":{"query":"Ephesians 2:8-9 exact KJV grace saved through faith not of works","limit":2},"providerMetadata":{"openai":{"itemId":"fc_090fb0e64fe57f05006a7cb00ce568819fa50e012de81bf9e6"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_RTP9yphanPZg1zYvYoMKJQbD","output":{"verses":[{"reference":"Ephesians 2:8","similarity":0.8458159,"text":"For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:"},{"reference":"Titus 3:5","similarity":0.790789,"text":"Not by works of righteousness which we have done, but according to his mercy he saved us, by the washing of regeneration, and renewing of the Holy Ghost;"}],"averageSimilarity":0.81830245,"formatted":"Ephesians 2:8 KJV: \"For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:\"\nTitus 3:5 KJV: \"Not by works of righteousness which we have done, but according to his mercy he saved us, by the washing of regeneration, and renewing of the Holy Ghost;\""},"providerMetadata":{"openai":{"itemId":"fc_090fb0e64fe57f05006a7cb00ce568819fa50e012de81bf9e6"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-start","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","toolName":"getPassage"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"book"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"E"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"phesians"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"chapter"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"2"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"Start"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"End"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"9"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","inputTextDelta":"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","toolName":"getPassage","input":{"book":"Ephesians","chapter":2,"verseStart":8,"verseEnd":9},"providerMetadata":{"openai":{"itemId":"fc_01fd857e79977a17006a7cb00f616c8192a1f7746e11c579aa"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_Z9xFZVBsfoAZWa42wQEDxmYA","output":{"reference":"Ephesians 2:8-9","verses":[{"reference":"Ephesians 2:8","similarity":1,"text":"For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:"},{"reference":"Ephesians 2:9","similarity":1,"text":"Not of works, lest any man should boast."}],"formatted":"Ephesians 2:8 KJV: \"For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:\"\nEphesians 2:9 KJV: \"Not of works, lest any man should boast.\""},"providerMetadata":{"openai":{"itemId":"fc_01fd857e79977a17006a7cb00f616c8192a1f7746e11c579aa"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"tool-input-start","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","toolName":"addToNote"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"markdown"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"##"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" Salvation"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" by"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" Grace"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":">"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" “"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"For"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" by"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" grace"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" are"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" ye"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" saved"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" through"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" faith"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":";"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" and"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" that"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" not"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" of"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" yourselves"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" it"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" is"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" the"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" gift"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" of"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" God"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":":”"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" \\"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":">"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" —"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"E"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"phesians"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"2"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" K"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"JV"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":">"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" “"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"Not"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" of"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" works"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":","}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" lest"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" any"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" man"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" should"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" boast"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":".”"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" \\"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":">"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" —"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"E"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"phesians"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"2"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"9"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" K"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"JV"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\\n"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"These"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" verses"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" complement"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" Romans"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" "}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"’s"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" assurance"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" salvation"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" rests"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" on"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" God"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"’s"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" gracious"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" gift"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" in"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" Christ"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":","}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" received"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" through"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" faith"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":","}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" rather"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" than"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" on"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" our"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" works"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" or"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" grounds"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" for"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":" boasting"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":".\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"note"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"Id"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\":\"\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"title"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"\"\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","inputTextDelta":"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","toolName":"addToNote","input":{"markdown":"## Salvation by Grace\n\n> “For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:”  \n> —Ephesians 2:8 KJV\n\n> “Not of works, lest any man should boast.”  \n> —Ephesians 2:9 KJV\n\nThese verses complement Romans 8’s assurance: salvation rests on God’s gracious gift in Christ, received through faith, rather than on our works or grounds for boasting.","noteId":"","title":""},"providerMetadata":{"openai":{"itemId":"fc_09bf6a91af855a1b006a7cb010bdd481a09ab5a9c1ad80b006"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_NdxyRG8Hd2bj4LMWcvZXfgMI","output":{"noteId":"cmsqd5yew0001l1044xappbwo","noteTitle":"Untitled Note","appendedHtml":"<h2>Salvation by Grace</h2>\n<blockquote>\n<p>“For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:”<br>—Ephesians 2:8 KJV</p>\n</blockquote>\n<blockquote>\n<p>“Not of works, lest any man should boast.”<br>—Ephesians 2:9 KJV</p>\n</blockquote>\n<p>These verses complement Romans 8’s assurance: salvation rests on God’s gracious gift in Christ, received through faith, rather than on our works or grounds for boasting.</p>","created":false},"providerMetadata":{"openai":{"itemId":"fc_09bf6a91af855a1b006a7cb010bdd481a09ab5a9c1ad80b006"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","providerMetadata":{"openai":{"itemId":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","phase":"final_answer"}}}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"I"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"’ve"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" added"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" E"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"phesians"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" "}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"2"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":":"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"–"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"9"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" brief"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" connection"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" Romans"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" "}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"’s"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" assurance"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" salvation"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" your"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":" note"}
+
+data: {"type":"text-delta","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","delta":"."}
+
+data: {"type":"text-end","id":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","providerMetadata":{"openai":{"itemId":"msg_000001d69b22d121006a7cb0133cc48192a1b6efaa739caa16","phase":"final_answer"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop"}
+
+data: [DONE]
+
