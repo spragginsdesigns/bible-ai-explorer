@@ -68,7 +68,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        NSHumanReadableCopyright: ""
+        LSApplicationCategoryType: public.app-category.reference
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
         # Clerk's OAuth flow returns to the app through this scheme. It must stay
         # in sync with the Clerk dashboard's redirect allowlist — `sureword://`
         # entries are already registered there for the Android client.
