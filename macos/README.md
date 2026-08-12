@@ -148,14 +148,23 @@ cd macos && xcodegen
 xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
   -destination 'platform=macOS' -derivedDataPath build-release build
 
-STAGE=$(mktemp -d)
-cp -R build-release/Build/Products/Release/SureWord.app "$STAGE/"
-ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "SureWord" -srcfolder "$STAGE" -ov -format UDZO SureWord.dmg
+../scripts/build-dmg.sh          # styled installer → macos/SureWord.dmg
 
 gh release create macos-v<version> SureWord.dmg \
   --title "SureWord for macOS <version>" --notes "..."
+# (or replace the asset on an existing release: gh release upload <tag> SureWord.dmg --clobber)
 ```
+
+`build-dmg.sh` (requires `brew install create-dmg`) lays out the branded
+installer window: the committed art lives in `macos/dmg/` — a HiDPI
+`background.tiff` composed by `scripts/make-dmg-background.py` from the
+AI-generated dawn plate (`backdrop-raw.png`) plus the crisp brand layer
+(wordmark, 2 Peter 1:19 tagline, drag arrow, first-launch hint), and the
+volume icon `SureWord.icns` built from the appiconset. Two invariants:
+Finder draws icon labels in *black* whenever a background picture is set,
+so the art pools light under both label zones — keep that if you re-art it;
+and the icon coordinates in `build-dmg.sh` must match the arrow/pools in
+`make-dmg-background.py`.
 
 Bump `MARKETING_VERSION` in `project.yml` first. The build is signed with the
 local Development certificate but **not notarized** (needs the paid Apple
