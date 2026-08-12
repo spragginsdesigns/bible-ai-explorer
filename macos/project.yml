@@ -67,6 +67,9 @@ targets:
         CFBundleDisplayName: SureWord
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # Brand fonts (Resources/Fonts) are copied flat into Contents/Resources,
+        # so the font scan path is the Resources root itself.
+        ATSApplicationFontsPath: "."
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.reference
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"

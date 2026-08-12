@@ -86,39 +86,3 @@ struct MessageBubble: View {
         .frame(maxWidth: 720, alignment: .leading)
     }
 }
-
-/// Renders the answer body. SwiftUI's `AttributedString` understands the inline
-/// Markdown the model emits (bold, italics, links); block structure is handled
-/// by splitting on blank lines so paragraphs and simple lists keep their shape.
-struct MarkdownBody: View {
-    @Environment(\.theme) private var theme
-    let text: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                Text(attributed(block))
-                    .font(.system(size: 14))
-                    .foregroundStyle(theme.textSecondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private var blocks: [String] {
-        text.components(separatedBy: "\n\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
-    private func attributed(_ block: String) -> AttributedString {
-        // `.inlineOnlyPreservingWhitespace` keeps hard line breaks inside a
-        // paragraph — verse lists rely on them.
-        (try? AttributedString(
-            markdown: block,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        )) ?? AttributedString(block)
-    }
-}
