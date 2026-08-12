@@ -184,7 +184,10 @@ final class NoteAIModel {
             guard let self else { return }
             do {
                 let bytes = try await api.stream("/api/note-ai", body: request)
-                await consume(bytes.lines)
+                // Deliberately NOT `bytes.lines` — Foundation drops the blank
+                // lines that terminate each SSE event, which silently reduces the
+                // whole answer to nothing. See `ServerSentEvents.lines(from:)`.
+                await consume(bytes)
             } catch {
                 // A cancelled URLSession surfaces as an NSURLError rather than a
                 // CancellationError, so catching only the latter would show an
@@ -197,12 +200,20 @@ final class NoteAIModel {
         }
     }
 
-    private func consume(_ lines: some AsyncSequence<String, any Error> & Sendable) async {
+    /// Fold the response body into the conversation, one chunk at a time.
+    ///
+    /// Takes **bytes**, not lines: `URLSession.AsyncBytes.lines` discards empty
+    /// lines, and the empty line is what terminates an SSE event, so feeding it
+    /// here dispatched no event at all — the panel showed the user's question and
+    /// then nothing until it was reopened and the persisted reply loaded. Same
+    /// entry point `ChatViewModel` uses. Not `private` so the recorded-stream
+    /// regression test can replay a real response through this exact path.
+    func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
         var accumulator = UIMessageAccumulator(id: "assistant-\(UUID().uuidString)")
         var appended = false
 
         do {
-            for try await chunk in UIMessageChunk.stream(from: lines) {
+            for try await chunk in UIMessageChunk.stream(fromBytes: bytes) {
                 try Task.checkCancellation()
                 accumulator.apply(chunk)
 
@@ -221,10 +232,20 @@ final class NoteAIModel {
             }
         }
 
-        if let errorText = accumulator.errorText { self.error = errorText }
+        if let errorText = accumulator.errorText {
+            self.error = errorText
+        } else if !appended, !accumulator.isAborted, !Task.isCancelled, error == nil {
+            // A 200 whose body yielded no chunk at all is a broken answer, not an
+            // empty one. Saying so beats the silent dead end the SSE framing bug
+            // produced — the panel simply stopped, with no card to retry from.
+            error = Self.emptyStreamError
+        }
         status = .idle
         emitAppends()
     }
+
+    static let emptyStreamError =
+        "The answer stream ended before anything arrived. Retry to ask again."
 
     // MARK: - addToNote
 
