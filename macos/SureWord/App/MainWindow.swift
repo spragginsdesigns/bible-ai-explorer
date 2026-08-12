@@ -58,8 +58,6 @@ struct MainWindow: View {
         switch app.section {
         case .chat:
             ChatView(chat: app.chat, api: app.api) { verse in
-                // Wired to the reader in the Bible phase; until then say so
-                // rather than silently doing nothing.
                 app.section = .bible
                 app.pendingVerseReference = verse.reference
             }
