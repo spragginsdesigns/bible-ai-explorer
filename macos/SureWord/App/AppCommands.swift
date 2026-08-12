@@ -6,6 +6,17 @@ struct AppCommands: Commands {
     var app: AppModel?
 
     var body: some Commands {
+        // The settings UI is a sheet, not a Settings scene, so the standard
+        // App menu item (and the ⌘, the sidebar gear's tooltip promises) has
+        // to be provided explicitly.
+        CommandGroup(replacing: .appSettings) {
+            Button("Settings…") {
+                app?.isSettingsPresented = true
+            }
+            .keyboardShortcut(",")
+            .disabled(app == nil)
+        }
+
         // Replace the stock "New" item rather than adding a second one.
         CommandGroup(replacing: .newItem) {
             Button("New Chat") {
