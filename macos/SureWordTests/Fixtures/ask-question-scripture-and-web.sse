@@ -1,0 +1,1018 @@
+data: {"type":"start","messageId":"msg-aNCd4VWqpUVk38B2ntjHDgtt"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"rs_0498fa43a7356f86006a7c928afb60819eb52304567eab6995:0","providerMetadata":{"openai":{"itemId":"rs_0498fa43a7356f86006a7c928afb60819eb52304567eab6995","reasoningEncryptedContent":"gAAAAABqfJKKi0iia5SyO12lDLUKLsYS4kLA8aHJnQQ-9wChVug2jvwGs4Ua9F9bVM7OoTreRXmUA3HXSHuRE4SvoAxVVtyK1fdK50i6KEk08omT7bWDtbzwITVvl1s4h0q52U2iPC3hlXK-KaAdVJdaipO1rYrl-G2QEAas4YM6oW7VQjnMBUEW56MV5Sb5rSi45Cy32o4fzRDHdqYYHnL0uPAA-4bzEsDMYuThI0-LgucaWmfXCunbubIg2uPA4EyMP16kfh8hIE0d1VMjIX6kZM7SIOQywHAK9AMT-ykH--5xayf5I6P2TRoxsiNMitl-YjkDO_5SRqmmu-WpktzW5cYs_g7QaQwDiJ9piLDK8IfNk27RCBcO16Rz03-gGmDCeLmx8RSWBI56MP8lNU0DDCaJxClpXsgtgcEmG-z7KHmtFC8iKzKj_fW8pexQRzy0m8Po2_BRQiBdx8fPdONTWpRZ-J1mc0cpJkF8AQW5rLZgInZ5YYPgrJD0lvBuPWOq9YZCLdL70eX5gQgX5usMplB3ZrT4q9YhLTPPv2SyTu4-4UXZOUqf1_7gW7wFW6iL9WWgpcexU2lJ9H5Th92m1KCCDhUYwLKWYAx2qlMhYviXoTDlWwdX8owSf6JO1Uw2t4KIlZZAFriGy4E1SeMe_CITi_zK1t7FsmOO2hJHJ-_I4sLlnRO0VZ7IYtsE4ew770MaJXs8G4ygra7tM9wj3IhFzl8FEW22UJtPQ8ucyeMfigDG0ztUt_fDvUEuyEyv3pDeK2cH_Lp_ChD1DPY4kan5O5r0HqMwVfkyjR6Rj2gEBg1yU4p4lD1tA4ynYcDAXX1_5IB6SJ5F0hLVqVld54_c7DtSAed5P-PUrZQvwjae0M9CvkBTvUq62XUQKIpxqPAc8T5OWJaWD2Xlu7gyk_lzveX1kA=="}}}
+
+data: {"type":"reasoning-end","id":"rs_0498fa43a7356f86006a7c928afb60819eb52304567eab6995:0","providerMetadata":{"openai":{"itemId":"rs_0498fa43a7356f86006a7c928afb60819eb52304567eab6995","reasoningEncryptedContent":"gAAAAABqfJKLiifRZd5iddLuALdVYPvPf4W7Hb5O58wBr7SDvqJxkb8XOK0N8-AfrIrUZBXSlvrmU7Q-iXEwLuhggaALCJkH6DEX7NR9OnegfTYFYMu4N_7-uu0bDGs_Hh3WWAeRYMmE3wH4RjG5okZ7q2NxCHkaO3Dtyiymjjv7BFWW141cHdBm5kociNiEqbpIgtGULt6gFgOR4biP4FHeXZGi7v_hg3jLuaAlY0AwgRezHGn2RhEAAij30d8PkaxlFMMMGfQwX5DaAQz1Cc9vmFdHReMukV7cjG94_KnGGlWAAAL65zILHm8Lwx5oYXpZzqgMdWzFj9rK49rkQ0GrOC6q37N7Igh3WFSfAnXBsu6CuplRuSDawIBr1_jLQfZ2IqqWXazd0HycAjTAxbutQ7N3k_wuxdeoH6BRU1netQ8I8NkRYFcLnC9-FAfIzg12gHjmctPnbCsGmRKDLaclOKaLjiAbBX69g7d1alts__cOEGSqsTrRDjkag0QLFwSObQRUjmB8O3sefogftgQvEONJihTOzsqQtNUbsP7APKP7_aeM1gSq8bJBcZNoX_Z7ouUlL-cJXWxYuLgVosTzPnguytt46pZVlFLutLChOu4NBR7BXUMJXPn8_p6eUOhasqKbYa7goD2QaaTTwmfxyHjxu6gKY7ObRmOb08XiAnjcwy0pt5iAh_wkMiE3uh5UwnSSPVxqUV5mDeO-KWnMEsglM6uEQSzO71ABv-5ITYcAs-fiVrgKKCpIQHpWEqOWthTk2LQk4hyRkmAgT0hcrQ0dEWgS-EGXt0h5_gHyFppMNLYOaXidm-nkDIqfOAuIAlzU5rKKrqe0KaQyP3SB6VaVkAn0YGKZz5-Em1chiDt4wSBpZzgJvxPVPtwDoJYWjxx02eKoiiumCoePR3XAZgCYBQzt4ZX56kL722J7dcQxVsFQSTXuLCMgaoPlYuXYl-tAfkE7rpQfSuls4PJVWh-iaEq37A1KpVM9bA9qwfINvbwKbzQrmGM4tCqPKSwXajlmaNIE"}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","toolName":"webSearch"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":"query"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":"Bible"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" reading"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" trends"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" reported"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" this"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" week"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" news"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":" outlets"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","inputTextDelta":"\"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","toolName":"webSearch","input":{"query":"Bible reading trends reported this week news outlets"},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c928b7f7c819eb4abeed730f8402e"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_5HwwuQBRwGzZ6YIqtEOTresc","output":{"results":[{"title":"Younger generations lead surprising revival in weekly Bible reading","content":"### Younger generations lead surprising revival in weekly Bible reading\n\nAmericans are reading the Bible more than they have in years, with young adults driving the trend, a new report revealed.\n\nBarna Group CEO David Kinnamon said, “2025 is showing a major rebound … with younger generations leading the way.”\n\nA fresh analysis from Barna’s State of the Church 2025, produced with Gloo, found that 42 percent of U.S. adults read Scripture weekly, up twelve points from a record low of 30 percent in 2024. Among self-identified Christians, half reported reading the Bible weekly, the highest level in more than a decade. [...] Millennials and Gen Z adults spearheaded the turnaround. The report found Millennials’ weekly Bible reading jumped sixteen points since the previous year to 50 percent, while Gen Z rose from 30 to 49 percent. By contrast, Boomers recorded the lowest engagement, with only three percent reading weekly, and Generation X saw a modest rise to 41 percent.\n\nBarna researchers also noted a shift in gender patterns. Younger men outpaced women in weekly Bible engagement, a reversal of previous trends. Kinnamon explained, “Women generally have been more religiously active than men. But now, younger men emerge as the most frequent Bible readers.” [...] Despite the resurgence, conviction lagged behind curiosity. Only 36 percent of adults and 44 percent of Christians said they believed the Bible was completely accurate, down from 43 percent in 2000.\n\nKinnamon described the shift as a “reset” and a revival, suggesting young Americans are exploring faith in uncertain times but still wrestling with belief.\n\n# News you can believe in. Stand with Premier Christian News today.\n\nYour gift today ensures that Premier Christian News can press forward in strength, reaching more people with biblical truth and shaping the future of Christian thought. It’s more than just a donation—it’s an investment in renewed minds and transformed lives.","url":"https://premierchristian.news/en/news/article/younger-generations-lead-surprising-revival-in-weekly-bible-reading"},{"title":"New study shows how Millennials and Gen Z are driving a Bible reading comeback — Religion News Association","content":"Young adults are driving this surge, with nearly half now engaging with Scripture weekly. Millennials jumped an unprecedented 16 points, reaching 50% who now say they read the Bible weekly. Gen Z mirrors this pattern, rising from 30% to 49% in just one year. Boomers, who consistently held the highest levels of Bible reading, now show the lowest levels of weekly Bible reading of all generations at 31%. Gen X has held steadier, now rebounding to 41%. This comes at a time when digital Bible engagement has made it easier for younger generations to engage with Scripture. The YouVersion Family of Bible Apps has reported multiple days of record engagement throughout the year and will celebrate one billion installs this month, a milestone reached years faster than anticipated. [...] “Bible reading is rising again across generations, marking a reset to faith engagement levels we haven’t seen in a decade,” said David Kinnaman, CEO of Barna Group. “People aren’t just curious about faith — they’re opening Scripture for themselves. This trend aligns with other signs of renewal we’ve seen in our research, like growing commitments to Jesus and increased church attendance.”\n\nThe data also reveals a striking reversal in gender patterns. While women have historically been more likely to read the Bible weekly, 2025 data shows that younger men are now reading the Bible more than younger women. Weekly Bible reading rates are 54% for Gen Z men and 57% for Millennial men, compared to 46% for Gen Z women and 43% for Millennial women. [...] Skip to Content \n\nReligion News Association\n\n0\n\n0\n\nReligion News Association\n\n0\n\n0\n\n# New study shows how Millennials and Gen Z are driving a Bible reading comeback\n\nWritten By RNA Director\n\nThe State of the Church research shows that weekly Bible reading among U.S. adults has increased to 42% in 2025, up 12 points from a 15-year low in 2024\n\nBOULDER, Colo. — New research from the State of the Church initiative by Barna Group and Gloo reveals a national rebound in Bible reading among U.S. adults. In 2025, weekly Bible reading has climbed to 42%, up 12 points from a 15-year low of 30% in 2024. Among self-identified Christians, the rate is 50%, which is the highest level in over a decade.","url":"https://rna.org/paid-press-releases/new-study-shows-how-millennials-and-gen-z-are-driving-a-bible-reading-comeback"},{"title":"Gen Z and Millennials Fuel a Bible Reading Comeback","content":"% Weekly Bible Reading (Split Bars)\n\nThis 25-year chart shows generations moving in opposite directions. Boomers, who  consistently held the highest levels of Bible readers—peaking at 49 percent in 2010—now show the lowest levels of weekly Bible reading of all generations at 31 percent. Gen X has held steadier, now rebounding to 41 percent.\n\nMillennials and Gen Z are making big moves toward the Bible. Millennials jumped an unprecedented 16 points, reaching 50 percent—half now say they read the Bible weekly.\n\nGen Z mirrors this pattern, rising from 30 percent to 49 percent in just one year.\n\nBarna’s 2025 reports show increasing commitments to Jesus and church attendance—primarily fueled by young adults. The spike in Bible reading appears to follow those trends. [...] ### A National Rebound in Bible Reading\n\nIn 2000, 39 percent of U.S. adults reported reading the Bible weekly—a number that fluctuated for years before falling to 30 percent in 2024. Now, based on interviews with more than 12,000 adults, it has climbed back to 42 percent. Among self-identified Christians, the rate reaches 50 percent—the highest level in over a decade.\n\n“2025 is showing a major rebound of Bible reading, along with a surge in usage among younger generations,” commented David Kinnaman, CEO of Barna Group. This aligns with other signs of spiritual interest and reinforces the finding that Christian faith and practice are experiencing a reset moment.”\n\n% Weekly Bible Reading (Split Bars) [...] Get full access to Barna insights, research & more\n\nhigh-angle shot of people sitting near each other with Bibles open\n\nNovember 6, 2025\n\nHow Millennials and Gen Z Are Driving a Bible Reading Comeback\n\n### At a Glance\n\nAfter years of decline, something unexpected is happening: Americans are opening their Bibles again. New Barna data for State of the Church 2025, a joint initiative with Gloo, reveals a surge in weekly Bible reading among U.S. adults—a 12-point uptick since Bible reading bottomed out at a 25-year low in 2024.\n\nBible Reading Has Spiked in 2025 (Line chart)\n\n### A National Rebound in Bible Reading","url":"https://www.barna.com/trends/bible-reading-trends"},{"title":"Bible Reading Is Up Among Young Adults - Christianity Today","content":"And Charlie Kirk’s assassination in September also caused a significant surge, reported The Wall Street Journal. Social media users posted anecdotes of first-time Bible purchases and church attendance after the conservative activist’s death.\n\nNo matter the cause, more Scripture reading is only good news.\n\n“I love that God speaks to me through the Bible and speaks about my situation,” Oluwaloni said. “Anything I’m going through, the answer is in the Bible.”\n\n“When you’re not feeding your soul with the truth, you’re not going to see change,” TikTok influencer Hailey Gillman said. “I promise you, reading the Bible will change you.”\n\nKara Bettis Carvalho is a features editor at Christianity Today. Isabel Ong contributed to this report.\n\n + More from  Kara Bettis Carvalho\n\n ## Share [...] Skip to content\n\nChristianity Today Logo\n\nChristianity Today Logo\n\n About Us\n Give\n Gift CT\n Subscribe\n Gift CT\n\n   My Account\n\n Advancing the stories and ideas of the kingdom of God.\n\n  + About Us\n  + Give\n  + Give\n  + Give\n\n  CT PASTORS\n\n  Cover image of the July/August 2026 issue\n\n  + Subscribe to CT\n  + Current Issue\n  + Archives\n  + Gift CT\n  + Give\n  + Give\n  + Give\n\n  + Help & FAQ\n  + My Account\n  + Log In\n  + Log Out\n  + CT Store\n\n  + Icon for Twitter\n  + Icon for Facebook\n  + Icon for Instagram\n  + Icon for RSS\n  + Icon for Telegram\n  + Icon for WhatsApp\n  + Icon for YouTube\n\nNews\n\n# Bible Reading Is Up Among Young Adults\n\nKara Bettis Carvalho\n\nMillennial readership has increased; zoomers read less than other generations but are on a steady upward trajectory. [...] Bible sales have been steadily rising over the past decade, especially since 2020. In 2024 alone, they were up 22 percent, reaching a record 17 million units sold. (Book sales overall rose less than 1 percent that year.) The KJV giant-print Bible, designed for older readers, was the best-selling Bible of 2024. But the NIV Adventure Bible for kids and CSB She Reads Truth Bibles (popular with young women) made up 3 of the top 10.\n\nThe State of the Bible survey postulated that the popular television show The Chosen could be influencing Bible sales, as their rise has paralleled the show’s global success.","url":"https://www.christianitytoday.com/2025/11/bible-reading-is-up-among-gen-z-millennials"},{"title":"American Bible Society Releases 15th Annual State of the Bible Report -","content":"PRINT THIS ARTICLE)\n\nSHARE THIS ARTICLE\n\nPHILADELPHIA, PA — American Bible Society today released the first chapter of their 15th annual State of the Bible report, which highlights findings about Americans’ beliefs, attitudes and behaviors toward the Bible, faith and the Church. Today’s release reveals insight into Americans’ current perceptions and usage of the Bible, as well as Bible use and Scripture engagement trends over the last decade and a half. The study found noticeable increases among key demographics, particularly millennials and men. The first chapter of State of the Bible: USA 2025 is now available to download at StateoftheBible.org. [...] State of the Bible findings come from a nationally representative survey performed for American Bible Society by NORC at the University of Chicago, using their AmeriSpeak panel. The data came from 2,656 online interviews with American adults in all 50 states and the District of Columbia. Data were collected from January 2–21, 2025.\n\nKey findings analyzed in Chapter 1: The Bible in America\n\n The number of Bible Users has increased this year from 38% to 41%, which translates to 10 million more American adults reading the Bible outside of church a minimum of three times a year. [...] Millennials saw a 29% increase in Bible Use from 2024 to 2025 and men saw a 19% increase, closing the long-time gender gap in Bible Use. In recent years, Millennials and men were among the least likely to use the Bible (pages 4–6).\n\n Scripture engagement, a deeper measure of Bible interaction, impact and centrality, also saw an increase in 2025, with growth coming from the two youngest generations. In 2024 only 11% of Gen Z and 12% of Millennials were Scripture Engaged, compared to 15% and 17% respectively in 2025 (page 12).\n\n Just over half of all Americans (51%) say they wish they read the Bible more. But 80% of Americans in the Movable Middle, a group of people who are open to the Bible as a source of spiritual wisdom, wish they read the Bible more (page 17).","url":"https://www.americanbible.org/news/press-releases/articles/sotb-2025-release"}]},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c928b7f7c819eb4abeed730f8402e"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"rs_0498fa43a7356f86006a7c9293e350819ebe1e8cef1d3268e7:0","providerMetadata":{"openai":{"itemId":"rs_0498fa43a7356f86006a7c9293e350819ebe1e8cef1d3268e7","reasoningEncryptedContent":"gAAAAABqfJKTVtXdp_yg3K_SyLe8-kfQTx_Afz2B9Dwvhm0Sbhy2Sr-POEtpn7uquKY3kCurlfV5ANnEophtgiX2wOE6YBX4E-Z_QrBZ7Kz9sexmK6dytvIBxaT0DCkoIIEl99lGPXw4fYNjnus-E3ZvlaGZeTu-J24ymKvQ67NTtNl4swPGYLVmlSe7YNqdETbDCbEXMYlvtJSsoGrl-Mp6p2NwFM57X1mlnBLux9nMiM-v3ZrpWtSRk_9_ewO--O832G8_23ZBkTQCRKKWjttKMvrIAn9VRTK8T5RGf5j9h_OT-cTEshXoZw-UmJhHue-hQt9zZ2fFIRRJWz6C2ph8wEdmHWY4kaLpMK-WlQzdB4rt3GZzkvqjoKxUCF7jQkGXh3MZrIwLjAf7K1wxG4Z_2x0tArUfL9DscjPD_4VVt4SFfoGiOhiC7y4qhqYS8jSaHwcchHXgOWZJ0xKIQlmzbVOLtzSdVFP70UHuYqU5Dmsw_BRpkBjlb--DJaUdblQWQu6nR9GgX7jYq6ZDVWpT2YnoN1y_VYVo9DEGcEzgHysrtymuzZyL5-poI7j2cnUvJASpIy4TeJN6s-T2hRVPcKRa5jkvvuA5GFGlyc_A6dYCe76yvtrwPnsjAgARJ1TMWRRYbdvf2ClJmhL8umKuhEOa2He1yTCbahSNBk0U_88k0j1dNfbGivtWFlP9aTknXUWrO6QqzL8pBBkQ5tlo0gCOJvAwGPFJpMtQY04cbaRiaw1ROtEYt7ILoDa_XoRdBtlEb2klg69Ge4DgE8ixIDlKMoRYRKnDrclmQvIOtJXQnE1u_IHwoVDKDm8LXMinSTO6mNxgbgRMoEbhNGNYKbIjwl4SMCaEbYp_sKcL649oSSvkknewJHdlKqbxOGabf62joEYWAETcDXdIPf6gDRhC_-_cOA=="}}}
+
+data: {"type":"reasoning-end","id":"rs_0498fa43a7356f86006a7c9293e350819ebe1e8cef1d3268e7:0","providerMetadata":{"openai":{"itemId":"rs_0498fa43a7356f86006a7c9293e350819ebe1e8cef1d3268e7","reasoningEncryptedContent":"gAAAAABqfJKXr3xttC8qelbZ09dSsMrcnJx1I1a6Smi4LC43tMyNj8fedPFvys8pnwtmcDgUjTDbmEmJmlTJ0DrnfOKIWh0drLinuIk73ff5Q_N46OGJWoz6eKvseyWoXOe53ieF1p6h6MkIh7McVLHaSKJuhUdWh5Ux9zYqInGehoHsiEinm5YBBRlcdXZ22-eJJtCNDDyoXJQMmZ3P7LvR_Ycn-9NeG8oCgBoowG5-0m-xBR1QXLy4GaH-k9C3YutOyjvg1cH9bQVPUbplkAXQxeE4-tyEZEcczVNq7w9yvBTiX83zpk0KuSVLEleIilefQLX9EBNJwMTTpiO82alG8YguV18_vRPjjCqItXqetNe6vz-NFbbXIPIOoc6TvtRItVfZKygUYW53JOqIcycOS9GJtZJ-8UDyrEupVhsxYvoO5RdkeGpcGQKCqsOjpj-CbJGDnWBQf6Xuhu-sPtUmOkbAgFYDe7sUifpdHPa2w6_uE5DZI_Mn4lSJEtu6zmouOQlMmLGP3vshqISf4T3tU0zUZnOTVybzJeFCuYX94wlRNkFCVkKSiapcIDGaU5HXtRk9QquG_08QY1mY8pHI3duFjtND6FdWjhnsASU9n6F1k9v93CyXHqeOmVbTCIwB0V_lBBAqqmtK1yyiPTX2_AT11fteBX5_BwKPzGecogM2N7_m6zsE_mTPdBg50YOgnVkcNyqySG3rudYtP9RrOCgDA4jf7GfCTB1UYPKGzT90gI8YE_i111XiPwrVyBdYpq-x3q_0qbJe1qkI9yNq6LBg2aMEYmrNLCcFRBhJSTC5nn8kqoCwAuP3lOSsoq3X94Tt4ekVdIQwCMjz36G92mK1BK4wp6P5qF74sGuQwi5F0DIwjGn2VOxCJRbbwTEm_JtwZ8663g8_c5lcqvwzH_fMs-JIl4fFiAzIy9HCN6Kn2z_cQxmkCpeWSAUQD8L0tMXtslLSAeymZ-hMLiFyvwxGt_lBu2vHRnNaaoqKIIFFgeHSE6gRGEyQ6KAeDOWhtQXd0MLuG_9p9BtoPs6rrSrWSA0R3scUejAbmeh1G3HbTrOIUkF2Vuq2CNVzhooo3lfS78JKaXutlYjyPnsRkB1_VauVlZpeesFt4Vf_e5IHd2z7xteB1BuHQ2JqYSI0SVFkBNQDSVGaxLuJgY_4fTRNEnA8vMw9bCa7zSCRbt1ija9W0W952mKoPs5xqa29gJD0QoaV9StsG6b4AYipj5S3xrWNi0ZevtcDlUtt72vP6W2Qr8hUapoKnsP7sT0YIHrv1qgIOqPLTVE19u6puyj8mrOlqwfcSZ2S1fggQaOzF8ccXvtzeD0_nKzMIc3L_JxxuN0uyD1ukS4EBS28dNneqxErLKbTsZvw2W2xHTOfd5NfD3odviNdoxm8C1r_cRXdoEKh"}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_sPGdR5zz3eCxjByGd3gUUDMh","toolName":"searchScripture"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_sPGdR5zz3eCxjByGd3gUUDMh","inputTextDelta":"{\"query\":\"be ye doers of the word and not hearers only deceiving your own selves James 1 22\",\"limit\":3}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_sPGdR5zz3eCxjByGd3gUUDMh","toolName":"searchScripture","input":{"query":"be ye doers of the word and not hearers only deceiving your own selves James 1 22","limit":3},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791e0819ea247acee4c435381"}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_hjw36K3Ym3WRYomqD2wcOzWq","toolName":"searchScripture"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_hjw36K3Ym3WRYomqD2wcOzWq","inputTextDelta":"{\"query\":\"Blessed are they that hear the word of God and keep it Luke 11 28\",\"limit\":3}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_hjw36K3Ym3WRYomqD2wcOzWq","toolName":"searchScripture","input":{"query":"Blessed are they that hear the word of God and keep it Luke 11 28","limit":3},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791f0819eb3b9008c879cc295"}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_N1WRklp9NBTXv7IEiMfQYsbm","toolName":"searchScripture"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_N1WRklp9NBTXv7IEiMfQYsbm","inputTextDelta":"{\"query\":\"search the scriptures they are they which testify of me John 5 39\",\"limit\":3}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_N1WRklp9NBTXv7IEiMfQYsbm","toolName":"searchScripture","input":{"query":"search the scriptures they are they which testify of me John 5 39","limit":3},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791fc819eb3328cb15d426dcf"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_hjw36K3Ym3WRYomqD2wcOzWq","output":{"verses":[{"reference":"Luke 11:28","similarity":0.85962236,"text":"But he said, Yea rather, blessed are they that hear the word of God, and keep it."},{"reference":"Revelation 1:3","similarity":0.7932273,"text":"Blessed is he that readeth, and they that hear the words of this prophecy, and keep those things which are written therein: for the time is at hand."},{"reference":"Luke 8:15","similarity":0.7754879,"text":"But that on the good ground are they, which in an honest and good heart, having heard the word, keep it, and bring forth fruit with patience."}],"averageSimilarity":0.8094458533333334,"formatted":"Luke 11:28 KJV: \"But he said, Yea rather, blessed are they that hear the word of God, and keep it.\"\nRevelation 1:3 KJV: \"Blessed is he that readeth, and they that hear the words of this prophecy, and keep those things which are written therein: for the time is at hand.\"\nLuke 8:15 KJV: \"But that on the good ground are they, which in an honest and good heart, having heard the word, keep it, and bring forth fruit with patience.\""},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791f0819eb3b9008c879cc295"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_sPGdR5zz3eCxjByGd3gUUDMh","output":{"verses":[{"reference":"James 1:22","similarity":0.9030229,"text":"But be ye doers of the word, and not hearers only, deceiving your own selves."},{"reference":"James 1:23","similarity":0.7709296,"text":"For if any be a hearer of the word, and not a doer, he is like unto a man beholding his natural face in a glass:"},{"reference":"James 1:25","similarity":0.76674587,"text":"But whoso looketh into the perfect law of liberty, and continueth therein, he being not a forgetful hearer, but a doer of the work, this man shall be blessed in his deed."}],"averageSimilarity":0.8135661233333332,"formatted":"James 1:22 KJV: \"But be ye doers of the word, and not hearers only, deceiving your own selves.\"\nJames 1:23 KJV: \"For if any be a hearer of the word, and not a doer, he is like unto a man beholding his natural face in a glass:\"\nJames 1:25 KJV: \"But whoso looketh into the perfect law of liberty, and continueth therein, he being not a forgetful hearer, but a doer of the work, this man shall be blessed in his deed.\""},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791e0819ea247acee4c435381"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_N1WRklp9NBTXv7IEiMfQYsbm","output":{"verses":[{"reference":"John 5:39","similarity":0.8919509,"text":"Search the scriptures; for in them ye think ye have eternal life: and they are they which testify of me."},{"reference":"Luke 24:27","similarity":0.7564373,"text":"And beginning at Moses and all the prophets, he expounded unto them in all the scriptures the things concerning himself."},{"reference":"Luke 24:44","similarity":0.740253,"text":"And he said unto them, These are the words which I spake unto you, while I was yet with you, that all things must be fulfilled, which were written in the law of Moses, and in the prophets, and in the psalms, concerning me."}],"averageSimilarity":0.7962137333333333,"formatted":"John 5:39 KJV: \"Search the scriptures; for in them ye think ye have eternal life: and they are they which testify of me.\"\nLuke 24:27 KJV: \"And beginning at Moses and all the prophets, he expounded unto them in all the scriptures the things concerning himself.\"\nLuke 24:44 KJV: \"And he said unto them, These are the words which I spake unto you, while I was yet with you, that all things must be fulfilled, which were written in the law of Moses, and in the prophets, and in the psalms, concerning me.\""},"providerMetadata":{"openai":{"itemId":"fc_0498fa43a7356f86006a7c929791fc819eb3328cb15d426dcf"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","providerMetadata":{"openai":{"itemId":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","phase":"final_answer"}}}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Recent"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reporting"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" on"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"-reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" trends"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" has"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" highlighted"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" notable"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" rise"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" engagement"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"—"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"especially"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" among"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" younger"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" American"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" adults"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Bar"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"na"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"/G"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"loo"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"’s"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" State"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Church"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" data"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"**,"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reported"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" by"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" outlets"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" such"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" as"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" *"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Premier"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Christian"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" News"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"*"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" *"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Religion"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" News"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Association"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"*,"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" says"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" weekly"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" among"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" U"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".S"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" adults"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" rose"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" from"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"30"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"4"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"42"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"**"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" It"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reports"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" particularly"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" sharp"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" increases"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" among"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Millennials"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"50"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%)"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Gen"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Z"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"49"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":").\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"American"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Society"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"’s"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" State"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"202"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"**"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" likewise"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reported"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" users"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" rose"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" from"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"38"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"41"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"%"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"**"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" American"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" adults"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" gains"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" especially"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" among"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Millennials"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" men"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Its"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" measure"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" deeper"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Script"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ure"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" engagement"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"”"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" also"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" increased"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" among"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" younger"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" generations"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"-"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" The"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" encouraging"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" qualification"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" coverage"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" increased"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" does"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" not"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" necessarily"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" mean"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" settled"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" belief"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" or"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" saving"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" faith"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" One"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" report"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" noted"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" only"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" minority"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" adults"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" say"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" they"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" believe"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" completely"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" accurate"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" So"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" there"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" may"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" be"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" real"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" spiritual"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" curiosity"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" but"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Scripture"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" must"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" lead"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" people"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" whom"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Scripture"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" test"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ifies"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"That"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" distinction"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" biblical"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Jesus"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" said"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Search"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" scriptures"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":";"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" them"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" ye"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" think"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" ye"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" have"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" eternal"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" life"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" they"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" they"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" which"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" testify"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" me"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".”"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"  \n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" —"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"John"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"5"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"39"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" K"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"JV"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"The"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" purpose"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Scripture"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" not"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" merely"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" religious"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" information"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" cultural"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" identity"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" or"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" personal"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" inspiration"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" It"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reveals"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" holy"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" exposes"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" our"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" sin"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" bears"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" witness"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"—the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" cruc"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ified"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" risen"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" S"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"aviour"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" An"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" increase"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Bible"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" therefore"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" genuine"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reason"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" pray"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" hope"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" those"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" opening"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" its"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" pages"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" would"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" be"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" brought"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" repentance"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" faith"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Him"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Yet"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Scripture"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" also"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" warns"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" against"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" stopping"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" at"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" hearing"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" or"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" reading"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"But"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" be"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" ye"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" do"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ers"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" word"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" not"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" hear"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ers"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" only"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" dece"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"iving"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" your"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" own"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" selves"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".”"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"  \n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" —"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"James"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"1"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"22"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" K"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"JV"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"But"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" he"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" said"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Y"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"ea"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" rather"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" blessed"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" they"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" hear"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" word"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" keep"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" it"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":".”"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"  \n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":">"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" —"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"Luke"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" "}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"11"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":":"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"28"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" K"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"JV"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"\n\n"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"So"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" right"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" response"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" neither"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" cyn"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"icism"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" nor"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" shallow"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" celebration"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" We"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" should"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" thank"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" whenever"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Word"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" being"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" opened"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" pray"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Holy"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Spirit"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" gives"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" understanding"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" new"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" birth"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" through"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" it"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":","}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" urge"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" readers"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" test"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" everything"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" by"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Scripture"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" submit"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" themselves"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Jesus"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" as"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":" Lord"}
+
+data: {"type":"text-delta","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","delta":"."}
+
+data: {"type":"text-end","id":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","providerMetadata":{"openai":{"itemId":"msg_0498fa43a7356f86006a7c9299e940819eb7903b391bdc42d0","phase":"final_answer"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop"}
+
+data: [DONE]
+

@@ -1,0 +1,712 @@
+data: {"type":"start","messageId":"msg-PJTkJVDrrDRwajatjhHGz2m0"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"rs_052d540f70896a8c006a7c92b8595881a38cf7cdfe6224e2d7:0","providerMetadata":{"openai":{"itemId":"rs_052d540f70896a8c006a7c92b8595881a38cf7cdfe6224e2d7","reasoningEncryptedContent":"gAAAAABqfJK4vi5AjLPC9m_VHmaWWol5vpiH5p_cokew-Vjql0-kKRTPZa8Kcblau9MnwfFygZ5EzK6Xxz4LoDwdhvaHZRcAF_GFUFTrwA1ZKXLrYVYvDVhqIjPwNp6Hf3qlBF8apbUecA68ZG9VjxQVFMPvqBU2yJiMU9m5OG2b9_esXp1nQQ3DWkjFLPb8xkT_VAa1EeDJX-WVJQDzeGNECeJiHDfY493klAWt-JrkumU_5xoF51UiYwzTEXPQE2wGE8-VsPNA5crjTsGd2Wn5JFwxMc2pS9D4mycuVpf0zkKqK5_NoedGI5IB9n-Z1xpB0NTfQ-Is-DrdmCaI1Xy4rUYk7wZZNysXPit1mUSnLzKu3Mio42pokZ82dY-1uyitA_Tzru-TVxRViAOdK1zny55aRRWI7uGOcvLnT2VvtKATUFszgIzdlixjiAKhUghGvknl3tdN1h8HLbgXONxOT3opEqNLrUTkgnxnGuVddvl_7nTSrnn6WUMz264IzUXibI5CWdpfHX23WSBMWD_AE2zRMJt_31FqHQYjbUYERWgiR_kXvFQTdXWkFXXTAVqOCfBWECMe1j_SNwYLpeN8HI8IgBunAjBTWG-k2qqhfe3ZEif9C1qUHc31Ju8ZED3XwrjF6zIYl3ZOL1YP1J0cmQDc1bXJMe4ppWikuo6gUgfDZZ-Xh9rQC9YnZFX2jjqeitHXs8DKR5Chb8bhv0_QREeHFXhv8NrbRJ4qNjml55cdGkMCVrUvovdtk5TqWiMWyRjr5cy4i6RT4cnCEVDRWinB8R4HYEhSSWX4bbTDN-VBe-n8kHqWuKICQ3PDFPfZMir3Jsawnt5JDHQGibEnaW2Gcv-d0thlHRwj-82buN1LvbJUrzhrZoM1hAljLOmp8UvMXJghQ0-RuNc0cN5LhW00-JeAUw=="}}}
+
+data: {"type":"reasoning-end","id":"rs_052d540f70896a8c006a7c92b8595881a38cf7cdfe6224e2d7:0","providerMetadata":{"openai":{"itemId":"rs_052d540f70896a8c006a7c92b8595881a38cf7cdfe6224e2d7","reasoningEncryptedContent":"gAAAAABqfJK4BBzBh9k4WPGEJ-eg7fYf7qEJDT8qQnhLo57nY-uGxaKPps9OPO4TKA8TrlmjOxBLzz1wkOUI8RiLYvMGK19DXz5Xq0WzUtL947EQsDp9QbMLCzHkOH2aHIrY2BntZM-0UA8VNkinz_pBrTrksQT_0tqs6oA4MJkE_X1_SysFq19lPGrpOxmiW-2FLUf5MbPCLCPZezfbNRsqn9OSM9NpjJDomrVZeQSiZiIcg7hF26s1Nw3jFJKr3hLqWXostPkjU-LADdh0AWlW3-TJcuXsgVuPeSabpxmMDhELTYHfuvUJCiIKcvz0UspoAKOPioltSwj0oVXH9pdpo39xrB2RvDmgYxSVuzNXP2pdaSG_Af_zXw6Tlm6AeaK3Wgb-vWVCAVkBBRaWYW2IdJY_-IJceEA-xrX32F9rc5sqhMCjZ8t4SwIEz11uZn9rEZO7m2zkgwErs9AwKCVsegzddAHwxEt5bvgxwtFvGnzcu35DqPiLI70VPaa5dNt0N9Q9GBMaCr5AaVZ3p2bUvHqzjbLUKF5yusS7btr5O_eUtCfxbChCHWeRT97dzdsHN-jcNdkGhZeozNqYT0v2p5I5T_e29j_e1ERJz1OjdbXvkrCmCEts_Dq7aAzwIQy4VPkW9Osn5JTbfq9k388WZ3ujMGnT0TV2CkWNgljFMt8ZU_aOfhIf-a2Ad9Rvt6uPTHm_q5kxNp0G_zMGbab0hF8hZ1xCEuh1fGVj6JWa7V6HFyckJ2N3qzYwjabDPa8i_Ox4cGDAxKWt0RgHW17tWiHPJ84lb7EFMYDf0Xg9bZRxJiWSXniwZgdFPcXFJIKsbBiMOSpw-1PM0jEhbrM8jPIzsx17ADqp_SvpkZemsM7Lc25ngVe6bFYFZogVQmegRPNO6OgeHAfy8QoU9PYfQvFQg65ub6LpiE5G-LZ1645Ar2UhbAPF0c51SNzAf3BKlHpUMBF5vgpH_M8FuTJ1mftMA9XtHL7w0-23awIRr186TI1t1U3W8OQnWx0Cd6i6lwC8jih1EaqSxzqXlyKLqLQI-LZdvveqeNNZt75MTJBSozTe6mg="}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","toolName":"getPassage"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"book"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"Romans"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"chapter"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"Start"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"28"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"End"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"28"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","inputTextDelta":"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","toolName":"getPassage","input":{"book":"Romans","chapter":8,"verseStart":28,"verseEnd":28},"providerMetadata":{"openai":{"itemId":"fc_052d540f70896a8c006a7c92b8f6dc81a388641a64b91e171f"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_qvLWDqmt5DziaAslPgkXKZTn","output":{"reference":"Romans 8:28","verses":[{"reference":"Romans 8:28","similarity":1,"text":"And we know that all things work together for good to them that love God, to them who are the called according to his purpose."}],"formatted":"Romans 8:28 KJV: \"And we know that all things work together for good to them that love God, to them who are the called according to his purpose.\""},"providerMetadata":{"openai":{"itemId":"fc_052d540f70896a8c006a7c92b8f6dc81a388641a64b91e171f"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"reasoning-start","id":"rs_052d540f70896a8c006a7c92ba5aec81a38847b4bc7325cb2c:0","providerMetadata":{"openai":{"itemId":"rs_052d540f70896a8c006a7c92ba5aec81a38847b4bc7325cb2c","reasoningEncryptedContent":"gAAAAABqfJK69nyrOmpb8fHkoVk7deyIndbSunwdEfNkRuKYucAD1POZ4tJjeYWKbAqnATbvW7f7pkBVIN48NMH-_pNukmzwWmB5iihu1a4VHYUmf3RqhO3AEd7kkdTv4w3v3w7ZpqqnMNloG8I7EEG4Dhnn14ZrAgwdRqMLcptqHveAtpeEVGOWxXSoBsN4wDBFLAKfRQ5Q5BuD7Nj1yZSR3nYiG7XjOPLMBARzy4WufQ2bh7p9h4mVOjIFmCelmScPM6-mPiRNZZ6gNy_Um9VK6mgVwfVGYkXxhaZwP9SQqKF9ZWlER0MuwKXVILMCz4BF3T9UVJ8vjvpIx3KtrvAFhZwjVrr05ADFVtQKkKwVUniDgLq3sTdVSUj8T9Ombaou9jSVyzRCJZcPs3GPxGyboaR64xiSKd7ItQrLEaXtpeSaeFNRfx0S-IeviHnhYq2tsRAlkT11D7zkxfq7cXmFghns53Ict-_UT0oWzsqhqmrBAusPt7yiqSc7rOLNG8u1_Ck8fGrcaMbMb9swikcDDtIcppWAAGgE75Dz7IjQiFCLZrY1jkcWmKqSV-nMftwwdSBsYo1fNMpDOXyrlqe8ZFsrW9DaModRdhLU3X0-DT0Cez_XKaRZwTqQHOWuK4xa4bf4twX-9ud308OdEFpNr8Q_Z9F0dbu9d0rO92tF2J3LiEqyGlZLazz-Wd0cZn0H4zOBciA34ycoAe6iJ3UajNaYvOq98_Lwm7rjTQNilgjPY4MFMfvgphe3cOLJlJ_4kpAnuHFFayVdSlgt7EmDkYHyRCf-bNBtyRIFBy5qvSWjJjUv9xdITNXBUYnISPCYg9ZEDAaVx9n7bef8-oSZVtGIwDCd24Fn7Idg6Cpv__3Myh8ZkIbQ4Ud1ZGEkY3m4PM4Ypf9UTIwehPSfqPgsdAb5RhKP3A=="}}}
+
+data: {"type":"reasoning-end","id":"rs_052d540f70896a8c006a7c92ba5aec81a38847b4bc7325cb2c:0","providerMetadata":{"openai":{"itemId":"rs_052d540f70896a8c006a7c92ba5aec81a38847b4bc7325cb2c","reasoningEncryptedContent":"gAAAAABqfJK9xqzHAPXQTzbK8Q0KV3r2bzvRs767OmnQyfFmF33CjDmLq5P3ygjiOZhrgkPI9r_-UjaiRRARUk9U77PNW0WJ2VjbA8qNYXMYIiozYyB9yF9IK_Exp_x0a3KwIUWNV5kd45WWwCHNKgZKdzGaJ_P1HbkweJXz1bv1z0dwLOhTkD7NYx240CeyA2a036O33lwGVaPain80u2zVMzlzUHBZpYQdJcsXRbBuxJX1hb2dUSWJJvHGPRqH7N-erbpi6_KGlwlxv3mi3ry11Y4JlvP0n-kLiobd_582fi8qqhV0BCHf3u6jE9bOWzSTFHrgrlM8xxUj3ghym6Q79FRW0SqKQDuWn5enZcquDYDToj8aQ1dIp0tVdJPPVa2iF2zkVRF6HetPWSIiMB7WG-0TPAektUc8fkp0pzgzmJc_vKdp8atdpHWoiK36nZFdkP2c1eTwyKSJK0KwDSee4zKXVkTyeY4L2k9avvB15iHG7DzuWg1z4QC_x_CDun_8QaP0MwD0seUUYGAonFoxiJjb4vxr-Z6_6ucPWldbVu-yb76kmeOt5UHyKinxq9BDOP8B7T_R0R2XhwTUWuRjhTYVVpGsDedlpwI0_nhdSHZ6uHXOkL5urzji-A_M8fgTamzgcMgBOxrucbTinI_ZCpSSc7-YYR8D6FN2XJetRD9IG8rD6bN2MtbSHzA_M3cmq4TBo0WBMDA91MPY_ZSARxDdVLYB6JURcOv25a7NNCAoT0v8jKKAsxcquloRZWGlRE8yRbkvjK_nBZ5NHK0MAtcKIV7VmPgD40RDVlarYF80kbsxVT8lUOL0a1RG5i0L4X9jxGIB1AytLz3ozvM_w5-xtAgPYgqd7zWpt2PVi7cyFuLOuCur2zJ6q7ZRl5V1nNdY9NG9CpUqQHzyY6uKiYG09a5KRxfkz7QmB_Lwg_WjG4de_sQ3miStshVpEcJByv05LR2UCyMiTt4nUp0eWKLDvp0wQDvjrgvhSlwsHT8PihqYozydHJStp7mGJYegi-0o6ha_aV-LPiGQD3CYpQoSoNHn6KafJcv9Pz2hSTuTDMdXwxCje90ApQHpQYejp4B2k3dM7qv6zKXPMVtz4aRC5dJ0ZmNU0EJeqGbpBILXs7vQI4Imv0rcSYQFz6eMgkgRM-osHG2FRb5lq7bmbbPozah4ARVRTCQ4mUvuc9lHyqPK7mAzcsx2BoavRoFXC6ujf2eXB0b2UvlrW38lWI-V-XPpTHPN-JQ6aihg5lZ_Db5krr4_NCEIJgDWcexfr6z4RMm87PRAYXeLI94RkZNN3asanw=="}}}
+
+data: {"type":"tool-input-start","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","toolName":"getPassage"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"{\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"book"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"\":\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"Romans"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"\",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"chapter"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"8"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"Start"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"28"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":",\""}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"verse"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"End"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"\":"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"30"}
+
+data: {"type":"tool-input-delta","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","inputTextDelta":"}"}
+
+data: {"type":"tool-input-available","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","toolName":"getPassage","input":{"book":"Romans","chapter":8,"verseStart":28,"verseEnd":30},"providerMetadata":{"openai":{"itemId":"fc_052d540f70896a8c006a7c92bd6d9081a397843414d21bad8f"}}}
+
+data: {"type":"tool-output-available","toolCallId":"call_2YLIwNMxy9I25iTR7tJYCFTk","output":{"reference":"Romans 8:28-30","verses":[{"reference":"Romans 8:28","similarity":1,"text":"And we know that all things work together for good to them that love God, to them who are the called according to his purpose."},{"reference":"Romans 8:29","similarity":1,"text":"For whom he did foreknow, he also did predestinate to be conformed to the image of his Son, that he might be the firstborn among many brethren."},{"reference":"Romans 8:30","similarity":1,"text":"Moreover whom he did predestinate, them he also called: and whom he called, them he also justified: and whom he justified, them he also glorified."}],"formatted":"Romans 8:28 KJV: \"And we know that all things work together for good to them that love God, to them who are the called according to his purpose.\"\nRomans 8:29 KJV: \"For whom he did foreknow, he also did predestinate to be conformed to the image of his Son, that he might be the firstborn among many brethren.\"\nRomans 8:30 KJV: \"Moreover whom he did predestinate, them he also called: and whom he called, them he also justified: and whom he justified, them he also glorified.\""},"providerMetadata":{"openai":{"itemId":"fc_052d540f70896a8c006a7c92bd6d9081a397843414d21bad8f"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"start-step"}
+
+data: {"type":"text-start","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","providerMetadata":{"openai":{"itemId":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","phase":"final_answer"}}}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":">"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"And"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" we"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" know"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" all"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" things"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" work"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" together"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" them"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" love"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" them"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" who"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" called"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" according"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" his"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" purpose"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":".”"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" —"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"Romans"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" "}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":":"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"28"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"\n\n"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"Romans"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" "}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":":"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"28"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" means"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" sovereign"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"ly"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" uses"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"every"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" circumstance"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"**"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" lives"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" people"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"—even"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" suffering"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" loss"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" temptation"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" hardship"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"—for"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" their"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" ultimate"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" spiritual"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" It"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" does"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" **"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"not"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"**"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" say"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" every"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" event"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" itself"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" nor"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christians"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" will"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" always"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" see"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" immediately"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Sin"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" sorrow"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" real"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" ev"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"ils"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Yet"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" able"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" faithful"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" over"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"rule"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" them"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" holy"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" purpose"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"The"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" promise"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" specifically"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"them"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" love"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":",”"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" identified"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" as"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" those"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"called"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" according"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" his"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" purpose"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"”—"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"those"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" whom"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" He"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" has"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" saved"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" by"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" grace"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" through"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" The"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" following"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" verse"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" defines"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" chief"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"”"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" working"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":":"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" believers"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" being"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" “"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"con"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"formed"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" image"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" his"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Son"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"”"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"Romans"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" "}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":":"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"29"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":")."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"’s"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" greatest"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" aim"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" not"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" merely"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" our"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" temporary"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" comfort"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" but"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" that"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" we"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" become"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" more"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" like"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" are"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" finally"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" glor"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"ified"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" with"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Him"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" ("}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"Romans"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" "}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"8"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":":"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"30"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":").\n\n"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"So"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" difficult"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" season"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":","}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" this"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" verse"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" calls"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christian"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" trust"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"’s"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" wisdom"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" character"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" when"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" provid"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"ence"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" painful"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" or"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" unclear"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"."}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" He"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" has"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" not"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" abandoned"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" children"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":";"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" He"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" accomplishing"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" His"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" purpose"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" in"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" them"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":".\n\n"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"["}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"FOLLOW"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"UP"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"]"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" How"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" can"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" suffering"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" help"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" conform"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" a"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christian"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" to"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" image"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" of"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" Christ"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"?\n\n"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"["}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"FOLLOW"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"UP"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"]"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" What"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" is"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" the"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" difference"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" between"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" causing"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" evil"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" and"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" God"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" working"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" through"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" evil"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" for"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":" good"}
+
+data: {"type":"text-delta","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","delta":"?"}
+
+data: {"type":"text-end","id":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","providerMetadata":{"openai":{"itemId":"msg_052d540f70896a8c006a7c92be42ec81a3b9ea40e9872a8ad5","phase":"final_answer"}}}
+
+data: {"type":"finish-step"}
+
+data: {"type":"finish","finishReason":"stop"}
+
+data: [DONE]
+
