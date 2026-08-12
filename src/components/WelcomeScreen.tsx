@@ -2,9 +2,9 @@
 
 import React from "react";
 import Image from "next/image";
-import { Smartphone } from "lucide-react";
+import { Laptop, Smartphone } from "lucide-react";
 import { commonQuestions } from "@/utils/commonQuestions";
-import { ANDROID_APK_URL } from "@/lib/constants";
+import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
 
 interface WelcomeScreenProps {
 	onSelectQuestion: (question: string) => void;
@@ -48,7 +48,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 				</div>
 
 				<div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm text-neutral-500 dark:text-neutral-400">
-					<span>✦ SureWord is also an Android app — same account, same chats.</span>
+					<span>✦ SureWord is also a native app — same account, same chats.</span>
 					<a
 						href={ANDROID_APK_URL}
 						target="_blank"
@@ -56,7 +56,16 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 						className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 font-medium transition-colors"
 					>
 						<Smartphone className="w-4 h-4" />
-						Get the app
+						Android
+					</a>
+					<a
+						href={MACOS_DMG_URL}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 font-medium transition-colors"
+					>
+						<Laptop className="w-4 h-4" />
+						macOS
 					</a>
 				</div>
 			</div>

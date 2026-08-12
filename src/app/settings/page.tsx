@@ -12,10 +12,11 @@ import {
 	LogOut,
 	Monitor,
 	Moon,
+	Laptop,
 	Smartphone,
 	Sun,
 } from "lucide-react";
-import { ANDROID_APK_URL } from "@/lib/constants";
+import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
@@ -306,6 +307,24 @@ export default function SettingsPage() {
 								</span>
 								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
 									Install the native app with offline KJV reading.
+								</span>
+							</span>
+						</a>
+						<a
+							href={MACOS_DMG_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
+						>
+							<span className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
+								<Laptop className="w-5 h-5" />
+							</span>
+							<span className="min-w-0 flex-1">
+								<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+									SureWord for macOS
+								</span>
+								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
+									Native Mac app (macOS 15+). First launch: right-click → Open.
 								</span>
 							</span>
 						</a>

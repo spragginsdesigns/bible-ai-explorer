@@ -136,6 +136,32 @@ The exception is `Networking/UIMessageStream.swift`: the AI SDK's transport does
 this job in the TS clients, so the SSE decoding and `UIMessage` assembly are
 written from the protocol spec and covered by recorded-chunk tests.
 
+## Releasing a DMG
+
+Distribution is a DMG attached to a GitHub release. The web app links
+`releases/latest/download/SureWord.dmg` (see `src/lib/constants.ts`), so
+**every release must attach its DMG under the fixed asset name
+`SureWord.dmg`** or the site's download link breaks.
+
+```bash
+cd macos && xcodegen
+xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
+  -destination 'platform=macOS' -derivedDataPath build-release build
+
+STAGE=$(mktemp -d)
+cp -R build-release/Build/Products/Release/SureWord.app "$STAGE/"
+ln -s /Applications "$STAGE/Applications"
+hdiutil create -volname "SureWord" -srcfolder "$STAGE" -ov -format UDZO SureWord.dmg
+
+gh release create macos-v<version> SureWord.dmg \
+  --title "SureWord for macOS <version>" --notes "..."
+```
+
+Bump `MARKETING_VERSION` in `project.yml` first. The build is signed with the
+local Development certificate but **not notarized** (needs the paid Apple
+Developer Program), so first launch on another Mac requires right-click →
+Open — say so in the release notes.
+
 ## Status
 
 Feature-complete at 1:1 parity with Android v1.10.0 as of 2026-08-12: chat
