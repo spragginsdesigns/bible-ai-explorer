@@ -57,7 +57,7 @@ behavior, different plumbing.
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | |
-| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | Thresholds aligned across all three |
+| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | Defaults collapsed on all three; user expands on demand; thresholds aligned |
 | Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
 | Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | |
 | Tavily web-results card | ✅ | ✅ | ✅ | |

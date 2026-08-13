@@ -3,6 +3,8 @@ import SwiftUI
 /// Retrieved-verses card with its match-strength badge.
 /// Port of `mobile/src/features/chat/RetrievedVersesCard.tsx`.
 struct RetrievedVersesCard: View {
+    static let initiallyExpanded = false
+
     @Environment(\.theme) private var theme
 
     let verses: [RetrievedVerse]
@@ -11,7 +13,7 @@ struct RetrievedVersesCard: View {
     var onSaveToNote: (RetrievedVerse) -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
-    @State private var isExpanded = true
+    @State private var isExpanded = RetrievedVersesCard.initiallyExpanded
 
     private var badgeColor: Color {
         switch strength {
