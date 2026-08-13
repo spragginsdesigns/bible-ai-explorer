@@ -1,0 +1,4 @@
+interface:
+  display_name: "Push to Phone"
+  short_description: "Build and install SureWord on Austin phone"
+  default_prompt: "Use $push-phone to build, install, and launch the latest SureWord Android release on Austin phone."
