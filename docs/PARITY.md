@@ -54,6 +54,7 @@ behavior, different plumbing.
 |---|---|---|---|---|
 | Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
 | Model + reasoning-effort picker (locked models point at Settings) | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input | ❌ | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
+| Provider-grouped picker with live model lists (tap provider → every model its key unlocks, fetched from the provider) | ✅ accordion in picker sheet (1.12.0) | ✅ accordion in picker | ❌ | Server lists models live per provider with the resolved key; curated registry is label source + outage fallback; effort only sent to models that support it |
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | |

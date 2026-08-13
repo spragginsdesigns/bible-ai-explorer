@@ -7,8 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import {
 	DEFAULT_MODEL_ID,
-	getModel,
 	isReasoningEffort,
+	resolveDefinition,
 	UTILITY_MODELS,
 	type ModelDefinition,
 	type ProviderId,
@@ -78,6 +78,15 @@ async function apiKeyFor(userId: string, provider: ProviderId): Promise<string> 
 	throw new AiCredentialError(provider, PROVIDER_LABELS[provider]);
 }
 
+/** Non-throwing variant for callers that degrade gracefully (model listing). */
+export async function apiKeyOrNull(userId: string, provider: ProviderId): Promise<string | null> {
+	try {
+		return await apiKeyFor(userId, provider);
+	} catch {
+		return null;
+	}
+}
+
 function buildModel(provider: ProviderId, providerModelId: string, apiKey: string): LanguageModel {
 	switch (provider) {
 		case "openai":
@@ -138,9 +147,9 @@ export async function resolveModel(options: {
 	});
 
 	const definition =
-		(options.modelId ? getModel(options.modelId) : undefined) ??
-		(user?.defaultModelId ? getModel(user.defaultModelId) : undefined) ??
-		getModel(DEFAULT_MODEL_ID);
+		(options.modelId ? resolveDefinition(options.modelId) : undefined) ??
+		(user?.defaultModelId ? resolveDefinition(user.defaultModelId) : undefined) ??
+		resolveDefinition(DEFAULT_MODEL_ID);
 	if (!definition) throw new Error("No default AI model is registered.");
 
 	const apiKey = await apiKeyFor(options.userId, definition.provider);
@@ -157,7 +166,10 @@ export async function resolveModel(options: {
 
 	const storedEffort = isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null;
 	const requestedEffort = isReasoningEffort(options.effort) ? options.effort : null;
-	const effort = requestedEffort ?? storedEffort ?? options.fallbackEffort ?? "medium";
+	const preferredEffort = requestedEffort ?? storedEffort ?? options.fallbackEffort ?? "medium";
+	// Models that reject the reasoning parameter (Haiku, non-reasoning OpenAI
+	// heads) advertise no efforts; sending one anyway is a hard API error.
+	const effort = definition.efforts.includes(preferredEffort) ? preferredEffort : null;
 
 	return {
 		model: buildModel(definition.provider, definition.providerModelId, apiKey),

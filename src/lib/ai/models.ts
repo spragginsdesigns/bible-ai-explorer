@@ -28,9 +28,11 @@ export interface ModelDefinition {
 	efforts: readonly ReasoningEffort[];
 }
 
-// Only models the resolver can actually serve belong here; entries for
-// providers without wired credentials would surface in pickers as options
-// that fail at request time.
+// Curated entries: nice labels and vetted capability flags for the models we
+// feature. The picker and resolver are NOT limited to this list — any model a
+// provider's live /models endpoint reports is usable; these entries just win
+// on label/ordering when present, and serve as the fallback catalog when a
+// provider's list endpoint is unreachable or the user hasn't unlocked it yet.
 export const MODELS: readonly ModelDefinition[] = [
 	{
 		id: "openai/gpt-5.6-terra",
@@ -84,6 +86,76 @@ export const UTILITY_MODELS: Record<ProviderId, { providerModelId: string; effor
 
 export function getModel(modelId: string): ModelDefinition | undefined {
 	return MODELS.find((model) => model.id === modelId);
+}
+
+export function isProviderId(value: unknown): value is ProviderId {
+	return typeof value === "string" && PROVIDERS.some((provider) => provider.id === value);
+}
+
+/** Provider model names are opaque but must stay sane enough to send upstream. */
+const PROVIDER_MODEL_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/;
+
+export function parseModelId(
+	modelId: string,
+): { provider: ProviderId; providerModelId: string } | null {
+	const slash = modelId.indexOf("/");
+	if (slash <= 0) return null;
+	const provider = modelId.slice(0, slash);
+	const providerModelId = modelId.slice(slash + 1);
+	if (!isProviderId(provider) || !PROVIDER_MODEL_ID_PATTERN.test(providerModelId)) return null;
+	return { provider, providerModelId };
+}
+
+/**
+ * Whether a model accepts a reasoning-effort option. Sending one to a model
+ * that rejects it (OpenAI non-reasoning models, Anthropic Haiku) is a hard
+ * API error, so unknown models get a conservative per-provider heuristic.
+ */
+export function modelSupportsEffort(provider: ProviderId, providerModelId: string): boolean {
+	switch (provider) {
+		case "openai":
+			return /^(gpt-5|o\d)/.test(providerModelId);
+		case "anthropic":
+			return !/haiku/i.test(providerModelId);
+		case "moonshot":
+			return true;
+	}
+}
+
+/** "gpt-5.6-luna" → "GPT-5.6 Luna"; used for models with no curated label. */
+export function prettyModelLabel(providerModelId: string): string {
+	const tokens = providerModelId.split("-");
+	let label = "";
+	for (const token of tokens) {
+		const cased = token === "gpt" ? "GPT" : token.charAt(0).toUpperCase() + token.slice(1);
+		if (!label) label = cased;
+		else if (/^\d/.test(token)) label += `-${token}`;
+		else label += ` ${cased}`;
+	}
+	return label;
+}
+
+/**
+ * Definition for any `provider/model` id: the curated entry when we have one,
+ * otherwise one synthesized from provider heuristics. Returns undefined only
+ * for ids that don't name a known provider.
+ */
+export function resolveDefinition(modelId: string): ModelDefinition | undefined {
+	const curated = getModel(modelId);
+	if (curated) return curated;
+	const parsed = parseModelId(modelId);
+	if (!parsed) return undefined;
+	return {
+		id: modelId,
+		label: prettyModelLabel(parsed.providerModelId),
+		provider: parsed.provider,
+		providerModelId: parsed.providerModelId,
+		// Moonshot stays opted out of uploads until per-mime gating exists.
+		supportsAttachments: parsed.provider !== "moonshot",
+		efforts: modelSupportsEffort(parsed.provider, parsed.providerModelId)
+			? REASONING_EFFORTS
+			: [],
+	};
 }
 
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {

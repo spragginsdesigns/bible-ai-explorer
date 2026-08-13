@@ -2,14 +2,10 @@ import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/ai/crypto";
-import { PROVIDERS, type ProviderId } from "@/lib/ai/models";
+import { isProviderId, PROVIDERS, type ProviderId } from "@/lib/ai/models";
 import { DB_PROVIDER, isServerCredentialUser } from "@/lib/ai/provider";
 
 export const maxDuration = 30;
-
-function isProviderId(value: unknown): value is ProviderId {
-	return typeof value === "string" && PROVIDERS.some((provider) => provider.id === value);
-}
 
 /**
  * Validates a key against the provider's free models-list endpoint — proves

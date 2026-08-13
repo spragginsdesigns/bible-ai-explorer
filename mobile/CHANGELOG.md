@@ -3,6 +3,16 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.12.0] — 2026-08-13
+
+### Changed
+- **The model picker now shows every model your API key unlocks.** Models are
+  grouped by provider — tap OpenAI, Anthropic, or Moonshot to expand its list,
+  fetched live from the provider itself (GPT-5.6 Terra, Sol, Luna, GPT-5,
+  Claude Opus 5, and anything the provider adds later — no app update needed).
+  Providers without a key stay locked with a pointer to Settings → AI
+  Providers. Reasoning effort is only sent to models that support it.
+
 ## [1.11.1] — 2026-08-13
 
 ### Fixed

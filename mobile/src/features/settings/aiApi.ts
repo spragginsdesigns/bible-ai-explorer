@@ -15,7 +15,15 @@ export interface AiModel {
 	available: boolean;
 }
 
+export interface AiProviderSummary {
+	id: string;
+	label: string;
+	available: boolean;
+}
+
 export interface AiModelsResponse {
+	/** Absent from pre-1.12 servers; clients derive rows from `models` then. */
+	providers?: AiProviderSummary[];
 	models: AiModel[];
 	defaults: { modelId: string; effort: string | null };
 }

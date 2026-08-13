@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Lock, Sparkles } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Lock, Sparkles } from "lucide-react";
 import {
 	readEffortPref,
 	readModelPref,
@@ -18,7 +18,14 @@ interface PickerModel {
 	available: boolean;
 }
 
+interface PickerProvider {
+	id: string;
+	label: string;
+	available: boolean;
+}
+
 interface ModelsResponse {
+	providers?: PickerProvider[];
 	models: PickerModel[];
 	defaults: { modelId: string; effort: string | null };
 }
@@ -37,9 +44,10 @@ const EFFORT_OPTIONS = [
 ] as const;
 
 /**
- * ChatGPT-style model + reasoning-effort picker on the chat input. Models the
- * user hasn't unlocked (no API key for that provider) are shown locked with a
- * pointer to Settings → AI Providers. Picks are stored locally and sent with
+ * ChatGPT-style model + reasoning-effort picker on the chat input, grouped by
+ * provider: tap a provider to see every model its API key unlocks (the server
+ * lists them live from the provider). Providers without a key are locked and
+ * point at Settings → AI Providers. Picks are stored locally and sent with
  * each request; the server persists them as the account default.
  */
 const ModelPicker: React.FC = () => {
@@ -47,6 +55,7 @@ const ModelPicker: React.FC = () => {
 	const [data, setData] = useState<ModelsResponse | null>(null);
 	const [modelId, setModelId] = useState<string | null>(null);
 	const [effort, setEffort] = useState<string | null>(null);
+	const [expanded, setExpanded] = useState<string | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -85,6 +94,29 @@ const ModelPicker: React.FC = () => {
 		[data, modelId],
 	);
 
+	const providers = useMemo<PickerProvider[]>(() => {
+		if (!data) return [];
+		if (data.providers?.length) return data.providers;
+		// Older payload shape: derive the provider rows from the flat list.
+		const seen = new Map<string, PickerProvider>();
+		for (const model of data.models) {
+			if (!seen.has(model.provider)) {
+				seen.set(model.provider, {
+					id: model.provider,
+					label: PROVIDER_LABELS[model.provider] ?? model.provider,
+					available: model.available,
+				});
+			}
+		}
+		return [...seen.values()];
+	}, [data]);
+
+	// First open lands on the provider of the current model.
+	useEffect(() => {
+		if (open) setExpanded(selected?.provider ?? providers[0]?.id ?? null);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open]);
+
 	if (!data) return null;
 
 	const pickModel = (model: PickerModel) => {
@@ -118,43 +150,75 @@ const ModelPicker: React.FC = () => {
 
 			{open && (
 				<div className="absolute bottom-full left-0 z-30 mb-2 w-72 overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg dark:border-white/[0.08] dark:bg-neutral-900">
-					<div className="max-h-72 overflow-y-auto custom-scrollbar py-1">
-						{data.models.map((model) => {
-							const active = model.id === modelId;
+					<div className="max-h-80 overflow-y-auto custom-scrollbar py-1">
+						{providers.map((provider) => {
+							const providerModels = data.models.filter(
+								(model) => model.provider === provider.id,
+							);
+							if (providerModels.length === 0) return null;
+							const isExpanded = expanded === provider.id;
 							return (
-								<button
-									type="button"
-									key={model.id}
-									role="option"
-									aria-selected={active}
-									disabled={!model.available}
-									onClick={() => pickModel(model)}
-									className={`flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors ${
-										model.available
-											? "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
-											: "opacity-50"
-									}`}
-								>
-									<span className="min-w-0 flex-1">
-										<span
-											className={`block truncate text-sm font-semibold ${
-												active
-													? "text-amber-700 dark:text-amber-400"
-													: "text-neutral-800 dark:text-neutral-200"
-											}`}
-										>
-											{model.label}
+								<div key={provider.id}>
+									<button
+										type="button"
+										aria-expanded={isExpanded}
+										onClick={() =>
+											setExpanded((current) => (current === provider.id ? null : provider.id))
+										}
+										className="flex w-full items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+									>
+										{isExpanded ? (
+											<ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+										) : (
+											<ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+										)}
+										<span className="min-w-0 flex-1">
+											<span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+												{provider.label}
+											</span>
+											<span className="block text-xs text-neutral-400 dark:text-neutral-500">
+												{provider.available
+													? `${providerModels.length} model${providerModels.length === 1 ? "" : "s"}`
+													: "Add your API key in Settings"}
+											</span>
 										</span>
-										<span className="block text-xs text-neutral-400 dark:text-neutral-500">
-											{model.available
-												? PROVIDER_LABELS[model.provider] ?? model.provider
-												: `Add your ${PROVIDER_LABELS[model.provider] ?? model.provider} key in Settings`}
-										</span>
-									</span>
-									{!model.available && (
-										<Lock className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
-									)}
-								</button>
+										{!provider.available && (
+											<Lock className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+										)}
+									</button>
+									{isExpanded &&
+										providerModels.map((model) => {
+											const active = model.id === modelId;
+											return (
+												<button
+													type="button"
+													key={model.id}
+													role="option"
+													aria-selected={active}
+													disabled={!model.available}
+													onClick={() => pickModel(model)}
+													className={`flex w-full items-center gap-2 py-2 pl-11 pr-4 text-left transition-colors ${
+														model.available
+															? "hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+															: "opacity-50"
+													}`}
+												>
+													<span
+														className={`min-w-0 flex-1 truncate text-sm ${
+															active
+																? "font-semibold text-amber-700 dark:text-amber-400"
+																: "text-neutral-700 dark:text-neutral-300"
+														}`}
+													>
+														{model.label}
+													</span>
+													{active && (
+														<Check className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+													)}
+												</button>
+											);
+										})}
+								</div>
 							);
 						})}
 					</div>

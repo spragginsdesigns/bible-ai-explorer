@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "@/features/notes/components/primitives";
@@ -10,7 +10,12 @@ import {
 	useTheme,
 	useThemedStyles,
 } from "@/features/settings/settingsStore";
-import { fetchAiModels, PROVIDER_LABELS, type AiModelsResponse } from "@/features/settings/aiApi";
+import {
+	fetchAiModels,
+	PROVIDER_LABELS,
+	type AiModelsResponse,
+	type AiProviderSummary,
+} from "@/features/settings/aiApi";
 import type { GetToken } from "@/lib/api";
 
 interface ModelPickerSheetProps {
@@ -27,10 +32,11 @@ const EFFORT_OPTIONS: { id: string | null; label: string }[] = [
 ];
 
 /**
- * Model + reasoning-effort picker, mirroring the web chat's picker. Models
- * whose provider has no API key on the account are locked and point at
- * Settings → AI Providers. Picks persist locally and ride every chat request;
- * the server stores the last pick as the account default.
+ * Model + reasoning-effort picker, mirroring the web chat's picker: providers
+ * first, tap one to see every model its API key unlocks (listed live by the
+ * server from the provider). Providers with no key on the account are locked
+ * and point at Settings → AI Providers. Picks persist locally and ride every
+ * chat request; the server stores the last pick as the account default.
  */
 export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerSheetProps) {
 	const { colors } = useTheme();
@@ -38,6 +44,7 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 	const { chatModelId, chatEffort } = useSettings();
 	const [data, setData] = useState<AiModelsResponse | null>(null);
 	const [loadFailed, setLoadFailed] = useState(false);
+	const [expanded, setExpanded] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
 		setLoadFailed(false);
@@ -56,6 +63,30 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 		data && data.models.some((model) => model.id === chatModelId && model.available)
 			? chatModelId
 			: data?.defaults.modelId ?? null;
+
+	const providers = useMemo<AiProviderSummary[]>(() => {
+		if (!data) return [];
+		if (data.providers?.length) return data.providers;
+		// Older payload shape: derive the provider rows from the flat list.
+		const seen = new Map<string, AiProviderSummary>();
+		for (const model of data.models) {
+			if (!seen.has(model.provider)) {
+				seen.set(model.provider, {
+					id: model.provider,
+					label: PROVIDER_LABELS[model.provider] ?? model.provider,
+					available: model.available,
+				});
+			}
+		}
+		return [...seen.values()];
+	}, [data]);
+
+	// Each open lands on the provider of the current model.
+	const selectedProvider = data?.models.find((model) => model.id === selectedId)?.provider ?? null;
+	useEffect(() => {
+		if (visible) setExpanded(selectedProvider ?? providers[0]?.id ?? null);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [visible, data]);
 
 	return (
 		<BottomSheet visible={visible} onClose={onClose}>
@@ -91,41 +122,79 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 			) : (
 				<>
 					<ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-						{data.models.map((model) => {
-							const active = model.id === selectedId;
+						{providers.map((provider) => {
+							const providerModels = data.models.filter(
+								(model) => model.provider === provider.id,
+							);
+							if (providerModels.length === 0) return null;
+							const isExpanded = expanded === provider.id;
 							return (
-								<Pressable
-									key={model.id}
-									accessibilityRole="button"
-									accessibilityState={{ selected: active, disabled: !model.available }}
-									disabled={!model.available}
-									onPress={() => {
-										setChatModel(model.id);
-										onClose();
-									}}
-									style={({ pressed }) => [
-										styles.row,
-										active && styles.rowActive,
-										pressed && { backgroundColor: colors.surfacePressed },
-										!model.available && styles.rowLocked,
-									]}
-								>
-									<View style={styles.rowCopy}>
-										<Text style={[styles.rowLabel, active && { color: colors.accent }]}>
-											{model.label}
-										</Text>
-										<Text style={styles.rowDetail}>
-											{model.available
-												? PROVIDER_LABELS[model.provider] ?? model.provider
-												: `Add your ${PROVIDER_LABELS[model.provider] ?? model.provider} key in Settings`}
-										</Text>
-									</View>
-									{model.available ? (
-										active && <Ionicons name="checkmark" size={18} color={colors.accent} />
-									) : (
-										<Ionicons name="lock-closed-outline" size={16} color={colors.textGhost} />
-									)}
-								</Pressable>
+								<View key={provider.id}>
+									<Pressable
+										accessibilityRole="button"
+										accessibilityState={{ expanded: isExpanded }}
+										onPress={() =>
+											setExpanded((current) => (current === provider.id ? null : provider.id))
+										}
+										style={({ pressed }) => [
+											styles.row,
+											pressed && { backgroundColor: colors.surfacePressed },
+											!provider.available && styles.rowLocked,
+										]}
+									>
+										<Ionicons
+											name={isExpanded ? "chevron-down" : "chevron-forward"}
+											size={16}
+											color={colors.textMuted}
+										/>
+										<View style={styles.rowCopy}>
+											<Text style={styles.rowLabel}>{provider.label}</Text>
+											<Text style={styles.rowDetail}>
+												{provider.available
+													? `${providerModels.length} model${providerModels.length === 1 ? "" : "s"}`
+													: "Add your API key in Settings"}
+											</Text>
+										</View>
+										{!provider.available && (
+											<Ionicons name="lock-closed-outline" size={16} color={colors.textGhost} />
+										)}
+									</Pressable>
+									{isExpanded &&
+										providerModels.map((model) => {
+											const active = model.id === selectedId;
+											return (
+												<Pressable
+													key={model.id}
+													accessibilityRole="button"
+													accessibilityState={{ selected: active, disabled: !model.available }}
+													disabled={!model.available}
+													onPress={() => {
+														setChatModel(model.id);
+														onClose();
+													}}
+													style={({ pressed }) => [
+														styles.modelRow,
+														active && styles.rowActive,
+														pressed && { backgroundColor: colors.surfacePressed },
+														!model.available && styles.rowLocked,
+													]}
+												>
+													<Text
+														style={[
+															styles.modelLabel,
+															active && { color: colors.accent, fontWeight: "700" },
+														]}
+														numberOfLines={1}
+													>
+														{model.label}
+													</Text>
+													{active && (
+														<Ionicons name="checkmark" size={16} color={colors.accent} />
+													)}
+												</Pressable>
+											);
+										})}
+								</View>
 							);
 						})}
 					</ScrollView>
@@ -216,6 +285,21 @@ const createStyles = (c: Colors) =>
 		rowCopy: { flex: 1, minWidth: 0 },
 		rowLabel: { color: c.textSecondary, fontSize: 14.5, fontWeight: "600" },
 		rowDetail: { color: c.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: 2 },
+		modelRow: {
+			minHeight: 46,
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginLeft: spacing.xl,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.xs,
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+			marginBottom: spacing.xs,
+		},
+		modelLabel: { flex: 1, minWidth: 0, color: c.textSecondary, fontSize: 13.5, fontWeight: "600" },
 		effortBlock: {
 			borderTopWidth: StyleSheet.hairlineWidth,
 			borderTopColor: c.border,
