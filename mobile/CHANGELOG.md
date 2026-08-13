@@ -3,6 +3,18 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.11.0] — 2026-08-12
+
+### Added
+- **Choose your AI model and reasoning depth.** A new sparkles button in the
+  chat header opens a model picker: GPT-5.6 Terra, Claude Opus 5, Claude
+  Sonnet 5, and Kimi K3, plus an Auto/Low/Medium/High reasoning selector.
+  Your pick becomes the account default across Android, web, and macOS.
+- **Bring your own API keys.** Settings → AI Providers lets you connect your
+  own OpenAI, Anthropic, or Moonshot (Kimi) key. Keys are validated with the
+  provider, stored encrypted, and unlock that provider's models in the picker.
+  Models without a key show locked with a pointer to Settings.
+
 ## [1.10.0] — 2026-08-11
 
 ### Added

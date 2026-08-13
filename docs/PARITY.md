@@ -46,12 +46,14 @@ behavior, different plumbing.
 | Memory: enable toggle (off = not used/learned, rows kept) | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | Server state (`PATCH /api/memories`), enforced in `src/lib/memory.ts` |
 | Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | ✅ sheet from Settings | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires) |
 | About (version, KJV mission note) | ✅ | ✅ | ✅ | |
+| AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ❌ | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
 
 ## Chat
 
 | Feature | Android | Web | macOS | Notes |
 |---|---|---|---|---|
 | Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
+| Model + reasoning-effort picker (locked models point at Settings) | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input | ❌ | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | |

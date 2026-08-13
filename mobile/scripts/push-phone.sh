@@ -17,7 +17,9 @@ JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
 APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 ADDR_FILE="$MOBILE_DIR/.phone-addr"
 PACKAGE="com.spragginsdesigns.sureword"
-PHONE_MODEL="SM-S928U"
+# Regex, not a literal: adb 37+ prints the model as SM_S928U (underscore),
+# older adb printed SM-S928U — match either so an SDK update can't break discovery.
+PHONE_MODEL="SM[-_]S928U"
 
 export ADB_MDNS_OPENSCREEN=1
 

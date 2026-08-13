@@ -235,6 +235,8 @@ export function useSureWordChat(): SureWordChat {
 						messages,
 						conversationId: conversationIdRef.current,
 						translation: getSettings().translation,
+						modelId: getSettings().chatModelId,
+						effort: getSettings().chatEffort,
 					},
 				}),
 			}),

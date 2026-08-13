@@ -9,8 +9,11 @@ import {
 	View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { BrandTitle, Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
+import { ModelPickerSheet } from "@/features/chat/ModelPickerSheet";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { ErrorCard } from "@/features/chat/ErrorCard";
 import { HistoryModal } from "@/features/chat/HistoryModal";
 import { MessageList } from "@/features/chat/MessageList";
@@ -29,6 +32,8 @@ export default function ChatScreen() {
 	const { colors } = useTheme();
 	const { translation: defaultTranslation } = useSettings();
 	const [historyOpen, setHistoryOpen] = useState(false);
+	const [modelPickerOpen, setModelPickerOpen] = useState(false);
+	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
 	const params = useLocalSearchParams<{
 		prompt?: string;
@@ -147,6 +152,14 @@ export default function ChatScreen() {
 					</View>
 					<Pressable
 						accessibilityRole="button"
+						accessibilityLabel="Choose AI model"
+						onPress={() => setModelPickerOpen(true)}
+						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
+					>
+						<Ionicons name="sparkles-outline" size={16} color={colors.textMuted} />
+					</Pressable>
+					<Pressable
+						accessibilityRole="button"
 						accessibilityLabel="New chat"
 						onPress={onNewChat}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
@@ -224,6 +237,12 @@ export default function ChatScreen() {
 					/>
 				</View>
 			</KeyboardAvoidingView>
+
+			<ModelPickerSheet
+				visible={modelPickerOpen}
+				onClose={() => setModelPickerOpen(false)}
+				getToken={getToken}
+			/>
 
 			<HistoryModal
 				visible={historyOpen}

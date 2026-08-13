@@ -16,6 +16,7 @@ import {
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
+import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "system", label: "System", glyph: "◐" },
@@ -219,6 +220,9 @@ export default function SettingsScreen() {
 						<Text style={styles.chevron}>›</Text>
 					</Pressable>
 				</GlassCard>
+
+				<SectionLabel label="AI PROVIDERS" />
+				<ProviderSettingsSection getToken={getToken} />
 
 				<SectionLabel label="ACCOUNT" />
 				<GlassCard style={styles.card}>

@@ -17,6 +17,9 @@ export type ThemeMode = "system" | "dark" | "light";
 export interface Settings {
 	themeMode: ThemeMode;
 	translation: TranslationId;
+	/** Chat model/effort picks, sent with every chat request. Null = server default. */
+	chatModelId: string | null;
+	chatEffort: string | null;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
@@ -24,6 +27,8 @@ const STORAGE_KEY = "sureword.settings.v1";
 const DEFAULT_SETTINGS: Settings = {
 	themeMode: "system",
 	translation: "KJV",
+	chatModelId: null,
+	chatEffort: null,
 };
 
 let snapshot: Settings = DEFAULT_SETTINGS;
@@ -54,6 +59,8 @@ export async function hydrateSettings(): Promise<void> {
 					? parsed.themeMode
 					: DEFAULT_SETTINGS.themeMode,
 			translation: parsed.translation === "NKJV" ? "NKJV" : "KJV",
+			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
+			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,
 		};
 	} catch {
 		// A corrupt or unreadable store falls back to defaults.
@@ -66,6 +73,14 @@ export function setThemeMode(themeMode: ThemeMode) {
 
 export function setBibleTranslation(translation: TranslationId) {
 	setSnapshot({ ...snapshot, translation });
+}
+
+export function setChatModel(chatModelId: string | null) {
+	setSnapshot({ ...snapshot, chatModelId });
+}
+
+export function setChatEffort(chatEffort: string | null) {
+	setSnapshot({ ...snapshot, chatEffort });
 }
 
 function subscribe(listener: () => void): () => void {
