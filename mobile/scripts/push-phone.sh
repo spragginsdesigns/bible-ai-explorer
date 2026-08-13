@@ -10,10 +10,25 @@
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SDK_ROOT="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
-SDK_ROOT="${SDK_ROOT//\\//}"
-ADB="$SDK_ROOT/platform-tools/adb.exe"
-JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
+HOST_OS="$(uname -s)"
+case "$HOST_OS" in
+  Darwin)
+    SDK_ROOT="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+    ADB="$SDK_ROOT/platform-tools/adb"
+    JAVA_HOME_DEFAULT="${JAVA_HOME:-/opt/homebrew/opt/openjdk@21}"
+    ;;
+  MINGW*|MSYS*|CYGWIN*)
+    SDK_ROOT="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
+    SDK_ROOT="${SDK_ROOT//\\//}"
+    ADB="$SDK_ROOT/platform-tools/adb.exe"
+    JAVA_HOME_DEFAULT="${JAVA_HOME:-C:/Program Files/Android/Android Studio/jbr}"
+    ;;
+  *)
+    SDK_ROOT="${ANDROID_HOME:-$HOME/Android/Sdk}"
+    ADB="$SDK_ROOT/platform-tools/adb"
+    JAVA_HOME_DEFAULT="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk}"
+    ;;
+esac
 APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 ADDR_FILE="$MOBILE_DIR/.phone-addr"
 PACKAGE="com.spragginsdesigns.sureword"
@@ -24,6 +39,18 @@ PHONE_MODEL="SM[-_]S928U"
 export ADB_MDNS_OPENSCREEN=1
 
 log() { echo "[push-phone] $*"; }
+
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$seconds" "$@"
+  else
+    perl -e 'alarm shift; exec @ARGV' "$seconds" "$@"
+  fi
+}
 
 if [[ "${1:-}" == "pair" ]]; then
   [[ $# -eq 3 ]] || { echo "usage: push-phone.sh pair <ip:port> <code>"; exit 1; }
@@ -116,27 +143,58 @@ ensure_device() {
 }
 
 if [[ "${1:-}" != "--skip-build" ]]; then
+  if [[ ! -d "$MOBILE_DIR/node_modules" ]]; then
+    log "Installing mobile dependencies..."
+    (cd "$MOBILE_DIR" && npm ci)
+  fi
+
+  # `android/` is generated and gitignored. Expo 57 clears it even for a
+  # non-clean prebuild, so stamp the native inputs and regenerate only when a
+  # fresh checkout or config/dependency change actually requires it.
+  PREBUILD_STAMP="$MOBILE_DIR/android/.sureword-prebuild-sha"
+  PREBUILD_SHA="$(sha256sum \
+    "$MOBILE_DIR/app.json" \
+    "$MOBILE_DIR/package.json" \
+    "$MOBILE_DIR/package-lock.json" \
+    | awk '{print $1}' | sha256sum | awk '{print $1}')"
+  if [[ ! -x "$MOBILE_DIR/android/gradlew" \
+    || ! -f "$PREBUILD_STAMP" \
+    || "$(cat "$PREBUILD_STAMP")" != "$PREBUILD_SHA" ]]; then
+    log "Syncing the generated Android project..."
+    (cd "$MOBILE_DIR" && npx expo prebuild --platform android --no-install)
+    printf '%s\n' "$PREBUILD_SHA" > "$PREBUILD_STAMP"
+  else
+    log "Generated Android project is current."
+  fi
+
   log "Building arm64 release APK..."
   cd "$MOBILE_DIR/android"
-  # local.properties is gitignored and `expo prebuild --clean` deletes it along
-  # with the rest of android/, so a prebuild is otherwise always followed by a
-  # failing build. Both lines matter, with forward slashes: without sdk.dir the
-  # build dies with "SDK location not found", and without cmake.dir it picks the
-  # SDK default CMake 3.22.1, which loops forever on
-  # "ninja: manifest 'build.ninja' still dirty" building reanimated.
+  # local.properties is gitignored. sdk.dir is universal; the CMake pin is a
+  # Windows-only workaround for the SDK's broken default CMake 3.22.1.
   if [[ ! -f local.properties ]]; then
     SDK_DIR="$SDK_ROOT"
-    {
-      printf 'sdk.dir=%s\n' "$SDK_DIR"
-      printf 'cmake.dir=%s/cmake/3.31.6\n' "$SDK_DIR"
-    } > local.properties
-    log "Recreated local.properties (sdk.dir + cmake.dir 3.31.6)."
+    printf 'sdk.dir=%s\n' "$SDK_DIR" > local.properties
+    if [[ "$HOST_OS" == MINGW* || "$HOST_OS" == MSYS* || "$HOST_OS" == CYGWIN* ]]; then
+      printf 'cmake.dir=%s/cmake/3.31.6\n' "$SDK_DIR" >> local.properties
+      log "Recreated local.properties (sdk.dir + CMake 3.31.6 pin)."
+    else
+      log "Recreated local.properties (sdk.dir)."
+    fi
   fi
   grep -q '^reactNativeArchitectures=arm64-v8a$' gradle.properties || {
-    sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' gradle.properties
+    perl -pi -e 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' gradle.properties
     rm -rf ../node_modules/*/android/.cxx ../node_modules/@*/*/android/.cxx app/.cxx
   }
-  JAVA_HOME="$JAVA_HOME_DEFAULT" ./gradlew assembleRelease -x lint --quiet
+  # Expo's generated 512 MB metaspace cap is too small for the release KSP and
+  # native-module graph on a clean build. Keep this deterministic across fresh
+  # prebuilds rather than relying on a developer's global Gradle settings.
+  if grep -q '^org.gradle.jvmargs=' gradle.properties; then
+    perl -pi -e 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8/' gradle.properties
+  else
+    printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8\n' >> gradle.properties
+  fi
+  NODE_ENV=production JAVA_HOME="$JAVA_HOME_DEFAULT" ./gradlew --no-daemon \
+    assembleRelease -x lint -x lintVitalAnalyzeRelease --quiet
   log "Build complete."
 fi
 
@@ -178,7 +236,7 @@ SERIAL="$(phone_serial)"
 EXPECTED_SHA="$(sha256sum "$APK" | awk '{print toupper($1)}')"
 log "Installing on $SERIAL (non-streaming wireless-safe path) ..."
 set +e
-timeout 240 "$ADB" -s "$SERIAL" install --no-streaming -r "$APK"
+run_with_timeout 240 "$ADB" -s "$SERIAL" install --no-streaming -r "$APK"
 INSTALL_STATUS=$?
 set -e
 
