@@ -3,6 +3,15 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.11.1] — 2026-08-13
+
+### Fixed
+- **Gboard screenshots now paste directly into the chat composer on Android 12+.**
+  Selecting an image from Gboard's clipboard now creates a normal SureWord
+  attachment and uploads it through the existing private attachment pipeline.
+  The manual Add attachment → Paste screenshot action remains available on all
+  supported Android versions.
+
 ## [1.11.0] — 2026-08-12
 
 ### Added

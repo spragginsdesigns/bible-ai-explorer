@@ -1,6 +1,6 @@
 {
 	"name": "sureword-mobile",
-	"version": "1.10.0",
+	"version": "1.11.1",
 	"main": "expo-router/entry",
 	"scripts": {
 		"start": "expo start",
@@ -33,6 +33,7 @@
 		"expo-image-picker": "~57.0.9",
 		"expo-linear-gradient": "~57.0.1",
 		"expo-linking": "~57.0.5",
+		"expo-paste-input": "0.2.2",
 		"expo-router": "~57.0.11",
 		"expo-secure-store": "~57.0.1",
 		"expo-splash-screen": "~57.0.5",

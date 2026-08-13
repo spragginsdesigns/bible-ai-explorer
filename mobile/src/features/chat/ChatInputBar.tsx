@@ -15,6 +15,7 @@ import {
 	TextInput,
 	View,
 } from "react-native";
+import { TextInputWrapper, type PasteEventPayload } from "expo-paste-input";
 import { fonts, radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -48,6 +49,7 @@ interface ChatInputBarProps {
 	onChooseImages?: () => void;
 	onChooseFiles?: () => void;
 	onPasteImage?: () => void;
+	onPasteImages?: (uris: string[]) => void;
 	onRemoveFileAttachment?: (id: string) => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
 	value?: string;
@@ -74,6 +76,7 @@ export function ChatInputBar({
 	onChooseImages,
 	onChooseFiles,
 	onPasteImage,
+	onPasteImages,
 	onRemoveFileAttachment,
 	value,
 	onChangeText,
@@ -160,6 +163,12 @@ export function ChatInputBar({
 		Keyboard.dismiss();
 		setAttachmentMenuVisible(true);
 	}, []);
+
+	const handleNativePaste = useCallback((payload: PasteEventPayload) => {
+		if (payload.type === "images" && payload.uris.length > 0) {
+			onPasteImages?.(payload.uris);
+		}
+	}, [onPasteImages]);
 
 	return (
 		<View style={styles.wrap}>
@@ -248,17 +257,19 @@ export function ChatInputBar({
 						<Text style={styles.attachGlyph}>＋</Text>
 					)}
 				</Pressable>
-				<TextInput
-					ref={inputRef}
-					value={text}
-					onChangeText={setText}
-					editable={!locked}
-					multiline
-					placeholder={placeholder}
-					placeholderTextColor={colors.textGhost}
-					style={styles.input}
-					submitBehavior="newline"
-				/>
+				<TextInputWrapper style={styles.inputWrapper} onPaste={handleNativePaste}>
+					<TextInput
+						ref={inputRef}
+						value={text}
+						onChangeText={setText}
+						editable={!locked}
+						multiline
+						placeholder={placeholder}
+						placeholderTextColor={colors.textGhost}
+						style={styles.input}
+						submitBehavior="newline"
+					/>
+				</TextInputWrapper>
 				{generating ? (
 					<Pressable
 						accessibilityRole="button"
@@ -365,13 +376,19 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.xl,
 		},
 		input: {
-			flex: 1,
+			width: "100%",
+			minHeight: 45,
 			maxHeight: 140,
 			paddingTop: spacing.md,
 			paddingBottom: spacing.md,
 			color: c.text,
 			fontSize: 15,
 			lineHeight: 21,
+		},
+		inputWrapper: {
+			flex: 1,
+			minHeight: 45,
+			maxHeight: 140,
 		},
 		attachGlyph: { color: c.accent, fontSize: 21, lineHeight: 23 },
 		action: {

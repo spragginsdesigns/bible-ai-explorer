@@ -18,6 +18,7 @@ import {
 	uploadChatAttachments,
 	validateLocalAttachmentBatch,
 } from "./fileAttachments";
+import { pastedImageFilename, pastedImageMediaType } from "./pastedImages";
 
 export interface Conversation {
 	id: string;
@@ -50,6 +51,7 @@ export interface SureWordChat {
 	chooseImages: () => Promise<void>;
 	chooseFiles: () => Promise<void>;
 	pasteImage: () => Promise<void>;
+	attachPastedImages: (uris: string[]) => Promise<void>;
 	removeFileAttachment: (id: string) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
 	stop: () => void;
@@ -203,6 +205,19 @@ export function useSureWordChat(): SureWordChat {
 			})]);
 		} catch (error) {
 			setAttachmentError(error instanceof Error ? error.message : "Could not paste the clipboard image.");
+		}
+	}, [addLocalAttachments]);
+
+	const attachPastedImages = useCallback(async (uris: string[]) => {
+		const timestamp = Date.now();
+		try {
+			await addLocalAttachments(uris.map((uri, index) => normalizeLocalAttachment({
+				uri,
+				filename: pastedImageFilename(uri, index, timestamp),
+				mediaType: pastedImageMediaType(uri),
+			})));
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not paste the keyboard image.");
 		}
 	}, [addLocalAttachments]);
 
@@ -484,6 +499,7 @@ export function useSureWordChat(): SureWordChat {
 		chooseImages,
 		chooseFiles,
 		pasteImage,
+		attachPastedImages,
 		removeFileAttachment,
 		sendMessage,
 		stop,

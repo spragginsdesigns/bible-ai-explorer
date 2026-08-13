@@ -66,7 +66,7 @@ behavior, different plumbing.
 | Save whole answer to notes (new note or append via picker) | ✅ | ✅ | ✅ | Shared route `POST /api/notes/append` |
 | Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory`) | ✅ | ✅ | ✅ | |
 | Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | ✅ via in-app state | |
-| Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
+| Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard; direct Gboard image paste on Android 12+ | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
 | Welcome screen, 6 suggested questions | ✅ | ✅ | ✅ | |
 | Full Markdown answers (Scripture blockquotes, headings, lists, tables) | ✅ | ✅ | ✅ | macOS block renderer ported from Android's `MarkdownBody.tsx` |
 
