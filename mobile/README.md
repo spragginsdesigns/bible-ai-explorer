@@ -101,7 +101,9 @@ script self-heals by port-scanning the phone's last-known IP.
 
 ## Release checklist
 
-1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry.
+1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry. Bump
+   `ANDROID_VERSION` in `src/lib/constants.ts` too — the web download card
+   shows that string, while the Drive link always serves the latest build.
 2. `npx tsc --noEmit` clean.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
 4. `bash mobile/scripts/push-phone.sh` to Austin's phone.

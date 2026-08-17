@@ -16,7 +16,12 @@ import {
 	Smartphone,
 	Sun,
 } from "lucide-react";
-import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
+import {
+	ANDROID_APK_URL,
+	ANDROID_VERSION,
+	MACOS_DMG_URL,
+	MACOS_VERSION,
+} from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
@@ -309,11 +314,17 @@ export default function SettingsPage() {
 								<Smartphone className="w-5 h-5" />
 							</span>
 							<span className="min-w-0 flex-1">
-								<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-									SureWord for Android
+								<span className="flex items-baseline gap-2">
+									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										SureWord for Android
+									</span>
+									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+										{ANDROID_VERSION}
+									</span>
 								</span>
 								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
-									Install the native app with offline KJV reading.
+									Offline KJV reading, tap a verse for an explanation, and your
+									daily walk in Pick Up Your Cross.
 								</span>
 							</span>
 						</a>
@@ -327,11 +338,17 @@ export default function SettingsPage() {
 								<Laptop className="w-5 h-5" />
 							</span>
 							<span className="min-w-0 flex-1">
-								<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-									SureWord for macOS
+								<span className="flex items-baseline gap-2">
+									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										SureWord for macOS
+									</span>
+									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+										{MACOS_VERSION}
+									</span>
 								</span>
 								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
-									Native Mac app (macOS 15+). First launch: allow it in System
+									Native Mac app (macOS 15+), now with tap-a-verse explanations
+									and Pick Up Your Cross. First launch: allow it in System
 									Settings → Privacy &amp; Security.
 								</span>
 							</span>

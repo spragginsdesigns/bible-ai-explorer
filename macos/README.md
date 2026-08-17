@@ -168,7 +168,10 @@ so the art pools light under both label zones — keep that if you re-art it;
 and the icon coordinates in `build-dmg.sh` must match the arrow/pools in
 `make-dmg-background.py`.
 
-Bump `MARKETING_VERSION` in `project.yml` first. The build is signed with the
+Bump `MARKETING_VERSION` in `project.yml` first, and `MACOS_VERSION` in
+`src/lib/constants.ts` with it — the web download card shows that string. The
+link itself always points at `releases/latest`, so a stale constant misinforms
+rather than breaks. The build is signed with the
 local Development certificate but **not notarized** (needs the paid Apple
 Developer Program). macOS 15 removed the right-click→Open bypass for
 unnotarized apps, so a downloaded copy's first launch is: open (blocked) →

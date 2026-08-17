@@ -4,7 +4,12 @@ import React from "react";
 import Image from "next/image";
 import { Laptop, Smartphone } from "lucide-react";
 import { commonQuestions } from "@/utils/commonQuestions";
-import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
+import {
+	ANDROID_APK_URL,
+	ANDROID_VERSION,
+	MACOS_DMG_URL,
+	MACOS_VERSION,
+} from "@/lib/constants";
 
 interface WelcomeScreenProps {
 	onSelectQuestion: (question: string) => void;
@@ -57,6 +62,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 					>
 						<Smartphone className="w-4 h-4" />
 						Android
+						<span className="text-[11px] font-semibold text-amber-600/70 dark:text-amber-400/60">
+							{ANDROID_VERSION}
+						</span>
 					</a>
 					<a
 						href={MACOS_DMG_URL}
@@ -66,6 +74,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 					>
 						<Laptop className="w-4 h-4" />
 						macOS
+						<span className="text-[11px] font-semibold text-amber-600/70 dark:text-amber-400/60">
+							{MACOS_VERSION}
+						</span>
 					</a>
 				</div>
 			</div>
