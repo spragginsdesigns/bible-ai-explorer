@@ -80,7 +80,8 @@ behavior, different plumbing.
 | Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | Same data bundle on all three (`mobile/src/features/bible/data/`) |
 | NKJV translation toggle (bolls.life) | ✅ | ✅ | ✅ | |
 | Offline verse search + reference quick-jump | ✅ | ✅ | ✅ | |
-| Verse actions (Copy / Share / Save to note / Ask AI) | ✅ long-press sheet | ✅ click/⌥ | ✅ click / context menu | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |
+| Verse actions (Copy / Share / Save to note / Expand with AI) | ✅ tap or long-press sheet | ✅ click/⌥ | ✅ click / context menu | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |
+| Tap-a-verse streaming AI explanation (universal model, glowing skeleton) | ✅ 1.13.0 | ✅ | 🟡 | `POST /api/verse-insight` plain-text stream; effort pinned low; session-cached per verse; macOS pending |
 | "✦ Ask AI" whole-chapter attach | ✅ | ✅ | ✅ | |
 | Prev/Next chapter (rolls across books) | ✅ | ✅ | ✅ | |
 | Font-size controls (4 steps) | ✅ session-scoped | ✅ session-scoped | ➕ persisted (UserDefaults) | macOS superset: persists across launches |

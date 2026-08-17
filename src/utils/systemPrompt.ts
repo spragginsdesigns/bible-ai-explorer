@@ -80,3 +80,17 @@ export function chatSystemPrompt(translation: TranslationId): string {
 		.map((part) => forTranslation(part, translation))
 		.join("\n\n");
 }
+
+/**
+ * Prompt for the Tap-a-verse reader sheet (/api/verse-insight): the full
+ * SureWord persona plus a task addendum. No tools, memories, or conversation
+ * context — just the persona and the tapped verse.
+ */
+export function verseInsightSystemPrompt(translation: TranslationId): string {
+	return forTranslation(
+		`${systemPrompt}
+
+CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back — it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`,
+		translation
+	);
+}

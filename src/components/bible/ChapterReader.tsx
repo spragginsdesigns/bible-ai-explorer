@@ -7,6 +7,7 @@ import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
 import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import { useVerseInsight } from "./useVerseInsight";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const FONT_STEP_KEY = "bible-reader-font-step";
@@ -49,6 +50,13 @@ const ChapterReader: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const {
+    status: insightStatus,
+    text: insightText,
+    error: insightError,
+    start: startInsight,
+    reset: resetInsight,
+  } = useVerseInsight();
 
   const lastFlashed = useRef<string | null>(null);
 
@@ -142,7 +150,27 @@ const ChapterReader: React.FC = () => {
     setActionVerse(null);
     setCopied(false);
     setSaveError(null);
-  }, []);
+    resetInsight();
+  }, [resetInsight]);
+
+  // Tap-a-verse: opening the panel immediately starts streaming a short AI
+  // explanation of the clicked verse (cached per verse for the session).
+  const openVerse = useCallback(
+    (verse: ActionVerse) => {
+      setActionVerse(verse);
+      startInsight({
+        reference: `${reference}:${verse.number}`,
+        text: verse.text,
+        translation,
+      });
+    },
+    [startInsight, reference, translation]
+  );
+
+  const retryInsight = useCallback(() => {
+    if (!actionVerse) return;
+    startInsight({ reference: actionReference, text: actionVerse.text, translation });
+  }, [actionVerse, actionReference, startInsight, translation]);
 
   const askAI = useCallback(
     (verse: { reference: string; text: string }) => {
@@ -309,7 +337,7 @@ const ChapterReader: React.FC = () => {
                     key={verseNumber}
                     type="button"
                     id={`bible-verse-${verseNumber}`}
-                    onClick={() => setActionVerse({ number: verseNumber, text })}
+                    onClick={() => openVerse({ number: verseNumber, text })}
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
                       highlighted === verseNumber ? "bg-amber-500/10 dark:bg-amber-400/10" : ""
                     }`}
@@ -390,6 +418,53 @@ const ChapterReader: React.FC = () => {
             <p className="px-2 pb-3 text-center text-sm font-bold text-amber-600 dark:text-amber-400">
               {actionReference}
             </p>
+
+            {/* Tapped verse */}
+            <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
+              <p className="line-clamp-5 font-[family-name:var(--font-cormorant)] text-[15px] leading-[22px] text-neutral-700 dark:text-neutral-300">
+                {actionVerse.text}
+              </p>
+            </div>
+
+            {/* Streaming AI explanation (glowing skeleton until tokens arrive) */}
+            <div className="flex min-h-16 flex-col justify-center px-2 py-3">
+              {insightStatus === "loading" ? (
+                <div aria-label="Generating an explanation" className="flex flex-col gap-2">
+                  <div className="h-3 w-full animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm" />
+                  <div className="h-3 w-[92%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:150ms]" />
+                  <div className="h-3 w-[64%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:300ms]" />
+                </div>
+              ) : insightStatus === "error" ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+                    {insightError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retryInsight}
+                    className="self-start text-[13.5px] font-semibold text-amber-600 dark:text-amber-400"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : insightStatus !== "idle" ? (
+                <p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-200">
+                  {insightText}
+                  {insightStatus === "streaming" && (
+                    <span className="text-amber-600 dark:text-amber-400"> ▍</span>
+                  )}
+                </p>
+              ) : null}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => askAI({ reference: actionReference, text: actionVerse.text })}
+              className="mb-2 flex min-h-[46px] w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[14.5px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+            >
+              ✦ Expand with AI
+            </button>
+
             {[
               {
                 glyph: "⧉",
@@ -401,11 +476,6 @@ const ChapterReader: React.FC = () => {
                 glyph: "✎",
                 label: saveBusy ? "Saving…" : "Save to note",
                 onPress: () => void onSaveVerse(),
-              },
-              {
-                glyph: "✦",
-                label: "Ask AI about this verse",
-                onPress: () => askAI({ reference: actionReference, text: actionVerse.text }),
               },
             ].map((row) => (
               <button

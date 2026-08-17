@@ -18,6 +18,8 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
+import { useVerseInsight } from "@/features/bible/useVerseInsight";
+import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -77,6 +79,13 @@ export default function BibleChapterScreen() {
 	const [copied, setCopied] = useState(false);
 	const [saveBusy, setSaveBusy] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const {
+		status: insightStatus,
+		text: insightText,
+		error: insightError,
+		start: startInsight,
+		reset: resetInsight,
+	} = useVerseInsight(getToken);
 
 	const listRef = useRef<FlatList<string>>(null);
 	const lastFlashed = useRef<string | null>(null);
@@ -190,7 +199,27 @@ export default function BibleChapterScreen() {
 		setActionVerse(null);
 		setCopied(false);
 		setSaveError(null);
-	}, []);
+		resetInsight();
+	}, [resetInsight]);
+
+	// Tap-a-verse: opening the sheet immediately starts streaming a short AI
+	// explanation of the tapped verse (cached per verse for the session).
+	const openVerse = useCallback(
+		(verse: ActionVerse) => {
+			setActionVerse(verse);
+			startInsight({
+				reference: `${reference}:${verse.number}`,
+				text: verse.text,
+				translation,
+			});
+		},
+		[startInsight, reference, translation]
+	);
+
+	const retryInsight = useCallback(() => {
+		if (!actionVerse) return;
+		startInsight({ reference: actionReference, text: actionVerse.text, translation });
+	}, [actionVerse, actionReference, startInsight, translation]);
 
 	const askAI = useCallback(
 		(verse: { reference: string; text: string }) => {
@@ -377,7 +406,8 @@ export default function BibleChapterScreen() {
 								<Pressable
 									accessibilityRole="button"
 									delayLongPress={300}
-									onLongPress={() => setActionVerse({ number: verseNumber, text: plainText })}
+									onPress={() => openVerse({ number: verseNumber, text: plainText })}
+									onLongPress={() => openVerse({ number: verseNumber, text: plainText })}
 									style={[
 										styles.verseRow,
 										highlighted === verseNumber && styles.verseRowHighlighted,
@@ -421,6 +451,31 @@ export default function BibleChapterScreen() {
 			)}
 
 			<BottomSheet visible={actionVerse !== null} onClose={closeSheet} title={actionReference}>
+				{actionVerse ? (
+					<View style={styles.sheetVerseCard}>
+						<Text numberOfLines={5} style={styles.sheetVerseText}>
+							{actionVerse.text}
+						</Text>
+					</View>
+				) : null}
+				<VerseInsightSection
+					status={insightStatus}
+					text={insightText}
+					error={insightError}
+					onRetry={retryInsight}
+				/>
+				<Pressable
+					accessibilityRole="button"
+					onPress={() => {
+						if (actionVerse) askAI({ reference: actionReference, text: actionVerse.text });
+					}}
+					style={({ pressed }) => [
+						styles.expandButton,
+						pressed && { backgroundColor: colors.accentPressed },
+					]}
+				>
+					<Text style={styles.expandButtonLabel}>✦ Expand with AI</Text>
+				</Pressable>
 				<SheetRow
 					glyph="⧉"
 					label={copied ? "Copied ✓" : "Copy"}
@@ -431,13 +486,6 @@ export default function BibleChapterScreen() {
 					glyph="✎"
 					label={saveBusy ? "Saving…" : "Save to note"}
 					onPress={() => void onSaveVerse()}
-				/>
-				<SheetRow
-					glyph="✦"
-					label="Ask AI about this verse"
-					onPress={() => {
-						if (actionVerse) askAI({ reference: actionReference, text: actionVerse.text });
-					}}
 				/>
 				{saveError ? <Text style={styles.sheetError}>{saveError}</Text> : null}
 			</BottomSheet>
@@ -545,6 +593,31 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		askButtonLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		sheetVerseCard: {
+			borderRadius: radius.md,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.md,
+		},
+		sheetVerseText: {
+			color: c.textSecondary,
+			fontFamily: fonts.verse,
+			fontSize: 15,
+			lineHeight: 22,
+		},
+		expandButton: {
+			minHeight: 46,
+			borderRadius: radius.lg,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+			marginBottom: spacing.sm,
+		},
+		expandButtonLabel: { color: c.accent, fontSize: 14.5, fontWeight: "700" },
 		sheetError: {
 			color: c.danger,
 			fontSize: 12.5,

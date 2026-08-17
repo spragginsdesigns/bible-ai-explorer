@@ -3,6 +3,18 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.13.0] — 2026-08-16
+
+### Added
+- **Tap-a-verse.** Tapping any verse in the Bible reader now opens the verse
+  sheet and immediately streams a short AI explanation of that verse — what it
+  says in context and why it matters — generated with your selected model. A
+  softly glowing skeleton shows while the model thinks, and explanations are
+  cached for the session so re-tapping a verse is instant. The sheet keeps
+  Copy, Share, and Save to note, and a new **✦ Expand with AI** button hands
+  the verse to chat exactly like the old "Ask AI about this verse" action.
+  Long-press still opens the same sheet. (Web ships the same experience.)
+
 ## [1.12.0] — 2026-08-13
 
 ### Changed
