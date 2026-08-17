@@ -99,6 +99,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						))}
 					</div>
 				)}
+				{message.crossActions && message.crossActions.length > 0 && (
+					<div className="mt-3 space-y-2">
+						{message.crossActions.map((action, index) => (
+							<Link
+								key={`${action.reference}-${index}`}
+								href="/cross"
+								className="flex flex-col gap-1 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-3 transition-colors hover:bg-amber-400/[0.12]"
+							>
+								<span className="flex items-center gap-2 text-xs font-semibold tracking-wide text-amber-700 dark:text-amber-400">
+									<span aria-hidden>✝</span>
+									Pick Up Your Cross updated
+								</span>
+								<span className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
+									{action.reference}
+									{action.previousReference && (
+										<span className="font-normal text-neutral-500 dark:text-neutral-400">
+											{" "}
+											· replaced {action.previousReference}
+										</span>
+									)}
+								</span>
+								<span className="line-clamp-2 text-[13px] italic leading-5 text-neutral-600 dark:text-neutral-400">
+									{action.text}
+								</span>
+							</Link>
+						))}
+					</div>
+				)}
 				{doneStreaming && message.retrievedVerses && message.retrievedVerses.length > 0 && (
 					<RetrievedVersesCollapsible
 						verses={message.retrievedVerses}

@@ -93,6 +93,24 @@ enum DailyCrossAPI {
         )
     }
 
+    /// Replace today's entry with a newly prepared one, optionally centred on
+    /// something the user typed. The same route the assistant's `setDailyCross`
+    /// tool posts to, so a replacement from chat and one from this screen are
+    /// the same act.
+    static func replaceToday(api: APIClient, focus: String?) async throws -> DailyCrossEntry {
+        try await api.json(
+            "/api/verse-of-day/today",
+            method: "POST",
+            body: FocusBody(focus: focus),
+            timeout: generationTimeout,
+            as: DailyCrossEntry.self
+        )
+    }
+
+    private struct FocusBody: Encodable {
+        let focus: String?
+    }
+
     /// Record that a chapter was read — the reading history that shapes which
     /// verse gets picked. Deliberately dumb, like the other clients: the caller
     /// debounces, and the server drops a repeat of the same chapter inside an

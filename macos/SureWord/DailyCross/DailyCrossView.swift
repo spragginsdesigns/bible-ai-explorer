@@ -14,6 +14,11 @@ struct DailyCrossView: View {
 
     private var model: DailyCrossModel { app.dailyCross }
 
+    /// Replacing today's word is a small, irreversible act, so the button opens
+    /// a confirmation with room to say what the new day should centre on.
+    @State private var confirmingReplace = false
+    @State private var focus = ""
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -118,6 +123,63 @@ struct DailyCrossView: View {
                     .contentShape(.rect(cornerRadius: Radius.lg))
             }
             .buttonStyle(.plain)
+
+            if confirmingReplace {
+                replacePanel(entry)
+            } else {
+                Button {
+                    confirmingReplace = true
+                } label: {
+                    Text("↻ A different word for today")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.textFaint)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.lg)
+                                .strokeBorder(theme.borderStrong, lineWidth: 1)
+                        }
+                        .contentShape(.rect(cornerRadius: Radius.lg))
+                }
+                .buttonStyle(.plain)
+                .help("Ask for a different word for today")
+            }
+        }
+    }
+
+    private func replacePanel(_ entry: DailyCrossEntry) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Replace today's word with a new one? \(entry.reference) won't come back.")
+                .font(.system(size: 13))
+                .foregroundStyle(theme.textSecondary)
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            TextField("Anything it should centre on? (optional)", text: $focus)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .padding(Spacing.sm)
+                .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.sm)
+                        .strokeBorder(theme.borderStrong, lineWidth: 1)
+                }
+                .onSubmit { replaceToday() }
+
+            HStack(spacing: Spacing.sm) {
+                Button("Replace") { replaceToday() }
+                    .buttonStyle(AccentButtonStyle())
+                Button("Cancel") {
+                    confirmingReplace = false
+                    focus = ""
+                }
+                .buttonStyle(SubtleButtonStyle())
+            }
+        }
+        .padding(Spacing.md)
+        .background(theme.surface, in: .rect(cornerRadius: Radius.lg))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.lg)
+                .strokeBorder(theme.borderStrong, lineWidth: 1)
         }
     }
 
@@ -181,6 +243,15 @@ struct DailyCrossView: View {
     /// by order, so it goes through the same resolver a typed reference does.
     private func reference(for step: DailyCrossStudyStep) -> Reference? {
         Bible.resolveReference("\(step.book) \(step.chapter)")
+    }
+
+    /// Hand the steer, if any, to the same route the assistant's setDailyCross
+    /// tool uses, and let the model swap the day underneath the timeline.
+    private func replaceToday() {
+        let steer = focus.trimmingCharacters(in: .whitespacesAndNewlines)
+        confirmingReplace = false
+        focus = ""
+        model.replaceToday(focus: steer.isEmpty ? nil : steer)
     }
 
     private func openStudyStep(_ step: DailyCrossStudyStep) {

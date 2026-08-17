@@ -5,6 +5,9 @@ struct ChatView: View {
     @Environment(\.theme) private var theme
     @Bindable var chat: ChatViewModel
     let api: APIClient
+    /// Open the Daily Cross section — the receipt card's destination after the
+    /// assistant replaces today's word.
+    var onOpenCross: () -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
     @State private var toast: String?
@@ -88,6 +91,7 @@ struct ChatView: View {
                             onVerseSaveToNote: { verse in save(verse) },
                             onVerseReadInBible: onReadInBible,
                             onOpenNote: { _ in show(toast: "Notes arrive in a later phase.") },
+                            onOpenCross: onOpenCross,
                             onAddToNote: { answer in
                                 noteTarget = PendingNoteSave(
                                     id: answer.id,

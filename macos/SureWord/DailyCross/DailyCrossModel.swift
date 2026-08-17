@@ -46,6 +46,30 @@ final class DailyCrossModel {
         }
     }
 
+    /// Replace today's word with a newly prepared one, optionally centred on
+    /// what the user typed. The old entry is dropped first so the screen shows
+    /// the preparing state rather than the day being replaced.
+    func replaceToday(focus: String?) {
+        task?.cancel()
+        entry = nil
+        error = nil
+        isLoading = true
+
+        task = Task {
+            do {
+                let replacement = try await DailyCrossAPI.replaceToday(api: api, focus: focus)
+                guard !Task.isCancelled else { return }
+                entry = replacement
+                error = nil
+            } catch {
+                guard !Task.isCancelled else { return }
+                self.error = (error as? APIError)?.message
+                    ?? "A new word could not be prepared. Check your connection and try again."
+            }
+            isLoading = false
+        }
+    }
+
     /// Today's date in the user's locale, the line under the title — matching
     /// `toLocaleDateString(undefined, { weekday, month, day })` on the other
     /// clients.

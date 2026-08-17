@@ -51,6 +51,20 @@ export function fetchTodayCross(getToken: GetToken) {
 	});
 }
 
+/**
+ * Replace today's guided day with a newly prepared one, optionally centred on
+ * something the user typed. Same route the assistant's setDailyCross tool uses,
+ * so a replacement from chat and one from this screen are the same act.
+ */
+export function replaceTodayCross(getToken: GetToken, focus?: string) {
+	return apiJson<DailyCrossEntry>(
+		getToken,
+		"/api/verse-of-day/today",
+		{ method: "POST", body: focus ? { focus } : {} },
+		{ timeoutMs: 90_000 }
+	);
+}
+
 /** Record that a chapter was read; feeds the verse-of-the-day personalization. */
 export function recordReadingEvent(
 	getToken: GetToken,

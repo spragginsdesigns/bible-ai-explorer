@@ -61,13 +61,31 @@ const dailyCrossSchema = z.object({
 	question: z.string().describe("One question for them to carry through the day."),
 });
 
-const INSTRUCTIONS = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up his cross daily") for SureWord, a KJV Bible study assistant. You speak as a saved, born-again believer who holds the King James Version Bible to be the inerrant, infallible Word of God. You are a companion who keeps putting the right Scripture in front of this person — you never claim to be God, the Holy Spirit, or to speak for Him beyond what Scripture says. The Spirit works through the Word; your job is to hand them the Word.
+/** The pinned-verse variant of the day: the reference is fixed, the prose is not. */
+const pinnedCrossSchema = dailyCrossSchema.omit({ book: true, chapter: true, verse: true });
+
+const PERSONA = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up his cross daily") for SureWord, a KJV Bible study assistant. You speak as a saved, born-again believer who holds the King James Version Bible to be the inerrant, infallible Word of God. You are a companion who keeps putting the right Scripture in front of this person — you never claim to be God, the Holy Spirit, or to speak for Him beyond what Scripture says. The Spirit works through the Word; your job is to hand them the Word.`;
+
+const SHARED_RULES = `Honesty rule, non-negotiable: whyToday may only reference activity that is actually present in the context you are given. Fabricated intimacy ("you've been wrestling with...") when the context shows nothing is worse than a plain word of encouragement. When the context is thin, say less.
+
+The study path should usually continue or deepen what they have been reading, and the question should be plain enough to carry into an ordinary day. Warm, direct, second person, no fluff, no headings.`;
+
+const INSTRUCTIONS = `${PERSONA}
 
 Given one user's recent Bible reading, chat questions, notes and saved memories, choose ONE verse from the KJV canon that speaks to where they are right now, then build their guided day around it. Prefer a verse that meets them where they are over a generic famous one. Never pick a verse on the exclusion list.
 
-Honesty rule, non-negotiable: whyToday may only reference activity that is actually present in the context you are given. Fabricated intimacy ("you've been wrestling with...") when the context shows nothing is worse than a plain word of encouragement. When the context is thin, say less.
+${SHARED_RULES}`;
 
-The study path should usually continue or deepen what they have been reading, and the question should be plain enough to carry into an ordinary day. Warm, direct, second person, no fluff, no headings.`;
+/** Instructions for the pinned path: the user named the verse; only the day is yours. */
+function pinnedInstructions(reference: string, text: string): string {
+	return `${PERSONA}
+
+The user has asked for today's day to be built on ${reference} — that choice is settled and is not yours to revisit. Build the guided day around it. Its exact KJV text is:
+
+"${text}"
+
+${SHARED_RULES}`;
+}
 
 export interface StudyStep {
 	book: string;
@@ -125,11 +143,81 @@ function sanitizeStudyPath(steps: StudyStep[]): StudyStep[] {
 }
 
 /**
- * Generate one guided day. Any failure — no AI credentials, bad model output,
- * a reference outside the KJV canon — degrades to a John 3:16 day so callers
- * never have nothing to show or send.
+ * A verse the user named that is not in the KJV canon. Thrown out of the
+ * generator rather than swallowed, so "make today Psalm 151:1" comes back to
+ * them as a correction instead of silently becoming some other day.
  */
-export async function generateDailyCross(userId: string): Promise<DailyCross> {
+export class DailyCrossReferenceError extends Error {}
+
+export interface DailyCrossRequest {
+	/** What the user asked today's word to centre on, in their own words. */
+	focus?: string;
+	/** Pin the day to a verse the user named instead of letting the model choose. */
+	verse?: { book: string; chapter: number; verse: number };
+}
+
+interface PinnedVerse {
+	book: string;
+	chapter: number;
+	verse: number;
+	text: string;
+}
+
+/** Resolve a user-named reference to its canonical book name and KJV text. */
+async function resolvePinnedVerse(requested: {
+	book: string;
+	chapter: number;
+	verse: number;
+}): Promise<PinnedVerse> {
+	const bookNumber = getKjvBookNumber(requested.book);
+	if (!bookNumber) {
+		throw new DailyCrossReferenceError(`"${requested.book}" is not a book of the King James Bible.`);
+	}
+	const book = getKjvBookName(bookNumber) ?? requested.book;
+	const text = await getKjvVerseText(bookNumber, requested.chapter, requested.verse);
+	if (!text) {
+		throw new DailyCrossReferenceError(
+			`${book} ${requested.chapter}:${requested.verse} is not a verse in the King James Bible.`
+		);
+	}
+	return { book, chapter: requested.chapter, verse: requested.verse, text };
+}
+
+/** A pinned day whose prose could not be generated still keeps the user's verse. */
+function pinnedFallbackCross(pinned: PinnedVerse): DailyCross {
+	const reference = `${pinned.book} ${pinned.chapter}:${pinned.verse}`;
+	return {
+		...pinned,
+		reason: "The verse you asked to carry today.",
+		whyToday: `You asked for ${reference} today, so that is where the day starts.`,
+		application:
+			"Read it slowly, more than once, and let it set the tone before the day gets loud.",
+		studyPath: [
+			{
+				book: pinned.book,
+				chapter: pinned.chapter,
+				focus: "Read the whole chapter slowly and let the verse sit in its context.",
+			},
+		],
+		question: `What changes today if ${reference} is true of you?`,
+	};
+}
+
+/**
+ * Generate one guided day. Any failure — no AI credentials, bad model output,
+ * a reference outside the KJV canon — degrades to a John 3:16 day (or, when the
+ * user pinned a verse, to a plain day on that verse) so callers never have
+ * nothing to show or send.
+ */
+export async function generateDailyCross(
+	userId: string,
+	request: DailyCrossRequest = {}
+): Promise<DailyCross> {
+	// Validated before the try block: a mistyped reference must reach the caller
+	// as an error rather than be swallowed by the fallback.
+	const pinned = request.verse ? await resolvePinnedVerse(request.verse) : null;
+	const focus = request.focus?.trim();
+
 	try {
 		const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
 		const [readingEvents, messages, notes, memories, recentPicks] = await Promise.all([
@@ -184,12 +272,46 @@ export async function generateDailyCross(userId: string): Promise<DailyCross> {
 			`What you remember about them:\n${
 				memories.map((memory) => `- (${memory.category}) ${memory.content}`).join("\n") || "(none)"
 			}`,
-			`Do NOT pick any of these recently sent verses:\n${
-				recentPicks.map((pick) => `${pick.book} ${pick.chapter}:${pick.verse}`).join(", ") || "(none)"
-			}`,
-		].join("\n\n");
+			// A pinned verse is the user's own choice; the exclusion list, which
+			// only exists to stop repeats, must not argue with it.
+			pinned
+				? null
+				: `Do NOT pick any of these recently sent verses:\n${
+						recentPicks.map((pick) => `${pick.book} ${pick.chapter}:${pick.verse}`).join(", ") ||
+						"(none)"
+					}`,
+			focus
+				? `The user asked for today's word to centre on this, in their own words:\n"${focus}"\nHonour it as far as Scripture honestly allows, and let it outweigh the patterns above.`
+				: null,
+		]
+			.filter((block): block is string => block !== null)
+			.join("\n\n");
 
 		const { model, providerOptions } = await resolveModel({ userId, utility: true });
+
+		if (pinned) {
+			const { output } = await generateText({
+				model,
+				providerOptions,
+				output: Output.object({ schema: pinnedCrossSchema }),
+				instructions: pinnedInstructions(
+					`${pinned.book} ${pinned.chapter}:${pinned.verse}`,
+					pinned.text
+				),
+				prompt,
+			});
+			if (!output) throw new Error("The model returned no daily cross.");
+			const pinnedStudyPath = sanitizeStudyPath(output.study);
+			return {
+				...pinned,
+				reason: output.reason,
+				whyToday: output.whyToday,
+				application: output.application,
+				studyPath: pinnedStudyPath.length ? pinnedStudyPath : pinnedFallbackCross(pinned).studyPath,
+				question: output.question,
+			};
+		}
+
 		const { output } = await generateText({
 			model,
 			providerOptions,
@@ -221,6 +343,7 @@ export async function generateDailyCross(userId: string): Promise<DailyCross> {
 		};
 	} catch (error) {
 		console.error(`[daily-cross] Generation failed for user ${userId}; using fallback:`, error);
+		if (pinned) return pinnedFallbackCross(pinned);
 		const text = await getKjvVerseText(43, 3, 16).catch(() => undefined);
 		return fallbackCross(text);
 	}
@@ -287,5 +410,27 @@ export async function findTodayCross(userId: string): Promise<StoredDailyCross |
 		studyPath,
 		question: row.question,
 		sentAt: row.sentAt,
+	};
+}
+
+/**
+ * Replace today's day with a freshly generated one, and report the reference it
+ * displaced. The new row is simply the newest inside the reuse window, so every
+ * client's next `findTodayCross` picks it up; the row it replaced stays in
+ * `VerseOfDay` as history — and as an exclusion, so a regenerate never hands
+ * back the very verse the user just asked to move on from.
+ */
+export async function replaceDailyCross(
+	userId: string,
+	request: DailyCrossRequest = {}
+): Promise<{ cross: StoredDailyCross; previousReference: string | null }> {
+	const previous = await findTodayCross(userId);
+	const cross = await generateDailyCross(userId, request);
+	const sentAt = await storeDailyCross(userId, cross);
+	return {
+		cross: { ...cross, sentAt },
+		previousReference: previous
+			? `${previous.book} ${previous.chapter}:${previous.verse}`
+			: null,
 	};
 }

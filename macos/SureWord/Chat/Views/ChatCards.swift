@@ -168,6 +168,58 @@ struct NoteActionCard: View {
     }
 }
 
+/// "Pick Up Your Cross updated" receipt, shown when the assistant replaced
+/// today's guided day. Opens the day it just prepared. Port of
+/// `mobile/src/features/chat/CrossActionCard.tsx`.
+struct CrossActionCard: View {
+    @Environment(\.theme) private var theme
+    let action: CrossAction
+    var onOpen: () -> Void
+
+    var body: some View {
+        Button(action: onOpen) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                HStack(spacing: 6) {
+                    Image(systemName: "cross")
+                    Text("Pick Up Your Cross updated")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(theme.textGhost)
+                }
+                .font(.system(size: 12))
+                .foregroundStyle(theme.accent)
+
+                HStack(spacing: 6) {
+                    Text(action.reference)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.text)
+                    if let previous = action.previousReference {
+                        Text("· replaced \(previous)")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textFaint)
+                    }
+                }
+
+                Text(action.text)
+                    .font(.custom(FontFamily.verse, size: 14))
+                    .foregroundStyle(theme.textSecondary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.md))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.md)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.md))
+        }
+        .buttonStyle(.plain)
+        .help("Open today's Pick Up Your Cross")
+    }
+}
+
 /// Follow-up suggestion chips (at most two). Port of `FollowUpChips.tsx`.
 struct FollowUpChips: View {
     let followUps: [String]

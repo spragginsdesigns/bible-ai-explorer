@@ -10,6 +10,7 @@ struct MessageBubble: View {
     var onVerseSaveToNote: (RetrievedVerse) -> Void
     var onVerseReadInBible: (RetrievedVerse) -> Void
     var onOpenNote: (NoteAction) -> Void
+    var onOpenCross: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
@@ -109,6 +110,10 @@ struct MessageBubble: View {
 
             ForEach(message.noteActions) { action in
                 NoteActionCard(action: action) { onOpenNote(action) }
+            }
+
+            ForEach(message.crossActions) { action in
+                CrossActionCard(action: action, onOpen: onOpenCross)
             }
 
             // Chips only once the answer has settled, so they don't flicker in

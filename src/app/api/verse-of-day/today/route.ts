@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import {
+	DailyCrossReferenceError,
 	findTodayCross,
 	generateDailyCross,
+	replaceDailyCross,
 	storeDailyCross,
 	type DailyCross,
 } from "@/lib/daily-cross";
+
+/** A steer the user typed ("something on fear") — long enough to be useful, short enough to be a steer. */
+const MAX_FOCUS_LENGTH = 200;
 
 // Generating a fresh day is one utility-model call plus context reads.
 export const maxDuration = 120;
@@ -44,16 +49,74 @@ export async function GET(): Promise<Response> {
 		const sentAt = await storeDailyCross(userId, cross);
 		return NextResponse.json(toResponse(cross, sentAt));
 	} catch (error) {
-		if (error instanceof Response) return error;
-		console.error("Error in verse-of-day/today route:", error);
-		return NextResponse.json(
-			{
-				error:
-					error instanceof Error
-						? `An error occurred: ${error.message}`
-						: "An unknown error occurred while processing your request.",
-			},
-			{ status: 500 }
-		);
+		return errorResponse(error);
 	}
+}
+
+/**
+ * Replace today's entry with a freshly generated one — the "a different word
+ * for today" control on every client's Daily Cross screen, and the `setDailyCross`
+ * chat tool. Body (all optional): `{ focus, book, chapter, verse }`; `focus`
+ * steers the choice in the user's own words, and a full book/chapter/verse pins
+ * the day to a verse they named.
+ */
+export async function POST(req: Request): Promise<Response> {
+	try {
+		const userId = await getAuthUser();
+
+		const body: unknown = await req.json().catch(() => ({}));
+		const data = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+		const focus =
+			typeof data.focus === "string" && data.focus.trim()
+				? data.focus.trim().slice(0, MAX_FOCUS_LENGTH)
+				: undefined;
+
+		// A pinned verse needs all three parts; a partial reference is a client
+		// bug, not a request to guess.
+		const hasReferencePart =
+			data.book !== undefined || data.chapter !== undefined || data.verse !== undefined;
+		const verse =
+			typeof data.book === "string" &&
+			data.book.trim() &&
+			Number.isInteger(data.chapter) &&
+			Number.isInteger(data.verse) &&
+			(data.chapter as number) >= 1 &&
+			(data.verse as number) >= 1
+				? {
+						book: data.book.trim(),
+						chapter: data.chapter as number,
+						verse: data.verse as number,
+					}
+				: undefined;
+		if (hasReferencePart && !verse) {
+			return NextResponse.json(
+				{ error: "A pinned verse needs a book name, a chapter number and a verse number." },
+				{ status: 400 }
+			);
+		}
+
+		const { cross } = await replaceDailyCross(userId, { focus, verse });
+		return NextResponse.json(toResponse(cross, cross.sentAt));
+	} catch (error) {
+		return errorResponse(error);
+	}
+}
+
+function errorResponse(error: unknown): Response {
+	if (error instanceof Response) return error;
+	// A reference the user typed wrong is their correction to make, not a 500.
+	if (error instanceof DailyCrossReferenceError) {
+		return NextResponse.json({ error: error.message }, { status: 400 });
+	}
+	console.error("Error in verse-of-day/today route:", error);
+	return NextResponse.json(
+		{
+			error:
+				error instanceof Error
+					? `An error occurred: ${error.message}`
+					: "An unknown error occurred while processing your request.",
+		},
+		{ status: 500 }
+	);
 }

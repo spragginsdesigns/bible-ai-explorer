@@ -154,6 +154,55 @@ struct ChatViewMessageTests {
         #expect(view.noteActions == [NoteAction(noteID: "n1", noteTitle: "Study", created: true)])
     }
 
+    @Test("Maps a replaced daily cross to a cross action, and reads to nothing")
+    func mapsCrossAction() {
+        let replaced = UIMessage(
+            id: "m6",
+            role: .assistant,
+            parts: [
+                .tool(ToolPart(
+                    toolCallId: "c1",
+                    toolName: "setDailyCross",
+                    state: .outputAvailable,
+                    output: .object([
+                        "reference": .string("James 1:4"),
+                        "text": .string("But let patience have her perfect work…"),
+                        "reason": .string("For the waiting you are in."),
+                        "previousReference": .string("Hebrews 12:2"),
+                    ])
+                ))
+            ]
+        )
+        #expect(
+            ChatViewMessage(message: replaced, isStreaming: false).crossActions == [
+                CrossAction(
+                    reference: "James 1:4",
+                    text: "But let patience have her perfect work…",
+                    reason: "For the waiting you are in.",
+                    previousReference: "Hebrews 12:2"
+                )
+            ]
+        )
+
+        // Reading the day is silent: no receipt card for getDailyCross.
+        let read = UIMessage(
+            id: "m7",
+            role: .assistant,
+            parts: [
+                .tool(ToolPart(
+                    toolCallId: "c2",
+                    toolName: "getDailyCross",
+                    state: .outputAvailable,
+                    output: .object([
+                        "reference": .string("James 1:4"),
+                        "text": .string("But let patience…"),
+                    ])
+                ))
+            ]
+        )
+        #expect(ChatViewMessage(message: read, isStreaming: false).crossActions.isEmpty)
+    }
+
     @Test("Badges match strength on the shared thresholds")
     func matchStrengthThresholds() {
         #expect(MatchStrength(average: 0.76) == .strong)

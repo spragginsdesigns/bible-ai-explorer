@@ -58,6 +58,11 @@ extension SlashCommand {
             requiresArgs: true
         ),
         .init(
+            command: "/cross",
+            description: "Today's Pick Up Your Cross",
+            kind: .ai
+        ),
+        .init(
             command: "/memory",
             description: "What SureWord remembers about you",
             kind: .ai

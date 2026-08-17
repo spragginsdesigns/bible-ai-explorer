@@ -48,6 +48,11 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		requiresArgs: true,
 	},
 	{
+		command: "/cross",
+		description: "Today's Pick Up Your Cross",
+		kind: "ai",
+	},
+	{
 		command: "/memory",
 		description: "What SureWord remembers about you",
 		kind: "ai",

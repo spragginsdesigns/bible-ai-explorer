@@ -76,11 +76,13 @@ export default function DailyCrossPage() {
 	const router = useRouter();
 	const [entry, setEntry] = useState<DailyCrossEntry | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [confirmingReplace, setConfirmingReplace] = useState(false);
+	const [focus, setFocus] = useState("");
 
-	const load = useCallback(() => {
+	const request = useCallback((init?: RequestInit) => {
 		setError(null);
 		setEntry(null);
-		fetch("/api/verse-of-day/today")
+		fetch("/api/verse-of-day/today", init)
 			.then(async (res) => {
 				if (!res.ok) {
 					const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -93,6 +95,20 @@ export default function DailyCrossPage() {
 				setError(err instanceof Error ? err.message : "Today's word could not be loaded. Try again.");
 			});
 	}, []);
+
+	const load = useCallback(() => request(), [request]);
+
+	/** Replace today's word — the same POST the assistant's setDailyCross tool uses. */
+	const replaceToday = useCallback(() => {
+		const steer = focus.trim();
+		setConfirmingReplace(false);
+		setFocus("");
+		request({
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(steer ? { focus: steer } : {}),
+		});
+	}, [focus, request]);
 
 	useEffect(() => {
 		load();
@@ -240,6 +256,50 @@ export default function DailyCrossPage() {
 							>
 								✦ Go deeper in chat
 							</button>
+
+							{confirmingReplace ? (
+								<div className="mt-2 flex flex-col gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] p-4">
+									<p className="text-[13.5px] leading-5 text-neutral-600 dark:text-neutral-300">
+										Replace today&apos;s word with a new one? {entry.reference} won&apos;t come back.
+									</p>
+									<input
+										type="text"
+										value={focus}
+										onChange={(event) => setFocus(event.target.value)}
+										maxLength={200}
+										placeholder="Anything it should centre on? (optional)"
+										aria-label="What today's new word should centre on"
+										className="min-h-11 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/60 dark:bg-black/30 px-3 text-[14px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-amber-500/50 focus:outline-none"
+									/>
+									<div className="flex gap-2">
+										<button
+											type="button"
+											onClick={replaceToday}
+											className="min-h-11 flex-1 rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[14px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+										>
+											Replace
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												setConfirmingReplace(false);
+												setFocus("");
+											}}
+											className="min-h-11 flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] text-[14px] font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+										>
+											Cancel
+										</button>
+									</div>
+								</div>
+							) : (
+								<button
+									type="button"
+									onClick={() => setConfirmingReplace(true)}
+									className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-[14px] font-semibold text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+								>
+									↻ A different word for today
+								</button>
+							)}
 						</TimelineStop>
 					</div>
 				) : null}

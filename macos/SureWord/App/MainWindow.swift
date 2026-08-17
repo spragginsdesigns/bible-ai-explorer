@@ -74,7 +74,16 @@ struct MainWindow: View {
     private var detail: some View {
         switch app.section {
         case .chat:
-            ChatView(chat: app.chat, api: app.api) { verse in
+            ChatView(
+                chat: app.chat,
+                api: app.api,
+                // The day the assistant just replaced is stale in the cached
+                // model, so force a reload on the way in.
+                onOpenCross: {
+                    app.section = .cross
+                    app.dailyCross.load(force: true)
+                }
+            ) { verse in
                 app.section = .bible
                 app.pendingVerseReference = verse.reference
             }

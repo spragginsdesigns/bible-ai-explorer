@@ -114,6 +114,47 @@ describe("toViewMessage", () => {
 			{ noteId: "n1", noteTitle: "Study", created: true },
 		]);
 	});
+
+	it("maps a replaced daily cross to a cross action, and reads to nothing", () => {
+		const replaced = {
+			id: "m6",
+			role: "assistant",
+			parts: [
+				{
+					type: "tool-setDailyCross",
+					state: "output-available",
+					output: {
+						reference: "James 1:4",
+						text: "But let patience have her perfect work…",
+						reason: "For the waiting you are in.",
+						previousReference: "Hebrews 12:2",
+					},
+				},
+			],
+		} as never;
+		expect(toViewMessage(replaced, { isStreaming: false }).crossActions).toEqual([
+			{
+				reference: "James 1:4",
+				text: "But let patience have her perfect work…",
+				reason: "For the waiting you are in.",
+				previousReference: "Hebrews 12:2",
+			},
+		]);
+
+		// Reading the day is silent: no receipt card for getDailyCross.
+		const read = {
+			id: "m7",
+			role: "assistant",
+			parts: [
+				{
+					type: "tool-getDailyCross",
+					state: "output-available",
+					output: { reference: "James 1:4", text: "But let patience…" },
+				},
+			],
+		} as never;
+		expect(toViewMessage(read, { isStreaming: false }).crossActions).toBeUndefined();
+	});
 });
 
 describe("dbMessageToUIMessage", () => {

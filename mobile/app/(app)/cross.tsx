@@ -6,6 +6,7 @@ import {
 	ScrollView,
 	StyleSheet,
 	Text,
+	TextInput,
 	View,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -13,6 +14,7 @@ import { GlassCard, Screen } from "@/components/ui";
 import { BOOKS } from "@/features/bible/books";
 import {
 	fetchTodayCross,
+	replaceTodayCross,
 	type DailyCrossEntry,
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
@@ -101,19 +103,31 @@ export default function DailyCrossScreen() {
 
 	const [entry, setEntry] = useState<DailyCrossEntry | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [confirmingReplace, setConfirmingReplace] = useState(false);
+	const [focus, setFocus] = useState("");
+
+	const showFailure = useCallback((err: unknown) => {
+		setError(
+			err instanceof Error
+				? err.message
+				: "Today's word could not be loaded. Check your connection and try again."
+		);
+	}, []);
 
 	const load = useCallback(() => {
 		setError(null);
-		fetchTodayCross(getToken)
-			.then(setEntry)
-			.catch((err: unknown) => {
-				setError(
-					err instanceof Error
-						? err.message
-						: "Today's word could not be loaded. Check your connection and try again."
-				);
-			});
-	}, [getToken]);
+		fetchTodayCross(getToken).then(setEntry).catch(showFailure);
+	}, [getToken, showFailure]);
+
+	/** Replace today's word — the same route the assistant's setDailyCross tool uses. */
+	const replaceToday = useCallback(() => {
+		const steer = focus.trim();
+		setConfirmingReplace(false);
+		setFocus("");
+		setError(null);
+		setEntry(null);
+		replaceTodayCross(getToken, steer || undefined).then(setEntry).catch(showFailure);
+	}, [focus, getToken, showFailure]);
 
 	useEffect(() => {
 		load();
@@ -237,6 +251,63 @@ export default function DailyCrossScreen() {
 							>
 								<Text style={styles.chatButtonLabel}>✦ Go deeper in chat</Text>
 							</Pressable>
+
+							{confirmingReplace ? (
+								<View style={styles.replacePanel}>
+									<Text style={styles.replacePrompt}>
+										Replace today&apos;s word with a new one? {entry.reference} won&apos;t come
+										back.
+									</Text>
+									<TextInput
+										value={focus}
+										onChangeText={setFocus}
+										maxLength={200}
+										placeholder="Anything it should centre on? (optional)"
+										placeholderTextColor={colors.textFaint}
+										accessibilityLabel="What today's new word should centre on"
+										returnKeyType="done"
+										onSubmitEditing={replaceToday}
+										style={styles.focusInput}
+									/>
+									<View style={styles.replaceButtons}>
+										<Pressable
+											accessibilityRole="button"
+											onPress={replaceToday}
+											style={({ pressed }) => [
+												styles.replaceConfirm,
+												pressed && { backgroundColor: colors.accentPressed },
+											]}
+										>
+											<Text style={styles.replaceConfirmLabel}>Replace</Text>
+										</Pressable>
+										<Pressable
+											accessibilityRole="button"
+											onPress={() => {
+												setConfirmingReplace(false);
+												setFocus("");
+											}}
+											style={({ pressed }) => [
+												styles.replaceCancel,
+												pressed && { backgroundColor: colors.surfacePressed },
+											]}
+										>
+											<Text style={styles.replaceCancelLabel}>Cancel</Text>
+										</Pressable>
+									</View>
+								</View>
+							) : (
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Ask for a different word for today"
+									onPress={() => setConfirmingReplace(true)}
+									style={({ pressed }) => [
+										styles.replaceButton,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<Text style={styles.replaceButtonLabel}>↻ A different word for today</Text>
+								</Pressable>
+							)}
 						</TimelineStop>
 					</View>
 				) : null}
@@ -368,4 +439,55 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 		},
 		chatButtonLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		replaceButton: {
+			marginTop: spacing.sm,
+			minHeight: 44,
+			borderRadius: radius.lg,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		replaceButtonLabel: { color: c.textFaint, fontSize: 14, fontWeight: "600" },
+		replacePanel: {
+			marginTop: spacing.sm,
+			gap: spacing.md,
+			padding: spacing.lg,
+			borderRadius: radius.lg,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+		},
+		replacePrompt: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
+		focusInput: {
+			minHeight: 44,
+			borderRadius: radius.md,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			paddingHorizontal: spacing.md,
+			color: c.text,
+			fontSize: 14,
+		},
+		replaceButtons: { flexDirection: "row", gap: spacing.sm },
+		replaceConfirm: {
+			flex: 1,
+			minHeight: 44,
+			borderRadius: radius.md,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		replaceConfirmLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		replaceCancel: {
+			flex: 1,
+			minHeight: 44,
+			borderRadius: radius.md,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		replaceCancelLabel: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
 	});

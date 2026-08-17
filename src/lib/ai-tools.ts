@@ -14,6 +14,13 @@ import {
 	type NoteSummary,
 } from "@/lib/notes-io";
 import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import {
+	findTodayCross,
+	generateDailyCross,
+	replaceDailyCross,
+	storeDailyCross,
+	type StudyStep,
+} from "@/lib/daily-cross";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 
 export interface ScriptureSearchToolOutput {
@@ -37,6 +44,22 @@ export interface FindNotesToolOutput {
 }
 
 export type AddToNoteToolOutput = AppendToNoteResult;
+
+/** Today's "Pick Up Your Cross", flattened for the model and the receipt card. */
+export interface DailyCrossToolOutput {
+	reference: string;
+	book: string;
+	chapter: number;
+	verse: number;
+	text: string;
+	reason: string;
+	whyToday: string | null;
+	application: string | null;
+	studyPath: StudyStep[];
+	question: string | null;
+	/** Set only by setDailyCross: the reference the new day displaced, if any. */
+	previousReference?: string | null;
+}
 
 const MAX_PASSAGE_VERSES = 30;
 
@@ -165,12 +188,83 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const getDailyCrossTool = tool({
+		description:
+			"Read the user's \"Pick Up Your Cross\" for today — the guided day SureWord builds for them from their own reading, questions, notes and memories: today's verse, why it was chosen, how it applies, a short study path, and a question to carry. Call this whenever they ask what today's cross, verse or word is, or whenever an answer should build on the day they were already given. If no day has been prepared yet, this prepares it.",
+		inputSchema: z.object({}),
+		execute: async (): Promise<DailyCrossToolOutput> => {
+			const existing = await findTodayCross(context.userId);
+			if (existing) return toDailyCrossOutput(existing);
+			const cross = await generateDailyCross(context.userId);
+			await storeDailyCross(context.userId, cross);
+			return toDailyCrossOutput(cross);
+		},
+	});
+
+	const setDailyCrossTool = tool({
+		description:
+			"Replace today's \"Pick Up Your Cross\" with a newly prepared day, optionally centred on a theme the user named or pinned to a verse they chose. This overwrites the day they are currently carrying on every device. ONLY call it after the user has explicitly agreed, in this conversation, to today's word being replaced — ask them first and wait for a clear yes. Never call it to answer a question about the feature, and never call it twice for one request.",
+		inputSchema: z.object({
+			focus: z
+				.string()
+				.optional()
+				.describe(
+					'What the user asked the new day to centre on, in their own words, e.g. "patience with my kids" or "something out of Psalms". Omit when they just want a different word.'
+				),
+			book: z
+				.string()
+				.optional()
+				.describe(
+					'Only when the user pinned a specific verse: its KJV book name, e.g. "Psalms". Requires chapter and verse too.'
+				),
+			chapter: z.number().int().min(1).optional().describe("Chapter of the pinned verse."),
+			verse: z.number().int().min(1).optional().describe("Verse number of the pinned verse."),
+		}),
+		execute: async ({ focus, book, chapter, verse }): Promise<DailyCrossToolOutput> => {
+			// A half-given reference is a model slip; treat it as "no pin" rather
+			// than guessing a chapter or verse on the user's behalf.
+			const pinned =
+				book && chapter !== undefined && verse !== undefined
+					? { book, chapter, verse }
+					: undefined;
+			const result = await replaceDailyCross(context.userId, { focus, verse: pinned });
+			return { ...toDailyCrossOutput(result.cross), previousReference: result.previousReference };
+		},
+	});
+
 	return {
 		searchScripture: searchScriptureTool,
 		getPassage: getPassageTool,
 		webSearch: webSearchTool,
 		addToNote: addToNoteTool,
 		findNotes: findNotesTool,
+		getDailyCross: getDailyCrossTool,
+		setDailyCross: setDailyCrossTool,
+	};
+}
+
+function toDailyCrossOutput(cross: {
+	book: string;
+	chapter: number;
+	verse: number;
+	text: string;
+	reason: string;
+	whyToday: string | null;
+	application: string | null;
+	studyPath: StudyStep[];
+	question: string | null;
+}): DailyCrossToolOutput {
+	return {
+		reference: `${cross.book} ${cross.chapter}:${cross.verse}`,
+		book: cross.book,
+		chapter: cross.chapter,
+		verse: cross.verse,
+		text: cross.text,
+		reason: cross.reason,
+		whyToday: cross.whyToday,
+		application: cross.application,
+		studyPath: cross.studyPath,
+		question: cross.question,
 	};
 }
 

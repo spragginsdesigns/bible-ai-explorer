@@ -163,3 +163,82 @@ payloads with only a verse reference fall back to the reader.
   it posts `.openDailyCross`, which selects the section.
 - Settings: Android Settings → Verse of the Day (toggle + hour stepper);
   the same two controls on macOS
+
+---
+
+## An app-aware assistant, and changing today's cross from chat
+
+*Shipped 2026-08-17 · Android 1.15.0 + web + macOS 1.2.0*
+
+Two halves of one idea: the assistant should know the app it lives in, and it
+should be able to act on the one part of that app that is about *today* — the
+user's "Pick Up Your Cross".
+
+### Half one — `appKnowledge`
+
+`src/utils/systemPrompt.ts` carries a block describing SureWord itself: the
+three clients, what lives on each screen, the slash commands, the settings, how
+Pick Up Your Cross is built, and what memory is. It is written from
+[`PARITY.md`](PARITY.md), which is the inventory, and it ends with the rule that
+matters most: **never invent a feature, screen or setting**; say you are not
+sure instead.
+
+Two deliberate details:
+
+- It is **not** run through `forTranslation`. That helper swaps every "KJV" for
+  the user's chosen translation, and this block talks *about* the translation
+  setting — swapping inside it produces nonsense ("New King James by default,
+  New King James selectable in Settings").
+- The per-note AI panel gets it too (`noteAISystemPrompt`), so a question asked
+  from a note is answered by an assistant that knows the same app.
+
+### Half two — `getDailyCross` / `setDailyCross`
+
+Both live in the shared tool set (`src/lib/ai-tools.ts`), so chat and the note
+panel have them. `getDailyCross` reads today's day, preparing one if the user
+has none yet — the same behaviour as opening the screen. `setDailyCross`
+replaces it, optionally centred on a `focus` in the user's own words or pinned
+to a verse they named.
+
+**Confirmation is a prompt rule, not a UI gate.** `dailyCrossGuidance` requires
+the assistant to name what would be replaced and wait for a clear yes before
+calling `setDailyCross`; a wish ("I wish today's verse spoke to my anxiety") is
+explicitly not a yes. This was chosen over an interactive Yes/No tool card
+because the conversational form behaves identically on all three clients today
+and needs no human-in-the-loop tool-result plumbing in Swift, TypeScript and
+React at once. What keeps it safe is that the act is small and recoverable: the
+displaced row stays in `VerseOfDay` as history, and because the generator
+excludes the last 30 picks, a replacement never hands back the verse it just
+replaced.
+
+### The shared write path
+
+`POST /api/verse-of-day/today` — body `{ focus?, book?, chapter?, verse? }` —
+is the single way today's day gets replaced, used by both the tool and the ↻
+control on every client. It calls `replaceDailyCross()`
+(`src/lib/daily-cross.ts`), which generates, stores, and reports the reference
+it displaced. Storing simply appends the newest row inside the 20h reuse
+window, so every client's next `findTodayCross` sees the new day with no
+invalidation protocol.
+
+`generateDailyCross(userId, request)` grew two paths:
+
+- **Chosen** (unchanged): the model picks the verse, with the exclusion list in
+  the prompt.
+- **Pinned**: the reference is resolved and validated *before* the try block, so
+  "make today Psalm 151:1" comes back as a `DailyCrossReferenceError` → 400 and
+  a correction, instead of being swallowed by the fallback. The model then fills
+  only the prose (`pinnedCrossSchema` omits book/chapter/verse), the exclusion
+  list is dropped — it exists to stop repeats, not to argue with a user's own
+  choice — and a generation failure degrades to a plain day *on that verse*
+  rather than to John 3:16.
+
+### Surfaces
+
+- Receipt card after a replace, opening the new day: `src/components/ChatMessage.tsx`,
+  `mobile/src/features/chat/CrossActionCard.tsx`,
+  `CrossActionCard` in `macos/SureWord/Chat/Views/ChatCards.swift`. Only the
+  write earns a card; `getDailyCross` is silent.
+- "↻ A different word for today" at the end of the timeline on all three Daily
+  Cross screens: confirm, optionally type a focus, and the day is prepared again
+  in place.

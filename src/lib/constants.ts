@@ -16,5 +16,5 @@ export const MACOS_DMG_URL =
 //   Android → `mobile/app.json` `expo.version`
 //   macOS   → `macos/project.yml` `MARKETING_VERSION`
 // Both release checklists say so (`mobile/README.md`, `macos/README.md`).
-export const ANDROID_VERSION = "1.14.0";
-export const MACOS_VERSION = "1.1.0";
+export const ANDROID_VERSION = "1.15.0";
+export const MACOS_VERSION = "1.2.0";

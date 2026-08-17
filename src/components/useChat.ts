@@ -33,6 +33,14 @@ export interface NoteAction {
 	created: boolean;
 }
 
+/** Receipt for a "Pick Up Your Cross" the assistant replaced this turn. */
+export interface CrossAction {
+	reference: string;
+	text: string;
+	reason: string;
+	previousReference: string | null;
+}
+
 export interface ChatMessage {
 	id: string;
 	role: "user" | "assistant";
@@ -42,6 +50,7 @@ export interface ChatMessage {
 	averageSimilarity?: number;
 	followUps?: string[];
 	noteActions?: NoteAction[];
+	crossActions?: CrossAction[];
 	attachments?: ChatAttachmentDescriptor[];
 	/** Human-readable label for the tool currently running, e.g. "Searching the Scriptures". */
 	activity?: string;
@@ -68,6 +77,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-webSearch": "Searching the web",
 	"tool-addToNote": "Writing to your note",
 	"tool-findNotes": "Looking through your notes",
+	"tool-getDailyCross": "Opening today's cross",
+	"tool-setDailyCross": "Preparing your new day",
 };
 
 function visibleResponseContent(content: string): string {
@@ -150,6 +161,7 @@ export function toViewMessage(
 	const similarities: number[] = [];
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
 	const noteActions: NoteAction[] = [];
+	const crossActions: CrossAction[] = [];
 	const fileParts = message.parts.filter((part) => part.type === "file");
 	const fileIds = Array.isArray(message.metadata?.attachmentIds)
 		? message.metadata.attachmentIds
@@ -200,6 +212,17 @@ export function toViewMessage(
 					created: output.created === true,
 				});
 			}
+		} else if (part.type === "tool-setDailyCross") {
+			// Only the write shows a receipt; reading the day is silent.
+			if (typeof output.reference === "string" && typeof output.text === "string") {
+				crossActions.push({
+					reference: output.reference,
+					text: output.text,
+					reason: typeof output.reason === "string" ? output.reason : "",
+					previousReference:
+						typeof output.previousReference === "string" ? output.previousReference : null,
+				});
+			}
 		}
 	}
 
@@ -230,6 +253,7 @@ export function toViewMessage(
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),
 		...(followUps.length > 0 ? { followUps } : {}),
 		...(noteActions.length > 0 ? { noteActions } : {}),
+		...(crossActions.length > 0 ? { crossActions } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),

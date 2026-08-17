@@ -3,6 +3,23 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.15.0] — 2026-08-17
+
+### Added
+- **SureWord knows SureWord.** The assistant now carries the app itself in its
+  head — the Bible reader and tap-a-verse, notes and folders, memory, settings,
+  the model picker, and Pick Up Your Cross. Ask it "what can you do?", "how do
+  I change my translation?" or "what's my cross today?" and it answers from
+  what the app actually has, rather than guessing.
+- **Ask for a different word.** You can now ask SureWord in chat to change
+  today's Pick Up Your Cross — a new word, one centred on something specific
+  ("something on patience"), or built on a verse you name. It always tells you
+  what would be replaced and waits for your yes first, then shows a receipt
+  card that opens the new day. `/cross` shows today's word without touching it.
+- **↻ A different word for today** on the Daily Cross screen: confirm, and
+  optionally type what the new day should centre on, and the day is prepared
+  again in place — and the verse it replaces is not handed straight back.
+
 ## [1.14.0] — 2026-08-17
 
 ### Added

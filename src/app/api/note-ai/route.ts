@@ -15,7 +15,12 @@ import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
-import { noteAISystemPrompt, slashCommandGuidance, toolGuidance } from "@/utils/systemPrompt";
+import {
+	dailyCrossGuidance,
+	noteAISystemPrompt,
+	slashCommandGuidance,
+	toolGuidance,
+} from "@/utils/systemPrompt";
 
 export const maxDuration = 120;
 
@@ -142,7 +147,10 @@ export async function POST(req: Request): Promise<Response> {
 		const system = `${noteAISystemPrompt(
 			note.title,
 			note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
-		)}\n\n${toolGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
+		// The note panel shares the chat tool set, so it must also carry the rule
+		// that governs the one tool that overwrites something: setDailyCross may
+		// not fire until the user has agreed to it.
+		)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
 
 		let resolvedNoteModel;
 		try {

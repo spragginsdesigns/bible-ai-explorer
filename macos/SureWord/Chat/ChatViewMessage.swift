@@ -26,6 +26,16 @@ struct NoteAction: Sendable, Equatable, Identifiable {
     var id: String { noteID }
 }
 
+/// Receipt for a "Pick Up Your Cross" the assistant replaced this turn.
+struct CrossAction: Sendable, Equatable, Identifiable {
+    var reference: String
+    var text: String
+    var reason: String
+    var previousReference: String?
+
+    var id: String { "\(reference)-\(previousReference ?? "")" }
+}
+
 struct ChatAttachment: Sendable, Equatable, Identifiable {
     var id: String
     var filename: String
@@ -70,6 +80,7 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     var averageSimilarity: Double?
     var followUps: [String] = []
     var noteActions: [NoteAction] = []
+    var crossActions: [CrossAction] = []
     var attachments: [ChatAttachment] = []
     /// Label shown while a tool is running; only set during streaming.
     var activity: String?
@@ -88,6 +99,8 @@ extension ChatViewMessage {
         "tool-webSearch": "Searching the web",
         "tool-addToNote": "Writing to your note",
         "tool-findNotes": "Looking through your notes",
+        "tool-getDailyCross": "Opening today's cross",
+        "tool-setDailyCross": "Preparing your new day",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
@@ -129,6 +142,7 @@ extension ChatViewMessage {
         var similarities: [Double] = []
         var tavilyResults = Self.parseTavilyResults(metadata["tavilyResults"])
         var noteActions: [NoteAction] = []
+        var crossActions: [CrossAction] = []
         var activity: String?
 
         // Attachment ids live in metadata, parallel to the message's file parts.
@@ -176,6 +190,19 @@ extension ChatViewMessage {
                         )
                     )
                 }
+            case "tool-setDailyCross":
+                // Only the write earns a receipt; reading the day is silent.
+                if let reference = output["reference"]?.stringValue,
+                   let text = output["text"]?.stringValue {
+                    crossActions.append(
+                        CrossAction(
+                            reference: reference,
+                            text: text,
+                            reason: output["reason"]?.stringValue ?? "",
+                            previousReference: output["previousReference"]?.stringValue
+                        )
+                    )
+                }
             default:
                 break
             }
@@ -215,6 +242,7 @@ extension ChatViewMessage {
             averageSimilarity: averageSimilarity,
             followUps: followUps,
             noteActions: noteActions,
+            crossActions: crossActions,
             attachments: attachments,
             activity: isStreaming ? activity : nil,
             isStreaming: isStreaming

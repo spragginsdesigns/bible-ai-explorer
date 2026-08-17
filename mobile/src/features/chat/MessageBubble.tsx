@@ -9,6 +9,7 @@ import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FollowUpChips } from "./FollowUpChips";
 import { MarkdownBody } from "./MarkdownBody";
 import { NoteActionCard } from "./NoteActionCard";
+import { CrossActionCard } from "./CrossActionCard";
 import { RetrievedVersesCard } from "./RetrievedVersesCard";
 import { TypingDots } from "./TypingDots";
 import { openReferenceInReader, segmentVerseReferences } from "./verseLinks";
@@ -108,6 +109,10 @@ export const MessageBubble = React.memo(function MessageBubble({
 
 				{message.noteActions?.map((action, index) => (
 					<NoteActionCard key={`${action.noteId}-${index}`} action={action} />
+				))}
+
+				{message.crossActions?.map((action, index) => (
+					<CrossActionCard key={`${action.reference}-${index}`} action={action} />
 				))}
 
 				{settled && message.retrievedVerses && message.retrievedVerses.length > 0 && (

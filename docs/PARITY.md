@@ -7,9 +7,11 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-Last full audit: 2026-08-17 (Android v1.14.0; macOS 1.1.0 caught up on Tap-a-verse
-and Pick Up Your Cross. The remaining macOS gaps are all one feature: the BYOK
-provider settings and model picker from Android 1.11.0/1.12.0).
+Last full audit: 2026-08-17 (Android v1.15.0; the assistant became app-aware and
+gained the daily-cross tools, and all three clients gained the "a different word
+for today" control — shipped to Android, web and macOS 1.2.0 together. The
+remaining macOS gaps are all one feature: the BYOK provider settings and model
+picker from Android 1.11.0/1.12.0).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ superset (allowed)
 
@@ -17,7 +19,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth (v1.10.0) |
+| Android | `mobile/` | Source of truth (v1.15.0) |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. |
 
@@ -51,6 +53,7 @@ behavior, different plumbing.
 | AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ❌ | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
 | Verse of the Day: enable toggle + delivery hour | ✅ Settings → Verse of the Day (1.14.0) | 🟡 no browser notifications; `/cross` page is always available | ✅ 1.1.0 | Stored per push token server-side (`POST/DELETE /api/push-tokens`); local hour in the device's timezone. Android delivery: remote Expo push once FCM/EAS is configured, locally scheduled daily notification until then. macOS schedules a repeating local `UNCalendarNotificationTrigger` at the chosen hour and registers no push token (APNs needs the paid program) |
 | Pick Up Your Cross: guided daily screen (verse, why-today, application, study path, question, chat CTA) | ✅ `/cross` + ✝ card on Bible tab (1.14.0) | ✅ `/cross` + ✝ card on Bible page | ✅ 1.1.0 | `GET /api/verse-of-day/today` (cron entry reused, else generated on demand); shared generator `src/lib/daily-cross.ts`; docs in `docs/FEATURES.md`. macOS: sidebar section (⌘4) + ✝ card above the Bible book list |
+| Pick Up Your Cross: "↻ A different word for today" (confirm + optional focus) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | `POST /api/verse-of-day/today` with an optional `focus`; the replaced verse joins the exclusion list, so it is not handed straight back |
 
 ## Chat
 
@@ -68,8 +71,11 @@ behavior, different plumbing.
 | Tavily web-results card | ✅ | ✅ | ✅ | |
 | Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | ✅ | |
 | Note-action receipt cards | ✅ | ✅ | ✅ | |
+| App-aware assistant (knows SureWord's screens, settings, commands and features) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | Shared `appKnowledge` block in `src/utils/systemPrompt.ts`, written from this file; also carried by the per-note AI panel |
+| Daily-cross tools in chat (read today's word; replace it only after the user confirms) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | `getDailyCross` / `setDailyCross` in `src/lib/ai-tools.ts`; confirmation is enforced in `dailyCrossGuidance`, not by a UI gate |
+| "Pick Up Your Cross updated" receipt card → opens the new day | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | Only the replace shows a card; reading the day is silent |
 | Save whole answer to notes (new note or append via picker) | ✅ | ✅ | ✅ | Shared route `POST /api/notes/append` |
-| Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory`) | ✅ | ✅ | ✅ | |
+| Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory` `/cross`) | ✅ | ✅ | ✅ | `/cross` added 1.15.0 — shows today's word, never replaces it |
 | Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | ✅ via in-app state | |
 | Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard; direct Gboard image paste on Android 12+ | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
 | Welcome screen, 6 suggested questions | ✅ | ✅ | ✅ | |
