@@ -47,6 +47,8 @@ behavior, different plumbing.
 | Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | ✅ sheet from Settings | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires) |
 | About (version, KJV mission note) | ✅ | ✅ | ✅ | |
 | AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ❌ | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
+| Verse of the Day: enable toggle + delivery hour | ✅ Settings → Verse of the Day (1.14.0) | 🟡 no browser notifications; `/cross` page is always available | ❌ | Stored per push token server-side (`POST/DELETE /api/push-tokens`); local hour in the device's timezone. Android delivery: remote Expo push once FCM/EAS is configured, locally scheduled daily notification until then |
+| Pick Up Your Cross: guided daily screen (verse, why-today, application, study path, question, chat CTA) | ✅ `/cross` + ✝ card on Bible tab (1.14.0) | ✅ `/cross` + ✝ card on Bible page | ❌ | `GET /api/verse-of-day/today` (cron entry reused, else generated on demand); shared generator `src/lib/daily-cross.ts`; docs in `docs/FEATURES.md` |
 
 ## Chat
 
@@ -86,6 +88,14 @@ behavior, different plumbing.
 | Prev/Next chapter (rolls across books) | ✅ | ✅ | ✅ | |
 | Font-size controls (4 steps) | ✅ session-scoped | ✅ session-scoped | ➕ persisted (UserDefaults) | macOS superset: persists across launches |
 | Deep links (`/bible/chapter?book=N&chapter=M&verse=V`) | ✅ | ✅ | ✅ via in-app state, scroll + flash | |
+| Reading-history tracking (powers Verse of the Day) | ✅ 1.14.0 | ✅ | ❌ | `POST /api/reading-events` after ~5s on a chapter; server dedupes within 1h |
+
+## Verse of the Day
+
+| Feature | Android | Web | macOS | Notes |
+|---|---|---|---|---|
+| AI-personalized daily verse (context: reading history + chat + notes + memories; never repeats last 30) | ✅ 1.14.0 | ❌ | ❌ | Shared backend engine: hourly Vercel cron `GET /api/cron/verse-of-day`, utility model, `VerseOfDay` table, John 3:16 fallback — but only Android registers for delivery so far |
+| Morning push notification with verse + why-chosen line | ✅ 1.14.0 | ❌ | ❌ | Expo push; tap deep-links into the reader at that verse |
 
 ## Notes
 

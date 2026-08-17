@@ -16,6 +16,11 @@ import {
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
+import {
+	setVerseOfDayEnabled,
+	setVerseOfDayHour,
+	useNotificationSettings,
+} from "@/features/notifications/notificationSettings";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
@@ -23,6 +28,12 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "dark", label: "Dark", glyph: "☾" },
 	{ id: "light", label: "Light", glyph: "☀" },
 ];
+
+/** 0-23 → "8:00 AM" / "9:00 PM". */
+function formatHour(hour: number): string {
+	const h12 = hour % 12 === 0 ? 12 : hour % 12;
+	return `${h12}:00 ${hour < 12 ? "AM" : "PM"}`;
+}
 
 function SectionLabel({ label }: { label: string }) {
 	const styles = useThemedStyles(createStyles);
@@ -72,6 +83,7 @@ export default function SettingsScreen() {
 	const { signOut } = useAuth();
 	const { user } = useUser();
 	const settings = useSettings();
+	const notificationSettings = useNotificationSettings();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const getToken = useStableGetToken();
@@ -221,6 +233,54 @@ export default function SettingsScreen() {
 					</Pressable>
 				</GlassCard>
 
+				<SectionLabel label="VERSE OF THE DAY" />
+				<GlassCard style={styles.card}>
+					<View style={styles.settingRow}>
+						<Text style={styles.rowTitle}>Daily verse notification</Text>
+						<Switch
+							accessibilityLabel="Daily verse notification"
+							value={notificationSettings.enabled}
+							onValueChange={setVerseOfDayEnabled}
+							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+							thumbColor={notificationSettings.enabled ? colors.accent : colors.textFaint}
+						/>
+					</View>
+					<Text style={styles.hint}>
+						An AI-picked verse each morning, shaped by what you&apos;ve been reading and
+						asking about.
+					</Text>
+					{notificationSettings.enabled ? (
+						<View style={styles.settingRow}>
+							<Text style={styles.rowTitle}>Arrives at</Text>
+							<View style={styles.hourStepper}>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="One hour earlier"
+									onPress={() => setVerseOfDayHour((notificationSettings.hour + 23) % 24)}
+									style={({ pressed }) => [
+										styles.hourButton,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<Text style={styles.hourButtonLabel}>−</Text>
+								</Pressable>
+								<Text style={styles.hourLabel}>{formatHour(notificationSettings.hour)}</Text>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="One hour later"
+									onPress={() => setVerseOfDayHour((notificationSettings.hour + 1) % 24)}
+									style={({ pressed }) => [
+										styles.hourButton,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<Text style={styles.hourButtonLabel}>+</Text>
+								</Pressable>
+							</View>
+						</View>
+					) : null}
+				</GlassCard>
+
 				<SectionLabel label="AI PROVIDERS" />
 				<ProviderSettingsSection getToken={getToken} />
 
@@ -343,6 +403,25 @@ const createStyles = (c: Colors) =>
 			gap: spacing.md,
 		},
 		rowTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
+		hourStepper: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+		hourButton: {
+			width: 36,
+			height: 36,
+			borderRadius: radius.md,
+			alignItems: "center",
+			justifyContent: "center",
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+		},
+		hourButtonLabel: { color: c.textSecondary, fontSize: 16, fontWeight: "700" },
+		hourLabel: {
+			color: c.text,
+			fontSize: 15,
+			fontWeight: "600",
+			minWidth: 72,
+			textAlign: "center",
+		},
 		manageRow: {
 			flexDirection: "row",
 			alignItems: "center",

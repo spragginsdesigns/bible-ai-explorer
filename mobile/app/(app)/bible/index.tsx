@@ -80,6 +80,10 @@ export default function BibleBooksScreen() {
 		router.push("/bible/search");
 	};
 
+	const openDailyCross = () => {
+		router.push("/cross");
+	};
+
 	return (
 		<Screen>
 			<View style={styles.header}>
@@ -97,6 +101,21 @@ export default function BibleBooksScreen() {
 				data={rows}
 				keyExtractor={(row) => row.key}
 				contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
+				ListHeaderComponent={
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Pick Up Your Cross — today's word"
+						onPress={openDailyCross}
+						style={({ pressed }) => [styles.crossCard, pressed && styles.bookRowPressed]}
+					>
+						<Text style={styles.crossGlyph}>✝</Text>
+						<View style={styles.crossCopy}>
+							<Text style={styles.crossTitle}>Pick Up Your Cross</Text>
+							<Text style={styles.crossSubtitle}>Today&apos;s word, chosen for your walk</Text>
+						</View>
+						<Text style={styles.crossChevron}>›</Text>
+					</Pressable>
+				}
 				renderItem={({ item: row }) => {
 					if (row.type === "testament") {
 						return (
@@ -160,6 +179,24 @@ const createStyles = (c: Colors) =>
 		searchGlyph: { fontSize: 14 },
 		searchText: { color: c.textMuted, fontSize: 14 },
 		listContent: { paddingHorizontal: spacing.lg },
+		crossCard: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginTop: spacing.xs,
+			marginBottom: spacing.sm,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			borderRadius: radius.lg,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		crossGlyph: { color: c.accent, fontSize: 20 },
+		crossCopy: { flex: 1, gap: 2 },
+		crossTitle: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		crossSubtitle: { color: c.textMuted, fontSize: 12.5 },
+		crossChevron: { color: c.accent, fontSize: 18, fontWeight: "600" },
 		testamentHeader: {
 			flexDirection: "row",
 			alignItems: "center",

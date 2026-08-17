@@ -59,6 +59,7 @@ const ChapterReader: React.FC = () => {
   } = useVerseInsight();
 
   const lastFlashed = useRef<string | null>(null);
+  const lastRecordedRead = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,6 +115,24 @@ const ChapterReader: React.FC = () => {
     }, 250);
     return () => clearTimeout(scrollTimer);
   }, [loading, error, verses, translation, order, chapter, verseParam]);
+
+  // Reading history for the verse-of-the-day cron: count a chapter once it has
+  // been on screen ~5s, at most once per chapter view (the ref also absorbs
+  // StrictMode's double effect). Fire-and-forget — failures are swallowed.
+  useEffect(() => {
+    if (loading || error || !verses.length || !book) return;
+    const readKey = `${translation}:${order}:${chapter}`;
+    if (lastRecordedRead.current === readKey) return;
+    const recordTimer = setTimeout(() => {
+      lastRecordedRead.current = readKey;
+      fetch("/api/reading-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ book: book.name, chapter, translation }),
+      }).catch(() => {});
+    }, 5000);
+    return () => clearTimeout(recordTimer);
+  }, [loading, error, verses, book, translation, order, chapter]);
 
   // The reader's chips and Settings share one persisted default (localStorage).
   const setTranslation = useCallback((id: TranslationId) => {

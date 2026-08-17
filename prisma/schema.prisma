@@ -28,6 +28,9 @@ model User {
   memories      UserMemory[]
   attachments   ChatAttachment[]
   providerCredentials ProviderCredential[]
+  pushTokens    PushToken[]
+  readingEvents ReadingEvent[]
+  versesOfDay   VerseOfDay[]
 }
 
 enum AiProvider {
@@ -199,4 +202,57 @@ model NoteAIMessage {
   createdAt DateTime @default(now())
 
   @@index([noteId])
+}
+
+/// Expo push token registered by the mobile app, with the delivery preference
+/// the hourly verse-of-day cron matches against (send when the token's local
+/// hour equals notifyHour).
+model PushToken {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique // Expo push token
+  platform   String           // "ios" | "android"
+  timezone   String           // e.g. "America/Chicago"
+  notifyHour Int      @default(8) // local hour, 0-23
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// One chapter read, recorded by the readers after the chapter has been on
+/// screen a few seconds. Powers verse-of-the-day personalization.
+model ReadingEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book        String   // e.g. "John"
+  chapter     Int
+  translation String   @default("KJV")
+  readAt      DateTime @default(now())
+
+  @@index([userId, readAt])
+}
+
+/// The verse the cron picked and pushed to a user, kept both as history and as
+/// the exclusion list so recent picks are not repeated.
+model VerseOfDay {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book      String
+  chapter   Int
+  verse     Int
+  text      String
+  reason    String   // one-line AI rationale, shown in the notification body
+  sentAt    DateTime @default(now())
+
+  // "Pick Up Your Cross" guided-day content (nullable: rows from before the
+  // guide existed, and fallback picks, may carry the verse alone).
+  whyToday    String? // why this verse today, grounded in the user's real activity
+  application String? // personal application, second person
+  studyPath   String? // JSON array of { book, chapter, focus }
+  question    String? // one question to carry through the day
+
+  @@index([userId, sentAt])
 }

@@ -3,6 +3,27 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.14.0] — 2026-08-17
+
+### Added
+- **Pick Up Your Cross — your guided daily walk** (Luke 9:23: *"take up his
+  cross daily"*). Each morning, an AI prepares a whole day around one verse
+  chosen for you — from the chapters you've been reading, your recent chats,
+  your notes, and your saved memories. A morning notification (on/off toggle
+  and delivery hour in Settings → Verse of the Day) opens the new Daily Cross
+  screen: the verse, **why it was chosen for you today** (grounded only in
+  what you've actually been doing — never invented), how it applies to your
+  walk, a short study path with tappable passages, and one question to carry
+  through the day, plus a "Go deeper in chat" button. Also reachable any time
+  from the ✝ card at the top of the Bible tab, and at sureword.app/cross on
+  the web. Remote push arrives once FCM is configured; until then the app
+  schedules the morning notification locally on your device, so it works
+  today.
+- **Reading history.** The reader now privately records the chapters you read
+  (after a few seconds on screen, stored on the server under your account) so
+  the daily verse — and future personalization — reflects where you actually
+  are in the Word.
+
 ## [1.13.0] — 2026-08-16
 
 ### Added

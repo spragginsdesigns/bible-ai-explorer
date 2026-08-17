@@ -5,6 +5,9 @@ const isPublicRoute = createRouteMatcher([
 	"/sign-in(.*)",
 	"/sign-up(.*)",
 	"/api/webhooks(.*)",
+	// Cron routes are protected by their own CRON_SECRET bearer check; letting
+	// them through here keeps Vercel cron (which has no Clerk session) working.
+	"/api/cron(.*)",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

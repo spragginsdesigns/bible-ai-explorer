@@ -74,3 +74,73 @@ skeleton bars, streamed text with caret, error + retry) inside the existing
 - If explanations ever need tools/memories, resist doing it here — that is
   what Expand with AI is for. This endpoint's contract is "fast, cheap,
   stateless".
+
+---
+
+## Pick Up Your Cross
+
+*Shipped 2026-08-17 · Android 1.14.0 + web · macOS pending*
+
+The personalized daily walk (Luke 9:23 — *"take up his cross daily"*; the
+name carries its own proof-text; short UI label "Daily Cross"). A morning
+notification opens a guided day built around one verse chosen for the user:
+the verse → why it was chosen **today, for them** → personal application →
+a 1–3 passage study path with a focus line each → one question to carry →
+"Go deeper in chat".
+
+### Persona and honesty guardrails (non-negotiable)
+
+- The AI is **never** framed as the Holy Spirit or Spirit-adjacent. The frame
+  is: SureWord is the companion that keeps putting the right Scripture in
+  front of you; the Spirit works through the Word.
+- `whyToday` may only cite activity actually present in the assembled context
+  (chapters read, questions asked, notes written). When the context is thin,
+  the model is instructed to encourage plainly and say less — fabricated
+  intimacy is treated as worse than a generic word. Both rules live in the
+  generator's instructions in `src/lib/daily-cross.ts`.
+
+### The context engine
+
+`generateDailyCross(userId)` in `src/lib/daily-cross.ts` assembles: reading
+events from the last 30 days (recorded by both readers after ~5s of a chapter
+being on screen → `POST /api/reading-events`, deduped hourly), the last 15
+user chat messages, the last 10 notes, all saved memories, and the last 30
+picks as an exclusion list. One structured `generateText` call on the user's
+**utility-tier** model (cheap sibling of their provider) produces the full
+day; every reference is validated against the KJV canon and the verse text is
+read from the bundled corpus — the model never supplies Scripture wording.
+Any failure degrades to a complete John 3:16 fallback day.
+
+### One day per user per day
+
+`VerseOfDay` rows store the whole guide (`whyToday`, `application`,
+`studyPath` JSON, `question` — nullable for pre-guide rows). An entry younger
+than 20 hours is "today" (`DAILY_CROSS_REUSE_MS`): the hourly cron
+(`/api/cron/verse-of-day`, `CRON_SECRET`-gated, fires each user at their
+chosen local hour) reuses an entry generated on demand, and
+`GET /api/verse-of-day/today` reuses the cron's — whoever asks first
+generates, everyone sees the same day.
+
+### Delivery (Android)
+
+Two paths in `mobile/src/features/notifications/useVerseOfDayNotifications.ts`:
+
+1. **Remote Expo push** — carries the verse + reason in the notification.
+   Requires an EAS projectId and FCM credentials, which the locally-prebuilt
+   app does not have yet, so today this path fails token retrieval by design.
+2. **Local daily scheduled notification** (the current live path) — when no
+   push token can be obtained, the app schedules a repeating daily
+   notification at the chosen hour ("✝ Pick up your cross — Your word for
+   today is ready."). It cannot carry the verse; tapping opens `/cross`,
+   which fetches or generates the day. If FCM lands later, the remote path
+   registers and cancels the local schedule automatically — no doubles.
+
+Tap routing: notification data `{screen: "cross"}` → `/cross`; legacy
+payloads with only a verse reference fall back to the reader.
+
+### Surfaces
+
+- Android: `mobile/app/(app)/cross.tsx` (+ ✝ entry card on the Bible tab)
+- Web: `src/app/cross/page.tsx` (+ ✝ entry card on `/bible`) — no browser
+  push; the page is the parity surface
+- Settings: Android Settings → Verse of the Day (toggle + hour stepper)

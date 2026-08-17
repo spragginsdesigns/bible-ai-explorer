@@ -82,6 +82,23 @@ const BibleBookPicker: React.FC = () => {
           </Link>
         </div>
 
+        {/* Pick Up Your Cross — the guided daily walk (mirrors the Android Bible tab card) */}
+        <Link
+          href="/cross"
+          className="mb-3 flex items-center gap-3 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-4 py-3 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+        >
+          <span aria-hidden className="text-xl text-amber-600 dark:text-amber-400">✝</span>
+          <span className="flex-1">
+            <span className="block text-[15px] font-bold text-amber-600 dark:text-amber-400">
+              Pick Up Your Cross
+            </span>
+            <span className="block text-[12.5px] text-neutral-500 dark:text-neutral-400">
+              Today&apos;s word, chosen for your walk
+            </span>
+          </span>
+          <span aria-hidden className="text-lg font-semibold text-amber-600 dark:text-amber-400">›</span>
+        </Link>
+
         {rows.map((row) => {
           if (row.type === "testament") {
             return (

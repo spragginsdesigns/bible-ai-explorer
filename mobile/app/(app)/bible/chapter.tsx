@@ -15,6 +15,7 @@ import { useTabBarSpace } from "@/features/chat/layout";
 import { saveVerseToNote } from "@/features/chat/verseActions";
 import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { recordReadingEvent } from "@/features/notifications/api";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
@@ -30,6 +31,8 @@ import {
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const HIGHLIGHT_MS = 2400;
+/** A chapter must stay on screen this long before it counts as read. */
+const READ_EVENT_DELAY_MS = 5000;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
@@ -89,6 +92,7 @@ export default function BibleChapterScreen() {
 
 	const listRef = useRef<FlatList<string>>(null);
 	const lastFlashed = useRef<string | null>(null);
+	const lastRecordedRead = useRef<string | null>(null);
 	const requestId = useRef(0);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
@@ -152,6 +156,22 @@ export default function BibleChapterScreen() {
 			clearTimeout(clearTimer);
 		};
 	}, [loading, error, loadedKey, chapterKey, verses, verseParam]);
+
+	// Reading history: once a chapter has actually been on screen for a few
+	// seconds, record it server-side (it feeds verse-of-the-day
+	// personalization). Fire-and-forget — failures are swallowed — and guarded
+	// per chapter so effect re-runs and paging back within this mounted screen
+	// don't double-post. The server also dedupes within an hour.
+	useEffect(() => {
+		if (loading || error || loadedKey !== chapterKey || !book) return;
+		if (lastRecordedRead.current === chapterKey) return;
+		const timer = setTimeout(() => {
+			if (lastRecordedRead.current === chapterKey) return;
+			lastRecordedRead.current = chapterKey;
+			recordReadingEvent(getToken, { book: book.name, chapter, translation }).catch(() => {});
+		}, READ_EVENT_DELAY_MS);
+		return () => clearTimeout(timer);
+	}, [loading, error, loadedKey, chapterKey, book, chapter, translation, getToken]);
 
 	const stepFont = useCallback((delta: number) => {
 		setFontStep((step) => {

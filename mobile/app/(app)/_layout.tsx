@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { useVerseOfDayNotifications } from "@/features/notifications/useVerseOfDayNotifications";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
@@ -99,6 +100,8 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 export default function AppLayout() {
 	const { isLoaded, isSignedIn } = useAuth();
 	const { colors } = useTheme();
+	// Verse-of-the-day: push-token registration + notification tap deep links.
+	useVerseOfDayNotifications();
 
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 

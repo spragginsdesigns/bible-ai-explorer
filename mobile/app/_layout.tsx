@@ -13,6 +13,7 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
 import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
+import { hydrateNotificationSettings } from "@/features/notifications/notificationSettings";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -66,7 +67,7 @@ export default function RootLayout() {
 	const [settingsReady, setSettingsReady] = useState(false);
 
 	useEffect(() => {
-		hydrateSettings()
+		Promise.all([hydrateSettings(), hydrateNotificationSettings()])
 			.catch(() => {})
 			.finally(() => setSettingsReady(true));
 	}, []);

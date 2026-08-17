@@ -8,6 +8,10 @@
 		{
 			"path": "/api/cron/chat-attachments",
 			"schedule": "17 4 * * *"
+		},
+		{
+			"path": "/api/cron/verse-of-day",
+			"schedule": "0 * * * *"
 		}
 	]
 }
