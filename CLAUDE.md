@@ -312,6 +312,8 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | Root layout | `src/app/layout.tsx` |
 | Main component | `src/components/BibleAIExplorer.tsx` |
 | RAG API route | `src/app/api/ask-question/route.ts` |
+| Tap-a-verse insight route | `src/app/api/verse-insight/route.ts` (docs: `docs/FEATURES.md`) |
+| Tap-a-verse client hooks | `src/components/bible/useVerseInsight.ts` + `mobile/src/features/bible/useVerseInsight.ts` (mirrored) |
 | Search API route | `src/app/api/tavily-search/route.ts` |
 | Vector DB config | `src/utils/astraDb.ts` |
 | Memory extraction/injection + caps | `src/lib/memory.ts` |

@@ -76,6 +76,13 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 
 - **CMake 3.22.1 (the SDK default) is broken here** — endless
   `ninja: manifest 'build.ninja' still dirty` loops. `cmake.dir` pins 3.31.6.
+- **An inherited `JAVA_HOME` pointing at JDK 24+ breaks the build** — every
+  `configureCMake*` task fails with `WARNING: A restricted method in
+  java.lang.System has been called` (hit 2026-08-16 with the machine-wide
+  `JAVA_HOME=C:\Java\current` = JDK 25). `push-phone.sh` *respects* an existing
+  `JAVA_HOME`, so override it for the invocation:
+  `JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" bash mobile/scripts/push-phone.sh`
+  (the JBR is JDK 21, which AGP supports).
 - `reactNativeArchitectures=arm64-v8a` in `gradle.properties` — phone builds
   only need arm64; switch to `x86_64` for emulator testing (wipe `.cxx` dirs
   in node_modules when switching).

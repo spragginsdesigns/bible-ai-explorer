@@ -37,6 +37,7 @@ Every response is backed by exact KJV verse quotes, not paraphrases.
 ## Features
 
 - **KJV-Only Scripture** — All verse quotes are word-for-word from the King James Version
+- **Tap-a-verse** — Tap any verse in the Bible reader for an instant streaming AI explanation of what it says in context and why it matters, generated with your selected model; one tap more expands the verse into a full chat study ([details](docs/FEATURES.md#tap-a-verse))
 - **Vector Search (RAG)** — Queries a vector database of Bible verse embeddings to find the most relevant passages for each question
 - **Web Search Integration** — Tavily search provides supplementary context from trusted sources alongside the AI response
 - **Private Multimodal Chat** — Ask from screenshots, photos, PDFs, and text-based study files on Android or web
