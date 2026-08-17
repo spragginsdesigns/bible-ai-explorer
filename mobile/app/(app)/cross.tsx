@@ -55,10 +55,43 @@ function LoadingBars() {
 }
 
 /**
- * "Pick Up Your Cross" (Luke 9:23) — the guided daily walk: today's verse,
- * why it was chosen from the user's actual week, how it applies, and a short
- * study path. Opened from the morning notification, or any time from the
- * Bible tab. Mirrors src/app/cross/page.tsx on web.
+ * One stop on the guided timeline: an amber node on a vertical rail, with the
+ * section content to its right. The rail connects the day into one walk.
+ */
+function TimelineStop({
+	glyph,
+	label,
+	last = false,
+	children,
+}: {
+	glyph: string;
+	label?: string;
+	last?: boolean;
+	children: React.ReactNode;
+}) {
+	const styles = useThemedStyles(createStyles);
+	return (
+		<View style={styles.tlRow}>
+			<View style={styles.tlRail}>
+				<View style={styles.tlNode}>
+					<Text style={styles.tlNodeGlyph}>{glyph}</Text>
+				</View>
+				{!last ? <View style={styles.tlLine} /> : null}
+			</View>
+			<View style={[styles.tlContent, last && { paddingBottom: 0 }]}>
+				{label ? <Text style={styles.sectionLabel}>{label}</Text> : null}
+				{children}
+			</View>
+		</View>
+	);
+}
+
+/**
+ * "Pick Up Your Cross" (Luke 9:23) — the guided daily walk as a timeline:
+ * today's verse, why it was chosen from the user's actual week, how it
+ * applies, a short study path, and one question to carry. Opened from the
+ * morning notification, or any time from the Bible tab. Mirrors
+ * src/app/cross/page.tsx on web.
  */
 export default function DailyCrossScreen() {
 	const router = useRouter();
@@ -141,68 +174,71 @@ export default function DailyCrossScreen() {
 						</Pressable>
 					</GlassCard>
 				) : entry ? (
-					<>
-						<GlassCard style={styles.verseCard}>
-							<Text style={styles.reference}>{entry.reference}</Text>
-							<Text style={styles.verseText}>{entry.text}</Text>
-							<Text style={styles.reason}>{entry.reason}</Text>
-						</GlassCard>
+					<View style={styles.timeline}>
+						<TimelineStop glyph="✝" label="TODAY'S VERSE">
+							<GlassCard style={styles.verseCard}>
+								<Text style={styles.reference}>{entry.reference}</Text>
+								<Text style={styles.verseText}>{entry.text}</Text>
+								<Text style={styles.reason}>{entry.reason}</Text>
+							</GlassCard>
+						</TimelineStop>
 
 						{entry.whyToday ? (
-							<View style={styles.section}>
-								<Text style={styles.sectionLabel}>WHY THIS VERSE TODAY</Text>
+							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">
 								<Text style={styles.body}>{entry.whyToday}</Text>
-							</View>
+							</TimelineStop>
 						) : null}
 
 						{entry.application ? (
-							<View style={styles.section}>
-								<Text style={styles.sectionLabel}>FOR YOU</Text>
+							<TimelineStop glyph="◆" label="FOR YOU">
 								<Text style={styles.body}>{entry.application}</Text>
-							</View>
+							</TimelineStop>
 						) : null}
 
-						{entry.studyPath.length ? (
-							<View style={styles.section}>
-								<Text style={styles.sectionLabel}>TODAY&apos;S STUDY</Text>
-								{entry.studyPath.map((step, index) => (
-									<Pressable
-										key={`${step.book}-${step.chapter}-${index}`}
-										accessibilityRole="button"
-										accessibilityLabel={`Read ${step.book} ${step.chapter}`}
-										onPress={() => openStudyStep(step)}
-										style={({ pressed }) => [
-											styles.studyRow,
-											pressed && { backgroundColor: colors.surfacePressed },
-										]}
-									>
-										<Text style={styles.studyReference}>
-											{step.book} {step.chapter} ›
-										</Text>
-										<Text style={styles.studyFocus}>{step.focus}</Text>
-									</Pressable>
-								))}
-							</View>
-						) : null}
+						{entry.studyPath.map((step, index) => (
+							<TimelineStop
+								key={`${step.book}-${step.chapter}-${index}`}
+								glyph={String(index + 1)}
+								label={index === 0 ? "TODAY'S STUDY" : undefined}
+							>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel={`Read ${step.book} ${step.chapter}`}
+									onPress={() => openStudyStep(step)}
+									style={({ pressed }) => [
+										styles.studyRow,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<Text style={styles.studyReference}>
+										{step.book} {step.chapter} ›
+									</Text>
+									<Text style={styles.studyFocus}>{step.focus}</Text>
+								</Pressable>
+							</TimelineStop>
+						))}
 
 						{entry.question ? (
-							<GlassCard style={styles.questionCard}>
-								<Text style={styles.questionLabel}>CARRY THIS</Text>
-								<Text style={styles.questionText}>{entry.question}</Text>
-							</GlassCard>
+							<TimelineStop glyph="?" label="CARRY THIS">
+								<GlassCard style={styles.questionCard}>
+									<Text style={styles.questionText}>{entry.question}</Text>
+								</GlassCard>
+							</TimelineStop>
 						) : null}
 
-						<Pressable
-							accessibilityRole="button"
-							onPress={goDeeper}
-							style={({ pressed }) => [
-								styles.chatButton,
-								pressed && { backgroundColor: colors.accentPressed },
-							]}
-						>
-							<Text style={styles.chatButtonLabel}>✦ Go deeper in chat</Text>
-						</Pressable>
-					</>
+						<TimelineStop glyph="➜" last>
+							<Pressable
+								accessibilityRole="button"
+								onPress={goDeeper}
+								style={({ pressed }) => [
+									styles.chatButton,
+									pressed && { backgroundColor: colors.accentPressed },
+								]}
+							>
+								<Text style={styles.chatButtonLabel}>✦ Go deeper in chat</Text>
+							</Pressable>
+						</TimelineStop>
+					</View>
 				) : null}
 			</ScrollView>
 		</Screen>
@@ -259,7 +295,7 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.sm,
 		},
 		retryLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
-		verseCard: { padding: spacing.xl, gap: spacing.md },
+		verseCard: { padding: spacing.lg, gap: spacing.md },
 		reference: { color: c.accent, fontSize: 15, fontWeight: "700" },
 		verseText: {
 			color: c.text,
@@ -268,12 +304,40 @@ const createStyles = (c: Colors) =>
 			lineHeight: 30,
 		},
 		reason: { color: c.textMuted, fontSize: 13.5, lineHeight: 19, fontStyle: "italic" },
-		section: { marginTop: spacing.xl, gap: spacing.sm },
+		timeline: { marginTop: spacing.sm },
+		tlRow: { flexDirection: "row", gap: spacing.md },
+		tlRail: { width: 28, alignItems: "center" },
+		tlNode: {
+			width: 28,
+			height: 28,
+			borderRadius: 14,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+			// Subtle glow so the rail reads as lit, not drawn.
+			shadowColor: c.accent,
+			shadowOpacity: 0.5,
+			shadowRadius: 6,
+			shadowOffset: { width: 0, height: 0 },
+			elevation: 2,
+		},
+		tlNodeGlyph: { color: c.accent, fontSize: 13, fontWeight: "700" },
+		tlLine: {
+			flex: 1,
+			width: 2,
+			marginVertical: 4,
+			borderRadius: 1,
+			backgroundColor: c.accentBorder,
+		},
+		tlContent: { flex: 1, gap: spacing.sm, paddingBottom: spacing.xl },
 		sectionLabel: {
 			color: c.accentDim,
 			fontSize: 11.5,
 			fontWeight: "700",
 			letterSpacing: 1.2,
+			paddingTop: 6,
 		},
 		body: { color: c.textSecondary, fontSize: 14.5, lineHeight: 22 },
 		studyRow: {
@@ -283,27 +347,18 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 			paddingHorizontal: spacing.md,
 			paddingVertical: spacing.md,
-			marginTop: spacing.sm,
 			gap: 4,
 		},
 		studyReference: { color: c.accent, fontSize: 14, fontWeight: "700" },
 		studyFocus: { color: c.textSecondary, fontSize: 13.5, lineHeight: 19 },
 		questionCard: {
-			marginTop: spacing.xl,
 			padding: spacing.lg,
 			gap: spacing.sm,
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		questionLabel: {
-			color: c.accentDim,
-			fontSize: 11.5,
-			fontWeight: "700",
-			letterSpacing: 1.2,
-		},
 		questionText: { color: c.text, fontSize: 14.5, lineHeight: 22, fontWeight: "500" },
 		chatButton: {
-			marginTop: spacing.xl,
 			minHeight: 48,
 			borderRadius: radius.lg,
 			borderWidth: 1,
