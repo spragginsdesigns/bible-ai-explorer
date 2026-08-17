@@ -14,6 +14,10 @@ final class AppModel {
     /// Android keeps its bible stack mounted, so the book, chapter and pane must
     /// survive a trip through chat.
     let bible: BibleModel
+    /// Today's guided walk. Owned here for the same reason the reader is: the
+    /// Daily Cross pane dies whenever the sidebar moves, and re-fetching would
+    /// mean paying for a generation again just because the user glanced at chat.
+    let dailyCross: DailyCrossModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false
@@ -32,5 +36,6 @@ final class AppModel {
         )
         chat = ChatViewModel(api: api, settings: settings)
         bible = BibleModel(api: api)
+        dailyCross = DailyCrossModel(api: api)
     }
 }

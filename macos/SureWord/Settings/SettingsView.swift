@@ -44,6 +44,8 @@ struct SettingsView: View {
                     )
                 }
 
+                verseOfDaySection
+
                 memorySection
 
                 Section("Account") {
@@ -104,6 +106,50 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You can sign back in at any time.")
+        }
+    }
+
+    // MARK: - Verse of the Day
+
+    /// Mirrors Android's "Verse of the Day" card: the reminder toggle and the
+    /// hour it arrives. Unlike Android there is no push token to register —
+    /// the Mac schedules a local daily reminder and pulls the day when opened
+    /// (see `DailyCrossNotifications`).
+    @ViewBuilder
+    private var verseOfDaySection: some View {
+        @Bindable var settings = app.settings
+
+        Section("Verse of the Day") {
+            Toggle("Daily verse notification", isOn: $settings.verseOfDayEnabled)
+            hint(
+                "An AI-picked verse each morning, shaped by what you've been reading and "
+                    + "asking about. Pick Up Your Cross is always available in the sidebar."
+            )
+
+            if settings.verseOfDayEnabled {
+                LabeledContent("Arrives at") {
+                    HStack(spacing: Spacing.sm) {
+                        Button {
+                            settings.verseOfDayHour = (settings.verseOfDayHour + 23) % 24
+                        } label: {
+                            Text("−").frame(width: 20)
+                        }
+                        .accessibilityLabel("One hour earlier")
+
+                        Text(SettingsStore.formatHour(settings.verseOfDayHour))
+                            .font(.system(size: 12, weight: .semibold))
+                            .monospacedDigit()
+                            .frame(width: 72)
+
+                        Button {
+                            settings.verseOfDayHour = (settings.verseOfDayHour + 1) % 24
+                        } label: {
+                            Text("+").frame(width: 20)
+                        }
+                        .accessibilityLabel("One hour later")
+                    }
+                }
+            }
         }
     }
 

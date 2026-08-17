@@ -9,7 +9,7 @@ so they can be maintained without re-deriving the design.
 
 ## Tap-a-verse
 
-*Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS pending*
+*Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS 1.1.0 (2026-08-17)*
 
 Tapping a verse in the Bible reader opens the verse sheet and immediately
 streams a short AI explanation of that verse — what it says in its immediate
@@ -68,6 +68,19 @@ skeleton bars, streamed text with caret, error + retry) inside the existing
 `src/components/bible/ChapterReader.tsx` uses `animate-pulse` amber bars with
 `glow-amber-sm`. On Android both tap and long-press open the same sheet.
 
+The macOS port (`macos/SureWord/Bible/VerseInsight.swift` +
+`Views/VerseInsightView.swift`) keeps the same state machine and cache, and
+puts the explanation in a **panel pinned under the reader** instead of inline
+in the verse list. That placement is load-bearing, not cosmetic: streaming text
+into a row of the reader's `LazyVStack` made SwiftUI re-measure every verse in
+the chapter on every update, which pegged the main thread hard enough that the
+`URLSession` byte stream feeding it never got scheduled again — the explanation
+simply never arrived. Two related rules the Swift side has to keep: the byte
+loop runs **off** the main actor (a `Task` started from a `@MainActor` method
+inherits that isolation), and the skeleton bars carry **definite widths** — a
+shape has no intrinsic size, so a greedy one pulsing forever inside a scroll
+view keeps re-proposing its width.
+
 ### Extending it
 
 - macOS parity: port the two-hook pattern; the route needs nothing new.
@@ -79,7 +92,7 @@ skeleton bars, streamed text with caret, error + retry) inside the existing
 
 ## Pick Up Your Cross
 
-*Shipped 2026-08-17 · Android 1.14.0 + web · macOS pending*
+*Shipped 2026-08-17 · Android 1.14.0 + web + macOS 1.1.0*
 
 The personalized daily walk (Luke 9:23 — *"take up his cross daily"*; the
 name carries its own proof-text; short UI label "Daily Cross"). A morning
@@ -143,4 +156,10 @@ payloads with only a verse reference fall back to the reader.
 - Android: `mobile/app/(app)/cross.tsx` (+ ✝ entry card on the Bible tab)
 - Web: `src/app/cross/page.tsx` (+ ✝ entry card on `/bible`) — no browser
   push; the page is the parity surface
-- Settings: Android Settings → Verse of the Day (toggle + hour stepper)
+- macOS: `macos/SureWord/DailyCross/` — a sidebar section (⌘4) plus the ✝ card
+  above the Bible book list. No push token is registered (APNs needs the paid
+  Apple Developer Program), so the day is generated on demand at first open and
+  a local `UNCalendarNotificationTrigger` fires the morning reminder; clicking
+  it posts `.openDailyCross`, which selects the section.
+- Settings: Android Settings → Verse of the Day (toggle + hour stepper);
+  the same two controls on macOS

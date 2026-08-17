@@ -5,8 +5,11 @@ import SwiftUI
 /// Primary sections, matching Android's bottom tab bar
 /// (`mobile/app/(app)/_layout.tsx`) — laid out as a sidebar, which is the Mac
 /// idiom for the same thing.
+/// `cross` is declared last on purpose: `AppCommands` derives ⌘1…⌘n from this
+/// order, and inserting it next to `bible` would silently renumber shortcuts
+/// people already have in their fingers.
 enum AppSection: String, CaseIterable, Identifiable {
-    case chat, bible, notes
+    case chat, bible, notes, cross
 
     var id: String { rawValue }
 
@@ -15,6 +18,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .chat: "Chat"
         case .bible: "Bible"
         case .notes: "Notes"
+        case .cross: "Daily Cross"
         }
     }
 
@@ -23,6 +27,7 @@ enum AppSection: String, CaseIterable, Identifiable {
         case .chat: "sparkles"
         case .bible: "book.closed"
         case .notes: "note.text"
+        case .cross: "cross"
         }
     }
 }
@@ -45,6 +50,18 @@ struct MainWindow: View {
             detail
         }
         .task { await app.chat.loadConversations() }
+        // Keep the morning reminder in step with the settings, on every launch
+        // and on every change to either half of the preference.
+        .task(id: "\(app.settings.verseOfDayEnabled)-\(app.settings.verseOfDayHour)") {
+            await DailyCrossNotifications.sync(
+                enabled: app.settings.verseOfDayEnabled,
+                hour: app.settings.verseOfDayHour
+            )
+        }
+        // Clicking the morning notification lands here.
+        .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
+            app.section = .cross
+        }
         .sheet(isPresented: $chat.isHistoryPresented) {
             HistoryPicker()
         }
@@ -66,6 +83,8 @@ struct MainWindow: View {
             BibleSection()
         case .notes:
             NotesSection(api: app.api)
+        case .cross:
+            DailyCrossView()
         }
     }
 }

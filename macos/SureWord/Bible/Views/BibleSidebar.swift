@@ -5,6 +5,7 @@ import SwiftUI
 /// reference quick-jump; clearing the field brings the books back.
 struct BibleSidebar: View {
     @Environment(\.theme) private var theme
+    @Environment(AppModel.self) private var app
     @Bindable var model: BibleModel
 
     /// Collapsed testaments, remembered for as long as the section is alive —
@@ -18,6 +19,7 @@ struct BibleSidebar: View {
             if model.isSearching {
                 searchResults
             } else {
+                crossCard
                 bookList
             }
         }
@@ -29,6 +31,51 @@ struct BibleSidebar: View {
             guard !Task.isCancelled else { return }
             await model.runSearch()
         }
+    }
+
+    // MARK: - Daily Cross
+
+    /// The ✝ way in to today's guided walk, sitting above the books exactly as
+    /// it does on the Android Bible tab and the web `/bible` page. It is also a
+    /// sidebar section of its own here — a Mac has room for both, and this is
+    /// the entry point someone reading their Bible will actually see.
+    private var crossCard: some View {
+        Button {
+            app.section = .cross
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Text("✝")
+                    .font(.system(size: 18))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Pick Up Your Cross")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text("Today's word, chosen for your walk")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Text("›")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help("Today's word, chosen for your walk")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
     }
 
     // MARK: - Search

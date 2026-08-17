@@ -117,7 +117,9 @@ SureWord/
 ├── Auth/         ClerkKit sign-in, token bridge, Clerk theming
 ├── Networking/   APIClient, SSE + UI-message-stream decoder, JSONValue
 ├── Chat/         Message model, view model, cards, views, file attachments
-├── Bible/        Reader, bundled KJV data, NKJV fetch, offline search
+├── Bible/        Reader, bundled KJV data, NKJV fetch, offline search,
+│                Tap-a-verse explanation stream
+├── DailyCross/   "Pick Up Your Cross" timeline, reading history, reminder
 ├── Notes/        Notes list, lossless HTML rich-text editor, per-note AI
 ├── Memories/     Memory management (list, add, delete, summary)
 ├── Settings/     Persisted appearance + translation, memory toggle
@@ -176,10 +178,44 @@ release notes; the DMG background bakes the same hint in.
 
 ## Status
 
-Feature-complete at 1:1 parity with Android v1.10.0 as of 2026-08-12: chat
+At 1:1 parity with Android v1.14.0 as of 2026-08-17 (macOS 1.1.0): chat
 (streaming, tools, slash commands, verse/file attachments, save-to-note),
-Bible reader, Notes, Memories and Settings. `docs/PARITY.md` tracks every
-feature row across all three clients — keep its macOS column current.
+Bible reader with Tap-a-verse, "Pick Up Your Cross", Notes, Memories and
+Settings. The one outstanding gap is Android 1.11.0/1.12.0's BYOK provider
+settings and model picker — until that lands, macOS sends no `modelId` and the
+server falls back to the account default. `docs/PARITY.md` tracks every feature
+row across all three clients — keep its macOS column current.
+
+### The reader is a layout minefield — read this before touching it
+
+The chapter reader is a `LazyVStack` of custom-font `Text` inside a
+`ScrollView`, and measuring it is expensive. Anything that invalidates a verse
+row re-measures the whole chapter, and doing that continuously pegs the main
+thread — at which point the app still *draws* (its last frame) but stops
+handling clicks, stops answering the accessibility API, and starves its own
+`async` work. `sample <pid>` is how you tell: a healthy reader shows **zero**
+`LayoutEngineBox.sizeThatFits` frames on the main thread; a wedged one is
+nothing but those. Three ways this was hit while building 1.1.0:
+
+- **`.onHover` on every verse row** — hover tracking across a lazy list drove a
+  permanent layout loop. Removed; a verse is a `Button` instead.
+- **Streaming text into an open row** — every token re-measured the chapter.
+  The explanation now renders in a panel *outside* the scroll view.
+- **Greedy shapes that pulse** — a `Capsule` has no intrinsic size, so a
+  `maxWidth: .infinity` one inside a `repeatForever` animation keeps
+  re-proposing its width. The skeleton bars carry definite widths.
+
+Also note `.textSelection(.enabled)` is deliberately **absent** from the verse
+text: a selectable `Text` on macOS owns the whole text region and swallows both
+left- and right-clicks, which silently made every verse action — and later
+Tap-a-verse — unreachable anywhere except the few points of padding around the
+words. Copy lives in the verse panel and the context menu instead.
+
+A related rule for anything streaming: a `Task` started from a `@MainActor`
+method inherits that isolation, so draining `URLSession.AsyncBytes` in one runs
+the whole byte loop on the main thread. `VerseInsight.snapshots` and
+`UIMessageStream.lines` both hand assembly to a non-isolated task and hop back
+only to publish.
 
 Two testing hazards worth knowing before driving the app programmatically:
 
@@ -190,3 +226,7 @@ Two testing hazards worth knowing before driving the app programmatically:
 - The unit tests run inside the app (`TEST_HOST`), so anything that touches
   `UserDefaults.standard` in a test is touching the real app domain — inject a
   suite instead (see `BibleModelTests`).
+- `System Events`' `click at {x, y}` frequently hits a static text and does
+  nothing. `cliclick c:<x>,<y>` works, and the sidebar sections answer to
+  ⌘1–⌘4. Coordinates are logical points — halve the pixel coordinates read off
+  a Retina `screencapture`.

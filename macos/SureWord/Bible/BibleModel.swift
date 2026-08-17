@@ -17,6 +17,9 @@ final class BibleModel {
     static let searchLimit = KJVLibrary.defaultSearchLimit
     static let searchDebounce = Duration.milliseconds(300)
     static let highlightDuration = Duration.milliseconds(2400)
+    /// A chapter must stay on screen this long before it counts as read,
+    /// matching `READ_EVENT_DELAY_MS` in the Android reader.
+    static let readEventDelay = Duration.seconds(5)
 
     private enum Key {
         static let fontStep = "bible.fontStep"
@@ -47,8 +50,8 @@ final class BibleModel {
     /// Verse the pending deep link wants brought into view; cleared once flashed.
     var pendingVerse: Int?
     var highlightedVerse: Int?
-    /// Verse whose inline action row is open (the Mac stand-in for Android's
-    /// long-press sheet).
+    /// Verse whose panel is open under the reader — the Mac stand-in for
+    /// Android's tap-a-verse bottom sheet.
     var actionVerse: Int?
     var toast: String?
 
@@ -65,6 +68,11 @@ final class BibleModel {
 
     // MARK: Collaborators
 
+    /// Tap-a-verse. One per reader, because only one verse's panel is open at
+    /// a time — opening another verse supersedes the stream rather than
+    /// running a second one.
+    let insight: VerseInsightModel
+
     private let api: APIClient
     /// Where `fontStep` is persisted. Injected so the tests can hand in a
     /// throwaway suite: under `TEST_HOST` `.standard` *is* the shipping app's
@@ -73,10 +81,15 @@ final class BibleModel {
     private var saveTask: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var flashTask: Task<Void, Never>?
+    /// Chapters already reported this session, so a re-render or paging back
+    /// doesn't re-post. The server dedupes within the hour as well; this just
+    /// keeps the app from making the call at all.
+    private var recordedReads: Set<String> = []
 
     init(api: APIClient, defaults: UserDefaults = .standard) {
         self.api = api
         self.defaults = defaults
+        insight = VerseInsightModel(api: api)
         let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
     }
@@ -245,10 +258,55 @@ final class BibleModel {
         return "\(searchHits.count) result\(searchHits.count == 1 ? "" : "s")"
     }
 
+    // MARK: - Reading history
+
+    /// Report that the current chapter was read — the history that shapes which
+    /// verse "Pick Up Your Cross" picks. The caller waits `readEventDelay`
+    /// first, so a chapter merely paged through never counts.
+    ///
+    /// Fire-and-forget by design: this is a background nicety, and a failure
+    /// must never surface in the reader.
+    func recordRead(translation: TranslationID) {
+        guard let book, loadedKey == chapterKey(translation) else { return }
+        let key = chapterKey(translation)
+        guard !recordedReads.contains(key) else { return }
+        recordedReads.insert(key)
+
+        let name = book.name
+        let chapter = chapter
+        Task { [api] in
+            try? await DailyCrossAPI.recordReading(
+                api: api,
+                book: name,
+                chapter: chapter,
+                translation: translation
+            )
+        }
+    }
+
     // MARK: - Verse actions
+
+    /// Open a verse's panel and start streaming its explanation — Tap-a-verse.
+    /// Clicking the open verse again closes it, which is what makes this the
+    /// toggle the reader calls on every click.
+    func toggleVerse(_ number: Int, translation: TranslationID) {
+        guard actionVerse != number else {
+            dismissVerseActions()
+            return
+        }
+        actionVerse = number
+        insight.start(
+            VerseInsightModel.Target(
+                reference: verseReference(number),
+                text: verseText(number),
+                translation: translation
+            )
+        )
+    }
 
     func dismissVerseActions() {
         actionVerse = nil
+        insight.reset()
     }
 
     func attachment(reference: String, text: String, translation: TranslationID) -> VerseAttachment {

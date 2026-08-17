@@ -1,6 +1,7 @@
 import ClerkKit
 import ClerkKitUI
 import SwiftUI
+import UserNotifications
 
 @main
 struct SureWordApp: App {
@@ -65,6 +66,12 @@ struct SureWordApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Must be set before any notification can be delivered, or a click on
+        // the morning reminder does nothing but foreground the app.
+        UNUserNotificationCenter.current().delegate = self
+    }
+
     /// Reopen a window when the app is activated with none open. If SureWord is
     /// force-quit, macOS saves "no windows" and the next launch restores exactly
     /// that — the app runs with no UI at all and looks broken. Clicking the Dock
@@ -74,6 +81,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Show the reminder even when SureWord is the frontmost app — without
+    /// this macOS suppresses it, and a user sitting in the app at 8am would
+    /// never learn their day was ready.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        NotificationCenter.default.post(name: .openDailyCross, object: nil)
+        completionHandler()
+    }
 }
 
 /// Holds the signed-in `AppModel` so the menu commands can reach it from the
