@@ -242,3 +242,9 @@ invalidation protocol.
 - "↻ A different word for today" at the end of the timeline on all three Daily
   Cross screens: confirm, optionally type a focus, and the day is prepared again
   in place.
+- **macOS needs one extra wire.** Android and web rebuild (and refetch) their
+  Daily Cross screen on every visit, so a replace made from chat is picked up
+  for free. `DailyCrossModel` deliberately outlives the sidebar, so it would go
+  on showing the word that was just replaced — `ChatView` fires
+  `onCrossReplaced` when a `crossActions` receipt lands, and `MainWindow` drops
+  the cached day.

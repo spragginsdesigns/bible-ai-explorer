@@ -82,7 +82,8 @@ struct MainWindow: View {
                 onOpenCross: {
                     app.section = .cross
                     app.dailyCross.load(force: true)
-                }
+                },
+                onCrossReplaced: { app.dailyCross.invalidate() }
             ) { verse in
                 app.section = .bible
                 app.pendingVerseReference = verse.reference

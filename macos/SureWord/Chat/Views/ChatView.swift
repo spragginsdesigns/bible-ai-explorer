@@ -8,6 +8,9 @@ struct ChatView: View {
     /// Open the Daily Cross section — the receipt card's destination after the
     /// assistant replaces today's word.
     var onOpenCross: () -> Void
+    /// Fired when an answer replaced today's word, so the cached day can be
+    /// dropped before the user reaches the Daily Cross section.
+    var onCrossReplaced: () -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
     @State private var toast: String?
@@ -121,6 +124,11 @@ struct ChatView: View {
                 withAnimation(.easeOut(duration: 0.15)) {
                     proxy.scrollTo(id, anchor: .bottom)
                 }
+            }
+            // The assistant just replaced today's word, so the cached day the
+            // sidebar would show is now the old one.
+            .onChange(of: chat.messages.last?.crossActions.last?.reference) { _, reference in
+                if reference != nil { onCrossReplaced() }
             }
         }
     }

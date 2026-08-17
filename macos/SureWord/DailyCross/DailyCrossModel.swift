@@ -46,6 +46,18 @@ final class DailyCrossModel {
         }
     }
 
+    /// Drop the cached day so the next `load()` goes back to the server. Called
+    /// when this session's chat replaced the day: unlike the other clients,
+    /// whose Daily Cross screens are rebuilt (and refetched) on every visit,
+    /// this model survives the sidebar, so it would otherwise keep showing the
+    /// word that was just replaced.
+    func invalidate() {
+        task?.cancel()
+        entry = nil
+        error = nil
+        isLoading = false
+    }
+
     /// Replace today's word with a newly prepared one, optionally centred on
     /// what the user typed. The old entry is dropped first so the screen shows
     /// the preparing state rather than the day being replaced.
