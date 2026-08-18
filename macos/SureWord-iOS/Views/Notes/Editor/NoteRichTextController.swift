@@ -1,20 +1,25 @@
-import AppKit
 import SwiftUI
+import UIKit
 
 /// Owns the note editor's text view and every formatting command the toolbar
-/// exposes — the macOS counterpart of TenTap's `Toolbar` on Android and the
-/// Tiptap `EditorToolbar` on the web, covering the same vocabulary those two
-/// can produce.
+/// exposes — the iOS counterpart of the macOS `NoteRichTextController`, over a
+/// `UITextView` instead of an `NSTextView`. Same document model, same private
+/// attribute keys, same HTML contract: the iOS port of TenTap's `Toolbar` on
+/// Android, covering the same vocabulary those clients can produce.
 ///
-/// Two different strategies, on purpose:
+/// Two different strategies, on purpose (same split as the Mac):
 ///
 /// - **Inline marks** are applied by restyling the selected range in place.
-///   They change no characters, so the text view's own undo stack handles them
-///   and typing stays responsive.
+///   They change no characters, so typing stays responsive.
 /// - **Block structure** (headings, lists, quotes, code blocks) goes through
 ///   the document model and re-renders. Block changes are rare, and doing them
 ///   on the model is what makes "wrap these three paragraphs in one list" a
 ///   three-line operation instead of an attributed-string puzzle.
+///
+/// Serialising for a save reads the model back out of the text storage rather
+/// than round-tripping UIKit's HTML importer — that path would rewrite every
+/// tag into WebKit's CSS-laden dialect, which is precisely the destruction the
+/// shared model exists to avoid.
 @MainActor
 @Observable
 final class NoteRichTextController {
@@ -24,7 +29,7 @@ final class NoteRichTextController {
     /// The block at the caret, for the heading/list/quote pressed states.
     private(set) var activeBlock = NoteBlock()
     /// Whether the caret's item can be nested one level deeper / lifted one
-    /// level out — drives both the toolbar buttons and Tab / Shift-Tab.
+    /// level out — drives the toolbar buttons.
     private(set) var canIndentList = false
     private(set) var canOutdentList = false
 
@@ -70,7 +75,7 @@ final class NoteRichTextController {
         pendingHTML = nil
         let document = NoteHTMLParser.parse(html)
         ids = NoteContainerIDGenerator(after: document)
-        render(document, selection: NSRange(location: 0, length: 0), registersUndo: false)
+        render(document, selection: NSRange(location: 0, length: 0))
     }
 
     /// True once a document has actually reached the text view. The editor
@@ -89,17 +94,18 @@ final class NoteRichTextController {
     }
 
     func currentDocument() -> NoteDocument {
-        guard let textView, let storage = textView.textStorage else { return .empty }
+        guard let textView else { return .empty }
         let trailing = (textView.typingAttributes[NoteAttributedText.blockKey]
             as? NoteAttributedText.BlockBox)?.block
-        return NoteAttributedText.document(from: storage, trailingBlock: trailing)
+        return NoteAttributedText.document(from: textView.textStorage, trailingBlock: trailing)
     }
 
     // MARK: - Inline marks
 
     func toggle(_ kind: NoteMark.Kind) {
-        guard let textView, let storage = textView.textStorage else { return }
-        let selection = textView.selectedRange()
+        guard let textView else { return }
+        let storage = textView.textStorage
+        let selection = textView.selectedRange
 
         guard selection.length > 0 else {
             toggleTypingMark(kind)
@@ -107,7 +113,6 @@ final class NoteRichTextController {
         }
 
         let shouldRemove = marksCoverSelection(kind, in: storage, range: selection)
-        guard textView.shouldChangeText(in: selection, replacementString: nil) else { return }
 
         storage.beginEditing()
         storage.enumerateAttribute(NoteAttributedText.marksKey, in: selection) { value, subrange, _ in
@@ -124,7 +129,6 @@ final class NoteRichTextController {
             )
         }
         storage.endEditing()
-        textView.didChangeText()
         refreshState()
         notifyChange()
     }
@@ -132,10 +136,10 @@ final class NoteRichTextController {
     /// A link needs a value, so it is set rather than toggled. Passing `nil`
     /// removes it.
     func setLink(_ href: String?) {
-        guard let textView, let storage = textView.textStorage else { return }
-        let selection = textView.selectedRange()
+        guard let textView else { return }
+        let storage = textView.textStorage
+        let selection = textView.selectedRange
         guard selection.length > 0 else { return }
-        guard textView.shouldChangeText(in: selection, replacementString: nil) else { return }
 
         storage.beginEditing()
         storage.enumerateAttribute(NoteAttributedText.marksKey, in: selection) { value, subrange, _ in
@@ -151,7 +155,6 @@ final class NoteRichTextController {
             )
         }
         storage.endEditing()
-        textView.didChangeText()
         refreshState()
         notifyChange()
     }
@@ -248,7 +251,7 @@ final class NoteRichTextController {
     // MARK: - List nesting
 
     /// Nest the selected items one level deeper, the way TenTap's indent button
-    /// does on Android. Also bound to Tab.
+    /// does on Android.
     func indentList() {
         var generator = ids
         mutateBlocks { blocks, range in
@@ -275,8 +278,6 @@ final class NoteRichTextController {
         ids = generator
     }
 
-    /// Tab and Shift-Tab only take over while the caret is in a list — anywhere
-    /// else they keep their normal meaning.
     func indentListIfPossible() -> Bool {
         guard canIndentList else { return false }
         indentList()
@@ -359,7 +360,7 @@ final class NoteRichTextController {
     }
 
     /// Flip a task item's checkbox. `offset` is the character offset of the
-    /// paragraph the user clicked, which is what `NoteTextView` hands back.
+    /// paragraph the user tapped, which is what `NoteTextView` hands back.
     func toggleTask(atParagraphOffset offset: Int) {
         var document = currentDocument()
         let starts = Self.paragraphStarts(of: document)
@@ -377,20 +378,17 @@ final class NoteRichTextController {
             document.blocks[blockIndex].containers[position].isChecked = checked
         }
 
-        render(
-            document,
-            selection: textView?.selectedRange() ?? NSRange(location: 0, length: 0),
-            registersUndo: true
-        )
+        render(document, selection: textView?.selectedRange ?? NSRange(location: 0, length: 0))
         notifyChange()
     }
 
     /// Return on an empty list item leaves the list, the way every list editor
     /// behaves — without it there is no way out of a list from the keyboard.
-    /// Returns true when it handled the key.
+    /// Returns true when it handled the key (the delegate must reject the
+    /// insertion, since the re-render already replaced the document).
     func handleReturnOutOfEmptyListItem() -> Bool {
         guard let textView else { return false }
-        let selection = textView.selectedRange()
+        let selection = textView.selectedRange
         guard selection.length == 0 else { return false }
 
         let document = currentDocument()
@@ -402,7 +400,7 @@ final class NoteRichTextController {
 
         var updated = document
         updated.blocks[index].containers.removeAll { $0.isList || $0.kind == .listItem }
-        render(updated, selection: selection, registersUndo: true)
+        render(updated, selection: selection)
         notifyChange()
         return true
     }
@@ -411,7 +409,7 @@ final class NoteRichTextController {
 
     private func mutateBlocks(_ transform: (inout [NoteBlock], Range<Int>) -> Void) {
         guard let textView else { return }
-        let selection = textView.selectedRange()
+        let selection = textView.selectedRange
         var document = currentDocument()
         guard !document.blocks.isEmpty else { return }
 
@@ -424,28 +422,45 @@ final class NoteRichTextController {
         ) ?? lower
 
         transform(&document.blocks, lower..<(max(upper, lower) + 1))
-        render(document, selection: selection, registersUndo: true)
+        render(document, selection: selection)
         notifyChange()
     }
 
-    private func render(_ document: NoteDocument, selection: NSRange, registersUndo: Bool) {
-        guard let textView, let storage = textView.textStorage else { return }
+    /// Replaces the whole text storage with the re-rendered document.
+    ///
+    /// Unlike the macOS original this does not consult the delegate or register
+    /// with the undo manager: these are programmatic structural edits, and
+    /// UIKit's typing undo does not track storage replacement anyway.
+    private func render(_ document: NoteDocument, selection: NSRange) {
+        guard let textView else { return }
+        let storage = textView.textStorage
         let attributed = NoteAttributedText.attributedString(for: document, theme: theme)
 
         isRendering = true
         defer { isRendering = false }
 
-        let full = NSRange(location: 0, length: storage.length)
-        if registersUndo, !textView.shouldChangeText(in: full, replacementString: nil) { return }
-
         storage.beginEditing()
         storage.setAttributedString(attributed)
         storage.endEditing()
-        if registersUndo { textView.didChangeText() }
 
         let location = min(selection.location, attributed.length)
         let length = min(selection.length, attributed.length - location)
-        textView.setSelectedRange(NSRange(location: location, length: length))
+        textView.selectedRange = NSRange(location: location, length: length)
+
+        // UITextView recomputes its typing attributes after the storage swap
+        // and strips the private block/mark keys when it does — and for an
+        // empty trailing paragraph there is no character to recompute them
+        // from at all. Pin them from the document instead: the caret's block,
+        // marks cleared (a fresh paragraph does not inherit marks, matching
+        // the Mac, whose separator newlines carry no marks either).
+        let starts = Self.paragraphStarts(of: document)
+        if let index = Self.blockIndex(containing: location, in: starts, document: document),
+           document.blocks.indices.contains(index) {
+            textView.typingAttributes = NoteAttributedText.attributes(
+                for: document.blocks[index],
+                theme: theme
+            )
+        }
 
         updateDecorations(for: document)
         refreshState(document: document)
@@ -457,14 +472,14 @@ final class NoteRichTextController {
         guard textView != nil else { return }
         render(
             currentDocument(),
-            selection: textView?.selectedRange() ?? NSRange(location: 0, length: 0),
-            registersUndo: false
+            selection: textView?.selectedRange ?? NSRange(location: 0, length: 0)
         )
     }
 
     /// Called by the coordinator after the user types.
     func textDidChange() {
         guard !isRendering else { return }
+        restoreTypingAttributes()
         let document = currentDocument()
         updateDecorations(for: document)
         // Hand the document over rather than letting `refreshState` extract a
@@ -475,7 +490,54 @@ final class NoteRichTextController {
 
     func selectionDidChange() {
         guard !isRendering else { return }
+        restoreTypingAttributes()
         refreshState()
+    }
+
+    /// UITextView recomputes its typing attributes from the character before
+    /// the caret on selection changes and strips the private block/mark keys
+    /// when it does. Left alone, typing inside bold text would *render* bold
+    /// (the UIFont trait survives) but serialise without the `<strong>`.
+    /// Restoring the neighbour's full attribute set keeps the semantic model
+    /// attached to the caret.
+    ///
+    /// Two deliberate exceptions:
+    /// - **Empty paragraphs keep a pinned context.** Their block was pinned by
+    ///   `render` (their only storage character, the terminating newline,
+    ///   belongs to the *previous* block, so a naive restore would resurrect
+    ///   the structure of a list the user just left), and keeping it also
+    ///   preserves a mark the user explicitly toggled at the caret. If UIKit
+    ///   stripped the keys anyway, the neighbour restore still runs — that is
+    ///   what NSTextView's typing attributes produce on the Mac in the same
+    ///   spot.
+    /// - A neighbour without our keys (foreign paste, for instance) never
+    ///   clobbers a pinned context.
+    private func restoreTypingAttributes() {
+        guard let textView else { return }
+        let storage = textView.textStorage
+        guard textView.selectedRange.length == 0, storage.length > 0 else { return }
+
+        let caret = min(textView.selectedRange.location, storage.length)
+        let paragraph = (storage.string as NSString).paragraphRange(
+            for: NSRange(location: caret, length: 0)
+        )
+        // An empty paragraph is just its terminating newline (or nothing, at
+        // the very end), and that newline belongs to the *previous* block —
+        // so when the caret's context was pinned by `render` (or a mark was
+        // explicitly toggled), keep it rather than resurrecting the structure
+        // of a list the user just left. If UIKit stripped the keys anyway,
+        // fall through to the neighbour, which is what NSTextView's typing
+        // attributes produce on the Mac in the same spot.
+        if paragraph.length <= 1,
+           textView.typingAttributes[NoteAttributedText.blockKey] != nil {
+            return
+        }
+
+        let probe = caret > 0 ? caret - 1 : 0
+        guard probe < storage.length else { return }
+        let attributes = storage.attributes(at: probe, effectiveRange: nil)
+        guard attributes[NoteAttributedText.blockKey] != nil else { return }
+        textView.typingAttributes = attributes
     }
 
     private func notifyChange() {
@@ -505,8 +567,9 @@ final class NoteRichTextController {
     }
 
     private func refreshState(document: NoteDocument? = nil) {
-        guard let textView, let storage = textView.textStorage else { return }
-        let selection = textView.selectedRange()
+        guard let textView else { return }
+        let storage = textView.textStorage
+        let selection = textView.selectedRange
 
         if selection.length > 0 {
             var kinds: Set<NoteMark.Kind> = Set(NoteMark.Kind.allCases)
@@ -552,17 +615,11 @@ final class NoteRichTextController {
             as? NoteAttributedText.BlockBox)?.block
     }
 
-    // MARK: - Nesting mechanics
+    // MARK: - Shared editing primitives
 
-    /// All of the nesting and offset logic is pure and lives in the shared
-    /// `NoteListEditing`, because the thing that has to be right about it is
-    /// the *HTML it produces* — `<ul><li><p>a</p><ul><li><p>b</p></li></ul></li></ul>`,
-    /// with the nested list inside the previous item, exactly as Tiptap and
-    /// TenTap write it. These forwarders keep the call sites (and the test
-    /// suite) on this controller while the iOS controller shares the same
-    /// implementation, so an indent produces byte-identical markup on all three
-    /// clients.
-
+    /// The pure operations live in `NoteListEditing` (Shared/) so the macOS and
+    /// iOS controllers produce byte-identical HTML; these forwarders keep call
+    /// sites and tests on the controller, mirroring the macOS API.
     nonisolated static func makeList(
         kind: NoteContainer.Kind,
         ids: inout NoteContainerIDGenerator
@@ -575,20 +632,6 @@ final class NoteRichTextController {
         ids: inout NoteContainerIDGenerator
     ) -> NoteContainer {
         NoteListEditing.makeListItem(kind: kind, ids: &ids)
-    }
-
-    nonisolated static func containerPrefix(
-        _ containers: [NoteContainer],
-        upToListDepth depth: Int
-    ) -> [NoteContainer] {
-        NoteListEditing.containerPrefix(containers, upToListDepth: depth)
-    }
-
-    nonisolated static func listContainer(
-        _ containers: [NoteContainer],
-        atDepth depth: Int
-    ) -> NoteContainer? {
-        NoteListEditing.listContainer(containers, atDepth: depth)
     }
 
     nonisolated static func canIndent(_ blocks: [NoteBlock], at index: Int) -> Bool {
@@ -611,8 +654,6 @@ final class NoteRichTextController {
         NoteListEditing.outdent(&blocks, at: index, ids: &ids)
     }
 
-    /// Character offset each block starts at, in UTF-16 units — the unit
-    /// `NSRange` and `NSTextStorage` count in.
     nonisolated static func paragraphStarts(of document: NoteDocument) -> [Int] {
         NoteListEditing.paragraphStarts(of: document)
     }

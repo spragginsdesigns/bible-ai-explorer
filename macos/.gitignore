@@ -2,9 +2,12 @@
 # project.yml is the source of truth; tracking these invites drift.
 *.xcodeproj/
 SureWord/Info.plist
+SureWord-iOS/Info.plist
 
 # Xcode build products & user state
 build/
+build-ios/
+build-*/
 DerivedData/
 *.xcworkspace/xcuserdata/
 xcuserdata/

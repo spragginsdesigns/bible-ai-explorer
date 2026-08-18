@@ -9,6 +9,7 @@ options:
   bundleIdPrefix: com.spragginsdesigns
   deploymentTarget:
     macOS: "15.0"
+    iOS: "26.0"
   createIntermediateGroups: true
   developmentLanguage: en
   groupSortPosition: top
@@ -48,6 +49,7 @@ targets:
     platform: macOS
     sources:
       - path: SureWord
+      - path: Shared
     dependencies:
       - package: Clerk
         product: ClerkKit
@@ -104,6 +106,69 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  # iOS client. Shares everything under Shared/ with the macOS target — same
+  # module layout, so no import changes either side. Only the shell
+  # (SureWord-iOS/) is platform-specific; later lanes build the real UI there.
+  SureWord-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Shared
+      - path: SureWord-iOS
+    dependencies:
+      - package: Clerk
+        product: ClerkKit
+      - package: Clerk
+        product: ClerkKitUI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword
+        PRODUCT_NAME: SureWord
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        # Single 1024 master in SureWord-iOS/Assets.xcassets — the same
+        # full-bleed artwork as mobile/assets/icon.png (the brand master).
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    info:
+      path: SureWord-iOS/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.reference
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        # Same OAuth return scheme as the other clients — see the SureWord
+        # target's note and the Clerk dashboard's redirect allowlist.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.spragginsdesigns.sureword
+            CFBundleURLSchemes: [sureword]
+        # Strings match mobile/app.json's expo-image-picker plugin config.
+        NSCameraUsageDescription: "Allow SureWord to take photos for your AI conversations."
+        NSPhotoLibraryUsageDescription: "Allow SureWord to attach photos to your AI conversations."
+        # Brand fonts from Shared/Resources/Fonts, copied flat into the bundle.
+        UIAppFonts:
+          - PirataOne-Regular.ttf
+          - CormorantGaramond-Medium.ttf
+          - CormorantGaramond-MediumItalic.ttf
+        # No launch storyboard — SwiftUI builds the launch screen from this.
+        UILaunchScreen: {}
+
+  SureWord-iOSTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SureWord-iOSTests
+    dependencies:
+      - target: SureWord-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.ios-tests
+        GENERATE_INFOPLIST_FILE: YES
+        # The app target is named SureWord-iOS but its PRODUCT_NAME is SureWord,
+        # so the default $(TARGET_NAME)-based host path misses the real binary.
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SureWord.app/SureWord"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
 schemes:
   SureWord:
     build:
@@ -115,3 +180,13 @@ schemes:
       config: Debug
       targets:
         - SureWordTests
+  SureWord-iOS:
+    build:
+      targets:
+        SureWord-iOS: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - SureWord-iOSTests
