@@ -52,14 +52,11 @@ const fallback = (): SuggestedQuestions => ({
 	personalized: false,
 });
 
-/**
- * Trim, drop the malformed, dedupe, and top up from the static set so callers
- * always get a full grid even when the model returns four good ones.
- */
-function sanitize(questions: string[]): string[] {
+/** Trim, drop the malformed, dedupe, and stop at a full grid. */
+function sanitize(candidates: string[]): string[] {
 	const cleaned: string[] = [];
 	const seen = new Set<string>();
-	for (const candidate of [...questions, ...commonQuestions]) {
+	for (const candidate of candidates) {
 		const question = candidate.trim().replace(/^["'`]|["'`]$/g, "").trim();
 		if (!question || question.length > MAX_QUESTION_LENGTH) continue;
 		const key = question.toLowerCase();
@@ -105,9 +102,25 @@ export async function generateSuggestedQuestions(userId: string): Promise<Sugges
 		});
 		if (!output) throw new Error("The model returned no questions.");
 
-		const questions = sanitize(output.questions);
-		if (questions.length === 0) return fallback();
-		return { questions, personalized: true };
+		const fromModel = sanitize(output.questions);
+		if (fromModel.length === 0) return fallback();
+		// Worth a line in the log: silently serving mostly-static chips because
+		// the model wrote paragraphs looks identical, from the outside, to a user
+		// who simply has no history yet.
+		if (fromModel.length < output.questions.length) {
+			console.warn(
+				`[suggested-questions] Dropped ${output.questions.length - fromModel.length} of ${output.questions.length} generated questions (empty, over ${MAX_QUESTION_LENGTH} chars, or duplicated) for user ${userId}.`
+			);
+		}
+		return {
+			// Top up from the static set so the grid is always full, even when the
+			// model returns four good ones.
+			questions:
+				fromModel.length >= SUGGESTED_QUESTION_COUNT
+					? fromModel
+					: sanitize([...fromModel, ...commonQuestions]),
+			personalized: true,
+		};
 	} catch (error) {
 		console.error(`[suggested-questions] Generation failed for user ${userId}; using defaults:`, error);
 		return fallback();
