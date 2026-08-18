@@ -59,6 +59,11 @@ async function sendPushMessages(messages: PendingPush[]): Promise<number> {
 						title: message.title,
 						body: message.body,
 						data: message.data,
+						// High priority so FCM delivers during Doze instead of
+						// holding the morning verse until a maintenance window;
+						// channelId routes it to the app's verse-of-day channel.
+						priority: "high",
+						channelId: "verse-of-day",
 					}))
 				),
 			});
@@ -70,9 +75,15 @@ async function sendPushMessages(messages: PendingPush[]): Promise<number> {
 			const receipt = (await response.json()) as { data?: ExpoPushTicket[] };
 			const tickets = Array.isArray(receipt.data) ? receipt.data : [];
 			for (let index = 0; index < tickets.length; index++) {
-				if (tickets[index]?.status === "error" && tickets[index]?.details?.error === "DeviceNotRegistered") {
+				const ticket = tickets[index];
+				if (ticket?.status !== "error") continue;
+				if (ticket.details?.error === "DeviceNotRegistered") {
 					await prisma.pushToken.delete({ where: { id: chunk[index].tokenId } }).catch(() => {});
 					deactivated += 1;
+				} else {
+					// Non-fatal ticket errors (InvalidCredentials, rate limits, …)
+					// must be visible in logs; today they would vanish silently.
+					console.error(`[cron/verse-of-day] Push ticket error:`, ticket.details ?? ticket);
 				}
 			}
 		} catch (error) {

@@ -8,6 +8,7 @@ import { File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
+import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
 import {
@@ -18,7 +19,7 @@ import {
 	uploadChatAttachments,
 	validateLocalAttachmentBatch,
 } from "./fileAttachments";
-import { pastedImageFilename, pastedImageMediaType } from "./pastedImages";
+import { pastedImageMetadata, type PastedImageFile } from "./pastedImages";
 
 export interface Conversation {
 	id: string;
@@ -51,7 +52,7 @@ export interface SureWordChat {
 	chooseImages: () => Promise<void>;
 	chooseFiles: () => Promise<void>;
 	pasteImage: () => Promise<void>;
-	attachPastedImages: (uris: string[]) => Promise<void>;
+	attachPastedImages: (files: PastedImageFile[], nativeError?: string) => Promise<void>;
 	removeFileAttachment: (id: string) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
 	stop: () => void;
@@ -190,36 +191,47 @@ export function useSureWordChat(): SureWordChat {
 		}
 	}, [addLocalAttachments]);
 
+	const attachPastedImages = useCallback(async (
+		files: PastedImageFile[],
+		nativeError?: string,
+	) => {
+		if (nativeError) {
+			setAttachmentError(`Could not paste the keyboard image: ${nativeError}`);
+			return;
+		}
+		const timestamp = Date.now();
+		try {
+			await addLocalAttachments(files.map((file, index) =>
+				normalizeLocalAttachment(pastedImageMetadata(file, index, timestamp))
+			));
+		} catch (error) {
+			setAttachmentError(error instanceof Error ? error.message : "Could not paste the keyboard image.");
+		}
+	}, [addLocalAttachments]);
+
 	const pasteImage = useCallback(async () => {
 		try {
+			const androidImages = await getAndroidClipboardImages();
+			if (androidImages && androidImages.length > 0) {
+				await attachPastedImages(androidImages);
+				return;
+			}
+
 			const image = await Clipboard.getImageAsync({ format: "png" });
 			if (!image) throw new Error("There isn't an image on the clipboard.");
 			const file = new File(Paths.cache, `clipboard-${Date.now()}.png`);
 			file.create({ overwrite: true });
 			file.write(image.data.split(",", 2)[1], { encoding: "base64" });
-			await addLocalAttachments([normalizeLocalAttachment({
+			await attachPastedImages([{
 				uri: file.uri,
-				filename: file.name,
-				mediaType: "image/png",
-				size: file.size,
-			})]);
+				fileName: file.name,
+				type: "image/png",
+				fileSize: file.size,
+			}]);
 		} catch (error) {
 			setAttachmentError(error instanceof Error ? error.message : "Could not paste the clipboard image.");
 		}
-	}, [addLocalAttachments]);
-
-	const attachPastedImages = useCallback(async (uris: string[]) => {
-		const timestamp = Date.now();
-		try {
-			await addLocalAttachments(uris.map((uri, index) => normalizeLocalAttachment({
-				uri,
-				filename: pastedImageFilename(uri, index, timestamp),
-				mediaType: pastedImageMediaType(uri),
-			})));
-		} catch (error) {
-			setAttachmentError(error instanceof Error ? error.message : "Could not paste the keyboard image.");
-		}
-	}, [addLocalAttachments]);
+	}, [attachPastedImages]);
 
 	const removeFileAttachment = useCallback(async (id: string) => {
 		try {

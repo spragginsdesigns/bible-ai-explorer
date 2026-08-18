@@ -232,7 +232,7 @@ export default function ChatScreen() {
 						onChooseImages={() => void chat.chooseImages()}
 						onChooseFiles={() => void chat.chooseFiles()}
 						onPasteImage={() => void chat.pasteImage()}
-						onPasteImages={(uris) => void chat.attachPastedImages(uris)}
+						onPasteImages={(files, error) => void chat.attachPastedImages(files, error)}
 						onRemoveFileAttachment={(id) => void chat.removeFileAttachment(id)}
 						focusSignal={focusSignal}
 					/>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	pastedImageFilename,
+	pastedImageMetadata,
 	pastedImageMediaType,
 } from "./pastedImages";
 
@@ -21,5 +22,29 @@ describe("Gboard pasted image metadata", () => {
 		expect(pastedImageFilename(uri, 1, 1720000000000)).toBe(
 			"clipboard-1720000000000-2.png",
 		);
+	});
+
+	it("uses the native MIME type instead of guessing from a content URI", () => {
+		expect(pastedImageMetadata({
+			uri: "content://com.google.android.inputmethod.latin/clipboard/42",
+			fileName: "42",
+			fileSize: 4096,
+			type: "image/jpeg",
+		}, 0, 1720000000000)).toEqual({
+			uri: "content://com.google.android.inputmethod.latin/clipboard/42",
+			filename: "clipboard-1720000000000.jpg",
+			mediaType: "image/jpeg",
+			size: 4096,
+		});
+	});
+
+	it("normalizes Android's image/jpg alias", () => {
+		expect(pastedImageMetadata({
+			uri: "file:///cache/gboard-image",
+			type: "image/jpg",
+		}, 1, 1720000000000)).toMatchObject({
+			filename: "clipboard-1720000000000-2.jpg",
+			mediaType: "image/jpeg",
+		});
 	});
 });

@@ -19,13 +19,16 @@
 		},
 		"android": {
 			"package": "com.spragginsdesigns.sureword",
-			"versionCode": 7,
+			"versionCode": 10,
+			"googleServicesFile": "./google-services.json",
 			"adaptiveIcon": {
 				"foregroundImage": "./assets/adaptive-icon.png",
 				"backgroundColor": "#0a0a0a"
 			},
 			"softwareKeyboardLayoutMode": "resize",
-			"permissions": ["POST_NOTIFICATIONS"]
+			"permissions": [
+				"android.permission.POST_NOTIFICATIONS"
+			]
 		},
 		"splash": {
 			"image": "./assets/icon.png",
@@ -65,7 +68,12 @@
 		},
 		"extra": {
 			"apiUrl": "https://sureword.app",
-			"clerkPublishableKey": "pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA"
-		}
+			"clerkPublishableKey": "pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA",
+			"router": {},
+			"eas": {
+				"projectId": "2dc61e76-c7c0-4e8b-be89-0c7e0b4ce379"
+			}
+		},
+		"owner": "spragginsdesigns"
 	}
 }
