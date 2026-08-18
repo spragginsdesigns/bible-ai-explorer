@@ -13,6 +13,14 @@ daily-cross tools and "a different word for today" control — shipped to Androi
 web and macOS 1.3.0 together. The remaining macOS gaps are all one feature: the
 BYOK provider settings and model picker from Android 1.11.0/1.12.0).
 
+iOS audit: 2026-08-18 — the iOS client (`macos/SureWord-iOS/`, iOS 26, SwiftUI)
+reached the table below with BYOK included (a feature macOS still lacks). Known
+deferrals: editor toolbar undo/redo, hardware-Tab list indent, Dynamic Type
+live-rescaling inside the editor canvas, and APNs delivery (no `aps-environment`
+entitlement — the local daily reminder covers Verse of the Day). Verified:
+iOS 51/51 and macOS 306/306 tests green; signed-in flows are compile- and
+unit-tested but not yet run against a live Clerk session.
+
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ superset (allowed)
 
 ## Clients
@@ -22,104 +30,110 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 | Android | `mobile/` | Source of truth (v1.16.0) |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. |
+| iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
 
 Layout adapts to each form factor, which the parity rule allows: macOS uses a
 sidebar, menu bar and keyboard shortcuts (⌘1/2/3 sections, ⌘N, ⌘K, ⌘,) where
-Android has a bottom tab bar; no *capability* may be missing. macOS deep links
-travel through in-app state (`AppModel`) rather than URL params — same
-behavior, different plumbing.
+Android has a bottom tab bar; iOS uses the stock iOS 26 tab bar with Settings
+as a push route from the toolbar gear, and presents tap-a-verse, history, the
+model picker and the Daily Cross as native sheets; no *capability* may be
+missing. macOS deep links travel through in-app state (`AppModel`) rather
+than URL params; iOS uses `sureword://` URLs (`sureword://cross`,
+`sureword://verse?ref=…`) buffered through `PendingDeepLinks`, and in-app
+hops travel through notifications routed by `TabShell` (the single owner of
+tab selection). Same behavior, different plumbing.
 
 ## Shell & Auth
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| Clerk email-code + Google SSO sign-in | ✅ | ✅ | ✅ | macOS via ClerkKit (native API) |
-| Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | ✅ sidebar `UserButton` + Settings | Android gained sign-out in 1.7.0 |
-| Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | ✅ Settings → Appearance | |
-| Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | ✅ bottom tab bar on mobile (`MobileBottomNav`, 1:1 port); top-bar tabs on desktop | ✅ sidebar + ⌘1/2/3 | Form-factor adaptation |
-| Link to Android APK for install | n/a | ✅ | n/a | Stable Drive link in `src/lib/constants.ts`; web-only requirement |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Clerk email-code + Google SSO sign-in | ✅ | ✅ | ✅ | ✅ via ClerkKit (native API) | macOS via ClerkKit (native API) |
+| Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | ✅ sidebar `UserButton` + Settings | ✅ Settings → Account | Android gained sign-out in 1.7.0 |
+| Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | ✅ Settings → Appearance | ✅ Settings → Appearance |  |
+| Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | ✅ bottom tab bar on mobile (`MobileBottomNav`, 1:1 port); top-bar tabs on desktop | ✅ sidebar + ⌘1/2/3 | ✅ stock iOS 26 tab bar (Liquid Glass free); Settings/Memories push-only | Form-factor adaptation |
+| Link to Android APK for install | n/a | ✅ | n/a | n/a | Stable Drive link in `src/lib/constants.ts`; web-only requirement |
 
 ## Settings
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | ✅ sidebar gear → sheet, ⌘, and App menu | |
-| Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | ✅ persisted (UserDefaults) | |
-| Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ same | ✅ same | AI answers quote the selected translation (sent as `translation` in the `/api/ask-question` body); note AI stays KJV |
-| Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | ✅ confirm dialog | |
-| Memory: enable toggle (off = not used/learned, rows kept) | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | Server state (`PATCH /api/memories`), enforced in `src/lib/memory.ts` |
-| Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | ✅ sheet from Settings | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires) |
-| About (version, KJV mission note) | ✅ | ✅ | ✅ | |
-| AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ❌ | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
-| Verse of the Day: enable toggle + delivery hour | ✅ Settings → Verse of the Day (1.14.0) | 🟡 no browser notifications; `/cross` page is always available | ✅ 1.1.0 | Stored per push token server-side (`POST/DELETE /api/push-tokens`); local hour in the device's timezone. Android delivery: remote Expo push once FCM/EAS is configured, locally scheduled daily notification until then. macOS schedules a repeating local `UNCalendarNotificationTrigger` at the chosen hour and registers no push token (APNs needs the paid program) |
-| Pick Up Your Cross: guided daily screen (verse, why-today, application, study path, question, chat CTA) | ✅ `/cross` + ✝ card on Bible tab (1.14.0) | ✅ `/cross` + ✝ card on Bible page | ✅ 1.1.0 | `GET /api/verse-of-day/today` (cron entry reused, else generated on demand); shared generator `src/lib/daily-cross.ts`; docs in `docs/FEATURES.md`. macOS: sidebar section (⌘4) + ✝ card above the Bible book list |
-| Pick Up Your Cross: "↻ A different word for today" (confirm + optional focus) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | `POST /api/verse-of-day/today` with an optional `focus`; the replaced verse joins the exclusion list, so it is not handed straight back |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | ✅ sidebar gear → sheet, ⌘, and App menu | ✅ toolbar gear on every tab root → push |  |
+| Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | ✅ persisted (UserDefaults) | ✅ persisted (UserDefaults) |  |
+| Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ same | ✅ same | ✅ same | AI answers quote the selected translation (sent as `translation` in the `/api/ask-question` body); note AI stays KJV |
+| Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | ✅ confirm dialog | ✅ confirm dialog |  |
+| Memory: enable toggle (off = not used/learned, rows kept) | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | Server state (`PATCH /api/memories`), enforced in `src/lib/memory.ts` |
+| Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | ✅ sheet from Settings | ✅ push route from Settings | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires) |
+| About (version, KJV mission note) | ✅ | ✅ | ✅ | ✅ |  |
+| AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ❌ | ✅ Settings → AI Providers | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
+| Verse of the Day: enable toggle + delivery hour | ✅ Settings → Verse of the Day (1.14.0) | 🟡 no browser notifications; `/cross` page is always available | ✅ 1.1.0 | 🟡 local reminder only | Stored per push token server-side (`POST/DELETE /api/push-tokens`); local hour in the device's timezone. Android delivery: remote Expo push once FCM/EAS is configured, locally scheduled daily notification until then. macOS schedules a repeating local `UNCalendarNotificationTrigger` at the chosen hour and registers no push token (APNs needs the paid program). iOS does attempt APNs registration for `POST /api/push-tokens`, but without the `aps-environment` entitlement (paid program) the registration always fails and the locally scheduled daily reminder is the delivery path |
+| Pick Up Your Cross: guided daily screen (verse, why-today, application, study path, question, chat CTA) | ✅ `/cross` + ✝ card on Bible tab (1.14.0) | ✅ `/cross` + ✝ card on Bible page | ✅ 1.1.0 | ✅ sheet over the tab shell + card on the Bible tab | `GET /api/verse-of-day/today` (cron entry reused, else generated on demand); shared generator `src/lib/daily-cross.ts`; docs in `docs/FEATURES.md`. macOS: sidebar section (⌘4) + ✝ card above the Bible book list |
+| Pick Up Your Cross: "↻ A different word for today" (confirm + optional focus) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | `POST /api/verse-of-day/today` with an optional `focus`; the replaced verse joins the exclusion list, so it is not handed straight back |
 
 ## Chat
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
-| Model + reasoning-effort picker (locked models point at Settings) | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input | ❌ | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
-| Provider-grouped picker with live model lists (tap provider → every model its key unlocks, fetched from the provider) | ✅ accordion in picker sheet (1.12.0) | ✅ accordion in picker | ❌ | Server lists models live per provider with the resolved key; curated registry is label source + outage fallback; effort only sent to models that support it |
-| Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | Layout adaptation, OK |
-| History restore from `metadata.parts` | ✅ | ✅ | ✅ | |
-| Tool activity labels while streaming | ✅ | ✅ | ✅ | |
-| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | Defaults collapsed on all three; user expands on demand; thresholds aligned |
-| Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
-| Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | |
-| Tavily web-results card | ✅ | ✅ | ✅ | |
-| Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | ✅ | |
-| Note-action receipt cards | ✅ | ✅ | ✅ | |
-| App-aware assistant (knows SureWord's screens, settings, commands and features) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | Shared `appKnowledge` block in `src/utils/systemPrompt.ts`, written from this file; also carried by the per-note AI panel |
-| Daily-cross tools in chat (read today's word; replace it only after the user confirms) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | `getDailyCross` / `setDailyCross` in `src/lib/ai-tools.ts`; confirmation is enforced in `dailyCrossGuidance`, not by a UI gate |
-| "Pick Up Your Cross updated" receipt card → opens the new day | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | Only the replace shows a card; reading the day is silent |
-| Save whole answer to notes (new note or append via picker) | ✅ | ✅ | ✅ | Shared route `POST /api/notes/append` |
-| Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory` `/cross`) | ✅ | ✅ | ✅ | `/cross` added 1.15.0 — shows today's word, never replaces it |
-| Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | ✅ via in-app state | |
-| Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard; direct Gboard image paste on Android 12+ | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
-| Welcome screen with 6 suggested questions | ✅ | ✅ | ✅ | |
-| Opening questions personalized from the user's own walk (+ shimmer while they load) | ✅ 1.16.0 | ✅ | ✅ 1.3.0 | `GET /api/suggested-questions`; generator `src/lib/suggested-questions.ts` over the shared `src/lib/study-context.ts`. Cached in memory per session and per account on every client, never persisted — the chips quote the user's own study. Static six for a new account or any failure |
-| Full Markdown answers (Scripture blockquotes, headings, lists, tables) | ✅ | ✅ | ✅ | macOS block renderer ported from Android's `MarkdownBody.tsx` |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
+| Model + reasoning-effort picker (locked models point at Settings) | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input | ❌ | ✅ chat-header button → sheet | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
+| Provider-grouped picker with live model lists (tap provider → every model its key unlocks, fetched from the provider) | ✅ accordion in picker sheet (1.12.0) | ✅ accordion in picker | ❌ | ✅ provider sections in picker sheet | Server lists models live per provider with the resolved key; curated registry is label source + outage fallback; effort only sent to models that support it |
+| Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | ✅ history sheet | Layout adaptation, OK |
+| History restore from `metadata.parts` | ✅ | ✅ | ✅ | ✅ |  |
+| Tool activity labels while streaming | ✅ | ✅ | ✅ | ✅ |  |
+| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | ✅ | Defaults collapsed on all three; user expands on demand; thresholds aligned |
+| Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
+| Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | ✅ scroll + flash |  |
+| Tavily web-results card | ✅ | ✅ | ✅ | ✅ |  |
+| Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | ✅ | ✅ |  |
+| Note-action receipt cards | ✅ | ✅ | ✅ | ✅ tap opens the note in the editor |  |
+| App-aware assistant (knows SureWord's screens, settings, commands and features) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | Shared `appKnowledge` block in `src/utils/systemPrompt.ts`, written from this file; also carried by the per-note AI panel |
+| Daily-cross tools in chat (read today's word; replace it only after the user confirms) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | `getDailyCross` / `setDailyCross` in `src/lib/ai-tools.ts`; confirmation is enforced in `dailyCrossGuidance`, not by a UI gate |
+| "Pick Up Your Cross updated" receipt card → opens the new day | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | Only the replace shows a card; reading the day is silent |
+| Save whole answer to notes (new note or append via picker) | ✅ | ✅ | ✅ | ✅ | Shared route `POST /api/notes/append` |
+| Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory` `/cross`) | ✅ | ✅ | ✅ | ✅ | `/cross` added 1.15.0 — shows today's word, never replaces it |
+| Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | ✅ via in-app state | ✅ via in-app state |  |
+| Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard; direct Gboard image paste on Android 12+ | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | ✅ photo library, camera, files, clipboard paste | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
+| Welcome screen with 6 suggested questions | ✅ | ✅ | ✅ | ✅ |  |
+| Opening questions personalized from the user's own walk (+ shimmer while they load) | ✅ 1.16.0 | ✅ | ✅ 1.3.0 | ✅ | `GET /api/suggested-questions`; generator `src/lib/suggested-questions.ts` over the shared `src/lib/study-context.ts`. Cached in memory per session and per account on every client, never persisted — the chips quote the user's own study. Static six for a new account or any failure |
+| Full Markdown answers (Scripture blockquotes, headings, lists, tables) | ✅ | ✅ | ✅ | ✅ | macOS block renderer ported from Android's `MarkdownBody.tsx` |
 
 ## Bible Reader
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| Book picker (testament sections, genre groups) | ✅ | ✅ | ✅ | |
-| Chapter grid | ✅ | ✅ | ✅ | |
-| Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | Same data bundle on all three (`mobile/src/features/bible/data/`) |
-| NKJV translation toggle (bolls.life) | ✅ | ✅ | ✅ | |
-| Offline verse search + reference quick-jump | ✅ | ✅ | ✅ | |
-| Verse actions (Copy / Share / Save to note / Expand with AI) | ✅ tap or long-press sheet | ✅ click/⌥ | ✅ click / context menu | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |
-| Tap-a-verse streaming AI explanation (universal model, glowing skeleton) | ✅ 1.13.0 | ✅ | ✅ 1.1.0 | `POST /api/verse-insight` plain-text stream; effort pinned low; session-cached per verse. macOS renders it in a panel pinned under the reader rather than inline — streaming into the verse list re-measured the whole chapter per update and starved the stream |
-| "✦ Ask AI" whole-chapter attach | ✅ | ✅ | ✅ | |
-| Prev/Next chapter (rolls across books) | ✅ | ✅ | ✅ | |
-| Font-size controls (4 steps) | ✅ session-scoped | ✅ session-scoped | ➕ persisted (UserDefaults) | macOS superset: persists across launches |
-| Deep links (`/bible/chapter?book=N&chapter=M&verse=V`) | ✅ | ✅ | ✅ via in-app state, scroll + flash | |
-| Reading-history tracking (powers Verse of the Day) | ✅ 1.14.0 | ✅ | ✅ 1.1.0 | `POST /api/reading-events` after ~5s on a chapter; server dedupes within 1h |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Book picker (testament sections, genre groups) | ✅ | ✅ | ✅ | ✅ drill-down: books → chapters → reader |  |
+| Chapter grid | ✅ | ✅ | ✅ | ✅ |  |
+| Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | ✅ | Same data bundle on all three (`mobile/src/features/bible/data/`) |
+| NKJV translation toggle (bolls.life) | ✅ | ✅ | ✅ | ✅ |  |
+| Offline verse search + reference quick-jump | ✅ | ✅ | ✅ | ✅ pushed search screen |  |
+| Verse actions (Copy / Share / Save to note / Expand with AI) | ✅ tap or long-press sheet | ✅ click/⌥ | ✅ click / context menu | ✅ tap → bottom sheet | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |
+| Tap-a-verse streaming AI explanation (universal model, glowing skeleton) | ✅ 1.13.0 | ✅ | ✅ 1.1.0 | ✅ bottom sheet | `POST /api/verse-insight` plain-text stream; effort pinned low; session-cached per verse. macOS renders it in a panel pinned under the reader rather than inline — streaming into the verse list re-measured the whole chapter per update and starved the stream |
+| "✦ Ask AI" whole-chapter attach | ✅ | ✅ | ✅ | ✅ floating Ask AI button |  |
+| Prev/Next chapter (rolls across books) | ✅ | ✅ | ✅ | ✅ |  |
+| Font-size controls (4 steps) | ✅ session-scoped | ✅ session-scoped | ➕ persisted (UserDefaults) | ➕ persisted (shared `BibleModel`, UserDefaults) | macOS superset: persists across launches |
+| Deep links (`/bible/chapter?book=N&chapter=M&verse=V`) | ✅ | ✅ | ✅ via in-app state, scroll + flash | ✅ `sureword://verse?ref=…` + in-app state, scroll + flash |  |
+| Reading-history tracking (powers Verse of the Day) | ✅ 1.14.0 | ✅ | ✅ 1.1.0 | ✅ | `POST /api/reading-events` after ~5s on a chapter; server dedupes within 1h |
 
 ## Verse of the Day
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| AI-personalized daily verse (context: reading history + chat + notes + memories; never repeats last 30) | ✅ 1.14.0 | ✅ via `/cross` | ✅ 1.1.0 via Daily Cross | Shared backend engine: hourly Vercel cron `GET /api/cron/verse-of-day`, utility model, `VerseOfDay` table, John 3:16 fallback. Only Android registers a push token, so web and macOS generate the day on demand when opened — same entry, pulled instead of pushed |
-| Morning push notification with verse + why-chosen line | ✅ 1.14.0 | ❌ | 🟡 local reminder only | Expo push; tap deep-links into the reader at that verse. macOS shows a local daily reminder that carries no verse and opens the Daily Cross; carrying the verse needs an APNs key from the paid Apple Developer Program |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| AI-personalized daily verse (context: reading history + chat + notes + memories; never repeats last 30) | ✅ 1.14.0 | ✅ via `/cross` | ✅ 1.1.0 via Daily Cross | ✅ via the Daily Cross sheet | Shared backend engine: hourly Vercel cron `GET /api/cron/verse-of-day`, utility model, `VerseOfDay` table, John 3:16 fallback. Only Android registers a push token, so web and macOS generate the day on demand when opened — same entry, pulled instead of pushed |
+| Morning push notification with verse + why-chosen line | ✅ 1.14.0 | ❌ | 🟡 local reminder only | 🟡 local reminder only | Expo push; tap deep-links into the reader at that verse. macOS shows a local daily reminder that carries no verse and opens the Daily Cross; carrying the verse needs an APNs key from the paid Apple Developer Program. iOS is the same story: the app registers for remote notifications, but the target ships no `aps-environment` entitlement, so APNs never delivers a token and the local reminder (tap → Daily Cross sheet) is the delivery path |
 
 ## Notes
 
-| Feature | Android | Web | macOS | Notes |
-|---|---|---|---|---|
-| Rich-text editor, autosave 1.5s | ✅ TenTap | ✅ Tiptap v3 | ✅ native lossless HTML editor | macOS editor round-trips TenTap/Tiptap HTML byte-identically (fixture-tested) |
-| Folders / colored tags / pin / search / sort | ✅ | ✅ | ✅ | |
-| Per-note AI panel (`/api/note-ai`), append-to-note | ✅ | ✅ | ✅ | |
-| Note AI history persist + clear | ✅ | ✅ | ✅ | |
-| Note slash commands (`/suggest` `/verse` `/clear`) | ✅ | 🟡 | ✅ | Web panel has Suggest-Verses button; slash commands pending |
-| Note created from chat `addToNote` tool | ✅ | ✅ | ✅ | Shared backend |
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Rich-text editor, autosave 1.5s | ✅ TenTap | ✅ Tiptap v3 | ✅ native lossless HTML editor | 🟡 native lossless HTML editor | macOS editor round-trips TenTap/Tiptap HTML byte-identically (fixture-tested). iOS shares that editor core (same round-trip fixtures, iOS suite) with three documented deferrals: no toolbar undo/redo (system undo gesture only), no hardware-Tab indent (toolbar buttons only), and the editor canvas does not live-rescale on a Dynamic Type change (applies on next render) |
+| Folders / colored tags / pin / search / sort | ✅ | ✅ | ✅ | ✅ |  |
+| Per-note AI panel (`/api/note-ai`), append-to-note | ✅ | ✅ | ✅ | ✅ sheet |  |
+| Note AI history persist + clear | ✅ | ✅ | ✅ | ✅ |  |
+| Note slash commands (`/suggest` `/verse` `/clear`) | ✅ | 🟡 | ✅ | ✅ | Web panel has Suggest-Verses button; slash commands pending |
+| Note created from chat `addToNote` tool | ✅ | ✅ | ✅ | ✅ | Shared backend |
 
 ## How to add a feature (the parity workflow)
 
 1. Ship it on Android first (`mobile/`), bump `mobile/app.json` version + `mobile/CHANGELOG.md`.
-2. Port it to web and macOS in the same release cycle — same endpoints, same behavior; adapt only layout idioms.
+2. Port it to web, macOS and iOS in the same release cycle — same endpoints, same behavior; adapt only layout idioms.
 3. Update this file's tables; every client's cell must be ✅ before the release is done.
-4. Verify web with `pnpm lint` / `pnpm build`; Android with `cd mobile && npm run typecheck && npm test`; macOS with `cd macos && xcodegen && xcodebuild -scheme SureWord -destination 'platform=macOS' -derivedDataPath build test`.
+4. Verify web with `pnpm lint` / `pnpm build`; Android with `cd mobile && npm run typecheck && npm test`; macOS with `cd macos && xcodegen && xcodebuild -scheme SureWord -destination 'platform=macOS' -derivedDataPath build test`; iOS with `cd macos && xcodebuild -scheme SureWord-iOS -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build-ios test`.

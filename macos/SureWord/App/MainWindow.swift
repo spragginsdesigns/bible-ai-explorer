@@ -2,35 +2,7 @@ import ClerkKit
 import ClerkKitUI
 import SwiftUI
 
-/// Primary sections, matching Android's bottom tab bar
-/// (`mobile/app/(app)/_layout.tsx`) — laid out as a sidebar, which is the Mac
-/// idiom for the same thing.
-/// `cross` is declared last on purpose: `AppCommands` derives ⌘1…⌘n from this
-/// order, and inserting it next to `bible` would silently renumber shortcuts
-/// people already have in their fingers.
-enum AppSection: String, CaseIterable, Identifiable {
-    case chat, bible, notes, cross
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .chat: "Chat"
-        case .bible: "Bible"
-        case .notes: "Notes"
-        case .cross: "Daily Cross"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .chat: "sparkles"
-        case .bible: "book.closed"
-        case .notes: "note.text"
-        case .cross: "cross"
-        }
-    }
-}
+// `AppSection` lives in `Shared/App/AppModel.swift` — it is shared with iOS.
 
 /// Signed-in shell: sidebar + detail.
 struct MainWindow: View {
