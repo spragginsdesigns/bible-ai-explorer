@@ -1,22 +1,12 @@
 import SwiftUI
 
-/// Suggested prompts for the empty chat state.
-/// Port of `mobile/src/features/chat/commonQuestions.ts`.
-enum CommonQuestions {
-    static let all: [String] = [
-        "What is the story of creation?",
-        "What is the purpose of life according to the Bible?",
-        "Where was Jesus born?",
-        "What does the Bible say about forgiveness?",
-        "What does it mean to be born again?",
-        "How should I pray according to Scripture?",
-    ]
-}
-
 /// Empty-chat screen. Port of `mobile/src/features/chat/WelcomeState.tsx`, laid
 /// out as a two-column grid because a Mac window is wide.
 struct WelcomeState: View {
     @Environment(\.theme) private var theme
+    /// This user's own opening questions, or the static six until they arrive.
+    let questions: [String]
+    var isLoading: Bool
     var onSelect: (String) -> Void
 
     var body: some View {
@@ -42,8 +32,14 @@ struct WelcomeState: View {
                     columns: [GridItem(.adaptive(minimum: 260), spacing: Spacing.md)],
                     spacing: Spacing.md
                 ) {
-                    ForEach(CommonQuestions.all, id: \.self) { question in
-                        QuestionChip(question: question) { onSelect(question) }
+                    if isLoading {
+                        ForEach(Array(QuestionSkeleton.widths.enumerated()), id: \.offset) { _, width in
+                            QuestionSkeleton(width: width)
+                        }
+                    } else {
+                        ForEach(questions, id: \.self) { question in
+                            QuestionChip(question: question) { onSelect(question) }
+                        }
                     }
                 }
                 .frame(maxWidth: 720)
@@ -83,5 +79,35 @@ private struct QuestionChip: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
+    }
+}
+
+/// A chip-shaped placeholder while this user's own questions are being drawn.
+/// Definite widths, not fractions: a greedy shape pulsing forever inside a
+/// scroll view re-proposes its width on every frame (see `DailyCrossView`).
+private struct QuestionSkeleton: View {
+    @Environment(\.theme) private var theme
+
+    static let widths: [CGFloat] = [190, 150, 210, 170, 140, 200]
+    let width: CGFloat
+
+    @State private var lit = false
+
+    var body: some View {
+        Capsule()
+            .fill(theme.accentSoft)
+            .frame(width: width, height: 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .background(theme.surface, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.border, lineWidth: 1)
+            }
+            .opacity(lit ? 0.9 : 0.4)
+            .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: lit)
+            .onAppear { lit = true }
+            .accessibilityLabel("Preparing your questions")
     }
 }

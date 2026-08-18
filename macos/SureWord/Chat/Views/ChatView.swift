@@ -5,6 +5,8 @@ struct ChatView: View {
     @Environment(\.theme) private var theme
     @Bindable var chat: ChatViewModel
     let api: APIClient
+    /// This user's opening questions, generated once per session.
+    let suggested: SuggestedQuestionsModel
     /// Open the Daily Cross section — the receipt card's destination after the
     /// assistant replaces today's word.
     var onOpenCross: () -> Void
@@ -71,10 +73,14 @@ struct ChatView: View {
                 }
             }
         } else if chat.messages.isEmpty {
-            WelcomeState { question in
+            WelcomeState(
+                questions: suggested.questions,
+                isLoading: suggested.isLoading
+            ) { question in
                 chat.input = question
                 Task { await chat.send() }
             }
+            .task { suggested.load() }
         } else {
             messageList
         }

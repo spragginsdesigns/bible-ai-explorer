@@ -77,6 +77,7 @@ struct MainWindow: View {
             ChatView(
                 chat: app.chat,
                 api: app.api,
+                suggested: app.suggestedQuestions,
                 // The day the assistant just replaced is stale in the cached
                 // model, so force a reload on the way in.
                 onOpenCross: {

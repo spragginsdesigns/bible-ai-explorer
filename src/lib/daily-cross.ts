@@ -1,8 +1,8 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
-import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
 import { resolveModel } from "@/lib/ai/provider";
+import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 
 /**
@@ -11,13 +11,6 @@ import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBi
  * on-demand /api/verse-of-day/today route (the Daily Cross screen on Android
  * and web), so a user never gets two different "days".
  */
-
-const READING_HISTORY_DAYS = 30;
-const RECENT_MESSAGES = 15;
-const RECENT_NOTES = 10;
-const EXCLUDED_PICKS = 30;
-const MESSAGE_SNIPPET_LENGTH = 200;
-const NOTE_SNIPPET_LENGTH = 300;
 
 /**
  * An entry younger than this is still "today". Cheaper and timezone-proof
@@ -219,67 +212,18 @@ export async function generateDailyCross(
 	const focus = request.focus?.trim();
 
 	try {
-		const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
-		const [readingEvents, messages, notes, memories, recentPicks] = await Promise.all([
-			prisma.readingEvent.findMany({
-				where: { userId, readAt: { gte: readingSince } },
-				select: { book: true, chapter: true },
-			}),
-			prisma.message.findMany({
-				where: { role: "user", conversation: { userId } },
-				orderBy: { createdAt: "desc" },
-				take: RECENT_MESSAGES,
-				select: { content: true },
-			}),
-			prisma.note.findMany({
-				where: { userId },
-				orderBy: { updatedAt: "desc" },
-				take: RECENT_NOTES,
-				select: { title: true, plainText: true },
-			}),
-			loadUserMemories(userId),
-			prisma.verseOfDay.findMany({
-				where: { userId },
-				orderBy: { sentAt: "desc" },
-				take: EXCLUDED_PICKS,
-				select: { book: true, chapter: true, verse: true },
-			}),
-		]);
-
-		const readingCounts = new Map<string, number>();
-		for (const event of readingEvents) {
-			const reference = `${event.book} ${event.chapter}`;
-			readingCounts.set(reference, (readingCounts.get(reference) ?? 0) + 1);
-		}
-		const readingBlock =
-			Array.from(readingCounts.entries())
-				.sort((a, b) => b[1] - a[1])
-				.slice(0, 20)
-				.map(([reference, count]) => `${reference} (${count}x)`)
-				.join(", ") || "(none yet)";
+		const context = await loadStudyContext(userId);
 
 		const prompt = [
-			`Bible chapters read in the last ${READING_HISTORY_DAYS} days:\n${readingBlock}`,
-			`Recent things they asked about:\n${
-				messages.map((message) => `- ${message.content.slice(0, MESSAGE_SNIPPET_LENGTH)}`).join("\n") ||
-				"(none)"
-			}`,
-			`Recent notes:\n${
-				notes
-					.map((note) => `- ${note.title}: ${note.plainText.slice(0, NOTE_SNIPPET_LENGTH)}`)
-					.join("\n") || "(none)"
-			}`,
-			`What you remember about them:\n${
-				memories.map((memory) => `- (${memory.category}) ${memory.content}`).join("\n") || "(none)"
-			}`,
+			`Bible chapters read in the last ${READING_HISTORY_DAYS} days:\n${context.readingBlock}`,
+			`Recent things they asked about:\n${context.questionsBlock}`,
+			`Recent notes:\n${context.notesBlock}`,
+			`What you remember about them:\n${context.memoriesBlock}`,
 			// A pinned verse is the user's own choice; the exclusion list, which
 			// only exists to stop repeats, must not argue with it.
 			pinned
 				? null
-				: `Do NOT pick any of these recently sent verses:\n${
-						recentPicks.map((pick) => `${pick.book} ${pick.chapter}:${pick.verse}`).join(", ") ||
-						"(none)"
-					}`,
+				: `Do NOT pick any of these recently sent verses:\n${context.recentPicksBlock}`,
 			focus
 				? `The user asked for today's word to centre on this, in their own words:\n"${focus}"\nHonour it as far as Scripture honestly allows, and let it outweigh the patterns above.`
 				: null,

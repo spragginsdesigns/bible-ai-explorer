@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { Laptop, Smartphone } from "lucide-react";
-import { commonQuestions } from "@/utils/commonQuestions";
+import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import {
 	ANDROID_APK_URL,
 	ANDROID_VERSION,
@@ -15,9 +15,12 @@ interface WelcomeScreenProps {
 	onSelectQuestion: (question: string) => void;
 }
 
-const suggestedQuestions = commonQuestions.slice(0, 6);
+/** Chip-shaped placeholders while this user's own questions are being drawn. */
+const SKELETON_WIDTHS = [82, 68, 90, 74, 61, 86];
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
+	const { questions, loading } = useSuggestedQuestions();
+
 	return (
 		<div className="flex-1 flex items-center justify-center">
 			<div className="max-w-2xl mx-auto px-4 text-center">
@@ -40,16 +43,33 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 					</p>
 				</div>
 
-				<div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8">
-					{suggestedQuestions.map((q, i) => (
-						<button
-							key={i}
-							onClick={() => onSelectQuestion(q)}
-							className="text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 text-sm group"
-						>
-							<span className="group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">{q}</span>
-						</button>
-					))}
+				<div
+					className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8"
+					aria-busy={loading}
+					aria-label={loading ? "Preparing your questions" : "Suggested questions"}
+				>
+					{loading
+						? SKELETON_WIDTHS.map((width, i) => (
+								<div
+									key={i}
+									className="px-4 py-3 rounded-xl gradient-border glass-card"
+									aria-hidden
+								>
+									<div
+										className="h-4 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
+										style={{ width: `${width}%`, animationDelay: `${i * 120}ms` }}
+									/>
+								</div>
+							))
+						: questions.map((q, i) => (
+								<button
+									key={i}
+									onClick={() => onSelectQuestion(q)}
+									className="text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 text-sm group animate-message-in"
+								>
+									<span className="group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">{q}</span>
+								</button>
+							))}
 				</div>
 
 				<div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm text-neutral-500 dark:text-neutral-400">

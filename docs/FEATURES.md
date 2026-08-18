@@ -248,3 +248,75 @@ invalidation protocol.
   on showing the word that was just replaced — `ChatView` fires
   `onCrossReplaced` when a `crossActions` receipt lands, and `MainWindow` drops
   the cached day.
+
+---
+
+## The opening questions
+
+*Shipped 2026-08-17 · Android 1.16.0 + web + macOS 1.3.0*
+
+The six chips on the empty chat screen used to be a constant (`commonQuestions`)
+— the same six for every user, forever. They are now drawn from that user's own
+walk, so the app opens with their real next questions already sitting there.
+
+### `src/lib/study-context.ts` — one reading of a user
+
+Extracted from `daily-cross.ts`, which had this logic inline, and now shared by
+both features: chapters read in the last 30 days (most-read first), the user's
+last 15 questions, 10 notes, their memories, and the recently sent daily verses.
+The extraction was deliberate rather than incidental — **both features are only
+honest if they look at the same evidence.** Two different notions of "recent"
+would let the chips claim a study today's verse knows nothing about. The daily
+cross's prompt text is unchanged byte-for-byte.
+
+`isEmpty` reports a brand-new account (no reading, no questions, no notes, no
+memories). Daily picks deliberately do not count toward it — the cron writes
+those whether or not the user ever opened the app.
+
+### `src/lib/suggested-questions.ts`
+
+One utility-model call over that context plus today's Pick Up Your Cross (read
+with `findTodayCross`, **never generated** — the welcome screen must not trigger
+a day as a side effect). Rules that matter, in the prompt's own priority order:
+
+1. **The user is the one asking.** The chip is sent word-for-word as their
+   message the moment they tap it, so it has to read the way they would type it
+   — "Why does God answer Job with questions instead of answers?", never "You
+   noted Job's silence — why does God answer with questions?". A chip that reads
+   like the app talking is wrong even when its subject is right.
+2. Grounded strictly in the given context — the daily cross's honesty rule.
+3. Spread across the six: the passage they are living in, a doctrine their
+   questions circle, something following today's verse, an application question,
+   a next step in their reading.
+4. Never re-ask something already in their history.
+5. One sentence, under 110 characters (two lines on a phone chip).
+
+`sanitize()` trims, strips wrapping quotes, drops anything overlong, dedupes
+case-insensitively, and **tops up from the static six**, so a model that returns
+four good questions still fills the grid. Every failure path — no credentials,
+bad output, an empty account — returns the static six with
+`personalized: false`.
+
+### Caching: in memory, per session, per account, never persisted
+
+`GET /api/suggested-questions` is uncached server-side; each client generates
+once per session and holds the result in memory. Deliberately *not* in
+localStorage / AsyncStorage / UserDefaults: **these questions quote the user's
+own study**, and a shared browser or a sign-out must not hand them to the next
+account. The web and Android caches are keyed by Clerk user id for that reason;
+macOS gets it for free, since `AppModel` (which owns `SuggestedQuestionsModel`)
+is rebuilt on every sign-in.
+
+Only a success settles the cache, so a failed attempt retries the next time the
+welcome screen appears rather than pinning the static six for the session.
+
+### Surfaces
+
+`src/components/useSuggestedQuestions.ts` ↔
+`mobile/src/features/chat/useSuggestedQuestions.ts` ↔
+`macos/SureWord/Chat/SuggestedQuestions.swift` — same state machine. Each
+welcome screen shows six chip-shaped shimmer placeholders while the set is
+prepared (the language of the Daily Cross skeleton), then fills them in. Because
+a tap **sends immediately** on every client, the chips must never swap under a
+reading finger — which is why there is a loading state at all rather than
+showing the static six and replacing them a second later.

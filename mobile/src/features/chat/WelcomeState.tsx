@@ -1,10 +1,53 @@
-import React from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import {
+	Animated,
+	Easing,
+	Image,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+	View,
+} from "react-native";
 import { BrandTitle } from "@/components/ui";
 import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
-import { commonQuestions } from "./commonQuestions";
+import { useSuggestedQuestions } from "./useSuggestedQuestions";
+
+/** Chip-shaped placeholders while this user's own questions are being drawn. */
+const SKELETON_WIDTHS = ["82%", "68%", "90%", "74%", "61%", "86%"] as const;
+
+function QuestionSkeleton() {
+	const styles = useThemedStyles(createStyles);
+	const pulse = useRef(new Animated.Value(0.35)).current;
+
+	useEffect(() => {
+		const loop = Animated.loop(
+			Animated.sequence([
+				Animated.timing(pulse, {
+					toValue: 1,
+					duration: 1100,
+					easing: Easing.inOut(Easing.ease),
+					useNativeDriver: true,
+				}),
+				Animated.timing(pulse, { toValue: 0.35, duration: 1100, useNativeDriver: true }),
+			])
+		);
+		loop.start();
+		return () => loop.stop();
+	}, [pulse]);
+
+	return (
+		<View accessibilityLabel="Preparing your questions" style={styles.chips}>
+			{SKELETON_WIDTHS.map((width, index) => (
+				<View key={index} style={styles.chip}>
+					<Animated.View style={[styles.skeletonBar, { width, opacity: pulse }]} />
+				</View>
+			))}
+		</View>
+	);
+}
 
 export function WelcomeState({
 	onSelectQuestion,
@@ -15,6 +58,7 @@ export function WelcomeState({
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const { questions, loading } = useSuggestedQuestions();
 	return (
 		<ScrollView
 			style={styles.fill}
@@ -36,22 +80,29 @@ export function WelcomeState({
 				stands on the King James Scriptures as God&apos;s inerrant, final authority.
 			</Text>
 
-			<View style={styles.chips}>
-				{commonQuestions.map((question) => (
-					<Pressable
-						key={question}
-						accessibilityRole="button"
-						onPress={() => onSelectQuestion(question)}
-						style={({ pressed }) => [
-							styles.chip,
-							pressed && { backgroundColor: colors.surfacePressed, borderColor: colors.accentBorder },
-						]}
-					>
-						<Text style={styles.chipLabel}>{question}</Text>
-						<Text style={styles.chipGlyph}>↗</Text>
-					</Pressable>
-				))}
-			</View>
+			{loading ? (
+				<QuestionSkeleton />
+			) : (
+				<View style={styles.chips}>
+					{questions.map((question) => (
+						<Pressable
+							key={question}
+							accessibilityRole="button"
+							onPress={() => onSelectQuestion(question)}
+							style={({ pressed }) => [
+								styles.chip,
+								pressed && {
+									backgroundColor: colors.surfacePressed,
+									borderColor: colors.accentBorder,
+								},
+							]}
+						>
+							<Text style={styles.chipLabel}>{question}</Text>
+							<Text style={styles.chipGlyph}>↗</Text>
+						</Pressable>
+					))}
+				</View>
+			)}
 		</ScrollView>
 	);
 }
@@ -102,5 +153,6 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.lg,
 		},
 		chipLabel: { flex: 1, color: c.textSecondary, fontSize: 14, lineHeight: 20 },
+		skeletonBar: { height: 14, borderRadius: radius.full, backgroundColor: c.accentSoft },
 		chipGlyph: { color: c.textGhost, fontSize: 13 },
 	});

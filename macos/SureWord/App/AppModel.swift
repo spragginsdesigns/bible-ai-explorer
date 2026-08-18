@@ -18,6 +18,9 @@ final class AppModel {
     /// Daily Cross pane dies whenever the sidebar moves, and re-fetching would
     /// mean paying for a generation again just because the user glanced at chat.
     let dailyCross: DailyCrossModel
+    /// This user's opening questions. Owned here so one generation serves every
+    /// new chat in the session, and so signing out drops them with the account.
+    let suggestedQuestions: SuggestedQuestionsModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false
@@ -37,5 +40,6 @@ final class AppModel {
         chat = ChatViewModel(api: api, settings: settings)
         bible = BibleModel(api: api)
         dailyCross = DailyCrossModel(api: api)
+        suggestedQuestions = SuggestedQuestionsModel(api: api)
     }
 }

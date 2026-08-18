@@ -3,6 +3,19 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.16.0] — 2026-08-17
+
+### Changed
+- **The opening questions are now yours.** The six prompts on the empty chat
+  screen used to be the same six for everybody ("What is the story of
+  creation?"). They are now drawn from your own walk — the chapters you have
+  been reading, what you have already asked, your notes, what SureWord
+  remembers about you, and the verse you were given today — so opening the app
+  puts your real next questions in front of you, ready to tap. They are written
+  as questions *you* would ask, and sending one works exactly as before.
+  Softly glowing placeholders appear while they are being prepared (once per
+  session), and a brand-new account still gets the classic six.
+
 ## [1.15.0] — 2026-08-17
 
 ### Added

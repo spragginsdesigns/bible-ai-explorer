@@ -7,11 +7,11 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-Last full audit: 2026-08-17 (Android v1.15.0; the assistant became app-aware and
-gained the daily-cross tools, and all three clients gained the "a different word
-for today" control — shipped to Android, web and macOS 1.2.0 together. The
-remaining macOS gaps are all one feature: the BYOK provider settings and model
-picker from Android 1.11.0/1.12.0).
+Last full audit: 2026-08-17 (Android v1.16.0; the welcome screen's questions are
+now personalized on all three clients, on top of 1.15.0's app-aware assistant,
+daily-cross tools and "a different word for today" control — shipped to Android,
+web and macOS 1.3.0 together. The remaining macOS gaps are all one feature: the
+BYOK provider settings and model picker from Android 1.11.0/1.12.0).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ superset (allowed)
 
@@ -19,7 +19,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth (v1.15.0) |
+| Android | `mobile/` | Source of truth (v1.16.0) |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. |
 
@@ -78,7 +78,8 @@ behavior, different plumbing.
 | Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory` `/cross`) | ✅ | ✅ | ✅ | `/cross` added 1.15.0 — shows today's word, never replaces it |
 | Verse attachment pill (`?prompt=`, `?attachRef&attachText&attachTranslation=`) | ✅ | ✅ | ✅ via in-app state | |
 | Multimodal file attachments (PNG/JPEG/WebP/GIF, PDF, TXT/MD/CSV/JSON) | ✅ camera, gallery, document picker, clipboard; direct Gboard image paste on Android 12+ | ✅ picker, drag/drop, pasted screenshots | ✅ picker, drag/drop, paste (⌘V) | Private durable Blob storage; max 5 files, 10 MB image/PDF, 1 MB text, 25 MB/message |
-| Welcome screen, 6 suggested questions | ✅ | ✅ | ✅ | |
+| Welcome screen with 6 suggested questions | ✅ | ✅ | ✅ | |
+| Opening questions personalized from the user's own walk (+ shimmer while they load) | ✅ 1.16.0 | ✅ | ✅ 1.3.0 | `GET /api/suggested-questions`; generator `src/lib/suggested-questions.ts` over the shared `src/lib/study-context.ts`. Cached in memory per session and per account on every client, never persisted — the chips quote the user's own study. Static six for a new account or any failure |
 | Full Markdown answers (Scripture blockquotes, headings, lists, tables) | ✅ | ✅ | ✅ | macOS block renderer ported from Android's `MarkdownBody.tsx` |
 
 ## Bible Reader

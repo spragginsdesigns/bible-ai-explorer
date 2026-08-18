@@ -181,7 +181,7 @@ release notes; the DMG background bakes the same hint in.
 
 ## Status
 
-At 1:1 parity with Android v1.15.0 as of 2026-08-17 (macOS 1.2.0): chat
+At 1:1 parity with Android v1.16.0 as of 2026-08-17 (macOS 1.3.0): chat
 (streaming, tools, slash commands, verse/file attachments, save-to-note),
 Bible reader with Tap-a-verse, "Pick Up Your Cross", Notes, Memories and
 Settings. The one outstanding gap is Android 1.11.0/1.12.0's BYOK provider
