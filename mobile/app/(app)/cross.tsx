@@ -18,6 +18,7 @@ import {
 	type DailyCrossEntry,
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
+import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -114,6 +115,8 @@ export default function DailyCrossScreen() {
 		);
 	}, []);
 
+	const tabBarSpace = useTabBarSpace();
+
 	const load = useCallback(() => {
 		setError(null);
 		fetchTodayCross(getToken).then(setEntry).catch(showFailure);
@@ -175,7 +178,7 @@ export default function DailyCrossScreen() {
 				<View style={styles.topBarSpacer} />
 			</View>
 
-			<ScrollView contentContainerStyle={styles.content}>
+			<ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace + spacing.lg }]}>
 				<Text style={styles.date}>{today}</Text>
 
 				{!entry && !error ? (
@@ -334,7 +337,7 @@ const createStyles = (c: Colors) =>
 			textAlign: "center",
 		},
 		topBarSpacer: { width: 44 },
-		content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xl * 2 },
+		content: { paddingHorizontal: spacing.xl },
 		date: {
 			color: c.textFaint,
 			fontSize: 13,

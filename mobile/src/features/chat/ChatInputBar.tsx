@@ -12,10 +12,12 @@ import {
 	ScrollView,
 	StyleSheet,
 	Text,
-	TextInput,
 	View,
 } from "react-native";
-import { TextInputWrapper, type PasteEventPayload } from "expo-paste-input";
+import PasteInput, {
+	type PastedFile,
+	type PasteTextInputInstance,
+} from "@mattermost/react-native-paste-input";
 import { fonts, radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -27,6 +29,7 @@ import {
 } from "./slashCommands";
 import type { VerseAttachment } from "./verseActions";
 import type { ChatAttachmentDescriptor } from "./fileAttachments";
+import type { PastedImageFile } from "./pastedImages";
 import { FileAttachmentCards } from "./FileAttachmentCards";
 import { AttachmentSourceSheet } from "./AttachmentSourceSheet";
 
@@ -49,7 +52,7 @@ interface ChatInputBarProps {
 	onChooseImages?: () => void;
 	onChooseFiles?: () => void;
 	onPasteImage?: () => void;
-	onPasteImages?: (uris: string[]) => void;
+	onPasteImages?: (files: PastedImageFile[], error?: string) => void;
 	onRemoveFileAttachment?: (id: string) => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
 	value?: string;
@@ -86,7 +89,7 @@ export function ChatInputBar({
 	const styles = useThemedStyles(createStyles);
 	const [innerText, setInnerText] = useState("");
 	const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
-	const inputRef = useRef<TextInput>(null);
+	const inputRef = useRef<PasteTextInputInstance>(null);
 	const text = value ?? innerText;
 	const setText = useCallback(
 		(next: string) => {
@@ -164,10 +167,12 @@ export function ChatInputBar({
 		setAttachmentMenuVisible(true);
 	}, []);
 
-	const handleNativePaste = useCallback((payload: PasteEventPayload) => {
-		if (payload.type === "images" && payload.uris.length > 0) {
-			onPasteImages?.(payload.uris);
+	const handleNativePaste = useCallback((error: string | null | undefined, files: PastedFile[]) => {
+		if (error) {
+			onPasteImages?.([], error);
+			return;
 		}
+		if (files.length > 0) onPasteImages?.(files);
 	}, [onPasteImages]);
 
 	return (
@@ -257,19 +262,18 @@ export function ChatInputBar({
 						<Text style={styles.attachGlyph}>＋</Text>
 					)}
 				</Pressable>
-				<TextInputWrapper style={styles.inputWrapper} onPaste={handleNativePaste}>
-					<TextInput
-						ref={inputRef}
-						value={text}
-						onChangeText={setText}
-						editable={!locked}
-						multiline
-						placeholder={placeholder}
-						placeholderTextColor={colors.textGhost}
-						style={styles.input}
-						submitBehavior="newline"
-					/>
-				</TextInputWrapper>
+				<PasteInput
+					ref={inputRef}
+					value={text}
+					onChangeText={setText}
+					onPaste={handleNativePaste}
+					editable={!locked}
+					multiline
+					placeholder={placeholder}
+					placeholderTextColor={colors.textGhost}
+					style={[styles.inputWrapper, styles.input]}
+					submitBehavior="newline"
+				/>
 				{generating ? (
 					<Pressable
 						accessibilityRole="button"
@@ -376,9 +380,6 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.xl,
 		},
 		input: {
-			width: "100%",
-			minHeight: 45,
-			maxHeight: 140,
 			paddingTop: spacing.md,
 			paddingBottom: spacing.md,
 			color: c.text,

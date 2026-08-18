@@ -3,6 +3,7 @@
 	"version": "1.16.0",
 	"main": "expo-router/entry",
 	"scripts": {
+		"postinstall": "patch-package --error-on-fail",
 		"start": "expo start",
 		"android": "expo run:android",
 		"prebuild": "expo prebuild",
@@ -17,6 +18,7 @@
 		"@expo-google-fonts/cormorant-garamond": "^0.4.1",
 		"@expo-google-fonts/pirata-one": "^0.4.1",
 		"@expo/vector-icons": "^15.0.2",
+		"@mattermost/react-native-paste-input": "2.0.1",
 		"@react-native-async-storage/async-storage": "1.24.0",
 		"@react-navigation/bottom-tabs": "^7.18.16",
 		"ai": "^7.0.58",
@@ -57,6 +59,7 @@
 	},
 	"allowScripts": true,
 	"devDependencies": {
+		"patch-package": "^8.0.1",
 		"typescript": "~5.9.2",
 		"vitest": "^3.2.4"
 	}
