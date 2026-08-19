@@ -62,7 +62,9 @@ keeps working for all of them.
 - **Legacy branch:** `master` — unused, do not push here
 - **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
 - **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to production at https://sureword.app (legacy host https://bible-ai-explorer.vercel.app serves the same deployment). The Android app calls `https://sureword.app/api/*`, so server-side changes reach the phone only through this deploy — `/push-phone` alone never updates the API.
-- **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, ASTRA_DB_*, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
+- **App binaries ship ONLY via GitHub Releases** — never Google Drive or any other channel. Android: `bash mobile/scripts/release-apk.sh` (tags `android-v<version>`). macOS: the flow in `macos/README.md` ("Releasing a DMG"). iOS joins as `SureWord.ipa` when distribution starts.
+- **Release invariant — breaking it breaks the website's download buttons.** The site links `releases/latest/download/<asset>`, and `releases/latest` is a *single* release (whichever was published most recently). So EVERY release, on any platform, must attach EVERY platform's current asset under its fixed name — `SureWord.apk`, `SureWord.dmg`, `SureWord.ipa` — re-attaching the other platforms' assets from the previous latest release. `release-apk.sh` does this automatically; never rename the assets, and never create a release with only one platform's binary.
+- **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, DATABASE_URL, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
 
 ## Terminology
 
