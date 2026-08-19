@@ -3,6 +3,37 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.18.0] - 2026-08-19
+
+### Added
+- **The assistant can now edit your notes, not just write into them.** Ask it
+  to reformat, reorganize, or clean up any note and it reads the whole note
+  first, rewrites it faithfully, and confirms. It can also read your notes in
+  full and find them by meaning, not just wording ("that note about talking
+  to my kids about prayer"), so past study informs new answers.
+- **Original-languages word study, grounded in real data.** The assistant now
+  quotes the actual Hebrew (Westminster Leningrad Codex) and Greek (Scrivener
+  1894 Textus Receptus, the text underlying the KJV) word by word, with
+  Strong's numbers, morphology, and KJV glosses, instead of answering Greek
+  and Hebrew questions from memory.
+- **Cross-references on tap.** A curated cross-reference set (openbible.info,
+  Treasury-style) lets the assistant trace a verse across all of Scripture
+  with exact KJV text.
+- Streaming activity labels for the new tools ("Reading your note",
+  "Rewriting your note", "Tracing cross-references", "Opening the original
+  text", "Studying the original word").
+
+### Fixed
+- **Bible references and retrieved verses are back.** Scripture search had
+  been silently broken since Aug 13: the AstraDB free tier hibernated the
+  vector database (and scheduled it for deletion). Verse embeddings now live
+  in the same production Neon Postgres as everything else (pgvector), with a
+  keyword fallback so retrieval can never silently vanish again. Answers also
+  quote key verses as proper blockquotes on every model, not just some.
+
+All of the above is server-side and reaches every installed build
+immediately; only the new activity labels need this APK.
+
 ## [1.17.1] — 2026-08-19
 
 ### Fixed

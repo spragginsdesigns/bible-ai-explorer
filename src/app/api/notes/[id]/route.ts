@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
+import { syncNoteEmbeddings } from "@/lib/note-embeddings";
 
 function isNotFound(err: unknown): boolean {
 	return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
@@ -48,6 +50,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 			},
 			include: { tags: { include: { tag: true } } },
 		});
+		// Keep the semantic note index in step with content changes, off the
+		// response path — a failed sync only degrades AI note search.
+		if (body.title !== undefined || body.plainText !== undefined) {
+			waitUntil(
+				syncNoteEmbeddings({
+					userId,
+					noteId: note.id,
+					title: note.title,
+					plainText: note.plainText,
+				})
+			);
+		}
 		return NextResponse.json(note);
 	} catch (err) {
 		if (err instanceof Response) return err;
@@ -62,6 +76,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
+		// NoteEmbedding rows go with the note via the FK cascade.
 		await prisma.note.delete({ where: { id, userId } });
 		return NextResponse.json({ success: true });
 	} catch (err) {

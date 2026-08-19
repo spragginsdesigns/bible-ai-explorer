@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
+import { syncNoteEmbeddings } from "@/lib/note-embeddings";
 
 // Summary payloads omit the heavy content/htmlContent columns - list views
 // only need metadata + plainText, and full rows can make the list response
@@ -63,6 +65,16 @@ export async function POST(req: Request) {
 			},
 			include: { tags: { include: { tag: true } } },
 		});
+		if (note.plainText) {
+			waitUntil(
+				syncNoteEmbeddings({
+					userId,
+					noteId: note.id,
+					title: note.title,
+					plainText: note.plainText,
+				})
+			);
+		}
 		return NextResponse.json(note, { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;

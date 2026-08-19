@@ -105,6 +105,86 @@ export interface KjvSearchHit {
   text: string;
 }
 
+const STOPWORDS = new Set(
+  ("a an and are as at be but by for from has have he her his i in is it its me my of on or our shall she that the " +
+    "their them they this to unto us was we what when who will with you your thou thee thy ye him verse verses " +
+    "bible say says said about does").split(" ")
+);
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z']+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1 && !STOPWORDS.has(token));
+}
+
+export interface KjvKeywordHit extends KjvSearchHit {
+  score: number;
+}
+
+/**
+ * Rank verses by overlap with the query's rare words (IDF-weighted), over the
+ * whole bundled KJV. Complements the semantic search: exact-wording recall
+ * ("no weapon formed against me") and a fallback that works with AstraDB down.
+ * First call loads all book JSONs (a few MB, cached for the session).
+ */
+export async function keywordSearchKjv(query: string, limit = 5): Promise<KjvKeywordHit[]> {
+  const tokens = [...new Set(tokenize(query))];
+  if (tokens.length === 0) return [];
+
+  interface Candidate {
+    order: number;
+    chapter: number;
+    verse: number;
+    text: string;
+    matched: string[];
+  }
+  const documentFrequency = new Map<string, number>(tokens.map((token) => [token, 0]));
+  const candidates: Candidate[] = [];
+  const minMatches = Math.min(2, tokens.length);
+
+  for (const book of BOOKS) {
+    const chapters = await getKjvBook(book.order);
+    for (let chapterIndex = 0; chapterIndex < chapters.length; chapterIndex++) {
+      const verses = chapters[chapterIndex];
+      for (let verseIndex = 0; verseIndex < verses.length; verseIndex++) {
+        const text = verses[verseIndex].toLowerCase();
+        let matched: string[] | null = null;
+        for (const token of tokens) {
+          if (text.includes(token)) {
+            documentFrequency.set(token, (documentFrequency.get(token) ?? 0) + 1);
+            (matched ??= []).push(token);
+          }
+        }
+        if (matched && matched.length >= minMatches) {
+          candidates.push({
+            order: book.order,
+            chapter: chapterIndex + 1,
+            verse: verseIndex + 1,
+            text: verses[verseIndex],
+            matched,
+          });
+        }
+      }
+    }
+  }
+
+  const TOTAL_VERSES = 31102;
+  const scored = candidates.map((candidate) => ({
+    order: candidate.order,
+    chapter: candidate.chapter,
+    verse: candidate.verse,
+    text: candidate.text,
+    score: candidate.matched.reduce(
+      (sum, token) => sum + Math.log(TOTAL_VERSES / Math.max(1, documentFrequency.get(token) ?? 1)),
+      0
+    ),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
 /**
  * Case-insensitive substring match over every verse of the bundled KJV, in
  * canonical book/chapter/verse order, capped at `limit` hits. Empty or

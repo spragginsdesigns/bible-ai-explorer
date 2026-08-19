@@ -98,7 +98,12 @@ extension ChatViewMessage {
         "tool-getPassage": "Opening the passage",
         "tool-webSearch": "Searching the web",
         "tool-addToNote": "Writing to your note",
+        "tool-readNote": "Reading your note",
+        "tool-updateNote": "Rewriting your note",
         "tool-findNotes": "Looking through your notes",
+        "tool-getCrossReferences": "Tracing cross-references",
+        "tool-getOriginalText": "Opening the original text",
+        "tool-lookupStrongs": "Studying the original word",
         "tool-getDailyCross": "Opening today's cross",
         "tool-setDailyCross": "Preparing your new day",
     ]

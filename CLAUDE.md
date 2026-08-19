@@ -10,7 +10,7 @@ SureWord is a Bible study assistant for Christians. It MUST emulate a saved, bor
 
 ## Project Context
 
-**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Terra) + AstraDB (vector store) + Neon Postgres/Prisma + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
+**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Terra) + Neon Postgres/Prisma (app data AND pgvector embeddings) + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
 **Repo:** https://github.com/spragginsdesigns/bible-ai-explorer
 
 ## Development Priorities (IMPORTANT)
@@ -64,7 +64,7 @@ This link must stay visible in the web UI (see `src/lib/constants.ts`).
 | Term | Meaning | Location |
 |------|---------|----------|
 | SureWord | Product name / brand (renamed from VerseMind on 2026-08-10) | Header, layout |
-| AstraDB | DataStax Astra vector database for Bible verse embeddings | `src/utils/astraDb.ts` |
+| pgvector | Verse + note embeddings live in the production Neon DB (`VerseEmbedding`, `NoteEmbedding` tables, halfvec 3072) | `src/lib/scripture-search.ts`, `src/lib/note-embeddings.ts` |
 | Tavily | External search API for supplementary web results | `src/app/api/tavily-search/route.ts` |
 | RAG | Retrieval-Augmented Generation - queries vector DB for relevant Bible passages | `src/app/api/ask-question/route.ts` |
 
@@ -75,7 +75,7 @@ bible-ai-explorer/
 ├── src/
 │   ├── app/                  # Next.js App Router pages & API routes
 │   │   ├── api/
-│   │   │   ├── ask-question/ # Main RAG endpoint (OpenAI + AstraDB)
+│   │   │   ├── ask-question/ # Main RAG endpoint (OpenAI + Neon pgvector)
 │   │   │   └── tavily-search/ # Tavily web search endpoint
 │   │   ├── layout.tsx        # Root layout
 │   │   ├── page.tsx          # Home page
@@ -96,7 +96,6 @@ bible-ai-explorer/
 │   ├── lib/
 │   │   └── utils.ts          # cn() utility (clsx + tailwind-merge)
 │   └── utils/
-│       ├── astraDb.ts        # AstraDB connection & vector search
 │       ├── systemPrompt.ts   # System prompt for OpenAI
 │       └── commonQuestions.ts # Predefined question suggestions
 └── .env.local                # Environment variables (not committed)
@@ -272,14 +271,16 @@ over it; the old one must be uninstalled by hand.
 `DATABASE_URL` and `DATABASE_URL_UNPOOLED` come from the Neon integration (see above).
 Also required in `.env.local`:
 - `OPENAI_API_KEY` - OpenAI API key
-- `ASTRA_DB_TOKEN` - DataStax Astra DB token (Bible verse embeddings only, no user data)
-- `ASTRA_DB_ENDPOINT` - Astra DB API endpoint
 - `TAVILY_API_KEY` - Tavily search API key
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` - Clerk auth
 
-Note the Astra variable names: the code reads `ASTRA_DB_TOKEN` / `ASTRA_DB_ENDPOINT`
-(`src/utils/astraDb.ts`), and the collection name is hardcoded in
-`src/lib/scripture-search.ts` rather than read from the environment.
+**AstraDB is retired (2026-08-19).** Its free tier hibernated the vector DB on
+2026-08-13 and silently broke Scripture retrieval for six days (hibernated DBs
+are also scheduled for deletion). Verse and note embeddings now live in the
+production Neon DB as pgvector tables (`VerseEmbedding`, `NoteEmbedding`);
+rebuild them any time with `scripts/backfill-verse-embeddings.mjs` /
+`scripts/backfill-note-embeddings.mjs` (~$0.50 of OpenAI embeddings). The
+`ASTRA_DB_*` env vars are dead and can be deleted from Vercel.
 
 ## Workflow
 
@@ -299,7 +300,7 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 ## Project-Specific Rules
 
 - All API routes use Next.js App Router (`src/app/api/`)
-- Vector search uses LangChain + AstraDB for Bible verse retrieval
+- Bible verse retrieval = pgvector similarity in Neon plus IDF keyword blending over the bundled KJV (`searchScripture`), with keyword-only fallback if the vector store errs
 - UI uses Tailwind CSS + Shadcn/Radix components
 - Theme switching via next-themes (ThemeProvider)
 - Chat history stored client-side (localStorage)
@@ -315,7 +316,10 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | Tap-a-verse insight route | `src/app/api/verse-insight/route.ts` (docs: `docs/FEATURES.md`) |
 | Tap-a-verse client hooks | `src/components/bible/useVerseInsight.ts` + `mobile/src/features/bible/useVerseInsight.ts` (mirrored) |
 | Search API route | `src/app/api/tavily-search/route.ts` |
-| Vector DB config | `src/utils/astraDb.ts` |
+| Scripture vector search | `src/lib/scripture-search.ts` |
+| Note embeddings sync/search | `src/lib/note-embeddings.ts` |
+| Original languages (WLC/TR + Strong's) | `src/lib/bible/originals.ts` + `src/data/originals/` |
+| Cross-references | `src/lib/bible/crossRefs.ts` + `src/data/crossrefs/` |
 | Memory extraction/injection + caps | `src/lib/memory.ts` |
 | Memory management API | `src/app/api/memories/` |
 | System prompt | `src/utils/systemPrompt.ts` |

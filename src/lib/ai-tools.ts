@@ -10,8 +10,12 @@ import { tavilySearch, type TavilyResult } from "@/lib/tavily";
 import {
 	appendMarkdownToNote,
 	findUserNotes,
+	readUserNote,
+	rewriteNote,
 	type AppendToNoteResult,
+	type NoteContent,
 	type NoteSummary,
+	type RewriteNoteResult,
 } from "@/lib/notes-io";
 import { getVerseText, type TranslationId } from "@/lib/bible/translations";
 import {
@@ -22,6 +26,13 @@ import {
 	type StudyStep,
 } from "@/lib/daily-cross";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
+import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
+import {
+	getOriginalVerse,
+	lookupStrongsEntry,
+	type OriginalVerse,
+	type StrongsEntry,
+} from "@/lib/bible/originals";
 
 export interface ScriptureSearchToolOutput {
 	verses: RetrievedVerse[];
@@ -45,6 +56,10 @@ export interface FindNotesToolOutput {
 
 export type AddToNoteToolOutput = AppendToNoteResult;
 
+export type ReadNoteToolOutput = NoteContent;
+
+export type UpdateNoteToolOutput = RewriteNoteResult;
+
 /** Today's "Pick Up Your Cross", flattened for the model and the receipt card. */
 export interface DailyCrossToolOutput {
 	reference: string;
@@ -62,6 +77,22 @@ export interface DailyCrossToolOutput {
 }
 
 const MAX_PASSAGE_VERSES = 30;
+const MAX_CROSS_REFERENCES = 8;
+
+export interface CrossReferencesToolOutput {
+	reference: string;
+	crossReferences: { reference: string; text?: string }[];
+	formatted: string;
+}
+
+export interface OriginalTextToolOutput extends OriginalVerse {
+	reference: string;
+	formatted: string;
+}
+
+export interface StrongsToolOutput extends StrongsEntry {
+	number: string;
+}
 
 export interface SureWordToolContext {
 	userId: string;
@@ -86,7 +117,11 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		}),
 		execute: async ({ query, limit }): Promise<ScriptureSearchToolOutput> => {
 			const result = await searchScripture(query, limit ?? 5, translation);
-			return { ...result, formatted: formatVersesForModel(result.verses, translation) };
+			let formatted = formatVersesForModel(result.verses, translation);
+			if (result.degraded) {
+				formatted = `NOTE: semantic search is temporarily unavailable, so these are exact-keyword matches only. Prefer getPassage for references you already know, and tell the user nothing about this mechanism.\n${formatted}`;
+			}
+			return { ...result, formatted };
 		},
 	});
 
@@ -134,6 +169,127 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const getCrossReferencesTool = tool({
+		description:
+			`Curated cross-references for one verse (from the Treasury-style openbible.info set), with their exact ${translation} text: Scripture interpreting Scripture. Use it to find related passages when explaining a verse, tracing a doctrine, or when the user asks what else the Bible says about what a verse teaches.`,
+		inputSchema: z.object({
+			book: z.string().describe('Bible book name, e.g. "Genesis", "Psalms", "1 John".'),
+			chapter: z.number().int().min(1),
+			verse: z.number().int().min(1),
+		}),
+		execute: async ({ book, chapter, verse }): Promise<CrossReferencesToolOutput> => {
+			const bookNumber = getKjvBookNumber(book);
+			if (!bookNumber) {
+				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
+			}
+			const bookName = getKjvBookName(bookNumber) ?? book;
+			const refs = (await getCrossReferencesFor(bookNumber, chapter, verse)).slice(
+				0,
+				MAX_CROSS_REFERENCES
+			);
+
+			const crossReferences = await Promise.all(
+				refs.map(async (ref) => {
+					const refBookName = getKjvBookName(ref.order) ?? `Book ${ref.order}`;
+					const isRange =
+						ref.endChapter !== undefined &&
+						ref.endVerse !== undefined &&
+						(ref.endChapter !== ref.chapter || ref.endVerse !== ref.verse);
+					const reference = isRange
+						? ref.endChapter === ref.chapter
+							? `${refBookName} ${ref.chapter}:${ref.verse}-${ref.endVerse}`
+							: `${refBookName} ${ref.chapter}:${ref.verse}-${ref.endChapter}:${ref.endVerse}`
+						: `${refBookName} ${ref.chapter}:${ref.verse}`;
+
+					// Quote single verses and short same-chapter ranges; long ranges
+					// stay reference-only (the model can getPassage them if needed).
+					const lastVerse =
+						isRange && ref.endChapter === ref.chapter
+							? Math.min(ref.endVerse ?? ref.verse, ref.verse + 3)
+							: ref.verse;
+					const texts: string[] = [];
+					if (!isRange || ref.endChapter === ref.chapter) {
+						for (let v = ref.verse; v <= lastVerse; v++) {
+							const text = await getVerseText(translation, ref.order, ref.chapter, v);
+							if (!text) break;
+							texts.push(text);
+						}
+					}
+					const text = texts.length > 0 ? texts.join(" ") : undefined;
+					return { reference, ...(text ? { text } : {}) };
+				})
+			);
+
+			const source = `${bookName} ${chapter}:${verse}`;
+			const formatted =
+				crossReferences.length === 0
+					? `No cross-references on record for ${source}.`
+					: crossReferences
+							.map((ref) =>
+								ref.text
+									? `${ref.reference} ${translation}: "${ref.text}"`
+									: `${ref.reference} (reference only; use getPassage for its text)`
+							)
+							.join("\n");
+			return { reference: source, crossReferences, formatted };
+		},
+	});
+
+	const getOriginalTextTool = tool({
+		description:
+			"The inspired original-language text of one verse, word by word: Hebrew from the Westminster Leningrad Codex (OT) or Greek from Scrivener's 1894 Textus Receptus, the Greek text underlying the KJV (NT). Each word carries its Strong's number, morphology code, lemma, transliteration, and KJV gloss. Use this whenever you discuss what a word means in the original languages, compare translations, or the user asks about the Hebrew or Greek. Ground every original-language claim in this tool rather than memory.",
+		inputSchema: z.object({
+			book: z.string().describe('Bible book name, e.g. "Genesis", "Psalms", "1 John".'),
+			chapter: z.number().int().min(1),
+			verse: z.number().int().min(1),
+		}),
+		execute: async ({ book, chapter, verse }): Promise<OriginalTextToolOutput> => {
+			const bookNumber = getKjvBookNumber(book);
+			if (!bookNumber) {
+				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
+			}
+			const bookName = getKjvBookName(bookNumber) ?? book;
+			const original = await getOriginalVerse(bookNumber, chapter, verse);
+			if (!original) {
+				throw new Error(
+					`${bookName} ${chapter}:${verse} was not found in the original-language text. Note that Hebrew versification can differ slightly from the KJV (e.g. Psalm titles count as verse 1).`
+				);
+			}
+			const reference = `${bookName} ${chapter}:${verse}`;
+			const formatted = [
+				`${reference} (${original.textName}):`,
+				original.words.map((word) => word.text).join(" "),
+				...original.words.map((word) => {
+					const parts = [word.text];
+					if (word.lemma && word.lemma !== word.text) parts.push(`lemma ${word.lemma}`);
+					if (word.translit) parts.push(word.translit);
+					if (word.strongs) parts.push(word.strongs);
+					if (word.morph) parts.push(word.morph);
+					if (word.gloss) parts.push(`KJV: ${word.gloss.slice(0, 90)}`);
+					return `- ${parts.join(" | ")}`;
+				}),
+			].join("\n");
+			return { reference, ...original, formatted };
+		},
+	});
+
+	const lookupStrongsTool = tool({
+		description:
+			"Look up a Strong's dictionary entry by number (e.g. H430 or G26): lemma, transliteration, definition, and how the KJV translates it. Use it for word studies when you already know the Strong's number (usually from getOriginalText).",
+		inputSchema: z.object({
+			number: z
+				.string()
+				.describe('Strong\'s number with its language prefix: "H430" (Hebrew) or "G26" (Greek).'),
+		}),
+		execute: async ({ number }): Promise<StrongsToolOutput> => {
+			const entry = await lookupStrongsEntry(number);
+			if (!entry) {
+				throw new Error(`No Strong's entry found for "${number}". Use H#### for Hebrew or G#### for Greek.`);
+			}
+			return { number: number.trim().toUpperCase(), ...entry };
+		},
+	});
+
 	const webSearchTool = tool({
 		description:
 			`Search the web for supplementary material: church history, archaeology, apologetics, current events, or original-language word studies. Never use it as an authority above or alongside Scripture; weigh everything it returns against the ${translation}.`,
@@ -176,11 +332,62 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const readNoteTool = tool({
+		description: context.defaultNoteId
+			? "Read the full content of one of the user's Bible study notes. Omit noteId to read the note that is currently open. ALWAYS read a note with this tool before editing it with updateNote."
+			: "Read the full content of one of the user's Bible study notes, located via findNotes. ALWAYS read a note with this tool before editing it with updateNote, and use it whenever answering well requires the note's actual content rather than the short preview findNotes returns.",
+		inputSchema: z.object({
+			noteId: z
+				.string()
+				.optional()
+				.describe(
+					"Note id from findNotes. Omit to read the currently open note (note chat only)."
+				),
+		}),
+		execute: async ({ noteId }): Promise<ReadNoteToolOutput> => {
+			const targetNoteId = noteId?.trim() || context.defaultNoteId;
+			if (!targetNoteId) {
+				throw new Error("No note specified. Use findNotes first to locate the note.");
+			}
+			return readUserNote(context.userId, targetNoteId);
+		},
+	});
+
+	const updateNoteTool = tool({
+		description:
+			"REPLACE the entire content of one of the user's Bible study notes with rewritten markdown, optionally retitling it. This OVERWRITES what the note currently says, so: (1) only call it when the user explicitly asks you to edit, reformat, reorganize, correct, or clean up a note — never to merely add content (use addToNote for that); (2) you MUST have read the note with readNote in this conversation first; (3) preserve everything the user wrote unless they asked you to change it — reformatting means restructuring their content faithfully, not summarizing or trimming it.",
+		inputSchema: z.object({
+			markdown: z
+				.string()
+				.describe(
+					"The complete new note content as clean markdown (headings, lists, blockquotes for verses). This replaces the whole note body."
+				),
+			noteId: z
+				.string()
+				.optional()
+				.describe(
+					"Note id from findNotes/readNote. Omit to update the currently open note (note chat only)."
+				),
+			title: z.string().optional().describe("New title, only when the user asked to rename the note."),
+		}),
+		execute: async ({ markdown, noteId, title }): Promise<UpdateNoteToolOutput> => {
+			const targetNoteId = noteId?.trim() || context.defaultNoteId;
+			if (!targetNoteId) {
+				throw new Error("No note specified. Use findNotes first to locate the note.");
+			}
+			return rewriteNote({ userId: context.userId, noteId: targetNoteId, markdown, title });
+		},
+	});
+
 	const findNotesTool = tool({
 		description:
-			"Search the user's Bible study notes by title or content. Use this to locate the right note before adding to it, or when the user refers to one of their notes.",
+			"Search the user's Bible study notes by exact wording AND by meaning (semantic search over everything they have written). Use this to locate the right note before reading, adding to, or editing it, when the user refers to one of their notes, or when their past study notes might inform your answer.",
 		inputSchema: z.object({
-			query: z.string().describe("Words from the note title or content. Empty string lists recent notes."),
+			query: z
+				.string()
+				.describe(
+					"Words from the note title/content, or a description of the topic to find notes about. Empty string lists recent notes."
+				),
 		}),
 		execute: async ({ query }): Promise<FindNotesToolOutput> => {
 			const notes = await findUserNotes(context.userId, query);
@@ -235,8 +442,13 @@ export function buildSureWordTools(context: SureWordToolContext) {
 	return {
 		searchScripture: searchScriptureTool,
 		getPassage: getPassageTool,
+		getCrossReferences: getCrossReferencesTool,
+		getOriginalText: getOriginalTextTool,
+		lookupStrongs: lookupStrongsTool,
 		webSearch: webSearchTool,
 		addToNote: addToNoteTool,
+		readNote: readNoteTool,
+		updateNote: updateNoteTool,
 		findNotes: findNotesTool,
 		getDailyCross: getDailyCrossTool,
 		setDailyCross: setDailyCrossTool,

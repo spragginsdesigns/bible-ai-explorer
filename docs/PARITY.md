@@ -87,6 +87,10 @@ tab selection). Same behavior, different plumbing.
 | Note-action receipt cards | ✅ | ✅ | ✅ | ✅ tap opens the note in the editor |  |
 | App-aware assistant (knows SureWord's screens, settings, commands and features) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | Shared `appKnowledge` block in `src/utils/systemPrompt.ts`, written from this file; also carried by the per-note AI panel |
 | Daily-cross tools in chat (read today's word; replace it only after the user confirms) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | `getDailyCross` / `setDailyCross` in `src/lib/ai-tools.ts`; confirmation is enforced in `dailyCrossGuidance`, not by a UI gate |
+| Cross-references tool (`getCrossReferences`: curated refs + exact text per verse) | ✅ | ✅ | ✅ | ✅ | Server-side tool over the bundled openbible.info set (`src/data/crossrefs/`, CC-BY); all clients get it through the shared backend |
+| Original-languages tools (`getOriginalText` word-by-word WLC Hebrew / Scrivener 1894 TR Greek with Strong's + morphology; `lookupStrongs` dictionary) | ✅ | ✅ | ✅ | ✅ | Server-side tools over `src/data/originals/` (18 MB bundled, built by `scripts/build-original-languages.mjs`); grounds every original-language claim in data instead of model memory |
+| Scripture retrieval: Neon pgvector + keyword hybrid with degraded-mode fallback | ✅ | ✅ | ✅ | ✅ | `searchScripture` now queries the `VerseEmbedding` pgvector table in the production Neon DB (AstraDB retired after its free tier hibernated and silently broke retrieval); IDF keyword hits merge in for exact-wording recall, and keyword-only results serve if the vector store is ever unreachable |
+| Streaming activity labels for the new tools (readNote/updateNote/crossrefs/originals) | ✅ 1.18.0 | ✅ | ✅ | ✅ | Older installed builds show the generic "Working" label; completed tool parts are skipped safely |
 | "Pick Up Your Cross updated" receipt card → opens the new day | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | Only the replace shows a card; reading the day is silent |
 | Save whole answer to notes (new note or append via picker) | ✅ | ✅ | ✅ | ✅ | Shared route `POST /api/notes/append` |
 | Slash commands (`/new` `/clear` `/history` `/note` `/verse` `/search` `/web` `/memory` `/cross`) | ✅ | ✅ | ✅ | ✅ | `/cross` added 1.15.0 — shows today's word, never replaces it |
@@ -130,6 +134,9 @@ tab selection). Same behavior, different plumbing.
 | Note AI history persist + clear | ✅ | ✅ | ✅ | ✅ |  |
 | Note slash commands (`/suggest` `/verse` `/clear`) | ✅ | 🟡 | ✅ | ✅ | Web panel has Suggest-Verses button; slash commands pending |
 | Note created from chat `addToNote` tool | ✅ | ✅ | ✅ | ✅ | Shared backend |
+| AI reads whole notes on demand (`readNote`) | ✅ | ✅ | ✅ | ✅ | Shared backend; in the per-note panel it defaults to the open note |
+| AI rewrites/reformats a note when asked (`updateNote`) | ✅ | ✅ | ✅ | ✅ | Shared backend; prompt-gated: only on explicit request, must `readNote` first, preserves user content |
+| Semantic note search (`findNotes` matches by meaning as well as wording) | ✅ | ✅ | ✅ | ✅ | `NoteEmbedding` pgvector table in Neon, re-embedded on every note write on any client (`src/lib/note-embeddings.ts`); backfilled once via `scripts/backfill-note-embeddings.mjs` |
 
 ## How to add a feature (the parity workflow)
 
