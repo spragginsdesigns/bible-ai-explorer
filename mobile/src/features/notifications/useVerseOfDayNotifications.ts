@@ -9,8 +9,16 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { openReferenceInReader } from "@/features/chat/verseLinks";
 import { registerPushToken, unregisterPushToken } from "./api";
 import { useNotificationSettings } from "./notificationSettings";
+import { notificationTapTarget } from "./tapTarget";
 
-const ANDROID_CHANNEL_ID = "verse-of-day";
+// HIGH-importance channel so the morning word arrives as a heads-up banner.
+// Android ignores in-place importance upgrades on an existing channel, so the
+// original DEFAULT-importance "verse-of-day" channel had to be replaced, not
+// edited — the server cron sends this channelId, and the legacy channel is
+// deleted below. (Pushes that name a channel an old install lacks fall back to
+// a default channel and still display.)
+const ANDROID_CHANNEL_ID = "daily-cross";
+const LEGACY_ANDROID_CHANNEL_ID = "verse-of-day";
 /**
  * Remembers that this device registered a push token with the backend. When a
  * later launch can't reach the registration endpoint (offline, transient
@@ -54,10 +62,13 @@ function cancelAllScheduled(): Promise<void> {
 	return Notifications.cancelAllScheduledNotificationsAsync();
 }
 
-function asInt(value: unknown): number | null {
-	const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
-	return Number.isInteger(parsed) ? parsed : null;
-}
+/**
+ * The tap that launched the app also surfaces through
+ * getLastNotificationResponse, and the live listener can deliver the same
+ * response again in some launch paths — this remembers what was already acted
+ * on so a tap navigates exactly once per process.
+ */
+let handledTapId: string | null = null;
 
 /**
  * Verse-of-the-day wiring, mounted once in the (app) layout:
@@ -65,7 +76,9 @@ function asInt(value: unknown): number | null {
  * - Registers this device's Expo push token with the backend (with the local
  *   timezone and chosen hour) on startup and whenever the setting changes;
  *   disabling the setting unregisters instead.
- * - Tapping a notification deep-links into the Bible reader at the verse.
+ * - Tapping a notification opens the Pick Up Your Cross screen (older
+ *   payloads with only a verse reference deep-link into the Bible reader),
+ *   including the tap that cold-launched the app.
  *
  * Everything is best-effort: permission denial, a missing EAS projectId, and
  * network failures are all swallowed — push must never break app startup.
@@ -78,22 +91,37 @@ export function useVerseOfDayNotifications(): void {
 	// Tap → the "Pick Up Your Cross" screen (the guided day). Older
 	// notifications that carry only a verse reference fall back to the reader.
 	useEffect(() => {
+		const handleTap = (response: Notifications.NotificationResponse) => {
+			const target = notificationTapTarget(response.notification.request.content.data ?? {});
+			if (!target) return;
+			if ("screen" in target) router.push("/cross");
+			else openReferenceInReader(router, target.reference);
+		};
+
 		const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-			const data = response.notification.request.content.data as {
-				screen?: unknown;
-				book?: unknown;
-				chapter?: unknown;
-				verse?: unknown;
-			};
-			if (data.screen === "cross") {
-				router.push("/cross");
-				return;
-			}
-			const chapter = asInt(data.chapter);
-			const verse = asInt(data.verse);
-			if (typeof data.book !== "string" || chapter === null || verse === null) return;
-			openReferenceInReader(router, `${data.book} ${chapter}:${verse}`);
+			handledTapId = response.notification.request.identifier;
+			handleTap(response);
 		});
+
+		// Cold start: the tap that launched the app fired before this listener
+		// existed (this layout mounts only after fonts, settings, and auth), so
+		// the listener alone loses the morning tap. KNOWN GAP (verified on the
+		// S24 Ultra, 2026-08-19): on a killed-state tap this getter returns null
+		// and the listener never fires either — the response never reaches JS at
+		// all, so the tap opens the app on the default tab. Upstream
+		// expo-notifications (SDK 57, new architecture) drops the launching
+		// response before the emitter module ever sees it; nothing at this layer
+		// can recover it. Kept because it is correct per the API contract and
+		// covers devices/launch paths where the response IS delivered.
+		const launchResponse = Notifications.getLastNotificationResponse();
+		if (launchResponse) {
+			const id = launchResponse.notification.request.identifier;
+			if (id !== handledTapId) {
+				handledTapId = id;
+				handleTap(launchResponse);
+			}
+		}
+
 		return () => subscription.remove();
 	}, [router]);
 
@@ -106,8 +134,12 @@ export function useVerseOfDayNotifications(): void {
 				if (Platform.OS === "android") {
 					await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
 						name: "Pick Up Your Cross",
-						importance: Notifications.AndroidImportance.DEFAULT,
+						importance: Notifications.AndroidImportance.HIGH,
+						lightColor: "#d97706",
 					});
+					await Notifications.deleteNotificationChannelAsync(LEGACY_ANDROID_CHANNEL_ID).catch(
+						() => {}
+					);
 				}
 
 				if (!enabled) {

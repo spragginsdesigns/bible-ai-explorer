@@ -3,6 +3,27 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.17.0] — 2026-08-19
+
+### Changed
+- **The notification now leads with the Scripture itself.** The body shows the
+  verse text — *"Casting all your care upon him; for he careth for you." —
+  1 Peter 5:7* — instead of the reference plus an explanation line; the
+  why-today line waits on the screen the tap opens.
+- **It arrives like it matters.** The daily notification now comes through a
+  heads-up channel (banner + sound, like a text message) rather than sliding
+  silently into the tray, and it wears the day-star mark in SureWord gold in
+  the status bar instead of a generic tinted square.
+
+### Known issue
+- **Tapping the notification when the app is closed still opens the app to
+  Chat instead of the day.** The app now checks for the launching tap on
+  startup, and taps while the app is running deep-link correctly — but when
+  the tap itself starts the app, Android hands the app no record of the tap
+  (an expo-notifications bug, confirmed on-device with instrumentation: the
+  response never reaches the app's code by either API). Needs an upstream fix
+  or a native workaround in a future release.
+
 ## [1.16.0] — 2026-08-17
 
 ### Changed

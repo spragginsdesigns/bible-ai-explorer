@@ -30,8 +30,17 @@ interface PendingPush {
 	tokenId: string;
 	to: string;
 	title: string;
+	subtitle: string;
 	body: string;
 	data: { screen: "cross"; book: string; chapter: number; verse: number };
+}
+
+/**
+ * Keep very long verses tray-friendly (the longest KJV verse runs ~430
+ * characters); the full text is one tap away on the Daily Cross screen.
+ */
+function trayVerse(text: string, max = 240): string {
+	return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
 interface ExpoPushTicket {
@@ -57,13 +66,18 @@ async function sendPushMessages(messages: PendingPush[]): Promise<number> {
 					chunk.map((message) => ({
 						to: message.to,
 						title: message.title,
+						// subtitle renders on iOS only; Android carries the
+						// reference inside the body instead.
+						subtitle: message.subtitle,
 						body: message.body,
 						data: message.data,
 						// High priority so FCM delivers during Doze instead of
 						// holding the morning verse until a maintenance window;
-						// channelId routes it to the app's verse-of-day channel.
+						// channelId routes it to the app's heads-up channel
+						// (clients older than 1.17.0 lack it and fall back to a
+						// default channel — the notification still displays).
 						priority: "high",
-						channelId: "verse-of-day",
+						channelId: "daily-cross",
 					}))
 				),
 			});
@@ -138,7 +152,10 @@ export async function GET(request: Request) {
 					tokenId: token.id,
 					to: token.token,
 					title: "✝ Pick up your cross",
-					body: `${reference} — ${cross.reason}`,
+					subtitle: reference,
+					// Lead with the Scripture itself — the AI's why-line waits on
+					// the Daily Cross screen the tap opens.
+					body: `“${trayVerse(cross.text)}” — ${reference}`,
 					data: { screen: "cross", book: cross.book, chapter: cross.chapter, verse: cross.verse },
 				});
 			}

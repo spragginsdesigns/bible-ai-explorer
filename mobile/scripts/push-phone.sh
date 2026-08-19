@@ -21,7 +21,17 @@ case "$HOST_OS" in
     SDK_ROOT="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
     SDK_ROOT="${SDK_ROOT//\\//}"
     ADB="$SDK_ROOT/platform-tools/adb.exe"
-    JAVA_HOME_DEFAULT="${JAVA_HOME:-C:/Program Files/Android/Android Studio/jbr}"
+    # Prefer Android Studio's JBR (JDK 21) over an inherited JAVA_HOME: the
+    # machine-wide JAVA_HOME can point at JDK 24+, whose native-access
+    # enforcement makes AGP's forked prefab JVM print "WARNING: A restricted
+    # method in java.lang.System has been called" into a random configureCMake
+    # task's stderr, which AGP parses as a fatal build error. jvmargs can't fix
+    # that fork, so pin the JDK the whole build runs on instead.
+    if [[ -x "C:/Program Files/Android/Android Studio/jbr/bin/java.exe" ]]; then
+      JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
+    else
+      JAVA_HOME_DEFAULT="${JAVA_HOME:-C:/Program Files/Android/Android Studio/jbr}"
+    fi
     ;;
   *)
     SDK_ROOT="${ANDROID_HOME:-$HOME/Android/Sdk}"
@@ -188,10 +198,15 @@ if [[ "${1:-}" != "--skip-build" ]]; then
   # Expo's generated 512 MB metaspace cap is too small for the release KSP and
   # native-module graph on a clean build. Keep this deterministic across fresh
   # prebuilds rather than relying on a developer's global Gradle settings.
+  # --enable-native-access silences the JVM's process-wide "restricted method"
+  # warning, which otherwise lands in a random configureCMake task's stderr and
+  # AGP parses it as a fatal error (flaky "WARNING: A restricted method in
+  # java.lang.System has been called" build failures on fresh prebuilds).
+  GRADLE_JVMARGS='-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 --enable-native-access=ALL-UNNAMED'
   if grep -q '^org.gradle.jvmargs=' gradle.properties; then
-    perl -pi -e 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8/' gradle.properties
+    JVMARGS="$GRADLE_JVMARGS" perl -pi -e 's/^org\.gradle\.jvmargs=.*/org.gradle.jvmargs=$ENV{JVMARGS}/' gradle.properties
   else
-    printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8\n' >> gradle.properties
+    printf '\norg.gradle.jvmargs=%s\n' "$GRADLE_JVMARGS" >> gradle.properties
   fi
   NODE_ENV=production JAVA_HOME="$JAVA_HOME_DEFAULT" ./gradlew --no-daemon \
     assembleRelease -x lint -x lintVitalAnalyzeRelease --quiet

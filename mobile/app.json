@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "SureWord",
 		"slug": "sureword",
-		"version": "1.16.0",
+		"version": "1.17.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "sureword",
@@ -19,7 +19,7 @@
 		},
 		"android": {
 			"package": "com.spragginsdesigns.sureword",
-			"versionCode": 10,
+			"versionCode": 11,
 			"googleServicesFile": "./google-services.json",
 			"adaptiveIcon": {
 				"foregroundImage": "./assets/adaptive-icon.png",
@@ -59,7 +59,8 @@
 			[
 				"expo-notifications",
 				{
-					"color": "#0a0a0a"
+					"icon": "./assets/notification-icon.png",
+					"color": "#d97706"
 				}
 			]
 		],
