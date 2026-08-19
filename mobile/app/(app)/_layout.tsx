@@ -108,6 +108,9 @@ export default function AppLayout() {
 	return (
 		<Tabs
 			tabBar={(props) => <GlassTabBar {...props} />}
+			// Back returns to the previously focused screen instead of always
+			// falling out to the first tab (chat).
+			backBehavior="history"
 			screenOptions={{
 				headerShown: false,
 				sceneStyle: { backgroundColor: colors.bg },
@@ -115,11 +118,14 @@ export default function AppLayout() {
 		>
 			<Tabs.Screen name="index" />
 			<Tabs.Screen name="bible" />
-			<Tabs.Screen name="notes" />
+			{/* Reset the nested notes stack when leaving, so the tab always reopens on the hub. */}
+			<Tabs.Screen name="notes" options={{ popToTopOnBlur: true }} />
 			{/* Push-only screen: reachable from the chat header gear, hidden from the tab bar. */}
 			<Tabs.Screen name="settings" options={{ href: null }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
+			{/* Push-only screen: reachable from the Bible tab, chat cards, and the morning notification. */}
+			<Tabs.Screen name="cross" options={{ href: null }} />
 		</Tabs>
 	);
 }

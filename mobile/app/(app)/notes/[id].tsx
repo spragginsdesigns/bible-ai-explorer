@@ -42,8 +42,9 @@ export default function NoteEditorScreen() {
 
 	const goBack = useCallback(async () => {
 		await editorRef.current?.flush();
-		if (router.canGoBack()) router.back();
-		else router.replace("/notes");
+		// Always land on the notes hub: pops to it when it's in the stack,
+		// replaces otherwise (plain back() could fall out to another tab).
+		router.dismissTo("/notes");
 	}, [router]);
 
 	useEffect(() => {

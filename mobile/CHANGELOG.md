@@ -3,6 +3,20 @@
 All notable changes to the Android app. Versions correspond to the APKs
 delivered to the Drive share link and installed via `/push-phone`.
 
+## [1.17.1] — 2026-08-19
+
+### Fixed
+- **Back now takes you back.** The back button used to dump you on Chat from
+  almost anywhere — Pick Up Your Cross, Settings, Memories, a note opened from
+  chat — because the tab navigator treated Chat as the fallback destination.
+  Back now returns to the screen you actually came from (Cross → Bible,
+  Memories → Settings, and so on).
+- **The Notes tab opens the notes hub again.** Leaving the Notes tab resets it,
+  so tapping Notes always shows all your notes instead of whichever note you
+  had open last.
+- **Back from inside a note goes to the notes hub**, never to chat — even when
+  the note was opened straight from a chat card.
+
 ## [1.17.0] — 2026-08-19
 
 ### Changed
