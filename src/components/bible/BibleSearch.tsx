@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { bookByOrder, resolveReference, type Reference } from "@/lib/bible/books";
 import { searchKjv, type KjvSearchHit } from "@/lib/bible/kjv";
@@ -65,8 +64,8 @@ const BibleSearch: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl px-5 pb-28 lg:pb-10">
-        <div className="flex items-center gap-4 py-3">
+      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-28 lg:pb-16">
+        <div className="flex items-center gap-4 py-3 lg:py-6">
           <button
             type="button"
             onClick={() => router.back()}

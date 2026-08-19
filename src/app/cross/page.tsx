@@ -131,8 +131,8 @@ export default function DailyCrossPage() {
 
 	return (
 		<div className="min-h-[100dvh] gradient-mesh">
-			<div className="mx-auto w-full max-w-2xl px-5 pb-28 lg:pb-10">
-				<div className="flex items-center gap-4 py-3">
+			<div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-28 lg:pb-16">
+				<div className="flex items-center gap-4 py-3 lg:py-6">
 					<button
 						type="button"
 						onClick={() => router.back()}

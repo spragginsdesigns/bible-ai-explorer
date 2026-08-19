@@ -29,23 +29,25 @@ const NotesSearch: React.FC<NotesSearchProps> = ({ value, onChange }) => {
 	};
 
 	return (
-		<div className="relative px-3 pb-2">
-			<div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] focus-within:border-amber-400/30 transition-colors">
-				<Search className="w-3.5 h-3.5 text-neutral-600 flex-shrink-0" />
-				<input
-					value={localValue}
-					onChange={handleChange}
-					placeholder="Search notes..."
-					className="flex-1 bg-transparent text-neutral-200 text-xs outline-none placeholder:text-neutral-600"
-				/>
-				{localValue && (
-					<button
-						onClick={handleClear}
-						className="text-neutral-600 hover:text-neutral-400 transition-colors"
-					>
-						<X className="w-3.5 h-3.5" />
-					</button>
-				)}
+		<div className="px-3 lg:px-8 pb-2 pt-3">
+			<div className="relative mx-auto w-full max-w-5xl">
+				<div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] focus-within:border-amber-500/40 dark:focus-within:border-amber-400/30 transition-colors">
+					<Search className="w-4 h-4 text-neutral-400 dark:text-neutral-600 flex-shrink-0" />
+					<input
+						value={localValue}
+						onChange={handleChange}
+						placeholder="Search notes..."
+						className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 text-sm outline-none placeholder:text-neutral-400 dark:placeholder:text-neutral-600"
+					/>
+					{localValue && (
+						<button
+							onClick={handleClear}
+							className="text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors"
+						>
+							<X className="w-4 h-4" />
+						</button>
+					)}
+				</div>
 			</div>
 		</div>
 	);

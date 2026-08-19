@@ -270,9 +270,9 @@ const ChapterReader: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl px-5 pb-32">
+      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-32">
         {/* Top bar */}
-        <div className="flex items-center gap-4 py-3">
+        <div className="flex items-center gap-4 py-3 lg:py-5">
           <button
             type="button"
             onClick={() => router.back()}

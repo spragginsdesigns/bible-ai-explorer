@@ -38,40 +38,42 @@ const NotesListView: React.FC<NotesListViewProps> = ({
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0">
-			<div className="flex items-center justify-between px-4 py-3">
-				<span className="text-neutral-400 text-xs">
+			<div className="mx-auto w-full max-w-5xl flex items-center justify-between px-4 lg:px-8 py-3">
+				<span className="text-neutral-500 dark:text-neutral-400 text-xs">
 					{notes.length} note{notes.length !== 1 ? "s" : ""}
 				</span>
 				<button
 					onClick={cycleSortOption}
-					className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-300 transition-colors text-xs"
+					className="flex items-center gap-1.5 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors text-xs"
 				>
 					<ArrowDownUp className="w-3.5 h-3.5" />
 					{SORT_LABELS[sortBy]}
 				</button>
 			</div>
 
-			<div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3">
-				{notes.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-16 text-center">
-						<p className="text-neutral-500 text-sm">No notes yet</p>
-						<p className="text-neutral-600 text-xs mt-1">
-							Create a note to start studying
-						</p>
-					</div>
-				) : (
-					<div className="grid gap-2">
-						{notes.map((note) => (
-							<NoteCard
-								key={note.id}
-								note={note}
-								tags={tags}
-								isActive={note.id === activeNoteId}
-								onClick={() => onSelectNote(note.id)}
-							/>
-						))}
-					</div>
-				)}
+			<div className="flex-1 overflow-y-auto custom-scrollbar px-3 lg:px-8 pb-6">
+				<div className="mx-auto w-full max-w-5xl">
+					{notes.length === 0 ? (
+						<div className="flex flex-col items-center justify-center py-16 text-center">
+							<p className="text-neutral-500 text-sm">No notes yet</p>
+							<p className="text-neutral-400 dark:text-neutral-600 text-xs mt-1">
+								Create a note to start studying
+							</p>
+						</div>
+					) : (
+						<div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 items-stretch">
+							{notes.map((note) => (
+								<NoteCard
+									key={note.id}
+									note={note}
+									tags={tags}
+									isActive={note.id === activeNoteId}
+									onClick={() => onSelectNote(note.id)}
+								/>
+							))}
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

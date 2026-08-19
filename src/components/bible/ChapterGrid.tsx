@@ -35,18 +35,18 @@ const ChapterGrid: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl px-5 pb-28 lg:pb-10">
-        <div className="flex items-center gap-4 py-3">
+      <div className="mx-auto w-full max-w-2xl lg:max-w-5xl px-5 lg:px-8 pb-28 lg:pb-16">
+        <div className="flex items-center gap-4 py-3 lg:py-6">
           <Link href="/bible" className="text-[15px] font-semibold text-amber-600 dark:text-amber-400">
             ‹ Back
           </Link>
-          <h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+          <h1 className="flex-1 truncate text-center text-[15px] lg:text-xl font-semibold text-neutral-900 dark:text-neutral-100">
             {book.name}
           </h1>
           <span className="w-11" aria-hidden />
         </div>
 
-        <div className="grid grid-cols-5 gap-2 pt-2 sm:grid-cols-8 md:grid-cols-10">
+        <div className="grid grid-cols-5 gap-2 lg:gap-2.5 pt-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
           {chapters.map((chapter) => (
             <Link
               key={chapter}

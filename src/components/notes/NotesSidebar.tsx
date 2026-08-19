@@ -27,6 +27,10 @@ interface NotesSidebarProps {
 	onCreateNote: () => void;
 }
 
+/**
+ * Folders + tags sidebar. Persistent on desktop (lg+); on smaller screens it
+ * slides in over the list with a backdrop, toggled by the top-bar menu button.
+ */
 const NotesSidebar: React.FC<NotesSidebarProps> = ({
 	open,
 	onClose,
@@ -80,21 +84,21 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 
 			<aside
 				className={`
-					fixed lg:relative z-50 top-0 left-0 h-full w-[85vw] max-w-72
-					glass border-r border-white/[0.06]
+					fixed lg:relative z-50 top-0 left-0 h-full w-[85vw] max-w-72 lg:w-64
+					glass border-r border-black/[0.06] dark:border-white/[0.06]
 					flex flex-col
 					transition-transform duration-200 ease-in-out
-					${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:hidden"}
+					${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
 				`}
 			>
 				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b border-white/[0.06]">
-					<span className="text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">
+				<div className="flex items-center justify-between p-4 border-b border-black/[0.06] dark:border-white/[0.06]">
+					<span className="text-amber-600 dark:text-amber-400 font-bold text-lg font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">
 						SureWord
 					</span>
 					<button
 						onClick={onClose}
-						className="lg:hidden text-neutral-500 hover:text-neutral-300 transition-colors"
+						className="lg:hidden text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
 					>
 						<X className="w-5 h-5" />
 					</button>
@@ -107,9 +111,9 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 							onCreateNote();
 							onClose();
 						}}
-						className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl gradient-border bg-white/[0.03] text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-200 transition-colors text-sm"
+						className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl gradient-border bg-black/[0.02] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors text-sm"
 					>
-						<FileText className="w-4 h-4 text-amber-400" />
+						<FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
 						New Note
 					</button>
 				</div>
@@ -125,8 +129,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 						className={`
 							w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm mb-0.5 transition-all duration-150
 							${activeFolderId === null && !activeTagId
-								? "bg-white/[0.06] text-neutral-200 border border-white/[0.1] glow-white-sm"
-								: "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300 border border-transparent"
+								? "bg-black/[0.05] dark:bg-white/[0.06] text-neutral-800 dark:text-neutral-200 border border-black/[0.1] dark:border-white/[0.1] glow-white-sm"
+								: "text-neutral-500 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] hover:text-neutral-700 dark:hover:text-neutral-300 border border-transparent"
 							}
 						`}
 					>
@@ -147,11 +151,11 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 											if (e.key === "Enter") handleRenameFolder(folder.id);
 											if (e.key === "Escape") setEditingFolderId(null);
 										}}
-										className="flex-1 bg-transparent text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1"
+										className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1"
 									/>
 									<button
 										onClick={() => handleRenameFolder(folder.id)}
-										className="text-amber-400 hover:text-amber-300 p-1"
+										className="text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 p-1"
 									>
 										<Check className="w-3.5 h-3.5" />
 									</button>
@@ -166,8 +170,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 									className={`
 										w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm mb-0.5 transition-all duration-150
 										${activeFolderId === folder.id
-											? "bg-white/[0.06] text-neutral-200 border border-white/[0.1] glow-white-sm"
-											: "text-neutral-500 hover:bg-white/[0.03] hover:text-neutral-300 border border-transparent"
+											? "bg-black/[0.05] dark:bg-white/[0.06] text-neutral-800 dark:text-neutral-200 border border-black/[0.1] dark:border-white/[0.1] glow-white-sm"
+											: "text-neutral-500 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] hover:text-neutral-700 dark:hover:text-neutral-300 border border-transparent"
 										}
 									`}
 								>
@@ -178,7 +182,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 											e.stopPropagation();
 											onDeleteFolder(folder.id);
 										}}
-										className="opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-400 transition-opacity"
+										className="opacity-0 group-hover:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400 transition-opacity"
 									>
 										<Trash2 className="w-3.5 h-3.5" />
 									</button>
@@ -199,11 +203,11 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 									if (e.key === "Escape") setIsCreatingFolder(false);
 								}}
 								placeholder="Folder name"
-								className="flex-1 bg-transparent text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1 placeholder:text-neutral-600"
+								className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1 placeholder:text-neutral-400 dark:placeholder:text-neutral-600"
 							/>
 							<button
 								onClick={handleCreateFolder}
-								className="text-amber-400 hover:text-amber-300 p-1"
+								className="text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 p-1"
 							>
 								<Check className="w-3.5 h-3.5" />
 							</button>
@@ -211,7 +215,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 					) : (
 						<button
 							onClick={() => setIsCreatingFolder(true)}
-							className="w-full flex items-center gap-2 px-3 py-2 text-neutral-600 hover:text-neutral-400 transition-colors text-xs mt-1"
+							className="w-full flex items-center gap-2 px-3 py-2 text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors text-xs mt-1"
 						>
 							<FolderPlus className="w-3.5 h-3.5" />
 							New Folder
@@ -220,8 +224,8 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 
 					{/* Tags section */}
 					{tags.length > 0 && (
-						<div className="mt-4 pt-3 border-t border-white/[0.06]">
-							<p className="text-neutral-600 text-[10px] uppercase tracking-wider px-3 mb-2">
+						<div className="mt-4 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
+							<p className="text-neutral-400 dark:text-neutral-600 text-[10px] uppercase tracking-wider px-3 mb-2">
 								Tags
 							</p>
 							<div className="flex flex-wrap gap-1.5 px-2">
