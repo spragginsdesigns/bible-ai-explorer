@@ -12,10 +12,9 @@ import {
 	LogOut,
 	Monitor,
 	Moon,
-	Laptop,
-	Smartphone,
 	Sun,
 } from "lucide-react";
+import { AndroidLogo, AppleLogo } from "@/components/icons/BrandIcons";
 import {
 	ANDROID_APK_URL,
 	ANDROID_VERSION,
@@ -311,7 +310,7 @@ export default function SettingsPage() {
 							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
 						>
 							<span className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-								<Smartphone className="w-5 h-5" />
+								<AndroidLogo className="w-5 h-5" />
 							</span>
 							<span className="min-w-0 flex-1">
 								<span className="flex items-baseline gap-2">
@@ -335,7 +334,7 @@ export default function SettingsPage() {
 							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
 						>
 							<span className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-								<Laptop className="w-5 h-5" />
+								<AppleLogo className="w-5 h-5" />
 							</span>
 							<span className="min-w-0 flex-1">
 								<span className="flex items-baseline gap-2">

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { Laptop, Smartphone } from "lucide-react";
+import { AndroidLogo, AppleLogo } from "./icons/BrandIcons";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import {
 	ANDROID_APK_URL,
@@ -72,32 +72,50 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 							))}
 				</div>
 
-				<div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 text-sm text-neutral-500 dark:text-neutral-400">
-					<span>✦ SureWord is also a native app — same account, same chats.</span>
-					<a
-						href={ANDROID_APK_URL}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 font-medium transition-colors"
-					>
-						<Smartphone className="w-4 h-4" />
-						Android
-						<span className="text-[11px] font-semibold text-amber-600/70 dark:text-amber-400/60">
-							{ANDROID_VERSION}
-						</span>
-					</a>
-					<a
-						href={MACOS_DMG_URL}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 font-medium transition-colors"
-					>
-						<Laptop className="w-4 h-4" />
-						macOS
-						<span className="text-[11px] font-semibold text-amber-600/70 dark:text-amber-400/60">
-							{MACOS_VERSION}
-						</span>
-					</a>
+				<div className="mt-8">
+					<p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
+						✦ SureWord is also a native app — same account, same chats.
+					</p>
+					<div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+						<a
+							href={ANDROID_APK_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-flex w-56 items-center gap-3 rounded-xl gradient-border glass-card px-4 py-2.5 text-left transition-all duration-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:border-amber-500/40 dark:hover:border-amber-400/30"
+						>
+							<AndroidLogo className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-400" />
+							<span className="leading-tight">
+								<span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+									Download for
+								</span>
+								<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+									Android{" "}
+									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+										{ANDROID_VERSION}
+									</span>
+								</span>
+							</span>
+						</a>
+						<a
+							href={MACOS_DMG_URL}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="inline-flex w-56 items-center gap-3 rounded-xl gradient-border glass-card px-4 py-2.5 text-left transition-all duration-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:border-amber-500/40 dark:hover:border-amber-400/30"
+						>
+							<AppleLogo className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-400" />
+							<span className="leading-tight">
+								<span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+									Download for
+								</span>
+								<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+									macOS{" "}
+									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+										{MACOS_VERSION}
+									</span>
+								</span>
+							</span>
+						</a>
+					</div>
 				</div>
 			</div>
 		</div>
