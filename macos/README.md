@@ -186,6 +186,14 @@ Distribution is a DMG attached to a GitHub release. The web app links
 **every release must attach its DMG under the fixed asset name
 `SureWord.dmg`** or the site's download link breaks.
 
+`releases/latest` is a *single* release, and the Android APK lives on
+releases too (`SureWord.apk`; `SureWord.ipa` will join when iOS distribution
+starts). So the rule for every release on any platform is: **attach every
+platform's current asset**, re-attaching the others from the previous latest
+release, or the other platforms' download links 404.
+`mobile/scripts/release-apk.sh` does this automatically for Android releases;
+for a macOS release, pull the current APK first:
+
 ```bash
 cd macos && xcodegen
 xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
@@ -193,9 +201,12 @@ xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
 
 ../scripts/build-dmg.sh          # styled installer → macos/SureWord.dmg
 
-gh release create macos-v<version> SureWord.dmg \
+gh release download --pattern 'SureWord.apk' --dir . --clobber   # current APK from the latest release
+
+gh release create macos-v<version> SureWord.dmg SureWord.apk \
   --title "SureWord for macOS <version>" --notes "..."
-# (or replace the asset on an existing release: gh release upload <tag> SureWord.dmg --clobber)
+rm SureWord.apk   # local copy only existed for re-attach
+# (or replace the assets on an existing release: gh release upload <tag> SureWord.dmg --clobber)
 ```
 
 `build-dmg.sh` (requires `brew install create-dmg`) lays out the branded

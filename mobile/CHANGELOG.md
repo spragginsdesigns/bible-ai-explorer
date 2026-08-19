@@ -1,7 +1,8 @@
 # SureWord for Android — Changelog
 
 All notable changes to the Android app. Versions correspond to the APKs
-delivered to the Drive share link and installed via `/push-phone`.
+published to GitHub Releases (`mobile/scripts/release-apk.sh`) and installed
+via `/push-phone`.
 
 ## [1.18.0] - 2026-08-19
 
@@ -34,7 +35,7 @@ delivered to the Drive share link and installed via `/push-phone`.
 All of the above is server-side and reaches every installed build
 immediately; only the new activity labels need this APK.
 
-## [1.17.1] — 2026-08-19
+## [1.17.1] - 2026-08-19
 
 ### Fixed
 - **Back now takes you back.** The back button used to dump you on Chat from

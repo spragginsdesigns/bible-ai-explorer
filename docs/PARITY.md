@@ -51,7 +51,7 @@ tab selection). Same behavior, different plumbing.
 | Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | ✅ sidebar `UserButton` + Settings | ✅ Settings → Account | Android gained sign-out in 1.7.0 |
 | Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | ✅ Settings → Appearance | ✅ Settings → Appearance |  |
 | Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | ✅ bottom tab bar on mobile (`MobileBottomNav`, 1:1 port); top-bar tabs on desktop | ✅ sidebar + ⌘1/2/3 | ✅ stock iOS 26 tab bar (Liquid Glass free); Settings/Memories push-only | Form-factor adaptation |
-| Link to Android APK for install | n/a | ✅ | n/a | n/a | Stable Drive link in `src/lib/constants.ts`; web-only requirement |
+| Link to Android APK for install | n/a | ✅ | n/a | n/a | Stable GitHub Releases link in `src/lib/constants.ts`; web-only requirement |
 
 ## Settings
 

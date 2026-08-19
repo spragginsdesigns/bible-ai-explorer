@@ -40,10 +40,15 @@ sunsetted; it is a first-class client that mirrors Android.
    on push. Prefer server-side changes over duplicating logic per client.
 
 **The web app must also always link to the Android APK** so web users can
-install the native app. The APK is distributed via a stable Google Drive file
-(updated in place on each release — see `mobile/README.md`):
-`https://drive.google.com/file/d/1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu/view`
+install the native app. The APK is distributed via GitHub Releases under the
+fixed asset name `SureWord.apk` on the latest release (published by
+`mobile/scripts/release-apk.sh` — see `mobile/README.md`):
+`https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk`
 This link must stay visible in the web UI (see `src/lib/constants.ts`).
+Google Drive is no longer used for distribution — APK, DMG, and (when it
+ships) IPA all live on GitHub Releases, and every release must carry every
+platform's asset under its fixed name so `releases/latest/download/<asset>`
+keeps working for all of them.
 
 - Mobile docs: `mobile/README.md` (stack, build, Windows gotchas, release checklist)
 - Mobile changelog: `mobile/CHANGELOG.md` — add an entry + bump `mobile/app.json` version on every feature release

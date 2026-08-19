@@ -9,8 +9,8 @@ features.** New features land here first — and the web app
 (bible-ai-explorer.vercel.app) MUST be brought to 1:1 feature parity in the
 same release cycle. Web may be a superset, never a subset. The parity rule
 lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
-update it on every feature release. The web app links to this app's APK
-(Drive file below) so web users can install it.
+update it on every feature release. The web app links to this app's APK on
+GitHub Releases (see the release checklist) so web users can install it.
 
 ## Stack
 
@@ -50,7 +50,9 @@ mobile/
 │   └── features/
 │       ├── chat/           # streaming chat, tool cards, slash commands
 │       └── notes/          # library, tentap editor, note AI panel
-└── scripts/push-phone.sh   # build + wireless-ADB install to the S24 Ultra
+└── scripts/
+    ├── push-phone.sh     # build + wireless-ADB install to the S24 Ultra
+    └── release-apk.sh    # attach the built APK to a GitHub release
 ```
 
 ## Development
@@ -103,10 +105,17 @@ script self-heals by port-scanning the phone's last-known IP.
 
 1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry. Bump
    `ANDROID_VERSION` in `src/lib/constants.ts` too — the web download card
-   shows that string, while the Drive link always serves the latest build.
+   shows that string, while the GitHub Releases link always serves the latest
+   build.
 2. `npx tsc --noEmit` clean.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
 4. `bash mobile/scripts/push-phone.sh` to Austin's phone.
-5. Update the Drive APK in place (same file id, keeps the share link):
-   `gws drive files update --params '{"fileId":"1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu"}' --json '{"name":"SureWord-<version>.apk"}' --upload <apk> --upload-content-type application/vnd.android.package-archive`
+5. Publish the APK to GitHub Releases:
+   `bash mobile/scripts/release-apk.sh`
+   The script tags `android-v<version>`, attaches the APK under the fixed
+   asset name `SureWord.apk`, and re-attaches the other platforms' current
+   assets (`SureWord.dmg`, `SureWord.ipa` when it exists). The web app links
+   `releases/latest/download/<asset>` and "latest" is a single release, so
+   **every release must carry every platform's asset** or the other links
+   break. Never rename the assets.
 6. Commit `mobile/` changes (the generated `android/` dir stays gitignored).

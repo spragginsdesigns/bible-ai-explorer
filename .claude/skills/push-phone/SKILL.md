@@ -1,6 +1,6 @@
 ---
 name: push-phone
-description: Build the SureWord Android APK and install it directly onto Austin's Galaxy S24 Ultra over wireless ADB (or USB). Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device without Google Drive.
+description: Build the SureWord Android APK and install it directly onto Austin's Galaxy S24 Ultra over wireless ADB (or USB). Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device without waiting for a GitHub release.
 ---
 
 # Push SureWord to Austin's Galaxy S24 Ultra
@@ -41,19 +41,17 @@ all five steps at once. The usual fix is just step 2:
 4. Pairing reset ("failed to authenticate"): **Pair device with pairing code**
    on that screen → `bash mobile/scripts/push-phone.sh pair <pair-ip:port> <code>`
    → then step 3 with the MAIN screen's ip:port (pairing uses a different port).
-5. Last resort: USB cable with USB debugging on, or fall back to Drive (below).
+5. Last resort: USB cable with USB debugging on, or cut a GitHub release (below).
 
 If Developer options aren't enabled at all: Settings → About phone → Software
 information → tap **Build number** 7 times.
 
-If Austin can't do the phone-side steps right now, fall back to updating the
-Google Drive APK in place (same link he already has):
+If Austin can't do the phone-side steps right now, fall back to publishing the
+APK to GitHub Releases so he can download it from the site (or sureword.app's
+download link) instead:
 
 ```bash
-gws drive files update --params '{"fileId":"1BvfwTE7Na5pAIbwY8VG6Yvkp6vxJpqKu"}' \
-  --json '{"name":"SureWord-<version>.apk"}' \
-  --upload mobile/android/app/build/outputs/apk/release/app-release.apk \
-  --upload-content-type application/vnd.android.package-archive
+bash mobile/scripts/release-apk.sh
 ```
 
 ## After a successful install
