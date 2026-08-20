@@ -39,7 +39,8 @@ export default function SignInScreen() {
 
 	const [email, setEmail] = useState("");
 	const [code, setCode] = useState("");
-	const [step, setStep] = useState<"email" | "code">("email");
+	const [password, setPassword] = useState("");
+	const [step, setStep] = useState<"email" | "code" | "password">("email");
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -79,31 +80,79 @@ export default function SignInScreen() {
 		}
 	}, [startSSOFlow, router]);
 
+	// Sends the emailed one-time code for the account already looked up by
+	// onContinue. Also the fallback for password accounts ("email me a code").
+	const sendEmailCode = useCallback(async () => {
+		if (!signIn) return false;
+		const factor = signIn.supportedFirstFactors?.find((f) => f.strategy === "email_code");
+		if (!factor || !("emailAddressId" in factor)) {
+			setError("This account cannot sign in with an email code. Try Google instead.");
+			return false;
+		}
+		await signIn.prepareFirstFactor({
+			strategy: "email_code",
+			emailAddressId: factor.emailAddressId,
+		});
+		return true;
+	}, [signIn]);
+
 	// The Clerk instance signs in with an emailed one-time code (plus Google).
-	const onSendCode = useCallback(async () => {
+	// Accounts that carry a password (e.g. the Play review demo account) are
+	// asked for it instead - a reviewer has no access to the account's inbox.
+	const onContinue = useCallback(async () => {
 		if (!isLoaded || !email.trim()) return;
 		setError(null);
 		setPending(true);
 		try {
 			const attempt = await signIn.create({ identifier: email.trim() });
-			const factor = attempt.supportedFirstFactors?.find(
-				(f) => f.strategy === "email_code"
+			const hasPassword = attempt.supportedFirstFactors?.some(
+				(f) => f.strategy === "password"
 			);
-			if (!factor || !("emailAddressId" in factor)) {
-				setError("This account cannot sign in with an email code. Try Google instead.");
-				return;
+			if (hasPassword) {
+				setStep("password");
+			} else if (await sendEmailCode()) {
+				setStep("code");
 			}
-			await signIn.prepareFirstFactor({
-				strategy: "email_code",
-				emailAddressId: factor.emailAddressId,
-			});
-			setStep("code");
 		} catch (err) {
 			setError(clerkErrorMessage(err, "We couldn't find that account."));
 		} finally {
 			setPending(false);
 		}
-	}, [isLoaded, email, signIn]);
+	}, [isLoaded, email, signIn, sendEmailCode]);
+
+	const onVerifyPassword = useCallback(async () => {
+		if (!isLoaded || !password) return;
+		setError(null);
+		setPending(true);
+		try {
+			const attempt = await signIn.attemptFirstFactor({
+				strategy: "password",
+				password,
+			});
+			if (attempt.status === "complete") {
+				await setActive({ session: attempt.createdSessionId });
+				router.replace("/");
+			} else {
+				setError("That password didn't complete the sign-in. Try again.");
+			}
+		} catch (err) {
+			setError(clerkErrorMessage(err, "That password is incorrect."));
+		} finally {
+			setPending(false);
+		}
+	}, [isLoaded, password, signIn, setActive, router]);
+
+	const onCodeInstead = useCallback(async () => {
+		setError(null);
+		setPending(true);
+		try {
+			if (await sendEmailCode()) setStep("code");
+		} catch (err) {
+			setError(clerkErrorMessage(err, "We couldn't send a code to that account."));
+		} finally {
+			setPending(false);
+		}
+	}, [sendEmailCode]);
 
 	const onVerifyCode = useCallback(async () => {
 		if (!isLoaded || code.trim().length < 6) return;
@@ -130,6 +179,7 @@ export default function SignInScreen() {
 	const onBackToEmail = useCallback(() => {
 		setStep("email");
 		setCode("");
+		setPassword("");
 		setError(null);
 	}, []);
 
@@ -158,7 +208,7 @@ export default function SignInScreen() {
 								placeholder="you@example.com"
 								placeholderTextColor={colors.textGhost}
 								style={styles.input}
-								onSubmitEditing={onSendCode}
+								onSubmitEditing={onContinue}
 							/>
 
 							{error && <Text style={styles.error}>{error}</Text>}
@@ -168,8 +218,8 @@ export default function SignInScreen() {
 							) : (
 								<>
 									<AccentButton
-										label="Email me a sign-in code"
-										onPress={onSendCode}
+										label="Continue"
+										onPress={onContinue}
 										style={{ marginTop: spacing.lg }}
 									/>
 									<View style={styles.dividerRow}>
@@ -178,6 +228,50 @@ export default function SignInScreen() {
 										<View style={styles.divider} />
 									</View>
 									<GhostButton label="Continue with Google" onPress={onGoogle} />
+								</>
+							)}
+						</>
+					) : step === "password" ? (
+						<>
+							<Text style={styles.codeHint}>
+								Enter the password for{" "}
+								<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
+							</Text>
+							<Text style={styles.label}>Password</Text>
+							<TextInput
+								value={password}
+								onChangeText={setPassword}
+								autoCapitalize="none"
+								autoComplete="current-password"
+								secureTextEntry
+								placeholder="••••••••"
+								placeholderTextColor={colors.textGhost}
+								style={styles.input}
+								onSubmitEditing={onVerifyPassword}
+								autoFocus
+							/>
+
+							{error && <Text style={styles.error}>{error}</Text>}
+
+							{pending ? (
+								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+							) : (
+								<>
+									<AccentButton
+										label="Sign in"
+										onPress={onVerifyPassword}
+										style={{ marginTop: spacing.lg }}
+									/>
+									<GhostButton
+										label="Email me a code instead"
+										onPress={onCodeInstead}
+										style={{ marginTop: spacing.md }}
+									/>
+									<GhostButton
+										label="Use a different email"
+										onPress={onBackToEmail}
+										style={{ marginTop: spacing.md }}
+									/>
 								</>
 							)}
 						</>

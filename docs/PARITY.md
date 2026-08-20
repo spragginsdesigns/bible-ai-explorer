@@ -48,6 +48,7 @@ tab selection). Same behavior, different plumbing.
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
 | Clerk email-code + Google SSO sign-in | ✅ | ✅ | ✅ | ✅ via ClerkKit (native API) | macOS via ClerkKit (native API) |
+| Password sign-in for password-bearing accounts (Play review demo account) | ✅ 1.19.1 - Continue detects the password factor, code fallback | ✅ automatic via Clerk `<SignIn>` | ❌ ClerkKit email-code/SSO only | ❌ ClerkKit email-code/SSO only | Only the review demo account has a password; Device Trust disabled 2026-08-20 so it works on new devices |
 | Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | ✅ sidebar `UserButton` + Settings | ✅ Settings → Account | Android gained sign-out in 1.7.0 |
 | Theme: dark / light / system | ✅ Settings → Appearance | ✅ Settings → Appearance + top-bar toggle | ✅ Settings → Appearance | ✅ Settings → Appearance |  |
 | Tab/nav: Chat · Bible · Notes | ✅ bottom tab bar | ✅ bottom tab bar on mobile (`MobileBottomNav`, 1:1 port); top-bar tabs on desktop | ✅ sidebar + ⌘1/2/3 | ✅ stock iOS 26 tab bar (Liquid Glass free); Settings/Memories push-only | Form-factor adaptation |

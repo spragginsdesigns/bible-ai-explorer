@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.19.1 (versionCode 14) - 2026-08-20 - internal
+
+**What's new (Play):**
+
+NEW
+- Sign in with a password: accounts that have a password set are asked for it directly, with "Email me a code instead" as a fallback
+
+IMPROVED
+- The sign-in button now reads "Continue" and picks the right next step for your account
+
+**Dev notes:** Password first-factor support in `app/(auth)/sign-in.tsx` for the Play review demo account (reviewers cannot read a one-time-code inbox). `onContinue` runs `signIn.create`, prefers the `password` factor when the account has one, else falls back to the email-code flow; new password step UI with code fallback. Web needs no change - Clerk's `<SignIn>` handles password automatically now that the account has one. Supports the App access declaration in Play Console.
+
 ## 1.19.0 (versionCode 13) - 2026-08-19 - internal
 
 **What's new (Play):**
