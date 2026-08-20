@@ -51,7 +51,9 @@ mobile/
 │       ├── chat/           # streaming chat, tool cards, slash commands
 │       └── notes/          # library, tentap editor, note AI panel
 └── scripts/
-    ├── push-phone.sh     # build + wireless-ADB install to the S24 Ultra
+    ├── push-phone.sh     # bump versionCode + build AAB + release to Play internal track
+    ├── build-aab.sh      # signed all-ABI Play Store AAB
+    ├── play-upload.mjs   # Android Publisher API uploader (no deps)
     └── release-apk.sh    # attach the built APK to a GitHub release
 ```
 
@@ -93,13 +95,15 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 ### Pushing to the phone
 
 ```bash
-bash mobile/scripts/push-phone.sh              # build + install + launch over Wi-Fi
-bash mobile/scripts/push-phone.sh --skip-build # reuse the last APK
+bash mobile/scripts/push-phone.sh "release notes"  # bump + build AAB + release to Play internal track
+bash mobile/scripts/push-phone.sh --skip-build     # upload the existing AAB, no bump
 ```
 
-One-time pairing and recovery steps are printed by the script (and documented
-in `.claude/skills/push-phone/SKILL.md`). Wireless-debug ports rotate; the
-script self-heals by port-scanning the phone's last-known IP.
+Since 2026-08-19 this ships through the Play Store's internal testing track
+(live for testers within minutes, no review) instead of wireless ADB - the
+phone updates itself. Plumbing and failure modes are documented in
+`.claude/skills/push-phone/SKILL.md` and `docs/PLAY_STORE.md`. The old
+ADB-sideload script lives in git history if a debug build ever needs it.
 
 ## Release checklist
 
@@ -109,7 +113,8 @@ script self-heals by port-scanning the phone's last-known IP.
    build.
 2. `npx tsc --noEmit` clean.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
-4. `bash mobile/scripts/push-phone.sh` to Austin's phone.
+4. `bash mobile/scripts/push-phone.sh "what changed"` - releases to the Play
+   internal track and bumps `versionCode`; commit the `app.json` bump.
 5. Publish the APK to GitHub Releases:
    `bash mobile/scripts/release-apk.sh`
    The script tags `android-v<version>`, attaches the APK under the fixed

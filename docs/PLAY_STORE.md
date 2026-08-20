@@ -30,10 +30,29 @@ sideload APK is arm64-only), and refuses to finish if the AAB came out
 debug-signed. Every Play upload needs a **higher `versionCode`** in
 `mobile/app.json` - same bump discipline as the changelog.
 
-Sideload releases (GitHub `SureWord.apk`, `/push-phone`) are unaffected and
-keep their existing flow. Note the two keys differ, so a Play install and a
+GitHub `SureWord.apk` sideload releases keep their existing flow
+(`release-apk.sh`). Note the two keys differ, so a Play install and a
 sideloaded install can't be mixed on one device without uninstalling
 (Play App Signing re-signs with Google's key).
+
+## Automated releases (`/push-phone`, since 2026-08-19)
+
+`/push-phone` no longer sideloads over ADB - it publishes to the **internal
+testing** track through the Android Publisher API, and Austin's phone updates
+from the Play Store (internal releases skip review and go live in minutes):
+
+```bash
+bash mobile/scripts/push-phone.sh "release notes"   # bump versionCode + build AAB + release
+```
+
+| Thing | Where |
+|---|---|
+| Service account | `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` (Play Console → Users and permissions: Release apps to testing tracks + Manage testing tracks, app-level on SureWord) |
+| API key | `~/.sureword-signing/play-publisher.json` (env override `SUREWORD_PLAY_KEY`) - back it up with the keystore |
+| Uploader | `mobile/scripts/play-upload.mjs` (no npm deps; `--track` defaults to `internal`) |
+| App id in console | `4976411638093672168` |
+| Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
+| Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
 
 ## First-release walkthrough (console clicks, in order)
 
