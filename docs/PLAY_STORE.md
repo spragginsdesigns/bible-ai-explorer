@@ -54,6 +54,23 @@ bash mobile/scripts/push-phone.sh "release notes"   # bump versionCode + build A
 | Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
 | Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
 
+## Status (2026-08-20)
+
+Done: app created (`com.spragginsdesigns.sureword`, app id 4976411638093672168),
+versionCode 13 live on the internal track and installed on Austin's phone via
+the tester link, store listing draft (name/descriptions/icon/feature graphic),
+Store settings (Books & Reference; contact spragginsdesigns@gmail.com +
+https://sureword.app), privacy policy URL, and declarations: Ads (none),
+Advertising ID (none), Government (no), Financial (none), Health (none),
+Content rating (IARC submitted → ESRB Everyone), Data safety (filled, saved as
+draft - final submit is gated on Target audience).
+
+Remaining (Austin, in order): **App access** (needs a demo account; entering
+credentials is his) → **Target audience** (18+, decided 2026-08-20) → reopen
+Data safety and hit Save → **2+ phone screenshots** on the store listing →
+"Send for review" in Publishing overview. None of this blocks internal-track
+pushes.
+
 ## First-release walkthrough (console clicks, in order)
 
 1. **All apps → Create app**: name `SureWord`, default language English (US),
