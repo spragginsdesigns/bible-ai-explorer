@@ -42,6 +42,12 @@ export const darkColors = {
 	danger: "#f87171",
 	dangerSoft: "rgba(248, 113, 113, 0.10)",
 	dangerBorder: "rgba(248, 113, 113, 0.20)",
+
+	// Bible reader parchment surface (assets/parchment-dark.webp): ink tones
+	// tuned for the deep-umber paper, like gold lettering on old leather.
+	parchmentInk: "#e6d7ae",
+	parchmentNumber: "rgba(251, 191, 36, 0.80)",
+	parchmentHighlight: "rgba(251, 191, 36, 0.16)",
 } as const;
 
 /** Light palette — same roles as dark, mirrored from the web's light mode. */
@@ -79,6 +85,12 @@ export const lightColors: Colors = {
 	danger: "#dc2626",
 	dangerSoft: "rgba(220, 38, 38, 0.08)",
 	dangerBorder: "rgba(220, 38, 38, 0.20)",
+
+	// Bible reader parchment surface (assets/parchment-light.webp): dark sepia
+	// ink on the golden scroll paper.
+	parchmentInk: "#38270e",
+	parchmentNumber: "#7c4a11",
+	parchmentHighlight: "rgba(120, 72, 10, 0.16)",
 } as const;
 
 export type Colors = { [K in keyof typeof darkColors]: string };

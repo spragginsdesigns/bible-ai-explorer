@@ -707,3 +707,18 @@
 .dark .bible-verse-link {
 	color: rgb(251, 191, 36);
 }
+
+/* Bible reader page surface: photoreal parchment (public/textures/, generated
+   by scripts/generate-parchment.mjs). The sheet swaps with the site theme and
+   sets the ink color its verse text inherits. */
+.parchment-page {
+	background-image: url("/textures/parchment-light.webp");
+	background-size: cover;
+	background-position: center top;
+	color: #38270e;
+}
+
+.dark .parchment-page {
+	background-image: url("/textures/parchment-dark.webp");
+	color: #e6d7ae;
+}

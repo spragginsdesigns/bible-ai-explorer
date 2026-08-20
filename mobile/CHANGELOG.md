@@ -4,6 +4,17 @@ All notable changes to the Android app. Versions correspond to the APKs
 published to GitHub Releases (`mobile/scripts/release-apk.sh`) and installed
 via `/push-phone`.
 
+## [1.19.0] - 2026-08-19
+
+### Added
+- **The Bible reads like a scroll now.** The reader's page is real parchment:
+  photorealistic aged golden paper in light mode, a deep leather-dark sheet
+  in dark mode (following the app's theme setting), with sepia and gold ink
+  tuned to each. The verses scroll over the fixed paper like text moving
+  across an unrolled scroll. Textures are generated from the day-star
+  pipeline (`scripts/generate-parchment.mjs`); web ships the same surface in
+  the same release.
+
 ## [1.18.0] - 2026-08-19
 
 ### Added

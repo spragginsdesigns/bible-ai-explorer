@@ -107,6 +107,7 @@ tab selection). Same behavior, different plumbing.
 | Book picker (testament sections, genre groups) | ✅ | ✅ | ✅ | ✅ drill-down: books → chapters → reader |  |
 | Chapter grid | ✅ | ✅ | ✅ | ✅ |  |
 | Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | ✅ | Same data bundle on all three (`mobile/src/features/bible/data/`) |
+| Parchment page surface (photoreal scroll paper, light + dark variants follow theme) | ✅ 1.19.0 | ✅ | ❌ | ❌ | Textures from `scripts/generate-parchment.mjs` (`mobile/assets/parchment-*.webp`, `public/textures/`); ink tokens `parchmentInk/Number/Highlight` (mobile) and `.parchment-page` (web). Apple clients pending |
 | NKJV translation toggle (bolls.life) | ✅ | ✅ | ✅ | ✅ |  |
 | Offline verse search + reference quick-jump | ✅ | ✅ | ✅ | ✅ pushed search screen |  |
 | Verse actions (Copy / Share / Save to note / Expand with AI) | ✅ tap or long-press sheet | ✅ click/⌥ | ✅ click / context menu | ✅ tap → bottom sheet | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |

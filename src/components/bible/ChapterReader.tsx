@@ -348,7 +348,9 @@ const ChapterReader: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="pt-2">
+            {/* The scroll: a parchment sheet on the dark shell; verse ink
+                inherits from .parchment-page (globals.css). */}
+            <div className="parchment-page mt-1 rounded-2xl px-5 py-6 shadow-xl ring-1 ring-black/25 dark:ring-white/10 sm:px-8">
               {verses.map((text, index) => {
                 const verseNumber = index + 1;
                 return (
@@ -358,14 +360,14 @@ const ChapterReader: React.FC = () => {
                     id={`bible-verse-${verseNumber}`}
                     onClick={() => openVerse({ number: verseNumber, text })}
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
-                      highlighted === verseNumber ? "bg-amber-500/10 dark:bg-amber-400/10" : ""
+                      highlighted === verseNumber ? "bg-amber-800/15 dark:bg-amber-400/15" : ""
                     }`}
                   >
                     <span
-                      className="font-[family-name:var(--font-cormorant)] text-neutral-700 dark:text-neutral-300"
+                      className="font-[family-name:var(--font-cormorant)]"
                       style={{ fontSize, lineHeight: `${lineHeight}px` }}
                     >
-                      <span className="mr-1 align-super font-sans text-xs font-bold small-caps text-amber-700/60 dark:text-amber-500/50">
+                      <span className="mr-1 align-super font-sans text-xs font-bold small-caps text-amber-900/70 dark:text-amber-400/80">
                         {verseNumber}
                       </span>
                       {text}
@@ -376,8 +378,8 @@ const ChapterReader: React.FC = () => {
               })}
 
               {/* Footer */}
-              <p className="mt-6 text-center text-xs italic text-neutral-400/70 dark:text-neutral-600">
-                {TRANSLATIONS[translation].label} — {TRANSLATIONS[translation].copyright}
+              <p className="mt-6 text-center text-xs italic opacity-60">
+                {TRANSLATIONS[translation].label} - {TRANSLATIONS[translation].copyright}
               </p>
               <div className="mt-6 flex gap-4">
                 {neighbors.prev ? (
