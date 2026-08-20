@@ -529,13 +529,13 @@ export default function BibleChapterScreen() {
 					<Text style={styles.expandButtonLabel}>✦ Expand with AI</Text>
 				</Pressable>
 				<SheetRow
-					glyph="⧉"
+					icon={copied ? "checkmark" : "copy-outline"}
 					label={copied ? "Copied ✓" : "Copy"}
 					onPress={() => void onCopyVerse()}
 				/>
-				<SheetRow glyph="↗" label="Share" onPress={onShareVerse} />
+				<SheetRow icon="share-outline" label="Share" onPress={onShareVerse} />
 				<SheetRow
-					glyph="✎"
+					icon="create-outline"
 					label={saveBusy ? "Saving…" : "Save to note"}
 					onPress={() => void onSaveVerse()}
 				/>

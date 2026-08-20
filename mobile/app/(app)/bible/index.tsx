@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
 import { fonts, radius, spacing, type Colors } from "@/theme";
-import { useThemedStyles } from "@/features/settings/settingsStore";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
@@ -58,6 +59,7 @@ function buildRows(collapsed: Record<Testament, boolean>): ListRow[] {
  */
 export default function BibleBooksScreen() {
 	const router = useRouter();
+	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [collapsed, setCollapsed] = useState(sessionCollapsed);
@@ -93,7 +95,7 @@ export default function BibleBooksScreen() {
 					onPress={openSearch}
 					style={({ pressed }) => [styles.searchPill, pressed && styles.bookRowPressed]}
 				>
-					<Text style={styles.searchGlyph}>🔍</Text>
+					<Ionicons name="search" size={15} color={colors.textFaint} />
 					<Text style={styles.searchText}>Search the Bible</Text>
 				</Pressable>
 			</View>
@@ -176,7 +178,6 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: 10,
 		},
-		searchGlyph: { fontSize: 14 },
 		searchText: { color: c.textMuted, fontSize: 14 },
 		listContent: { paddingHorizontal: spacing.lg },
 		crossCard: {

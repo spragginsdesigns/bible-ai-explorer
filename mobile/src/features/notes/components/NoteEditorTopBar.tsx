@@ -41,7 +41,7 @@ export function NoteEditorTopBar({
 
 	return (
 		<View style={styles.bar}>
-			<GlyphButton glyph="←" accessibilityLabel="Back to notes" onPress={onBack} size={36} />
+			<GlyphButton icon="arrow-back" accessibilityLabel="Back to notes" onPress={onBack} size={36} />
 
 			<View style={styles.titleWrap}>
 				<TextInput
@@ -66,21 +66,21 @@ export function NoteEditorTopBar({
 			</View>
 
 			<GlyphButton
-				glyph="📌"
+				icon={isPinned ? "pin" : "pin-outline"}
 				accessibilityLabel={isPinned ? "Unpin note" : "Pin note"}
 				onPress={onTogglePin}
 				active={isPinned}
 				size={36}
 			/>
 			<GlyphButton
-				glyph="🏷"
+				icon={tagCount > 0 ? "pricetags" : "pricetags-outline"}
 				accessibilityLabel={`Manage tags, ${tagCount} applied`}
 				onPress={onOpenTags}
 				active={tagCount > 0}
 				size={36}
 			/>
 			<GlyphButton
-				glyph="✦"
+				icon={aiOpen ? "sparkles" : "sparkles-outline"}
 				accessibilityLabel="AI assistant"
 				onPress={onToggleAI}
 				active={aiOpen}

@@ -10,6 +10,7 @@ import {
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -167,7 +168,7 @@ export function HistoryModal({
 										onPress={() => onDelete(conversation.id)}
 										style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
 									>
-										<Text style={styles.trashGlyph}>🗑</Text>
+										<Ionicons name="trash-outline" size={15} color={colors.textFaint} />
 									</Pressable>
 								</View>
 							);
@@ -240,7 +241,6 @@ const createStyles = (c: Colors) =>
 		},
 		pressed: { backgroundColor: c.surfacePressed },
 		iconGlyph: { color: c.textMuted, fontSize: 13 },
-		trashGlyph: { fontSize: 13 },
 		newChat: {
 			flexDirection: "row",
 			alignItems: "center",

@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, type Colors } from "@/theme";
@@ -33,9 +32,9 @@ const TAB_ICONS: Record<
 	notes: { active: "document-text", inactive: "document-text-outline" },
 };
 
-function GlassTabBar({ state, navigation }: BottomTabBarProps) {
+function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 	const insets = useSafeAreaInsets();
-	const { colors, isDark } = useTheme();
+	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const primaryRoutes: TabRouteEntry[] = state.routes
 		.map((route: TabRoute, index: number) => ({ route, index }))
@@ -48,11 +47,7 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 				{ paddingBottom: Math.max(insets.bottom, spacing.sm) },
 			]}
 		>
-			<BlurView
-				intensity={60}
-				tint={isDark ? "dark" : "light"}
-				style={styles.tabBar}
-			>
+			<View style={styles.tabBar}>
 				{primaryRoutes.map(({ route, index }) => {
 					const focused = state.index === index;
 					const routeName = route.name as PrimaryTabRoute;
@@ -92,7 +87,7 @@ function GlassTabBar({ state, navigation }: BottomTabBarProps) {
 						</Pressable>
 					);
 				})}
-			</BlurView>
+			</View>
 		</View>
 	);
 }
@@ -107,7 +102,7 @@ export default function AppLayout() {
 
 	return (
 		<Tabs
-			tabBar={(props) => <GlassTabBar {...props} />}
+			tabBar={(props) => <SolidTabBar {...props} />}
 			// Back returns to the previously focused screen instead of always
 			// falling out to the first tab (chat).
 			backBehavior="history"
@@ -132,22 +127,23 @@ export default function AppLayout() {
 
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
+		// Docked, fully opaque bar. It used to be a floating BlurView pill, but
+		// Android renders expo-blur as plain translucency, so the list scrolled
+		// through it as ghost text.
 		tabBarWrap: {
 			position: "absolute",
 			left: 0,
 			right: 0,
 			bottom: 0,
-			paddingHorizontal: spacing.lg,
-			backgroundColor: "transparent",
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.borderStrong,
+			backgroundColor: c.bgElevated,
 		},
 		tabBar: {
 			flexDirection: "row",
-			padding: spacing.xs,
-			borderRadius: radius.xl,
-			overflow: "hidden",
-			borderWidth: StyleSheet.hairlineWidth,
-			borderColor: c.borderStrong,
-			backgroundColor: c.glass,
+			paddingVertical: spacing.xs,
+			paddingHorizontal: spacing.sm,
+			gap: spacing.xs,
 		},
 		tabItem: {
 			flex: 1,

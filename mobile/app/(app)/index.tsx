@@ -172,7 +172,7 @@ export default function ChatScreen() {
 						onPress={openHistory}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Text style={styles.headerGlyph}>☰</Text>
+						<Ionicons name="menu-outline" size={19} color={colors.textMuted} />
 					</Pressable>
 					<Pressable
 						accessibilityRole="button"
@@ -180,7 +180,7 @@ export default function ChatScreen() {
 						onPress={() => router.push("/settings")}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Text style={styles.headerGlyph}>⚙</Text>
+						<Ionicons name="settings-outline" size={17} color={colors.textMuted} />
 					</Pressable>
 				</View>
 

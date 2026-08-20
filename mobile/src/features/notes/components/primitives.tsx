@@ -10,16 +10,20 @@ import {
 	type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
+export type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+
 /**
- * Round glyph button. Icons across the notes feature are text glyphs, not an
- * icon font, so this is a Text inside a circular pressable.
+ * Round icon button. Vector icon (Ionicons) inside a circular pressable -
+ * emoji glyphs are gone: Android draws them in its color emoji font, which
+ * can't be tinted and clashes with the theme.
  */
 export function GlyphButton({
-	glyph,
+	icon,
 	onPress,
 	accessibilityLabel,
 	active = false,
@@ -28,7 +32,7 @@ export function GlyphButton({
 	size = 38,
 	style,
 }: {
-	glyph: string;
+	icon: IoniconName;
 	onPress: () => void;
 	accessibilityLabel: string;
 	active?: boolean;
@@ -39,6 +43,7 @@ export function GlyphButton({
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const color = danger ? colors.danger : active ? colors.accent : colors.textMuted;
 	return (
 		<Pressable
 			accessibilityRole="button"
@@ -56,16 +61,7 @@ export function GlyphButton({
 				style,
 			]}
 		>
-			<Text
-				style={[
-					styles.glyph,
-					{ fontSize: Math.round(size * 0.45) },
-					active && { color: colors.accent },
-					danger && { color: colors.danger },
-				]}
-			>
-				{glyph}
-			</Text>
+			<Ionicons name={icon} size={Math.round(size * 0.48)} color={color} />
 		</Pressable>
 	);
 }
@@ -147,7 +143,7 @@ export function BottomSheet({
 				{title ? (
 					<View style={styles.sheetHeader}>
 						<Text style={styles.sheetTitle}>{title}</Text>
-						<GlyphButton glyph="✕" accessibilityLabel="Close" onPress={onClose} size={32} />
+						<GlyphButton icon="close" accessibilityLabel="Close" onPress={onClose} size={32} />
 					</View>
 				) : null}
 				{children}
@@ -159,13 +155,13 @@ export function BottomSheet({
 /** Full-width row inside a BottomSheet. */
 export function SheetRow({
 	label,
-	glyph,
+	icon,
 	onPress,
 	danger = false,
 	selected = false,
 }: {
 	label: string;
-	glyph?: string;
+	icon?: IoniconName;
 	onPress: () => void;
 	danger?: boolean;
 	selected?: boolean;
@@ -178,13 +174,15 @@ export function SheetRow({
 			onPress={onPress}
 			style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]}
 		>
-			{glyph ? (
-				<Text style={[styles.sheetRowGlyph, danger && { color: colors.danger }]}>{glyph}</Text>
+			{icon ? (
+				<View style={styles.sheetRowIcon}>
+					<Ionicons name={icon} size={17} color={danger ? colors.danger : colors.textMuted} />
+				</View>
 			) : null}
 			<Text style={[styles.sheetRowLabel, danger && { color: colors.danger }]} numberOfLines={1}>
 				{label}
 			</Text>
-			{selected ? <Text style={styles.sheetRowCheck}>✓</Text> : null}
+			{selected ? <Ionicons name="checkmark" size={16} color={colors.accent} /> : null}
 		</Pressable>
 	);
 }
@@ -257,7 +255,6 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		sheetRowPressed: { backgroundColor: c.surfacePressed },
-		sheetRowGlyph: { color: c.textMuted, fontSize: 15, width: 20, textAlign: "center" },
+		sheetRowIcon: { width: 20, alignItems: "center" },
 		sheetRowLabel: { color: c.textSecondary, fontSize: 15, flex: 1 },
-		sheetRowCheck: { color: c.accent, fontSize: 15 },
 	});

@@ -11,6 +11,7 @@ import {
 	View,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -60,7 +61,7 @@ export default function NotesListScreen() {
 			<View style={styles.header}>
 				<Text style={styles.heading}>Notes</Text>
 				<GlyphButton
-					glyph="+"
+					icon="add"
 					accessibilityLabel="New note"
 					onPress={() => void handleNewNote()}
 					disabled={isCreatingNote}
@@ -70,7 +71,7 @@ export default function NotesListScreen() {
 			</View>
 
 			<View style={styles.searchWrap}>
-				<Text style={styles.searchGlyph}>⌕</Text>
+				<Ionicons name="search" size={15} color={colors.textFaint} />
 				<TextInput
 					value={library.searchQuery}
 					onChangeText={library.setSearchQuery}
@@ -81,7 +82,7 @@ export default function NotesListScreen() {
 				/>
 				{library.searchQuery ? (
 					<GlyphButton
-						glyph="✕"
+						icon="close"
 						accessibilityLabel="Clear search"
 						onPress={() => library.setSearchQuery("")}
 						size={28}
@@ -243,7 +244,6 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.border,
 		},
-		searchGlyph: { color: c.textFaint, fontSize: 16 },
 		searchInput: { flex: 1, color: c.text, fontSize: 15, paddingVertical: 11 },
 
 		chipScroll: { flexGrow: 0 },

@@ -1,7 +1,8 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { radius, spacing } from "@/theme";
-import { useThemedStyles } from "@/features/settings/settingsStore";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { Note, Tag } from "../types";
 import { relativeTime, tagsForNote } from "../utils";
@@ -19,6 +20,7 @@ export function NoteCard({
 }) {
 	const noteTags = tagsForNote(note, tags);
 	const preview = note.plainText.trim() || "Empty note";
+	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 
 	return (
@@ -38,7 +40,7 @@ export function NoteCard({
 				<Text style={styles.title} numberOfLines={1}>
 					{note.title || "Untitled Note"}
 				</Text>
-				{note.isPinned ? <Text style={styles.pin}>📌</Text> : null}
+				{note.isPinned ? <Ionicons name="pin" size={13} color={colors.accent} /> : null}
 			</View>
 
 			<Text style={styles.preview} numberOfLines={2}>
@@ -77,7 +79,6 @@ const createStyles = (c: Colors) =>
 		cardPressed: { backgroundColor: c.surfacePressed },
 		titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		title: { flex: 1, color: c.text, fontSize: 15, fontWeight: "600" },
-		pin: { fontSize: 12 },
 		preview: { color: c.textFaint, fontSize: 13, lineHeight: 19 },
 		metaRow: {
 			flexDirection: "row",

@@ -89,14 +89,14 @@ export function NoteAIPanel({
 					style={styles.panel}
 				>
 					<View style={styles.header}>
-						<GlyphButton glyph="⌄" accessibilityLabel="Close AI panel" onPress={onClose} size={32} />
+						<GlyphButton icon="chevron-down" accessibilityLabel="Close AI panel" onPress={onClose} size={32} />
 						<View style={styles.headerTitle}>
 							<Text style={styles.headerGlyph}>✦</Text>
 							<Text style={styles.headerLabel}>AI Assistant</Text>
 						</View>
 						{messages.length > 0 ? (
 							<GlyphButton
-								glyph="🗑"
+								icon="trash-outline"
 								accessibilityLabel="Clear conversation"
 								onPress={() => void clearHistory()}
 								size={32}

@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.20.0 (versionCode 15) - 2026-08-20 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- The bottom navigation bar is now solid instead of see-through, so the page never shows through it
+- Crisp new icons across Notes, Chat and Bible - pin, tags, delete, search and more now match the app's look instead of using emoji
+- Your personalized starting questions now load instantly: they're prepared once each morning instead of being generated every time you open the app
+
+**Dev notes:** Tab bar drops expo-blur (Android renders it as plain translucency) for an opaque docked bar in `app/(app)/_layout.tsx`. Emoji glyphs → Ionicons via `GlyphButton`/`SheetRow` `icon` prop. Server: `SuggestedQuestionSet` table + `getSuggestedQuestions` day-cache, pre-warmed by the verse-of-day cron; the speedup reaches every installed build via the API, the APK carries the visuals.
+
 ## 1.19.1 (versionCode 14) - 2026-08-20 - internal
 
 **What's new (Play):**

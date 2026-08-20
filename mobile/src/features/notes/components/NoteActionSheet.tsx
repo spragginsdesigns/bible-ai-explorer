@@ -39,16 +39,16 @@ export function NoteActionSheet({
 			{mode === "actions" ? (
 				<View>
 					<SheetRow
-						glyph="📌"
+						icon={note.isPinned ? "pin" : "pin-outline"}
 						label={note.isPinned ? "Unpin note" : "Pin note"}
 						onPress={() => {
 							onTogglePin(note.id);
 							close();
 						}}
 					/>
-					<SheetRow glyph="🗂" label="Move to folder" onPress={() => setMode("folders")} />
+					<SheetRow icon="folder-outline" label="Move to folder" onPress={() => setMode("folders")} />
 					<SheetRow
-						glyph="🗑"
+						icon="trash-outline"
 						label="Delete note"
 						danger
 						onPress={() => setMode("confirmDelete")}
@@ -59,7 +59,7 @@ export function NoteActionSheet({
 			{mode === "folders" ? (
 				<ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
 					<SheetRow
-						glyph="←"
+						icon="remove-circle-outline"
 						label="No folder"
 						selected={note.folderId === null}
 						onPress={() => {
@@ -70,7 +70,7 @@ export function NoteActionSheet({
 					{folders.map((folder) => (
 						<SheetRow
 							key={folder.id}
-							glyph="🗂"
+							icon="folder-outline"
 							label={folder.name}
 							selected={note.folderId === folder.id}
 							onPress={() => {
@@ -91,7 +91,7 @@ export function NoteActionSheet({
 						Delete “{note.title || "Untitled Note"}”? This cannot be undone.
 					</Text>
 					<SheetRow
-						glyph="🗑"
+						icon="trash-outline"
 						label="Yes, delete it"
 						danger
 						onPress={() => {
@@ -99,7 +99,7 @@ export function NoteActionSheet({
 							close();
 						}}
 					/>
-					<SheetRow glyph="←" label="Keep note" onPress={() => setMode("actions")} />
+					<SheetRow icon="arrow-back" label="Keep note" onPress={() => setMode("actions")} />
 				</View>
 			) : null}
 		</BottomSheet>
