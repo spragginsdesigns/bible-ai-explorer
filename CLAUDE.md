@@ -51,7 +51,7 @@ platform's asset under its fixed name so `releases/latest/download/<asset>`
 keeps working for all of them.
 
 - Mobile docs: `mobile/README.md` (stack, build, Windows gotchas, release checklist)
-- Mobile changelog: `mobile/CHANGELOG.md` — add an entry + bump `mobile/app.json` version on every feature release
+- Mobile changelog: `mobile/CHANGELOG.md` - **the single source of truth for Play "What's new" notes, and MANDATORY on every Play push**: every versionCode released to Google Play needs an entry written BEFORE publishing (`push-phone.sh` extracts the notes from it and refuses to publish without one - no entry, no publish, same pattern as Context-Pro-AI's `android/CHANGELOG.md`). Bump `mobile/app.json` version on every feature release.
 - Install to Austin's phone: `/push-phone` skill (`bash mobile/scripts/push-phone.sh`)
 - `mobile/` is intentionally OUTSIDE the pnpm workspace (own npm tree) and excluded from the web tsconfig — keep it that way or Vercel deploys break
 

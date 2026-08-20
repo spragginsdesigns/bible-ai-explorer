@@ -95,26 +95,36 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 ### Pushing to the phone
 
 ```bash
-bash mobile/scripts/push-phone.sh "release notes"  # bump + build AAB + release to Play internal track
+bash mobile/scripts/push-phone.sh                  # bump + build AAB + release to Play internal track
 bash mobile/scripts/push-phone.sh --skip-build     # upload the existing AAB, no bump
 ```
 
 Since 2026-08-19 this ships through the Play Store's internal testing track
 (live for testers within minutes, no review) instead of wireless ADB - the
-phone updates itself. Plumbing and failure modes are documented in
+phone updates itself.
+
+**Mandatory (since 2026-08-20): write the `CHANGELOG.md` entry first.** The
+changelog is the single source of truth for Play "What's new" notes - the
+script extracts the release text from the entry for the versionCode being
+published and **refuses to build or upload without one** (rules at the top of
+`CHANGELOG.md`; ad-hoc notes arguments are rejected).
+
+Plumbing and failure modes are documented in
 `.claude/skills/push-phone/SKILL.md` and `docs/PLAY_STORE.md`. The old
 ADB-sideload script lives in git history if a debug build ever needs it.
 
 ## Release checklist
 
-1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry. Bump
-   `ANDROID_VERSION` in `src/lib/constants.ts` too — the web download card
+1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry (heading format
+   and the mandatory Play-notes block per the rules at the top of that file).
+   Bump `ANDROID_VERSION` in `src/lib/constants.ts` too - the web download card
    shows that string, while the GitHub Releases link always serves the latest
    build.
 2. `npx tsc --noEmit` clean.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
-4. `bash mobile/scripts/push-phone.sh "what changed"` - releases to the Play
-   internal track and bumps `versionCode`; commit the `app.json` bump.
+4. `bash mobile/scripts/push-phone.sh` - releases to the Play internal track
+   and bumps `versionCode`; commit the `app.json` bump together with the
+   CHANGELOG entry.
 5. Publish the APK to GitHub Releases:
    `bash mobile/scripts/release-apk.sh`
    The script tags `android-v<version>`, attaches the APK under the fixed

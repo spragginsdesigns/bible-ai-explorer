@@ -6,8 +6,12 @@
 # testing track via the Android Publisher API (play-upload.mjs). The phone
 # picks the update up from the Play Store itself - no debugging connection.
 #
+# Play "What's new" notes come EXCLUSIVELY from mobile/CHANGELOG.md (see the
+# mandatory rules at its top). No changelog entry for the versionCode being
+# published -> this script refuses to build or upload anything.
+#
 # Usage:
-#   push-phone.sh ["release notes"]     bump + build + release to internal track
+#   push-phone.sh                       bump + build + release to internal track
 #   push-phone.sh --skip-build          upload the existing AAB as-is (no bump)
 #   push-phone.sh --track closed-beta   release to a different track
 set -euo pipefail
@@ -18,15 +22,49 @@ AAB="$MOBILE_DIR/android/app/build/outputs/bundle/release/app-release.aab"
 log() { echo "[push-phone] $*"; }
 
 TRACK="internal"
-NOTES=""
 SKIP_BUILD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=1; shift ;;
     --track) TRACK="$2"; shift 2 ;;
-    *) NOTES="$1"; shift ;;
+    *)
+      echo "[push-phone] Ad-hoc release notes are no longer accepted." >&2
+      echo "[push-phone] Play notes come from mobile/CHANGELOG.md - write the entry for the" >&2
+      echo "[push-phone] versionCode being published (rules at the top of that file), then re-run." >&2
+      exit 1
+      ;;
   esac
 done
+
+# ── Mandatory Play changelog gate ───────────────────────────────────────────
+# The entry must exist BEFORE anything is built or uploaded: no entry, no
+# publish. play-notes.mjs validates it and emits the exact Play text.
+read -r CUR_CODE APP_VERSION <<<"$(node -e '
+  const j = require(process.argv[1]);
+  console.log(j.expo.android.versionCode, j.expo.version);
+' "$MOBILE_DIR/app.json")"
+TARGET_CODE=$CUR_CODE
+[[ $SKIP_BUILD -eq 0 ]] && TARGET_CODE=$((CUR_CODE + 1))
+if ! NOTES="$(node "$MOBILE_DIR/scripts/play-notes.mjs" "$MOBILE_DIR/CHANGELOG.md" "$TARGET_CODE" "$APP_VERSION")"; then
+  cat >&2 <<EOF
+[push-phone] BLOCKED: mobile/CHANGELOG.md needs an entry for the build about to
+be published (versionCode $TARGET_CODE) before anything is built or uploaded.
+Add at the top of the changelog:
+
+  ## $APP_VERSION (versionCode $TARGET_CODE) - $(date +%F) - $TRACK
+
+  **What's new (Play):**
+
+  - <user-facing lines, under 500 characters total>
+
+  **Dev notes:** <optional engineering detail>
+
+If a previous run built but failed to upload, the top entry may name an older
+versionCode - update its heading to versionCode $TARGET_CODE.
+EOF
+  exit 1
+fi
+log "Play notes for versionCode $TARGET_CODE from CHANGELOG.md ($(printf %s "$NOTES" | wc -c | tr -d ' ') chars)."
 
 if [[ $SKIP_BUILD -eq 0 ]]; then
   if [[ ! -d "$MOBILE_DIR/node_modules" ]]; then
@@ -72,6 +110,8 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
   NAME="$VERSION_NAME" perl -pi -e 's/^(\s*versionName\s+)"[^"]*"/$1"$ENV{NAME}"/' "$MOBILE_DIR/android/app/build.gradle"
   grep -q "versionCode $VERSION_CODE" "$MOBILE_DIR/android/app/build.gradle" \
     || { echo "Failed to stamp versionCode $VERSION_CODE into build.gradle"; exit 1; }
+  [[ "$VERSION_CODE" == "$TARGET_CODE" ]] \
+    || { echo "Changelog gate validated versionCode $TARGET_CODE but the bump produced $VERSION_CODE"; exit 1; }
   log "Version $VERSION_NAME ($VERSION_CODE)."
 
   bash "$MOBILE_DIR/scripts/build-aab.sh"
@@ -79,8 +119,7 @@ fi
 
 [[ -f "$AAB" ]] || { echo "AAB not found at $AAB - build first."; exit 1; }
 
-[[ -n "$NOTES" ]] || NOTES="$(cd "$MOBILE_DIR" && git log -1 --pretty=%s)"
 node "$MOBILE_DIR/scripts/play-upload.mjs" --aab "$AAB" --track "$TRACK" \
-  --notes "$NOTES" ${VERSION_NAME:+--version-name "$VERSION_NAME"}
+  --notes "$NOTES" --version-name "$APP_VERSION"
 
 log "Done. The Play Store delivers it to the phone in a few minutes (Play Store -> SureWord -> Update). To God be the glory."

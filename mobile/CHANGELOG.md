@@ -1,10 +1,26 @@
-# SureWord for Android — Changelog
+# SureWord for Android - Changelog
 
-All notable changes to the Android app. Versions correspond to the APKs
-published to GitHub Releases (`mobile/scripts/release-apk.sh`) and installed
-via `/push-phone`.
+This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
-## [1.19.0] - 2026-08-19
+## Rules (mandatory - applies to every agent and dev shipping Android builds)
+
+1. **Every versionCode released to Google Play gets an entry here, written BEFORE the build is published.** No entry, no publish - `push-phone.sh` enforces this on every track (internal included) and on `--skip-build` uploads.
+2. Entry heading format: `## <versionName> (versionCode <n>) - <YYYY-MM-DD> - <track>`. Newest entry at the top. `push-phone.sh` bumps the versionCode by one per run, so the entry names the code **about to be** published (app.json's current code + 1; with `--skip-build`, the current code).
+3. Each entry carries a `**What's new (Play):**` block - that exact text ships to the Play Store. Keep it **under 500 characters** (Play rejects longer) and **write it for users, not engineers**: feature names as the app shows them (Chat, Bible, Notes, Pick Up Your Cross, Memories), no file names, no commit jargon. Engineering detail goes in the optional `**Dev notes:**` line below the block instead.
+4. If a build is internal-only plumbing with nothing user-visible, the What's new block may say "Bug fixes and performance improvements." - but the entry itself is still required.
+5. Server-side changes reach every installed build without a release - describe them that way rather than implying the APK carries them.
+
+Entries below 1.19.0 predate this format and stay as they were.
+
+---
+
+## 1.19.0 (versionCode 13) - 2026-08-19 - internal
+
+**What's new (Play):**
+
+NEW
+- The Bible reads like a scroll: verses move over real parchment - aged golden paper in light mode, a deep leather-dark sheet in dark mode
+- Settings → Appearance → Parchment reader turns it off and returns the plain reader
 
 ### Added
 - **The Bible reads like a scroll now.** The reader's page is real parchment:
