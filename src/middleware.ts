@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 const isPublicRoute = createRouteMatcher([
 	"/sign-in(.*)",
 	"/sign-up(.*)",
+	// Required to be publicly reachable for the Play Store listing (Google's
+	// reviewers are signed out).
+	"/privacy",
 	"/api/webhooks(.*)",
 	// Cron routes are protected by their own CRON_SECRET bearer check; letting
 	// them through here keeps Vercel cron (which has no Clerk session) working.
