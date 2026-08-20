@@ -2,6 +2,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveModel } from "@/lib/ai/provider";
 import { findTodayCross } from "@/lib/daily-cross";
+import { prisma } from "@/lib/prisma";
 import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
 import { commonQuestions } from "@/utils/commonQuestions";
 
@@ -43,9 +44,16 @@ The rules, in order of importance:
 
 export interface SuggestedQuestions {
 	questions: string[];
-	/** False when these are the static defaults — nothing was personalized. */
+	/** False when these are the static defaults - nothing was personalized. */
 	personalized: boolean;
 }
+
+/**
+ * How long a stored set keeps serving before a fresh one is generated. Same
+ * 20-hour window as the daily cross: "one per day" that still rolls over
+ * naturally whichever hour the morning cron or the first open lands on.
+ */
+const SUGGESTED_REUSE_MS = 20 * 60 * 60 * 1000;
 
 const fallback = (): SuggestedQuestions => ({
 	questions: commonQuestions.slice(0, SUGGESTED_QUESTION_COUNT),
@@ -125,4 +133,63 @@ export async function generateSuggestedQuestions(userId: string): Promise<Sugges
 		console.error(`[suggested-questions] Generation failed for user ${userId}; using defaults:`, error);
 		return fallback();
 	}
+}
+
+/** Today's stored set if one exists inside the reuse window, else null. */
+async function findTodaySet(userId: string): Promise<SuggestedQuestions | null> {
+	const since = new Date(Date.now() - SUGGESTED_REUSE_MS);
+	const row = await prisma.suggestedQuestionSet.findFirst({
+		where: { userId, createdAt: { gte: since } },
+		orderBy: { createdAt: "desc" },
+		select: { questions: true },
+	});
+	if (!row) return null;
+	try {
+		const parsed: unknown = JSON.parse(row.questions);
+		if (!Array.isArray(parsed)) return null;
+		const questions = parsed.filter(
+			(question): question is string => typeof question === "string" && question.length > 0
+		);
+		return questions.length > 0 ? { questions, personalized: true } : null;
+	} catch {
+		// A malformed stored row regenerates rather than erroring.
+		return null;
+	}
+}
+
+/** Persist a personalized set so the rest of the day serves it instantly. */
+async function storeSet(userId: string, result: SuggestedQuestions): Promise<void> {
+	await prisma.suggestedQuestionSet.create({
+		data: { userId, questions: JSON.stringify(result.questions) },
+	});
+}
+
+/**
+ * The welcome screen's questions: today's stored set when there is one,
+ * otherwise generate-and-store (first open of the day wins, exactly like the
+ * daily cross). Only personalized sets are stored - the static fallback is
+ * free to produce, and not storing it lets a user who studies later today get
+ * personalized questions on their next open instead of frozen defaults.
+ */
+export async function getSuggestedQuestions(userId: string): Promise<SuggestedQuestions> {
+	const existing = await findTodaySet(userId).catch(() => null);
+	if (existing) return existing;
+
+	const generated = await generateSuggestedQuestions(userId);
+	if (generated.personalized) {
+		await storeSet(userId, generated).catch((error) => {
+			console.error(`[suggested-questions] Failed to store set for user ${userId}:`, error);
+		});
+	}
+	return generated;
+}
+
+/**
+ * Cron hook: refresh the day's set unconditionally (called right after a new
+ * daily cross is generated, so the questions can build on it). Failures are
+ * the caller's to log; the morning push must not depend on this.
+ */
+export async function refreshSuggestedQuestions(userId: string): Promise<void> {
+	const generated = await generateSuggestedQuestions(userId);
+	if (generated.personalized) await storeSet(userId, generated);
 }

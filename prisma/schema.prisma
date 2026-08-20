@@ -34,6 +34,7 @@ model User {
   pushTokens    PushToken[]
   readingEvents ReadingEvent[]
   versesOfDay   VerseOfDay[]
+  suggestedQuestionSets SuggestedQuestionSet[]
 }
 
 enum AiProvider {
@@ -287,4 +288,18 @@ model VerseOfDay {
   question    String? // one question to carry through the day
 
   @@index([userId, sentAt])
+}
+
+/// A day's personalized welcome-screen questions, generated once (by the
+/// morning cron or the first app open of the day) and served from here so
+/// opening the app never waits on a model call. Newest row inside the reuse
+/// window wins; older rows are history.
+model SuggestedQuestionSet {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions String   // JSON array of question strings
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

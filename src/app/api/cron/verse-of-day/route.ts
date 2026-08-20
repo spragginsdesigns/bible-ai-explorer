@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily-cross";
+import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 
 // Loops over users with a per-user AI call and a push send; needs the full
 // function budget. Node runtime is required (Prisma + fs for the KJV corpus).
@@ -145,6 +146,15 @@ export async function GET(request: Request) {
 			const existing = await findTodayCross(userId);
 			const cross = existing ?? (await generateDailyCross(userId));
 			if (!existing) await storeDailyCross(userId, cross);
+
+			// Pre-warm the day's welcome-screen questions now that the new cross
+			// exists for them to build on, so the first app open never waits on a
+			// model call. Best-effort: the morning push must not depend on it.
+			if (!existing) {
+				await refreshSuggestedQuestions(userId).catch((error) => {
+					console.error(`[cron/verse-of-day] Suggested-questions refresh failed for ${userId}:`, error);
+				});
+			}
 
 			const reference = `${cross.book} ${cross.chapter}:${cross.verse}`;
 			for (const token of tokens) {
