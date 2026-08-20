@@ -39,6 +39,16 @@ function processChildren(children: React.ReactNode): React.ReactNode {
 	});
 }
 
+/**
+ * Whether a rendered <li> sits inside a <ul> or an <ol>. react-markdown gives
+ * list items no way to know their parent, so the list renderers provide it.
+ * (react-markdown also hands `ul` the "\n" whitespace text nodes between <li>
+ * elements as children — wrapping those children in icon rows was what
+ * produced empty CheckCircle bullets, so lists render their children as-is
+ * and let the `li` renderer own the layout.)
+ */
+const ListTypeContext = React.createContext<"ul" | "ol">("ul");
+
 const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 	if (!response || typeof response !== "string") {
 		return (
@@ -86,27 +96,36 @@ const markdownComponents: React.ComponentProps<
 		</h3>
 	),
 	ul: ({ children }) => (
-		<ul className="list-none mb-4 text-neutral-700 dark:text-neutral-300 space-y-2">
-			{React.Children.map(children, child => (
-				<li className="flex items-start">
-					<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-neutral-500 mt-0.5" />
-					<span>
-						{child}
-					</span>
-				</li>
-			))}
-		</ul>
+		<ListTypeContext.Provider value="ul">
+			<ul className="list-none mb-4 text-neutral-700 dark:text-neutral-300 space-y-2">
+				{children}
+			</ul>
+		</ListTypeContext.Provider>
 	),
 	ol: ({ children }) => (
-		<ol className="list-decimal list-inside mb-4 text-neutral-700 dark:text-neutral-300 space-y-2">
-			{children}
-		</ol>
+		<ListTypeContext.Provider value="ol">
+			<ol className="list-decimal list-inside mb-4 text-neutral-700 dark:text-neutral-300 space-y-2">
+				{children}
+			</ol>
+		</ListTypeContext.Provider>
 	),
-	li: ({ children }) => (
-		<li className="text-neutral-700 dark:text-neutral-300">
-			{processChildren(children)}
-		</li>
-	),
+	li: ({ children }) => {
+		// eslint-disable-next-line react-hooks/rules-of-hooks -- component, not a callback
+		const listType = React.useContext(ListTypeContext);
+		if (listType === "ol") {
+			return (
+				<li className="text-neutral-700 dark:text-neutral-300">
+					{processChildren(children)}
+				</li>
+			);
+		}
+		return (
+			<li className="flex items-start text-neutral-700 dark:text-neutral-300">
+				<CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-neutral-500 mt-0.5 flex-shrink-0" />
+				<span>{processChildren(children)}</span>
+			</li>
+		);
+	},
 	strong: ({ children }) => (
 		<strong className="text-neutral-900 dark:text-white font-semibold">{processChildren(children)}</strong>
 	),

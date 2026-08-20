@@ -184,6 +184,13 @@ const MarkdownView = Markdown as React.ComponentType<React.PropsWithChildren<Ful
 const markdownIt = MarkdownIt({ typographer: true, linkify: true });
 // Tappable Bible references ("John 3:16") as amber links deep-linking to the reader.
 markdownIt.use(verseReferencePlugin);
+
+/**
+ * The chat-configured parser, shared with the notes AI panel (NoteMarkdown) so
+ * an answer renders the same in both places: linkified URLs and tappable
+ * verse references included.
+ */
+export const sureWordMarkdownIt = markdownIt;
 const imageHandlers = ["https://", "http://"];
 const truncationMarker = <Text key="markdown-truncated">…</Text>;
 

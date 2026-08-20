@@ -4,6 +4,7 @@ import React from "react";
 import { Brain, Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "../FormattedResponse";
 import type { ChatMessage } from "../useChat";
+import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 
 interface NoteAIMessageProps {
 	message: ChatMessage;
@@ -32,7 +33,11 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 			<div className="flex-1 min-w-0">
 				{message.content ? (
 					<div className="text-sm">
-						<FormattedResponse response={message.content} />
+						<FormattedResponse
+							response={normalizeAssistantMarkdown(message.content, {
+								streaming: Boolean(message.isStreaming),
+							})}
+						/>
 					</div>
 				) : message.isStreaming && !message.activity ? (
 					<div className="flex items-center gap-1 py-2">

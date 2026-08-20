@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
+import { joinAssistantTextParts, stripFollowUpMarkers } from "./assistantMarkdown";
 
 /** View-model types ported from the web app (src/components/useChat.ts). */
 export interface RetrievedVerse {
@@ -62,8 +63,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-setDailyCross": "Preparing your new day",
 };
 
-export function visibleResponseContent(content: string): string {
-	return content.replace(/\r?\n?\[FOLLOWUP\][\s\S]*$/, "").trimEnd();
+export function visibleResponseContent(content: string, isStreaming = false): string {
+	return stripFollowUpMarkers(content, { streaming: isStreaming });
 }
 
 export function parseFollowUps(content: string): string[] {
@@ -122,7 +123,7 @@ export function toViewMessage(
 ): ChatViewMessage {
 	const legacy = isRecord(message.metadata) ? message.metadata : {};
 
-	let text = "";
+	const textParts: string[] = [];
 	const retrievedVerses: RetrievedVerse[] = parseVerses(legacy.retrievedVerses);
 	const similarities: number[] = [];
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
@@ -144,7 +145,7 @@ export function toViewMessage(
 
 	for (const part of message.parts) {
 		if (part.type === "text") {
-			text += part.text;
+			textParts.push(part.text);
 			continue;
 		}
 		if (!part.type.startsWith("tool-")) continue;
@@ -187,6 +188,11 @@ export function toViewMessage(
 		}
 	}
 
+	// Text parts split around tool calls need a blank line between them, or a
+	// part that opens a list/heading/quote glues onto the previous line and the
+	// markdown never parses.
+	const text = joinAssistantTextParts(textParts);
+
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
 		: [
@@ -208,7 +214,7 @@ export function toViewMessage(
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
-		content: visibleResponseContent(text),
+		content: visibleResponseContent(text, options.isStreaming),
 		...(retrievedVerses.length > 0 ? { retrievedVerses } : {}),
 		...(averageSimilarity !== undefined ? { averageSimilarity } : {}),
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),

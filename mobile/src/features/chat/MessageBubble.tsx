@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { ChatViewMessage } from "@/lib/chatView";
+import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -76,7 +77,11 @@ export const MessageBubble = React.memo(function MessageBubble({
 			</View>
 			<View style={styles.assistantBody}>
 				{message.content ? (
-					<MarkdownBody content={message.content} />
+					<MarkdownBody
+						content={normalizeAssistantMarkdown(message.content, {
+							streaming: Boolean(message.isStreaming),
+						})}
+					/>
 				) : message.isStreaming && !message.activity ? (
 					<TypingDots />
 				) : null}

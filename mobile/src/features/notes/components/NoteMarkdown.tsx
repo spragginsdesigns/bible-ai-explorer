@@ -1,9 +1,12 @@
 import React, { useMemo } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import Markdown, { hasParents, type RenderRules } from "react-native-markdown-display";
 import { fonts, radius, spacing } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
+import { openReferenceInReader, VERSE_REF_SCHEME } from "@/features/chat/verseLinks";
+import { sureWordMarkdownIt } from "@/features/chat/MarkdownBody";
 
 /**
  * Markdown for AI answers. Blockquotes are the Scripture treatment: Cormorant
@@ -12,6 +15,7 @@ import type { Colors } from "@/theme";
 export function NoteMarkdown({ content }: { content: string }) {
 	const styles = useThemedStyles(createStyles);
 	const markdownStyles = useThemedStyles(createMarkdownStyles);
+	const router = useRouter();
 
 	const rules: RenderRules = useMemo(
 		() => ({
@@ -38,7 +42,14 @@ export function NoteMarkdown({ content }: { content: string }) {
 		<Markdown
 			style={markdownStyles}
 			rules={rules}
+			markdownit={sureWordMarkdownIt}
 			onLinkPress={(url) => {
+				// Same link behavior as chat: verse references open in the reader,
+				// everything else opens externally.
+				if (url.startsWith(VERSE_REF_SCHEME)) {
+					openReferenceInReader(router, url.slice(VERSE_REF_SCHEME.length));
+					return false;
+				}
 				void Linking.openURL(url);
 				return false;
 			}}

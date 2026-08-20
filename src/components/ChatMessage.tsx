@@ -10,6 +10,7 @@ import FollowUpChips from "./FollowUpChips";
 import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 import ChatFileAttachments from "./ChatFileAttachments";
+import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -46,7 +47,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 			</div>
 			<div className="flex-1 min-w-0">
 				{message.content ? (
-					<FormattedResponse response={message.content} />
+					<FormattedResponse
+						response={normalizeAssistantMarkdown(message.content, {
+							streaming: Boolean(message.isStreaming),
+						})}
+					/>
 				) : message.isStreaming && !message.activity ? (
 					<div className="flex items-center gap-1 py-2">
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce" />
