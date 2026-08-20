@@ -161,32 +161,154 @@
 
 /* No position rule here: users of this class position themselves with
    Tailwind (fixed drawer / relative rail), and a plain class rule would
-   override those same-specificity utilities. ::after's inset-0 relies on
-   the element being positioned by its own classes. */
+   override those same-specificity utilities. The pseudo-elements' inset-0
+   relies on the element being positioned by its own classes. */
 .liquid-glass-panel {
-	background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.62) 100%);
-	backdrop-filter: blur(24px) saturate(170%) brightness(104%);
-	-webkit-backdrop-filter: blur(24px) saturate(170%) brightness(104%);
+	isolation: isolate;
+	overflow: hidden;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.68) 0%, rgba(250, 247, 240, 0.48) 100%);
+	backdrop-filter: blur(14px) saturate(145%) brightness(104%) contrast(102%);
+	-webkit-backdrop-filter: blur(14px) saturate(145%) brightness(104%) contrast(102%);
+	box-shadow:
+		18px 0 48px rgba(35, 28, 18, 0.08),
+		inset -1px 0 0 rgba(255, 255, 255, 0.52),
+		inset 1px 0 0 rgba(255, 255, 255, 0.22);
 }
 
 .dark .liquid-glass-panel {
-	background: linear-gradient(180deg, rgba(26, 26, 31, 0.6) 0%, rgba(11, 11, 14, 0.78) 100%);
+	background: linear-gradient(180deg, rgba(24, 24, 27, 0.46) 0%, rgba(8, 8, 10, 0.66) 100%);
+	box-shadow:
+		18px 0 52px rgba(0, 0, 0, 0.34),
+		inset -1px 0 0 rgba(255, 255, 255, 0.10),
+		inset 1px 0 0 rgba(255, 255, 255, 0.045);
 }
 
+.liquid-glass-panel::before,
 .liquid-glass-panel::after {
 	content: "";
 	position: absolute;
 	inset: 0;
+	z-index: 0;
 	pointer-events: none;
+}
+
+.liquid-glass-panel::before {
 	background:
-		radial-gradient(130% 32% at 30% 0%, rgba(255, 255, 255, 0.16) 0%, transparent 65%),
-		linear-gradient(90deg, transparent 94%, rgba(255, 255, 255, 0.06) 100%);
+		radial-gradient(92% 36% at 12% -2%, rgba(255, 202, 87, 0.14) 0%, transparent 68%),
+		radial-gradient(68% 48% at 108% 38%, rgba(165, 182, 219, 0.11) 0%, transparent 70%);
+}
+
+.liquid-glass-panel::after {
+	background:
+		linear-gradient(90deg, rgba(255, 255, 255, 0.15) 0, transparent 8%, transparent 88%, rgba(255, 255, 255, 0.20) 100%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0, transparent 18%, transparent 82%, rgba(255, 255, 255, 0.06) 100%);
+}
+
+.dark .liquid-glass-panel::before {
+	background:
+		radial-gradient(92% 36% at 12% -2%, rgba(251, 191, 36, 0.075) 0%, transparent 68%),
+		radial-gradient(68% 48% at 108% 38%, rgba(138, 154, 193, 0.055) 0%, transparent 70%);
 }
 
 .dark .liquid-glass-panel::after {
 	background:
-		radial-gradient(130% 32% at 30% 0%, rgba(255, 255, 255, 0.07) 0%, transparent 65%),
-		linear-gradient(90deg, transparent 94%, rgba(255, 255, 255, 0.04) 100%);
+		linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0, transparent 8%, transparent 88%, rgba(255, 255, 255, 0.085) 100%),
+		linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0, transparent 18%, transparent 82%, rgba(255, 255, 255, 0.018) 100%);
+}
+
+.liquid-glass-panel > * {
+	position: relative;
+	z-index: 1;
+}
+
+.sidebar-brand-icon {
+	filter: none;
+	image-rendering: auto;
+	transform: translateZ(0);
+}
+
+.sidebar-brand-wordmark {
+	font-synthesis: none;
+	text-rendering: geometricPrecision;
+}
+
+.sidebar-glass-control,
+.sidebar-glass-button {
+	border: 1px solid rgba(105, 78, 24, 0.16);
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.14)),
+		rgba(217, 119, 6, 0.06);
+	backdrop-filter: blur(10px) saturate(135%);
+	-webkit-backdrop-filter: blur(10px) saturate(135%);
+	box-shadow:
+		0 8px 24px rgba(101, 72, 20, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.72),
+		inset 0 -1px 0 rgba(112, 78, 17, 0.06);
+}
+
+.sidebar-glass-button {
+	border-color: rgba(30, 24, 16, 0.10);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12));
+	box-shadow:
+		0 6px 20px rgba(35, 28, 18, 0.055),
+		inset 0 1px 0 rgba(255, 255, 255, 0.66),
+		inset 0 -1px 0 rgba(30, 24, 16, 0.045);
+}
+
+.sidebar-glass-control:hover,
+.sidebar-glass-button:hover {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.19)),
+		rgba(217, 119, 6, 0.075);
+	box-shadow:
+		0 10px 28px rgba(101, 72, 20, 0.105),
+		inset 0 1px 0 rgba(255, 255, 255, 0.82),
+		inset 0 -1px 0 rgba(112, 78, 17, 0.075);
+}
+
+.dark .sidebar-glass-control,
+.dark .sidebar-glass-button {
+	border-color: rgba(251, 191, 36, 0.18);
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.025)),
+		rgba(251, 191, 36, 0.065);
+	box-shadow:
+		0 9px 26px rgba(0, 0, 0, 0.24),
+		inset 0 1px 0 rgba(255, 255, 255, 0.15),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.dark .sidebar-glass-button {
+	border-color: rgba(255, 255, 255, 0.09);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018));
+}
+
+.dark .sidebar-glass-control:hover,
+.dark .sidebar-glass-button:hover {
+	background:
+		linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.035)),
+		rgba(251, 191, 36, 0.08);
+	box-shadow:
+		0 11px 30px rgba(0, 0, 0, 0.30),
+		inset 0 1px 0 rgba(255, 255, 255, 0.19),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.035);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.liquid-glass-panel,
+	.sidebar-glass-control,
+	.sidebar-glass-button {
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+
+	.liquid-glass-panel {
+		background: #f4f1eb;
+	}
+
+	.dark .liquid-glass-panel {
+		background: #111113;
+	}
 }
 
 /* ═══════════════════════════════════════

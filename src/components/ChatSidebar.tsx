@@ -36,7 +36,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 					onNewChat();
 					onNavigate?.();
 				}}
-				className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl gradient-border bg-black/[0.03] dark:bg-white/[0.03] text-neutral-600 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors text-sm"
+				className="sidebar-glass-button w-full flex items-center gap-2 px-3 py-2.5 rounded-[14px] text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] text-sm"
 			>
 				<Plus className="w-4 h-4 text-amber-600 dark:text-amber-400" />
 				New Chat
