@@ -295,7 +295,7 @@ rebuild them any time with `scripts/backfill-verse-embeddings.mjs` /
 
 ## Workflow
 
-- **Always commit and push after completing changes.** This project auto-deploys to Vercel on push to `main`, so changes aren't live until pushed.
+- **Ship by default — never wait to be asked.** As soon as a change is verified (lint/typecheck/tests green, and the fix actually confirmed), commit the touched files only (Conventional Commit) and push to `main` in the same turn. Do not end a turn on uncommitted verified work. This project auto-deploys to Vercel on push to `main`, so changes aren't live until pushed. (Reaffirmed by Austin on 2026-08-20: "make it the default.")
 
 ## Autonomous Workflow
 
