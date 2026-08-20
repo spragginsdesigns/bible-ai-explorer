@@ -78,20 +78,22 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 			)}
 
 			<aside
-				className={`${positioning} z-50 w-[85vw] max-w-72 lg:w-[268px] flex-col liquid-glass-panel border-r border-black/[0.08] dark:border-white/[0.06]`}
+				className={`${positioning} z-50 w-[85vw] max-w-72 lg:w-[268px] flex-col liquid-glass-panel`}
 			>
 				{/* Brand */}
-				<div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+				<div className="flex items-center gap-2.5 px-4 pt-4 pb-3.5">
 					<Image
-						src="/web-app-manifest-512x512.png"
+						src="/favicon-96x96.png"
 						alt=""
-						width={30}
-						height={30}
-						className="rounded-lg"
+						width={34}
+						height={34}
+						priority
+						unoptimized
+						className="sidebar-brand-icon shrink-0"
 					/>
 					<Link
 						href="/"
-						className="text-amber-600 dark:text-amber-400 font-bold text-xl font-[family-name:var(--font-pirata)] drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]"
+						className="sidebar-brand-wordmark text-[23px] leading-none font-normal text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]"
 					>
 						SureWord
 					</Link>
@@ -115,9 +117,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 								key={id}
 								href={href}
 								aria-current={isActive ? "page" : undefined}
-								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all duration-150 ${
+								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[14px] text-sm font-medium border transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] ${
 									isActive
-										? "bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 border-amber-500/25 dark:border-amber-400/20 glow-amber-sm"
+										? "sidebar-glass-control text-amber-700 dark:text-amber-300"
 										: "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] border-transparent"
 								}`}
 							>
