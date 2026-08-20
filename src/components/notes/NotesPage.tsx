@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
+import AppSidebar from "@/components/AppSidebar";
 import NotesSidebar from "./NotesSidebar";
 import NotesSearch from "./NotesSearch";
 import NotesListView from "./NotesListView";
@@ -85,20 +86,25 @@ const NotesPage: React.FC = () => {
 			onTouchStart={handleTouchStart}
 			onTouchEnd={handleTouchEnd}
 		>
-			<NotesSidebar
+			<AppSidebar
+				active="notes"
 				open={sidebarOpen}
 				onClose={() => setSidebarOpen(false)}
-				folders={folders}
-				tags={tags}
-				activeFolderId={activeFolderId}
-				activeTagId={activeTagId}
-				onSelectFolder={setActiveFolderId}
-				onSelectTag={setActiveTagId}
-				onCreateFolder={createFolder}
-				onRenameFolder={renameFolder}
-				onDeleteFolder={deleteFolder}
-				onCreateNote={handleCreateNote}
-			/>
+			>
+				<NotesSidebar
+					folders={folders}
+					tags={tags}
+					activeFolderId={activeFolderId}
+					activeTagId={activeTagId}
+					onSelectFolder={setActiveFolderId}
+					onSelectTag={setActiveTagId}
+					onCreateFolder={createFolder}
+					onRenameFolder={renameFolder}
+					onDeleteFolder={deleteFolder}
+					onCreateNote={handleCreateNote}
+					onNavigate={() => setSidebarOpen(false)}
+				/>
+			</AppSidebar>
 
 			<div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
 				<NotesTopBar

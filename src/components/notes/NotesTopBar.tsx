@@ -2,19 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
-import {
-	Menu,
-	FilePlus,
-	MessageSquare,
-	BookOpen,
-	BookMarked,
-	Smartphone,
-	Sun,
-	Moon,
-	Settings,
-} from "lucide-react";
+import { Menu, FilePlus, Smartphone, Sun, Moon, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
-import { UserButton } from "@clerk/nextjs";
 import { ANDROID_APK_URL } from "@/lib/constants";
 
 interface NotesTopBarProps {
@@ -22,46 +11,23 @@ interface NotesTopBarProps {
 	onNewNote: () => void;
 }
 
+/**
+ * Mobile-only top bar for Notes: opens the sidebar drawer and holds quick
+ * actions. On desktop (lg+) the persistent AppSidebar carries navigation,
+ * account, and utilities, so this bar hides entirely.
+ */
 const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote }) => {
 	const { setTheme } = useTheme();
 
 	return (
-		<div className="h-14 flex items-center justify-between px-4 border-b border-black/[0.08] dark:border-white/[0.06] glass flex-shrink-0">
-			<div className="flex items-center gap-1 min-w-0">
-				{/* Sidebar toggle (mobile only - the sidebar is persistent on desktop) */}
-				<button
-					onClick={onToggleSidebar}
-					aria-label="Toggle sidebar"
-					className="lg:hidden text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
-				>
-					<Menu className="w-5 h-5" />
-				</button>
-
-				{/* Navigation tabs (desktop; mobile uses MobileBottomNav) */}
-				<nav className="hidden lg:flex items-center gap-1 ml-1">
-					<Link
-						href="/"
-						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
-					>
-						<MessageSquare className="w-3.5 h-3.5" />
-						Chat
-					</Link>
-					<Link
-						href="/bible"
-						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
-					>
-						<BookMarked className="w-3.5 h-3.5" />
-						Bible
-					</Link>
-					<Link
-						href="/notes"
-						className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-amber-600 dark:text-amber-400 bg-black/[0.04] dark:bg-white/[0.04] border-b-2 border-amber-600 dark:border-amber-400 transition-colors"
-					>
-						<BookOpen className="w-3.5 h-3.5" />
-						Notes
-					</Link>
-				</nav>
-			</div>
+		<div className="h-14 flex lg:hidden items-center justify-between px-4 border-b border-black/[0.08] dark:border-white/[0.06] glass flex-shrink-0">
+			<button
+				onClick={onToggleSidebar}
+				aria-label="Toggle sidebar"
+				className="text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
+			>
+				<Menu className="w-5 h-5" />
+			</button>
 			<div className="flex items-center gap-0">
 				<button
 					onClick={onNewNote}
@@ -96,13 +62,10 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 					href="/settings"
 					title="Settings"
 					aria-label="Settings"
-					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2"
 				>
 					<Settings className="w-4 h-4" />
 				</Link>
-				<div className="ml-1 hidden lg:flex items-center">
-					<UserButton />
-				</div>
 			</div>
 		</div>
 	);

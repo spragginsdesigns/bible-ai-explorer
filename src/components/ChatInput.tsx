@@ -212,7 +212,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							</div>
 						</div>
 					)}
-					<div className="flex items-end gap-1 gradient-border rounded-xl bg-black/[0.03] dark:bg-white/[0.03] px-2 py-2">
+					<div className="flex items-end gap-1 gradient-border liquid-glass rounded-xl px-2 py-2">
 						<ModelPicker />
 						<input
 							ref={fileInputRef}

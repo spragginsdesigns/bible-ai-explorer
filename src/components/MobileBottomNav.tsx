@@ -30,7 +30,7 @@ const MobileBottomNav: React.FC = () => {
 			aria-label="Primary"
 			className="fixed inset-x-0 bottom-0 z-40 px-6 pb-[max(env(safe-area-inset-bottom),0.5rem)] lg:hidden"
 		>
-			<div className="glass flex overflow-hidden rounded-[24px] border border-black/[0.12] dark:border-white/[0.08]">
+			<div className="liquid-glass flex overflow-hidden rounded-[24px] border border-black/[0.12] dark:border-white/[0.08]">
 				{TABS.map((tab) => {
 					const active = tab.isActive(pathname);
 					return (

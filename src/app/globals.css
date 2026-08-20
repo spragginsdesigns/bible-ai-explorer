@@ -96,21 +96,25 @@
 
 /* ═══════════════════════════════════════
    GLASSMORPHISM UTILITIES
+   Liquid-glass recipe: saturated blur + slight brightness lift + a
+   specular top highlight, per Apple's Liquid Glass material. Pure CSS -
+   no SVG displacement, so it renders identically in Safari/WKWebView
+   (the macOS app) where backdrop-filter: url() would silently kill blur.
    ═══════════════════════════════════════ */
 .glass {
-	background: rgba(255, 255, 255, 0.75);
-	backdrop-filter: blur(16px);
-	-webkit-backdrop-filter: blur(16px);
+	background: rgba(255, 255, 255, 0.72);
+	backdrop-filter: blur(18px) saturate(160%) brightness(103%);
+	-webkit-backdrop-filter: blur(18px) saturate(160%) brightness(103%);
 }
 
 .dark .glass {
-	background: rgba(8, 8, 8, 0.7);
+	background: rgba(10, 10, 12, 0.66);
 }
 
 .glass-light {
 	background: rgba(255, 255, 255, 0.6);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(12px) saturate(150%);
+	-webkit-backdrop-filter: blur(12px) saturate(150%);
 }
 
 .dark .glass-light {
@@ -119,12 +123,70 @@
 
 .glass-card {
 	background: rgba(255, 255, 255, 0.65);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
+	backdrop-filter: blur(14px) saturate(150%);
+	-webkit-backdrop-filter: blur(14px) saturate(150%);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .dark .glass-card {
-	background: rgba(10, 10, 10, 0.6);
+	background: rgba(15, 15, 18, 0.55);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════
+   LIQUID GLASS
+   .liquid-glass - rounded floating surfaces (input bars, pills, nav).
+     Top-edge specular via inset shadow so it composes with
+     .gradient-border (which owns ::before).
+   .liquid-glass-panel - full-height docked panels (the app sidebar).
+     Sheen lives on ::after; don't combine with other ::after users.
+   ═══════════════════════════════════════ */
+.liquid-glass {
+	background: linear-gradient(160deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.55));
+	backdrop-filter: blur(18px) saturate(160%) brightness(103%);
+	-webkit-backdrop-filter: blur(18px) saturate(160%) brightness(103%);
+	box-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.08),
+		inset 0 1px 0 rgba(255, 255, 255, 0.65),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.dark .liquid-glass {
+	background: linear-gradient(160deg, rgba(32, 32, 37, 0.55), rgba(14, 14, 17, 0.65));
+	box-shadow:
+		0 8px 32px rgba(0, 0, 0, 0.45),
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* No position rule here: users of this class position themselves with
+   Tailwind (fixed drawer / relative rail), and a plain class rule would
+   override those same-specificity utilities. ::after's inset-0 relies on
+   the element being positioned by its own classes. */
+.liquid-glass-panel {
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.62) 100%);
+	backdrop-filter: blur(24px) saturate(170%) brightness(104%);
+	-webkit-backdrop-filter: blur(24px) saturate(170%) brightness(104%);
+}
+
+.dark .liquid-glass-panel {
+	background: linear-gradient(180deg, rgba(26, 26, 31, 0.6) 0%, rgba(11, 11, 14, 0.78) 100%);
+}
+
+.liquid-glass-panel::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background:
+		radial-gradient(130% 32% at 30% 0%, rgba(255, 255, 255, 0.16) 0%, transparent 65%),
+		linear-gradient(90deg, transparent 94%, rgba(255, 255, 255, 0.06) 100%);
+}
+
+.dark .liquid-glass-panel::after {
+	background:
+		radial-gradient(130% 32% at 30% 0%, rgba(255, 255, 255, 0.07) 0%, transparent 65%),
+		linear-gradient(90deg, transparent 94%, rgba(255, 255, 255, 0.04) 100%);
 }
 
 /* ═══════════════════════════════════════

@@ -1,11 +1,10 @@
 import AppSidebar from "@/components/AppSidebar";
 
 /**
- * Bible section shell: the persistent app sidebar is fixed on desktop and
- * absent on mobile (MobileBottomNav carries navigation there), so pages keep
- * natural document scrolling and Next's scroll restoration.
+ * Pick Up Your Cross lives under the Bible section: same docked-sidebar
+ * shell as /bible so desktop navigation stays persistent.
  */
-export default function BibleLayout({
+export default function CrossLayout({
 	children,
 }: {
 	children: React.ReactNode;

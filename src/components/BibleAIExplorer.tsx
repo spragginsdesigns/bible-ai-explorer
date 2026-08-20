@@ -2,6 +2,7 @@
 
 import React, { Suspense, useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import AppSidebar from "./AppSidebar";
 import ChatSidebar from "./ChatSidebar";
 import ChatTopBar from "./ChatTopBar";
 import MessageList from "./MessageList";
@@ -138,19 +139,21 @@ const BibleAIExplorerInner: React.FC = () => {
 			onTouchStart={handleTouchStart}
 			onTouchEnd={handleTouchEnd}
 		>
-			<ChatSidebar
+			<AppSidebar
+				active="chat"
 				open={sidebarOpen}
 				onClose={() => setSidebarOpen(false)}
-				conversations={conversations}
-				activeConversationId={activeConversationId}
-				onNewChat={() => {
-					newConversation();
-					setSidebarOpen(false);
-				}}
-				onSelectConversation={switchConversation}
-				onDeleteConversation={deleteConversation}
-				onClearAll={clearAllConversations}
-			/>
+			>
+				<ChatSidebar
+					conversations={conversations}
+					activeConversationId={activeConversationId}
+					onNewChat={newConversation}
+					onSelectConversation={switchConversation}
+					onDeleteConversation={deleteConversation}
+					onClearAll={clearAllConversations}
+					onNavigate={() => setSidebarOpen(false)}
+				/>
+			</AppSidebar>
 
 			<div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
 				<ChatTopBar
