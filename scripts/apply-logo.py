@@ -159,17 +159,17 @@ def badge(art: Image.Image) -> Image.Image:
     gold rim, centred mark. Transparent corners, so it reads as a deliberate
     round mark in the tab strip instead of a murky square."""
     s = 1024
-    d = round(s * 0.92)  # disc diameter; the margin absorbs the shadow blur
+    d = round(s * 0.96)  # disc diameter; the margin absorbs the shadow blur
     off = (s - d) / 2
 
     canvas = Image.new("RGBA", (s, s), (0, 0, 0, 0))
 
     # Drop shadow - invisible on dark UI chrome, lifts the disc on light.
     shadow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
-    drop = round(s * 0.012)
+    drop = round(s * 0.008)
     shadow.paste((0, 0, 0, 115), (0, 0, s, s),
                  ellipse_mask(s, (off, off + drop, off + d, off + d + drop)))
-    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(s * 0.014)))
+    canvas.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(s * 0.010)))
 
     # Gradient disc.
     disc = radial_plate(s).convert("RGBA")
@@ -183,7 +183,7 @@ def badge(art: Image.Image) -> Image.Image:
     rim.putalpha(ellipse_mask(s, (inset, inset, s - inset, s - inset), width=rim_w))
     canvas.alpha_composite(rim)
 
-    paste_fit(canvas, art, round(d * 0.66))
+    paste_fit(canvas, art, round(d * 0.80))
     return canvas
 
 
