@@ -72,7 +72,7 @@ keeps working for all of them.
 |------|---------|----------|
 | SureWord | Product name / brand (renamed from VerseMind on 2026-08-10) | Header, layout |
 | pgvector | Verse + note embeddings live in the production Neon DB (`VerseEmbedding`, `NoteEmbedding` tables, halfvec 3072) | `src/lib/scripture-search.ts`, `src/lib/note-embeddings.ts` |
-| Tavily | External search API for supplementary web results | `src/app/api/tavily-search/route.ts` |
+| Tavily | External search API for supplementary web results (`webSearch` AI tool; per-user toggle in Settings → Web Search) | `src/lib/tavily.ts`, `src/lib/ai-tools.ts` |
 | RAG | Retrieval-Augmented Generation - queries vector DB for relevant Bible passages | `src/app/api/ask-question/route.ts` |
 
 ## Project Structure
@@ -83,7 +83,8 @@ bible-ai-explorer/
 │   ├── app/                  # Next.js App Router pages & API routes
 │   │   ├── api/
 │   │   │   ├── ask-question/ # Main RAG endpoint (OpenAI + Neon pgvector)
-│   │   │   └── tavily-search/ # Tavily web search endpoint
+│   │   │   ├── memories/     # Memory list + enable toggle API
+│   │   │   └── preferences/  # Per-user feature prefs (Web Search toggle)
 │   │   ├── layout.tsx        # Root layout
 │   │   ├── page.tsx          # Home page
 │   │   └── globals.css       # Global styles
@@ -322,7 +323,7 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | RAG API route | `src/app/api/ask-question/route.ts` |
 | Tap-a-verse insight route | `src/app/api/verse-insight/route.ts` (docs: `docs/FEATURES.md`) |
 | Tap-a-verse client hooks | `src/components/bible/useVerseInsight.ts` + `mobile/src/features/bible/useVerseInsight.ts` (mirrored) |
-| Search API route | `src/app/api/tavily-search/route.ts` |
+| Web search (Tavily) | `src/lib/tavily.ts` + `webSearch` tool in `src/lib/ai-tools.ts`; toggle API at `src/app/api/preferences/` |
 | Scripture vector search | `src/lib/scripture-search.ts` |
 | Note embeddings sync/search | `src/lib/note-embeddings.ts` |
 | Original languages (WLC/TR + Strong's) | `src/lib/bible/originals.ts` + `src/data/originals/` |

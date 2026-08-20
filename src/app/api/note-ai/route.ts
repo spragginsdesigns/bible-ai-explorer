@@ -127,7 +127,15 @@ export async function POST(req: Request): Promise<Response> {
 			return NextResponse.json({ error: "Note not found." }, { status: 404 });
 		}
 
-		const tools = buildSureWordTools({ userId, defaultNoteId: note.id });
+		const userPrefs = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { webSearchEnabled: true },
+		});
+		const tools = buildSureWordTools({
+			userId,
+			defaultNoteId: note.id,
+			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
+		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const messages = await validateUIMessages<SureWordUIMessage>({

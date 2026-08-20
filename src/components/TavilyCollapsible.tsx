@@ -8,6 +8,22 @@ interface TavilyCollapsibleProps {
 	results: TavilyResult[];
 }
 
+function SourceIcon({ result }: { result: TavilyResult }) {
+	const [failed, setFailed] = useState(false);
+	if (!result.favicon || failed) {
+		return <Globe className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600 mt-0.5 flex-shrink-0" />;
+	}
+	return (
+		// eslint-disable-next-line @next/next/no-img-element -- external favicons, no optimization needed
+		<img
+			src={result.favicon}
+			alt=""
+			className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 rounded-sm"
+			onError={() => setFailed(true)}
+		/>
+	);
+}
+
 const TavilyCollapsible: React.FC<TavilyCollapsibleProps> = ({ results }) => {
 	const [open, setOpen] = useState(false);
 
@@ -25,7 +41,7 @@ const TavilyCollapsible: React.FC<TavilyCollapsibleProps> = ({ results }) => {
 					{results.map((result, i) => (
 						<div key={i} className="pl-3 py-1.5">
 							<div className="flex items-start gap-2">
-								<Globe className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600 mt-0.5 flex-shrink-0" />
+								<SourceIcon result={result} />
 								<div>
 									<p className="text-sm text-neutral-700 dark:text-neutral-300 font-medium">{result.title}</p>
 									<p className="text-xs text-neutral-500 mt-0.5 line-clamp-2">{result.content}</p>

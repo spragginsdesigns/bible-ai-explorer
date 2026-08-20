@@ -23,6 +23,7 @@ import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
+import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 export const maxDuration = 120;
 
@@ -163,7 +164,9 @@ function stripFollowUps(text: string): {
 		if (question && !followUps.includes(question)) followUps.push(question);
 	}
 	return {
-		cleanText: text.replace(/\r?\n?\[FOLLOWUP\][^\r\n]*/g, "").trimEnd(),
+		// Same per-line semantics the clients apply before rendering, so the
+		// persisted content matches what the user saw while streaming.
+		cleanText: stripFollowUpMarkers(text, { streaming: false }),
 		followUps,
 	};
 }
@@ -292,7 +295,15 @@ export async function POST(req: Request): Promise<Response> {
 		const translation: TranslationId =
 			requestData.translation === "NKJV" ? "NKJV" : "KJV";
 
-		const tools = buildSureWordTools({ userId, translation });
+		const userPrefs = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { webSearchEnabled: true },
+		});
+		const tools = buildSureWordTools({
+			userId,
+			translation,
+			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
+		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const validatedMessages = await validateUIMessages<SureWordUIMessage>({

@@ -14,6 +14,7 @@ import {
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
 import { readEffortPref, readModelPref, readTranslationPref } from "@/lib/preferences";
+import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -25,6 +26,7 @@ export interface TavilyResult {
 	title: string;
 	content: string;
 	url: string;
+	favicon?: string;
 }
 
 export interface NoteAction {
@@ -86,8 +88,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-setDailyCross": "Preparing your new day",
 };
 
-function visibleResponseContent(content: string): string {
-	return content.replace(/\r?\n?\[FOLLOWUP\][\s\S]*$/, "").trimEnd();
+function visibleResponseContent(content: string, isStreaming: boolean): string {
+	return stripFollowUpMarkers(content, { streaming: isStreaming });
 }
 
 function parseFollowUps(content: string): string[] {
@@ -137,7 +139,12 @@ function parseTavilyResults(value: unknown): TavilyResult[] {
 		) {
 			return [];
 		}
-		return [{ title: result.title, content: result.content, url: result.url }];
+		return [{
+			title: result.title,
+			content: result.content,
+			url: result.url,
+			...(typeof result.favicon === "string" ? { favicon: result.favicon } : {}),
+		}];
 	});
 }
 
@@ -161,7 +168,7 @@ export function toViewMessage(
 		? (message.metadata as LegacyMessageMetadata)
 		: {};
 
-	let text = "";
+	const textParts: string[] = [];
 	const retrievedVerses: RetrievedVerse[] = parseVerses(legacy.retrievedVerses);
 	const similarities: number[] = [];
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
@@ -183,7 +190,7 @@ export function toViewMessage(
 
 	for (const part of message.parts) {
 		if (part.type === "text") {
-			text += part.text;
+			textParts.push(part.text);
 			continue;
 		}
 
@@ -231,6 +238,11 @@ export function toViewMessage(
 		}
 	}
 
+	// Text parts split around tool calls need a blank line between them, or a
+	// part that opens a list/heading/quote glues onto the previous line and the
+	// markdown never parses.
+	const text = joinAssistantTextParts(textParts);
+
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
 		: [
@@ -252,7 +264,7 @@ export function toViewMessage(
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
-		content: visibleResponseContent(text),
+		content: visibleResponseContent(text, options.isStreaming),
 		...(retrievedVerses.length > 0 ? { retrievedVerses } : {}),
 		...(averageSimilarity !== undefined ? { averageSimilarity } : {}),
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),

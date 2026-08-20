@@ -46,3 +46,61 @@ export function writeEffortPref(effort: string | null) {
 	if (effort) window.localStorage.setItem(EFFORT_PREF_KEY, effort);
 	else window.localStorage.removeItem(EFFORT_PREF_KEY);
 }
+
+/**
+ * Local caches of the server-persisted feature toggles (User.memoryEnabled,
+ * User.webSearchEnabled). The settings screen seeds its toggle state from
+ * these so a returning user sees the right position on first paint instead of
+ * "off" while the GET round-trips; the server value then replaces the cache.
+ */
+export const MEMORY_ENABLED_PREF_KEY = "sureword-memory-enabled";
+export const WEB_SEARCH_ENABLED_PREF_KEY = "sureword-web-search-enabled";
+
+function readBooleanPref(key: string): boolean | null {
+	if (typeof window === "undefined") return null;
+	const value = window.localStorage.getItem(key);
+	return value === "true" ? true : value === "false" ? false : null;
+}
+
+export function readMemoryEnabledPref(): boolean | null {
+	return readBooleanPref(MEMORY_ENABLED_PREF_KEY);
+}
+
+export function writeMemoryEnabledPref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(MEMORY_ENABLED_PREF_KEY, String(enabled));
+}
+
+export function readWebSearchEnabledPref(): boolean | null {
+	return readBooleanPref(WEB_SEARCH_ENABLED_PREF_KEY);
+}
+
+export function writeWebSearchEnabledPref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(WEB_SEARCH_ENABLED_PREF_KEY, String(enabled));
+}
+
+/** Client helpers for /api/preferences (Settings → Web Search toggle). */
+async function parsePreferencesError(res: Response): Promise<never> {
+	const data = (await res.json().catch(() => null)) as { error?: string } | null;
+	throw new Error(data?.error ?? `Request failed (${res.status})`);
+}
+
+export async function fetchWebSearchEnabled(): Promise<{ webSearchEnabled: boolean }> {
+	const res = await fetch("/api/preferences", { credentials: "same-origin" });
+	if (!res.ok) return parsePreferencesError(res);
+	return (await res.json()) as { webSearchEnabled: boolean };
+}
+
+export async function setWebSearchEnabled(
+	webSearchEnabled: boolean
+): Promise<{ webSearchEnabled: boolean }> {
+	const res = await fetch("/api/preferences", {
+		method: "PATCH",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ webSearchEnabled }),
+	});
+	if (!res.ok) return parsePreferencesError(res);
+	return (await res.json()) as { webSearchEnabled: boolean };
+}

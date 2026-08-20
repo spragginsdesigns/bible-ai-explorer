@@ -9,6 +9,7 @@ import {
 	BookMarked,
 	Brain,
 	ChevronRight,
+	Globe,
 	LogOut,
 	Monitor,
 	Moon,
@@ -22,7 +23,16 @@ import {
 	MACOS_VERSION,
 } from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
-import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import {
+	readTranslationPref,
+	writeTranslationPref,
+	readMemoryEnabledPref,
+	writeMemoryEnabledPref,
+	readWebSearchEnabledPref,
+	writeWebSearchEnabledPref,
+	fetchWebSearchEnabled,
+	setWebSearchEnabled,
+} from "@/lib/preferences";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
@@ -59,12 +69,17 @@ export default function SettingsPage() {
 	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
 	const [memoryToggleError, setMemoryToggleError] = useState<string | null>(null);
 	const [memoryManagerOpen, setMemoryManagerOpen] = useState(false);
+	const [webSearchEnabled, setWebSearchEnabledState] = useState<boolean | null>(null);
+	const [webSearchLoadFailed, setWebSearchLoadFailed] = useState(false);
+	const [webSearchTogglePending, setWebSearchTogglePending] = useState(false);
+	const [webSearchToggleError, setWebSearchToggleError] = useState<string | null>(null);
 
 	const loadMemories = async () => {
 		setMemoryLoadFailed(false);
 		try {
 			const data = await fetchMemories();
 			setMemoryEnabledState(data.enabled);
+			writeMemoryEnabledPref(data.enabled);
 			setMemoryCount(data.memories.length);
 			setMemoryLoadFailed(false);
 		} catch {
@@ -72,10 +87,29 @@ export default function SettingsPage() {
 		}
 	};
 
+	const loadWebSearch = async () => {
+		setWebSearchLoadFailed(false);
+		try {
+			const data = await fetchWebSearchEnabled();
+			setWebSearchEnabledState(data.webSearchEnabled);
+			writeWebSearchEnabledPref(data.webSearchEnabled);
+		} catch {
+			setWebSearchLoadFailed(true);
+		}
+	};
+
 	useEffect(() => {
 		setMounted(true);
 		setTranslation(readTranslationPref());
+		// Seed both toggles from the local cache so a returning user sees the
+		// saved position immediately instead of "off" until the GET returns;
+		// the server value then replaces the cache.
+		const cachedMemory = readMemoryEnabledPref();
+		if (cachedMemory !== null) setMemoryEnabledState(cachedMemory);
+		const cachedWebSearch = readWebSearchEnabledPref();
+		if (cachedWebSearch !== null) setWebSearchEnabledState(cachedWebSearch);
 		void loadMemories();
+		void loadWebSearch();
 	}, []);
 
 	const pickTranslation = (id: TranslationId) => {
@@ -91,6 +125,7 @@ export default function SettingsPage() {
 		setMemoryToggleError(null);
 		try {
 			await setMemoryEnabled(next);
+			writeMemoryEnabledPref(next);
 		} catch (err) {
 			setMemoryEnabledState(!next);
 			setMemoryToggleError(
@@ -101,15 +136,34 @@ export default function SettingsPage() {
 		}
 	};
 
+	// Same optimistic pattern as the memory toggle.
+	const toggleWebSearch = async (next: boolean) => {
+		if (webSearchTogglePending) return;
+		setWebSearchEnabledState(next);
+		setWebSearchTogglePending(true);
+		setWebSearchToggleError(null);
+		try {
+			await setWebSearchEnabled(next);
+			writeWebSearchEnabledPref(next);
+		} catch (err) {
+			setWebSearchEnabledState(!next);
+			setWebSearchToggleError(
+				err instanceof Error ? err.message : "Couldn't update web search settings."
+			);
+		} finally {
+			setWebSearchTogglePending(false);
+		}
+	};
+
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 	const name = user?.fullName ?? user?.username ?? "";
 	const initial = (name || email || "✝").trim().charAt(0).toUpperCase();
 
 	return (
 		<div className="min-h-[100dvh] gradient-mesh">
-			<div className="mx-auto w-full max-w-xl px-5 pb-28 lg:pb-16">
+			<div className="mx-auto w-full max-w-xl lg:max-w-5xl px-5 lg:px-8 pb-28 lg:pb-16">
 				{/* Top bar */}
-				<div className="flex items-center gap-4 py-4">
+				<div className="flex items-center gap-4 py-4 lg:py-6">
 					<Link
 						href="/"
 						className="flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
@@ -117,13 +171,15 @@ export default function SettingsPage() {
 					>
 						<ArrowLeft className="w-5 h-5" />
 					</Link>
-					<h1 className="flex-1 text-center text-[17px] font-bold text-neutral-900 dark:text-neutral-100">
+					<h1 className="flex-1 text-center lg:text-left text-[17px] lg:text-2xl font-bold text-neutral-900 dark:text-neutral-100">
 						Settings
 					</h1>
 					<span className="min-w-[44px]" aria-hidden />
 				</div>
 
-				<div className="flex flex-col gap-6">
+				{/* One column on phones; two balanced column stacks on desktop */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+					<div className="flex flex-col gap-6 min-w-0">
 					{/* Appearance */}
 					<section className="flex flex-col gap-2">
 						<SectionLabel>APPEARANCE</SectionLabel>
@@ -264,6 +320,70 @@ export default function SettingsPage() {
 						</div>
 					</section>
 
+					{/* Web search */}
+					<section className="flex flex-col gap-2">
+						<SectionLabel>WEB SEARCH</SectionLabel>
+						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
+							<div className="flex items-center gap-3">
+								<span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
+									<Globe className="w-5 h-5" />
+								</span>
+								<div className="min-w-0 flex-1">
+									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										Enable web search
+									</p>
+									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+										Lets SureWord look up supplementary material online (church
+										history, archaeology, current events). Scripture stays the
+										final authority.
+									</p>
+								</div>
+								<button
+									type="button"
+									role="switch"
+									aria-checked={webSearchEnabled ?? false}
+									aria-label="Enable web search"
+									disabled={
+										!mounted || webSearchEnabled === null || webSearchLoadFailed || webSearchTogglePending
+									}
+									onClick={() => {
+										if (webSearchEnabled !== null) void toggleWebSearch(!webSearchEnabled);
+									}}
+									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+										webSearchEnabled
+											? "bg-amber-500 dark:bg-amber-400"
+											: "bg-black/[0.15] dark:bg-white/[0.15]"
+									}`}
+								>
+									<span
+										className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+											webSearchEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+										}`}
+									/>
+								</button>
+							</div>
+							{webSearchToggleError && (
+								<p className="text-xs text-red-600 dark:text-red-400">{webSearchToggleError}</p>
+							)}
+							{webSearchLoadFailed && (
+								<div className="flex items-center justify-between gap-3">
+									<p className="text-xs text-neutral-400 dark:text-neutral-500">
+										Couldn&apos;t load web search settings.
+									</p>
+									<button
+										type="button"
+										onClick={() => void loadWebSearch()}
+										className="text-xs font-bold text-amber-600 dark:text-amber-400"
+									>
+										Retry
+									</button>
+								</div>
+							)}
+						</div>
+					</section>
+					</div>
+
+					<div className="flex flex-col gap-6 min-w-0">
 					{/* AI providers */}
 					<section className="flex flex-col gap-2">
 						<SectionLabel>AI PROVIDERS</SectionLabel>
@@ -373,6 +493,7 @@ export default function SettingsPage() {
 							</p>
 						</div>
 					</section>
+					</div>
 				</div>
 			</div>
 

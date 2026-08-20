@@ -47,6 +47,7 @@ export interface PassageToolOutput {
 }
 
 export interface WebSearchToolOutput {
+	answer: string | null;
 	results: TavilyResult[];
 }
 
@@ -100,6 +101,8 @@ export interface SureWordToolContext {
 	defaultNoteId?: string;
 	/** Bible translation the user selected in settings; Scripture tools quote it. */
 	translation?: TranslationId;
+	/** Settings → Web Search toggle. When false, the webSearch tool declines to run. */
+	webSearchEnabled?: boolean;
 }
 
 export function buildSureWordTools(context: SureWordToolContext) {
@@ -290,15 +293,30 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	// The tool stays registered even when the user turned web search off so
+	// past conversations containing tool-webSearch parts still validate; the
+	// description and execute both refuse instead.
+	const webSearchEnabled = context.webSearchEnabled ?? true;
 	const webSearchTool = tool({
-		description:
-			`Search the web for supplementary material: church history, archaeology, apologetics, current events, or original-language word studies. Never use it as an authority above or alongside Scripture; weigh everything it returns against the ${translation}.`,
+		description: webSearchEnabled
+			? `Search the web for supplementary material: church history, archaeology, apologetics, current events, or original-language word studies. Never use it as an authority above or alongside Scripture; weigh everything it returns against the ${translation}.`
+			: "Web search is turned off in the user's settings. Do NOT call this tool; if the user asks for web results, tell them web search is disabled and they can re-enable it in Settings → Web Search.",
 		inputSchema: z.object({
 			query: z.string().describe("A self-contained web search query."),
+			topic: z
+				.enum(["general", "news", "finance"])
+				.optional()
+				.describe('Search category. Use "news" for current-events questions; omit for everything else.'),
+			timeRange: z
+				.enum(["day", "week", "month", "year"])
+				.optional()
+				.describe("Only return results published or updated within this window. Omit for timeless topics."),
 		}),
-		execute: async ({ query }): Promise<WebSearchToolOutput> => {
-			const results = await tavilySearch(query);
-			return { results };
+		execute: async ({ query, topic, timeRange }): Promise<WebSearchToolOutput> => {
+			if (!webSearchEnabled) {
+				throw new Error("Web search is turned off in the user's settings.");
+			}
+			return tavilySearch(query, { topic, timeRange });
 		},
 	});
 

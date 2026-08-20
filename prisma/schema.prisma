@@ -15,6 +15,9 @@ model User {
   // When false, memories are neither injected into prompts nor extracted from
   // chats (Settings → Memory toggle). Existing UserMemory rows are kept.
   memoryEnabled Boolean        @default(true)
+  // When false, the webSearch (Tavily) tool is not offered to the model
+  // (Settings → Web Search toggle). Server-enforced in the chat routes.
+  webSearchEnabled Boolean     @default(true)
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
   // falls back to the default rather than erroring.
