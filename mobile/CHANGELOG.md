@@ -14,7 +14,7 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
-## 1.20.0 (versionCode 15) - 2026-08-20 - internal
+## 1.20.0 (versionCode 16) - 2026-08-20 - internal
 
 **What's new (Play):**
 
