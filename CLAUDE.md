@@ -243,12 +243,15 @@ python scripts/apply-logo.py .logo-work/dawn.png   # master → every asset
 
 `generate-logo.mjs` calls OpenAI `gpt-image-2` and holds the prompts for all four
 concepts (`dawn` is the shipped one); it reads `OPENAI_API_KEY` from the
-environment or `.env.local`. `apply-logo.py` writes the favicon set, PWA icons,
-apple-touch icon, and both Android icons, then renders a 48px proof so
-launcher-size legibility is checked rather than assumed. Two things it handles
-that are easy to get wrong by hand: the adaptive icon is inset to 66% because
-Android masks it, and backgrounds are normalised to `#0a0a0a` so the inset
-artwork has no visible seam.
+environment or `.env.local`. `apply-logo.py` treats the master as artwork, not as
+the icon: it lifts the gold mark off the dark background as an alpha layer and
+composes real treatments - a circular badge (gradient disc, gold rim, soft
+shadow) for browser favicons, and full-bleed gradient plates for surfaces that
+apply their own mask (iOS, Android launchers, PWA maskable, Windows tile,
+macOS's Apple-grid rounded rect). Launcher/maskable art is held inside the 80%
+safe-zone circle (~62% of the canvas edge), and a favicon proof sheet is
+rendered at 16-96px on dark and light so small-size legibility is something you
+look at rather than assume.
 
 Changing icons requires a full `expo prebuild` (see below) — Android bakes them
 into `res/`, so a rebuilt APK is the only way they reach the device.
