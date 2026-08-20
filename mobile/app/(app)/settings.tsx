@@ -23,6 +23,7 @@ import {
 	useNotificationSettings,
 } from "@/features/notifications/notificationSettings";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
+import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "system", label: "System", glyph: "◐" },
@@ -139,6 +140,29 @@ export default function SettingsScreen() {
 			}
 		})();
 	};
+
+	const [updateState, setUpdateState] = useState<"idle" | "checking" | UpdateCheckResult>("idle");
+
+	const runUpdateCheck = () => {
+		if (updateState === "checking") return;
+		setUpdateState("checking");
+		void (async () => {
+			// "started" hands the screen to Play's update flow; the other results
+			// come straight back and are shown inline under the row.
+			setUpdateState(await checkForUpdate());
+		})();
+	};
+
+	const updateHint =
+		updateState === "checking"
+			? "Checking the Play Store…"
+			: updateState === "up-to-date"
+				? `You're on the latest version (${version}).`
+				: updateState === "unavailable"
+					? "Couldn't reach the Play Store. Try again in a moment."
+					: updateState === "started"
+						? "Update found - installing through the Play Store."
+						: `Version ${version}. Updates also download automatically when the app opens.`;
 
 	const confirmSignOut = () => {
 		Alert.alert("Sign out?", "You can sign back in at any time.", [
@@ -297,6 +321,25 @@ export default function SettingsScreen() {
 
 				<SectionLabel label="AI PROVIDERS" />
 				<ProviderSettingsSection getToken={getToken} />
+
+				<SectionLabel label="APP UPDATES" />
+				<GlassCard style={styles.card}>
+					<Pressable
+						accessibilityRole="button"
+						onPress={runUpdateCheck}
+						disabled={updateState === "checking"}
+						style={({ pressed }) => [
+							styles.manageRow,
+							pressed && { backgroundColor: colors.surfacePressed },
+						]}
+					>
+						<View style={styles.manageText}>
+							<Text style={styles.rowTitle}>Check for updates</Text>
+							<Text style={styles.hint}>{updateHint}</Text>
+						</View>
+						<Text style={styles.chevron}>›</Text>
+					</Pressable>
+				</GlassCard>
 
 				<SectionLabel label="ACCOUNT" />
 				<GlassCard style={styles.card}>

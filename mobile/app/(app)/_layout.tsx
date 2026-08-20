@@ -8,6 +8,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { useVerseOfDayNotifications } from "@/features/notifications/useVerseOfDayNotifications";
+import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
@@ -97,6 +98,8 @@ export default function AppLayout() {
 	const { colors } = useTheme();
 	// Verse-of-the-day: push-token registration + notification tap deep links.
 	useVerseOfDayNotifications();
+	// Play in-app updates: background-download a newer build and self-install.
+	useInAppUpdates();
 
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 
