@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
-import { readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import { readParchmentPref, readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 import { useVerseInsight } from "./useVerseInsight";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
@@ -41,6 +41,9 @@ const ChapterReader: React.FC = () => {
 
   const book = bookByOrder(order);
   const [translation, setTranslationState] = useState<TranslationId>(readTranslationPref);
+  // Settings → Appearance → Parchment reader; re-read on mount is enough
+  // since Settings is a different route.
+  const [parchment] = useState(readParchmentPref);
   const [verses, setVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -349,8 +352,15 @@ const ChapterReader: React.FC = () => {
         ) : (
           <>
             {/* The scroll: a parchment sheet on the dark shell; verse ink
-                inherits from .parchment-page (globals.css). */}
-            <div className="parchment-page mt-1 rounded-2xl px-5 py-6 shadow-xl ring-1 ring-black/25 dark:ring-white/10 sm:px-8">
+                inherits from .parchment-page (globals.css). Settings ->
+                Appearance can switch it off, restoring the plain reader. */}
+            <div
+              className={
+                parchment
+                  ? "parchment-page mt-1 rounded-2xl px-5 py-6 shadow-xl ring-1 ring-black/25 dark:ring-white/10 sm:px-8"
+                  : "pt-2"
+              }
+            >
               {verses.map((text, index) => {
                 const verseNumber = index + 1;
                 return (
@@ -360,14 +370,26 @@ const ChapterReader: React.FC = () => {
                     id={`bible-verse-${verseNumber}`}
                     onClick={() => openVerse({ number: verseNumber, text })}
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
-                      highlighted === verseNumber ? "bg-amber-800/15 dark:bg-amber-400/15" : ""
+                      highlighted === verseNumber
+                        ? parchment
+                          ? "bg-amber-800/15 dark:bg-amber-400/15"
+                          : "bg-amber-500/10 dark:bg-amber-400/10"
+                        : ""
                     }`}
                   >
                     <span
-                      className="font-[family-name:var(--font-cormorant)]"
+                      className={`font-[family-name:var(--font-cormorant)]${
+                        parchment ? "" : " text-neutral-700 dark:text-neutral-300"
+                      }`}
                       style={{ fontSize, lineHeight: `${lineHeight}px` }}
                     >
-                      <span className="mr-1 align-super font-sans text-xs font-bold small-caps text-amber-900/70 dark:text-amber-400/80">
+                      <span
+                        className={`mr-1 align-super font-sans text-xs font-bold small-caps ${
+                          parchment
+                            ? "text-amber-900/70 dark:text-amber-400/80"
+                            : "text-amber-700/60 dark:text-amber-500/50"
+                        }`}
+                      >
                         {verseNumber}
                       </span>
                       {text}
@@ -378,7 +400,11 @@ const ChapterReader: React.FC = () => {
               })}
 
               {/* Footer */}
-              <p className="mt-6 text-center text-xs italic opacity-60">
+              <p
+                className={`mt-6 text-center text-xs italic ${
+                  parchment ? "opacity-60" : "text-neutral-400/70 dark:text-neutral-600"
+                }`}
+              >
                 {TRANSLATIONS[translation].label} - {TRANSLATIONS[translation].copyright}
               </p>
               <div className="mt-6 flex gap-4">

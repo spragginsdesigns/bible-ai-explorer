@@ -18,6 +18,19 @@ export function writeTranslationPref(translation: TranslationId) {
 	window.localStorage.setItem(TRANSLATION_PREF_KEY, translation);
 }
 
+/** Bible reader parchment page surface (Settings → Appearance). Default on. */
+export const PARCHMENT_PREF_KEY = "sureword-parchment";
+
+export function readParchmentPref(): boolean {
+	if (typeof window === "undefined") return true;
+	return window.localStorage.getItem(PARCHMENT_PREF_KEY) !== "false";
+}
+
+export function writeParchmentPref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(PARCHMENT_PREF_KEY, String(enabled));
+}
+
 /**
  * Chat model/effort picks. Sent with every chat request; the server persists
  * the last choice as the account default so other clients follow along.

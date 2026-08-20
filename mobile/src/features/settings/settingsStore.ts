@@ -17,6 +17,8 @@ export type ThemeMode = "system" | "dark" | "light";
 export interface Settings {
 	themeMode: ThemeMode;
 	translation: TranslationId;
+	/** Bible reader parchment page surface (Settings -> Appearance). */
+	parchment: boolean;
 	/** Chat model/effort picks, sent with every chat request. Null = server default. */
 	chatModelId: string | null;
 	chatEffort: string | null;
@@ -27,6 +29,7 @@ const STORAGE_KEY = "sureword.settings.v1";
 const DEFAULT_SETTINGS: Settings = {
 	themeMode: "system",
 	translation: "KJV",
+	parchment: true,
 	chatModelId: null,
 	chatEffort: null,
 };
@@ -59,6 +62,7 @@ export async function hydrateSettings(): Promise<void> {
 					? parsed.themeMode
 					: DEFAULT_SETTINGS.themeMode,
 			translation: parsed.translation === "NKJV" ? "NKJV" : "KJV",
+			parchment: parsed.parchment !== false,
 			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
 			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,
 		};
@@ -73,6 +77,10 @@ export function setThemeMode(themeMode: ThemeMode) {
 
 export function setBibleTranslation(translation: TranslationId) {
 	setSnapshot({ ...snapshot, translation });
+}
+
+export function setParchmentEnabled(parchment: boolean) {
+	setSnapshot({ ...snapshot, parchment });
 }
 
 export function setChatModel(chatModelId: string | null) {

@@ -24,7 +24,9 @@ import {
 } from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import {
+	readParchmentPref,
 	readTranslationPref,
+	writeParchmentPref,
 	writeTranslationPref,
 	readMemoryEnabledPref,
 	writeMemoryEnabledPref,
@@ -63,6 +65,7 @@ export default function SettingsPage() {
 	const { signOut } = useClerk();
 	const [mounted, setMounted] = useState(false);
 	const [translation, setTranslation] = useState<TranslationId>("KJV");
+	const [parchmentEnabled, setParchmentEnabledState] = useState(true);
 	const [memoryEnabled, setMemoryEnabledState] = useState<boolean | null>(null);
 	const [memoryCount, setMemoryCount] = useState<number | null>(null);
 	const [memoryLoadFailed, setMemoryLoadFailed] = useState(false);
@@ -101,6 +104,7 @@ export default function SettingsPage() {
 	useEffect(() => {
 		setMounted(true);
 		setTranslation(readTranslationPref());
+		setParchmentEnabledState(readParchmentPref());
 		// Seed both toggles from the local cache so a returning user sees the
 		// saved position immediately instead of "off" until the GET returns;
 		// the server value then replaces the cache.
@@ -208,6 +212,39 @@ export default function SettingsPage() {
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
 								System follows your device&apos;s dark or light mode.
 							</p>
+							<div className="flex items-center justify-between gap-4 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
+								<div>
+									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										Parchment reader
+									</p>
+									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+										Read the Bible on aged scroll paper. Off returns the plain reader.
+									</p>
+								</div>
+								<button
+									type="button"
+									role="switch"
+									aria-checked={parchmentEnabled}
+									aria-label="Parchment reader"
+									disabled={!mounted}
+									onClick={() => {
+										const next = !parchmentEnabled;
+										setParchmentEnabledState(next);
+										writeParchmentPref(next);
+									}}
+									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+										parchmentEnabled
+											? "bg-amber-500 dark:bg-amber-400"
+											: "bg-black/[0.15] dark:bg-white/[0.15]"
+									}`}
+								>
+									<span
+										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+											parchmentEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+										}`}
+									/>
+								</button>
+							</div>
 						</div>
 					</section>
 

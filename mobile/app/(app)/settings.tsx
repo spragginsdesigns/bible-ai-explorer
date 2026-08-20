@@ -7,6 +7,7 @@ import { GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
+	setParchmentEnabled,
 	setThemeMode,
 	useSettings,
 	useThemedStyles,
@@ -178,6 +179,19 @@ export default function SettingsScreen() {
 					</View>
 					<Text style={styles.hint}>
 						System follows your phone&apos;s dark or light mode.
+					</Text>
+					<View style={styles.settingRow}>
+						<Text style={styles.rowTitle}>Parchment reader</Text>
+						<Switch
+							accessibilityLabel="Parchment reader"
+							value={settings.parchment}
+							onValueChange={setParchmentEnabled}
+							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+							thumbColor={settings.parchment ? colors.accent : colors.textFaint}
+						/>
+					</View>
+					<Text style={styles.hint}>
+						Read the Bible on aged scroll paper. Off returns the plain reader.
 					</Text>
 				</GlassCard>
 

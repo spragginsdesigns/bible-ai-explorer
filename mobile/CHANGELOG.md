@@ -14,6 +14,8 @@ via `/push-phone`.
   across an unrolled scroll. Textures are generated from the day-star
   pipeline (`scripts/generate-parchment.mjs`); web ships the same surface in
   the same release.
+- **Settings -> Appearance -> Parchment reader** turns it off and returns
+  the plain reader (on by default; web has the same toggle).
 
 ## [1.18.0] - 2026-08-19
 

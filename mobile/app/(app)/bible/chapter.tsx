@@ -72,7 +72,7 @@ export default function BibleChapterScreen() {
 
 	const book: Book | null = bookByOrder(order);
 	// The reader's translation chips and Settings share one persisted default.
-	const translation = useSettings().translation;
+	const { translation, parchment } = useSettings();
 	const setTranslation = setBibleTranslation;
 	const [verses, setVerses] = useState<string[]>([]);
 	// Which chapter `verses` actually holds. Params change a render before the
@@ -386,12 +386,14 @@ export default function BibleChapterScreen() {
 				</View>
 			) : (
 				<View style={styles.body}>
-					<Image
-						source={isDark ? PARCHMENT_DARK : PARCHMENT_LIGHT}
-						style={styles.paper}
-						resizeMode="cover"
-						accessible={false}
-					/>
+					{parchment && (
+						<Image
+							source={isDark ? PARCHMENT_DARK : PARCHMENT_LIGHT}
+							style={styles.paper}
+							resizeMode="cover"
+							accessible={false}
+						/>
+					)}
 					<FlatList
 						ref={listRef}
 						data={verses}
@@ -407,7 +409,12 @@ export default function BibleChapterScreen() {
 						}}
 						ListFooterComponent={
 							<View>
-								<Text style={styles.copyright}>
+								<Text
+									style={[
+										styles.copyright,
+										!parchment && { color: colors.textGhost, opacity: 1 },
+									]}
+								>
 									{TRANSLATIONS[translation].label} — {TRANSLATIONS[translation].copyright}
 								</Text>
 								<View style={styles.navRow}>
@@ -442,11 +449,24 @@ export default function BibleChapterScreen() {
 									onLongPress={() => openVerse({ number: verseNumber, text: plainText })}
 									style={[
 										styles.verseRow,
-										highlighted === verseNumber && styles.verseRowHighlighted,
+										highlighted === verseNumber &&
+											(parchment
+												? styles.verseRowHighlighted
+												: { backgroundColor: colors.accentSoft }),
 									]}
 								>
-									<Text style={[styles.verseText, { fontSize, lineHeight }]}>
-										<Text style={styles.verseNumber}>{verseNumber} </Text>
+									<Text
+										style={[
+											styles.verseText,
+											!parchment && { color: colors.textSecondary },
+											{ fontSize, lineHeight },
+										]}
+									>
+										<Text
+											style={[styles.verseNumber, !parchment && { color: colors.accentDim }]}
+										>
+											{verseNumber}{" "}
+										</Text>
 										{segments.map((segment, segmentIndex) => (
 											<Text
 												key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
