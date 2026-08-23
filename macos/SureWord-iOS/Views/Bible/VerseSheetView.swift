@@ -7,9 +7,11 @@ import SwiftUI
 /// panel under the reader instead.
 struct VerseSheetView: View {
     @Environment(\.theme) private var theme
+    @Environment(AppModel.self) private var app
 
     let reference: String
     let text: String
+    let verse: Int
     let insight: VerseInsightModel
     let shareText: String
     let onClose: () -> Void
@@ -17,11 +19,24 @@ struct VerseSheetView: View {
     let onCopy: () -> Void
     let onSave: () -> Void
 
+    private var translation: TranslationID { app.settings.translation }
+
+    private var highlightHex: String? {
+        guard let order = app.bible.selectedBook else { return nil }
+        return app.highlights.hex(
+            translation: translation,
+            book: order,
+            chapter: app.bible.chapter,
+            verse: verse
+        )
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 header
                 verseCard
+                highlightSection
 
                 VerseInsightView(
                     status: insight.status,
@@ -53,10 +68,86 @@ struct VerseSheetView: View {
                 .buttonStyle(.plain)
 
                 actionRow(systemImage: "note.text", label: "Save to note", action: onSave)
+
+                if highlightHex != nil {
+                    actionRow(systemImage: "xmark.circle", label: "Remove highlight") {
+                        guard let order = app.bible.selectedBook else { return }
+                        app.highlights.remove(
+                            translation: translation,
+                            book: order,
+                            chapter: app.bible.chapter,
+                            verse: verse
+                        )
+                    }
+                }
             }
             .padding(.horizontal, Spacing.lg)
             .padding(.bottom, Spacing.xl)
         }
+    }
+
+    // MARK: - Highlight
+
+    /// YouVersion-style highlight picker: the shared preset swatches in a
+    /// horizontal row (current colour ringed) and a native `ColorPicker` for
+    /// a custom colour.
+    private var highlightSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Highlight")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(theme.textMuted)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.sm) {
+                    ForEach(HighlightColors.presets) { preset in
+                        let isCurrent = highlightHex?.caseInsensitiveCompare(preset.hex) == .orderedSame
+                        Button {
+                            setHighlight(preset.hex)
+                        } label: {
+                            Circle()
+                                .fill(Color(hex: preset.hex) ?? .clear)
+                                .frame(width: 28, height: 28)
+                                .overlay {
+                                    if isCurrent {
+                                        Circle()
+                                            .strokeBorder(theme.accent, lineWidth: 2.5)
+                                            .padding(-3)
+                                    }
+                                }
+                                .contentShape(.circle)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Highlight \(preset.name)")
+                    }
+                }
+                .padding(.vertical, Spacing.xs)
+            }
+
+            ColorPicker(
+                "Custom color",
+                selection: Binding(
+                    get: { highlightHex.flatMap { Color(hex: $0) } ?? Color(hex: 0xF5D76E) },
+                    set: { picked in
+                        guard let hex = HighlightColors.hexString(from: picked) else { return }
+                        setHighlight(hex)
+                    }
+                ),
+                supportsOpacity: false
+            )
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(theme.textSecondary)
+        }
+    }
+
+    private func setHighlight(_ hex: String) {
+        guard let order = app.bible.selectedBook else { return }
+        app.highlights.setColor(
+            translation: translation,
+            book: order,
+            chapter: app.bible.chapter,
+            verse: verse,
+            hex: hex
+        )
     }
 
     private var header: some View {

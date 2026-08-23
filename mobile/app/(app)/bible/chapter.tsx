@@ -3,6 +3,7 @@ import {
 	ActivityIndicator,
 	FlatList,
 	Image,
+	Modal,
 	Pressable,
 	Share,
 	StyleSheet,
@@ -11,6 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
+import ColorPicker, { HueSlider, Panel1, Preview } from "reanimated-color-picker";
 import { GlassCard, Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { saveVerseToNote } from "@/features/chat/verseActions";
@@ -18,6 +20,12 @@ import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { recordReadingEvent } from "@/features/notifications/api";
 import { bookByOrder, type Book } from "@/features/bible/books";
+import { HIGHLIGHT_PRESETS, highlightWash } from "@/features/bible/highlights";
+import {
+	removeHighlight,
+	setHighlight,
+	useChapterHighlights,
+} from "@/features/bible/highlightsStore";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
@@ -102,6 +110,10 @@ export default function BibleChapterScreen() {
 	const requestId = useRef(0);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
+	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
+	// Backed by the shared store (AsyncStorage cache + per-chapter server GET).
+	const highlights = useChapterHighlights(translation, order, chapter);
+	const [pickerVisible, setPickerVisible] = useState(false);
 
 	const load = useCallback(async () => {
 		// Paging quickly, or deep-linking while a fetch is in flight, can leave
@@ -301,6 +313,35 @@ export default function BibleChapterScreen() {
 		}
 	}, [actionVerse, actionReference, saveBusy, getToken, router, closeSheet]);
 
+	// The color currently stored for the verse the sheet is acting on, if any.
+	const actionVerseColor = actionVerse ? highlights.get(actionVerse.number) : undefined;
+
+	// Highlight writes are optimistic — the verse row recolors immediately and
+	// the store rolls back if the PUT/DELETE fails, so the sheet just fires.
+	const applyHighlight = useCallback(
+		(color: string) => {
+			if (!actionVerse) return;
+			setHighlight(getToken, {
+				translation,
+				book: order,
+				chapter,
+				verse: actionVerse.number,
+				color,
+			}).catch(() => {});
+		},
+		[actionVerse, getToken, translation, order, chapter]
+	);
+
+	const onRemoveHighlight = useCallback(() => {
+		if (!actionVerse) return;
+		removeHighlight(getToken, {
+			translation,
+			book: order,
+			chapter,
+			verse: actionVerse.number,
+		}).catch(() => {});
+	}, [actionVerse, getToken, translation, order, chapter]);
+
 	const fontSize = FONT_STEPS[fontStep];
 	const lineHeight = Math.round(fontSize * 1.55);
 
@@ -441,6 +482,7 @@ export default function BibleChapterScreen() {
 							const verseNumber = index + 1;
 							const plainText = bibleVersePlainText(item);
 							const segments = parseBibleVerseMarkup(item);
+							const verseColor = highlights.get(verseNumber);
 							return (
 								<Pressable
 									accessibilityRole="button"
@@ -449,6 +491,8 @@ export default function BibleChapterScreen() {
 									onLongPress={() => openVerse({ number: verseNumber, text: plainText })}
 									style={[
 										styles.verseRow,
+										verseColor ? { backgroundColor: highlightWash(verseColor) } : undefined,
+										// The deep-link flash comes last so it wins over the wash.
 										highlighted === verseNumber &&
 											(parchment
 												? styles.verseRowHighlighted
@@ -528,6 +572,53 @@ export default function BibleChapterScreen() {
 				>
 					<Text style={styles.expandButtonLabel}>✦ Expand with AI</Text>
 				</Pressable>
+				<View style={styles.highlightSection}>
+					<Text style={styles.highlightLabel}>Highlight</Text>
+					<View style={styles.swatchRow}>
+						{HIGHLIGHT_PRESETS.map((preset) => (
+							<Pressable
+								key={preset.color}
+								accessibilityRole="button"
+								accessibilityLabel={`Highlight ${preset.name}`}
+								accessibilityState={{ selected: actionVerseColor === preset.color }}
+								onPress={() => applyHighlight(preset.color)}
+								style={[
+									styles.swatch,
+									{ backgroundColor: preset.color },
+									actionVerseColor === preset.color && styles.swatchSelected,
+								]}
+							/>
+						))}
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Custom highlight color"
+							accessibilityState={{
+								selected:
+									actionVerseColor !== undefined &&
+									!HIGHLIGHT_PRESETS.some((preset) => preset.color === actionVerseColor),
+							}}
+							onPress={() => setPickerVisible(true)}
+							style={[
+								styles.swatch,
+								styles.swatchCustom,
+								actionVerseColor !== undefined && { backgroundColor: actionVerseColor },
+								actionVerseColor !== undefined &&
+									!HIGHLIGHT_PRESETS.some((preset) => preset.color === actionVerseColor) &&
+									styles.swatchSelected,
+							]}
+						>
+							<Text style={styles.swatchCustomLabel}>+</Text>
+						</Pressable>
+					</View>
+					{actionVerseColor ? (
+						<SheetRow
+							icon="color-fill-outline"
+							label="Remove highlight"
+							danger
+							onPress={onRemoveHighlight}
+						/>
+					) : null}
+				</View>
 				<SheetRow
 					icon={copied ? "checkmark" : "copy-outline"}
 					label={copied ? "Copied ✓" : "Copy"}
@@ -541,6 +632,39 @@ export default function BibleChapterScreen() {
 				/>
 				{saveError ? <Text style={styles.sheetError}>{saveError}</Text> : null}
 			</BottomSheet>
+
+			{/* Custom highlight color. Rendered as a sibling Modal so it stacks
+			    above the verse sheet; a gesture completion applies the color. */}
+			<Modal
+				visible={pickerVisible}
+				transparent
+				animationType="fade"
+				statusBarTranslucent
+				onRequestClose={() => setPickerVisible(false)}
+			>
+				<Pressable
+					style={styles.pickerBackdrop}
+					onPress={() => setPickerVisible(false)}
+					accessibilityLabel="Close color picker"
+				/>
+				<View style={styles.pickerCard} pointerEvents="box-none">
+					<View style={styles.pickerCardInner}>
+						<Text style={styles.pickerTitle}>Custom color</Text>
+						<ColorPicker
+							value={actionVerseColor ?? HIGHLIGHT_PRESETS[0].color}
+							onCompleteJS={(result) => {
+								applyHighlight(result.hex);
+								setPickerVisible(false);
+							}}
+							style={styles.picker}
+						>
+							<Preview hideInitialColor />
+							<Panel1 />
+							<HueSlider />
+						</ColorPicker>
+					</View>
+				</View>
+			</Modal>
 		</Screen>
 	);
 }
@@ -694,4 +818,60 @@ const createStyles = (c: Colors) =>
 			paddingVertical: 4,
 		},
 		fontButtonLabel: { color: c.textSecondary, fontSize: 12, fontWeight: "700" },
+		highlightSection: { marginBottom: spacing.sm },
+		highlightLabel: {
+			color: c.textMuted,
+			fontSize: 12,
+			fontWeight: "700",
+			textTransform: "uppercase",
+			letterSpacing: 0.8,
+			paddingHorizontal: spacing.sm,
+			marginBottom: spacing.sm,
+		},
+		swatchRow: {
+			flexDirection: "row",
+			flexWrap: "wrap",
+			gap: spacing.sm,
+			paddingHorizontal: spacing.sm,
+		},
+		swatch: {
+			width: 32,
+			height: 32,
+			borderRadius: 16,
+			borderWidth: 2,
+			borderColor: "transparent",
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		swatchSelected: { borderColor: c.accent },
+		swatchCustom: {
+			borderColor: c.borderStrong,
+			backgroundColor: c.surface,
+		},
+		swatchCustomLabel: { color: c.textMuted, fontSize: 18, fontWeight: "600", marginTop: -2 },
+		pickerBackdrop: {
+			position: "absolute",
+			top: 0,
+			right: 0,
+			bottom: 0,
+			left: 0,
+			backgroundColor: "rgba(0,0,0,0.72)",
+		},
+		pickerCard: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+		pickerCardInner: {
+			alignSelf: "stretch",
+			borderRadius: radius.xl,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			backgroundColor: c.bgElevated,
+			padding: spacing.lg,
+		},
+		pickerTitle: {
+			color: c.text,
+			fontSize: 15,
+			fontWeight: "600",
+			marginBottom: spacing.md,
+			textAlign: "center",
+		},
+		picker: { width: "100%", gap: spacing.md },
 	});

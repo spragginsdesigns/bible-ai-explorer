@@ -33,6 +33,7 @@ model User {
   providerCredentials ProviderCredential[]
   pushTokens    PushToken[]
   readingEvents ReadingEvent[]
+  highlights    VerseHighlight[]
   versesOfDay   VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
 }
@@ -265,6 +266,24 @@ model ReadingEvent {
   readAt      DateTime @default(now())
 
   @@index([userId, readAt])
+}
+
+/// A user's colored highlight on a single verse. Book is the canonical
+/// order int (1-66); one highlight per verse per translation.
+model VerseHighlight {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  translation String   @default("KJV")
+  book        Int      // canonical order, 1-66
+  chapter     Int
+  verse       Int
+  color       String   // "#RRGGBB"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, translation, book, chapter, verse])
+  @@index([userId, translation, book, chapter])
 }
 
 /// The verse the cron picked and pushed to a user, kept both as history and as

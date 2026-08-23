@@ -55,6 +55,7 @@
 		"react-native-screens": "~4.26.0",
 		"react-native-webview": "13.16.1",
 		"react-native-worklets": "0.10.1",
+		"reanimated-color-picker": "^5.1.2",
 		"sp-react-native-in-app-updates": "^2.0.0",
 		"zod": "^4.4.3"
 	},

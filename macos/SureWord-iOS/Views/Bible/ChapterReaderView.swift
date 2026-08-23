@@ -86,6 +86,7 @@ struct ChapterReaderView: View {
                 VerseSheetView(
                     reference: reference,
                     text: text,
+                    verse: number,
                     insight: model.insight,
                     shareText: VerseAttachment.formatForSharing(
                         reference: reference,
@@ -289,6 +290,9 @@ struct ChapterReaderView: View {
         let isHighlighted = model.highlightedVerse == number
         let isOpen = model.actionVerse == number
         let reference = model.verseReference(number)
+        let highlightHex = model.selectedBook.flatMap {
+            app.highlights.hex(translation: translation, book: $0, chapter: model.chapter, verse: number)
+        }
 
         // A real Button, not a tap gesture — it earns the pressed state and an
         // accessibility action, and on iOS it coexists cleanly with the sheet.
@@ -307,7 +311,10 @@ struct ChapterReaderView: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .background(
-            isHighlighted ? theme.accentSoft : (isOpen ? theme.surface : .clear),
+            // Deep-link flash and the open-sheet state keep precedence over
+            // the persistent highlight wash, exactly as before.
+            isHighlighted ? theme.accentSoft
+                : (isOpen ? theme.surface : (highlightHex.map(HighlightColors.wash) ?? .clear)),
             in: .rect(cornerRadius: Radius.md)
         )
         .contentShape(.rect(cornerRadius: Radius.md))

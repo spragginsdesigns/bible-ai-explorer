@@ -297,6 +297,9 @@ struct ChapterReaderPane: View {
         let isOpen = model.actionVerse == number
         let reference = model.verseReference(number)
         let text = VerseMarkup.plainText(markup)
+        let highlightHex = model.selectedBook.flatMap {
+            app.highlights.hex(translation: translation, book: $0, chapter: model.chapter, verse: number)
+        }
 
         VStack(alignment: .leading, spacing: Spacing.sm) {
             // A real Button, not an `onTapGesture` — the same call the notes
@@ -325,11 +328,44 @@ struct ChapterReaderPane: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .background(
-            isHighlighted ? theme.accentSoft : (isOpen ? theme.surface : .clear),
+            // Deep-link flash and the open-panel state keep precedence over
+            // the persistent highlight wash, exactly as before.
+            isHighlighted ? theme.accentSoft
+                : (isOpen ? theme.surface : (highlightHex.map(HighlightColors.wash) ?? .clear)),
             in: .rect(cornerRadius: Radius.md)
         )
         .contentShape(.rect(cornerRadius: Radius.md))
         .contextMenu {
+            if let order = model.selectedBook {
+                Menu("Highlight") {
+                    ForEach(HighlightColors.presets) { preset in
+                        let isCurrent = highlightHex?.caseInsensitiveCompare(preset.hex) == .orderedSame
+                        Button {
+                            app.highlights.setColor(
+                                translation: translation,
+                                book: order,
+                                chapter: model.chapter,
+                                verse: number,
+                                hex: preset.hex
+                            )
+                        } label: {
+                            Label(preset.name, systemImage: isCurrent ? "checkmark" : "circle.fill")
+                        }
+                    }
+                    if highlightHex != nil {
+                        Divider()
+                        Button("Remove Highlight") {
+                            app.highlights.remove(
+                                translation: translation,
+                                book: order,
+                                chapter: model.chapter,
+                                verse: number
+                            )
+                        }
+                    }
+                }
+                Divider()
+            }
             Button("Copy") {
                 model.copy(reference: reference, text: text, translation: translation)
             }
@@ -400,10 +436,88 @@ struct ChapterReaderPane: View {
             }
             .buttonStyle(SubtleButtonStyle())
 
+            if let order = model.selectedBook, let verse = model.actionVerse {
+                highlightControls(order: order, verse: verse)
+            }
+
             Spacer()
         }
         .font(.system(size: 11, weight: .semibold))
         .foregroundStyle(theme.textMuted)
+    }
+
+    /// YouVersion-style highlight picker: the shared preset swatches (current
+    /// colour ringed), a native `ColorPicker` for a custom colour, and a
+    /// Remove button once the verse is highlighted.
+    private func highlightControls(order: Int, verse: Int) -> some View {
+        let current = app.highlights.hex(
+            translation: translation,
+            book: order,
+            chapter: model.chapter,
+            verse: verse
+        )
+        return HStack(spacing: Spacing.xs) {
+            ForEach(HighlightColors.presets) { preset in
+                let isCurrent = current?.caseInsensitiveCompare(preset.hex) == .orderedSame
+                Button {
+                    app.highlights.setColor(
+                        translation: translation,
+                        book: order,
+                        chapter: model.chapter,
+                        verse: verse,
+                        hex: preset.hex
+                    )
+                } label: {
+                    Circle()
+                        .fill(Color(hex: preset.hex) ?? .clear)
+                        .frame(width: 14, height: 14)
+                        .overlay {
+                            if isCurrent {
+                                Circle()
+                                    .strokeBorder(theme.accent, lineWidth: 2)
+                                    .padding(-2)
+                            }
+                        }
+                        .contentShape(.circle)
+                }
+                .buttonStyle(.plain)
+                .help("Highlight \(preset.name)")
+                .accessibilityLabel("Highlight \(preset.name)")
+            }
+
+            ColorPicker(
+                "",
+                selection: Binding(
+                    get: { current.flatMap { Color(hex: $0) } ?? Color(hex: 0xF5D76E) },
+                    set: { picked in
+                        guard let hex = HighlightColors.hexString(from: picked) else { return }
+                        app.highlights.setColor(
+                            translation: translation,
+                            book: order,
+                            chapter: model.chapter,
+                            verse: verse,
+                            hex: hex
+                        )
+                    }
+                ),
+                supportsOpacity: false
+            )
+            .labelsHidden()
+            .frame(width: 28, height: 22)
+            .help("Custom highlight color")
+
+            if current != nil {
+                Button("Remove") {
+                    app.highlights.remove(
+                        translation: translation,
+                        book: order,
+                        chapter: model.chapter,
+                        verse: verse
+                    )
+                }
+                .buttonStyle(SubtleButtonStyle())
+            }
+        }
     }
 
     private var footer: some View {

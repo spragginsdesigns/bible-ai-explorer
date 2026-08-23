@@ -7,6 +7,8 @@ import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
 import { readParchmentPref, readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
+import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
@@ -60,6 +62,11 @@ const ChapterReader: React.FC = () => {
     start: startInsight,
     reset: resetInsight,
   } = useVerseInsight();
+  const {
+    highlights: verseHighlights,
+    setColor: setHighlightColor,
+    remove: removeHighlight,
+  } = useChapterHighlights(translation, order, chapter);
 
   const lastFlashed = useRef<string | null>(null);
   const lastRecordedRead = useRef<string | null>(null);
@@ -167,6 +174,7 @@ const ChapterReader: React.FC = () => {
 
   const reference = book ? `${book.name} ${chapter}` : "";
   const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
+  const actionColor = actionVerse ? verseHighlights.get(actionVerse.number) : undefined;
 
   const closePanel = useCallback(() => {
     setActionVerse(null);
@@ -363,6 +371,7 @@ const ChapterReader: React.FC = () => {
             >
               {verses.map((text, index) => {
                 const verseNumber = index + 1;
+                const verseColor = verseHighlights.get(verseNumber);
                 return (
                   <button
                     key={verseNumber}
@@ -376,6 +385,14 @@ const ChapterReader: React.FC = () => {
                           : "bg-amber-500/10 dark:bg-amber-400/10"
                         : ""
                     }`}
+                    // The deep-link flash keeps visual precedence: while it is
+                    // active the stored wash is dropped so the amber flash
+                    // class shows through.
+                    style={
+                      verseColor && highlighted !== verseNumber
+                        ? { backgroundColor: highlightWash(verseColor) }
+                        : undefined
+                    }
                   >
                     <span
                       className={`font-[family-name:var(--font-cormorant)]${
@@ -511,6 +528,60 @@ const ChapterReader: React.FC = () => {
             >
               ✦ Expand with AI
             </button>
+
+            {/* Highlight picker: presets + custom color; applies immediately
+                and leaves the panel open (YouVersion-style). */}
+            <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
+              <p className="pb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                Highlight
+              </p>
+              <div className="flex flex-wrap items-center gap-2.5">
+                {HIGHLIGHT_COLORS.map((preset) => {
+                  const active = actionColor?.toLowerCase() === preset.hex.toLowerCase();
+                  return (
+                    <button
+                      key={preset.hex}
+                      type="button"
+                      aria-label={`Highlight ${preset.name}`}
+                      aria-pressed={active}
+                      onClick={() => setHighlightColor(actionVerse.number, preset.hex)}
+                      className={`h-9 w-9 rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105 ${
+                        active ? "ring-2 ring-amber-500 dark:ring-amber-400" : ""
+                      }`}
+                      style={{ backgroundColor: preset.hex }}
+                    />
+                  );
+                })}
+                <label
+                  aria-label="Custom highlight color"
+                  className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105"
+                  style={{
+                    background:
+                      "conic-gradient(#E84C3D, #F5A623, #F5D76E, #27AE60, #1ABC9C, #4A90D9, #9B59B6, #E87EA1, #E84C3D)",
+                  }}
+                >
+                  <input
+                    type="color"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    value={actionColor ?? "#F5D76E"}
+                    onChange={(event) =>
+                      setHighlightColor(actionVerse.number, event.target.value.toUpperCase())
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+
+            {actionColor && (
+              <button
+                type="button"
+                onClick={() => removeHighlight(actionVerse.number)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+              >
+                <span className="w-5 text-center text-amber-600 dark:text-amber-400">✕</span>
+                Remove highlight
+              </button>
+            )}
 
             {[
               {

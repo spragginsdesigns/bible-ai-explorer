@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.21.0 (versionCode 17) - 2026-08-22 - internal
+
+**What's new (Play):**
+
+NEW
+- Highlight any verse in the Bible reader: tap a verse, pick one of 8 colors or choose any custom color, and it stays highlighted - synced across Android, web, and Mac
+
+**Dev notes:** `VerseHighlight` table + `GET/PUT/DELETE /api/highlights` (shared backend, keyed per translation/book/chapter/verse, `#RRGGBB` color); mobile store `src/features/bible/highlightsStore.ts` (AsyncStorage cache + optimistic sync), swatch row + reanimated-color-picker custom picker in the verse sheet; web + macOS/iOS shipped in the same release.
+
 ## 1.20.0 (versionCode 16) - 2026-08-20 - internal
 
 **What's new (Play):**

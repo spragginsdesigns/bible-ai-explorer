@@ -44,6 +44,9 @@ final class AppModel {
     /// Android keeps its bible stack mounted, so the book, chapter and pane must
     /// survive a trip through chat.
     let bible: BibleModel
+    /// Verse-highlight cache. Owned here for the same reason the reader is,
+    /// and shared by every verse row on both platforms.
+    let highlights: HighlightsStore
     /// Today's guided walk. Owned here for the same reason the reader is: the
     /// Daily Cross pane dies whenever the sidebar moves, and re-fetching would
     /// mean paying for a generation again just because the user glanced at chat.
@@ -73,7 +76,9 @@ final class AppModel {
             onAuthFailure: { await ClerkAuth.signOut() }
         )
         chat = ChatViewModel(api: api, settings: settings)
+        highlights = HighlightsStore(api: api, cacheURL: HighlightsStore.defaultCacheURL)
         bible = BibleModel(api: api)
+        bible.highlights = highlights
         dailyCross = DailyCrossModel(api: api)
         suggestedQuestions = SuggestedQuestionsModel(api: api)
     }

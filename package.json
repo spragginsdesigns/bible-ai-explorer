@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs tests/assistant-markdown.test.mjs",
+    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs tests/assistant-markdown.test.mjs tests/highlights.test.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -118,6 +118,7 @@ tab selection). Same behavior, different plumbing.
 | Font-size controls (4 steps) | ✅ session-scoped | ✅ session-scoped | ➕ persisted (UserDefaults) | ➕ persisted (shared `BibleModel`, UserDefaults) | macOS superset: persists across launches |
 | Deep links (`/bible/chapter?book=N&chapter=M&verse=V`) | ✅ | ✅ | ✅ via in-app state, scroll + flash | ✅ `sureword://verse?ref=…` + in-app state, scroll + flash |  |
 | Reading-history tracking (powers Verse of the Day) | ✅ 1.14.0 | ✅ | ✅ 1.1.0 | ✅ | `POST /api/reading-events` after ~5s on a chapter; server dedupes within 1h |
+| Verse highlighting (YouVersion-style: per-verse color wash, 8 presets + custom picker, remove) | ✅ verse sheet | ✅ verse panel | ✅ panel + context menu | ✅ verse sheet | Shared backend: `VerseHighlight` table + `GET/PUT/DELETE /api/highlights`, keyed `(userId, translation, book order int, chapter, verse)`, color stored as `#RRGGBB`; translucent 0.25-alpha wash so it reads in light/dark/parchment. Optimistic writes with rollback; local caches (`sureword.highlights-cache.v1` / web hook / `highlights-cache.v1.json`) for instant paint |
 
 ## Verse of the Day
 

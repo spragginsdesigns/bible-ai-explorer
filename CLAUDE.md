@@ -296,6 +296,11 @@ rebuild them any time with `scripts/backfill-verse-embeddings.mjs` /
 ## Workflow
 
 - **Ship by default — never wait to be asked.** As soon as a change is verified (lint/typecheck/tests green, and the fix actually confirmed), commit the touched files only (Conventional Commit) and push to `main` in the same turn. Do not end a turn on uncommitted verified work. This project auto-deploys to Vercel on push to `main`, so changes aren't live until pushed. (Reaffirmed by Austin on 2026-08-20: "make it the default.")
+- **"Shipped" means shipped everywhere it needs to go — in the same turn, no exceptions:**
+  1. **Web/API** → commit + push to `main` (Vercel auto-deploys sureword.app).
+  2. **Schema changes** → `prisma migrate deploy` against the real production DB (pin `DATABASE_URL` explicitly per the Database section traps, confirm `current_database()` and row counts before running).
+  3. **User-visible mobile changes** → `mobile/CHANGELOG.md` entry + `mobile/app.json` version bump, then `bash mobile/scripts/push-phone.sh` to build the AAB and publish to the Play internal track. The release is not done until the build is on its way to the Play Store. (Reaffirmed by Austin on 2026-08-22: "this is mandatory every time you finish work.")
+  4. **macOS/iOS** can't build on Windows — say so and leave a build checklist instead of pretending.
 
 ## Autonomous Workflow
 

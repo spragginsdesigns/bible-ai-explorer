@@ -73,6 +73,11 @@ final class BibleModel {
     /// running a second one.
     let insight: VerseInsightModel
 
+    /// Verse-highlight cache, injected by `AppModel` once both exist (the
+    /// store needs the same API client). Optional so the tests can build a
+    /// model without one. A chapter load refreshes that chapter's slice.
+    var highlights: HighlightsStore?
+
     private let api: APIClient
     /// Where `fontStep` is persisted. Injected so the tests can hand in a
     /// throwaway suite: under `TEST_HOST` `.standard` *is* the shipping app's
@@ -221,6 +226,12 @@ final class BibleModel {
             self.error = (error as? BibleError)?.message ?? BibleTranslations.chapterLoadError
         }
         loading = false
+        // Highlights ride the chapter load, so a page turn or translation
+        // switch revalidates them through the same cancelled-not-raced path.
+        // After `loading` clears, so a slow GET never extends the spinner.
+        if loadedKey == key {
+            await highlights?.refresh(translation: translation, book: order, chapter: chapter)
+        }
     }
 
     // MARK: - Searching
