@@ -1,6 +1,7 @@
 import {
 	convertToModelMessages,
 	createIdGenerator,
+	createUIMessageStream,
 	createUIMessageStreamResponse,
 	isStepCount,
 	streamText,
@@ -18,8 +19,16 @@ import {
 } from "@/lib/chat-attachment-types";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
-import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
+import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { UserFacingError } from "@/lib/ai/errors";
+import {
+	createNarratedDownload,
+	createStatusWriter,
+	hasPersistableContent,
+	persistableParts,
+} from "@/lib/ai/status-narration";
+import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
@@ -56,17 +65,11 @@ async function hydrateTrustedAttachments(
 	const lastMessage = messages.at(-1);
 	if (!lastMessage) return messages;
 	if (messages.some((message) => attachmentIds(message).length > MAX_ATTACHMENTS_PER_MESSAGE)) {
-		throw new Response(JSON.stringify({ error: "A message cannot reference more than 5 attachments." }), {
-			status: 400,
-			headers: { "Content-Type": "application/json" },
-		});
+		throw new UserFacingError("A message cannot reference more than 5 attachments.");
 	}
 	const currentIds = attachmentIds(lastMessage);
 	if (currentIds.length > MAX_ATTACHMENTS_PER_MESSAGE) {
-		throw new Response(JSON.stringify({ error: "You can attach up to 5 files per message." }), {
-			status: 400,
-			headers: { "Content-Type": "application/json" },
-		});
+		throw new UserFacingError("You can attach up to 5 files per message.");
 	}
 
 	const requestedIds = [...new Set(messages.flatMap(attachmentIds))];
@@ -82,10 +85,7 @@ async function hydrateTrustedAttachments(
 		currentRecords.some((record) => record?.messageId && record.messageId !== lastMessage.id) ||
 		currentRecords.reduce((total, record) => total + (record?.size ?? 0), 0) > MAX_ATTACHMENT_MESSAGE_BYTES
 	) {
-		throw new Response(JSON.stringify({ error: "One or more attachments are invalid or no longer available." }), {
-			status: 400,
-			headers: { "Content-Type": "application/json" },
-		});
+		throw new UserFacingError("One or more attachments are invalid or no longer available.");
 	}
 
 	const selectedByMessage = new Map<string, typeof records>();
@@ -183,14 +183,14 @@ async function persistUserMessage(options: {
 			where: { id: options.conversationId, userId: options.userId },
 			select: { id: true },
 		});
-		if (!conversation) throw new Error("Conversation not found.");
+		if (!conversation) throw new UserFacingError("Conversation not found.");
 
 		const existing = await tx.message.findUnique({
 			where: { id: options.userMessage.id },
 			select: { role: true, conversationId: true },
 		});
 		if (existing && (existing.role !== "user" || existing.conversationId !== conversation.id)) {
-			throw new Error("Message ID is already in use.");
+			throw new UserFacingError("Message ID is already in use.");
 		}
 
 		await tx.message.upsert({
@@ -215,7 +215,9 @@ async function persistUserMessage(options: {
 				},
 				data: { messageId: options.userMessage.id },
 			});
-			if (linked.count !== 1) throw new Error("An attachment could not be linked to the message.");
+			if (linked.count !== 1) {
+				throw new UserFacingError("An attachment could not be linked to the message.");
+			}
 		}
 	});
 }
@@ -226,6 +228,7 @@ async function persistAssistantResponse(options: {
 	userMessage: SureWordUIMessage;
 	responseMessage: UIMessage;
 }): Promise<void> {
+	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
 		const conversation = await prisma.conversation.findFirst({
 			where: { id: options.conversationId, userId: options.userId },
@@ -238,7 +241,7 @@ async function persistAssistantResponse(options: {
 		const { cleanText, followUps } = stripFollowUps(assistantText);
 
 		const metadata: Record<string, unknown> = {
-			parts: options.responseMessage.parts,
+			parts: persistableParts(options.responseMessage.parts),
 		};
 		if (followUps.length > 0) metadata.followUps = followUps;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
@@ -310,9 +313,8 @@ export async function POST(req: Request): Promise<Response> {
 			messages: recentMessages,
 			tools,
 		});
-		const messages = await hydrateTrustedAttachments(validatedMessages, userId);
 
-		const lastMessage = messages.at(-1);
+		const lastMessage = validatedMessages.at(-1);
 		if (
 			!lastMessage ||
 			lastMessage.role !== "user" ||
@@ -323,100 +325,112 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
-		if (attachmentIds(lastMessage).length > 0 && !conversationId) {
+		const hasAttachments = attachmentIds(lastMessage).length > 0;
+		if (hasAttachments && !conversationId) {
 			return NextResponse.json(
 				{ error: "Create a conversation before sending an attachment." },
 				{ status: 400 },
 			);
 		}
-		if (conversationId) {
-			try {
-				await persistUserMessage({ userId, conversationId, userMessage: lastMessage });
-			} catch (error) {
-				return NextResponse.json(
-					{ error: error instanceof Error ? error.message : "Could not save the message." },
-					{ status: 400 },
-				);
-			}
-		}
-
-		const memories = await loadUserMemories(userId);
-		const isOpeningQuestion =
-			messages.filter((message) => message.role === "user").length === 1;
 
 		// Optional per-request picker values; anything invalid is ignored and
 		// the user's stored default (then the app default) applies instead.
 		const requestedModelId =
 			typeof requestData.modelId === "string" ? requestData.modelId : null;
 		const requestedEffort = isReasoningEffort(requestData.effort) ? requestData.effort : null;
+		const isOpeningQuestion =
+			validatedMessages.filter((message) => message.role === "user").length === 1;
 
-		let resolved;
-		try {
-			resolved = await resolveModel({
-				userId,
-				modelId: requestedModelId,
-				effort: requestedEffort,
-				fallbackEffort: isOpeningQuestion ? "high" : "medium",
-				attachments: true,
-			});
-		} catch (error) {
-			if (error instanceof AiCredentialError) {
-				return NextResponse.json({ error: error.message }, { status: 403 });
-			}
-			throw error;
-		}
-		const { model, providerOptions, definition } = resolved;
-
-		// The picker's last choice becomes the default for every client. An
-		// invalid requested id resolves to a fallback model — don't record that
-		// fallback as if the user picked it.
-		const pickedModel = requestedModelId === definition.id ? definition.id : null;
-		if (pickedModel || requestedEffort) {
-			waitUntil(
-				prisma.user
-					.update({
-						where: { id: userId },
-						data: {
-							...(pickedModel ? { defaultModelId: pickedModel } : {}),
-							...(requestedEffort ? { defaultEffort: requestedEffort } : {}),
-						},
+		const stream = createUIMessageStream<SureWordUIMessage>({
+			originalMessages: validatedMessages,
+			generateId: generateMessageId,
+			onError: (error) => {
+				if (error instanceof UserFacingError || error instanceof AiCredentialError) {
+					return error.message;
+				}
+				console.error("ask-question stream error:", error);
+				return "An error occurred.";
+			},
+			onEnd: ({ responseMessage, isAborted }) => {
+				if (isAborted || !conversationId) return;
+				waitUntil(
+					persistAssistantResponse({
+						userId,
+						conversationId,
+						userMessage: lastMessage,
+						responseMessage,
 					})
-					.catch((error) => console.error("Failed to persist model choice:", error)),
-			);
-		}
+				);
+			},
+			execute: async ({ writer }) => {
+				const writeStatus = createStatusWriter(writer);
+				writeStatus("Getting ready");
 
-		const result = streamText({
-			model,
-			system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
-			messages: await convertToModelMessages(messages),
-			tools,
-			stopWhen: isStepCount(8),
-			providerOptions,
-		});
+				if (hasAttachments) writeStatus("Opening your attachments");
+				const messages = await hydrateTrustedAttachments(validatedMessages, userId);
 
-		// Run to completion even if the client disconnects, so persistence and
-		// memory extraction still happen.
-		result.consumeStream();
+				if (conversationId) {
+					await persistUserMessage({ userId, conversationId, userMessage: lastMessage });
+				}
 
-		return createUIMessageStreamResponse({
-			stream: toUIMessageStream({
-				stream: result.stream,
-				tools,
-				originalMessages: messages,
-				generateMessageId,
-				onEnd: ({ responseMessage, isAborted }) => {
-					if (isAborted || !conversationId) return;
+				const memories = await loadUserMemories(userId);
+				const { model, providerOptions, definition } = await resolveModel({
+					userId,
+					modelId: requestedModelId,
+					effort: requestedEffort,
+					fallbackEffort: isOpeningQuestion ? "high" : "medium",
+					attachments: true,
+				});
+
+				// The picker's last choice becomes the default for every client. An
+				// invalid requested id resolves to a fallback model — don't record that
+				// fallback as if the user picked it.
+				const pickedModel = requestedModelId === definition.id ? definition.id : null;
+				if (pickedModel || requestedEffort) {
 					waitUntil(
-						persistAssistantResponse({
-							userId,
-							conversationId,
-							userMessage: lastMessage,
-							responseMessage,
-						})
+						prisma.user
+							.update({
+								where: { id: userId },
+								data: {
+									...(pickedModel ? { defaultModelId: pickedModel } : {}),
+									...(requestedEffort ? { defaultEffort: requestedEffort } : {}),
+								},
+							})
+							.catch((error) => console.error("Failed to persist model choice:", error)),
 					);
-				},
-			}),
+				}
+
+				writeStatus("Thinking");
+				const result = streamText({
+					model,
+					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
+					messages: await convertToModelMessages(messages),
+					tools,
+					stopWhen: isStepCount(8),
+					providerOptions,
+					experimental_download: createNarratedDownload({ writeStatus, messages }),
+					onToolExecutionStart: ({ toolCall }) => {
+						writeStatus(toolActivityLabel(toolCall.toolName));
+					},
+					onToolExecutionEnd: () => {
+						writeStatus("Thinking");
+					},
+				});
+
+				// Run to completion even if the client disconnects, so persistence and
+				// memory extraction still happen.
+				result.consumeStream();
+
+				writer.merge(
+					toUIMessageStream<SureWordTools, SureWordUIMessage>({
+						stream: result.stream,
+						tools,
+					})
+				);
+			},
 		});
+
+		return createUIMessageStreamResponse({ stream });
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in ask-question route:", error);

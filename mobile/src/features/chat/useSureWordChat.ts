@@ -279,7 +279,7 @@ export function useSureWordChat(): SureWordChat {
 		stop,
 		status,
 		error: chatError,
-	} = useAIChat<UIMessage>({ transport, experimental_throttle: 50 });
+	} = useAIChat<UIMessage>({ transport, throttle: 50 });
 
 	useEffect(() => {
 		if (initialized.current) return;

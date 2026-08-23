@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.22.0 (versionCode 18) - 2026-08-23 - internal
+
+**What's new (Play):**
+
+NEW
+- SureWord now shows you what it's doing while it works: "Getting ready", "Reading your document", "Searching the Scriptures" and more appear live from the moment you send, in Chat and in the Notes assistant - no more silent waiting dots
+
+IMPROVED
+- Clearer messages when something goes wrong, without technical noise
+
+**Dev notes:** Server streams `data-status` UI-message parts (stable id, first frame on the wire) from `createUIMessageStream` in ask-question + note-ai: pre-flight narration, `onToolExecutionStart/End` tool labels via shared `src/lib/tool-activity-labels.ts`, and `experimental_download` PDF narration; parts stripped before persistence. Clients split status vs tool activity (status clears once answer text streams), `throttle: 50` on all four hooks, `UserFacingError`/`AiCredentialError` allowlist masks internal stream errors (logged server-side). E2E-proven against the real route with raw SSE captures.
+
 ## 1.21.0 (versionCode 17) - 2026-08-22 - internal
 
 **What's new (Play):**

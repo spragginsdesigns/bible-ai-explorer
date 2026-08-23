@@ -1,4 +1,4 @@
-import { tool, type InferUITools, type UIDataTypes, type UIMessage } from "ai";
+import { tool, type InferUITools, type UIMessage } from "ai";
 import type { SureWordMessageMetadata } from "@/lib/chat-attachment-types";
 import { z } from "zod";
 import {
@@ -500,9 +500,17 @@ function toDailyCrossOutput(cross: {
 
 export type SureWordTools = ReturnType<typeof buildSureWordTools>;
 
+/**
+ * Transient data parts the routes stream alongside the answer. `status` is what
+ * the assistant is doing right now; it is never persisted.
+ */
+export type SureWordDataTypes = {
+	status: { label: string };
+};
+
 /** UIMessage typed with the SureWord tool set, shared by server and client. */
 export type SureWordUIMessage = UIMessage<
 	SureWordMessageMetadata,
-	UIDataTypes,
+	SureWordDataTypes,
 	InferUITools<SureWordTools>
 >;

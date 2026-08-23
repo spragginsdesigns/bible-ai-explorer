@@ -141,18 +141,26 @@ export function toViewMessage(
 		previewUrl: part.url,
 		previewExpiresAt: "",
 	}));
-	let activity: string | undefined;
+	let statusActivity: string | undefined;
+	let toolActivity: string | undefined;
 
 	for (const part of message.parts) {
 		if (part.type === "text") {
 			textParts.push(part.text);
 			continue;
 		}
+		if (part.type === "data-status") {
+			const data: unknown = part.data;
+			if (isRecord(data) && typeof data.label === "string") {
+				statusActivity = data.label;
+			}
+			continue;
+		}
 		if (!part.type.startsWith("tool-")) continue;
 		const toolPart = part as unknown as { type: string; state: string; output?: unknown };
 
 		if (toolPart.state === "input-streaming" || toolPart.state === "input-available") {
-			activity = TOOL_ACTIVITY_LABELS[toolPart.type] ?? "Working";
+			toolActivity = TOOL_ACTIVITY_LABELS[toolPart.type] ?? "Working";
 			continue;
 		}
 		if (toolPart.state !== "output-available" || !isRecord(toolPart.output)) continue;
@@ -192,6 +200,11 @@ export function toViewMessage(
 	// part that opens a list/heading/quote glues onto the previous line and the
 	// markdown never parses.
 	const text = joinAssistantTextParts(textParts);
+	const content = visibleResponseContent(text, options.isStreaming);
+
+	// Server status lines narrate the wait; once the answer itself is on screen
+	// they are stale. A tool running mid-answer still says what it is doing.
+	const activity = toolActivity ?? (content.trim() ? undefined : statusActivity);
 
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
@@ -214,7 +227,7 @@ export function toViewMessage(
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
-		content: visibleResponseContent(text, options.isStreaming),
+		content,
 		...(retrievedVerses.length > 0 ? { retrievedVerses } : {}),
 		...(averageSimilarity !== undefined ? { averageSimilarity } : {}),
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),
@@ -240,7 +253,9 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
 	const restoredParts = Array.isArray(metadata.parts)
-		? (metadata.parts as UIMessage["parts"])
+		? (metadata.parts as UIMessage["parts"]).filter(
+			(part) => !part.type.startsWith("data-"),
+		)
 		: [{ type: "text" as const, text: value.content }];
 	const storedAttachments = Array.isArray(value.attachments)
 		? value.attachments.filter(isRecord)

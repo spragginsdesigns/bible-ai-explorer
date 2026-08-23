@@ -98,6 +98,64 @@ describe("toViewMessage", () => {
 		expect(toViewMessage(message, { isStreaming: false }).activity).toBeUndefined();
 	});
 
+	it("shows the server status label, and lets a running tool override it", () => {
+		const status = {
+			id: "m4a",
+			role: "assistant",
+			parts: [{ type: "data-status", id: "status", data: { label: "Reading Church-Notes.pdf" } }],
+		} as never;
+		expect(toViewMessage(status, { isStreaming: true }).activity).toBe(
+			"Reading Church-Notes.pdf"
+		);
+		expect(toViewMessage(status, { isStreaming: false }).activity).toBeUndefined();
+
+		const withTool = {
+			id: "m4b",
+			role: "assistant",
+			parts: [
+				{ type: "data-status", id: "status", data: { label: "Thinking" } },
+				{ type: "tool-getPassage", state: "input-available" },
+			],
+		} as never;
+		expect(toViewMessage(withTool, { isStreaming: true }).activity).toBe("Opening the passage");
+	});
+
+	it("drops the status line once answer text has streamed", () => {
+		const message = {
+			id: "m4d",
+			role: "assistant",
+			parts: [
+				{ type: "data-status", id: "status", data: { label: "Thinking" } },
+				{ type: "text", text: "For God so loved the world" },
+			],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBeUndefined();
+	});
+
+	it("keeps an in-flight tool label even after answer text has streamed", () => {
+		const message = {
+			id: "m4e",
+			role: "assistant",
+			parts: [
+				{ type: "data-status", id: "status", data: { label: "Thinking" } },
+				{ type: "text", text: "Let me look that up." },
+				{ type: "tool-searchScripture", state: "input-available" },
+			],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBe(
+			"Searching the Scriptures"
+		);
+	});
+
+	it("ignores a malformed status part", () => {
+		const message = {
+			id: "m4c",
+			role: "assistant",
+			parts: [{ type: "data-status", id: "status", data: { label: 7 } }],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBeUndefined();
+	});
+
 	it("maps note-writing tool output to a note action", () => {
 		const message = {
 			id: "m5",
@@ -195,6 +253,21 @@ describe("dbMessageToUIMessage", () => {
 		});
 		expect(ui.parts).toEqual([{ type: "text", text: "Saved" }]);
 		expect(ui.metadata).toEqual({ followUps: ["Next?"] });
+	});
+
+	it("drops stored status parts on restore", () => {
+		const ui = dbMessageToUIMessage({
+			id: "d4",
+			role: "assistant",
+			content: "",
+			metadata: {
+				parts: [
+					{ type: "data-status", id: "status", data: { label: "Thinking" } },
+					{ type: "text", text: "Saved" },
+				],
+			},
+		});
+		expect(ui.parts).toEqual([{ type: "text", text: "Saved" }]);
 	});
 
 	it("rejects malformed rows", () => {

@@ -1,6 +1,7 @@
 import {
 	convertToModelMessages,
 	createIdGenerator,
+	createUIMessageStream,
 	createUIMessageStreamResponse,
 	isStepCount,
 	streamText,
@@ -12,8 +13,15 @@ import { waitUntil } from "@vercel/functions";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { buildSureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
+import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { UserFacingError } from "@/lib/ai/errors";
+import {
+	createStatusWriter,
+	hasPersistableContent,
+	persistableParts,
+} from "@/lib/ai/status-narration";
+import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import {
 	dailyCrossGuidance,
@@ -44,6 +52,7 @@ async function persistExchange(options: {
 	userMessage: UIMessage;
 	responseMessage: UIMessage;
 }): Promise<void> {
+	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
 		const note = await prisma.note.findFirst({
 			where: { id: options.noteId, userId: options.userId },
@@ -68,7 +77,7 @@ async function persistExchange(options: {
 		}
 
 		const metadataJson = JSON.parse(
-			JSON.stringify({ parts: options.responseMessage.parts })
+			JSON.stringify({ parts: persistableParts(options.responseMessage.parts) })
 		);
 
 		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
@@ -151,55 +160,70 @@ export async function POST(req: Request): Promise<Response> {
 			);
 		}
 
-		const memories = await loadUserMemories(userId);
-		const system = `${noteAISystemPrompt(
-			note.title,
-			note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
-		// The note panel shares the chat tool set, so it must also carry the rule
-		// that governs the one tool that overwrites something: setDailyCross may
-		// not fire until the user has agreed to it.
-		)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
+		const stream = createUIMessageStream<SureWordUIMessage>({
+			originalMessages: messages,
+			generateId: generateMessageId,
+			onError: (error) => {
+				if (error instanceof UserFacingError || error instanceof AiCredentialError) {
+					return error.message;
+				}
+				console.error("note-ai stream error:", error);
+				return "An error occurred.";
+			},
+			onEnd: ({ responseMessage, isAborted }) => {
+				if (isAborted) return;
+				waitUntil(
+					persistExchange({
+						userId,
+						noteId: note.id,
+						userMessage: lastMessage,
+						responseMessage,
+					})
+				);
+			},
+			execute: async ({ writer }) => {
+				const writeStatus = createStatusWriter(writer);
+				writeStatus("Getting ready");
 
-		let resolvedNoteModel;
-		try {
-			resolvedNoteModel = await resolveModel({ userId, fallbackEffort: "medium" });
-		} catch (error) {
-			if (error instanceof AiCredentialError) {
-				return NextResponse.json({ error: error.message }, { status: 403 });
-			}
-			throw error;
-		}
-		const { model, providerOptions } = resolvedNoteModel;
-		const result = streamText({
-			model,
-			system,
-			messages: await convertToModelMessages(messages),
-			tools,
-			stopWhen: isStepCount(8),
-			providerOptions,
+				const memories = await loadUserMemories(userId);
+				const system = `${noteAISystemPrompt(
+					note.title,
+					note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
+				// The note panel shares the chat tool set, so it must also carry the rule
+				// that governs the one tool that overwrites something: setDailyCross may
+				// not fire until the user has agreed to it.
+				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
+
+				const { model, providerOptions } = await resolveModel({ userId, fallbackEffort: "medium" });
+
+				writeStatus("Thinking");
+				const result = streamText({
+					model,
+					system,
+					messages: await convertToModelMessages(messages),
+					tools,
+					stopWhen: isStepCount(8),
+					providerOptions,
+					onToolExecutionStart: ({ toolCall }) => {
+						writeStatus(toolActivityLabel(toolCall.toolName));
+					},
+					onToolExecutionEnd: () => {
+						writeStatus("Thinking");
+					},
+				});
+
+				result.consumeStream();
+
+				writer.merge(
+					toUIMessageStream<SureWordTools, SureWordUIMessage>({
+						stream: result.stream,
+						tools,
+					})
+				);
+			},
 		});
 
-		result.consumeStream();
-
-		return createUIMessageStreamResponse({
-			stream: toUIMessageStream({
-				stream: result.stream,
-				tools,
-				originalMessages: messages,
-				generateMessageId,
-				onEnd: ({ responseMessage, isAborted }) => {
-					if (isAborted) return;
-					waitUntil(
-						persistExchange({
-							userId,
-							noteId: note.id,
-							userMessage: lastMessage,
-							responseMessage,
-						})
-					);
-				},
-			}),
-		});
+		return createUIMessageStreamResponse({ stream });
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in note-ai route:", error);

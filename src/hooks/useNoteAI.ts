@@ -68,7 +68,7 @@ export function useNoteAI(
 		setMessages: setUIMessages,
 		stop,
 		status,
-	} = useAIChat<SureWordUIMessage>({ transport });
+	} = useAIChat<SureWordUIMessage>({ transport, throttle: 50 });
 
 	// Load persisted AI messages when the note changes
 	useEffect(() => {

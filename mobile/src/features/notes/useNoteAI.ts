@@ -84,7 +84,7 @@ export function useNoteAI(
 		stop,
 		status,
 		error: chatError,
-	} = useChat<UIMessage>({ transport });
+	} = useChat<UIMessage>({ transport, throttle: 50 });
 
 	// Restore the persisted conversation whenever the note changes.
 	useEffect(() => {

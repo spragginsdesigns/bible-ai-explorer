@@ -14,6 +14,7 @@ import {
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
 import { readEffortPref, readModelPref, readTranslationPref } from "@/lib/preferences";
+import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 
 export interface RetrievedVerse {
@@ -72,21 +73,6 @@ const HISTORY_LOAD_ERROR =
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
-
-const TOOL_ACTIVITY_LABELS: Record<string, string> = {
-	"tool-searchScripture": "Searching the Scriptures",
-	"tool-getPassage": "Opening the passage",
-	"tool-webSearch": "Searching the web",
-	"tool-addToNote": "Writing to your note",
-	"tool-readNote": "Reading your note",
-	"tool-updateNote": "Rewriting your note",
-	"tool-findNotes": "Looking through your notes",
-	"tool-getCrossReferences": "Tracing cross-references",
-	"tool-getOriginalText": "Opening the original text",
-	"tool-lookupStrongs": "Studying the original word",
-	"tool-getDailyCross": "Opening today's cross",
-	"tool-setDailyCross": "Preparing your new day",
-};
 
 function visibleResponseContent(content: string, isStreaming: boolean): string {
 	return stripFollowUpMarkers(content, { streaming: isStreaming });
@@ -186,11 +172,20 @@ export function toViewMessage(
 		previewUrl: part.url,
 		previewExpiresAt: "",
 	}));
-	let activity: string | undefined;
+	let statusActivity: string | undefined;
+	let toolActivity: string | undefined;
 
 	for (const part of message.parts) {
 		if (part.type === "text") {
 			textParts.push(part.text);
+			continue;
+		}
+
+		if (part.type === "data-status") {
+			const data: unknown = part.data;
+			if (isRecord(data) && typeof data.label === "string") {
+				statusActivity = data.label;
+			}
 			continue;
 		}
 
@@ -202,7 +197,7 @@ export function toViewMessage(
 		};
 
 		if (toolPart.state === "input-streaming" || toolPart.state === "input-available") {
-			activity = TOOL_ACTIVITY_LABELS[toolPart.type] ?? "Working";
+			toolActivity = toolActivityLabel(toolPart.type.slice(5));
 			continue;
 		}
 		if (toolPart.state !== "output-available" || !isRecord(toolPart.output)) continue;
@@ -242,6 +237,11 @@ export function toViewMessage(
 	// part that opens a list/heading/quote glues onto the previous line and the
 	// markdown never parses.
 	const text = joinAssistantTextParts(textParts);
+	const content = visibleResponseContent(text, options.isStreaming);
+
+	// Server status lines narrate the wait; once the answer itself is on screen
+	// they are stale. A tool running mid-answer still says what it is doing.
+	const activity = toolActivity ?? (content.trim() ? undefined : statusActivity);
 
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
@@ -264,7 +264,7 @@ export function toViewMessage(
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
-		content: visibleResponseContent(text, options.isStreaming),
+		content,
 		...(retrievedVerses.length > 0 ? { retrievedVerses } : {}),
 		...(averageSimilarity !== undefined ? { averageSimilarity } : {}),
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),
@@ -291,7 +291,9 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
 	const restoredParts = Array.isArray(metadata.parts)
-		? (metadata.parts as SureWordUIMessage["parts"])
+		? (metadata.parts as SureWordUIMessage["parts"]).filter(
+			(part) => !part.type.startsWith("data-"),
+		)
 		: [{ type: "text" as const, text: value.content }];
 	const storedAttachments = Array.isArray(value.attachments)
 		? value.attachments.filter(isRecord)
@@ -469,7 +471,7 @@ export const useChat = () => {
 		stop,
 		status,
 		error: chatError,
-	} = useAIChat<SureWordUIMessage>({ transport });
+	} = useAIChat<SureWordUIMessage>({ transport, throttle: 50 });
 
 	// Load conversation list on mount
 	useEffect(() => {
