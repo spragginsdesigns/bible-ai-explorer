@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.23.0 (versionCode 19) - 2026-08-24 - internal
+
+**What's new (Play):**
+
+FIXED
+- Attaching a PDF or image no longer breaks the chat. Whatever AI model you have picked, SureWord now reads your file - and if your model genuinely cannot, it tells you instead of failing the whole answer. Retrying a failed answer works again too.
+
+NEW
+- SureWord can now see the verses you have highlighted. Ask "what have I highlighted in Romans?" and it will read your highlights, colors and all.
+
+**Dev notes:** Server-side, so both fixes reach every installed build through the API. `resolveModel` gained `requireAttachments`: a thread carrying file parts falls back to the first attachment-capable model the user holds credentials for (`ATTACHMENT_CAPABLE_MODEL_IDS`), narrated as a status line; with none available, file parts are replaced by a text note rather than sent to a provider that 400s on them (the Moonshot Kimi K3 `invalid part type: file` failure). `ask-question` now answers the last *user* message instead of rejecting arrays that end on an assistant turn (regenerate's shape), and surfaces `APICallError` as actionable text. New read-only `getHighlights` tool over `VerseHighlight` (`src/lib/highlights.server.ts`) with KJV text + color names; activity label added to all three clients.
+
 ## 1.22.0 (versionCode 18) - 2026-08-23 - internal
 
 **What's new (Play):**

@@ -56,6 +56,7 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-readNote": "Reading your note",
 	"tool-updateNote": "Rewriting your note",
 	"tool-findNotes": "Looking through your notes",
+	"tool-getHighlights": "Reading your highlights",
 	"tool-getCrossReferences": "Tracing cross-references",
 	"tool-getOriginalText": "Opening the original text",
 	"tool-lookupStrongs": "Studying the original word",

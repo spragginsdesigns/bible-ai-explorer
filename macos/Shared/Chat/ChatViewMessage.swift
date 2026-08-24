@@ -101,6 +101,7 @@ extension ChatViewMessage {
         "tool-readNote": "Reading your note",
         "tool-updateNote": "Rewriting your note",
         "tool-findNotes": "Looking through your notes",
+        "tool-getHighlights": "Reading your highlights",
         "tool-getCrossReferences": "Tracing cross-references",
         "tool-getOriginalText": "Opening the original text",
         "tool-lookupStrongs": "Studying the original word",

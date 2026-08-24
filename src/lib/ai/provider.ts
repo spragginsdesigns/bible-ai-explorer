@@ -6,6 +6,7 @@ import type { JSONValue, LanguageModel } from "ai";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import {
+	ATTACHMENT_CAPABLE_MODEL_IDS,
 	DEFAULT_MODEL_ID,
 	isReasoningEffort,
 	resolveDefinition,
@@ -122,6 +123,27 @@ export interface ResolvedModel {
 	providerOptions: Record<string, Record<string, JSONValue>>;
 	definition: ModelDefinition;
 	effort: ReasoningEffort | null;
+	/**
+	 * The model the user actually picked, when it could not read the request's
+	 * attachments and this call ran on a capable one instead. Null otherwise.
+	 */
+	attachmentFallbackFrom: ModelDefinition | null;
+	/**
+	 * True when the request carries attachments and the model running it still
+	 * cannot read them - no capable provider is unlocked for this user. Callers
+	 * must strip file parts rather than let the provider reject the request.
+	 */
+	attachmentsUnsupported: boolean;
+}
+
+/** First attachment-capable model this user holds working credentials for. */
+async function firstAttachmentCapableModel(userId: string): Promise<ModelDefinition | null> {
+	for (const modelId of ATTACHMENT_CAPABLE_MODEL_IDS) {
+		const candidate = resolveDefinition(modelId);
+		if (!candidate?.supportsAttachments) continue;
+		if (await apiKeyOrNull(userId, candidate.provider)) return candidate;
+	}
+	return null;
 }
 
 /**
@@ -138,6 +160,8 @@ export async function resolveModel(options: {
 	fallbackEffort?: ReasoningEffort;
 	/** Chat sends user files; unsupported mime types must pass through to the model rather than fail validation. */
 	attachments?: boolean;
+	/** This request actually carries files: swap to a capable model rather than let the provider reject it. */
+	requireAttachments?: boolean;
 	/** Background work (memory extraction, summaries): use the provider's cheap sibling model. */
 	utility?: boolean;
 }): Promise<ResolvedModel> {
@@ -146,11 +170,27 @@ export async function resolveModel(options: {
 		select: { defaultModelId: true, defaultEffort: true },
 	});
 
-	const definition =
+	const picked =
 		(options.modelId ? resolveDefinition(options.modelId) : undefined) ??
 		(user?.defaultModelId ? resolveDefinition(user.defaultModelId) : undefined) ??
 		resolveDefinition(DEFAULT_MODEL_ID);
-	if (!definition) throw new Error("No default AI model is registered.");
+	if (!picked) throw new Error("No default AI model is registered.");
+
+	// A file part sent to a model that cannot take one is a hard provider 400
+	// that kills the answer (Moonshot: "invalid part type: file"). Run the
+	// message on a capable model instead, and tell the caller so it can say so.
+	let definition = picked;
+	let attachmentFallbackFrom: ModelDefinition | null = null;
+	let attachmentsUnsupported = false;
+	if (options.requireAttachments && !picked.supportsAttachments && !options.utility) {
+		const capable = await firstAttachmentCapableModel(options.userId);
+		if (capable) {
+			definition = capable;
+			attachmentFallbackFrom = picked;
+		} else {
+			attachmentsUnsupported = true;
+		}
+	}
 
 	const apiKey = await apiKeyFor(options.userId, definition.provider);
 
@@ -161,6 +201,8 @@ export async function resolveModel(options: {
 			providerOptions: buildProviderOptions(definition.provider, utility.effort, false),
 			definition,
 			effort: utility.effort,
+			attachmentFallbackFrom: null,
+			attachmentsUnsupported: false,
 		};
 	}
 
@@ -180,6 +222,8 @@ export async function resolveModel(options: {
 		),
 		definition,
 		effort,
+		attachmentFallbackFrom,
+		attachmentsUnsupported,
 	};
 }
 

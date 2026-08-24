@@ -1,4 +1,5 @@
 import {
+	APICallError,
 	convertToModelMessages,
 	createIdGenerator,
 	createUIMessageStream,
@@ -150,6 +151,33 @@ async function hydrateTrustedAttachments(
 		}
 	}
 	return hydrated;
+}
+
+/**
+ * Drop file parts for a model that cannot read them, leaving a line that names
+ * what was attached. Only reached when the user has no attachment-capable
+ * provider unlocked at all - an answer that admits it cannot see the file beats
+ * a provider 400 that kills the whole turn.
+ */
+function withoutFileParts(messages: SureWordUIMessage[]): SureWordUIMessage[] {
+	return messages.map((message) => {
+		const files = message.parts.filter((part) => part.type === "file");
+		if (files.length === 0) return message;
+		const names = files.map((file) => file.filename ?? file.mediaType).join(", ");
+		return {
+			...message,
+			parts: [
+				...message.parts.filter((part) => part.type !== "file"),
+				{
+					type: "text" as const,
+					text:
+						`\n\n[The user attached ${names}, but the AI model they selected cannot read files, ` +
+						`so its contents are not available to you. Say so plainly and tell them that adding an ` +
+						`OpenAI or Anthropic key in Settings → AI Providers lets you read attachments.]`,
+				},
+			],
+		};
+	});
 }
 
 function stripFollowUps(text: string): {
@@ -309,15 +337,19 @@ export async function POST(req: Request): Promise<Response> {
 		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
-		const validatedMessages = await validateUIMessages<SureWordUIMessage>({
+		const allMessages = await validateUIMessages<SureWordUIMessage>({
 			messages: recentMessages,
 			tools,
 		});
 
-		const lastMessage = validatedMessages.at(-1);
+		// Answer the last thing the USER said. A retry can leave a half-finished
+		// assistant turn on the end of the array (the AI SDK's regenerate slices
+		// at the message it is replacing), and rejecting that outright is what
+		// turned one failed answer into an unretryable conversation.
+		const lastUserIndex = allMessages.findLastIndex((message) => message.role === "user");
+		const lastMessage = lastUserIndex >= 0 ? allMessages[lastUserIndex] : undefined;
 		if (
 			!lastMessage ||
-			lastMessage.role !== "user" ||
 			(!extractText(lastMessage) && attachmentIds(lastMessage).length === 0)
 		) {
 			return NextResponse.json(
@@ -325,7 +357,14 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
+		const validatedMessages = allMessages.slice(0, lastUserIndex + 1);
 		const hasAttachments = attachmentIds(lastMessage).length > 0;
+		// Older turns' files are re-hydrated into this request too, so the model
+		// has to be able to read attachments for the whole thread, not just the
+		// message that carried them.
+		const threadHasAttachments = validatedMessages.some(
+			(message) => attachmentIds(message).length > 0,
+		);
 		if (hasAttachments && !conversationId) {
 			return NextResponse.json(
 				{ error: "Create a conversation before sending an attachment." },
@@ -349,6 +388,12 @@ export async function POST(req: Request): Promise<Response> {
 					return error.message;
 				}
 				console.error("ask-question stream error:", error);
+				// A provider rejection is the user's to act on (wrong model for the
+				// job, an expired key, a rate limit) - "An error occurred" sends
+				// them nowhere.
+				if (APICallError.isInstance(error)) {
+					return "The AI provider could not complete this request. Try again, or pick a different model from the model picker.";
+				}
 				return "An error occurred.";
 			},
 			onEnd: ({ responseMessage, isAborted }) => {
@@ -374,13 +419,24 @@ export async function POST(req: Request): Promise<Response> {
 				}
 
 				const memories = await loadUserMemories(userId);
-				const { model, providerOptions, definition } = await resolveModel({
+				const {
+					model,
+					providerOptions,
+					definition,
+					attachmentFallbackFrom,
+					attachmentsUnsupported,
+				} = await resolveModel({
 					userId,
 					modelId: requestedModelId,
 					effort: requestedEffort,
 					fallbackEffort: isOpeningQuestion ? "high" : "medium",
 					attachments: true,
+					requireAttachments: threadHasAttachments,
 				});
+				if (attachmentFallbackFrom) {
+					writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
+				}
+				const modelMessages = attachmentsUnsupported ? withoutFileParts(messages) : messages;
 
 				// The picker's last choice becomes the default for every client. An
 				// invalid requested id resolves to a fallback model — don't record that
@@ -404,11 +460,11 @@ export async function POST(req: Request): Promise<Response> {
 				const result = streamText({
 					model,
 					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
-					messages: await convertToModelMessages(messages),
+					messages: await convertToModelMessages(modelMessages),
 					tools,
 					stopWhen: isStepCount(8),
 					providerOptions,
-					experimental_download: createNarratedDownload({ writeStatus, messages }),
+					experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
 					onToolExecutionStart: ({ toolCall }) => {
 						writeStatus(toolActivityLabel(toolCall.toolName));
 					},

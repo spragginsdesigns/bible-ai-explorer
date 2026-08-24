@@ -19,6 +19,11 @@ import {
 } from "@/lib/notes-io";
 import { getVerseText, type TranslationId } from "@/lib/bible/translations";
 import {
+	formatHighlightsForModel,
+	listUserHighlights,
+	type HighlightedVerse,
+} from "@/lib/highlights.server";
+import {
 	findTodayCross,
 	generateDailyCross,
 	replaceDailyCross,
@@ -93,6 +98,16 @@ export interface OriginalTextToolOutput extends OriginalVerse {
 
 export interface StrongsToolOutput extends StrongsEntry {
 	number: string;
+}
+
+/** The verses the user has marked in the Bible reader, with their colours. */
+export interface HighlightsToolOutput {
+	/** How many highlights match the requested scope in total. */
+	total: number;
+	/** Human phrase for what was searched, e.g. "in Psalms 23" or "in their Bible". */
+	scope: string;
+	highlights: HighlightedVerse[];
+	formatted: string;
 }
 
 export interface SureWordToolContext {
@@ -413,6 +428,60 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const getHighlightsTool = tool({
+		description:
+			`Read the verses this user has highlighted in the SureWord Bible reader, with the colour they chose and the exact ${translation} text. Call it whenever they mention their highlights or what they have marked, ask what they have been studying, or whenever the verses they singled out should shape your answer - highlighting is how they flag what matters to them. Read-only.`,
+		inputSchema: z.object({
+			book: z
+				.string()
+				.optional()
+				.describe(
+					'Limit to one book, e.g. "Psalms". Omit to get their most recently highlighted verses across the whole Bible.'
+				),
+			chapter: z
+				.number()
+				.int()
+				.min(1)
+				.optional()
+				.describe("Limit to one chapter. Only meaningful together with book."),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(50)
+				.optional()
+				.describe("How many verses to return, most recently highlighted first (default 25)."),
+		}),
+		execute: async ({ book, chapter, limit }): Promise<HighlightsToolOutput> => {
+			const bookNumber = book ? getKjvBookNumber(book) : undefined;
+			// An unrecognised book name would otherwise silently widen the search
+			// to the whole Bible and read as "you have no highlights there".
+			if (book && bookNumber === undefined) {
+				return {
+					total: 0,
+					scope: `in ${book}`,
+					highlights: [],
+					formatted: `"${book}" is not a Bible book name, so no highlights could be looked up.`,
+				};
+			}
+			const scope =
+				bookNumber !== undefined
+					? `in ${getKjvBookName(bookNumber)}${chapter !== undefined ? ` ${chapter}` : ""}`
+					: "in their Bible";
+			const listing = await listUserHighlights(context.userId, {
+				translation,
+				book: bookNumber,
+				chapter: bookNumber !== undefined ? chapter : undefined,
+				limit,
+			});
+			return {
+				...listing,
+				scope,
+				formatted: formatHighlightsForModel(listing, translation, scope),
+			};
+		},
+	});
+
 	const getDailyCrossTool = tool({
 		description:
 			"Read the user's \"Pick Up Your Cross\" for today — the guided day SureWord builds for them from their own reading, questions, notes and memories: today's verse, why it was chosen, how it applies, a short study path, and a question to carry. Call this whenever they ask what today's cross, verse or word is, or whenever an answer should build on the day they were already given. If no day has been prepared yet, this prepares it.",
@@ -468,6 +537,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		readNote: readNoteTool,
 		updateNote: updateNoteTool,
 		findNotes: findNotesTool,
+		getHighlights: getHighlightsTool,
 		getDailyCross: getDailyCrossTool,
 		setDailyCross: setDailyCrossTool,
 	};

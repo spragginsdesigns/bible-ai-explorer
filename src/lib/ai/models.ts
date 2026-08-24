@@ -74,6 +74,18 @@ export const MODELS: readonly ModelDefinition[] = [
 export const DEFAULT_MODEL_ID = "openai/gpt-5.6-terra";
 
 /**
+ * Models that can read the whole attachment pipeline (images, PDFs and text
+ * files), best first. A message carrying files runs on the first of these the
+ * user has credentials for, because sending a file part to a model that cannot
+ * take one is a hard 400 from the provider and kills the whole answer.
+ */
+export const ATTACHMENT_CAPABLE_MODEL_IDS: readonly string[] = [
+	DEFAULT_MODEL_ID,
+	"anthropic/claude-sonnet-5",
+	"anthropic/claude-opus-5",
+];
+
+/**
  * Cheap sibling used for background work (memory extraction, summaries) so
  * those bills follow the same credentials as the user's chat model. Anthropic's
  * utility model takes no effort option: Haiku 4.5 rejects it.

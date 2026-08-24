@@ -11,6 +11,7 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	readNote: "Reading your note",
 	updateNote: "Rewriting your note",
 	findNotes: "Looking through your notes",
+	getHighlights: "Reading your highlights",
 	getCrossReferences: "Tracing cross-references",
 	getOriginalText: "Opening the original text",
 	lookupStrongs: "Studying the original word",
