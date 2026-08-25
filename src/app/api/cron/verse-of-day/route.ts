@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily-cross";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
+import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
 
 // Loops over users with a per-user AI call and a push send; needs the full
 // function budget. Node runtime is required (Prisma + fs for the KJV corpus).
 export const maxDuration = 300;
 
 const MAX_USERS_PER_RUN = 50;
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const EXPO_PUSH_CHUNK_SIZE = 100;
+const DAILY_CROSS_CHANNEL_ID = "daily-cross";
 
 /** Local hour (0-23) in an IANA timezone; null when the timezone is invalid. */
 function localHour(timezone: string, now: Date): number | null {
@@ -27,86 +27,12 @@ function localHour(timezone: string, now: Date): number | null {
 	}
 }
 
-interface PendingPush {
-	tokenId: string;
-	to: string;
-	title: string;
-	subtitle: string;
-	body: string;
-	data: { screen: "cross"; book: string; chapter: number; verse: number };
-}
-
 /**
  * Keep very long verses tray-friendly (the longest KJV verse runs ~430
  * characters); the full text is one tap away on the Daily Cross screen.
  */
 function trayVerse(text: string, max = 240): string {
 	return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
-}
-
-interface ExpoPushTicket {
-	status: "ok" | "error";
-	details?: { error?: string };
-}
-
-/**
- * Send the queued messages through the Expo push API in chunks and retire
- * tokens Expo reports as DeviceNotRegistered. Returns how many tokens were
- * deactivated.
- */
-async function sendPushMessages(messages: PendingPush[]): Promise<number> {
-	let deactivated = 0;
-
-	for (let start = 0; start < messages.length; start += EXPO_PUSH_CHUNK_SIZE) {
-		const chunk = messages.slice(start, start + EXPO_PUSH_CHUNK_SIZE);
-		try {
-			const response = await fetch(EXPO_PUSH_URL, {
-				method: "POST",
-				headers: { "Content-Type": "application/json", Accept: "application/json" },
-				body: JSON.stringify(
-					chunk.map((message) => ({
-						to: message.to,
-						title: message.title,
-						// subtitle renders on iOS only; Android carries the
-						// reference inside the body instead.
-						subtitle: message.subtitle,
-						body: message.body,
-						data: message.data,
-						// High priority so FCM delivers during Doze instead of
-						// holding the morning verse until a maintenance window;
-						// channelId routes it to the app's heads-up channel
-						// (clients older than 1.17.0 lack it and fall back to a
-						// default channel — the notification still displays).
-						priority: "high",
-						channelId: "daily-cross",
-					}))
-				),
-			});
-			if (!response.ok) {
-				console.error(`[cron/verse-of-day] Expo push API answered ${response.status}.`);
-				continue;
-			}
-
-			const receipt = (await response.json()) as { data?: ExpoPushTicket[] };
-			const tickets = Array.isArray(receipt.data) ? receipt.data : [];
-			for (let index = 0; index < tickets.length; index++) {
-				const ticket = tickets[index];
-				if (ticket?.status !== "error") continue;
-				if (ticket.details?.error === "DeviceNotRegistered") {
-					await prisma.pushToken.delete({ where: { id: chunk[index].tokenId } }).catch(() => {});
-					deactivated += 1;
-				} else {
-					// Non-fatal ticket errors (InvalidCredentials, rate limits, …)
-					// must be visible in logs; today they would vanish silently.
-					console.error(`[cron/verse-of-day] Push ticket error:`, ticket.details ?? ticket);
-				}
-			}
-		} catch (error) {
-			console.error("[cron/verse-of-day] Expo push send failed:", error);
-		}
-	}
-
-	return deactivated;
 }
 
 /**
@@ -162,11 +88,16 @@ export async function GET(request: Request) {
 					tokenId: token.id,
 					to: token.token,
 					title: "✝ Pick up your cross",
+					// subtitle renders on iOS only; Android carries the reference
+					// inside the body instead.
 					subtitle: reference,
-					// Lead with the Scripture itself — the AI's why-line waits on
+					// Lead with the Scripture itself - the AI's why-line waits on
 					// the Daily Cross screen the tap opens.
-					body: `“${trayVerse(cross.text)}” — ${reference}`,
+					body: `“${trayVerse(cross.text)}” - ${reference}`,
 					data: { screen: "cross", book: cross.book, chapter: cross.chapter, verse: cross.verse },
+					// The app's heads-up channel; clients older than 1.17.0 lack it
+					// and fall back to a default channel - the push still displays.
+					channelId: DAILY_CROSS_CHANNEL_ID,
 				});
 			}
 			sent += 1;
@@ -176,7 +107,7 @@ export async function GET(request: Request) {
 		}
 	}
 
-	const deactivatedTokens = await sendPushMessages(pending);
+	const deactivatedTokens = await sendExpoPushMessages(pending, "cron/verse-of-day");
 
 	return NextResponse.json({
 		dueUsers: dueUsers.length,

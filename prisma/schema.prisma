@@ -249,7 +249,11 @@ model PushToken {
   platform   String           // "ios" | "android"
   timezone   String           // e.g. "America/Chicago"
   notifyHour Int      @default(8) // local hour, 0-23
-  enabled    Boolean  @default(true)
+  enabled    Boolean  @default(true) // verse-of-the-day pushes for this device
+  /// "Your answer is ready" push when a chat answer finishes after the client
+  /// disconnected. Independent of `enabled` so turning off the morning verse
+  /// does not silence chat replies.
+  chatReplies Boolean @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

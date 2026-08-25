@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
  * Verse-of-the-day notification preferences, modeled on settingsStore: a
  * module-level snapshot exposed through useSyncExternalStore, hydrated from /
  * persisted to AsyncStorage. The push-token registration effect in
- * useVerseOfDayNotifications subscribes through the hook so a change here
+ * usePushNotifications subscribes through the hook so a change here
  * re-registers (or unregisters) the device with the backend.
  */
 
@@ -13,6 +13,12 @@ export interface NotificationSettings {
 	enabled: boolean;
 	/** Local hour the morning verse should arrive, 0-23. */
 	hour: number;
+	/**
+	 * Notify when a chat answer finishes after this device dropped off the
+	 * stream (app backgrounded, screen locked). Independent of `enabled` - the
+	 * device stays registered for push either way.
+	 */
+	chatReplies: boolean;
 }
 
 const STORAGE_KEY = "sureword.notifications.v1";
@@ -20,6 +26,7 @@ const STORAGE_KEY = "sureword.notifications.v1";
 const DEFAULT_SETTINGS: NotificationSettings = {
 	enabled: true,
 	hour: 8,
+	chatReplies: true,
 };
 
 let snapshot: NotificationSettings = DEFAULT_SETTINGS;
@@ -50,6 +57,10 @@ export async function hydrateNotificationSettings(): Promise<void> {
 				typeof parsed.hour === "number" && parsed.hour >= 0 && parsed.hour <= 23
 					? Math.floor(parsed.hour)
 					: DEFAULT_SETTINGS.hour,
+			chatReplies:
+				typeof parsed.chatReplies === "boolean"
+					? parsed.chatReplies
+					: DEFAULT_SETTINGS.chatReplies,
 		};
 	} catch {
 		// A corrupt or unreadable store falls back to defaults.
@@ -58,6 +69,10 @@ export async function hydrateNotificationSettings(): Promise<void> {
 
 export function setVerseOfDayEnabled(enabled: boolean) {
 	setSnapshot({ ...snapshot, enabled });
+}
+
+export function setChatRepliesEnabled(chatReplies: boolean) {
+	setSnapshot({ ...snapshot, chatReplies });
 }
 
 export function setVerseOfDayHour(hour: number) {

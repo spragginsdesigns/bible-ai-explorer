@@ -18,6 +18,7 @@ import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations"
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
 import {
+	setChatRepliesEnabled,
 	setVerseOfDayEnabled,
 	setVerseOfDayHour,
 	useNotificationSettings,
@@ -269,6 +270,24 @@ export default function SettingsScreen() {
 						</View>
 						<Text style={styles.chevron}>›</Text>
 					</Pressable>
+				</GlassCard>
+
+				<SectionLabel label="CHAT" />
+				<GlassCard style={styles.card}>
+					<View style={styles.settingRow}>
+						<Text style={styles.rowTitle}>Notify when an answer is ready</Text>
+						<Switch
+							accessibilityLabel="Notify when an answer is ready"
+							value={notificationSettings.chatReplies}
+							onValueChange={setChatRepliesEnabled}
+							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+							thumbColor={notificationSettings.chatReplies ? colors.accent : colors.textFaint}
+						/>
+					</View>
+					<Text style={styles.hint}>
+						Leave the app while SureWord is answering and it keeps working. This tells you
+						when the answer has landed.
+					</Text>
 				</GlassCard>
 
 				<SectionLabel label="VERSE OF THE DAY" />

@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { openReferenceInReader } from "@/features/chat/verseLinks";
 import { registerPushToken, unregisterPushToken } from "./api";
+import { wasConversationStopped } from "./chatStopSignals";
 import { useNotificationSettings } from "./notificationSettings";
 import { notificationTapTarget } from "./tapTarget";
 
@@ -20,6 +21,12 @@ import { notificationTapTarget } from "./tapTarget";
 const ANDROID_CHANNEL_ID = "daily-cross";
 const LEGACY_ANDROID_CHANNEL_ID = "verse-of-day";
 /**
+ * "Your answer is ready" - a chat answer that finished after this device fell
+ * off the stream. Its own channel so the user can silence chat replies from
+ * Android settings without losing the morning verse.
+ */
+const CHAT_REPLY_CHANNEL_ID = "chat-replies";
+/**
  * Remembers that this device registered a push token with the backend. When a
  * later launch can't reach the registration endpoint (offline, transient
  * failure) the local fallback must NOT be re-armed — the server still pushes,
@@ -28,14 +35,27 @@ const LEGACY_ANDROID_CHANNEL_ID = "verse-of-day";
 const REMOTE_LIVE_KEY = "sureword.notifications.remoteLive";
 
 // A verse arriving while the app is open still surfaces as a banner rather
-// than vanishing into the tray.
+// than vanishing into the tray. The exception is a chat answer this device
+// deliberately walked away from: the server cannot tell "the user pressed
+// stop" from "the app went to the background", so it notifies for both and
+// the client drops the ones it knows were unwanted.
 Notifications.setNotificationHandler({
-	handleNotification: async () => ({
-		shouldPlaySound: false,
-		shouldSetBadge: false,
-		shouldShowBanner: true,
-		shouldShowList: true,
-	}),
+	handleNotification: async (notification) => {
+		const data = notification.request.content.data ?? {};
+		const target = notificationTapTarget(data);
+		const unwanted =
+			target !== null &&
+			"screen" in target &&
+			target.screen === "chat" &&
+			wasConversationStopped(target.conversationId);
+
+		return {
+			shouldPlaySound: false,
+			shouldSetBadge: false,
+			shouldShowBanner: !unwanted,
+			shouldShowList: !unwanted,
+		};
+	},
 });
 
 /**
@@ -71,31 +91,44 @@ function cancelAllScheduled(): Promise<void> {
 let handledTapId: string | null = null;
 
 /**
- * Verse-of-the-day wiring, mounted once in the (app) layout:
+ * Push wiring, mounted once in the (app) layout. Two independent streams ride
+ * one registration:
  *
- * - Registers this device's Expo push token with the backend (with the local
- *   timezone and chosen hour) on startup and whenever the setting changes;
- *   disabling the setting unregisters instead.
- * - Tapping a notification opens the Pick Up Your Cross screen (older
- *   payloads with only a verse reference deep-link into the Bible reader),
- *   including the tap that cold-launched the app.
+ * - The verse of the day, sent by the hourly cron at the user's chosen local
+ *   hour, with a locally scheduled daily as the fallback when remote push is
+ *   unavailable.
+ * - "Your answer is ready", sent when a chat answer finishes after this device
+ *   dropped off the stream.
+ *
+ * The device's Expo push token is registered whenever either stream is wanted;
+ * the two preferences travel with the token rather than deciding whether it
+ * exists, so silencing one never silences the other. Taps land on the Pick Up
+ * Your Cross screen, the conversation the answer belongs to, or (for older
+ * reference-only payloads) the Bible reader - including the tap that
+ * cold-launched the app.
  *
  * Everything is best-effort: permission denial, a missing EAS projectId, and
- * network failures are all swallowed — push must never break app startup.
+ * network failures are all swallowed - push must never break app startup.
  */
-export function useVerseOfDayNotifications(): void {
+export function usePushNotifications(): void {
 	const router = useRouter();
 	const getToken = useStableGetToken();
-	const { enabled, hour } = useNotificationSettings();
+	const { enabled, chatReplies, hour } = useNotificationSettings();
 
-	// Tap → the "Pick Up Your Cross" screen (the guided day). Older
+	// Tap → the "Pick Up Your Cross" screen (the guided day), or the chat
+	// conversation whose answer landed while the app was away. Older
 	// notifications that carry only a verse reference fall back to the reader.
 	useEffect(() => {
 		const handleTap = (response: Notifications.NotificationResponse) => {
 			const target = notificationTapTarget(response.notification.request.content.data ?? {});
 			if (!target) return;
-			if ("screen" in target) router.push("/cross");
-			else openReferenceInReader(router, target.reference);
+			if ("reference" in target) {
+				openReferenceInReader(router, target.reference);
+			} else if (target.screen === "chat") {
+				router.push({ pathname: "/", params: { conversationId: target.conversationId } });
+			} else {
+				router.push("/cross");
+			}
 		};
 
 		const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -137,62 +170,88 @@ export function useVerseOfDayNotifications(): void {
 						importance: Notifications.AndroidImportance.HIGH,
 						lightColor: "#d97706",
 					});
+					await Notifications.setNotificationChannelAsync(CHAT_REPLY_CHANNEL_ID, {
+						name: "Chat answers",
+						importance: Notifications.AndroidImportance.HIGH,
+						lightColor: "#d97706",
+					});
 					await Notifications.deleteNotificationChannelAsync(LEGACY_ANDROID_CHANNEL_ID).catch(
 						() => {}
 					);
 				}
 
-				if (!enabled) {
-					await AsyncStorage.removeItem(REMOTE_LIVE_KEY).catch(() => {});
-					await cancelAllScheduled().catch(() => {});
-					// Best-effort remote unregister — token retrieval itself may be
-					// unavailable (no EAS projectId yet), which is fine.
-					try {
-						const projectId = resolveProjectId();
-						const { data: pushToken } = await Notifications.getExpoPushTokenAsync(
-							projectId ? { projectId } : undefined
-						);
-						await unregisterPushToken(getToken, pushToken).catch(() => {});
-					} catch {
-						// No token to unregister.
-					}
-					return;
-				}
+				// The device registers whenever ANY push stream is wanted. It used
+				// to unregister when the morning verse was switched off, which also
+				// silenced chat answers - the two preferences now travel with the
+				// token instead of deciding whether it exists.
+				const wantsPush = enabled || chatReplies;
 
 				let granted = (await Notifications.getPermissionsAsync()).granted;
-				if (!granted) {
+				if (!granted && wantsPush) {
 					granted = (await Notifications.requestPermissionsAsync()).granted;
-				}
-				if (!granted || cancelled) return;
-
-				// Remote push first: it can carry the personalized verse in the
-				// notification itself. Needs an Expo push token (EAS projectId /
-				// FCM); if that fails, fall back to a locally scheduled daily.
-				try {
-					const projectId = resolveProjectId();
-					const { data: pushToken } = await Notifications.getExpoPushTokenAsync(
-						projectId ? { projectId } : undefined
-					);
-					if (cancelled) return;
-					const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-					await registerPushToken(getToken, {
-						token: pushToken,
-						platform: Platform.OS === "ios" ? "ios" : "android",
-						timezone,
-						notifyHour: hour,
-					});
-					// Remote delivery is live; a local daily would duplicate it.
-					await AsyncStorage.setItem(REMOTE_LIVE_KEY, "1").catch(() => {});
-					await cancelAllScheduled().catch(() => {});
-					return;
-				} catch {
-					// Fall through to the local daily notification.
 				}
 				if (cancelled) return;
 
+				let pushToken: string | null = null;
+				if (granted) {
+					try {
+						const projectId = resolveProjectId();
+						pushToken = (
+							await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined)
+						).data;
+					} catch {
+						// No EAS projectId / FCM setup - remote push is unavailable.
+					}
+				}
+				if (cancelled) return;
+
+				if (pushToken && !wantsPush) {
+					await AsyncStorage.removeItem(REMOTE_LIVE_KEY).catch(() => {});
+					await cancelAllScheduled().catch(() => {});
+					await unregisterPushToken(getToken, pushToken).catch(() => {});
+					return;
+				}
+
+				if (!wantsPush || !granted) {
+					await AsyncStorage.removeItem(REMOTE_LIVE_KEY).catch(() => {});
+					await cancelAllScheduled().catch(() => {});
+					return;
+				}
+
+				// Remote push first: it can carry the personalized verse (or the
+				// answer preview) in the notification itself.
+				if (pushToken) {
+					try {
+						const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+						await registerPushToken(getToken, {
+							token: pushToken,
+							platform: Platform.OS === "ios" ? "ios" : "android",
+							timezone,
+							notifyHour: hour,
+							enabled,
+							chatReplies,
+						});
+						if (cancelled) return;
+						// Remote delivery is live; a local daily would duplicate it.
+						await AsyncStorage.setItem(REMOTE_LIVE_KEY, "1").catch(() => {});
+						await cancelAllScheduled().catch(() => {});
+						return;
+					} catch {
+						// Fall through to the local daily notification.
+					}
+				}
+				if (cancelled) return;
+
+				// Chat answers can only arrive by remote push. Everything below is
+				// the verse-of-the-day fallback.
+				if (!enabled) {
+					await cancelAllScheduled().catch(() => {});
+					return;
+				}
+
 				// A transient failure (offline launch, Expo API hiccup) must not
 				// re-arm the local daily while the server still holds this
-				// device's token — that is how both notifications fire at once.
+				// device's token - that is how both notifications fire at once.
 				const remoteLive = await AsyncStorage.getItem(REMOTE_LIVE_KEY).catch(() => null);
 				if (remoteLive === "1") {
 					await cancelAllScheduled().catch(() => {});
@@ -224,5 +283,5 @@ export function useVerseOfDayNotifications(): void {
 		return () => {
 			cancelled = true;
 		};
-	}, [enabled, hour, getToken]);
+	}, [enabled, chatReplies, hour, getToken]);
 }

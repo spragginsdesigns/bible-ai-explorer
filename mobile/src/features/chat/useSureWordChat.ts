@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAuth } from "@clerk/expo";
@@ -9,6 +10,8 @@ import * as ImagePicker from "expo-image-picker";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
+import { markConversationStopped } from "@/features/notifications/chatStopSignals";
+import { completedHistory } from "./answerRecovery";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
 import {
@@ -66,6 +69,25 @@ export interface SureWordChat {
 
 const HISTORY_LOAD_ERROR =
 	"We couldn't load this conversation. Retry to restore its context, or start a new chat.";
+
+const RECOVERY_FAILED_ERROR =
+	"We couldn't retrieve that answer. Retry to ask again.";
+
+/** How often the recovery poll asks the server whether the answer has landed. */
+const RECOVERY_POLL_INTERVAL_MS = 3_000;
+/**
+ * How long to keep collecting. The route's own budget is 120s (maxDuration),
+ * so this outlasts the slowest possible answer plus its persistence.
+ */
+const RECOVERY_MAX_MS = 150_000;
+/**
+ * Grace period after the app returns to the foreground. A stream that merely
+ * stalled while backgrounded often resumes on its own, and tearing it down to
+ * poll instead would throw away a live answer.
+ */
+const RESUME_GRACE_MS = 4_000;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /**
  * The AI SDK's FetchFunction is not re-exported from `ai`, and expo/fetch's
@@ -281,6 +303,134 @@ export function useSureWordChat(): SureWordChat {
 		error: chatError,
 	} = useAIChat<UIMessage>({ transport, throttle: 50 });
 
+	// --- Never lose an answer to a backgrounded app -------------------------
+	//
+	// Android suspends the app's sockets when it leaves the foreground, so the
+	// streaming fetch dies mid-answer. The server does not stop: it drains its
+	// own copy of the stream and persists the finished answer (see the
+	// consumeSseStream drain in /api/ask-question). So a dead stream is never a
+	// lost answer - the client just has to collect it from the conversation.
+	//
+	// `pendingAnswerRef` holds the conversation whose answer is still owed.
+	const pendingAnswerRef = useRef<string | null>(null);
+	const [recovering, setRecovering] = useState(false);
+	const recoveringRef = useRef(false);
+	const recoverVersionRef = useRef(0);
+	/** When the stream last produced anything - a stalled stream shows as old. */
+	const lastStreamActivityRef = useRef(0);
+	const statusRef = useRef(status);
+
+	useEffect(() => {
+		statusRef.current = status;
+	}, [status]);
+
+	useEffect(() => {
+		lastStreamActivityRef.current = Date.now();
+	}, [uiMessages]);
+
+	// A stream that finished on its own owes nothing.
+	useEffect(() => {
+		if (status === "ready" && !recoveringRef.current) pendingAnswerRef.current = null;
+	}, [status]);
+
+	/**
+	 * Walking away from an answer on purpose: stop the stream and remember that
+	 * this conversation's "answer is ready" push is unwanted. The server sends
+	 * that push for any dropped connection and cannot tell a deliberate stop
+	 * from a backgrounded app.
+	 */
+	const abandonPendingAnswer = useCallback(() => {
+		const conversationId = pendingAnswerRef.current;
+		if (conversationId) markConversationStopped(conversationId);
+		stop();
+	}, [stop]);
+
+	const cancelRecovery = useCallback(() => {
+		recoverVersionRef.current += 1;
+		recoveringRef.current = false;
+		pendingAnswerRef.current = null;
+		setRecovering(false);
+	}, []);
+
+	/**
+	 * Poll the conversation until the finished answer appears, then swap it in
+	 * as if the stream had never broken. Only gives up after the server's own
+	 * budget has run out, at which point retrying the question is the honest
+	 * option.
+	 */
+	const collectPendingAnswer = useCallback(
+		async (conversationId: string) => {
+			if (recoveringRef.current) return;
+			recoveringRef.current = true;
+			const version = ++recoverVersionRef.current;
+			setRecovering(true);
+
+			const deadline = Date.now() + RECOVERY_MAX_MS;
+			try {
+				while (Date.now() < deadline) {
+					if (version !== recoverVersionRef.current) return;
+					if (conversationIdRef.current !== conversationId) return;
+					try {
+						const data = await apiJson<unknown>(
+							authToken,
+							`/api/conversations/${conversationId}`
+						);
+						if (version !== recoverVersionRef.current) return;
+						const restored = completedHistory(data);
+						if (restored) {
+							setUIMessages(restored.map(dbMessageToUIMessage));
+							pendingAnswerRef.current = null;
+							setSendError(null);
+							clearError();
+							return;
+						}
+					} catch {
+						// Offline or a transient failure - the answer is still being
+						// written server-side, so keep asking until the deadline.
+					}
+					await delay(RECOVERY_POLL_INTERVAL_MS);
+				}
+				if (version !== recoverVersionRef.current) return;
+				pendingAnswerRef.current = null;
+				setSendError(RECOVERY_FAILED_ERROR);
+			} finally {
+				if (version === recoverVersionRef.current) {
+					recoveringRef.current = false;
+					setRecovering(false);
+				}
+			}
+		},
+		[authToken, clearError, setUIMessages]
+	);
+
+	// A broken stream is a collection job, not a failure to show the user.
+	useEffect(() => {
+		if (!chatError) return;
+		const conversationId = pendingAnswerRef.current;
+		if (!conversationId) return;
+		void collectPendingAnswer(conversationId);
+	}, [chatError, collectPendingAnswer]);
+
+	// Coming back to the app: give a stalled stream a moment to resume, and
+	// collect from the server only once it is clear nothing is arriving.
+	useEffect(() => {
+		const subscription = AppState.addEventListener("change", (state) => {
+			if (state !== "active") return;
+			const conversationId = pendingAnswerRef.current;
+			if (!conversationId || recoveringRef.current) return;
+
+			void (async () => {
+				await delay(RESUME_GRACE_MS);
+				if (pendingAnswerRef.current !== conversationId || recoveringRef.current) return;
+				if (statusRef.current === "ready") return;
+				if (Date.now() - lastStreamActivityRef.current < RESUME_GRACE_MS) return;
+				abandonPendingAnswer();
+				void collectPendingAnswer(conversationId);
+			})();
+		});
+		return () => subscription.remove();
+	}, [abandonPendingAnswer, collectPendingAnswer]);
+
 	useEffect(() => {
 		if (initialized.current) return;
 		initialized.current = true;
@@ -307,7 +457,8 @@ export function useSureWordChat(): SureWordChat {
 
 			discardFileAttachments(fileAttachments);
 			setFileAttachments([]);
-			stop();
+			abandonPendingAnswer();
+			cancelRecovery();
 			setActiveConversationId(id);
 			conversationIdRef.current = id;
 			setSendError(null);
@@ -336,7 +487,7 @@ export function useSureWordChat(): SureWordChat {
 				}
 			}
 		},
-		[authToken, discardFileAttachments, fileAttachments, stop, setUIMessages]
+		[abandonPendingAnswer, authToken, cancelRecovery, discardFileAttachments, fileAttachments, setUIMessages]
 	);
 
 	const retryHistory = useCallback(() => {
@@ -353,14 +504,15 @@ export function useSureWordChat(): SureWordChat {
 		historyErrorRef.current = false;
 		discardFileAttachments(fileAttachments);
 		setFileAttachments([]);
-		stop();
+		abandonPendingAnswer();
+		cancelRecovery();
 		setHistoryLoading(false);
 		setHistoryError(null);
 		setActiveConversationId(null);
 		conversationIdRef.current = null;
 		setSendError(null);
 		setUIMessages([]);
-	}, [discardFileAttachments, fileAttachments, stop, setUIMessages]);
+	}, [abandonPendingAnswer, cancelRecovery, discardFileAttachments, fileAttachments, setUIMessages]);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
@@ -430,6 +582,12 @@ export function useSureWordChat(): SureWordChat {
 			setAttachmentState(null);
 			const sendingAttachments = fileAttachments;
 			setFileAttachments([]);
+			// From here the server owns the answer: if this device's stream dies
+			// (backgrounded, screen locked, network changed) the answer is still
+			// written and persisted, and the recovery poll collects it. Without a
+			// conversation there is nothing to collect from.
+			pendingAnswerRef.current = conversationIdRef.current;
+			lastStreamActivityRef.current = Date.now();
 			void sendUIMessage({
 				metadata: sendingAttachments.length > 0
 					? { attachmentIds: sendingAttachments.map((item) => item.id) }
@@ -449,13 +607,19 @@ export function useSureWordChat(): SureWordChat {
 	);
 
 	const retrySend = useCallback(() => {
+		abandonPendingAnswer();
+		cancelRecovery();
 		setSendError(null);
 		clearError();
+		pendingAnswerRef.current = conversationIdRef.current;
+		lastStreamActivityRef.current = Date.now();
 		void regenerate();
-	}, [clearError, regenerate]);
+	}, [abandonPendingAnswer, cancelRecovery, clearError, regenerate]);
 
 	const isStreaming = status === "streaming";
-	const loading = status === "submitted";
+	// Collecting a finished answer from the server reads as "still working" -
+	// the user asked a question and one is on its way, same as a live stream.
+	const loading = status === "submitted" || recovering;
 
 	const messages = useMemo(() => {
 		const lastAssistantId = [...uiMessages]
@@ -498,7 +662,9 @@ export function useSureWordChat(): SureWordChat {
 		initialLoading,
 		historyLoading,
 		historyError,
-		error: sendError ?? (chatError ? chatError.message : null),
+		// A broken stream while an answer is being collected is not the user's
+		// problem to see - it resolves itself.
+		error: recovering ? null : (sendError ?? (chatError ? chatError.message : null)),
 		input,
 		setInput,
 		attachment,
@@ -514,7 +680,7 @@ export function useSureWordChat(): SureWordChat {
 		attachPastedImages,
 		removeFileAttachment,
 		sendMessage,
-		stop,
+		stop: abandonPendingAnswer,
 		retrySend,
 		retryHistory,
 		newConversation,

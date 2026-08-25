@@ -40,8 +40,11 @@ export default function ChatScreen() {
 		attachRef?: string;
 		attachText?: string;
 		attachTranslation?: string;
+		conversationId?: string;
 	}>();
 	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
+	const conversationIdParam =
+		typeof params.conversationId === "string" ? params.conversationId : "";
 	const attachRefParam = typeof params.attachRef === "string" ? params.attachRef : "";
 	const attachTextParam = typeof params.attachText === "string" ? params.attachText : "";
 	const attachTranslationParam =
@@ -49,6 +52,16 @@ export default function ChatScreen() {
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
+	const lastOpenedConversation = useRef("");
+
+	// Tapping an "answer is ready" notification lands here with the
+	// conversation it belongs to - open it rather than whatever was last on
+	// screen.
+	useEffect(() => {
+		if (!conversationIdParam || conversationIdParam === lastOpenedConversation.current) return;
+		lastOpenedConversation.current = conversationIdParam;
+		void chat.switchConversation(conversationIdParam);
+	}, [conversationIdParam, chat.switchConversation]);
 
 	// Ask-AI entry points (e.g. the Bible tab) push here with ?prompt= — prefill
 	// the input and focus it, but leave sending to the user.

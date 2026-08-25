@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.24.0 (versionCode 20) - 2026-08-25 - internal
+
+**What's new (Play):**
+
+FIXED
+- Leaving the app while SureWord is answering no longer loses the answer. Switch apps, lock your screen, or drop off Wi-Fi - the answer keeps being written and is waiting for you when you come back.
+
+NEW
+- SureWord can tell you when an answer is ready if you left while it was thinking. Tap the notification to jump straight back to that conversation. Turn it off in Settings under Chat.
+
+**Dev notes:** the server now drains its own copy of the answer stream (`consumeSseStream`), so a client disconnect can no longer cancel generation or persist a truncated reply - this is a server change and reaches every installed build without a release. The clients collect the finished answer from the conversation when their stream dies (Android on app resume, web on tab focus), and Android suppresses the "ready" push for an answer the user deliberately stopped. Push tokens now stay registered when the Verse of the Day is switched off, so the two notification streams are independent (`PushToken.chatReplies`).
+
+---
+
 ## 1.23.0 (versionCode 19) - 2026-08-24 - internal
 
 **What's new (Play):**

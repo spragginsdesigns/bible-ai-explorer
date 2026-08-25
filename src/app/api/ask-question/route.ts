@@ -20,6 +20,7 @@ import {
 } from "@/lib/chat-attachment-types";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
+import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { UserFacingError } from "@/lib/ai/errors";
@@ -398,12 +399,24 @@ export async function POST(req: Request): Promise<Response> {
 			},
 			onEnd: ({ responseMessage, isAborted }) => {
 				if (isAborted || !conversationId) return;
+				// `req.signal` aborts when the client's connection drops - the app
+				// being backgrounded, the screen locking, the network changing.
+				// The answer still finished here (see consumeSseStream below), so
+				// the user needs telling that it is waiting for them.
+				const clientLeft = req.signal.aborted;
 				waitUntil(
 					persistAssistantResponse({
 						userId,
 						conversationId,
 						userMessage: lastMessage,
 						responseMessage,
+					}).then(() => {
+						if (!clientLeft) return;
+						return notifyChatAnswerReady({
+							userId,
+							conversationId,
+							answerText: stripFollowUps(extractText(responseMessage)).cleanText,
+						});
 					})
 				);
 			},
@@ -486,7 +499,32 @@ export async function POST(req: Request): Promise<Response> {
 			},
 		});
 
-		return createUIMessageStreamResponse({ stream });
+		return createUIMessageStreamResponse({
+			stream,
+			// Tee the SSE stream and drain the copy server-side. Without this a
+			// client disconnect cancels the response stream, which cancels the
+			// pipeline and fires `onEnd` with whatever partial answer had been
+			// written - backgrounding the Android app mid-answer persisted a
+			// truncated reply and surfaced as a failed message. With a second
+			// reader holding the stream open, generation runs to completion and
+			// `onEnd` gets the whole message no matter when the client leaves.
+			consumeSseStream: ({ stream: copy }) => {
+				waitUntil(
+					(async () => {
+						const reader = copy.getReader();
+						try {
+							while (!(await reader.read()).done) {
+								// Drain only; the persisted copy comes from onEnd.
+							}
+						} catch (error) {
+							console.error("Failed to drain the server-side stream copy:", error);
+						} finally {
+							reader.releaseLock();
+						}
+					})()
+				);
+			},
+		});
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in ask-question route:", error);

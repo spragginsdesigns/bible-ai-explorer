@@ -12,6 +12,18 @@ describe("notificationTapTarget", () => {
 		expect(notificationTapTarget({ screen: "cross" })).toEqual({ screen: "cross" });
 	});
 
+	it("routes screen:chat payloads to the conversation the answer belongs to", () => {
+		expect(notificationTapTarget({ screen: "chat", conversationId: "conv_123" })).toEqual({
+			screen: "chat",
+			conversationId: "conv_123",
+		});
+	});
+
+	it("navigates nowhere for a chat payload with no conversation", () => {
+		expect(notificationTapTarget({ screen: "chat" })).toBeNull();
+		expect(notificationTapTarget({ screen: "chat", conversationId: "" })).toBeNull();
+	});
+
 	it("falls back to the reader for legacy verse-only payloads", () => {
 		expect(notificationTapTarget({ book: "John", chapter: 3, verse: 16 })).toEqual({
 			reference: "John 3:16",

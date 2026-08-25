@@ -8,6 +8,10 @@ const registerSchema = z.object({
 	platform: z.enum(["ios", "android"]),
 	timezone: z.string().min(1).max(100),
 	notifyHour: z.number().int().min(0).max(23).optional(),
+	/** Verse-of-the-day pushes for this device. */
+	enabled: z.boolean().optional(),
+	/** "Your answer is ready" pushes when a chat answer lands while away. */
+	chatReplies: z.boolean().optional(),
 });
 
 /**
@@ -26,7 +30,7 @@ export async function POST(req: Request) {
 				{ status: 400 }
 			);
 		}
-		const { token, platform, timezone, notifyHour } = parsed.data;
+		const { token, platform, timezone, notifyHour, enabled, chatReplies } = parsed.data;
 
 		const pushToken = await prisma.pushToken.upsert({
 			where: { token },
@@ -35,7 +39,12 @@ export async function POST(req: Request) {
 				platform,
 				timezone,
 				...(notifyHour !== undefined ? { notifyHour } : {}),
-				enabled: true,
+				// Registration used to force `enabled: true`, because the only way
+				// to turn the morning verse off was to delete the token. The device
+				// now stays registered so chat-reply pushes keep working, and the
+				// caller says which streams it wants.
+				enabled: enabled ?? true,
+				...(chatReplies !== undefined ? { chatReplies } : {}),
 			},
 			create: {
 				userId,
@@ -43,6 +52,8 @@ export async function POST(req: Request) {
 				platform,
 				timezone,
 				...(notifyHour !== undefined ? { notifyHour } : {}),
+				...(enabled !== undefined ? { enabled } : {}),
+				...(chatReplies !== undefined ? { chatReplies } : {}),
 			},
 		});
 

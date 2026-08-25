@@ -9,6 +9,7 @@ import {
 	type ChatAttachmentDescriptor,
 	validateAttachmentBatch,
 } from "@/lib/chat-attachment-types";
+import { completedHistory } from "@/lib/chat/answerRecovery";
 import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
@@ -69,6 +70,24 @@ export interface Conversation {
 
 const HISTORY_LOAD_ERROR =
 	"We couldn't load this conversation. Retry to restore its context, or start a new chat.";
+
+const RECOVERY_FAILED_ERROR = "We couldn't retrieve that answer. Ask again to retry.";
+
+/** How often the recovery poll asks the server whether the answer has landed. */
+const RECOVERY_POLL_INTERVAL_MS = 3_000;
+/**
+ * How long to keep collecting. The route's own budget is 120s (maxDuration),
+ * so this outlasts the slowest possible answer plus its persistence.
+ */
+const RECOVERY_MAX_MS = 150_000;
+/**
+ * Grace period after the tab becomes visible again. A stream that merely
+ * stalled while hidden often resumes on its own, and tearing it down to poll
+ * instead would throw away a live answer.
+ */
+const RESUME_GRACE_MS = 4_000;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -468,10 +487,125 @@ export const useChat = () => {
 		messages: uiMessages,
 		sendMessage: sendUIMessage,
 		setMessages: setUIMessages,
+		clearError,
 		stop,
 		status,
 		error: chatError,
 	} = useAIChat<SureWordUIMessage>({ transport, throttle: 50 });
+
+	// --- Never lose an answer to a broken connection ------------------------
+	//
+	// A backgrounded phone, a sleeping laptop or a network change kills the
+	// streaming fetch mid-answer. The server keeps going and persists the
+	// finished answer (see the consumeSseStream drain in /api/ask-question), so
+	// the answer is waiting in the conversation - collect it instead of
+	// reporting a failure. Mirrors the Android client's recovery.
+	const pendingAnswerRef = useRef<string | null>(null);
+	const [recovering, setRecovering] = useState(false);
+	const recoveringRef = useRef(false);
+	const recoverVersionRef = useRef(0);
+	/** When the stream last produced anything - a stalled stream shows as old. */
+	const lastStreamActivityRef = useRef(0);
+	const statusRef = useRef(status);
+
+	useEffect(() => {
+		statusRef.current = status;
+	}, [status]);
+
+	useEffect(() => {
+		lastStreamActivityRef.current = Date.now();
+	}, [uiMessages]);
+
+	// A stream that finished on its own owes nothing.
+	useEffect(() => {
+		if (status === "ready" && !recoveringRef.current) pendingAnswerRef.current = null;
+	}, [status]);
+
+	const cancelRecovery = useCallback(() => {
+		recoverVersionRef.current += 1;
+		recoveringRef.current = false;
+		pendingAnswerRef.current = null;
+		setRecovering(false);
+	}, []);
+
+	/**
+	 * Poll the conversation until the finished answer appears, then swap it in
+	 * as if the stream had never broken. Only gives up once the server's own
+	 * budget has run out, at which point asking again is the honest option.
+	 */
+	const collectPendingAnswer = useCallback(
+		async (conversationId: string) => {
+			if (recoveringRef.current) return;
+			recoveringRef.current = true;
+			const version = ++recoverVersionRef.current;
+			setRecovering(true);
+
+			const deadline = Date.now() + RECOVERY_MAX_MS;
+			try {
+				while (Date.now() < deadline) {
+					if (version !== recoverVersionRef.current) return;
+					if (conversationIdRef.current !== conversationId) return;
+					try {
+						const res = await fetch(`/api/conversations/${conversationId}`);
+						if (version !== recoverVersionRef.current) return;
+						if (res.ok) {
+							const restored = completedHistory(await res.json());
+							if (restored) {
+								setUIMessages(restored.map(dbMessageToUIMessage));
+								pendingAnswerRef.current = null;
+								setSendError(null);
+								clearError();
+								return;
+							}
+						}
+					} catch {
+						// Offline or a transient failure - the answer is still being
+						// written server-side, so keep asking until the deadline.
+					}
+					await delay(RECOVERY_POLL_INTERVAL_MS);
+				}
+				if (version !== recoverVersionRef.current) return;
+				pendingAnswerRef.current = null;
+				setSendError(RECOVERY_FAILED_ERROR);
+			} finally {
+				if (version === recoverVersionRef.current) {
+					recoveringRef.current = false;
+					setRecovering(false);
+				}
+			}
+		},
+		[clearError, setUIMessages]
+	);
+
+	// A broken stream is a collection job, not a failure to show the user.
+	useEffect(() => {
+		if (!chatError) return;
+		const conversationId = pendingAnswerRef.current;
+		if (!conversationId) return;
+		void collectPendingAnswer(conversationId);
+	}, [chatError, collectPendingAnswer]);
+
+	// Coming back to the tab: give a stalled stream a moment to resume, and
+	// collect from the server only once it is clear nothing is arriving.
+	useEffect(() => {
+		const onVisible = () => {
+			if (document.visibilityState !== "visible") return;
+			const conversationId = pendingAnswerRef.current;
+			if (!conversationId || recoveringRef.current) return;
+
+			void (async () => {
+				await delay(RESUME_GRACE_MS);
+				if (pendingAnswerRef.current !== conversationId || recoveringRef.current) return;
+				if (statusRef.current === "ready") return;
+				if (Date.now() - lastStreamActivityRef.current < RESUME_GRACE_MS) return;
+				stop();
+				void collectPendingAnswer(conversationId);
+			})();
+		};
+
+		document.addEventListener("visibilitychange", onVisible);
+		return () => document.removeEventListener("visibilitychange", onVisible);
+	}, [collectPendingAnswer, stop]);
 
 	// Load conversation list on mount
 	useEffect(() => {
@@ -507,6 +641,7 @@ export const useChat = () => {
 
 			discardFileAttachments(fileAttachments);
 			setFileAttachments([]);
+			cancelRecovery();
 			stop();
 			setActiveConversationId(id);
 			conversationIdRef.current = id;
@@ -540,7 +675,7 @@ export const useChat = () => {
 				}
 			}
 		},
-		[discardFileAttachments, fileAttachments, stop, setUIMessages]
+		[cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]
 	);
 
 	const retryHistory = useCallback(() => {
@@ -558,6 +693,7 @@ export const useChat = () => {
 		historyErrorRef.current = false;
 		discardFileAttachments(fileAttachments);
 		setFileAttachments([]);
+		cancelRecovery();
 		stop();
 		setHistoryLoading(false);
 		setHistoryError(null);
@@ -565,7 +701,7 @@ export const useChat = () => {
 		conversationIdRef.current = null;
 		setSendError(null);
 		setUIMessages([]);
-	}, [discardFileAttachments, fileAttachments, stop, setUIMessages]);
+	}, [cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
@@ -646,6 +782,11 @@ export const useChat = () => {
 			setAttachmentState(null);
 			const sendingAttachments = fileAttachments;
 			setFileAttachments([]);
+			// From here the server owns the answer: if this client's stream dies
+			// the answer is still written and persisted, and the recovery poll
+			// collects it. Without a conversation there is nothing to collect.
+			pendingAnswerRef.current = conversationIdRef.current;
+			lastStreamActivityRef.current = Date.now();
 			void sendUIMessage({
 				metadata: sendingAttachments.length > 0
 					? { attachmentIds: sendingAttachments.map((item) => item.id) }
@@ -665,7 +806,9 @@ export const useChat = () => {
 	);
 
 	const isStreaming = status === "streaming";
-	const loading = status === "submitted";
+	// Collecting a finished answer from the server reads as "still working" -
+	// the user asked a question and one is on its way, same as a live stream.
+	const loading = status === "submitted" || recovering;
 
 	const messages = useMemo(() => {
 		const lastAssistantId = [...uiMessages]
@@ -699,7 +842,9 @@ export const useChat = () => {
 	const activeConversation =
 		conversations.find((c) => c.id === activeConversationId) ?? null;
 
-	const error = sendError ?? (chatError ? chatError.message : null);
+	// A broken stream while an answer is being collected is not the user's
+	// problem to see - it resolves itself.
+	const error = recovering ? null : (sendError ?? (chatError ? chatError.message : null));
 
 	return {
 		messages,

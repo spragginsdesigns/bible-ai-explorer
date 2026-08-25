@@ -1,9 +1,21 @@
 import { apiJson, type GetToken } from "@/lib/api";
 
-/** Register/refresh this device's Expo push token for the verse-of-the-day cron. */
+/**
+ * Register/refresh this device's Expo push token. `enabled` governs the
+ * verse-of-the-day cron and `chatReplies` the "your answer is ready" push; the
+ * token itself stays registered either way, so turning one off never silences
+ * the other.
+ */
 export function registerPushToken(
 	getToken: GetToken,
-	body: { token: string; platform: "ios" | "android"; timezone: string; notifyHour: number }
+	body: {
+		token: string;
+		platform: "ios" | "android";
+		timezone: string;
+		notifyHour: number;
+		enabled: boolean;
+		chatReplies: boolean;
+	}
 ) {
 	return apiJson<{ success: boolean }>(getToken, "/api/push-tokens", {
 		method: "POST",
@@ -11,7 +23,7 @@ export function registerPushToken(
 	});
 }
 
-/** Stop verse-of-the-day pushes to this device. */
+/** Forget this device entirely - no push of any kind reaches it again. */
 export function unregisterPushToken(getToken: GetToken, token: string) {
 	return apiJson<{ success: boolean }>(getToken, "/api/push-tokens", {
 		method: "DELETE",

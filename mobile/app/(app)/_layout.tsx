@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
-import { useVerseOfDayNotifications } from "@/features/notifications/useVerseOfDayNotifications";
+import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 
@@ -97,7 +97,7 @@ export default function AppLayout() {
 	const { isLoaded, isSignedIn } = useAuth();
 	const { colors } = useTheme();
 	// Verse-of-the-day: push-token registration + notification tap deep links.
-	useVerseOfDayNotifications();
+	usePushNotifications();
 	// Play in-app updates: background-download a newer build and self-install.
 	useInAppUpdates();
 
