@@ -5,26 +5,36 @@ import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
 export function ErrorCard({
+	title,
 	message,
+	code,
 	retryLabel = "Retry",
 	onRetry,
 }: {
+	title?: string;
 	message: string;
+	/** Failure code, shown muted so a screenshot identifies the error. */
+	code?: string;
 	retryLabel?: string;
-	onRetry: () => void;
+	/** Omit for failures retrying cannot fix (bad input, expired session). */
+	onRetry?: () => void;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	return (
 		<View style={styles.card}>
+			{title ? <Text style={styles.title}>{title}</Text> : null}
 			<Text style={styles.message}>{message}</Text>
-			<Pressable
-				accessibilityRole="button"
-				onPress={onRetry}
-				style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.surfacePressed }]}
-			>
-				<Text style={styles.buttonLabel}>{retryLabel}</Text>
-			</Pressable>
+			{code ? <Text style={styles.ref}>ref: {code}</Text> : null}
+			{onRetry ? (
+				<Pressable
+					accessibilityRole="button"
+					onPress={onRetry}
+					style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.surfacePressed }]}
+				>
+					<Text style={styles.buttonLabel}>{retryLabel}</Text>
+				</Pressable>
+			) : null}
 		</View>
 	);
 }
@@ -40,7 +50,9 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.lg,
 			gap: spacing.md,
 		},
+		title: { color: c.text, fontSize: 14, fontWeight: "700" },
 		message: { color: c.textSecondary, fontSize: 13, lineHeight: 20 },
+		ref: { color: c.textMuted, fontSize: 11 },
 		button: {
 			alignSelf: "flex-start",
 			paddingHorizontal: spacing.lg,

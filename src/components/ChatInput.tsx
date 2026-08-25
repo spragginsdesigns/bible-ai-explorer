@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Loader2, Paperclip, X } from "lucide-react";
+import { Send, Loader2, Paperclip, X, RefreshCw } from "lucide-react";
 import {
 	matchSlashCommands,
 	parseSlashCommand,
 	type LocalCommandAction,
 	type SlashCommand,
 } from "@/lib/chat/slashCommands";
+import type { ClassifiedChatError } from "@/lib/chat/chatErrors";
 import type { VerseAttachment } from "@/lib/chat/verseActions";
 import type { ChatAttachmentDescriptor } from "@/lib/chat-attachment-types";
 import ChatFileAttachments from "./ChatFileAttachments";
@@ -26,6 +27,10 @@ interface ChatInputProps {
 	fileAttachments?: ChatAttachmentDescriptor[];
 	uploadingAttachments?: boolean;
 	attachmentError?: string | null;
+	/** Classified send/stream failure, rendered as an inline error card. */
+	error?: ClassifiedChatError | null;
+	/** Retries the failed send; shown as "Try again" when the error is retryable. */
+	onRetry?: () => void;
 	onFilesSelected?: (files: File[]) => void;
 	onRemoveFileAttachment?: (id: string) => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
@@ -47,6 +52,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	fileAttachments = [],
 	uploadingAttachments = false,
 	attachmentError = null,
+	error = null,
+	onRetry,
 	onFilesSelected,
 	onRemoveFileAttachment,
 	value,
@@ -144,6 +151,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 	const canSend = Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
 
+	// Attachment failures keep their string shape; they get the same card
+	// treatment as send errors, minus the retry (re-pick the file instead).
+	const shownError: ClassifiedChatError | null = attachmentError
+		? { code: "invalid_input", title: "Couldn't attach that file", message: attachmentError, retryable: false }
+		: error;
+
 	return (
 		<div
 			className={`border-t glass pb-safe transition-colors ${dragging ? "border-amber-500 bg-amber-500/[0.05]" : "border-black/[0.08] dark:border-white/[0.06]"}`}
@@ -178,8 +191,35 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						<ChatFileAttachments attachments={fileAttachments} onRemove={onRemoveFileAttachment} />
 					</div>
 				)}
-				{attachmentError && (
-					<p role="alert" className="mb-2 text-xs text-red-600 dark:text-red-400">{attachmentError}</p>
+				{shownError && (
+					<div
+						role="alert"
+						className="mb-2 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2.5"
+					>
+						<div className="flex items-start justify-between gap-3">
+							<div className="min-w-0">
+								<p className="text-xs font-semibold text-red-700 dark:text-red-400">
+									{shownError.title}
+								</p>
+								<p className="mt-0.5 text-xs leading-5 text-neutral-600 dark:text-neutral-400">
+									{shownError.message}
+								</p>
+								<p className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-600">
+									ref: {shownError.code}
+								</p>
+							</div>
+							{shownError.retryable && onRetry && (
+								<button
+									type="button"
+									onClick={onRetry}
+									className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:text-neutral-300 dark:hover:bg-white/[0.05]"
+								>
+									<RefreshCw className="h-3 w-3" />
+									Try again
+								</button>
+							)}
+						</div>
+					</div>
 				)}
 				{dragging && (
 					<p className="mb-2 text-center text-xs font-medium text-amber-700 dark:text-amber-400">Drop files to attach</p>

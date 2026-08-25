@@ -11,6 +11,12 @@ import {
 } from "@/lib/chat-attachment-types";
 import { completedHistory } from "@/lib/chat/answerRecovery";
 import {
+	classifyChatError,
+	conversationStartError,
+	recoveryExhaustedError,
+	type ClassifiedChatError,
+} from "@/lib/chat/chatErrors";
+import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
@@ -70,8 +76,6 @@ export interface Conversation {
 
 const HISTORY_LOAD_ERROR =
 	"We couldn't load this conversation. Retry to restore its context, or start a new chat.";
-
-const RECOVERY_FAILED_ERROR = "We couldn't retrieve that answer. Ask again to retry.";
 
 /** How often the recovery poll asks the server whether the answer has landed. */
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
@@ -357,7 +361,7 @@ export const useChat = () => {
 	const [initialLoading, setInitialLoading] = useState(true);
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [historyError, setHistoryError] = useState<string | null>(null);
-	const [sendError, setSendError] = useState<string | null>(null);
+	const [sendError, setSendError] = useState<ClassifiedChatError | null>(null);
 	const [input, setInput] = useState("");
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
@@ -460,6 +464,8 @@ export const useChat = () => {
 	}, []);
 	const initialized = useRef(false);
 	const conversationIdRef = useRef<string | null>(null);
+	/** Text of a send that never left the device, so "Try again" can re-fire it. */
+	const lastFailedSendRef = useRef<string | null>(null);
 	const historyLoadVersionRef = useRef(0);
 	const historyLoadingRef = useRef(false);
 	const historyErrorRef = useRef(false);
@@ -489,6 +495,7 @@ export const useChat = () => {
 		setMessages: setUIMessages,
 		clearError,
 		stop,
+		regenerate,
 		status,
 		error: chatError,
 	} = useAIChat<SureWordUIMessage>({ transport, throttle: 50 });
@@ -566,7 +573,7 @@ export const useChat = () => {
 				}
 				if (version !== recoverVersionRef.current) return;
 				pendingAnswerRef.current = null;
-				setSendError(RECOVERY_FAILED_ERROR);
+				setSendError(recoveryExhaustedError());
 			} finally {
 				if (version === recoverVersionRef.current) {
 					recoveringRef.current = false;
@@ -748,7 +755,14 @@ export const useChat = () => {
 			setSendError(null);
 
 			// Create the conversation first so the server can persist the exchange.
+			// If it fails, do NOT send: without a conversation the answer cannot be
+			// recovered if the stream breaks, so a silent null-id send turns one
+			// hiccup into a lost answer. Surface a retryable error instead.
 			if (!conversationIdRef.current) {
+				const failCreate = (classified: ClassifiedChatError) => {
+					setSendError(classified.code === "internal" ? conversationStartError() : classified);
+					lastFailedSendRef.current = text;
+				};
 				try {
 					const title = composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`;
 					const res = await fetch("/api/conversations", {
@@ -756,26 +770,25 @@ export const useChat = () => {
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ title: title.slice(0, 60) }),
 					});
-					if (res.ok) {
-						const created = await res.json();
-						conversationIdRef.current = created.id;
-						setActiveConversationId(created.id);
-						setConversations((prev) => [
-							{
-								id: created.id,
-								title: title.slice(0, 60),
-								createdAt: new Date().toISOString(),
-							},
-							...prev,
-						]);
-					} else if (fileAttachments.length > 0) {
-						throw new Error("Could not create a conversation for the attachments.");
-					}
-				} catch (error) {
-					if (fileAttachments.length > 0) {
-						setSendError(error instanceof Error ? error.message : "Could not create the conversation.");
+					if (!res.ok) {
+						const bodyText = await res.text().catch(() => undefined);
+						failCreate(classifyChatError({ status: res.status, bodyText }));
 						return;
 					}
+					const created = await res.json();
+					conversationIdRef.current = created.id;
+					setActiveConversationId(created.id);
+					setConversations((prev) => [
+						{
+							id: created.id,
+							title: title.slice(0, 60),
+							createdAt: new Date().toISOString(),
+						},
+						...prev,
+					]);
+				} catch {
+					failCreate(classifyChatError({ isNetworkError: true }));
+					return;
 				}
 			}
 
@@ -804,6 +817,23 @@ export const useChat = () => {
 		},
 		[attachment, fileAttachments, sendUIMessage, status, uploadingAttachments]
 	);
+
+	/**
+	 * Re-fire the last failed send. If the message never left the device
+	 * (conversation creation failed) send the stored text again; otherwise the
+	 * message reached the server and a regenerate replays the last exchange.
+	 */
+	const retrySend = useCallback(() => {
+		const failedText = lastFailedSendRef.current;
+		lastFailedSendRef.current = null;
+		if (failedText) {
+			void sendMessage(failedText);
+			return;
+		}
+		setSendError(null);
+		clearError();
+		void regenerate();
+	}, [sendMessage, clearError, regenerate]);
 
 	const isStreaming = status === "streaming";
 	// Collecting a finished answer from the server reads as "still working" -
@@ -844,7 +874,14 @@ export const useChat = () => {
 
 	// A broken stream while an answer is being collected is not the user's
 	// problem to see - it resolves itself.
-	const error = recovering ? null : (sendError ?? (chatError ? chatError.message : null));
+	const error = useMemo<ClassifiedChatError | null>(() => {
+		if (recovering) return null;
+		if (sendError) return sendError;
+		// The transport throws pre-stream HTTP failures with the raw response
+		// body as the message and mid-stream chunks as "[code] message" - the
+		// classifier unpacks both shapes.
+		return chatError ? classifyChatError({ message: chatError.message }) : null;
+	}, [recovering, sendError, chatError]);
 
 	return {
 		messages,
@@ -868,6 +905,7 @@ export const useChat = () => {
 		addFileAttachments,
 		removeFileAttachment,
 		sendMessage,
+		retrySend,
 		newConversation,
 		switchConversation,
 		retryHistory,

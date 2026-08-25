@@ -32,6 +32,7 @@ import type { ChatAttachmentDescriptor } from "./fileAttachments";
 import type { PastedImageFile } from "./pastedImages";
 import { FileAttachmentCards } from "./FileAttachmentCards";
 import { AttachmentSourceSheet } from "./AttachmentSourceSheet";
+import { ErrorCard } from "./ErrorCard";
 
 interface ChatInputBarProps {
 	onSend: (text: string) => void;
@@ -211,7 +212,7 @@ export function ChatInputBar({
 				</View>
 			)}
 			{attachmentError && (
-				<Text style={styles.attachmentError}>{attachmentError}</Text>
+				<ErrorCard message={attachmentError} />
 			)}
 			{suggestions.length > 0 && !locked && (
 				<View style={styles.palette}>
@@ -340,11 +341,6 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: 2,
 		},
 		files: { marginBottom: spacing.sm },
-		attachmentError: {
-			color: c.danger,
-			fontSize: 12,
-			marginBottom: spacing.sm,
-		},
 		palette: {
 			position: "absolute",
 			bottom: "100%",

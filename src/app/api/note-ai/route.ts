@@ -15,7 +15,7 @@ import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
-import { UserFacingError } from "@/lib/ai/errors";
+import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import {
 	createStatusWriter,
 	hasPersistableContent,
@@ -117,13 +117,13 @@ export async function POST(req: Request): Promise<Response> {
 
 		if (typeof requestData.noteId !== "string" || !requestData.noteId) {
 			return NextResponse.json(
-				{ error: "Invalid input: 'noteId' is required." },
+				chatErrorPayload("invalid_input", "Invalid input: 'noteId' is required."),
 				{ status: 400 }
 			);
 		}
 		if (!Array.isArray(requestData.messages) || requestData.messages.length === 0) {
 			return NextResponse.json(
-				{ error: "Invalid input: 'messages' must be a non-empty array." },
+				chatErrorPayload("invalid_input", "Invalid input: 'messages' must be a non-empty array."),
 				{ status: 400 }
 			);
 		}
@@ -133,7 +133,10 @@ export async function POST(req: Request): Promise<Response> {
 			select: { id: true, title: true, plainText: true },
 		});
 		if (!note) {
-			return NextResponse.json({ error: "Note not found." }, { status: 404 });
+			return NextResponse.json(
+				chatErrorPayload("conversation_not_found", "Note not found."),
+				{ status: 404 }
+			);
 		}
 
 		const userPrefs = await prisma.user.findUnique({
@@ -155,7 +158,7 @@ export async function POST(req: Request): Promise<Response> {
 		const lastMessage = messages.at(-1);
 		if (!lastMessage || lastMessage.role !== "user" || !extractText(lastMessage)) {
 			return NextResponse.json(
-				{ error: "Invalid input: the last message must be a non-empty user message." },
+				chatErrorPayload("invalid_input", "Invalid input: the last message must be a non-empty user message."),
 				{ status: 400 }
 			);
 		}
@@ -164,11 +167,10 @@ export async function POST(req: Request): Promise<Response> {
 			originalMessages: messages,
 			generateId: generateMessageId,
 			onError: (error) => {
-				if (error instanceof UserFacingError || error instanceof AiCredentialError) {
-					return error.message;
+				if (!(error instanceof UserFacingError || error instanceof AiCredentialError)) {
+					console.error("note-ai stream error:", error);
 				}
-				console.error("note-ai stream error:", error);
-				return "An error occurred.";
+				return streamErrorText(error);
 			},
 			onEnd: ({ responseMessage, isAborted }) => {
 				if (isAborted) return;
@@ -227,14 +229,12 @@ export async function POST(req: Request): Promise<Response> {
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in note-ai route:", error);
-		if (error instanceof Error) {
-			return NextResponse.json(
-				{ error: `An error occurred: ${error.message}` },
-				{ status: 500 }
-			);
+		if (error instanceof UserFacingError) {
+			return NextResponse.json(chatErrorPayload(error.code, error.message), { status: 400 });
 		}
+		// Never interpolate the exception message (see ask-question).
 		return NextResponse.json(
-			{ error: "An unknown error occurred while processing your request." },
+			chatErrorPayload("internal", "Something went wrong on our end. Please try again."),
 			{ status: 500 }
 		);
 	}

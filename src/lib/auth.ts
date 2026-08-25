@@ -86,7 +86,7 @@ export async function getAuthUserId(): Promise<string> {
 	const { userId } = await auth();
 
 	if (!userId) {
-		throw new Response(JSON.stringify({ error: "Unauthorized" }), {
+		throw new Response(JSON.stringify({ error: "Unauthorized", code: "unauthorized" }), {
 			status: 401,
 			headers: { "Content-Type": "application/json" },
 		});
@@ -106,7 +106,7 @@ export async function getAuthUser(): Promise<string> {
 	const { userId } = await auth();
 
 	if (!userId) {
-		throw new Response(JSON.stringify({ error: "Unauthorized" }), {
+		throw new Response(JSON.stringify({ error: "Unauthorized", code: "unauthorized" }), {
 			status: 401,
 			headers: { "Content-Type": "application/json" },
 		});
@@ -125,7 +125,7 @@ export async function getAuthUserWithProfile(): Promise<string> {
 	const { userId } = await auth();
 
 	if (!userId) {
-		throw new Response(JSON.stringify({ error: "Unauthorized" }), {
+		throw new Response(JSON.stringify({ error: "Unauthorized", code: "unauthorized" }), {
 			status: 401,
 			headers: { "Content-Type": "application/json" },
 		});

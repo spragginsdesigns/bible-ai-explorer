@@ -146,7 +146,7 @@ export default function ChatScreen() {
 		[chat, onNewChat]
 	);
 
-	const showWelcome = messages.length === 0 && !historyLoading && !historyError;
+	const showWelcome = messages.length === 0 && !historyLoading && !historyError && !error;
 
 	return (
 		<Screen>
@@ -204,7 +204,12 @@ export default function ChatScreen() {
 					</View>
 				) : historyError ? (
 					<View style={styles.centerPadded}>
-						<ErrorCard message={historyError} onRetry={retryHistory} />
+						<ErrorCard
+							title={historyError.title}
+							message={historyError.message}
+							code={historyError.code}
+							onRetry={retryHistory}
+						/>
 					</View>
 				) : showWelcome ? (
 					<WelcomeState onSelectQuestion={send} bottomInset={spacing.lg} />
@@ -217,9 +222,11 @@ export default function ChatScreen() {
 					>
 						{error && (
 							<ErrorCard
-								message={`Something went wrong while answering: ${error}`}
+								title={error.title}
+								message={error.message}
+								code={error.code}
 								retryLabel="Try again"
-								onRetry={retrySend}
+								onRetry={error.retryable ? retrySend : undefined}
 							/>
 						)}
 					</MessageList>

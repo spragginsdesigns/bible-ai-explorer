@@ -1,5 +1,4 @@
 import {
-	APICallError,
 	convertToModelMessages,
 	createIdGenerator,
 	createUIMessageStream,
@@ -22,8 +21,9 @@ import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
-import { UserFacingError } from "@/lib/ai/errors";
+import { resolveModel } from "@/lib/ai/provider";
+import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
+import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
 	createNarratedDownload,
 	createStatusWriter,
@@ -212,7 +212,7 @@ async function persistUserMessage(options: {
 			where: { id: options.conversationId, userId: options.userId },
 			select: { id: true },
 		});
-		if (!conversation) throw new UserFacingError("Conversation not found.");
+		if (!conversation) throw new UserFacingError("Conversation not found.", "conversation_not_found");
 
 		const existing = await tx.message.findUnique({
 			where: { id: options.userMessage.id },
@@ -304,6 +304,17 @@ export async function POST(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
 
+		const rate = askQuestionRateLimiter.check(rateLimitKey(req, userId));
+		if (!rate.allowed) {
+			return NextResponse.json(
+				chatErrorPayload(
+					"rate_limited",
+					"Slow down — you're asking questions faster than we can keep up. Try again in a moment."
+				),
+				{ status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+			);
+		}
+
 		const body: unknown = await req.json();
 		const requestData =
 			typeof body === "object" && body !== null
@@ -312,7 +323,7 @@ export async function POST(req: Request): Promise<Response> {
 
 		if (!Array.isArray(requestData.messages) || requestData.messages.length === 0) {
 			return NextResponse.json(
-				{ error: "Invalid input: 'messages' must be a non-empty array." },
+				chatErrorPayload("invalid_input", "Invalid input: 'messages' must be a non-empty array."),
 				{ status: 400 }
 			);
 		}
@@ -354,7 +365,7 @@ export async function POST(req: Request): Promise<Response> {
 			(!extractText(lastMessage) && attachmentIds(lastMessage).length === 0)
 		) {
 			return NextResponse.json(
-				{ error: "Invalid input: the last message needs text or an attachment." },
+				chatErrorPayload("invalid_input", "Invalid input: the last message needs text or an attachment."),
 				{ status: 400 }
 			);
 		}
@@ -368,7 +379,7 @@ export async function POST(req: Request): Promise<Response> {
 		);
 		if (hasAttachments && !conversationId) {
 			return NextResponse.json(
-				{ error: "Create a conversation before sending an attachment." },
+				chatErrorPayload("invalid_input", "Create a conversation before sending an attachment."),
 				{ status: 400 },
 			);
 		}
@@ -385,17 +396,10 @@ export async function POST(req: Request): Promise<Response> {
 			originalMessages: validatedMessages,
 			generateId: generateMessageId,
 			onError: (error) => {
-				if (error instanceof UserFacingError || error instanceof AiCredentialError) {
-					return error.message;
+				if (!(error instanceof UserFacingError)) {
+					console.error("ask-question stream error:", error);
 				}
-				console.error("ask-question stream error:", error);
-				// A provider rejection is the user's to act on (wrong model for the
-				// job, an expired key, a rate limit) - "An error occurred" sends
-				// them nowhere.
-				if (APICallError.isInstance(error)) {
-					return "The AI provider could not complete this request. Try again, or pick a different model from the model picker.";
-				}
-				return "An error occurred.";
+				return streamErrorText(error);
 			},
 			onEnd: ({ responseMessage, isAborted }) => {
 				if (isAborted || !conversationId) return;
@@ -528,14 +532,13 @@ export async function POST(req: Request): Promise<Response> {
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in ask-question route:", error);
-		if (error instanceof Error) {
-			return NextResponse.json(
-				{ error: `An error occurred: ${error.message}` },
-				{ status: 500 }
-			);
+		if (error instanceof UserFacingError) {
+			return NextResponse.json(chatErrorPayload(error.code, error.message), { status: 400 });
 		}
+		// Never interpolate the exception message - it can carry provider or
+		// database internals. The real error is in the server log above.
 		return NextResponse.json(
-			{ error: "An unknown error occurred while processing your request." },
+			chatErrorPayload("internal", "Something went wrong on our end. Please try again."),
 			{ status: 500 }
 		);
 	}

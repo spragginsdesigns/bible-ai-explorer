@@ -65,6 +65,7 @@ const BibleAIExplorerInner: React.FC = () => {
 		addFileAttachments,
 		removeFileAttachment,
 		sendMessage,
+		retrySend,
 		newConversation,
 		switchConversation,
 		retryHistory,
@@ -227,7 +228,9 @@ const BibleAIExplorerInner: React.FC = () => {
 					onClearAttachment={clearAttachment}
 					fileAttachments={fileAttachments}
 					uploadingAttachments={uploadingAttachments}
-					attachmentError={attachmentError ?? error}
+					attachmentError={attachmentError}
+					error={error}
+					onRetry={retrySend}
 					onFilesSelected={addFileAttachments}
 					onRemoveFileAttachment={(id) => void removeFileAttachment(id)}
 					focusSignal={focusSignal}

@@ -12,6 +12,11 @@ import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { markConversationStopped } from "@/features/notifications/chatStopSignals";
 import { completedHistory } from "./answerRecovery";
+import {
+	classifyChatError,
+	recoveryExhaustedError,
+	type ClassifiedChatError,
+} from "./chatErrors";
 import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
 import {
@@ -39,8 +44,8 @@ export interface SureWordChat {
 	loading: boolean;
 	initialLoading: boolean;
 	historyLoading: boolean;
-	historyError: string | null;
-	error: string | null;
+	historyError: ClassifiedChatError | null;
+	error: ClassifiedChatError | null;
 	/** Draft text of the chat input, so screens can prefill it (e.g. ?prompt=). */
 	input: string;
 	setInput: (text: string) => void;
@@ -70,8 +75,8 @@ export interface SureWordChat {
 const HISTORY_LOAD_ERROR =
 	"We couldn't load this conversation. Retry to restore its context, or start a new chat.";
 
-const RECOVERY_FAILED_ERROR =
-	"We couldn't retrieve that answer. Retry to ask again.";
+const CONVERSATION_CREATE_ERROR =
+	"Couldn't start the conversation. Check your connection and try again.";
 
 /** How often the recovery poll asks the server whether the answer has landed. */
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
@@ -123,8 +128,8 @@ export function useSureWordChat(): SureWordChat {
 	const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 	const [initialLoading, setInitialLoading] = useState(true);
 	const [historyLoading, setHistoryLoading] = useState(false);
-	const [historyError, setHistoryError] = useState<string | null>(null);
-	const [sendError, setSendError] = useState<string | null>(null);
+	const [historyError, setHistoryError] = useState<ClassifiedChatError | null>(null);
+	const [sendError, setSendError] = useState<ClassifiedChatError | null>(null);
 	const [input, setInput] = useState("");
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
@@ -273,6 +278,8 @@ export function useSureWordChat(): SureWordChat {
 	const historyLoadVersionRef = useRef(0);
 	const historyLoadingRef = useRef(false);
 	const historyErrorRef = useRef(false);
+	/** Text of a send that failed before the stream opened, so retry can resend it. */
+	const lastFailedSendRef = useRef<string | null>(null);
 
 	const transport = useMemo(
 		() =>
@@ -392,7 +399,7 @@ export function useSureWordChat(): SureWordChat {
 				}
 				if (version !== recoverVersionRef.current) return;
 				pendingAnswerRef.current = null;
-				setSendError(RECOVERY_FAILED_ERROR);
+				setSendError(recoveryExhaustedError());
 			} finally {
 				if (version === recoverVersionRef.current) {
 					recoveringRef.current = false;
@@ -475,10 +482,10 @@ export function useSureWordChat(): SureWordChat {
 					throw new Error("Conversation history response was invalid.");
 				}
 				setUIMessages(data.messages.map(dbMessageToUIMessage));
-			} catch {
+			} catch (error) {
 				if (loadVersion === historyLoadVersionRef.current) {
 					historyErrorRef.current = true;
-					setHistoryError(HISTORY_LOAD_ERROR);
+					setHistoryError(classifyChatError(error, { message: HISTORY_LOAD_ERROR }));
 				}
 			} finally {
 				if (loadVersion === historyLoadVersionRef.current) {
@@ -510,6 +517,7 @@ export function useSureWordChat(): SureWordChat {
 		setHistoryError(null);
 		setActiveConversationId(null);
 		conversationIdRef.current = null;
+		lastFailedSendRef.current = null;
 		setSendError(null);
 		setUIMessages([]);
 	}, [abandonPendingAnswer, cancelRecovery, discardFileAttachments, fileAttachments, setUIMessages]);
@@ -556,6 +564,7 @@ export function useSureWordChat(): SureWordChat {
 
 			setSendError(null);
 			clearError();
+			lastFailedSendRef.current = null;
 
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
@@ -572,10 +581,13 @@ export function useSureWordChat(): SureWordChat {
 						...prev,
 					]);
 				} catch (error) {
-					if (fileAttachments.length > 0) {
-						setSendError(error instanceof Error ? error.message : "Could not create the conversation.");
-						return;
-					}
+					// Do NOT send without a conversation: the recovery poll collects a
+					// finished answer from the conversation, so a conversationless
+					// stream could lose the answer outright. Remember the question so
+					// "Try again" resends it instead of regenerating nothing.
+					lastFailedSendRef.current = text;
+					setSendError(classifyChatError(error, { message: CONVERSATION_CREATE_ERROR }));
+					return;
 				}
 			}
 
@@ -607,6 +619,15 @@ export function useSureWordChat(): SureWordChat {
 	);
 
 	const retrySend = useCallback(() => {
+		// The send never happened (the conversation could not be created), so
+		// there is no stream to regenerate - resend the original question.
+		const failedSend = lastFailedSendRef.current;
+		if (failedSend !== null && !conversationIdRef.current) {
+			lastFailedSendRef.current = null;
+			setSendError(null);
+			void sendMessage(failedSend);
+			return;
+		}
 		abandonPendingAnswer();
 		cancelRecovery();
 		setSendError(null);
@@ -614,7 +635,7 @@ export function useSureWordChat(): SureWordChat {
 		pendingAnswerRef.current = conversationIdRef.current;
 		lastStreamActivityRef.current = Date.now();
 		void regenerate();
-	}, [abandonPendingAnswer, cancelRecovery, clearError, regenerate]);
+	}, [abandonPendingAnswer, cancelRecovery, clearError, regenerate, sendMessage]);
 
 	const isStreaming = status === "streaming";
 	// Collecting a finished answer from the server reads as "still working" -
@@ -664,7 +685,7 @@ export function useSureWordChat(): SureWordChat {
 		historyError,
 		// A broken stream while an answer is being collected is not the user's
 		// problem to see - it resolves itself.
-		error: recovering ? null : (sendError ?? (chatError ? chatError.message : null)),
+		error: recovering ? null : (sendError ?? (chatError ? classifyChatError(chatError) : null)),
 		input,
 		setInput,
 		attachment,
