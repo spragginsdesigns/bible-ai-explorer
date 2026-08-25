@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.25.0 (versionCode 21) - 2026-08-25 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- When something goes wrong in Chat, SureWord now explains what happened in plain language and offers a Try again button when retrying can help - no more technical noise.
+
+FIXED
+- A question could rarely fail to send without any message at all. You'll always see what happened and can retry.
+
+**Dev notes:** Server now returns coded errors ({error, code}) from ask-question/note-ai, mid-stream errors carry a [code] prefix, raw exception text no longer leaks into 500s, and ask-question is rate-limited (20 req / 5 min per user, 429 + Retry-After) - server-side, reaches every installed build without a release. Clients classify errors into titled, retryable cards with a ref code; a failed conversation create now aborts the send with a retry instead of silently shipping an unrecoverable message.
+
+---
+
 ## 1.24.0 (versionCode 20) - 2026-08-25 - internal
 
 **What's new (Play):**
