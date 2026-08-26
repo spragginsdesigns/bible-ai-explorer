@@ -18,6 +18,11 @@ model User {
   // When false, the webSearch (Tavily) tool is not offered to the model
   // (Settings → Web Search toggle). Server-enforced in the chat routes.
   webSearchEnabled Boolean     @default(true)
+  // Subscription tier: "free" | "pro". SureWord Pro gates the paid benefits
+  // (currently Listen, the spoken devotional). Read through
+  // src/lib/entitlements.ts, never directly - the PRO_USER_IDS allowlist
+  // grants Pro without a database write.
+  plan          String         @default("free")
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
   // falls back to the default rather than erroring.

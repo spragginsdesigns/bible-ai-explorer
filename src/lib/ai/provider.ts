@@ -3,6 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { AiProvider } from "@prisma/client";
 import type { JSONValue, LanguageModel } from "ai";
+import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import {
@@ -57,11 +58,7 @@ function serverKeyFor(provider: ProviderId): string | undefined {
  * Everyone else brings their own key — the app never foots their LLM bill.
  */
 export function isServerCredentialUser(userId: string): boolean {
-	return (process.env.SERVER_CREDENTIAL_USER_IDS ?? "")
-		.split(",")
-		.map((id) => id.trim())
-		.filter(Boolean)
-		.includes(userId);
+	return parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS).includes(userId);
 }
 
 async function userKeyFor(userId: string, provider: ProviderId): Promise<string | null> {

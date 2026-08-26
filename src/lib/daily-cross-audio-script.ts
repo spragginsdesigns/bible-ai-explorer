@@ -39,8 +39,17 @@ export type DailyCrossAudioStatus = "pending" | "ready" | "failed";
  * has asked yet) and from "failed" (it tried and could not). Clients render
  * nothing for it: an unconfigured server must show no Listen card rather than
  * a button that can only ever fail.
+ *
+ * "locked" means the deployment can narrate but this user is not on SureWord
+ * Pro. It is answered before any database write, model call or ElevenLabs
+ * request, so a free account never costs a cent, and the clients show the Pro
+ * card rather than hiding the feature - a locked benefit should be visible.
  */
-export type DailyCrossAudioClientStatus = DailyCrossAudioStatus | "none" | "unavailable";
+export type DailyCrossAudioClientStatus =
+	| DailyCrossAudioStatus
+	| "none"
+	| "unavailable"
+	| "locked";
 
 /**
  * Whether this deployment can synthesize speech at all. Checked before any
@@ -161,4 +170,68 @@ export function resolveStoredAudio(
 /** The blob path today's devotional is stored at. One per cross entry. */
 export function dailyCrossAudioPathname(userId: string, verseOfDayId: string): string {
 	return `daily-cross-audio/${userId}/${verseOfDayId}.mp3`;
+}
+
+/**
+ * Where clients play the narration from: our own origin, not the blob host.
+ * Relative on purpose - web hands it straight to an `<audio>` element and
+ * Android joins it onto `API_URL`. See the route for why the proxy exists.
+ */
+export const DAILY_CROSS_AUDIO_STREAM_PATH = "/api/verse-of-day/audio/stream";
+
+/** The upstream blob response, reduced to the three headers that matter here. */
+export interface UpstreamAudioHeaders {
+	contentType?: string | null;
+	contentLength?: string | null;
+	contentRange?: string | null;
+}
+
+/** Status line and headers for one proxied chunk of the narration. */
+export interface AudioStreamResponseInit {
+	status: 200 | 206;
+	headers: Record<string, string>;
+}
+
+/** A byte range the blob host actually served, e.g. "bytes 0-1023/4096". */
+const CONTENT_RANGE_PATTERN = /^bytes \d+-\d+\/(?:\d+|\*)$/;
+
+/**
+ * Turn what the blob host answered into what we answer.
+ *
+ * The upstream decides whether a range was honoured, not the incoming request:
+ * a client can ask for `bytes=0-` and be handed the whole file with a plain
+ * 200, and answering 206 to that would be a lie a media player acts on. So the
+ * presence of a well-formed `Content-Range` is the single thing that makes this
+ * a partial response.
+ *
+ * `Content-Type` is pinned to audio: the file is one we wrote ourselves as
+ * `audio/mpeg`, and a blob host that ever answers `application/octet-stream`
+ * would put a media element straight back into the state this proxy exists to
+ * fix. `Cache-Control: private` keeps one listener's devotional out of any
+ * shared cache - it is written for them by name.
+ */
+export function devotionalStreamResponseInit(
+	upstream: UpstreamAudioHeaders
+): AudioStreamResponseInit {
+	const contentType = upstream.contentType?.trim().toLowerCase().startsWith("audio/")
+		? upstream.contentType.trim()
+		: "audio/mpeg";
+
+	const headers: Record<string, string> = {
+		"Content-Type": contentType,
+		"Accept-Ranges": "bytes",
+		"Cache-Control": "private, max-age=0",
+		"Content-Disposition": "inline",
+	};
+
+	const contentLength = upstream.contentLength?.trim();
+	if (contentLength && /^\d+$/.test(contentLength)) headers["Content-Length"] = contentLength;
+
+	const contentRange = upstream.contentRange?.trim();
+	if (contentRange && CONTENT_RANGE_PATTERN.test(contentRange)) {
+		headers["Content-Range"] = contentRange;
+		return { status: 206, headers };
+	}
+
+	return { status: 200, headers };
 }

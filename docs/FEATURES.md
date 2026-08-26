@@ -228,6 +228,40 @@ posture. If playback does fail on a URL a client has been holding for more
 than ten minutes, both cards silently re-fetch **once** and resume at the same
 position before showing anything went wrong.
 
+### Playback goes through our own origin, not the blob host
+
+*Fixed 2026-08-26*
+
+The signed blob URL is real, valid and useless to a media element.
+**Chrome's media loader never loads a presigned private-blob URL**: on an
+`<audio>` element it sits at `readyState: 0`, `networkState: 2`, with no
+`error` event, forever - and opening the same URL in a tab does exactly the
+same thing in Chrome's own player. `fetch` and `curl` of that URL both
+succeed (200/206, `audio/mpeg`, `accept-ranges: bytes`,
+`content-disposition: inline`), and a `blob:` URL built from the fetched bytes
+plays instantly at the full 225 seconds. HEAD on it answers 403, because the
+signature is bound to the method. So the MP3 is fine and the signature is
+fine; Chrome's media loader and the private-blob host simply do not get along.
+
+`GET|HEAD /api/verse-of-day/audio/stream` is the fix: same origin, ordinary
+session auth, a real HEAD, and the caller's `Range` header forwarded to the
+blob host and its `Content-Range` forwarded back, so seeking still works. The
+upstream body is piped straight through - a several-megabyte MP3 never sits in
+the function's memory. Whether the answer is `206` is decided by the
+`Content-Range` the blob host actually sent, never by the range the client
+asked for: a client can ask for `bytes=0-` and be handed the whole file with a
+plain 200, and answering 206 to that is a lie a media player acts on
+(`devotionalStreamResponseInit`, tested in `tests/daily-cross-audio.test.mjs`).
+
+The audio payload therefore carries **both**: `url` (the signed blob URL,
+still fine to `fetch`) and `streamUrl` (`/api/verse-of-day/audio/stream`,
+relative). Nothing should hand `url` to a player. Web plays the proxy path
+same-origin; Android joins it onto `API_URL` and passes the Clerk bearer token
+through `AudioSource.headers`, minted fresh because a session token lives
+about a minute and the player only proves it when it opens its connection - a
+stall therefore earns one fresh token and a rebuilt player, resuming in place,
+before anything is called a failure.
+
 `VerseOfDay` gained `audioUrl`, `audioPathname`, `audioScript`, `audioTitle`,
 `audioDurationSec`, `audioStatus` and `audioGeneratedAt` (migration
 `20260826120000_daily_cross_audio`, all nullable). Replacing the day with
@@ -242,8 +276,15 @@ prepared. Both answer:
 
 ```
 { status: "unavailable" | "none" | "pending" | "ready" | "failed",
-  url, title, script, durationSec, generatedAt }
+  url, streamUrl, title, script, durationSec, generatedAt }
 ```
+
+`streamUrl` is what clients play; `url` is the signed blob URL and is only
+safe to `fetch`. See "Playback goes through our own origin" above.
+
+`"locked"` means the account is not on SureWord Pro; unlike "unavailable" the
+clients **do** render for it - a benefit someone could have should be visible,
+not hidden - and they never poll behind it, since the answer cannot change.
 
 `"unavailable"` means the deployment has no `ELEVENLABS_API_KEY`. It is
 returned before any database or model work - the answer is the same for every
@@ -258,13 +299,65 @@ generation is assumed dead and starts again. `durationSec` is estimated from
 the word count at 150 wpm - every client replaces it with the file's real
 duration once the audio loads.
 
-### Cost - why it is never pre-generated
+### Made with the day, and gated behind Pro
 
-The morning cron deliberately does **not** make audio. ElevenLabs bills per
-character, a devotional is ~3,000-5,500 characters, and most users never tap
-play; generating for every user every morning would bill the whole table for
-a feature a fraction of it uses. Audio is made on the first tap and reused for
-the rest of that day.
+*Changed 2026-08-26*
+
+Audio is generated **once per day, alongside the cross itself** - not on a tap.
+`scheduleDailyCrossAudio()` runs at every point a cross is stored: the
+on-demand `GET /api/verse-of-day/today`, `replaceDailyCross()` (hooked inside
+the lib, so the "a different word for today" control and the `setDailyCross`
+chat tool both get it), and the morning cron. It marks nothing itself - it
+defers to `getOrCreateDailyCrossAudio()` behind `waitUntil`, so the HTTP
+response never waits on a ~30-60s narration. Opening Pick Up Your Cross now
+finds the devotional ready, or watches it finish within a minute.
+
+**The once-per-day guarantee is structural, not a flag.** Audio hangs off the
+`VerseOfDay` row, and `getOrCreateDailyCrossAudio()` reuses a ready row and a
+pending row under three minutes old - so the scheduled generation, a client
+polling mid-flight, and the manual retry buy exactly one narration between
+them. A replaced day is a new row, and gets exactly one more.
+
+The cron narrates **after** the pushes are away, sequentially, capped at
+`MAX_AUDIO_PER_RUN` (60) and bounded by `AUDIO_BUDGET_MS` (240s of the 300s
+function). A slow narration must never cost someone their morning
+notification, and whoever the budget skips is picked up the moment they open
+the screen - the on-demand path schedules audio too.
+
+What keeps the bill honest is no longer the tap, it is the tier: **Listen is a
+SureWord Pro benefit.** `readDailyCrossAudio`, `getOrCreateDailyCrossAudio`,
+`scheduleDailyCrossAudio` and the stream route all answer `"locked"` *before*
+any database write, model call or ElevenLabs request, and the cron only
+narrates for Pro accounts - so a free account costs nothing at all, and cannot
+reach a narration by calling the routes directly either.
+
+**Flagging a user as Pro**, either way works:
+
+- `UPDATE "User" SET plan = 'pro' WHERE id = '<clerk_id>';` - what billing will
+  write when it exists.
+- Add the Clerk id to the `PRO_USER_IDS` env var (comma-separated, same
+  convention as `SERVER_CREDENTIAL_USER_IDS`, and they share a parser). This is
+  how comped accounts are flagged today, with no database write at all, and it
+  **wins over the column** - that is the whole point of it.
+
+Anything else in `plan` reads as free: a typo in that column must never hand
+out a paid feature. The rules are pure and tested (`resolvePlan` in
+`src/lib/entitlements-rules.ts`, split from the `server-only`
+`src/lib/entitlements.ts` for exactly that reason).
+
+### Playback speed
+
+*Shipped 2026-08-26*
+
+0.75x / 1x / 1.25x / 1.5x / 2x on a cycling chip beside the play button, on
+both clients. Persisted **per client** - a speed picked on a phone is a habit,
+not an account preference worth a round trip: web keeps it in `localStorage`
+under `sureword.listenRate`, Android in its settings store. Web sets
+`audio.playbackRate`; Android calls `player.setPlaybackRate(rate, "high")` with
+`shouldCorrectPitch`, so 1.5x sounds like someone reading quickly rather than a
+chipmunk. Elapsed and total stay in **real seconds** at every speed - the clock
+reports the file, not the pace. A stored rate this build no longer offers
+normalizes back to 1x rather than leaving the chip outside its own cycle.
 
 ### Environment
 
@@ -272,6 +365,7 @@ the rest of that day.
 |---|---|---|
 | `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and both clients hide the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
 | `ELEVENLABS_VOICE_ID` | no | Overrides the default voice without a deploy. Default `JBFqnCBsd6RMkjVDRZzb` ("George", ElevenLabs' own default library voice used in their quickstart) - warm, unhurried, mature male narration |
+| `PRO_USER_IDS` | no | Comma-separated Clerk ids granted SureWord Pro without a `User.plan` write. Wins over the column. With neither set, every account is free and Listen renders the locked panel for everyone |
 
 ### Surfaces
 

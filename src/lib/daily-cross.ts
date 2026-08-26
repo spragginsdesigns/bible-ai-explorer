@@ -403,6 +403,17 @@ export async function replaceDailyCross(
 		});
 	}
 
+	// A new day earns a new narration, in the background. Hooked in here rather
+	// than in the callers so every route to a replacement gets it - the "a
+	// different word for today" control and the `setDailyCross` chat tool alike.
+	//
+	// Imported dynamically on purpose: daily-cross-audio imports this module for
+	// PERSONA and findTodayCross, so a static import back would be a cycle.
+	const { scheduleDailyCrossAudio } = await import("@/lib/daily-cross-audio");
+	await scheduleDailyCrossAudio(userId).catch((error: unknown) => {
+		console.error(`[daily-cross] Could not schedule audio for ${userId}:`, error);
+	});
+
 	return {
 		cross: { ...cross, id, sentAt, audioPathname: null },
 		previousReference: previous

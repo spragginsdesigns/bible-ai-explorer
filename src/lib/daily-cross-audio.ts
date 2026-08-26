@@ -1,8 +1,11 @@
 import "server-only";
 
 import { generateText, Output } from "ai";
-import { put } from "@vercel/blob";
+import { get, head, put } from "@vercel/blob";
+import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
+import { isProUser } from "@/lib/entitlements";
+import type { UserPlan } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { resolveModel } from "@/lib/ai/provider";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
@@ -16,7 +19,9 @@ import {
 import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 import {
+	DAILY_CROSS_AUDIO_STREAM_PATH,
 	dailyCrossAudioPathname,
+	devotionalStreamResponseInit,
 	estimateSpokenDurationSec,
 	isSpeechConfigured,
 	resolveStoredAudio,
@@ -34,7 +39,10 @@ import {
  * ElevenLabs narrates it, and the MP3 lands in Vercel Blob against the
  * VerseOfDay row it belongs to.
  *
- * Generated on first tap, never ahead of time - see the route for why.
+ * Generated once per day, WITH the day rather than on a tap: every place a
+ * cross is stored calls `scheduleDailyCrossAudio`, so the devotional is
+ * waiting when they open the screen. A SureWord Pro benefit - free accounts
+ * get status "locked" before anything is spent.
  */
 
 /** Verses either side of the day's verse, so the script can set the scene. */
@@ -242,33 +250,75 @@ export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
 /** Today's devotional audio as a client sees it. */
 export interface DailyCrossAudio {
 	status: DailyCrossAudioClientStatus;
-	/** Short-lived signed URL; only present when status is "ready". */
+	/**
+	 * Signed blob URL, good for 24 hours; only present when status is "ready".
+	 * Fine to `fetch`, but NOT what a media element should play - see
+	 * `streamUrl`, and the stream route for why.
+	 */
 	url: string | null;
+	/**
+	 * Where to actually play the narration from: a same-origin path that proxies
+	 * the blob. Only present when status is "ready". Web hands it to `<audio>`
+	 * as-is; Android joins it onto `API_URL` and sends its bearer token.
+	 */
+	streamUrl: string | null;
 	title: string | null;
 	script: string | null;
 	durationSec: number | null;
 	generatedAt: string | null;
+	/**
+	 * The caller's tier. Carried here so a client can tell "locked" apart from
+	 * a Pro user whose day simply has no audio yet, without a second call.
+	 */
+	plan: UserPlan;
 }
 
 const NO_AUDIO: DailyCrossAudio = {
 	status: "none",
 	url: null,
+	streamUrl: null,
 	title: null,
 	script: null,
 	durationSec: null,
 	generatedAt: null,
+	plan: "pro",
 };
 
 /**
  * What every user of a deployment with no ElevenLabs credentials gets. Both
  * clients render nothing at all for this status, so an unconfigured server
  * shows no Listen card rather than a button that can only ever fail.
+ *
+ * `plan` is unknowable here without a query, and this answer is deliberately
+ * given before any query - "unavailable" already hides the card, so the tier
+ * changes nothing a client does with it.
  */
-const UNAVAILABLE_AUDIO: DailyCrossAudio = { ...NO_AUDIO, status: "unavailable" };
+const UNAVAILABLE_AUDIO: DailyCrossAudio = { ...NO_AUDIO, status: "unavailable", plan: "free" };
+
+/**
+ * What a free account gets. Unlike "unavailable" the clients DO render for
+ * this - the Pro card - because a benefit someone could have should be visible
+ * rather than hidden.
+ */
+const LOCKED_AUDIO: DailyCrossAudio = { ...NO_AUDIO, status: "locked", plan: "free" };
 
 /** True when this deployment has the credentials to narrate anything. */
 function speechAvailable(): boolean {
 	return isSpeechConfigured(process.env.ELEVENLABS_API_KEY);
+}
+
+/**
+ * The two refusals every entry point owes before it touches anything: no
+ * credentials on this deployment, or no SureWord Pro on this account. Both are
+ * answered before a single database write, model call or ElevenLabs request,
+ * so a free account is never billed for and never leaves a row behind.
+ *
+ * Returns the payload to hand straight back, or null to carry on.
+ */
+async function refuseAudio(userId: string): Promise<DailyCrossAudio | null> {
+	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
+	if (!(await isProUser(userId))) return LOCKED_AUDIO;
+	return null;
 }
 
 /**
@@ -301,6 +351,9 @@ const AUDIO_SELECT = {
  * The stored row as a client response. Blobs are private (same store, same
  * rules as chat attachments), so "ready" hands back a freshly signed URL each
  * time rather than a link that would outlive its own expiry in the database.
+ *
+ * Every path here is downstream of `refuseAudio`, so the caller is on Pro by
+ * construction - that is why `plan` is a constant rather than another query.
  */
 async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
 	const generatedAt = row.audioGeneratedAt?.toISOString() ?? null;
@@ -313,10 +366,12 @@ async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
 		return {
 			status: "ready",
 			url: previewUrl,
+			streamUrl: DAILY_CROSS_AUDIO_STREAM_PATH,
 			title: row.audioTitle,
 			script: row.audioScript,
 			durationSec: row.audioDurationSec,
 			generatedAt,
+			plan: "pro",
 		};
 	}
 
@@ -324,10 +379,12 @@ async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
 		return {
 			status: row.audioStatus,
 			url: null,
+			streamUrl: null,
 			title: row.audioTitle,
 			script: row.audioScript,
 			durationSec: row.audioDurationSec,
 			generatedAt,
+			plan: "pro",
 		};
 	}
 
@@ -340,9 +397,8 @@ async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
  * already asked for is in flight.
  */
 export async function readDailyCrossAudio(userId: string): Promise<DailyCrossAudio> {
-	// Before any query: on a deployment with no ElevenLabs key the answer is
-	// the same for everyone, and the clients hide the feature entirely.
-	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
+	const refusal = await refuseAudio(userId);
+	if (refusal) return refusal;
 
 	const cross = await findTodayCross(userId);
 	if (!cross) return NO_AUDIO;
@@ -355,19 +411,110 @@ export async function readDailyCrossAudio(userId: string): Promise<DailyCrossAud
 	return toClientAudio(row);
 }
 
+/** One proxied answer for the narration: the status line, headers, and bytes. */
+export interface DailyCrossAudioStream {
+	status: 200 | 206;
+	headers: Record<string, string>;
+	/** Null for a HEAD request, which answers with headers alone. */
+	body: ReadableStream<Uint8Array> | null;
+}
+
 /**
- * Today's devotional audio, generating it if there is none. Returns
- * "unavailable" when this deployment has no ElevenLabs key, and "none" when
- * the user has no day yet - the cross itself is the other route's job, and
- * generating one here would hide that the two screens disagree.
+ * The blob path of today's narration, but only when it is finished and this
+ * user may hear it. Null covers every other case at once - no key, no Pro, no
+ * day, no row, still pending, failed, or a "ready" row whose blob path went
+ * missing - and the route turns all of them into one 404. The Pro check is
+ * here and not only in the card: a free account must not be able to stream a
+ * narration by calling the route directly.
+ */
+async function readyAudioPathname(userId: string): Promise<string | null> {
+	if (await refuseAudio(userId)) return null;
+
+	const cross = await findTodayCross(userId);
+	if (!cross) return null;
+
+	const row = await prisma.verseOfDay.findUnique({
+		where: { id: cross.id },
+		select: { audioStatus: true, audioPathname: true },
+	});
+	if (!row || row.audioStatus !== "ready" || !row.audioPathname) return null;
+	return row.audioPathname;
+}
+
+/**
+ * Open today's narration for streaming through our own origin, forwarding the
+ * caller's `Range` header to the blob host so seeking still works.
  *
- * A "pending" row younger than its TTL is returned as-is so two clients tapping
- * play at once never pay for two narrations of the same day.
+ * Nothing is buffered: the upstream body is handed back as a stream and the
+ * route pipes it straight out, so a several-megabyte MP3 never sits in the
+ * function's memory. Returns null when there is no finished audio to serve.
+ */
+export async function openDailyCrossAudioStream(
+	userId: string,
+	range: string | null
+): Promise<DailyCrossAudioStream | null> {
+	const pathname = await readyAudioPathname(userId);
+	if (!pathname) return null;
+
+	const result = await get(pathname, {
+		access: "private",
+		// The SDK's documented escape hatch; it sets Authorization itself and
+		// applies these last. A ranged GET comes back as a 206 that the SDK
+		// still labels `statusCode: 200`, so the real status is read off the
+		// upstream headers below rather than from that field.
+		...(range ? { headers: { Range: range } } : {}),
+	});
+	if (!result || result.statusCode !== 200) return null;
+
+	const { status, headers } = devotionalStreamResponseInit({
+		contentType: result.blob.contentType,
+		contentLength: result.headers.get("content-length"),
+		contentRange: result.headers.get("content-range"),
+	});
+	return { status, headers, body: result.stream };
+}
+
+/**
+ * The same headers a GET would answer with, without fetching a byte - what a
+ * player's HEAD probe gets. Uses the blob metadata API rather than opening and
+ * throwing away a body.
+ */
+export async function describeDailyCrossAudioStream(
+	userId: string
+): Promise<DailyCrossAudioStream | null> {
+	const pathname = await readyAudioPathname(userId);
+	if (!pathname) return null;
+
+	const metadata = await head(pathname);
+	const { status, headers } = devotionalStreamResponseInit({
+		contentType: metadata.contentType,
+		contentLength: String(metadata.size),
+		contentRange: null,
+	});
+	return { status, headers, body: null };
+}
+
+/**
+ * Today's devotional audio, generating it if there is none. Normally reached
+ * through `scheduleDailyCrossAudio` when the day is stored; the POST route
+ * calls it directly as the manual retry behind a failed card.
+ *
+ * Returns "unavailable" when this deployment has no ElevenLabs key, "locked"
+ * for a free account, and "none" when the user has no day yet - the cross
+ * itself is the other route's job, and generating one here would hide that the
+ * two screens disagree.
+ *
+ * A "pending" row younger than its TTL is returned as-is, which is what makes
+ * the once-per-day guarantee hold: the scheduled generation and a client
+ * arriving mid-flight buy exactly one narration between them. The row is keyed
+ * to the `VerseOfDay` id, so a replaced day gets one new narration and no more.
  */
 export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyCrossAudio> {
-	// Cheapest possible refusal: no credentials means no narration is reachable,
-	// so never touch the database or mark a row pending for work that cannot run.
-	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
+	// Cheapest possible refusal: no credentials, or no Pro, means no narration
+	// may run - so never touch the database or mark a row pending for work that
+	// must not happen.
+	const refusal = await refuseAudio(userId);
+	if (refusal) return refusal;
 
 	const cross = await findTodayCross(userId);
 	if (!cross) return NO_AUDIO;
@@ -423,4 +570,37 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 		});
 		return toClientAudio(row);
 	}
+}
+
+/**
+ * Start today's narration in the background and return immediately.
+ *
+ * This is how audio is made now: **with the day, not on a tap.** Every place a
+ * cross is stored calls this, so someone opening Pick Up Your Cross finds the
+ * devotional already there, or watches it finish inside a minute. The old
+ * generate-on-first-tap path survives only as the manual retry behind a failed
+ * card.
+ *
+ * Idempotent by construction - it defers to `getOrCreateDailyCrossAudio`,
+ * which reuses a ready row and a pending row under three minutes old, so
+ * calling it twice for the same day buys one narration. Refusals (no
+ * ElevenLabs key, not Pro, no day yet) cost nothing and write nothing.
+ *
+ * `waitUntil` is what keeps the HTTP response from waiting on a ~30-60s
+ * narration: the work outlives the response inside the same function
+ * invocation.
+ */
+export async function scheduleDailyCrossAudio(userId: string): Promise<void> {
+	// Refuse before scheduling rather than inside the background task, so a free
+	// or unconfigured account never even queues work.
+	if (await refuseAudio(userId)) return;
+
+	waitUntil(
+		getOrCreateDailyCrossAudio(userId).catch((error: unknown) => {
+			// Nothing is waiting on this, so a failure must not reject into the
+			// platform's handler. `getOrCreateDailyCrossAudio` has already marked
+			// the row "failed", which is what the card reads.
+			console.error(`[daily-cross-audio] Scheduled generation failed for ${userId}:`, error);
+		})
+	);
 }

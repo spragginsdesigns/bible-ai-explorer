@@ -284,6 +284,13 @@ Also required in `.env.local`:
 - `OPENAI_API_KEY` - OpenAI API key
 - `TAVILY_API_KEY` - Tavily search API key
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` - Clerk auth
+- `PRO_USER_IDS` - comma-separated Clerk ids granted **SureWord Pro** without a
+  `User.plan` write (same convention as `SERVER_CREDENTIAL_USER_IDS`, shared
+  parser in `src/lib/entitlements-rules.ts`). It **wins over** the column, which
+  is the point: it flags Austin's and comped accounts before billing exists.
+  Optional - with neither set, every account is free and the Pro benefits
+  (currently Listen, the spoken devotional) render their locked panel for
+  everyone. See `docs/FEATURES.md` → "Made with the day, and gated behind Pro".
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
   it the audio routes answer `status: "unavailable"` and both clients hide the

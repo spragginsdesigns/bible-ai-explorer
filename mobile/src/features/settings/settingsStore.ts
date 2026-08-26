@@ -3,6 +3,7 @@ import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { meshGradients, palettes, type Colors, type ResolvedTheme } from "@/theme";
 import type { TranslationId } from "@/features/bible/translations";
+import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
 
 /**
  * Persisted user settings (appearance + Bible translation), modeled on
@@ -22,6 +23,12 @@ export interface Settings {
 	/** Chat model/effort picks, sent with every chat request. Null = server default. */
 	chatModelId: string | null;
 	chatEffort: string | null;
+	/**
+	 * Playback speed for the Listen devotional. Per-device, like every other
+	 * setting here - a speed someone picked on their phone is a habit, not an
+	 * account-level preference worth a round trip.
+	 */
+	listenRate: number;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
@@ -32,6 +39,7 @@ const DEFAULT_SETTINGS: Settings = {
 	parchment: true,
 	chatModelId: null,
 	chatEffort: null,
+	listenRate: DEFAULT_LISTEN_RATE,
 };
 
 let snapshot: Settings = DEFAULT_SETTINGS;
@@ -65,6 +73,9 @@ export async function hydrateSettings(): Promise<void> {
 			parchment: parsed.parchment !== false,
 			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
 			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,
+			// Normalized rather than trusted: a rate this build no longer offers
+			// would leave the speed chip outside its own cycle.
+			listenRate: normalizeListenRate(parsed.listenRate),
 		};
 	} catch {
 		// A corrupt or unreadable store falls back to defaults.
@@ -89,6 +100,10 @@ export function setChatModel(chatModelId: string | null) {
 
 export function setChatEffort(chatEffort: string | null) {
 	setSnapshot({ ...snapshot, chatEffort });
+}
+
+export function setListenRate(listenRate: number) {
+	setSnapshot({ ...snapshot, listenRate: normalizeListenRate(listenRate) });
 }
 
 function subscribe(listener: () => void): () => void {

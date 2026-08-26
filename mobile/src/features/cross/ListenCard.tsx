@@ -10,7 +10,7 @@ import {
 	type GestureResponderEvent,
 	type LayoutChangeEvent,
 } from "react-native";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus, type AudioSource } from "expo-audio";
 import { GlassCard } from "@/components/ui";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import {
@@ -19,14 +19,22 @@ import {
 	type DailyCrossAudio,
 } from "@/features/notifications/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { API_URL } from "@/lib/api";
 import { radius, spacing, type Colors } from "@/theme";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import {
+	setListenRate,
+	useSettings,
+	useTheme,
+	useThemedStyles,
+} from "@/features/settings/settingsStore";
 import {
 	LISTEN_POLL_INTERVAL_MS,
 	LISTEN_POLL_TIMEOUT_MS,
 	formatClock,
+	formatListenRate,
 	listenPhase,
 	listenProgress,
+	nextListenRate,
 	shouldPollListen,
 	shouldRefreshListenUrl,
 } from "@/features/cross/listen";
@@ -71,22 +79,22 @@ function PreparingShimmer() {
 /**
  * "Listen" - today's "Pick Up Your Cross" as a spoken devotional.
  *
- * Nothing is generated until the first tap (every narration is billed per
- * character), so the card opens as an invitation, shimmers through the ~30-60s
- * it takes to write and narrate, then becomes a player with a scrubber and a
- * "Read along" transcript. On a server with no ElevenLabs key it renders
- * nothing at all, timeline stop included. Mirrors
- * src/components/cross/ListenCard.tsx on web.
+ * The narration is made WITH the day, server-side, so this card never asks for
+ * one: it shimmers until the scheduled generation lands, then becomes a player
+ * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
+ * SureWord Pro benefit, so a free account gets the locked panel instead, and a
+ * server with no ElevenLabs key renders nothing at all, timeline stop included.
+ * Mirrors src/components/cross/ListenCard.tsx on web.
  */
 export function ListenCard() {
 	const getToken = useStableGetToken();
 	const styles = useThemedStyles(createStyles);
 	const { colors } = useTheme();
+	const { listenRate } = useSettings();
 
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
 	const [playRequestedAt, setPlayRequestedAt] = useState<number | null>(null);
-	const [requested, setRequested] = useState(false);
 	const [failureText, setFailureText] = useState<string | null>(null);
 	const [transcriptOpen, setTranscriptOpen] = useState(false);
 	const [trackWidth, setTrackWidth] = useState(0);
@@ -97,15 +105,62 @@ export function ListenCard() {
 	const resumeAtRef = useRef(0);
 	const resumePlayingRef = useRef(false);
 	const refreshedRef = useRef(false);
+	// Whether the current source has already spent its one token refresh.
+	const tokenRetriedRef = useRef(false);
 
 	// Read through a ref, never a dependency: the status object ticks several
 	// times a second, and a stall timer that re-arms on every tick never fires.
 	const currentTimeRef = useRef(0);
 
-	const phase = failureText ? "failed" : listenPhase(audio, requested);
+	const phase = failureText ? "failed" : listenPhase(audio);
 
-	const player = useAudioPlayer(audio?.url ?? null, { updateInterval: 250 });
+	const streamUrl = audio?.streamUrl ?? null;
+	const [source, setSource] = useState<AudioSource | null>(null);
+	// Bumped to re-mint the bearer token and rebuild the player around it.
+	const [tokenAttempt, setTokenAttempt] = useState(0);
+
+	/**
+	 * Play through our own API rather than the signed blob URL - the same proxy
+	 * web uses, and for the same reason (see the stream route). That means the
+	 * player has to carry the Clerk bearer token, which `AudioSource.headers`
+	 * supports. The token is minted fresh here because it is short-lived and is
+	 * only checked when the player opens its connection.
+	 */
+	useEffect(() => {
+		if (!streamUrl) {
+			setSource(null);
+			return;
+		}
+		let cancelled = false;
+		void (async () => {
+			const token = await getToken({ fresh: true }).catch(() => null);
+			if (cancelled) return;
+			setSource({
+				uri: `${API_URL}${streamUrl}`,
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
+			});
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [streamUrl, tokenAttempt, getToken]);
+
+	const player = useAudioPlayer(source, { updateInterval: 250 });
 	const status = useAudioPlayerStatus(player);
+
+	// A rebuilt player (a new token, a new day) starts at 1x, so the stored
+	// speed is applied as an effect keyed on the player itself rather than set
+	// once. Pitch correction keeps a devotional at 1.5x sounding like a person
+	// reading quickly, not a chipmunk.
+	useEffect(() => {
+		if (!status.isLoaded) return;
+		player.shouldCorrectPitch = true;
+		player.setPlaybackRate(listenRate, "high");
+	}, [player, status.isLoaded, listenRate]);
+
+	const cycleRate = useCallback(() => {
+		setListenRate(nextListenRate(listenRate));
+	}, [listenRate]);
 
 	// The player's real duration once the file is loaded; the server's word-count
 	// estimate before that, so the total never reads 0:00 while buffering.
@@ -163,9 +218,13 @@ export function ListenCard() {
 		return () => clearInterval(timer);
 	}, [phase, loadState]);
 
-	const prepare = useCallback(async () => {
+	/**
+	 * The manual retry, and the only thing that ever POSTs. First generations
+	 * are started server-side with the day, so this is reachable from the failed
+	 * card alone.
+	 */
+	const retry = useCallback(async () => {
 		setFailureText(null);
-		setRequested(true);
 		try {
 			const result = await requestTodayCrossAudio(getToken);
 			applyAudio(result);
@@ -178,13 +237,25 @@ export function ListenCard() {
 	}, [getToken, loadState, applyAudio]);
 
 	/**
-	 * Playback never started. A signed URL this client has been holding for a
-	 * while is the likeliest reason, so fetch a fresh one once and resume where
-	 * they were. A URL fetched moments ago that fails is a real failure and
-	 * says so.
+	 * Playback never started. Two things can be stale, so try the cheap one
+	 * first: the bearer token the player carries lives about a minute and is
+	 * only proved when it opens a connection, so a stall earns one fresh token
+	 * and a rebuilt player before anything is called a failure. Failing that,
+	 * a devotional state this client has been sitting on for a while earns one
+	 * silent re-read. Either way they land back where they were; a source
+	 * opened moments ago that stalls is a real failure and says so.
 	 */
 	const handlePlaybackFailure = useCallback(async () => {
 		setPlayRequestedAt(null);
+
+		if (!tokenRetriedRef.current && streamUrl) {
+			tokenRetriedRef.current = true;
+			resumeAtRef.current = currentTimeRef.current;
+			resumePlayingRef.current = true;
+			setTokenAttempt((attempt) => attempt + 1);
+			return;
+		}
+
 		if (!shouldRefreshListenUrl(urlFetchedAt, refreshedRef.current)) {
 			setFailureText("Couldn't prepare audio - try again");
 			return;
@@ -194,21 +265,30 @@ export function ListenCard() {
 		resumePlayingRef.current = true;
 		try {
 			const fresh = await fetchTodayCrossAudio(getToken);
-			if (fresh.status === "ready" && fresh.url) applyAudio(fresh);
-			else setFailureText("Couldn't prepare audio - try again");
+			if (fresh.status === "ready" && fresh.streamUrl) {
+				applyAudio(fresh);
+				// The proxy path is the same string every time, so re-reading the
+				// state alone would rebuild nothing and the retry would be a silent
+				// no-op. Bumping the attempt is what actually builds a new player.
+				setTokenAttempt((attempt) => attempt + 1);
+			} else {
+				setFailureText("Couldn't prepare audio - try again");
+			}
 		} catch {
 			setFailureText("Couldn't prepare audio - try again");
 		}
-	}, [urlFetchedAt, getToken, applyAudio]);
+	}, [urlFetchedAt, streamUrl, getToken, applyAudio]);
 
 	// Nothing playing this long after the play button means the source never
-	// loaded; give a stale URL one silent refresh before showing a failure.
+	// loaded; give a stale token, then a stale URL, one silent refresh each
+	// before showing a failure.
 	useEffect(() => {
 		if (playRequestedAt === null) return;
 		if (status.playing) {
 			setPlayRequestedAt(null);
-			// Playback works again: the next stale URL earns its own retry.
+			// Playback works again: the next stall earns its own retries.
 			refreshedRef.current = false;
+			tokenRetriedRef.current = false;
 			return;
 		}
 		const timer = setTimeout(() => void handlePlaybackFailure(), PLAYBACK_STALL_MS);
@@ -276,30 +356,22 @@ export function ListenCard() {
 		setTrackWidth(event.nativeEvent.layout.width);
 	}, []);
 
-	const estimate = audio?.durationSec
-		? `About ${Math.max(1, Math.round(audio.durationSec / 60))} minutes`
-		: "A spoken devotional on today's verse";
-
 	// An unconfigured server offers nothing here - not even the rail node.
 	if (phase === "hidden") return null;
 
 	return (
 		<TimelineStop glyph="♪" label="LISTEN">
 			<GlassCard style={styles.card}>
-				{phase === "idle" ? (
+				{/* A locked benefit is shown, not hidden - but with no button, because
+				    there is nowhere for one to go until billing exists. */}
+				{phase === "locked" ? (
 					<>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Listen to today's word"
-							onPress={() => void prepare()}
-							style={({ pressed }) => [
-								styles.primaryButton,
-								pressed && { backgroundColor: colors.accentPressed },
-							]}
-						>
-							<Text style={styles.primaryButtonLabel}>▶  Listen to today&apos;s word</Text>
-						</Pressable>
-						<Text style={styles.hint}>{estimate}</Text>
+						<Text style={styles.lockGlyph}>🔒</Text>
+						<Text style={styles.lockTitle}>Listen is part of SureWord Pro</Text>
+						<Text style={styles.lockBody}>
+							A spoken devotional for every day&apos;s word, ready when you wake up.
+							Coming soon.
+						</Text>
 					</>
 				) : phase === "preparing" ? (
 					<PreparingShimmer />
@@ -308,7 +380,7 @@ export function ListenCard() {
 						<Text style={styles.failureText}>Couldn&apos;t prepare audio - try again</Text>
 						<Pressable
 							accessibilityRole="button"
-							onPress={() => void prepare()}
+							onPress={() => void retry()}
 							style={({ pressed }) => [
 								styles.primaryButton,
 								pressed && { backgroundColor: colors.accentPressed },
@@ -347,10 +419,23 @@ export function ListenCard() {
 									<View style={[styles.trackKnob, { left: `${progress * 100}%` }]} />
 								</View>
 								<View style={styles.timesRow}>
+									{/* Real seconds at every speed - the clock reports the file, not the pace. */}
 									<Text style={styles.time}>{formatClock(elapsed)}</Text>
 									<Text style={styles.time}>{formatClock(duration)}</Text>
 								</View>
 							</View>
+
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={`Playback speed ${formatListenRate(listenRate)}, tap to change`}
+								onPress={cycleRate}
+								style={({ pressed }) => [
+									styles.rateChip,
+									pressed && { backgroundColor: colors.accentPressed },
+								]}
+							>
+								<Text style={styles.rateLabel}>{formatListenRate(listenRate)}</Text>
+							</Pressable>
 						</View>
 
 						{audio?.script ? (
@@ -379,7 +464,30 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		card: { padding: spacing.lg, gap: spacing.md },
 		title: { color: c.text, fontSize: 15, fontWeight: "600" },
-		hint: { color: c.textFaint, fontSize: 13, textAlign: "center" },
+		lockGlyph: { fontSize: 20, textAlign: "center" },
+		lockTitle: { color: c.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
+		lockBody: {
+			color: c.textFaint,
+			fontSize: 13.5,
+			lineHeight: 20,
+			textAlign: "center",
+		},
+		rateChip: {
+			minWidth: 56,
+			height: 36,
+			borderRadius: radius.full,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		rateLabel: {
+			color: c.accent,
+			fontSize: 13,
+			fontWeight: "700",
+			fontVariant: ["tabular-nums"],
+		},
 		primaryButton: {
 			minHeight: 48,
 			borderRadius: radius.lg,

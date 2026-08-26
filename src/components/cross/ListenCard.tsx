@@ -3,14 +3,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import TimelineStop from "@/components/cross/TimelineStop";
 import {
+	DEFAULT_LISTEN_RATE,
 	LISTEN_POLL_INTERVAL_MS,
 	LISTEN_POLL_TIMEOUT_MS,
 	formatClock,
+	formatListenRate,
 	listenPhase,
+	nextListenRate,
 	shouldPollListen,
 	shouldRefreshListenUrl,
 	type DailyCrossAudio,
 } from "@/components/cross/listen";
+import { readListenRatePref, writeListenRatePref } from "@/lib/preferences";
 
 const FAILURE_TEXT = "Couldn't prepare audio - try again";
 
@@ -21,25 +25,43 @@ async function readAudio(init?: RequestInit): Promise<DailyCrossAudio> {
 }
 
 /**
+ * What to put in the `<audio>` element's `src`.
+ *
+ * Always the same-origin proxy, never the signed blob URL: Chrome's media
+ * loader never loads that one (see the stream route for the finding), even
+ * though `fetch` of it succeeds. Resolved against the document's origin so the
+ * value is a full URL rather than a path the element resolves later, and
+ * guarded for the server render, where there is no `window`.
+ */
+function playbackSrc(audio: DailyCrossAudio | null): string | undefined {
+	if (!audio?.streamUrl) return undefined;
+	if (typeof window === "undefined") return audio.streamUrl;
+	return new URL(audio.streamUrl, window.location.origin).toString();
+}
+
+/**
  * "Listen" - today's "Pick Up Your Cross" as a spoken devotional.
  *
- * Nothing is generated until the first click (every narration is billed per
- * character), so the card opens as an invitation, shimmers through the ~30-60s
- * it takes to write and narrate, then becomes a player with a scrubber and a
- * "Read along" transcript. On a server with no ElevenLabs key it renders
- * nothing at all, timeline stop included. Mirrors
- * mobile/src/features/cross/ListenCard.tsx.
+ * The narration is made WITH the day, server-side, so this card never asks for
+ * one: it shimmers until the scheduled generation lands, then becomes a player
+ * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
+ * SureWord Pro benefit, so a free account gets the locked panel instead, and a
+ * server with no ElevenLabs key renders nothing at all, timeline stop included.
+ * Mirrors mobile/src/features/cross/ListenCard.tsx.
  */
 export default function ListenCard() {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
-	const [requested, setRequested] = useState(false);
 	const [failed, setFailed] = useState(false);
 	const [transcriptOpen, setTranscriptOpen] = useState(false);
 	const [playing, setPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [loadedDuration, setLoadedDuration] = useState(0);
+	// Seeded on mount, not at render: localStorage is not readable during the
+	// server render, and a first paint that disagreed with the stored speed
+	// would flicker.
+	const [rate, setRate] = useState(DEFAULT_LISTEN_RATE);
 
 	// Where to pick a listen back up after a URL refresh, and whether one has
 	// already been spent on the current URL.
@@ -47,7 +69,7 @@ export default function ListenCard() {
 	const resumePlayingRef = useRef(false);
 	const refreshedRef = useRef(false);
 
-	const phase = failed ? "failed" : listenPhase(audio, requested);
+	const phase = failed ? "failed" : listenPhase(audio);
 
 	// The element's real duration once the file is loaded; the server's
 	// word-count estimate before that, so the total never reads 0:00.
@@ -72,6 +94,26 @@ export default function ListenCard() {
 		void loadState();
 	}, [loadState]);
 
+	// Seed the speed from this browser's stored preference, once.
+	useEffect(() => {
+		setRate(readListenRatePref());
+	}, []);
+
+	// The element is recreated whenever the source changes, and a fresh element
+	// starts at 1x - so the rate is applied as an effect rather than once on
+	// load, and re-applied every time either changes.
+	useEffect(() => {
+		if (audioRef.current) audioRef.current.playbackRate = rate;
+	}, [rate, phase]);
+
+	const cycleRate = useCallback(() => {
+		setRate((current) => {
+			const next = nextListenRate(current);
+			writeListenRatePref(next);
+			return next;
+		});
+	}, []);
+
 	// Poll while a devotional is being prepared, and give up rather than
 	// shimmer forever if the server never reports back.
 	useEffect(() => {
@@ -87,9 +129,13 @@ export default function ListenCard() {
 		return () => window.clearInterval(timer);
 	}, [phase, loadState]);
 
-	const prepare = useCallback(async () => {
+	/**
+	 * The manual retry, and the only thing that ever POSTs. First generations
+	 * are started server-side with the day, so this is reachable from the failed
+	 * card alone.
+	 */
+	const retry = useCallback(async () => {
 		setFailed(false);
-		setRequested(true);
 		try {
 			const result = await readAudio({ method: "POST" });
 			applyAudio(result);
@@ -102,10 +148,11 @@ export default function ListenCard() {
 	}, [applyAudio, loadState]);
 
 	/**
-	 * Playback died. A signed URL this client has been holding for a while is
-	 * the likeliest reason (it outlives a page left open, not a page left open
-	 * for hours), so fetch a fresh one once and resume where they were. A URL
-	 * fetched moments ago that fails is a real failure and says so.
+	 * Playback died. The stale-signature retry below is now belt and braces -
+	 * the element plays from the same-origin proxy, whose path never expires -
+	 * but a session that has gone stale behind a long-open tab lands here the
+	 * same way, and re-reading the state costs one request. A URL fetched
+	 * moments ago that fails is still a real failure and says so.
 	 */
 	const handlePlaybackError = useCallback(async () => {
 		if (!shouldRefreshListenUrl(urlFetchedAt, refreshedRef.current)) {
@@ -138,26 +185,24 @@ export default function ListenCard() {
 		if (element) element.currentTime = seconds;
 	}, []);
 
-	const estimate = audio?.durationSec
-		? `About ${Math.max(1, Math.round(audio.durationSec / 60))} minutes`
-		: "A spoken devotional on today's verse";
-
 	// An unconfigured server offers nothing here - not even the rail node.
 	if (phase === "hidden") return null;
 
-	if (phase === "idle") {
+	// A locked benefit is shown, not hidden - but with no button, because there
+	// is nowhere for one to go until billing exists.
+	if (phase === "locked") {
 		return (
 			<TimelineStop glyph="♪" label="LISTEN">
-				<div className="glass-card gradient-border flex flex-col gap-3 rounded-2xl p-5">
-					<button
-						type="button"
-						onClick={() => void prepare()}
-						className="flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[15px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
-					>
-						▶ Listen to today&apos;s word
-					</button>
-					<p className="text-center text-[13px] text-neutral-400 dark:text-neutral-500">
-						{estimate}
+				<div className="glass-card gradient-border flex flex-col items-center gap-2 rounded-2xl p-5">
+					<span aria-hidden className="text-xl text-amber-600 dark:text-amber-400">
+						🔒
+					</span>
+					<p className="text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						Listen is part of SureWord Pro
+					</p>
+					<p className="text-center text-[13.5px] leading-5 text-neutral-500 dark:text-neutral-400">
+						A spoken devotional for every day&apos;s word, ready when you wake up.
+						Coming soon.
 					</p>
 				</div>
 			</TimelineStop>
@@ -192,7 +237,7 @@ export default function ListenCard() {
 					</p>
 					<button
 						type="button"
-						onClick={() => void prepare()}
+						onClick={() => void retry()}
 						className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 					>
 						Try again
@@ -214,7 +259,7 @@ export default function ListenCard() {
 				{/* eslint-disable-next-line jsx-a11y/media-has-caption -- the full transcript is rendered below as "Read along". */}
 				<audio
 					ref={audioRef}
-					src={audio?.url ?? undefined}
+					src={playbackSrc(audio)}
 					preload="metadata"
 					onPlay={() => {
 						setPlaying(true);
@@ -273,10 +318,20 @@ export default function ListenCard() {
 							className="h-1 w-full cursor-pointer rounded-full accent-amber-600 dark:accent-amber-400"
 						/>
 						<div className="flex justify-between text-xs tabular-nums text-neutral-400 dark:text-neutral-500">
+							{/* Real seconds at every speed - the clock reports the file, not the pace. */}
 							<span>{formatClock(currentTime)}</span>
 							<span>{formatClock(duration)}</span>
 						</div>
 					</div>
+
+					<button
+						type="button"
+						onClick={cycleRate}
+						aria-label={`Playback speed ${formatListenRate(rate)}, tap to change`}
+						className="h-9 w-14 shrink-0 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold tabular-nums text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+					>
+						{formatListenRate(rate)}
+					</button>
 				</div>
 
 				{audio?.script && (

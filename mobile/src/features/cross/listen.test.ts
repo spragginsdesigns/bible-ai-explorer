@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { DailyCrossAudio } from "@/features/notifications/api";
 import {
+	DEFAULT_LISTEN_RATE,
+	LISTEN_RATES,
 	LISTEN_URL_STALE_AFTER_MS,
 	formatClock,
+	formatListenRate,
 	listenPhase,
 	listenProgress,
+	nextListenRate,
+	normalizeListenRate,
 	shouldPollListen,
 	shouldRefreshListenUrl,
 } from "./listen";
@@ -13,51 +18,84 @@ function audio(overrides: Partial<DailyCrossAudio>): DailyCrossAudio {
 	return {
 		status: "none",
 		url: null,
+		streamUrl: null,
 		title: null,
 		script: null,
 		durationSec: null,
 		generatedAt: null,
+		plan: "pro",
 		...overrides,
 	};
 }
 
 describe("listenPhase", () => {
-	it("invites before the user has asked for anything", () => {
-		expect(listenPhase(null, false)).toBe("idle");
-		expect(listenPhase(audio({ status: "none" }), false)).toBe("idle");
-	});
-
-	it("waits as soon as the user taps, before the server has answered", () => {
-		expect(listenPhase(null, true)).toBe("preparing");
-		expect(listenPhase(audio({ status: "none" }), true)).toBe("preparing");
+	it("waits by default - the devotional is made with the day, not on a tap", () => {
+		// Nothing here is an invitation any more: a card on screen means a day
+		// exists, and a day always schedules its narration.
+		expect(listenPhase(null)).toBe("preparing");
+		expect(listenPhase(audio({ status: "none" }))).toBe("preparing");
+		expect(listenPhase(audio({ status: "pending" }))).toBe("preparing");
 	});
 
 	it("follows the server once it reports", () => {
-		expect(listenPhase(audio({ status: "pending" }), true)).toBe("preparing");
-		expect(listenPhase(audio({ status: "failed" }), true)).toBe("failed");
-		expect(
-			listenPhase(audio({ status: "ready", url: "https://blob/x.mp3" }), false)
-		).toBe("ready");
+		expect(listenPhase(audio({ status: "failed" }))).toBe("failed");
+		expect(listenPhase(audio({ status: "ready", url: "https://blob/x.mp3" }))).toBe("ready");
 	});
 
 	it("does not call a ready row playable without a URL", () => {
-		expect(listenPhase(audio({ status: "ready", url: null }), true)).toBe("preparing");
-		expect(listenPhase(audio({ status: "ready", url: null }), false)).toBe("idle");
+		expect(listenPhase(audio({ status: "ready", url: null }))).toBe("preparing");
 	});
 
 	it("hides the card outright when the server cannot narrate", () => {
-		// What production serves until ELEVENLABS_API_KEY is set: no card at all,
-		// never a button that can only fail. A tap cannot conjure credentials.
-		expect(listenPhase(audio({ status: "unavailable" }), false)).toBe("hidden");
-		expect(listenPhase(audio({ status: "unavailable" }), true)).toBe("hidden");
+		// No ELEVENLABS_API_KEY: no card at all, never a button that can only
+		// fail. Outranks every other status, Pro included.
+		expect(listenPhase(audio({ status: "unavailable" }))).toBe("hidden");
+		expect(listenPhase(audio({ status: "unavailable", plan: "pro" }))).toBe("hidden");
+	});
+
+	it("shows a free account the Pro panel rather than hiding the benefit", () => {
+		expect(listenPhase(audio({ status: "locked", plan: "free" }))).toBe("locked");
 	});
 
 	it("polls only while preparing", () => {
 		expect(shouldPollListen("preparing")).toBe(true);
-		expect(shouldPollListen("idle")).toBe(false);
 		expect(shouldPollListen("ready")).toBe(false);
 		expect(shouldPollListen("failed")).toBe(false);
 		expect(shouldPollListen("hidden")).toBe(false);
+		// A locked card must never poll - it would be a request per three
+		// seconds, forever, for an answer that cannot change.
+		expect(shouldPollListen("locked")).toBe(false);
+	});
+});
+
+describe("playback speed", () => {
+	it("cycles through every offered rate and wraps", () => {
+		const seen = [DEFAULT_LISTEN_RATE];
+		for (let step = 0; step < LISTEN_RATES.length - 1; step++) {
+			seen.push(nextListenRate(seen[seen.length - 1]));
+		}
+		expect(new Set(seen).size).toBe(LISTEN_RATES.length);
+		expect(nextListenRate(seen[seen.length - 1])).toBe(DEFAULT_LISTEN_RATE);
+	});
+
+	it("restarts the cycle from a rate this build no longer offers", () => {
+		expect(LISTEN_RATES).toContain(nextListenRate(3.5));
+	});
+
+	it("normalizes anything stored, including the string localStorage returns", () => {
+		expect(normalizeListenRate("1.5")).toBe(1.5);
+		expect(normalizeListenRate(1.5)).toBe(1.5);
+		expect(normalizeListenRate("banana")).toBe(DEFAULT_LISTEN_RATE);
+		expect(normalizeListenRate(null)).toBe(DEFAULT_LISTEN_RATE);
+		expect(normalizeListenRate(undefined)).toBe(DEFAULT_LISTEN_RATE);
+		// A rate we do not offer must not reach the player.
+		expect(normalizeListenRate(4)).toBe(DEFAULT_LISTEN_RATE);
+	});
+
+	it("labels the speed exactly, never rounded", () => {
+		expect(formatListenRate(1)).toBe("1x");
+		expect(formatListenRate(0.75)).toBe("0.75x");
+		expect(formatListenRate(1.25)).toBe("1.25x");
 	});
 });
 

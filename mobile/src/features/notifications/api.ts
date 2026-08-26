@@ -80,40 +80,60 @@ export function replaceTodayCross(getToken: GetToken, focus?: string) {
 /**
  * How the server describes today's spoken devotional. "unavailable" means the
  * deployment has no ElevenLabs credentials and can never make audio - the card
- * renders nothing at all for it.
+ * renders nothing at all for it. "locked" means this account is not on
+ * SureWord Pro, and the card renders the Pro panel instead.
  */
 export type DailyCrossAudioStatus =
 	| "none"
 	| "pending"
 	| "ready"
 	| "failed"
-	| "unavailable";
+	| "unavailable"
+	| "locked";
+
+/** The caller's subscription tier, as reported alongside the audio. */
+export type UserPlan = "free" | "pro";
 
 /** Today's spoken devotional, as served by /api/verse-of-day/audio. */
 export interface DailyCrossAudio {
 	status: DailyCrossAudioStatus;
-	/** Signed URL, good for 24 hours; only present while status is "ready". */
+	/**
+	 * Signed blob URL, good for 24 hours; only present while status is "ready".
+	 * Kept because it fetches fine, but never handed to a player - Chrome's
+	 * media loader will not load it, and the proxy keeps both clients on one
+	 * path. Play from `streamUrl`.
+	 */
 	url: string | null;
+	/**
+	 * Path (relative to `API_URL`) that proxies the narration through the app's
+	 * own API, `Range` and all; only present while status is "ready". Needs the
+	 * Clerk bearer token like any other route. See
+	 * `src/app/api/verse-of-day/audio/stream/route.ts`.
+	 */
+	streamUrl: string | null;
 	title: string | null;
 	/** The narrated text, for "Read along". */
 	script: string | null;
 	durationSec: number | null;
 	generatedAt: string | null;
+	/** The caller's tier, so "locked" needs no second call to explain itself. */
+	plan: UserPlan;
 }
 
 /**
- * The state of today's devotional audio, without starting any work. Cheap
- * enough to poll while a generation is running.
+ * The state of today's devotional audio, without starting any work. This is
+ * the only call the card makes on the happy path: the narration is started
+ * server-side when the day is stored, so this is polled until it lands.
  */
 export function fetchTodayCrossAudio(getToken: GetToken) {
 	return apiJson<DailyCrossAudio>(getToken, "/api/verse-of-day/audio");
 }
 
 /**
- * Ask the server to prepare today's devotional audio, or hand back the one it
- * already prepared. Audio is deliberately generated on first tap rather than
- * ahead of time, so this is a model call plus a full narration - around 30-60s
- * on a cold day.
+ * The manual retry behind a failed card, and nothing else - first generations
+ * are scheduled with the day. Safe to call twice (a ready or recently pending
+ * row is reused), but it is a model call plus a full narration when it does
+ * run, so around 30-60s.
  */
 export function requestTodayCrossAudio(getToken: GetToken) {
 	return apiJson<DailyCrossAudio>(

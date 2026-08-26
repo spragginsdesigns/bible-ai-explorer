@@ -1,3 +1,8 @@
+import {
+	DEFAULT_LISTEN_RATE,
+	LISTEN_RATE_PREF_KEY,
+	normalizeListenRate,
+} from "@/components/cross/listen";
 import type { TranslationId } from "@/lib/bible/translations";
 
 /**
@@ -116,4 +121,19 @@ export async function setWebSearchEnabled(
 	});
 	if (!res.ok) return parsePreferencesError(res);
 	return (await res.json()) as { webSearchEnabled: boolean };
+}
+
+/**
+ * Listen playback speed. Per-device on purpose: a speed someone picked on this
+ * machine is a habit, not an account preference worth a round trip. Android
+ * keeps the same value in its settings store.
+ */
+export function readListenRatePref(): number {
+	if (typeof window === "undefined") return DEFAULT_LISTEN_RATE;
+	return normalizeListenRate(window.localStorage.getItem(LISTEN_RATE_PREF_KEY));
+}
+
+export function writeListenRatePref(rate: number) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(LISTEN_RATE_PREF_KEY, String(normalizeListenRate(rate)));
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily-cross";
+import { getOrCreateDailyCrossAudio } from "@/lib/daily-cross-audio";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
 
@@ -10,6 +11,23 @@ export const maxDuration = 300;
 
 const MAX_USERS_PER_RUN = 50;
 const DAILY_CROSS_CHANNEL_ID = "daily-cross";
+
+/**
+ * How many narrations one run may make. Only SureWord Pro accounts are
+ * eligible and each is billed per character, so this is the ceiling on what a
+ * single hour can cost - not a throughput target.
+ */
+const MAX_AUDIO_PER_RUN = 60;
+
+/**
+ * Wall-clock budget for the audio pass, measured from the start of the
+ * request. A narration takes ~30-60s and `maxDuration` is 300s, so the pass
+ * stops well before the platform kills the function - a run that gets through
+ * four devotionals and defers the rest is a good run; a run that is killed
+ * mid-write is not. Whoever is skipped is picked up the moment they open the
+ * screen, because the on-demand path schedules audio too.
+ */
+const AUDIO_BUDGET_MS = 240_000;
 
 /** Local hour (0-23) in an IANA timezone; null when the timezone is invalid. */
 function localHour(timezone: string, now: Date): number | null {
@@ -109,11 +127,41 @@ export async function GET(request: Request) {
 
 	const deactivatedTokens = await sendExpoPushMessages(pending, "cron/verse-of-day");
 
+	// Narrate AFTER the pushes are away, never before: a spoken devotional is a
+	// slow, billable extra, and nobody should lose their morning notification
+	// because one narration was hanging. Sequential, capped, and bounded by the
+	// clock - see MAX_AUDIO_PER_RUN / AUDIO_BUDGET_MS.
+	const audio = { generated: 0, skipped: 0, failed: 0 };
+	for (const [userId] of dueUsers) {
+		if (audio.generated >= MAX_AUDIO_PER_RUN || Date.now() - now.getTime() > AUDIO_BUDGET_MS) {
+			audio.skipped += 1;
+			continue;
+		}
+		try {
+			// Idempotent: a ready row, a pending row under three minutes old, a free
+			// account and an unconfigured deployment all return without spending
+			// anything, so this is one narration per user per day at most.
+			const result = await getOrCreateDailyCrossAudio(userId);
+			if (result.status === "ready") audio.generated += 1;
+			else if (result.status === "failed") audio.failed += 1;
+			else audio.skipped += 1;
+		} catch (error) {
+			audio.failed += 1;
+			console.error(`[cron/verse-of-day] Audio failed for user ${userId}:`, error);
+		}
+	}
+	if (audio.skipped > 0) {
+		console.log(
+			`[cron/verse-of-day] Audio: ${audio.generated} generated, ${audio.skipped} skipped (locked, unconfigured, already made, or out of budget), ${audio.failed} failed`
+		);
+	}
+
 	return NextResponse.json({
 		dueUsers: dueUsers.length,
 		sent,
 		failed,
 		pushesQueued: pending.length,
 		deactivatedTokens,
+		audio,
 	});
 }
