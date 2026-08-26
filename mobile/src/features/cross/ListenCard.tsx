@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { GlassCard } from "@/components/ui";
+import { TimelineStop } from "@/features/cross/TimelineStop";
 import {
 	fetchTodayCrossAudio,
 	requestTodayCrossAudio,
@@ -27,7 +28,15 @@ import {
 	listenPhase,
 	listenProgress,
 	shouldPollListen,
+	shouldRefreshListenUrl,
 } from "@/features/cross/listen";
+
+/**
+ * expo-audio reports no error status of its own, so a URL the player cannot
+ * fetch simply never loads. Play pressed with nothing playing this long after
+ * is the signal that playback failed.
+ */
+const PLAYBACK_STALL_MS = 8_000;
 
 /** A slow gold pulse while the devotional is being written and narrated. */
 function PreparingShimmer() {
@@ -65,7 +74,9 @@ function PreparingShimmer() {
  * Nothing is generated until the first tap (every narration is billed per
  * character), so the card opens as an invitation, shimmers through the ~30-60s
  * it takes to write and narrate, then becomes a player with a scrubber and a
- * "Read along" transcript. Mirrors src/components/cross/ListenCard.tsx on web.
+ * "Read along" transcript. On a server with no ElevenLabs key it renders
+ * nothing at all, timeline stop included. Mirrors
+ * src/components/cross/ListenCard.tsx on web.
  */
 export function ListenCard() {
 	const getToken = useStableGetToken();
@@ -73,11 +84,23 @@ export function ListenCard() {
 	const { colors } = useTheme();
 
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
+	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
+	const [playRequestedAt, setPlayRequestedAt] = useState<number | null>(null);
 	const [requested, setRequested] = useState(false);
 	const [failureText, setFailureText] = useState<string | null>(null);
 	const [transcriptOpen, setTranscriptOpen] = useState(false);
 	const [trackWidth, setTrackWidth] = useState(0);
 	const [scrubFraction, setScrubFraction] = useState<number | null>(null);
+
+	// Where to pick a listen back up after a URL refresh, and whether one has
+	// already been spent on the current URL.
+	const resumeAtRef = useRef(0);
+	const resumePlayingRef = useRef(false);
+	const refreshedRef = useRef(false);
+
+	// Read through a ref, never a dependency: the status object ticks several
+	// times a second, and a stall timer that re-arms on every tick never fires.
+	const currentTimeRef = useRef(0);
 
 	const phase = failureText ? "failed" : listenPhase(audio, requested);
 
@@ -90,6 +113,8 @@ export function ListenCard() {
 		status.isLoaded && status.duration > 0 ? status.duration : (audio?.durationSec ?? 0);
 	const elapsed = scrubFraction !== null ? scrubFraction * duration : status.currentTime;
 	const progress = listenProgress(elapsed, duration);
+
+	currentTimeRef.current = status.currentTime;
 
 	// Leaving the screen must not leave a voice playing behind it.
 	useEffect(() => {
@@ -104,14 +129,20 @@ export function ListenCard() {
 		if (status.didJustFinish) void player.seekTo(0);
 	}, [status.didJustFinish, player]);
 
+	/** Record a server payload, stamping when this client received its URL. */
+	const applyAudio = useCallback((next: DailyCrossAudio) => {
+		setAudio(next);
+		setUrlFetchedAt(next.url ? Date.now() : null);
+	}, []);
+
 	const loadState = useCallback(async () => {
 		try {
-			setAudio(await fetchTodayCrossAudio(getToken));
+			applyAudio(await fetchTodayCrossAudio(getToken));
 		} catch {
 			// A failed poll is not a failed generation: the next tick retries, and
 			// the poll timeout is what eventually surfaces a problem.
 		}
-	}, [getToken]);
+	}, [getToken, applyAudio]);
 
 	useEffect(() => {
 		void loadState();
@@ -137,18 +168,75 @@ export function ListenCard() {
 		setRequested(true);
 		try {
 			const result = await requestTodayCrossAudio(getToken);
-			setAudio(result);
+			applyAudio(result);
 			if (result.status === "failed") setFailureText("Couldn't prepare audio - try again");
 		} catch {
 			// The request itself can time out while the server is still narrating,
 			// so fall back to polling rather than declaring failure here.
 			void loadState();
 		}
-	}, [getToken, loadState]);
+	}, [getToken, loadState, applyAudio]);
+
+	/**
+	 * Playback never started. A signed URL this client has been holding for a
+	 * while is the likeliest reason, so fetch a fresh one once and resume where
+	 * they were. A URL fetched moments ago that fails is a real failure and
+	 * says so.
+	 */
+	const handlePlaybackFailure = useCallback(async () => {
+		setPlayRequestedAt(null);
+		if (!shouldRefreshListenUrl(urlFetchedAt, refreshedRef.current)) {
+			setFailureText("Couldn't prepare audio - try again");
+			return;
+		}
+		refreshedRef.current = true;
+		resumeAtRef.current = currentTimeRef.current;
+		resumePlayingRef.current = true;
+		try {
+			const fresh = await fetchTodayCrossAudio(getToken);
+			if (fresh.status === "ready" && fresh.url) applyAudio(fresh);
+			else setFailureText("Couldn't prepare audio - try again");
+		} catch {
+			setFailureText("Couldn't prepare audio - try again");
+		}
+	}, [urlFetchedAt, getToken, applyAudio]);
+
+	// Nothing playing this long after the play button means the source never
+	// loaded; give a stale URL one silent refresh before showing a failure.
+	useEffect(() => {
+		if (playRequestedAt === null) return;
+		if (status.playing) {
+			setPlayRequestedAt(null);
+			// Playback works again: the next stale URL earns its own retry.
+			refreshedRef.current = false;
+			return;
+		}
+		const timer = setTimeout(() => void handlePlaybackFailure(), PLAYBACK_STALL_MS);
+		return () => clearTimeout(timer);
+	}, [playRequestedAt, status.playing, handlePlaybackFailure]);
+
+	// A refreshed URL builds a new player; land it back where the dead one
+	// stopped rather than at the beginning.
+	useEffect(() => {
+		if (!status.isLoaded || resumeAtRef.current <= 0) return;
+		const resumeAt = resumeAtRef.current;
+		resumeAtRef.current = 0;
+		void player.seekTo(resumeAt).then(() => {
+			if (!resumePlayingRef.current) return;
+			resumePlayingRef.current = false;
+			player.play();
+			setPlayRequestedAt(Date.now());
+		});
+	}, [status.isLoaded, player]);
 
 	const togglePlay = useCallback(() => {
-		if (status.playing) player.pause();
-		else player.play();
+		if (status.playing) {
+			player.pause();
+			setPlayRequestedAt(null);
+		} else {
+			player.play();
+			setPlayRequestedAt(Date.now());
+		}
 	}, [player, status.playing]);
 
 	const seekToFraction = useCallback(
@@ -192,93 +280,98 @@ export function ListenCard() {
 		? `About ${Math.max(1, Math.round(audio.durationSec / 60))} minutes`
 		: "A spoken devotional on today's verse";
 
-	return (
-		<GlassCard style={styles.card}>
-			{phase === "idle" ? (
-				<>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Listen to today's word"
-						onPress={() => void prepare()}
-						style={({ pressed }) => [
-							styles.primaryButton,
-							pressed && { backgroundColor: colors.accentPressed },
-						]}
-					>
-						<Text style={styles.primaryButtonLabel}>▶  Listen to today&apos;s word</Text>
-					</Pressable>
-					<Text style={styles.hint}>{estimate}</Text>
-				</>
-			) : phase === "preparing" ? (
-				<PreparingShimmer />
-			) : phase === "failed" ? (
-				<>
-					<Text style={styles.failureText}>Couldn&apos;t prepare audio - try again</Text>
-					<Pressable
-						accessibilityRole="button"
-						onPress={() => void prepare()}
-						style={({ pressed }) => [
-							styles.primaryButton,
-							pressed && { backgroundColor: colors.accentPressed },
-						]}
-					>
-						<Text style={styles.primaryButtonLabel}>Try again</Text>
-					</Pressable>
-				</>
-			) : (
-				<>
-					{audio?.title ? <Text style={styles.title}>{audio.title}</Text> : null}
+	// An unconfigured server offers nothing here - not even the rail node.
+	if (phase === "hidden") return null;
 
-					<View style={styles.playerRow}>
+	return (
+		<TimelineStop glyph="♪" label="LISTEN">
+			<GlassCard style={styles.card}>
+				{phase === "idle" ? (
+					<>
 						<Pressable
 							accessibilityRole="button"
-							accessibilityLabel={status.playing ? "Pause devotional" : "Play devotional"}
-							onPress={togglePlay}
+							accessibilityLabel="Listen to today's word"
+							onPress={() => void prepare()}
 							style={({ pressed }) => [
-								styles.playButton,
+								styles.primaryButton,
 								pressed && { backgroundColor: colors.accentPressed },
 							]}
 						>
-							<Text style={styles.playGlyph}>{status.playing ? "❙❙" : "▶"}</Text>
+							<Text style={styles.primaryButtonLabel}>▶  Listen to today&apos;s word</Text>
 						</Pressable>
+						<Text style={styles.hint}>{estimate}</Text>
+					</>
+				) : phase === "preparing" ? (
+					<PreparingShimmer />
+				) : phase === "failed" ? (
+					<>
+						<Text style={styles.failureText}>Couldn&apos;t prepare audio - try again</Text>
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => void prepare()}
+							style={({ pressed }) => [
+								styles.primaryButton,
+								pressed && { backgroundColor: colors.accentPressed },
+							]}
+						>
+							<Text style={styles.primaryButtonLabel}>Try again</Text>
+						</Pressable>
+					</>
+				) : (
+					<>
+						{audio?.title ? <Text style={styles.title}>{audio.title}</Text> : null}
 
-						<View style={styles.progressColumn}>
-							<View
-								accessibilityRole="adjustable"
-								accessibilityLabel="Devotional position"
-								onLayout={onTrackLayout}
-								style={styles.track}
-								{...panResponder.panHandlers}
-							>
-								<View style={styles.trackRail} />
-								<View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
-								<View style={[styles.trackKnob, { left: `${progress * 100}%` }]} />
-							</View>
-							<View style={styles.timesRow}>
-								<Text style={styles.time}>{formatClock(elapsed)}</Text>
-								<Text style={styles.time}>{formatClock(duration)}</Text>
-							</View>
-						</View>
-					</View>
-
-					{audio?.script ? (
-						<>
+						<View style={styles.playerRow}>
 							<Pressable
 								accessibilityRole="button"
-								accessibilityLabel={transcriptOpen ? "Hide transcript" : "Read along"}
-								onPress={() => setTranscriptOpen((open) => !open)}
-								style={styles.transcriptToggle}
+								accessibilityLabel={status.playing ? "Pause devotional" : "Play devotional"}
+								onPress={togglePlay}
+								style={({ pressed }) => [
+									styles.playButton,
+									pressed && { backgroundColor: colors.accentPressed },
+								]}
 							>
-								<Text style={styles.transcriptToggleLabel}>
-									{transcriptOpen ? "Hide transcript ▴" : "Read along ▾"}
-								</Text>
+								<Text style={styles.playGlyph}>{status.playing ? "❙❙" : "▶"}</Text>
 							</Pressable>
-							{transcriptOpen ? <Text style={styles.transcript}>{audio.script}</Text> : null}
-						</>
-					) : null}
-				</>
-			)}
-		</GlassCard>
+
+							<View style={styles.progressColumn}>
+								<View
+									accessibilityRole="adjustable"
+									accessibilityLabel="Devotional position"
+									onLayout={onTrackLayout}
+									style={styles.track}
+									{...panResponder.panHandlers}
+								>
+									<View style={styles.trackRail} />
+									<View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
+									<View style={[styles.trackKnob, { left: `${progress * 100}%` }]} />
+								</View>
+								<View style={styles.timesRow}>
+									<Text style={styles.time}>{formatClock(elapsed)}</Text>
+									<Text style={styles.time}>{formatClock(duration)}</Text>
+								</View>
+							</View>
+						</View>
+
+						{audio?.script ? (
+							<>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel={transcriptOpen ? "Hide transcript" : "Read along"}
+									onPress={() => setTranscriptOpen((open) => !open)}
+									style={styles.transcriptToggle}
+								>
+									<Text style={styles.transcriptToggleLabel}>
+										{transcriptOpen ? "Hide transcript ▴" : "Read along ▾"}
+									</Text>
+								</Pressable>
+								{transcriptOpen ? <Text style={styles.transcript}>{audio.script}</Text> : null}
+							</>
+						) : null}
+					</>
+				)}
+			</GlassCard>
+		</TimelineStop>
 	);
 }
 

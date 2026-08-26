@@ -208,8 +208,15 @@ eleven_multilingual_v2` (the stability-first long-form model) and
 `output_format=mp3_44100_128`, using plain `fetch` - one endpoint does not
 earn an SDK dependency. The MP3 goes to **private** Vercel Blob at
 `daily-cross-audio/<userId>/<verseOfDayId>.mp3`, the same access model as chat
-attachments, and clients are handed a freshly signed 15-minute URL on every
-read rather than a stored link that would outlive its own expiry.
+attachments, and clients are handed a freshly signed URL on every read rather
+than a stored link that would outlive its own expiry. That signature is good
+for **24 hours** (`createAttachmentPreviewUrl` grew an optional
+`expiresInSeconds`; the 15-minute default other callers use is unchanged):
+a devotional is several minutes of audio someone may pause and come back to,
+and a URL that dies under them mid-listen is a broken feature, not a security
+posture. If playback does fail on a URL a client has been holding for more
+than ten minutes, both cards silently re-fetch **once** and resume at the same
+position before showing anything went wrong.
 
 `VerseOfDay` gained `audioUrl`, `audioPathname`, `audioScript`, `audioTitle`,
 `audioDurationSec`, `audioStatus` and `audioGeneratedAt` (migration
@@ -224,9 +231,16 @@ polls every 3s while preparing). `POST` prepares it or returns what is already
 prepared. Both answer:
 
 ```
-{ status: "none" | "pending" | "ready" | "failed",
+{ status: "unavailable" | "none" | "pending" | "ready" | "failed",
   url, title, script, durationSec, generatedAt }
 ```
+
+`"unavailable"` means the deployment has no `ELEVENLABS_API_KEY`. It is
+returned before any database or model work - the answer is the same for every
+user - and **both clients render nothing at all for it**, timeline stop
+included. An unconfigured server therefore shows no Listen card rather than a
+button that can only ever fail. This is what production serves until the key
+is added.
 
 A `pending` row younger than three minutes is returned as-is, so two clients
 tapping play at once never pay for two narrations; older than that, the
@@ -246,7 +260,7 @@ the rest of that day.
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `ELEVENLABS_API_KEY` | yes | Missing throws `ELEVENLABS_API_KEY is not set`; the card shows "Couldn't prepare audio". Never a silent no-op |
+| `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and both clients hide the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
 | `ELEVENLABS_VOICE_ID` | no | Overrides the default voice without a deploy. Default `JBFqnCBsd6RMkjVDRZzb` ("George", ElevenLabs' own default library voice used in their quickstart) - warm, unhurried, mature male narration |
 
 ### Surfaces
@@ -257,6 +271,9 @@ the rest of that day.
   play/pause, a range scrubber and the transcript expander
 - Shared, tested state rules: `src/components/cross/listen.ts` +
   `mobile/src/features/cross/listen.ts`
+- The card owns its own timeline stop (`TimelineStop`, now its own module on
+  both clients) - a card that can decide to render nothing has to own the node
+  and label above it, or an empty ♪ would hang on the rail
 - macOS/iOS: not yet
 
 ---

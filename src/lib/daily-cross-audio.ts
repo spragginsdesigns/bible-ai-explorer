@@ -18,6 +18,7 @@ import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBi
 import {
 	dailyCrossAudioPathname,
 	estimateSpokenDurationSec,
+	isSpeechConfigured,
 	resolveStoredAudio,
 	sanitizeDevotionalScript,
 	sanitizeDevotionalTitle,
@@ -209,7 +210,7 @@ const TTS_TIMEOUT_MS = 90_000;
  */
 export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
 	const apiKey = process.env.ELEVENLABS_API_KEY;
-	if (!apiKey) throw new Error("ELEVENLABS_API_KEY is not set");
+	if (!isSpeechConfigured(apiKey)) throw new Error("ELEVENLABS_API_KEY is not set");
 	const voiceId = process.env.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
 
 	const response = await fetch(
@@ -258,6 +259,26 @@ const NO_AUDIO: DailyCrossAudio = {
 	generatedAt: null,
 };
 
+/**
+ * What every user of a deployment with no ElevenLabs credentials gets. Both
+ * clients render nothing at all for this status, so an unconfigured server
+ * shows no Listen card rather than a button that can only ever fail.
+ */
+const UNAVAILABLE_AUDIO: DailyCrossAudio = { ...NO_AUDIO, status: "unavailable" };
+
+/** True when this deployment has the credentials to narrate anything. */
+function speechAvailable(): boolean {
+	return isSpeechConfigured(process.env.ELEVENLABS_API_KEY);
+}
+
+/**
+ * A day's devotional can be paused and picked up later, so its signed URL has
+ * to outlive the listen. 24 hours also outlives the day itself
+ * (`DAILY_CROSS_REUSE_MS` is 20), so a URL never expires before the audio it
+ * points at stops being today's.
+ */
+const AUDIO_URL_LIFETIME_SECONDS = 24 * 60 * 60;
+
 interface AudioRow {
 	audioPathname: string | null;
 	audioScript: string | null;
@@ -285,7 +306,10 @@ async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
 	const generatedAt = row.audioGeneratedAt?.toISOString() ?? null;
 
 	if (row.audioStatus === "ready" && row.audioPathname) {
-		const { previewUrl } = await createAttachmentPreviewUrl(row.audioPathname);
+		const { previewUrl } = await createAttachmentPreviewUrl(
+			row.audioPathname,
+			AUDIO_URL_LIFETIME_SECONDS
+		);
 		return {
 			status: "ready",
 			url: previewUrl,
@@ -316,6 +340,10 @@ async function toClientAudio(row: AudioRow): Promise<DailyCrossAudio> {
  * already asked for is in flight.
  */
 export async function readDailyCrossAudio(userId: string): Promise<DailyCrossAudio> {
+	// Before any query: on a deployment with no ElevenLabs key the answer is
+	// the same for everyone, and the clients hide the feature entirely.
+	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
+
 	const cross = await findTodayCross(userId);
 	if (!cross) return NO_AUDIO;
 
@@ -328,7 +356,8 @@ export async function readDailyCrossAudio(userId: string): Promise<DailyCrossAud
 }
 
 /**
- * Today's devotional audio, generating it if there is none. Returns "none" when
+ * Today's devotional audio, generating it if there is none. Returns
+ * "unavailable" when this deployment has no ElevenLabs key, and "none" when
  * the user has no day yet - the cross itself is the other route's job, and
  * generating one here would hide that the two screens disagree.
  *
@@ -336,6 +365,10 @@ export async function readDailyCrossAudio(userId: string): Promise<DailyCrossAud
  * play at once never pay for two narrations of the same day.
  */
 export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyCrossAudio> {
+	// Cheapest possible refusal: no credentials means no narration is reachable,
+	// so never touch the database or mark a row pending for work that cannot run.
+	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
+
 	const cross = await findTodayCross(userId);
 	if (!cross) return NO_AUDIO;
 

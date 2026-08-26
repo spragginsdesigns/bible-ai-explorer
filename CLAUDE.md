@@ -286,10 +286,11 @@ Also required in `.env.local`:
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` - Clerk auth
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
-  it the Listen card fails loudly ("Couldn't prepare audio") rather than
-  silently doing nothing. Billed per character (~3,000-5,500 per devotional),
-  which is why audio is generated on the user's first tap and never by the
-  morning cron. See `docs/FEATURES.md` → "Listen".
+  it the audio routes answer `status: "unavailable"` and both clients hide the
+  Listen card entirely, so an unconfigured deploy shows no broken button.
+  Billed per character (~3,000-5,500 per devotional), which is why audio is
+  generated on the user's first tap and never by the morning cron. See
+  `docs/FEATURES.md` → "Listen".
 - `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
   `JBFqnCBsd6RMkjVDRZzb` ("George", an ElevenLabs default library voice).
 

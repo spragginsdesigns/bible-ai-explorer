@@ -7,11 +7,18 @@ import {
 	countSpokenWords,
 	dailyCrossAudioPathname,
 	estimateSpokenDurationSec,
+	isSpeechConfigured,
 	resolveStoredAudio,
 	sanitizeDevotionalScript,
 	sanitizeDevotionalTitle,
 } from "../src/lib/daily-cross-audio-script.ts";
-import { formatClock, listenPhase, shouldPollListen } from "../src/components/cross/listen.ts";
+import {
+	LISTEN_URL_STALE_AFTER_MS,
+	formatClock,
+	listenPhase,
+	shouldPollListen,
+	shouldRefreshListenUrl,
+} from "../src/components/cross/listen.ts";
 
 test("markdown a narrator would read out loud is stripped", () => {
 	const script = sanitizeDevotionalScript(
@@ -100,6 +107,23 @@ test("one blob path per day, scoped to the user", () => {
 	);
 });
 
+test("a deployment with no ElevenLabs key is not configured for speech", () => {
+	assert.equal(isSpeechConfigured(undefined), false);
+	assert.equal(isSpeechConfigured(null), false);
+	assert.equal(isSpeechConfigured(""), false);
+	// A key that is only whitespace is an unset key someone half-filled in.
+	assert.equal(isSpeechConfigured("   "), false);
+	assert.equal(isSpeechConfigured("sk_live_abc123"), true);
+});
+
+test("an unconfigured server hides the card outright, tap or no tap", () => {
+	// This is what production serves until the key is added, so it must never
+	// reach a Listen button that can only fail.
+	assert.equal(listenPhase({ status: "unavailable", url: null }, false), "hidden");
+	assert.equal(listenPhase({ status: "unavailable", url: null }, true), "hidden");
+	assert.equal(shouldPollListen("hidden"), false);
+});
+
 test("the card waits from the tap, not from the server's first answer", () => {
 	assert.equal(listenPhase(null, false), "idle");
 	assert.equal(listenPhase(null, true), "preparing");
@@ -111,6 +135,19 @@ test("the card waits from the tap, not from the server's first answer", () => {
 
 	assert.equal(shouldPollListen("preparing"), true);
 	assert.equal(shouldPollListen("ready"), false);
+});
+
+test("a stale signed URL earns exactly one silent refresh", () => {
+	const now = Date.UTC(2026, 7, 26, 12, 0, 0);
+	const stale = now - LISTEN_URL_STALE_AFTER_MS - 1;
+	const fresh = now - 30_000;
+
+	assert.equal(shouldRefreshListenUrl(stale, false, now), true);
+	// One retry only: a genuinely dead blob must not loop.
+	assert.equal(shouldRefreshListenUrl(stale, true, now), false);
+	// A URL fetched moments ago that fails is a real failure, not an expiry.
+	assert.equal(shouldRefreshListenUrl(fresh, false, now), false);
+	assert.equal(shouldRefreshListenUrl(null, false, now), false);
 });
 
 test("the clock never shows NaN", () => {

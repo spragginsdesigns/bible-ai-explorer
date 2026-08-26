@@ -45,10 +45,21 @@ export async function createAttachmentUploadUrl(
   return { uploadUrl: presignedUrl, uploadExpiresAt: new Date(validUntil).toISOString() };
 }
 
+/**
+ * A signed GET URL for a private blob.
+ *
+ * `expiresInSeconds` overrides the 15-minute default for callers whose blob is
+ * *consumed* rather than glanced at: the spoken devotional is a several-minute
+ * MP3 someone may pause and come back to, and a URL that expires under them
+ * mid-listen is a broken feature, not a security posture.
+ */
 export async function createAttachmentPreviewUrl(
   pathname: string,
+  expiresInSeconds?: number,
 ): Promise<{ previewUrl: string; previewExpiresAt: string }> {
-  const validUntil = Date.now() + PREVIEW_URL_LIFETIME_MS;
+  const lifetimeMs =
+    expiresInSeconds !== undefined ? expiresInSeconds * 1000 : PREVIEW_URL_LIFETIME_MS;
+  const validUntil = Date.now() + lifetimeMs;
   const token = await issueSignedToken({ pathname, operations: ["get"], validUntil });
   const { presignedUrl } = await presignUrl(token, {
     access: "private",

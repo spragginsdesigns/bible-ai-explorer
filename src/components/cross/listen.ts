@@ -8,13 +8,22 @@
  * rail by hand and needs the fraction.
  */
 
-/** How the server describes today's spoken devotional. */
-export type DailyCrossAudioStatus = "none" | "pending" | "ready" | "failed";
+/**
+ * How the server describes today's spoken devotional. "unavailable" means the
+ * deployment has no ElevenLabs credentials and can never make audio - the card
+ * renders nothing at all for it.
+ */
+export type DailyCrossAudioStatus =
+	| "none"
+	| "pending"
+	| "ready"
+	| "failed"
+	| "unavailable";
 
 /** Today's spoken devotional, as served by /api/verse-of-day/audio. */
 export interface DailyCrossAudio {
 	status: DailyCrossAudioStatus;
-	/** Short-lived signed URL; only present while status is "ready". */
+	/** Signed URL, good for 24 hours; only present while status is "ready". */
 	url: string | null;
 	title: string | null;
 	/** The narrated text, for "Read along". */
@@ -32,7 +41,15 @@ export const LISTEN_POLL_INTERVAL_MS = 3_000;
  */
 export const LISTEN_POLL_TIMEOUT_MS = 4 * 60 * 1000;
 
-export type ListenPhase = "idle" | "preparing" | "ready" | "failed";
+/**
+ * A signed audio URL lives 24 hours, but the tab or screen holding it may have
+ * been open far longer than the listen. When playback errors out on a URL this
+ * old, the card re-fetches once and resumes rather than accusing the user's
+ * connection - a URL fetched moments ago that fails is a real failure.
+ */
+export const LISTEN_URL_STALE_AFTER_MS = 10 * 60 * 1000;
+
+export type ListenPhase = "hidden" | "idle" | "preparing" | "ready" | "failed";
 
 /**
  * What the card should show. `requested` is true once the user has tapped play
@@ -40,6 +57,9 @@ export type ListenPhase = "idle" | "preparing" | "ready" | "failed";
  * wait, before the server has answered even once.
  */
 export function listenPhase(audio: DailyCrossAudio | null, requested: boolean): ListenPhase {
+	// A server that cannot narrate must offer nothing, not a button that fails.
+	// This outranks `requested`: a tap cannot conjure credentials.
+	if (audio?.status === "unavailable") return "hidden";
 	if (audio?.status === "ready" && audio.url) return "ready";
 	if (audio?.status === "pending") return "preparing";
 	if (audio?.status === "failed") return "failed";
@@ -50,6 +70,20 @@ export function listenPhase(audio: DailyCrossAudio | null, requested: boolean): 
 /** Whether the card should keep polling the server in this phase. */
 export function shouldPollListen(phase: ListenPhase): boolean {
 	return phase === "preparing";
+}
+
+/**
+ * Whether a playback error is worth one silent retry with a freshly signed URL
+ * instead of a failure card. `urlFetchedAt` is when the client received the
+ * URL, and `alreadyRetried` stops a genuinely dead blob looping forever.
+ */
+export function shouldRefreshListenUrl(
+	urlFetchedAt: number | null,
+	alreadyRetried: boolean,
+	now: number = Date.now()
+): boolean {
+	if (alreadyRetried || urlFetchedAt === null) return false;
+	return now - urlFetchedAt >= LISTEN_URL_STALE_AFTER_MS;
 }
 
 /** Seconds as m:ss (or h:mm:ss past an hour), for elapsed / total readouts. */

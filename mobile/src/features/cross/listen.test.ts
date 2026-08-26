@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { DailyCrossAudio } from "@/features/notifications/api";
-import { formatClock, listenPhase, listenProgress, shouldPollListen } from "./listen";
+import {
+	LISTEN_URL_STALE_AFTER_MS,
+	formatClock,
+	listenPhase,
+	listenProgress,
+	shouldPollListen,
+	shouldRefreshListenUrl,
+} from "./listen";
 
 function audio(overrides: Partial<DailyCrossAudio>): DailyCrossAudio {
 	return {
@@ -38,11 +45,36 @@ describe("listenPhase", () => {
 		expect(listenPhase(audio({ status: "ready", url: null }), false)).toBe("idle");
 	});
 
+	it("hides the card outright when the server cannot narrate", () => {
+		// What production serves until ELEVENLABS_API_KEY is set: no card at all,
+		// never a button that can only fail. A tap cannot conjure credentials.
+		expect(listenPhase(audio({ status: "unavailable" }), false)).toBe("hidden");
+		expect(listenPhase(audio({ status: "unavailable" }), true)).toBe("hidden");
+	});
+
 	it("polls only while preparing", () => {
 		expect(shouldPollListen("preparing")).toBe(true);
 		expect(shouldPollListen("idle")).toBe(false);
 		expect(shouldPollListen("ready")).toBe(false);
 		expect(shouldPollListen("failed")).toBe(false);
+		expect(shouldPollListen("hidden")).toBe(false);
+	});
+});
+
+describe("shouldRefreshListenUrl", () => {
+	const now = Date.UTC(2026, 7, 26, 12, 0, 0);
+
+	it("re-signs once for a URL old enough to have expired", () => {
+		expect(shouldRefreshListenUrl(now - LISTEN_URL_STALE_AFTER_MS - 1, false, now)).toBe(true);
+	});
+
+	it("does not loop on a blob that is genuinely gone", () => {
+		expect(shouldRefreshListenUrl(now - LISTEN_URL_STALE_AFTER_MS - 1, true, now)).toBe(false);
+	});
+
+	it("treats a fresh URL failing as a real failure", () => {
+		expect(shouldRefreshListenUrl(now - 30_000, false, now)).toBe(false);
+		expect(shouldRefreshListenUrl(null, false, now)).toBe(false);
 	});
 });
 

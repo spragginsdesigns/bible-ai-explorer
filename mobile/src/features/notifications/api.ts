@@ -77,13 +77,22 @@ export function replaceTodayCross(getToken: GetToken, focus?: string) {
 	);
 }
 
-/** How the server describes today's spoken devotional. */
-export type DailyCrossAudioStatus = "none" | "pending" | "ready" | "failed";
+/**
+ * How the server describes today's spoken devotional. "unavailable" means the
+ * deployment has no ElevenLabs credentials and can never make audio - the card
+ * renders nothing at all for it.
+ */
+export type DailyCrossAudioStatus =
+	| "none"
+	| "pending"
+	| "ready"
+	| "failed"
+	| "unavailable";
 
 /** Today's spoken devotional, as served by /api/verse-of-day/audio. */
 export interface DailyCrossAudio {
 	status: DailyCrossAudioStatus;
-	/** Short-lived signed URL; only present while status is "ready". */
+	/** Signed URL, good for 24 hours; only present while status is "ready". */
 	url: string | null;
 	title: string | null;
 	/** The narrated text, for "Read along". */

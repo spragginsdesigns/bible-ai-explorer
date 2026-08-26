@@ -24,9 +24,10 @@ function toResponse(audio: DailyCrossAudio) {
 /**
  * The state of today's spoken devotional. Cheap and side-effect free: this is
  * what a client polls every few seconds while a generation it started is still
- * running. `status` is "none" when the user has no day yet or has never asked
- * for audio, "pending" while it is being made, "ready" with a short-lived
- * signed `url`, or "failed".
+ * running. `status` is "unavailable" when this deployment has no ElevenLabs
+ * key (the clients then render no Listen card at all), "none" when the user
+ * has no day yet or has never asked for audio, "pending" while it is being
+ * made, "ready" with a signed `url` good for 24 hours, or "failed".
  */
 export async function GET(): Promise<Response> {
 	try {

@@ -31,8 +31,25 @@ export const AUDIO_PENDING_TTL_MS = 3 * 60 * 1000;
 /** The values stored in `VerseOfDay.audioStatus`. */
 export type DailyCrossAudioStatus = "pending" | "ready" | "failed";
 
-/** What a client is told about today's devotional audio. */
-export type DailyCrossAudioClientStatus = DailyCrossAudioStatus | "none";
+/**
+ * What a client is told about today's devotional audio.
+ *
+ * "unavailable" means the server has no ElevenLabs credentials, so this
+ * deployment cannot make audio at all - distinct from "none" (it could, nobody
+ * has asked yet) and from "failed" (it tried and could not). Clients render
+ * nothing for it: an unconfigured server must show no Listen card rather than
+ * a button that can only ever fail.
+ */
+export type DailyCrossAudioClientStatus = DailyCrossAudioStatus | "none" | "unavailable";
+
+/**
+ * Whether this deployment can synthesize speech at all. Checked before any
+ * database or model work, because the answer is the same for every user and
+ * costs nothing to reach.
+ */
+export function isSpeechConfigured(apiKey: string | undefined | null): apiKey is string {
+	return typeof apiKey === "string" && apiKey.trim().length > 0;
+}
 
 /**
  * Strip everything a model adds for a reader that a narrator would read out
