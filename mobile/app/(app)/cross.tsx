@@ -18,6 +18,7 @@ import {
 	type DailyCrossEntry,
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
+import { ListenCard } from "@/features/cross/ListenCard";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { fonts, radius, spacing, type Colors } from "@/theme";
@@ -198,6 +199,10 @@ export default function DailyCrossScreen() {
 								<Text style={styles.verseText}>{entry.text}</Text>
 								<Text style={styles.reason}>{entry.reason}</Text>
 							</GlassCard>
+						</TimelineStop>
+
+						<TimelineStop glyph="♪" label="LISTEN">
+							<ListenCard />
 						</TimelineStop>
 
 						{entry.whyToday ? (

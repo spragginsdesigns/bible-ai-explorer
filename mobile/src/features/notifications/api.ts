@@ -77,6 +77,44 @@ export function replaceTodayCross(getToken: GetToken, focus?: string) {
 	);
 }
 
+/** How the server describes today's spoken devotional. */
+export type DailyCrossAudioStatus = "none" | "pending" | "ready" | "failed";
+
+/** Today's spoken devotional, as served by /api/verse-of-day/audio. */
+export interface DailyCrossAudio {
+	status: DailyCrossAudioStatus;
+	/** Short-lived signed URL; only present while status is "ready". */
+	url: string | null;
+	title: string | null;
+	/** The narrated text, for "Read along". */
+	script: string | null;
+	durationSec: number | null;
+	generatedAt: string | null;
+}
+
+/**
+ * The state of today's devotional audio, without starting any work. Cheap
+ * enough to poll while a generation is running.
+ */
+export function fetchTodayCrossAudio(getToken: GetToken) {
+	return apiJson<DailyCrossAudio>(getToken, "/api/verse-of-day/audio");
+}
+
+/**
+ * Ask the server to prepare today's devotional audio, or hand back the one it
+ * already prepared. Audio is deliberately generated on first tap rather than
+ * ahead of time, so this is a model call plus a full narration - around 30-60s
+ * on a cold day.
+ */
+export function requestTodayCrossAudio(getToken: GetToken) {
+	return apiJson<DailyCrossAudio>(
+		getToken,
+		"/api/verse-of-day/audio",
+		{ method: "POST" },
+		{ timeoutMs: 120_000 }
+	);
+}
+
 /** Record that a chapter was read; feeds the verse-of-the-day personalization. */
 export function recordReadingEvent(
 	getToken: GetToken,

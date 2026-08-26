@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.28.0 (versionCode 24) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Listen to today's Pick Up Your Cross. Tap Listen and SureWord prepares a spoken devotional on your verse - it reads the verse, why it was chosen for you today, what the passage opens up, your study path, a prayer, and the question to carry
+- Play, pause and scrub through it, and open Read along to follow the words
+
+**Dev notes:** New `GET`/`POST /api/verse-of-day/audio`. The script is one structured utility-model call sharing `PERSONA` with `daily-cross.ts`, built from the stored day plus `loadStudyContext`, the verses either side, and up to five cross-references - all KJV wording from the bundled corpus, never the model. ElevenLabs `eleven_multilingual_v2` narrates it (`mp3_44100_128`) and the MP3 lands in **private** Vercel Blob at `daily-cross-audio/<userId>/<verseOfDayId>.mp3`; clients get a freshly signed URL per read. Seven nullable audio columns on `VerseOfDay` (migration `20260826120000_daily_cross_audio`). Generated on FIRST TAP only, never by the cron - ElevenLabs bills per character and most users never press play; a `pending` row under three minutes old is reused so two clients never buy two narrations. Android uses `expo-audio` (**native module: needs a prebuild, which this build is**) with the plugin pinned to `recordAudioAndroid: false` so no microphone permission appears on the listing. Web ships the same card in the same release; macOS/iOS do not have it yet.
+
+---
+
 ## 1.27.0 (versionCode 23) - 2026-08-26 - internal
 
 **What's new (Play):**

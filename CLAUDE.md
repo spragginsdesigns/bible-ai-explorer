@@ -284,6 +284,14 @@ Also required in `.env.local`:
 - `OPENAI_API_KEY` - OpenAI API key
 - `TAVILY_API_KEY` - Tavily search API key
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` - Clerk auth
+- `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
+  devotional on Pick Up Your Cross. **Required for that feature only**; without
+  it the Listen card fails loudly ("Couldn't prepare audio") rather than
+  silently doing nothing. Billed per character (~3,000-5,500 per devotional),
+  which is why audio is generated on the user's first tap and never by the
+  morning cron. See `docs/FEATURES.md` → "Listen".
+- `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
+  `JBFqnCBsd6RMkjVDRZzb` ("George", an ElevenLabs default library voice).
 
 **AstraDB is retired (2026-08-19).** Its free tier hibernated the vector DB on
 2026-08-13 and silently broke Scripture retrieval for six days (hibernated DBs
@@ -331,6 +339,8 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | RAG API route | `src/app/api/ask-question/route.ts` |
 | Tap-a-verse insight route | `src/app/api/verse-insight/route.ts` (docs: `docs/FEATURES.md`) |
 | Tap-a-verse client hooks | `src/components/bible/useVerseInsight.ts` + `mobile/src/features/bible/useVerseInsight.ts` (mirrored) |
+| Spoken devotional ("Listen") | `src/lib/daily-cross-audio.ts` + `src/lib/daily-cross-audio-script.ts`; route `src/app/api/verse-of-day/audio/route.ts` |
+| Listen cards | `src/components/cross/ListenCard.tsx` + `mobile/src/features/cross/ListenCard.tsx` (mirrored, with `listen.ts` state rules beside each) |
 | Web search (Tavily) | `src/lib/tavily.ts` + `webSearch` tool in `src/lib/ai-tools.ts`; toggle API at `src/app/api/preferences/` |
 | Scripture vector search | `src/lib/scripture-search.ts` |
 | Note embeddings sync/search | `src/lib/note-embeddings.ts` |

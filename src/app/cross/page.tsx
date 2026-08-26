@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
+import ListenCard from "@/components/cross/ListenCard";
 
 interface StudyStep {
 	book: string;
@@ -186,6 +187,10 @@ export default function DailyCrossPage() {
 									{entry.reason}
 								</p>
 							</div>
+						</TimelineStop>
+
+						<TimelineStop glyph="♪" label="LISTEN">
+							<ListenCard />
 						</TimelineStop>
 
 						{entry.whyToday && (

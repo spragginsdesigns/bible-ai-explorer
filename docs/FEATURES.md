@@ -166,6 +166,101 @@ payloads with only a verse reference fall back to the reader.
 
 ---
 
+## Listen - the spoken devotional
+
+*Shipped 2026-08-26 · Android 1.28.0 + web*
+
+The same day, read aloud. A "Listen" card sits under the verse on both Daily
+Cross surfaces: one tap turns today's cross into a 2-6 minute spoken
+devotional the user can play on a commute, with a scrubber, elapsed/total
+times and an expandable **Read along** transcript.
+
+### What gets said
+
+`generateDevotionalScript()` in `src/lib/daily-cross-audio.ts` runs one
+structured `generateText` call on the user's **utility-tier** model, under the
+same `PERSONA` as the day itself (imported from `src/lib/daily-cross.ts` - the
+voice you read and the voice you hear are one believer, not two). The prompt
+carries the stored day (`reason`, `whyToday`, `application`, `studyPath`,
+`question`), the same `loadStudyContext()` evidence the day was built from,
+the verses three either side of the day's verse, and up to five ranked
+cross-references (`src/lib/bible/crossRefs.ts`) - all with exact KJV wording
+read from the bundled corpus, never from the model.
+
+The script greets them, reads the verse in full, says why it was set before
+them today, opens the passage up, walks the study path, prays, and ends on the
+carry-through question. Length is the model's call between **250 and 900
+words**, chosen by how much *real* context exists - the same honesty rule as
+`whyToday`: a thin day gets a short devotional rather than a padded one.
+
+Because it is spoken, the model is told to write numerals and references the
+way they are *said* ("First Corinthians thirteen, verse four"), and
+`sanitizeDevotionalScript()` (`src/lib/daily-cross-audio-script.ts`) strips
+anything a narrator would otherwise read out loud - markdown headings,
+emphasis, bullets, block quotes and stage directions like `[pause]` - then
+trims at a paragraph boundary under ElevenLabs' 10,000-character request cap.
+
+### Narration and storage
+
+`synthesizeSpeech()` POSTs the script to
+`https://api.elevenlabs.io/v1/text-to-speech/{voice_id}` with `model_id:
+eleven_multilingual_v2` (the stability-first long-form model) and
+`output_format=mp3_44100_128`, using plain `fetch` - one endpoint does not
+earn an SDK dependency. The MP3 goes to **private** Vercel Blob at
+`daily-cross-audio/<userId>/<verseOfDayId>.mp3`, the same access model as chat
+attachments, and clients are handed a freshly signed 15-minute URL on every
+read rather than a stored link that would outlive its own expiry.
+
+`VerseOfDay` gained `audioUrl`, `audioPathname`, `audioScript`, `audioTitle`,
+`audioDurationSec`, `audioStatus` and `audioGeneratedAt` (migration
+`20260826120000_daily_cross_audio`, all nullable). Replacing the day with
+"↻ A different word for today" deletes the old blob best-effort - the new row
+carries no audio, so the old narration is unreachable anyway.
+
+### API
+
+`GET /api/verse-of-day/audio` reports state without doing work (what a client
+polls every 3s while preparing). `POST` prepares it or returns what is already
+prepared. Both answer:
+
+```
+{ status: "none" | "pending" | "ready" | "failed",
+  url, title, script, durationSec, generatedAt }
+```
+
+A `pending` row younger than three minutes is returned as-is, so two clients
+tapping play at once never pay for two narrations; older than that, the
+generation is assumed dead and starts again. `durationSec` is estimated from
+the word count at 150 wpm - every client replaces it with the file's real
+duration once the audio loads.
+
+### Cost - why it is never pre-generated
+
+The morning cron deliberately does **not** make audio. ElevenLabs bills per
+character, a devotional is ~3,000-5,500 characters, and most users never tap
+play; generating for every user every morning would bill the whole table for
+a feature a fraction of it uses. Audio is made on the first tap and reused for
+the rest of that day.
+
+### Environment
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `ELEVENLABS_API_KEY` | yes | Missing throws `ELEVENLABS_API_KEY is not set`; the card shows "Couldn't prepare audio". Never a silent no-op |
+| `ELEVENLABS_VOICE_ID` | no | Overrides the default voice without a deploy. Default `JBFqnCBsd6RMkjVDRZzb` ("George", ElevenLabs' own default library voice used in their quickstart) - warm, unhurried, mature male narration |
+
+### Surfaces
+
+- Android: `mobile/src/features/cross/ListenCard.tsx` via `expo-audio`
+  (**a native module - needs `expo prebuild` + a new build to reach a device**)
+- Web: `src/components/cross/ListenCard.tsx`, an `<audio>` element with custom
+  play/pause, a range scrubber and the transcript expander
+- Shared, tested state rules: `src/components/cross/listen.ts` +
+  `mobile/src/features/cross/listen.ts`
+- macOS/iOS: not yet
+
+---
+
 ## An app-aware assistant, and changing today's cross from chat
 
 *Shipped 2026-08-17 · Android 1.15.0 + web + macOS 1.2.0*

@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { deleteAttachmentBlob } from "@/lib/chat-attachments.server";
 import { resolveModel } from "@/lib/ai/provider";
 import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
@@ -57,7 +58,12 @@ const dailyCrossSchema = z.object({
 /** The pinned-verse variant of the day: the reference is fixed, the prose is not. */
 const pinnedCrossSchema = dailyCrossSchema.omit({ book: true, chapter: true, verse: true });
 
-const PERSONA = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up his cross daily") for SureWord, a KJV Bible study assistant. You speak as a saved, born-again believer who holds the King James Version Bible to be the inerrant, infallible Word of God. You are a companion who keeps putting the right Scripture in front of this person — you never claim to be God, the Holy Spirit, or to speak for Him beyond what Scripture says. The Spirit works through the Word; your job is to hand them the Word.`;
+/**
+ * Shared with the spoken devotional (`src/lib/daily-cross-audio.ts`) so the
+ * voice a user reads and the voice they hear are the same believer, not two
+ * personas that happen to quote the same verse.
+ */
+export const PERSONA = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up his cross daily") for SureWord, a KJV Bible study assistant. You speak as a saved, born-again believer who holds the King James Version Bible to be the inerrant, infallible Word of God. You are a companion who keeps putting the right Scripture in front of this person — you never claim to be God, the Holy Spirit, or to speak for Him beyond what Scripture says. The Spirit works through the Word; your job is to hand them the Word.`;
 
 const SHARED_RULES = `Honesty rule, non-negotiable: whyToday may only reference activity that is actually present in the context you are given. Fabricated intimacy ("you've been wrestling with...") when the context shows nothing is worse than a plain word of encouragement. When the context is thin, say less.
 
@@ -293,8 +299,11 @@ export async function generateDailyCross(
 	}
 }
 
-/** Persist a generated day; returns the stored row's sentAt. */
-export async function storeDailyCross(userId: string, cross: DailyCross): Promise<Date> {
+/** Persist a generated day; returns the stored row's id and sentAt. */
+export async function storeDailyCross(
+	userId: string,
+	cross: DailyCross
+): Promise<{ id: string; sentAt: Date }> {
 	const row = await prisma.verseOfDay.create({
 		data: {
 			userId,
@@ -308,13 +317,20 @@ export async function storeDailyCross(userId: string, cross: DailyCross): Promis
 			studyPath: JSON.stringify(cross.studyPath),
 			question: cross.question,
 		},
-		select: { sentAt: true },
+		select: { id: true, sentAt: true },
 	});
-	return row.sentAt;
+	return row;
 }
 
 export interface StoredDailyCross extends DailyCross {
+	id: string;
 	sentAt: Date;
+	/**
+	 * Blob path of the spoken devotional for this day, when one has been
+	 * generated. Carried here so replacing the day can clean the old audio up
+	 * without a second query.
+	 */
+	audioPathname: string | null;
 }
 
 /** Today's entry if one exists inside the reuse window, else null. */
@@ -344,6 +360,7 @@ export async function findTodayCross(userId: string): Promise<StoredDailyCross |
 	}
 
 	return {
+		id: row.id,
 		book: row.book,
 		chapter: row.chapter,
 		verse: row.verse,
@@ -354,6 +371,7 @@ export async function findTodayCross(userId: string): Promise<StoredDailyCross |
 		studyPath,
 		question: row.question,
 		sentAt: row.sentAt,
+		audioPathname: row.audioPathname,
 	};
 }
 
@@ -370,9 +388,20 @@ export async function replaceDailyCross(
 ): Promise<{ cross: StoredDailyCross; previousReference: string | null }> {
 	const previous = await findTodayCross(userId);
 	const cross = await generateDailyCross(userId, request);
-	const sentAt = await storeDailyCross(userId, cross);
+	const { id, sentAt } = await storeDailyCross(userId, cross);
+
+	// The new row carries no audio, so the replaced day's spoken devotional is
+	// unreachable from here on. Delete the blob rather than leave it paid for.
+	// Best effort: a failed delete must never fail the replacement.
+	if (previous?.audioPathname) {
+		const pathname = previous.audioPathname;
+		await deleteAttachmentBlob(pathname).catch((error: unknown) => {
+			console.error(`[daily-cross] Could not delete replaced audio ${pathname}:`, error);
+		});
+	}
+
 	return {
-		cross: { ...cross, sentAt },
+		cross: { ...cross, id, sentAt, audioPathname: null },
 		previousReference: previous
 			? `${previous.book} ${previous.chapter}:${previous.verse}`
 			: null,

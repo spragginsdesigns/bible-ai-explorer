@@ -310,6 +310,16 @@ model VerseOfDay {
   studyPath   String? // JSON array of { book, chapter, focus }
   question    String? // one question to carry through the day
 
+  // "Listen" - the spoken devotional for this day, generated on first tap
+  // (never by the cron: every generation costs ElevenLabs characters).
+  audioUrl         String? // canonical Vercel Blob URL; clients get a short-lived signed URL instead
+  audioPathname    String? // blob path, the handle used to sign and to delete
+  audioScript      String? // the narrated text, shown as "Read along"
+  audioTitle       String? // short spoken-devotional title
+  audioDurationSec Int? // estimated from the script's word count
+  audioStatus      String? // "pending" | "ready" | "failed"
+  audioGeneratedAt DateTime? // when the current attempt started; ages out a stuck "pending"
+
   @@index([userId, sentAt])
 }
 

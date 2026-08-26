@@ -46,7 +46,7 @@ export async function GET(): Promise<Response> {
 		if (existing) return NextResponse.json(toResponse(existing, existing.sentAt));
 
 		const cross = await generateDailyCross(userId);
-		const sentAt = await storeDailyCross(userId, cross);
+		const { sentAt } = await storeDailyCross(userId, cross);
 		return NextResponse.json(toResponse(cross, sentAt));
 	} catch (error) {
 		return errorResponse(error);

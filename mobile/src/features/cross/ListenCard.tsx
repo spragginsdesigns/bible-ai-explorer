@@ -1,0 +1,359 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	Animated,
+	Easing,
+	PanResponder,
+	Pressable,
+	StyleSheet,
+	Text,
+	View,
+	type GestureResponderEvent,
+	type LayoutChangeEvent,
+} from "react-native";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { GlassCard } from "@/components/ui";
+import {
+	fetchTodayCrossAudio,
+	requestTodayCrossAudio,
+	type DailyCrossAudio,
+} from "@/features/notifications/api";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { radius, spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import {
+	LISTEN_POLL_INTERVAL_MS,
+	LISTEN_POLL_TIMEOUT_MS,
+	formatClock,
+	listenPhase,
+	listenProgress,
+	shouldPollListen,
+} from "@/features/cross/listen";
+
+/** A slow gold pulse while the devotional is being written and narrated. */
+function PreparingShimmer() {
+	const styles = useThemedStyles(createStyles);
+	const pulse = useRef(new Animated.Value(0.35)).current;
+
+	useEffect(() => {
+		const loop = Animated.loop(
+			Animated.sequence([
+				Animated.timing(pulse, {
+					toValue: 1,
+					duration: 1100,
+					easing: Easing.inOut(Easing.ease),
+					useNativeDriver: true,
+				}),
+				Animated.timing(pulse, { toValue: 0.35, duration: 1100, useNativeDriver: true }),
+			])
+		);
+		loop.start();
+		return () => loop.stop();
+	}, [pulse]);
+
+	return (
+		<View style={styles.preparing}>
+			<Animated.View style={[styles.shimmerBar, { opacity: pulse }]} />
+			<Text style={styles.preparingText}>Preparing your devotional…</Text>
+			<Text style={styles.preparingHint}>This usually takes about a minute.</Text>
+		</View>
+	);
+}
+
+/**
+ * "Listen" - today's "Pick Up Your Cross" as a spoken devotional.
+ *
+ * Nothing is generated until the first tap (every narration is billed per
+ * character), so the card opens as an invitation, shimmers through the ~30-60s
+ * it takes to write and narrate, then becomes a player with a scrubber and a
+ * "Read along" transcript. Mirrors src/components/cross/ListenCard.tsx on web.
+ */
+export function ListenCard() {
+	const getToken = useStableGetToken();
+	const styles = useThemedStyles(createStyles);
+	const { colors } = useTheme();
+
+	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
+	const [requested, setRequested] = useState(false);
+	const [failureText, setFailureText] = useState<string | null>(null);
+	const [transcriptOpen, setTranscriptOpen] = useState(false);
+	const [trackWidth, setTrackWidth] = useState(0);
+	const [scrubFraction, setScrubFraction] = useState<number | null>(null);
+
+	const phase = failureText ? "failed" : listenPhase(audio, requested);
+
+	const player = useAudioPlayer(audio?.url ?? null, { updateInterval: 250 });
+	const status = useAudioPlayerStatus(player);
+
+	// The player's real duration once the file is loaded; the server's word-count
+	// estimate before that, so the total never reads 0:00 while buffering.
+	const duration =
+		status.isLoaded && status.duration > 0 ? status.duration : (audio?.durationSec ?? 0);
+	const elapsed = scrubFraction !== null ? scrubFraction * duration : status.currentTime;
+	const progress = listenProgress(elapsed, duration);
+
+	// Leaving the screen must not leave a voice playing behind it.
+	useEffect(() => {
+		return () => {
+			player.pause();
+		};
+	}, [player]);
+
+	// A finished devotional rewinds, so the play button starts it again rather
+	// than doing nothing at the very end of the track.
+	useEffect(() => {
+		if (status.didJustFinish) void player.seekTo(0);
+	}, [status.didJustFinish, player]);
+
+	const loadState = useCallback(async () => {
+		try {
+			setAudio(await fetchTodayCrossAudio(getToken));
+		} catch {
+			// A failed poll is not a failed generation: the next tick retries, and
+			// the poll timeout is what eventually surfaces a problem.
+		}
+	}, [getToken]);
+
+	useEffect(() => {
+		void loadState();
+	}, [loadState]);
+
+	// Poll while a devotional is being prepared, and give up rather than
+	// shimmer forever if the server never reports back.
+	useEffect(() => {
+		if (!shouldPollListen(phase)) return;
+		const startedAt = Date.now();
+		const timer = setInterval(() => {
+			if (Date.now() - startedAt > LISTEN_POLL_TIMEOUT_MS) {
+				setFailureText("Couldn't prepare audio - try again");
+				return;
+			}
+			void loadState();
+		}, LISTEN_POLL_INTERVAL_MS);
+		return () => clearInterval(timer);
+	}, [phase, loadState]);
+
+	const prepare = useCallback(async () => {
+		setFailureText(null);
+		setRequested(true);
+		try {
+			const result = await requestTodayCrossAudio(getToken);
+			setAudio(result);
+			if (result.status === "failed") setFailureText("Couldn't prepare audio - try again");
+		} catch {
+			// The request itself can time out while the server is still narrating,
+			// so fall back to polling rather than declaring failure here.
+			void loadState();
+		}
+	}, [getToken, loadState]);
+
+	const togglePlay = useCallback(() => {
+		if (status.playing) player.pause();
+		else player.play();
+	}, [player, status.playing]);
+
+	const seekToFraction = useCallback(
+		(fraction: number) => {
+			if (duration <= 0) return;
+			void player.seekTo(Math.max(0, Math.min(1, fraction)) * duration);
+		},
+		[player, duration]
+	);
+
+	const fractionForTouch = useCallback(
+		(event: GestureResponderEvent) => {
+			if (trackWidth <= 0) return 0;
+			return Math.max(0, Math.min(1, event.nativeEvent.locationX / trackWidth));
+		},
+		[trackWidth]
+	);
+
+	const panResponder = useMemo(
+		() =>
+			PanResponder.create({
+				onStartShouldSetPanResponder: () => true,
+				onMoveShouldSetPanResponder: () => true,
+				onPanResponderGrant: (event) => setScrubFraction(fractionForTouch(event)),
+				onPanResponderMove: (event) => setScrubFraction(fractionForTouch(event)),
+				onPanResponderRelease: (event) => {
+					const fraction = fractionForTouch(event);
+					setScrubFraction(null);
+					seekToFraction(fraction);
+				},
+				onPanResponderTerminate: () => setScrubFraction(null),
+			}),
+		[fractionForTouch, seekToFraction]
+	);
+
+	const onTrackLayout = useCallback((event: LayoutChangeEvent) => {
+		setTrackWidth(event.nativeEvent.layout.width);
+	}, []);
+
+	const estimate = audio?.durationSec
+		? `About ${Math.max(1, Math.round(audio.durationSec / 60))} minutes`
+		: "A spoken devotional on today's verse";
+
+	return (
+		<GlassCard style={styles.card}>
+			{phase === "idle" ? (
+				<>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Listen to today's word"
+						onPress={() => void prepare()}
+						style={({ pressed }) => [
+							styles.primaryButton,
+							pressed && { backgroundColor: colors.accentPressed },
+						]}
+					>
+						<Text style={styles.primaryButtonLabel}>▶  Listen to today&apos;s word</Text>
+					</Pressable>
+					<Text style={styles.hint}>{estimate}</Text>
+				</>
+			) : phase === "preparing" ? (
+				<PreparingShimmer />
+			) : phase === "failed" ? (
+				<>
+					<Text style={styles.failureText}>Couldn&apos;t prepare audio - try again</Text>
+					<Pressable
+						accessibilityRole="button"
+						onPress={() => void prepare()}
+						style={({ pressed }) => [
+							styles.primaryButton,
+							pressed && { backgroundColor: colors.accentPressed },
+						]}
+					>
+						<Text style={styles.primaryButtonLabel}>Try again</Text>
+					</Pressable>
+				</>
+			) : (
+				<>
+					{audio?.title ? <Text style={styles.title}>{audio.title}</Text> : null}
+
+					<View style={styles.playerRow}>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={status.playing ? "Pause devotional" : "Play devotional"}
+							onPress={togglePlay}
+							style={({ pressed }) => [
+								styles.playButton,
+								pressed && { backgroundColor: colors.accentPressed },
+							]}
+						>
+							<Text style={styles.playGlyph}>{status.playing ? "❙❙" : "▶"}</Text>
+						</Pressable>
+
+						<View style={styles.progressColumn}>
+							<View
+								accessibilityRole="adjustable"
+								accessibilityLabel="Devotional position"
+								onLayout={onTrackLayout}
+								style={styles.track}
+								{...panResponder.panHandlers}
+							>
+								<View style={styles.trackRail} />
+								<View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
+								<View style={[styles.trackKnob, { left: `${progress * 100}%` }]} />
+							</View>
+							<View style={styles.timesRow}>
+								<Text style={styles.time}>{formatClock(elapsed)}</Text>
+								<Text style={styles.time}>{formatClock(duration)}</Text>
+							</View>
+						</View>
+					</View>
+
+					{audio?.script ? (
+						<>
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={transcriptOpen ? "Hide transcript" : "Read along"}
+								onPress={() => setTranscriptOpen((open) => !open)}
+								style={styles.transcriptToggle}
+							>
+								<Text style={styles.transcriptToggleLabel}>
+									{transcriptOpen ? "Hide transcript ▴" : "Read along ▾"}
+								</Text>
+							</Pressable>
+							{transcriptOpen ? <Text style={styles.transcript}>{audio.script}</Text> : null}
+						</>
+					) : null}
+				</>
+			)}
+		</GlassCard>
+	);
+}
+
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		card: { padding: spacing.lg, gap: spacing.md },
+		title: { color: c.text, fontSize: 15, fontWeight: "600" },
+		hint: { color: c.textFaint, fontSize: 13, textAlign: "center" },
+		primaryButton: {
+			minHeight: 48,
+			borderRadius: radius.lg,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		primaryButtonLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		preparing: { gap: spacing.sm, paddingVertical: spacing.sm },
+		shimmerBar: {
+			height: 12,
+			borderRadius: radius.full,
+			backgroundColor: c.accentSoft,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.accentBorder,
+		},
+		preparingText: { color: c.textSecondary, fontSize: 14, textAlign: "center" },
+		preparingHint: { color: c.textFaint, fontSize: 12.5, textAlign: "center" },
+		failureText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		playerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+		playButton: {
+			width: 48,
+			height: 48,
+			borderRadius: 24,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		playGlyph: { color: c.accent, fontSize: 16, fontWeight: "700" },
+		progressColumn: { flex: 1, gap: 6 },
+		// The touch target is 22pt tall so it can be grabbed; the rail drawn
+		// inside it is 4pt, centred by hand because absolute children ignore
+		// the container's justifyContent.
+		track: { height: 22 },
+		trackRail: {
+			position: "absolute",
+			top: 9,
+			left: 0,
+			right: 0,
+			height: 4,
+			borderRadius: 2,
+			backgroundColor: c.borderStrong,
+		},
+		trackFill: {
+			position: "absolute",
+			top: 9,
+			left: 0,
+			height: 4,
+			borderRadius: 2,
+			backgroundColor: c.accent,
+		},
+		trackKnob: {
+			position: "absolute",
+			top: 5,
+			width: 12,
+			height: 12,
+			marginLeft: -6,
+			borderRadius: 6,
+			backgroundColor: c.accent,
+		},
+		timesRow: { flexDirection: "row", justifyContent: "space-between" },
+		time: { color: c.textFaint, fontSize: 12, fontVariant: ["tabular-nums"] },
+		transcriptToggle: { paddingVertical: spacing.xs },
+		transcriptToggleLabel: { color: c.accentDim, fontSize: 13, fontWeight: "600" },
+		transcript: { color: c.textSecondary, fontSize: 14.5, lineHeight: 23 },
+	});
