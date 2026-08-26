@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/expo";
 import { apiJson, type GetToken } from "@/lib/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
-import { commonQuestions } from "./commonQuestions";
+import { commonQuestionSuggestions } from "./commonQuestions";
+import {
+	parseSuggestedQuestionsResponse,
+	type SuggestedQuestionInput,
+} from "./questionPresentation";
 
 /**
  * The personalized opening questions (`GET /api/suggested-questions`).
@@ -15,27 +19,23 @@ import { commonQuestions } from "./commonQuestions";
  * inherit them.
  */
 
-const DEFAULTS = commonQuestions.slice(0, 6);
+const DEFAULTS: SuggestedQuestionInput[] = commonQuestionSuggestions.slice(0, 6);
 /** The route allows itself 60s; the screen should not wait that long to fall back. */
 const TIMEOUT_MS = 25_000;
 
-let cached: { userId: string; questions: string[] } | null = null;
-let inFlight: { userId: string; promise: Promise<string[]> } | null = null;
+let cached: { userId: string; questions: SuggestedQuestionInput[] } | null = null;
+let inFlight: { userId: string; promise: Promise<SuggestedQuestionInput[]> } | null = null;
 
-function load(userId: string, getToken: GetToken): Promise<string[]> {
+function load(userId: string, getToken: GetToken): Promise<SuggestedQuestionInput[]> {
 	if (inFlight?.userId === userId) return inFlight.promise;
-	const promise = apiJson<{ questions?: unknown }>(
+	const promise = apiJson<{ questions?: unknown; items?: unknown }>(
 		getToken,
 		"/api/suggested-questions",
 		undefined,
 		{ timeoutMs: TIMEOUT_MS }
 	)
 		.then((data) => {
-			const questions = Array.isArray(data.questions)
-				? data.questions.filter(
-						(question): question is string => typeof question === "string" && question.length > 0
-					)
-				: [];
+			const questions = parseSuggestedQuestionsResponse(data);
 			return questions.length > 0 ? questions : DEFAULTS;
 		})
 		.catch(() => DEFAULTS)
@@ -48,10 +48,13 @@ function load(userId: string, getToken: GetToken): Promise<string[]> {
 	return promise;
 }
 
-export function useSuggestedQuestions(): { questions: string[]; loading: boolean } {
+export function useSuggestedQuestions(): {
+	questions: SuggestedQuestionInput[];
+	loading: boolean;
+} {
 	const { userId } = useAuth();
 	const getToken = useStableGetToken();
-	const [questions, setQuestions] = useState<string[] | null>(
+	const [questions, setQuestions] = useState<SuggestedQuestionInput[] | null>(
 		cached && cached.userId === userId ? cached.questions : null
 	);
 

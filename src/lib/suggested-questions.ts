@@ -4,7 +4,8 @@ import { resolveModel } from "@/lib/ai/provider";
 import { findTodayCross } from "@/lib/daily-cross";
 import { prisma } from "@/lib/prisma";
 import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
-import { commonQuestions } from "@/utils/commonQuestions";
+import { commonQuestionSuggestions } from "@/utils/commonQuestions";
+import { parseReferenceLabel, questionReference } from "@/utils/questionPresentation";
 
 /**
  * The questions waiting on the empty chat screen. Instead of six fixed prompts,
@@ -22,9 +23,34 @@ export const SUGGESTED_QUESTION_COUNT = 6;
 /** Two lines on a phone chip. Longer than this and the model is writing a paragraph. */
 const MAX_QUESTION_LENGTH = 110;
 
+/**
+ * The label under a chip when the question is not anchored to one passage: the
+ * place in the user's own walk it was drawn from. A reference always wins over
+ * one of these; see `sanitizeLabel`.
+ */
+export const SUGGESTED_QUESTION_KINDS = [
+	"MEMORY",
+	"YOUR NOTES",
+	"TODAY'S VERSE",
+	"APPLY",
+	"NEXT CHAPTER",
+	"DOCTRINE",
+] as const;
+
+export type SuggestedQuestionKind = (typeof SUGGESTED_QUESTION_KINDS)[number];
+
 const questionsSchema = z.object({
 	questions: z
-		.array(z.string())
+		.array(
+			z.object({
+				question: z.string().describe("The question, worded as the user would type it."),
+				label: z
+					.string()
+					.describe(
+						`Either a Scripture reference ("James 3:5-6") when the question is anchored to one passage, or exactly one of: ${SUGGESTED_QUESTION_KINDS.join(", ")}.`
+					),
+			})
+		)
 		.min(4)
 		.max(SUGGESTED_QUESTION_COUNT)
 		.describe("The questions, most compelling first."),
@@ -40,12 +66,52 @@ The rules, in order of importance:
 2. GROUND EVERY ONE IN THE CONTEXT YOU WERE GIVEN. Draw on the actual chapters, doctrines, people and troubles that appear there. Never invent a study, struggle or question this context does not show.
 3. VARY THEM. Across the six, aim for a spread: the passage they have been living in, a doctrine their recent questions circle, something that follows from today's verse, a plain application question, and a natural next step in their reading. Do not write six variations of one question.
 4. Do not re-ask something they have already asked — move past it instead.
-5. One sentence each, under ${MAX_QUESTION_LENGTH} characters, plain and specific. No numbering, no quotation marks around the whole question, no emoji, no yes/no questions, and nothing so broad it could sit on any user's screen.`;
+5. One sentence each, under ${MAX_QUESTION_LENGTH} characters, plain and specific. No numbering, no quotation marks around the whole question, no emoji, no yes/no questions, and nothing so broad it could sit on any user's screen.
+6. LABEL EVERY QUESTION. The label is the small caption shown above the question, and it says where the question comes from. If the question is anchored to one passage, the label is that Scripture reference - book and chapter, with a verse or verse range when the question is about specific verses ("Romans 8", "James 3:5-6"). A reference always beats a kind label: only when no single passage fits, use exactly one of these, spelled exactly like this:
+   - MEMORY - drawn from what SureWord remembers about them
+   - YOUR NOTES - drawn from a note they wrote
+   - TODAY'S VERSE - follows from today's "Pick Up Your Cross"
+   - APPLY - a plain application question, no one passage
+   - NEXT CHAPTER - the natural next step in their reading
+   - DOCTRINE - a doctrine their recent questions circle
+   Never invent a reference the question is not actually about, and never write any other label.`;
+
+/** One chip: the question the user sends, and the caption shown above it. */
+export interface SuggestedQuestion {
+	question: string;
+	/** A Scripture reference, a `SuggestedQuestionKind`, or null when neither applies. */
+	label: string | null;
+}
 
 export interface SuggestedQuestions {
-	questions: string[];
+	questions: SuggestedQuestion[];
 	/** False when these are the static defaults - nothing was personalized. */
 	personalized: boolean;
+}
+
+/**
+ * The wire shape, which is deliberately redundant. Every client already in the
+ * wild - Android 1.26 and earlier, the current macOS DMG - reads
+ * `questions: string[]` and filters out anything that is not a string, so
+ * moving that key to objects would silently drop every installed user back to
+ * the static six. `questions` therefore stays exactly what it was, and the
+ * labels ride alongside in `items` (same questions, same order) for clients
+ * that know to look.
+ */
+export interface SuggestedQuestionsResponse {
+	questions: string[];
+	items: SuggestedQuestion[];
+	personalized: boolean;
+}
+
+export function toSuggestedQuestionsResponse(
+	result: SuggestedQuestions
+): SuggestedQuestionsResponse {
+	return {
+		questions: result.questions.map((item) => item.question),
+		items: result.questions,
+		personalized: result.personalized,
+	};
 }
 
 /**
@@ -56,21 +122,59 @@ export interface SuggestedQuestions {
 const SUGGESTED_REUSE_MS = 20 * 60 * 60 * 1000;
 
 const fallback = (): SuggestedQuestions => ({
-	questions: commonQuestions.slice(0, SUGGESTED_QUESTION_COUNT),
+	questions: sanitize(commonQuestionSuggestions),
 	personalized: false,
 });
 
-/** Trim, drop the malformed, dedupe, and stop at a full grid. */
-function sanitize(candidates: string[]): string[] {
-	const cleaned: string[] = [];
+/** A question as it arrives from the model, or out of an older stored row. */
+interface RawSuggestedQuestion {
+	question: string;
+	label?: string | null;
+}
+
+/** Kind labels are matched forgivingly: case, curly apostrophes, stray punctuation. */
+function matchKind(label: string): SuggestedQuestionKind | null {
+	const normalized = label
+		.toUpperCase()
+		.replace(/[‘’ʼ]/g, "'")
+		.replace(/[_-]+/g, " ")
+		.replace(/[^A-Z' ]/g, "")
+		.replace(/\s+/g, " ")
+		.trim();
+	return SUGGESTED_QUESTION_KINDS.find((kind) => kind === normalized) ?? null;
+}
+
+/**
+ * A label we are willing to show: one of the fixed kinds, or a reference that
+ * actually parses. Anything else the model invents is dropped in favour of a
+ * reference lifted out of the question text, and if there is none, no label at
+ * all - an empty gold slot is honest, a guessed one is not.
+ */
+function sanitizeLabel(rawLabel: string | null | undefined, question: string): string | null {
+	const raw = typeof rawLabel === "string" ? rawLabel.trim() : "";
+	if (raw) {
+		const kind = matchKind(raw);
+		if (kind) return kind;
+		const reference = parseReferenceLabel(raw);
+		if (reference) return reference;
+	}
+	return questionReference(question);
+}
+
+/** Trim, drop the malformed, dedupe, label, and stop at a full grid. */
+function sanitize(candidates: readonly (string | RawSuggestedQuestion)[]): SuggestedQuestion[] {
+	const cleaned: SuggestedQuestion[] = [];
 	const seen = new Set<string>();
 	for (const candidate of candidates) {
-		const question = candidate.trim().replace(/^["'`]|["'`]$/g, "").trim();
+		const isPlain = typeof candidate === "string";
+		const source = isPlain ? candidate : candidate.question;
+		if (typeof source !== "string") continue;
+		const question = source.trim().replace(/^["'`]|["'`]$/g, "").trim();
 		if (!question || question.length > MAX_QUESTION_LENGTH) continue;
 		const key = question.toLowerCase();
 		if (seen.has(key)) continue;
 		seen.add(key);
-		cleaned.push(question);
+		cleaned.push({ question, label: sanitizeLabel(isPlain ? null : candidate.label, question) });
 		if (cleaned.length === SUGGESTED_QUESTION_COUNT) break;
 	}
 	return cleaned;
@@ -126,7 +230,7 @@ export async function generateSuggestedQuestions(userId: string): Promise<Sugges
 			questions:
 				fromModel.length >= SUGGESTED_QUESTION_COUNT
 					? fromModel
-					: sanitize([...fromModel, ...commonQuestions]),
+					: sanitize([...fromModel, ...commonQuestionSuggestions]),
 			personalized: true,
 		};
 	} catch (error) {
@@ -147,9 +251,21 @@ async function findTodaySet(userId: string): Promise<SuggestedQuestions | null> 
 	try {
 		const parsed: unknown = JSON.parse(row.questions);
 		if (!Array.isArray(parsed)) return null;
-		const questions = parsed.filter(
-			(question): question is string => typeof question === "string" && question.length > 0
-		);
+		// Rows written before labels existed are plain strings: they keep serving,
+		// with a reference lifted out of the question text where there is one, so
+		// today's set does not have to roll over before labels appear.
+		const candidates: RawSuggestedQuestion[] = [];
+		for (const entry of parsed) {
+			if (typeof entry === "string") {
+				if (entry.length > 0) candidates.push({ question: entry });
+				continue;
+			}
+			if (typeof entry !== "object" || entry === null) continue;
+			const { question, label } = entry as { question?: unknown; label?: unknown };
+			if (typeof question !== "string" || question.length === 0) continue;
+			candidates.push({ question, label: typeof label === "string" ? label : null });
+		}
+		const questions = sanitize(candidates);
 		return questions.length > 0 ? { questions, personalized: true } : null;
 	} catch {
 		// A malformed stored row regenerates rather than erroring.

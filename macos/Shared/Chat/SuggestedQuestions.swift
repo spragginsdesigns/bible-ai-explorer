@@ -23,6 +23,9 @@ enum SuggestedQuestionsAPI {
         try await api.json("/api/suggested-questions", timeout: timeout, as: Response.self).questions
     }
 
+    /// The route also sends `items` - the same questions carrying the gold
+    /// label Android and web render. macOS/iOS do not show it yet, so only the
+    /// plain `questions` array is decoded here.
     private struct Response: Decodable {
         let questions: [String]
     }

@@ -290,12 +290,40 @@ a day as a side effect). Rules that matter, in the prompt's own priority order:
    a next step in their reading.
 4. Never re-ask something already in their history.
 5. One sentence, under 110 characters (two lines on a phone chip).
+6. **Every question carries a label** - the small gold caption above it, saying
+   where the question came from. A Scripture reference when the question is
+   anchored to one passage ("James 3:5-6"); otherwise exactly one kind out of
+   `SUGGESTED_QUESTION_KINDS`: `MEMORY`, `YOUR NOTES`, `TODAY'S VERSE`, `APPLY`,
+   `NEXT CHAPTER`, `DOCTRINE`. A reference always beats a kind.
 
 `sanitize()` trims, strips wrapping quotes, drops anything overlong, dedupes
-case-insensitively, and **tops up from the static six**, so a model that returns
-four good questions still fills the grid. Every failure path — no credentials,
-bad output, an empty account — returns the static six with
-`personalized: false`.
+case-insensitively, labels each survivor, and **tops up from the static six**,
+so a model that returns four good questions still fills the grid. Every failure
+path - no credentials, bad output, an empty account - returns the static six
+with `personalized: false`.
+
+`sanitizeLabel()` will not let an invented label through: a label is kept only
+if it matches a kind exactly (case, curly apostrophes and stray punctuation
+forgiven) or parses whole as a reference, which is then normalized to one
+display form ("james 3:5-6" → "James 3:5-6"). Anything else falls back to a
+reference lifted out of the question text, and to `null` when there is none -
+an empty gold slot is honest, a guessed one is not.
+
+The API returns `{ questions: string[], items: { question, label }[],
+personalized }`, and the redundancy is deliberate. Every client already
+installed - Android 1.26 and earlier, the shipped macOS DMG - reads
+`questions: string[]` and **filters out anything that is not a string**, so
+turning that key into objects would have dropped every existing install back to
+the static six without a single error. `questions` therefore stays exactly what
+it was; the labels ride alongside in `items`, same questions, same order.
+Clients prefer `items` and fall back to `questions` when talking to a deploy
+that predates labels (`parseSuggestedQuestionsResponse`).
+
+`SuggestedQuestionSet.questions` stores the labelled array as JSON (no schema
+change - the column was already a JSON string). Rows written before labels
+existed are plain strings; `findTodaySet` maps those through the same fallback,
+so a set stored earlier today keeps serving with references where the text
+supplies one.
 
 ### Caching: in memory, per session, per account, never persisted
 

@@ -136,8 +136,8 @@ export function WelcomeState({
 							},
 						]}
 					>
-						{featured.reference ? (
-							<Text style={styles.featuredReference}>{featured.reference}</Text>
+						{featured.label ? (
+							<Text style={styles.featuredReference}>{featured.label}</Text>
 						) : null}
 						<View style={styles.featuredBody}>
 							<Text style={styles.featuredLabel}>{featured.question}</Text>
@@ -156,8 +156,8 @@ export function WelcomeState({
 								pressed && { backgroundColor: colors.accentPressed },
 							]}
 						>
-							{item.reference ? (
-								<Text style={styles.questionReference}>{item.reference}</Text>
+							{item.label ? (
+								<Text style={styles.questionReference}>{item.label}</Text>
 							) : null}
 							<Text style={styles.questionLabel}>{item.question}</Text>
 							<Ionicons name="chevron-forward" size={19} color={colors.accentDim} />
@@ -288,11 +288,13 @@ const createStyles = (c: Colors) =>
 			borderBottomWidth: StyleSheet.hairlineWidth,
 		},
 		questionReference: {
-			width: 82,
+			// Wide enough for the longest kind label ("TODAY'S VERSE") on one line;
+			// the column only stays a column if every row reserves the same width.
+			width: 96,
 			color: c.accent,
 			fontSize: 11,
 			fontWeight: "700",
-			letterSpacing: 1.1,
+			letterSpacing: 1,
 		},
 		questionLabel: { flex: 1, color: c.textSecondary, fontSize: 15, lineHeight: 21 },
 		skeletonReference: {

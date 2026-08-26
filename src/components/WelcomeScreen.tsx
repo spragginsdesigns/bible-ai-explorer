@@ -4,6 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { AndroidLogo, AppleLogo } from "./icons/BrandIcons";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
+import { buildSuggestedQuestionItems } from "@/utils/questionPresentation";
 import {
 	ANDROID_APK_URL,
 	ANDROID_VERSION,
@@ -20,6 +21,7 @@ const SKELETON_WIDTHS = [82, 68, 90, 74, 61, 86];
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 	const { questions, loading } = useSuggestedQuestions();
+	const questionItems = React.useMemo(() => buildSuggestedQuestionItems(questions), [questions]);
 
 	return (
 		<div className="flex-1 flex items-center justify-center">
@@ -56,18 +58,27 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 									aria-hidden
 								>
 									<div
-										className="h-4 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
+										className="h-2.5 w-16 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
+										style={{ animationDelay: `${i * 120}ms` }}
+									/>
+									<div
+										className="mt-2 h-4 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
 										style={{ width: `${width}%`, animationDelay: `${i * 120}ms` }}
 									/>
 								</div>
 							))
-						: questions.map((q, i) => (
+						: questionItems.map((item) => (
 								<button
-									key={i}
-									onClick={() => onSelectQuestion(q)}
+									key={item.key}
+									onClick={() => onSelectQuestion(item.question)}
 									className="text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 text-sm group animate-message-in"
 								>
-									<span className="group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">{q}</span>
+									{item.label ? (
+										<span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-600/90 dark:text-amber-400/80">
+											{item.label}
+										</span>
+									) : null}
+									<span className="group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">{item.question}</span>
 								</button>
 							))}
 				</div>

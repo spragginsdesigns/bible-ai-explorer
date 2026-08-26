@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.27.0 (versionCode 23) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Every question on the welcome screen now says where it came from - the passage it is about, or a tag like YOUR NOTES, TODAY'S VERSE or NEXT CHAPTER
+
+IMPROVED
+- Scripture references on those questions read the same way every time
+
+**Dev notes:** `GET /api/suggested-questions` now returns `{ questions: string[], items: { question, label }[], personalized }`. `questions` is unchanged on purpose - 1.26 and earlier (and the shipped macOS DMG) read that key and filter out anything that is not a string, so moving it to objects would have dropped every installed user back to the static six with no error at all; the labels ride in `items`, same order. The generator asks the model for a label with every question and keeps it only if it is a fixed kind (MEMORY, YOUR NOTES, TODAY'S VERSE, APPLY, NEXT CHAPTER, DOCTRINE) or parses whole as a Scripture reference; otherwise it falls back to a reference found in the question text, and to no label at all rather than a guess. Sets stored before labels existed keep serving through the same fallback, so nothing waits for the day to roll over. Web ships the same labels in the same release; macOS/iOS keep reading `questions` only.
+
+---
+
 ## 1.26.0 (versionCode 22) - 2026-08-26 - internal
 
 **What's new (Play):**
