@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.34.0 (versionCode 30) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+FIXED
+- The era buttons on Timeline & People (All, Patriarchs, Exodus, Judges, Kingdom and the rest) are no longer cut in half - the whole row shows, and scrolls sideways as it should
+- The folder and tag rows in Notes are protected from the same squeeze
+
+**Dev notes:** The era row's horizontal `ScrollView` on `mobile/app/(app)/bible/timeline.tsx` had no `style` of its own, so it kept React Native's `baseHorizontal` default of `flexGrow: 1, flexShrink: 1`. Yoga measures a ScrollView's full intrinsic content even under `overflow: scroll`, so the tall event `FlatList` sibling made the column's free space negative and shrink was distributed by basis - the ~55px chip row lost ~42px and rendered as a ~13px sliver, matching the report. `flexShrink: 0` is the load-bearing half of the fix; `flexGrow: 0` alone does nothing once free space is negative, which is why `notes/index.tsx`'s existing `chipScroll: { flexGrow: 0 }` was vulnerable to the same squeeze and now sets both. Nothing above the row constrains it - `Screen` is a plain `flex: 1` SafeAreaView with no fixed height. Web needs no change: `src/components/atlas/AtlasScreen.tsx` renders the chips in a `flex flex-wrap` div in normal document flow under `min-h-[100dvh]`, with no fixed-height or `overflow-hidden` ancestor. Style-only, no native modules, so no prebuild.
+
+---
+
 ## 1.33.0 (versionCode 29) - 2026-08-26 - internal
 
 **What's new (Play):**

@@ -246,7 +246,10 @@ const createStyles = (c: Colors) =>
 		},
 		searchInput: { flex: 1, color: c.text, fontSize: 15, paddingVertical: 11 },
 
-		chipScroll: { flexGrow: 0 },
+		// flexGrow: 0 alone does not save these rows: RN's baseHorizontal also
+		// sets flexShrink: 1, and the note list below overflows the column, so
+		// the chips get shrunk away rather than merely not grown.
+		chipScroll: { flexGrow: 0, flexShrink: 0 },
 		chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, alignItems: "center" },
 		list: { flex: 1 },
 

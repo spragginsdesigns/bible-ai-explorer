@@ -207,6 +207,7 @@ export default function BibleTimelineScreen() {
 				<ScrollView
 					horizontal
 					showsHorizontalScrollIndicator={false}
+					style={styles.eraScroll}
 					contentContainerStyle={styles.eraRow}
 				>
 					<Pressable
@@ -435,6 +436,11 @@ const createStyles = (c: Colors) =>
 		},
 		searchInput: { flex: 1, color: c.text, fontSize: 14, paddingVertical: 6 },
 
+		// A horizontal ScrollView carries RN's baseHorizontal style
+		// (flexGrow/flexShrink: 1) and Yoga measures its full content, so the
+		// long event list below squeezes the chip row down to a sliver. Pin the
+		// row to its own height and let the list take what is left.
+		eraScroll: { flexGrow: 0, flexShrink: 0 },
 		eraRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
 		eraChip: {
 			borderRadius: radius.full,
