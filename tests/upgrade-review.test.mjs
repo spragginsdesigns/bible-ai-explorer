@@ -12,8 +12,10 @@ test("both chat routes run GPT-5.6 Terra through the AI SDK with tools", async (
 			"utf8"
 		);
 
-		assert.match(source, /openai\("gpt-5\.6-terra"\)/, route);
-		assert.match(source, /reasoningEffort/, route);
+		// Models are picked per user through resolveModel (multi-provider), with
+		// reasoning effort passed as fallbackEffort rather than hardcoded.
+		assert.match(source, /resolveModel\(/, route);
+		assert.match(source, /fallbackEffort/, route);
 		assert.match(source, /buildSureWordTools/, route);
 		assert.match(source, /toUIMessageStream/, route);
 		assert.match(source, /result\.consumeStream\(\)/, route);
