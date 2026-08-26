@@ -18,6 +18,39 @@ import { readListenRatePref, writeListenRatePref } from "@/lib/preferences";
 
 const FAILURE_TEXT = "Couldn't prepare audio - try again";
 
+/** The square SureWord mark, for the OS media card. */
+const ARTWORK_URL = "/web-app-manifest-512x512.png";
+
+/**
+ * How far the OS media card's skip buttons jump, in seconds. 10 to match
+ * Android, whose media service fixes the interval at 10s and does not offer
+ * a way to change it.
+ */
+const SKIP_SECONDS = 10;
+
+/**
+ * Describe what is playing to the OS, so the browser's media card, the
+ * lock-screen controls and the headset keys all name today's devotional
+ * instead of the tab. This is web's half of the same capability Android gets
+ * from expo-audio's media session - browsers wire `<audio>` up to the OS on
+ * their own, but only label it if we say what it is.
+ *
+ * A browser without the API (Safari before 15, older Firefox) simply keeps the
+ * generic card, so every call is guarded rather than polyfilled.
+ */
+function describeToMediaSession(title: string, reference?: string | null) {
+	if (typeof navigator === "undefined" || !navigator.mediaSession) return;
+	// Shipped separately from `mediaSession` itself in some browsers, so this is
+	// a second check rather than a redundant one.
+	if (typeof MediaMetadata === "undefined") return;
+	navigator.mediaSession.metadata = new MediaMetadata({
+		title,
+		artist: reference ? `Pick Up Your Cross · ${reference}` : "Pick Up Your Cross",
+		album: "SureWord",
+		artwork: [{ src: ARTWORK_URL, sizes: "512x512", type: "image/png" }],
+	});
+}
+
 async function readAudio(init?: RequestInit): Promise<DailyCrossAudio> {
 	const res = await fetch("/api/verse-of-day/audio", init);
 	if (!res.ok) throw new Error(FAILURE_TEXT);
@@ -47,9 +80,10 @@ function playbackSrc(audio: DailyCrossAudio | null): string | undefined {
  * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
  * SureWord Pro benefit, so a free account gets the locked panel instead, and a
  * server with no ElevenLabs key renders nothing at all, timeline stop included.
+ * `reference` is today's verse, shown as the subtitle on the OS media card.
  * Mirrors mobile/src/features/cross/ListenCard.tsx.
  */
-export default function ListenCard() {
+export default function ListenCard({ reference }: { reference?: string | null }) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
@@ -113,6 +147,55 @@ export default function ListenCard() {
 			return next;
 		});
 	}, []);
+
+	// Name the devotional on the OS media card and wire up its skip buttons.
+	// The browser handles play/pause and the position itself once an <audio>
+	// element is playing; only the metadata and the skips are ours to give.
+	useEffect(() => {
+		if (phase !== "ready") return;
+		if (typeof navigator === "undefined" || !navigator.mediaSession) return;
+		const session = navigator.mediaSession;
+		describeToMediaSession(audio?.title ?? "Today's devotional", reference);
+
+		const skip = (seconds: number) => {
+			const element = audioRef.current;
+			if (!element) return;
+			element.currentTime = Math.max(
+				0,
+				Math.min(element.duration || Infinity, element.currentTime + seconds)
+			);
+		};
+		const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
+			["seekbackward", () => skip(-SKIP_SECONDS)],
+			["seekforward", () => skip(SKIP_SECONDS)],
+			[
+				"seekto",
+				(details) => {
+					const element = audioRef.current;
+					if (element && typeof details.seekTime === "number") {
+						element.currentTime = details.seekTime;
+					}
+				},
+			],
+		];
+		for (const [action, handler] of handlers) {
+			try {
+				session.setActionHandler(action, handler);
+			} catch {
+				// An action this browser does not support: skip it, keep the rest.
+			}
+		}
+		return () => {
+			for (const [action] of handlers) {
+				try {
+					session.setActionHandler(action, null);
+				} catch {
+					// Same guard on the way out.
+				}
+			}
+			session.metadata = null;
+		};
+	}, [phase, audio?.title, reference]);
 
 	// Poll while a devotional is being prepared, and give up rather than
 	// shimmer forever if the server never reports back.

@@ -90,7 +90,18 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 - `reactNativeArchitectures=arm64-v8a` in `gradle.properties` — phone builds
   only need arm64; switch to `x86_64` for emulator testing (wipe `.cxx` dirs
   in node_modules when switching).
-- Release builds sign with the debug keystore — fine for sideloading.
+- Release builds sign with the debug keystore - fine for sideloading.
+- **The `expo-audio` config plugin writes the media-playback service into
+  `AndroidManifest.xml`** (`enableBackgroundPlayback: true` in `app.json`, since
+  1.32.0). It adds `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and
+  `expo.modules.audio.service.AudioControlsService`. Nothing in JS can add those,
+  so a JS-only build leaves Listen dying with the screen and shows no media
+  notification - **a prebuild is mandatory for that feature to work at all**.
+  After one, confirm with:
+  `grep -c FOREGROUND_SERVICE_MEDIA_PLAYBACK android/app/src/main/AndroidManifest.xml`
+  (expect `1`). `recordAudioAndroid: false` must stay - SureWord records nothing,
+  and the manifest's `RECORD_AUDIO` line carries `tools:node="remove"`, which is
+  the *removal* directive, not a granted permission.
 
 ### Pushing to the phone
 

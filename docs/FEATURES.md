@@ -359,6 +359,57 @@ chipmunk. Elapsed and total stay in **real seconds** at every speed - the clock
 reports the file, not the pace. A stored rate this build no longer offers
 normalizes back to 1x rather than leaving the chip outside its own cycle.
 
+### Playing with the screen off
+
+A devotional is something you put on and then put the phone down, so Listen
+behaves like a media app rather than like a sound effect: playback continues
+with the screen off, and Android shows a real media notification and lock-screen
+card - the SureWord mark, the devotional's title, `Pick Up Your Cross · <ref>`
+beneath it, play/pause, skip back/forward and the system's own scrubber. Headset
+and Bluetooth buttons work because it is a genuine media session, not a
+notification with buttons drawn on it.
+
+None of that needed a new library. `expo-audio` 57 already runs its Android
+playback through an `androidx.media3.session.MediaSessionService`
+(`expo.modules.audio.service.AudioControlsService`); it is simply off by
+default. Turning it on takes **three** things, and missing any one of them looks
+like a different bug:
+
+1. `enableBackgroundPlayback: true` on the `expo-audio` config plugin in
+   `mobile/app.json`. This is what adds `FOREGROUND_SERVICE` and
+   `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares the service, so it only
+   reaches a device through a **prebuild and a new build**. `recordAudioAndroid`
+   stays `false` - SureWord records nothing and must not ask for a microphone.
+2. `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })`.
+   Without the first flag the native module pauses **every** player the moment
+   the activity backgrounds, which is exactly what a screen timeout does - that
+   was the original bug, and it looks like a crash rather than a setting. The
+   second is not optional either: lock-screen controls hang off audio focus, and
+   a player set to `mixWithOthers` never asks for any.
+3. `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })`
+   once the source is loaded. This is what starts the foreground service; without
+   it Android stops background audio after roughly three minutes anyway. Title
+   changes afterwards go through `updateLockScreenMetadata`, which updates the
+   session in place - calling `setActiveForLockScreen` again tears the media
+   session down and rebuilds it.
+
+Two limits worth knowing before someone files them as bugs. The skip buttons
+jump **10 seconds**, not 15: the interval is a constant in expo-audio's service
+and there is no option for it, so web matches Android rather than the other way
+round. And the artwork is fetched by native code with a bare `java.net.URL` - no
+bearer token, no bundled-asset resolution - so it is a public URL on the API host
+(`/web-app-manifest-512x512.png`), and a failed fetch costs the picture, not the
+playback.
+
+Web needs none of this scaffolding: browsers already hand an `<audio>` element to
+the OS media controls. What they do not do is label it, so the web card sets
+`navigator.mediaSession.metadata` and registers `seekbackward` / `seekforward` /
+`seekto` handlers, every call guarded for browsers without the API.
+
+What neither client survives is the card **unmounting** - `useAudioPlayer`
+releases the player with the component, so navigating away still ends the listen.
+Backgrounding the app and locking the phone are what keep playing.
+
 ### Environment
 
 | Variable | Required | Meaning |
@@ -370,9 +421,11 @@ normalizes back to 1x rather than leaving the chip outside its own cycle.
 ### Surfaces
 
 - Android: `mobile/src/features/cross/ListenCard.tsx` via `expo-audio`
-  (**a native module - needs `expo prebuild` + a new build to reach a device**)
+  (**a native module - needs `expo prebuild` + a new build to reach a device**,
+  and the media-session manifest entries above make that mandatory again)
 - Web: `src/components/cross/ListenCard.tsx`, an `<audio>` element with custom
-  play/pause, a range scrubber and the transcript expander
+  play/pause, a range scrubber and the transcript expander, plus the
+  `navigator.mediaSession` description of what is playing
 - Shared, tested state rules: `src/components/cross/listen.ts` +
   `mobile/src/features/cross/listen.ts`
 - The card owns its own timeline stop (`TimelineStop`, now its own module on

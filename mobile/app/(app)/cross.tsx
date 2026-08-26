@@ -175,7 +175,7 @@ export default function DailyCrossScreen() {
 							</GlassCard>
 						</TimelineStop>
 
-						<ListenCard />
+						<ListenCard reference={entry.reference} />
 
 						{entry.whyToday ? (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">

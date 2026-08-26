@@ -158,7 +158,7 @@ export default function DailyCrossPage() {
 							</div>
 						</TimelineStop>
 
-						<ListenCard />
+						<ListenCard reference={entry.reference} />
 
 						{entry.whyToday && (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">

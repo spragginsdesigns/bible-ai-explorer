@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.32.0 (versionCode 28) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+Listen keeps playing when your screen goes off.
+
+The spoken devotional now works like your music app: put the phone down and it keeps going. You'll see it on your lock screen and in your notifications with today's verse - play, pause, skip back and forward, and drag to any point. Your headphone and car controls work too.
+
+**Dev notes:** No new dependency - `expo-audio` 57 already runs Android playback through an `androidx.media3.session.MediaSessionService` (`expo.modules.audio.service.AudioControlsService`); it ships off. Three things turn it on and all three are required: the config plugin's `enableBackgroundPlayback: true` (adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares the service - **manifest change, so a prebuild is mandatory**), `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })`, and `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })` once loaded. The first flag is the actual bug fix: `AudioModule.OnActivityEntersBackground` pauses every player unless it is set, and a screen timeout backgrounds the activity. `doNotMix` is not cosmetic either - lock-screen controls hang off audio focus. Metadata updates go through `updateLockScreenMetadata`, not a second `setActiveForLockScreen`, which releases and rebuilds the session. Artwork is a public URL on the API host because the native loader uses a bare `java.net.URL` (no bearer token, no bundled-asset resolution). Skip is a fixed 10s - `SEEK_INTERVAL_MS` in the service, not configurable. `recordAudioAndroid` stays `false`; no `RECORD_AUDIO`. Web reached parity in the same change with `navigator.mediaSession` metadata plus seek handlers on `src/components/cross/ListenCard.tsx`. Both clients now take today's `reference` as a prop for the subtitle. Playback still ends if the card unmounts - `useAudioPlayer` releases the player with the component.
+
+---
+
 ## 1.31.0 (versionCode 27) - 2026-08-26 - internal
 
 **What's new (Play):**

@@ -10,7 +10,14 @@ import {
 	type GestureResponderEvent,
 	type LayoutChangeEvent,
 } from "react-native";
-import { useAudioPlayer, useAudioPlayerStatus, type AudioSource } from "expo-audio";
+import {
+	setAudioModeAsync,
+	useAudioPlayer,
+	useAudioPlayerStatus,
+	type AudioLockScreenOptions,
+	type AudioMetadata,
+	type AudioSource,
+} from "expo-audio";
 import { GlassCard } from "@/components/ui";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import {
@@ -45,6 +52,44 @@ import {
  * is the signal that playback failed.
  */
 const PLAYBACK_STALL_MS = 8_000;
+
+/**
+ * The square SureWord mark, served unauthenticated from the same host the
+ * narration streams from. The notification's artwork is fetched by the native
+ * media service with a bare `java.net.URL`, which carries no bearer token and
+ * cannot read a bundled RN asset by resource name - so a public https URL is
+ * the only shape that works, and a failed fetch simply leaves the card
+ * artworkless rather than breaking playback.
+ */
+const ARTWORK_URL = `${API_URL}/web-app-manifest-512x512.png`;
+
+/**
+ * Skip buttons on the notification and lock screen. The jump is a fixed 10s in
+ * expo-audio's media service (`SEEK_INTERVAL_MS`), not a number we get to pick.
+ */
+const LOCK_SCREEN_CONTROLS: AudioLockScreenOptions = {
+	showSeekBackward: true,
+	showSeekForward: true,
+};
+
+/**
+ * Keep playing with the screen off, and put the devotional on the lock screen.
+ *
+ * Without `shouldPlayInBackground` the native module pauses every player the
+ * moment the activity backgrounds - which is exactly what a screen timeout
+ * does, and was why a listen died with the screen. `doNotMix` is required
+ * alongside it: lock-screen controls are bound to audio focus, and a player
+ * that never takes focus never gets them.
+ */
+function enableBackgroundListening() {
+	return setAudioModeAsync({
+		playsInSilentMode: true,
+		interruptionMode: "doNotMix",
+		shouldPlayInBackground: true,
+		shouldRouteThroughEarpiece: false,
+		allowsRecording: false,
+	});
+}
 
 /** A slow gold pulse while the devotional is being written and narrated. */
 function PreparingShimmer() {
@@ -84,9 +129,15 @@ function PreparingShimmer() {
  * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
  * SureWord Pro benefit, so a free account gets the locked panel instead, and a
  * server with no ElevenLabs key renders nothing at all, timeline stop included.
- * Mirrors src/components/cross/ListenCard.tsx on web.
+ * Playback survives the screen going off and drives a real Android media
+ * notification (play/pause, skip, scrubber, artwork, Bluetooth and headset
+ * keys) - see `enableBackgroundListening` and the lock-screen effects below.
+ *
+ * `reference` is today's verse, shown as the notification's subtitle so a
+ * locked phone says which day's word is playing. Mirrors
+ * src/components/cross/ListenCard.tsx on web.
  */
-export function ListenCard() {
+export function ListenCard({ reference }: { reference?: string | null }) {
 	const getToken = useStableGetToken();
 	const styles = useThemedStyles(createStyles);
 	const { colors } = useTheme();
@@ -147,6 +198,63 @@ export function ListenCard() {
 
 	const player = useAudioPlayer(source, { updateInterval: 250 });
 	const status = useAudioPlayerStatus(player);
+
+	// The audio session is a process-wide setting, so it is claimed here rather
+	// than at app start: this card is the only thing in SureWord that plays
+	// audio, and nothing else should be taking exclusive focus on launch.
+	useEffect(() => {
+		void enableBackgroundListening().catch(() => {
+			// A refused audio session costs the notification, not the listen -
+			// playback still works, it just stops when the screen does.
+		});
+	}, []);
+
+	/** What the notification and lock screen say about what is playing. */
+	const metadata = useMemo<AudioMetadata>(
+		() => ({
+			title: audio?.title ?? "Today's devotional",
+			artist: reference ? `Pick Up Your Cross · ${reference}` : "Pick Up Your Cross",
+			albumTitle: "SureWord",
+			artworkUrl: ARTWORK_URL,
+		}),
+		[audio?.title, reference]
+	);
+
+	// Read through a ref by the registration effect below, which must not re-run
+	// (and rebuild the media session) every time a title lands.
+	const metadataRef = useRef(metadata);
+	metadataRef.current = metadata;
+
+	// Hand this player to the OS once it has a loadable source. Registering is
+	// what starts the media foreground service, so it is also what lets playback
+	// outlive the screen.
+	//
+	// The cleanup is for the *swap* case - a refreshed token builds a new player,
+	// and the outgoing one has to give the session up before the new one takes
+	// it. On unmount the native side already unregisters as the player is
+	// released (`sharedObjectDidRelease`), and that release runs before this
+	// cleanup does, so the call is both redundant and made against an object
+	// that is already gone. It is guarded rather than dropped: a leaked
+	// notification for a player that no longer exists is the worse failure.
+	useEffect(() => {
+		if (!status.isLoaded) return;
+		player.setActiveForLockScreen(true, metadataRef.current, LOCK_SCREEN_CONTROLS);
+		return () => {
+			try {
+				player.clearLockScreenControls();
+			} catch {
+				// Already released with the component; the notification went with it.
+			}
+		};
+	}, [player, status.isLoaded]);
+
+	// The title arrives with the server payload, which can land after the player
+	// does. This is the cheap update - re-registering would tear the session down
+	// and build it again.
+	useEffect(() => {
+		if (!status.isLoaded) return;
+		player.updateLockScreenMetadata(metadata);
+	}, [player, status.isLoaded, metadata]);
 
 	// A rebuilt player (a new token, a new day) starts at 1x, so the stored
 	// speed is applied as an effect keyed on the player itself rather than set

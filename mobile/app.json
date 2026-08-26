@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "SureWord",
 		"slug": "sureword",
-		"version": "1.31.0",
+		"version": "1.32.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "sureword",
@@ -68,7 +68,7 @@
 				"expo-audio",
 				{
 					"recordAudioAndroid": false,
-					"enableBackgroundPlayback": false
+					"enableBackgroundPlayback": true
 				}
 			]
 		],
