@@ -6,10 +6,10 @@ import { prisma } from "@/lib/prisma";
 /**
  * Semantic index of the user's Bible study notes in Neon (pgvector table
  * "NoteEmbedding", beside the verse embeddings). Every note write path
- * re-embeds the note (delete + insert, so the index never holds stale
- * chunks); rows vanish with their note via the FK cascade. All sync calls
- * are fire-and-forget from the caller's perspective - a failed sync only
- * degrades search, never a note write.
+ * re-embeds the note (upsert every chunk + drop the surplus trailing ones,
+ * so the index never holds stale chunks); rows vanish with their note via
+ * the FK cascade. All sync calls are fire-and-forget from the caller's
+ * perspective - a failed sync only degrades search, never a note write.
  *
  * Existing notes are indexed by `scripts/backfill-note-embeddings.mjs`,
  * which mirrors the chunking here and must be kept in sync with it.
@@ -53,7 +53,18 @@ export function chunkNoteText(title: string, plainText: string): string[] {
 	return chunks;
 }
 
-/** Re-index one note: replace all of its chunks with freshly embedded ones. */
+/**
+ * Re-index one note: replace all of its chunks with freshly embedded ones.
+ *
+ * Notes autosave every ~1.5s, so two syncs for the same note routinely
+ * overlap. The old delete-then-insert pair was not safe under that race: the
+ * second transaction's INSERT hit the ("noteId","chunk") primary key and died
+ * with 23505, leaving the note's embeddings stale. Both statements below are
+ * idempotent instead, and because a sync takes its row locks in ascending
+ * chunk order starting at chunk 0, the loser of a race blocks on chunk 0
+ * before holding any lock of its own - the two syncs serialize rather than
+ * deadlock, and the last writer's chunk set wins completely.
+ */
 export async function syncNoteEmbeddings(note: {
 	userId: string;
 	noteId: string;
@@ -75,8 +86,15 @@ export async function syncNoteEmbeddings(note: {
 			)
 		);
 		await prisma.$transaction([
-			prisma.$executeRaw`DELETE FROM "NoteEmbedding" WHERE "noteId" = ${note.noteId}`,
-			prisma.$executeRaw`INSERT INTO "NoteEmbedding" ("noteId","chunk","userId","content","embedding") VALUES ${values}`,
+			prisma.$executeRaw`
+				INSERT INTO "NoteEmbedding" ("noteId","chunk","userId","content","embedding")
+				VALUES ${values}
+				ON CONFLICT ("noteId","chunk") DO UPDATE SET
+					"userId" = EXCLUDED."userId",
+					"content" = EXCLUDED."content",
+					"embedding" = EXCLUDED."embedding"
+			`,
+			prisma.$executeRaw`DELETE FROM "NoteEmbedding" WHERE "noteId" = ${note.noteId} AND "chunk" >= ${chunks.length}`,
 		]);
 	} catch (error) {
 		console.error(`Failed to sync note embeddings for ${note.noteId}:`, error);
