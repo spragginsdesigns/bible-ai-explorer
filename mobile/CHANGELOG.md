@@ -14,7 +14,7 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
-## 1.32.0 (versionCode 28) - 2026-08-26 - internal
+## 1.33.0 (versionCode 29) - 2026-08-26 - internal
 
 **What's new (Play):**
 
@@ -23,6 +23,19 @@ Listen keeps playing when your screen goes off.
 The spoken devotional now works like your music app: put the phone down and it keeps going. You'll see it on your lock screen and in your notifications with today's verse - play, pause, skip back and forward, and drag to any point. Your headphone and car controls work too.
 
 **Dev notes:** No new dependency - `expo-audio` 57 already runs Android playback through an `androidx.media3.session.MediaSessionService` (`expo.modules.audio.service.AudioControlsService`); it ships off. Three things turn it on and all three are required: the config plugin's `enableBackgroundPlayback: true` (adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares the service - **manifest change, so a prebuild is mandatory**), `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })`, and `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })` once loaded. The first flag is the actual bug fix: `AudioModule.OnActivityEntersBackground` pauses every player unless it is set, and a screen timeout backgrounds the activity. `doNotMix` is not cosmetic either - lock-screen controls hang off audio focus. Metadata updates go through `updateLockScreenMetadata`, not a second `setActiveForLockScreen`, which releases and rebuilds the session. Artwork is a public URL on the API host because the native loader uses a bare `java.net.URL` (no bearer token, no bundled-asset resolution). Skip is a fixed 10s - `SEEK_INTERVAL_MS` in the service, not configurable. `recordAudioAndroid` stays `false`; no `RECORD_AUDIO`. Web reached parity in the same change with `navigator.mediaSession` metadata plus seek handlers on `src/components/cross/ListenCard.tsx`. Both clients now take today's `reference` as a prop for the subtitle. Playback still ends if the card unmounts - `useAudioPlayer` releases the player with the component.
+
+---
+
+## 1.32.0 (versionCode 28) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- Verses quoted in Chat always render as one Scripture card, with the reference inside it - no more split cards or stray symbols
+- Chat answers reflow to your screen width, lists and code stay tidy, and a missing space after a period no longer turns into a web link
+- Bible references tap through to the reader in more forms (Jn 3:16, Gen.1:1, John 3:16-4:2), and headings stay plain
+
+**Dev notes:** Ships the Android half of commit `959d6ed` (assistant markdown rendering). The shared normalizer `mobile/src/lib/assistantMarkdown.ts` (byte-identical to `src/utils/assistantMarkdown.ts` below the header, asserted by test) tracks open blockquote/list containers instead of testing one previous line, so a bare `>` spacer, a lazy continuation, `>>` nesting or a wrapped list item no longer gets a blank line injected that split the Scripture card in two (4 of 292 production answers). Also: no 4-space list promoted to a code block; fences tracked by char + run length incl. `~~~`, quoted and indented code; `[FOLLOWUP]` stripping line-anchored and fence-aware; half-typed `**`/backtick trimmed at the stream head; model `<br>`/inline HTML normalized safely; CRLF/CR/tabs normalized. 97 shared vectors in `tests/fixtures/assistant-markdown-corpus.json` plus a 200-position stream-cut sweep run in vitest. Renderer (`markdownRules.ts`, `MarkdownBody.tsx`, `verseLinks.ts`, `NoteMarkdown.tsx`): softbreaks reflow outside blockquotes, blockquote last child flush, linkify 2-letter ccTLDs on a keep-list (no be/in/me/us) so `God.It` is plain text, verse links skip headings/th and accept `Jn 3:16` / `Gen.1:1` / `1Cor 5:17` / cross-chapter ranges, streaming re-parse coalesced to 80ms, `defaultImageHandler={null}`, notes AI panel normalizes and memoizes like chat. The server half (paragraph-joined persistence, `metadata.modelId`, MARKDOWN OUTPUT RULES in the chat and notes prompts, line-anchored `[FOLLOWUP]` extraction) is already live and reaches every installed build. No native modules, so no prebuild.
 
 ---
 
