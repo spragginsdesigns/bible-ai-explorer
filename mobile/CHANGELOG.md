@@ -14,6 +14,21 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.26.0 (versionCode 22) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Chat opens with a stained-glass Scripture welcome and a short animated launch
+- Your personalized study questions still come from your reading, chats, notes and memories
+
+IMPROVED
+- Your strongest next study question is featured first, with every other generated question ready below it
+
+**Dev notes:** The Android welcome state now uses the generated stained-glass manuscript artwork, an illuminated 2 Peter 1:19 treatment, and a 2.8-second Remotion launch video through `expo-video`. The existing suggested-question API is unchanged; presentation tests verify that every generated question remains in its original order.
+
+---
+
 ## 1.25.0 (versionCode 21) - 2026-08-25 - internal
 
 **What's new (Play):**
