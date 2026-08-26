@@ -1,22 +1,21 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
 	Animated,
 	Easing,
 	Image,
+	ImageBackground,
 	Pressable,
 	ScrollView,
 	StyleSheet,
 	Text,
 	View,
 } from "react-native";
-import { BrandTitle } from "@/components/ui";
-import { radius, spacing } from "@/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { fonts, radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
-
-/** Chip-shaped placeholders while this user's own questions are being drawn. */
-const SKELETON_WIDTHS = ["82%", "68%", "90%", "74%", "61%", "86%"] as const;
+import { buildSuggestedQuestionItems } from "./questionPresentation";
 
 function QuestionSkeleton() {
 	const styles = useThemedStyles(createStyles);
@@ -32,19 +31,36 @@ function QuestionSkeleton() {
 					useNativeDriver: true,
 				}),
 				Animated.timing(pulse, { toValue: 0.35, duration: 1100, useNativeDriver: true }),
-			])
+			]),
 		);
 		loop.start();
 		return () => loop.stop();
 	}, [pulse]);
 
 	return (
-		<View accessibilityLabel="Preparing your questions" style={styles.chips}>
-			{SKELETON_WIDTHS.map((width, index) => (
-				<View key={index} style={styles.chip}>
-					<Animated.View style={[styles.skeletonBar, { width, opacity: pulse }]} />
+		<View accessibilityLabel="Preparing your questions" style={styles.questionsSection}>
+			<SectionHeading />
+			<View style={styles.featuredQuestion}>
+				<Animated.View style={[styles.skeletonReference, { opacity: pulse }]} />
+				<Animated.View style={[styles.skeletonFeaturedLine, { opacity: pulse }]} />
+				<Animated.View style={[styles.skeletonFeaturedLineShort, { opacity: pulse }]} />
+			</View>
+			{(["84%", "71%", "88%"] as const).map((width) => (
+				<View key={width} style={styles.questionRow}>
+					<Animated.View style={[styles.skeletonRowLine, { width, opacity: pulse }]} />
 				</View>
 			))}
+		</View>
+	);
+}
+
+function SectionHeading() {
+	const styles = useThemedStyles(createStyles);
+	return (
+		<View style={styles.sectionHeading}>
+			<Text style={styles.sectionHeadingText}>QUESTIONS FOR YOUR STUDY</Text>
+			<View style={styles.sectionRule} />
+			<Ionicons name="sparkles" size={12} style={styles.sectionSpark} />
 		</View>
 	);
 }
@@ -52,13 +68,18 @@ function QuestionSkeleton() {
 export function WelcomeState({
 	onSelectQuestion,
 	bottomInset,
+	composer,
 }: {
 	onSelectQuestion: (question: string) => void;
 	bottomInset: number;
+	composer: React.ReactNode;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const { questions, loading } = useSuggestedQuestions();
+	const questionItems = useMemo(() => buildSuggestedQuestionItems(questions), [questions]);
+	const [featured, ...remaining] = questionItems;
+
 	return (
 		<ScrollView
 			style={styles.fill}
@@ -66,43 +87,84 @@ export function WelcomeState({
 			showsVerticalScrollIndicator={false}
 			keyboardShouldPersistTaps="handled"
 		>
-			<View style={styles.halo}>
-				<Image
-					source={require("../../../assets/icon.png")}
-					style={styles.haloMark}
-					resizeMode="cover"
-					accessibilityIgnoresInvertColors
-				/>
+			<ImageBackground
+				source={require("../../../assets/sureword-welcome-stained-glass.webp")}
+				style={styles.art}
+				imageStyle={styles.artImage}
+				resizeMode="cover"
+				accessibilityIgnoresInvertColors
+			>
+				<View style={styles.logoWell}>
+					<Image
+						source={require("../../../assets/icon.png")}
+						style={styles.logo}
+						resizeMode="cover"
+						accessibilityLabel="SureWord day star rising over an open Bible"
+						accessibilityIgnoresInvertColors
+					/>
+				</View>
+			</ImageBackground>
+
+			<View style={styles.scriptureBlock}>
+				<View style={styles.quoteRow}>
+					<Text style={styles.illuminatedInitial}>A</Text>
+					<Text style={styles.quote}>light that shineth in a dark place.</Text>
+				</View>
+				<View style={styles.citationRow}>
+					<View style={styles.citationRule} />
+					<Text style={styles.citation}>2 PETER 1:19</Text>
+					<View style={styles.citationRule} />
+				</View>
 			</View>
-			<BrandTitle size={52} style={styles.brand} />
-			<Text style={styles.tagline}>
-				Ask anything about the Bible — answered by an AI that actually believes it. Every answer
-				stands on the King James Scriptures as God&apos;s inerrant, final authority.
-			</Text>
+
+			<View style={styles.composer}>{composer}</View>
 
 			{loading ? (
 				<QuestionSkeleton />
-			) : (
-				<View style={styles.chips}>
-					{questions.map((question) => (
+			) : featured ? (
+				<View style={styles.questionsSection}>
+					<SectionHeading />
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel={featured.question}
+						onPress={() => onSelectQuestion(featured.question)}
+						style={({ pressed }) => [
+							styles.featuredQuestion,
+							pressed && {
+								backgroundColor: colors.accentPressed,
+								borderColor: colors.accent,
+							},
+						]}
+					>
+						{featured.reference ? (
+							<Text style={styles.featuredReference}>{featured.reference}</Text>
+						) : null}
+						<View style={styles.featuredBody}>
+							<Text style={styles.featuredLabel}>{featured.question}</Text>
+							<Ionicons name="chevron-forward" size={23} color={colors.accent} />
+						</View>
+					</Pressable>
+
+					{remaining.map((item) => (
 						<Pressable
-							key={question}
+							key={item.key}
 							accessibilityRole="button"
-							onPress={() => onSelectQuestion(question)}
+							accessibilityLabel={item.question}
+							onPress={() => onSelectQuestion(item.question)}
 							style={({ pressed }) => [
-								styles.chip,
-								pressed && {
-									backgroundColor: colors.surfacePressed,
-									borderColor: colors.accentBorder,
-								},
+								styles.questionRow,
+								pressed && { backgroundColor: colors.accentPressed },
 							]}
 						>
-							<Text style={styles.chipLabel}>{question}</Text>
-							<Text style={styles.chipGlyph}>↗</Text>
+							{item.reference ? (
+								<Text style={styles.questionReference}>{item.reference}</Text>
+							) : null}
+							<Text style={styles.questionLabel}>{item.question}</Text>
+							<Ionicons name="chevron-forward" size={19} color={colors.accentDim} />
 						</Pressable>
 					))}
 				</View>
-			)}
+			) : null}
 		</ScrollView>
 	);
 }
@@ -111,48 +173,151 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		fill: { flex: 1 },
 		content: {
-			flexGrow: 1,
-			justifyContent: "center",
-			alignItems: "center",
-			paddingHorizontal: spacing.xl,
-			paddingTop: spacing.xxl,
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.xs,
 		},
-		halo: {
-			width: 72,
-			height: 72,
-			borderRadius: radius.full,
+		art: {
+			height: 232,
 			alignItems: "center",
 			justifyContent: "center",
-			backgroundColor: c.accentSoft,
+			marginHorizontal: -spacing.xs,
+		},
+		artImage: { borderRadius: radius.sm },
+		logoWell: {
+			width: 112,
+			height: 112,
+			borderRadius: radius.full,
+			overflow: "hidden",
+			backgroundColor: "#0a0804",
 			borderColor: c.accentBorder,
 			borderWidth: 1,
-			marginBottom: spacing.lg,
 		},
-		// Slightly oversized inside the halo so the mark's own padding does not
-		// read as a gap between the artwork and the ring.
-		haloMark: { width: "100%", height: "100%", borderRadius: radius.full, transform: [{ scale: 1.1 }] },
-		brand: { color: c.accent },
-		tagline: {
+		logo: {
+			width: 112,
+			height: 112,
+			borderRadius: radius.full,
+			transform: [{ scale: 1.08 }],
+		},
+		scriptureBlock: {
+			marginTop: -spacing.sm,
+			paddingHorizontal: spacing.lg,
+		},
+		quoteRow: {
+			flexDirection: "row",
+			alignItems: "flex-start",
+			justifyContent: "center",
+			gap: spacing.sm,
+		},
+		illuminatedInitial: {
+			color: c.accent,
+			fontFamily: fonts.verse,
+			fontSize: 64,
+			lineHeight: 66,
+		},
+		quote: {
+			flex: 1,
+			color: c.parchmentInk,
+			fontFamily: fonts.verse,
+			fontSize: 29,
+			lineHeight: 34,
+			paddingTop: spacing.xs,
+		},
+		citationRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: spacing.md,
 			marginTop: spacing.sm,
-			color: c.textMuted,
-			fontSize: 14,
-			lineHeight: 21,
-			textAlign: "center",
-			maxWidth: 320,
 		},
-		chips: { alignSelf: "stretch", marginTop: spacing.xxl, gap: spacing.sm },
-		chip: {
+		citationRule: { flex: 1, maxWidth: 58, height: 1, backgroundColor: c.accentBorder },
+		citation: {
+			color: c.accent,
+			fontSize: 11,
+			fontWeight: "700",
+			letterSpacing: 2.6,
+		},
+		composer: { marginTop: spacing.lg },
+		questionsSection: { marginTop: spacing.xl },
+		sectionHeading: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginBottom: spacing.md,
+		},
+		sectionHeadingText: {
+			color: c.accent,
+			fontFamily: fonts.verse,
+			fontSize: 13,
+			fontWeight: "600",
+			letterSpacing: 2,
+		},
+		sectionRule: { flex: 1, height: 1, backgroundColor: c.accentBorder },
+		sectionSpark: { color: c.accentDim },
+		featuredQuestion: {
+			minHeight: 116,
+			justifyContent: "center",
+			padding: spacing.lg,
+			backgroundColor: c.glass,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+			borderRadius: radius.lg,
+		},
+		featuredReference: {
+			color: c.accent,
+			fontSize: 12,
+			fontWeight: "700",
+			letterSpacing: 1.5,
+			marginBottom: spacing.sm,
+		},
+		featuredBody: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+		featuredLabel: {
+			flex: 1,
+			color: c.parchmentInk,
+			fontFamily: fonts.verse,
+			fontSize: 23,
+			lineHeight: 28,
+		},
+		questionRow: {
+			minHeight: 64,
 			flexDirection: "row",
 			alignItems: "center",
 			gap: spacing.md,
-			paddingHorizontal: spacing.lg,
+			paddingHorizontal: spacing.sm,
 			paddingVertical: spacing.md,
-			backgroundColor: c.surface,
-			borderColor: c.border,
-			borderWidth: StyleSheet.hairlineWidth,
-			borderRadius: radius.lg,
+			borderBottomColor: c.accentBorder,
+			borderBottomWidth: StyleSheet.hairlineWidth,
 		},
-		chipLabel: { flex: 1, color: c.textSecondary, fontSize: 14, lineHeight: 20 },
-		skeletonBar: { height: 14, borderRadius: radius.full, backgroundColor: c.accentSoft },
-		chipGlyph: { color: c.textGhost, fontSize: 13 },
+		questionReference: {
+			width: 82,
+			color: c.accent,
+			fontSize: 11,
+			fontWeight: "700",
+			letterSpacing: 1.1,
+		},
+		questionLabel: { flex: 1, color: c.textSecondary, fontSize: 15, lineHeight: 21 },
+		skeletonReference: {
+			width: 74,
+			height: 10,
+			borderRadius: radius.full,
+			backgroundColor: c.accentSoft,
+			marginBottom: spacing.md,
+		},
+		skeletonFeaturedLine: {
+			width: "88%",
+			height: 18,
+			borderRadius: radius.full,
+			backgroundColor: c.accentSoft,
+		},
+		skeletonFeaturedLineShort: {
+			width: "62%",
+			height: 18,
+			borderRadius: radius.full,
+			backgroundColor: c.accentSoft,
+			marginTop: spacing.sm,
+		},
+		skeletonRowLine: {
+			height: 13,
+			borderRadius: radius.full,
+			backgroundColor: c.accentSoft,
+		},
 	});

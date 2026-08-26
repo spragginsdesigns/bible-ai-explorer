@@ -18,6 +18,7 @@ import PasteInput, {
 	type PastedFile,
 	type PasteTextInputInstance,
 } from "@mattermost/react-native-paste-input";
+import { Ionicons } from "@expo/vector-icons";
 import { fonts, radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -60,6 +61,8 @@ interface ChatInputBarProps {
 	onChangeText?: (text: string) => void;
 	/** Bump this number to focus the input (e.g. after a ?prompt= prefill). */
 	focusSignal?: number;
+	/** Art-forward treatment used on the empty welcome screen. */
+	prominent?: boolean;
 }
 
 export function ChatInputBar({
@@ -85,6 +88,7 @@ export function ChatInputBar({
 	value,
 	onChangeText,
 	focusSignal,
+	prominent = false,
 }: ChatInputBarProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -245,7 +249,7 @@ export function ChatInputBar({
 				</View>
 			)}
 
-			<View style={styles.bar}>
+			<View style={[styles.bar, prominent && styles.barProminent]}>
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel="Add an attachment"
@@ -260,7 +264,7 @@ export function ChatInputBar({
 					{uploadingAttachments ? (
 						<ActivityIndicator size="small" color={colors.accentDim} />
 					) : (
-						<Text style={styles.attachGlyph}>＋</Text>
+						<Ionicons name="attach" size={21} color={colors.accent} />
 					)}
 				</Pressable>
 				<PasteInput
@@ -300,7 +304,7 @@ export function ChatInputBar({
 							(!canSend || locked) && styles.sendDisabled,
 						]}
 					>
-						<Text style={styles.sendGlyph}>↑</Text>
+						<Ionicons name="arrow-up" size={19} color={colors.accent} />
 					</Pressable>
 				)}
 			</View>
@@ -375,6 +379,11 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderRadius: radius.xl,
 		},
+		barProminent: {
+			backgroundColor: c.glass,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+		},
 		input: {
 			paddingTop: spacing.md,
 			paddingBottom: spacing.md,
@@ -387,7 +396,6 @@ const createStyles = (c: Colors) =>
 			minHeight: 45,
 			maxHeight: 140,
 		},
-		attachGlyph: { color: c.accent, fontSize: 21, lineHeight: 23 },
 		action: {
 			width: 40,
 			height: 40,
@@ -403,10 +411,4 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 		},
 		sendDisabled: { opacity: 0.35 },
-		sendGlyph: {
-			color: c.accent,
-			fontSize: 18,
-			fontWeight: "700",
-			lineHeight: 20,
-		},
 	});

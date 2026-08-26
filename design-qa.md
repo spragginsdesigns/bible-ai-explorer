@@ -37,3 +37,40 @@ The physical-device comparison matches the requested dark SureWord treatment,
 the reported formatting defect is absent, and the user confirmed the fix.
 
 final result: passed
+
+---
+
+# SureWord welcome redesign QA
+
+## Source truth
+
+- Selected concept: `/Users/spragginsdesigns/.codex/generated_images/01a03c39-aaa1-78c3-8c30-0bc364cc3878/exec-3bea1e53-9c1e-48cc-a702-1420d457eded.png`
+- Android implementation capture: `/tmp/sureword-welcome-preview-dark-9s.png`
+- Normalized side-by-side comparison: `/Users/spragginsdesigns/.codex/visualizations/2026/08/26/01a03c39-aaa1-78c3-8c30-0bc364cc3878/sureword-design-qa-side-by-side.png`
+- Viewport: 1080 x 2400 Pixel 7 API 36, dark appearance.
+
+## Axes
+
+- Layout: passed. Header, stained-glass hero, illuminated verse, prominent
+  composer, question hierarchy, and three-tab dock follow the selected concept.
+- Visual: passed. Black, sapphire, burgundy, antique gold, parchment type, and
+  restrained borders preserve the Living Manuscript plus Cathedral Light direction.
+- Interaction: passed. UI automation exposed all five preview question buttons;
+  selecting the featured question moved it into the real chat flow.
+- Content: passed. The implementation consumes `useSuggestedQuestions()`, promotes
+  the first returned question, and maps every remaining returned question in order.
+- Accessibility: passed. Question rows expose their complete question as button
+  labels; icon-only header and composer controls retain explicit labels.
+- Responsive fit: passed at 1080 x 2400 in both dark and light system appearance.
+  Real generated prompts are intentionally allowed to wrap instead of being
+  shortened to match the compact concept copy.
+
+## Verification boundary
+
+The visual capture used a temporary local preview array because the clean emulator
+had no Clerk session. That preview-only instrumentation was reverted. The production
+API mapping is covered by source inspection and the unit test that preserves every
+generated question in its original order; an authenticated live API response was not
+exercised on this emulator.
+
+final result: passed

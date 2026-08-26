@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -15,6 +16,7 @@ import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
 import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
 import { hydrateNotificationSettings } from "@/features/notifications/notificationSettings";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -66,6 +68,7 @@ export default function RootLayout() {
 		CormorantGaramond_500Medium_Italic,
 	});
 	const [settingsReady, setSettingsReady] = useState(false);
+	const [showAnimatedSplash, setShowAnimatedSplash] = useState(true);
 
 	useEffect(() => {
 		Promise.all([hydrateSettings(), hydrateHighlights(), hydrateNotificationSettings()])
@@ -82,7 +85,12 @@ export default function RootLayout() {
 	return (
 		<ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
 			<AuthFailureBridge>
-				<ThemedShell />
+				<View style={{ flex: 1 }}>
+					<ThemedShell />
+					{showAnimatedSplash ? (
+						<AnimatedSplash onFinish={() => setShowAnimatedSplash(false)} />
+					) : null}
+				</View>
 			</AuthFailureBridge>
 		</ClerkProvider>
 	);

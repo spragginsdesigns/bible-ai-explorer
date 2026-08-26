@@ -147,6 +147,34 @@ export default function ChatScreen() {
 	);
 
 	const showWelcome = messages.length === 0 && !historyLoading && !historyError && !error;
+	const inputBar = (
+		<ChatInputBar
+			onSend={send}
+			onStop={stop}
+			loading={loading}
+			isStreaming={isStreaming}
+			disabled={historyLoading || historyError !== null}
+			commands={CHAT_SLASH_COMMANDS}
+			onLocalCommand={onLocalCommand}
+			value={chat.input}
+			onChangeText={chat.setInput}
+			attachment={chat.attachment}
+			onClearAttachment={chat.clearAttachment}
+			fileAttachments={chat.fileAttachments}
+			uploadingAttachments={chat.uploadingAttachments}
+			attachmentError={chat.attachmentError}
+			onTakePhoto={() => void chat.takePhoto()}
+			onChooseImages={() => void chat.chooseImages()}
+			onChooseFiles={() => void chat.chooseFiles()}
+			onPasteImage={() => void chat.pasteImage()}
+			onPasteImages={(files, attachmentError) =>
+				void chat.attachPastedImages(files, attachmentError)
+			}
+			onRemoveFileAttachment={(id) => void chat.removeFileAttachment(id)}
+			focusSignal={focusSignal}
+			prominent={showWelcome}
+		/>
+	);
 
 	return (
 		<Screen>
@@ -169,7 +197,7 @@ export default function ChatScreen() {
 						onPress={() => setModelPickerOpen(true)}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Ionicons name="sparkles-outline" size={16} color={colors.textMuted} />
+						<Ionicons name="sparkles-outline" size={17} color={colors.accentDim} />
 					</Pressable>
 					<Pressable
 						accessibilityRole="button"
@@ -177,7 +205,7 @@ export default function ChatScreen() {
 						onPress={onNewChat}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Text style={styles.headerGlyph}>✦</Text>
+						<Ionicons name="add" size={21} color={colors.accentDim} />
 					</Pressable>
 					<Pressable
 						accessibilityRole="button"
@@ -185,7 +213,7 @@ export default function ChatScreen() {
 						onPress={openHistory}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Ionicons name="menu-outline" size={19} color={colors.textMuted} />
+						<Ionicons name="time-outline" size={19} color={colors.accentDim} />
 					</Pressable>
 					<Pressable
 						accessibilityRole="button"
@@ -193,7 +221,7 @@ export default function ChatScreen() {
 						onPress={() => router.push("/settings")}
 						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
 					>
-						<Ionicons name="settings-outline" size={17} color={colors.textMuted} />
+						<Ionicons name="settings-outline" size={18} color={colors.accentDim} />
 					</Pressable>
 				</View>
 
@@ -212,7 +240,11 @@ export default function ChatScreen() {
 						/>
 					</View>
 				) : showWelcome ? (
-					<WelcomeState onSelectQuestion={send} bottomInset={spacing.lg} />
+					<WelcomeState
+						onSelectQuestion={send}
+						bottomInset={tabBarSpace + spacing.xl}
+						composer={inputBar}
+					/>
 				) : (
 					<MessageList
 						messages={messages}
@@ -232,31 +264,11 @@ export default function ChatScreen() {
 					</MessageList>
 				)}
 
-				<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
-					<ChatInputBar
-						onSend={send}
-						onStop={stop}
-						loading={loading}
-						isStreaming={isStreaming}
-						disabled={historyLoading || historyError !== null}
-						commands={CHAT_SLASH_COMMANDS}
-						onLocalCommand={onLocalCommand}
-						value={chat.input}
-						onChangeText={chat.setInput}
-						attachment={chat.attachment}
-						onClearAttachment={chat.clearAttachment}
-						fileAttachments={chat.fileAttachments}
-						uploadingAttachments={chat.uploadingAttachments}
-						attachmentError={chat.attachmentError}
-						onTakePhoto={() => void chat.takePhoto()}
-						onChooseImages={() => void chat.chooseImages()}
-						onChooseFiles={() => void chat.chooseFiles()}
-						onPasteImage={() => void chat.pasteImage()}
-						onPasteImages={(files, error) => void chat.attachPastedImages(files, error)}
-						onRemoveFileAttachment={(id) => void chat.removeFileAttachment(id)}
-						focusSignal={focusSignal}
-					/>
-				</View>
+				{!showWelcome && (
+					<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
+						{inputBar}
+					</View>
+				)}
 			</KeyboardAvoidingView>
 
 			<ModelPickerSheet
@@ -294,17 +306,16 @@ const createStyles = (c: Colors) =>
 		headerTitle: { flex: 1, minWidth: 0 },
 		subtitle: { color: c.textFaint, fontSize: 12, marginTop: 2 },
 		headerButton: {
-			width: 38,
-			height: 38,
+			width: 40,
+			height: 40,
 			borderRadius: radius.full,
 			alignItems: "center",
 			justifyContent: "center",
 			backgroundColor: c.surface,
-			borderColor: c.border,
-			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
 		},
 		headerButtonPressed: { backgroundColor: c.surfacePressed },
-		headerGlyph: { color: c.textMuted, fontSize: 15 },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
 		centerLabel: { color: c.textFaint, fontSize: 13 },
 		centerPadded: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.lg },
