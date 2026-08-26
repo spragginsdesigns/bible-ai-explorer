@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/lib/bible/books";
+import { planCardSubtitle } from "@/components/plan/planView";
+import { useReadingPlan } from "@/components/plan/useReadingPlan";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
@@ -53,6 +55,9 @@ function buildSections(): TestamentSection[] {
  */
 const BibleBookPicker: React.FC = () => {
   const [collapsed, setCollapsed] = useState(sessionCollapsed);
+  // Read-only here: the card shows where the plan stands and hands the user on
+  // to the plan page, which owns every action.
+  const { plan } = useReadingPlan();
 
   const toggleTestament = (testament: Testament) => {
     setCollapsed((prev) => {
@@ -80,6 +85,23 @@ const BibleBookPicker: React.FC = () => {
             Search the Bible
           </Link>
         </div>
+
+        {/* Reading plan - where they are in it, or an invitation (mirrors the Android Bible tab card) */}
+        <Link
+          href="/bible/plan"
+          className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+        >
+          <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">◷</span>
+          <span className="flex-1">
+            <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+              {plan ? plan.title : "Reading plan"}
+            </span>
+            <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+              {planCardSubtitle(plan)}
+            </span>
+          </span>
+          <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+        </Link>
 
         {/* Pick Up Your Cross - the guided daily walk (mirrors the Android Bible tab card) */}
         <Link

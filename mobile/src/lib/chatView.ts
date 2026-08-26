@@ -62,6 +62,9 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-lookupStrongs": "Studying the original word",
 	"tool-getDailyCross": "Opening today's cross",
 	"tool-setDailyCross": "Preparing your new day",
+	"tool-getReadingPlan": "Opening your reading plan",
+	"tool-startReadingPlan": "Setting up your reading plan",
+	"tool-markReadingPlanDay": "Marking your reading",
 };
 
 export function visibleResponseContent(content: string, isStreaming = false): string {

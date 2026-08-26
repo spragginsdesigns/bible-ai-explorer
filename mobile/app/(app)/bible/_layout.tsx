@@ -20,6 +20,7 @@ export default function BibleLayout() {
 			<Stack.Screen name="chapters" />
 			<Stack.Screen name="chapter" />
 			<Stack.Screen name="search" />
+			<Stack.Screen name="plan" />
 		</Stack>
 	);
 }

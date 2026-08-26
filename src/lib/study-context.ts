@@ -1,5 +1,6 @@
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
+import { getTodayPlanReading } from "@/lib/reading-plans";
 
 /**
  * One user's recent walk, formatted for a prompt: what they have been reading,
@@ -32,6 +33,13 @@ export interface StudyContext {
 	/** Recently sent daily verses, for exclusion, or "(none)". */
 	recentPicksBlock: string;
 	/**
+	 * Today's reading in the plan they are following - "The Gospels in 30 days,
+	 * day 4 of 30: Matthew 10-12" - or "(none)". The daily cross builds its
+	 * study path out of this when it is present, so a user following a plan is
+	 * never pulled two directions at once.
+	 */
+	planBlock: string;
+	/**
 	 * True when there is nothing at all to personalize from — a brand-new
 	 * account. Callers should fall back rather than ask a model to invent a
 	 * history this user does not have.
@@ -41,7 +49,7 @@ export interface StudyContext {
 
 export async function loadStudyContext(userId: string): Promise<StudyContext> {
 	const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
-	const [readingEvents, messages, notes, memories, recentPicks] = await Promise.all([
+	const [readingEvents, messages, notes, memories, recentPicks, planReading] = await Promise.all([
 		prisma.readingEvent.findMany({
 			where: { userId, readAt: { gte: readingSince } },
 			select: { book: true, chapter: true },
@@ -64,6 +72,12 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			orderBy: { sentAt: "desc" },
 			take: EXCLUDED_PICKS,
 			select: { book: true, chapter: true, verse: true },
+		}),
+		// Best effort: a plan lookup that fails must not cost the user their
+		// daily cross or their opening questions.
+		getTodayPlanReading(userId).catch((error: unknown) => {
+			console.error("[study-context] Reading plan lookup failed:", error);
+			return null;
 		}),
 	]);
 
@@ -91,12 +105,19 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			memories.map((memory) => `- (${memory.category}) ${memory.content}`).join("\n") || "(none)",
 		recentPicksBlock:
 			recentPicks.map((pick) => `${pick.book} ${pick.chapter}:${pick.verse}`).join(", ") || "(none)",
-		// The daily picks are not evidence of study — the cron writes them
-		// whether or not the user ever opened the app.
+		planBlock: planReading
+			? `${planReading.planTitle}, day ${planReading.day} of ${planReading.dayCount}: ${planReading.reference}` +
+				`${planReading.focus ? ` - ${planReading.focus}` : ""}` +
+				`${planReading.done ? " (already read today)" : ""}`
+			: "(none)",
+		// The daily picks are not evidence of study - the cron writes them
+		// whether or not the user ever opened the app. A reading plan is, though:
+		// the user chose it.
 		isEmpty:
 			readingEvents.length === 0 &&
 			messages.length === 0 &&
 			notes.length === 0 &&
-			memories.length === 0,
+			memories.length === 0 &&
+			planReading === null,
 	};
 }

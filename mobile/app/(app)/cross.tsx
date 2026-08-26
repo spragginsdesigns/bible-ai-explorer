@@ -19,6 +19,8 @@ import {
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
 import { ListenCard } from "@/features/cross/ListenCard";
+import { isTodaysPlanReading } from "@/features/plan/planView";
+import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
@@ -76,6 +78,9 @@ export default function DailyCrossScreen() {
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [focus, setFocus] = useState("");
+	// The day's study path is built out of the reading plan when one is
+	// running; this is how the user sees that it was.
+	const { plan } = useReadingPlan();
 
 	const showFailure = useCallback((err: unknown) => {
 		setError(
@@ -199,9 +204,14 @@ export default function DailyCrossScreen() {
 										pressed && { backgroundColor: colors.surfacePressed },
 									]}
 								>
-									<Text style={styles.studyReference}>
-										{step.book} {step.chapter} ›
-									</Text>
+									<View style={styles.studyHead}>
+										<Text style={styles.studyReference}>
+											{step.book} {step.chapter} ›
+										</Text>
+										{isTodaysPlanReading(plan, step.book, step.chapter) ? (
+											<Text style={styles.planTag}>FROM YOUR PLAN</Text>
+										) : null}
+									</View>
 									<Text style={styles.studyFocus}>{step.focus}</Text>
 								</Pressable>
 							</TimelineStop>
@@ -361,7 +371,20 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 			gap: 4,
 		},
+		studyHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		studyReference: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		planTag: {
+			color: c.textFaint,
+			fontSize: 9.5,
+			fontWeight: "700",
+			letterSpacing: 0.8,
+			borderRadius: radius.full,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.borderStrong,
+			paddingHorizontal: 6,
+			paddingVertical: 2,
+			overflow: "hidden",
+		},
 		studyFocus: { color: c.textSecondary, fontSize: 13.5, lineHeight: 19 },
 		questionCard: {
 			padding: spacing.lg,

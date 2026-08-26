@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.29.0 (versionCode 25) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Reading plans. Tap Reading plan on the Bible tab: the Gospels in 30 days, Psalms & Proverbs in 31, the New Testament in 90, the whole Bible in a year - or say what you want and SureWord builds it
+- Progress fills itself in. Read the chapters in SureWord and the day ticks itself off; Mark read covers reading you did elsewhere
+- See your streak and how far through you are, and tap today's chapters to start
+- Pick Up Your Cross now follows today's plan reading
+
+**Dev notes:** New `ReadingPlan` + `ReadingPlanCompletion` tables (migration `20260826150000_reading_plans`); plan days are stored as JSON `[{ day, readings: [{ book, chapter }], focus }]`. Routes: `GET`/`POST /api/reading-plans`, `POST /api/reading-plans/[id]/days/[day]`, `DELETE /api/reading-plans/[id]`. **No progress is stored** - a day is done when every chapter of it has a `ReadingEvent` at or after the plan's `startDate`, so the reading events the reader already posts are the whole mechanism; `ReadingPlanCompletion` is only the by-hand escape hatch. The four presets are GENERATED from the KJV chapter table in `src/lib/reading-plan-presets.ts` (mirrored from `src/data/books.json`, asserted by `tests/reading-plans.test.mjs`), never hand-typed, and `splitEvenly` spreads the longer days through the plan instead of stacking them at the front. A written plan is one structured utility-model call grounded in `loadStudyContext`, with every book and chapter validated against the canon before storage. One live plan per user, enforced in `startPlan` (starting archives the previous one). `loadStudyContext` gained a `planBlock` and `daily-cross.ts` now instructs that the study path IS today's plan reading unless the user pinned or steered the day - that half is server-side and reaches every installed build without a release. Three chat tools (`getReadingPlan`, `startReadingPlan` with a `confirmed` flag like `setDailyCross`, `markReadingPlanDay`) plus a `/plan` slash command. Web ships the same screen in the same release; macOS/iOS do not have it yet. No native modules, so no prebuild is required for this one.
+
+---
+
 ## 1.28.0 (versionCode 24) - 2026-08-26 - internal
 
 **What's new (Play):**

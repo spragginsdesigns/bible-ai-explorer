@@ -30,6 +30,18 @@ import {
 	storeDailyCross,
 	type StudyStep,
 } from "@/lib/daily-cross";
+import {
+	MAX_PLAN_DAYS,
+	MIN_PLAN_DAYS,
+	READING_PLAN_PRESETS,
+	describeReadings,
+} from "@/lib/reading-plan-presets";
+import {
+	getActivePlan,
+	setDayDone,
+	startPlan,
+	type PlanWithProgress,
+} from "@/lib/reading-plans";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
 import {
@@ -81,6 +93,38 @@ export interface DailyCrossToolOutput {
 	/** Set only by setDailyCross: the reference the new day displaced, if any. */
 	previousReference?: string | null;
 }
+
+/** One day of a reading plan, flattened for the model. */
+export interface ReadingPlanDayOutput {
+	day: number;
+	/** "Matthew 10-12" */
+	reference: string;
+	focus: string;
+	done: boolean;
+}
+
+/** The user's reading plan as the model sees it, plus what they could start. */
+export interface ReadingPlanToolOutput {
+	hasPlan: boolean;
+	title: string | null;
+	description: string | null;
+	status: string | null;
+	dayCount: number;
+	/** The day to put in front of them: the oldest one still unread. */
+	currentDay: number;
+	/** The day the calendar says they are on. */
+	todayDay: number;
+	completedCount: number;
+	percent: number;
+	streak: number;
+	today: ReadingPlanDayOutput | null;
+	next: ReadingPlanDayOutput[];
+	presets: { key: string; title: string; description: string; dayCount: number }[];
+	formatted: string;
+}
+
+/** Days shown after today's - enough to answer "what's coming up?". */
+const PLAN_DAYS_AHEAD = 3;
 
 const MAX_PASSAGE_VERSES = 30;
 const MAX_CROSS_REFERENCES = 8;
@@ -526,6 +570,80 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const getReadingPlanTool = tool({
+		description:
+			"Read the reading plan this user is following: today's reading, how far through they are, their streak, and the next few days. Also lists the plans they could start if they have none. Call it whenever they ask about their plan or what they are meant to read, and whenever knowing where they are in Scripture would make your answer fit their actual walk. Read-only.",
+		inputSchema: z.object({}),
+		execute: async (): Promise<ReadingPlanToolOutput> =>
+			toReadingPlanOutput(await getActivePlan(context.userId)),
+	});
+
+	const startReadingPlanTool = tool({
+		description:
+			"Start a reading plan for the user - either one of SureWord's presets (pass presetKey) or one written for a goal they described (pass goal and days). This ARCHIVES whatever plan they are currently following, on every device. ONLY call it after the user has explicitly agreed, in this conversation, to starting that plan: name the plan and what it would replace, ask them, wait for a clear yes, and only then call this with confirmed: true. Never call it to answer a question about reading plans.",
+		inputSchema: z.object({
+			confirmed: z
+				.boolean()
+				.describe(
+					"True only when the user has said yes to this exact plan in this conversation. Never send true on your own initiative."
+				),
+			presetKey: z
+				.string()
+				.optional()
+				.describe(
+					"Key of a built-in plan from getReadingPlan's presets list. Omit when writing a plan for a goal instead."
+				),
+			goal: z
+				.string()
+				.optional()
+				.describe(
+					'What the user wants the plan to walk them through, in their own words, e.g. "the life of David" or "everything Jesus said about prayer". Omit when using presetKey.'
+				),
+			days: z
+				.number()
+				.int()
+				.min(MIN_PLAN_DAYS)
+				.max(MAX_PLAN_DAYS)
+				.optional()
+				.describe(`How many days the written plan should run (${MIN_PLAN_DAYS}-${MAX_PLAN_DAYS}). Only with goal.`),
+		}),
+		execute: async ({ confirmed, presetKey, goal, days }): Promise<ReadingPlanToolOutput> => {
+			if (!confirmed) {
+				throw new Error(
+					"The user has not agreed to start this plan yet. Tell them which plan you would start and what it would replace, ask them, and only call this again once they say yes."
+				);
+			}
+			const key = presetKey?.trim();
+			const described = goal?.trim();
+			if (!key && !described) {
+				throw new Error("Pass either presetKey, or goal (with days) to have a plan written.");
+			}
+			const plan = key
+				? await startPlan(context.userId, { presetKey: key })
+				: await startPlan(context.userId, { goal: described ?? "", days: days ?? 30 });
+			return toReadingPlanOutput(plan);
+		},
+	});
+
+	const markReadingPlanDayTool = tool({
+		description:
+			"Tick a day of the user's reading plan as done (or untick it with done: false). Only for reading they did OUTSIDE SureWord - chapters they read in the app's own Bible reader already count themselves, so never tick a day just because they mention reading. Ask which day if it is not obvious from what they said.",
+		inputSchema: z.object({
+			day: z.number().int().min(1).describe("Which day of the plan, 1-based."),
+			done: z
+				.boolean()
+				.optional()
+				.describe("True to mark it read (the default), false to undo a mark."),
+		}),
+		execute: async ({ day, done }): Promise<ReadingPlanToolOutput> => {
+			const plan = await getActivePlan(context.userId);
+			if (!plan) {
+				throw new Error("The user is not following a reading plan, so there is no day to mark.");
+			}
+			return toReadingPlanOutput(await setDayDone(context.userId, plan.id, day, done ?? true));
+		},
+	});
+
 	return {
 		searchScripture: searchScriptureTool,
 		getPassage: getPassageTool,
@@ -540,6 +658,85 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		getHighlights: getHighlightsTool,
 		getDailyCross: getDailyCrossTool,
 		setDailyCross: setDailyCrossTool,
+		getReadingPlan: getReadingPlanTool,
+		startReadingPlan: startReadingPlanTool,
+		markReadingPlanDay: markReadingPlanDayTool,
+	};
+}
+
+const PRESET_SUMMARIES = READING_PLAN_PRESETS.map((preset) => ({
+	key: preset.key,
+	title: preset.title,
+	description: preset.description,
+	dayCount: preset.dayCount,
+}));
+
+/** Flatten a plan for the model, with a prose summary it can answer from. */
+function toReadingPlanOutput(plan: PlanWithProgress | null): ReadingPlanToolOutput {
+	if (!plan || plan.status === "archived") {
+		return {
+			hasPlan: false,
+			title: null,
+			description: null,
+			status: null,
+			dayCount: 0,
+			currentDay: 0,
+			todayDay: 0,
+			completedCount: 0,
+			percent: 0,
+			streak: 0,
+			today: null,
+			next: [],
+			presets: PRESET_SUMMARIES,
+			formatted: `They are not following a reading plan. Plans they could start: ${PRESET_SUMMARIES.map(
+				(preset) => `${preset.title} (${preset.dayCount} days, key "${preset.key}")`
+			).join("; ")}. You can also have one written for a goal they describe.`,
+		};
+	}
+
+	const flatten = (day: PlanWithProgress["days"][number]): ReadingPlanDayOutput => ({
+		day: day.day,
+		reference: describeReadings(day.readings),
+		focus: day.focus,
+		done: day.done,
+	});
+
+	const today = plan.days.find((day) => day.day === plan.currentDay) ?? null;
+	const next = plan.days
+		.filter((day) => day.day > plan.currentDay)
+		.slice(0, PLAN_DAYS_AHEAD)
+		.map(flatten);
+
+	const lines = [
+		`Plan: ${plan.title} (${plan.dayCount} days, ${plan.status}).`,
+		today
+			? `Today is day ${today.day}: ${describeReadings(today.readings)}${
+					today.done ? " - already read" : ""
+				}. Focus: ${today.focus}`
+			: "Every day of this plan is finished.",
+		`Progress: ${plan.completedCount} of ${plan.dayCount} days (${plan.percent}%), streak ${plan.streak} ${
+			plan.streak === 1 ? "day" : "days"
+		}.`,
+		next.length
+			? `Coming up: ${next.map((day) => `day ${day.day} - ${day.reference}`).join("; ")}.`
+			: null,
+	].filter((line): line is string => line !== null);
+
+	return {
+		hasPlan: true,
+		title: plan.title,
+		description: plan.description,
+		status: plan.status,
+		dayCount: plan.dayCount,
+		currentDay: plan.currentDay,
+		todayDay: plan.todayDay,
+		completedCount: plan.completedCount,
+		percent: plan.percent,
+		streak: plan.streak,
+		today: today ? flatten(today) : null,
+		next,
+		presets: PRESET_SUMMARIES,
+		formatted: lines.join("\n"),
 	};
 }
 

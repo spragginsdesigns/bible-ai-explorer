@@ -52,6 +52,11 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		kind: "ai",
 	},
 	{
+		command: "/plan",
+		description: "Today's reading in your reading plan",
+		kind: "ai",
+	},
+	{
 		command: "/memory",
 		description: "What SureWord remembers about you",
 		kind: "ai",
