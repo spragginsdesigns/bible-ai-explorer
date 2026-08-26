@@ -47,6 +47,7 @@ tab selection). Same behavior, different plumbing.
 
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
+| Assistant markdown normalizer + renderer parity (one Scripture card per quote, fences/lists/HTML/CRLF repaired, verse-link forms, 97-vector shared corpus) | ✅ 1.32.0 | ✅ | ❌ own renderer, no normalizer | ❌ | Shared vectors in `tests/fixtures/assistant-markdown-corpus.json`; server prompt rules + persistence fix reach every client |
 | Clerk email-code + Google SSO sign-in | ✅ | ✅ | ✅ | ✅ via ClerkKit (native API) | macOS via ClerkKit (native API) |
 | Password sign-in for password-bearing accounts (Play review demo account) | ✅ 1.19.1 - Continue detects the password factor, code fallback | ✅ automatic via Clerk `<SignIn>` | ❌ ClerkKit email-code/SSO only | ❌ ClerkKit email-code/SSO only | Only the review demo account has a password; Device Trust disabled 2026-08-20 so it works on new devices |
 | Sign-out / account UI | ✅ Settings → Account | ✅ Settings → Account + `UserButton` | ✅ sidebar `UserButton` + Settings | ✅ Settings → Account | Android gained sign-out in 1.7.0 |

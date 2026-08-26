@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.32.0 (versionCode 28) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- Verses quoted in Chat always render as one Scripture card, with the reference inside it - no more split cards or stray symbols
+- Chat answers reflow to your screen width, lists and code stay tidy, and a missing space after a period no longer turns into a web link
+- Bible references tap through to the reader in more forms (Jn 3:16, Gen.1:1, John 3:16-4:2), and headings stay plain
+
+**Dev notes:** Ships the Android half of commit `959d6ed` (assistant markdown rendering). The shared normalizer `mobile/src/lib/assistantMarkdown.ts` (byte-identical to `src/utils/assistantMarkdown.ts` below the header, asserted by test) tracks open blockquote/list containers instead of testing one previous line, so a bare `>` spacer, a lazy continuation, `>>` nesting or a wrapped list item no longer gets a blank line injected that split the Scripture card in two (4 of 292 production answers). Also: no 4-space list promoted to a code block; fences tracked by char + run length incl. `~~~`, quoted and indented code; `[FOLLOWUP]` stripping line-anchored and fence-aware; half-typed `**`/backtick trimmed at the stream head; model `<br>`/inline HTML normalized safely; CRLF/CR/tabs normalized. 97 shared vectors in `tests/fixtures/assistant-markdown-corpus.json` plus a 200-position stream-cut sweep run in vitest. Renderer (`markdownRules.ts`, `MarkdownBody.tsx`, `verseLinks.ts`, `NoteMarkdown.tsx`): softbreaks reflow outside blockquotes, blockquote last child flush, linkify 2-letter ccTLDs on a keep-list (no be/in/me/us) so `God.It` is plain text, verse links skip headings/th and accept `Jn 3:16` / `Gen.1:1` / `1Cor 5:17` / cross-chapter ranges, streaming re-parse coalesced to 80ms, `defaultImageHandler={null}`, notes AI panel normalizes and memoizes like chat. The server half (paragraph-joined persistence, `metadata.modelId`, MARKDOWN OUTPUT RULES in the chat and notes prompts, line-anchored `[FOLLOWUP]` extraction) is already live and reaches every installed build. No native modules, so no prebuild.
+
+---
 ## 1.31.0 (versionCode 27) - 2026-08-26 - internal
 
 **What's new (Play):**
