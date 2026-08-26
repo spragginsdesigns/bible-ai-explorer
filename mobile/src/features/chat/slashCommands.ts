@@ -47,6 +47,13 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		requiresArgs: true,
 	},
 	{
+		command: "/who",
+		hint: "<name or place>",
+		description: "Who or where is this? Look it up in Scripture",
+		kind: "ai",
+		requiresArgs: true,
+	},
+	{
 		command: "/cross",
 		description: "Today's Pick Up Your Cross",
 		kind: "ai",

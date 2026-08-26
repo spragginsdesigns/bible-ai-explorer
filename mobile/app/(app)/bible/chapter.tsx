@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
+import { Ionicons } from "@expo/vector-icons";
 import ColorPicker, { HueSlider, Panel1, Preview } from "reanimated-color-picker";
 import { GlassCard, Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
@@ -370,6 +371,19 @@ export default function BibleChapterScreen() {
 					{reference}
 				</Text>
 				<View style={styles.fontControls}>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Who's in this chapter"
+						onPress={() =>
+							router.push({
+								pathname: "/bible/timeline",
+								params: { book: String(order), chapter: String(chapter) },
+							})
+						}
+						style={styles.fontButton}
+					>
+						<Ionicons name="people-outline" size={15} color={colors.textSecondary} />
+					</Pressable>
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Decrease text size"

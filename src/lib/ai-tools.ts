@@ -45,6 +45,15 @@ import {
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
 import {
+	ATLAS_ERAS,
+	findOccurrences,
+	getEntity,
+	getTimeline,
+	searchAtlas,
+	type AtlasEntityView,
+	type AtlasEventView,
+} from "@/lib/bible/atlas";
+import {
 	getOriginalVerse,
 	lookupStrongsEntry,
 	type OriginalVerse,
@@ -142,6 +151,51 @@ export interface OriginalTextToolOutput extends OriginalVerse {
 
 export interface StrongsToolOutput extends StrongsEntry {
 	number: string;
+}
+
+/** How many atlas hits a lookup hands back before it is just a list. */
+const MAX_ATLAS_MATCHES = 5;
+/** Events one timeline call may return; the whole atlas is far larger. */
+const MAX_TIMELINE_EVENTS = 25;
+
+/** One person or place the atlas matched, with the KJV's own count of them. */
+export interface BibleEntityMatch {
+	id: string;
+	kind: "person" | "place" | "event";
+	name: string;
+	description: string;
+	era: string | null;
+	yearLabel: string | null;
+	refs: string[];
+	/** Verses in the whole KJV that name them; null for an event. */
+	occurrences: number | null;
+	alsoCalled: string[];
+	related: string[];
+	events: string[];
+}
+
+export interface BibleEntityToolOutput {
+	query: string;
+	matches: BibleEntityMatch[];
+	formatted: string;
+}
+
+export interface BibleTimelineToolOutput {
+	scope: string;
+	eras: string[];
+	events: {
+		id: string;
+		title: string;
+		era: string;
+		yearLabel: string;
+		summary: string;
+		refs: string[];
+		people: string[];
+		places: string[];
+	}[];
+	/** Events matching the filter that did not fit in the list above. */
+	truncated: number;
+	formatted: string;
 }
 
 /** The verses the user has marked in the Bible reader, with their colours. */
@@ -349,6 +403,154 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				throw new Error(`No Strong's entry found for "${number}". Use H#### for Hebrew or G#### for Greek.`);
 			}
 			return { number: number.trim().toUpperCase(), ...entry };
+		},
+	});
+
+	const lookupBibleEntityTool = tool({
+		description:
+			"Look up a person, place or event of Scripture in SureWord's own Bible atlas: who they were or where it was, in the Bible's own words, with their key references, the names Scripture also calls them by, who and where they are connected to, and how many verses of the whole KJV name them. Prefer this over webSearch for every who / where / what-happened question about the Bible - it is grounded in the KJV text itself, and the web is not.",
+		inputSchema: z.object({
+			query: z
+				.string()
+				.min(1)
+				.max(80)
+				.describe(
+					'A name as Scripture or the user gives it, e.g. "Moses", "Saul of Tarsus", "Capernaum", "the fiery furnace".'
+				),
+		}),
+		execute: async ({ query }): Promise<BibleEntityToolOutput> => {
+			const hits = await searchAtlas(query, MAX_ATLAS_MATCHES);
+			const matches: BibleEntityMatch[] = [];
+
+			for (const hit of hits) {
+				const entity: AtlasEntityView | null =
+					hit.kind === "event" ? null : await getEntity(hit.id);
+				// Counting is a scan of the whole KJV, so only the best match pays for it.
+				const occurrences =
+					matches.length === 0 && entity
+						? (await findOccurrences(entity.name, 0)).total
+						: null;
+				matches.push({
+					id: hit.id,
+					kind: hit.kind,
+					name: hit.name,
+					description: hit.description,
+					era: hit.era,
+					yearLabel: hit.yearLabel,
+					refs: hit.refs,
+					occurrences,
+					alsoCalled: entity?.alsoCalled ?? [],
+					related: entity?.related.map((related) => related.name) ?? [],
+					events: entity?.events.map((event) => event.title) ?? [],
+				});
+			}
+
+			const formatted =
+				matches.length === 0
+					? `Nothing in the Bible atlas matches "${query}". Say so plainly rather than guessing, and search the Scriptures for the name instead.`
+					: matches
+							.map((match) => {
+								const lines = [
+									`${match.name}${match.alsoCalled.length > 0 ? ` (also called ${match.alsoCalled.join(", ")})` : ""} - ${match.kind}${match.era ? `, ${match.era}` : ""}${match.yearLabel ? `, ${match.yearLabel}` : ""}`,
+									match.description,
+									`Key references: ${match.refs.join("; ")}`,
+								];
+								if (match.occurrences !== null) {
+									lines.push(`Named in ${match.occurrences} verses of the KJV.`);
+								}
+								if (match.related.length > 0) {
+									lines.push(`Connected to: ${match.related.join(", ")}`);
+								}
+								if (match.events.length > 0) {
+									lines.push(`Appears in: ${match.events.join("; ")}`);
+								}
+								return lines.join("\n");
+							})
+							.join("\n\n");
+
+			return { query, matches, formatted };
+		},
+	});
+
+	const getBibleTimelineTool = tool({
+		description:
+			`Ordered events of Bible history from Creation to the writing of Revelation, with the traditional Ussher dating the KJV margins carry. Filter by era (${ATLAS_ERAS.join(", ")}), by the book and chapter the events touch, or by a person from lookupBibleEntity. Use it whenever the user asks when something happened, what came before or after it, or where a passage sits in the story. Prefer it over webSearch for Bible chronology.`,
+		inputSchema: z.object({
+			era: z.string().optional().describe("One of the nine eras, spelled exactly."),
+			book: z
+				.string()
+				.optional()
+				.describe('Bible book name, e.g. "Exodus" - events whose references fall in it.'),
+			chapter: z.number().int().min(1).optional().describe("Narrows `book` to one chapter."),
+			personId: z
+				.string()
+				.optional()
+				.describe("An atlas id from lookupBibleEntity, e.g. \"moses\" - only their events."),
+		}),
+		execute: async ({ era, book, chapter, personId }): Promise<BibleTimelineToolOutput> => {
+			if (era && !(ATLAS_ERAS as readonly string[]).includes(era)) {
+				throw new Error(
+					`Unknown era "${era}". The nine eras are: ${ATLAS_ERAS.join(", ")}.`
+				);
+			}
+			let bookNumber: number | undefined;
+			if (book) {
+				bookNumber = getKjvBookNumber(book);
+				if (!bookNumber) {
+					throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
+				}
+			}
+
+			const timeline = await getTimeline({
+				era,
+				book: bookNumber,
+				chapter: bookNumber ? chapter : undefined,
+				personId,
+			});
+			const shown = timeline.events.slice(0, MAX_TIMELINE_EVENTS);
+			const truncated = timeline.events.length - shown.length;
+
+			const scopeParts: string[] = [];
+			if (era) scopeParts.push(era);
+			if (bookNumber) {
+				scopeParts.push(
+					`${getKjvBookName(bookNumber) ?? book}${chapter ? ` ${chapter}` : ""}`
+				);
+			}
+			if (personId) scopeParts.push(personId);
+			const scope = scopeParts.length > 0 ? scopeParts.join(" · ") : "the whole timeline";
+
+			const flatten = (event: AtlasEventView) => ({
+				id: event.id,
+				title: event.title,
+				era: event.era as string,
+				yearLabel: event.yearLabel,
+				summary: event.summary,
+				refs: event.refs,
+				people: event.people.map((person) => person.name),
+				places: event.places.map((place) => place.name),
+			});
+
+			const events = shown.map(flatten);
+			const formatted =
+				events.length === 0
+					? `No events on the timeline for ${scope}.`
+					: [
+							`Timeline - ${scope} (dates are the traditional Ussher chronology, not Scripture itself):`,
+							...events.map(
+								(event) =>
+									`${event.yearLabel} - ${event.title} (${event.era}): ${event.summary} [${event.refs.join("; ")}]`
+							),
+							...(truncated > 0 ? [`(${truncated} further events not listed.)`] : []),
+						].join("\n");
+
+			return {
+				scope,
+				eras: timeline.eras.map((group) => group.era as string),
+				events,
+				truncated,
+				formatted,
+			};
 		},
 	});
 
@@ -650,6 +852,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		getCrossReferences: getCrossReferencesTool,
 		getOriginalText: getOriginalTextTool,
 		lookupStrongs: lookupStrongsTool,
+		lookupBibleEntity: lookupBibleEntityTool,
+		getBibleTimeline: getBibleTimelineTool,
 		webSearch: webSearchTool,
 		addToNote: addToNoteTool,
 		readNote: readNoteTool,

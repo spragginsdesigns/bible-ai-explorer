@@ -583,3 +583,109 @@ ask-first rule as `setDailyCross` **and** a `confirmed` flag the model must set
 to `true` - a wish is not a yes. `markReadingPlanDay` is only for reading done
 outside SureWord; the prompt says so, because chapters read in the app already
 count themselves.
+
+---
+
+## Timeline, People & Places
+
+A KJV-grounded reference for **when** things happened and **who** and **where** -
+so neither the user nor the model has to reach for the web to answer "who was
+Melchizedek?" or "when did the exile begin?".
+
+Reached from the **Timeline & People** card on the Bible screen (`/bible/timeline`
+on both clients), and from the chapter reader's people icon, which opens it
+filtered to the chapter being read.
+
+### What it holds
+
+| | Count | File |
+|---|---|---|
+| Events, Creation to the writing of Revelation | 207 | `src/data/bible-atlas/events.json` |
+| People | 183 | `src/data/bible-atlas/people.json` |
+| Places | 93 | `src/data/bible-atlas/places.json` |
+
+Events are divided into nine eras, in order: Creation & the Patriarchs, Egypt &
+the Exodus, Conquest & Judges, United Kingdom, Divided Kingdom, Exile & Return,
+Between the Testaments, Life of Christ, The Early Church. The "Between the
+Testaments" era is deliberately thin - only what Scripture itself supports
+(Daniel's prophecy of the kingdoms, and Malachi's last word before the silence).
+
+### The dates are Ussher's, and are labelled as such
+
+Every `yearLabel` follows the **traditional Ussher chronology** - the dating
+printed in the margins of most KJV editions since the eighteenth century, and a
+computation from the genealogies and reign lengths of Scripture rather than part
+of the inspired text. Both clients carry the same footnote under the timeline
+(`USSHER_NOTE`), every label is marked "c.", and the system prompt tells the
+model to say "traditionally dated" and never to present a date as though
+Scripture gave it. Where Scripture gives no date at all, the label says so
+(`"date not given"`, as for Job).
+
+### Regenerating and validating the data
+
+```bash
+node scripts/build-bible-atlas.mjs
+```
+
+The script is the validator as well as the mirror. It **exits non-zero** on:
+
+- a reference that does not resolve to a real KJV book, chapter and verse - it
+  opens the bundled text and checks the verse numbers exist;
+- a duplicate or non-kebab-case id;
+- an event naming a person or place that does not exist, or a dangling `related` id;
+- events filed out of chronological order;
+- **a person or place whose name (or one of its `alsoCalled` aliases) does not
+  actually appear in any of the verses it cites.** This is the check that stops
+  invented Scripture: it reads the verse text itself. It is also why aliases
+  matter - the KJV writes `Elias` for Elijah, `Booz` for Boaz and `Esaias` for
+  Isaiah, and the alias is what makes those references verifiable.
+
+On success it copies the three JSON files to `mobile/src/data/bible-atlas/` and
+`src/lib/bible/atlas-core.ts` to `mobile/src/features/atlas/atlasCore.ts`.
+**Never hand-edit anything under `mobile/`** - edit the source and re-run.
+
+Two suites re-check it from the outside: `tests/bible-atlas.test.mjs`
+(`pnpm test:logic`) and `mobile/src/features/atlas/atlas.test.ts` (`npm test` in
+`mobile/`). Both include a drift check that fails if the mirrored copies differ
+from the source.
+
+### One implementation, two clients
+
+`src/lib/bible/atlas-core.ts` has **no imports at all**, and everything that
+could drift lives in it: reference parsing, search ranking, era grouping and
+entity resolution. The build script copies it verbatim to the phone, so the two
+clients cannot disagree about what "Elias" matches or which events touch
+Exodus 14.
+
+- **Android reads the bundled JSON directly** (`mobile/src/features/atlas/atlas.ts`),
+  so the screen works with no network, exactly like the Bible reader.
+- **Web reads the same data over the API** (`src/components/atlas/useAtlas.ts`),
+  so the browser never downloads the atlas.
+
+### API
+
+| Route | What it answers |
+|---|---|
+| `GET /api/bible/atlas?q=moses` | Ranked people, places and events |
+| `GET /api/bible/atlas?id=moses` | One entity: description, aliases, key verses, related, events |
+| `GET /api/bible/atlas?book=1&chapter=22` | Who and where a chapter is about, plus its events |
+| `GET /api/bible/atlas/timeline?era=&book=&chapter=&personId=` | Ordered events grouped by era, plus `allEras` |
+
+All read-only over bundled data; auth is the same `getAuthUserId()` the sibling
+Bible routes use.
+
+### Chat tools
+
+- **`lookupBibleEntity({ query })`** - best matches with what the Bible says about
+  them, their key references, the names Scripture also calls them by, who they
+  are connected to, the events they appear in, and (for the top match) how many
+  verses of the whole KJV name them. That count comes from `findOccurrences`, an
+  exact word-match scan of the bundled text - punctuation- and case-insensitive,
+  so "Abimelech's" counts and "Beer-sheba" matches "Beersheba".
+- **`getBibleTimeline({ era?, book?, chapter?, personId? })`** - ordered events for
+  a filter, with their Ussher labels and references.
+
+Both are read-only and need no permission. The system prompt tells the model to
+**prefer them over `webSearch`** for every who/where/when question about the
+Bible, and to say so plainly rather than guessing when the atlas has no entry.
+The `/who <name>` slash command runs `lookupBibleEntity` on its argument.

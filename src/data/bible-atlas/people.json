@@ -1,0 +1,1520 @@
+[
+	{
+		"id": "adam",
+		"name": "Adam",
+		"description": "The first man, formed of the dust of the ground. He named every living creature, ate of the forbidden tree at his wife's hand, and by him death passed upon all men.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 2:19", "Genesis 3:17", "Genesis 5:5", "Romans 5:14"],
+		"related": ["eve", "cain", "abel", "seth", "eden"]
+	},
+	{
+		"id": "eve",
+		"name": "Eve",
+		"description": "The woman the LORD God made from Adam's rib, and the mother of all living. The serpent beguiled her, and she took of the fruit and did eat.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 3:20", "Genesis 4:1", "2 Corinthians 11:3", "1 Timothy 2:13"],
+		"related": ["adam", "cain", "abel", "seth"]
+	},
+	{
+		"id": "cain",
+		"name": "Cain",
+		"description": "The firstborn of Adam and Eve, a tiller of the ground. His offering was not respected, and he rose up and slew his brother Abel.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 4:1", "Genesis 4:8", "Hebrews 11:4", "1 John 3:12"],
+		"related": ["adam", "eve", "abel"]
+	},
+	{
+		"id": "abel",
+		"name": "Abel",
+		"description": "A keeper of sheep, whose more excellent sacrifice the LORD had respect unto. Slain by his brother, he being dead yet speaketh.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 4:2", "Genesis 4:8", "Hebrews 11:4", "Matthew 23:35"],
+		"related": ["adam", "eve", "cain"]
+	},
+	{
+		"id": "seth",
+		"name": "Seth",
+		"description": "The son God appointed to Adam and Eve instead of Abel; in his days men began to call upon the name of the LORD.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 4:25", "Genesis 5:3", "Luke 3:38"],
+		"related": ["adam", "eve", "abel", "enoch"]
+	},
+	{
+		"id": "enoch",
+		"name": "Enoch",
+		"description": "The seventh from Adam, who walked with God three hundred years; and he was not, for God took him. He prophesied of the coming of the Lord.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 5:21", "Genesis 5:24", "Hebrews 11:5", "Jude 1:14"],
+		"related": ["methuselah", "noah", "seth"]
+	},
+	{
+		"id": "methuselah",
+		"name": "Methuselah",
+		"description": "Son of Enoch and grandfather of Noah; his nine hundred sixty and nine years are the longest life recorded in Scripture.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 5:21", "Genesis 5:27"],
+		"related": ["enoch", "lamech", "noah"]
+	},
+	{
+		"id": "lamech",
+		"name": "Lamech",
+		"description": "Son of Methuselah and father of Noah, whom he named saying, This same shall comfort us concerning our work and toil of our hands.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 5:28", "Genesis 5:29"],
+		"related": ["methuselah", "noah"]
+	},
+	{
+		"id": "noah",
+		"name": "Noah",
+		"alsoCalled": ["Noe"],
+		"description": "A just man and perfect in his generations, who walked with God. He found grace in the eyes of the LORD, built the ark at God's word, and was saved with his house.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 5:29", "Genesis 6:8", "Genesis 9:1", "Hebrews 11:7"],
+		"related": ["shem", "ham", "japheth", "lamech", "ararat"]
+	},
+	{
+		"id": "shem",
+		"name": "Shem",
+		"alsoCalled": ["Sem"],
+		"description": "Son of Noah, blessed by his father, and the forefather through whom the line runs to Abraham.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 5:32", "Genesis 9:26", "Genesis 11:10"],
+		"related": ["noah", "ham", "japheth", "abraham"]
+	},
+	{
+		"id": "ham",
+		"name": "Ham",
+		"description": "Son of Noah and father of Canaan, who saw the nakedness of his father and told his two brethren without.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 9:22", "Genesis 10:6"],
+		"related": ["noah", "shem", "japheth", "nimrod"]
+	},
+	{
+		"id": "japheth",
+		"name": "Japheth",
+		"description": "Son of Noah, of whom his father said, God shall enlarge Japheth, and he shall dwell in the tents of Shem.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 9:27", "Genesis 10:2"],
+		"related": ["noah", "shem", "ham"]
+	},
+	{
+		"id": "nimrod",
+		"name": "Nimrod",
+		"description": "A mighty one in the earth, and a mighty hunter before the LORD; the beginning of his kingdom was Babel in the land of Shinar.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 10:8", "Genesis 10:9"],
+		"related": ["ham", "babel", "nineveh"]
+	},
+	{
+		"id": "terah",
+		"name": "Terah",
+		"description": "Father of Abram, Nahor and Haran. He took his household out of Ur of the Chaldees to go into Canaan, but dwelt in Haran and died there.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 11:26", "Genesis 11:31"],
+		"related": ["abraham", "lot", "ur", "haran"]
+	},
+	{
+		"id": "abraham",
+		"name": "Abraham",
+		"alsoCalled": ["Abram"],
+		"description": "Called out of Ur to a land God would show him, and given the covenant and the promise of a seed. He believed God, and it was counted unto him for righteousness.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 12:1", "Genesis 17:5", "Genesis 22:1", "Romans 4:3"],
+		"related": ["sarah", "isaac", "lot", "hagar", "melchizedek", "canaan"]
+	},
+	{
+		"id": "sarah",
+		"name": "Sarah",
+		"alsoCalled": ["Sarai", "Sara"],
+		"description": "Wife of Abraham, barren until God's promise; she bare Isaac at the set time when she was ninety years old, and judged him faithful who had promised.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 11:29", "Genesis 17:15", "Genesis 21:2", "Hebrews 11:11"],
+		"related": ["abraham", "isaac", "hagar", "hebron"]
+	},
+	{
+		"id": "lot",
+		"name": "Lot",
+		"description": "Abraham's nephew, who chose the plain of Jordan and dwelt in Sodom. Vexed with the filthy conversation of the wicked, he was delivered before the city was overthrown.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 11:27", "Genesis 13:11", "Genesis 19:1", "2 Peter 2:7"],
+		"related": ["abraham", "terah", "sodom", "gomorrah"]
+	},
+	{
+		"id": "hagar",
+		"name": "Hagar",
+		"alsoCalled": ["Agar"],
+		"description": "Sarai's Egyptian handmaid, given to Abram; she bare Ishmael, and in the wilderness called the name of the LORD that spake unto her, Thou God seest me.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 16:1", "Genesis 16:15", "Genesis 21:14", "Galatians 4:24"],
+		"related": ["abraham", "sarah", "ishmael"]
+	},
+	{
+		"id": "ishmael",
+		"name": "Ishmael",
+		"description": "Son of Abram by Hagar, of whom God said He would make a great nation; he dwelt in the wilderness and became an archer.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 16:11", "Genesis 17:20", "Genesis 25:9"],
+		"related": ["abraham", "hagar", "isaac"]
+	},
+	{
+		"id": "melchizedek",
+		"name": "Melchizedek",
+		"alsoCalled": ["Melchisedec"],
+		"description": "King of Salem and priest of the most high God, who brought forth bread and wine and blessed Abram; Scripture makes him a figure of the priesthood of Christ.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 14:18", "Psalms 110:4", "Hebrews 7:1"],
+		"related": ["abraham", "jerusalem"]
+	},
+	{
+		"id": "isaac",
+		"name": "Isaac",
+		"alsoCalled": ["Isaac the son of promise"],
+		"description": "The son of promise born to Abraham and Sarah in their old age, laid upon the altar in the land of Moriah, and received back in a figure.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 17:19", "Genesis 22:2", "Genesis 26:1", "Hebrews 11:20"],
+		"related": ["abraham", "sarah", "rebekah", "jacob", "esau", "moriah"]
+	},
+	{
+		"id": "rebekah",
+		"name": "Rebekah",
+		"alsoCalled": ["Rebecca"],
+		"description": "The wife found for Isaac at the well; barren until Isaac entreated the LORD, she bare Jacob and Esau and was told the elder should serve the younger.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 24:15", "Genesis 25:21", "Genesis 27:6"],
+		"related": ["isaac", "jacob", "esau", "laban"]
+	},
+	{
+		"id": "jacob",
+		"name": "Jacob",
+		"alsoCalled": ["Israel"],
+		"description": "Younger son of Isaac, who bought the birthright, dreamed of the ladder at Bethel, wrestled until the breaking of the day and was named Israel. His twelve sons became the tribes.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 25:26", "Genesis 28:16", "Genesis 32:28", "Genesis 35:10"],
+		"related": ["isaac", "rebekah", "esau", "laban", "leah", "rachel", "joseph", "bethel", "peniel"]
+	},
+	{
+		"id": "esau",
+		"name": "Esau",
+		"alsoCalled": ["Edom"],
+		"description": "Isaac's elder son, a cunning hunter, who sold his birthright for one morsel of meat and afterward hated Jacob; yet he ran to meet him and embraced him.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 25:25", "Genesis 25:34", "Genesis 27:41", "Hebrews 12:16"],
+		"related": ["isaac", "rebekah", "jacob", "edom"]
+	},
+	{
+		"id": "laban",
+		"name": "Laban",
+		"description": "Rebekah's brother, in whose house Jacob served twenty years for Leah, Rachel and the flocks, and who changed his wages ten times.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 24:29", "Genesis 29:15", "Genesis 31:2"],
+		"related": ["rebekah", "jacob", "leah", "rachel", "haran"]
+	},
+	{
+		"id": "leah",
+		"name": "Leah",
+		"description": "Laban's elder daughter, given to Jacob first; the LORD saw that she was hated and opened her womb, and she bare Reuben, Levi, Judah and others.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 29:16", "Genesis 29:31", "Genesis 49:31"],
+		"related": ["jacob", "laban", "rachel", "judah", "levi", "reuben"]
+	},
+	{
+		"id": "rachel",
+		"name": "Rachel",
+		"description": "The wife Jacob loved and served seven years for; long barren, she bare Joseph and died in giving birth to Benjamin on the way to Ephrath.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 29:6", "Genesis 29:18", "Genesis 35:19"],
+		"related": ["jacob", "laban", "leah", "joseph", "benjamin", "bethlehem"]
+	},
+	{
+		"id": "joseph",
+		"name": "Joseph",
+		"description": "Jacob's beloved son, sold into Egypt by his brethren, imprisoned falsely, and raised to rule all the land. He told them, Ye thought evil against me; but God meant it unto good.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 30:24", "Genesis 37:3", "Genesis 41:41", "Genesis 45:4"],
+		"related": ["jacob", "rachel", "judah", "benjamin", "potiphar", "egypt", "goshen"]
+	},
+	{
+		"id": "judah",
+		"name": "Judah",
+		"alsoCalled": ["Juda"],
+		"description": "Fourth son of Jacob and Leah, who pleaded for Benjamin's life; of him Jacob prophesied that the sceptre should not depart from Judah.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 29:35", "Genesis 37:26", "Genesis 49:10"],
+		"related": ["jacob", "leah", "joseph", "tamar", "david"]
+	},
+	{
+		"id": "reuben",
+		"name": "Reuben",
+		"description": "Jacob's firstborn, who kept his brethren from slaying Joseph; unstable as water, he did not excel, for he went up to his father's bed.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 29:32", "Genesis 37:21", "Genesis 49:3"],
+		"related": ["jacob", "leah", "joseph"]
+	},
+	{
+		"id": "levi",
+		"name": "Levi",
+		"description": "Third son of Jacob and Leah; from his sons came Moses, Aaron and the priestly tribe that bore the tabernacle.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 29:34", "Genesis 49:5", "Exodus 6:16"],
+		"related": ["jacob", "leah", "moses", "aaron"]
+	},
+	{
+		"id": "benjamin",
+		"name": "Benjamin",
+		"description": "Jacob's youngest son, born at his mother's death; the brother over whom Joseph wept, and the tribe of Saul and of Paul.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 35:18", "Genesis 42:36", "Genesis 45:14"],
+		"related": ["jacob", "rachel", "joseph"]
+	},
+	{
+		"id": "dinah",
+		"name": "Dinah",
+		"description": "The daughter of Jacob and Leah, defiled at Shechem, whose brothers Simeon and Levi avenged her with the sword.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 30:21", "Genesis 34:1"],
+		"related": ["jacob", "leah", "levi", "shechem"]
+	},
+	{
+		"id": "tamar",
+		"name": "Tamar",
+		"alsoCalled": ["Thamar"],
+		"description": "Daughter in law of Judah, wronged and denied her right; she bare Pharez, through whom the line to David and to Christ is traced.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 38:6", "Genesis 38:24", "Matthew 1:3"],
+		"related": ["judah", "david"]
+	},
+	{
+		"id": "potiphar",
+		"name": "Potiphar",
+		"description": "An officer of Pharaoh and captain of the guard who bought Joseph, and cast him into prison when his wife accused him falsely.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Genesis 37:36", "Genesis 39:1"],
+		"related": ["joseph", "egypt"]
+	},
+	{
+		"id": "job",
+		"name": "Job",
+		"description": "A man in the land of Uz, perfect and upright, one that feared God and eschewed evil. Stripped of all he had, he said, The LORD gave, and the LORD hath taken away.",
+		"era": "Creation & the Patriarchs",
+		"refs": ["Job 1:1", "Job 2:10", "Job 42:10", "James 5:11"],
+		"related": []
+	},
+	{
+		"id": "pharaoh",
+		"name": "Pharaoh",
+		"description": "The title Scripture gives the kings of Egypt. One set Joseph over all the land; another knew not Joseph, hardened his heart against the LORD, and perished in the sea.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Genesis 41:1", "Exodus 5:2", "Exodus 14:8"],
+		"related": ["joseph", "moses", "aaron", "egypt", "red-sea"]
+	},
+	{
+		"id": "moses",
+		"name": "Moses",
+		"alsoCalled": ["Moses the servant of the LORD"],
+		"description": "Drawn out of the water, called at the burning bush, and sent to bring Israel out of Egypt. He received the law at Sinai and spake with the LORD face to face.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 2:10", "Exodus 3:4", "Exodus 14:21", "Deuteronomy 34:5"],
+		"related": ["aaron", "miriam", "joshua", "jethro", "zipporah", "mount-sinai", "mount-nebo", "egypt"]
+	},
+	{
+		"id": "aaron",
+		"name": "Aaron",
+		"description": "Moses' brother and spokesman, the first high priest of Israel. He made the golden calf at the people's demand, and his rod budded before the LORD.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 4:14", "Exodus 7:10", "Exodus 32:2", "Numbers 20:28"],
+		"related": ["moses", "miriam", "eleazar", "nadab", "levi"]
+	},
+	{
+		"id": "miriam",
+		"name": "Miriam",
+		"description": "Sister of Moses and Aaron, called a prophetess; she led the women with timbrels after the sea, and was shut out of the camp seven days for speaking against Moses.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 15:20", "Numbers 12:1", "Numbers 20:1"],
+		"related": ["moses", "aaron"]
+	},
+	{
+		"id": "jethro",
+		"name": "Jethro",
+		"alsoCalled": ["Reuel"],
+		"description": "The priest of Midian and Moses' father in law, whose flock Moses kept, and who counselled him to set rulers over the people.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 2:18", "Exodus 3:1", "Exodus 18:1"],
+		"related": ["moses", "zipporah", "midian"]
+	},
+	{
+		"id": "zipporah",
+		"name": "Zipporah",
+		"description": "Daughter of the priest of Midian, given to Moses to wife; she circumcised her son in the way and called Moses a bloody husband.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 2:21", "Exodus 4:25"],
+		"related": ["moses", "jethro", "midian"]
+	},
+	{
+		"id": "joshua",
+		"name": "Joshua",
+		"alsoCalled": ["Oshea", "Jehoshua"],
+		"description": "Moses' minister, one of the two spies who brought a good report, and the captain who led Israel over Jordan and divided the land by lot.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 17:9", "Numbers 14:6", "Joshua 1:1", "Joshua 24:15"],
+		"related": ["moses", "caleb", "eleazar", "jericho", "shiloh"]
+	},
+	{
+		"id": "caleb",
+		"name": "Caleb",
+		"description": "Of the tribe of Judah, who stilled the people saying, Let us go up at once and possess it. He wholly followed the LORD, and at eighty five asked for Hebron.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Numbers 13:30", "Numbers 14:24", "Joshua 14:6"],
+		"related": ["joshua", "moses", "hebron", "kadeshbarnea"]
+	},
+	{
+		"id": "korah",
+		"name": "Korah",
+		"alsoCalled": ["Core"],
+		"description": "A Levite who with Dathan and Abiram rose up against Moses and Aaron; the earth opened her mouth and swallowed them up.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Numbers 16:1", "Numbers 16:32", "Jude 1:11"],
+		"related": ["moses", "aaron"]
+	},
+	{
+		"id": "balaam",
+		"name": "Balaam",
+		"description": "The soothsayer hired to curse Israel, whose ass spake with man's voice. He could only bless, yet he loved the wages of unrighteousness.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Numbers 22:5", "Numbers 24:10", "2 Peter 2:15"],
+		"related": ["balak", "moab", "phinehas"]
+	},
+	{
+		"id": "balak",
+		"name": "Balak",
+		"description": "King of Moab, who sent for Balaam to curse Israel and was angry when he blessed them three times.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Numbers 22:4", "Numbers 23:11"],
+		"related": ["balaam", "moab"]
+	},
+	{
+		"id": "nadab",
+		"name": "Nadab",
+		"description": "Son of Aaron who with his brother Abihu offered strange fire before the LORD, and fire went out from the LORD and devoured them.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 6:23", "Leviticus 10:1", "Numbers 3:4"],
+		"related": ["aaron", "eleazar"]
+	},
+	{
+		"id": "eleazar",
+		"name": "Eleazar",
+		"description": "Son of Aaron who succeeded him as high priest, and with Joshua divided the inheritance among the tribes.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Exodus 6:23", "Numbers 20:26", "Joshua 14:1"],
+		"related": ["aaron", "joshua", "phinehas", "nadab"]
+	},
+	{
+		"id": "phinehas",
+		"name": "Phinehas",
+		"description": "Son of Eleazar, who stood up and executed judgment when the plague was among the people; it was counted unto him for righteousness, and he was given a covenant of peace.",
+		"era": "Egypt & the Exodus",
+		"refs": ["Numbers 25:7", "Numbers 25:11", "Psalms 106:30"],
+		"related": ["eleazar", "aaron", "balaam"]
+	},
+	{
+		"id": "rahab",
+		"name": "Rahab",
+		"alsoCalled": ["Rachab"],
+		"description": "The harlot of Jericho who hid the spies and bound the scarlet line in her window. By faith she perished not, and she is named in the line of Christ.",
+		"era": "Conquest & Judges",
+		"refs": ["Joshua 2:1", "Joshua 6:25", "Hebrews 11:31", "Matthew 1:5"],
+		"related": ["joshua", "boaz", "jericho"]
+	},
+	{
+		"id": "achan",
+		"name": "Achan",
+		"description": "Of the tribe of Judah, who took of the accursed thing at Jericho and hid it in his tent, so that Israel could not stand before Ai.",
+		"era": "Conquest & Judges",
+		"refs": ["Joshua 7:1", "Joshua 7:20"],
+		"related": ["joshua", "ai", "jericho"]
+	},
+	{
+		"id": "othniel",
+		"name": "Othniel",
+		"description": "Caleb's younger kinsman, the first judge the LORD raised up to deliver Israel; the Spirit of the LORD came upon him and the land had rest forty years.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 1:13", "Judges 3:9"],
+		"related": ["caleb"]
+	},
+	{
+		"id": "ehud",
+		"name": "Ehud",
+		"description": "A Benjamite, a man lefthanded, whom the LORD raised up to deliver Israel out of the hand of Eglon king of Moab.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 3:15", "Judges 3:21"],
+		"related": ["moab"]
+	},
+	{
+		"id": "deborah",
+		"name": "Deborah",
+		"description": "A prophetess who judged Israel under her palm tree and went up with Barak against Sisera; she sang the song of victory that day.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 4:4", "Judges 4:14", "Judges 5:1"],
+		"related": ["barak", "jael", "hazor"]
+	},
+	{
+		"id": "barak",
+		"name": "Barak",
+		"description": "Called by Deborah to gather ten thousand men against Sisera's chariots; he would not go unless she went with him, and he is named among the faithful.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 4:6", "Judges 5:1", "Hebrews 11:32"],
+		"related": ["deborah", "jael", "hazor"]
+	},
+	{
+		"id": "jael",
+		"name": "Jael",
+		"description": "The wife of Heber, who gave Sisera milk, covered him, and smote the nail into his temples; Deborah called her blessed above women.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 4:21", "Judges 5:24"],
+		"related": ["deborah", "barak"]
+	},
+	{
+		"id": "gideon",
+		"name": "Gideon",
+		"alsoCalled": ["Jerubbaal", "Gedeon"],
+		"description": "Threshing wheat in the winepress when the angel called him a mighty man of valour. He put out the fleece, threw down Baal's altar, and with three hundred men routed Midian.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 6:11", "Judges 7:20", "Judges 8:35", "Hebrews 11:32"],
+		"related": ["abimelech", "midian"]
+	},
+	{
+		"id": "abimelech",
+		"name": "Abimelech",
+		"description": "Son of Gideon, who slew his threescore and ten brethren upon one stone and made himself king in Shechem; a woman cast a millstone upon his head.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 9:1", "Judges 9:53"],
+		"related": ["gideon", "shechem", "mount-gerizim"]
+	},
+	{
+		"id": "jephthah",
+		"name": "Jephthah",
+		"alsoCalled": ["Jephthae"],
+		"description": "A mighty man of valour thrust out by his brethren, then called back to fight Ammon. He vowed a rash vow before the battle and did with his daughter according to it.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 11:1", "Judges 11:30", "Hebrews 11:32"],
+		"related": ["gilead", "mizpah"]
+	},
+	{
+		"id": "samson",
+		"name": "Samson",
+		"description": "A Nazarite from the womb, on whom the Spirit of the LORD came mightily. Betrayed by Delilah and shorn, he was bound and blinded, and slew more at his death than in his life.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 13:24", "Judges 16:28", "Judges 16:30", "Hebrews 11:32"],
+		"related": ["delilah", "gaza"]
+	},
+	{
+		"id": "delilah",
+		"name": "Delilah",
+		"description": "The woman in the valley of Sorek whom Samson loved, who pressed him daily until he told her all his heart, and sold him to the lords of the Philistines.",
+		"era": "Conquest & Judges",
+		"refs": ["Judges 16:4", "Judges 16:6"],
+		"related": ["samson", "gaza"]
+	},
+	{
+		"id": "ruth",
+		"name": "Ruth",
+		"description": "The Moabitess who would not leave Naomi, saying, Thy people shall be my people, and thy God my God. She gleaned in the field of Boaz and became great-grandmother to David.",
+		"era": "Conquest & Judges",
+		"refs": ["Ruth 1:4", "Ruth 1:16", "Ruth 4:13", "Matthew 1:5"],
+		"related": ["naomi", "boaz", "david", "moab", "bethlehem"]
+	},
+	{
+		"id": "naomi",
+		"name": "Naomi",
+		"alsoCalled": ["Mara"],
+		"description": "Widowed in Moab and bereft of both her sons, she returned to Bethlehem saying, Call me not Naomi, call me Mara; and she took Ruth's child and laid it in her bosom.",
+		"era": "Conquest & Judges",
+		"refs": ["Ruth 1:2", "Ruth 1:20", "Ruth 4:16"],
+		"related": ["ruth", "boaz", "bethlehem", "moab"]
+	},
+	{
+		"id": "boaz",
+		"name": "Boaz",
+		"alsoCalled": ["Booz"],
+		"description": "A mighty man of wealth in Bethlehem, kinsman to Naomi, who spread his skirt over Ruth and redeemed her before the elders in the gate.",
+		"era": "Conquest & Judges",
+		"refs": ["Ruth 2:1", "Ruth 4:9", "Matthew 1:5"],
+		"related": ["ruth", "naomi", "rahab", "david", "bethlehem"]
+	},
+	{
+		"id": "eli",
+		"name": "Eli",
+		"description": "The priest at Shiloh who taught Samuel to answer the LORD, but restrained not his sons; he fell backward and died when he heard the ark was taken.",
+		"era": "Conquest & Judges",
+		"refs": ["1 Samuel 1:9", "1 Samuel 3:8", "1 Samuel 4:15"],
+		"related": ["samuel", "hannah", "shiloh"]
+	},
+	{
+		"id": "hannah",
+		"name": "Hannah",
+		"description": "Barren and in bitterness of soul, she prayed at Shiloh and vowed her son to the LORD; when Samuel was born she lent him to the LORD as long as he liveth.",
+		"era": "Conquest & Judges",
+		"refs": ["1 Samuel 1:2", "1 Samuel 1:20", "1 Samuel 2:1"],
+		"related": ["samuel", "eli", "shiloh"]
+	},
+	{
+		"id": "samuel",
+		"name": "Samuel",
+		"description": "Called by name as a child at Shiloh, the last judge and a prophet whose words the LORD let none fall to the ground. He anointed both Saul and David.",
+		"era": "Conquest & Judges",
+		"refs": ["1 Samuel 1:20", "1 Samuel 3:10", "1 Samuel 8:6", "1 Samuel 16:13"],
+		"related": ["hannah", "eli", "saul", "david", "ramah", "shiloh"]
+	},
+	{
+		"id": "saul",
+		"name": "Saul",
+		"description": "The first king of Israel, higher than any of the people from his shoulders upward. He was rejected for disobedience, hunted David, and fell on his own sword at Gilboa.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 9:2", "1 Samuel 10:1", "1 Samuel 15:11", "1 Samuel 31:4"],
+		"related": ["samuel", "david", "jonathan", "abner", "michal", "gibeah", "mount-gilboa", "endor"]
+	},
+	{
+		"id": "jonathan",
+		"name": "Jonathan",
+		"description": "Saul's son, who climbed against the Philistine garrison saying the LORD can save by many or by few, and whose soul was knit with the soul of David.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 14:6", "1 Samuel 18:1", "1 Samuel 20:42", "2 Samuel 1:26"],
+		"related": ["saul", "david", "mephibosheth", "mount-gilboa"]
+	},
+	{
+		"id": "david",
+		"name": "David",
+		"description": "The shepherd of Bethlehem anointed by Samuel, who slew Goliath, was hunted by Saul, reigned forty years, and to whom God promised a throne established for ever.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 16:13", "1 Samuel 17:45", "2 Samuel 5:4", "2 Samuel 12:13"],
+		"related": ["samuel", "saul", "jonathan", "goliath", "bathsheba", "nathan", "solomon", "absalom", "joab", "jerusalem", "bethlehem"]
+	},
+	{
+		"id": "goliath",
+		"name": "Goliath",
+		"description": "The champion of Gath, six cubits and a span high, who defied the armies of the living God forty days and was felled by a stone from David's sling.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 17:4", "1 Samuel 17:23", "1 Samuel 21:9"],
+		"related": ["david", "gath", "valley-of-elah"]
+	},
+	{
+		"id": "abigail",
+		"name": "Abigail",
+		"description": "A woman of good understanding and beautiful countenance, wife of Nabal, who met David with provisions and kept him from avenging himself with his own hand.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 25:3", "1 Samuel 25:32"],
+		"related": ["david"]
+	},
+	{
+		"id": "michal",
+		"name": "Michal",
+		"description": "Saul's daughter who loved David and let him down through a window to escape her father, and who afterward despised him in her heart when he danced before the ark.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 18:20", "1 Samuel 19:11", "2 Samuel 6:16"],
+		"related": ["saul", "david"]
+	},
+	{
+		"id": "joab",
+		"name": "Joab",
+		"description": "David's captain of the host, who set Uriah in the forefront of the battle at the king's letter, and who slew Absalom against the king's word.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 2:13", "2 Samuel 11:14", "2 Samuel 18:14", "1 Kings 2:5"],
+		"related": ["david", "absalom", "abner", "solomon"]
+	},
+	{
+		"id": "abner",
+		"name": "Abner",
+		"description": "Captain of Saul's host who made Ishbosheth king, then turned to David and was slain by Joab in the gate of Hebron.",
+		"era": "United Kingdom",
+		"refs": ["1 Samuel 14:50", "2 Samuel 3:27"],
+		"related": ["saul", "david", "joab", "hebron"]
+	},
+	{
+		"id": "nathan",
+		"name": "Nathan",
+		"description": "The prophet who brought David God's covenant of an everlasting house, and who said to him after Bathsheba, Thou art the man.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 7:2", "2 Samuel 12:7", "1 Kings 1:34"],
+		"related": ["david", "bathsheba", "solomon"]
+	},
+	{
+		"id": "bathsheba",
+		"name": "Bathsheba",
+		"description": "The wife of Uriah whom David took; her first child died, and she afterward bare Solomon and asked David to make him king.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 11:3", "2 Samuel 12:24", "1 Kings 1:15"],
+		"related": ["david", "solomon", "nathan"]
+	},
+	{
+		"id": "absalom",
+		"name": "Absalom",
+		"description": "David's son, in whom was no blemish from the sole of his foot to the crown of his head; he stole the hearts of Israel, rebelled, and was caught by his head in an oak.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 13:1", "2 Samuel 15:6", "2 Samuel 18:9"],
+		"related": ["david", "joab"]
+	},
+	{
+		"id": "mephibosheth",
+		"name": "Mephibosheth",
+		"description": "Jonathan's son, lame on both his feet, whom David sought out for Jonathan's sake and set at the king's table continually.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 4:4", "2 Samuel 9:6"],
+		"related": ["jonathan", "david"]
+	},
+	{
+		"id": "solomon",
+		"name": "Solomon",
+		"description": "David's son, who asked for an understanding heart and was given wisdom and riches besides. He built the house of the LORD, and in his old age his wives turned away his heart.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 12:24", "1 Kings 3:5", "1 Kings 6:1", "1 Kings 11:4"],
+		"related": ["david", "bathsheba", "nathan", "hiram", "queen-of-sheba", "rehoboam", "jerusalem", "moriah"]
+	},
+	{
+		"id": "queen-of-sheba",
+		"name": "Queen of Sheba",
+		"description": "She came to prove Solomon with hard questions, and when she had seen his wisdom and his house there was no more spirit in her.",
+		"era": "United Kingdom",
+		"refs": ["1 Kings 10:1", "1 Kings 10:13", "2 Chronicles 9:1"],
+		"related": ["solomon", "jerusalem"]
+	},
+	{
+		"id": "hiram",
+		"name": "Hiram",
+		"description": "King of Tyre, ever a lover of David, who sent cedar trees, carpenters and masons for the house of the LORD.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 5:11", "1 Kings 5:1", "1 Kings 7:13"],
+		"related": ["david", "solomon", "tyre"]
+	},
+	{
+		"id": "zadok",
+		"name": "Zadok",
+		"description": "The priest who stayed faithful to David through Absalom's rebellion and anointed Solomon king at Gihon.",
+		"era": "United Kingdom",
+		"refs": ["2 Samuel 15:24", "1 Kings 1:39", "1 Kings 2:35"],
+		"related": ["david", "solomon", "nathan"]
+	},
+	{
+		"id": "rehoboam",
+		"name": "Rehoboam",
+		"description": "Solomon's son, who forsook the counsel of the old men and answered the people roughly, so that ten tribes tore away from the house of David.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 11:43", "1 Kings 12:12", "2 Chronicles 12:1"],
+		"related": ["solomon", "jeroboam", "jerusalem"]
+	},
+	{
+		"id": "jeroboam",
+		"name": "Jeroboam",
+		"description": "Solomon's servant made king over the ten tribes, who set up two calves of gold in Bethel and Dan and made Israel to sin.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 11:26", "1 Kings 12:20", "1 Kings 14:16"],
+		"related": ["rehoboam", "solomon", "bethel", "dan"]
+	},
+	{
+		"id": "ahab",
+		"name": "Ahab",
+		"description": "King of Israel who did evil above all before him, married Jezebel and served Baal; he coveted Naboth's vineyard and died of an arrow shot at a venture.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 16:30", "1 Kings 18:17", "1 Kings 21:4"],
+		"related": ["jezebel", "elijah", "jehu", "samaria", "jezreel", "mount-carmel"]
+	},
+	{
+		"id": "jezebel",
+		"name": "Jezebel",
+		"description": "Ahab's queen, daughter of the king of the Zidonians, who cut off the prophets of the LORD and fed the prophets of Baal; she was thrown down from a window in Jezreel.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 16:31", "1 Kings 18:4", "2 Kings 9:30", "Revelation 2:20"],
+		"related": ["ahab", "elijah", "jehu", "jezreel"]
+	},
+	{
+		"id": "elijah",
+		"name": "Elijah",
+		"alsoCalled": ["Elias", "Elijah the Tishbite"],
+		"description": "The Tishbite who shut heaven three years and six months, called down fire on Carmel, heard the still small voice at Horeb, and went up by a whirlwind into heaven.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 17:1", "1 Kings 18:36", "2 Kings 2:11", "James 5:17"],
+		"related": ["elisha", "ahab", "jezebel", "mount-carmel", "horeb", "zarephath"]
+	},
+	{
+		"id": "elisha",
+		"name": "Elisha",
+		"alsoCalled": ["Eliseus"],
+		"description": "Called from the plough by Elijah's mantle, he asked a double portion of his spirit and did many wonders: the widow's oil, the Shunammite's son, and Naaman's cleansing.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 19:19", "2 Kings 2:9", "2 Kings 5:10"],
+		"related": ["elijah", "naaman", "gehazi", "jehu", "jordan"]
+	},
+	{
+		"id": "naaman",
+		"name": "Naaman",
+		"description": "Captain of the host of the king of Syria, a great man but a leper, who washed seven times in Jordan at the prophet's word and his flesh came again like a little child.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 5:1", "2 Kings 5:11", "Luke 4:27"],
+		"related": ["elisha", "gehazi", "jordan", "damascus"]
+	},
+	{
+		"id": "gehazi",
+		"name": "Gehazi",
+		"description": "Elisha's servant, who ran after Naaman and took what his master refused; the leprosy of Naaman clave unto him.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 4:12", "2 Kings 5:20"],
+		"related": ["elisha", "naaman"]
+	},
+	{
+		"id": "jehu",
+		"name": "Jehu",
+		"description": "Anointed to cut off the house of Ahab; he drove furiously, slew Joram and Jezebel, and destroyed Baal out of Israel, yet departed not from the sins of Jeroboam.",
+		"era": "Divided Kingdom",
+		"refs": ["1 Kings 19:16", "2 Kings 9:13", "2 Kings 10:28"],
+		"related": ["ahab", "jezebel", "elisha", "jezreel"]
+	},
+	{
+		"id": "athaliah",
+		"name": "Athaliah",
+		"description": "Mother of Ahaziah, who destroyed all the seed royal of Judah and reigned six years, until Joash was shown to the people and she was slain.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 11:1", "2 Kings 11:20"],
+		"related": ["joash", "jerusalem"]
+	},
+	{
+		"id": "joash",
+		"name": "Joash",
+		"alsoCalled": ["Jehoash"],
+		"description": "Hidden in the house of the LORD six years as a babe, then crowned at seven; he did right all the days of Jehoiada the priest and repaired the house of the LORD.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 11:2", "2 Kings 12:2"],
+		"related": ["athaliah", "jerusalem"]
+	},
+	{
+		"id": "hezekiah",
+		"name": "Hezekiah",
+		"description": "King of Judah who trusted in the LORD, brake the images, spread Sennacherib's letter before the LORD, and had fifteen years added to his life.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 18:1", "2 Kings 19:15", "2 Kings 20:5", "Isaiah 37:14"],
+		"related": ["isaiah", "sennacherib", "jerusalem", "assyria"]
+	},
+	{
+		"id": "isaiah",
+		"name": "Isaiah",
+		"alsoCalled": ["Esaias"],
+		"description": "The prophet who saw the Lord high and lifted up and said, Here am I; send me. He foretold the virgin's Son, and the man of sorrows wounded for our transgressions.",
+		"era": "Divided Kingdom",
+		"refs": ["Isaiah 1:1", "Isaiah 6:8", "2 Kings 19:2", "Matthew 3:3"],
+		"related": ["hezekiah", "sennacherib", "jerusalem"]
+	},
+	{
+		"id": "manasseh",
+		"name": "Manasseh",
+		"description": "King of Judah who reigned fifty and five years and did much evil, and who in affliction humbled himself greatly before the God of his fathers.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 21:1", "2 Chronicles 33:13"],
+		"related": ["hezekiah", "josiah", "jerusalem"]
+	},
+	{
+		"id": "josiah",
+		"name": "Josiah",
+		"description": "Made king at eight years old, who repaired the house of the LORD, heard the book of the law that was found, rent his clothes, and turned to the LORD with all his heart.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 22:1", "2 Kings 23:25", "2 Kings 23:29"],
+		"related": ["huldah", "jeremiah", "manasseh", "jerusalem"]
+	},
+	{
+		"id": "huldah",
+		"name": "Huldah",
+		"description": "The prophetess in Jerusalem whom Josiah's men enquired of when the book of the law was found, and who declared what the LORD would do.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 22:14", "2 Chronicles 34:22"],
+		"related": ["josiah", "jerusalem"]
+	},
+	{
+		"id": "jeremiah",
+		"name": "Jeremiah",
+		"alsoCalled": ["Jeremias", "Jeremy"],
+		"description": "Ordained a prophet unto the nations before he was formed in the belly. He wept over Judah, was cast into the dungeon, and promised a new covenant written in the heart.",
+		"era": "Divided Kingdom",
+		"refs": ["Jeremiah 1:1", "Jeremiah 1:5", "Jeremiah 31:33", "Jeremiah 38:6"],
+		"related": ["baruch", "josiah", "nebuchadnezzar", "jerusalem", "babylon"]
+	},
+	{
+		"id": "baruch",
+		"name": "Baruch",
+		"description": "The scribe who wrote Jeremiah's words in a book and read them in the house of the LORD, and wrote them again when the king cut the roll and burnt it.",
+		"era": "Divided Kingdom",
+		"refs": ["Jeremiah 36:4", "Jeremiah 45:1"],
+		"related": ["jeremiah", "jerusalem"]
+	},
+	{
+		"id": "hosea",
+		"name": "Hosea",
+		"alsoCalled": ["Osee"],
+		"description": "The prophet told to take a wife of whoredoms, that Israel might see her own unfaithfulness and the love of the LORD that would not let her go.",
+		"era": "Divided Kingdom",
+		"refs": ["Hosea 1:1", "Hosea 1:2"],
+		"related": ["samaria", "jezreel"]
+	},
+	{
+		"id": "amos",
+		"name": "Amos",
+		"description": "A herdman of Tekoa and a gatherer of sycomore fruit, no prophet's son, whom the LORD took from following the flock to prophesy against Israel.",
+		"era": "Divided Kingdom",
+		"refs": ["Amos 1:1", "Amos 7:14"],
+		"related": ["samaria", "bethel"]
+	},
+	{
+		"id": "jonah",
+		"name": "Jonah",
+		"alsoCalled": ["Jonas"],
+		"description": "Sent to Nineveh, he fled toward Tarshish and was three days and three nights in the belly of the fish; then he preached, and the city repented.",
+		"era": "Divided Kingdom",
+		"refs": ["Jonah 1:1", "Jonah 1:17", "Jonah 3:4", "Matthew 12:40"],
+		"related": ["nineveh", "joppa"]
+	},
+	{
+		"id": "micah",
+		"name": "Micah",
+		"description": "The Morasthite who prophesied in the days of Hezekiah, foretold that the Ruler should come out of Bethlehem, and asked what the LORD requires of thee.",
+		"era": "Divided Kingdom",
+		"refs": ["Micah 1:1", "Jeremiah 26:18"],
+		"related": ["hezekiah", "bethlehem"]
+	},
+	{
+		"id": "joel",
+		"name": "Joel",
+		"description": "The prophet who called for a solemn assembly and foretold that God would pour out His Spirit upon all flesh, which Peter declared fulfilled at Pentecost.",
+		"era": "Divided Kingdom",
+		"refs": ["Joel 1:1", "Acts 2:16"],
+		"related": ["jerusalem"]
+	},
+	{
+		"id": "obadiah",
+		"name": "Obadiah",
+		"description": "The prophet whose short vision is against Edom, declaring that as thou hast done, it shall be done unto thee.",
+		"era": "Divided Kingdom",
+		"refs": ["Obadiah 1:1"],
+		"related": ["edom", "esau"]
+	},
+	{
+		"id": "nahum",
+		"name": "Nahum",
+		"description": "The Elkoshite whose book is the burden of Nineveh: the LORD is slow to anger and great in power, and will not at all acquit the wicked.",
+		"era": "Divided Kingdom",
+		"refs": ["Nahum 1:1"],
+		"related": ["nineveh", "assyria", "jonah"]
+	},
+	{
+		"id": "habakkuk",
+		"name": "Habakkuk",
+		"description": "The prophet who asked how long, and was answered that the just shall live by his faith; his prayer ends, yet I will rejoice in the LORD.",
+		"era": "Divided Kingdom",
+		"refs": ["Habakkuk 1:1", "Habakkuk 3:1"],
+		"related": ["babylon", "jerusalem"]
+	},
+	{
+		"id": "zephaniah",
+		"name": "Zephaniah",
+		"description": "Who prophesied in the days of Josiah of the great day of the LORD, and of a remnant left, an afflicted and poor people that trust in the name of the LORD.",
+		"era": "Divided Kingdom",
+		"refs": ["Zephaniah 1:1"],
+		"related": ["josiah", "jerusalem"]
+	},
+	{
+		"id": "sennacherib",
+		"name": "Sennacherib",
+		"description": "King of Assyria who took the fenced cities of Judah and railed on the living God; the angel of the LORD smote his camp, and he returned to Nineveh.",
+		"era": "Divided Kingdom",
+		"refs": ["2 Kings 18:13", "2 Kings 19:36", "Isaiah 36:1"],
+		"related": ["hezekiah", "isaiah", "assyria", "nineveh"]
+	},
+	{
+		"id": "nebuchadnezzar",
+		"name": "Nebuchadnezzar",
+		"description": "King of Babylon who carried Judah captive and burnt the temple; he set up an image of gold, was driven to eat grass as oxen, and afterward blessed the most High.",
+		"era": "Exile & Return",
+		"refs": ["2 Kings 24:1", "Daniel 2:1", "Daniel 4:33"],
+		"related": ["daniel", "shadrach-meshach-abednego", "jeremiah", "babylon", "jerusalem"]
+	},
+	{
+		"id": "daniel",
+		"name": "Daniel",
+		"alsoCalled": ["Belteshazzar"],
+		"description": "Carried to Babylon as a youth, he purposed not to defile himself, read Nebuchadnezzar's dream, prayed three times a day toward Jerusalem, and was kept in the lions' den.",
+		"era": "Exile & Return",
+		"refs": ["Daniel 1:6", "Daniel 2:19", "Daniel 6:16", "Daniel 9:2"],
+		"related": ["shadrach-meshach-abednego", "nebuchadnezzar", "belshazzar", "darius", "babylon", "shushan"]
+	},
+	{
+		"id": "shadrach-meshach-abednego",
+		"name": "Shadrach, Meshach and Abednego",
+		"alsoCalled": ["Hananiah", "Mishael", "Azariah"],
+		"description": "Daniel's three companions, who would not fall down to the golden image and were cast into the burning fiery furnace; a fourth walked with them, and the fire had no power over them.",
+		"era": "Exile & Return",
+		"refs": ["Daniel 1:7", "Daniel 3:17", "Daniel 3:26"],
+		"related": ["daniel", "nebuchadnezzar", "babylon"]
+	},
+	{
+		"id": "ezekiel",
+		"name": "Ezekiel",
+		"description": "A priest by the river Chebar among the captives, who saw the visions of God, was made a watchman to the house of Israel, and prophesied to the valley of dry bones.",
+		"era": "Exile & Return",
+		"refs": ["Ezekiel 1:3", "Ezekiel 24:18", "Ezekiel 37:4"],
+		"related": ["babylon", "jerusalem", "daniel"]
+	},
+	{
+		"id": "belshazzar",
+		"name": "Belshazzar",
+		"description": "King who drank from the vessels of the house of God at his great feast, saw the fingers of a man's hand write upon the wall, and was slain that night.",
+		"era": "Exile & Return",
+		"refs": ["Daniel 5:1", "Daniel 5:30"],
+		"related": ["daniel", "babylon"]
+	},
+	{
+		"id": "darius",
+		"name": "Darius",
+		"description": "The king who signed the decree that no petition be asked of any God for thirty days, and who could not sleep the night Daniel was in the den.",
+		"era": "Exile & Return",
+		"refs": ["Daniel 6:9", "Daniel 6:25"],
+		"related": ["daniel", "babylon"]
+	},
+	{
+		"id": "cyrus",
+		"name": "Cyrus",
+		"description": "King of Persia, named by Isaiah long before, whose spirit the LORD stirred up to proclaim that the house of the LORD in Jerusalem should be built.",
+		"era": "Exile & Return",
+		"refs": ["2 Chronicles 36:22", "Ezra 1:1", "Isaiah 44:28"],
+		"related": ["zerubbabel", "ezra", "jerusalem", "babylon"]
+	},
+	{
+		"id": "zerubbabel",
+		"name": "Zerubbabel",
+		"description": "Of the house of David, who led the return from Babylon and laid the foundation of the second house; not by might, nor by power, but by my spirit.",
+		"era": "Exile & Return",
+		"refs": ["Ezra 3:2", "Haggai 2:23", "Zechariah 4:9"],
+		"related": ["cyrus", "haggai", "zechariah", "jerusalem"]
+	},
+	{
+		"id": "ezra",
+		"name": "Ezra",
+		"description": "A ready scribe in the law of Moses who prepared his heart to seek the law of the LORD, and to do it, and to teach in Israel statutes and judgments.",
+		"era": "Exile & Return",
+		"refs": ["Ezra 7:6", "Ezra 7:10", "Nehemiah 8:2"],
+		"related": ["nehemiah", "cyrus", "jerusalem", "babylon"]
+	},
+	{
+		"id": "nehemiah",
+		"name": "Nehemiah",
+		"description": "The king's cupbearer at Shushan who wept for the broken walls of Jerusalem, and built them in fifty and two days with a weapon in one hand.",
+		"era": "Exile & Return",
+		"refs": ["Nehemiah 1:1", "Nehemiah 2:5", "Nehemiah 6:15"],
+		"related": ["ezra", "jerusalem", "shushan"]
+	},
+	{
+		"id": "esther",
+		"name": "Esther",
+		"alsoCalled": ["Hadassah"],
+		"description": "The Jewess made queen of Persia, who came to the kingdom for such a time as this and went in unto the king unbidden to plead for her people.",
+		"era": "Exile & Return",
+		"refs": ["Esther 2:7", "Esther 4:16", "Esther 7:3"],
+		"related": ["mordecai", "haman", "shushan"]
+	},
+	{
+		"id": "mordecai",
+		"name": "Mordecai",
+		"description": "Esther's uncle who brought her up, who would not bow to Haman, and who was next unto the king, seeking the wealth of his people.",
+		"era": "Exile & Return",
+		"refs": ["Esther 2:5", "Esther 3:2", "Esther 10:3"],
+		"related": ["esther", "haman", "shushan"]
+	},
+	{
+		"id": "haman",
+		"name": "Haman",
+		"description": "The Agagite promoted above all the princes, who sought to destroy all the Jews in one day, and was hanged on the gallows he had made for Mordecai.",
+		"era": "Exile & Return",
+		"refs": ["Esther 3:1", "Esther 7:10"],
+		"related": ["esther", "mordecai", "shushan"]
+	},
+	{
+		"id": "haggai",
+		"name": "Haggai",
+		"description": "The prophet who stirred up the returned people to build, asking, Is it time for you to dwell in your cieled houses, and this house lie waste?",
+		"era": "Exile & Return",
+		"refs": ["Haggai 1:1", "Ezra 5:1"],
+		"related": ["zerubbabel", "zechariah", "jerusalem"]
+	},
+	{
+		"id": "zechariah",
+		"name": "Zechariah",
+		"description": "Prophet with Haggai in the building of the second house, who saw visions of the branch and foretold the King coming lowly, riding upon an ass.",
+		"era": "Exile & Return",
+		"refs": ["Ezra 5:1", "Zechariah 1:1"],
+		"related": ["haggai", "zerubbabel", "jerusalem"]
+	},
+	{
+		"id": "malachi",
+		"name": "Malachi",
+		"description": "The last of the prophets before the silence, who reproved robbing God in tithes and promised the messenger who should prepare the way.",
+		"era": "Exile & Return",
+		"refs": ["Malachi 1:1"],
+		"related": ["john-the-baptist", "jerusalem"]
+	},
+	{
+		"id": "jesus-christ",
+		"name": "Jesus Christ",
+		"alsoCalled": ["Jesus", "Christ", "the Son of man", "Immanuel"],
+		"description": "The Son of God, born of a virgin in Bethlehem, who went about doing good, was crucified for our sins, rose the third day, and ascended; and He shall come again.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 1:1", "Luke 2:11", "John 1:14", "Matthew 28:6"],
+		"related": ["mary", "joseph-of-nazareth", "john-the-baptist", "peter", "john-apostle", "bethlehem", "nazareth", "golgotha", "jerusalem"]
+	},
+	{
+		"id": "mary",
+		"name": "Mary",
+		"alsoCalled": ["Mary the mother of Jesus"],
+		"description": "The virgin of Nazareth espoused to Joseph, who said, Behold the handmaid of the Lord; be it unto me according to thy word. She kept all these things in her heart.",
+		"era": "Life of Christ",
+		"refs": ["Luke 1:27", "Luke 1:38", "Luke 2:19", "John 19:25"],
+		"related": ["jesus-christ", "joseph-of-nazareth", "elisabeth", "nazareth", "bethlehem"]
+	},
+	{
+		"id": "joseph-of-nazareth",
+		"name": "Joseph",
+		"alsoCalled": ["Joseph her husband"],
+		"description": "A just man of the house of David, espoused to Mary, who took her to wife at the angel's word and carried the young child into Egypt.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 1:19", "Matthew 1:24", "Matthew 2:13", "Luke 2:4"],
+		"related": ["mary", "jesus-christ", "nazareth", "bethlehem", "egypt"]
+	},
+	{
+		"id": "john-the-baptist",
+		"name": "John the Baptist",
+		"alsoCalled": ["John"],
+		"description": "The voice of one crying in the wilderness, who baptized in Jordan and said, Behold the Lamb of God, which taketh away the sin of the world.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 3:1", "Matthew 11:11", "Luke 1:13", "John 1:29"],
+		"related": ["jesus-christ", "zacharias", "elisabeth", "herod", "jordan"]
+	},
+	{
+		"id": "elisabeth",
+		"name": "Elisabeth",
+		"description": "Of the daughters of Aaron, barren and well stricken in years, who bare John; the babe leaped in her womb when Mary saluted her.",
+		"era": "Life of Christ",
+		"refs": ["Luke 1:5", "Luke 1:41"],
+		"related": ["zacharias", "john-the-baptist", "mary"]
+	},
+	{
+		"id": "zacharias",
+		"name": "Zacharias",
+		"description": "A priest of the course of Abia, struck dumb for not believing the angel, whose tongue was loosed when he wrote, His name is John.",
+		"era": "Life of Christ",
+		"refs": ["Luke 1:5", "Luke 1:13", "Luke 1:67"],
+		"related": ["elisabeth", "john-the-baptist"]
+	},
+	{
+		"id": "simeon",
+		"name": "Simeon",
+		"description": "A just and devout man in Jerusalem to whom it was revealed he should not see death before he had seen the Lord's Christ; he took the child up in his arms.",
+		"era": "Life of Christ",
+		"refs": ["Luke 2:25", "Luke 2:34"],
+		"related": ["jesus-christ", "anna", "jerusalem"]
+	},
+	{
+		"id": "anna",
+		"name": "Anna",
+		"description": "A prophetess of great age who departed not from the temple, and who spake of the child to all them that looked for redemption in Jerusalem.",
+		"era": "Life of Christ",
+		"refs": ["Luke 2:36"],
+		"related": ["simeon", "jesus-christ", "jerusalem"]
+	},
+	{
+		"id": "herod",
+		"name": "Herod",
+		"description": "The king who was troubled at the news of the King born in Bethlehem, and who slew the children of two years old and under in all its coasts.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 2:1", "Matthew 2:16"],
+		"related": ["jesus-christ", "bethlehem", "jerusalem"]
+	},
+	{
+		"id": "peter",
+		"name": "Peter",
+		"alsoCalled": ["Simon Peter", "Simon", "Cephas"],
+		"description": "A fisherman called from his nets, who confessed Thou art the Christ, walked on the water, denied his Lord thrice and wept, and preached at Pentecost.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 4:18", "Matthew 16:16", "Matthew 26:75", "Acts 2:14"],
+		"related": ["jesus-christ", "andrew", "john-apostle", "cornelius", "capernaum", "sea-of-galilee", "joppa"]
+	},
+	{
+		"id": "andrew",
+		"name": "Andrew",
+		"description": "Simon Peter's brother, who first found his own brother and brought him to Jesus, and who brought the lad with five barley loaves.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 4:18", "John 1:40", "John 6:8"],
+		"related": ["peter", "jesus-christ", "bethsaida"]
+	},
+	{
+		"id": "james-son-of-zebedee",
+		"name": "James",
+		"alsoCalled": ["James the son of Zebedee"],
+		"description": "With Peter and John one of the three taken up into the mount; he was the first of the apostles to be killed with the sword.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 4:21", "Mark 5:37", "Acts 12:2"],
+		"related": ["john-apostle", "peter", "jesus-christ", "sea-of-galilee"]
+	},
+	{
+		"id": "john-apostle",
+		"name": "John",
+		"alsoCalled": ["the disciple whom Jesus loved"],
+		"description": "Son of Zebedee, who leaned on Jesus' breast, took His mother to his own home, and on Patmos wrote the Revelation of Jesus Christ.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 4:21", "Mark 5:37", "Revelation 1:9"],
+		"related": ["james-son-of-zebedee", "peter", "jesus-christ", "patmos", "ephesus"]
+	},
+	{
+		"id": "philip-apostle",
+		"name": "Philip",
+		"description": "One of the twelve, who found Nathanael and said, Come and see; to him the Lord said, Have I been so long time with you, and yet hast thou not known me?",
+		"era": "Life of Christ",
+		"refs": ["John 1:43", "John 6:5", "John 14:8"],
+		"related": ["nathanael", "jesus-christ", "bethsaida"]
+	},
+	{
+		"id": "nathanael",
+		"name": "Nathanael",
+		"alsoCalled": ["Bartholomew"],
+		"description": "An Israelite indeed in whom is no guile, who asked whether any good thing could come out of Nazareth, and confessed, Thou art the Son of God.",
+		"era": "Life of Christ",
+		"refs": ["John 1:45", "John 1:49", "John 21:2"],
+		"related": ["philip-apostle", "jesus-christ", "cana", "nazareth"]
+	},
+	{
+		"id": "thomas",
+		"name": "Thomas",
+		"alsoCalled": ["Didymus"],
+		"description": "Who said, Let us also go, that we may die with him; who would not believe except he saw the print of the nails, and then said, My Lord and my God.",
+		"era": "Life of Christ",
+		"refs": ["John 11:16", "John 20:28"],
+		"related": ["jesus-christ", "lazarus"]
+	},
+	{
+		"id": "matthew",
+		"name": "Matthew",
+		"alsoCalled": ["Levi"],
+		"description": "The publican sitting at the receipt of custom, who rose and followed at a word, and made the Lord a great feast in his house.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 9:9", "Matthew 10:3", "Mark 2:14"],
+		"related": ["jesus-christ", "capernaum"]
+	},
+	{
+		"id": "judas-iscariot",
+		"name": "Judas Iscariot",
+		"alsoCalled": ["Judas"],
+		"description": "One of the twelve, who bare the bag, sold his Lord for thirty pieces of silver, and betrayed Him with a kiss in the garden.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 10:4", "Matthew 26:14", "Matthew 27:3"],
+		"related": ["jesus-christ", "matthias", "gethsemane", "jerusalem"]
+	},
+	{
+		"id": "mary-magdalene",
+		"name": "Mary Magdalene",
+		"description": "Out of whom went seven devils; she stood by the cross, came early to the sepulchre while it was yet dark, and was the first to see the risen Lord.",
+		"era": "Life of Christ",
+		"refs": ["Mark 16:9", "John 19:25", "John 20:18"],
+		"related": ["jesus-christ", "jerusalem", "golgotha"]
+	},
+	{
+		"id": "martha",
+		"name": "Martha",
+		"description": "Who received the Lord into her house and was cumbered about much serving; at her brother's grave she confessed, Thou art the Christ, the Son of God.",
+		"era": "Life of Christ",
+		"refs": ["Luke 10:38", "John 11:21"],
+		"related": ["mary-of-bethany", "lazarus", "jesus-christ", "bethany"]
+	},
+	{
+		"id": "mary-of-bethany",
+		"name": "Mary of Bethany",
+		"alsoCalled": ["Mary"],
+		"description": "Martha's sister, who sat at Jesus' feet and heard his word, and who anointed Him with a pound of ointment of spikenard, very costly.",
+		"era": "Life of Christ",
+		"refs": ["Luke 10:39", "John 11:1", "John 12:3"],
+		"related": ["martha", "lazarus", "jesus-christ", "bethany"]
+	},
+	{
+		"id": "lazarus",
+		"name": "Lazarus",
+		"description": "Of Bethany, whom Jesus loved; four days in the grave when the Lord cried with a loud voice, Lazarus, come forth, and he came out bound hand and foot.",
+		"era": "Life of Christ",
+		"refs": ["John 11:1", "John 11:43", "John 12:2"],
+		"related": ["martha", "mary-of-bethany", "jesus-christ", "bethany"]
+	},
+	{
+		"id": "nicodemus",
+		"name": "Nicodemus",
+		"description": "A ruler of the Jews who came to Jesus by night and was told, Ye must be born again; he afterward brought myrrh and aloes for the burial.",
+		"era": "Life of Christ",
+		"refs": ["John 3:1", "John 7:50", "John 19:39"],
+		"related": ["jesus-christ", "joseph-of-arimathaea", "jerusalem"]
+	},
+	{
+		"id": "zacchaeus",
+		"name": "Zacchaeus",
+		"description": "The chief among the publicans, little of stature, who climbed a sycomore tree to see Jesus and came down and received Him joyfully.",
+		"era": "Life of Christ",
+		"refs": ["Luke 19:2", "Luke 19:8"],
+		"related": ["jesus-christ", "jericho"]
+	},
+	{
+		"id": "caiaphas",
+		"name": "Caiaphas",
+		"description": "The high priest that same year, who counselled that it was expedient that one man should die for the people, and in whose palace the Lord was condemned.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 26:3", "John 11:49", "John 18:14"],
+		"related": ["jesus-christ", "pilate", "jerusalem"]
+	},
+	{
+		"id": "pilate",
+		"name": "Pilate",
+		"alsoCalled": ["Pontius Pilate"],
+		"description": "The Roman governor of Judaea who found no fault in Jesus, washed his hands before the multitude, and yet delivered Him to be crucified.",
+		"era": "Life of Christ",
+		"refs": ["Luke 3:1", "Matthew 27:2", "Matthew 27:24", "Luke 23:24"],
+		"related": ["jesus-christ", "caiaphas", "barabbas", "jerusalem", "golgotha"]
+	},
+	{
+		"id": "barabbas",
+		"name": "Barabbas",
+		"description": "A notable prisoner, a robber who had committed murder in the insurrection, whom the multitude asked for instead of Jesus.",
+		"era": "Life of Christ",
+		"refs": ["Matthew 27:16", "Matthew 27:26"],
+		"related": ["pilate", "jesus-christ", "jerusalem"]
+	},
+	{
+		"id": "joseph-of-arimathaea",
+		"name": "Joseph of Arimathaea",
+		"description": "An honourable counsellor who waited for the kingdom of God; he went in boldly unto Pilate and craved the body of Jesus, and laid it in his own new tomb.",
+		"era": "Life of Christ",
+		"refs": ["Mark 15:43", "John 19:38"],
+		"related": ["jesus-christ", "nicodemus", "pilate", "golgotha"]
+	},
+	{
+		"id": "matthias",
+		"name": "Matthias",
+		"description": "Numbered with the eleven apostles after the lot fell upon him, having companied with them all the time the Lord went in and out among them.",
+		"era": "The Early Church",
+		"refs": ["Acts 1:23", "Acts 1:26"],
+		"related": ["peter", "judas-iscariot", "jerusalem"]
+	},
+	{
+		"id": "stephen",
+		"name": "Stephen",
+		"description": "A man full of faith and of the Holy Ghost, the first of the seven; he saw the heavens opened, and as they stoned him he prayed, Lay not this sin to their charge.",
+		"era": "The Early Church",
+		"refs": ["Acts 6:5", "Acts 7:59", "Acts 8:2"],
+		"related": ["paul", "philip-the-evangelist", "jerusalem"]
+	},
+	{
+		"id": "philip-the-evangelist",
+		"name": "Philip the evangelist",
+		"alsoCalled": ["Philip"],
+		"description": "One of the seven, who preached Christ in Samaria and was sent into the desert to the man of Ethiopia, opening the scripture at Isaiah's prophecy.",
+		"era": "The Early Church",
+		"refs": ["Acts 8:5", "Acts 8:26", "Acts 21:8"],
+		"related": ["stephen", "samaria", "gaza", "caesarea"]
+	},
+	{
+		"id": "paul",
+		"name": "Paul",
+		"alsoCalled": ["Saul", "Saul of Tarsus"],
+		"description": "A Pharisee who breathed out threatenings, struck down on the road to Damascus and made the apostle to the Gentiles; he finished his course keeping the faith.",
+		"era": "The Early Church",
+		"refs": ["Acts 9:4", "Acts 13:9", "Acts 20:24", "2 Timothy 4:7"],
+		"related": ["barnabas", "silas", "timothy", "luke", "ananias", "gamaliel", "damascus", "tarsus", "antioch", "rome"]
+	},
+	{
+		"id": "ananias",
+		"name": "Ananias",
+		"description": "A disciple at Damascus, sent to lay hands on Saul that he might receive his sight; he called him brother Saul though he had feared him.",
+		"era": "The Early Church",
+		"refs": ["Acts 9:10", "Acts 9:17"],
+		"related": ["paul", "damascus"]
+	},
+	{
+		"id": "sapphira",
+		"name": "Sapphira",
+		"description": "Wife of Ananias, who agreed with her husband to keep back part of the price of the land and to lie to the Holy Ghost.",
+		"era": "The Early Church",
+		"refs": ["Acts 5:1"],
+		"related": ["peter", "jerusalem"]
+	},
+	{
+		"id": "barnabas",
+		"name": "Barnabas",
+		"alsoCalled": ["Joses"],
+		"description": "The son of consolation, who sold his land and laid the money at the apostles' feet, vouched for Saul, and went with him to the Gentiles.",
+		"era": "The Early Church",
+		"refs": ["Acts 4:36", "Acts 11:25", "Acts 13:2", "Acts 15:39"],
+		"related": ["paul", "mark", "antioch", "cyprus", "lystra"]
+	},
+	{
+		"id": "cornelius",
+		"name": "Cornelius",
+		"description": "A centurion of the Italian band, a devout man that feared God and prayed alway; the Holy Ghost fell on him and his house while Peter yet spake.",
+		"era": "The Early Church",
+		"refs": ["Acts 10:1", "Acts 10:25"],
+		"related": ["peter", "caesarea", "joppa"]
+	},
+	{
+		"id": "james-the-lords-brother",
+		"name": "James the Lord's brother",
+		"alsoCalled": ["James"],
+		"description": "Who gave the sentence at the council in Jerusalem, and whose epistle says, Be ye doers of the word, and not hearers only.",
+		"era": "The Early Church",
+		"refs": ["Acts 15:13", "Galatians 1:19", "James 1:1"],
+		"related": ["peter", "paul", "jude", "jerusalem"]
+	},
+	{
+		"id": "silas",
+		"name": "Silas",
+		"alsoCalled": ["Silvanus"],
+		"description": "Chosen by Paul after he parted from Barnabas; beaten and in the stocks at Philippi, he sang praises unto God at midnight.",
+		"era": "The Early Church",
+		"refs": ["Acts 15:40", "Acts 16:25", "1 Thessalonians 1:1"],
+		"related": ["paul", "timothy", "philippi", "thessalonica"]
+	},
+	{
+		"id": "timothy",
+		"name": "Timothy",
+		"alsoCalled": ["Timotheus"],
+		"description": "A disciple of Lystra, son of a believing mother, whom Paul took with him and called his own son in the faith, charging him to preach the word.",
+		"era": "The Early Church",
+		"refs": ["Acts 16:1", "1 Timothy 1:2", "2 Timothy 1:2"],
+		"related": ["paul", "silas", "titus", "lystra", "ephesus"]
+	},
+	{
+		"id": "titus",
+		"name": "Titus",
+		"description": "A Greek and Paul's partner and fellowhelper, whose coming comforted him, and who was left in Crete to set in order the things that are wanting.",
+		"era": "The Early Church",
+		"refs": ["2 Corinthians 7:6", "Galatians 2:3", "Titus 1:4"],
+		"related": ["paul", "timothy", "crete"]
+	},
+	{
+		"id": "luke",
+		"name": "Luke",
+		"alsoCalled": ["Lucas"],
+		"description": "The beloved physician who stayed with Paul to the end, and who wrote an orderly account of all that Jesus began both to do and teach.",
+		"era": "The Early Church",
+		"refs": ["Colossians 4:14", "2 Timothy 4:11", "Philemon 1:24"],
+		"related": ["paul", "theophilus", "rome"]
+	},
+	{
+		"id": "mark",
+		"name": "Mark",
+		"alsoCalled": ["John Mark", "Marcus"],
+		"description": "Who departed from Paul and Barnabas at Pamphylia and was the cause of their parting; Paul afterward called him profitable to him for the ministry.",
+		"era": "The Early Church",
+		"refs": ["Acts 12:12", "Acts 15:39", "2 Timothy 4:11"],
+		"related": ["barnabas", "paul", "peter", "jerusalem"]
+	},
+	{
+		"id": "lydia",
+		"name": "Lydia",
+		"description": "A seller of purple of Thyatira, who worshipped God; the Lord opened her heart, and she constrained Paul's company to come into her house.",
+		"era": "The Early Church",
+		"refs": ["Acts 16:14", "Acts 16:40"],
+		"related": ["paul", "silas", "philippi"]
+	},
+	{
+		"id": "aquila",
+		"name": "Aquila",
+		"description": "A Jew of Pontus and a tentmaker like Paul, who with his wife took Apollos and expounded unto him the way of God more perfectly.",
+		"era": "The Early Church",
+		"refs": ["Acts 18:2", "Acts 18:26", "Romans 16:3"],
+		"related": ["priscilla", "paul", "apollos", "corinth", "ephesus"]
+	},
+	{
+		"id": "priscilla",
+		"name": "Priscilla",
+		"alsoCalled": ["Prisca"],
+		"description": "Aquila's wife and Paul's helper in Christ Jesus, who with her husband laid down her own neck for his life and taught Apollos more perfectly.",
+		"era": "The Early Church",
+		"refs": ["Acts 18:2", "Acts 18:26", "Romans 16:3"],
+		"related": ["aquila", "paul", "apollos", "corinth", "ephesus"]
+	},
+	{
+		"id": "apollos",
+		"name": "Apollos",
+		"description": "A Jew of Alexandria, eloquent and mighty in the scriptures, fervent in the spirit, who mightily convinced the Jews that Jesus was Christ.",
+		"era": "The Early Church",
+		"refs": ["Acts 18:24", "1 Corinthians 3:6"],
+		"related": ["aquila", "priscilla", "paul", "corinth", "ephesus"]
+	},
+	{
+		"id": "felix",
+		"name": "Felix",
+		"description": "The governor before whom Paul reasoned of righteousness, temperance and judgment to come, so that he trembled, yet left Paul bound.",
+		"era": "The Early Church",
+		"refs": ["Acts 24:24", "Acts 24:27"],
+		"related": ["paul", "festus", "caesarea"]
+	},
+	{
+		"id": "festus",
+		"name": "Festus",
+		"description": "Felix's successor, who said with a loud voice that much learning had made Paul mad, and before whom Paul appealed unto Caesar.",
+		"era": "The Early Church",
+		"refs": ["Acts 25:1", "Acts 26:24"],
+		"related": ["paul", "felix", "agrippa", "caesarea"]
+	},
+	{
+		"id": "agrippa",
+		"name": "Agrippa",
+		"description": "The king who heard Paul's defence and answered, Almost thou persuadest me to be a Christian.",
+		"era": "The Early Church",
+		"refs": ["Acts 25:22", "Acts 26:28"],
+		"related": ["paul", "festus", "caesarea"]
+	},
+	{
+		"id": "onesimus",
+		"name": "Onesimus",
+		"description": "A servant who had departed from Philemon and was begotten in Paul's bonds; sent back no longer as a servant, but above a servant, a brother beloved.",
+		"era": "The Early Church",
+		"refs": ["Colossians 4:9", "Philemon 1:10"],
+		"related": ["philemon", "paul", "colosse"]
+	},
+	{
+		"id": "philemon",
+		"name": "Philemon",
+		"description": "Paul's dearly beloved fellowlabourer, in whose house a church met, and to whom Paul wrote for Onesimus, offering to pay whatever he owed.",
+		"era": "The Early Church",
+		"refs": ["Philemon 1:1"],
+		"related": ["onesimus", "paul", "colosse"]
+	},
+	{
+		"id": "jude",
+		"name": "Jude",
+		"description": "The servant of Jesus Christ and brother of James, who wrote exhorting believers earnestly to contend for the faith once delivered unto the saints.",
+		"era": "The Early Church",
+		"refs": ["Jude 1:1"],
+		"related": ["james-the-lords-brother", "jesus-christ"]
+	},
+	{
+		"id": "gamaliel",
+		"name": "Gamaliel",
+		"description": "A doctor of the law had in reputation among all the people, at whose feet Paul was brought up, and who counselled the council to let the apostles alone.",
+		"era": "The Early Church",
+		"refs": ["Acts 5:34", "Acts 22:3"],
+		"related": ["paul", "peter", "jerusalem"]
+	},
+	{
+		"id": "dorcas",
+		"name": "Dorcas",
+		"alsoCalled": ["Tabitha"],
+		"description": "A disciple at Joppa full of good works and almsdeeds, who fell sick and died, and whom Peter raised, saying, Tabitha, arise.",
+		"era": "The Early Church",
+		"refs": ["Acts 9:36", "Acts 9:40"],
+		"related": ["peter", "joppa"]
+	},
+	{
+		"id": "theophilus",
+		"name": "Theophilus",
+		"description": "The most excellent Theophilus, to whom Luke wrote both his gospel and the Acts, that he might know the certainty of those things.",
+		"era": "The Early Church",
+		"refs": ["Luke 1:3", "Acts 1:1"],
+		"related": ["luke"]
+	}
+]

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Users } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
@@ -295,6 +296,14 @@ const ChapterReader: React.FC = () => {
             {reference}
           </h1>
           <div className="flex gap-2">
+            <Link
+              href={`/bible/timeline?book=${order}&chapter=${chapter}`}
+              aria-label="Who's in this chapter"
+              title="Who's in this chapter"
+              className="flex items-center rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+            >
+              <Users className="h-4 w-4" aria-hidden />
+            </Link>
             <button
               type="button"
               aria-label="Decrease text size"

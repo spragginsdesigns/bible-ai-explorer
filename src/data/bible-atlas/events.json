@@ -1,0 +1,3846 @@
+[
+	{
+		"id": "creation",
+		"title": "The creation of the heaven and the earth",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 4004 BC",
+		"summary": "In the beginning God created the heaven and the earth, and in six days made all that is in them. He saw every thing that He had made, and, behold, it was very good.",
+		"refs": [
+			"Genesis 1:1",
+			"Genesis 1:31"
+		],
+		"people": [],
+		"places": []
+	},
+	{
+		"id": "adam-and-eve-in-eden",
+		"title": "Adam and Eve in the garden",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 4004 BC",
+		"summary": "The LORD God formed man of the dust of the ground and breathed into his nostrils the breath of life, and put him into the garden to dress it and to keep it.",
+		"refs": [
+			"Genesis 2:7",
+			"Genesis 2:15"
+		],
+		"people": [
+			"adam",
+			"eve"
+		],
+		"places": [
+			"eden"
+		]
+	},
+	{
+		"id": "the-fall",
+		"title": "The fall, and the first promise",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 4004 BC",
+		"summary": "The serpent beguiled the woman, and they ate. God cursed the serpent and promised the seed that should bruise his head, and drove the man out of Eden.",
+		"refs": [
+			"Genesis 3:6",
+			"Genesis 3:15",
+			"Genesis 3:23"
+		],
+		"people": [
+			"adam",
+			"eve"
+		],
+		"places": [
+			"eden"
+		]
+	},
+	{
+		"id": "cain-slays-abel",
+		"title": "Cain slays Abel",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 3875 BC",
+		"summary": "The LORD had respect unto Abel's offering but not unto Cain's; and Cain rose up against his brother in the field and slew him.",
+		"refs": [
+			"Genesis 4:4",
+			"Genesis 4:8"
+		],
+		"people": [
+			"cain",
+			"abel",
+			"adam",
+			"eve"
+		],
+		"places": []
+	},
+	{
+		"id": "enoch-translated",
+		"title": "Enoch walked with God, and was not",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 3017 BC",
+		"summary": "Enoch walked with God three hundred years; and he was not, for God took him. He is one of two men Scripture says never saw death.",
+		"refs": [
+			"Genesis 5:24",
+			"Hebrews 11:5"
+		],
+		"people": [
+			"enoch",
+			"methuselah"
+		],
+		"places": []
+	},
+	{
+		"id": "the-flood",
+		"title": "The flood",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 2348 BC",
+		"summary": "All the fountains of the great deep were broken up, and every living substance was destroyed. Noah only remained alive, and they that were with him in the ark.",
+		"refs": [
+			"Genesis 7:11",
+			"Genesis 7:23",
+			"Genesis 8:4"
+		],
+		"people": [
+			"noah",
+			"shem",
+			"ham",
+			"japheth"
+		],
+		"places": [
+			"ararat"
+		]
+	},
+	{
+		"id": "the-covenant-of-the-bow",
+		"title": "God's covenant with Noah",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 2348 BC",
+		"summary": "God set His bow in the cloud for a token of the covenant, that the waters should no more become a flood to destroy all flesh.",
+		"refs": [
+			"Genesis 9:13",
+			"Genesis 9:16"
+		],
+		"people": [
+			"noah"
+		],
+		"places": []
+	},
+	{
+		"id": "tower-of-babel",
+		"title": "The tower of Babel",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 2247 BC",
+		"summary": "Men said, Let us build us a city and a tower whose top may reach unto heaven. The LORD confounded their language and scattered them abroad.",
+		"refs": [
+			"Genesis 11:4",
+			"Genesis 11:9"
+		],
+		"people": [
+			"nimrod"
+		],
+		"places": [
+			"babel"
+		]
+	},
+	{
+		"id": "call-of-abram",
+		"title": "The call of Abram",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1921 BC",
+		"summary": "The LORD said, Get thee out of thy country unto a land that I will shew thee, and I will make of thee a great nation. Abram departed, being seventy and five years old.",
+		"refs": [
+			"Genesis 12:1-4",
+			"Genesis 12:7"
+		],
+		"people": [
+			"abraham",
+			"terah",
+			"sarah",
+			"lot"
+		],
+		"places": [
+			"ur",
+			"haran",
+			"canaan",
+			"shechem"
+		]
+	},
+	{
+		"id": "abram-and-lot-part",
+		"title": "Abram and Lot part company",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1917 BC",
+		"summary": "Their substance was too great to dwell together, so Lot chose all the plain of Jordan and pitched his tent toward Sodom.",
+		"refs": [
+			"Genesis 13:11",
+			"Genesis 13:18"
+		],
+		"people": [
+			"abraham",
+			"lot"
+		],
+		"places": [
+			"sodom",
+			"bethel",
+			"hebron"
+		]
+	},
+	{
+		"id": "melchizedek-blesses-abram",
+		"title": "Melchizedek blesses Abram",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1913 BC",
+		"summary": "The king of Salem, priest of the most high God, brought forth bread and wine and blessed Abram; and Abram gave him tithes of all.",
+		"refs": [
+			"Genesis 14:18-20"
+		],
+		"people": [
+			"abraham",
+			"melchizedek",
+			"lot"
+		],
+		"places": [
+			"jerusalem",
+			"sodom"
+		]
+	},
+	{
+		"id": "covenant-with-abram",
+		"title": "Abram believed God",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1913 BC",
+		"summary": "God brought him forth and said, So shall thy seed be. And he believed in the LORD; and He counted it to him for righteousness.",
+		"refs": [
+			"Genesis 15:5-6",
+			"Genesis 15:18"
+		],
+		"people": [
+			"abraham"
+		],
+		"places": [
+			"canaan"
+		]
+	},
+	{
+		"id": "hagar-and-ishmael",
+		"title": "Hagar bears Ishmael",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1910 BC",
+		"summary": "Sarai gave her handmaid to Abram, and Hagar bare Ishmael. In the wilderness she called Him Thou God seest me.",
+		"refs": [
+			"Genesis 16:13",
+			"Genesis 16:15"
+		],
+		"people": [
+			"abraham",
+			"sarah",
+			"hagar",
+			"ishmael"
+		],
+		"places": []
+	},
+	{
+		"id": "covenant-of-circumcision",
+		"title": "The covenant of circumcision",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1897 BC",
+		"summary": "God changed Abram's name to Abraham, promised him a son by Sarah, and gave circumcision as the token of an everlasting covenant.",
+		"refs": [
+			"Genesis 17:5",
+			"Genesis 17:10"
+		],
+		"people": [
+			"abraham",
+			"sarah"
+		],
+		"places": []
+	},
+	{
+		"id": "sodom-overthrown",
+		"title": "Sodom and Gomorrah overthrown",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1897 BC",
+		"summary": "The LORD rained brimstone and fire out of heaven upon the cities of the plain. Lot was brought out, but his wife looked back and became a pillar of salt.",
+		"refs": [
+			"Genesis 19:24-26"
+		],
+		"people": [
+			"lot",
+			"abraham"
+		],
+		"places": [
+			"sodom",
+			"gomorrah"
+		]
+	},
+	{
+		"id": "birth-of-isaac",
+		"title": "The birth of Isaac",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1896 BC",
+		"summary": "The LORD visited Sarah as He had said, and she bare Abraham a son in his old age, at the set time of which God had spoken.",
+		"refs": [
+			"Genesis 21:2-3"
+		],
+		"people": [
+			"abraham",
+			"sarah",
+			"isaac"
+		],
+		"places": [
+			"beersheba"
+		]
+	},
+	{
+		"id": "offering-of-isaac",
+		"title": "Abraham offers Isaac",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1871 BC",
+		"summary": "God said, Take now thy son, thine only son Isaac. Abraham bound him on the altar, and the angel stayed his hand; a ram was caught in a thicket instead.",
+		"refs": [
+			"Genesis 22:9-13"
+		],
+		"people": [
+			"abraham",
+			"isaac"
+		],
+		"places": [
+			"moriah"
+		]
+	},
+	{
+		"id": "sarah-buried-at-hebron",
+		"title": "Sarah buried in the cave of Machpelah",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1859 BC",
+		"summary": "Abraham bought the field and the cave of Ephron the Hittite for a buryingplace, the first ground he held in the land of promise.",
+		"refs": [
+			"Genesis 23:19"
+		],
+		"people": [
+			"abraham",
+			"sarah"
+		],
+		"places": [
+			"hebron",
+			"canaan"
+		]
+	},
+	{
+		"id": "rebekah-found-for-isaac",
+		"title": "A wife found for Isaac",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1856 BC",
+		"summary": "Abraham's servant prayed at the well, and Rebekah came out with her pitcher and gave his camels drink. She went with him, and Isaac was comforted after his mother's death.",
+		"refs": [
+			"Genesis 24:15",
+			"Genesis 24:67"
+		],
+		"people": [
+			"isaac",
+			"rebekah",
+			"abraham",
+			"laban"
+		],
+		"places": [
+			"haran"
+		]
+	},
+	{
+		"id": "jacob-and-esau-born",
+		"title": "Jacob and Esau born",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1836 BC",
+		"summary": "Rebekah was barren until Isaac entreated the LORD. Two nations were in her womb, and the elder was told he should serve the younger.",
+		"refs": [
+			"Genesis 25:23",
+			"Genesis 25:24-26"
+		],
+		"people": [
+			"isaac",
+			"rebekah",
+			"jacob",
+			"esau"
+		],
+		"places": []
+	},
+	{
+		"id": "birthright-sold",
+		"title": "Esau sells his birthright",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1805 BC",
+		"summary": "Esau came in faint from the field and sold his birthright to Jacob for bread and pottage of lentiles; thus Esau despised his birthright.",
+		"refs": [
+			"Genesis 25:33-34"
+		],
+		"people": [
+			"jacob",
+			"esau"
+		],
+		"places": []
+	},
+	{
+		"id": "blessing-taken",
+		"title": "Jacob takes the blessing",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1760 BC",
+		"summary": "At Rebekah's counsel Jacob came to his blind father in Esau's raiment and received the blessing; and Esau hated him for it.",
+		"refs": [
+			"Genesis 27:27-29",
+			"Genesis 27:41"
+		],
+		"people": [
+			"jacob",
+			"esau",
+			"isaac",
+			"rebekah"
+		],
+		"places": [
+			"beersheba"
+		]
+	},
+	{
+		"id": "jacobs-ladder",
+		"title": "Jacob's ladder at Bethel",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1760 BC",
+		"summary": "Fleeing from Esau, Jacob dreamed of a ladder set up on the earth reaching to heaven, and the LORD renewed to him the promise made to Abraham.",
+		"refs": [
+			"Genesis 28:12-15",
+			"Genesis 28:19"
+		],
+		"people": [
+			"jacob"
+		],
+		"places": [
+			"bethel",
+			"haran"
+		]
+	},
+	{
+		"id": "jacob-serves-laban",
+		"title": "Jacob serves twenty years for Laban",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1760 BC",
+		"summary": "He served seven years for Rachel and they seemed but a few days for the love he had to her; Laban gave him Leah first, and changed his wages ten times.",
+		"refs": [
+			"Genesis 29:20",
+			"Genesis 29:28",
+			"Genesis 31:41"
+		],
+		"people": [
+			"jacob",
+			"laban",
+			"leah",
+			"rachel"
+		],
+		"places": [
+			"haran"
+		]
+	},
+	{
+		"id": "jacob-wrestles",
+		"title": "Jacob wrestles at Peniel",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1739 BC",
+		"summary": "A man wrestled with him until the breaking of the day. Jacob would not let Him go except He blessed him, and his name was changed to Israel.",
+		"refs": [
+			"Genesis 32:24-28",
+			"Genesis 32:30"
+		],
+		"people": [
+			"jacob"
+		],
+		"places": [
+			"peniel",
+			"jabbok"
+		]
+	},
+	{
+		"id": "jacob-and-esau-reconciled",
+		"title": "Jacob and Esau meet again",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1739 BC",
+		"summary": "Esau ran to meet him, and embraced him, and fell on his neck, and kissed him: and they wept.",
+		"refs": [
+			"Genesis 33:4"
+		],
+		"people": [
+			"jacob",
+			"esau"
+		],
+		"places": [
+			"peniel",
+			"shechem"
+		]
+	},
+	{
+		"id": "rachel-dies",
+		"title": "Rachel dies bearing Benjamin",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1729 BC",
+		"summary": "Rachel had hard labour in the way to Ephrath, and died; and Jacob set a pillar upon her grave.",
+		"refs": [
+			"Genesis 35:18",
+			"Genesis 35:19"
+		],
+		"people": [
+			"rachel",
+			"jacob",
+			"benjamin"
+		],
+		"places": [
+			"bethlehem"
+		]
+	},
+	{
+		"id": "joseph-sold",
+		"title": "Joseph sold into Egypt",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1728 BC",
+		"summary": "His brethren hated him for his dreams and his coat, cast him into a pit, and sold him to the Ishmeelites for twenty pieces of silver.",
+		"refs": [
+			"Genesis 37:23",
+			"Genesis 37:28"
+		],
+		"people": [
+			"joseph",
+			"judah",
+			"reuben",
+			"jacob"
+		],
+		"places": [
+			"egypt",
+			"shechem"
+		]
+	},
+	{
+		"id": "joseph-in-potiphars-house",
+		"title": "Joseph in Potiphar's house and in prison",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1727 BC",
+		"summary": "The LORD was with Joseph and he was a prosperous man; falsely accused, he was put into the prison, and the LORD was with him there also.",
+		"refs": [
+			"Genesis 39:2",
+			"Genesis 39:20"
+		],
+		"people": [
+			"joseph",
+			"potiphar"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "joseph-raised-over-egypt",
+		"title": "Joseph raised over all Egypt",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1715 BC",
+		"summary": "Joseph read Pharaoh's dream of seven plenteous and seven lean years, and Pharaoh set him over all the land of Egypt.",
+		"refs": [
+			"Genesis 41:38-41"
+		],
+		"people": [
+			"joseph",
+			"pharaoh"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "joseph-reveals-himself",
+		"title": "Joseph makes himself known to his brethren",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1706 BC",
+		"summary": "He said, I am Joseph your brother, whom ye sold into Egypt; be not grieved, for God did send me before you to preserve life.",
+		"refs": [
+			"Genesis 45:4-8"
+		],
+		"people": [
+			"joseph",
+			"judah",
+			"benjamin"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "jacob-goes-down-to-egypt",
+		"title": "Israel goes down into Egypt",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1706 BC",
+		"summary": "Jacob took all he had and came into Egypt, threescore and ten souls, and they dwelt in the land of Goshen and grew there.",
+		"refs": [
+			"Genesis 46:6",
+			"Genesis 47:27"
+		],
+		"people": [
+			"jacob",
+			"joseph",
+			"pharaoh"
+		],
+		"places": [
+			"egypt",
+			"goshen",
+			"canaan"
+		]
+	},
+	{
+		"id": "jacob-blesses-his-sons",
+		"title": "Jacob blesses his twelve sons",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1689 BC",
+		"summary": "Dying, he told them what should befall them in the last days, and said the sceptre should not depart from Judah until Shiloh come.",
+		"refs": [
+			"Genesis 49:10",
+			"Genesis 49:33"
+		],
+		"people": [
+			"jacob",
+			"judah",
+			"joseph",
+			"reuben",
+			"levi",
+			"benjamin"
+		],
+		"places": [
+			"egypt",
+			"hebron"
+		]
+	},
+	{
+		"id": "death-of-joseph",
+		"title": "The death of Joseph",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "c. 1635 BC",
+		"summary": "Joseph died, being an hundred and ten years old, having made the children of Israel swear to carry up his bones out of Egypt.",
+		"refs": [
+			"Genesis 50:25",
+			"Genesis 50:26"
+		],
+		"people": [
+			"joseph"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "the-trial-of-job",
+		"title": "The trial and restoring of Job",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "date not given",
+		"summary": "Job lost his goods, his children and his health in one day, yet sinned not with his lips; and the LORD turned his captivity and gave him twice as much as he had before.",
+		"refs": [
+			"Job 1:21",
+			"Job 2:10",
+			"Job 42:10"
+		],
+		"people": [
+			"job"
+		],
+		"places": []
+	},
+	{
+		"id": "israel-in-bondage",
+		"title": "Israel in bondage in Egypt",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1635 - 1491 BC",
+		"summary": "A new king arose who knew not Joseph, and set taskmasters over Israel to afflict them with burdens, and made their lives bitter with hard bondage.",
+		"refs": [
+			"Exodus 1:8",
+			"Exodus 1:14"
+		],
+		"people": [
+			"pharaoh"
+		],
+		"places": [
+			"egypt",
+			"goshen"
+		]
+	},
+	{
+		"id": "birth-of-moses",
+		"title": "The birth of Moses",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1571 BC",
+		"summary": "Hidden three months and then laid in an ark of bulrushes, he was drawn out of the water by Pharaoh's daughter and nursed by his own mother.",
+		"refs": [
+			"Exodus 2:2-3",
+			"Exodus 2:10"
+		],
+		"people": [
+			"moses",
+			"miriam",
+			"pharaoh"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "moses-flees-to-midian",
+		"title": "Moses flees to Midian",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1531 BC",
+		"summary": "Having slain an Egyptian, he fled from Pharaoh and dwelt in the land of Midian, where he married Zipporah and kept the flock of Jethro.",
+		"refs": [
+			"Exodus 2:15",
+			"Exodus 2:21"
+		],
+		"people": [
+			"moses",
+			"jethro",
+			"zipporah"
+		],
+		"places": [
+			"midian"
+		]
+	},
+	{
+		"id": "the-burning-bush",
+		"title": "The burning bush",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "The bush burned with fire and was not consumed. God called him to bring Israel out of Egypt, and named Himself I AM THAT I AM.",
+		"refs": [
+			"Exodus 3:2",
+			"Exodus 3:14"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": [
+			"horeb",
+			"midian"
+		]
+	},
+	{
+		"id": "the-ten-plagues",
+		"title": "The ten plagues upon Egypt",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "Blood, frogs, lice, flies, murrain, boils, hail, locusts, darkness, and the death of the firstborn; and the LORD put a division between Egypt and His people.",
+		"refs": [
+			"Exodus 7:20",
+			"Exodus 10:22",
+			"Exodus 11:5"
+		],
+		"people": [
+			"moses",
+			"aaron",
+			"pharaoh"
+		],
+		"places": [
+			"egypt",
+			"goshen"
+		]
+	},
+	{
+		"id": "the-passover",
+		"title": "The passover",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "The lamb was killed and its blood struck on the door posts: When I see the blood, I will pass over you. At midnight the firstborn of Egypt died.",
+		"refs": [
+			"Exodus 12:13",
+			"Exodus 12:29"
+		],
+		"people": [
+			"moses",
+			"aaron",
+			"pharaoh"
+		],
+		"places": [
+			"egypt"
+		]
+	},
+	{
+		"id": "the-exodus",
+		"title": "Israel goes out of Egypt",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "At the end of four hundred and thirty years all the hosts of the LORD went out, led by a pillar of cloud by day and a pillar of fire by night.",
+		"refs": [
+			"Exodus 12:41",
+			"Exodus 13:21"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": [
+			"egypt",
+			"goshen"
+		]
+	},
+	{
+		"id": "crossing-the-red-sea",
+		"title": "The Red sea divided",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "The LORD caused the sea to go back and the children of Israel went into the midst of the sea upon dry ground; the waters returned upon the Egyptians.",
+		"refs": [
+			"Exodus 14:21-22",
+			"Exodus 15:1"
+		],
+		"people": [
+			"moses",
+			"miriam",
+			"pharaoh"
+		],
+		"places": [
+			"red-sea",
+			"egypt"
+		]
+	},
+	{
+		"id": "bitter-waters-made-sweet",
+		"title": "The bitter waters made sweet",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "At Marah the water was bitter; the LORD shewed Moses a tree, and he cast it into the waters and they were made sweet. Then they came to Elim.",
+		"refs": [
+			"Exodus 15:23-25",
+			"Exodus 15:27"
+		],
+		"people": [
+			"moses"
+		],
+		"places": [
+			"marah",
+			"elim"
+		]
+	},
+	{
+		"id": "manna-and-quails",
+		"title": "Manna in the wilderness",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "There lay a small round thing upon the ground, and they said, It is manna. Israel did eat manna forty years, until they came to a land inhabited.",
+		"refs": [
+			"Exodus 16:14-15",
+			"Exodus 16:35"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": []
+	},
+	{
+		"id": "water-from-the-rock",
+		"title": "Water out of the rock",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "There was no water for the people to drink, and the LORD stood upon the rock in Horeb; Moses smote it, and water came out.",
+		"refs": [
+			"Exodus 17:6"
+		],
+		"people": [
+			"moses"
+		],
+		"places": [
+			"rephidim",
+			"horeb"
+		]
+	},
+	{
+		"id": "amalek-defeated",
+		"title": "Amalek defeated at Rephidim",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "While Moses held up his hand Israel prevailed; Aaron and Hur stayed up his hands until the going down of the sun, and Joshua discomfited Amalek.",
+		"refs": [
+			"Exodus 17:11-13"
+		],
+		"people": [
+			"moses",
+			"aaron",
+			"joshua"
+		],
+		"places": [
+			"rephidim"
+		]
+	},
+	{
+		"id": "jethros-counsel",
+		"title": "Jethro's counsel",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "Seeing Moses judge the people alone from morning to evening, Jethro told him to place able men, such as fear God, as rulers over thousands and hundreds.",
+		"refs": [
+			"Exodus 18:21",
+			"Exodus 18:24"
+		],
+		"people": [
+			"moses",
+			"jethro"
+		],
+		"places": []
+	},
+	{
+		"id": "the-law-at-sinai",
+		"title": "The law given at Sinai",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "The LORD came down upon the mount in fire and spake the ten commandments, and gave Moses two tables of stone written with the finger of God.",
+		"refs": [
+			"Exodus 19:20",
+			"Exodus 20:1-3",
+			"Exodus 31:18"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": [
+			"mount-sinai"
+		]
+	},
+	{
+		"id": "the-golden-calf",
+		"title": "The golden calf",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1491 BC",
+		"summary": "While Moses was in the mount the people made a molten calf; he came down, and his anger waxed hot, and he brake the tables beneath the mount.",
+		"refs": [
+			"Exodus 32:4",
+			"Exodus 32:19"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": [
+			"mount-sinai"
+		]
+	},
+	{
+		"id": "the-tabernacle-raised",
+		"title": "The tabernacle set up",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1490 BC",
+		"summary": "On the first day of the first month the tabernacle was reared up, and a cloud covered it, and the glory of the LORD filled it.",
+		"refs": [
+			"Exodus 40:2",
+			"Exodus 40:34"
+		],
+		"people": [
+			"moses",
+			"aaron"
+		],
+		"places": [
+			"mount-sinai"
+		]
+	},
+	{
+		"id": "strange-fire",
+		"title": "Strange fire before the LORD",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1490 BC",
+		"summary": "Nadab and Abihu offered strange fire which He commanded them not, and there went out fire from the LORD and devoured them.",
+		"refs": [
+			"Leviticus 10:1-2"
+		],
+		"people": [
+			"nadab",
+			"aaron",
+			"moses"
+		],
+		"places": []
+	},
+	{
+		"id": "the-day-of-atonement",
+		"title": "The day of atonement appointed",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1490 BC",
+		"summary": "Once a year the high priest went within the veil with blood, and the scapegoat bore away the iniquities of the people unto a land not inhabited.",
+		"refs": [
+			"Leviticus 16:22",
+			"Leviticus 16:34"
+		],
+		"people": [
+			"aaron",
+			"moses"
+		],
+		"places": []
+	},
+	{
+		"id": "the-twelve-spies",
+		"title": "The twelve spies, and Israel's refusal",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1490 BC",
+		"summary": "Ten brought an evil report; Caleb said, Let us go up at once and possess it. The people would not, and were turned back into the wilderness.",
+		"refs": [
+			"Numbers 13:26",
+			"Numbers 13:30",
+			"Numbers 14:24"
+		],
+		"people": [
+			"moses",
+			"caleb",
+			"joshua"
+		],
+		"places": [
+			"kadeshbarnea",
+			"canaan"
+		]
+	},
+	{
+		"id": "forty-years-in-the-wilderness",
+		"title": "Forty years in the wilderness",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1490 - 1451 BC",
+		"summary": "A year for each day the spies searched the land, until all that generation fell in the wilderness; their clothes waxed not old upon them.",
+		"refs": [
+			"Numbers 14:33-34",
+			"Deuteronomy 8:4"
+		],
+		"people": [
+			"moses",
+			"joshua",
+			"caleb"
+		],
+		"places": [
+			"kadeshbarnea"
+		]
+	},
+	{
+		"id": "korahs-rebellion",
+		"title": "Korah's rebellion",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1471 BC",
+		"summary": "Korah, Dathan and Abiram gathered against Moses and Aaron; the earth opened her mouth and swallowed them up, and they went down alive into the pit.",
+		"refs": [
+			"Numbers 16:3",
+			"Numbers 16:32"
+		],
+		"people": [
+			"korah",
+			"moses",
+			"aaron"
+		],
+		"places": []
+	},
+	{
+		"id": "the-brasen-serpent",
+		"title": "The brasen serpent",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1452 BC",
+		"summary": "Fiery serpents bit the people; Moses made a serpent of brass and set it on a pole, and every one that beheld it lived.",
+		"refs": [
+			"Numbers 21:9",
+			"John 3:14"
+		],
+		"people": [
+			"moses"
+		],
+		"places": []
+	},
+	{
+		"id": "balaam-and-balak",
+		"title": "Balaam hired to curse Israel",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1452 BC",
+		"summary": "The ass spake with man's voice and turned Balaam back; three times he was hired to curse, and three times he blessed, and foretold a Star out of Jacob.",
+		"refs": [
+			"Numbers 22:28",
+			"Numbers 24:17"
+		],
+		"people": [
+			"balaam",
+			"balak"
+		],
+		"places": [
+			"moab"
+		]
+	},
+	{
+		"id": "phinehas-turns-the-plague",
+		"title": "Phinehas turns away the plague",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1452 BC",
+		"summary": "When Israel joined itself to Baalpeor, Phinehas rose up and executed judgment, and the plague was stayed; he was given a covenant of an everlasting priesthood.",
+		"refs": [
+			"Numbers 25:8",
+			"Numbers 25:11"
+		],
+		"people": [
+			"phinehas",
+			"moses",
+			"balaam"
+		],
+		"places": [
+			"moab"
+		]
+	},
+	{
+		"id": "moses-dies-on-nebo",
+		"title": "Moses dies on Mount Nebo",
+		"era": "Egypt & the Exodus",
+		"yearLabel": "c. 1451 BC",
+		"summary": "The LORD shewed him all the land from the top of Pisgah, and he died there; his eye was not dim, nor his natural force abated, and no man knows his grave.",
+		"refs": [
+			"Deuteronomy 34:1",
+			"Deuteronomy 34:5",
+			"Deuteronomy 34:7"
+		],
+		"people": [
+			"moses",
+			"joshua"
+		],
+		"places": [
+			"mount-nebo",
+			"moab",
+			"canaan"
+		]
+	},
+	{
+		"id": "joshua-commissioned",
+		"title": "Joshua commissioned",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1451 BC",
+		"summary": "Arise, go over this Jordan. Be strong and of a good courage; be not afraid, for the LORD thy God is with thee whithersoever thou goest.",
+		"refs": [
+			"Joshua 1:2",
+			"Joshua 1:9"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"jordan",
+			"canaan"
+		]
+	},
+	{
+		"id": "rahab-and-the-spies",
+		"title": "Rahab hides the spies",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1451 BC",
+		"summary": "She hid them with the stalks of flax on the roof, and bound the scarlet line in her window, and she and all her father's house were saved.",
+		"refs": [
+			"Joshua 2:1",
+			"Joshua 2:18"
+		],
+		"people": [
+			"rahab",
+			"joshua"
+		],
+		"places": [
+			"jericho"
+		]
+	},
+	{
+		"id": "crossing-the-jordan",
+		"title": "Israel crosses Jordan on dry ground",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1451 BC",
+		"summary": "The priests bearing the ark stood firm in the midst of Jordan while all Israel passed over, and twelve stones were set up for a memorial.",
+		"refs": [
+			"Joshua 3:17",
+			"Joshua 4:9"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"jordan",
+			"gilgal"
+		]
+	},
+	{
+		"id": "fall-of-jericho",
+		"title": "The walls of Jericho fall",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1451 BC",
+		"summary": "They compassed the city once a day for six days and seven times on the seventh; the people shouted, and the wall fell down flat.",
+		"refs": [
+			"Joshua 6:20",
+			"Joshua 6:25"
+		],
+		"people": [
+			"joshua",
+			"rahab"
+		],
+		"places": [
+			"jericho",
+			"gilgal"
+		]
+	},
+	{
+		"id": "achans-sin-and-ai",
+		"title": "Achan's sin, and the taking of Ai",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1451 BC",
+		"summary": "Israel fled before Ai because of the accursed thing hidden in Achan's tent; when it was put away, the LORD gave the city into their hand.",
+		"refs": [
+			"Joshua 7:20-21",
+			"Joshua 8:1"
+		],
+		"people": [
+			"achan",
+			"joshua"
+		],
+		"places": [
+			"ai",
+			"jericho"
+		]
+	},
+	{
+		"id": "altar-on-mount-ebal",
+		"title": "The law read at Ebal and Gerizim",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1450 BC",
+		"summary": "Joshua built an altar of whole stones, wrote upon them a copy of the law of Moses, and read all the blessings and cursings before all Israel.",
+		"refs": [
+			"Joshua 8:30-32",
+			"Joshua 8:34"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"mount-ebal",
+			"mount-gerizim",
+			"shechem"
+		]
+	},
+	{
+		"id": "the-sun-stands-still",
+		"title": "The sun stands still at Gibeon",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1450 BC",
+		"summary": "The sun stood still and the moon stayed until the people had avenged themselves; there was no day like that before it or after it.",
+		"refs": [
+			"Joshua 10:12",
+			"Joshua 10:13"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"gilgal",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "hazor-taken",
+		"title": "Hazor and the northern kings taken",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1450 BC",
+		"summary": "Joshua turned back and took Hazor, the head of all those kingdoms, and burnt it with fire.",
+		"refs": [
+			"Joshua 11:10-11"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"hazor"
+		]
+	},
+	{
+		"id": "the-land-divided",
+		"title": "The land divided by lot",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1444 BC",
+		"summary": "The tabernacle was set up at Shiloh, and Eleazar and Joshua divided the inheritance among the tribes; Caleb asked for Hebron and received it.",
+		"refs": [
+			"Joshua 14:1",
+			"Joshua 18:1"
+		],
+		"people": [
+			"joshua",
+			"eleazar",
+			"caleb"
+		],
+		"places": [
+			"shiloh",
+			"hebron"
+		]
+	},
+	{
+		"id": "joshuas-farewell",
+		"title": "Choose you this day",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1427 BC",
+		"summary": "Joshua gathered the tribes to Shechem and said, As for me and my house, we will serve the LORD; and the people answered that they would serve Him also.",
+		"refs": [
+			"Joshua 24:15",
+			"Joshua 24:29"
+		],
+		"people": [
+			"joshua"
+		],
+		"places": [
+			"shechem"
+		]
+	},
+	{
+		"id": "othniel-delivers-israel",
+		"title": "Othniel, the first judge",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1405 BC",
+		"summary": "When Israel cried unto the LORD He raised up a deliverer; the Spirit of the LORD came upon Othniel, and the land had rest forty years.",
+		"refs": [
+			"Judges 3:9-11"
+		],
+		"people": [
+			"othniel",
+			"caleb"
+		],
+		"places": []
+	},
+	{
+		"id": "ehud-and-eglon",
+		"title": "Ehud delivers Israel from Moab",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1325 BC",
+		"summary": "A man lefthanded, he brought a present to Eglon king of Moab and slew him with a dagger; and the land had rest fourscore years.",
+		"refs": [
+			"Judges 3:21",
+			"Judges 3:30"
+		],
+		"people": [
+			"ehud"
+		],
+		"places": [
+			"moab",
+			"jericho"
+		]
+	},
+	{
+		"id": "deborah-and-barak",
+		"title": "Deborah and Barak against Sisera",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1285 BC",
+		"summary": "Deborah sent Barak with ten thousand men, and the LORD discomfited Sisera's chariots; Jael smote him in her tent, and they sang the song of victory.",
+		"refs": [
+			"Judges 4:14-16",
+			"Judges 5:1"
+		],
+		"people": [
+			"deborah",
+			"barak",
+			"jael"
+		],
+		"places": [
+			"hazor"
+		]
+	},
+	{
+		"id": "gideons-three-hundred",
+		"title": "Gideon's three hundred",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1245 BC",
+		"summary": "The LORD cut the army down to three hundred that Israel might not vaunt itself; with trumpets, pitchers and lamps they routed the host of Midian.",
+		"refs": [
+			"Judges 7:7",
+			"Judges 7:20"
+		],
+		"people": [
+			"gideon"
+		],
+		"places": [
+			"midian"
+		]
+	},
+	{
+		"id": "abimelech-made-king",
+		"title": "Abimelech made king at Shechem",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1206 BC",
+		"summary": "Gideon's son slew his brethren and was made king; Jotham cried his parable from Gerizim, and a woman's millstone ended Abimelech's reign.",
+		"refs": [
+			"Judges 9:6",
+			"Judges 9:53"
+		],
+		"people": [
+			"abimelech",
+			"gideon"
+		],
+		"places": [
+			"shechem",
+			"mount-gerizim"
+		]
+	},
+	{
+		"id": "jephthahs-vow",
+		"title": "Jephthah's vow",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1143 BC",
+		"summary": "He vowed that whatsoever came forth of his doors to meet him should be the LORD's; and his daughter came out with timbrels and with dances.",
+		"refs": [
+			"Judges 11:30-31",
+			"Judges 11:39"
+		],
+		"people": [
+			"jephthah"
+		],
+		"places": [
+			"gilead",
+			"mizpah"
+		]
+	},
+	{
+		"id": "samson-and-delilah",
+		"title": "Samson betrayed and bound",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1120 BC",
+		"summary": "Delilah pressed him daily till he told her all his heart; his hair was shaven, the LORD departed from him, and the Philistines put out his eyes.",
+		"refs": [
+			"Judges 16:19-21"
+		],
+		"people": [
+			"samson",
+			"delilah"
+		],
+		"places": [
+			"gaza"
+		]
+	},
+	{
+		"id": "samsons-last-act",
+		"title": "Samson's last act",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1120 BC",
+		"summary": "He prayed, O Lord GOD, remember me, and bowed himself with all his might; the house fell upon the lords, and the dead he slew at his death were more than in his life.",
+		"refs": [
+			"Judges 16:28",
+			"Judges 16:30"
+		],
+		"people": [
+			"samson"
+		],
+		"places": [
+			"gaza"
+		]
+	},
+	{
+		"id": "ruth-gleans-in-bethlehem",
+		"title": "Ruth gleans in the field of Boaz",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1312 BC",
+		"summary": "Ruth clave to Naomi and came back with her to Bethlehem; her hap was to light on the field of Boaz, who redeemed her, and she bare Obed, grandfather of David.",
+		"refs": [
+			"Ruth 1:16",
+			"Ruth 2:3",
+			"Ruth 4:13"
+		],
+		"people": [
+			"ruth",
+			"naomi",
+			"boaz"
+		],
+		"places": [
+			"bethlehem",
+			"moab"
+		]
+	},
+	{
+		"id": "samuel-called-at-shiloh",
+		"title": "Samuel called at Shiloh",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1141 BC",
+		"summary": "The word of the LORD was precious in those days; the child answered, Speak; for thy servant heareth, and the LORD let none of his words fall to the ground.",
+		"refs": [
+			"1 Samuel 3:10",
+			"1 Samuel 3:19"
+		],
+		"people": [
+			"samuel",
+			"eli",
+			"hannah"
+		],
+		"places": [
+			"shiloh"
+		]
+	},
+	{
+		"id": "the-ark-taken",
+		"title": "The ark taken, and Ichabod",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1141 BC",
+		"summary": "The Philistines took the ark and slew Hophni and Phinehas; Eli fell backward and died, and the glory was said to be departed from Israel. Dagon fell before the ark at Ashdod.",
+		"refs": [
+			"1 Samuel 4:11",
+			"1 Samuel 4:15",
+			"1 Samuel 5:3"
+		],
+		"people": [
+			"eli"
+		],
+		"places": [
+			"shiloh",
+			"ashdod"
+		]
+	},
+	{
+		"id": "israel-asks-for-a-king",
+		"title": "Israel asks for a king",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1095 BC",
+		"summary": "They said, Make us a king to judge us like all the nations. The LORD told Samuel, They have not rejected thee, but they have rejected me.",
+		"refs": [
+			"1 Samuel 8:5-7"
+		],
+		"people": [
+			"samuel"
+		],
+		"places": [
+			"ramah",
+			"mizpah"
+		]
+	},
+	{
+		"id": "saul-anointed-king",
+		"title": "Saul anointed the first king",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1095 BC",
+		"summary": "Samuel poured the vial of oil upon his head; and when he was presented at Mizpeh the people shouted, God save the king.",
+		"refs": [
+			"1 Samuel 10:1",
+			"1 Samuel 10:24"
+		],
+		"people": [
+			"samuel",
+			"saul"
+		],
+		"places": [
+			"mizpah",
+			"ramah",
+			"gilgal"
+		]
+	},
+	{
+		"id": "saul-rejected",
+		"title": "Saul rejected from being king",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1079 BC",
+		"summary": "To obey is better than sacrifice. Because he had rejected the word of the LORD, the LORD rejected him from being king over Israel.",
+		"refs": [
+			"1 Samuel 15:22-23",
+			"1 Samuel 15:26"
+		],
+		"people": [
+			"samuel",
+			"saul"
+		],
+		"places": [
+			"gilgal"
+		]
+	},
+	{
+		"id": "david-anointed",
+		"title": "David anointed at Bethlehem",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1063 BC",
+		"summary": "The LORD seeth not as man seeth; man looketh on the outward appearance, but the LORD looketh on the heart. Samuel anointed the youngest son of Jesse.",
+		"refs": [
+			"1 Samuel 16:7",
+			"1 Samuel 16:13"
+		],
+		"people": [
+			"samuel",
+			"david"
+		],
+		"places": [
+			"bethlehem"
+		]
+	},
+	{
+		"id": "david-and-goliath",
+		"title": "David and Goliath",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1063 BC",
+		"summary": "Thou comest to me with a sword, but I come to thee in the name of the LORD of hosts. David prevailed with a sling and a stone.",
+		"refs": [
+			"1 Samuel 17:45",
+			"1 Samuel 17:50"
+		],
+		"people": [
+			"david",
+			"goliath",
+			"saul"
+		],
+		"places": [
+			"valley-of-elah",
+			"gath"
+		]
+	},
+	{
+		"id": "david-hunted-by-saul",
+		"title": "Saul hunts David",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1062 - 1056 BC",
+		"summary": "Saul eyed David from the day of the women's song, and sought him in the wilderness; Jonathan loved him, and Michal let him down through a window.",
+		"refs": [
+			"1 Samuel 18:9",
+			"1 Samuel 19:12"
+		],
+		"people": [
+			"david",
+			"saul",
+			"jonathan",
+			"michal"
+		],
+		"places": [
+			"gibeah",
+			"gath"
+		]
+	},
+	{
+		"id": "david-spares-saul",
+		"title": "David spares the LORD's anointed",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1058 BC",
+		"summary": "Twice David had Saul in his hand, in the cave and in the trench, and twice he would not stretch forth his hand against the LORD's anointed.",
+		"refs": [
+			"1 Samuel 24:6",
+			"1 Samuel 26:9"
+		],
+		"people": [
+			"david",
+			"saul"
+		],
+		"places": []
+	},
+	{
+		"id": "saul-at-endor",
+		"title": "Saul and the woman of Endor",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1056 BC",
+		"summary": "The LORD answered him not, neither by dreams nor by prophets, so on the eve of battle he sought out a woman that had a familiar spirit.",
+		"refs": [
+			"1 Samuel 28:6",
+			"1 Samuel 28:7"
+		],
+		"people": [
+			"saul",
+			"samuel"
+		],
+		"places": [
+			"endor"
+		]
+	},
+	{
+		"id": "saul-falls-at-gilboa",
+		"title": "Saul and Jonathan fall at Gilboa",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1056 BC",
+		"summary": "The battle went sore against Saul, and he fell upon his own sword. David lamented over him and Jonathan: How are the mighty fallen.",
+		"refs": [
+			"1 Samuel 31:4",
+			"2 Samuel 1:19"
+		],
+		"people": [
+			"saul",
+			"jonathan",
+			"david"
+		],
+		"places": [
+			"mount-gilboa"
+		]
+	},
+	{
+		"id": "david-king-over-all-israel",
+		"title": "David made king over all Israel",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1048 BC",
+		"summary": "After reigning seven years and six months in Hebron over Judah, all the elders came to him and anointed him king over Israel; he reigned forty years in all.",
+		"refs": [
+			"2 Samuel 5:3-5"
+		],
+		"people": [
+			"david",
+			"abner",
+			"joab"
+		],
+		"places": [
+			"hebron",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "jerusalem-taken",
+		"title": "David takes the stronghold of Zion",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1048 BC",
+		"summary": "He took the strong hold of Zion from the Jebusites, and dwelt in the fort, and called it the city of David.",
+		"refs": [
+			"2 Samuel 5:6-7"
+		],
+		"people": [
+			"david",
+			"joab"
+		],
+		"places": [
+			"jerusalem",
+			"zion"
+		]
+	},
+	{
+		"id": "ark-brought-to-jerusalem",
+		"title": "The ark brought up to Jerusalem",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1045 BC",
+		"summary": "David danced before the LORD with all his might, and brought up the ark with shouting and the sound of the trumpet; Michal despised him in her heart.",
+		"refs": [
+			"2 Samuel 6:14-15",
+			"2 Samuel 6:16"
+		],
+		"people": [
+			"david",
+			"michal",
+			"zadok"
+		],
+		"places": [
+			"jerusalem",
+			"zion"
+		]
+	},
+	{
+		"id": "the-davidic-covenant",
+		"title": "God's covenant with David",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1042 BC",
+		"summary": "By Nathan the LORD promised to set up his seed after him: thine house and thy kingdom shall be established for ever before thee.",
+		"refs": [
+			"2 Samuel 7:12-13",
+			"2 Samuel 7:16"
+		],
+		"people": [
+			"david",
+			"nathan"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "david-and-bathsheba",
+		"title": "David's sin, and his repentance",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1035 BC",
+		"summary": "He took the wife of Uriah and set her husband in the forefront of the battle. Nathan said, Thou art the man; and David said, I have sinned against the LORD.",
+		"refs": [
+			"2 Samuel 11:4",
+			"2 Samuel 12:13"
+		],
+		"people": [
+			"david",
+			"bathsheba",
+			"nathan",
+			"joab"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "absaloms-rebellion",
+		"title": "Absalom's rebellion",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1023 BC",
+		"summary": "Absalom stole the hearts of the men of Israel and drove his father out of Jerusalem; he was caught by his head in an oak, and Joab slew him.",
+		"refs": [
+			"2 Samuel 15:6",
+			"2 Samuel 18:14"
+		],
+		"people": [
+			"absalom",
+			"david",
+			"joab",
+			"zadok"
+		],
+		"places": [
+			"jerusalem",
+			"hebron"
+		]
+	},
+	{
+		"id": "solomon-made-king",
+		"title": "Solomon made king",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1015 BC",
+		"summary": "Zadok the priest and Nathan the prophet anointed him at Gihon, and the throne of David his father was established greatly.",
+		"refs": [
+			"1 Kings 1:39",
+			"1 Kings 2:12"
+		],
+		"people": [
+			"solomon",
+			"david",
+			"bathsheba",
+			"nathan",
+			"zadok"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "solomon-asks-for-wisdom",
+		"title": "Solomon asks for an understanding heart",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1014 BC",
+		"summary": "God appeared to him in a dream at Gibeon and said, Ask what I shall give thee; and because he asked for wisdom, riches and honour were added.",
+		"refs": [
+			"1 Kings 3:9",
+			"1 Kings 3:12"
+		],
+		"people": [
+			"solomon"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-temple-built",
+		"title": "Solomon builds the house of the LORD",
+		"era": "United Kingdom",
+		"yearLabel": "c. 1012 - 1005 BC",
+		"summary": "In the four hundred and eightieth year after the exodus he began to build; when it was finished the cloud filled the house, so that the priests could not stand to minister.",
+		"refs": [
+			"1 Kings 6:1",
+			"1 Kings 8:10-11"
+		],
+		"people": [
+			"solomon",
+			"hiram"
+		],
+		"places": [
+			"jerusalem",
+			"moriah",
+			"tyre"
+		]
+	},
+	{
+		"id": "queen-of-sheba-visits",
+		"title": "The queen of Sheba comes to Jerusalem",
+		"era": "United Kingdom",
+		"yearLabel": "c. 992 BC",
+		"summary": "She came to prove him with hard questions, and when she had seen his wisdom there was no more spirit in her; the half had not been told her.",
+		"refs": [
+			"1 Kings 10:1",
+			"1 Kings 10:7"
+		],
+		"people": [
+			"queen-of-sheba",
+			"solomon"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "solomons-heart-turned-away",
+		"title": "Solomon's heart turned away",
+		"era": "United Kingdom",
+		"yearLabel": "c. 980 BC",
+		"summary": "His wives turned away his heart after other gods when he was old, and the LORD said He would rend the kingdom from his son, leaving one tribe for David's sake.",
+		"refs": [
+			"1 Kings 11:4",
+			"1 Kings 11:11"
+		],
+		"people": [
+			"solomon"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-kingdom-divided",
+		"title": "The kingdom divided",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 975 BC",
+		"summary": "Rehoboam forsook the counsel of the old men and answered roughly; ten tribes said, What portion have we in David? and made Jeroboam king.",
+		"refs": [
+			"1 Kings 12:16",
+			"1 Kings 12:20"
+		],
+		"people": [
+			"rehoboam",
+			"jeroboam",
+			"solomon"
+		],
+		"places": [
+			"shechem",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "calves-at-bethel-and-dan",
+		"title": "The golden calves at Bethel and Dan",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 975 BC",
+		"summary": "Lest the people go up to Jerusalem, Jeroboam made two calves of gold and said, Behold thy gods, O Israel; and this thing became a sin.",
+		"refs": [
+			"1 Kings 12:28",
+			"1 Kings 12:30"
+		],
+		"people": [
+			"jeroboam"
+		],
+		"places": [
+			"bethel",
+			"dan"
+		]
+	},
+	{
+		"id": "elijah-and-the-drought",
+		"title": "Elijah and the three years' drought",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 910 BC",
+		"summary": "He said there should be neither dew nor rain but according to his word; he was fed by ravens, then by a widow whose barrel of meal did not waste.",
+		"refs": [
+			"1 Kings 17:1",
+			"1 Kings 17:16"
+		],
+		"people": [
+			"elijah",
+			"ahab"
+		],
+		"places": [
+			"zarephath",
+			"sidon"
+		]
+	},
+	{
+		"id": "widows-son-raised",
+		"title": "The widow's son raised at Zarephath",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 909 BC",
+		"summary": "Elijah stretched himself upon the child three times and cried unto the LORD, and the soul of the child came into him again.",
+		"refs": [
+			"1 Kings 17:22"
+		],
+		"people": [
+			"elijah"
+		],
+		"places": [
+			"zarephath",
+			"sidon"
+		]
+	},
+	{
+		"id": "fire-on-mount-carmel",
+		"title": "The fire falls on Carmel",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 906 BC",
+		"summary": "How long halt ye between two opinions? The fire of the LORD fell and consumed the sacrifice, the wood, the stones and the water, and the people fell on their faces.",
+		"refs": [
+			"1 Kings 18:21",
+			"1 Kings 18:38-39"
+		],
+		"people": [
+			"elijah",
+			"ahab",
+			"jezebel"
+		],
+		"places": [
+			"mount-carmel"
+		]
+	},
+	{
+		"id": "the-still-small-voice",
+		"title": "The still small voice at Horeb",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 906 BC",
+		"summary": "The LORD was not in the wind, nor the earthquake, nor the fire, but in a still small voice; and He told Elijah of seven thousand who had not bowed to Baal.",
+		"refs": [
+			"1 Kings 19:12",
+			"1 Kings 19:18"
+		],
+		"people": [
+			"elijah",
+			"elisha"
+		],
+		"places": [
+			"horeb"
+		]
+	},
+	{
+		"id": "naboths-vineyard",
+		"title": "Naboth's vineyard",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 899 BC",
+		"summary": "Jezebel had Naboth stoned on false witness so Ahab could take his vineyard, and Elijah met the king with the word of judgment.",
+		"refs": [
+			"1 Kings 21:13",
+			"1 Kings 21:19"
+		],
+		"people": [
+			"ahab",
+			"jezebel",
+			"elijah"
+		],
+		"places": [
+			"jezreel",
+			"samaria"
+		]
+	},
+	{
+		"id": "elijah-taken-up",
+		"title": "Elijah taken up by a whirlwind",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 896 BC",
+		"summary": "A chariot of fire and horses of fire parted them asunder, and Elijah went up by a whirlwind into heaven; Elisha took up his mantle.",
+		"refs": [
+			"2 Kings 2:11",
+			"2 Kings 2:14"
+		],
+		"people": [
+			"elijah",
+			"elisha"
+		],
+		"places": [
+			"jordan",
+			"jericho"
+		]
+	},
+	{
+		"id": "naaman-cleansed",
+		"title": "Naaman washes in Jordan",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 894 BC",
+		"summary": "He was wroth at so small a word, but dipped seven times as the prophet said, and his flesh came again like unto the flesh of a little child.",
+		"refs": [
+			"2 Kings 5:14",
+			"2 Kings 5:27"
+		],
+		"people": [
+			"naaman",
+			"elisha",
+			"gehazi"
+		],
+		"places": [
+			"jordan",
+			"damascus",
+			"samaria"
+		]
+	},
+	{
+		"id": "jehu-destroys-baal",
+		"title": "Jehu destroys the house of Ahab",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 884 BC",
+		"summary": "Anointed to cut off Ahab's house, he threw Jezebel down from the window and destroyed Baal out of Israel, yet kept the calves of Jeroboam.",
+		"refs": [
+			"2 Kings 9:33",
+			"2 Kings 10:28"
+		],
+		"people": [
+			"jehu",
+			"jezebel",
+			"ahab"
+		],
+		"places": [
+			"jezreel",
+			"samaria"
+		]
+	},
+	{
+		"id": "joash-hidden-and-crowned",
+		"title": "Joash hidden, and crowned at seven",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 878 BC",
+		"summary": "Athaliah destroyed the seed royal, but the babe was hid in the house of the LORD six years; then they crowned him and clapped their hands.",
+		"refs": [
+			"2 Kings 11:3",
+			"2 Kings 11:12"
+		],
+		"people": [
+			"joash",
+			"athaliah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "jonah-sent-to-nineveh",
+		"title": "Jonah sent to Nineveh",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 862 BC",
+		"summary": "He fled toward Tarshish and was three days and three nights in the fish's belly; then he preached, and the people of Nineveh believed God.",
+		"refs": [
+			"Jonah 1:17",
+			"Jonah 3:5"
+		],
+		"people": [
+			"jonah"
+		],
+		"places": [
+			"nineveh",
+			"joppa"
+		]
+	},
+	{
+		"id": "isaiah-sees-the-lord",
+		"title": "Isaiah sees the Lord",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 758 BC",
+		"summary": "He saw the Lord high and lifted up, and his lips were touched with a live coal; and he answered, Here am I; send me.",
+		"refs": [
+			"Isaiah 6:1",
+			"Isaiah 6:8"
+		],
+		"people": [
+			"isaiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "israel-carried-to-assyria",
+		"title": "Israel carried away to Assyria",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 721 BC",
+		"summary": "The king of Assyria took Samaria and carried Israel away, because they had not obeyed the voice of the LORD their God.",
+		"refs": [
+			"2 Kings 17:6",
+			"2 Kings 17:23"
+		],
+		"people": [],
+		"places": [
+			"samaria",
+			"assyria"
+		]
+	},
+	{
+		"id": "sennacherib-turned-back",
+		"title": "Sennacherib turned back from Jerusalem",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 710 BC",
+		"summary": "Hezekiah spread the letter before the LORD, and the angel of the LORD smote the camp of the Assyrians; and Sennacherib returned to Nineveh.",
+		"refs": [
+			"2 Kings 19:35-36",
+			"Isaiah 37:36"
+		],
+		"people": [
+			"hezekiah",
+			"isaiah",
+			"sennacherib"
+		],
+		"places": [
+			"jerusalem",
+			"assyria",
+			"nineveh"
+		]
+	},
+	{
+		"id": "hezekiahs-life-lengthened",
+		"title": "Fifteen years added to Hezekiah",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 713 BC",
+		"summary": "Sick unto death, he turned his face to the wall and wept; the LORD heard his prayer, healed him, and turned the shadow back on the sundial.",
+		"refs": [
+			"2 Kings 20:5-6",
+			"2 Kings 20:11"
+		],
+		"people": [
+			"hezekiah",
+			"isaiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "manassehs-evil-and-repentance",
+		"title": "Manasseh's long evil reign, and his repentance",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 698 - 643 BC",
+		"summary": "He filled Jerusalem with innocent blood; taken with hooks to Babylon, he humbled himself greatly, and then he knew that the LORD He was God.",
+		"refs": [
+			"2 Kings 21:2",
+			"2 Chronicles 33:13"
+		],
+		"people": [
+			"manasseh"
+		],
+		"places": [
+			"jerusalem",
+			"babylon"
+		]
+	},
+	{
+		"id": "book-of-the-law-found",
+		"title": "The book of the law found",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 624 BC",
+		"summary": "Hilkiah found the book in the house of the LORD; Josiah rent his clothes, enquired of Huldah, and made a covenant to walk after the LORD with all his heart.",
+		"refs": [
+			"2 Kings 22:8",
+			"2 Kings 23:3"
+		],
+		"people": [
+			"josiah",
+			"huldah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "jeremiah-called",
+		"title": "Jeremiah called to be a prophet",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 629 BC",
+		"summary": "Before I formed thee in the belly I knew thee. The LORD touched his mouth and set him over the nations, to root out and to plant.",
+		"refs": [
+			"Jeremiah 1:5",
+			"Jeremiah 1:9"
+		],
+		"people": [
+			"jeremiah",
+			"josiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "jeremiahs-roll-burnt",
+		"title": "The king cuts and burns the roll",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 606 BC",
+		"summary": "Jehoiakim cut the roll with a penknife and cast it into the fire; Jeremiah dictated it again to Baruch, and many like words were added.",
+		"refs": [
+			"Jeremiah 36:23",
+			"Jeremiah 36:32"
+		],
+		"people": [
+			"jeremiah",
+			"baruch"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "jeremiah-in-the-dungeon",
+		"title": "Jeremiah cast into the dungeon",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 589 BC",
+		"summary": "They let him down with cords into the mire for saying the city would be taken; Ebedmelech the Ethiopian drew him out with old cast clouts and rags.",
+		"refs": [
+			"Jeremiah 38:6",
+			"Jeremiah 38:13"
+		],
+		"people": [
+			"jeremiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "first-captives-to-babylon",
+		"title": "The first captives carried to Babylon",
+		"era": "Exile & Return",
+		"yearLabel": "c. 606 BC",
+		"summary": "Nebuchadnezzar besieged Jerusalem and carried away part of the vessels of the house of God, and certain of the king's seed, among them Daniel.",
+		"refs": [
+			"Daniel 1:1-2",
+			"Daniel 1:6"
+		],
+		"people": [
+			"nebuchadnezzar",
+			"daniel",
+			"shadrach-meshach-abednego"
+		],
+		"places": [
+			"jerusalem",
+			"babylon"
+		]
+	},
+	{
+		"id": "nebuchadnezzars-dream",
+		"title": "The image of gold, silver, brass and iron",
+		"era": "Exile & Return",
+		"yearLabel": "c. 603 BC",
+		"summary": "Daniel told the king both the dream and its meaning: four kingdoms, and then a kingdom set up by the God of heaven which shall never be destroyed.",
+		"refs": [
+			"Daniel 2:31",
+			"Daniel 2:44"
+		],
+		"people": [
+			"daniel",
+			"nebuchadnezzar"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "the-fiery-furnace",
+		"title": "The burning fiery furnace",
+		"era": "Exile & Return",
+		"yearLabel": "c. 580 BC",
+		"summary": "The three would not bow to the image; cast into the furnace heated seven times, they walked loose with a fourth like the Son of God, and the fire had no power over them.",
+		"refs": [
+			"Daniel 3:25",
+			"Daniel 3:26"
+		],
+		"people": [
+			"shadrach-meshach-abednego",
+			"nebuchadnezzar"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "nebuchadnezzar-humbled",
+		"title": "Nebuchadnezzar driven from men",
+		"era": "Exile & Return",
+		"yearLabel": "c. 569 BC",
+		"summary": "He boasted of great Babylon that he had built, and was driven to eat grass as oxen until he knew that the most High ruleth in the kingdom of men.",
+		"refs": [
+			"Daniel 4:33",
+			"Daniel 4:37"
+		],
+		"people": [
+			"nebuchadnezzar",
+			"daniel"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "ezekiel-by-chebar",
+		"title": "Ezekiel among the captives by Chebar",
+		"era": "Exile & Return",
+		"yearLabel": "c. 595 BC",
+		"summary": "The heavens were opened and he saw visions of God; the LORD sent him to a rebellious nation and made him a watchman unto the house of Israel.",
+		"refs": [
+			"Ezekiel 1:3",
+			"Ezekiel 2:3"
+		],
+		"people": [
+			"ezekiel"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "jerusalem-burnt",
+		"title": "Jerusalem and the temple burnt",
+		"era": "Exile & Return",
+		"yearLabel": "c. 586 BC",
+		"summary": "The house of the LORD, the king's house and all the houses of Jerusalem were burnt with fire, and the walls broken down round about.",
+		"refs": [
+			"2 Kings 25:9-10",
+			"2 Chronicles 36:19"
+		],
+		"people": [
+			"nebuchadnezzar",
+			"jeremiah"
+		],
+		"places": [
+			"jerusalem",
+			"babylon"
+		]
+	},
+	{
+		"id": "valley-of-dry-bones",
+		"title": "The valley of dry bones",
+		"era": "Exile & Return",
+		"yearLabel": "c. 585 BC",
+		"summary": "O ye dry bones, hear the word of the LORD. The breath came into them and they lived, a sign that God would open the graves of His people and bring them into their own land.",
+		"refs": [
+			"Ezekiel 37:4",
+			"Ezekiel 37:14"
+		],
+		"people": [
+			"ezekiel"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "writing-on-the-wall",
+		"title": "The writing on the wall",
+		"era": "Exile & Return",
+		"yearLabel": "c. 538 BC",
+		"summary": "As they drank from the vessels of God's house, fingers of a man's hand wrote MENE, MENE, TEKEL, UPHARSIN; that night Belshazzar was slain.",
+		"refs": [
+			"Daniel 5:5",
+			"Daniel 5:30"
+		],
+		"people": [
+			"belshazzar",
+			"daniel"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "daniel-in-the-lions-den",
+		"title": "Daniel in the lions' den",
+		"era": "Exile & Return",
+		"yearLabel": "c. 537 BC",
+		"summary": "He kneeled three times a day toward Jerusalem as he did aforetime; cast to the lions, he was kept, for God had sent His angel and shut the lions' mouths.",
+		"refs": [
+			"Daniel 6:10",
+			"Daniel 6:22"
+		],
+		"people": [
+			"daniel",
+			"darius"
+		],
+		"places": [
+			"babylon",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "daniels-seventy-weeks",
+		"title": "The seventy weeks",
+		"era": "Exile & Return",
+		"yearLabel": "c. 538 BC",
+		"summary": "Reading in Jeremiah of the seventy years, Daniel prayed and confessed; Gabriel came and told him of seventy weeks determined upon his people and upon the holy city.",
+		"refs": [
+			"Daniel 9:2",
+			"Daniel 9:24"
+		],
+		"people": [
+			"daniel",
+			"jeremiah"
+		],
+		"places": [
+			"jerusalem",
+			"babylon"
+		]
+	},
+	{
+		"id": "cyrus-decree",
+		"title": "The decree of Cyrus",
+		"era": "Exile & Return",
+		"yearLabel": "c. 536 BC",
+		"summary": "The LORD stirred up the spirit of Cyrus, who proclaimed that the house of the LORD in Jerusalem should be built, and let the people go up.",
+		"refs": [
+			"Ezra 1:1-3"
+		],
+		"people": [
+			"cyrus",
+			"zerubbabel"
+		],
+		"places": [
+			"babylon",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "foundation-of-second-temple",
+		"title": "The foundation of the second house laid",
+		"era": "Exile & Return",
+		"yearLabel": "c. 535 BC",
+		"summary": "The people shouted with a great shout, but the old men who had seen the first house wept with a loud voice, so that the noise could not be discerned.",
+		"refs": [
+			"Ezra 3:11-12"
+		],
+		"people": [
+			"zerubbabel",
+			"ezra"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "haggai-and-zechariah-stir-the-work",
+		"title": "Haggai and Zechariah stir up the building",
+		"era": "Exile & Return",
+		"yearLabel": "c. 520 BC",
+		"summary": "Is it time for you to dwell in your cieled houses, and this house lie waste? Not by might, nor by power, but by my spirit, saith the LORD of hosts.",
+		"refs": [
+			"Ezra 5:1",
+			"Haggai 1:4",
+			"Zechariah 4:6"
+		],
+		"people": [
+			"haggai",
+			"zechariah",
+			"zerubbabel"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "second-temple-finished",
+		"title": "The second temple finished",
+		"era": "Exile & Return",
+		"yearLabel": "c. 515 BC",
+		"summary": "The house was finished on the third day of the month Adar, and the children of Israel kept the dedication of this house of God with joy.",
+		"refs": [
+			"Ezra 6:15-16"
+		],
+		"people": [
+			"zerubbabel",
+			"cyrus"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "esther-made-queen",
+		"title": "Esther made queen of Persia",
+		"era": "Exile & Return",
+		"yearLabel": "c. 478 BC",
+		"summary": "The king loved Esther above all the women, and set the royal crown upon her head; she had not shewed her people nor her kindred.",
+		"refs": [
+			"Esther 2:17"
+		],
+		"people": [
+			"esther",
+			"mordecai"
+		],
+		"places": [
+			"shushan"
+		]
+	},
+	{
+		"id": "hamans-plot-overthrown",
+		"title": "Haman's plot overthrown",
+		"era": "Exile & Return",
+		"yearLabel": "c. 473 BC",
+		"summary": "Esther went in unto the king unbidden, saying, If I perish, I perish. Haman was hanged on his own gallows, and the Jews had light and gladness.",
+		"refs": [
+			"Esther 4:16",
+			"Esther 7:10",
+			"Esther 9:1"
+		],
+		"people": [
+			"haman",
+			"esther",
+			"mordecai"
+		],
+		"places": [
+			"shushan"
+		]
+	},
+	{
+		"id": "ezra-brings-the-law",
+		"title": "Ezra brings the law to Jerusalem",
+		"era": "Exile & Return",
+		"yearLabel": "c. 457 BC",
+		"summary": "He had prepared his heart to seek the law of the LORD and to do it and to teach it; the Levites read distinctly and gave the sense, and caused the people to understand.",
+		"refs": [
+			"Ezra 7:10",
+			"Nehemiah 8:8"
+		],
+		"people": [
+			"ezra",
+			"nehemiah"
+		],
+		"places": [
+			"jerusalem",
+			"babylon"
+		]
+	},
+	{
+		"id": "the-wall-rebuilt",
+		"title": "Nehemiah rebuilds the wall",
+		"era": "Exile & Return",
+		"yearLabel": "c. 445 BC",
+		"summary": "Come, and let us build up the wall of Jerusalem, that we be no more a reproach. It was finished in fifty and two days, with a weapon in every hand.",
+		"refs": [
+			"Nehemiah 2:17",
+			"Nehemiah 6:15"
+		],
+		"people": [
+			"nehemiah",
+			"ezra"
+		],
+		"places": [
+			"jerusalem",
+			"shushan"
+		]
+	},
+	{
+		"id": "malachis-last-word",
+		"title": "The last word before the silence",
+		"era": "Exile & Return",
+		"yearLabel": "c. 397 BC",
+		"summary": "Behold, I will send my messenger, and he shall prepare the way before me; and I will send you Elijah the prophet before the great and dreadful day of the LORD.",
+		"refs": [
+			"Malachi 3:1",
+			"Malachi 4:5"
+		],
+		"people": [
+			"malachi"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "four-kingdoms-foretold",
+		"title": "The kingdoms of the silent years foretold",
+		"era": "Between the Testaments",
+		"yearLabel": "foretold c. 551 BC",
+		"summary": "Scripture itself is what tells of these years: Daniel was shewn the ram and the he goat, named as Media and Persia and Grecia, and the kings that should stand up after.",
+		"refs": [
+			"Daniel 8:20-21",
+			"Daniel 11:2"
+		],
+		"people": [
+			"daniel"
+		],
+		"places": [
+			"babylon",
+			"shushan"
+		]
+	},
+	{
+		"id": "the-silence-between-the-testaments",
+		"title": "Four hundred years of silence",
+		"era": "Between the Testaments",
+		"yearLabel": "c. 397 - 5 BC",
+		"summary": "After Malachi's promise of the messenger, Scripture records no prophet until the days of Herod, when the angel Gabriel stood by the altar of incense.",
+		"refs": [
+			"Malachi 4:6",
+			"Luke 1:5"
+		],
+		"people": [
+			"malachi",
+			"herod",
+			"zacharias"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "annunciation-to-zacharias",
+		"title": "Gabriel promises a son to Zacharias",
+		"era": "Life of Christ",
+		"yearLabel": "c. 5 BC",
+		"summary": "As he burned incense the angel said, Thy prayer is heard, and thy wife Elisabeth shall bear thee a son, and thou shalt call his name John.",
+		"refs": [
+			"Luke 1:13",
+			"Luke 1:20"
+		],
+		"people": [
+			"zacharias",
+			"elisabeth",
+			"john-the-baptist"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-annunciation",
+		"title": "The annunciation to Mary",
+		"era": "Life of Christ",
+		"yearLabel": "c. 5 BC",
+		"summary": "Thou shalt conceive, and bring forth a son, and shalt call his name JESUS. And Mary said, Behold the handmaid of the Lord; be it unto me according to thy word.",
+		"refs": [
+			"Luke 1:31",
+			"Luke 1:38"
+		],
+		"people": [
+			"mary",
+			"jesus-christ",
+			"joseph-of-nazareth"
+		],
+		"places": [
+			"nazareth"
+		]
+	},
+	{
+		"id": "birth-of-john-the-baptist",
+		"title": "The birth of John the Baptist",
+		"era": "Life of Christ",
+		"yearLabel": "c. 5 BC",
+		"summary": "His father wrote, His name is John, and his mouth was opened immediately; and he prophesied of the dayspring from on high.",
+		"refs": [
+			"Luke 1:57",
+			"Luke 1:63"
+		],
+		"people": [
+			"john-the-baptist",
+			"zacharias",
+			"elisabeth"
+		],
+		"places": []
+	},
+	{
+		"id": "the-birth-of-christ",
+		"title": "The birth of Jesus Christ",
+		"era": "Life of Christ",
+		"yearLabel": "c. 4 BC",
+		"summary": "She brought forth her firstborn son and laid him in a manger, for there was no room in the inn; and the angel said, Unto you is born this day a Saviour, which is Christ the Lord.",
+		"refs": [
+			"Luke 2:7",
+			"Luke 2:11",
+			"Matthew 1:23"
+		],
+		"people": [
+			"jesus-christ",
+			"mary",
+			"joseph-of-nazareth"
+		],
+		"places": [
+			"bethlehem",
+			"nazareth"
+		]
+	},
+	{
+		"id": "presented-in-the-temple",
+		"title": "Presented in the temple",
+		"era": "Life of Christ",
+		"yearLabel": "c. 4 BC",
+		"summary": "Simeon took him up in his arms and blessed God, having been promised he should not see death first; and Anna spake of him to all that looked for redemption.",
+		"refs": [
+			"Luke 2:25",
+			"Luke 2:36"
+		],
+		"people": [
+			"jesus-christ",
+			"simeon",
+			"anna",
+			"mary"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "wise-men-and-flight-into-egypt",
+		"title": "The wise men, and the flight into Egypt",
+		"era": "Life of Christ",
+		"yearLabel": "c. 4 BC",
+		"summary": "They opened their treasures and presented gold, frankincense and myrrh; warned in a dream, Joseph fled into Egypt, and Herod slew the children of Bethlehem.",
+		"refs": [
+			"Matthew 2:11",
+			"Matthew 2:14",
+			"Matthew 2:16"
+		],
+		"people": [
+			"herod",
+			"joseph-of-nazareth",
+			"mary",
+			"jesus-christ"
+		],
+		"places": [
+			"bethlehem",
+			"egypt",
+			"nazareth"
+		]
+	},
+	{
+		"id": "jesus-at-twelve",
+		"title": "About my Father's business",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 8",
+		"summary": "At twelve years old he was found in the temple among the doctors, hearing them and asking questions; and all that heard him were astonished at his understanding.",
+		"refs": [
+			"Luke 2:46",
+			"Luke 2:49"
+		],
+		"people": [
+			"jesus-christ",
+			"mary",
+			"joseph-of-nazareth"
+		],
+		"places": [
+			"jerusalem",
+			"nazareth"
+		]
+	},
+	{
+		"id": "the-baptism-of-jesus",
+		"title": "The baptism of Jesus",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 26",
+		"summary": "John said, Behold the Lamb of God. The heavens were opened, the Spirit descended like a dove, and a voice said, This is my beloved Son, in whom I am well pleased.",
+		"refs": [
+			"Matthew 3:16-17",
+			"John 1:29"
+		],
+		"people": [
+			"jesus-christ",
+			"john-the-baptist"
+		],
+		"places": [
+			"jordan"
+		]
+	},
+	{
+		"id": "the-temptation",
+		"title": "The temptation in the wilderness",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 26",
+		"summary": "Forty days fasting, He answered every temptation with It is written, and said, Get thee hence, Satan; then the devil left him and angels came and ministered.",
+		"refs": [
+			"Matthew 4:4",
+			"Matthew 4:10"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": []
+	},
+	{
+		"id": "water-turned-to-wine",
+		"title": "Water turned to wine at Cana",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 27",
+		"summary": "This beginning of miracles did Jesus in Cana of Galilee, and manifested forth his glory; and his disciples believed on him.",
+		"refs": [
+			"John 2:11"
+		],
+		"people": [
+			"jesus-christ",
+			"mary"
+		],
+		"places": [
+			"cana"
+		]
+	},
+	{
+		"id": "nicodemus-by-night",
+		"title": "Ye must be born again",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 27",
+		"summary": "A ruler of the Jews came by night, and was told that except a man be born again he cannot see the kingdom of God. For God so loved the world.",
+		"refs": [
+			"John 3:3",
+			"John 3:16"
+		],
+		"people": [
+			"jesus-christ",
+			"nicodemus"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-woman-at-the-well",
+		"title": "The woman at the well",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 27",
+		"summary": "Whosoever drinketh of the water that I shall give him shall never thirst. Many of the Samaritans believed, and said, This is indeed the Christ, the Saviour of the world.",
+		"refs": [
+			"John 4:14",
+			"John 4:42"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"sychar",
+			"samaria"
+		]
+	},
+	{
+		"id": "calling-of-the-first-disciples",
+		"title": "Follow me, and I will make you fishers of men",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 27",
+		"summary": "By the sea He called Simon and Andrew, and James and John mending their nets; and they straightway left all and followed him.",
+		"refs": [
+			"Matthew 4:18-20",
+			"Luke 5:11"
+		],
+		"people": [
+			"jesus-christ",
+			"peter",
+			"andrew",
+			"james-son-of-zebedee",
+			"john-apostle"
+		],
+		"places": [
+			"sea-of-galilee",
+			"capernaum"
+		]
+	},
+	{
+		"id": "the-sermon-on-the-mount",
+		"title": "The sermon on the mount",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 28",
+		"summary": "Blessed are the poor in spirit. He taught the beatitudes, the light of the world, the Lord's prayer and the two foundations; and the people were astonished at his doctrine.",
+		"refs": [
+			"Matthew 5:3",
+			"Matthew 6:9",
+			"Matthew 7:28"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"sea-of-galilee"
+		]
+	},
+	{
+		"id": "calling-of-matthew",
+		"title": "The calling of Matthew",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 28",
+		"summary": "He saw a publican at the receipt of custom and said, Follow me; and he arose and followed him, and made him a feast in his house.",
+		"refs": [
+			"Matthew 9:9",
+			"Mark 2:14"
+		],
+		"people": [
+			"jesus-christ",
+			"matthew"
+		],
+		"places": [
+			"capernaum"
+		]
+	},
+	{
+		"id": "the-twelve-chosen",
+		"title": "The twelve apostles chosen",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 28",
+		"summary": "He continued all night in prayer to God, and when it was day he chose twelve, whom he also named apostles, and sent them forth to preach.",
+		"refs": [
+			"Luke 6:13",
+			"Matthew 10:2-4"
+		],
+		"people": [
+			"jesus-christ",
+			"peter",
+			"andrew",
+			"matthew",
+			"thomas",
+			"philip-apostle",
+			"judas-iscariot"
+		],
+		"places": [
+			"sea-of-galilee"
+		]
+	},
+	{
+		"id": "the-storm-stilled",
+		"title": "Peace, be still",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 28",
+		"summary": "He rebuked the wind and said unto the sea, Peace, be still; and there was a great calm, and they feared exceedingly.",
+		"refs": [
+			"Mark 4:39",
+			"Mark 4:41"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"sea-of-galilee"
+		]
+	},
+	{
+		"id": "feeding-the-five-thousand",
+		"title": "Five loaves and two fishes",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 29",
+		"summary": "He gave thanks and distributed to them that were set down as much as they would; about five thousand men were filled, and twelve baskets of fragments remained.",
+		"refs": [
+			"John 6:11",
+			"Matthew 14:21"
+		],
+		"people": [
+			"jesus-christ",
+			"andrew",
+			"philip-apostle"
+		],
+		"places": [
+			"sea-of-galilee",
+			"bethsaida"
+		]
+	},
+	{
+		"id": "walking-on-the-sea",
+		"title": "Walking on the sea",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 29",
+		"summary": "In the fourth watch He went unto them walking on the sea; Peter walked to Him, and beginning to sink cried, Lord, save me, and immediately He caught him.",
+		"refs": [
+			"Matthew 14:25",
+			"Matthew 14:31"
+		],
+		"people": [
+			"jesus-christ",
+			"peter"
+		],
+		"places": [
+			"sea-of-galilee"
+		]
+	},
+	{
+		"id": "peters-confession",
+		"title": "Thou art the Christ",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 29",
+		"summary": "Whom say ye that I am? Peter answered, Thou art the Christ, the Son of the living God; and He said flesh and blood had not revealed it to him.",
+		"refs": [
+			"Matthew 16:16-18"
+		],
+		"people": [
+			"jesus-christ",
+			"peter"
+		],
+		"places": [
+			"caesarea-philippi"
+		]
+	},
+	{
+		"id": "the-transfiguration",
+		"title": "The transfiguration",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 29",
+		"summary": "His face did shine as the sun and his raiment was white as the light; Moses and Elias appeared with him, and a voice out of the cloud said, Hear ye him.",
+		"refs": [
+			"Matthew 17:2",
+			"Matthew 17:5"
+		],
+		"people": [
+			"jesus-christ",
+			"peter",
+			"james-son-of-zebedee",
+			"john-apostle",
+			"moses",
+			"elijah"
+		],
+		"places": []
+	},
+	{
+		"id": "lazarus-raised",
+		"title": "Lazarus raised from the dead",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "I am the resurrection, and the life. Four days in the grave, Lazarus came forth at His cry, bound hand and foot with graveclothes.",
+		"refs": [
+			"John 11:25",
+			"John 11:43-44"
+		],
+		"people": [
+			"jesus-christ",
+			"lazarus",
+			"martha",
+			"mary-of-bethany",
+			"thomas"
+		],
+		"places": [
+			"bethany"
+		]
+	},
+	{
+		"id": "zacchaeus-in-the-sycomore",
+		"title": "Zacchaeus comes down",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "Make haste, and come down; for to day I must abide at thy house. The Son of man is come to seek and to save that which was lost.",
+		"refs": [
+			"Luke 19:5",
+			"Luke 19:9"
+		],
+		"people": [
+			"jesus-christ",
+			"zacchaeus"
+		],
+		"places": [
+			"jericho"
+		]
+	},
+	{
+		"id": "the-triumphal-entry",
+		"title": "The triumphal entry",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "The multitudes cried, Hosanna to the Son of David, as He rode into Jerusalem upon an ass, as Zechariah had said the King would come.",
+		"refs": [
+			"Matthew 21:9",
+			"Zechariah 9:9"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"jerusalem",
+			"mount-of-olives",
+			"bethany"
+		]
+	},
+	{
+		"id": "the-last-supper",
+		"title": "The last supper",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "He took bread and brake it, saying, This is my body; and the cup, This is my blood of the new testament. And He gave them a new commandment, to love one another.",
+		"refs": [
+			"Matthew 26:26-28",
+			"John 13:34"
+		],
+		"people": [
+			"jesus-christ",
+			"peter",
+			"judas-iscariot",
+			"john-apostle"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "gethsemane-and-the-betrayal",
+		"title": "Gethsemane, and the betrayal",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "O my Father, if this cup may not pass away from me, thy will be done. Judas came with a multitude and betrayed Him with a kiss.",
+		"refs": [
+			"Matthew 26:39",
+			"Matthew 26:49"
+		],
+		"people": [
+			"jesus-christ",
+			"judas-iscariot",
+			"peter"
+		],
+		"places": [
+			"gethsemane",
+			"mount-of-olives"
+		]
+	},
+	{
+		"id": "the-trials",
+		"title": "Before Caiaphas and Pilate",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "He confessed before the high priest that He was the Christ; Pilate found no fault in Him, washed his hands, released Barabbas and gave sentence.",
+		"refs": [
+			"Matthew 26:63-64",
+			"Matthew 27:24",
+			"Luke 23:24"
+		],
+		"people": [
+			"jesus-christ",
+			"caiaphas",
+			"pilate",
+			"barabbas",
+			"peter"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-crucifixion",
+		"title": "The crucifixion",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "They crucified Him at the place called Calvary, and two others with Him. He said, It is finished, and gave up the ghost; and the veil of the temple was rent in twain.",
+		"refs": [
+			"Luke 23:33",
+			"John 19:30",
+			"Matthew 27:51"
+		],
+		"people": [
+			"jesus-christ",
+			"pilate",
+			"mary",
+			"mary-magdalene",
+			"john-apostle"
+		],
+		"places": [
+			"golgotha",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-burial",
+		"title": "The burial",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "Joseph of Arimathaea craved the body and wrapped it in linen, and Nicodemus brought myrrh and aloes; they laid Him in a new tomb wherein was never man yet laid.",
+		"refs": [
+			"Mark 15:46",
+			"John 19:39"
+		],
+		"people": [
+			"joseph-of-arimathaea",
+			"nicodemus",
+			"jesus-christ"
+		],
+		"places": [
+			"golgotha",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-resurrection",
+		"title": "The resurrection",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "He is not here: for he is risen, as he said. Mary Magdalene came and told the disciples that she had seen the Lord.",
+		"refs": [
+			"Matthew 28:6",
+			"John 20:18",
+			"1 Corinthians 15:4"
+		],
+		"people": [
+			"jesus-christ",
+			"mary-magdalene",
+			"peter",
+			"john-apostle"
+		],
+		"places": [
+			"jerusalem",
+			"golgotha"
+		]
+	},
+	{
+		"id": "the-road-to-emmaus",
+		"title": "The road to Emmaus",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "Beginning at Moses and all the prophets, He expounded unto them in all the scriptures the things concerning himself; and they knew him in the breaking of bread.",
+		"refs": [
+			"Luke 24:27",
+			"Luke 24:31"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"emmaus",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "thomas-believes",
+		"title": "My Lord and my God",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "Reach hither thy finger, and be not faithless, but believing. Thomas answered, My Lord and my God; and Jesus blessed them that have not seen, and yet have believed.",
+		"refs": [
+			"John 20:27-28",
+			"John 20:29"
+		],
+		"people": [
+			"jesus-christ",
+			"thomas"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-great-commission",
+		"title": "The great commission",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "Go ye therefore, and teach all nations, baptizing them in the name of the Father, and of the Son, and of the Holy Ghost; and, lo, I am with you alway.",
+		"refs": [
+			"Matthew 28:19-20"
+		],
+		"people": [
+			"jesus-christ"
+		],
+		"places": [
+			"sea-of-galilee"
+		]
+	},
+	{
+		"id": "the-ascension",
+		"title": "The ascension",
+		"era": "Life of Christ",
+		"yearLabel": "c. AD 30",
+		"summary": "While they beheld, He was taken up, and a cloud received him out of their sight; and two men in white apparel said He should so come in like manner.",
+		"refs": [
+			"Acts 1:9",
+			"Luke 24:51"
+		],
+		"people": [
+			"jesus-christ",
+			"peter",
+			"john-apostle"
+		],
+		"places": [
+			"mount-of-olives",
+			"bethany",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "matthias-chosen",
+		"title": "Matthias numbered with the eleven",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 30",
+		"summary": "They prayed, Thou, Lord, which knowest the hearts of all men, shew whether of these two thou hast chosen; and the lot fell upon Matthias.",
+		"refs": [
+			"Acts 1:24",
+			"Acts 1:26"
+		],
+		"people": [
+			"matthias",
+			"peter",
+			"judas-iscariot"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "pentecost",
+		"title": "The day of Pentecost",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 30",
+		"summary": "There came a sound from heaven as of a rushing mighty wind, and cloven tongues like as of fire sat upon each of them; that day about three thousand souls were added.",
+		"refs": [
+			"Acts 2:4",
+			"Acts 2:41"
+		],
+		"people": [
+			"peter",
+			"john-apostle",
+			"joel"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-lame-man-at-the-gate",
+		"title": "Silver and gold have I none",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 30",
+		"summary": "In the name of Jesus Christ of Nazareth rise up and walk; the man leaped and praised God, and Peter told the council there is none other name given whereby we must be saved.",
+		"refs": [
+			"Acts 3:6",
+			"Acts 4:12"
+		],
+		"people": [
+			"peter",
+			"john-apostle"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "ananias-and-sapphira",
+		"title": "Ananias and Sapphira",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 31",
+		"summary": "They kept back part of the price and lied to the Holy Ghost; both fell down and gave up the ghost, and great fear came upon all the church.",
+		"refs": [
+			"Acts 5:3",
+			"Acts 5:10"
+		],
+		"people": [
+			"sapphira",
+			"peter"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "gamaliels-counsel",
+		"title": "Gamaliel's counsel",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 32",
+		"summary": "If this work be of men, it will come to nought: but if it be of God, ye cannot overthrow it; lest haply ye be found even to fight against God.",
+		"refs": [
+			"Acts 5:38-39"
+		],
+		"people": [
+			"gamaliel",
+			"peter"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "the-seven-chosen",
+		"title": "Seven men of honest report chosen",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 33",
+		"summary": "The apostles gave themselves to prayer and the ministry of the word, and set seven over the daily ministration, among them Stephen and Philip.",
+		"refs": [
+			"Acts 6:5-6"
+		],
+		"people": [
+			"stephen",
+			"philip-the-evangelist"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "stephen-martyred",
+		"title": "Stephen, the first martyr",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 34",
+		"summary": "He saw the heavens opened and the Son of man standing on the right hand of God; as they stoned him he prayed, Lord, lay not this sin to their charge.",
+		"refs": [
+			"Acts 7:56",
+			"Acts 7:59-60"
+		],
+		"people": [
+			"stephen",
+			"paul"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "philip-and-the-ethiopian",
+		"title": "Philip and the man of Ethiopia",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 34",
+		"summary": "Beginning at the same scripture in Isaiah, he preached unto him Jesus; and they went down into the water and he baptized him.",
+		"refs": [
+			"Acts 8:35",
+			"Acts 8:38"
+		],
+		"people": [
+			"philip-the-evangelist"
+		],
+		"places": [
+			"samaria",
+			"gaza"
+		]
+	},
+	{
+		"id": "sauls-conversion",
+		"title": "Saul struck down on the road to Damascus",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 35",
+		"summary": "A light from heaven shined round about him, and a voice said, Saul, Saul, why persecutest thou me? Ananias came, and he received sight and was baptized.",
+		"refs": [
+			"Acts 9:4",
+			"Acts 9:18"
+		],
+		"people": [
+			"paul",
+			"ananias"
+		],
+		"places": [
+			"damascus",
+			"jerusalem"
+		]
+	},
+	{
+		"id": "tabitha-raised",
+		"title": "Tabitha, arise",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 39",
+		"summary": "Peter put them all forth, kneeled down and prayed, and said, Tabitha, arise; she opened her eyes, and many believed in the Lord at Joppa.",
+		"refs": [
+			"Acts 9:40",
+			"Acts 9:42"
+		],
+		"people": [
+			"peter",
+			"dorcas"
+		],
+		"places": [
+			"joppa"
+		]
+	},
+	{
+		"id": "cornelius-and-the-gentiles",
+		"title": "The Gentiles receive the Holy Ghost",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 41",
+		"summary": "While Peter yet spake the Holy Ghost fell on all them which heard the word, and the brethren said, Then hath God also to the Gentiles granted repentance unto life.",
+		"refs": [
+			"Acts 10:44",
+			"Acts 11:18"
+		],
+		"people": [
+			"peter",
+			"cornelius"
+		],
+		"places": [
+			"caesarea",
+			"joppa"
+		]
+	},
+	{
+		"id": "disciples-called-christians",
+		"title": "The disciples called Christians at Antioch",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 43",
+		"summary": "Barnabas fetched Saul from Tarsus, and a whole year they taught much people; and the disciples were called Christians first in Antioch.",
+		"refs": [
+			"Acts 11:26"
+		],
+		"people": [
+			"barnabas",
+			"paul"
+		],
+		"places": [
+			"antioch",
+			"tarsus"
+		]
+	},
+	{
+		"id": "peter-delivered-from-prison",
+		"title": "Peter delivered out of prison",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 44",
+		"summary": "Prayer was made without ceasing for him; the angel smote him on the side, the chains fell off, and the iron gate opened to them of his own accord.",
+		"refs": [
+			"Acts 12:7",
+			"Acts 12:11"
+		],
+		"people": [
+			"peter",
+			"mark",
+			"james-son-of-zebedee"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "first-missionary-journey",
+		"title": "The first missionary journey",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 45 - 48",
+		"summary": "The Holy Ghost said, Separate me Barnabas and Saul. They sailed to Cyprus and went through Iconium and Lystra, confirming the souls of the disciples.",
+		"refs": [
+			"Acts 13:2-4",
+			"Acts 14:21"
+		],
+		"people": [
+			"paul",
+			"barnabas",
+			"mark"
+		],
+		"places": [
+			"antioch",
+			"cyprus",
+			"iconium",
+			"lystra"
+		]
+	},
+	{
+		"id": "paul-stoned-at-lystra",
+		"title": "Paul stoned at Lystra",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 47",
+		"summary": "They drew him out of the city supposing he had been dead; but he rose up and went again into the city, saying that through much tribulation we must enter the kingdom of God.",
+		"refs": [
+			"Acts 14:19-20",
+			"Acts 14:22"
+		],
+		"people": [
+			"paul",
+			"barnabas",
+			"timothy"
+		],
+		"places": [
+			"lystra",
+			"iconium"
+		]
+	},
+	{
+		"id": "the-council-at-jerusalem",
+		"title": "The council at Jerusalem",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 50",
+		"summary": "Through the grace of the Lord Jesus Christ we shall be saved, even as they. James gave sentence, and the burden of the law was not laid upon the Gentiles.",
+		"refs": [
+			"Acts 15:11",
+			"Acts 15:13"
+		],
+		"people": [
+			"james-the-lords-brother",
+			"peter",
+			"paul",
+			"barnabas"
+		],
+		"places": [
+			"jerusalem",
+			"antioch"
+		]
+	},
+	{
+		"id": "the-man-of-macedonia",
+		"title": "Come over into Macedonia, and help us",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 51",
+		"summary": "A vision appeared to Paul in the night at Troas, and immediately they endeavoured to go, assuredly gathering that the Lord had called them to preach there.",
+		"refs": [
+			"Acts 16:9-10"
+		],
+		"people": [
+			"paul",
+			"silas",
+			"luke",
+			"timothy"
+		],
+		"places": [
+			"troas",
+			"philippi"
+		]
+	},
+	{
+		"id": "lydia-and-the-philippian-jailor",
+		"title": "Lydia, and the jailor at Philippi",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 51",
+		"summary": "The Lord opened Lydia's heart; and at midnight, when Paul and Silas sang praises, the prison shook and the keeper asked, What must I do to be saved?",
+		"refs": [
+			"Acts 16:14",
+			"Acts 16:31"
+		],
+		"people": [
+			"paul",
+			"silas",
+			"lydia"
+		],
+		"places": [
+			"philippi"
+		]
+	},
+	{
+		"id": "thessalonica-and-berea",
+		"title": "Thessalonica and Berea",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 51",
+		"summary": "Three sabbath days he reasoned out of the scriptures; the Bereans were more noble, receiving the word with all readiness and searching the scriptures daily.",
+		"refs": [
+			"Acts 17:2",
+			"Acts 17:11"
+		],
+		"people": [
+			"paul",
+			"silas"
+		],
+		"places": [
+			"thessalonica",
+			"berea"
+		]
+	},
+	{
+		"id": "paul-on-mars-hill",
+		"title": "The Unknown God at Athens",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 52",
+		"summary": "Whom therefore ye ignorantly worship, him declare I unto you. He told them God now commandeth all men every where to repent, and pointed to the day of judgment.",
+		"refs": [
+			"Acts 17:23",
+			"Acts 17:31"
+		],
+		"people": [
+			"paul"
+		],
+		"places": [
+			"athens"
+		]
+	},
+	{
+		"id": "eighteen-months-at-corinth",
+		"title": "A year and six months at Corinth",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 52 - 54",
+		"summary": "Be not afraid, but speak: for I have much people in this city. He continued teaching the word of God among them a year and six months.",
+		"refs": [
+			"Acts 18:9-11"
+		],
+		"people": [
+			"paul",
+			"aquila",
+			"priscilla"
+		],
+		"places": [
+			"corinth"
+		]
+	},
+	{
+		"id": "apollos-taught-more-perfectly",
+		"title": "Apollos taught the way more perfectly",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 54",
+		"summary": "Aquila and Priscilla took him unto them and expounded the way of God more perfectly; and he mightily convinced the Jews that Jesus was Christ.",
+		"refs": [
+			"Acts 18:26",
+			"Acts 18:28"
+		],
+		"people": [
+			"apollos",
+			"aquila",
+			"priscilla"
+		],
+		"places": [
+			"ephesus",
+			"corinth"
+		]
+	},
+	{
+		"id": "two-years-at-ephesus",
+		"title": "Two years at Ephesus",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 54 - 57",
+		"summary": "All they which dwelt in Asia heard the word; the books of curious arts were burned, and the silversmiths raised an uproar crying, Great is Diana of the Ephesians.",
+		"refs": [
+			"Acts 19:10",
+			"Acts 19:28"
+		],
+		"people": [
+			"paul",
+			"timothy"
+		],
+		"places": [
+			"ephesus"
+		]
+	},
+	{
+		"id": "eutychus-raised",
+		"title": "Eutychus taken up alive",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 58",
+		"summary": "He fell from the third loft as Paul preached till midnight; Paul fell on him and embraced him, and said, Trouble not yourselves; for his life is in him.",
+		"refs": [
+			"Acts 20:9-10"
+		],
+		"people": [
+			"paul",
+			"luke"
+		],
+		"places": [
+			"troas"
+		]
+	},
+	{
+		"id": "paul-arrested-in-jerusalem",
+		"title": "Paul taken in the temple",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 58",
+		"summary": "All the city was moved, and they drew him out of the temple; from the stairs he told them he was a Jew brought up at the feet of Gamaliel.",
+		"refs": [
+			"Acts 21:30",
+			"Acts 22:3"
+		],
+		"people": [
+			"paul",
+			"gamaliel"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "paul-before-felix-festus-agrippa",
+		"title": "Before Felix, Festus and Agrippa",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 58 - 60",
+		"summary": "Felix trembled as he reasoned of judgment to come; Paul appealed unto Caesar; and Agrippa said, Almost thou persuadest me to be a Christian.",
+		"refs": [
+			"Acts 24:25",
+			"Acts 25:11",
+			"Acts 26:28"
+		],
+		"people": [
+			"paul",
+			"felix",
+			"festus",
+			"agrippa"
+		],
+		"places": [
+			"caesarea",
+			"rome"
+		]
+	},
+	{
+		"id": "shipwreck-on-melita",
+		"title": "Shipwreck on Melita",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 60",
+		"summary": "They all escaped safe to land as the angel had promised; a viper fastened on Paul's hand and he shook it off into the fire and felt no harm.",
+		"refs": [
+			"Acts 27:44",
+			"Acts 28:5"
+		],
+		"people": [
+			"paul",
+			"luke"
+		],
+		"places": [
+			"crete",
+			"melita"
+		]
+	},
+	{
+		"id": "paul-preaching-at-rome",
+		"title": "Two whole years in his own hired house",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 61 - 63",
+		"summary": "Paul dwelt at Rome with a soldier that kept him, preaching the kingdom of God and teaching those things which concern the Lord Jesus Christ, no man forbidding him.",
+		"refs": [
+			"Acts 28:16",
+			"Acts 28:31"
+		],
+		"people": [
+			"paul",
+			"luke"
+		],
+		"places": [
+			"rome"
+		]
+	},
+	{
+		"id": "pauls-last-letter",
+		"title": "I have finished my course",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 67",
+		"summary": "Writing to Timothy from prison, Paul said he had fought a good fight and kept the faith, and that a crown of righteousness was laid up for him.",
+		"refs": [
+			"2 Timothy 4:7",
+			"2 Timothy 4:11"
+		],
+		"people": [
+			"paul",
+			"timothy",
+			"luke",
+			"mark"
+		],
+		"places": [
+			"rome"
+		]
+	},
+	{
+		"id": "john-on-patmos",
+		"title": "The Revelation given on Patmos",
+		"era": "The Early Church",
+		"yearLabel": "c. AD 96",
+		"summary": "John was in the isle called Patmos for the word of God, and in the Spirit on the Lord's day heard a great voice; the book ends, Surely I come quickly. Amen.",
+		"refs": [
+			"Revelation 1:9-11",
+			"Revelation 22:20"
+		],
+		"people": [
+			"john-apostle",
+			"jesus-christ"
+		],
+		"places": [
+			"patmos",
+			"ephesus"
+		]
+	}
+]

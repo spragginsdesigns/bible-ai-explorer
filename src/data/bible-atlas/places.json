@@ -1,0 +1,604 @@
+[
+	{
+		"id": "eden",
+		"name": "Eden",
+		"description": "The garden the LORD God planted eastward, where He put the man He had formed. Adam and Eve were driven out of it after they ate of the tree.",
+		"refs": ["Genesis 2:8", "Genesis 3:23", "Genesis 4:16"]
+	},
+	{
+		"id": "ararat",
+		"name": "Ararat",
+		"description": "The mountains where the ark rested in the seventh month, as the waters of the flood abated.",
+		"refs": ["Genesis 8:4"]
+	},
+	{
+		"id": "babel",
+		"name": "Babel",
+		"description": "The city and tower built in the land of Shinar, whose builders meant to reach unto heaven. It is called Babel because there the LORD confounded the language of all the earth.",
+		"refs": ["Genesis 10:10", "Genesis 11:9"]
+	},
+	{
+		"id": "ur",
+		"name": "Ur",
+		"alsoCalled": ["Ur of the Chaldees"],
+		"description": "The city of the Chaldees that Terah left with Abram, and out of which the LORD brought Abram.",
+		"refs": ["Genesis 11:31", "Genesis 15:7", "Nehemiah 9:7"]
+	},
+	{
+		"id": "haran",
+		"name": "Haran",
+		"description": "The city where Terah settled and died, from which Abram departed at seventy and five years old, and to which Jacob fled from Esau.",
+		"refs": ["Genesis 11:31", "Genesis 12:4", "Genesis 28:10"]
+	},
+	{
+		"id": "canaan",
+		"name": "Canaan",
+		"description": "The land the LORD promised to Abraham and to his seed for an everlasting possession, and which Israel came to possess under Joshua.",
+		"refs": ["Genesis 12:5", "Genesis 17:8", "Numbers 34:2"]
+	},
+	{
+		"id": "shechem",
+		"name": "Shechem",
+		"alsoCalled": ["Sichem", "Sychem"],
+		"description": "The first place in Canaan where Abram pitched, where Jacob later bought a parcel of a field, and where Joshua gathered the tribes and made a covenant.",
+		"refs": ["Genesis 12:6", "Genesis 33:18", "Joshua 24:1"]
+	},
+	{
+		"id": "bethel",
+		"name": "Bethel",
+		"description": "The place where Jacob dreamed of the ladder and called the name of it Bethel, saying, This is none other but the house of God. Jeroboam later set a golden calf there.",
+		"refs": ["Genesis 12:8", "Genesis 28:19", "1 Kings 12:29"]
+	},
+	{
+		"id": "hebron",
+		"name": "Hebron",
+		"alsoCalled": ["Mamre", "Kirjatharba"],
+		"description": "Where Abram dwelt by the oaks of Mamre and buried Sarah, and where David reigned over Judah seven years and six months before he took Jerusalem.",
+		"refs": ["Genesis 13:18", "Genesis 23:2", "2 Samuel 5:5"]
+	},
+	{
+		"id": "sodom",
+		"name": "Sodom",
+		"description": "The city of the plain toward which Lot pitched his tent, whose men were wicked and sinners before the LORD exceedingly, and which the LORD overthrew with brimstone and fire.",
+		"refs": ["Genesis 13:12", "Genesis 18:20", "Genesis 19:24"]
+	},
+	{
+		"id": "gomorrah",
+		"name": "Gomorrah",
+		"alsoCalled": ["Gomorrha"],
+		"description": "The city overthrown with Sodom when the LORD rained brimstone and fire out of heaven. Scripture holds both up ever after as a warning.",
+		"refs": ["Genesis 18:20", "Genesis 19:24", "Jude 1:7"]
+	},
+	{
+		"id": "beersheba",
+		"name": "Beersheba",
+		"description": "The well and place of oath in the south, named when Abraham and Abimelech sware there. \"From Dan even to Beersheba\" came to mean the whole land.",
+		"refs": ["Genesis 21:31", "Genesis 26:33", "1 Samuel 3:20"]
+	},
+	{
+		"id": "moriah",
+		"name": "Moriah",
+		"description": "The land whose mountain God named when He told Abraham to offer Isaac there; Solomon afterward built the house of the LORD in mount Moriah.",
+		"refs": ["Genesis 22:2", "2 Chronicles 3:1"]
+	},
+	{
+		"id": "egypt",
+		"name": "Egypt",
+		"description": "The land Abram went down to in famine, where Joseph rose to rule, where Israel was in bondage four hundred and thirty years, and out of which the LORD brought them with a mighty hand.",
+		"refs": ["Genesis 12:10", "Genesis 47:27", "Exodus 12:41"],
+		"modernRegion": "Egypt"
+	},
+	{
+		"id": "goshen",
+		"name": "Goshen",
+		"description": "The best of the land of Egypt, given to Jacob's house at Joseph's word; Israel dwelt there, and the plagues did not touch it.",
+		"refs": ["Genesis 45:10", "Genesis 47:27", "Exodus 8:22"]
+	},
+	{
+		"id": "peniel",
+		"name": "Peniel",
+		"alsoCalled": ["Penuel"],
+		"description": "The place Jacob named after wrestling until the breaking of the day, saying, I have seen God face to face, and my life is preserved.",
+		"refs": ["Genesis 32:30", "Genesis 32:31"]
+	},
+	{
+		"id": "jabbok",
+		"name": "Jabbok",
+		"description": "The ford Jacob passed over the night he sent his household ahead and was left alone; it was afterward a border in the land.",
+		"refs": ["Genesis 32:22", "Deuteronomy 3:16"]
+	},
+	{
+		"id": "midian",
+		"name": "Midian",
+		"description": "The land Moses fled to from Pharaoh, where he married Zipporah and kept the flock of Jethro before the LORD called him.",
+		"refs": ["Exodus 2:15", "Exodus 3:1", "Numbers 25:17"]
+	},
+	{
+		"id": "red-sea",
+		"name": "Red Sea",
+		"description": "The sea the LORD divided so Israel went through on dry ground, and in which Pharaoh's host was drowned.",
+		"refs": ["Exodus 13:18", "Exodus 15:4", "Exodus 15:22"]
+	},
+	{
+		"id": "marah",
+		"name": "Marah",
+		"description": "The first water Israel found after the sea, and it was bitter; the LORD showed Moses a tree, and the waters were made sweet.",
+		"refs": ["Exodus 15:23"]
+	},
+	{
+		"id": "elim",
+		"name": "Elim",
+		"description": "The camp beyond Marah where there were twelve wells of water and threescore and ten palm trees.",
+		"refs": ["Exodus 15:27", "Numbers 33:9"]
+	},
+	{
+		"id": "rephidim",
+		"name": "Rephidim",
+		"description": "The camp where there was no water and the LORD gave it out of the rock in Horeb, and where Amalek came and fought with Israel.",
+		"refs": ["Exodus 17:1", "Exodus 17:8"]
+	},
+	{
+		"id": "mount-sinai",
+		"name": "Mount Sinai",
+		"alsoCalled": ["Sinai"],
+		"description": "The mount the LORD descended upon in fire, where He spake the ten commandments and gave Moses the two tables of testimony written with the finger of God.",
+		"refs": ["Exodus 19:20", "Exodus 24:16", "Exodus 31:18"]
+	},
+	{
+		"id": "horeb",
+		"name": "Horeb",
+		"description": "The mountain of God where the LORD appeared to Moses in the burning bush, and where Elijah afterward heard the still small voice.",
+		"refs": ["Exodus 3:1", "Deuteronomy 4:10", "1 Kings 19:8"]
+	},
+	{
+		"id": "kadeshbarnea",
+		"name": "Kadeshbarnea",
+		"alsoCalled": ["Kadesh"],
+		"description": "The place in the wilderness from which the twelve spies were sent into Canaan, and where Israel refused to go up and was turned back.",
+		"refs": ["Numbers 13:26", "Numbers 32:8", "Deuteronomy 1:19"]
+	},
+	{
+		"id": "mount-nebo",
+		"name": "Mount Nebo",
+		"alsoCalled": ["Nebo", "Pisgah"],
+		"description": "The mountain over against Jericho from whose top the LORD shewed Moses all the land, and where Moses died.",
+		"refs": ["Deuteronomy 32:49", "Deuteronomy 34:1"]
+	},
+	{
+		"id": "moab",
+		"name": "Moab",
+		"description": "The land east of Jordan where Israel camped before crossing over, where Balak hired Balaam, and from which Ruth came.",
+		"refs": ["Numbers 22:1", "Deuteronomy 34:5", "Ruth 1:1"]
+	},
+	{
+		"id": "edom",
+		"name": "Edom",
+		"description": "The land of Esau's descendants, south of the Dead Sea, which refused Israel passage in the wilderness and against which the prophets spoke.",
+		"refs": ["Genesis 36:8", "Numbers 20:14", "Obadiah 1:1"]
+	},
+	{
+		"id": "gilead",
+		"name": "Gilead",
+		"description": "The hill country east of Jordan where Laban overtook Jacob, given to Reuben, Gad and half Manasseh, and famous for its balm.",
+		"refs": ["Genesis 31:21", "Numbers 32:1", "Jeremiah 8:22"]
+	},
+	{
+		"id": "jordan",
+		"name": "Jordan",
+		"description": "The river Israel crossed on dry ground into the promised land, where Naaman washed seven times, and where John baptized and the Lord Jesus was baptized.",
+		"refs": ["Joshua 3:17", "2 Kings 5:10", "Matthew 3:13"]
+	},
+	{
+		"id": "jericho",
+		"name": "Jericho",
+		"description": "The walled city Israel first took in Canaan, whose walls fell down flat after they compassed it seven days; Rahab and her house were saved alive.",
+		"refs": ["Joshua 2:1", "Joshua 6:20", "Luke 19:1"]
+	},
+	{
+		"id": "ai",
+		"name": "Ai",
+		"description": "The city Israel could not take while Achan's sin was in the camp, and which was taken afterward by ambush.",
+		"refs": ["Joshua 7:2", "Joshua 8:1"]
+	},
+	{
+		"id": "gilgal",
+		"name": "Gilgal",
+		"description": "Israel's first camp west of Jordan, where the twelve stones were set up, where they were circumcised and kept the passover, and where Saul was made king.",
+		"refs": ["Joshua 4:19", "Joshua 5:9", "1 Samuel 11:15"]
+	},
+	{
+		"id": "mount-ebal",
+		"name": "Mount Ebal",
+		"alsoCalled": ["Ebal"],
+		"description": "The mount of cursing, where Joshua built an altar and wrote upon the stones a copy of the law of Moses.",
+		"refs": ["Deuteronomy 27:4", "Joshua 8:30"]
+	},
+	{
+		"id": "mount-gerizim",
+		"name": "Mount Gerizim",
+		"alsoCalled": ["Gerizim"],
+		"description": "The mount of blessing over against Ebal, and where Jotham stood and cried his parable to the men of Shechem.",
+		"refs": ["Deuteronomy 27:12", "Joshua 8:33", "Judges 9:7"]
+	},
+	{
+		"id": "hazor",
+		"name": "Hazor",
+		"description": "The head of the northern kingdoms, which Joshua took and burnt with fire; Jabin king of Hazor later oppressed Israel in the days of Deborah.",
+		"refs": ["Joshua 11:10", "Judges 4:2"]
+	},
+	{
+		"id": "shiloh",
+		"name": "Shiloh",
+		"description": "Where the tabernacle of the congregation was set up and the land divided by lot, and where Samuel ministered before Eli.",
+		"refs": ["Joshua 18:1", "1 Samuel 1:3", "1 Samuel 4:3"]
+	},
+	{
+		"id": "dan",
+		"name": "Dan",
+		"description": "The northernmost city of Israel, named by the Danites after they took Laish; Jeroboam set the second golden calf there.",
+		"refs": ["Judges 18:29", "1 Samuel 3:20", "1 Kings 12:29"]
+	},
+	{
+		"id": "gaza",
+		"name": "Gaza",
+		"description": "The Philistine city where Samson carried away the gates and where he was bound and afterward pulled down the house of Dagon.",
+		"refs": ["Judges 16:21", "Judges 16:30", "Acts 8:26"]
+	},
+	{
+		"id": "ashdod",
+		"name": "Ashdod",
+		"alsoCalled": ["Azotus"],
+		"description": "The Philistine city where the captured ark was set in the house of Dagon, and where Dagon fell before it.",
+		"refs": ["1 Samuel 5:1", "1 Samuel 5:3"]
+	},
+	{
+		"id": "gath",
+		"name": "Gath",
+		"description": "The Philistine city Goliath came out of, and to which David fled from Saul and feigned madness before Achish.",
+		"refs": ["1 Samuel 17:4", "1 Samuel 21:10", "2 Samuel 1:20"]
+	},
+	{
+		"id": "mizpah",
+		"name": "Mizpah",
+		"alsoCalled": ["Mizpeh"],
+		"description": "The place of gathering: where Jacob and Laban heaped stones, where Israel assembled as one man, and where Samuel judged and Saul was chosen king.",
+		"refs": ["Genesis 31:49", "Judges 20:1", "1 Samuel 10:17"]
+	},
+	{
+		"id": "ramah",
+		"name": "Ramah",
+		"alsoCalled": ["Rama"],
+		"description": "Samuel's city, where he judged Israel, anointed kings and was buried; Jeremiah heard a voice of weeping there.",
+		"refs": ["1 Samuel 1:19", "1 Samuel 25:1", "Jeremiah 31:15"]
+	},
+	{
+		"id": "gibeah",
+		"name": "Gibeah",
+		"description": "The city of Saul, where he dwelt after he was made king, and the place of the outrage that brought all Israel against Benjamin.",
+		"refs": ["Judges 19:14", "1 Samuel 10:26", "1 Samuel 11:4"]
+	},
+	{
+		"id": "valley-of-elah",
+		"name": "Valley of Elah",
+		"alsoCalled": ["Elah"],
+		"description": "Where Israel and the Philistines set the battle in array and David slew Goliath with a sling and a stone.",
+		"refs": ["1 Samuel 17:2", "1 Samuel 17:19", "1 Samuel 21:9"]
+	},
+	{
+		"id": "endor",
+		"name": "Endor",
+		"description": "Where Saul, on the eve of his last battle, sought out a woman that had a familiar spirit.",
+		"refs": ["Joshua 17:11", "1 Samuel 28:7"]
+	},
+	{
+		"id": "mount-gilboa",
+		"name": "Mount Gilboa",
+		"alsoCalled": ["Gilboa"],
+		"description": "Where the Philistines fought against Israel, and where Saul and his sons fell.",
+		"refs": ["1 Samuel 31:1", "2 Samuel 1:21"]
+	},
+	{
+		"id": "jerusalem",
+		"name": "Jerusalem",
+		"alsoCalled": ["Jebus", "Salem"],
+		"description": "The stronghold David took from the Jebusites and made the city of David; the place of Solomon's temple, of the Lord's crucifixion and resurrection, and of Pentecost.",
+		"refs": ["Joshua 10:1", "2 Samuel 5:6", "Psalms 122:6", "Matthew 21:10"],
+		"modernRegion": "Jerusalem"
+	},
+	{
+		"id": "zion",
+		"name": "Zion",
+		"alsoCalled": ["Sion"],
+		"description": "The stronghold David took, called the city of David; Scripture uses the name for the mountain of the LORD's house and for His people.",
+		"refs": ["2 Samuel 5:7", "Psalms 48:2", "Isaiah 2:3"]
+	},
+	{
+		"id": "tyre",
+		"name": "Tyre",
+		"alsoCalled": ["Tyrus"],
+		"description": "The city of Hiram, who sent David and Solomon cedar and workmen; the prophets afterward spoke against her pride, and the Lord named her in reproving Chorazin.",
+		"refs": ["1 Kings 5:1", "Ezekiel 26:3", "Matthew 11:21"]
+	},
+	{
+		"id": "sidon",
+		"name": "Sidon",
+		"alsoCalled": ["Zidon"],
+		"description": "The coastal city near Tyre; Zarephath belonged to it, and the Lord went into its borders and healed the daughter of a Syrophenician woman.",
+		"refs": ["1 Kings 17:9", "Matthew 11:21", "Mark 7:24"]
+	},
+	{
+		"id": "mount-carmel",
+		"name": "Mount Carmel",
+		"alsoCalled": ["Carmel"],
+		"description": "Where Elijah called all Israel together and the fire of the LORD fell and consumed the burnt sacrifice before the prophets of Baal.",
+		"refs": ["1 Kings 18:19", "1 Kings 18:20", "1 Kings 18:42"]
+	},
+	{
+		"id": "zarephath",
+		"name": "Zarephath",
+		"alsoCalled": ["Sarepta"],
+		"description": "The city of Zidon where Elijah was sustained by a widow whose barrel of meal did not waste, and whose son was raised to life.",
+		"refs": ["1 Kings 17:9", "1 Kings 17:10", "Luke 4:26"]
+	},
+	{
+		"id": "jezreel",
+		"name": "Jezreel",
+		"description": "Where Ahab had his palace and Naboth his vineyard, and where Jezebel was thrown down from the window.",
+		"refs": ["1 Kings 21:1", "2 Kings 9:30", "Hosea 1:4"]
+	},
+	{
+		"id": "samaria",
+		"name": "Samaria",
+		"description": "The hill Omri bought and built on, the capital of the ten tribes until Assyria carried them away; in the Gospels and Acts, the region between Judaea and Galilee.",
+		"refs": ["1 Kings 16:24", "2 Kings 17:6", "Acts 8:5"]
+	},
+	{
+		"id": "assyria",
+		"name": "Assyria",
+		"description": "The empire the LORD used as the rod of His anger, which carried Israel away out of their own land and besieged Jerusalem in Hezekiah's day.",
+		"refs": ["2 Kings 17:6", "2 Kings 18:11", "Isaiah 10:5"]
+	},
+	{
+		"id": "nineveh",
+		"name": "Nineveh",
+		"description": "The great city of Assyria that Jonah was sent to, which repented at his preaching; Nahum afterward pronounced its burden.",
+		"refs": ["Genesis 10:11", "Jonah 3:3", "Nahum 1:1"],
+		"modernRegion": "Northern Iraq"
+	},
+	{
+		"id": "babylon",
+		"name": "Babylon",
+		"description": "The kingdom that burnt the temple and carried Judah captive for seventy years, and whose name Revelation gives to the great harlot city.",
+		"refs": ["2 Kings 24:10", "Jeremiah 29:10", "Daniel 1:1", "Revelation 17:5"],
+		"modernRegion": "Iraq"
+	},
+	{
+		"id": "shushan",
+		"name": "Shushan",
+		"alsoCalled": ["Susa"],
+		"description": "The palace of the Persian kings where Esther was made queen, where Nehemiah served the king, and where Daniel saw a vision.",
+		"refs": ["Nehemiah 1:1", "Esther 1:2", "Daniel 8:2"],
+		"modernRegion": "Iran"
+	},
+	{
+		"id": "bethlehem",
+		"name": "Bethlehem",
+		"alsoCalled": ["Ephratah"],
+		"description": "The city of David, where Ruth gleaned, where Samuel anointed David, and where Micah said the Ruler in Israel should come forth; there Jesus Christ was born.",
+		"refs": ["Ruth 1:22", "1 Samuel 16:4", "Micah 5:2", "Luke 2:4"]
+	},
+	{
+		"id": "nazareth",
+		"name": "Nazareth",
+		"description": "The city of Galilee where Joseph and Mary dwelt and where Jesus was brought up; He read Isaiah in its synagogue and was cast out of the city.",
+		"refs": ["Matthew 2:23", "Luke 1:26", "Luke 4:16"]
+	},
+	{
+		"id": "capernaum",
+		"name": "Capernaum",
+		"description": "The city on the sea coast where Jesus dwelt after leaving Nazareth; He taught in its synagogue and did many mighty works there.",
+		"refs": ["Matthew 4:13", "Mark 2:1", "John 6:59"]
+	},
+	{
+		"id": "sea-of-galilee",
+		"name": "Sea of Galilee",
+		"alsoCalled": ["Sea of Tiberias", "Lake of Gennesaret"],
+		"description": "The sea where Jesus called fishermen to follow Him, stilled the storm, walked on the water, and appeared to the disciples after He was risen.",
+		"refs": ["Matthew 4:18", "Mark 1:16", "John 6:1", "Luke 5:1"]
+	},
+	{
+		"id": "bethsaida",
+		"name": "Bethsaida",
+		"description": "The city of Andrew and Peter, where the Lord healed a blind man by leading him out of the town, and which He reproved for not repenting.",
+		"refs": ["Matthew 11:21", "Mark 8:22", "John 1:44"]
+	},
+	{
+		"id": "cana",
+		"name": "Cana",
+		"description": "The village of Galilee where Jesus turned the water into wine, the beginning of miracles, and where He healed the nobleman's son by a word.",
+		"refs": ["John 2:1", "John 4:46", "John 21:2"]
+	},
+	{
+		"id": "caesarea-philippi",
+		"name": "Caesarea Philippi",
+		"description": "The coasts where Jesus asked, Whom say ye that I am, and Peter answered, Thou art the Christ, the Son of the living God.",
+		"refs": ["Matthew 16:13", "Mark 8:27"]
+	},
+	{
+		"id": "sychar",
+		"name": "Sychar",
+		"description": "The city of Samaria near Jacob's well, where Jesus spoke to the woman of Samaria and many of the Samaritans believed.",
+		"refs": ["John 4:5"]
+	},
+	{
+		"id": "bethany",
+		"name": "Bethany",
+		"description": "The town of Mary, Martha and Lazarus, where the Lord raised Lazarus and was anointed, and out as far as which He led the disciples before He was taken up.",
+		"refs": ["Matthew 21:17", "John 11:1", "Luke 24:50"]
+	},
+	{
+		"id": "mount-of-olives",
+		"name": "Mount of Olives",
+		"alsoCalled": ["Olivet"],
+		"description": "The mount east of Jerusalem from which the Lord rode into the city, where He taught of His coming, and from which He ascended.",
+		"refs": ["Matthew 26:30", "Luke 22:39", "Acts 1:12", "Zechariah 14:4"]
+	},
+	{
+		"id": "gethsemane",
+		"name": "Gethsemane",
+		"description": "The place where Jesus prayed, saying, O my Father, if it be possible, let this cup pass from me, and where Judas betrayed Him.",
+		"refs": ["Matthew 26:36", "Mark 14:32"]
+	},
+	{
+		"id": "golgotha",
+		"name": "Golgotha",
+		"alsoCalled": ["Calvary"],
+		"description": "The place of a skull where they crucified the Lord Jesus, and two others with Him, on either side one.",
+		"refs": ["Matthew 27:33", "John 19:17", "Luke 23:33"]
+	},
+	{
+		"id": "emmaus",
+		"name": "Emmaus",
+		"description": "The village about threescore furlongs from Jerusalem toward which two disciples walked when the risen Lord joined them and opened the scriptures.",
+		"refs": ["Luke 24:13"]
+	},
+	{
+		"id": "joppa",
+		"name": "Joppa",
+		"description": "The sea port Jonah went down to in fleeing to Tarshish, where Peter raised Tabitha and saw the vision of the sheet let down from heaven.",
+		"refs": ["Jonah 1:3", "Acts 9:36", "Acts 10:5"]
+	},
+	{
+		"id": "caesarea",
+		"name": "Caesarea",
+		"description": "The coastal city where Cornelius sent for Peter and the Gentiles received the Holy Ghost, and where Paul was kept and heard by Felix, Festus and Agrippa.",
+		"refs": ["Acts 10:1", "Acts 23:33", "Acts 25:4"]
+	},
+	{
+		"id": "damascus",
+		"name": "Damascus",
+		"description": "The city Saul was journeying to with letters against the disciples when the light shined about him; there Ananias was sent to him and he first preached Christ.",
+		"refs": ["Acts 9:2", "Acts 9:22", "2 Corinthians 11:32"],
+		"modernRegion": "Syria"
+	},
+	{
+		"id": "tarsus",
+		"name": "Tarsus",
+		"description": "Paul's own city in Cilicia; he called it no mean city, and the brethren sent him there for safety after his conversion.",
+		"refs": ["Acts 9:11", "Acts 21:39", "Acts 22:3"],
+		"modernRegion": "Turkey"
+	},
+	{
+		"id": "antioch",
+		"name": "Antioch",
+		"description": "The church that first sent Barnabas and Saul out to the Gentiles, and where the disciples were called Christians first.",
+		"refs": ["Acts 11:26", "Acts 13:1", "Galatians 2:11"]
+	},
+	{
+		"id": "cyprus",
+		"name": "Cyprus",
+		"description": "The island Barnabas came from and the first stop of the journey he and Saul were sent on from Antioch.",
+		"refs": ["Acts 4:36", "Acts 11:19", "Acts 13:4"],
+		"modernRegion": "Cyprus"
+	},
+	{
+		"id": "iconium",
+		"name": "Iconium",
+		"description": "The city where Paul and Barnabas spake so that a great multitude believed, and out of which they were driven; Paul later reminded Timothy of his sufferings there.",
+		"refs": ["Acts 13:51", "Acts 14:1", "2 Timothy 3:11"]
+	},
+	{
+		"id": "lystra",
+		"name": "Lystra",
+		"description": "Where a man impotent in his feet was healed and the people would have done sacrifice to Paul and Barnabas, and where Paul was stoned; Timothy was from there.",
+		"refs": ["Acts 14:6", "Acts 14:19", "Acts 16:1"]
+	},
+	{
+		"id": "troas",
+		"name": "Troas",
+		"description": "Where Paul saw the vision of a man of Macedonia praying him to come over and help them, and where Eutychus fell from the third loft and was taken up alive.",
+		"refs": ["Acts 16:8", "Acts 20:6", "2 Corinthians 2:12"]
+	},
+	{
+		"id": "philippi",
+		"name": "Philippi",
+		"description": "The chief city of that part of Macedonia, where Lydia's heart was opened, where Paul and Silas sang at midnight in the prison, and to which Paul wrote an epistle.",
+		"refs": ["Acts 16:12", "Philippians 1:1", "1 Thessalonians 2:2"],
+		"modernRegion": "Greece"
+	},
+	{
+		"id": "thessalonica",
+		"name": "Thessalonica",
+		"description": "Where Paul reasoned three sabbath days out of the scriptures and a church was gathered, to which he wrote two epistles.",
+		"refs": ["Acts 17:1", "Philippians 4:16", "1 Thessalonians 1:1"],
+		"modernRegion": "Greece"
+	},
+	{
+		"id": "berea",
+		"name": "Berea",
+		"description": "Whose hearers were more noble than those in Thessalonica, in that they received the word with all readiness of mind and searched the scriptures daily.",
+		"refs": ["Acts 17:10", "Acts 17:11", "Acts 20:4"]
+	},
+	{
+		"id": "athens",
+		"name": "Athens",
+		"description": "The city wholly given to idolatry where Paul's spirit was stirred in him, and where he preached the Unknown God on Mars' hill.",
+		"refs": ["Acts 17:16", "Acts 17:22", "1 Thessalonians 3:1"],
+		"modernRegion": "Greece"
+	},
+	{
+		"id": "corinth",
+		"name": "Corinth",
+		"description": "Where Paul stayed a year and six months teaching the word of God, having been told, I have much people in this city; he wrote it two epistles.",
+		"refs": ["Acts 18:1", "1 Corinthians 1:2", "2 Corinthians 1:1"],
+		"modernRegion": "Greece"
+	},
+	{
+		"id": "ephesus",
+		"name": "Ephesus",
+		"description": "Where Paul taught two years so that all Asia heard the word, where the silversmiths raised an uproar for Diana, and the first of the seven churches of Revelation.",
+		"refs": ["Acts 19:1", "Acts 19:10", "Ephesians 1:1", "Revelation 2:1"],
+		"modernRegion": "Turkey"
+	},
+	{
+		"id": "colosse",
+		"name": "Colosse",
+		"description": "The city of the saints and faithful brethren in Christ to whom Paul wrote of the preeminence of the Son.",
+		"refs": ["Colossians 1:2"]
+	},
+	{
+		"id": "galatia",
+		"name": "Galatia",
+		"description": "The region whose churches Paul wrote to when they were being turned to another gospel, and among whom he had first preached through infirmity of the flesh.",
+		"refs": ["1 Corinthians 16:1", "Galatians 1:2", "1 Peter 1:1"]
+	},
+	{
+		"id": "crete",
+		"name": "Crete",
+		"alsoCalled": ["Candia"],
+		"description": "The island Paul's ship sailed under, and where he left Titus to set in order the things that were wanting and ordain elders in every city.",
+		"refs": ["Acts 27:7", "Titus 1:5"],
+		"modernRegion": "Greece"
+	},
+	{
+		"id": "melita",
+		"name": "Melita",
+		"alsoCalled": ["Malta"],
+		"description": "The island where Paul was cast ashore after the shipwreck, where a viper fastened on his hand and he shook it off into the fire unharmed.",
+		"refs": ["Acts 28:1"]
+	},
+	{
+		"id": "rome",
+		"name": "Rome",
+		"description": "The imperial city Paul was brought to as a prisoner, where he dwelt two whole years preaching the kingdom of God, and to which he wrote his great epistle.",
+		"refs": ["Acts 28:16", "Romans 1:7", "2 Timothy 1:17"],
+		"modernRegion": "Italy"
+	},
+	{
+		"id": "patmos",
+		"name": "Patmos",
+		"description": "The isle where John was for the word of God and for the testimony of Jesus Christ, and where he was in the Spirit on the Lord's day.",
+		"refs": ["Revelation 1:9"],
+		"modernRegion": "Greece"
+	}
+]
