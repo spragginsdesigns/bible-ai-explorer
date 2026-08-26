@@ -75,10 +75,29 @@ function normalizeName(value: string): string {
     .trim();
 }
 
-/** Extra aliases beyond the data's name/abbr (e.g. "Psalm" vs "Psalms"). */
+/**
+ * Extra aliases beyond the data's name/abbr (e.g. "Psalm" vs "Psalms").
+ *
+ * The short forms are the abbreviations books.json does not carry - it ships
+ * exactly one abbr per book ("Mark", not "Mk"). Chat prose links every one of
+ * them (src/utils/verseParser.ts), and a link that cannot resolve is a popover
+ * with no verse and no "Read in the Bible", so the detection list and this
+ * table have to stay in step. Mirrors ABBREVIATION_ALIASES in
+ * mobile/src/features/chat/verseLinks.ts.
+ */
 const EXTRA_ALIASES: Record<string, string> = {
   psalm: "Psalms",
   "song of songs": "Song of Solomon",
+  exod: "Exodus",
+  eccles: "Ecclesiastes",
+  ob: "Obadiah",
+  mk: "Mark",
+  lk: "Luke",
+  jn: "John",
+  "1 jn": "1 John",
+  "2 jn": "2 John",
+  "3 jn": "3 John",
+  tit: "Titus",
 };
 
 const NAME_TO_BOOK = (() => {
@@ -94,13 +113,19 @@ const NAME_TO_BOOK = (() => {
   return map;
 })();
 
+// The separator before the chapter is whitespace OR the period of an
+// abbreviation the model wrote without a space ("Gen.1:1"). A range tail may
+// cross a chapter boundary ("John 3:16-4:2"); it is matched so the reference
+// still resolves, to the verse the range opens at. The en/em dashes are
+// written as escapes so the class survives tooling that flattens non-ASCII.
 const REFERENCE_PATTERN =
-  /^([1-3])?\s*([a-zA-Z. ]+?)\s+(\d+)(?:\s*:\s*(\d+)(?:\s*[-–—]\s*\d+)?)?$/;
+  /^([1-3])?\s*([a-zA-Z. ]+?)(?:\.\s*|\s+)(\d+)(?:\s*:\s*(\d+)(?:\s*[-\u2013\u2014]\s*\d+(?:\s*:\s*\d+)?)?)?$/;
 
 /**
- * Parse "John 3:16", "1 Samuel 2:1-10", "Psalm 23", "Gen 1" (case-insensitive,
- * full names and abbreviations) into a location. A verse range resolves to its
- * start verse. Returns null when the input cannot be resolved.
+ * Parse "John 3:16", "1 Samuel 2:1-10", "Psalm 23", "Gen 1", "Gen.1:1",
+ * "Jn 3:16" (case-insensitive, full names and abbreviations) into a location.
+ * A verse range - including a cross-chapter one like "John 3:16-4:2" -
+ * resolves to its start verse. Returns null when the input cannot be resolved.
  */
 export function resolveReference(input: string): Reference | null {
   const match = input.trim().match(REFERENCE_PATTERN);

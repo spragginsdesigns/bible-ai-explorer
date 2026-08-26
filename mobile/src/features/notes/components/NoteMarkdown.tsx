@@ -1,24 +1,39 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import Markdown, { hasParents, type RenderRules } from "react-native-markdown-display";
+import { hasParents, type RenderRules } from "react-native-markdown-display";
 import { fonts, radius, spacing } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME } from "@/features/chat/verseLinks";
-import { sureWordMarkdownIt } from "@/features/chat/MarkdownBody";
+import {
+	MarkdownView,
+	sureWordMarkdownIt,
+	sureWordMarkdownRules,
+} from "@/features/chat/MarkdownBody";
+import { DEFAULT_IMAGE_HANDLER, NOTE_ALLOWED_IMAGE_HANDLERS } from "@/features/chat/markdownRules";
+
+/** Module scope: every one of these is a memo dependency of the library's AstRenderer. */
+const truncationMarker = <Text key="note-markdown-truncated">…</Text>;
 
 /**
  * Markdown for AI answers. Blockquotes are the Scripture treatment: Cormorant
  * Garamond at 18pt behind an amber rule, matching the web FormattedResponse.
+ *
+ * Memoized, and every prop below is identity-stable, because the library
+ * rebuilds its renderer and reparses the whole document whenever any of them
+ * changes - which, with inline props, is every render of a streaming answer.
  */
-export function NoteMarkdown({ content }: { content: string }) {
+export const NoteMarkdown = React.memo(function NoteMarkdown({ content }: { content: string }) {
 	const styles = useThemedStyles(createStyles);
 	const markdownStyles = useThemedStyles(createMarkdownStyles);
 	const router = useRouter();
 
 	const rules: RenderRules = useMemo(
 		() => ({
+			// Softbreak reflow and the blockquote's flush last paragraph are shared
+			// with chat so an answer looks the same in both panels.
+			...sureWordMarkdownRules,
 			blockquote: (node, children) => (
 				<View key={node.key} style={styles.blockquote}>
 					{children}
@@ -38,26 +53,34 @@ export function NoteMarkdown({ content }: { content: string }) {
 		[styles]
 	);
 
+	// Same link behavior as chat: verse references open in the reader,
+	// everything else opens externally.
+	const onLinkPress = useCallback(
+		(url: string) => {
+			if (url.startsWith(VERSE_REF_SCHEME)) {
+				openReferenceInReader(router, url.slice(VERSE_REF_SCHEME.length));
+				return false;
+			}
+			void Linking.openURL(url);
+			return false;
+		},
+		[router]
+	);
+
 	return (
-		<Markdown
+		<MarkdownView
 			style={markdownStyles}
 			rules={rules}
 			markdownit={sureWordMarkdownIt}
-			onLinkPress={(url) => {
-				// Same link behavior as chat: verse references open in the reader,
-				// everything else opens externally.
-				if (url.startsWith(VERSE_REF_SCHEME)) {
-					openReferenceInReader(router, url.slice(VERSE_REF_SCHEME.length));
-					return false;
-				}
-				void Linking.openURL(url);
-				return false;
-			}}
+			onLinkPress={onLinkPress}
+			allowedImageHandlers={NOTE_ALLOWED_IMAGE_HANDLERS}
+			defaultImageHandler={DEFAULT_IMAGE_HANDLER}
+			topLevelMaxExceededItem={truncationMarker}
 		>
 			{content}
-		</Markdown>
+		</MarkdownView>
 	);
-}
+});
 
 const createStyles = (c: Colors) =>
 	StyleSheet.create({

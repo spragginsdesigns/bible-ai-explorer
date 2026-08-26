@@ -1,11 +1,24 @@
-import React, { useCallback } from "react";
-import { StyleSheet, Text } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
-import Markdown, { MarkdownIt, type MarkdownProps } from "react-native-markdown-display";
+import Markdown, {
+	MarkdownIt,
+	type MarkdownProps,
+	type RenderFunction,
+	type RenderRules,
+} from "react-native-markdown-display";
 import { fonts, radius, spacing } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from "./verseLinks";
+import {
+	ALLOWED_IMAGE_HANDLERS,
+	configureLinkify,
+	DEFAULT_IMAGE_HANDLER,
+	isLastChildOfBlockquote,
+	softbreakContent,
+} from "./markdownRules";
 
 /**
  * react-native-markdown-display cascades text-only style props from a parent
@@ -175,13 +188,19 @@ const createMarkdownStyles = (c: Colors) => ({
  */
 type FullMarkdownProps = MarkdownProps & {
 	allowedImageHandlers?: string[];
+	defaultImageHandler?: string | null;
 	topLevelMaxExceededItem?: React.ReactNode;
 	maxTopLevelChildren?: number | null;
 };
 
-const MarkdownView = Markdown as React.ComponentType<React.PropsWithChildren<FullMarkdownProps>>;
+/** Shared with NoteMarkdown so both panels can pass the memo-stable props above. */
+export const MarkdownView = Markdown as React.ComponentType<
+	React.PropsWithChildren<FullMarkdownProps>
+>;
 
 const markdownIt = MarkdownIt({ typographer: true, linkify: true });
+// Sentence-openers that are also ccTLDs ("God.It") must not become links.
+configureLinkify(markdownIt);
 // Tappable Bible references ("John 3:16") as amber links deep-linking to the reader.
 markdownIt.use(verseReferencePlugin);
 
@@ -191,12 +210,95 @@ markdownIt.use(verseReferencePlugin);
  * verse references included.
  */
 export const sureWordMarkdownIt = markdownIt;
-const imageHandlers = ["https://", "http://"];
 const truncationMarker = <Text key="markdown-truncated">…</Text>;
+
+/** The library types the style bag as `any`; this is the surface the rules use. */
+interface MarkdownStyleBag {
+	readonly [key: string]: StyleProp<ViewStyle & TextStyle>;
+}
+
+const localStyles = StyleSheet.create({
+	flushBottom: { marginBottom: 0 },
+});
+
+/**
+ * The library renders paragraphs, lists and headings as the same shape - a View
+ * carrying the `_VIEW_SAFE_*` slice of the style bag - so one factory covers
+ * every block that can end a Scripture card. A card that ends in a list or a
+ * heading needs the flush margin exactly as much as one that ends in a
+ * paragraph; only paragraphs used to get it.
+ */
+const flushableBlock =
+	(styleKey: string): RenderFunction =>
+	(node, children, parents, styles: MarkdownStyleBag) => (
+		<View
+			key={node.key}
+			style={[styles[styleKey], isLastChildOfBlockquote(node, parents) && localStyles.flushBottom]}
+		>
+			{children}
+		</View>
+	);
+
+/**
+ * Module-level so the object identity is stable: the library memoizes its
+ * AstRenderer on prop identity, and a fresh `rules` object on every render
+ * rebuilds the renderer and reparses the document on every streamed token.
+ */
+export const sureWordMarkdownRules: RenderRules = {
+	softbreak: (node, _children, parents, styles: MarkdownStyleBag) => (
+		<Text key={node.key} style={styles.softbreak}>
+			{softbreakContent(parents)}
+		</Text>
+	),
+	paragraph: flushableBlock("_VIEW_SAFE_paragraph"),
+	bullet_list: flushableBlock("_VIEW_SAFE_bullet_list"),
+	ordered_list: flushableBlock("_VIEW_SAFE_ordered_list"),
+	heading1: flushableBlock("_VIEW_SAFE_heading1"),
+	heading2: flushableBlock("_VIEW_SAFE_heading2"),
+	heading3: flushableBlock("_VIEW_SAFE_heading3"),
+	heading4: flushableBlock("_VIEW_SAFE_heading4"),
+	heading5: flushableBlock("_VIEW_SAFE_heading5"),
+	heading6: flushableBlock("_VIEW_SAFE_heading6"),
+};
+
+/**
+ * Coalesce streamed deltas to ~12 Hz. Every delta changes `content`, and the
+ * library reparses the whole document and remounts every node (its keys come
+ * from a module-level counter, so nothing can be reconciled), which measured
+ * 671 re-parses for one 4 KB answer streamed at 6-character chunks. The first
+ * value renders immediately so a settled message never waits, and the trailing
+ * timer guarantees the final text always lands.
+ */
+const RENDER_INTERVAL_MS = 80;
+
+function useCoalescedContent(content: string): string {
+	const [displayed, setDisplayed] = useState(content);
+	const lastRenderedAt = useRef(Date.now());
+
+	useEffect(() => {
+		if (content === displayed) return;
+
+		const elapsed = Date.now() - lastRenderedAt.current;
+		if (elapsed >= RENDER_INTERVAL_MS) {
+			lastRenderedAt.current = Date.now();
+			setDisplayed(content);
+			return;
+		}
+
+		const timer = setTimeout(() => {
+			lastRenderedAt.current = Date.now();
+			setDisplayed(content);
+		}, RENDER_INTERVAL_MS - elapsed);
+		return () => clearTimeout(timer);
+	}, [content, displayed]);
+
+	return displayed;
+}
 
 export const MarkdownBody = React.memo(function MarkdownBody({ content }: { content: string }) {
 	const markdownStyles = useThemedStyles(createMarkdownStyles);
 	const router = useRouter();
+	const displayed = useCoalescedContent(content);
 	// Returning false keeps react-native-markdown-display from Linking.openURL;
 	// ordinary links return true to keep the previous open-in-browser behavior.
 	const onLinkPress = useCallback(
@@ -212,12 +314,14 @@ export const MarkdownBody = React.memo(function MarkdownBody({ content }: { cont
 	return (
 		<MarkdownView
 			style={markdownStyles}
+			rules={sureWordMarkdownRules}
 			markdownit={markdownIt}
 			onLinkPress={onLinkPress}
-			allowedImageHandlers={imageHandlers}
+			allowedImageHandlers={ALLOWED_IMAGE_HANDLERS}
+			defaultImageHandler={DEFAULT_IMAGE_HANDLER}
 			topLevelMaxExceededItem={truncationMarker}
 		>
-			{content}
+			{displayed}
 		</MarkdownView>
 	);
 });

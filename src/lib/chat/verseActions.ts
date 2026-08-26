@@ -12,6 +12,7 @@ import {
 	saveVerseToNote,
 } from "@/lib/bible/verseActions";
 import type { RetrievedVerse } from "@/components/useChat";
+import { stripTranslationTag } from "@/utils/verseParser";
 
 export { formatVerseForSharing, saveVerseToNote, resolveReference };
 
@@ -61,12 +62,11 @@ export async function shareVerse(
  * reference cannot be resolved (the caller hides the Read chip).
  */
 export function chapterHrefForReference(reference: string): string | null {
-	// verseParser may capture a trailing translation tag ("John 3:16 KJV") —
-	// strip it before resolving or the anchored pattern fails to match.
-	const cleaned = reference
-		.trim()
-		.replace(/\s+(?:KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i, "");
-	const target = resolveReference(cleaned);
+	// verseParser may capture a trailing translation tag ("John 3:16 KJV");
+	// strip it before resolving or the anchored pattern fails to match. The
+	// tag list lives in verseParser, which is what captured the tag - a second
+	// copy here is a list that silently drifts out of step with the parser.
+	const target = resolveReference(stripTranslationTag(reference));
 	if (!target) return null;
 	const params = new URLSearchParams({
 		book: String(target.order),

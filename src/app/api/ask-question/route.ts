@@ -34,7 +34,7 @@ import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
-import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
+import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 export const maxDuration = 120;
 
@@ -47,11 +47,55 @@ const MAX_CONTEXT_ATTACHMENTS = 5;
 // shared row (this bug wiped assistant messages from history on 2026-08-10).
 const generateMessageId = createIdGenerator({ prefix: "msg", size: 24 });
 
+// User turns are always a single text part, so plain concatenation is right
+// for them. Assistant turns are not - see extractAssistantText.
 function extractText(message: UIMessage): string {
 	return message.parts
 		.map((part) => (part.type === "text" ? part.text : ""))
 		.join("")
 		.trim();
+}
+
+/**
+ * Assistant text, joined the way both clients join it.
+ *
+ * The AI SDK splits one assistant turn into several text parts around tool
+ * calls, so concatenating them with "" glues the next block onto the end of the
+ * previous sentence ("Let me look that up.## Psalm 46:10") - and no normalizer
+ * can repair that, because there is no newline left to insert a blank line
+ * before. The clients hydrate `metadata.parts` through joinAssistantTextParts;
+ * the persisted `content` (the only thing rows written before metadata.parts
+ * have, and what push notifications and study context read) must agree with it.
+ *
+ * Empty parts are dropped: a model can open a turn with a zero-length text part
+ * before its first tool call, and joining that would fabricate a leading
+ * paragraph break the model never wrote.
+ */
+function extractAssistantText(message: UIMessage): string {
+	const textParts: string[] = [];
+	for (const part of message.parts) {
+		if (part.type === "text" && part.text.trim()) textParts.push(part.text);
+	}
+	// Open question, instrumented rather than guessed at: a turn split
+	// MID-paragraph would make this join invent a block boundary. Shape only -
+	// never the text itself - so the logs can answer it without storing answers.
+	//
+	// Trailing whitespace is trimmed BEFORE the boundary test and \s is not in
+	// the terminator class: "The word shalom means " ends in a space, which is
+	// the middle of a sentence, not the end of one. Counting whitespace as a
+	// boundary made the instrumentation blind to exactly the split it exists
+	// to measure.
+	if (textParts.length > 1) {
+		const midParagraphSplits = textParts
+			.slice(0, -1)
+			.filter((part) => !/[.!?:;"')\]]$/.test(part.trimEnd())).length;
+		if (midParagraphSplits > 0) {
+			console.warn(
+				`assistant text parts split mid-paragraph: ${midParagraphSplits} of ${textParts.length - 1} joins`
+			);
+		}
+	}
+	return joinAssistantTextParts(textParts).trim();
 }
 
 function attachmentIds(message: SureWordUIMessage): string[] {
@@ -186,7 +230,17 @@ function stripFollowUps(text: string): {
 	followUps: string[];
 } {
 	const followUps: string[] = [];
-	const followUpRegex = /\[FOLLOWUP\]\s*([^\r\n]+)/g;
+	// Anchored to a line start (^ with /m), and [ \t]* rather than \s*, so this
+	// agrees exactly with the stripper in assistantMarkdown.ts and with both
+	// client copies (src/components/useChat.ts, mobile/src/lib/chatView.ts).
+	// Two failures are ruled out by the two halves:
+	// - \s* crosses the newline, so a marker alone on its own line swallowed the
+	//   NEXT line as the question, extracting it as a chip while the line-scoped
+	//   stripper left it in the body - the user saw it twice.
+	// - unanchored, "- [FOLLOWUP] What does grace mean?" was extracted as a chip
+	//   but NOT stripped, because the stripper only removes a marker at the head
+	//   of a line. Extraction and removal must agree: both, or neither, never one.
+	const followUpRegex = /^[ \t]*\[FOLLOWUP\][ \t]*([^\r\n]+)/gm;
 	let match: RegExpExecArray | null;
 	while ((match = followUpRegex.exec(text)) !== null && followUps.length < 2) {
 		const question = match[1].trim();
@@ -256,6 +310,8 @@ async function persistAssistantResponse(options: {
 	conversationId: string;
 	userMessage: SureWordUIMessage;
 	responseMessage: UIMessage;
+	/** Resolved provider/model id, or null when resolution never happened. */
+	modelId: string | null;
 }): Promise<void> {
 	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
@@ -266,13 +322,19 @@ async function persistAssistantResponse(options: {
 		if (!conversation) return;
 
 		const userText = extractText(options.userMessage);
-		const assistantText = extractText(options.responseMessage);
+		const assistantText = extractAssistantText(options.responseMessage);
 		const { cleanText, followUps } = stripFollowUps(assistantText);
 
 		const metadata: Record<string, unknown> = {
 			parts: persistableParts(options.responseMessage.parts),
 		};
 		if (followUps.length > 0) metadata.followUps = followUps;
+		// Which model actually wrote this turn. User.defaultModelId only says
+		// what the picker is set to NOW, so without this a formatting report
+		// cannot be attributed to a provider. Metadata-only on purpose: no
+		// schema change needed, and both clients already carry unknown metadata
+		// keys through hydration untouched (SureWordMessageMetadata is indexed).
+		if (options.modelId) metadata.modelId = options.modelId;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
 		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
@@ -392,6 +454,11 @@ export async function POST(req: Request): Promise<Response> {
 		const isOpeningQuestion =
 			validatedMessages.filter((message) => message.role === "user").length === 1;
 
+		// Set inside execute() once resolveModel has picked a head, read in
+		// onEnd (which runs after execute finishes) so the persisted turn
+		// records the model that actually wrote it.
+		let resolvedModelId: string | null = null;
+
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: generateMessageId,
@@ -414,12 +481,13 @@ export async function POST(req: Request): Promise<Response> {
 						conversationId,
 						userMessage: lastMessage,
 						responseMessage,
+						modelId: resolvedModelId,
 					}).then(() => {
 						if (!clientLeft) return;
 						return notifyChatAnswerReady({
 							userId,
 							conversationId,
-							answerText: stripFollowUps(extractText(responseMessage)).cleanText,
+							answerText: stripFollowUps(extractAssistantText(responseMessage)).cleanText,
 						});
 					})
 				);
@@ -450,6 +518,7 @@ export async function POST(req: Request): Promise<Response> {
 					attachments: true,
 					requireAttachments: threadHasAttachments,
 				});
+				resolvedModelId = definition.id;
 				if (attachmentFallbackFrom) {
 					writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
 				}

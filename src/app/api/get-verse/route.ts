@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
 import { getChapter, type TranslationId } from "@/lib/bible/translations";
+import { stripTranslationTag } from "@/utils/verseParser";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -8,7 +9,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Resolve the reference and fetch its text from the reader's translation source. */
 async function lookupSelectedTranslation(reference: string, translation: TranslationId) {
-	const cleaned = reference.replace(/\s+(?:KJV|NKJV)$/i, "").trim();
+	const cleaned = stripTranslationTag(reference);
 	const target = resolveReference(cleaned);
 	if (!target) return null;
 
@@ -69,8 +70,10 @@ export async function POST(req: Request) {
 			return NextResponse.json(result);
 		}
 
-		// Use bible-api.com to fetch actual KJV verse text
-		const encoded = encodeURIComponent(reference.replace(/\s*KJV$/i, ""));
+		// Use bible-api.com to fetch actual KJV verse text. The tag has to be
+		// stripped with the full translation list: /\s*KJV$/ bit the tail off
+		// "Isaiah 53:5 NKJV" and asked bible-api.com for "Isaiah 53:5 N".
+		const encoded = encodeURIComponent(stripTranslationTag(reference));
 		const apiRes = await fetch(
 			`https://bible-api.com/${encoded}?translation=kjv`,
 			{ next: { revalidate: 86400 } } // Cache for 24h

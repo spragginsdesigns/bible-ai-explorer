@@ -22,6 +22,7 @@ import {
 	persistableParts,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
+import { joinAssistantTextParts } from "@/utils/assistantMarkdown";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import {
 	dailyCrossGuidance,
@@ -39,11 +40,28 @@ const MAX_NOTE_CONTENT_LENGTH = 16000;
 // response message id is "" and every persist upsert collides on one row.
 const generateMessageId = createIdGenerator({ prefix: "msg", size: 24 });
 
+// User turns are always a single text part, so plain concatenation is right
+// for them. Assistant turns are not - see extractAssistantText.
 function extractText(message: UIMessage): string {
 	return message.parts
 		.map((part) => (part.type === "text" ? part.text : ""))
 		.join("")
 		.trim();
+}
+
+/**
+ * Assistant text, joined the way the clients join it. Identical rule to
+ * src/app/api/ask-question/route.ts: the AI SDK splits one turn into several
+ * text parts around tool calls, so joining with "" glues the next block onto
+ * the previous sentence and the markdown never parses. Empty parts are dropped
+ * so they cannot fabricate a paragraph break the model never wrote.
+ */
+function extractAssistantText(message: UIMessage): string {
+	const textParts: string[] = [];
+	for (const part of message.parts) {
+		if (part.type === "text" && part.text.trim()) textParts.push(part.text);
+	}
+	return joinAssistantTextParts(textParts).trim();
 }
 
 async function persistExchange(options: {
@@ -61,7 +79,7 @@ async function persistExchange(options: {
 		if (!note) return;
 
 		const userText = extractText(options.userMessage);
-		const assistantText = extractText(options.responseMessage);
+		const assistantText = extractAssistantText(options.responseMessage);
 
 		if (userText) {
 			await prisma.noteAIMessage.upsert({

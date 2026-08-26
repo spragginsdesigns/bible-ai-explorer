@@ -4,6 +4,7 @@ import { radius, spacing } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { ChatViewMessage } from "@/lib/chatView";
+import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { NoteMarkdown } from "./NoteMarkdown";
 import { TypingDots } from "./TypingDots";
 
@@ -28,7 +29,15 @@ export function NoteAIMessage({ message }: { message: ChatViewMessage }) {
 				<Text style={styles.avatarGlyph}>✦</Text>
 			</View>
 			<View style={styles.assistantBody}>
-				{message.content ? <NoteMarkdown content={message.content} /> : null}
+				{/* The same normalizer the three other assistant renderers use;
+				    fb2eec4 wired it into chat and web but missed this panel. */}
+				{message.content ? (
+					<NoteMarkdown
+						content={normalizeAssistantMarkdown(message.content, {
+							streaming: Boolean(message.isStreaming),
+						})}
+					/>
+				) : null}
 				{showDots ? <TypingDots /> : null}
 				{message.isStreaming && message.activity ? (
 					<Text style={styles.activity}>{message.activity}…</Text>

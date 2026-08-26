@@ -1,0 +1,72 @@
+name: CI
+
+# main auto-deploys to Vercel on every push, so until this workflow existed
+# nothing at all ran before production. Both clients are checked here: the web
+# app in the repo root and the Android app in mobile/, which is intentionally
+# outside the pnpm workspace and carries its own npm tree.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: web (test, lint, typecheck)
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate runs as a postinstall hook and wants the datasource URL
+      # to be parseable. It never connects, so a placeholder is enough.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Logic tests
+        run: pnpm test:logic
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit -p tsconfig.json
+
+  mobile:
+    name: mobile (typecheck, test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test

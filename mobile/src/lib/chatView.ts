@@ -76,7 +76,12 @@ export function visibleResponseContent(content: string, isStreaming = false): st
 export function parseFollowUps(content: string): string[] {
 	const followUps: string[] = [];
 	const seen = new Set<string>();
-	const followUpRegex = /\[FOLLOWUP\]\s*([^\r\n]+)/g;
+	// Line-anchored, and [ \t]* rather than \s* so extraction and stripping agree
+	// that the question lives on the marker's own line. With \s* a marker alone
+	// on its line captured the NEXT line, which then rendered as both body text
+	// and a chip. Keep this identical to src/components/useChat.ts and to the
+	// server's copy in src/app/api/ask-question/route.ts.
+	const followUpRegex = /^[ \t]*\[FOLLOWUP\][ \t]*([^\r\n]+)/gm;
 	let match: RegExpExecArray | null;
 	while ((match = followUpRegex.exec(content)) !== null && followUps.length < 2) {
 		const question = match[1].trim();

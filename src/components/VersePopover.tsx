@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookOpen, X, Loader2, BookMarked } from "lucide-react";
 import { chapterHrefForReference } from "@/lib/chat/verseActions";
 import { readTranslationPref } from "@/lib/preferences";
+import { stripTranslationTag } from "@/utils/verseParser";
 
 interface VersePopoverProps {
 	reference: string;
@@ -50,10 +51,17 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 
 		try {
 			const translation = readTranslationPref();
+			// The captured reference may carry the translation the model wrote
+			// ("Isaiah 53:5 NKJV"). Look up the bare reference - the tag is
+			// display-only, and sending it through made every tagged reference
+			// fail while the "Read in the Bible" link on the same popover worked.
 			const res = await fetch("/api/get-verse", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ reference, translation }),
+				body: JSON.stringify({
+					reference: stripTranslationTag(reference),
+					translation,
+				}),
 			});
 
 			if (!res.ok) throw new Error("Failed to fetch verse");
