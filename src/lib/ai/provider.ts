@@ -7,9 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import {
 	ATTACHMENT_CAPABLE_MODEL_IDS,
+	decideStructuredProvider,
 	DEFAULT_MODEL_ID,
 	isReasoningEffort,
+	providerSupportsStructuredOutput,
 	resolveDefinition,
+	STRUCTURED_FALLBACK_PROVIDER_IDS,
 	UTILITY_MODELS,
 	type ModelDefinition,
 	type ProviderId,
@@ -88,14 +91,38 @@ export async function apiKeyOrNull(userId: string, provider: ProviderId): Promis
 	}
 }
 
-function buildModel(provider: ProviderId, providerModelId: string, apiKey: string): LanguageModel {
+/**
+ * `structured` marks a call that sends a JSON schema (`Output.object`).
+ *
+ * It only changes Moonshot, and it is the whole fix for the daily cross
+ * silently falling back to John 3:16 on Kimi: `@ai-sdk/openai-compatible`
+ * downgrades `response_format` to `{ type: "json_object" }` and throws the
+ * schema away unless the provider is built with `supportsStructuredOutputs`,
+ * so the model answered with keys of its own invention and Zod rejected it.
+ * With the flag the SDK sends the `json_schema` block Kimi K3 documents.
+ *
+ * It stays off for chat, which carries no `response_format` schema and may run
+ * on any model the user's Moonshot account lists - including older heads that
+ * predate structured output.
+ */
+function buildModel(
+	provider: ProviderId,
+	providerModelId: string,
+	apiKey: string,
+	structured = false,
+): LanguageModel {
 	switch (provider) {
 		case "openai":
 			return createOpenAI({ apiKey })(providerModelId);
 		case "anthropic":
 			return createAnthropic({ apiKey })(providerModelId);
 		case "moonshot":
-			return createOpenAICompatible({ name: "moonshot", baseURL: MOONSHOT_BASE_URL, apiKey })(providerModelId);
+			return createOpenAICompatible({
+				name: "moonshot",
+				baseURL: MOONSHOT_BASE_URL,
+				apiKey,
+				supportsStructuredOutputs: structured,
+			})(providerModelId);
 	}
 }
 
@@ -134,6 +161,18 @@ export interface ResolvedModel {
 	 * must strip file parts rather than let the provider reject the request.
 	 */
 	attachmentsUnsupported: boolean;
+	/**
+	 * The model the user actually picked, when it could not honour a JSON schema
+	 * and this structured call ran on a capable provider's utility model
+	 * instead. Null otherwise.
+	 */
+	structuredFallbackFrom: ModelDefinition | null;
+	/**
+	 * True when a structured call is running on a provider that will ignore the
+	 * schema, because the user has credentials for nothing better. The answer
+	 * may fail to parse; callers already treat that as a soft failure.
+	 */
+	structuredOutputUnsupported: boolean;
 }
 
 /** First attachment-capable model this user holds working credentials for. */
@@ -144,6 +183,23 @@ async function firstAttachmentCapableModel(userId: string): Promise<ModelDefinit
 		if (await apiKeyOrNull(userId, candidate.provider)) return candidate;
 	}
 	return null;
+}
+
+/** Providers this user can currently reach, by their own key or a server key. */
+async function credentialedProviders(userId: string): Promise<ProviderId[]> {
+	const reachable = await Promise.all(
+		STRUCTURED_FALLBACK_PROVIDER_IDS.map(async (provider) =>
+			(await apiKeyOrNull(userId, provider)) ? provider : null
+		)
+	);
+	return reachable.filter((provider): provider is ProviderId => provider !== null);
+}
+
+/** The cheap sibling this provider runs background work on, as a definition. */
+function utilityDefinition(provider: ProviderId): ModelDefinition {
+	const definition = resolveDefinition(`${provider}/${UTILITY_MODELS[provider].providerModelId}`);
+	if (!definition) throw new Error(`No utility model is registered for ${provider}.`);
+	return definition;
 }
 
 /**
@@ -164,6 +220,11 @@ export async function resolveModel(options: {
 	requireAttachments?: boolean;
 	/** Background work (memory extraction, summaries): use the provider's cheap sibling model. */
 	utility?: boolean;
+	/**
+	 * This call sends a JSON schema (`Output.object`). Defaults to true for
+	 * utility work, because every utility caller today parses a schema.
+	 */
+	structured?: boolean;
 }): Promise<ResolvedModel> {
 	const user = await prisma.user.findUnique({
 		where: { id: options.userId },
@@ -192,19 +253,46 @@ export async function resolveModel(options: {
 		}
 	}
 
-	const apiKey = await apiKeyFor(options.userId, definition.provider);
+	const structured = options.structured ?? Boolean(options.utility);
 
 	if (options.utility) {
-		const utility = UTILITY_MODELS[definition.provider];
+		// A provider that ignores the schema does not fail loudly: it returns
+		// well-formed JSON under keys it made up, and Zod rejects it after the
+		// tokens are paid for. Move the call somewhere capable when we can.
+		const decision = decideStructuredProvider({
+			provider: definition.provider,
+			availableProviders:
+				structured && !providerSupportsStructuredOutput(definition.provider)
+					? await credentialedProviders(options.userId)
+					: [],
+			structured,
+		});
+
+		if (decision.unsupported) {
+			console.warn(
+				`[ai] ${definition.provider} ignores JSON schemas and no capable provider is unlocked for user ${options.userId}; this structured call may return unparseable output.`
+			);
+		}
+
+		const utilityModel = decision.fallbackFrom
+			? utilityDefinition(decision.provider)
+			: definition;
+		const utility = UTILITY_MODELS[decision.provider];
+		const utilityKey = await apiKeyFor(options.userId, decision.provider);
+
 		return {
-			model: buildModel(definition.provider, utility.providerModelId, apiKey),
-			providerOptions: buildProviderOptions(definition.provider, utility.effort, false),
-			definition,
+			model: buildModel(decision.provider, utility.providerModelId, utilityKey, structured),
+			providerOptions: buildProviderOptions(decision.provider, utility.effort, false),
+			definition: utilityModel,
 			effort: utility.effort,
 			attachmentFallbackFrom: null,
 			attachmentsUnsupported: false,
+			structuredFallbackFrom: decision.fallbackFrom ? definition : null,
+			structuredOutputUnsupported: decision.unsupported,
 		};
 	}
+
+	const apiKey = await apiKeyFor(options.userId, definition.provider);
 
 	const storedEffort = isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null;
 	const requestedEffort = isReasoningEffort(options.effort) ? options.effort : null;
@@ -214,7 +302,7 @@ export async function resolveModel(options: {
 	const effort = definition.efforts.includes(preferredEffort) ? preferredEffort : null;
 
 	return {
-		model: buildModel(definition.provider, definition.providerModelId, apiKey),
+		model: buildModel(definition.provider, definition.providerModelId, apiKey, structured),
 		providerOptions: buildProviderOptions(
 			definition.provider,
 			effort,
@@ -224,6 +312,8 @@ export async function resolveModel(options: {
 		effort,
 		attachmentFallbackFrom,
 		attachmentsUnsupported,
+		structuredFallbackFrom: null,
+		structuredOutputUnsupported: false,
 	};
 }
 

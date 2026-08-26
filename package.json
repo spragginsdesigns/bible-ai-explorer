@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs tests/assistant-markdown.test.mjs tests/highlights.test.mjs tests/chat-errors.test.mjs tests/suggested-questions.test.mjs tests/daily-cross-audio.test.mjs tests/reading-plans.test.mjs",
+    "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/upgrade-review.test.mjs tests/message-id.test.mjs tests/memory-policy.test.mjs tests/chat-attachments.test.mjs tests/assistant-markdown.test.mjs tests/highlights.test.mjs tests/chat-errors.test.mjs tests/suggested-questions.test.mjs tests/daily-cross-audio.test.mjs tests/reading-plans.test.mjs tests/ai-provider-structured.test.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

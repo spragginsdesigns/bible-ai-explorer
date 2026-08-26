@@ -9,12 +9,46 @@ export interface ProviderInfo {
 	label: string;
 	/** Where the user creates an API key, shown in Settings. */
 	keyUrl: string;
+	/**
+	 * Whether this provider honours a JSON *schema* on the utility model - the
+	 * `generateText({ output: Output.object({ schema }) })` calls behind the
+	 * daily cross, suggested questions, reading plans and memory extraction.
+	 *
+	 * This is a fact about how `buildModel` configures the provider, not just
+	 * about the upstream API. Moonshot speaks the OpenAI wire format, and
+	 * `@ai-sdk/openai-compatible` silently downgrades `response_format` to
+	 * `{ type: "json_object" }` - dropping the schema entirely - unless the
+	 * provider is built with `supportsStructuredOutputs: true`. That downgrade
+	 * is what made Kimi return JSON with invented keys and Zod throw
+	 * `AI_NoObjectGeneratedError`, so `buildModel` now opts in for structured
+	 * calls and this flag says so.
+	 */
+	supportsStructuredOutput: boolean;
 }
 
 export const PROVIDERS: readonly ProviderInfo[] = [
-	{ id: "openai", label: "OpenAI", keyUrl: "https://platform.openai.com/api-keys" },
-	{ id: "anthropic", label: "Anthropic", keyUrl: "https://console.anthropic.com/settings/keys" },
-	{ id: "moonshot", label: "Moonshot (Kimi)", keyUrl: "https://platform.moonshot.ai/console/api-keys" },
+	{
+		id: "openai",
+		label: "OpenAI",
+		keyUrl: "https://platform.openai.com/api-keys",
+		supportsStructuredOutput: true,
+	},
+	{
+		id: "anthropic",
+		label: "Anthropic",
+		keyUrl: "https://console.anthropic.com/settings/keys",
+		supportsStructuredOutput: true,
+	},
+	{
+		id: "moonshot",
+		label: "Moonshot (Kimi)",
+		keyUrl: "https://platform.moonshot.ai/console/api-keys",
+		// Kimi K3 documents `response_format: { type: "json_schema" }` with
+		// `strict: true` and token-level constrained decoding, and the utility
+		// tier always runs on kimi-k3 (see UTILITY_MODELS), so the schema is
+		// honoured as long as buildModel opts the provider in.
+		supportsStructuredOutput: true,
+	},
 ];
 
 export interface ModelDefinition {
@@ -95,6 +129,76 @@ export const UTILITY_MODELS: Record<ProviderId, { providerModelId: string; effor
 	anthropic: { providerModelId: "claude-haiku-4-5", effort: null },
 	moonshot: { providerModelId: "kimi-k3", effort: "low" },
 };
+
+/** Order structured work falls back through, best first. */
+export const STRUCTURED_FALLBACK_PROVIDER_IDS: readonly ProviderId[] = [
+	"openai",
+	"anthropic",
+	"moonshot",
+];
+
+export function providerSupportsStructuredOutput(provider: ProviderId): boolean {
+	return PROVIDERS.find((entry) => entry.id === provider)?.supportsStructuredOutput ?? false;
+}
+
+export interface StructuredProviderDecision {
+	/** The provider the call should actually run on. */
+	provider: ProviderId;
+	/**
+	 * The provider the user had picked, when it cannot honour a schema and a
+	 * capable one ran the call instead. Null when no swap happened.
+	 */
+	fallbackFrom: ProviderId | null;
+	/**
+	 * True when the call must run on a provider that will ignore the schema -
+	 * the user holds credentials for nothing better. The call still goes out;
+	 * the caller is expected to warn and to tolerate a parse failure.
+	 */
+	unsupported: boolean;
+}
+
+/**
+ * Which provider to run a structured (`Output.object`) utility call on.
+ *
+ * A schema sent to a provider that ignores it does not fail loudly: the model
+ * answers with plausible JSON under keys it invented, and Zod rejects it as
+ * `AI_NoObjectGeneratedError` well after the tokens are paid for. So a
+ * structured call is moved to a capable provider when one is unlocked.
+ *
+ * Kept pure - no Prisma, no provider SDKs - so it is unit-testable on its own
+ * (`tests/ai-provider-structured.test.mjs`). `resolveModel` supplies the
+ * credential facts; this decides what to do with them. `availableProviders` is
+ * every provider the user can reach, by their own key or an allowlisted server
+ * key.
+ */
+export function decideStructuredProvider(options: {
+	provider: ProviderId;
+	availableProviders: readonly ProviderId[];
+	/** False for calls that only need free-form text; no swap is warranted. */
+	structured: boolean;
+	/**
+	 * Capability lookup, overridable so the decision can be exercised against
+	 * provider mixes we do not currently ship. Defaults to the real table.
+	 */
+	supports?: (provider: ProviderId) => boolean;
+}): StructuredProviderDecision {
+	const supports = options.supports ?? providerSupportsStructuredOutput;
+
+	if (!options.structured || supports(options.provider)) {
+		return { provider: options.provider, fallbackFrom: null, unsupported: false };
+	}
+
+	const available = new Set(options.availableProviders);
+	const capable = STRUCTURED_FALLBACK_PROVIDER_IDS.find(
+		(candidate) => available.has(candidate) && supports(candidate)
+	);
+
+	if (capable && capable !== options.provider) {
+		return { provider: capable, fallbackFrom: options.provider, unsupported: false };
+	}
+
+	return { provider: options.provider, fallbackFrom: null, unsupported: true };
+}
 
 export function getModel(modelId: string): ModelDefinition | undefined {
 	return MODELS.find((model) => model.id === modelId);

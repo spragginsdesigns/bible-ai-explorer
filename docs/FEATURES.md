@@ -121,8 +121,18 @@ user chat messages, the last 10 notes, all saved memories, and the last 30
 picks as an exclusion list. One structured `generateText` call on the user's
 **utility-tier** model (cheap sibling of their provider) produces the full
 day; every reference is validated against the KJV canon and the verse text is
-read from the bundled corpus — the model never supplies Scripture wording.
+read from the bundled corpus - the model never supplies Scripture wording.
 Any failure degrades to a complete John 3:16 fallback day.
+
+Structured utility calls only work on a provider that honours a JSON *schema*,
+which `PROVIDERS[].supportsStructuredOutput` records. Moonshot needs
+`buildModel` to opt in (`supportsStructuredOutputs: true`), or
+`@ai-sdk/openai-compatible` quietly downgrades `response_format` to
+`{ type: "json_object" }`, drops the schema, and Kimi answers under invented
+keys - which surfaced as a silent John 3:16 fallback, not an error. If a
+provider ever cannot honour a schema, `decideStructuredProvider`
+(`src/lib/ai/models.ts`) moves the call to one the user has credentials for and
+reports it as `structuredFallbackFrom`.
 
 ### One day per user per day
 
