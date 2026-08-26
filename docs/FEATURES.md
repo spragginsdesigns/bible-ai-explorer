@@ -458,5 +458,118 @@ welcome screen appears rather than pinning the static six for the session.
 welcome screen shows six chip-shaped shimmer placeholders while the set is
 prepared (the language of the Daily Cross skeleton), then fills them in. Because
 a tap **sends immediately** on every client, the chips must never swap under a
-reading finger — which is why there is a loading state at all rather than
+reading finger - which is why there is a loading state at all rather than
 showing the static six and replacing them a second later.
+
+---
+
+## Reading plans
+
+*Shipped 2026-08-26 · Android 1.29.0 + web, same release*
+
+A user follows one plan at a time. The point of the feature is what they do
+**not** have to do: nothing is ticked off by hand, because a day is finished
+when the chapters of it have actually been read in the Bible reader.
+
+### The four modules, and why they are four
+
+| File | Owns | Pure? |
+|---|---|---|
+| `src/lib/reading-plan-presets.ts` | The KJV chapter table, the four presets, and validation of any plan | ✅ |
+| `src/lib/reading-plan-progress.ts` | What "done", "today", "current day", "streak" and "percent" mean | ✅ |
+| `src/lib/reading-plans.ts` | Storage, the AI plan writer, one-plan-at-a-time | server |
+| `src/app/api/reading-plans/*` | Auth, request shapes, error codes | route |
+
+The two pure modules carry no imports that survive to runtime (the one type
+import is erased), which is what lets `tests/reading-plans.test.mjs` drive them
+under plain `node --experimental-strip-types` - the same split
+`daily-cross-audio-script.ts` has from `daily-cross-audio.ts`.
+
+### The presets are generated, never typed
+
+Four presets ship: **The Gospels in 30 days** (89 chapters), **Psalms &
+Proverbs in 31 days** (150 psalms plus the proverb for the date), **New
+Testament in 90 days** (260 chapters) and **The Whole Bible in a Year** (all
+1,189). Every one is arithmetic over `KJV_BOOK_CHAPTERS`: a hand-typed list of
+365 rows of chapter ranges is wrong somewhere by construction.
+
+`splitEvenly` takes its boundaries from `floor(i * n / buckets)` rather than
+handing the remainder to the first few days, so the four-chapter days are
+spread through the year instead of stacked in January - the classic way a year
+plan dies in February.
+
+`KJV_BOOK_CHAPTERS` mirrors `src/data/books.json` (the bundle the reader itself
+uses), held here rather than imported so the module stays loadable by the test
+runner. The test asserts the two agree name-for-name and count-for-count, so
+the copy cannot drift silently.
+
+### Progress, and why nothing is ticked
+
+`computePlanProgress` folds three things together:
+
+1. the plan's days,
+2. `ReadingPlanCompletion` rows - days ticked **by hand**,
+3. every `ReadingEvent` at or after the plan's `startDate`.
+
+A day is done when it was ticked, **or** when every chapter of it appears in
+the reading history. The reader already posts `POST /api/reading-events` after
+about five seconds on a chapter (server-deduped within the hour), so a user who
+reads their plan in SureWord never touches the plan screen at all. The by-hand
+toggle exists only for reading done elsewhere, and the UI says so.
+
+Three rules worth knowing:
+
+- **`todayDay` is whole 24-hour buckets from `startDate`**, not local
+  midnights. The server does not know the user's timezone, and the same trade
+  is already made by `DAILY_CROSS_REUSE_MS`. Their day rolls over at the hour
+  they started.
+- **`currentDay` is the oldest unfinished day up to today**, so someone three
+  days behind is handed the day they missed rather than watching it slide past.
+  Caught up entirely, it is simply today.
+- **A streak counts back from today, and today not being done does not break
+  it** - the day is not over yet.
+
+Finishing the last day flips the plan to `completed` on the next read, without
+the user having to say so.
+
+### The written plan
+
+`POST /api/reading-plans { goal, days }` runs one structured utility-model call
+(`Output.object`, the `PERSONA` from `daily-cross.ts`) grounded in
+`loadStudyContext`. The model chooses passages; it does not get to invent them.
+`sanitizeReadingPlanDays` checks every book against the canon and every chapter
+against that book's real length, drops what fails, drops a day left with
+nothing, and renumbers what survives - so a hallucinated Psalm 151 costs one
+line and not the plan.
+
+### One plan at a time
+
+Enforced in `startPlan`, not by a constraint: starting a plan archives whatever
+was running. Archived and completed plans stay in the table as history, which
+is why a partial unique index would have had to encode the status rules too.
+
+### The plan and the daily cross
+
+`loadStudyContext` gained a `planBlock` naming today's plan reading, and
+`daily-cross.ts` instructs that **the study path IS that reading** unless the
+user pinned a verse or steered the day. Both clients then show a small
+`FROM YOUR PLAN` tag on the matching study step, so the alignment is visible
+rather than a coincidence the user has to notice.
+
+### Surfaces
+
+`mobile/app/(app)/bible/plan.tsx` ↔ `src/components/plan/ReadingPlanScreen.tsx`
+(page at `src/app/bible/plan/page.tsx`), with the presentation rules mirrored in
+`mobile/src/features/plan/planView.ts` ↔ `src/components/plan/planView.ts` and
+the state machine in the two `useReadingPlan.ts` files. Every mutation answers
+with the whole plan and fresh progress, so neither client ever has to guess what
+a tick did to the streak.
+
+### The chat tools
+
+`getReadingPlan` (read-only), `startReadingPlan` and `markReadingPlanDay`.
+`startReadingPlan` archives the plan the user is on, so it carries the same
+ask-first rule as `setDailyCross` **and** a `confirmed` flag the model must set
+to `true` - a wish is not a yes. `markReadingPlanDay` is only for reading done
+outside SureWord; the prompt says so, because chapters read in the app already
+count themselves.

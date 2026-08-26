@@ -126,6 +126,23 @@ tab selection). Same behavior, different plumbing.
 | Reading-history tracking (powers Verse of the Day) | ✅ 1.14.0 | ✅ | ✅ 1.1.0 | ✅ | `POST /api/reading-events` after ~5s on a chapter; server dedupes within 1h |
 | Verse highlighting (YouVersion-style: per-verse color wash, 8 presets + custom picker, remove) | ✅ verse sheet | ✅ verse panel | ✅ panel + context menu | ✅ verse sheet | Shared backend: `VerseHighlight` table + `GET/PUT/DELETE /api/highlights`, keyed `(userId, translation, book order int, chapter, verse)`, color stored as `#RRGGBB`; translucent 0.25-alpha wash so it reads in light/dark/parchment. Optimistic writes with rollback; local caches (`sureword.highlights-cache.v1` / web hook / `highlights-cache.v1.json`) for instant paint |
 
+## Reading Plans
+
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Plan screen (one plan at a time: progress, streak, today's reading, the whole day list) | ✅ 1.29.0 `/bible/plan` | ✅ `/bible/plan` | ❌ | ❌ | `GET /api/reading-plans` → `{ active, presets }`. `ReadingPlan` + `ReadingPlanCompletion` tables (migration `20260826150000_reading_plans`); plan days are JSON `[{ day, readings: [{ book, chapter }], focus }]` |
+| Four preset plans (Gospels 30 / Psalms & Proverbs 31 / New Testament 90 / Whole Bible in a Year) | ✅ 1.29.0 | ✅ | ❌ | ❌ | GENERATED from the KJV chapter table in `src/lib/reading-plan-presets.ts`, never hand-typed; `tests/reading-plans.test.mjs` asserts the table mirrors `src/data/books.json` and that every day is real Scripture |
+| "Build my own": a goal in the user's words + a day count, written by the model | ✅ 1.29.0 goal field + day stepper | ✅ same | ❌ | ❌ | `POST /api/reading-plans` `{ goal, days }` (7-365, `maxDuration = 120`); one structured utility-model call grounded in `loadStudyContext`, then EVERY book/chapter validated against the KJV canon and dropped if invalid |
+| Progress fills in from what they actually read - no ticking | ✅ 1.29.0 | ✅ | ❌ | ❌ | A day is done when every chapter of it has a `ReadingEvent` at or after the plan's `startDate`; the same `POST /api/reading-events` the reader already sends. Rules are pure and tested in `src/lib/reading-plan-progress.ts` |
+| "Mark done" toggle for reading done outside the app | ✅ 1.29.0 per day + on today's card | ✅ same | ❌ | ❌ | `POST /api/reading-plans/[id]/days/[day]` `{ done }` → the whole plan with fresh progress. Explicit completions live in `ReadingPlanCompletion`, unique on `(planId, day)` |
+| Today's chapters open the reader | ✅ 1.29.0 chips → `/bible/chapter` | ✅ links → `/bible/chapter` | ❌ | ❌ | Same navigation the cross study path uses |
+| Streak + percent + day states (done / today / upcoming) | ✅ 1.29.0 | ✅ | ❌ | ❌ | Behind on the plan, `currentDay` is the oldest unfinished day, not the calendar day - the user is handed what they missed. Presentation rules mirrored in `mobile/src/features/plan/planView.ts` and `src/components/plan/planView.ts` (vitest suite on the mobile copy) |
+| Archive a plan (overflow ⋯, with confirm) | ✅ 1.29.0 | ✅ | ❌ | ❌ | `DELETE /api/reading-plans/[id]` archives; nothing is deleted, and starting a plan archives the previous one (one live plan per user, enforced in `src/lib/reading-plans.ts`) |
+| "Reading plan" card at the top of the Bible screen | ✅ 1.29.0 | ✅ | ❌ | ❌ | Shows today's reading, or "Start a plan and read through Scripture" |
+| Pick Up Your Cross aligns its study path with today's plan reading | ✅ 1.29.0 "FROM YOUR PLAN" tag | ✅ same tag | ❌ | ❌ | Server side is shared and reaches every client: `loadStudyContext` gained a `planBlock`, and `daily-cross.ts` instructs that the study path IS today's plan reading unless the user pinned a verse or steered the day |
+| Assistant knows the plan (`getReadingPlan` / `startReadingPlan` / `markReadingPlanDay`) | ✅ 1.29.0 | ✅ | ✅ shared backend | ✅ shared backend | `startReadingPlan` is prompt-gated like `setDailyCross` AND takes `confirmed: true` - it archives the plan they are on. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently |
+| `/plan` slash command | ✅ 1.29.0 | ✅ | ❌ | ❌ | Added to both `slashCommands.ts` copies and to `slashCommandGuidance`; shows today's reading, never starts or changes a plan |
+
 ## Verse of the Day
 
 | Feature | Android | Web | macOS | iOS | Notes |

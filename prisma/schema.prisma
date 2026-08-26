@@ -36,6 +36,7 @@ model User {
   highlights    VerseHighlight[]
   versesOfDay   VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
+  readingPlans  ReadingPlan[]
 }
 
 enum AiProvider {
@@ -335,4 +336,42 @@ model SuggestedQuestionSet {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+/// A reading plan the user is following. Progress is NOT stored here: a day
+/// counts as read when every chapter of it appears in that user's ReadingEvent
+/// history since startDate (see src/lib/reading-plan-progress.ts).
+///
+/// One live plan per user, enforced in src/lib/reading-plans.ts (starting a plan
+/// archives the previous one) rather than by a partial unique index, because
+/// completed and archived plans stay here as history.
+model ReadingPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @db.Text
+  source      String   // "preset" | "ai"
+  presetKey   String? // set only when source = "preset"
+  startDate   DateTime @default(now()) // day 1 of the plan begins here
+  days        String   @db.Text // JSON: [{ day, readings: [{ book, chapter }], focus }]
+  status      String   @default("active") // "active" | "completed" | "archived"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  completions ReadingPlanCompletion[]
+
+  @@index([userId, status])
+}
+
+/// A day the user ticked by hand - the escape hatch for reading done outside
+/// the app, where no ReadingEvent was ever recorded.
+model ReadingPlanCompletion {
+  id          String      @id @default(cuid())
+  planId      String
+  plan        ReadingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  day         Int
+  completedAt DateTime    @default(now())
+
+  @@unique([planId, day])
 }

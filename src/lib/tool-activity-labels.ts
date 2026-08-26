@@ -17,6 +17,9 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	lookupStrongs: "Studying the original word",
 	getDailyCross: "Opening today's cross",
 	setDailyCross: "Preparing your new day",
+	getReadingPlan: "Opening your reading plan",
+	startReadingPlan: "Setting up your reading plan",
+	markReadingPlanDay: "Marking your reading",
 };
 
 export function toolActivityLabel(toolName: string): string {

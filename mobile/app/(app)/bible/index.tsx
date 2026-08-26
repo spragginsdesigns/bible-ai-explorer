@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
+import { planCardSubtitle } from "@/features/plan/planView";
+import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -63,6 +65,9 @@ export default function BibleBooksScreen() {
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [collapsed, setCollapsed] = useState(sessionCollapsed);
+	// Read-only here: the card shows where the plan stands and hands the user
+	// on to the plan screen, which owns every action.
+	const { plan } = useReadingPlan();
 
 	const toggleTestament = (testament: Testament) => {
 		setCollapsed((prev) => {
@@ -86,6 +91,10 @@ export default function BibleBooksScreen() {
 		router.push("/cross");
 	};
 
+	const openReadingPlan = () => {
+		router.push("/bible/plan");
+	};
+
 	return (
 		<Screen>
 			<View style={styles.header}>
@@ -104,19 +113,36 @@ export default function BibleBooksScreen() {
 				keyExtractor={(row) => row.key}
 				contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
 				ListHeaderComponent={
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Pick Up Your Cross — today's word"
-						onPress={openDailyCross}
-						style={({ pressed }) => [styles.crossCard, pressed && styles.bookRowPressed]}
-					>
-						<Text style={styles.crossGlyph}>✝</Text>
-						<View style={styles.crossCopy}>
-							<Text style={styles.crossTitle}>Pick Up Your Cross</Text>
-							<Text style={styles.crossSubtitle}>Today&apos;s word, chosen for your walk</Text>
-						</View>
-						<Text style={styles.crossChevron}>›</Text>
-					</Pressable>
+					<>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={plan ? "Reading plan - today's reading" : "Start a reading plan"}
+							onPress={openReadingPlan}
+							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+						>
+							<Text style={styles.planGlyph}>◷</Text>
+							<View style={styles.crossCopy}>
+								<Text style={styles.planTitle}>
+									{plan ? plan.title : "Reading plan"}
+								</Text>
+								<Text style={styles.crossSubtitle}>{planCardSubtitle(plan)}</Text>
+							</View>
+							<Text style={styles.planChevron}>›</Text>
+						</Pressable>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Pick Up Your Cross - today's word"
+							onPress={openDailyCross}
+							style={({ pressed }) => [styles.crossCard, pressed && styles.bookRowPressed]}
+						>
+							<Text style={styles.crossGlyph}>✝</Text>
+							<View style={styles.crossCopy}>
+								<Text style={styles.crossTitle}>Pick Up Your Cross</Text>
+								<Text style={styles.crossSubtitle}>Today&apos;s word, chosen for your walk</Text>
+							</View>
+							<Text style={styles.crossChevron}>›</Text>
+						</Pressable>
+					</>
 				}
 				renderItem={({ item: row }) => {
 					if (row.type === "testament") {
@@ -193,6 +219,22 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
+		planCard: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			marginTop: spacing.xs,
+			marginBottom: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.lg,
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+		},
+		planGlyph: { color: c.textMuted, fontSize: 18 },
+		planTitle: { color: c.text, fontSize: 15, fontWeight: "700" },
+		planChevron: { color: c.textFaint, fontSize: 18, fontWeight: "600" },
 		crossGlyph: { color: c.accent, fontSize: 20 },
 		crossCopy: { flex: 1, gap: 2 },
 		crossTitle: { color: c.accent, fontSize: 15, fontWeight: "700" },

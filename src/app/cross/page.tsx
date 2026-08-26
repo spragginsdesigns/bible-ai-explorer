@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
 import ListenCard from "@/components/cross/ListenCard";
 import TimelineStop from "@/components/cross/TimelineStop";
+import { isTodaysPlanReading } from "@/components/plan/planView";
+import { useReadingPlan } from "@/components/plan/useReadingPlan";
 
 interface StudyStep {
 	book: string;
@@ -43,6 +45,9 @@ export default function DailyCrossPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [focus, setFocus] = useState("");
+	// The day's study path is built out of the reading plan when one is
+	// running; this is how the user sees that it was.
+	const { plan } = useReadingPlan();
 
 	const request = useCallback((init?: RequestInit) => {
 		setError(null);
@@ -175,8 +180,15 @@ export default function DailyCrossPage() {
 							const href = studyHref(step);
 							const body = (
 								<>
-									<span className="block text-sm font-bold text-amber-600 dark:text-amber-400">
-										{step.book} {step.chapter} ›
+									<span className="flex items-center gap-2">
+										<span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+											{step.book} {step.chapter} ›
+										</span>
+										{isTodaysPlanReading(plan, step.book, step.chapter) && (
+											<span className="rounded-full border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
+												FROM YOUR PLAN
+											</span>
+										)}
 									</span>
 									<span className="block text-[13.5px] leading-[19px] text-neutral-600 dark:text-neutral-300">
 										{step.focus}

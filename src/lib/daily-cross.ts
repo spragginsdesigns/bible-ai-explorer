@@ -67,7 +67,9 @@ export const PERSONA = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up
 
 const SHARED_RULES = `Honesty rule, non-negotiable: whyToday may only reference activity that is actually present in the context you are given. Fabricated intimacy ("you've been wrestling with...") when the context shows nothing is worse than a plain word of encouragement. When the context is thin, say less.
 
-The study path should usually continue or deepen what they have been reading, and the question should be plain enough to carry into an ordinary day. Warm, direct, second person, no fluff, no headings.`;
+Reading plan rule: when the context shows they are following a reading plan and names today's reading in it, the study path IS that reading - the same chapters, in the same order, with your own focus line for each. Do not send them somewhere else and leave the plan sitting unread; the plan is the walk they already committed to. The one exception is when they have pinned a verse or asked today to centre on something in particular: honour what they asked for first, and if it takes you off the plan, say so in a clause rather than pretending the plan does not exist.
+
+Otherwise the study path should continue or deepen what they have been reading, and the question should be plain enough to carry into an ordinary day. Warm, direct, second person, no fluff, no headings.`;
 
 const INSTRUCTIONS = `${PERSONA}
 
@@ -225,6 +227,7 @@ export async function generateDailyCross(
 			`Recent things they asked about:\n${context.questionsBlock}`,
 			`Recent notes:\n${context.notesBlock}`,
 			`What you remember about them:\n${context.memoriesBlock}`,
+			`Today's reading in the plan they are following:\n${context.planBlock}`,
 			// A pinned verse is the user's own choice; the exclusion list, which
 			// only exists to stop repeats, must not argue with it.
 			pinned
