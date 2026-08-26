@@ -21,6 +21,8 @@ export default function BibleLayout() {
 			<Stack.Screen name="chapter" />
 			<Stack.Screen name="search" />
 			<Stack.Screen name="plan" />
+			<Stack.Screen name="timeline" />
+			<Stack.Screen name="atlas/[id]" />
 		</Stack>
 	);
 }

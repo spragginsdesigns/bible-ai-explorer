@@ -79,7 +79,8 @@ const LOADERS: Record<number, () => Promise<RawBook>> = {
 
 const bookCache = new Map<number, RawBook>();
 
-async function getKjvBook(order: number): Promise<RawBook> {
+/** Every chapter of a book, parsed once and cached for the session. */
+export async function getKjvBook(order: number): Promise<RawBook> {
   const cached = bookCache.get(order);
   if (cached) return cached;
   const loader = LOADERS[order];

@@ -143,6 +143,24 @@ tab selection). Same behavior, different plumbing.
 | Assistant knows the plan (`getReadingPlan` / `startReadingPlan` / `markReadingPlanDay`) | ✅ 1.29.0 | ✅ | ✅ shared backend | ✅ shared backend | `startReadingPlan` is prompt-gated like `setDailyCross` AND takes `confirmed: true` - it archives the plan they are on. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently |
 | `/plan` slash command | ✅ 1.29.0 | ✅ | ❌ | ❌ | Added to both `slashCommands.ts` copies and to `slashCommandGuidance`; shows today's reading, never starts or changes a plan |
 
+## Timeline, People & Places
+
+| Feature | Android | Web | macOS | iOS | Notes |
+|---|---|---|---|---|---|
+| Timeline screen (nine eras, gold rail, Creation to Revelation) | ✅ 1.30.0 `/bible/timeline` | ✅ `/bible/timeline` | ❌ | ❌ | 207 events hand-authored in `src/data/bible-atlas/events.json`; grouped and ordered by `groupEventsByEra` in `src/lib/bible/atlas-core.ts` |
+| Era chips filter the rail | ✅ 1.30.0 horizontal chips | ✅ wrapping chips | ❌ | ❌ | Short labels from `eraChipLabel`, mirrored in `mobile/src/features/atlas/atlasView.ts` and `src/components/atlas/atlasView.ts` |
+| Tap an event: summary, references, who and where | ✅ 1.30.0 bottom sheet | ✅ sheet on phones, centred card on desktop | ❌ | ❌ | Form-factor adaptation only; same content and same actions |
+| Reference chips open the reader | ✅ 1.30.0 to `/bible/chapter` | ✅ links to `/bible/chapter` | ❌ | ❌ | `openLocationFor` (mobile) / `readerHrefFor` (web), both over `parseAtlasRef` |
+| Person / place entry (description, aliases, key verses, related, events) | ✅ 1.30.0 pushed screen `/bible/atlas/[id]` | ✅ detail panel | ❌ | ❌ | 183 people, 93 places. Web fetches `GET /api/bible/atlas?id=`; Android reads the bundled copy |
+| "Ask about this" opens chat with a prefilled prompt | ✅ 1.30.0 | ✅ | ❌ | ❌ | Both push `?prompt=`, the same param the Bible tab Ask-AI entry points use; neither client sends it for the user |
+| Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | ❌ | ❌ | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
+| "Who’s in this chapter" from the chapter reader | ✅ 1.30.0 people icon in the header | ✅ people icon in the header | ❌ | ❌ | Opens the atlas at `?book=&chapter=`; `whoIsIn` matches every person/place whose key references fall in the chapter, plus everyone in its events |
+| "Timeline & People" card on the Bible screen | ✅ 1.30.0 | ✅ | ❌ | ❌ | Sits beside the Reading plan card on both |
+| Ussher dating, labelled as tradition and not Scripture | ✅ 1.30.0 footnote | ✅ footnote | ❌ | ❌ | Same wording (`USSHER_NOTE`), and the system prompt forbids presenting a date as though Scripture gave it |
+| Assistant knows the atlas (`lookupBibleEntity` / `getBibleTimeline`) | ✅ 1.30.0 | ✅ | ✅ shared backend | ✅ shared backend | Read-only, no permission gate. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently. `lookupBibleEntity` also reports how many KJV verses name the person (`findOccurrences`, an exact word scan of the bundled text) |
+| `/who` slash command | ✅ 1.30.0 | ✅ | ❌ | ❌ | Added to both `slashCommands.ts` copies and to `slashCommandGuidance` |
+| Works offline | ✅ bundled JSON on the device | 🟡 needs the API | n/a | n/a | Deliberate: the phone must work with no network like the reader, and the browser must not download the whole atlas |
+
 ## Verse of the Day
 
 | Feature | Android | Web | macOS | iOS | Notes |

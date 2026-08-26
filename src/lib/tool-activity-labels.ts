@@ -15,6 +15,8 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	getCrossReferences: "Tracing cross-references",
 	getOriginalText: "Opening the original text",
 	lookupStrongs: "Studying the original word",
+	lookupBibleEntity: "Looking them up in Scripture",
+	getBibleTimeline: "Walking the timeline",
 	getDailyCross: "Opening today's cross",
 	setDailyCross: "Preparing your new day",
 	getReadingPlan: "Opening your reading plan",

@@ -14,6 +14,21 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.30.0 (versionCode 26) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Timeline, People & Places. Tap Timeline & People on the Bible tab and walk Bible history from Creation to Revelation, era by era
+- Tap any event for what happened, in the Bible's own words, with the verses one tap away
+- Look up any person or place: what Scripture says, the other names it uses, who they connect to
+- Reading a chapter? Tap the people icon to see who's in it
+- Ask SureWord "/who Melchizedek" and it answers from the King James text, not the web
+
+**Dev notes:** New hand-authored atlas at `src/data/bible-atlas/` - 207 events, 183 people, 93 places, 1,177 references - mirrored to `mobile/src/data/bible-atlas/` (and `atlas-core.ts` to `mobile/src/features/atlas/atlasCore.ts`) by `node scripts/build-bible-atlas.mjs`, which is also the validator: it exits non-zero unless every reference resolves against the bundled KJV **and** every person/place is actually named in one of the verses it cites, which is what stops invented Scripture. Dates are the traditional Ussher chronology the KJV margins carry, marked "c." and labelled as such in the UI and in the prompt. All ranking, era grouping and reference parsing lives in one dependency-free module copied verbatim to the phone, so the two clients can't drift; `tests/bible-atlas.test.mjs` (node) and `mobile/src/features/atlas/atlas.test.ts` (vitest) both cover it, including a drift check on the mirrored copies. Android reads the bundled JSON locally (works offline, like the reader); web reads the same data over `GET /api/bible/atlas` (`?q=` search, `?id=` entity, `?book=&chapter=` who's-in-this-chapter) and `GET /api/bible/atlas/timeline` so the browser never downloads the atlas. Two read-only chat tools (`lookupBibleEntity`, `getBibleTimeline`) plus a `/who` slash command; the prompt now tells the model to prefer them over `webSearch` for every who/where/when question. Pure JSON and TypeScript - no native modules, so no prebuild is required.
+
+---
+
 ## 1.29.0 (versionCode 25) - 2026-08-26 - internal
 
 **What's new (Play):**

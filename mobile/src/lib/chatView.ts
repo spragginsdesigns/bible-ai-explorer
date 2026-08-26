@@ -60,6 +60,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-getCrossReferences": "Tracing cross-references",
 	"tool-getOriginalText": "Opening the original text",
 	"tool-lookupStrongs": "Studying the original word",
+	"tool-lookupBibleEntity": "Looking them up in Scripture",
+	"tool-getBibleTimeline": "Walking the timeline",
 	"tool-getDailyCross": "Opening today's cross",
 	"tool-setDailyCross": "Preparing your new day",
 	"tool-getReadingPlan": "Opening your reading plan",

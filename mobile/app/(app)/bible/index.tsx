@@ -95,6 +95,10 @@ export default function BibleBooksScreen() {
 		router.push("/bible/plan");
 	};
 
+	const openTimeline = () => {
+		router.push("/bible/timeline");
+	};
+
 	return (
 		<Screen>
 			<View style={styles.header}>
@@ -126,6 +130,21 @@ export default function BibleBooksScreen() {
 									{plan ? plan.title : "Reading plan"}
 								</Text>
 								<Text style={styles.crossSubtitle}>{planCardSubtitle(plan)}</Text>
+							</View>
+							<Text style={styles.planChevron}>›</Text>
+						</Pressable>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Timeline, people and places of the Bible"
+							onPress={openTimeline}
+							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+						>
+							<Text style={styles.planGlyph}>◈</Text>
+							<View style={styles.crossCopy}>
+								<Text style={styles.planTitle}>Timeline &amp; People</Text>
+								<Text style={styles.crossSubtitle}>
+									When it happened, and who was there
+								</Text>
 							</View>
 							<Text style={styles.planChevron}>›</Text>
 						</Pressable>
