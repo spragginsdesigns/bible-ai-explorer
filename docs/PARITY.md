@@ -29,7 +29,7 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 |---|---|---|
 | Android | `mobile/` | Source of truth (v1.16.0) |
 | Web | `src/` | Tracked column-by-column below |
-| macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. |
+| macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. Installed on Austin's Mac via `bash macos/install-mac.sh` - mandatory after any macOS change (1.4.0 installed 2026-08-27). |
 | iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
 
 Layout adapts to each form factor, which the parity rule allows: macOS uses a

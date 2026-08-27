@@ -13,7 +13,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="${1:-$ROOT/macos/build-release/Build/Products/Release/SureWord.app}"
+APP="${1:-$ROOT/macos/build-release.noindex/Build/Products/Release/SureWord.app}"
 OUT="${2:-$ROOT/macos/SureWord.dmg}"
 DMGDIR="$ROOT/macos/dmg"
 

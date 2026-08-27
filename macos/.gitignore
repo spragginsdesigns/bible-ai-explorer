@@ -23,3 +23,6 @@ Packages/
 build-merge/
 SureWord.dmg
 build-release/
+
+# Spotlight-invisible build dirs used by install-mac.sh / README commands
+*.noindex/

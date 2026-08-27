@@ -15,15 +15,41 @@ bottom tab bar), but no capability may be missing.
 cd macos
 xcodegen                                  # regenerate SureWord.xcodeproj
 xcodebuild -scheme SureWord -destination 'platform=macOS' \
-  -derivedDataPath build build
-open build/Build/Products/Debug/SureWord.app
+  -derivedDataPath build.noindex build
+open build.noindex/Build/Products/Debug/SureWord.app
 ```
+
+**Every build directory ends in `.noindex`.** Spotlight skips directories with
+that suffix, so a scratch Debug build never shows up next to the real app when
+Austin hits ⌘Space. Never pass a plain `build`/`build-lane2` derived-data path;
+`install-mac.sh` deletes those on sight.
+
+## Installing on this Mac (mandatory after macOS parity work)
+
+`/Applications/SureWord.app` is the **only** SureWord.app that may exist on
+this machine, and it must be the current checkout. Any macOS parity work is
+not done until this has run:
+
+```bash
+bash macos/install-mac.sh             # build Release, replace /Applications/SureWord.app, launch
+bash macos/install-mac.sh --release   # …and build + publish the DMG (macos-v<version>)
+```
+
+It bumps nothing itself - set `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` in
+`project.yml` first when the release carries user-visible changes - but it
+refuses to install a build whose `CFBundleShortVersionString` disagrees with
+`project.yml`, prunes every stray build product (`macos/build*` without the
+`.noindex` suffix, agent-fleet `build-lane*` dirs, `~/Library/Developer/Xcode/
+DerivedData/SureWord-*`), quits the running app, strips quarantine, and finally
+lists whatever Spotlight still indexes under that name so a leftover copy is
+reported rather than hidden. Agents running a parallel fleet: give each lane a
+`build-lane<N>.noindex` derived-data path and let this script clean up after.
 
 Tests:
 
 ```bash
 xcodebuild -scheme SureWord -destination 'platform=macOS' \
-  -derivedDataPath build test
+  -derivedDataPath build.noindex test
 ```
 
 Or just open `SureWord.xcodeproj` in Xcode after running `xcodegen`.
@@ -48,12 +74,12 @@ exists.
 cd macos && xcodegen
 xcodebuild -scheme SureWord-iOS \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -derivedDataPath build-ios build
+  -derivedDataPath build-ios.noindex build
 # tests (SureWord-iOSTests — only a sanity test so far; the macOS suite
 # is ported by a later lane):
 xcodebuild -scheme SureWord-iOS \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -derivedDataPath build-ios test
+  -derivedDataPath build-ios.noindex test
 ```
 
 The iOS target shares the bundle id `com.spragginsdesigns.sureword` and the
@@ -181,13 +207,14 @@ written from the protocol spec and covered by recorded-chunk tests.
 
 ## Releasing a DMG
 
-Distribution is a DMG attached to a GitHub release. Build the DMG first, then
-run the release script from this directory:
+Distribution is a DMG attached to a GitHub release. The normal path is
+`bash macos/install-mac.sh --release`, which builds Release, installs the
+same build to `/Applications`, then runs the two steps below. By hand:
 
 ```bash
 cd macos && xcodegen
 xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
-  -destination 'platform=macOS' -derivedDataPath build-release build
+  -destination 'platform=macOS' -derivedDataPath build-release.noindex build
 
 ../scripts/build-dmg.sh          # styled installer → macos/SureWord.dmg
 bash ./release-dmg.sh

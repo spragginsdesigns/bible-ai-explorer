@@ -38,8 +38,9 @@ Runs BEFORE any git operation. Refuse the ship unless every requirement has real
 1. **Sync:** `git fetch bible-ai-explorer`, `git checkout main`, `git pull --rebase bible-ai-explorer main`.
 2. **Commit:** stage only files touched this session with explicit `git add <files>` — never `git add .` or `git add -A` (the repo root has `.env` files and scratch artifacts; check `git status` first). Conventional Commit message via HEREDOC (`feat(mobile): …`, `fix(mobile): …`, `feat(api): …`); body states what and why in 1-3 sentences. Do NOT commit `mobile/.phone-addr` changes or any secret-bearing file.
 3. **Push:** `git push bible-ai-explorer main`. A non-fast-forward rejection means fetch + rebase + retry (up to 3 attempts). Never force-push. Pushing `main` auto-deploys the backend/web to Vercel — that is the deploy step; there is no separate Production branch here.
-4. **Post-deploy smoke (backend changes only):** after ~1-2 min, hit the deployed endpoint or page at `https://bible-ai-explorer.vercel.app` and confirm a sane response. Mobile-only shipments skip this (the APK is the artifact — offer `/push-phone` if it didn't run during proof).
-5. **Report:** commit hash, files committed, gates evidence summary, any reported gaps, current branch.
+4. **macOS install (any change under `macos/`):** run `bash macos/install-mac.sh` (add `--release` when the change is user-visible and `project.yml`'s version was bumped) so `/Applications/SureWord.app` is the shipped build. A macOS change built only into a scratch dir is not shipped.
+5. **Post-deploy smoke (backend changes only):** after ~1-2 min, hit the deployed endpoint or page at `https://bible-ai-explorer.vercel.app` and confirm a sane response. Mobile-only shipments skip this (the APK is the artifact — offer `/push-phone` if it didn't run during proof).
+6. **Report:** commit hash, files committed, gates evidence summary, any reported gaps, current branch.
 
 ## Safety
 
