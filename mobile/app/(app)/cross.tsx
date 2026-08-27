@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Animated,
 	AppState,
+	ActivityIndicator,
 	Easing,
 	Pressable,
 	ScrollView,
@@ -78,9 +79,11 @@ export default function DailyCrossScreen() {
 	const [entry, setEntry] = useState<DailyCrossEntry | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
+	const [replacing, setReplacing] = useState(false);
 	const [focus, setFocus] = useState("");
 	const requestVersion = useRef(0);
 	const loadInFlight = useRef(false);
+	const scrollRef = useRef<ScrollView>(null);
 	// The day's study path is built out of the reading plan when one is
 	// running; this is how the user sees that it was.
 	const { plan } = useReadingPlan();
@@ -114,20 +117,26 @@ export default function DailyCrossScreen() {
 
 	/** Replace today's word — the same route the assistant's setDailyCross tool uses. */
 	const replaceToday = useCallback(() => {
+		if (replacing) return;
 		const steer = focus.trim();
 		setConfirmingReplace(false);
 		setFocus("");
 		setError(null);
-		setEntry(null);
+		setReplacing(true);
 		const version = ++requestVersion.current;
 		replaceTodayCross(getToken, steer || undefined)
 			.then((next) => {
-				if (version === requestVersion.current) setEntry(next);
+				if (version !== requestVersion.current) return;
+				setEntry(next);
+				requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
 			})
 			.catch((err: unknown) => {
 				if (version === requestVersion.current) showFailure(err);
+			})
+			.finally(() => {
+				if (version === requestVersion.current) setReplacing(false);
 			});
-	}, [focus, getToken, showFailure]);
+	}, [focus, getToken, replacing, showFailure]);
 
 
 	useFocusEffect(
@@ -183,12 +192,15 @@ export default function DailyCrossScreen() {
 				<View style={styles.topBarSpacer} />
 			</View>
 
-			<ScrollView contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace + spacing.lg }]}>
+			<ScrollView
+				ref={scrollRef}
+				contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace + spacing.lg }]}
+			>
 				<Text style={styles.date}>{today}</Text>
 
 				{!entry && !error ? (
 					<LoadingBars />
-				) : error ? (
+				) : !entry && error ? (
 					<GlassCard style={styles.errorCard}>
 						<Text style={styles.errorText}>{error}</Text>
 						<Pressable accessibilityRole="button" onPress={load} style={styles.retry}>
@@ -197,6 +209,14 @@ export default function DailyCrossScreen() {
 					</GlassCard>
 				) : entry ? (
 					<View style={styles.timeline}>
+						{error ? (
+							<GlassCard style={styles.errorCard}>
+								<Text style={styles.errorText}>{error}</Text>
+								<Pressable accessibilityRole="button" onPress={load} style={styles.retry}>
+									<Text style={styles.retryLabel}>Refresh today&apos;s word</Text>
+								</Pressable>
+							</GlassCard>
+						) : null}
 						<TimelineStop glyph="✝" label="TODAY'S VERSE">
 							<GlassCard style={styles.verseCard}>
 								<Text style={styles.reference}>{entry.reference}</Text>
@@ -267,7 +287,16 @@ export default function DailyCrossScreen() {
 								<Text style={styles.chatButtonLabel}>✦ Go deeper in chat</Text>
 							</Pressable>
 
-							{confirmingReplace ? (
+							{replacing ? (
+								<View style={styles.replacePanel}>
+									<View style={styles.replaceProgress}>
+										<ActivityIndicator color={colors.accent} />
+										<Text style={styles.replacePrompt}>
+											Preparing a fresh word. You can keep reading this one while SureWord searches.
+										</Text>
+									</View>
+								</View>
+							) : confirmingReplace ? (
 								<View style={styles.replacePanel}>
 									<Text style={styles.replacePrompt}>
 										Replace today&apos;s word with a new one? {entry.reference} won&apos;t come
@@ -453,6 +482,7 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 		},
 		replacePrompt: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
+		replaceProgress: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		focusInput: {
 			minHeight: 44,
 			borderRadius: radius.md,

@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.37.1 (versionCode 34) - 2026-08-27 - internal
+
+**What's new (Play):**
+
+FIXED
+- Pick Up Your Cross no longer turns into an empty black screen while a different word is being prepared
+- Your current word stays visible with a clear progress message, then the screen moves to the new verse when it is ready
+
+**Dev notes:** The replacement POST takes tens of seconds under Sol xhigh. Android previously set `entry` to null while the user was scrolled to the bottom; the ScrollView retained that now-out-of-range offset after its content collapsed, producing an empty black viewport. The old day now stays rendered, an explicit progress panel replaces the button, errors are non-destructive, and the successful response scrolls to the new verse.
+
 ## 1.37.0 (versionCode 33) - 2026-08-27 - internal
 
 **What's new (Play):**
