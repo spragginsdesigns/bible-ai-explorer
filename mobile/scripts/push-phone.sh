@@ -11,13 +11,15 @@
 # published -> this script refuses to build or upload anything.
 #
 # Usage:
-#   push-phone.sh                       bump + build + release to internal track
+#   push-phone.sh                       bump + build + release to Play + GitHub
 #   push-phone.sh --skip-build          upload the existing AAB as-is (no bump)
 #   push-phone.sh --track closed-beta   release to a different track
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AAB="$MOBILE_DIR/android/app/build/outputs/bundle/release/app-release.aab"
+APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
+ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
 
 log() { echo "[push-phone] $*"; }
 
@@ -118,8 +120,53 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
 fi
 
 [[ -f "$AAB" ]] || { echo "AAB not found at $AAB - build first."; exit 1; }
+[[ -f "$APK" ]] || {
+  echo "APK not found at $APK - build both release artifacts before publishing." >&2
+  echo "Play was not updated, so the Play build and website download cannot drift." >&2
+  exit 1
+}
+[[ -f "$ARTIFACT_MANIFEST" ]] || {
+  echo "Release artifact manifest not found at $ARTIFACT_MANIFEST." >&2
+  echo "Rebuild both artifacts before publishing; Play was not updated." >&2
+  exit 1
+}
+manifest_value() {
+  awk -F= -v key="$1" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$ARTIFACT_MANIFEST"
+}
+BUILT_CODE="$(manifest_value versionCode)"
+BUILT_NAME="$(manifest_value versionName)"
+EXPECTED_AAB_SHA="$(manifest_value aabSha256)"
+EXPECTED_APK_SHA="$(manifest_value apkSha256)"
+ACTUAL_AAB_SHA="$(sha256sum "$AAB" | awk '{print $1}')"
+ACTUAL_APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+[[ "$BUILT_CODE" == "$TARGET_CODE" && "$BUILT_NAME" == "$APP_VERSION" ]] || {
+  echo "Release artifacts are $BUILT_NAME ($BUILT_CODE), expected $APP_VERSION ($TARGET_CODE)." >&2
+  echo "Rebuild both artifacts before publishing; Play was not updated." >&2
+  exit 1
+}
+[[ "$EXPECTED_AAB_SHA" == "$ACTUAL_AAB_SHA" && "$EXPECTED_APK_SHA" == "$ACTUAL_APK_SHA" ]] || {
+  echo "AAB/APK hashes do not match the release artifact manifest." >&2
+  echo "Rebuild both artifacts before publishing; Play was not updated." >&2
+  exit 1
+}
+command -v gh >/dev/null 2>&1 || {
+  echo "gh CLI is required before Play can be updated." >&2
+  exit 1
+}
+gh auth status >/dev/null 2>&1 || {
+  echo "gh is not authenticated. Fix GitHub auth before publishing Play." >&2
+  exit 1
+}
+bash "$MOBILE_DIR/scripts/release-apk.sh" --preflight --notes "$NOTES"
 
 node "$MOBILE_DIR/scripts/play-upload.mjs" --aab "$AAB" --track "$TRACK" \
   --notes "$NOTES" --version-name "$APP_VERSION"
 
-log "Done. The Play Store delivers it to the phone in a few minutes (Play Store -> SureWord -> Update). To God be the glory."
+log "Play upload succeeded. Publishing the matching APK to GitHub Releases..."
+if ! bash "$MOBILE_DIR/scripts/release-apk.sh" --notes "$NOTES"; then
+  echo "[push-phone] ERROR: Play upload succeeded, but the GitHub APK publish failed." >&2
+  echo "[push-phone] The Play track is updated; rerun release-apk.sh after fixing the GitHub failure." >&2
+  exit 1
+fi
+
+log "Done. Play delivers it to the phone in a few minutes, and GitHub now serves the matching APK to website download links. To God be the glory."

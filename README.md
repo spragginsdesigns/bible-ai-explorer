@@ -17,14 +17,16 @@
 
 ## Clients & the Parity Rule
 
-SureWord has two first-class clients over one shared backend (this repo's Next.js API routes + Postgres):
+SureWord has four clients over one shared backend (this repo's Next.js API routes + Postgres):
 
-- **Android** (`mobile/`, Expo / React Native) — the **primary client and source of truth for features**
-- **Web** (`src/`, Next.js) — must stay at **1:1 feature parity with Android**
+- **Android** (`mobile/`, Expo / React Native) — the **primary client, source of truth and first acceptance target**
+- **Web** (`src/`, Next.js) — the immediate parity surface and fallback test path
+- **macOS** (`macos/SureWord/`, SwiftUI) — native desktop parity
+- **iOS** (`macos/SureWord-iOS/`, SwiftUI) — native mobile parity
 
-**Parity rule:** every feature that ships on Android must ship on web in the same release cycle (layout may adapt to the form factor; capabilities may not be dropped). Web may be a superset, never a subset. The living tracker is [`docs/PARITY.md`](docs/PARITY.md); project rules are in [`CLAUDE.md`](CLAUDE.md).
+**Parity rule:** build and exercise Android first. Web, macOS and iOS must receive the same capability in the same release cycle; layout may adapt to the platform, but behavior may not be dropped. When Android cannot run, web can provide temporary proof, but Android remains the release gate. The living tracker is [`docs/PARITY.md`](docs/PARITY.md); project rules are in [`CLAUDE.md`](CLAUDE.md).
 
-The Android APK is distributed via GitHub Releases (fixed asset name `SureWord.apk` on the latest release — see `mobile/README.md`): **[Download SureWord for Android](https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk)**. The web app links to it so web users can install the native app.
+The Android AAB goes to Play internal testing and its matching APK goes to GitHub Releases in one release command. The site discovers current Android and macOS versions independently instead of relying on hardcoded labels: **[Download SureWord for Android](https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk)**.
 
 ---
 

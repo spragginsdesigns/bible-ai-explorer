@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
 	// Required to be publicly reachable for the Play Store listing (Google's
 	// reviewers are signed out).
 	"/privacy",
+	// Download cards render before sign-in and need current public app metadata.
+	"/api/native-releases",
 	"/api/webhooks(.*)",
 	// Cron routes are protected by their own CRON_SECRET bearer check; letting
 	// them through here keeps Vercel cron (which has no Clerk session) working.

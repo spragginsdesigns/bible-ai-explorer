@@ -36,6 +36,7 @@ case "$HOST_OS" in
     ;;
 esac
 AAB="$MOBILE_DIR/android/app/build/outputs/bundle/release/app-release.aab"
+ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
 
 log() { echo "[build-aab] $*"; }
 
@@ -85,9 +86,9 @@ if ! grep -q 'signingConfig signingConfigs.upload' app/build.gradle; then
   log "Release build type now signs with the upload key."
 fi
 
-log "Building AAB (bundleRelease, all ABIs)..."
+log "Building Play AAB and website APK (bundleRelease + assembleRelease, all ABIs)..."
 NODE_ENV=production JAVA_HOME="$JAVA_HOME_DEFAULT" ./gradlew --no-daemon \
-  bundleRelease -x lint -x lintVitalAnalyzeRelease --quiet
+  bundleRelease assembleRelease -x lint -x lintVitalAnalyzeRelease --quiet
 
 [[ -f "$AAB" ]] || { echo "AAB not found at $AAB"; exit 1; }
 
@@ -99,3 +100,23 @@ if echo "$CERT" | grep -qi 'Android Debug'; then
   exit 1
 fi
 log "AAB ready: $AAB ($(du -h "$AAB" | cut -f1))"
+APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
+[[ -f "$APK" ]] || { echo "APK not found at $APK"; exit 1; }
+log "APK ready: $APK ($(du -h "$APK" | cut -f1))"
+
+# Bind the two artifacts to the exact version they were built from. The publish
+# script verifies this manifest before touching Play, including --skip-build,
+# so an old APK cannot be paired with a new AAB (or vice versa).
+BUILT_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*$/\1/p' app/build.gradle | head -n 1)"
+BUILT_NAME="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*$/\1/p' app/build.gradle | head -n 1)"
+[[ -n "$BUILT_CODE" && -n "$BUILT_NAME" ]] || {
+  echo "Could not read the built version from android/app/build.gradle"; exit 1;
+}
+mkdir -p "$(dirname "$ARTIFACT_MANIFEST")"
+printf 'versionCode=%s\nversionName=%s\naabSha256=%s\napkSha256=%s\n' \
+  "$BUILT_CODE" \
+  "$BUILT_NAME" \
+  "$(sha256sum "$AAB" | awk '{print $1}')" \
+  "$(sha256sum "$APK" | awk '{print $1}')" \
+  > "$ARTIFACT_MANIFEST"
+log "Bound AAB and APK to $BUILT_NAME ($BUILT_CODE) in $ARTIFACT_MANIFEST."

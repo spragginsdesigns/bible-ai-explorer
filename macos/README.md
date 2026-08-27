@@ -181,18 +181,8 @@ written from the protocol spec and covered by recorded-chunk tests.
 
 ## Releasing a DMG
 
-Distribution is a DMG attached to a GitHub release. The web app links
-`releases/latest/download/SureWord.dmg` (see `src/lib/constants.ts`), so
-**every release must attach its DMG under the fixed asset name
-`SureWord.dmg`** or the site's download link breaks.
-
-`releases/latest` is a *single* release, and the Android APK lives on
-releases too (`SureWord.apk`; `SureWord.ipa` will join when iOS distribution
-starts). So the rule for every release on any platform is: **attach every
-platform's current asset**, re-attaching the others from the previous latest
-release, or the other platforms' download links 404.
-`mobile/scripts/release-apk.sh` does this automatically for Android releases;
-for a macOS release, pull the current APK first:
+Distribution is a DMG attached to a GitHub release. Build the DMG first, then
+run the release script from this directory:
 
 ```bash
 cd macos && xcodegen
@@ -200,14 +190,19 @@ xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
   -destination 'platform=macOS' -derivedDataPath build-release build
 
 ../scripts/build-dmg.sh          # styled installer → macos/SureWord.dmg
-
-gh release download --pattern 'SureWord.apk' --dir . --clobber   # current APK from the latest release
-
-gh release create macos-v<version> SureWord.dmg SureWord.apk \
-  --title "SureWord for macOS <version>" --notes "..."
-rm SureWord.apk   # local copy only existed for re-attach
-# (or replace the assets on an existing release: gh release upload <tag> SureWord.dmg --clobber)
+bash ./release-dmg.sh
 ```
+
+`release-dmg.sh` refuses a missing or empty `SureWord.dmg`, reads
+`MARKETING_VERSION` from `project.yml`, mounts the DMG read-only and verifies
+the bundled app reports that exact version, requires authenticated `gh`, creates
+the `macos-v<version>` tag/release, and uploads the fixed asset name
+`SureWord.dmg`. It also carries the current `SureWord.apk` (and `SureWord.ipa`
+once iOS distribution exists) forward, so persistent
+`releases/latest/download/<asset>` links cannot break when a macOS release
+becomes latest. Re-running it updates that tag and replaces the assets, so an
+interrupted upload can be retried safely. The script performs no build; running
+it is the explicit action that creates or updates the GitHub release.
 
 `build-dmg.sh` (requires `brew install create-dmg`) lays out the branded
 installer window: the committed art lives in `macos/dmg/` — a HiDPI
@@ -220,16 +215,16 @@ so the art pools light under both label zones — keep that if you re-art it;
 and the icon coordinates in `build-dmg.sh` must match the arrow/pools in
 `make-dmg-background.py`.
 
-Bump `MARKETING_VERSION` in `project.yml` first, and `MACOS_VERSION` in
-`src/lib/constants.ts` with it — the web download card shows that string. The
-link itself always points at `releases/latest`, so a stale constant misinforms
-rather than breaks. The build is signed with the
-local Development certificate but **not notarized** (needs the paid Apple
-Developer Program). macOS 15 removed the right-click→Open bypass for
-unnotarized apps, so a downloaded copy's first launch is: open (blocked) →
-Done → System Settings → Privacy & Security → **Open Anyway** — or
-`xattr -dr com.apple.quarantine /Applications/SureWord.app`. Say so in the
-release notes; the DMG background bakes the same hint in.
+Set `MARKETING_VERSION` in `project.yml` before building. The site resolves
+the newest `macos-v*` GitHub release that contains `SureWord.dmg`, so no
+manual website version constant bump or manual cross-platform asset
+re-attachment is needed. The build is signed with the local Development certificate but **not
+notarized** (needs the paid Apple Developer Program). macOS 15 removed the
+right-click→Open bypass for unnotarized apps, so a downloaded copy's first
+launch is: open (blocked) → Done → System Settings → Privacy & Security →
+**Open Anyway** — or `xattr -dr com.apple.quarantine
+/Applications/SureWord.app`. The release script includes this first-launch
+note, and the DMG background bakes the same hint in.
 
 ## Status
 

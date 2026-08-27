@@ -51,8 +51,8 @@ mobile/
 │       ├── chat/           # streaming chat, tool cards, slash commands
 │       └── notes/          # library, tentap editor, note AI panel
 └── scripts/
-    ├── push-phone.sh     # bump versionCode + build AAB + release to Play internal track
-    ├── build-aab.sh      # signed all-ABI Play Store AAB
+    ├── push-phone.sh     # bump + build + publish to Play and GitHub
+    ├── build-aab.sh      # signed all-ABI AAB plus website APK
     ├── play-upload.mjs   # Android Publisher API uploader (no deps)
     └── release-apk.sh    # attach the built APK to a GitHub release
 ```
@@ -65,7 +65,7 @@ npm install          # NOT pnpm - mobile is intentionally outside the workspace
 npx expo start       # dev server (Expo Go won't work - native modules; use a dev build)
 ```
 
-### Building the APK (Windows)
+### Building release artifacts (Windows)
 
 ```bash
 npx expo prebuild --platform android   # regenerates android/ (gitignored)
@@ -73,8 +73,12 @@ npx expo prebuild --platform android   # regenerates android/ (gitignored)
 #   sdk.dir=C:/Users/Owner/AppData/Local/Android/Sdk
 #   cmake.dir=C:/Users/Owner/AppData/Local/Android/Sdk/cmake/3.31.6
 cd android
-JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew assembleRelease -x lint
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew bundleRelease assembleRelease -x lint
 ```
+
+The Android release flow is the primary acceptance path. `build-aab.sh` runs
+both Gradle release tasks so the Play AAB and the website APK come from the
+same source build. Do not publish the APK separately during a normal release.
 
 Known Windows gotchas (all pre-solved in the checked-in config):
 
@@ -106,13 +110,18 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 ### Pushing to the phone
 
 ```bash
-bash mobile/scripts/push-phone.sh                  # bump + build AAB + release to Play internal track
-bash mobile/scripts/push-phone.sh --skip-build     # upload the existing AAB, no bump
+bash mobile/scripts/push-phone.sh                  # bump + build + publish Play and GitHub APK
+bash mobile/scripts/push-phone.sh --skip-build     # publish one previously bound AAB/APK pair, no bump
 ```
 
 Since 2026-08-19 this ships through the Play Store's internal testing track
 (live for testers within minutes, no review) instead of wireless ADB - the
-phone updates itself.
+phone updates itself. After the Play upload succeeds, the same command
+publishes the matching `SureWord.apk` to GitHub Releases, which refreshes the
+APK served by the website download link. `build-aab.sh` writes a version and
+SHA-256 manifest for both artifacts; `push-phone.sh` verifies it before any
+Play upload, including `--skip-build`, so stale or independently built files
+fail closed.
 
 **Mandatory (since 2026-08-20): write the `CHANGELOG.md` entry first.** The
 changelog is the single source of truth for Play "What's new" notes - the
@@ -128,20 +137,17 @@ ADB-sideload script lives in git history if a debug build ever needs it.
 
 1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry (heading format
    and the mandatory Play-notes block per the rules at the top of that file).
-   Bump `ANDROID_VERSION` in `src/lib/constants.ts` too - the web download card
-   shows that string, while the GitHub Releases link always serves the latest
-   build.
+   The website discovers the newest `android-v*` release containing
+   `SureWord.apk`, so it needs no separate Android version edit.
 2. `npx tsc --noEmit` clean.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
-4. `bash mobile/scripts/push-phone.sh` - releases to the Play internal track
-   and bumps `versionCode`; commit the `app.json` bump together with the
-   CHANGELOG entry.
-5. Publish the APK to GitHub Releases:
-   `bash mobile/scripts/release-apk.sh`
-   The script tags `android-v<version>`, attaches the APK under the fixed
-   asset name `SureWord.apk`, and re-attaches the other platforms' current
-   assets (`SureWord.dmg`, `SureWord.ipa` when it exists). The web app links
-   `releases/latest/download/<asset>` and "latest" is a single release, so
-   **every release must carry every platform's asset** or the other links
-   break. Never rename the assets.
-6. Commit `mobile/` changes (the generated `android/` dir stays gitignored).
+4. Treat Android as the primary acceptance path: run
+   `bash mobile/scripts/push-phone.sh`. It bumps `versionCode`, publishes the
+   signed AAB to the Play internal track, then publishes the matching APK to
+   GitHub Releases. The website download link refreshes from that same release;
+   no manual website version edit or second APK publish is needed.
+   The script tags `android-v<version>`, attaches the APK under the fixed asset
+   name `SureWord.apk`, and re-attaches the other platforms' current assets
+   (`SureWord.dmg`, `SureWord.ipa` when it exists). Since "latest" is one
+   release, every release must carry every platform asset. Never rename them.
+5. Commit `mobile/` changes (the generated `android/` dir stays gitignored).

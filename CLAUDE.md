@@ -16,39 +16,39 @@ SureWord is a Bible study assistant for Christians. It MUST emulate a saved, bor
 ## Development Priorities (IMPORTANT)
 
 **The Android app (`mobile/`) is the PRIMARY client and the source of truth
-for features.** New features are built for Android first — and the **web
-client MUST be brought to 1:1 feature parity with Android**. Web is NOT
-sunsetted; it is a first-class client that mirrors Android.
+for features and acceptance testing.** New features are built and exercised
+on Android first. Web, macOS and iOS MUST be brought to capability parity in
+the same release cycle, with platform-native layouts. Web is a useful fallback
+test surface when Android cannot run, not the product's primary destination.
 
 ### The Parity Rule (non-negotiable)
 
-1. **Android leads, web follows — always.** When a feature ships on Android,
-   the same feature MUST ship on web in the same release cycle. A release is
-   not done until both clients have it.
-2. **Parity means feature parity.** Every user-visible Android capability must
-   exist on web with the same behavior (same API calls, same message/tool
-   rendering, same actions). Layout may adapt to the form factor (sidebar vs
-   bottom sheet, click vs long-press), but no capability may be missing.
+1. **Android leads — always.** Run the real Android path first. If the Android
+   environment is unavailable, use web as the temporary proof surface and
+   keep Android verification as an explicit release gate.
+2. **Parity means capability parity.** Every user-visible Android capability
+   must exist on web, macOS and iOS with the same behavior (same API calls,
+   message/tool rendering and actions). Layout may adapt to the form factor
+   (sidebar vs sheet, click vs long-press), but no capability may be missing.
 3. **Never remove a web feature Android lacks** — web may be a superset
    (e.g. light-mode toggle, sign-out button), but never a subset.
-4. **The parity tracker is `docs/PARITY.md`.** It lists every Android feature
-   and its web status. Update it whenever either client changes. A feature is
-   only "done" when its row says ✅ on both sides.
+4. **The parity tracker is `docs/PARITY.md`.** Update it whenever any client
+   changes. A feature is only done when every supported client is accurate;
+   never mark an unbuilt or untested Apple path as verified.
 5. **The backend is shared and fully active** — the Next.js API routes
    (`src/app/api/*`) serve both clients, so server-side work (tools, prompts,
    memory, persistence) automatically benefits both and auto-deploys to Vercel
    on push. Prefer server-side changes over duplicating logic per client.
 
 **The web app must also always link to the Android APK** so web users can
-install the native app. The APK is distributed via GitHub Releases under the
-fixed asset name `SureWord.apk` on the latest release (published by
-`mobile/scripts/release-apk.sh` — see `mobile/README.md`):
+install the native app. The welcome cards resolve Android and macOS releases
+independently through public `GET /api/native-releases`, while persistent
+install links retain the fixed GitHub asset names. Android is published by
+`mobile/scripts/push-phone.sh` — see `mobile/README.md`:
 `https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk`
 This link must stay visible in the web UI (see `src/lib/constants.ts`).
-Google Drive is no longer used for distribution — APK, DMG, and (when it
-ships) IPA all live on GitHub Releases, and every release must carry every
-platform's asset under its fixed name so `releases/latest/download/<asset>`
-keeps working for all of them.
+Google Drive is no longer used for distribution. APK, DMG, and (when it ships)
+IPA all live on GitHub Releases.
 
 - Mobile docs: `mobile/README.md` (stack, build, Windows gotchas, release checklist)
 - Mobile changelog: `mobile/CHANGELOG.md` - **the single source of truth for Play "What's new" notes, and MANDATORY on every Play push**: every versionCode released to Google Play needs an entry written BEFORE publishing (`push-phone.sh` extracts the notes from it and refuses to publish without one - no entry, no publish, same pattern as Context-Pro-AI's `android/CHANGELOG.md`). Bump `mobile/app.json` version on every feature release.
@@ -62,8 +62,8 @@ keeps working for all of them.
 - **Legacy branch:** `master` — unused, do not push here
 - **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
 - **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to production at https://sureword.app (legacy host https://bible-ai-explorer.vercel.app serves the same deployment). The Android app calls `https://sureword.app/api/*`, so server-side changes reach the phone only through this deploy — `/push-phone` alone never updates the API.
-- **App binaries ship ONLY via GitHub Releases** — never Google Drive or any other channel. Android: `bash mobile/scripts/release-apk.sh` (tags `android-v<version>`). macOS: the flow in `macos/README.md` ("Releasing a DMG"). iOS joins as `SureWord.ipa` when distribution starts.
-- **Release invariant — breaking it breaks the website's download buttons.** The site links `releases/latest/download/<asset>`, and `releases/latest` is a *single* release (whichever was published most recently). So EVERY release, on any platform, must attach EVERY platform's current asset under its fixed name — `SureWord.apk`, `SureWord.dmg`, `SureWord.ipa` — re-attaching the other platforms' assets from the previous latest release. `release-apk.sh` does this automatically; never rename the assets, and never create a release with only one platform's binary.
+- **App binaries ship ONLY via Play internal testing plus GitHub Releases** — never Google Drive or any other channel. Android: `bash mobile/scripts/push-phone.sh` builds one source revision, sends the AAB to Play, then publishes its matching APK under `android-v<version>`. macOS: `bash macos/release-dmg.sh` after the DMG build. iOS joins as `SureWord.ipa` when distribution starts.
+- **Release invariant — breaking it breaks persistent download links.** The versioned welcome cards discover the newest `android-v*` and `macos-v*` assets independently, but `releases/latest/download/<asset>` remains in persistent install surfaces and external docs. Every platform release script therefore carries forward every current fixed-name asset (`SureWord.apk`, `SureWord.dmg`, `SureWord.ipa`). Never rename those assets or publish a release outside the scripts.
 - **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, DATABASE_URL, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
 
 ## Terminology
@@ -315,15 +315,15 @@ rebuild them any time with `scripts/backfill-verse-embeddings.mjs` /
 - **"Shipped" means shipped everywhere it needs to go — in the same turn, no exceptions:**
   1. **Web/API** → commit + push to `main` (Vercel auto-deploys sureword.app).
   2. **Schema changes** → `prisma migrate deploy` against the real production DB (pin `DATABASE_URL` explicitly per the Database section traps, confirm `current_database()` and row counts before running).
-  3. **User-visible mobile changes** → `mobile/CHANGELOG.md` entry + `mobile/app.json` version bump, then `bash mobile/scripts/push-phone.sh` to build the AAB and publish to the Play internal track. The release is not done until the build is on its way to the Play Store. (Reaffirmed by Austin on 2026-08-22: "this is mandatory every time you finish work.")
-  4. **macOS/iOS** can't build on Windows — say so and leave a build checklist instead of pretending.
+  3. **User-visible mobile changes** → Android is the first acceptance path: `mobile/CHANGELOG.md` entry + `mobile/app.json` version bump, then `bash mobile/scripts/push-phone.sh` to build the AAB/APK, publish Play internal, and refresh the website APK from the same build. The release is not done until both publications succeed. (Reaffirmed by Austin on 2026-08-22: "this is mandatory every time you finish work.")
+  4. **Web, macOS and iOS parity** → verify web immediately after Android and keep Apple capability parity in the same cycle. macOS/iOS can't build on Windows; never call them verified without a Mac build, and leave the exact build/test gate when a Mac runner is unavailable.
 
 ## Autonomous Workflow
 
 Standard loop for any task, mirrored from Context-Pro-AI and adapted to this repo — the command files live in `.claude/commands/`:
 
 1. `/start-workflow` — triage → investigate → design gate (features) → implement.
-2. `/prove-it` — adversarial proof through the real product path (device gate for mobile via `/push-phone`, real request for API routes). Static gates (`cd mobile && npm run typecheck && npm test`, `pnpm lint`/`pnpm build` for web) are support checks, never proof alone.
+2. `/prove-it` — adversarial proof through the real product path. For client work, Android device/emulator is first; web is next or the temporary fallback when Android cannot run; macOS/iOS follow on a Mac runner. Static gates (`cd mobile && npm run typecheck && npm test`, `pnpm lint`/`pnpm build` for web) are support checks, never proof alone.
 3. `/review-code` — deep review of the actual working diff; any post-proof code change re-invalidates the proof.
 4. `/ship-it` — commit touched files only (never `git add -A`), Conventional Commit, push to `main`.
 

@@ -22,16 +22,17 @@ a copy of the .jks in private cloud storage).
 ```bash
 bash mobile/scripts/build-aab.sh
 # → mobile/android/app/build/outputs/bundle/release/app-release.aab
+# → mobile/android/app/build/outputs/apk/release/app-release.apk
 ```
 
 The script patches the prebuilt `android/` (which is gitignored and ships
-debug-signed) to sign releases with the upload key, builds **all ABIs** (the
-sideload APK is arm64-only), and refuses to finish if the AAB came out
-debug-signed. Every Play upload needs a **higher `versionCode`** in
+debug-signed) to sign releases with the upload key, builds the all-ABI Play AAB
+and matching website APK from the same source revision, and refuses to finish
+if the AAB came out debug-signed. Every Play upload needs a **higher `versionCode`** in
 `mobile/app.json` - same bump discipline as the changelog.
 
-GitHub `SureWord.apk` sideload releases keep their existing flow
-(`release-apk.sh`). Note the two keys differ, so a Play install and a
+The release command publishes `SureWord.apk` to GitHub immediately after Play
+accepts the AAB. Note the two keys differ, so a Play install and a
 sideloaded install can't be mixed on one device without uninstalling
 (Play App Signing re-signs with Google's key).
 
@@ -42,8 +43,14 @@ testing** track through the Android Publisher API, and Austin's phone updates
 from the Play Store (internal releases skip review and go live in minutes):
 
 ```bash
-bash mobile/scripts/push-phone.sh "release notes"   # bump versionCode + build AAB + release
+bash mobile/scripts/push-phone.sh   # bump + build AAB/APK + publish Play and GitHub
 ```
+
+Play notes come only from the matching entry in `mobile/CHANGELOG.md`; ad-hoc
+note arguments are rejected. The script checks both artifacts before any
+upload, publishes Play first, then creates the matching `android-v<version>`
+GitHub release. The website's public `/api/native-releases` endpoint discovers
+that APK automatically, so no site version constant is updated by hand.
 
 | Thing | Where |
 |---|---|
