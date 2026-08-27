@@ -14,11 +14,17 @@ final class DailyCrossModel {
     private(set) var error: String?
     private(set) var isLoading = false
 
+    /// Today's spoken devotional. Owned here rather than by the card for the
+    /// same reason the day is: the pane is destroyed whenever the sidebar
+    /// moves, and a listen must not stop because the user glanced at chat.
+    let listen: ListenModel
+
     private let api: APIClient
     private var task: Task<Void, Never>?
 
     init(api: APIClient) {
         self.api = api
+        listen = ListenModel(api: api)
     }
 
     /// Fetch the day unless one is already in hand. `force` is the retry path
@@ -36,6 +42,7 @@ final class DailyCrossModel {
                 let entry = try await DailyCrossAPI.today(api: api)
                 guard !Task.isCancelled else { return }
                 self.entry = entry
+                listen.reference = entry.reference
                 error = nil
             } catch {
                 guard !Task.isCancelled else { return }
@@ -56,6 +63,9 @@ final class DailyCrossModel {
         entry = nil
         error = nil
         isLoading = false
+        // The narration belongs to the word that was just replaced; a voice
+        // still reading it under the new day would be the wrong day speaking.
+        listen.reset()
     }
 
     /// Replace today's word with a newly prepared one, optionally centred on
@@ -66,12 +76,16 @@ final class DailyCrossModel {
         entry = nil
         error = nil
         isLoading = true
+        // A new word gets a new narration; the old one must stop and the card
+        // go back to preparing.
+        listen.reset()
 
         task = Task {
             do {
                 let replacement = try await DailyCrossAPI.replaceToday(api: api, focus: focus)
                 guard !Task.isCancelled else { return }
                 entry = replacement
+                listen.reference = replacement.reference
                 error = nil
             } catch {
                 guard !Task.isCancelled else { return }

@@ -85,4 +85,20 @@ final class AppModel {
         suggestedQuestions = SuggestedQuestionsModel(api: api)
         atlas = AtlasModel(api: api)
     }
+
+    /// The session ended. Signing out drops this model (see the `onChange` in
+    /// both app roots), but dropping it is not enough on its own: a chat
+    /// recovery poll running at that moment would keep the view model alive and
+    /// keep calling `/api/conversations` with a token that is now dead, which
+    /// the API client answers with a local sign-out per 401 pair. Tearing the
+    /// chat model down explicitly ends the poll at the same moment the session
+    /// does.
+    deinit {
+        let chat = chat
+        let listen = dailyCross.listen
+        Task { @MainActor in
+            chat.teardown()
+            listen.reset()
+        }
+    }
 }

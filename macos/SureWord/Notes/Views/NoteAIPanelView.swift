@@ -79,7 +79,13 @@ struct NoteAIPanelView: View {
                 }
                 .onChange(of: ai.messages.last?.content) {
                     guard let id = ai.messages.last?.id else { return }
-                    withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(id, anchor: .bottom) }
+                    // Never animate a `scrollTo` into a lazy stack: the animated offset is
+                    // re-resolved every frame against row estimates that the pass
+                    // itself changes, and the main thread never converges (the
+                    // second-message hang fixed in `ChatView.swift`).
+                    var transaction = Transaction(animation: nil)
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { proxy.scrollTo(id, anchor: .bottom) }
                 }
             }
         }
@@ -221,7 +227,7 @@ struct NoteAIMessageView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {
-                        MarkdownBody(text: message.content)
+                        MarkdownBody(text: message.content, streaming: message.isStreaming)
                     } else if message.isStreaming, message.activity == nil {
                         TypingDots()
                     }

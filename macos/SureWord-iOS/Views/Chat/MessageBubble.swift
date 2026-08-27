@@ -93,7 +93,7 @@ struct ChatMessageBubble: View {
             }
 
             if !message.content.isEmpty {
-                ChatMarkdownBody(text: message.content)
+                ChatMarkdownBody(text: message.content, streaming: message.isStreaming)
                     .contextMenu {
                         Button {
                             UIPasteboard.general.string = message.content

@@ -31,6 +31,10 @@ final class SettingsStore {
         static let verseOfDayHour = "settings.verseOfDay.hour"
         static let chatModelId = "settings.chat.modelId"
         static let chatEffort = "settings.chat.effort"
+        /// Same preference the web app keeps under `sureword.listenRate` and
+        /// Android keeps in its settings store.
+        static let listenRate = "settings.listen.rate"
+        static let parchment = "settings.bible.parchment"
     }
 
     /// Matches `DEFAULT_SETTINGS` in
@@ -53,7 +57,15 @@ final class SettingsStore {
     /// Local hour the morning reminder should arrive, 0-23.
     var verseOfDayHour: Int {
         didSet {
-            verseOfDayHour = min(max(verseOfDayHour, 0), 23)
+            // Guarded for the reason spelled out on `listenRate` below: an
+            // unconditional write-back from an `@Observable` property's
+            // `didSet` recurses through its own setter until the stack runs
+            // out. This clamp used to be unconditional.
+            let clamped = min(max(verseOfDayHour, 0), 23)
+            if clamped != verseOfDayHour {
+                verseOfDayHour = clamped
+                return
+            }
             UserDefaults.standard.set(verseOfDayHour, forKey: Key.verseOfDayHour)
         }
     }
@@ -70,6 +82,34 @@ final class SettingsStore {
         didSet { UserDefaults.standard.set(chatEffort, forKey: Key.chatEffort) }
     }
 
+    /// Playback speed for the "Listen" spoken devotional. Normalised on the way
+    /// in as well as on the way out: a rate this build no longer offers must
+    /// never reach the player, however it got stored.
+    /// **Never write back unconditionally from a `didSet` in this class.**
+    /// `@Observable` rewrites every stored property into a computed one over a
+    /// private `_name`, so an assignment inside `didSet` goes back through the
+    /// *public setter* - which sets `_name` again, which fires `didSet` again.
+    /// Swift's usual "assigning inside your own `didSet` does not re-enter"
+    /// rule does not apply, because the two are different properties. Doing it
+    /// segfaults the app with a stack overflow on the first keystroke; the
+    /// guard below is what bounds it to a single extra pass.
+    var listenRate: Double {
+        didSet {
+            let normalized = Listen.normalizeRate(listenRate)
+            if normalized != listenRate {
+                listenRate = normalized
+                return
+            }
+            UserDefaults.standard.set(listenRate, forKey: Key.listenRate)
+        }
+    }
+
+    /// The chapter reader's parchment page surface (Android 1.19.0 / web's
+    /// `.parchment-page`). On by default, exactly as on the other clients.
+    var parchment: Bool {
+        didSet { UserDefaults.standard.set(parchment, forKey: Key.parchment) }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         appearance = AppearanceSetting(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
@@ -82,6 +122,12 @@ final class SettingsStore {
         verseOfDayHour = min(max(storedHour ?? Self.defaultVerseOfDayHour, 0), 23)
         chatModelId = defaults.string(forKey: Key.chatModelId)
         chatEffort = defaults.string(forKey: Key.chatEffort)
+        // `object(forKey:)` so an unwritten key falls to the offered default
+        // rather than to 0, which is not a speed.
+        listenRate = Listen.normalizeRate(defaults.object(forKey: Key.listenRate))
+        // Same reason as the reminder toggle: an unset key reads as false, and
+        // would silently turn the parchment off for everyone.
+        parchment = defaults.object(forKey: Key.parchment) as? Bool ?? true
     }
 
     /// 0-23 → "8:00 AM" / "9:00 PM", matching `formatHour` on Android.

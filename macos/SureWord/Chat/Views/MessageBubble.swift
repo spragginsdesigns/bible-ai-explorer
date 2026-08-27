@@ -83,7 +83,7 @@ struct MessageBubble: View {
             }
 
             if !message.content.isEmpty {
-                MarkdownBody(text: message.content)
+                MarkdownBody(text: message.content, streaming: message.isStreaming)
             } else if message.isStreaming, message.activity == nil {
                 TypingDots()
             }

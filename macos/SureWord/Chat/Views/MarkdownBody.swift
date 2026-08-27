@@ -7,10 +7,22 @@ import SwiftUI
 struct MarkdownBody: View {
     @Environment(\.theme) private var theme
     let text: String
+    /// True while the answer is still arriving. Mid-stream the buffer ends in
+    /// half-typed markup, so the normalizer closes what the model has opened
+    /// instead of letting a literal `**` flash on screen. Matches the
+    /// `streaming` flag `mobile/src/features/chat/MessageBubble.tsx` and
+    /// `src/components/ChatMessage.tsx` pass.
+    var streaming: Bool = false
 
     var body: some View {
+        // Every client runs the assistant's markdown through the same
+        // normalizer before rendering: exactly one Scripture card per quoted
+        // verse, fences/lists/HTML/CRLF repaired. See `AssistantMarkdown`.
+        let blocks = MarkdownDocument.parse(
+            AssistantMarkdown.normalize(text, streaming: streaming)
+        )
         VStack(alignment: .leading, spacing: Spacing.md) {
-            ForEach(Array(MarkdownDocument.parse(text).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
         }

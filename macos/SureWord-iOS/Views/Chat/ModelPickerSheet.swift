@@ -1,47 +1,9 @@
 import SwiftUI
 
-// MARK: - Wire types
-
-/// One row of `GET /api/ai/models` — the same payload that drives the Android
-/// and web pickers (`mobile/src/features/settings/aiApi.ts`).
-struct AIModel: Sendable, Equatable, Identifiable, Decodable {
-    var id: String
-    var label: String
-    var provider: String
-    var supportsAttachments: Bool = false
-    var efforts: [String] = []
-    var available: Bool
-}
-
-struct AIProviderSummary: Sendable, Equatable, Identifiable, Decodable {
-    var id: String
-    var label: String
-    var available: Bool
-}
-
-struct AIModelsResponse: Sendable, Equatable, Decodable {
-    struct Defaults: Sendable, Equatable, Decodable {
-        var modelId: String
-        var effort: String?
-    }
-
-    /// Absent from older servers; the picker derives rows from `models` then.
-    var providers: [AIProviderSummary]?
-    var models: [AIModel]
-    var defaults: Defaults
-}
-
-enum AIModelsAPI {
-    static func load(api: APIClient) async throws -> AIModelsResponse {
-        try await api.json("/api/ai/models", as: AIModelsResponse.self)
-    }
-
-    static let providerLabels: [String: String] = [
-        "openai": "OpenAI",
-        "anthropic": "Anthropic",
-        "moonshot": "Moonshot",
-    ]
-}
+// The wire types (`AIModel`, `AIProviderSummary`, `AIModelsResponse`) and
+// `AIModelsAPI` moved to `Shared/Settings/AIProviders.swift` when the macOS
+// picker landed, so both Apple shells decode one definition of the server
+// contract. Same module - no import changes here.
 
 // MARK: - Sheet
 

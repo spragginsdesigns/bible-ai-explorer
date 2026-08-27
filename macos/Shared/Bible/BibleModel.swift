@@ -73,6 +73,13 @@ final class BibleModel {
     /// running a second one.
     let insight: VerseInsightModel
 
+    /// The reading plan the user is following, and every action the plan pane
+    /// takes on it. It hangs off the reader rather than off `AppModel` because
+    /// the plan *is* Bible-section state - the sidebar card and the plan pane
+    /// are the only two things that read it - and because living here it
+    /// survives a trip through chat exactly as the book and chapter do.
+    let plan: ReadingPlanModel
+
     /// Verse-highlight cache, injected by `AppModel` once both exist (the
     /// store needs the same API client). Optional so the tests can build a
     /// model without one. A chapter load refreshes that chapter's slice.
@@ -95,6 +102,7 @@ final class BibleModel {
         self.api = api
         self.defaults = defaults
         insight = VerseInsightModel(api: api)
+        plan = ReadingPlanModel(api: api)
         let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
     }

@@ -18,6 +18,9 @@ struct SettingsView: View {
     /// Owned here for the same reason as `memory`: the section is drawn inline,
     /// but the model must outlive a redraw so a save or removal is not re-run.
     @State private var church = ChurchModel()
+    /// Same reason again - a redraw mid-save must not restart the round-trip,
+    /// and the open key editor has to survive one.
+    @State private var providers = AIProviderSettingsModel()
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -32,6 +35,8 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     hint("System follows your Mac's dark or light mode.")
+                    Toggle("Parchment page", isOn: $settings.parchment)
+                    hint("Read Scripture on a parchment sheet, light or dark with the theme.")
                 }
 
                 Section("Bible") {
@@ -48,6 +53,8 @@ struct SettingsView: View {
                 }
 
                 verseOfDaySection
+
+                providerSection
 
                 memorySection
 
@@ -96,6 +103,10 @@ struct SettingsView: View {
         .task {
             church.configure(app.api)
             await church.load()
+        }
+        .task {
+            providers.configure(app.api)
+            await providers.load()
         }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)
@@ -186,6 +197,15 @@ struct SettingsView: View {
                 Text(memory.hasLoaded && memory.loadError == nil ? "\(memory.memories.count) saved" : "…")
             }
         }
+    }
+
+    // MARK: - AI Providers
+
+    /// Mirrors Android's AI PROVIDER card and the web settings section: the
+    /// bring-your-own-key list that unlocks each provider's models in the chat
+    /// header's model picker.
+    private var providerSection: some View {
+        ProviderSettingsSection(model: providers)
     }
 
     // MARK: - My church

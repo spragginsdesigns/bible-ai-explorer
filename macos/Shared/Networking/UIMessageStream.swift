@@ -17,6 +17,11 @@ struct UIMessageAccumulator: Sendable {
     private var textIndex: [String: Int] = [:]
     private var reasoningIndex: [String: Int] = [:]
     private var toolIndex: [String: Int] = [:]
+    /// `data-*` parts that carry an id, keyed by `name` + `id` so a re-sent part
+    /// updates in place. The status line depends on this: the route writes every
+    /// label as `data-status` with the id `"status"`, and appending instead would
+    /// leave a growing pile of stale labels behind the current one.
+    private var dataIndex: [String: Int] = [:]
     /// Raw JSON text accumulated from `tool-input-delta`, parsed on completion.
     private var toolInputBuffer: [String: String] = [:]
 
@@ -93,7 +98,15 @@ struct UIMessageAccumulator: Sendable {
         case .file(let url, let mediaType, let filename):
             message.parts.append(.file(FilePart(url: url, mediaType: mediaType, filename: filename)))
 
-        case .sourceURL, .sourceDocument, .data, .unknown:
+        // MARK: Data parts
+
+        case .data(let name, let id, let value, let transient):
+            // A transient part is for the live UI only - never stored on the
+            // message. Nothing in SureWord renders one outside `parts` yet, so
+            // honouring the flag means dropping it.
+            if !transient { upsertData(name: name, id: id, value: value) }
+
+        case .sourceURL, .sourceDocument, .unknown:
             // Not rendered by any SureWord client; the shared backend emits web
             // results through the `webSearch` tool output instead.
             break
@@ -117,6 +130,23 @@ struct UIMessageAccumulator: Sendable {
         } else {
             reasoningIndex[id] = message.parts.count
             message.parts.append(.reasoning(id: id, text: delta))
+        }
+    }
+
+    /// An id-carrying `data-*` part replaces the one already on the message;
+    /// an anonymous one is appended, exactly as the AI SDK reconciles them.
+    private mutating func upsertData(name: String, id: String?, value: JSONValue) {
+        let part = DataPart(name: name, id: id, value: value)
+        guard let id else {
+            message.parts.append(.data(part))
+            return
+        }
+        let key = "\(name)#\(id)"
+        if let index = dataIndex[key] {
+            message.parts[index] = .data(part)
+        } else {
+            dataIndex[key] = message.parts.count
+            message.parts.append(.data(part))
         }
     }
 

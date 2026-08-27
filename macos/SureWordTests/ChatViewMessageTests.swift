@@ -300,3 +300,58 @@ struct HistoryRestoreTests {
         #expect(ChatViewMessage(message: message, isStreaming: false).activity == nil)
     }
 }
+
+/// Which answer counts as "still being written".
+///
+/// The render list asks this once per rebuild, and the old form - "the newest
+/// assistant message anywhere in the list" - is wrong for the whole window
+/// between pressing send and the first chunk arriving, when the list ends in a
+/// *user* turn. It re-marked the previous, finished answer as streaming, which
+/// tore its follow-up chips and its "Add to notes" button out of a row that was
+/// already on screen, on every second send of every conversation.
+@Suite("Streaming answer identity")
+@MainActor
+struct StreamingAssistantIDTests {
+
+    private func message(_ id: String, _ role: UIMessage.Role) -> UIMessage {
+        UIMessage(id: id, role: role, parts: [.text(id: "t", text: "…")])
+    }
+
+    @Test("Nothing is streaming while the model is idle")
+    func idleStreamsNothing() {
+        let list = [message("u1", .user), message("a1", .assistant)]
+        #expect(ChatViewModel.streamingAssistantID(in: list, isBusy: false) == nil)
+    }
+
+    @Test("The assistant turn at the end of the list is the one streaming")
+    func trailingAssistantStreams() {
+        let list = [message("u1", .user), message("a1", .assistant)]
+        #expect(ChatViewModel.streamingAssistantID(in: list, isBusy: true) == "a1")
+    }
+
+    @Test("A settled earlier answer stays settled while a new send is in flight")
+    func earlierAnswerStaysSettled() {
+        let list = [
+            message("u1", .user),
+            message("a1", .assistant),
+            message("u2", .user),
+        ]
+        #expect(ChatViewModel.streamingAssistantID(in: list, isBusy: true) == nil)
+    }
+
+    @Test("Only the newest answer streams once its own turn has opened")
+    func onlyNewestAnswerStreams() {
+        let list = [
+            message("u1", .user),
+            message("a1", .assistant),
+            message("u2", .user),
+            message("a2", .assistant),
+        ]
+        #expect(ChatViewModel.streamingAssistantID(in: list, isBusy: true) == "a2")
+    }
+
+    @Test("An empty list has nothing streaming")
+    func emptyListStreamsNothing() {
+        #expect(ChatViewModel.streamingAssistantID(in: [], isBusy: true) == nil)
+    }
+}

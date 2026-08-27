@@ -1,5 +1,92 @@
 import Foundation
 
+// MARK: - Model list
+
+/// One row of `GET /api/ai/models` - the same payload that drives the Android
+/// and web pickers (`mobile/src/features/settings/aiApi.ts`).
+///
+/// Shared rather than per-shell: the iOS `ModelPickerSheet` and the macOS
+/// `ModelPickerPopover` decode this exact payload, and a second copy of the
+/// wire types is a second place for the server contract to drift.
+struct AIModel: Sendable, Equatable, Identifiable, Decodable {
+    var id: String
+    var label: String
+    var provider: String
+    var supportsAttachments: Bool = false
+    /// Reasoning efforts the model accepts. Empty means the model rejects the
+    /// option outright (`modelSupportsEffort` in `src/lib/ai/models.ts`), so no
+    /// reasoning control may be offered for it.
+    var efforts: [String] = []
+    var available: Bool
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, provider, supportsAttachments, efforts, available
+    }
+
+    /// Written out rather than synthesized: Swift's `Codable` synthesis ignores
+    /// a property's default value, so an absent `efforts` or
+    /// `supportsAttachments` would throw and cost the whole picker its list
+    /// rather than one capability flag.
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        label = try container.decode(String.self, forKey: .label)
+        provider = try container.decode(String.self, forKey: .provider)
+        supportsAttachments =
+            try container.decodeIfPresent(Bool.self, forKey: .supportsAttachments) ?? false
+        efforts = try container.decodeIfPresent([String].self, forKey: .efforts) ?? []
+        available = try container.decode(Bool.self, forKey: .available)
+    }
+
+    init(
+        id: String,
+        label: String,
+        provider: String,
+        supportsAttachments: Bool = false,
+        efforts: [String] = [],
+        available: Bool
+    ) {
+        self.id = id
+        self.label = label
+        self.provider = provider
+        self.supportsAttachments = supportsAttachments
+        self.efforts = efforts
+        self.available = available
+    }
+}
+
+struct AIProviderSummary: Sendable, Equatable, Identifiable, Decodable {
+    var id: String
+    var label: String
+    var available: Bool
+}
+
+struct AIModelsResponse: Sendable, Equatable, Decodable {
+    struct Defaults: Sendable, Equatable, Decodable {
+        var modelId: String
+        var effort: String?
+    }
+
+    /// Absent from older servers; the picker derives rows from `models` then.
+    var providers: [AIProviderSummary]?
+    var models: [AIModel]
+    var defaults: Defaults
+}
+
+enum AIModelsAPI {
+    static func load(api: APIClient) async throws -> AIModelsResponse {
+        try await api.json("/api/ai/models", as: AIModelsResponse.self)
+    }
+
+    static let providerLabels: [String: String] = [
+        "openai": "OpenAI",
+        "anthropic": "Anthropic",
+        "moonshot": "Moonshot",
+    ]
+}
+
+// MARK: - Bring your own key
+
 /// One bring-your-own-key provider row, as served by `GET /api/providers`.
 ///
 /// Port of `ProviderStatus` in `mobile/src/features/settings/aiApi.ts`. The key

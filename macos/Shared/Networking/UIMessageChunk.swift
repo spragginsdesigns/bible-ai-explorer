@@ -32,7 +32,15 @@ enum UIMessageChunk: Sendable, Equatable {
     case file(url: String, mediaType: String, filename: String?)
     case sourceURL(sourceId: String, url: String)
     case sourceDocument(sourceId: String, mediaType: String, title: String?)
-    case data(name: String, value: JSONValue)
+    /// `data-<name>`. A part that carries an `id` replaces the previous part
+    /// with that id (the status line does exactly this).
+    ///
+    /// `transient` is the AI SDK's own flag for a part that is delivered to the
+    /// UI but never becomes part of the message: it is not stored on the message
+    /// and never persisted. Decoding it is what lets the accumulator honour that
+    /// - folding a transient part into `parts` would leave it on screen after
+    /// the turn finished and replay it on the next question.
+    case data(name: String, id: String?, value: JSONValue, transient: Bool)
 
     case unknown(type: String)
 }
@@ -123,7 +131,14 @@ extension UIMessageChunk {
             // `data-*` carries app-defined payloads; everything else is a chunk
             // type this client doesn't render.
             if type.hasPrefix("data-") {
-                return .data(name: String(type.dropFirst("data-".count)), value: value["data"] ?? .null)
+                return .data(
+                    name: String(type.dropFirst("data-".count)),
+                    id: string("id"),
+                    value: value["data"] ?? .null,
+                    // Absent means false - the SureWord route writes its status
+                    // line without the flag today.
+                    transient: value["transient"]?.boolValue ?? false
+                )
             }
             return .unknown(type: type)
         }

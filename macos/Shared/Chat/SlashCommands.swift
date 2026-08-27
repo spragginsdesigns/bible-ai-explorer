@@ -58,8 +58,22 @@ extension SlashCommand {
             requiresArgs: true
         ),
         .init(
+            command: "/who",
+            hint: "<name or place>",
+            description: "Who or where is this? Look it up in Scripture",
+            kind: .ai,
+            requiresArgs: true
+        ),
+        .init(
             command: "/cross",
             description: "Today's Pick Up Your Cross",
+            kind: .ai
+        ),
+        // Reads the day's portion and nothing more - starting or changing a plan
+        // is a deliberate act, never a side effect of asking what to read.
+        .init(
+            command: "/plan",
+            description: "Today's reading in your reading plan",
             kind: .ai
         ),
         .init(

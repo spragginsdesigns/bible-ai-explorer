@@ -1,5 +1,31 @@
 import SwiftUI
 
+/// The reader's page surface: photoreal aged parchment (light) and a dark
+/// leather-toned sheet (dark), the same two textures Android loads from
+/// `mobile/assets/` and web sets on `.parchment-page` - generated together by
+/// `scripts/generate-parchment.mjs`, converted into the asset catalogue as
+/// JPEG (the source WebP is not an asset-catalogue format).
+///
+/// Kept out of `ChapterReaderPane` so it can be reasoned about on its own: it
+/// is a *fixed* sheet the verses scroll over, like text moving across an
+/// unrolled scroll under a lamp, which is what Android does with an absolutely
+/// positioned image behind its list. Nothing here is greedy inside the scroll
+/// content, so it cannot join the reader's layout minefield (see
+/// `macos/README.md`).
+private struct ParchmentSheet: View {
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        Image(theme.isDark ? "ParchmentDark" : "ParchmentLight")
+            .resizable()
+            // The texture is a 2:3 portrait plate; filling and clipping keeps
+            // its grain at a constant scale whatever the window is doing,
+            // where a stretch would smear it at wide widths.
+            .aspectRatio(contentMode: .fill)
+            .accessibilityHidden(true)
+    }
+}
+
 /// Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), per-verse
 /// actions (copy / share / save to note / Ask AI), adjustable type size, and
 /// prev/next navigation that rolls into adjacent books like YouVersion.
@@ -16,6 +42,15 @@ struct ChapterReaderPane: View {
     let showAtlas: (_ book: Int, _ chapter: Int) -> Void
 
     private var translation: TranslationID { app.settings.translation }
+
+    /// The parchment page surface, per the shared setting. Off restores the
+    /// plain reader on the app's own shell, exactly as on Android and web -
+    /// nothing else about the reader changes.
+    private var parchment: Bool { app.settings.parchment }
+
+    /// The text column (760) plus its own horizontal padding: the page is as
+    /// wide as the words plus a margin, never the whole window.
+    private static let pageWidth: CGFloat = 760 + Spacing.xxl * 2
 
     var body: some View {
         VStack(spacing: 0) {
@@ -198,6 +233,11 @@ struct ChapterReaderPane: View {
             // padding inside the stack, so that scrolling verse 1 to the top
             // keeps it instead of scrolling it away.
             .contentMargins(.vertical, Spacing.lg, for: .scrollContent)
+            // The same gutter the sheet below keeps from the window edge, so
+            // the text column is never wider than the page it is printed on -
+            // which it would be in a narrow window, now that the page is the
+            // background and no longer the scroll view's own frame.
+            .contentMargins(.horizontal, parchment ? Spacing.lg : 0, for: .scrollContent)
             // A deep link only lands once the chapter it names is the one on
             // screen — `loadedKey` is what proves that, since the selection
             // changes a render before the text does.
@@ -215,13 +255,21 @@ struct ChapterReaderPane: View {
                 }
             }
             // A jump into the chapter already on screen changes nothing but the
-            // pending verse — no reload, so `loadedKey` never moves and the
+            // pending verse - no reload, so `loadedKey` never moves and the
             // effect above never re-fires. Android keys its effect on the verse
             // param for the same reason.
             .onChange(of: model.pendingVerse) { _, verse in
                 guard verse != nil else { return }
                 scrollToPendingVerse(proxy)
             }
+            // The page goes *behind* the scroll view rather than around it -
+            // see `page`.
+            .background {
+                if parchment {
+                    page
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
         .overlay(alignment: .bottomTrailing) {
             Button {
@@ -231,9 +279,54 @@ struct ChapterReaderPane: View {
                     .font(.system(size: 13, weight: .bold))
             }
             .buttonStyle(AccentButtonStyle())
+            // The accent button is a translucent amber wash, which had the
+            // whole shell behind it before and now floats over the page. Gold
+            // on gold is unreadable, so it gets its own opaque plate - on the
+            // plain reader too, where it also stops verse text showing through.
+            .background(theme.bgElevated, in: .capsule)
+            .shadow(color: .black.opacity(0.35), radius: 10, y: 3)
             .padding(Spacing.xl)
             .accessibilityLabel("Ask AI about \(model.reference)")
         }
+    }
+
+    /// The page: a fixed sheet the verses scroll over, clipped and rimmed so it
+    /// reads as a sheet of parchment on the shell rather than as a wallpaper.
+    /// Capped at the text column's width so a wide window gets a page with
+    /// margins, not an acre of texture.
+    ///
+    /// The cap belongs to the *sheet*, not to the scroll view. It used to be a
+    /// `.frame(maxWidth:)` on the `ScrollView` itself, which made the container
+    /// the page and cost two things: the gutters either side of the page were
+    /// dead to the wheel, and macOS drew the scroller inside the page's rim
+    /// instead of at the window's edge. The scroll view is full width now; only
+    /// what is *drawn* is narrow, and the sheet still does not move, because a
+    /// background does not scroll.
+    private var page: some View {
+        // `Color.clear` is what pins the sheet to the scroll view's bounds. The
+        // texture is `aspectRatio(.fill)`, so it *reports* a size bigger than
+        // the space it was offered - clipping it directly clips to that
+        // oversized rect, and as a background (which is not clipped to its
+        // host) the overflow drew straight over the reader's top bar. A clear
+        // rectangle takes the offered size exactly and the clip lands on that.
+        Color.clear
+            .overlay { ParchmentSheet() }
+            .clipShape(.rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.borderStrong, lineWidth: 1)
+                    // Decoration, and decoration must never take a click that
+                    // belongs to the verse row over it.
+                    .allowsHitTesting(false)
+            }
+            // Attached only on the parchment reader. Carried as
+            // `opacity(parchment ? 0.35 : 0)` it was still a live shadow the
+            // renderer composed on the plain reader too, for nothing.
+            .shadow(color: .black.opacity(0.35), radius: 16, y: 4)
+            .frame(maxWidth: Self.pageWidth)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.bottom, Spacing.md)
+            .allowsHitTesting(false)
     }
 
     // MARK: - Verse panel
@@ -304,6 +397,30 @@ struct ChapterReaderPane: View {
         withAnimation(.easeOut(duration: 0.2)) { model.flash(verse: verse) }
     }
 
+    /// The wash behind a verse row, in precedence order: the deep-link flash,
+    /// then the open action panel, then the reader's own persistent highlight.
+    ///
+    /// All three are parchment-aware, and they have to be. `accentSoft`,
+    /// `surface` and `HighlightColors.wash` are mixed for the app's flat shell;
+    /// laid over the photoreal sheet the shell's near-black `surface` reads as
+    /// a smudge on the light plate and vanishes into the dark one, and a 25%
+    /// swatch does the same. On parchment every tint is the sheet's own
+    /// `parchmentHighlight` - a value picked per plate - or the swatch's hue
+    /// carried at that strength, so a yellow highlight is still yellow and
+    /// still legible on both sheets.
+    private func rowWash(isHighlighted: Bool, isOpen: Bool, highlightHex: String?) -> Color {
+        // The flash is the sheet's own ink-gold rather than the shell's amber,
+        // which would read as a sticker on the page.
+        if isHighlighted { return parchment ? theme.parchmentHighlight : theme.accentSoft }
+        // Half strength: the open row is a "you are here", not a highlight, and
+        // must not out-shout a verse the reader actually marked.
+        if isOpen { return parchment ? theme.parchmentHighlight.opacity(0.5) : theme.surface }
+        guard let highlightHex else { return .clear }
+        guard parchment else { return HighlightColors.wash(highlightHex) }
+        return (Color(hex: highlightHex) ?? theme.parchmentHighlight)
+            .opacity(theme.isDark ? 0.34 : 0.42)
+    }
+
     @ViewBuilder
     private func verseRow(number: Int, markup: String) -> some View {
         let isHighlighted = model.highlightedVerse == number
@@ -341,10 +458,7 @@ struct ChapterReaderPane: View {
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
         .background(
-            // Deep-link flash and the open-panel state keep precedence over
-            // the persistent highlight wash, exactly as before.
-            isHighlighted ? theme.accentSoft
-                : (isOpen ? theme.surface : (highlightHex.map(HighlightColors.wash) ?? .clear)),
+            rowWash(isHighlighted: isHighlighted, isOpen: isOpen, highlightHex: highlightHex),
             in: .rect(cornerRadius: Radius.md)
         )
         .contentShape(.rect(cornerRadius: Radius.md))
@@ -403,9 +517,14 @@ struct ChapterReaderPane: View {
     /// Verse number then the emphasis-aware segments, concatenated into one
     /// `Text` so the number stays inline with the wrapped body.
     private func verseText(number: Int, markup: String) -> Text {
+        // Ink read against the sheet, not against the shell: the parchment
+        // tokens are a separate set for exactly this reason.
+        let ink = parchment ? theme.parchmentInk : theme.textSecondary
+        let numberInk = parchment ? theme.parchmentNumber : theme.accentDim
+
         var result = Text("\(number) ")
             .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(theme.accentDim)
+            .foregroundStyle(numberInk)
         for segment in VerseMarkup.segments(markup) {
             result = result
                 + Text(segment.text)
@@ -416,7 +535,7 @@ struct ChapterReaderPane: View {
                     )
                 )
                 .italic(segment.italic)
-                .foregroundStyle(theme.textSecondary)
+                .foregroundStyle(ink)
         }
         return result
     }
@@ -535,10 +654,13 @@ struct ChapterReaderPane: View {
 
     private var footer: some View {
         VStack(spacing: Spacing.xl) {
-            Text("\(translation.label) — \(translation.copyright)")
+            // An em dash, matching `TranslationID.copyright`'s own - so the
+            // NKJV line does not read "NKJV - © Thomas Nelson - text via …"
+            // with two different dashes in one sentence.
+            Text("\(translation.label) \u{2014} \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
-                .foregroundStyle(theme.textGhost)
+                .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: Spacing.md) {

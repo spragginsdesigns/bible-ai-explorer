@@ -20,6 +20,10 @@ enum UIMessagePart: Sendable, Equatable {
     case reasoning(id: String, text: String)
     case tool(ToolPart)
     case file(FilePart)
+    /// App-defined `data-*` payload. The only one SureWord renders is
+    /// `data-status`, the live "Getting ready / Thinking / …" narration the
+    /// route writes before the first token (`src/lib/ai/status-narration.ts`).
+    case data(DataPart)
 
     var textContent: String? {
         if case .text(_, let text) = self { return text }
@@ -35,6 +39,27 @@ enum UIMessagePart: Sendable, Equatable {
         if case .file(let part) = self { return part }
         return nil
     }
+
+    var dataPart: DataPart? {
+        if case .data(let part) = self { return part }
+        return nil
+    }
+}
+
+/// One `data-*` stream part. `name` is the discriminator's suffix, so
+/// `data-status` arrives as `name == "status"` — the same key the TS clients
+/// match on in `mobile/src/lib/chatView.ts`.
+///
+/// `id` is what makes the status line a *line* rather than a growing list: the
+/// server reuses the id `"status"` for every write, and both the AI SDK and this
+/// accumulator reconcile same-id parts in place.
+struct DataPart: Sendable, Equatable {
+    var name: String
+    var id: String?
+    var value: JSONValue
+
+    /// The TS discriminator (`data-status`).
+    var type: String { "data-\(name)" }
 }
 
 struct FilePart: Sendable, Equatable {

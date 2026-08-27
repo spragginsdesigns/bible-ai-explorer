@@ -3,6 +3,9 @@ import SwiftUI
 /// The chat detail pane: message list, error states, and the composer.
 struct ChatView: View {
     @Environment(\.theme) private var theme
+    /// The picker writes the chosen model and effort straight into the store
+    /// `ChatViewModel` reads on every send.
+    @Environment(SettingsStore.self) private var settings
     @Bindable var chat: ChatViewModel
     let api: APIClient
     /// This user's opening questions, generated once per session.
@@ -18,6 +21,10 @@ struct ChatView: View {
     @State private var toast: String?
     /// The answer whose "Add to notes" picker is open, if any.
     @State private var noteTarget: PendingNoteSave?
+    /// The model list behind the header picker. Owned here so the toolbar
+    /// button can name the current model while the popover is closed.
+    @State private var models = ModelPickerModel()
+    @State private var isModelPickerPresented = false
 
     /// A settled answer waiting to be saved. Identifiable so `.sheet(item:)`
     /// re-presents cleanly when a second answer is picked.
@@ -47,6 +54,11 @@ struct ChatView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .toolbar { modelPickerItem }
+        .task {
+            models.configure(api)
+            await models.load()
+        }
         .sheet(item: $noteTarget) { target in
             AddToNoteSheet(
                 api: api,
@@ -57,6 +69,46 @@ struct ChatView: View {
                     toast: result.created
                         ? "Created \(result.noteTitle)"
                         : "Added to \(result.noteTitle)"
+                )
+            }
+        }
+    }
+
+    /// Model + reasoning picker, the Mac form of the web dropdown and the iOS
+    /// sheet: a sparkles button in the window toolbar opening a native popover.
+    @ToolbarContentBuilder
+    private var modelPickerItem: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                isModelPickerPresented.toggle()
+            } label: {
+                HStack(spacing: Spacing.xs) {
+                    Image(systemName: "sparkles")
+                    Text(
+                        ModelPickerRules.buttonLabel(
+                            in: models.data,
+                            stored: settings.chatModelId
+                        )
+                    )
+                    .font(.system(size: 12, weight: .semibold))
+                    .lineLimit(1)
+                    // A model id can be long enough to push the rest of the
+                    // toolbar off the window; web caps the same caption at
+                    // 110px. Middle-truncate so the family stays readable.
+                    .frame(maxWidth: 140)
+                    .truncationMode(.middle)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(theme.textGhost)
+                }
+            }
+            .help("Choose the AI model and reasoning effort")
+            .accessibilityLabel("Choose AI model")
+            .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
+                ModelPickerPopover(
+                    models: models,
+                    settings: settings,
+                    isPresented: $isModelPickerPresented
                 )
             }
         }
@@ -124,10 +176,35 @@ struct ChatView: View {
                 .padding(Spacing.xl)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // Follow the answer as it streams.
+            // Follow the answer as it streams - deliberately *unanimated*.
+            //
+            // This used to be `withAnimation(.easeOut(duration: 0.15)) { … }`,
+            // and that one modifier hung the whole app on the second send of
+            // every conversation. Animating the offset makes the scroll view
+            // re-resolve the target on every frame of the animation, but inside
+            // a `LazyVStack` the target's offset is only an *estimate* until the
+            // rows between here and there have been realised. On the first send
+            // the list is two short rows and the estimate converges immediately.
+            // On the second send the animation starts while a full settled answer
+            // is being re-laid-out above and two more rows are inserted below, so
+            // each pass realises rows, corrects the estimated content length,
+            // moves the target, and asks for another pass. It never reaches a
+            // fixed point: the main thread spins forever in
+            // `LazySubviewPlacements.updateValue → LazyStack.place →
+            // LazyHVStack.lengthAndSpacing`, the window stops repainting, and
+            // even the accessibility window list comes back empty.
+            //
+            // Unanimated, `scrollTo` resolves once against the geometry it
+            // already has, and the follow-the-stream behaviour is identical to
+            // the eye - chunks arrive many times a second, so a 150ms ease was
+            // never visible as motion anyway. The transaction explicitly
+            // *disables* animation rather than merely not adding one, so an
+            // animated transaction elsewhere can never re-inherit the hang.
             .onChange(of: chat.messages.last?.content) {
                 guard let id = chat.messages.last?.id else { return }
-                withAnimation(.easeOut(duration: 0.15)) {
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
                     proxy.scrollTo(id, anchor: .bottom)
                 }
             }

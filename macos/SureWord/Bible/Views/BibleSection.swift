@@ -13,6 +13,7 @@ struct BibleSection: View {
     /// the user back to "Choose a book" every time.
     private var model: BibleModel { app.bible }
     @State private var showingAtlas = false
+    @State private var showingPlan = false
     @State private var atlasBook: Int?
     @State private var atlasChapter: Int?
 
@@ -23,9 +24,16 @@ struct BibleSection: View {
                 onShowAtlas: {
                     atlasBook = nil
                     atlasChapter = nil
+                    showingPlan = false
                     showingAtlas = true
                 },
-                onShowBible: { showingAtlas = false }
+                onShowPlan: {
+                    atlasBook = nil
+                    atlasChapter = nil
+                    showingAtlas = false
+                    showingPlan = true
+                },
+                onShowBible: { showBible() }
             )
                 .frame(width: 300)
 
@@ -57,9 +65,7 @@ struct BibleSection: View {
         // the same verse every time the section is shown.
         .onChange(of: app.pendingVerseReference, initial: true) { _, pending in
             guard let pending else { return }
-            showingAtlas = false
-            atlasBook = nil
-            atlasChapter = nil
+            showBible()
             if let reference = Bible.resolveReference(pending) {
                 model.open(reference)
             }
@@ -67,9 +73,31 @@ struct BibleSection: View {
         }
     }
 
+    /// Back to the books, whichever pane was covering them.
+    private func showBible() {
+        showingAtlas = false
+        showingPlan = false
+        atlasBook = nil
+        atlasChapter = nil
+    }
+
     @ViewBuilder
     private var detail: some View {
-        if showingAtlas {
+        if showingPlan {
+            ReadingPlanPane(
+                model: model.plan,
+                onOpenReading: { reading in
+                    // The plan names books the way the KJV data does, so the
+                    // shared resolver is all the translation needed - the same
+                    // path the atlas reference chips take.
+                    guard let reference = Bible.resolveReference("\(reading.book) \(reading.chapter)")
+                    else { return }
+                    showBible()
+                    model.open(reference)
+                },
+                onDismiss: { showBible() }
+            )
+        } else if showingAtlas {
             AtlasExplorerPane(
                 model: app.atlas,
                 onOpenReference: { rawReference in

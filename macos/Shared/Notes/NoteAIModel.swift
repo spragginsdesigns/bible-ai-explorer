@@ -52,14 +52,12 @@ final class NoteAIModel {
     var isBusy: Bool { status != .idle || historyLoading }
 
     var messages: [ChatViewMessage] {
-        let lastAssistantID = uiMessages.last { $0.role == .assistant }?.id
+        // Same rule as the chat: only a *trailing* assistant message streams,
+        // so a settled answer keeps its rendering while the next send is
+        // in flight (`ChatViewModel.streamingAssistantID`).
+        let streamingID = ChatViewModel.streamingAssistantID(in: uiMessages, isBusy: status != .idle)
         var views = uiMessages.map { message in
-            ChatViewMessage(
-                message: message,
-                isStreaming: status != .idle
-                    && message.role == .assistant
-                    && message.id == lastAssistantID
-            )
+            ChatViewMessage(message: message, isStreaming: message.id == streamingID)
         }
         if status == .submitted, views.last?.role == .user {
             views.append(
@@ -178,7 +176,7 @@ final class NoteAIModel {
 
     private func startStream() {
         streamTask?.cancel()
-        let request = NoteAIRequest(messages: uiMessages.map(\.json), noteId: noteID)
+        let request = NoteAIRequest(messages: uiMessages.compactMap(\.outgoingJSON), noteId: noteID)
 
         streamTask = Task { [weak self] in
             guard let self else { return }

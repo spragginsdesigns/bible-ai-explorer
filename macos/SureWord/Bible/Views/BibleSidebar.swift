@@ -8,6 +8,7 @@ struct BibleSidebar: View {
     @Environment(AppModel.self) private var app
     @Bindable var model: BibleModel
     let onShowAtlas: () -> Void
+    let onShowPlan: () -> Void
     let onShowBible: () -> Void
 
     /// Collapsed testaments, remembered for as long as the section is alive —
@@ -21,11 +22,15 @@ struct BibleSidebar: View {
             if model.isSearching {
                 searchResults
             } else {
+                planCard
                 atlasCard
                 crossCard
                 bookList
             }
         }
+        // The card shows where the plan stands; the pane owns every action, so
+        // this only ever needs the one load per session.
+        .task { model.plan.loadIfNeeded() }
         // Debounced in the task itself: a superseded run is cancelled during
         // the sleep, so the first call — which parses every book's JSON — only
         // happens once the typing stops.
@@ -34,6 +39,51 @@ struct BibleSidebar: View {
             guard !Task.isCancelled else { return }
             await model.runSearch()
         }
+    }
+
+    // MARK: - Reading plan
+
+    /// Top of the Bible screen on every client: today's reading, or an
+    /// invitation to start. Mirrors the Android Bible tab's plan card
+    /// (`mobile/app/(app)/bible/index.tsx`) and web's `BibleBookPicker`.
+    private var planCard: some View {
+        let plan = model.plan.plan
+        return Button(action: onShowPlan) {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "calendar.day.timeline.left")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(plan?.title ?? "Reading plan")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                        .lineLimit(1)
+                    Text(PlanView.planCardSubtitle(plan))
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help(plan == nil ? "Start a reading plan" : "Reading plan - today's reading")
+        .accessibilityLabel(plan == nil ? "Start a reading plan" : "Reading plan, today's reading")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
     }
 
     // MARK: - Daily Cross

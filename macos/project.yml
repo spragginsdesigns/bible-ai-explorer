@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.4.0"
-    CURRENT_PROJECT_VERSION: "4"
+    MARKETING_VERSION: "1.5.0"
+    CURRENT_PROJECT_VERSION: "5"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -137,6 +137,10 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.reference
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        # Listen (the spoken devotional) keeps playing with the screen locked;
+        # without this iOS suspends the audio session on lock and the Now
+        # Playing / remote-command work in ListenModel is inert.
+        UIBackgroundModes: [audio]
         # Same OAuth return scheme as the other clients — see the SureWord
         # target's note and the Clerk dashboard's redirect allowlist.
         CFBundleURLTypes:

@@ -82,7 +82,8 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     var noteActions: [NoteAction] = []
     var crossActions: [CrossAction] = []
     var attachments: [ChatAttachment] = []
-    /// Label shown while a tool is running; only set during streaming.
+    /// Live "Getting ready / Reading <file> / Thinking" line, or the label of
+    /// a tool that is mid-flight. Only ever set while streaming.
     var activity: String?
     var isStreaming = false
 
@@ -105,8 +106,13 @@ extension ChatViewMessage {
         "tool-getCrossReferences": "Tracing cross-references",
         "tool-getOriginalText": "Opening the original text",
         "tool-lookupStrongs": "Studying the original word",
+        "tool-lookupBibleEntity": "Looking them up in Scripture",
+        "tool-getBibleTimeline": "Walking the timeline",
         "tool-getDailyCross": "Opening today's cross",
         "tool-setDailyCross": "Preparing your new day",
+        "tool-getReadingPlan": "Opening your reading plan",
+        "tool-startReadingPlan": "Setting up your reading plan",
+        "tool-markReadingPlanDay": "Marking your reading",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
@@ -149,7 +155,10 @@ extension ChatViewMessage {
         var tavilyResults = Self.parseTavilyResults(metadata["tavilyResults"])
         var noteActions: [NoteAction] = []
         var crossActions: [CrossAction] = []
-        var activity: String?
+        // The server's narration of the wait, replaced in place all stream.
+        var statusActivity: String?
+        // A tool that is running right now; it outranks the status line.
+        var toolActivity: String?
 
         // Attachment ids live in metadata, parallel to the message's file parts.
         let fileParts = message.parts.compactMap(\.filePart)
@@ -168,10 +177,18 @@ extension ChatViewMessage {
                 text += partText
                 continue
             }
+            if let data = part.dataPart {
+                // `data-status` is the only data part any SureWord client
+                // renders; a malformed one is ignored rather than shown.
+                if data.name == "status", let label = data.value["label"]?.stringValue {
+                    statusActivity = label
+                }
+                continue
+            }
             guard let tool = part.toolPart else { continue }
 
             if tool.state == .inputStreaming || tool.state == .inputAvailable {
-                activity = Self.toolActivityLabels[tool.type] ?? "Working"
+                toolActivity = Self.toolActivityLabels[tool.type] ?? "Working"
                 continue
             }
             guard tool.state == .outputAvailable, let output = tool.output?.objectValue else { continue }
@@ -239,10 +256,19 @@ extension ChatViewMessage {
                 similarities.reduce(0, +) / Double(similarities.count)
             }
 
+        let content = Self.visibleResponseContent(text)
+
+        // Server status lines narrate the wait; once the answer itself is on
+        // screen they are stale. A tool running mid-answer still says what it
+        // is doing. Identical rule to `mobile/src/lib/chatView.ts`.
+        let activity =
+            toolActivity
+            ?? (content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? statusActivity : nil)
+
         self.init(
             id: message.id,
             role: message.role,
-            content: Self.visibleResponseContent(text),
+            content: content,
             tavilyResults: tavilyResults,
             retrievedVerses: retrievedVerses,
             averageSimilarity: averageSimilarity,

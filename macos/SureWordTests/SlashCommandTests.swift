@@ -65,7 +65,48 @@ struct SlashCommandTests {
         #expect(parsed.args == "grace")
     }
 
+    @Test("Parses /who with its subject")
+    func parsesWho() throws {
+        let parsed = try #require(SlashCommand.parse("/who Melchizedek"))
+        #expect(parsed.command.command == "/who")
+        #expect(parsed.command.requiresArgs)
+        #expect(parsed.args == "Melchizedek")
+    }
+
+    /// `/plan` shows the day's portion and nothing else — starting or changing a
+    /// plan is a deliberate act, never a side effect of asking what to read.
+    @Test("Parses /plan, which takes no arguments")
+    func parsesPlan() throws {
+        let parsed = try #require(SlashCommand.parse("/plan"))
+        #expect(parsed.command.kind == .ai)
+        #expect(!parsed.command.requiresArgs)
+        #expect(parsed.command.hint == nil)
+        #expect(parsed.args.isEmpty)
+    }
+
     // MARK: table invariants
+
+    /// The palette is the same on every client. If a command is added on
+    /// Android, this is the test that notices it is missing here.
+    @Test("Carries the same commands as the Android palette")
+    func matchesAndroidPalette() {
+        #expect(
+            SlashCommand.chat.map(\.command) == [
+                "/note", "/verse", "/search", "/web", "/who", "/cross", "/plan", "/memory",
+                "/new", "/clear", "/history",
+            ]
+        )
+    }
+
+    @Test("Describes /who and /plan the way the Android palette does")
+    func matchesAndroidDescriptions() throws {
+        let who = try #require(SlashCommand.chat.first { $0.command == "/who" })
+        #expect(who.hint == "<name or place>")
+        #expect(who.description == "Who or where is this? Look it up in Scripture")
+
+        let plan = try #require(SlashCommand.chat.first { $0.command == "/plan" })
+        #expect(plan.description == "Today's reading in your reading plan")
+    }
 
     @Test("Commands that require arguments declare a hint")
     func requiresArgsHasHint() {

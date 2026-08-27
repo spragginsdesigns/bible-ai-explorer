@@ -70,7 +70,13 @@ struct CrossView: View {
                 .accessibilityLabel("Close")
             }
         }
-        .task { model.load() }
+        .task {
+            model.load()
+            // The "FROM YOUR PLAN" tag reads the shared plan model, which the
+            // Bible section owns; this screen may well be the first thing
+            // opened in a session, so it asks for the plan itself.
+            app.bible.plan.loadIfNeeded()
+        }
         .sensoryFeedback(.success, trigger: model.entry?.reference) { _, reference in
             replaceRequested && reference != nil
         }
@@ -100,6 +106,14 @@ struct CrossView: View {
                         .foregroundStyle(theme.textMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+
+        // An unconfigured server (no ELEVENLABS_API_KEY) offers nothing here -
+        // not even the rail node - so the whole stop is conditional.
+        if model.listen.phase != .hidden {
+            TimelineStop(systemImage: "waveform", label: "LISTEN") {
+                ListenCard(model: model.listen, settings: app.settings)
             }
         }
 
@@ -234,9 +248,28 @@ struct CrossView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("\(step.book) \(step.chapter)")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(theme.accent)
+                    HStack(spacing: Spacing.sm) {
+                        Text("\(step.book) \(step.chapter)")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(theme.accent)
+                        // The daily cross is told to build its path out of the
+                        // user's plan; this is how they see that it did.
+                        if PlanView.isTodaysPlanReading(
+                            app.bible.plan.plan,
+                            book: step.book,
+                            chapter: step.chapter
+                        ) {
+                            Text("FROM YOUR PLAN")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .kerning(0.8)
+                                .foregroundStyle(theme.textFaint)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .overlay {
+                                    Capsule().strokeBorder(theme.borderStrong, lineWidth: 1)
+                                }
+                        }
+                    }
                     Text(step.focus)
                         .font(.footnote)
                         .foregroundStyle(theme.textSecondary)

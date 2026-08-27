@@ -41,6 +41,22 @@ struct SureWordColors: Sendable {
     let danger: Color
     let dangerSoft: Color
     let dangerBorder: Color
+
+    // Bible reader parchment page surface. These are ink tones read against the
+    // photoreal sheet in `Assets.xcassets/Parchment{Light,Dark}`, NOT against
+    // the app shell - which is why they are a separate set from `text` and
+    // `accent` rather than an opacity of them. Values copied verbatim from
+    // `mobile/src/theme/index.ts` and `.parchment-page` in `globals.css`.
+    let parchmentInk: Color
+    let parchmentNumber: Color
+    let parchmentHighlight: Color
+
+    /// Which palette this is. Views read `\.theme`, never `\.colorScheme`, so
+    /// anything picking an *asset* per appearance - the reader's parchment
+    /// plates - needs the answer from the same place the colours came from.
+    /// Reading `\.colorScheme` instead would be a second source of truth, and
+    /// the two disagree for a beat whenever the setting changes.
+    let isDark: Bool
 }
 
 extension SureWordColors {
@@ -72,7 +88,14 @@ extension SureWordColors {
 
         danger: Color(hex: 0xF87171),
         dangerSoft: Color(hex: 0xF87171, opacity: 0.10),
-        dangerBorder: Color(hex: 0xF87171, opacity: 0.20)
+        dangerBorder: Color(hex: 0xF87171, opacity: 0.20),
+
+        // Ink on the dark leather-toned sheet (parchment-dark).
+        parchmentInk: Color(hex: 0xE6D7AE),
+        parchmentNumber: Color(hex: 0xFBBF24, opacity: 0.80),
+        parchmentHighlight: Color(hex: 0xFBBF24, opacity: 0.16),
+
+        isDark: true
     )
 
     static let light = SureWordColors(
@@ -104,7 +127,14 @@ extension SureWordColors {
 
         danger: Color(hex: 0xDC2626),
         dangerSoft: Color(hex: 0xDC2626, opacity: 0.08),
-        dangerBorder: Color(hex: 0xDC2626, opacity: 0.20)
+        dangerBorder: Color(hex: 0xDC2626, opacity: 0.20),
+
+        // Dark sepia on the aged sheet (parchment-light).
+        parchmentInk: Color(hex: 0x38270E),
+        parchmentNumber: Color(hex: 0x7C4A11),
+        parchmentHighlight: Color(hex: 0x78480A, opacity: 0.16),
+
+        isDark: false
     )
 
     /// Vertical gradient stops standing in for the web's radial mesh.
