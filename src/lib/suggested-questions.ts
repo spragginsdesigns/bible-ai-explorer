@@ -251,15 +251,13 @@ async function findTodaySet(userId: string): Promise<SuggestedQuestions | null> 
 	try {
 		const parsed: unknown = JSON.parse(row.questions);
 		if (!Array.isArray(parsed)) return null;
-		// Rows written before labels existed are plain strings: they keep serving,
-		// with a reference lifted out of the question text where there is one, so
-		// today's set does not have to roll over before labels appear.
+		// Rows written before labels existed are plain strings. Serving one for
+		// the rest of its window means a screen where only the regex-liftable
+		// references get a caption and every MEMORY / YOUR NOTES question sits
+		// bare - so a string row is stale, and today's set regenerates once.
 		const candidates: RawSuggestedQuestion[] = [];
 		for (const entry of parsed) {
-			if (typeof entry === "string") {
-				if (entry.length > 0) candidates.push({ question: entry });
-				continue;
-			}
+			if (typeof entry === "string") return null;
 			if (typeof entry !== "object" || entry === null) continue;
 			const { question, label } = entry as { question?: unknown; label?: unknown };
 			if (typeof question !== "string" || question.length === 0) continue;
