@@ -8,7 +8,9 @@ import {
 
 // POST does a model call plus a full ElevenLabs narration of a several-minute
 // script, then a blob upload. 30-60s is normal.
-export const maxDuration = 120;
+export const maxDuration = 300;
+
+const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
 
 /**
  * "Listen" - today's spoken devotional.
@@ -24,16 +26,19 @@ export const maxDuration = 120;
  */
 
 function toResponse(audio: DailyCrossAudio) {
-	return NextResponse.json({
-		status: audio.status,
-		url: audio.url,
-		streamUrl: audio.streamUrl,
-		title: audio.title,
-		script: audio.script,
-		durationSec: audio.durationSec,
-		generatedAt: audio.generatedAt,
-		plan: audio.plan,
-	});
+	return NextResponse.json(
+		{
+			status: audio.status,
+			url: audio.url,
+			streamUrl: audio.streamUrl,
+			title: audio.title,
+			script: audio.script,
+			durationSec: audio.durationSec,
+			generatedAt: audio.generatedAt,
+			plan: audio.plan,
+		},
+		{ headers: PRIVATE_NO_STORE }
+	);
 }
 
 /**
@@ -84,6 +89,6 @@ function errorResponse(error: unknown): Response {
 	console.error("Error in verse-of-day/audio route:", error);
 	return NextResponse.json(
 		{ error: "Today's devotional audio could not be prepared." },
-		{ status: 500 }
+		{ status: 500, headers: PRIVATE_NO_STORE }
 	);
 }

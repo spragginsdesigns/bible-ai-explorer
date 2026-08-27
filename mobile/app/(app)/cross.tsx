@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	Animated,
+	AppState,
 	Easing,
 	Pressable,
 	ScrollView,
@@ -9,7 +10,7 @@ import {
 	TextInput,
 	View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import { BOOKS } from "@/features/bible/books";
 import {
@@ -78,6 +79,8 @@ export default function DailyCrossScreen() {
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [focus, setFocus] = useState("");
+	const requestVersion = useRef(0);
+	const loadInFlight = useRef(false);
 	// The day's study path is built out of the reading plan when one is
 	// running; this is how the user sees that it was.
 	const { plan } = useReadingPlan();
@@ -93,8 +96,20 @@ export default function DailyCrossScreen() {
 	const tabBarSpace = useTabBarSpace();
 
 	const load = useCallback(() => {
+		if (loadInFlight.current) return;
+		loadInFlight.current = true;
+		const version = ++requestVersion.current;
 		setError(null);
-		fetchTodayCross(getToken).then(setEntry).catch(showFailure);
+		fetchTodayCross(getToken)
+			.then((next) => {
+				if (version === requestVersion.current) setEntry(next);
+			})
+			.catch((err: unknown) => {
+				if (version === requestVersion.current) showFailure(err);
+			})
+			.finally(() => {
+				loadInFlight.current = false;
+			});
 	}, [getToken, showFailure]);
 
 	/** Replace today's word — the same route the assistant's setDailyCross tool uses. */
@@ -104,12 +119,26 @@ export default function DailyCrossScreen() {
 		setFocus("");
 		setError(null);
 		setEntry(null);
-		replaceTodayCross(getToken, steer || undefined).then(setEntry).catch(showFailure);
+		const version = ++requestVersion.current;
+		replaceTodayCross(getToken, steer || undefined)
+			.then((next) => {
+				if (version === requestVersion.current) setEntry(next);
+			})
+			.catch((err: unknown) => {
+				if (version === requestVersion.current) showFailure(err);
+			});
 	}, [focus, getToken, showFailure]);
 
-	useEffect(() => {
-		load();
-	}, [load]);
+
+	useFocusEffect(
+		useCallback(() => {
+			load();
+			const subscription = AppState.addEventListener("change", (state) => {
+				if (state === "active") load();
+			});
+			return () => subscription.remove();
+		}, [load])
+	);
 
 	const openStudyStep = useCallback(
 		(step: DailyCrossStudyStep) => {
@@ -131,6 +160,7 @@ export default function DailyCrossScreen() {
 				attachRef: entry.reference,
 				attachText: entry.text,
 				attachTranslation: "KJV",
+				verseOfDayId: entry.id,
 			},
 		});
 	}, [router, entry]);
@@ -175,7 +205,7 @@ export default function DailyCrossScreen() {
 							</GlassCard>
 						</TimelineStop>
 
-						<ListenCard reference={entry.reference} />
+						<ListenCard key={entry.id} reference={entry.reference} />
 
 						{entry.whyToday ? (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">

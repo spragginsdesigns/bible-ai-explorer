@@ -17,7 +17,10 @@ import {
 	recoveryExhaustedError,
 	type ClassifiedChatError,
 } from "./chatErrors";
-import { composeMessageWithAttachment, type VerseAttachment } from "./verseActions";
+import {
+	composeMessageWithAttachment,
+	type VerseAttachment,
+} from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
 import {
 	type ChatAttachmentDescriptor,
@@ -349,6 +352,10 @@ export function useSureWordChat(): SureWordChat {
 	const abandonPendingAnswer = useCallback(() => {
 		const conversationId = pendingAnswerRef.current;
 		if (conversationId) markConversationStopped(conversationId);
+		// An abandoned send must not leave its attribution attached to a later
+		// question. Normal sends clear this immediately after the conversation is
+		// created; this covers stop/recovery and navigation paths as well.
+		setAttachmentState(null);
 		stop();
 	}, [stop]);
 
@@ -464,6 +471,7 @@ export function useSureWordChat(): SureWordChat {
 
 			discardFileAttachments(fileAttachments);
 			setFileAttachments([]);
+			setAttachmentState(null);
 			abandonPendingAnswer();
 			cancelRecovery();
 			setActiveConversationId(id);
@@ -511,6 +519,7 @@ export function useSureWordChat(): SureWordChat {
 		historyErrorRef.current = false;
 		discardFileAttachments(fileAttachments);
 		setFileAttachments([]);
+		setAttachmentState(null);
 		abandonPendingAnswer();
 		cancelRecovery();
 		setHistoryLoading(false);
@@ -565,6 +574,7 @@ export function useSureWordChat(): SureWordChat {
 			setSendError(null);
 			clearError();
 			lastFailedSendRef.current = null;
+			const sendingAttachment = attachment;
 
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
@@ -601,9 +611,12 @@ export function useSureWordChat(): SureWordChat {
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
 			void sendUIMessage({
-				metadata: sendingAttachments.length > 0
-					? { attachmentIds: sendingAttachments.map((item) => item.id) }
-					: {},
+				metadata: {
+					...(sendingAttachments.length > 0
+						? { attachmentIds: sendingAttachments.map((item) => item.id) }
+						: {}),
+					...(sendingAttachment?.origin ? { origin: sendingAttachment.origin } : {}),
+				},
 				parts: [
 					...sendingAttachments.map((item) => ({
 						type: "file" as const,

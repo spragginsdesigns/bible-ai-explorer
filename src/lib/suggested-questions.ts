@@ -180,8 +180,12 @@ function sanitize(candidates: readonly (string | RawSuggestedQuestion)[]): Sugge
 	return cleaned;
 }
 
-export async function generateSuggestedQuestions(userId: string): Promise<SuggestedQuestions> {
+export async function generateSuggestedQuestions(
+	userId: string,
+	options: { abortSignal?: AbortSignal } = {},
+): Promise<SuggestedQuestions> {
 	try {
+		if (options.abortSignal?.aborted) throw options.abortSignal.reason ?? new Error("Question refresh timed out.");
 		const context = await loadStudyContext(userId);
 		// Nothing to personalize from: a first-time user gets the static six
 		// rather than six questions invented about a walk they have not walked.
@@ -211,6 +215,7 @@ export async function generateSuggestedQuestions(userId: string): Promise<Sugges
 			output: Output.object({ schema: questionsSchema }),
 			instructions: INSTRUCTIONS,
 			prompt,
+			...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
 		});
 		if (!output) throw new Error("The model returned no questions.");
 
@@ -303,7 +308,10 @@ export async function getSuggestedQuestions(userId: string): Promise<SuggestedQu
  * daily cross is generated, so the questions can build on it). Failures are
  * the caller's to log; the morning push must not depend on this.
  */
-export async function refreshSuggestedQuestions(userId: string): Promise<void> {
-	const generated = await generateSuggestedQuestions(userId);
+export async function refreshSuggestedQuestions(
+	userId: string,
+	options: { abortSignal?: AbortSignal } = {},
+): Promise<void> {
+	const generated = await generateSuggestedQuestions(userId, options);
 	if (generated.personalized) await storeSet(userId, generated);
 }

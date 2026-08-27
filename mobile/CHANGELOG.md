@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.37.0 (versionCode 33) - 2026-08-27 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- Pick Up Your Cross now remembers what it has already covered and searches your current walk for a fresh, grounded direction
+- Going deeper in Chat is recognized as follow-up study instead of making tomorrow repeat today
+- Reopening Pick Up Your Cross refreshes the current day and its Listen transcript
+
+**Dev notes:** Daily Cross selection is now a bounded GPT-5.6 Sol xhigh tool workflow over labelled personal context and hybrid KJV search, followed by deterministic 30-day verse and three-day theme validation and a Sol-high locked writer. New `VerseOfDay` provenance records theme/evidence/model/fallback state. The old unconditional John 3:16 fallback is replaced by a 50+ verse exclusion-aware pool. Android/web/Apple Go deeper flows attach server-validated message origin; Android refetches on route focus/app resume and remounts Listen when the stored day changes. Server changes reach installed builds when Vercel deploys; this APK carries Android provenance and refresh behavior.
+
 ## 1.36.0 (versionCode 32) - 2026-08-27 - internal
 
 **What's new (Play):**

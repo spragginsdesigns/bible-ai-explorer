@@ -344,8 +344,23 @@ model VerseOfDay {
   studyPath   String? // JSON array of { book, chapter, focus }
   question    String? // one question to carry through the day
 
-  // "Listen" - the spoken devotional for this day, generated on first tap
-  // (never by the cron: every generation costs ElevenLabs characters).
+  // How the personalized day was selected. These stay nullable because rows
+  // created before selection provenance existed cannot be labelled honestly.
+  primaryTheme      String? // human-readable theme, e.g. "speech that gives grace"
+  primaryThemeKey   String? // stable coarse key used by the three-day novelty guard
+  themeTags         Json? // additional stable theme keys, never raw account content
+  selectionMode     String? // "theme" | "focus" | "pinned" | "fallback"
+  selectionReason   String? @db.Text // concise rationale for choosing this direction
+  selectionEvidence Json? // bounded source ids/summaries used by the selector
+  selectorModel     String? // namespaced model id, e.g. "openai/gpt-5.6-sol"
+  selectorEffort    String? // reasoning effort used for selection
+  writerModel       String? // namespaced model id used to write the guided day
+  writerEffort      String? // reasoning effort used for the guided-day prose
+  isFallback        Boolean? // null = legacy/unknown; new writes always set true/false
+  fallbackReason    String? @db.Text
+
+  // "Listen" - the spoken devotional for this day, generated with the day for
+  // Pro users so it is waiting when they open Pick Up Your Cross.
   audioUrl         String? // canonical Vercel Blob URL; clients get a short-lived signed URL instead
   audioPathname    String? // blob path, the handle used to sign and to delete
   audioScript      String? // the narrated text, shown as "Read along"

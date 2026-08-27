@@ -268,7 +268,15 @@ struct DailyCrossView: View {
         app.chat.attachment = VerseAttachment(
             reference: entry.reference,
             text: entry.text,
-            translation: .kjv
+            translation: .kjv,
+            origin: entry.id.map {
+                VerseAttachmentOrigin(
+                    surface: "daily-cross",
+                    verseOfDayId: $0,
+                    reference: entry.reference,
+                    action: "go-deeper"
+                )
+            }
         )
         app.section = .chat
     }

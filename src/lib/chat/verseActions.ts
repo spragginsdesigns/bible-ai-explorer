@@ -12,6 +12,7 @@ import {
 	saveVerseToNote,
 } from "@/lib/bible/verseActions";
 import type { RetrievedVerse } from "@/components/useChat";
+import type { DailyCrossMessageOrigin } from "@/lib/chat-attachment-types";
 import { stripTranslationTag } from "@/utils/verseParser";
 
 export { formatVerseForSharing, saveVerseToNote, resolveReference };
@@ -21,6 +22,7 @@ export interface VerseAttachment {
 	reference: string;
 	text: string;
 	translation: TranslationId;
+	origin?: DailyCrossMessageOrigin;
 }
 
 /**

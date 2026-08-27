@@ -39,6 +39,7 @@ export interface DailyCrossStudyStep {
 
 /** One "Pick Up Your Cross" day, as served by GET /api/verse-of-day/today. */
 export interface DailyCrossEntry {
+	id: string;
 	reference: string;
 	book: string;
 	chapter: number;
@@ -59,7 +60,7 @@ export interface DailyCrossEntry {
  */
 export function fetchTodayCross(getToken: GetToken) {
 	return apiJson<DailyCrossEntry>(getToken, "/api/verse-of-day/today", undefined, {
-		timeoutMs: 90_000,
+		timeoutMs: 300_000,
 	});
 }
 
@@ -73,7 +74,7 @@ export function replaceTodayCross(getToken: GetToken, focus?: string) {
 		getToken,
 		"/api/verse-of-day/today",
 		{ method: "POST", body: focus ? { focus } : {} },
-		{ timeoutMs: 90_000 }
+		{ timeoutMs: 300_000 }
 	);
 }
 
@@ -140,7 +141,7 @@ export function requestTodayCrossAudio(getToken: GetToken) {
 		getToken,
 		"/api/verse-of-day/audio",
 		{ method: "POST" },
-		{ timeoutMs: 120_000 }
+		{ timeoutMs: 300_000 }
 	);
 }
 

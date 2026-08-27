@@ -2,8 +2,21 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { deleteAttachmentBlob } from "@/lib/chat-attachments.server";
-import { resolveModel } from "@/lib/ai/provider";
-import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
+import {
+	builtInDailyCrossModel,
+	DAILY_CROSS_MODEL_NAME,
+} from "@/lib/ai/built-in-openai";
+import { loadStudyContext } from "@/lib/study-context";
+import {
+	primaryThemeKeySchema,
+	selectDailyCrossFallback,
+	validateDailyCrossSelection,
+	type DailyCrossSelection,
+	type PrimaryThemeKey,
+	type RecentDailyCross,
+	type SelectionEvidence,
+} from "@/lib/daily-cross-selection";
+import { selectDailyCross } from "@/lib/daily-cross-selector";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 
 /**
@@ -21,19 +34,13 @@ import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBi
  */
 export const DAILY_CROSS_REUSE_MS = 20 * 60 * 60 * 1000;
 
-const FALLBACK_TEXT =
-	"For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
-
 const studyStepSchema = z.object({
 	book: z.string().describe("Canonical KJV book name, e.g. 'John' or '1 Corinthians'."),
 	chapter: z.number().int().min(1),
 	focus: z.string().describe("One sentence: what to look for while reading this chapter."),
 });
 
-const dailyCrossSchema = z.object({
-	book: z.string().describe("Canonical KJV book name, e.g. 'John' or '1 Corinthians'."),
-	chapter: z.number().int().min(1),
-	verse: z.number().int().min(1),
+const guidedDaySchema = z.object({
 	reason: z
 		.string()
 		.describe(
@@ -53,10 +60,10 @@ const dailyCrossSchema = z.object({
 		.max(3)
 		.describe("Today's study path: 1-3 chapters to read, each with a focus line."),
 	question: z.string().describe("One question for them to carry through the day."),
+	primaryTheme: z.string().trim().min(1).max(120),
+	primaryThemeKey: primaryThemeKeySchema,
+	themeTags: z.array(primaryThemeKeySchema).max(4),
 });
-
-/** The pinned-verse variant of the day: the reference is fixed, the prose is not. */
-const pinnedCrossSchema = dailyCrossSchema.omit({ book: true, chapter: true, verse: true });
 
 /**
  * Shared with the spoken devotional (`src/lib/daily-cross-audio.ts`) so the
@@ -71,19 +78,15 @@ Reading plan rule: when the context shows they are following a reading plan and 
 
 Otherwise the study path should continue or deepen what they have been reading, and the question should be plain enough to carry into an ordinary day. Warm, direct, second person, no fluff, no headings.`;
 
-const INSTRUCTIONS = `${PERSONA}
-
-Given one user's recent Bible reading, chat questions, notes and saved memories, choose ONE verse from the KJV canon that speaks to where they are right now, then build their guided day around it. Prefer a verse that meets them where they are over a generic famous one. Never pick a verse on the exclusion list.
-
-${SHARED_RULES}`;
-
-/** Instructions for the pinned path: the user named the verse; only the day is yours. */
-function pinnedInstructions(reference: string, text: string): string {
+/** The selector has settled the verse; this model writes but may not reselect. */
+function writerInstructions(reference: string, text: string, theme: string | null): string {
 	return `${PERSONA}
 
-The user has asked for today's day to be built on ${reference} — that choice is settled and is not yours to revisit. Build the guided day around it. Its exact KJV text is:
+The verse for today is ${reference}. That choice is settled and is not yours to revisit. Build the guided day around it. Its exact KJV text is:
 
 "${text}"
+
+${theme ? `The settled primary theme is "${theme}". Keep the entire day faithful to that theme.` : "The user pinned the verse. Name its primary theme honestly in the structured fields."}
 
 ${SHARED_RULES}`;
 }
@@ -104,28 +107,18 @@ export interface DailyCross {
 	application: string | null;
 	studyPath: StudyStep[];
 	question: string | null;
-}
-
-function fallbackCross(text?: string): DailyCross {
-	return {
-		book: "John",
-		chapter: 3,
-		verse: 16,
-		text: text ?? FALLBACK_TEXT,
-		reason: "The heart of the gospel, for every season.",
-		whyToday:
-			"Some days the best place to stand is the plainest one: God loved, God gave, and whosoever believeth shall not perish. Start today there.",
-		application:
-			"Read the verse slowly and put your own name where it says \"whosoever\". Everything else in the day can be carried from inside that assurance.",
-		studyPath: [
-			{
-				book: "John",
-				chapter: 3,
-				focus: "Read the whole conversation with Nicodemus and watch what Jesus says a person must be, not do, to see the kingdom.",
-			},
-		],
-		question: "What would today look like if you actually believed John 3:16 applied to you?",
-	};
+	primaryTheme: string | null;
+	primaryThemeKey: PrimaryThemeKey | null;
+	themeTags: PrimaryThemeKey[];
+	selectionMode: "theme" | "focus" | "pinned" | "fallback" | null;
+	selectionReason: string | null;
+	selectionEvidence: SelectionEvidence[];
+	selectorModel: string | null;
+	selectorEffort: string | null;
+	writerModel: string | null;
+	writerEffort: string | null;
+	isFallback: boolean | null;
+	fallbackReason: string | null;
 }
 
 /** Keep only study steps whose book exists in the KJV canon, canonically named. */
@@ -155,6 +148,8 @@ export interface DailyCrossRequest {
 	focus?: string;
 	/** Pin the day to a verse the user named instead of letting the model choose. */
 	verse?: { book: string; chapter: number; verse: number };
+	/** Internal runtime budget used by the batched morning cron. */
+	abortSignal?: AbortSignal;
 }
 
 interface PinnedVerse {
@@ -184,9 +179,26 @@ async function resolvePinnedVerse(requested: {
 	return { book, chapter: requested.chapter, verse: requested.verse, text };
 }
 
+function errorSummary(error: unknown): string {
+	if (error instanceof Error) return `${error.name}: ${error.message}`.slice(0, 1000);
+	return "Unknown Daily Cross generation failure.";
+}
+
+function baseFallbackProvenance(reason: string) {
+	return {
+		selectorModel: DAILY_CROSS_MODEL_NAME,
+		selectorEffort: "xhigh",
+		writerModel: DAILY_CROSS_MODEL_NAME,
+		writerEffort: "high",
+		isFallback: true,
+		fallbackReason: reason,
+	} as const;
+}
+
 /** A pinned day whose prose could not be generated still keeps the user's verse. */
-function pinnedFallbackCross(pinned: PinnedVerse): DailyCross {
+function pinnedFallbackCross(pinned: PinnedVerse, error: unknown): DailyCross {
 	const reference = `${pinned.book} ${pinned.chapter}:${pinned.verse}`;
+	const failure = errorSummary(error);
 	return {
 		...pinned,
 		reason: "The verse you asked to carry today.",
@@ -201,104 +213,227 @@ function pinnedFallbackCross(pinned: PinnedVerse): DailyCross {
 			},
 		],
 		question: `What changes today if ${reference} is true of you?`,
+		primaryTheme: "The verse you chose to carry",
+		primaryThemeKey: "scripture",
+		themeTags: ["scripture", "obedience"],
+		selectionMode: "pinned",
+		selectionReason: `The user explicitly pinned ${reference}.`,
+		selectionEvidence: [
+			{ kind: "explicit-verse", summary: reference, origin: "user-pinned" },
+		],
+		selectorModel: null,
+		selectorEffort: null,
+		writerModel: DAILY_CROSS_MODEL_NAME,
+		writerEffort: "high",
+		isFallback: true,
+		fallbackReason: failure,
 	};
 }
 
-/**
- * Generate one guided day. Any failure — no AI credentials, bad model output,
- * a reference outside the KJV canon — degrades to a John 3:16 day (or, when the
- * user pinned a verse, to a plain day on that verse) so callers never have
- * nothing to show or send.
- */
+async function loadRecentSelections(userId: string, now = new Date()): Promise<RecentDailyCross[]> {
+	const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+	const rows = await prisma.verseOfDay.findMany({
+		where: { userId, sentAt: { gte: since } },
+		orderBy: { sentAt: "desc" },
+		select: {
+			book: true,
+			chapter: true,
+			verse: true,
+			sentAt: true,
+			primaryTheme: true,
+			primaryThemeKey: true,
+			selectionReason: true,
+			whyToday: true,
+			reason: true,
+		},
+	});
+	return rows.map((row) => ({
+		book: row.book,
+		chapter: row.chapter,
+		verse: row.verse,
+		sentAt: row.sentAt,
+		primaryTheme: row.primaryTheme,
+		primaryThemeKey: row.primaryThemeKey,
+		selectionReason: row.selectionReason ?? row.whyToday ?? row.reason,
+	}));
+}
+
+async function canonicalSelection(
+	selection: DailyCrossSelection,
+	recent: readonly RecentDailyCross[],
+	now: Date,
+): Promise<{ selection: DailyCrossSelection; text: string }> {
+	const bookNumber = getKjvBookNumber(selection.book);
+	if (!bookNumber) throw new Error(`Unknown book "${selection.book}".`);
+	const book = getKjvBookName(bookNumber) ?? selection.book;
+	const canonical = { ...selection, book };
+	const policy = validateDailyCrossSelection(canonical, { recentSelections: recent, now });
+	if (!policy.ok) throw new Error(policy.errors.join(" "));
+	const text = await getKjvVerseText(bookNumber, canonical.chapter, canonical.verse);
+	if (!text) throw new Error(`No KJV text for ${book} ${canonical.chapter}:${canonical.verse}.`);
+	return { selection: canonical, text };
+}
+
+async function selectWithOneRetry(
+	userId: string,
+	focus: string | undefined,
+	recent: readonly RecentDailyCross[],
+	now: Date,
+	abortSignal?: AbortSignal,
+): Promise<{ selection: DailyCrossSelection; text: string }> {
+	let retryFeedback: string | undefined;
+	let lastError: unknown;
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		try {
+			if (abortSignal?.aborted) throw abortSignal.reason ?? new Error("Daily Cross selection timed out.");
+			const selection = await selectDailyCross({
+				userId,
+				mode: focus ? "focus" : "theme",
+				...(focus ? { focus } : {}),
+				recentSelections: recent,
+				now,
+				...(abortSignal ? { abortSignal } : {}),
+				...(retryFeedback ? { retryFeedback } : {}),
+			});
+			return canonicalSelection(selection, recent, now);
+		} catch (error) {
+			lastError = error;
+			retryFeedback = errorSummary(error);
+		}
+	}
+	throw lastError instanceof Error ? lastError : new Error("Daily Cross selection failed twice.");
+}
+
+async function writeGuidedDay(
+	userId: string,
+	verse: PinnedVerse,
+	selection: DailyCrossSelection | null,
+	focus: string | undefined,
+	abortSignal?: AbortSignal,
+): Promise<DailyCross> {
+	const context = await loadStudyContext(userId);
+	const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+	const evidence = selection?.evidence ?? [
+		{ kind: "explicit-verse", summary: reference, origin: "user-pinned" },
+	];
+	const prompt = [
+		selection ? `Why the selector chose this direction:\n${selection.selectionReason}` : null,
+		selection ? `Why it is fresh enough for today:\n${selection.noveltyReason}` : null,
+		`Evidence the selector actually used:\n${evidence.map((item) => `- [${item.origin ?? item.kind}] ${item.summary}`).join("\n")}`,
+		`Today's reading in the user's active plan:\n${context.planBlock}`,
+		focus ? `The user's explicit focus:\n${focus}` : null,
+	]
+		.filter((part): part is string => Boolean(part))
+		.join("\n\n");
+	const { output } = await generateText({
+		model: builtInDailyCrossModel(),
+		reasoning: "high",
+		output: Output.object({ schema: guidedDaySchema }),
+		instructions: writerInstructions(reference, verse.text, selection?.primaryTheme ?? null),
+		prompt,
+		...(abortSignal ? { abortSignal } : {}),
+	});
+	if (!output) throw new Error("The model returned no guided Daily Cross.");
+	const studyPath = sanitizeStudyPath(output.study);
+	const primaryTheme = selection?.primaryTheme ?? output.primaryTheme;
+	const primaryThemeKey = selection?.primaryThemeKey ?? output.primaryThemeKey;
+	const themeTags = [
+		primaryThemeKey,
+		...(selection?.secondaryThemeKeys ?? output.themeTags),
+	].filter((tag, index, all): tag is PrimaryThemeKey => all.indexOf(tag) === index);
+	return {
+		...verse,
+		reason: output.reason,
+		whyToday: output.whyToday,
+		application: output.application,
+		studyPath: studyPath.length
+			? studyPath
+			: [{ book: verse.book, chapter: verse.chapter, focus: "Read the whole chapter slowly and let the verse sit in its context." }],
+		question: output.question,
+		primaryTheme,
+		primaryThemeKey,
+		themeTags,
+		selectionMode: selection?.mode ?? "pinned",
+		selectionReason: selection?.selectionReason ?? `The user explicitly pinned ${reference}.`,
+		selectionEvidence: evidence,
+		selectorModel: selection ? DAILY_CROSS_MODEL_NAME : null,
+		selectorEffort: selection ? "xhigh" : null,
+		writerModel: DAILY_CROSS_MODEL_NAME,
+		writerEffort: "high",
+		isFallback: false,
+		fallbackReason: null,
+	};
+}
+
+function staticFallbackCross(
+	verse: PinnedVerse,
+	selection: DailyCrossSelection,
+	error: unknown,
+): DailyCross {
+	const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
+	return {
+		...verse,
+		reason: "A sure word from Scripture to carry today.",
+		whyToday:
+			"Today begins with a plain word from Scripture. Read it slowly and let the whole chapter keep it in its proper place.",
+		application:
+			"Carry this verse into the next choice in front of you, and let obedience begin with what the passage says clearly.",
+		studyPath: [
+			{ book: verse.book, chapter: verse.chapter, focus: "Read the whole chapter and watch how this verse serves its main message." },
+		],
+		question: `What faithful response does ${reference} call for today?`,
+		primaryTheme: selection.primaryTheme,
+		primaryThemeKey: selection.primaryThemeKey,
+		themeTags: [selection.primaryThemeKey, ...selection.secondaryThemeKeys].filter(
+			(tag, index, all) => all.indexOf(tag) === index
+		),
+		selectionMode: "fallback",
+		selectionReason: selection.selectionReason,
+		selectionEvidence: selection.evidence,
+		...baseFallbackProvenance(errorSummary(error)),
+	};
+}
+
+/** Select with Sol/xhigh, write with Sol/high, then fail closed to a varied local day. */
 export async function generateDailyCross(
 	userId: string,
 	request: DailyCrossRequest = {}
 ): Promise<DailyCross> {
-	// Validated before the try block: a mistyped reference must reach the caller
-	// as an error rather than be swallowed by the fallback.
 	const pinned = request.verse ? await resolvePinnedVerse(request.verse) : null;
 	const focus = request.focus?.trim();
-
-	try {
-		const context = await loadStudyContext(userId);
-
-		const prompt = [
-			`Bible chapters read in the last ${READING_HISTORY_DAYS} days:\n${context.readingBlock}`,
-			`Recent things they asked about:\n${context.questionsBlock}`,
-			`Recent notes:\n${context.notesBlock}`,
-			`What you remember about them:\n${context.memoriesBlock}`,
-			`Today's reading in the plan they are following:\n${context.planBlock}`,
-			// A pinned verse is the user's own choice; the exclusion list, which
-			// only exists to stop repeats, must not argue with it.
-			pinned
-				? null
-				: `Do NOT pick any of these recently sent verses:\n${context.recentPicksBlock}`,
-			focus
-				? `The user asked for today's word to centre on this, in their own words:\n"${focus}"\nHonour it as far as Scripture honestly allows, and let it outweigh the patterns above.`
-				: null,
-		]
-			.filter((block): block is string => block !== null)
-			.join("\n\n");
-
-		const { model, providerOptions } = await resolveModel({ userId, utility: true });
-
-		if (pinned) {
-			const { output } = await generateText({
-				model,
-				providerOptions,
-				output: Output.object({ schema: pinnedCrossSchema }),
-				instructions: pinnedInstructions(
-					`${pinned.book} ${pinned.chapter}:${pinned.verse}`,
-					pinned.text
-				),
-				prompt,
-			});
-			if (!output) throw new Error("The model returned no daily cross.");
-			const pinnedStudyPath = sanitizeStudyPath(output.study);
-			return {
-				...pinned,
-				reason: output.reason,
-				whyToday: output.whyToday,
-				application: output.application,
-				studyPath: pinnedStudyPath.length ? pinnedStudyPath : pinnedFallbackCross(pinned).studyPath,
-				question: output.question,
-			};
+	if (pinned) {
+		try {
+			return await writeGuidedDay(userId, pinned, null, focus, request.abortSignal);
+		} catch (error) {
+			console.error(`[daily-cross] Pinned-day writing failed for user ${userId}; using pinned fallback:`, error);
+			return pinnedFallbackCross(pinned, error);
 		}
+	}
 
-		const { output } = await generateText({
-			model,
-			providerOptions,
-			output: Output.object({ schema: dailyCrossSchema }),
-			instructions: INSTRUCTIONS,
-			prompt,
-		});
-		if (!output) throw new Error("The model returned no daily cross.");
-
-		const bookNumber = getKjvBookNumber(output.book);
-		if (!bookNumber) throw new Error(`Unknown book "${output.book}".`);
-		const text = await getKjvVerseText(bookNumber, output.chapter, output.verse);
-		if (!text) throw new Error(`No KJV text for ${output.book} ${output.chapter}:${output.verse}.`);
-
-		const book = getKjvBookName(bookNumber) ?? output.book;
-		const studyPath = sanitizeStudyPath(output.study);
-		return {
-			book,
-			chapter: output.chapter,
-			verse: output.verse,
-			text,
-			reason: output.reason,
-			whyToday: output.whyToday,
-			application: output.application,
-			studyPath: studyPath.length
-				? studyPath
-				: [{ book, chapter: output.chapter, focus: "Read the whole chapter slowly and let the verse sit in its context." }],
-			question: output.question,
-		};
+	const now = new Date();
+	const recent = await loadRecentSelections(userId, now);
+	let selected: { selection: DailyCrossSelection; text: string } | null = null;
+	try {
+		selected = await selectWithOneRetry(userId, focus, recent, now, request.abortSignal);
+		const verse = { ...selected.selection, text: selected.text };
+		try {
+			return await writeGuidedDay(userId, verse, selected.selection, focus, request.abortSignal);
+		} catch (error) {
+			console.error(`[daily-cross] Guided-day writing failed for user ${userId}; preserving the validated selection:`, error);
+			return staticFallbackCross(verse, selected.selection, error);
+		}
 	} catch (error) {
-		console.error(`[daily-cross] Generation failed for user ${userId}; using fallback:`, error);
-		if (pinned) return pinnedFallbackCross(pinned);
-		const text = await getKjvVerseText(43, 3, 16).catch(() => undefined);
-		return fallbackCross(text);
+		console.error(`[daily-cross] Selection failed for user ${userId}; using exclusion-aware fallback:`, error);
+		const fallback = selectDailyCrossFallback({
+			recentSelections: recent,
+			now,
+			mode: focus ? "focus" : "theme",
+			...(focus ? { focus } : {}),
+			seed: `${userId}:${now.toISOString().slice(0, 10)}`,
+		});
+		const canonical = await canonicalSelection(fallback, recent, now);
+		const verse = { ...canonical.selection, text: canonical.text };
+		return staticFallbackCross(verse, canonical.selection, error);
 	}
 }
 
@@ -319,6 +454,18 @@ export async function storeDailyCross(
 			application: cross.application,
 			studyPath: JSON.stringify(cross.studyPath),
 			question: cross.question,
+			primaryTheme: cross.primaryTheme,
+			primaryThemeKey: cross.primaryThemeKey,
+			themeTags: JSON.parse(JSON.stringify(cross.themeTags)),
+			selectionMode: cross.selectionMode,
+			selectionReason: cross.selectionReason,
+			selectionEvidence: JSON.parse(JSON.stringify(cross.selectionEvidence)),
+			selectorModel: cross.selectorModel,
+			selectorEffort: cross.selectorEffort,
+			writerModel: cross.writerModel,
+			writerEffort: cross.writerEffort,
+			isFallback: cross.isFallback,
+			fallbackReason: cross.fallbackReason,
 		},
 		select: { id: true, sentAt: true },
 	});
@@ -334,6 +481,31 @@ export interface StoredDailyCross extends DailyCross {
 	 * without a second query.
 	 */
 	audioPathname: string | null;
+}
+
+function parseThemeTags(value: unknown): PrimaryThemeKey[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((candidate) => {
+		const parsed = primaryThemeKeySchema.safeParse(candidate);
+		return parsed.success ? [parsed.data] : [];
+	});
+}
+
+function parseSelectionEvidence(value: unknown): SelectionEvidence[] {
+	if (!Array.isArray(value)) return [];
+	return value.flatMap((candidate) => {
+		if (typeof candidate !== "object" || candidate === null) return [];
+		const record = candidate as Record<string, unknown>;
+		if (typeof record.kind !== "string" || typeof record.summary !== "string") return [];
+		return [
+			{
+				kind: record.kind,
+				summary: record.summary,
+				...(typeof record.id === "string" ? { id: record.id } : {}),
+				...(typeof record.origin === "string" ? { origin: record.origin } : {}),
+			},
+		];
+	});
 }
 
 /** Today's entry if one exists inside the reuse window, else null. */
@@ -373,6 +545,26 @@ export async function findTodayCross(userId: string): Promise<StoredDailyCross |
 		application: row.application,
 		studyPath,
 		question: row.question,
+		primaryTheme: row.primaryTheme,
+		primaryThemeKey: primaryThemeKeySchema.safeParse(row.primaryThemeKey).success
+			? (row.primaryThemeKey as PrimaryThemeKey)
+			: null,
+		themeTags: parseThemeTags(row.themeTags),
+		selectionMode:
+			row.selectionMode === "theme" ||
+			row.selectionMode === "focus" ||
+			row.selectionMode === "pinned" ||
+			row.selectionMode === "fallback"
+				? row.selectionMode
+				: null,
+		selectionReason: row.selectionReason,
+		selectionEvidence: parseSelectionEvidence(row.selectionEvidence),
+		selectorModel: row.selectorModel,
+		selectorEffort: row.selectorEffort,
+		writerModel: row.writerModel,
+		writerEffort: row.writerEffort,
+		isFallback: row.isFallback,
+		fallbackReason: row.fallbackReason,
 		sentAt: row.sentAt,
 		audioPathname: row.audioPathname,
 	};

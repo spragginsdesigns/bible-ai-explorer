@@ -114,30 +114,47 @@ a 1–3 passage study path with a focus line each → one question to carry →
 
 ### The context engine
 
-`generateDailyCross(userId)` in `src/lib/daily-cross.ts` assembles: reading
-events from the last 30 days (recorded by both readers after ~5s of a chapter
-being on screen → `POST /api/reading-events`, deduped hourly), the last 15
-user chat messages, the last 10 notes, all saved memories, and the last 30
-picks as an exclusion list. One structured `generateText` call on the user's
-**utility-tier** model (cheap sibling of their provider) produces the full
-day; every reference is validated against the KJV canon and the verse text is
-read from the bundled corpus - the model never supplies Scripture wording.
-Any failure degrades to a complete John 3:16 fallback day.
+`generateDailyCross(userId)` in `src/lib/daily-cross.ts` now separates choosing
+from writing. A bounded `ToolLoopAgent` in `src/lib/daily-cross-selector.ts`
+runs on SureWord's built-in **GPT-5.6 Sol at xhigh reasoning** and must use both
+read-only tools: personal-context search (individual reading events, organic
+questions, labelled Daily Cross follow-ups, notes, memories, plan and church)
+and hybrid KJV Scripture search. It returns a reference, stable theme key,
+human theme, evidence ids/summaries, novelty rationale and confidence - not the
+devotional prose.
 
-Structured utility calls only work on a provider that honours a JSON *schema*,
-which `PROVIDERS[].supportsStructuredOutput` records. Moonshot needs
-`buildModel` to opt in (`supportsStructuredOutputs: true`), or
-`@ai-sdk/openai-compatible` quietly downgrades `response_format` to
-`{ type: "json_object" }`, drops the schema, and Kimi answers under invented
-keys - which surfaced as a silent John 3:16 fallback, not an error. If a
-provider ever cannot honour a schema, `decideStructuredProvider`
-(`src/lib/ai/models.ts`) moves the call to one the user has credentials for and
-reports it as `structuredFallbackFrom`.
+Code then canonicalizes the book, reads the exact verse from the bundled KJV,
+and enforces a rolling 30-day exact-verse exclusion plus a rolling three-day
+primary-theme exclusion. An explicit focus bypasses the theme guard only; a
+pinned verse is the user's choice and bypasses both. A rejected selection gets
+one retry with the exact policy failure. GPT-5.6 Sol at high reasoning then
+writes the guided day around the locked selection and bounded evidence. The
+model never supplies Scripture wording and cannot change the selected verse.
+
+If selection fails twice, a deterministic pool of more than 30 validated,
+cross-testament KJV references chooses outside both windows. If the writer
+fails, the validated selected verse is preserved with a plain local guide. The
+old unconditional John 3:16 fallback is gone.
+
+### Longitudinal context and provenance
+
+Every new `VerseOfDay` row stores `primaryTheme`, a stable theme key/tags,
+selection mode/reason/evidence, selector and writer model/effort, and explicit
+fallback state. Legacy rows remain null rather than receiving invented labels.
+
+"Go deeper in chat" carries the stored Daily Cross id on Android, web, macOS
+and iOS. The next user message persists a server-validated
+`metadata.origin = { surface: "daily-cross", verseOfDayId, reference,
+action: "go-deeper" }`; organic questions have no origin. Context formatting
+keeps follow-up study but labels it as continuation evidence, so studying the
+day SureWord just gave someone does not masquerade as an unrelated new interest
+and feed the same topic back tomorrow.
 
 ### One day per user per day
 
-`VerseOfDay` rows store the whole guide (`whyToday`, `application`,
-`studyPath` JSON, `question` — nullable for pre-guide rows). An entry younger
+`VerseOfDay` rows store the whole guide plus the selection provenance above
+(`whyToday`, `application`, `studyPath` JSON and `question` remain nullable for
+pre-guide rows). An entry younger
 than 20 hours is "today" (`DAILY_CROSS_REUSE_MS`): the hourly cron
 (`/api/cron/verse-of-day`, `CRON_SECRET`-gated, fires each user at their
 chosen local hour) reuses an entry generated on demand, and
@@ -188,11 +205,11 @@ times and an expandable **Read along** transcript.
 ### What gets said
 
 `generateDevotionalScript()` in `src/lib/daily-cross-audio.ts` runs one
-structured `generateText` call on the user's **utility-tier** model, under the
+structured call on SureWord's built-in **GPT-5.6 Sol at high reasoning**, under the
 same `PERSONA` as the day itself (imported from `src/lib/daily-cross.ts` - the
 voice you read and the voice you hear are one believer, not two). The prompt
 carries the stored day (`reason`, `whyToday`, `application`, `studyPath`,
-`question`), the same `loadStudyContext()` evidence the day was built from,
+`question`), the locked theme/reason/evidence the selector actually used,
 the verses three either side of the day's verse, and up to five ranked
 cross-references (`src/lib/bible/crossRefs.ts`) - all with exact KJV wording
 read from the bundled corpus, never from the model.

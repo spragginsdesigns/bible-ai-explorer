@@ -111,7 +111,7 @@ struct TabShell: View {
 
     private func openCross() {
         isCrossPresented = true
-        app.dailyCross.load()
+        app.dailyCross.load(force: true)
     }
 
     private func openVerse(_ raw: String?) {

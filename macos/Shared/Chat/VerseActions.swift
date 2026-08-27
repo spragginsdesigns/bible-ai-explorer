@@ -11,6 +11,30 @@ struct VerseAttachment: Sendable, Equatable {
     var reference: String
     var text: String
     var translation: TranslationID
+    /// Optional UI provenance. It is carried only in outgoing message metadata;
+    /// the verse text remains in the normal composed message body.
+    var origin: VerseAttachmentOrigin? = nil
+}
+
+/// Identifies the surface and action that produced a verse attachment.
+///
+/// This deliberately contains no verse text. The metadata is for attribution,
+/// not a second copy of the user-visible passage.
+struct VerseAttachmentOrigin: Sendable, Equatable {
+    let surface: String
+    let verseOfDayId: String
+    let reference: String
+    let action: String
+
+    var json: JSONValue {
+        var value: [String: JSONValue] = [
+            "surface": .string(surface),
+            "reference": .string(reference),
+            "action": .string(action),
+        ]
+        value["verseOfDayId"] = .string(verseOfDayId)
+        return .object(value)
+    }
 }
 
 extension VerseAttachment {

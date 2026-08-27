@@ -38,9 +38,43 @@ export interface ChatAttachmentDescriptor {
   previewExpiresAt: string;
 }
 
+/** The trusted source of a user message that follows Daily Cross. */
+export interface DailyCrossMessageOrigin {
+	surface: "daily-cross";
+	verseOfDayId: string;
+	reference: string;
+	action: "go-deeper";
+}
+
+/** Shape validation only; the server separately verifies ownership/reference. */
+export function isDailyCrossMessageOrigin(value: unknown): value is DailyCrossMessageOrigin {
+	if (typeof value !== "object" || value === null) return false;
+	const origin = value as Record<string, unknown>;
+	return (
+		origin.surface === "daily-cross" &&
+		typeof origin.verseOfDayId === "string" &&
+		origin.verseOfDayId.trim().length > 0 &&
+		typeof origin.reference === "string" &&
+		origin.reference.trim().length > 0 &&
+		origin.action === "go-deeper"
+	);
+}
+
+/** Return only the four allowed fields so extra client metadata is never persisted. */
+export function sanitizeDailyCrossMessageOrigin(value: unknown): DailyCrossMessageOrigin | null {
+	if (!isDailyCrossMessageOrigin(value)) return null;
+	return {
+		surface: "daily-cross",
+		verseOfDayId: value.verseOfDayId.trim(),
+		reference: value.reference.trim(),
+		action: "go-deeper",
+	};
+}
+
 export interface SureWordMessageMetadata {
-  attachmentIds?: string[];
-  [key: string]: unknown;
+	attachmentIds?: string[];
+	origin?: DailyCrossMessageOrigin;
+	[key: string]: unknown;
 }
 
 export class AttachmentValidationError extends Error {

@@ -40,6 +40,7 @@ export default function ChatScreen() {
 		attachRef?: string;
 		attachText?: string;
 		attachTranslation?: string;
+		verseOfDayId?: string;
 		conversationId?: string;
 	}>();
 	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
@@ -49,6 +50,7 @@ export default function ChatScreen() {
 	const attachTextParam = typeof params.attachText === "string" ? params.attachText : "";
 	const attachTranslationParam =
 		typeof params.attachTranslation === "string" ? params.attachTranslation : "";
+	const verseOfDayIdParam = typeof params.verseOfDayId === "string" ? params.verseOfDayId : "";
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
@@ -77,16 +79,37 @@ export default function ChatScreen() {
 	// they may have typed stays untouched.
 	useEffect(() => {
 		if (!attachRefParam) return;
-		const key = `${attachRefParam}${attachTranslationParam}${attachTextParam}`;
+		const key = `${attachRefParam}${attachTranslationParam}${attachTextParam}${verseOfDayIdParam}`;
 		if (key === lastSeededAttachment.current) return;
 		lastSeededAttachment.current = key;
 		const translation: TranslationId =
 			attachTranslationParam in TRANSLATIONS
 				? (attachTranslationParam as TranslationId)
 				: defaultTranslation;
-		chat.setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
+		chat.setAttachment({
+			reference: attachRefParam,
+			text: attachTextParam,
+			translation,
+			...(verseOfDayIdParam
+				? {
+						origin: {
+							surface: "daily-cross" as const,
+							verseOfDayId: verseOfDayIdParam,
+							reference: attachRefParam,
+							action: "go-deeper" as const,
+						},
+				  }
+				: {}),
+		});
 		setFocusSignal((signal) => signal + 1);
-	}, [attachRefParam, attachTextParam, attachTranslationParam, defaultTranslation, chat.setAttachment]);
+	}, [
+		attachRefParam,
+		attachTextParam,
+		attachTranslationParam,
+		verseOfDayIdParam,
+		defaultTranslation,
+		chat.setAttachment,
+	]);
 
 	const {
 		messages,

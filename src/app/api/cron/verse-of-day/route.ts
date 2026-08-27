@@ -10,6 +10,8 @@ import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
 export const maxDuration = 300;
 
 const MAX_USERS_PER_RUN = 50;
+const DAILY_CROSS_CONCURRENCY = MAX_USERS_PER_RUN;
+const DAILY_CROSS_GENERATION_BUDGET_MS = 210_000;
 const DAILY_CROSS_CHANNEL_ID = "daily-cross";
 
 /**
@@ -22,12 +24,12 @@ const MAX_AUDIO_PER_RUN = 60;
 /**
  * Wall-clock budget for the audio pass, measured from the start of the
  * request. A narration takes ~30-60s and `maxDuration` is 300s, so the pass
- * stops well before the platform kills the function - a run that gets through
+ * stops at three minutes to leave two minutes for the last narration - a run that gets through
  * four devotionals and defers the rest is a good run; a run that is killed
  * mid-write is not. Whoever is skipped is picked up the moment they open the
  * screen, because the on-demand path schedules audio too.
  */
-const AUDIO_BUDGET_MS = 240_000;
+const AUDIO_BUDGET_MS = 180_000;
 
 /** Local hour (0-23) in an IANA timezone; null when the timezone is invalid. */
 function localHour(timezone: string, now: Date): number | null {
@@ -53,6 +55,26 @@ function trayVerse(text: string, max = 240): string {
 	return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
+async function mapWithConcurrency<T, R>(
+	items: readonly T[],
+	limit: number,
+	mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+	const results = new Array<R>(items.length);
+	let next = 0;
+	const worker = async () => {
+		while (next < items.length) {
+			const index = next;
+			next += 1;
+			results[index] = await mapper(items[index]);
+		}
+	};
+	await Promise.all(
+		Array.from({ length: Math.min(Math.max(1, limit), items.length) }, () => worker()),
+	);
+	return results;
+}
+
 /**
  * Hourly cron: every registered push token carries its timezone and preferred
  * local hour, so each run serves the users whose local time just reached their
@@ -76,33 +98,31 @@ export async function GET(request: Request) {
 	}
 
 	const dueUsers = Array.from(tokensByUser.entries()).slice(0, MAX_USERS_PER_RUN);
-	const pending: PendingPush[] = [];
-	let sent = 0;
-	let failed = 0;
-
-	// Sequential on purpose: each iteration is one cheap AI call plus a few
-	// reads, and the per-run cap keeps the whole loop within the function limit.
-	for (const [userId, tokens] of dueUsers) {
+	const generationSignal = AbortSignal.timeout(DAILY_CROSS_GENERATION_BUDGET_MS);
+	// Sol/xhigh selection plus Sol/high writing is intentionally more expensive
+	// than the old single utility call. Start the capped due cohort together and
+	// give every call one shared abort deadline; serial waves cannot fit inside
+	// the platform limit, while the hard 50-user cap bounds the provider burst.
+	const prepared = await mapWithConcurrency(dueUsers, DAILY_CROSS_CONCURRENCY, async ([userId, tokens]) => {
 		try {
 			// A day already generated on demand (the user opened the Daily Cross
 			// screen before their notify hour) is reused, not regenerated — one
 			// guided day per user per day, whoever asks first.
 			const existing = await findTodayCross(userId);
-			const cross = existing ?? (await generateDailyCross(userId));
+			const cross = existing ?? (await generateDailyCross(userId, { abortSignal: generationSignal }));
 			if (!existing) await storeDailyCross(userId, cross);
 
 			// Pre-warm the day's welcome-screen questions now that the new cross
 			// exists for them to build on, so the first app open never waits on a
 			// model call. Best-effort: the morning push must not depend on it.
-			if (!existing) {
-				await refreshSuggestedQuestions(userId).catch((error) => {
+			if (!existing && !generationSignal.aborted) {
+				await refreshSuggestedQuestions(userId, { abortSignal: generationSignal }).catch((error) => {
 					console.error(`[cron/verse-of-day] Suggested-questions refresh failed for ${userId}:`, error);
 				});
 			}
 
 			const reference = `${cross.book} ${cross.chapter}:${cross.verse}`;
-			for (const token of tokens) {
-				pending.push({
+			const pushes = tokens.map((token): PendingPush => ({
 					tokenId: token.id,
 					to: token.token,
 					title: "✝ Pick up your cross",
@@ -116,21 +136,24 @@ export async function GET(request: Request) {
 					// The app's heads-up channel; clients older than 1.17.0 lack it
 					// and fall back to a default channel - the push still displays.
 					channelId: DAILY_CROSS_CHANNEL_ID,
-				});
-			}
-			sent += 1;
+				}));
+			return { ok: true as const, pushes };
 		} catch (error) {
-			failed += 1;
 			console.error(`[cron/verse-of-day] Failed user ${userId}:`, error);
+			return { ok: false as const, pushes: [] as PendingPush[] };
 		}
-	}
+	});
+	const pending = prepared.flatMap((result) => result.pushes);
+	const sent = prepared.filter((result) => result.ok).length;
+	const failed = prepared.length - sent;
 
 	const deactivatedTokens = await sendExpoPushMessages(pending, "cron/verse-of-day");
 
 	// Narrate AFTER the pushes are away, never before: a spoken devotional is a
 	// slow, billable extra, and nobody should lose their morning notification
 	// because one narration was hanging. Sequential, capped, and bounded by the
-	// clock - see MAX_AUDIO_PER_RUN / AUDIO_BUDGET_MS.
+	// clock - see MAX_AUDIO_PER_RUN / AUDIO_BUDGET_MS. Opening the day schedules
+	// anything this run has to defer.
 	const audio = { generated: 0, skipped: 0, failed: 0 };
 	for (const [userId] of dueUsers) {
 		if (audio.generated >= MAX_AUDIO_PER_RUN || Date.now() - now.getTime() > AUDIO_BUDGET_MS) {

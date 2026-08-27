@@ -7,8 +7,11 @@ import { z } from "zod";
 import { isProUser } from "@/lib/entitlements";
 import type { UserPlan } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
-import { resolveModel } from "@/lib/ai/provider";
-import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
+import { builtInDailyCrossModel } from "@/lib/ai/built-in-openai";
+import {
+	createAttachmentPreviewUrl,
+	deleteAttachmentBlob,
+} from "@/lib/chat-attachments.server";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
 import {
 	PERSONA,
@@ -16,10 +19,10 @@ import {
 	type StoredDailyCross,
 	type StudyStep,
 } from "@/lib/daily-cross";
-import { loadStudyContext, READING_HISTORY_DAYS } from "@/lib/study-context";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 import {
 	DAILY_CROSS_AUDIO_STREAM_PATH,
+	AUDIO_PENDING_TTL_MS,
 	dailyCrossAudioPathname,
 	devotionalStreamResponseInit,
 	estimateSpokenDurationSec,
@@ -142,11 +145,10 @@ export interface DevotionalScript {
  * not meet a second, different voice here.
  */
 export async function generateDevotionalScript(
-	userId: string,
+	_userId: string,
 	cross: StoredDailyCross
 ): Promise<DevotionalScript> {
-	const [context, surrounding, crossRefs] = await Promise.all([
-		loadStudyContext(userId),
+	const [surrounding, crossRefs] = await Promise.all([
 		loadSurroundingVerses(cross),
 		loadCrossReferences(cross),
 	]);
@@ -162,16 +164,20 @@ export async function generateDevotionalScript(
 		`The question they are to carry:\n${cross.question ?? "(none)"}`,
 		`Verses surrounding today's verse, exact KJV text:\n${surrounding}`,
 		`Cross-references for today's verse, exact KJV text:\n${crossRefs}`,
-		`Bible chapters they read in the last ${READING_HISTORY_DAYS} days:\n${context.readingBlock}`,
-		`Recent things they asked about:\n${context.questionsBlock}`,
-		`Recent notes:\n${context.notesBlock}`,
-		`What you remember about them:\n${context.memoriesBlock}`,
+		`The locked primary theme:\n${cross.primaryTheme ?? "(none)"}`,
+		`Why the selector chose this direction:\n${cross.selectionReason ?? "(none)"}`,
+		`The bounded evidence used to choose it:\n${
+			cross.selectionEvidence.length
+				? cross.selectionEvidence
+						.map((item) => `- [${item.origin ?? item.kind}] ${item.summary}`)
+						.join("\n")
+				: "(none)"
+		}`,
 	].join("\n\n");
 
-	const { model, providerOptions } = await resolveModel({ userId, utility: true });
 	const { output } = await generateText({
-		model,
-		providerOptions,
+		model: builtInDailyCrossModel(),
+		reasoning: "high",
 		output: Output.object({ schema: devotionalSchema }),
 		instructions: SCRIPT_INSTRUCTIONS,
 		prompt,
@@ -528,27 +534,51 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 	const decision = resolveStoredAudio(existing);
 	if (decision !== "generate") return toClientAudio(existing);
 
-	// Claim the work before doing any of it: the timestamp is what a second
-	// request reads to decide it should wait rather than narrate again.
-	await prisma.verseOfDay.update({
-		where: { id: cross.id },
-		data: { audioStatus: "pending", audioGeneratedAt: new Date() },
+	// Claim atomically. Every contender may have read the old row, but only one
+	// update can still match its generate-eligible state after the first writes
+	// a fresh pending timestamp.
+	const claimedAt = new Date();
+	const staleBefore = new Date(claimedAt.getTime() - AUDIO_PENDING_TTL_MS);
+	const claim = await prisma.verseOfDay.updateMany({
+		where: {
+			id: cross.id,
+			OR: [
+				{ audioStatus: null },
+				{ audioStatus: "failed" },
+				{ audioStatus: "pending", audioGeneratedAt: null },
+				{ audioStatus: "pending", audioGeneratedAt: { lt: staleBefore } },
+				{ audioStatus: "ready", audioPathname: null },
+				{ audioStatus: { notIn: ["pending", "ready", "failed"] } },
+			],
+		},
+		data: { audioStatus: "pending", audioGeneratedAt: claimedAt },
 	});
+	if (claim.count === 0) {
+		const current = await prisma.verseOfDay.findUnique({
+			where: { id: cross.id },
+			select: AUDIO_SELECT,
+		});
+		return current ? toClientAudio(current) : NO_AUDIO;
+	}
 
+	let uploadedPathname: string | null = null;
+	let published = false;
 	try {
 		const { script, title } = await generateDevotionalScript(userId, cross);
 		const mp3 = await synthesizeSpeech(script);
-		const pathname = dailyCrossAudioPathname(userId, cross.id);
+		// Every lease writes a unique object. A stale worker may finish after a
+		// newer claimant, but it can no longer overwrite the winner's bytes.
+		const pathname = dailyCrossAudioPathname(userId, `${cross.id}-${claimedAt.getTime()}`);
 		const blob = await put(pathname, mp3, {
 			access: "private",
 			contentType: "audio/mpeg",
 			addRandomSuffix: false,
-			// A retry after a failure writes the same path again.
-			allowOverwrite: true,
+			allowOverwrite: false,
 		});
+		uploadedPathname = blob.pathname;
 
-		const row = await prisma.verseOfDay.update({
-			where: { id: cross.id },
+		const finalized = await prisma.verseOfDay.updateMany({
+			where: { id: cross.id, audioStatus: "pending", audioGeneratedAt: claimedAt },
 			data: {
 				audioUrl: blob.url,
 				audioPathname: blob.pathname,
@@ -558,17 +588,32 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 				audioStatus: "ready",
 				audioGeneratedAt: new Date(),
 			},
-			select: AUDIO_SELECT,
 		});
-		return toClientAudio(row);
+		if (finalized.count === 0) {
+			await deleteAttachmentBlob(blob.pathname).catch(() => undefined);
+			uploadedPathname = null;
+			const current = await prisma.verseOfDay.findUnique({ where: { id: cross.id }, select: AUDIO_SELECT });
+			return current ? toClientAudio(current) : NO_AUDIO;
+		}
+		published = true;
+		if (existing.audioPathname && existing.audioPathname !== blob.pathname) {
+			await deleteAttachmentBlob(existing.audioPathname).catch((error: unknown) => {
+				console.error(`[daily-cross-audio] Could not delete superseded audio ${existing.audioPathname}:`, error);
+			});
+		}
+		const row = await prisma.verseOfDay.findUnique({ where: { id: cross.id }, select: AUDIO_SELECT });
+		return row ? toClientAudio(row) : NO_AUDIO;
 	} catch (error) {
 		console.error(`[daily-cross-audio] Generation failed for user ${userId}:`, error);
-		const row = await prisma.verseOfDay.update({
-			where: { id: cross.id },
+		if (uploadedPathname && !published) {
+			await deleteAttachmentBlob(uploadedPathname).catch(() => undefined);
+		}
+		await prisma.verseOfDay.updateMany({
+			where: { id: cross.id, audioStatus: "pending", audioGeneratedAt: claimedAt },
 			data: { audioStatus: "failed", audioGeneratedAt: new Date() },
-			select: AUDIO_SELECT,
 		});
-		return toClientAudio(row);
+		const row = await prisma.verseOfDay.findUnique({ where: { id: cross.id }, select: AUDIO_SELECT });
+		return row ? toClientAudio(row) : NO_AUDIO;
 	}
 }
 

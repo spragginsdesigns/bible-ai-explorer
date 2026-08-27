@@ -255,6 +255,9 @@ final class ChatViewModel {
         attachmentDraftVersion += 1
         let staged = fileAttachments
         fileAttachments = []
+        // A verse attachment is part of the abandoned draft too. Clearing it
+        // here prevents Daily Cross provenance from crossing a chat switch.
+        attachment = nil
         attachmentError = nil
         guard !staged.isEmpty else { return }
         let uploader = uploader
@@ -292,6 +295,7 @@ final class ChatViewModel {
 
         sendError = nil
         input = ""
+        let origin = attachment?.origin
         attachment = nil
 
         let sending = fileAttachments
@@ -320,13 +324,17 @@ final class ChatViewModel {
         }
         if !composed.isEmpty { parts.append(.text(id: "0", text: composed)) }
 
+        var metadata: [String: JSONValue] = [:]
+        if let origin { metadata["origin"] = origin.json }
+        if !sending.isEmpty {
+            metadata["attachmentIds"] = .array(sending.map { .string($0.id) })
+        }
+
         let userMessage = UIMessage(
             id: "user-\(UUID().uuidString)",
             role: .user,
             parts: parts,
-            metadata: sending.isEmpty
-                ? nil
-                : .object(["attachmentIds": .array(sending.map { .string($0.id) })])
+            metadata: metadata.isEmpty ? nil : .object(metadata)
         )
         uiMessages.append(userMessage)
         status = .submitted

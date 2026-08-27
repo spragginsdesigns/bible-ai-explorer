@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
@@ -16,6 +16,7 @@ interface StudyStep {
 }
 
 interface DailyCrossEntry {
+	id: string;
 	reference: string;
 	book: string;
 	chapter: number;
@@ -45,14 +46,17 @@ export default function DailyCrossPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [focus, setFocus] = useState("");
+	const requestInFlight = useRef(false);
 	// The day's study path is built out of the reading plan when one is
 	// running; this is how the user sees that it was.
 	const { plan } = useReadingPlan();
 
-	const request = useCallback((init?: RequestInit) => {
+	const request = useCallback((init?: RequestInit, clear = true) => {
+		if (requestInFlight.current) return;
+		requestInFlight.current = true;
 		setError(null);
-		setEntry(null);
-		fetch("/api/verse-of-day/today", init)
+		if (clear) setEntry(null);
+		fetch("/api/verse-of-day/today", { cache: "no-store", ...init })
 			.then(async (res) => {
 				if (!res.ok) {
 					const data = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -63,6 +67,9 @@ export default function DailyCrossPage() {
 			.then(setEntry)
 			.catch((err: unknown) => {
 				setError(err instanceof Error ? err.message : "Today's word could not be loaded. Try again.");
+			})
+			.finally(() => {
+				requestInFlight.current = false;
 			});
 	}, []);
 
@@ -84,12 +91,28 @@ export default function DailyCrossPage() {
 		load();
 	}, [load]);
 
+	useEffect(() => {
+		const refresh = () => request(undefined, false);
+		const onVisibility = () => {
+			if (document.visibilityState === "visible") refresh();
+		};
+		window.addEventListener("focus", refresh);
+		document.addEventListener("visibilitychange", onVisibility);
+		const timer = window.setInterval(refresh, 15 * 60 * 1000);
+		return () => {
+			window.removeEventListener("focus", refresh);
+			document.removeEventListener("visibilitychange", onVisibility);
+			window.clearInterval(timer);
+		};
+	}, [request]);
+
 	const goDeeper = useCallback(() => {
 		if (!entry) return;
 		router.push(
 			`/?attachRef=${encodeURIComponent(entry.reference)}` +
 				`&attachText=${encodeURIComponent(entry.text)}` +
-				`&attachTranslation=KJV`
+				`&attachTranslation=KJV` +
+				`&verseOfDayId=${encodeURIComponent(entry.id)}`
 		);
 	}, [router, entry]);
 
@@ -158,7 +181,7 @@ export default function DailyCrossPage() {
 							</div>
 						</TimelineStop>
 
-						<ListenCard reference={entry.reference} />
+						<ListenCard key={entry.id} reference={entry.reference} />
 
 						{entry.whyToday && (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">

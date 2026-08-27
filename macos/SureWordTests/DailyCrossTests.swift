@@ -17,6 +17,7 @@ struct DailyCrossDecodingTests {
         let entry = try decode(
             """
             {
+              "id": "vod_123",
               "reference": "Psalms 27:1",
               "book": "Psalms",
               "chapter": 27,
@@ -36,6 +37,7 @@ struct DailyCrossDecodingTests {
         )
 
         #expect(entry.reference == "Psalms 27:1")
+        #expect(entry.id == "vod_123")
         #expect(entry.book == "Psalms")
         #expect(entry.chapter == 27)
         #expect(entry.verse == 1)
@@ -72,6 +74,7 @@ struct DailyCrossDecodingTests {
         #expect(entry.application == nil)
         #expect(entry.question == nil)
         #expect(entry.studyPath.isEmpty)
+        #expect(entry.id == nil)
     }
 
     @Test("Tolerates a missing study path entirely")

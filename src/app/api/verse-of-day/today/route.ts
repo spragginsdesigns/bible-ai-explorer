@@ -14,10 +14,20 @@ import {
 const MAX_FOCUS_LENGTH = 200;
 
 // Generating a fresh day is one utility-model call plus context reads.
-export const maxDuration = 120;
+export const maxDuration = 300;
 
-function toResponse(cross: DailyCross, sentAt: Date) {
+const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
+
+function privateJson(body: unknown, init: ResponseInit = {}): NextResponse {
+	return NextResponse.json(body, {
+		...init,
+		headers: { ...PRIVATE_NO_STORE, ...(init.headers ?? {}) },
+	});
+}
+
+function toResponse(cross: DailyCross & { id?: string }, sentAt: Date) {
 	return {
+		...(cross.id ? { id: cross.id } : {}),
 		reference: `${cross.book} ${cross.chapter}:${cross.verse}`,
 		book: cross.book,
 		chapter: cross.chapter,
@@ -44,10 +54,15 @@ export async function GET(): Promise<Response> {
 		const userId = await getAuthUser();
 
 		const existing = await findTodayCross(userId);
-		if (existing) return NextResponse.json(toResponse(existing, existing.sentAt));
+		if (existing) {
+			await scheduleDailyCrossAudio(userId).catch((error: unknown) => {
+				console.error(`[verse-of-day/today] Could not schedule existing audio for ${userId}:`, error);
+			});
+			return privateJson(toResponse(existing, existing.sentAt));
+		}
 
 		const cross = await generateDailyCross(userId);
-		const { sentAt } = await storeDailyCross(userId, cross);
+		const { id, sentAt } = await storeDailyCross(userId, cross);
 
 		// A day generated on demand earns its spoken devotional the same way the
 		// cron's does: started now, in the background, so the Listen card is
@@ -57,7 +72,7 @@ export async function GET(): Promise<Response> {
 			console.error(`[verse-of-day/today] Could not schedule audio for ${userId}:`, error);
 		});
 
-		return NextResponse.json(toResponse(cross, sentAt));
+		return privateJson(toResponse({ ...cross, id }, sentAt));
 	} catch (error) {
 		return errorResponse(error);
 	}
@@ -100,14 +115,14 @@ export async function POST(req: Request): Promise<Response> {
 					}
 				: undefined;
 		if (hasReferencePart && !verse) {
-			return NextResponse.json(
+			return privateJson(
 				{ error: "A pinned verse needs a book name, a chapter number and a verse number." },
 				{ status: 400 }
 			);
 		}
 
 		const { cross } = await replaceDailyCross(userId, { focus, verse });
-		return NextResponse.json(toResponse(cross, cross.sentAt));
+		return privateJson(toResponse(cross, cross.sentAt));
 	} catch (error) {
 		return errorResponse(error);
 	}
@@ -117,10 +132,10 @@ function errorResponse(error: unknown): Response {
 	if (error instanceof Response) return error;
 	// A reference the user typed wrong is their correction to make, not a 500.
 	if (error instanceof DailyCrossReferenceError) {
-		return NextResponse.json({ error: error.message }, { status: 400 });
+		return privateJson({ error: error.message }, { status: 400 });
 	}
 	console.error("Error in verse-of-day/today route:", error);
-	return NextResponse.json(
+	return privateJson(
 		{
 			error:
 				error instanceof Error

@@ -16,6 +16,9 @@ import { getAuthUser } from "@/lib/auth";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
+	isDailyCrossMessageOrigin,
+	sanitizeDailyCrossMessageOrigin,
+	type DailyCrossMessageOrigin,
 } from "@/lib/chat-attachment-types";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
@@ -104,6 +107,36 @@ function attachmentIds(message: SureWordUIMessage): string[] {
 	const ids = message.metadata?.attachmentIds;
 	if (!Array.isArray(ids)) return [];
 	return [...new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0))];
+}
+
+/**
+ * Validate the client-provided Daily Cross marker before it can be persisted.
+ * The shape check is shared with the web client; the row lookup is the trust
+ * boundary and makes both the id and reference belong to this caller.
+ */
+async function validateDailyCrossOrigin(
+	userId: string,
+	message: SureWordUIMessage,
+): Promise<DailyCrossMessageOrigin | null> {
+	const metadata = message.metadata;
+	if (!metadata || typeof metadata !== "object") return null;
+	const candidate = (metadata as Record<string, unknown>).origin;
+	if (candidate === undefined) return null;
+	if (!isDailyCrossMessageOrigin(candidate)) {
+		throw new UserFacingError("The Daily Cross study link is invalid.");
+	}
+	const origin = sanitizeDailyCrossMessageOrigin(candidate);
+	if (!origin) throw new UserFacingError("The Daily Cross study link is invalid.");
+
+	const row = await prisma.verseOfDay.findFirst({
+		where: { id: origin.verseOfDayId, userId },
+		select: { book: true, chapter: true, verse: true },
+	});
+	const expectedReference = row ? `${row.book} ${row.chapter}:${row.verse}` : null;
+	if (!row || expectedReference !== origin.reference) {
+		throw new UserFacingError("The Daily Cross study link is no longer available.");
+	}
+	return origin;
 }
 
 async function hydrateTrustedAttachments(
@@ -260,6 +293,7 @@ async function persistUserMessage(options: {
 	userId: string;
 	conversationId: string;
 	userMessage: SureWordUIMessage;
+	origin: DailyCrossMessageOrigin | null;
 }): Promise<void> {
 	const userText = extractText(options.userMessage);
 	const ids = attachmentIds(options.userMessage);
@@ -278,15 +312,28 @@ async function persistUserMessage(options: {
 			throw new UserFacingError("Message ID is already in use.");
 		}
 
+		const metadata =
+			options.userMessage.metadata && typeof options.userMessage.metadata === "object"
+				? { ...(options.userMessage.metadata as Record<string, unknown>) }
+				: {};
+		// attachmentIds are rebuilt from the validated attachment records below;
+		// origin is rebuilt from the ownership/reference check above. Every other
+		// metadata key is carried through unchanged for backward compatibility.
+		delete metadata.attachmentIds;
+		delete metadata.origin;
+		if (ids.length > 0) metadata.attachmentIds = ids;
+		if (options.origin) metadata.origin = options.origin;
+		const metadataJson = JSON.parse(JSON.stringify(metadata));
+
 		await tx.message.upsert({
 			where: { id: options.userMessage.id },
-			update: { content: userText, metadata: ids.length > 0 ? { attachmentIds: ids } : {} },
+			update: { content: userText, metadata: metadataJson },
 			create: {
 				id: options.userMessage.id,
 				conversationId: conversation.id,
 				role: "user",
 				content: userText,
-				metadata: ids.length > 0 ? { attachmentIds: ids } : {},
+				metadata: metadataJson,
 			},
 		});
 
@@ -434,6 +481,10 @@ export async function POST(req: Request): Promise<Response> {
 			);
 		}
 		const validatedMessages = allMessages.slice(0, lastUserIndex + 1);
+		// Reject malformed or cross-user Daily Cross markers before opening the
+		// response stream. Organic messages have no origin and keep their existing
+		// path unchanged.
+		const dailyCrossOrigin = await validateDailyCrossOrigin(userId, lastMessage);
 		const hasAttachments = attachmentIds(lastMessage).length > 0;
 		// Older turns' files are re-hydrated into this request too, so the model
 		// has to be able to read attachments for the whole thread, not just the
@@ -502,7 +553,12 @@ export async function POST(req: Request): Promise<Response> {
 				const messages = await hydrateTrustedAttachments(validatedMessages, userId);
 
 				if (conversationId) {
-					await persistUserMessage({ userId, conversationId, userMessage: lastMessage });
+					await persistUserMessage({
+						userId,
+						conversationId,
+						userMessage: lastMessage,
+						origin: dailyCrossOrigin,
+					});
 				}
 
 				const [memories, church] = await Promise.all([

@@ -2,6 +2,7 @@ import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
+import { formatStudyQuestions } from "@/lib/study-context-format";
 
 /**
  * One user's recent walk, formatted for a prompt: what they have been reading,
@@ -66,7 +67,7 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			where: { role: "user", conversation: { userId } },
 			orderBy: { createdAt: "desc" },
 			take: RECENT_MESSAGES,
-			select: { content: true },
+			select: { content: true, metadata: true },
 		}),
 		prisma.note.findMany({
 			where: { userId },
@@ -104,9 +105,7 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 				.slice(0, TOP_CHAPTERS)
 				.map(([reference, count]) => `${reference} (${count}x)`)
 				.join(", ") || "(none yet)",
-		questionsBlock:
-			messages.map((message) => `- ${message.content.slice(0, MESSAGE_SNIPPET_LENGTH)}`).join("\n") ||
-			"(none)",
+		questionsBlock: formatStudyQuestions(messages, MESSAGE_SNIPPET_LENGTH),
 		notesBlock:
 			notes
 				.map((note) => `- ${note.title}: ${note.plainText.slice(0, NOTE_SNIPPET_LENGTH)}`)

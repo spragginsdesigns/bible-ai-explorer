@@ -653,6 +653,7 @@ export const useChat = () => {
 
 			discardFileAttachments(fileAttachments);
 			setFileAttachments([]);
+			setAttachmentState(null);
 			cancelRecovery();
 			stop();
 			setActiveConversationId(id);
@@ -705,6 +706,7 @@ export const useChat = () => {
 		historyErrorRef.current = false;
 		discardFileAttachments(fileAttachments);
 		setFileAttachments([]);
+		setAttachmentState(null);
 		cancelRecovery();
 		stop();
 		setHistoryLoading(false);
@@ -797,6 +799,7 @@ export const useChat = () => {
 				}
 			}
 
+			const sendingOrigin = attachment?.origin;
 			setAttachmentState(null);
 			const sendingAttachments = fileAttachments;
 			setFileAttachments([]);
@@ -806,9 +809,12 @@ export const useChat = () => {
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
 			void sendUIMessage({
-				metadata: sendingAttachments.length > 0
-					? { attachmentIds: sendingAttachments.map((item) => item.id) }
-					: {},
+				metadata: {
+					...(sendingAttachments.length > 0
+						? { attachmentIds: sendingAttachments.map((item) => item.id) }
+						: {}),
+					...(sendingOrigin ? { origin: sendingOrigin } : {}),
+				},
 				parts: [
 					...sendingAttachments.map((item) => ({
 						type: "file" as const,

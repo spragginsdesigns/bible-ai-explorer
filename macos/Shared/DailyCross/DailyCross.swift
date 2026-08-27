@@ -16,6 +16,9 @@ struct DailyCrossStudyStep: Decodable, Equatable, Sendable {
 /// study path and question columns, and one of those coming back must render a
 /// shorter day rather than fail the screen.
 struct DailyCrossEntry: Decodable, Equatable, Sendable {
+    /// Present on newer responses so chat can attribute a follow-up to the
+    /// stored Daily Cross row. Older responses did not include it.
+    let id: String?
     let reference: String
     let book: String
     let chapter: Int
@@ -29,6 +32,7 @@ struct DailyCrossEntry: Decodable, Equatable, Sendable {
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(String.self, forKey: .id)
         reference = try container.decode(String.self, forKey: .reference)
         book = try container.decode(String.self, forKey: .book)
         chapter = try container.decode(Int.self, forKey: .chapter)
@@ -42,7 +46,7 @@ struct DailyCrossEntry: Decodable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case reference, book, chapter, verse, text, reason
+        case id, reference, book, chapter, verse, text, reason
         case whyToday, application, studyPath, question
     }
 }
@@ -51,6 +55,7 @@ extension DailyCrossEntry {
     /// Memberwise init for tests and previews; `Decodable` conformance above
     /// replaces the synthesised one.
     init(
+        id: String? = nil,
         reference: String,
         book: String,
         chapter: Int,
@@ -62,6 +67,7 @@ extension DailyCrossEntry {
         studyPath: [DailyCrossStudyStep] = [],
         question: String? = nil
     ) {
+        self.id = id
         self.reference = reference
         self.book = book
         self.chapter = chapter
@@ -77,10 +83,10 @@ extension DailyCrossEntry {
 
 enum DailyCrossAPI {
     /// A cold day is one utility-model call plus context reads — the route
-    /// allows itself 120s, so the client must too. The API client's 30s default
+    /// allows itself 300s, so the client must too. The API client's 30s default
     /// would time out on exactly the first fetch of the morning, the one that
     /// generates the day.
-    static let generationTimeout: TimeInterval = 120
+    static let generationTimeout: TimeInterval = 300
 
     /// Today's entry: the cron's if one exists inside the 20h reuse window,
     /// otherwise generated on demand and stored. Since the Mac client registers

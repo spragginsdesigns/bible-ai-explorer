@@ -80,6 +80,7 @@ const BibleAIExplorerInner: React.FC = () => {
 	const attachRefParam = searchParams.get("attachRef") ?? "";
 	const attachTextParam = searchParams.get("attachText") ?? "";
 	const attachTranslationParam = searchParams.get("attachTranslation") ?? "";
+	const verseOfDayIdParam = searchParams.get("verseOfDayId") ?? "";
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
@@ -96,16 +97,30 @@ const BibleAIExplorerInner: React.FC = () => {
 	// can type their own question; any draft they already typed stays untouched.
 	useEffect(() => {
 		if (!attachRefParam) return;
-		const key = `${attachRefParam} ${attachTranslationParam} ${attachTextParam}`;
+		const key = `${attachRefParam} ${attachTranslationParam} ${attachTextParam} ${verseOfDayIdParam}`;
 		if (key === lastSeededAttachment.current) return;
 		lastSeededAttachment.current = key;
 		const translation: TranslationId =
 			attachTranslationParam in TRANSLATIONS
 				? (attachTranslationParam as TranslationId)
 				: readTranslationPref();
-		setAttachment({ reference: attachRefParam, text: attachTextParam, translation });
+		setAttachment({
+			reference: attachRefParam,
+			text: attachTextParam,
+			translation,
+			...(verseOfDayIdParam
+				? {
+						origin: {
+							surface: "daily-cross" as const,
+							verseOfDayId: verseOfDayIdParam,
+							reference: attachRefParam,
+							action: "go-deeper" as const,
+						},
+				  }
+				: {}),
+		});
 		setFocusSignal((signal) => signal + 1);
-	}, [attachRefParam, attachTextParam, attachTranslationParam, setAttachment]);
+	}, [attachRefParam, attachTextParam, attachTranslationParam, setAttachment, verseOfDayIdParam]);
 
 	const handleSend = (text: string) => {
 		sendMessage(text);

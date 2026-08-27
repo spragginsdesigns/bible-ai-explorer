@@ -151,4 +151,22 @@ struct VerseAttachmentTests {
     func noAttachment() {
         #expect(VerseAttachment.compose("  plain question  ", attachment: nil) == "plain question")
     }
+
+    @Test("Serializes Daily Cross origin without duplicating verse text")
+    func dailyCrossOriginMetadata() throws {
+        let origin = VerseAttachmentOrigin(
+            surface: "daily-cross",
+            verseOfDayId: "vod_123",
+            reference: "John 3:16",
+            action: "go-deeper"
+        )
+        let metadata = JSONValue.object(["origin": origin.json])
+        let encodedOrigin = try #require(metadata["origin"])
+
+        #expect(encodedOrigin["surface"]?.stringValue == "daily-cross")
+        #expect(encodedOrigin["verseOfDayId"]?.stringValue == "vod_123")
+        #expect(encodedOrigin["reference"]?.stringValue == "John 3:16")
+        #expect(encodedOrigin["action"]?.stringValue == "go-deeper")
+        #expect(encodedOrigin["text"] == nil)
+    }
 }

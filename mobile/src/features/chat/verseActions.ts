@@ -14,11 +14,20 @@ export function formatVerseForSharing(
 	return body ? `${verse.reference} — "${body}" (${translation})` : `${verse.reference} (${translation})`;
 }
 
+/** The narrowly-scoped source attribution carried by a Daily Cross CTA. */
+export interface VerseAttachmentOrigin {
+	surface: "daily-cross";
+	verseOfDayId: string;
+	reference: string;
+	action: "go-deeper";
+}
+
 /** A verse or whole chapter the user attached to their next chat question. */
 export interface VerseAttachment {
 	reference: string;
 	text: string;
 	translation: TranslationId;
+	origin?: VerseAttachmentOrigin;
 }
 
 /**
