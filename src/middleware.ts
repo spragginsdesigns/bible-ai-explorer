@@ -13,6 +13,9 @@ const isPublicRoute = createRouteMatcher([
 	// Cron routes are protected by their own CRON_SECRET bearer check; letting
 	// them through here keeps Vercel cron (which has no Clerk session) working.
 	"/api/cron(.*)",
+	// Church photo proxy: loaded by a plain <img> / RN Image with no session
+	// header, keyed only by a place id some user already saved (see the route).
+	"/api/church/photo",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

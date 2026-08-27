@@ -1,3 +1,4 @@
+import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
@@ -20,6 +21,7 @@ const EXCLUDED_PICKS = 30;
 const MESSAGE_SNIPPET_LENGTH = 200;
 const NOTE_SNIPPET_LENGTH = 300;
 const TOP_CHAPTERS = 20;
+const CHURCH_MISSION_SNIPPET_LENGTH = 300;
 
 export interface StudyContext {
 	/** "Romans 8 (4x), John 3 (2x)" — most-read first — or "(none yet)". */
@@ -40,6 +42,12 @@ export interface StudyContext {
 	 */
 	planBlock: string;
 	/**
+	 * The home church they chose in Settings - "First Baptist, 123 Main St" plus
+	 * the opening of its own mission statement - or "(none)". Counts as evidence
+	 * of a real walk for `isEmpty`, because unlike a daily pick the user chose it.
+	 */
+	churchBlock: string;
+	/**
 	 * True when there is nothing at all to personalize from — a brand-new
 	 * account. Callers should fall back rather than ask a model to invent a
 	 * history this user does not have.
@@ -49,7 +57,7 @@ export interface StudyContext {
 
 export async function loadStudyContext(userId: string): Promise<StudyContext> {
 	const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
-	const [readingEvents, messages, notes, memories, recentPicks, planReading] = await Promise.all([
+	const [readingEvents, messages, notes, memories, recentPicks, planReading, church] = await Promise.all([
 		prisma.readingEvent.findMany({
 			where: { userId, readAt: { gte: readingSince } },
 			select: { book: true, chapter: true },
@@ -79,6 +87,8 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			console.error("[study-context] Reading plan lookup failed:", error);
 			return null;
 		}),
+		// loadUserChurch never throws; it answers null when the read fails.
+		loadUserChurch(userId),
 	]);
 
 	const readingCounts = new Map<string, number>();
@@ -110,14 +120,19 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 				`${planReading.focus ? ` - ${planReading.focus}` : ""}` +
 				`${planReading.done ? " (already read today)" : ""}`
 			: "(none)",
+		churchBlock: church
+			? `${church.name}, ${church.address}` +
+				`${church.mission ? ` - their stated mission: ${church.mission.slice(0, CHURCH_MISSION_SNIPPET_LENGTH)}` : ""}`
+			: "(none)",
 		// The daily picks are not evidence of study - the cron writes them
 		// whether or not the user ever opened the app. A reading plan is, though:
-		// the user chose it.
+		// the user chose it, and so is a home church.
 		isEmpty:
 			readingEvents.length === 0 &&
 			messages.length === 0 &&
 			notes.length === 0 &&
 			memories.length === 0 &&
-			planReading === null,
+			planReading === null &&
+			church === null,
 	};
 }

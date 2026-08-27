@@ -42,6 +42,34 @@ model User {
   versesOfDay   VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
   readingPlans  ReadingPlan[]
+  church        UserChurch?
+}
+
+// The user's home church (Settings → My church), picked from Google Places.
+// One per user; re-picking replaces it. Injected into the chat system prompt
+// beside memories (src/lib/church.ts) so the assistant knows the congregation
+// the user belongs to. `mission`/`about` are extracted from the church's own
+// public website and are treated as untrusted text at injection time.
+model UserChurch {
+  userId       String   @id
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId      String   // Google Places (New) place id
+  name         String
+  address      String
+  phone        String?
+  website      String?
+  mapsUrl      String?
+  // Logo/photo shown on the card. `photoSource` says where it came from:
+  // "website" (favicon/og:image/apple-touch-icon URL, stored directly) or
+  // "places" (served through GET /api/church/photo so the key stays server-side).
+  photoUrl     String?
+  photoSource  String?
+  photoName    String?  // Places photo resource name when photoSource = "places"
+  mission      String?  @db.Text // ≤ 1500 chars, extracted mission/vision statement
+  about        String?  @db.Text // ≤ 600 chars, one-paragraph description
+  missionSource String? // URL the mission text came from
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 enum AiProvider {

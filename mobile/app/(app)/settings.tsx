@@ -17,6 +17,7 @@ import {
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
+import { ChurchSection } from "@/features/church/ChurchSection";
 import {
 	setChatRepliesEnabled,
 	setVerseOfDayEnabled,
@@ -271,6 +272,12 @@ export default function SettingsScreen() {
 						<Text style={styles.chevron}>›</Text>
 					</Pressable>
 				</GlassCard>
+
+				{/*
+				 * Renders its own "MY CHURCH" heading: the whole section, label
+				 * included, disappears when the server has no Places key.
+				 */}
+				<ChurchSection getToken={getToken} />
 
 				<SectionLabel label="CHAT" />
 				<GlassCard style={styles.card}>

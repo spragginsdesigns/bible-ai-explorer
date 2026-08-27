@@ -33,6 +33,8 @@ import {
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
+import { loadUserChurch } from "@/lib/church";
+import { formatChurchBlock } from "@/lib/church-rules";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -503,7 +505,10 @@ export async function POST(req: Request): Promise<Response> {
 					await persistUserMessage({ userId, conversationId, userMessage: lastMessage });
 				}
 
-				const memories = await loadUserMemories(userId);
+				const [memories, church] = await Promise.all([
+					loadUserMemories(userId),
+					loadUserChurch(userId),
+				]);
 				const {
 					model,
 					providerOptions,
@@ -545,7 +550,7 @@ export async function POST(req: Request): Promise<Response> {
 				writeStatus("Thinking");
 				const result = streamText({
 					model,
-					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}`,
+					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}`,
 					messages: await convertToModelMessages(modelMessages),
 					tools,
 					stopWhen: isStepCount(8),

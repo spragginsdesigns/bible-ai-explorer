@@ -38,6 +38,7 @@ import {
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
+import ChurchSection from "@/components/settings/ChurchSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -418,6 +419,10 @@ export default function SettingsPage() {
 							)}
 						</div>
 					</section>
+
+					{/* My church */}
+					<ChurchSection />
+
 					</div>
 
 					<div className="flex flex-col gap-6 min-w-0">

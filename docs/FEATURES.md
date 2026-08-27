@@ -857,3 +857,74 @@ Both are read-only and need no permission. The system prompt tells the model to
 **prefer them over `webSearch`** for every who/where/when question about the
 Bible, and to say so plainly rather than guessing when the atlas has no entry.
 The `/who <name>` slash command runs `lookupBibleEntity` on its argument.
+
+---
+
+## My church
+
+*Shipped 2026-08-27 · Android + web*
+
+Settings → My church lets a user search for their home church by name or
+city, pick it out of the results, and keep it on their account. The saved
+profile renders as a card (photo or logo, address, phone, website, "Open in
+Google Maps", mission statement, about), and the server hands it to the
+assistant on every chat turn, so SureWord knows the congregation the user
+belongs to without being told again. "Change church" reopens the search;
+"Remove" clears it.
+
+### The routes
+
+| Route | What it does |
+|---|---|
+| `GET /api/church` | The saved church, or `null` |
+| `GET /api/church/search?q=` | Ranked Google Places matches: `placeId`, `name`, `address`, `hasPhoto`. A query shorter than 3 characters is rejected with 400, so no client sends one |
+| `PUT /api/church` | Saves `{ placeId }` and answers with the resolved profile. Slow on purpose: the server resolves the place, fetches the church's own website and extracts its mission statement with a model, so a save can run to roughly 20 seconds |
+| `DELETE /api/church` | Clears it |
+| `GET /api/church/photo?placeId=` | Same-origin proxy for a Places photo, so the Places key never reaches a client and the image has a stable URL. `photoUrl` on the profile is already absolute: either the church website's own logo or this proxy |
+
+`ChurchProfile` is `{ placeId, name, address, phone, website, mapsUrl,
+photoUrl, mission, about, missionSource, updatedAt }`, every optional field
+nullable.
+
+### Unavailable means invisible
+
+`GOOGLE_PLACES_API_KEY` is required for this feature and nothing else. Without
+it every route answers `{ status: "unavailable" }` and both clients render
+**nothing at all** for the section, its heading included. That is the same rule
+Listen follows without an ElevenLabs key: an unconfigured deploy shows no
+half-working search box rather than a control that fails when tapped. The web
+section also renders nothing while the first `GET` is in flight, so the heading
+never flashes before disappearing.
+
+### The prompt block
+
+A saved church becomes a short block in the chat system prompt (name, address,
+website, and the mission statement when one was found). It is context, not
+instruction: it tells the assistant which congregation the user belongs to so
+answers can speak to their setting. Scripture stays the final authority and the
+block never softens the KJV persona.
+
+### Surfaces
+
+| Client | Where |
+|---|---|
+| Web | `src/components/settings/ChurchSection.tsx`, mounted in `src/app/settings/page.tsx` beside Memory; types and fetch helpers in `src/lib/church-client.ts` |
+| Android | Settings screen in `mobile/`, same routes, same contract |
+| macOS / iOS | Not built |
+
+Web behavior worth preserving, and mirrored on Android:
+
+- Search is debounced 350ms and each keystroke aborts the in-flight request, so
+  a slow answer for "grace" can never overwrite the results for "grace chapel".
+- The input never calls the route below 3 characters; it says so instead.
+- Enter picks the first result, which is marked `aria-selected` in the
+  `role="listbox"` result list.
+- While a save runs the list is disabled and the section says "Looking up your
+  church and reading its website", because a 20-second silent wait reads as a
+  broken button. A 404 answers "Couldn't load that church, try another result."
+- The photo is a plain `<img>` (unknown hosts, so not `next/image`) in a 64px
+  rounded square with `object-fit: cover`, falling back to a church glyph when
+  `photoUrl` is null or the image fails to load.
+- A long mission clamps to six lines behind "Show more" and carries a muted
+  "From <hostname>" link to `missionSource`, so the user can see where the text
+  was taken from.

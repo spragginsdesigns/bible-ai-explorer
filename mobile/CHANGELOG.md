@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.36.0 (versionCode 32) - 2026-08-27 - internal
+
+**What's new (Play):**
+
+NEW
+- Tell SureWord where you worship: Settings now has My church
+- Search for your church by name or city and save it in a tap
+- Your church card keeps its address, phone, website and directions one tap away
+- Read your church's mission statement, taken from its own public website
+
+**Dev notes:** Android half of "My church". New `mobile/src/features/church/`: `church.ts` (shared response shapes mirroring `src/lib/church-client.ts`, plus pure `shouldSearch` / `hostnameOf` / `needsMissionToggle` / `isLatestRequest` helpers with unit tests), `churchStore.ts` (`/api/church` calls through `apiJson` and the `useChurchSection` hook - 350ms debounce, monotonic request id to drop stale keystrokes since `apiJson` takes no abort signal, 60s timeout on the slow PUT that scrapes the church website, 404 mapped to "try another result"), and `ChurchSection.tsx` (search, results, saved-church card, mission clamp at 6 lines with Show more, Remove behind a destructive Alert). The section renders its own MY CHURCH heading so `status: "unavailable"` leaves no orphan label. `hostnameOf` is regex-based because React Native's URL polyfill does not implement `hostname` everywhere. Server routes are shared with the web app and reach installed builds without a release.
+
 ## 1.35.0 (versionCode 31) - 2026-08-26 - internal
 
 **What's new (Play):**

@@ -24,6 +24,8 @@ import {
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { joinAssistantTextParts } from "@/utils/assistantMarkdown";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
+import { loadUserChurch } from "@/lib/church";
+import { formatChurchBlock } from "@/lib/church-rules";
 import {
 	dailyCrossGuidance,
 	noteAISystemPrompt,
@@ -205,14 +207,17 @@ export async function POST(req: Request): Promise<Response> {
 				const writeStatus = createStatusWriter(writer);
 				writeStatus("Getting ready");
 
-				const memories = await loadUserMemories(userId);
+				const [memories, church] = await Promise.all([
+					loadUserMemories(userId),
+					loadUserChurch(userId),
+				]);
 				const system = `${noteAISystemPrompt(
 					note.title,
 					note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH)
 				// The note panel shares the chat tool set, so it must also carry the rule
 				// that governs the one tool that overwrites something: setDailyCross may
 				// not fire until the user has agreed to it.
-				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}`;
+				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}${formatChurchBlock(church)}`;
 
 				const { model, providerOptions } = await resolveModel({ userId, fallbackEffort: "medium" });
 
