@@ -56,9 +56,9 @@ export interface VerseReference {
 
 export interface SelectionEvidence {
 	kind: string;
-	id?: string;
+	id: string | null;
 	summary: string;
-	origin?: string;
+	origin: string | null;
 }
 
 export interface DailyCrossSelection extends VerseReference {
@@ -114,9 +114,9 @@ export const dailyCrossSelectionSchema = z.object({
 		.array(
 			z.object({
 				kind: z.string().trim().min(1).max(60),
-				id: z.string().trim().max(120).optional(),
+				id: z.string().trim().max(120).nullable(),
 				summary: z.string().trim().min(1).max(MAX_EVIDENCE_SUMMARY_LENGTH),
-				origin: z.string().trim().max(80).optional(),
+				origin: z.string().trim().max(80).nullable(),
 			})
 		)
 		.max(MAX_EVIDENCE_ITEMS),
@@ -339,7 +339,7 @@ export function selectDailyCrossFallback(options: FallbackSelectionOptions = {})
 			? `A curated Scripture candidate that can speak to this focus: ${options.focus.trim().slice(0, 120)}`
 			: `A curated Scripture candidate chosen to keep today's word moving beyond recent themes.`,
 		noveltyReason: "The exact verse is outside the rolling 30-day window and its primary theme is outside the rolling 3-day window.",
-		evidence: [{ kind: "fallback", summary: "Curated KJV reference selected locally after recent-verse and recent-theme exclusions.", origin: "daily-cross-fallback" }],
+		evidence: [{ kind: "fallback", id: null, summary: "Curated KJV reference selected locally after recent-verse and recent-theme exclusions.", origin: "daily-cross-fallback" }],
 		confidence: 0.55,
 	};
 }

@@ -219,7 +219,7 @@ function pinnedFallbackCross(pinned: PinnedVerse, error: unknown): DailyCross {
 		selectionMode: "pinned",
 		selectionReason: `The user explicitly pinned ${reference}.`,
 		selectionEvidence: [
-			{ kind: "explicit-verse", summary: reference, origin: "user-pinned" },
+			{ kind: "explicit-verse", id: null, summary: reference, origin: "user-pinned" },
 		],
 		selectorModel: null,
 		selectorEffort: null,
@@ -314,7 +314,7 @@ async function writeGuidedDay(
 	const context = await loadStudyContext(userId);
 	const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
 	const evidence = selection?.evidence ?? [
-		{ kind: "explicit-verse", summary: reference, origin: "user-pinned" },
+		{ kind: "explicit-verse", id: null, summary: reference, origin: "user-pinned" },
 	];
 	const prompt = [
 		selection ? `Why the selector chose this direction:\n${selection.selectionReason}` : null,
@@ -500,9 +500,9 @@ function parseSelectionEvidence(value: unknown): SelectionEvidence[] {
 		return [
 			{
 				kind: record.kind,
+				id: typeof record.id === "string" ? record.id : null,
 				summary: record.summary,
-				...(typeof record.id === "string" ? { id: record.id } : {}),
-				...(typeof record.origin === "string" ? { origin: record.origin } : {}),
+				origin: typeof record.origin === "string" ? record.origin : null,
 			},
 		];
 	});

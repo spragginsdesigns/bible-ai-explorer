@@ -22,7 +22,7 @@ function selection(overrides = {}) {
 		verse: 28,
 		selectionReason: "The passage meets the user's present need.",
 		noveltyReason: "It is outside both rolling exclusion windows.",
-		evidence: [{ kind: "reading", summary: "Romans was in the recent reading context.", origin: "test" }],
+		evidence: [{ kind: "reading", id: null, summary: "Romans was in the recent reading context.", origin: "test" }],
 		confidence: 0.8,
 		...overrides,
 	};

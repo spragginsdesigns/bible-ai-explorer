@@ -88,9 +88,9 @@ function normalizeEvidence(items: readonly SelectionEvidence[] | undefined): Sel
 		.filter((item) => item && clip(item.summary).length > 0)
 		.map((item) => ({
 			kind: clip(item.kind, 60),
-			...(item.id ? { id: clip(item.id, 120) } : {}),
+			id: item.id ? clip(item.id, 120) : null,
 			summary: clip(item.summary),
-			...(item.origin ? { origin: clip(item.origin, 80) } : {}),
+			origin: item.origin ? clip(item.origin, 80) : null,
 		}));
 }
 
@@ -186,11 +186,12 @@ async function defaultContext(request: DailyCrossContextRequest): Promise<Select
 		readingCounts.set(reference, (readingCounts.get(reference) ?? 0) + 1);
 	}
 	for (const [reference, count] of Array.from(readingCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20)) {
-		evidence.push({ kind: "reading", summary: `${reference} read ${count}x in the last 30 days`, origin: "reading-history" });
+		evidence.push({ kind: "reading", id: null, summary: `${reference} read ${count}x in the last 30 days`, origin: "reading-history" });
 	}
 	if (plan) {
 		evidence.push({
 			kind: "plan",
+			id: null,
 			summary: `${plan.planTitle}, day ${plan.day} of ${plan.dayCount}: ${plan.reference}${plan.focus ? ` — ${plan.focus}` : ""}`,
 			origin: "reading-plan",
 		});
@@ -198,6 +199,7 @@ async function defaultContext(request: DailyCrossContextRequest): Promise<Select
 	if (church) {
 		evidence.push({
 			kind: "church",
+			id: null,
 			summary: `${church.name}, ${church.address}${church.mission ? ` — ${church.mission}` : ""}`,
 			origin: "user-chosen-church",
 		});
