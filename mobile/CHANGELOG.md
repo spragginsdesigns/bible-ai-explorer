@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.35.0 (versionCode 31) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Browse Bible history through Timeline, People and Places
+- Open people and events, follow person journeys, and trace reviewed relationships to their exact Scripture references
+- Find the right Joseph, Mary, John or James with clearer search context
+
+IMPROVED
+- Faster era navigation, grouped search results and clearer traditional chronology labels
+
+**Dev notes:** Timeline & People v2 adds native full-screen Android routes, People/Places directories, stable event lookup, cited typed relationships, person journeys, immediate-family views, trace connection, grouped search, strict chapter validation and refreshed offline atlas data.
+
 ## 1.34.0 (versionCode 30) - 2026-08-26 - internal
 
 **What's new (Play):**

@@ -12,10 +12,21 @@ struct BibleSection: View {
     /// destroys `BibleSection`, and reader state that died with it would send
     /// the user back to "Choose a book" every time.
     private var model: BibleModel { app.bible }
+    @State private var showingAtlas = false
+    @State private var atlasBook: Int?
+    @State private var atlasChapter: Int?
 
     var body: some View {
         HStack(spacing: 0) {
-            BibleSidebar(model: model)
+            BibleSidebar(
+                model: model,
+                onShowAtlas: {
+                    atlasBook = nil
+                    atlasChapter = nil
+                    showingAtlas = true
+                },
+                onShowBible: { showingAtlas = false }
+            )
                 .frame(width: 300)
 
             Divider().overlay(theme.border)
@@ -46,6 +57,9 @@ struct BibleSection: View {
         // the same verse every time the section is shown.
         .onChange(of: app.pendingVerseReference, initial: true) { _, pending in
             guard let pending else { return }
+            showingAtlas = false
+            atlasBook = nil
+            atlasChapter = nil
             if let reference = Bible.resolveReference(pending) {
                 model.open(reference)
             }
@@ -55,14 +69,40 @@ struct BibleSection: View {
 
     @ViewBuilder
     private var detail: some View {
-        if model.selectedBook == nil {
+        if showingAtlas {
+            AtlasExplorerPane(
+                model: app.atlas,
+                onOpenReference: { rawReference in
+                    guard let reference = Bible.resolveReference(rawReference) else { return }
+                    showingAtlas = false
+                    atlasBook = nil
+                    atlasChapter = nil
+                    model.open(reference)
+                },
+                onDismiss: {
+                    showingAtlas = false
+                    atlasBook = nil
+                    atlasChapter = nil
+                },
+                scopedBook: atlasBook,
+                scopedChapter: atlasChapter
+            )
+        } else if model.selectedBook == nil {
             emptyState
         } else {
             switch model.pane {
             case .chapters:
                 ChapterGridPane(model: model)
             case .reader:
-                ChapterReaderPane(model: model, askAI: askAI)
+                ChapterReaderPane(
+                    model: model,
+                    askAI: askAI,
+                    showAtlas: { book, chapter in
+                        atlasBook = book
+                        atlasChapter = chapter
+                        showingAtlas = true
+                    }
+                )
             }
         }
     }

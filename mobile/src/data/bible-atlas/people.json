@@ -228,6 +228,7 @@
 	{
 		"id": "joseph",
 		"name": "Joseph",
+		"disambiguator": "Joseph, son of Jacob",
 		"description": "Jacob's beloved son, sold into Egypt by his brethren, imprisoned falsely, and raised to rule all the land. He told them, Ye thought evil against me; but God meant it unto good.",
 		"era": "Creation & the Patriarchs",
 		"refs": ["Genesis 30:24", "Genesis 37:3", "Genesis 41:41", "Genesis 45:4"],
@@ -253,6 +254,7 @@
 	{
 		"id": "levi",
 		"name": "Levi",
+		"disambiguator": "Levi, son of Jacob",
 		"description": "Third son of Jacob and Leah; from his sons came Moses, Aaron and the priestly tribe that bore the tabernacle.",
 		"era": "Creation & the Patriarchs",
 		"refs": ["Genesis 29:34", "Genesis 49:5", "Exodus 6:16"],
@@ -567,6 +569,7 @@
 	{
 		"id": "saul",
 		"name": "Saul",
+		"disambiguator": "Saul, first king of Israel",
 		"description": "The first king of Israel, higher than any of the people from his shoulders upward. He was rejected for disobedience, hunted David, and fell on his own sword at Gilboa.",
 		"era": "United Kingdom",
 		"refs": ["1 Samuel 9:2", "1 Samuel 10:1", "1 Samuel 15:11", "1 Samuel 31:4"],
@@ -1066,6 +1069,7 @@
 	{
 		"id": "mary",
 		"name": "Mary",
+		"disambiguator": "Mary, mother of Jesus",
 		"alsoCalled": ["Mary the mother of Jesus"],
 		"description": "The virgin of Nazareth espoused to Joseph, who said, Behold the handmaid of the Lord; be it unto me according to thy word. She kept all these things in her heart.",
 		"era": "Life of Christ",
@@ -1075,6 +1079,7 @@
 	{
 		"id": "joseph-of-nazareth",
 		"name": "Joseph",
+		"disambiguator": "Joseph, husband of Mary",
 		"alsoCalled": ["Joseph her husband"],
 		"description": "A just man of the house of David, espoused to Mary, who took her to wife at the angel's word and carried the young child into Egypt.",
 		"era": "Life of Christ",
@@ -1084,6 +1089,7 @@
 	{
 		"id": "john-the-baptist",
 		"name": "John the Baptist",
+		"disambiguator": "John the Baptist",
 		"alsoCalled": ["John"],
 		"description": "The voice of one crying in the wilderness, who baptized in Jordan and said, Behold the Lamb of God, which taketh away the sin of the world.",
 		"era": "Life of Christ",
@@ -1150,6 +1156,7 @@
 	{
 		"id": "james-son-of-zebedee",
 		"name": "James",
+		"disambiguator": "James, son of Zebedee",
 		"alsoCalled": ["James the son of Zebedee"],
 		"description": "With Peter and John one of the three taken up into the mount; he was the first of the apostles to be killed with the sword.",
 		"era": "Life of Christ",
@@ -1159,6 +1166,7 @@
 	{
 		"id": "john-apostle",
 		"name": "John",
+		"disambiguator": "John, son of Zebedee",
 		"alsoCalled": ["the disciple whom Jesus loved"],
 		"description": "Son of Zebedee, who leaned on Jesus' breast, took His mother to his own home, and on Patmos wrote the Revelation of Jesus Christ.",
 		"era": "Life of Christ",
@@ -1168,6 +1176,7 @@
 	{
 		"id": "philip-apostle",
 		"name": "Philip",
+		"disambiguator": "Philip, one of the twelve",
 		"description": "One of the twelve, who found Nathanael and said, Come and see; to him the Lord said, Have I been so long time with you, and yet hast thou not known me?",
 		"era": "Life of Christ",
 		"refs": ["John 1:43", "John 6:5", "John 14:8"],
@@ -1310,6 +1319,7 @@
 	{
 		"id": "philip-the-evangelist",
 		"name": "Philip the evangelist",
+		"disambiguator": "Philip the evangelist",
 		"alsoCalled": ["Philip"],
 		"description": "One of the seven, who preached Christ in Samaria and was sent into the desert to the man of Ethiopia, opening the scripture at Isaiah's prophecy.",
 		"era": "The Early Church",
@@ -1319,6 +1329,7 @@
 	{
 		"id": "paul",
 		"name": "Paul",
+		"disambiguator": "Paul, formerly called Saul",
 		"alsoCalled": ["Saul", "Saul of Tarsus"],
 		"description": "A Pharisee who breathed out threatenings, struck down on the road to Damascus and made the apostle to the Gentiles; he finished his course keeping the faith.",
 		"era": "The Early Church",
@@ -1361,6 +1372,7 @@
 	{
 		"id": "james-the-lords-brother",
 		"name": "James the Lord's brother",
+		"disambiguator": "James, the Lord's brother",
 		"alsoCalled": ["James"],
 		"description": "Who gave the sentence at the council in Jerusalem, and whose epistle says, Be ye doers of the word, and not hearers only.",
 		"era": "The Early Church",
@@ -1487,6 +1499,8 @@
 	{
 		"id": "jude",
 		"name": "Jude",
+		"disambiguator": "Jude, brother of James",
+		"alsoCalled": ["Judas"],
 		"description": "The servant of Jesus Christ and brother of James, who wrote exhorting believers earnestly to contend for the faith once delivered unto the saints.",
 		"era": "The Early Church",
 		"refs": ["Jude 1:1"],
@@ -1516,5 +1530,29 @@
 		"era": "The Early Church",
 		"refs": ["Luke 1:3", "Acts 1:1"],
 		"related": ["luke"]
+	},
+	{
+		"id": "gaius",
+		"name": "Gaius",
+		"description": "The wellbeloved Gaius, whom the elder loved in the truth and commended for walking in the truth and receiving the brethren.",
+		"era": "The Early Church",
+		"refs": ["3 John 1:1", "3 John 1:5"],
+		"related": []
+	},
+	{
+		"id": "diotrephes",
+		"name": "Diotrephes",
+		"description": "The man who loved to have the preeminence among the church and would not receive the elder or the brethren.",
+		"era": "The Early Church",
+		"refs": ["3 John 1:9"],
+		"related": []
+	},
+	{
+		"id": "demetrius",
+		"name": "Demetrius",
+		"description": "The man who had a good report of all men, and of the truth itself, with the elder's record also true.",
+		"era": "The Early Church",
+		"refs": ["3 John 1:12"],
+		"related": []
 	}
 ]

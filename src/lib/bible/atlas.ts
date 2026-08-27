@@ -11,37 +11,65 @@
  */
 import { BOOKS, bookByOrder } from "./books";
 import { getKjvBook } from "./kjv";
+import relationsJson from "@/data/bible-atlas/relations.json";
 import {
 	getEntityView,
+	getFamily as getFamilyData,
+	getRelationshipNeighborhood as getRelationshipNeighborhoodData,
 	groupEventsByEra,
+	listEntities as listEntitiesData,
 	normalizeAtlasName,
 	parseAtlasRef,
 	refTouchesChapter,
 	searchAtlasData,
+	searchAtlasDataWithCounts,
 	selectTimelineEvents,
+	shortestPersonConnectionPath,
+	tracePersonConnection as tracePersonConnectionData,
 	toEventView,
 	whoIsInChapter,
 	type AtlasData,
+	type AtlasEntitySummary,
 	type AtlasEntityView,
+	type AtlasEntityListQuery,
+	type AtlasEntityListResult,
 	type AtlasEraGroup,
 	type AtlasEvent,
 	type AtlasEventView,
+	type AtlasNeighborhoodEntry,
 	type AtlasPerson,
 	type AtlasPlace,
+	type AtlasPersonConnectionPath,
+	type AtlasSearchResults,
+	type AtlasRelation,
 	type AtlasSearchHit,
 	type TimelineQuery,
 } from "./atlas-core";
 
 export {
 	ATLAS_ERAS,
+	eventDateFromLabel,
 	parseAtlasRef,
 	refOpensAt,
+	relationLabelFor,
+	type AtlasDateProvenance,
 	type AtlasEntityRef,
+	type AtlasEntitySummary,
 	type AtlasEntityView,
 	type AtlasEra,
 	type AtlasEraGroup,
 	type AtlasEvent,
+	type AtlasEventDate,
 	type AtlasEventView,
+	type AtlasRelation,
+	type AtlasRelationCertainty,
+	type AtlasRelationType,
+	type AtlasEntityListQuery,
+	type AtlasEntityListResult,
+	type AtlasNeighborhoodEntry,
+	type AtlasPersonConnectionPath,
+	type AtlasSearchCounts,
+	type AtlasSearchResults,
 	type AtlasSearchHit,
 } from "./atlas-core";
 
@@ -61,6 +89,7 @@ export async function getAtlas(): Promise<AtlasData> {
 			events: events.default as AtlasEvent[],
 			people: people.default as AtlasPerson[],
 			places: places.default as AtlasPlace[],
+			relations: relationsJson as unknown as AtlasRelation[],
 		};
 		return cache;
 	})();
@@ -68,9 +97,47 @@ export async function getAtlas(): Promise<AtlasData> {
 }
 
 /** Name/alias/title search across people, places and events, best first. */
-export async function searchAtlas(query: string, limit = 10): Promise<AtlasSearchHit[]> {
+export async function searchAtlas(query: string, limit = 12): Promise<AtlasSearchHit[]> {
 	return searchAtlasData(await getAtlas(), query, limit);
 }
+
+/** Search plus counts for the complete (untruncated) match set. */
+export async function searchAtlasResults(query: string, limit = 12): Promise<AtlasSearchResults> {
+	return searchAtlasDataWithCounts(await getAtlas(), query, limit);
+}
+
+export const searchAtlasWithCounts = searchAtlasResults;
+
+export async function listEntities(query: AtlasEntityListQuery = {}): Promise<AtlasEntityListResult> {
+	return listEntitiesData(await getAtlas(), query);
+}
+
+export async function getRelationshipNeighborhood(id: string): Promise<AtlasNeighborhoodEntry[]> {
+	return getRelationshipNeighborhoodData(await getAtlas(), id);
+}
+
+export async function getFamily(id: string): Promise<AtlasEntitySummary[]> {
+	return getFamilyData(await getAtlas(), id);
+}
+
+export const familyNeighborhood = getFamily;
+export const relationshipNeighborhood = getRelationshipNeighborhood;
+
+export async function shortestPersonConnection(
+	fromId: string,
+	toId: string
+): Promise<AtlasPersonConnectionPath | null> {
+	return shortestPersonConnectionPath(await getAtlas(), fromId, toId);
+}
+
+export async function tracePersonConnection(
+	fromId: string,
+	toId: string
+): Promise<AtlasPersonConnectionPath | null> {
+	return tracePersonConnectionData(await getAtlas(), fromId, toId);
+}
+
+export const findShortestPersonPath = shortestPersonConnection;
 
 export async function getPerson(id: string): Promise<AtlasEntityView | null> {
 	const view = getEntityView(await getAtlas(), id);

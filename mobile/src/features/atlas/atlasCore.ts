@@ -31,6 +31,41 @@ export const ATLAS_ERAS = [
 
 export type AtlasEra = (typeof ATLAS_ERAS)[number];
 
+export type AtlasDateProvenance =
+	| "traditional-ussher"
+	| "scripture-explicit"
+	| "undated";
+
+/** A display label plus an optional signed year range (BC is negative). */
+export interface AtlasEventDate {
+	label: string;
+	startYear?: number;
+	endYear?: number;
+	provenance: AtlasDateProvenance;
+}
+
+export type AtlasRelationType =
+	| "parent"
+	| "spouse"
+	| "sibling"
+	| "mentor"
+	| "disciple"
+	| "companion"
+	| "associated-place"
+	| "associated";
+
+export type AtlasRelationCertainty = "explicit" | "inferred" | "disputed";
+
+/** A reviewed edge in the atlas graph. `from` and `to` are atlas entity ids. */
+export interface AtlasRelation {
+	id: string;
+	from: string;
+	to: string;
+	type: AtlasRelationType;
+	refs: string[];
+	certainty: AtlasRelationCertainty;
+}
+
 /** One dated event, as authored in `src/data/bible-atlas/events.json`. */
 export interface AtlasEvent {
 	id: string;
@@ -38,6 +73,8 @@ export interface AtlasEvent {
 	era: AtlasEra;
 	/** Ussher's traditional dating, e.g. "c. 4004 BC". See the data README. */
 	yearLabel: string;
+	/** Optional structured date; old event data is upgraded from `yearLabel`. */
+	date?: AtlasEventDate;
 	summary: string;
 	refs: string[];
 	people: string[];
@@ -47,6 +84,7 @@ export interface AtlasEvent {
 export interface AtlasPerson {
 	id: string;
 	name: string;
+	disambiguator?: string;
 	alsoCalled?: string[];
 	description: string;
 	era: AtlasEra;
@@ -67,6 +105,7 @@ export interface AtlasData {
 	events: AtlasEvent[];
 	people: AtlasPerson[];
 	places: AtlasPlace[];
+	relations: AtlasRelation[];
 }
 
 /** The book fields ref parsing needs; both clients' Book type satisfies it. */
@@ -97,6 +136,19 @@ export interface AtlasEntityRef {
 	id: string;
 	kind: AtlasEntityKind;
 	name: string;
+	disambiguator?: string;
+}
+
+/** Stable, list-friendly representation of a person or place. */
+export interface AtlasEntitySummary {
+	id: string;
+	kind: AtlasEntityKind;
+	name: string;
+	disambiguator?: string;
+	description: string;
+	alsoCalled: string[];
+	era: AtlasEra | null;
+	modernRegion: string | null;
 }
 
 /** An event with its people and places resolved into chips. */
@@ -105,6 +157,7 @@ export interface AtlasEventView {
 	title: string;
 	era: AtlasEra;
 	yearLabel: string;
+	date: AtlasEventDate;
 	summary: string;
 	refs: string[];
 	people: AtlasEntityRef[];
@@ -116,6 +169,7 @@ export interface AtlasEntityView {
 	id: string;
 	kind: AtlasEntityKind;
 	name: string;
+	disambiguator: string | null;
 	alsoCalled: string[];
 	description: string;
 	/** People only - a place is not tied to one era. */
@@ -124,6 +178,10 @@ export interface AtlasEntityView {
 	modernRegion: string | null;
 	refs: string[];
 	related: AtlasEntityRef[];
+	/** Typed graph edges. `related` remains for older clients. */
+	relations: AtlasRelation[];
+	/** Typed edges with the opposite endpoint and a perspective-aware label. */
+	relationDetails: AtlasNeighborhoodEntry[];
 	events: { id: string; title: string; era: AtlasEra; yearLabel: string }[];
 }
 
@@ -133,6 +191,7 @@ export interface AtlasSearchHit {
 	id: string;
 	kind: AtlasHitKind;
 	name: string;
+	disambiguator: string | null;
 	description: string;
 	era: AtlasEra | null;
 	yearLabel: string | null;
@@ -154,6 +213,40 @@ export function normalizeAtlasName(value: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, " ")
 		.trim();
+}
+
+/** Locale-independent ordering shared by the web and Android bundles. */
+function compareAtlasText(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Turn the legacy authored label into the structured date used by clients.
+ * Numeric years are signed so BC sorts before AD, while an undated label has
+ * no invented chronology. The label is always retained verbatim.
+ */
+export function eventDateFromLabel(label: string): AtlasEventDate {
+	const value = String(label ?? "").trim();
+	const normalized = value.toLowerCase();
+	if (!value || /\b(?:undated|unknown|not\s+given|n\/a)\b/.test(normalized)) {
+		return { label: value, provenance: "undated" };
+	}
+
+	// A suffix applies to both sides of a range: "c. 1635 - 1491 BC".
+	const match = normalized.match(
+		/(\d{1,5})(?:\s*(?:-|\u2013|\u2014|to)\s*(\d{1,5}))?\s*(bc|bce|ad|ce)?/i
+	);
+	if (!match) return { label: value, provenance: "undated" };
+	const [, first, second, era] = match;
+	const sign = era && /bc|bce/i.test(era) ? -1 : 1;
+	const startYear = sign * Number.parseInt(first, 10);
+	const endYear = second === undefined ? startYear : sign * Number.parseInt(second, 10);
+	return {
+		label: value,
+		startYear,
+		endYear,
+		provenance: "traditional-ussher",
+	};
 }
 
 function tokens(value: string): string[] {
@@ -301,11 +394,52 @@ export function refOpensAt(ref: AtlasRef): { order: number; chapter: number; ver
 /* ------------------------------------------------------------------ views */
 
 function personRef(person: AtlasPerson): AtlasEntityRef {
-	return { id: person.id, kind: "person", name: person.name };
+	return {
+		id: person.id,
+		kind: "person",
+		name: person.name,
+		...(person.disambiguator !== undefined ? { disambiguator: person.disambiguator } : {}),
+	};
 }
 
 function placeRef(place: AtlasPlace): AtlasEntityRef {
 	return { id: place.id, kind: "place", name: place.name };
+}
+
+function summaryForPerson(person: AtlasPerson): AtlasEntitySummary {
+	return {
+		id: person.id,
+		kind: "person",
+		name: person.name,
+		...(person.disambiguator !== undefined ? { disambiguator: person.disambiguator } : {}),
+		description: person.description,
+		alsoCalled: person.alsoCalled ?? [],
+		era: person.era,
+		modernRegion: null,
+	};
+}
+
+function summaryForPlace(place: AtlasPlace): AtlasEntitySummary {
+	return {
+		id: place.id,
+		kind: "place",
+		name: place.name,
+		description: place.description,
+		alsoCalled: place.alsoCalled ?? [],
+		era: null,
+		modernRegion: place.modernRegion ?? null,
+	};
+}
+
+function summaryForId(data: AtlasData, id: string): AtlasEntitySummary | null {
+	const person = data.people.find((candidate) => candidate.id === id);
+	if (person) return summaryForPerson(person);
+	const place = data.places.find((candidate) => candidate.id === id);
+	return place ? summaryForPlace(place) : null;
+}
+
+function atlasRelations(data: AtlasData): readonly AtlasRelation[] {
+	return data.relations ?? [];
 }
 
 /** Resolve an event's people/place ids into chips, dropping any that vanished. */
@@ -323,6 +457,7 @@ export function toEventView(data: AtlasData, event: AtlasEvent): AtlasEventView 
 		title: event.title,
 		era: event.era,
 		yearLabel: event.yearLabel,
+		date: event.date ?? eventDateFromLabel(event.yearLabel),
 		summary: event.summary,
 		refs: event.refs,
 		people,
@@ -344,6 +479,8 @@ export function getEntityView(data: AtlasData, id: string): AtlasEntityView | nu
 			era: event.era,
 			yearLabel: event.yearLabel,
 		}));
+	const relationDetails = getRelationshipNeighborhood(data, id);
+	const relations = relationDetails.map((entry) => entry.relation);
 
 	if (person) {
 		const related = person.related.flatMap((relatedId): AtlasEntityRef[] => {
@@ -356,12 +493,15 @@ export function getEntityView(data: AtlasData, id: string): AtlasEntityView | nu
 			id: person.id,
 			kind: "person",
 			name: person.name,
+			disambiguator: person.disambiguator ?? null,
 			alsoCalled: person.alsoCalled ?? [],
 			description: person.description,
 			era: person.era,
 			modernRegion: null,
 			refs: person.refs,
 			related,
+			relations,
+			relationDetails,
 			events,
 		};
 	}
@@ -371,15 +511,216 @@ export function getEntityView(data: AtlasData, id: string): AtlasEntityView | nu
 		id: found.id,
 		kind: "place",
 		name: found.name,
+		disambiguator: null,
 		alsoCalled: found.alsoCalled ?? [],
 		description: found.description,
 		era: null,
 		modernRegion: found.modernRegion ?? null,
 		refs: found.refs,
 		related: [],
+		relations,
+		relationDetails,
 		events,
 	};
 }
+
+/* ----------------------------------------------------------- entities/graph */
+
+export interface AtlasEntityListQuery {
+	kind?: AtlasEntityKind;
+	era?: AtlasEra | string;
+	cursor?: string;
+	limit?: number;
+}
+
+export interface AtlasEntityListResult {
+	items: AtlasEntitySummary[];
+	nextCursor: string | null;
+	total: number;
+}
+
+/**
+ * List entities in a deterministic order. The cursor is an opaque offset into
+ * that order, so changing a page size never changes which entity follows it.
+ */
+export function listEntities(data: AtlasData, query: AtlasEntityListQuery = {}): AtlasEntityListResult {
+	const all: AtlasEntitySummary[] = [
+		...data.people.map(summaryForPerson),
+		...data.places.map(summaryForPlace),
+	].filter((entity) => {
+		if (query.kind && entity.kind !== query.kind) return false;
+		return !query.era || entity.era === query.era;
+	});
+	all.sort(
+		(a, b) =>
+			compareAtlasText(normalizeAtlasName(a.name), normalizeAtlasName(b.name)) ||
+			compareAtlasText(a.id, b.id)
+	);
+
+	const parsedCursor = query.cursor === undefined ? 0 : Number.parseInt(query.cursor, 10);
+	const start = Number.isInteger(parsedCursor) && parsedCursor >= 0 ? parsedCursor : 0;
+	const requested = query.limit ?? 24;
+	const limit = Number.isFinite(requested) ? Math.min(Math.max(Math.trunc(requested), 1), 100) : 24;
+	const items = all.slice(start, start + limit);
+	return {
+		items,
+		nextCursor: start + items.length < all.length ? String(start + items.length) : null,
+		total: all.length,
+	};
+}
+
+export interface AtlasNeighborhoodEntry extends AtlasEntitySummary {
+	relation: AtlasRelation;
+	entity: AtlasEntitySummary;
+	direction: "outgoing" | "incoming";
+	label: string;
+}
+
+/**
+ * Human-facing relationship text from one endpoint's perspective. Relation
+ * direction is retained in the data, but labels describe the other person or
+ * place so "parent" becomes "Child" when viewed from the parent.
+ */
+export function relationLabelFor(relation: AtlasRelation, perspectiveId: string): string {
+	const from = relation.from === perspectiveId;
+	const to = relation.to === perspectiveId;
+	if (!from && !to) return "Related";
+	switch (relation.type) {
+		case "parent":
+			return from ? "Child" : "Parent";
+		case "spouse":
+			return "Spouse";
+		case "sibling":
+			return "Sibling";
+		case "mentor":
+			return from ? "Disciple" : "Mentor";
+		case "disciple":
+			return from ? "Disciple" : "Mentor";
+		case "companion":
+			return "Companion";
+		case "associated-place":
+			return from ? "Associated place" : "Associated person";
+		case "associated":
+			return "Associated";
+	}
+}
+
+/** Every reviewed edge touching an entity, with the other endpoint resolved. */
+export function getRelationshipNeighborhood(data: AtlasData, id: string): AtlasNeighborhoodEntry[] {
+	return atlasRelations(data)
+		.filter((relation) => relation.from === id || relation.to === id)
+		.flatMap((relation) => {
+			const outgoing = relation.from === id;
+			const other = summaryForId(data, outgoing ? relation.to : relation.from);
+			return other
+				? [
+					{
+						...other,
+						relation,
+						entity: other,
+						direction: outgoing ? ("outgoing" as const) : ("incoming" as const),
+						label: relationLabelFor(relation, id),
+					},
+				]
+				: [];
+		})
+		.sort(
+			(a, b) =>
+				compareAtlasText(normalizeAtlasName(a.entity.name), normalizeAtlasName(b.entity.name)) ||
+				compareAtlasText(a.entity.id, b.entity.id) ||
+				compareAtlasText(a.relation.id, b.relation.id)
+		);
+}
+
+/** A compact neighbor-only form for clients that do not need edge metadata. */
+export function relationshipNeighborhood(data: AtlasData, id: string): AtlasEntitySummary[] {
+	return getRelationshipNeighborhood(data, id).map((entry) => entry.entity);
+}
+
+const FAMILY_RELATION_TYPES = new Set<AtlasRelationType>(["parent", "spouse", "sibling"]);
+
+/** The family neighborhood, excluding mentors, companions and places. */
+export function getFamily(data: AtlasData, id: string): AtlasEntitySummary[] {
+	return getRelationshipNeighborhood(data, id)
+		.filter((entry) => FAMILY_RELATION_TYPES.has(entry.relation.type))
+		.map((entry) => entry.entity);
+}
+
+export const familyNeighborhood = getFamily;
+
+export interface AtlasPersonConnectionPath {
+	ids: string[];
+	entities: AtlasEntitySummary[];
+	relations: AtlasRelation[];
+}
+
+/**
+ * Find the shortest deterministic path between two people. Relations are
+ * traversable in either direction: a parent or mentor edge still connects
+ * the two people when the question is "how are these people connected?".
+ */
+export function shortestPersonConnectionPath(
+	data: AtlasData,
+	fromId: string,
+	toId: string
+): AtlasPersonConnectionPath | null {
+	const people = new Set(data.people.map((person) => person.id));
+	if (!people.has(fromId) || !people.has(toId)) return null;
+	if (fromId === toId) {
+		const entity = summaryForId(data, fromId) as AtlasEntitySummary;
+		return { ids: [fromId], entities: [entity], relations: [] };
+	}
+
+	const adjacency = new Map<string, { id: string; relation: AtlasRelation }[]>();
+	for (const relation of atlasRelations(data)) {
+		if (!people.has(relation.from) || !people.has(relation.to)) continue;
+		adjacency.get(relation.from)?.push({ id: relation.to, relation }) ??
+			adjacency.set(relation.from, [{ id: relation.to, relation }]);
+		adjacency.get(relation.to)?.push({ id: relation.from, relation }) ??
+			adjacency.set(relation.to, [{ id: relation.from, relation }]);
+	}
+	for (const edges of adjacency.values()) {
+		edges.sort((a, b) => compareAtlasText(a.id, b.id) || compareAtlasText(a.relation.id, b.relation.id));
+	}
+
+	const queue = [fromId];
+	const previous = new Map<string, { id: string; relation: AtlasRelation }>();
+	const visited = new Set([fromId]);
+	while (queue.length > 0) {
+		const current = queue.shift() as string;
+		for (const edge of adjacency.get(current) ?? []) {
+			if (visited.has(edge.id)) continue;
+			visited.add(edge.id);
+			previous.set(edge.id, { id: current, relation: edge.relation });
+			if (edge.id === toId) {
+				queue.length = 0;
+				break;
+			}
+			queue.push(edge.id);
+		}
+	}
+	if (!visited.has(toId)) return null;
+
+	const ids = [toId];
+	const relations: AtlasRelation[] = [];
+	for (let current = toId; current !== fromId; ) {
+		const step = previous.get(current);
+		if (!step) return null;
+		relations.push(step.relation);
+		ids.push(step.id);
+		current = step.id;
+	}
+	ids.reverse();
+	relations.reverse();
+	return {
+		ids,
+		entities: ids.map((id) => summaryForId(data, id) as AtlasEntitySummary),
+		relations,
+	};
+}
+
+export const tracePersonConnection = shortestPersonConnectionPath;
+export const findShortestPersonPath = shortestPersonConnectionPath;
 
 /* ----------------------------------------------------------------- search */
 
@@ -413,7 +754,7 @@ function scoreNames(candidates: Candidate[], query: string): number {
  * same score, because "who is X" is what the query nearly always means.
  * Ties break on the shorter name, then on id, so results never reshuffle.
  */
-export function searchAtlasData(data: AtlasData, query: string, limit = 10): AtlasSearchHit[] {
+export function searchAtlasData(data: AtlasData, query: string, limit = 12): AtlasSearchHit[] {
 	const trimmed = query.trim();
 	if (!trimmed) return [];
 
@@ -432,6 +773,7 @@ export function searchAtlasData(data: AtlasData, query: string, limit = 10): Atl
 				id: person.id,
 				kind: "person",
 				name: person.name,
+				disambiguator: person.disambiguator ?? null,
 				description: person.description,
 				era: person.era,
 				yearLabel: null,
@@ -454,6 +796,7 @@ export function searchAtlasData(data: AtlasData, query: string, limit = 10): Atl
 				id: place.id,
 				kind: "place",
 				name: place.name,
+				disambiguator: null,
 				description: place.description,
 				era: null,
 				yearLabel: null,
@@ -470,6 +813,7 @@ export function searchAtlasData(data: AtlasData, query: string, limit = 10): Atl
 				id: event.id,
 				kind: "event",
 				name: event.title,
+				disambiguator: null,
 				description: event.summary,
 				era: event.era,
 				yearLabel: event.yearLabel,
@@ -485,6 +829,38 @@ export function searchAtlasData(data: AtlasData, query: string, limit = 10): Atl
 	);
 	return hits.slice(0, Math.max(1, limit));
 }
+
+export interface AtlasSearchCounts {
+	total: number;
+	person: number;
+	place: number;
+	event: number;
+}
+
+export interface AtlasSearchResults {
+	query: string;
+	results: AtlasSearchHit[];
+	counts: AtlasSearchCounts;
+}
+
+/** Search plus untruncated per-kind counts for result headers and filters. */
+export function searchAtlasDataWithCounts(
+	data: AtlasData,
+	query: string,
+	limit = 12
+): AtlasSearchResults {
+	const results = searchAtlasData(data, query, limit);
+	const all = searchAtlasData(data, query, Number.MAX_SAFE_INTEGER);
+	const counts: AtlasSearchCounts = {
+		total: all.length,
+		person: all.filter((hit) => hit.kind === "person").length,
+		place: all.filter((hit) => hit.kind === "place").length,
+		event: all.filter((hit) => hit.kind === "event").length,
+	};
+	return { query, results, counts };
+}
+
+export const searchAtlasWithCounts = searchAtlasDataWithCounts;
 
 /* --------------------------------------------------------------- timeline */
 

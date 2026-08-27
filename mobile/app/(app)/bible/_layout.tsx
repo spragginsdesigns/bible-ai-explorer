@@ -23,6 +23,9 @@ export default function BibleLayout() {
 			<Stack.Screen name="plan" />
 			<Stack.Screen name="timeline" />
 			<Stack.Screen name="atlas/[id]" />
+			<Stack.Screen name="atlas/event/[id]" />
+			<Stack.Screen name="atlas/family/[id]" />
+			<Stack.Screen name="atlas/trace/[id]" />
 		</Stack>
 	);
 }

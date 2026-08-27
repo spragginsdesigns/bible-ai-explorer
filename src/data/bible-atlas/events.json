@@ -84,6 +84,27 @@
 		"places": []
 	},
 	{
+		"id": "seth-and-lamech-in-the-line",
+		"title": "Seth's line reaches Noah",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "date not given",
+		"summary": "The genealogy records Seth, Enoch, Methuselah and Lamech in the line from Adam to Noah, whom Lamech named in hope of comfort from the work and toil of the ground.",
+		"refs": [
+			"Genesis 5:3",
+			"Genesis 5:21",
+			"Genesis 5:25",
+			"Genesis 5:28-29"
+		],
+		"people": [
+			"seth",
+			"enoch",
+			"methuselah",
+			"lamech",
+			"noah"
+		],
+		"places": []
+	},
+	{
 		"id": "the-flood",
 		"title": "The flood",
 		"era": "Creation & the Patriarchs",
@@ -486,6 +507,41 @@
 		"places": [
 			"bethlehem"
 		]
+	},
+	{
+		"id": "dinah-at-shechem",
+		"title": "Dinah at Shechem",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "date not given",
+		"summary": "Dinah, the daughter of Jacob and Leah, went out to see the daughters of the land at Shechem, where Shechem the Hivite took her and defiled her.",
+		"refs": [
+			"Genesis 30:21",
+			"Genesis 34:1-2"
+		],
+		"people": [
+			"dinah",
+			"jacob",
+			"leah"
+		],
+		"places": [
+			"shechem"
+		]
+	},
+	{
+		"id": "tamar-and-judah",
+		"title": "Judah and Tamar",
+		"era": "Creation & the Patriarchs",
+		"yearLabel": "date not given",
+		"summary": "Judah acknowledged Tamar's righteousness after she conceived Pharez and Zarah, preserving the family line recorded in Genesis.",
+		"refs": [
+			"Genesis 38:6",
+			"Genesis 38:24-26"
+		],
+		"people": [
+			"tamar",
+			"judah"
+		],
+		"places": []
 	},
 	{
 		"id": "joseph-sold",
@@ -1310,6 +1366,27 @@
 		]
 	},
 	{
+		"id": "ruth-gleans-in-bethlehem",
+		"title": "Ruth gleans in the field of Boaz",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1312 BC",
+		"summary": "Ruth clave to Naomi and came back with her to Bethlehem; her hap was to light on the field of Boaz, who redeemed her, and she bare Obed, grandfather of David.",
+		"refs": [
+			"Ruth 1:16",
+			"Ruth 2:3",
+			"Ruth 4:13"
+		],
+		"people": [
+			"ruth",
+			"naomi",
+			"boaz"
+		],
+		"places": [
+			"bethlehem",
+			"moab"
+		]
+	},
+	{
 		"id": "deborah-and-barak",
 		"title": "Deborah and Barak against Sisera",
 		"era": "Conquest & Judges",
@@ -1383,61 +1460,6 @@
 		]
 	},
 	{
-		"id": "samson-and-delilah",
-		"title": "Samson betrayed and bound",
-		"era": "Conquest & Judges",
-		"yearLabel": "c. 1120 BC",
-		"summary": "Delilah pressed him daily till he told her all his heart; his hair was shaven, the LORD departed from him, and the Philistines put out his eyes.",
-		"refs": [
-			"Judges 16:19-21"
-		],
-		"people": [
-			"samson",
-			"delilah"
-		],
-		"places": [
-			"gaza"
-		]
-	},
-	{
-		"id": "samsons-last-act",
-		"title": "Samson's last act",
-		"era": "Conquest & Judges",
-		"yearLabel": "c. 1120 BC",
-		"summary": "He prayed, O Lord GOD, remember me, and bowed himself with all his might; the house fell upon the lords, and the dead he slew at his death were more than in his life.",
-		"refs": [
-			"Judges 16:28",
-			"Judges 16:30"
-		],
-		"people": [
-			"samson"
-		],
-		"places": [
-			"gaza"
-		]
-	},
-	{
-		"id": "ruth-gleans-in-bethlehem",
-		"title": "Ruth gleans in the field of Boaz",
-		"era": "Conquest & Judges",
-		"yearLabel": "c. 1312 BC",
-		"summary": "Ruth clave to Naomi and came back with her to Bethlehem; her hap was to light on the field of Boaz, who redeemed her, and she bare Obed, grandfather of David.",
-		"refs": [
-			"Ruth 1:16",
-			"Ruth 2:3",
-			"Ruth 4:13"
-		],
-		"people": [
-			"ruth",
-			"naomi",
-			"boaz"
-		],
-		"places": [
-			"bethlehem",
-			"moab"
-		]
-	},
-	{
 		"id": "samuel-called-at-shiloh",
 		"title": "Samuel called at Shiloh",
 		"era": "Conquest & Judges",
@@ -1473,6 +1495,40 @@
 		"places": [
 			"shiloh",
 			"ashdod"
+		]
+	},
+	{
+		"id": "samson-and-delilah",
+		"title": "Samson betrayed and bound",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1120 BC",
+		"summary": "Delilah pressed him daily till he told her all his heart; his hair was shaven, the LORD departed from him, and the Philistines put out his eyes.",
+		"refs": [
+			"Judges 16:19-21"
+		],
+		"people": [
+			"samson",
+			"delilah"
+		],
+		"places": [
+			"gaza"
+		]
+	},
+	{
+		"id": "samsons-last-act",
+		"title": "Samson's last act",
+		"era": "Conquest & Judges",
+		"yearLabel": "c. 1120 BC",
+		"summary": "He prayed, O Lord GOD, remember me, and bowed himself with all his might; the house fell upon the lords, and the dead he slew at his death were more than in his life.",
+		"refs": [
+			"Judges 16:28",
+			"Judges 16:30"
+		],
+		"people": [
+			"samson"
+		],
+		"places": [
+			"gaza"
 		]
 	},
 	{
@@ -1590,6 +1646,22 @@
 		]
 	},
 	{
+		"id": "david-and-abigail",
+		"title": "David and Abigail",
+		"era": "United Kingdom",
+		"yearLabel": "date not given",
+		"summary": "Abigail met David with provisions and wise words, and David blessed the LORD for sending her to keep him from avenging himself with his own hand.",
+		"refs": [
+			"1 Samuel 25:32-35",
+			"1 Samuel 25:40-42"
+		],
+		"people": [
+			"david",
+			"abigail"
+		],
+		"places": []
+	},
+	{
 		"id": "david-spares-saul",
 		"title": "David spares the LORD's anointed",
 		"era": "United Kingdom",
@@ -1660,6 +1732,23 @@
 			"hebron",
 			"jerusalem"
 		]
+	},
+	{
+		"id": "david-honors-mephibosheth",
+		"title": "David honors Mephibosheth",
+		"era": "United Kingdom",
+		"yearLabel": "date not given",
+		"summary": "David sought out Mephibosheth, Jonathan's son, and restored Saul's fields to him, setting him continually at the king's table for Jonathan's sake.",
+		"refs": [
+			"2 Samuel 9:6-7",
+			"2 Samuel 9:13"
+		],
+		"people": [
+			"david",
+			"mephibosheth",
+			"jonathan"
+		],
+		"places": []
 	},
 	{
 		"id": "jerusalem-taken",
@@ -2112,6 +2201,24 @@
 		]
 	},
 	{
+		"id": "hezekiahs-life-lengthened",
+		"title": "Fifteen years added to Hezekiah",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 713 BC",
+		"summary": "Sick unto death, he turned his face to the wall and wept; the LORD heard his prayer, healed him, and turned the shadow back on the sundial.",
+		"refs": [
+			"2 Kings 20:5-6",
+			"2 Kings 20:11"
+		],
+		"people": [
+			"hezekiah",
+			"isaiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
 		"id": "sennacherib-turned-back",
 		"title": "Sennacherib turned back from Jerusalem",
 		"era": "Divided Kingdom",
@@ -2133,24 +2240,6 @@
 		]
 	},
 	{
-		"id": "hezekiahs-life-lengthened",
-		"title": "Fifteen years added to Hezekiah",
-		"era": "Divided Kingdom",
-		"yearLabel": "c. 713 BC",
-		"summary": "Sick unto death, he turned his face to the wall and wept; the LORD heard his prayer, healed him, and turned the shadow back on the sundial.",
-		"refs": [
-			"2 Kings 20:5-6",
-			"2 Kings 20:11"
-		],
-		"people": [
-			"hezekiah",
-			"isaiah"
-		],
-		"places": [
-			"jerusalem"
-		]
-	},
-	{
 		"id": "manassehs-evil-and-repentance",
 		"title": "Manasseh's long evil reign, and his repentance",
 		"era": "Divided Kingdom",
@@ -2169,24 +2258,6 @@
 		]
 	},
 	{
-		"id": "book-of-the-law-found",
-		"title": "The book of the law found",
-		"era": "Divided Kingdom",
-		"yearLabel": "c. 624 BC",
-		"summary": "Hilkiah found the book in the house of the LORD; Josiah rent his clothes, enquired of Huldah, and made a covenant to walk after the LORD with all his heart.",
-		"refs": [
-			"2 Kings 22:8",
-			"2 Kings 23:3"
-		],
-		"people": [
-			"josiah",
-			"huldah"
-		],
-		"places": [
-			"jerusalem"
-		]
-	},
-	{
 		"id": "jeremiah-called",
 		"title": "Jeremiah called to be a prophet",
 		"era": "Divided Kingdom",
@@ -2199,6 +2270,24 @@
 		"people": [
 			"jeremiah",
 			"josiah"
+		],
+		"places": [
+			"jerusalem"
+		]
+	},
+	{
+		"id": "book-of-the-law-found",
+		"title": "The book of the law found",
+		"era": "Divided Kingdom",
+		"yearLabel": "c. 624 BC",
+		"summary": "Hilkiah found the book in the house of the LORD; Josiah rent his clothes, enquired of Huldah, and made a covenant to walk after the LORD with all his heart.",
+		"refs": [
+			"2 Kings 22:8",
+			"2 Kings 23:3"
+		],
+		"people": [
+			"josiah",
+			"huldah"
 		],
 		"places": [
 			"jerusalem"
@@ -2240,6 +2329,39 @@
 		]
 	},
 	{
+		"id": "the-writing-prophets",
+		"title": "The writing prophets speak",
+		"era": "Divided Kingdom",
+		"yearLabel": "date not given",
+		"summary": "The KJV introduces Hosea, Amos, Micah, Obadiah, Nahum, Habakkuk and Zephaniah as prophets whose books address Israel, Judah, Edom, Nineveh and Babylon.",
+		"refs": [
+			"Hosea 1:1",
+			"Amos 1:1",
+			"Micah 1:1",
+			"Obadiah 1:1",
+			"Nahum 1:1",
+			"Habakkuk 1:1",
+			"Habakkuk 1:6",
+			"Zephaniah 1:1"
+		],
+		"people": [
+			"hosea",
+			"amos",
+			"micah",
+			"obadiah",
+			"nahum",
+			"habakkuk",
+			"zephaniah"
+		],
+		"places": [
+			"samaria",
+			"jerusalem",
+			"edom",
+			"nineveh",
+			"babylon"
+		]
+	},
+	{
 		"id": "first-captives-to-babylon",
 		"title": "The first captives carried to Babylon",
 		"era": "Exile & Return",
@@ -2272,42 +2394,6 @@
 		"people": [
 			"daniel",
 			"nebuchadnezzar"
-		],
-		"places": [
-			"babylon"
-		]
-	},
-	{
-		"id": "the-fiery-furnace",
-		"title": "The burning fiery furnace",
-		"era": "Exile & Return",
-		"yearLabel": "c. 580 BC",
-		"summary": "The three would not bow to the image; cast into the furnace heated seven times, they walked loose with a fourth like the Son of God, and the fire had no power over them.",
-		"refs": [
-			"Daniel 3:25",
-			"Daniel 3:26"
-		],
-		"people": [
-			"shadrach-meshach-abednego",
-			"nebuchadnezzar"
-		],
-		"places": [
-			"babylon"
-		]
-	},
-	{
-		"id": "nebuchadnezzar-humbled",
-		"title": "Nebuchadnezzar driven from men",
-		"era": "Exile & Return",
-		"yearLabel": "c. 569 BC",
-		"summary": "He boasted of great Babylon that he had built, and was driven to eat grass as oxen until he knew that the most High ruleth in the kingdom of men.",
-		"refs": [
-			"Daniel 4:33",
-			"Daniel 4:37"
-		],
-		"people": [
-			"nebuchadnezzar",
-			"daniel"
 		],
 		"places": [
 			"babylon"
@@ -2367,6 +2453,42 @@
 		]
 	},
 	{
+		"id": "the-fiery-furnace",
+		"title": "The burning fiery furnace",
+		"era": "Exile & Return",
+		"yearLabel": "c. 580 BC",
+		"summary": "The three would not bow to the image; cast into the furnace heated seven times, they walked loose with a fourth like the Son of God, and the fire had no power over them.",
+		"refs": [
+			"Daniel 3:25",
+			"Daniel 3:26"
+		],
+		"people": [
+			"shadrach-meshach-abednego",
+			"nebuchadnezzar"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "nebuchadnezzar-humbled",
+		"title": "Nebuchadnezzar driven from men",
+		"era": "Exile & Return",
+		"yearLabel": "c. 569 BC",
+		"summary": "He boasted of great Babylon that he had built, and was driven to eat grass as oxen until he knew that the most High ruleth in the kingdom of men.",
+		"refs": [
+			"Daniel 4:33",
+			"Daniel 4:37"
+		],
+		"people": [
+			"nebuchadnezzar",
+			"daniel"
+		],
+		"places": [
+			"babylon"
+		]
+	},
+	{
 		"id": "writing-on-the-wall",
 		"title": "The writing on the wall",
 		"era": "Exile & Return",
@@ -2381,6 +2503,25 @@
 			"daniel"
 		],
 		"places": [
+			"babylon"
+		]
+	},
+	{
+		"id": "daniels-seventy-weeks",
+		"title": "The seventy weeks",
+		"era": "Exile & Return",
+		"yearLabel": "c. 538 BC",
+		"summary": "Reading in Jeremiah of the seventy years, Daniel prayed and confessed; Gabriel came and told him of seventy weeks determined upon his people and upon the holy city.",
+		"refs": [
+			"Daniel 9:2",
+			"Daniel 9:24"
+		],
+		"people": [
+			"daniel",
+			"jeremiah"
+		],
+		"places": [
+			"jerusalem",
 			"babylon"
 		]
 	},
@@ -2401,25 +2542,6 @@
 		"places": [
 			"babylon",
 			"jerusalem"
-		]
-	},
-	{
-		"id": "daniels-seventy-weeks",
-		"title": "The seventy weeks",
-		"era": "Exile & Return",
-		"yearLabel": "c. 538 BC",
-		"summary": "Reading in Jeremiah of the seventy years, Daniel prayed and confessed; Gabriel came and told him of seventy weeks determined upon his people and upon the holy city.",
-		"refs": [
-			"Daniel 9:2",
-			"Daniel 9:24"
-		],
-		"people": [
-			"daniel",
-			"jeremiah"
-		],
-		"places": [
-			"jerusalem",
-			"babylon"
 		]
 	},
 	{
@@ -2846,6 +2968,25 @@
 		"places": [
 			"sychar",
 			"samaria"
+		]
+	},
+	{
+		"id": "philip-finds-nathanael",
+		"title": "Philip finds Nathanael",
+		"era": "Life of Christ",
+		"yearLabel": "date not given",
+		"summary": "Philip found Nathanael and told him of Jesus of Nazareth; Nathanael came and confessed, Rabbi, thou art the Son of God, thou art the King of Israel.",
+		"refs": [
+			"John 1:43-45",
+			"John 1:49"
+		],
+		"people": [
+			"philip-apostle",
+			"nathanael",
+			"jesus-christ"
+		],
+		"places": [
+			"nazareth"
 		]
 	},
 	{
@@ -3524,7 +3665,8 @@
 		"summary": "The Holy Ghost said, Separate me Barnabas and Saul. They sailed to Cyprus and went through Iconium and Lystra, confirming the souls of the disciples.",
 		"refs": [
 			"Acts 13:2-4",
-			"Acts 14:21"
+			"Acts 14:21",
+			"Galatians 1:2"
 		],
 		"people": [
 			"paul",
@@ -3535,7 +3677,8 @@
 			"antioch",
 			"cyprus",
 			"iconium",
-			"lystra"
+			"lystra",
+			"galatia"
 		]
 	},
 	{
@@ -3577,6 +3720,24 @@
 		"places": [
 			"jerusalem",
 			"antioch"
+		]
+	},
+	{
+		"id": "titus-and-paul-in-jerusalem",
+		"title": "Titus travels with Paul",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "Paul took Titus with him to Jerusalem, where Titus was a Greek and was not compelled to be circumcised; Paul later called him his partner and fellowhelper.",
+		"refs": [
+			"Galatians 2:1-3",
+			"2 Corinthians 8:23"
+		],
+		"people": [
+			"paul",
+			"titus"
+		],
+		"places": [
+			"jerusalem"
 		]
 	},
 	{
@@ -3635,6 +3796,26 @@
 		"places": [
 			"thessalonica",
 			"berea"
+		]
+	},
+	{
+		"id": "second-letter-to-thessalonica",
+		"title": "Paul's second letter to Thessalonica",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "Paul, Silvanus and Timotheus addressed the church of the Thessalonians, teaching steadfastness in the coming of the Lord and signing the letter with Paul's own hand.",
+		"refs": [
+			"2 Thessalonians 1:1",
+			"2 Thessalonians 2:1",
+			"2 Thessalonians 3:17"
+		],
+		"people": [
+			"paul",
+			"silas",
+			"timothy"
+		],
+		"places": [
+			"thessalonica"
 		]
 	},
 	{
@@ -3805,6 +3986,27 @@
 		]
 	},
 	{
+		"id": "paul-and-onesimus",
+		"title": "Paul writes for Onesimus",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "Paul appealed to Philemon for Onesimus, whom he called his son begotten in his bonds and a brother beloved, and sent greetings to the saints at Colosse.",
+		"refs": [
+			"Philemon 1:1",
+			"Philemon 1:10-16",
+			"Colossians 1:2",
+			"Colossians 4:9"
+		],
+		"people": [
+			"paul",
+			"onesimus",
+			"philemon"
+		],
+		"places": [
+			"colosse"
+		]
+	},
+	{
 		"id": "pauls-last-letter",
 		"title": "I have finished my course",
 		"era": "The Early Church",
@@ -3823,6 +4025,57 @@
 		"places": [
 			"rome"
 		]
+	},
+	{
+		"id": "luke-writes-to-theophilus",
+		"title": "Luke writes to Theophilus",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "Luke addressed the most excellent Theophilus, writing an orderly account of the things most surely believed among the saints and of all that Jesus began both to do and teach.",
+		"refs": [
+			"Luke 1:3-4",
+			"Acts 1:1"
+		],
+		"people": [
+			"luke",
+			"theophilus"
+		],
+		"places": []
+	},
+	{
+		"id": "jude-contends-for-the-faith",
+		"title": "Jude urges believers to contend",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "Jude, the servant of Jesus Christ and brother of James, exhorted believers to contend for the faith once delivered unto the saints.",
+		"refs": [
+			"Jude 1:1",
+			"Jude 1:3"
+		],
+		"people": [
+			"jude",
+			"jesus-christ",
+			"james-the-lords-brother"
+		],
+		"places": []
+	},
+	{
+		"id": "three-john-named-men",
+		"title": "Three men named in 3 John",
+		"era": "The Early Church",
+		"yearLabel": "date not given",
+		"summary": "The short letter of 3 John commends Gaius, rejects Diotrephes' preeminence and gives Demetrius a good report of all men and of the truth itself.",
+		"refs": [
+			"3 John 1:1",
+			"3 John 1:9",
+			"3 John 1:12"
+		],
+		"people": [
+			"gaius",
+			"diotrephes",
+			"demetrius"
+		],
+		"places": []
 	},
 	{
 		"id": "john-on-patmos",

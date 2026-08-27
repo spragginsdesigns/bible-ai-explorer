@@ -2,11 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
 	ATLAS,
 	ATLAS_ERAS,
+	atlasFamily,
+	atlasNeighborhood,
 	getAtlasEntity,
 	getAtlasEvent,
 	getTimeline,
+	listAtlasEntities,
 	openLocationFor,
 	searchAtlas,
+	searchAtlasGlobal,
+	searchAtlasScoped,
+	traceAtlasPeople,
 	whoIsIn,
 } from "./atlas";
 import {
@@ -21,6 +27,7 @@ import {
 	emptyTimelineMessage,
 	eventCaption,
 	hitKindLabel,
+	relationDisplayLabel,
 } from "./atlasView";
 
 describe("the bundled atlas", () => {
@@ -56,7 +63,9 @@ describe("search ranking", () => {
 	});
 
 	it("matches event titles as well as names", () => {
-		expect(searchAtlas("fiery furnace").some((hit) => hit.kind === "event")).toBe(true);
+		expect(
+			searchAtlas("fiery furnace").some((hit) => hit.kind === "event"),
+		).toBe(true);
 	});
 
 	it("answers nothing for an empty or unknown query, rather than everything", () => {
@@ -75,9 +84,9 @@ describe("era grouping", () => {
 		const groups = getTimeline();
 		expect(groups.map((group) => group.era)).toEqual([...ATLAS_ERAS]);
 		expect(groups.every((group) => group.events.length > 0)).toBe(true);
-		expect(groups.reduce((total, group) => total + group.events.length, 0)).toBe(
-			ATLAS.events.length
-		);
+		expect(
+			groups.reduce((total, group) => total + group.events.length, 0),
+		).toBe(ATLAS.events.length);
 	});
 
 	it("keeps each era's events in the order they happened", () => {
@@ -95,15 +104,21 @@ describe("era grouping", () => {
 
 	it("filters to the events that touch a chapter", () => {
 		const groups = getTimeline({ book: 2, chapter: 14 });
-		expect(groups.flatMap((group) => group.events).map((event) => event.id)).toEqual([
-			"crossing-the-red-sea",
-		]);
+		expect(
+			groups.flatMap((group) => group.events).map((event) => event.id),
+		).toEqual(["crossing-the-red-sea"]);
 	});
 
 	it("filters to one person's events", () => {
-		const events = getTimeline({ personId: "moses" }).flatMap((group) => group.events);
+		const events = getTimeline({ personId: "moses" }).flatMap(
+			(group) => group.events,
+		);
 		expect(events.length).toBeGreaterThan(5);
-		expect(events.every((event) => event.people.some((person) => person.id === "moses"))).toBe(true);
+		expect(
+			events.every((event) =>
+				event.people.some((person) => person.id === "moses"),
+			),
+		).toBe(true);
 	});
 
 	it("gives back nothing at all for a filter that matches nothing", () => {
@@ -112,18 +127,63 @@ describe("era grouping", () => {
 });
 
 describe("entities and events", () => {
+	it("bundles typed relations and keeps their references", () => {
+		const moses = atlasNeighborhood("moses");
+		expect(
+			moses.some(
+				(entry) =>
+					entry.relation.type === "sibling" && entry.entity.id === "aaron",
+			),
+		).toBe(true);
+		expect(
+			moses.find((entry) => entry.entity.id === "aaron")?.relation.refs,
+		).toContain("Exodus 4:14");
+		expect(atlasFamily("moses").map((person) => person.id)).toContain("aaron");
+	});
+
+	it("finds a cited shortest people path", () => {
+		const path = traceAtlasPeople("moses", "joshua");
+		expect(path?.ids).toEqual(["moses", "joshua"]);
+		expect(path?.relations[0].refs).toContain("Deuteronomy 34:9");
+	});
+
+	it("lists deterministic directory pages and scoped search", () => {
+		const people = listAtlasEntities({ kind: "person", limit: 12 });
+		expect(people.items).toHaveLength(12);
+		expect(people.nextCursor).toBe("12");
+		const result = searchAtlasScoped("john", "people", null, 12);
+		expect(result.results.every((hit) => hit.kind === "person")).toBe(true);
+		expect(result.counts.person).toBeGreaterThan(0);
+		const christEra = listAtlasEntities({
+			kind: "person",
+			era: "Life of Christ",
+			limit: 100,
+		});
+		expect(christEra.items.length).toBeGreaterThan(0);
+		expect(christEra.items.every((item) => item.era === "Life of Christ")).toBe(
+			true,
+		);
+		const global = searchAtlasGlobal("moses", null, 12);
+		expect(global.counts.person).toBeGreaterThan(0);
+		expect(global.counts.event).toBeGreaterThan(0);
+	});
+
 	it("resolves a person with their relations and events", () => {
 		const moses = getAtlasEntity("moses");
 		expect(moses?.kind).toBe("person");
 		expect(moses?.related.map((related) => related.id)).toContain("aaron");
-		expect(moses?.events.map((event) => event.id)).toContain("the-burning-bush");
+		expect(moses?.events.map((event) => event.id)).toContain(
+			"the-burning-bush",
+		);
 	});
 
 	it("resolves a place, which belongs to no single era", () => {
 		const jericho = getAtlasEntity("jericho");
 		expect(jericho?.kind).toBe("place");
 		expect(jericho?.era).toBeNull();
-		expect(jericho?.events.map((event) => event.id)).toContain("fall-of-jericho");
+		expect(jericho?.events.map((event) => event.id)).toContain(
+			"fall-of-jericho",
+		);
 	});
 
 	it("answers null for an id that is not in the atlas", () => {
@@ -143,7 +203,9 @@ describe("who is in a chapter", () => {
 		const genesis22 = whoIsIn(1, 22);
 		expect(genesis22.people.map((person) => person.id)).toContain("abraham");
 		expect(genesis22.places.map((place) => place.id)).toContain("moriah");
-		expect(genesis22.events.map((event) => event.id)).toContain("offering-of-isaac");
+		expect(genesis22.events.map((event) => event.id)).toContain(
+			"offering-of-isaac",
+		);
 	});
 
 	it("answers empty for a chapter the atlas says nothing about", () => {
@@ -153,9 +215,15 @@ describe("who is in a chapter", () => {
 
 describe("opening a reference in the reader", () => {
 	it("resolves the chapter and verse a chip should open", () => {
-		expect(openLocationFor("John 3:16")).toMatchObject({ chapter: 3, verse: 16 });
+		expect(openLocationFor("John 3:16")).toMatchObject({
+			chapter: 3,
+			verse: 16,
+		});
 		expect(openLocationFor("John 3:16")?.book.name).toBe("John");
-		expect(openLocationFor("Genesis 6-9")).toMatchObject({ chapter: 6, verse: null });
+		expect(openLocationFor("Genesis 6-9")).toMatchObject({
+			chapter: 6,
+			verse: null,
+		});
 	});
 
 	it("answers null rather than guessing at something it cannot parse", () => {
@@ -165,6 +233,11 @@ describe("opening a reference in the reader", () => {
 });
 
 describe("presentation", () => {
+	it("labels relation direction from the open entry", () => {
+		expect(relationDisplayLabel("parent", "outgoing")).toBe("Parent of");
+		expect(relationDisplayLabel("parent", "incoming")).toBe("Child of");
+	});
+
 	it("shortens every era to a chip that fits", () => {
 		expect(eraChips()).toHaveLength(ATLAS_ERAS.length);
 		expect(eraChipLabel("Creation & the Patriarchs")).toBe("Patriarchs");
@@ -196,7 +269,9 @@ describe("presentation", () => {
 	});
 
 	it("counts an era's events with the right plural", () => {
-		expect(eraEventCount({ era: "Life of Christ", events: [] })).toBe("0 events");
+		expect(eraEventCount({ era: "Life of Christ", events: [] })).toBe(
+			"0 events",
+		);
 		const one = getTimeline({ book: 2, chapter: 14 })[0];
 		expect(eraEventCount(one)).toBe("1 event");
 	});
@@ -204,12 +279,18 @@ describe("presentation", () => {
 	it("writes an Ask-about-this prompt that names the thing", () => {
 		expect(askPromptForEntity(getAtlasEntity("moses")!)).toContain("Moses");
 		expect(askPromptForEntity(getAtlasEntity("jericho")!)).toContain("Jericho");
-		expect(askPromptForEvent(getAtlasEvent("the-flood")!)).toContain("The flood");
+		expect(askPromptForEvent(getAtlasEvent("the-flood")!)).toContain(
+			"The flood",
+		);
 	});
 
 	it("says which chapter came up empty rather than just 'no results'", () => {
-		expect(emptyTimelineMessage({ book: "Leviticus", chapter: 13 })).toContain("Leviticus 13");
-		expect(emptyTimelineMessage({ era: "Life of Christ" })).toContain("Life of Christ");
+		expect(emptyTimelineMessage({ book: "Leviticus", chapter: 13 })).toContain(
+			"Leviticus 13",
+		);
+		expect(emptyTimelineMessage({ era: "Life of Christ" })).toContain(
+			"Life of Christ",
+		);
 		expect(emptyTimelineMessage({})).toBe("No events on the timeline.");
 	});
 });

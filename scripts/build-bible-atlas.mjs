@@ -10,11 +10,12 @@
 //   - a duplicate or malformed id;
 //   - an event pointing at a person or place that does not exist;
 //   - a `related` id that does not exist;
+//   - a relation with an unknown endpoint, type, certainty or reference;
 //   - a person or place whose name (or one of its `alsoCalled` aliases) does
 //     not actually appear in ANY of the verses it cites. That last check is
 //     the one that catches invented Scripture: it reads the KJV text itself.
 //
-// On success it copies the three JSON files to mobile/src/data/bible-atlas/
+// On success it copies the four JSON files to mobile/src/data/bible-atlas/
 // and `src/lib/bible/atlas-core.ts` to mobile/src/features/atlas/atlasCore.ts,
 // so the phone and the server are never running different rules.
 import fs from "node:fs";
@@ -225,10 +226,13 @@ function checkIds(label, kind, ids, known) {
 const events = readJson(path.join(dataDir, "events.json"));
 const people = readJson(path.join(dataDir, "people.json"));
 const places = readJson(path.join(dataDir, "places.json"));
+const relationsPath = path.join(dataDir, "relations.json");
+const relations = fs.existsSync(relationsPath) ? readJson(relationsPath) : [];
 
 const personIds = new Set();
 const placeIds = new Set();
 const eventIds = new Set();
+const relationIds = new Set();
 
 for (const [list, ids, kind] of [
 	[events, eventIds, "event"],
@@ -250,6 +254,44 @@ for (const [list, ids, kind] of [
 	}
 }
 
+// Relations are reviewed edges between atlas entities. Keep this validation
+// optional until a checkout has adopted relations.json, but strict when it is
+// present so graph helpers never receive a dangling or malformed edge.
+const entityIds = new Set([...personIds, ...placeIds]);
+const relationTypes = new Set([
+	"parent",
+	"spouse",
+	"sibling",
+	"mentor",
+	"disciple",
+	"companion",
+	"associated-place",
+	"associated",
+]);
+const relationCertainties = new Set(["explicit", "inferred", "disputed"]);
+if (!Array.isArray(relations)) {
+	fail("relations: the file is not a list");
+} else {
+	for (const relation of relations) {
+		const label = `relation "${relation?.id}"`;
+		if (typeof relation?.id !== "string" || !ID_PATTERN.test(relation.id)) {
+			fail(`${label}: ids must be kebab-case`);
+		} else if (relationIds.has(relation.id)) {
+			fail(`${label}: duplicate id`);
+		} else {
+			relationIds.add(relation.id);
+		}
+		if (!entityIds.has(relation?.from)) fail(`${label}: from names a missing entity "${relation?.from}"`);
+		if (!entityIds.has(relation?.to)) fail(`${label}: to names a missing entity "${relation?.to}"`);
+		if (!relationTypes.has(relation?.type)) fail(`${label}: type "${relation?.type}" is not supported`);
+		if (!relationCertainties.has(relation?.certainty)) {
+			fail(`${label}: certainty "${relation?.certainty}" is not supported`);
+		}
+		checkRefs(label, relation?.refs);
+		if (relation?.from === relation?.to) fail(`${label}: relates an entity to itself`);
+	}
+}
+
 // People and places: names must be real, and the Scripture cited must name them.
 for (const [list, kind] of [
 	[people, "person"],
@@ -264,6 +306,9 @@ for (const [list, kind] of [
 		}
 		if (kind === "person") {
 			if (!ERAS.includes(entry.era)) fail(`${label}: era "${entry.era}" is not one of the nine`);
+			if (entry.disambiguator !== undefined) {
+				checkText(label, "disambiguator", entry.disambiguator, { max: 80 });
+			}
 			checkIds(label, "related", entry.related, new Set([...personIds, ...placeIds]));
 			if (entry.related.includes(entry.id)) fail(`${label}: is related to itself`);
 		} else if (entry.modernRegion !== undefined && typeof entry.modernRegion !== "string") {
@@ -284,6 +329,24 @@ for (const [list, kind] of [
 					`either the references are wrong or the name needs an alsoCalled the KJV uses`
 			);
 		}
+	}
+}
+
+// People sharing a visible name must explain the difference wherever they are
+// listed or searched. Distinct disambiguators keep the client from guessing.
+const peopleByName = new Map();
+for (const person of people) {
+	const key = normalize(person.name);
+	peopleByName.set(key, [...(peopleByName.get(key) ?? []), person]);
+}
+for (const sameName of peopleByName.values()) {
+	if (sameName.length < 2) continue;
+	const labels = sameName.map((person) => normalize(person.disambiguator ?? ""));
+	if (labels.some((label) => !label)) {
+		fail(`people named "${sameName[0].name}": every duplicate needs a disambiguator`);
+	}
+	if (new Set(labels).size !== labels.length) {
+		fail(`people named "${sameName[0].name}": disambiguators must be distinct`);
 	}
 }
 
@@ -327,6 +390,7 @@ fs.mkdirSync(path.dirname(mobileCorePath), { recursive: true });
 for (const file of ["events.json", "people.json", "places.json"]) {
 	fs.copyFileSync(path.join(dataDir, file), path.join(mobileDataDir, file));
 }
+if (fs.existsSync(relationsPath)) fs.copyFileSync(relationsPath, path.join(mobileDataDir, "relations.json"));
 
 const banner = `// GENERATED FILE - do not edit.
 // Copied from src/lib/bible/atlas-core.ts by scripts/build-bible-atlas.mjs so
@@ -342,7 +406,7 @@ const refCount =
 
 console.log(
 	`Bible atlas OK: ${events.length} events, ${people.length} people, ${places.length} places, ` +
-		`${refCount} references all resolved against the KJV.`
+		`${relations.length} relations, ${refCount} references all resolved against the KJV.`
 );
 if (orphanPeople.length > 0) {
 	console.log(`  note: ${orphanPeople.length} people are in no event (${orphanPeople.join(", ")})`);

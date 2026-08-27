@@ -6,12 +6,19 @@ import { fileURLToPath } from "node:url";
 import {
 	ATLAS_ERAS,
 	eraIndex,
+	eventDateFromLabel,
 	getEntityView,
+	getFamily,
+	getRelationshipNeighborhood,
 	groupEventsByEra,
+	listEntities,
 	parseAtlasRef,
 	refTouchesChapter,
 	searchAtlasData,
+	searchAtlasDataWithCounts,
 	selectTimelineEvents,
+	relationLabelFor,
+	shortestPersonConnectionPath,
 	whoIsInChapter,
 } from "../src/lib/bible/atlas-core.ts";
 
@@ -21,7 +28,8 @@ const books = read("../src/data/books.json");
 const events = read("../src/data/bible-atlas/events.json");
 const people = read("../src/data/bible-atlas/people.json");
 const places = read("../src/data/bible-atlas/places.json");
-const atlas = { events, people, places };
+const relations = read("../src/data/bible-atlas/relations.json");
+const atlas = { events, people, places, relations };
 
 /** Verses of one chapter, straight off the bundled KJV. Cached per book. */
 const bookCache = new Map();
@@ -102,6 +110,13 @@ test("every person and place an event names exists", () => {
 		}
 		assert.ok(!person.related.includes(person.id), `person ${person.id} is related to itself`);
 	}
+	const entityIds = new Set([...personIds, ...placeIds]);
+	for (const relation of relations) {
+		assert.match(relation.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+		assert.ok(entityIds.has(relation.from), `relation ${relation.id} has missing from`);
+		assert.ok(entityIds.has(relation.to), `relation ${relation.id} has missing to`);
+		assert.notEqual(relation.from, relation.to, `relation ${relation.id} is self-referential`);
+	}
 });
 
 test("events are filed under a real era, and never go backwards in time", () => {
@@ -113,6 +128,21 @@ test("events are filed under a real era, and never go backwards in time", () => 
 		last = index;
 	}
 	assert.equal(ATLAS_ERAS.length, 9);
+});
+
+test("dated events never move backwards inside an era", () => {
+	for (const era of ATLAS_ERAS) {
+		let last = Number.NEGATIVE_INFINITY;
+		for (const event of events.filter((candidate) => candidate.era === era)) {
+			const date = event.date ?? eventDateFromLabel(event.yearLabel);
+			if (date.startYear === undefined) continue;
+			assert.ok(
+				date.startYear >= last,
+				`${event.id} (${event.yearLabel}) moves backwards inside ${era}`,
+			);
+			last = date.startYear;
+		}
+	}
 });
 
 test("references parse in all four authored shapes, and only those", () => {
@@ -155,6 +185,17 @@ test("search finds a person by name", () => {
 	const [best] = searchAtlasData(atlas, "moses");
 	assert.equal(best.id, "moses");
 	assert.equal(best.kind, "person");
+	assert.equal(best.disambiguator, null);
+});
+
+test("person disambiguators propagate through refs, summaries and detail", () => {
+	const joseph = people.find((person) => person.id === "joseph");
+	assert.ok(joseph.disambiguator);
+	const person = { ...joseph, related: [] };
+	const small = { events: [], people: [person], places: [], relations: [] };
+	assert.equal(searchAtlasData(small, "joseph")[0].disambiguator, joseph.disambiguator);
+	assert.equal(listEntities(small, { kind: "person" }).items[0].disambiguator, joseph.disambiguator);
+	assert.equal(getEntityView(small, "joseph").disambiguator, joseph.disambiguator);
 });
 
 test("search finds Paul by a name Scripture also calls him", () => {
@@ -180,6 +221,80 @@ test("search is stable and respects its limit", () => {
 	const first = searchAtlasData(atlas, "john", 5);
 	assert.ok(first.length <= 5);
 	assert.deepEqual(first, searchAtlasData(atlas, "john", 5));
+});
+
+test("event dates preserve labels and use signed BC chronology", () => {
+	assert.deepEqual(eventDateFromLabel("c. 4004 BC"), {
+		label: "c. 4004 BC",
+		startYear: -4004,
+		endYear: -4004,
+		provenance: "traditional-ussher",
+	});
+	assert.deepEqual(eventDateFromLabel("c. 1635 - 1491 BC"), {
+		label: "c. 1635 - 1491 BC",
+		startYear: -1635,
+		endYear: -1491,
+		provenance: "traditional-ussher",
+	});
+	assert.deepEqual(eventDateFromLabel("date not given"), {
+		label: "date not given",
+		provenance: "undated",
+	});
+});
+
+test("entity listing is stable across pages and filters by kind and era", () => {
+	const first = listEntities(atlas, { kind: "person", limit: 7 });
+	const second = listEntities(atlas, { kind: "person", limit: 7, cursor: first.nextCursor });
+	assert.equal(first.items.length, 7);
+	assert.equal(first.total, people.length);
+	assert.notEqual(first.items.at(-1).id, second.items[0].id);
+	assert.ok(second.items.every((entity) => entity.kind === "person"));
+	assert.ok(
+		listEntities(atlas, { era: "Life of Christ", limit: 100 }).items.every(
+			(entity) => entity.era === "Life of Christ"
+		)
+	);
+});
+
+test("reviewed relations expose neighborhoods, family and shortest people paths", () => {
+	const graphAtlas = {
+		...atlas,
+		relations: [
+			{ id: "moses-aaron", from: "moses", to: "aaron", type: "sibling", refs: ["Exodus 4:14"], certainty: "explicit" },
+			{ id: "aaron-miriam", from: "aaron", to: "miriam", type: "sibling", refs: ["Exodus 15:20"], certainty: "explicit" },
+			{ id: "moses-burning-bush", from: "moses", to: "burning-bush", type: "associated-place", refs: ["Exodus 3:2"], certainty: "explicit" },
+		],
+	};
+	const neighborhood = getRelationshipNeighborhood(graphAtlas, "moses");
+	assert.equal(neighborhood[0].entity.id, "aaron");
+	assert.deepEqual(getFamily(graphAtlas, "moses").map((entity) => entity.id), ["aaron"]);
+	const path = shortestPersonConnectionPath(graphAtlas, "moses", "miriam");
+	assert.deepEqual(path.ids, ["moses", "aaron", "miriam"]);
+	assert.deepEqual(path.relations.map((relation) => relation.id), ["moses-aaron", "aaron-miriam"]);
+	assert.equal(shortestPersonConnectionPath(graphAtlas, "moses", "jericho"), null);
+});
+
+test("relation labels describe each edge from the viewed endpoint", () => {
+	const parent = { id: "parent", from: "adam", to: "cain", type: "parent", refs: [], certainty: "explicit" };
+	const mentor = { id: "mentor", from: "moses", to: "joshua", type: "mentor", refs: [], certainty: "inferred" };
+	const disciple = { id: "disciple", from: "jesus-christ", to: "peter", type: "disciple", refs: [], certainty: "explicit" };
+	const place = { id: "place", from: "abraham", to: "ur", type: "associated-place", refs: [], certainty: "explicit" };
+	assert.equal(relationLabelFor(parent, "adam"), "Child");
+	assert.equal(relationLabelFor(parent, "cain"), "Parent");
+	assert.equal(relationLabelFor(mentor, "moses"), "Disciple");
+	assert.equal(relationLabelFor(mentor, "joshua"), "Mentor");
+	assert.equal(relationLabelFor(disciple, "jesus-christ"), "Disciple");
+	assert.equal(relationLabelFor(disciple, "peter"), "Mentor");
+	assert.equal(relationLabelFor(place, "abraham"), "Associated place");
+	assert.equal(relationLabelFor(place, "ur"), "Associated person");
+	assert.equal(relationLabelFor(place, "nobody"), "Related");
+});
+
+test("search counts include matches beyond the visible limit", () => {
+	const found = searchAtlasDataWithCounts(atlas, "john", 2);
+	assert.equal(found.results.length, 2);
+	assert.equal(found.counts.total, found.counts.person + found.counts.place + found.counts.event);
+	assert.ok(found.counts.person > found.results.filter((hit) => hit.kind === "person").length);
 });
 
 test("era grouping keeps chronological order and drops empty eras", () => {
@@ -247,6 +362,8 @@ test("an entity view carries its aliases, relations and events", () => {
 	assert.equal(moses.kind, "person");
 	assert.equal(moses.era, "Egypt & the Exodus");
 	assert.ok(moses.related.some((related) => related.id === "aaron"));
+	assert.ok(moses.relationDetails.some((related) => related.entity.id === "aaron"));
+	assert.ok(moses.relationDetails.every((related) => related.label));
 	assert.ok(moses.events.some((event) => event.id === "the-burning-bush"));
 
 	const jericho = getEntityView(atlas, "jericho");

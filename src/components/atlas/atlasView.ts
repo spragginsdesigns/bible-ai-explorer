@@ -8,21 +8,22 @@
  * as types only, so nothing of the atlas itself reaches the browser bundle.
  */
 import type {
-	AtlasEntityView,
-	AtlasEra,
-	AtlasEraGroup,
-	AtlasEventView,
-	AtlasSearchHit,
+  AtlasEntityView,
+  AtlasEra,
+  AtlasEraGroup,
+  AtlasEventDate,
+  AtlasEventView,
+  AtlasSearchHit,
 } from "@/lib/bible/atlas-core";
 
 const KIND_LABELS: Record<AtlasSearchHit["kind"], string> = {
-	person: "Person",
-	place: "Place",
-	event: "Event",
+  person: "Person",
+  place: "Place",
+  event: "Event",
 };
 
 export function hitKindLabel(kind: AtlasSearchHit["kind"]): string {
-	return KIND_LABELS[kind];
+  return KIND_LABELS[kind];
 }
 
 /**
@@ -50,6 +51,24 @@ export function eventCaption(event: AtlasEventView): string {
   return `${event.yearLabel} · ${event.era}`;
 }
 
+/** Display dates without presenting an inferred Ussher date as Scripture. */
+export function atlasDateLabel(
+  date: AtlasEventDate | null | undefined,
+  yearLabel?: string,
+): string {
+  if (date?.provenance === "undated") return "Date not given";
+  const label = date?.label ?? yearLabel;
+  if (
+    !label ||
+    /^(?:undated|unknown|date not given|n\/a)$/i.test(label.trim())
+  ) {
+    return "Date not given";
+  }
+  return date?.provenance === "scripture-explicit"
+    ? label
+    : `Traditional chronology · ${label}`;
+}
+
 /** The line under an entity's name: what it is, and where it sits. */
 export function entitySubtitle(entity: AtlasEntityView): string {
   const parts: string[] = [entity.kind === "person" ? "Person" : "Place"];
@@ -70,7 +89,9 @@ export function entityCounts(entity: AtlasEntityView): string {
     `${entity.refs.length} key ${entity.refs.length === 1 ? "verse" : "verses"}`,
   ];
   if (entity.events.length > 0) {
-    parts.push(`${entity.events.length} ${entity.events.length === 1 ? "event" : "events"}`);
+    parts.push(
+      `${entity.events.length} ${entity.events.length === 1 ? "event" : "events"}`,
+    );
   }
   return parts.join(" · ");
 }

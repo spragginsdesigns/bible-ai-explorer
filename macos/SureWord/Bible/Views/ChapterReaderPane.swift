@@ -13,6 +13,7 @@ struct ChapterReaderPane: View {
 
     @Bindable var model: BibleModel
     let askAI: (_ reference: String, _ text: String) -> Void
+    let showAtlas: (_ book: Int, _ chapter: Int) -> Void
 
     private var translation: TranslationID { app.settings.translation }
 
@@ -67,6 +68,18 @@ struct ChapterReaderPane: View {
                 .lineLimit(1)
 
             Spacer()
+
+            if let book = model.selectedBook {
+                Button {
+                    showAtlas(book, model.chapter)
+                } label: {
+                    Label("Who's here", systemImage: "person.2")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .help("Open the people, places and events in this chapter")
+                .accessibilityLabel("Who's in this chapter")
+            }
 
             translationChips
 

@@ -7,6 +7,8 @@ struct BibleSidebar: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
     @Bindable var model: BibleModel
+    let onShowAtlas: () -> Void
+    let onShowBible: () -> Void
 
     /// Collapsed testaments, remembered for as long as the section is alive —
     /// the same scope as Android's module-level `sessionCollapsed`.
@@ -19,6 +21,7 @@ struct BibleSidebar: View {
             if model.isSearching {
                 searchResults
             } else {
+                atlasCard
                 crossCard
                 bookList
             }
@@ -34,6 +37,44 @@ struct BibleSidebar: View {
     }
 
     // MARK: - Daily Cross
+
+    private var atlasCard: some View {
+        Button(action: onShowAtlas) {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 17))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Timeline & People")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text("Explore Scripture's people and places")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help("Explore Bible timeline, people and places")
+        .accessibilityLabel("Open Bible timeline, people and places")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
+    }
 
     /// The ✝ way in to today's guided walk, sitting above the books exactly as
     /// it does on the Android Bible tab and the web `/bible` page. It is also a
@@ -117,6 +158,7 @@ struct BibleSidebar: View {
             LazyVStack(alignment: .leading, spacing: Spacing.sm) {
                 if let jump = model.referenceJump {
                     Button {
+                        onShowBible()
                         model.open(jump)
                     } label: {
                         Text("Go to \(label(for: jump)) →")
@@ -150,6 +192,7 @@ struct BibleSidebar: View {
 
                 ForEach(model.searchHits) { hit in
                     Button {
+                        onShowBible()
                         model.open(order: hit.order, chapter: hit.chapter, verse: hit.verse)
                     } label: {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -247,6 +290,7 @@ struct BibleSidebar: View {
     private func bookRow(_ book: Book) -> some View {
         let isSelected = model.selectedBook == book.order
         return Button {
+            onShowBible()
             model.selectBook(book.order)
         } label: {
             HStack {

@@ -54,6 +54,8 @@ final class AppModel {
     /// This user's opening questions. Owned here so one generation serves every
     /// new chat in the session, and so signing out drops them with the account.
     let suggestedQuestions: SuggestedQuestionsModel
+    /// Shared Bible atlas networking/state for both native shells.
+    let atlas: AtlasModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false
@@ -81,5 +83,6 @@ final class AppModel {
         bible.highlights = highlights
         dailyCross = DailyCrossModel(api: api)
         suggestedQuestions = SuggestedQuestionsModel(api: api)
+        atlas = AtlasModel(api: api)
     }
 }

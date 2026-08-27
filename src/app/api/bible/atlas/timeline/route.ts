@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { ATLAS_ERAS, getTimeline } from "@/lib/bible/atlas";
+import { bookByOrder } from "@/lib/bible/books";
+
+function parseIntegerParam(params: URLSearchParams, name: string): number | null | undefined {
+	const raw = params.get(name);
+	if (raw === null) return undefined;
+	if (!/^\d+$/.test(raw.trim())) return null;
+	const value = Number(raw);
+	return Number.isSafeInteger(value) ? value : null;
+}
 
 /**
  * The timeline, whole or narrowed:
@@ -24,13 +33,25 @@ export async function GET(req: Request): Promise<Response> {
 			return NextResponse.json({ error: `Unknown era: ${era}` }, { status: 400 });
 		}
 
-		const bookParam = Number.parseInt(params.get("book") ?? "", 10);
-		const chapterParam = Number.parseInt(params.get("chapter") ?? "", 10);
-		const book = Number.isInteger(bookParam) ? bookParam : undefined;
-		if (book !== undefined && (book < 1 || book > 66)) {
-			return NextResponse.json({ error: "That is not a book of the Bible." }, { status: 400 });
+		const bookParam = parseIntegerParam(params, "book");
+		const chapterParam = parseIntegerParam(params, "chapter");
+		if (bookParam === null || chapterParam === null) {
+			return NextResponse.json({ error: "That is not a chapter of the Bible." }, { status: 400 });
 		}
-		const chapter = Number.isInteger(chapterParam) && chapterParam > 0 ? chapterParam : undefined;
+		if (chapterParam !== undefined && bookParam === undefined) {
+			return NextResponse.json({ error: "A chapter requires a book." }, { status: 400 });
+		}
+		const book = bookParam;
+		const chapter = chapterParam;
+		if (book !== undefined) {
+			const bookMeta = bookByOrder(book);
+			if (!bookMeta) {
+				return NextResponse.json({ error: "That is not a book of the Bible." }, { status: 400 });
+			}
+			if (chapter !== undefined && (chapter < 1 || chapter > bookMeta.chapters)) {
+				return NextResponse.json({ error: "That is not a chapter of the Bible." }, { status: 400 });
+			}
+		}
 
 		const personId = params.get("personId")?.trim() || undefined;
 

@@ -1,12 +1,13 @@
 # Bible atlas data
 
-Three hand-authored files behind **Timeline, People & Places**:
+Four hand-authored files behind **Timeline, People & Places**:
 
 | File | What it holds |
 |---|---|
-| `events.json` | 207 events from Creation to the writing of Revelation, in chronological order |
-| `people.json` | 183 people |
+| `events.json` | 220 events from Creation to the writing of Revelation, in chronological order |
+| `people.json` | 186 people |
 | `places.json` | 93 places |
+| `relations.json` | Reviewed, KJV-cited typed relationship edges between people and places |
 
 They are mirrored into the Android app at `mobile/src/data/bible-atlas/` by
 `scripts/build-bible-atlas.mjs`. **Never edit the copies in `mobile/`** - edit
@@ -59,7 +60,16 @@ binding on the author where it cannot:
 // places.json
 { "id": "jericho", "name": "Jericho", "alsoCalled": ["..."], "description": "...",
   "refs": ["Joshua 6:20"], "modernRegion": "..." }
+
+// relations.json
+{ "id": "moses-aaron-sibling", "from": "moses", "to": "aaron",
+  "type": "sibling", "refs": ["Exodus 4:14"], "certainty": "explicit" }
 ```
+
+Relations are authored in one direction; the atlas core computes inverse display
+labels. `related` remains as a legacy, untyped fallback for older clients.
+Collision-prone people may also carry a short `disambiguator` label (for
+example, `Joseph, son of Jacob`) for list and detail displays.
 
 `modernRegion` is set only where the location is not in doubt; it is left off
 everywhere else rather than guessed at.

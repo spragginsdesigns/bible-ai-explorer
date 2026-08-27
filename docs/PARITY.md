@@ -146,21 +146,27 @@ tab selection). Same behavior, different plumbing.
 
 ## Timeline, People & Places
 
+The macOS and iOS columns below are source-complete but remain 🟡 until the
+native schemes build and the flows are exercised on a Mac runner. Windows
+cannot honestly turn those cells green.
+
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
-| Timeline screen (nine eras, gold rail, Creation to Revelation) | ✅ 1.30.0 `/bible/timeline` | ✅ `/bible/timeline` | ❌ | ❌ | 207 events hand-authored in `src/data/bible-atlas/events.json`; grouped and ordered by `groupEventsByEra` in `src/lib/bible/atlas-core.ts` |
-| Era chips filter the rail | ✅ 1.30.0 horizontal chips | ✅ wrapping chips | ❌ | ❌ | Short labels from `eraChipLabel`, mirrored in `mobile/src/features/atlas/atlasView.ts` and `src/components/atlas/atlasView.ts` |
-| Tap an event: summary, references, who and where | ✅ 1.30.0 bottom sheet | ✅ sheet on phones, centred card on desktop | ❌ | ❌ | Form-factor adaptation only; same content and same actions |
-| Reference chips open the reader | ✅ 1.30.0 to `/bible/chapter` | ✅ links to `/bible/chapter` | ❌ | ❌ | `openLocationFor` (mobile) / `readerHrefFor` (web), both over `parseAtlasRef` |
-| Person / place entry (description, aliases, key verses, related, events) | ✅ 1.30.0 pushed screen `/bible/atlas/[id]` | ✅ detail panel | ❌ | ❌ | 183 people, 93 places. Web fetches `GET /api/bible/atlas?id=`; Android reads the bundled copy |
-| "Ask about this" opens chat with a prefilled prompt | ✅ 1.30.0 | ✅ | ❌ | ❌ | Both push `?prompt=`, the same param the Bible tab Ask-AI entry points use; neither client sends it for the user |
-| Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | ❌ | ❌ | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
-| "Who’s in this chapter" from the chapter reader | ✅ 1.30.0 people icon in the header | ✅ people icon in the header | ❌ | ❌ | Opens the atlas at `?book=&chapter=`; `whoIsIn` matches every person/place whose key references fall in the chapter, plus everyone in its events |
-| "Timeline & People" card on the Bible screen | ✅ 1.30.0 | ✅ | ❌ | ❌ | Sits beside the Reading plan card on both |
-| Ussher dating, labelled as tradition and not Scripture | ✅ 1.30.0 footnote | ✅ footnote | ❌ | ❌ | Same wording (`USSHER_NOTE`), and the system prompt forbids presenting a date as though Scripture gave it |
+| Timeline screen (nine eras, gold rail, Creation to Revelation) | ✅ `/bible/timeline` | ✅ `/bible/timeline` | 🟡 source implemented | 🟡 source implemented | 220 KJV-grounded events; a one-row era navigator preserves the rail without spending three mobile rows on filters |
+| Timeline / People / Places explorer modes | ✅ bundled directories | ✅ authenticated paged directories | 🟡 native list/detail | 🟡 native full-screen | Search is global and grouped; mode, era, query, journey and detail are persistent client state |
+| Tap an event: summary, references, who and where | ✅ full-screen route | ✅ full-height sheet on small screens, list/detail on desktop | 🟡 detail pane | 🟡 pushed detail | Stable event lookup is `GET /api/bible/atlas/event?id=` |
+| Reference chips open the reader | ✅ 1.30.0 to `/bible/chapter` | ✅ links to `/bible/chapter` | 🟡 resolved into `BibleModel` | 🟡 pushed `ChapterReaderView` | Every client rejects references its reader cannot resolve |
+| Person / place entry (description, aliases, key verses, typed relationships, events) | ✅ pushed screen `/bible/atlas/[id]` | ✅ responsive detail panel | 🟡 source implemented | 🟡 source implemented | 186 people, 93 places and 83 reviewed relationships. Collision-prone names carry disambiguators |
+| Person journeys and clickable entity-event rows | ✅ | ✅ | 🟡 source implemented | 🟡 source implemented | Shows five anchor events, then filters the rail with `personId` for the full journey |
+| Immediate family and Trace connection | ✅ offline routes | ✅ cited detail controls | 🟡 source implemented | 🟡 source implemented | Family is a linear immediate neighborhood; trace uses the shortest reviewed path and shows certainty plus KJV refs |
+| "Ask about this" opens chat with a prefilled prompt | ✅ 1.30.0 | ✅ | 🟡 source implemented | 🟡 source implemented | Each native shell switches to Chat with a prompt filled in; it never sends for the user |
+| Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | 🟡 shared API model | 🟡 shared API model | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
+| "Who’s in this chapter" from the chapter reader | ✅ 1.30.0 people icon in the header | ✅ people icon in the header | 🟡 reader button | 🟡 reader toolbar | Opens the atlas with a validated book/chapter scope and deduplicates people and places from its events |
+| "Timeline & People" card on the Bible screen | ✅ 1.30.0 | ✅ | 🟡 Bible sidebar | 🟡 Bible tab | Native Apple entry points use their platform's existing Bible navigation |
+| Ussher dating, labelled as tradition and not Scripture | ✅ inline provenance + footnote | ✅ inline provenance + footnote | 🟡 source implemented | 🟡 source implemented | Structured dates preserve `yearLabel`; undated events are not mislabeled as traditional dates |
 | Assistant knows the atlas (`lookupBibleEntity` / `getBibleTimeline`) | ✅ 1.30.0 | ✅ | ✅ shared backend | ✅ shared backend | Read-only, no permission gate. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently. `lookupBibleEntity` also reports how many KJV verses name the person (`findOccurrences`, an exact word scan of the bundled text) |
 | `/who` slash command | ✅ 1.30.0 | ✅ | ❌ | ❌ | Added to both `slashCommands.ts` copies and to `slashCommandGuidance` |
-| Works offline | ✅ bundled JSON on the device | 🟡 needs the API | n/a | n/a | Deliberate: the phone must work with no network like the reader, and the browser must not download the whole atlas |
+| Works offline | ✅ bundled JSON on the device | 🟡 needs the API | 🟡 needs the API | 🟡 needs the API | Deliberate for v2: Android is the primary offline client; the other clients use the authenticated shared API |
 
 ## Verse of the Day
 

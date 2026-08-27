@@ -145,6 +145,17 @@ struct ChapterReaderView: View {
     private var fontControls: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: Spacing.sm) {
+                NavigationLink {
+                    AtlasExplorerView(
+                        model: app.atlas,
+                        book: model.selectedBook ?? order,
+                        chapter: model.chapter
+                    )
+                } label: {
+                    Image(systemName: "person.2")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Who's in this chapter")
                 fontButton("A−", size: 12, enabled: model.canShrinkFont) { model.stepFont(-1) }
                 fontButton("A+", size: 15, enabled: model.canGrowFont) { model.stepFont(1) }
             }

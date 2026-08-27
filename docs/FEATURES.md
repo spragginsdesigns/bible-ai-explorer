@@ -747,9 +747,10 @@ filtered to the chapter being read.
 
 | | Count | File |
 |---|---|---|
-| Events, Creation to the writing of Revelation | 207 | `src/data/bible-atlas/events.json` |
-| People | 183 | `src/data/bible-atlas/people.json` |
+| Events, Creation to the writing of Revelation | 220 | `src/data/bible-atlas/events.json` |
+| People | 186 | `src/data/bible-atlas/people.json` |
 | Places | 93 | `src/data/bible-atlas/places.json` |
+| Reviewed, typed relationships | 83 | `src/data/bible-atlas/relations.json` |
 
 Events are divided into nine eras, in order: Creation & the Patriarchs, Egypt &
 the Exodus, Conquest & Judges, United Kingdom, Divided Kingdom, Exile & Return,
@@ -757,16 +758,32 @@ Between the Testaments, Life of Christ, The Early Church. The "Between the
 Testaments" era is deliberately thin - only what Scripture itself supports
 (Daniel's prophecy of the kingdoms, and Malachi's last word before the silence).
 
+### Explorer modes, journeys and relationships
+
+The screen has three first-class modes: **Timeline**, **People** and **Places**.
+Search remains global and groups matching people, places and events with counts;
+the directory modes make entries browseable even when the reader does not know
+which name to search. Era, query, journey and selected-detail state are carried
+in route parameters so refresh, Back and shared links return to the same study.
+
+Person entries show five anchor events and a **View journey** action that filters
+the rail to every event the person appears in. Reviewed relationships carry a
+type, certainty and exact supporting KJV references. Immediate family stays a
+small, linear neighborhood rather than an unreadable whole-Bible canvas, and
+**Trace connection** finds the shortest reviewed, cited path between two people.
+
 ### The dates are Ussher's, and are labelled as such
 
 Every `yearLabel` follows the **traditional Ussher chronology** - the dating
 printed in the margins of most KJV editions since the eighteenth century, and a
 computation from the genealogies and reign lengths of Scripture rather than part
 of the inspired text. Both clients carry the same footnote under the timeline
-(`USSHER_NOTE`), every label is marked "c.", and the system prompt tells the
+(`USSHER_NOTE`), every numeric label is marked "c.", and the system prompt tells the
 model to say "traditionally dated" and never to present a date as though
-Scripture gave it. Where Scripture gives no date at all, the label says so
-(`"date not given"`, as for Job).
+Scripture gave it. Where Scripture gives no date at all, the label says so.
+Each event view also carries structured provenance and a sortable signed year
+range without removing the backward-compatible `yearLabel` used by older
+clients and AI tools.
 
 ### Regenerating and validating the data
 
@@ -779,7 +796,8 @@ The script is the validator as well as the mirror. It **exits non-zero** on:
 - a reference that does not resolve to a real KJV book, chapter and verse - it
   opens the bundled text and checks the verse numbers exist;
 - a duplicate or non-kebab-case id;
-- an event naming a person or place that does not exist, or a dangling `related` id;
+- an event naming a person or place that does not exist, a dangling legacy
+  `related` id, or a relation with an invalid endpoint, type, certainty or ref;
 - events filed out of chronological order;
 - **a person or place whose name (or one of its `alsoCalled` aliases) does not
   actually appear in any of the verses it cites.** This is the check that stops
@@ -787,7 +805,7 @@ The script is the validator as well as the mirror. It **exits non-zero** on:
   matter - the KJV writes `Elias` for Elijah, `Booz` for Boaz and `Esaias` for
   Isaiah, and the alias is what makes those references verifiable.
 
-On success it copies the three JSON files to `mobile/src/data/bible-atlas/` and
+On success it copies the four JSON files to `mobile/src/data/bible-atlas/` and
 `src/lib/bible/atlas-core.ts` to `mobile/src/features/atlas/atlasCore.ts`.
 **Never hand-edit anything under `mobile/`** - edit the source and re-run.
 
@@ -815,7 +833,10 @@ Exodus 14.
 |---|---|
 | `GET /api/bible/atlas?q=moses` | Ranked people, places and events |
 | `GET /api/bible/atlas?id=moses` | One entity: description, aliases, key verses, related, events |
+| `GET /api/bible/atlas?kind=person&era=&cursor=&limit=` | Stable People or Places directory page |
 | `GET /api/bible/atlas?book=1&chapter=22` | Who and where a chapter is about, plus its events |
+| `GET /api/bible/atlas/event?id=the-flood` | One fully resolved event |
+| `GET /api/bible/atlas/connection?from=moses&to=aaron` | Shortest reviewed, cited person path |
 | `GET /api/bible/atlas/timeline?era=&book=&chapter=&personId=` | Ordered events grouped by era, plus `allEras` |
 
 All read-only over bundled data; auth is the same `getAuthUserId()` the sibling
