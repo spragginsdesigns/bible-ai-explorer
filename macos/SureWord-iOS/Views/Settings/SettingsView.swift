@@ -19,6 +19,9 @@ struct SettingsView: View {
     /// Owned here rather than in the pushed view so the saved count stays
     /// truthful after the route adds or deletes something.
     @State private var memory = MemoriesModel()
+    /// Owned here for the same reason as `memory`: the section is drawn inline,
+    /// but the model must outlive a redraw so a save or removal is not re-run.
+    @State private var church = ChurchModel()
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -51,6 +54,8 @@ struct SettingsView: View {
 
             memorySection
 
+            churchSection
+
             ProviderSettingsSection()
 
             Section("Account") {
@@ -81,6 +86,10 @@ struct SettingsView: View {
         .task {
             memory.configure(app.api)
             await memory.load()
+        }
+        .task {
+            church.configure(app.api)
+            await church.load()
         }
         .memoryErrorAlert(memory, isActive: !isMemoriesFrontmost)
         .confirmationDialog(
@@ -160,6 +169,16 @@ struct SettingsView: View {
                 )
             }
         }
+    }
+
+    // MARK: - My church
+
+    /// Mirrors Android's MY CHURCH card and the web settings section. The view
+    /// owns its own `Section` so it can vanish entirely, heading and all, when
+    /// the server has no Google Places key configured. Unlike Memories there is
+    /// nothing to push: the picker and the saved card fit in the form.
+    private var churchSection: some View {
+        ChurchSectionView(model: church)
     }
 
     /// Android shows the Clerk full name and falls back to the username

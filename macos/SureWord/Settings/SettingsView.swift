@@ -15,6 +15,9 @@ struct SettingsView: View {
     /// Owned here rather than in the sheet so the saved count stays truthful
     /// after the sheet adds or deletes something.
     @State private var memory = MemoriesModel()
+    /// Owned here for the same reason as `memory`: the section is drawn inline,
+    /// but the model must outlive a redraw so a save or removal is not re-run.
+    @State private var church = ChurchModel()
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -47,6 +50,8 @@ struct SettingsView: View {
                 verseOfDaySection
 
                 memorySection
+
+                churchSection
 
                 Section("Account") {
                     if let name = accountName {
@@ -87,6 +92,10 @@ struct SettingsView: View {
         .task {
             memory.configure(app.api)
             await memory.load()
+        }
+        .task {
+            church.configure(app.api)
+            await church.load()
         }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)
@@ -177,6 +186,15 @@ struct SettingsView: View {
                 Text(memory.hasLoaded && memory.loadError == nil ? "\(memory.memories.count) saved" : "…")
             }
         }
+    }
+
+    // MARK: - My church
+
+    /// Mirrors Android's MY CHURCH card and the web settings section. The view
+    /// owns its own `Section` so it can vanish entirely, heading and all, when
+    /// the server has no Google Places key configured.
+    private var churchSection: some View {
+        ChurchSectionView(model: church)
     }
 
     /// Android shows the Clerk full name and falls back to the username

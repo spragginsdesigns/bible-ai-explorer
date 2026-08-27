@@ -19,10 +19,19 @@ enum AtlasAPI {
     /// URLComponents performs percent encoding for every query value, including
     /// spaces, ampersands, slashes, and non-ASCII names.
     static func path(_ endpoint: String, query: [URLQueryItem] = []) -> String {
-        var components = URLComponents()
-        components.path = endpoint
-        components.queryItems = query
-        return components.string ?? endpoint
+        // Encoded by hand rather than through URLComponents.queryItems, which
+        // leaves "/" (and a few other query-legal characters) bare; the shared
+        // routes and the Android client always send the strict RFC 3986
+        // unreserved set, so the two must match byte for byte.
+        var unreserved = CharacterSet.alphanumerics
+        unreserved.insert(charactersIn: "-._~")
+        let pairs = query.map { item -> String in
+            let name = item.name.addingPercentEncoding(withAllowedCharacters: unreserved) ?? item.name
+            guard let value = item.value else { return name }
+            let encoded = value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? value
+            return "\(name)=\(encoded)"
+        }
+        return pairs.isEmpty ? endpoint : "\(endpoint)?\(pairs.joined(separator: "&"))"
     }
 
     static func timeline(

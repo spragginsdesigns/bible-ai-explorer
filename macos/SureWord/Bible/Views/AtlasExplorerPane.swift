@@ -10,8 +10,10 @@ struct AtlasExplorerPane: View {
 
     let onOpenReference: (String) -> Void
     let onDismiss: () -> Void
-    let scopedBook: Int? = nil
-    let scopedChapter: Int? = nil
+    // `var`, not `let`: a `let` with a default value is left out of the
+    // memberwise initializer, which is what BibleSection uses to pass these.
+    var scopedBook: Int? = nil
+    var scopedChapter: Int? = nil
 
     @State private var mode: AtlasExplorerMode = .timeline
     @State private var expandedRelationID: String?
@@ -171,7 +173,10 @@ struct AtlasExplorerPane: View {
     }
 
     private var modePicker: some View {
-        Picker("Atlas view", selection: Binding(get: { mode }, set: setMode)) {
+        // An explicit closure, not `set: setMode`: partially applying the
+        // @MainActor method here makes the Swift 6.2 compiler (Xcode 26.6)
+        // crash in IRGen on the reabstraction thunk.
+        Picker("Atlas view", selection: Binding(get: { mode }, set: { setMode($0) })) {
             ForEach(AtlasExplorerMode.allCases) { item in
                 Text(item.title).tag(item)
             }
