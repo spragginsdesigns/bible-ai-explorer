@@ -249,7 +249,7 @@ const AtlasScreen: React.FC = () => {
             <h1 className="flex-1 truncate text-center font-[family-name:var(--font-pirata)] text-3xl lg:text-4xl text-neutral-900 dark:text-neutral-100">
               {chapterScope
                 ? `${chapterScope.name} ${chapterScope.chapter}`
-                : "Timeline & People"}
+                : "Bible Atlas"}
             </h1>
             <span className="w-14" aria-hidden />
           </div>

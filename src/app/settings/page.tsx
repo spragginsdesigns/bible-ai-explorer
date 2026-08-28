@@ -276,7 +276,7 @@ export default function SettingsPage() {
 							</div>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
 								Used by the Bible reader and verse attachments. KJV works fully offline; NKJV
-								is streamed from bolls.life. SureWord&apos;s AI answers always quote the KJV.
+								is fetched when needed. SureWord&apos;s AI answers use the translation you select.
 							</p>
 						</div>
 					</section>
@@ -509,8 +509,8 @@ export default function SettingsPage() {
 								</span>
 								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
 									Native Mac app (macOS 15+), now with tap-a-verse explanations
-									and Pick Up Your Cross. First launch: allow it in System
-									Settings → Privacy &amp; Security.
+									and Pick Up Your Cross. The DMG is not notarized: on first launch,
+									open System Settings → Privacy &amp; Security and choose Open Anyway.
 								</span>
 							</span>
 						</a>

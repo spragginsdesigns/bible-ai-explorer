@@ -285,7 +285,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 					</p>
 					<p className="text-center text-[13.5px] leading-5 text-neutral-500 dark:text-neutral-400">
 						A spoken devotional for every day&apos;s word, ready when you wake up.
-						Coming soon.
+						Self-service SureWord Pro access isn&apos;t available yet.
 					</p>
 				</div>
 			</TimelineStop>

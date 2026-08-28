@@ -1,6 +1,12 @@
 {
   "name": "SureWord",
   "short_name": "SureWord",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "en",
+  "description": "Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
+  "categories": ["books", "education", "lifestyle"],
   "icons": [
     {
       "src": "/icon-192.png",

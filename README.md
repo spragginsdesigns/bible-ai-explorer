@@ -5,101 +5,144 @@
 <h1 align="center">SureWord</h1>
 
 <p align="center">
-  An AI-powered Bible study companion for believers, grounded entirely in the King James Version.
+  An AI-powered Bible study companion for believers, grounded first in the King James Version.
 </p>
 
 <p align="center">
-  <a href="https://sureword.app">Live Web App</a> ·
-  <a href="https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk">Download the Android App (APK)</a>
+  <a href="https://sureword.app">Open SureWord on the web</a> ·
+  <a href="https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk">Download Android</a> ·
+  <a href="https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.dmg">Download macOS</a>
 </p>
 
----
+SureWord uses the KJV by default. NKJV is available as a selectable reader and
+answer translation. The web app, Android app, and native Apple clients use the
+same authenticated backend, so conversations, notes, memories, reading history,
+and the daily walk follow the account.
 
-## Clients & the Parity Rule
+## Clients and parity
 
-SureWord has four clients over one shared backend (this repo's Next.js API routes + Postgres):
+- **Android** (`mobile/`, Expo / React Native) is the primary client and first
+  acceptance target. The current checked-in version is **1.38.0 (versionCode 35)**.
+- **Web** (`src/`, Next.js) runs at [sureword.app](https://sureword.app).
+- **macOS** (`macos/SureWord/`, SwiftUI) is the native desktop client; the current
+  project version is **1.6.0**.
+- **iOS** (`macos/SureWord-iOS/`, SwiftUI) shares the Apple core. Its source and
+  simulator target are checked in, but it is not yet distributed.
 
-- **Android** (`mobile/`, Expo / React Native) — the **primary client, source of truth and first acceptance target**
-- **Web** (`src/`, Next.js) — the immediate parity surface and fallback test path
-- **macOS** (`macos/SureWord/`, SwiftUI) — native desktop parity
-- **iOS** (`macos/SureWord-iOS/`, SwiftUI) — native mobile parity
+The parity rule is capability parity with platform-native layouts. Android leads;
+web, macOS, and iOS follow in the same release cycle. See the living
+[parity tracker](docs/PARITY.md) for verified, partial, and not-yet-distributed
+capabilities.
 
-**Parity rule:** build and exercise Android first. Web, macOS and iOS must receive the same capability in the same release cycle; layout may adapt to the platform, but behavior may not be dropped. When Android cannot run, web can provide temporary proof, but Android remains the release gate. The living tracker is [`docs/PARITY.md`](docs/PARITY.md); project rules are in [`CLAUDE.md`](CLAUDE.md).
+## Core features
 
-The Android AAB goes to Play internal testing and its matching APK goes to GitHub Releases in one release command. The site discovers current Android and macOS versions independently instead of relying on hardcoded labels: **[Download SureWord for Android](https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.apk)**.
+- KJV-first Bible reader with NKJV selection, offline KJV text, search,
+  quick-jump, adjustable type, verse actions, and synced highlights
+- Tap-a-verse explanations and full streaming Bible study chat
+- Exact Scripture retrieval with Neon pgvector plus keyword fallback, curated
+  cross-references, and grounded Hebrew/Greek and Strong's tools
+- Private multimodal questions with image, PDF, and text-file attachments
+- Durable conversations, rich-text notes, folders, tags, semantic note search,
+  and user-controlled memories
+- **Pick Up Your Cross**: a personalized daily guide with provenance, exact-verse
+  and recent-theme safeguards, and a study path that can follow a reading plan
+- **Listen**: a Pro spoken devotional with transcript, playback speed, and
+  background playback where the client supports it
+- Reading plans with four presets, custom goals, progress from Bible reading,
+  streaks, and archive/replace controls
+- **Timeline, People & Places**: a KJV-grounded Bible atlas spanning Creation to
+  Revelation, with journeys, relationships, and cited connections
+- **My church**: choose a home church from Google Places and use its saved profile
+  as relevant chat context
 
----
-
-## What Is SureWord?
-
-SureWord is a Bible study assistant that helps Christians study the Bible using AI. It answers questions about Scripture, theology, church history, and daily Christian living — always from the perspective of a saved, born-again believer who holds the KJV Bible as the inerrant, infallible Word of God.
-
-Every response is backed by exact KJV verse quotes, not paraphrases.
-
-## Features
-
-- **KJV-Only Scripture** — All verse quotes are word-for-word from the King James Version
-- **Tap-a-verse** — Tap any verse in the Bible reader for an instant streaming AI explanation of what it says in context and why it matters, generated with your selected model; one tap more expands the verse into a full chat study ([details](docs/FEATURES.md#tap-a-verse))
-- **Vector Search (RAG)** — Queries a vector database of Bible verse embeddings to find the most relevant passages for each question
-- **Web Search Integration** — Tavily search provides supplementary context from trusted sources alongside the AI response
-- **Private Multimodal Chat** — Ask from screenshots, photos, PDFs, and text-based study files on Android or web
-- **Conversation History** — Durable chat and attachment history so you can continue past studies
-- **Follow-Up Questions** — Suggested questions for deeper study after each response
-- **Verse Attribution** — Clickable references and confidence indicators for retrieved passages
-- **Dark / Light Mode** — Comfortable viewing in any environment
-- **PWA Support** — Installable on mobile devices for an app-like experience
-
-## Tech Stack
+## Technology
 
 | Layer | Technology |
-|-------|------------|
-| Framework | Next.js 14 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS + Shadcn/Radix UI |
-| AI | OpenAI GPT-4o via LangChain |
-| Embeddings | OpenAI text-embedding-3-large |
-| Vector DB | DataStax AstraDB |
-| Web Search | Tavily API |
-| Hosting | Vercel (auto-deploy on push to `main`) |
+|---|---|
+| Web/API | Next.js 15.5.21 (App Router), TypeScript |
+| AI | Vercel AI SDK 7 with OpenAI, Anthropic, and Moonshot providers |
+| Data | Neon Postgres via Prisma, including pgvector embeddings |
+| Auth | Clerk |
+| Search | Tavily for optional supplementary web results |
+| Web UI | Tailwind CSS + Radix-based components |
+| Native clients | Expo SDK 57 / React Native; SwiftUI for macOS 15+ and iOS 26+ |
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm
+- Node.js 18.18 or newer (this checkout was checked with Node v24.18.0)
+- pnpm (this checkout was checked with pnpm v11.17.0)
 
-### Setup
+### Web/API setup
 
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/spragginsdesigns/bible-ai-explorer.git
-   cd bible-ai-explorer
-   ```
+```bash
+git clone https://github.com/spragginsdesigns/bible-ai-explorer.git
+cd bible-ai-explorer
+pnpm install
+```
 
-2. Install dependencies:
-   ```bash
-   pnpm install
-   ```
+Create `.env.local` using your own securely managed values. Never commit this
+file or paste credentials into issues, chat, or logs.
 
-3. Create `.env.local` with the required keys:
-   ```
-   OPENAI_API_KEY=
-   ASTRA_DB_APPLICATION_TOKEN=
-   ASTRA_DB_API_ENDPOINT=
-   ASTRA_DB_COLLECTION=
-   TAVILY_API_KEY=
-   ```
+```dotenv
+# Required for local web/API development
+DATABASE_URL=
+DATABASE_URL_UNPOOLED=
+OPENAI_API_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 
-4. Start the dev server:
-   ```bash
-   pnpm dev
-   ```
+# Optional integrations and provider access
+CREDENTIAL_ENCRYPTION_KEY=
+TAVILY_API_KEY=
+ANTHROPIC_API_KEY=
+MOONSHOT_API_KEY=
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=
+GOOGLE_PLACES_API_KEY=
+PRO_USER_IDS=
+SERVER_CREDENTIAL_USER_IDS=
+CRON_SECRET=
+```
 
-### Deployment
+Neon integration values are injected automatically in the linked Vercel
+project. Local values must point at the intended application database.
 
-Push to `main` and Vercel handles the rest. Make sure the same environment variables from `.env.local` are configured in your Vercel project under **Settings > Environment Variables**.
+Run the web app and the logic suite:
 
----
+```bash
+pnpm dev
+pnpm test:logic
+```
+
+For a production-style check, use `pnpm build`. The native clients are separate
+projects and are not part of the root pnpm workspace.
+
+### Native clients
+
+Android development and release instructions are in [`mobile/README.md`](mobile/README.md).
+The Android release path is run from Git Bash with
+`bash mobile/scripts/push-phone.sh`; it publishes the Play internal build and
+matching `SureWord.apk` to GitHub Releases.
+
+macOS and iOS require Xcode on a Mac. Build and test instructions are in
+[`macos/README.md`](macos/README.md); `macos/project.yml` is the source of truth
+for the generated Xcode project.
+
+## Documentation map
+
+- [`docs/FEATURES.md`](docs/FEATURES.md) — architecture notes for non-obvious
+  product features
+- [`docs/PARITY.md`](docs/PARITY.md) — per-client capability and verification status
+- [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md) — Android Play release procedure
+- [`mobile/README.md`](mobile/README.md) — Android build and release workflow
+- [`macos/README.md`](macos/README.md) — Apple build, install, and test workflow
+- [`src/data/bible-atlas/README.md`](src/data/bible-atlas/README.md) — atlas data
+  authoring and validation
+- [`docs/NextJS_to_Expo_Migration_Plan.md`](docs/NextJS_to_Expo_Migration_Plan.md) —
+  historical migration record; not current architecture guidance
+- [`design-qa.md`](design-qa.md) — historical UI QA evidence and its verification
+  boundaries
 
 *SureWord: Illuminating Scripture through Artificial Intelligence*

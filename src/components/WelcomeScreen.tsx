@@ -140,7 +140,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
 
         <div className="mt-8">
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
-            ✦ SureWord is also a native app — same account, same chats.
+            ✦ SureWord is also a native app — same account, chats, notes, memories, and daily walk.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a

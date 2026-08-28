@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.38.0 (versionCode 35) - 2026-08-28 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- SureWord's AI answers now use the Bible translation you select
+- Bible history is now clearly labeled Timeline, People & Places
+- Listen clearly explains when self-service SureWord Pro access is not available yet
+
+---
+
 ## 1.37.1 (versionCode 34) - 2026-08-27 - internal
 
 **What's new (Play):**
@@ -117,6 +128,21 @@ NEW
 (2) **Generated with the day, not on a tap.** `scheduleDailyCrossAudio` (`waitUntil`) runs at every point a cross is stored: the on-demand `GET /api/verse-of-day/today`, `replaceDailyCross` (so the "a different word" control and the `setDailyCross` chat tool both get it - hooked inside the lib, via a dynamic import to avoid a module cycle), and the morning cron, which narrates **after** the pushes are away, sequentially, capped at 60 per run and bounded by a 240s budget so a slow narration can never cost anyone their notification. Idempotent throughout: `getOrCreateDailyCrossAudio` reuses a ready row and a pending row under three minutes old, and audio is keyed to the `VerseOfDay` id, so it is exactly one narration per day and one more for a replaced day. The clients lost their "tap to generate" button entirely - `listenPhase` has no `idle` state now, and POST survives only behind "Try again". **Server-side, so it reaches every installed build without a release**; the client half needs this build.
 
 (3) **SureWord Pro gating.** New `User.plan` column (migration `20260826200000_user_plan`, defaults `'free'`, not yet applied). `src/lib/entitlements.ts` resolves Pro from that column OR the `PRO_USER_IDS` env allowlist (same convention as `SERVER_CREDENTIAL_USER_IDS`, shared parser); pure rules in `entitlements-rules.ts` so `resolvePlan` is unit-tested. `readDailyCrossAudio` / `getOrCreateDailyCrossAudio` / `scheduleDailyCrossAudio` / the stream route all answer `"locked"` **before** any database write, model call or ElevenLabs request, and the cron narrates for Pro accounts only - a free account costs nothing. Both clients render an identical lock panel with no button (there is nowhere for one to go until billing exists). `GET /api/preferences` now also returns `plan`. Speed control persists per client (web `localStorage`, Android settings store) and uses `player.setPlaybackRate(rate, "high")` with `shouldCorrectPitch`; elapsed/total stay in real seconds. Web ships all three in the same release; macOS/iOS have none of Listen yet. No native modules, so no prebuild.
+
+---
+
+## 1.30.0 (versionCode 26) - 2026-08-26 - internal
+
+**What's new (Play):**
+
+NEW
+- Timeline, People & Places. Tap Timeline & People on the Bible tab and walk Bible history from Creation to Revelation, era by era
+- Tap any event for what happened, in the Bible's own words, with the verses one tap away
+- Look up any person or place: what Scripture says, the other names it uses, who they connect to
+- Reading a chapter? Tap the people icon to see who's in it
+- Ask SureWord "/who Melchizedek" and it answers from the King James text, not the web
+
+**Dev notes:** New hand-authored atlas at `src/data/bible-atlas/` - 207 events, 183 people, 93 places, 1,177 references - mirrored to `mobile/src/data/bible-atlas/` (and `atlas-core.ts` to `mobile/src/features/atlas/atlasCore.ts`) by `node scripts/build-bible-atlas.mjs`, which is also the validator: it exits non-zero unless every reference resolves against the bundled KJV **and** every person/place is actually named in one of the verses it cites, which is what stops invented Scripture. Dates are the traditional Ussher chronology the KJV margins carry, marked "c." and labelled as such in the UI and in the prompt. All ranking, era grouping and reference parsing lives in one dependency-free module copied verbatim to the phone, so the two clients can't drift; `tests/bible-atlas.test.mjs` (node) and `mobile/src/features/atlas/atlas.test.ts` (vitest) both cover it, including a drift check on the mirrored copies. Android reads the bundled JSON locally (works offline, like the reader); web reads the same data over `GET /api/bible/atlas` (`?q=` search, `?id=` entity, `?book=&chapter=` who's-in-this-chapter) and `GET /api/bible/atlas/timeline` so the browser never downloads the atlas. Two read-only chat tools (`lookupBibleEntity`, `getBibleTimeline`) plus a `/who` slash command; the prompt now tells the model to prefer them over `webSearch` for every who/where/when question. Pure JSON and TypeScript - no native modules, so no prebuild is required.
 
 ---
 

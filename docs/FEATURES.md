@@ -1,7 +1,7 @@
 # Feature Deep-Dives
 
-Architecture notes for SureWord features that span the shared backend and both
-clients. The complete feature inventory and per-client status lives in
+Architecture notes for SureWord features that span the shared backend and every
+client. The complete feature inventory and per-client status lives in
 [`PARITY.md`](PARITY.md); this file explains **how** the non-obvious ones work
 so they can be maintained without re-deriving the design.
 
@@ -68,8 +68,8 @@ skeleton bars, streamed text with caret, error + retry) inside the existing
 `src/components/bible/ChapterReader.tsx` uses `animate-pulse` amber bars with
 `glow-amber-sm`. On Android both tap and long-press open the same sheet.
 
-The macOS port (`macos/SureWord/Bible/VerseInsight.swift` +
-`Views/VerseInsightView.swift`) keeps the same state machine and cache, and
+The Apple port (`macos/Shared/Bible/VerseInsight.swift` +
+`macos/Shared/Bible/VerseInsightView.swift`) keeps the same state machine and cache, and
 puts the explanation in a **panel pinned under the reader** instead of inline
 in the verse list. That placement is load-bearing, not cosmetic: streaming text
 into a row of the reader's `LazyVStack` made SwiftUI re-measure every verse in
@@ -83,7 +83,8 @@ view keeps re-proposing its width.
 
 ### Extending it
 
-- macOS parity: port the two-hook pattern; the route needs nothing new.
+- Apple clients use the shared Swift state machine above; the route needs no
+  platform-specific behavior.
 - If explanations ever need tools/memories, resist doing it here — that is
   what Expand with AI is for. This endpoint's contract is "fast, cheap,
   stateless".
@@ -188,19 +189,26 @@ payloads with only a verse reference fall back to the reader.
   Apple Developer Program), so the day is generated on demand at first open and
   a local `UNCalendarNotificationTrigger` fires the morning reminder; clicking
   it posts `.openDailyCross`, which selects the section.
+- iOS: `macos/SureWord-iOS/Views/Cross/CrossView.swift` — a sheet over the tab
+  shell plus the ✝ card on the Bible tab; its local reminder uses the same
+  `.openDailyCross` notification path.
 - Settings: Android Settings → Verse of the Day (toggle + hour stepper);
-  the same two controls on macOS
+  the same two controls on macOS and iOS
 
 ---
 
 ## Listen - the spoken devotional
 
-*Shipped 2026-08-26 · Android 1.28.0 + web*
+*First shipped 2026-08-26 · Android 1.28.0 + web; macOS 1.5.0 shipped and
+exercised; iOS source/simulator path present, with device and distribution
+verification kept separate*
 
-The same day, read aloud. A "Listen" card sits under the verse on both Daily
-Cross surfaces: one tap turns today's cross into a 2-6 minute spoken
-devotional the user can play on a commute, with a scrubber, elapsed/total
-times and an expandable **Read along** transcript.
+The same day, read aloud. A "Listen" card sits under the verse on each Daily
+Cross surface. The scheduled generator turns today's cross into a 2-6 minute
+spoken devotional the user can play on a commute, with a scrubber, elapsed/total
+times and an expandable **Read along** transcript. The card does not start
+generation on a tap; tapping is only playback (or an explicit retry after a
+failure).
 
 ### What gets said
 
@@ -242,7 +250,7 @@ for **24 hours** (`createAttachmentPreviewUrl` grew an optional
 a devotional is several minutes of audio someone may pause and come back to,
 and a URL that dies under them mid-listen is a broken feature, not a security
 posture. If playback does fail on a URL a client has been holding for more
-than ten minutes, both cards silently re-fetch **once** and resume at the same
+than ten minutes, each card silently re-fetches **once** and resumes at the same
 position before showing anything went wrong.
 
 ### Playback goes through our own origin, not the blob host
@@ -288,7 +296,8 @@ carries no audio, so the old narration is unreachable anyway.
 ### API
 
 `GET /api/verse-of-day/audio` reports state without doing work (what a client
-polls every 3s while preparing). `POST` prepares it or returns what is already
+polls every 3s while scheduled generation is preparing). `POST` is reserved for
+an explicit retry after a failed generation, or returns what is already
 prepared. Both answer:
 
 ```
@@ -305,7 +314,7 @@ not hidden - and they never poll behind it, since the answer cannot change.
 
 `"unavailable"` means the deployment has no `ELEVENLABS_API_KEY`. It is
 returned before any database or model work - the answer is the same for every
-user - and **both clients render nothing at all for it**, timeline stop
+user - and **every client renders nothing at all for it**, timeline stop
 included. An unconfigured server therefore shows no Listen card rather than a
 button that can only ever fail. This is what production serves until the key
 is added.
@@ -367,7 +376,7 @@ out a paid feature. The rules are pure and tested (`resolvePlan` in
 *Shipped 2026-08-26*
 
 0.75x / 1x / 1.25x / 1.5x / 2x on a cycling chip beside the play button, on
-both clients. Persisted **per client** - a speed picked on a phone is a habit,
+every client. Persisted **per client** - a speed picked on a phone is a habit,
 not an account preference worth a round trip: web keeps it in `localStorage`
 under `sureword.listenRate`, Android in its settings store. Web sets
 `audio.playbackRate`; Android calls `player.setPlaybackRate(rate, "high")` with
@@ -423,15 +432,17 @@ the OS media controls. What they do not do is label it, so the web card sets
 `navigator.mediaSession.metadata` and registers `seekbackward` / `seekforward` /
 `seekto` handlers, every call guarded for browsers without the API.
 
-What neither client survives is the card **unmounting** - `useAudioPlayer`
-releases the player with the component, so navigating away still ends the listen.
-Backgrounding the app and locking the phone are what keep playing.
+On Android and web, the card **unmounting** releases the player through
+`useAudioPlayer`, so navigating away ends the listen. The Apple `ListenModel` is
+owned by the shared `DailyCrossModel`, so macOS and iOS keep the player alive as
+their Daily Cross surface changes. Backgrounding the app and locking the phone
+are what keep playback going on each platform.
 
 ### Environment
 
 | Variable | Required | Meaning |
 |---|---|---|
-| `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and both clients hide the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
+| `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and every client hides the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
 | `ELEVENLABS_VOICE_ID` | no | Overrides the default voice per environment. Default `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations") - casual, natural American conversational delivery |
 | `PRO_USER_IDS` | no | Comma-separated Clerk ids granted SureWord Pro without a `User.plan` write. Wins over the column. With neither set, every account is free and Listen renders the locked panel for everyone |
 
@@ -443,12 +454,16 @@ Backgrounding the app and locking the phone are what keep playing.
 - Web: `src/components/cross/ListenCard.tsx`, an `<audio>` element with custom
   play/pause, a range scrubber and the transcript expander, plus the
   `navigator.mediaSession` description of what is playing
+- Apple: `macos/Shared/DailyCross/ListenCard.swift` and
+  `macos/Shared/DailyCross/ListenModel.swift`, mounted by
+  `macos/SureWord/DailyCross/DailyCrossView.swift` and
+  `macos/SureWord-iOS/Views/Cross/CrossView.swift`; macOS is shipped and
+  exercised in 1.5.0, while iOS remains source/simulator-only
 - Shared, tested state rules: `src/components/cross/listen.ts` +
-  `mobile/src/features/cross/listen.ts`
+  `mobile/src/features/cross/listen.ts` + `macos/Shared/DailyCross/Listen.swift`
 - The card owns its own timeline stop (`TimelineStop`, now its own module on
-  both clients) - a card that can decide to render nothing has to own the node
+  each client) - a card that can decide to render nothing has to own the node
   and label above it, or an empty ♪ would hang on the rail
-- macOS/iOS: not yet
 
 ---
 
@@ -463,7 +478,7 @@ user's "Pick Up Your Cross".
 ### Half one — `appKnowledge`
 
 `src/utils/systemPrompt.ts` carries a block describing SureWord itself: the
-three clients, what lives on each screen, the slash commands, the settings, how
+four clients, what lives on each screen, the slash commands, the settings, how
 Pick Up Your Cross is built, and what memory is. It is written from
 [`PARITY.md`](PARITY.md), which is the inventory, and it ends with the rule that
 matters most: **never invent a feature, screen or setting**; say you are not
@@ -490,7 +505,7 @@ to a verse they named.
 the assistant to name what would be replaced and wait for a clear yes before
 calling `setDailyCross`; a wish ("I wish today's verse spoke to my anxiety") is
 explicitly not a yes. This was chosen over an interactive Yes/No tool card
-because the conversational form behaves identically on all three clients today
+because the conversational form behaves identically on all four clients today
 and needs no human-in-the-loop tool-result plumbing in Swift, TypeScript and
 React at once. What keeps it safe is that the act is small and recoverable: the
 displaced row stays in `VerseOfDay` as history, and because the generator
@@ -523,17 +538,18 @@ invalidation protocol.
 
 - Receipt card after a replace, opening the new day: `src/components/ChatMessage.tsx`,
   `mobile/src/features/chat/CrossActionCard.tsx`,
-  `CrossActionCard` in `macos/SureWord/Chat/Views/ChatCards.swift`. Only the
-  write earns a card; `getDailyCross` is silent.
-- "↻ A different word for today" at the end of the timeline on all three Daily
+  `CrossActionCard` in `macos/SureWord/Chat/Views/ChatCards.swift` and
+  `macos/SureWord-iOS/Views/Chat/ChatCards.swift`. Only the write earns a card;
+  `getDailyCross` is silent.
+- "↻ A different word for today" at the end of the timeline on all four Daily
   Cross screens: confirm, optionally type a focus, and the day is prepared again
   in place.
-- **macOS needs one extra wire.** Android and web rebuild (and refetch) their
-  Daily Cross screen on every visit, so a replace made from chat is picked up
-  for free. `DailyCrossModel` deliberately outlives the sidebar, so it would go
-  on showing the word that was just replaced — `ChatView` fires
-  `onCrossReplaced` when a `crossActions` receipt lands, and `MainWindow` drops
-  the cached day.
+- **Apple clients need one extra wire.** Android and web rebuild (and refetch)
+  their Daily Cross screen on every visit, so a replace made from chat is picked
+  up for free. `DailyCrossModel` deliberately outlives both Apple surfaces, so
+  it would go on showing the word that was just replaced — macOS `ChatView` and
+  iOS `ChatMessageList` fire `onCrossReplaced` when a `crossActions` receipt
+  lands, and their shells invalidate the cached day.
 
 ---
 
@@ -628,7 +644,7 @@ welcome screen appears rather than pinning the static six for the session.
 
 `src/components/useSuggestedQuestions.ts` ↔
 `mobile/src/features/chat/useSuggestedQuestions.ts` ↔
-`macos/SureWord/Chat/SuggestedQuestions.swift` — same state machine. Each
+`macos/Shared/Chat/SuggestedQuestions.swift` — same state machine. Each
 welcome screen shows six chip-shaped shimmer placeholders while the set is
 prepared (the language of the Daily Cross skeleton), then fills them in. Because
 a tap **sends immediately** on every client, the chips must never swap under a
@@ -726,7 +742,7 @@ is why a partial unique index would have had to encode the status rules too.
 
 `loadStudyContext` gained a `planBlock` naming today's plan reading, and
 `daily-cross.ts` instructs that **the study path IS that reading** unless the
-user pinned a verse or steered the day. Both clients then show a small
+user pinned a verse or steered the day. Every client then shows a small
 `FROM YOUR PLAN` tag on the matching study step, so the alignment is visible
 rather than a coincidence the user has to notice.
 
@@ -756,8 +772,9 @@ A KJV-grounded reference for **when** things happened and **who** and **where** 
 so neither the user nor the model has to reach for the web to answer "who was
 Melchizedek?" or "when did the exile begin?".
 
-Reached from the **Timeline & People** card on the Bible screen (`/bible/timeline`
-on both clients), and from the chapter reader's people icon, which opens it
+Reached from the **Timeline, People & Places** card on the Bible screen
+(`/bible/timeline` on web; native Bible navigation elsewhere), and from the
+chapter reader's people icon, which opens it
 filtered to the chapter being read.
 
 ### What it holds
@@ -794,7 +811,7 @@ small, linear neighborhood rather than an unreadable whole-Bible canvas, and
 Every `yearLabel` follows the **traditional Ussher chronology** - the dating
 printed in the margins of most KJV editions since the eighteenth century, and a
 computation from the genealogies and reign lengths of Scripture rather than part
-of the inspired text. Both clients carry the same footnote under the timeline
+of the inspired text. Every timeline client carries the same footnote under the timeline
 (`USSHER_NOTE`), every numeric label is marked "c.", and the system prompt tells the
 model to say "traditionally dated" and never to present a date as though
 Scripture gave it. Where Scripture gives no date at all, the label says so.
@@ -831,18 +848,20 @@ Two suites re-check it from the outside: `tests/bible-atlas.test.mjs`
 `mobile/`). Both include a drift check that fails if the mirrored copies differ
 from the source.
 
-### One implementation, two clients
+### One corpus, four clients
 
 `src/lib/bible/atlas-core.ts` has **no imports at all**, and everything that
 could drift lives in it: reference parsing, search ranking, era grouping and
-entity resolution. The build script copies it verbatim to the phone, so the two
-clients cannot disagree about what "Elias" matches or which events touch
+entity resolution. The build script copies it verbatim to Android, so the two
+TypeScript clients cannot disagree about what "Elias" matches or which events touch
 Exodus 14.
 
 - **Android reads the bundled JSON directly** (`mobile/src/features/atlas/atlas.ts`),
   so the screen works with no network, exactly like the Bible reader.
 - **Web reads the same data over the API** (`src/components/atlas/useAtlas.ts`),
   so the browser never downloads the atlas.
+- **macOS and iOS use the same authenticated API contract** through
+  `macos/Shared/Atlas/AtlasModel.swift`, with platform-native explorer views.
 
 ### API
 
@@ -879,7 +898,9 @@ The `/who <name>` slash command runs `lookupBibleEntity` on its argument.
 
 ## My church
 
-*Shipped 2026-08-27 · Android + web*
+*Shipped 2026-08-27 · Android 1.36.0 + web; macOS 1.5.0 shipped and exercised;
+iOS source/simulator path present, with device and distribution verification kept
+separate*
 
 Settings → My church lets a user search for their home church by name or
 city, pick it out of the results, and keep it on their account. The saved
@@ -906,7 +927,7 @@ nullable.
 ### Unavailable means invisible
 
 `GOOGLE_PLACES_API_KEY` is required for this feature and nothing else. Without
-it every route answers `{ status: "unavailable" }` and both clients render
+it every route answers `{ status: "unavailable" }` and every client renders
 **nothing at all** for the section, its heading included. That is the same rule
 Listen follows without an ElevenLabs key: an unconfigured deploy shows no
 half-working search box rather than a control that fails when tapped. The web
@@ -926,8 +947,9 @@ block never softens the KJV persona.
 | Client | Where |
 |---|---|
 | Web | `src/components/settings/ChurchSection.tsx`, mounted in `src/app/settings/page.tsx` beside Memory; types and fetch helpers in `src/lib/church-client.ts` |
-| Android | Settings screen in `mobile/`, same routes, same contract |
-| macOS / iOS | Not built |
+| Android | `mobile/src/features/church/ChurchSection.tsx` in Settings, same routes and contract |
+| macOS | `macos/Shared/Church/ChurchView.swift`, mounted by `macos/SureWord/Settings/SettingsView.swift`; shipped in 1.5.0 and exercised on the live path |
+| iOS | `macos/Shared/Church/ChurchView.swift`, mounted by `macos/SureWord-iOS/Views/Settings/SettingsView.swift`; source/simulator status only, with device/runtime/distribution still unverified |
 
 Web behavior worth preserving, and mirrored on Android:
 

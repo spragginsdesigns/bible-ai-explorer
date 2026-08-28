@@ -1,8 +1,16 @@
-# NextJS to Expo Migration: Bible AI Explorer
+# Historical: NextJS to Expo Migration Plan (superseded)
+
+> **Historical record — not current architecture guidance.** This plan was
+> written in 2025 during the initial Android migration. The migration is now
+> complete, and the repository has since moved from AstraDB/LangChain to Neon
+> Postgres/pgvector and the Vercel AI SDK. Use [`README.md`](../README.md),
+> [`docs/PARITY.md`](PARITY.md), and the client READMEs for current setup and
+> release instructions. The historical references below are retained for
+> provenance only.
 
 ## Table of Contents
 
-- [NextJS to Expo Migration: Bible AI Explorer](#nextjs-to-expo-migration-bible-ai-explorer)
+- [Historical: NextJS to Expo Migration Plan (superseded)](#historical-nextjs-to-expo-migration-plan-superseded)
   - [Table of Contents](#table-of-contents)
   - [Overview](#overview)
     - [Task Description](#task-description)

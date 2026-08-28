@@ -46,7 +46,7 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 hint(
                     "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
-                        + "SureWord's AI answers always quote the KJV."
+                        + "SureWord's AI answers use the translation you select."
                 )
             }
 

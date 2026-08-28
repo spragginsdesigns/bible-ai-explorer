@@ -205,7 +205,7 @@ export default function BibleTimelineScreen() {
 		return (
 			<Screen>
 				<Header
-					title="Timeline & People"
+					title="Timeline, People & Places"
 					onBack={() => router.back()}
 					styles={styles}
 				/>
@@ -231,7 +231,7 @@ export default function BibleTimelineScreen() {
 							? "People"
 							: mode === "places"
 								? "Places"
-								: "Timeline & People"
+							: "Timeline, People & Places"
 				}
 				onBack={() => router.back()}
 				styles={styles}

@@ -74,7 +74,7 @@ struct AtlasExplorerPane: View {
             .buttonStyle(SubtleButtonStyle())
             .help("Back to Bible")
 
-            Text("Timeline & People")
+            Text("Timeline, People & Places")
                 .font(.custom(FontFamily.brand, size: 24))
                 .foregroundStyle(theme.text)
 

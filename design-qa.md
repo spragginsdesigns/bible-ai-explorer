@@ -1,4 +1,10 @@
-# Android UI design QA
+# Historical: Android UI design QA
+
+> **Historical QA record — not a current release sign-off.** These captures and
+> comparisons document earlier Android review runs. Some source images live in
+> local or excluded Codex attachment paths and may not be available on another
+> machine. Re-run the relevant flow against the current build before treating a
+> result as release evidence.
 
 ## Source truth
 

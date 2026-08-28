@@ -235,7 +235,7 @@ export default function SettingsScreen() {
 					</View>
 					<Text style={styles.hint}>
 						Used by the Bible reader and verse attachments. KJV works fully offline; NKJV is
-						streamed from bolls.life. SureWord&apos;s AI answers always quote the KJV.
+						fetched when needed. SureWord&apos;s AI answers use the translation you select.
 					</Text>
 				</GlassCard>
 

@@ -19,6 +19,11 @@ a copy of the .jks in private cloud storage).
 
 ## Building the AAB
 
+Run from the repository root in Git Bash. When native configuration or
+dependencies changed, prebuild first with
+`(cd mobile && npx expo prebuild --platform android)`; WSL is not supported for
+this Windows Android environment.
+
 ```bash
 bash mobile/scripts/build-aab.sh
 # → mobile/android/app/build/outputs/bundle/release/app-release.aab
@@ -40,7 +45,8 @@ sideloaded install can't be mixed on one device without uninstalling
 
 `/push-phone` no longer sideloads over ADB - it publishes to the **internal
 testing** track through the Android Publisher API, and Austin's phone updates
-from the Play Store (internal releases skip review and go live in minutes):
+from the Play Store. Internal releases normally become available to testers in
+minutes and skip review, but live Play state must be confirmed in Play Console:
 
 ```bash
 bash mobile/scripts/push-phone.sh   # bump + build AAB/APK + publish Play and GitHub
@@ -61,7 +67,27 @@ that APK automatically, so no site version constant is updated by hand.
 | Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
 | Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
 
-## Status (2026-08-20)
+## Current source status (2026-08-28)
+
+The checked-in Android source is now `1.38.0` / versionCode `35`
+(`mobile/app.json`), prepared for the next internal release. The latest local
+release tag remains `android-v1.37.1`, which points to the Android
+replacement-screen hotfix. This is repository/tag evidence, **not live Play
+verification**. Play Console track state, tester availability, listing
+completion, and review status are not asserted here and must be checked in
+Console before communicating them as live.
+
+The 1.38.0 AAB/APK pair has already been built and bound to versionCode 35 in
+`release-artifacts.env`, so this release must be published with
+`bash mobile/scripts/push-phone.sh --skip-build` after its source commit is on
+`main`. Running the default command now would correctly treat 35 as the current
+code and prepare the *next* release as 36.
+
+The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
+the repository root. It builds the upload-signed AAB and matching APK, publishes
+the AAB to the internal track, then publishes `SureWord.apk` to GitHub Releases.
+
+## Historical console setup snapshot (2026-08-20)
 
 Done: app created (`com.spragginsdesigns.sureword`, app id 4976411638093672168),
 versionCode 13 live on the internal track and installed on Austin's phone via
@@ -72,13 +98,17 @@ Advertising ID (none), Government (no), Financial (none), Health (none),
 Content rating (IARC submitted → ESRB Everyone), Data safety (filled, saved as
 draft - final submit is gated on Target audience).
 
-Remaining (Austin, in order): **App access** (needs a demo account; entering
+At that time, the remaining items were (Austin, in order): **App access** (needs a demo account; entering
 credentials is his) → **Target audience** (18+, decided 2026-08-20) → reopen
 Data safety and hit Save → **2+ phone screenshots** on the store listing →
-"Send for review" in Publishing overview. None of this blocks internal-track
-pushes.
+"Send for review" in Publishing overview. This historical checklist does not
+establish their current state. None of this blocks internal-track pushes.
 
-## First-release walkthrough (console clicks, in order)
+## First-release / production closed-testing walkthrough (historical)
+
+The steps below describe the original production-onboarding flow, not the
+normal internal-track release command above. Re-check the current Play Console
+requirements before using them.
 
 1. **All apps → Create app**: name `SureWord`, default language English (US),
    App (not game), Free. Accept declarations.
@@ -106,18 +136,18 @@ pushes.
    - All data **encrypted in transit**: yes. **Deletion mechanism**: yes
      (in-app deletion of content; account deletion via email - link the
      privacy page).
-   - Data **shared** with third parties: chat content is processed by AI
-     service providers (OpenAI/Anthropic/Moonshot) for app functionality -
-     declare under "shared for app functionality" if the form's definition of
-     sharing includes processors; Google's current guidance treats service
-     providers processing on your behalf as NOT "sharing", so the safe answer
-     is: collected yes, shared no, with processors documented in the privacy
-     policy.
+    - Current provider notes: OpenAI/Anthropic/Moonshot process AI requests;
+      ElevenLabs processes Listen narration requests; Google Places powers the
+      optional My church search/profile lookup. Re-check the current privacy
+      policy and Play form definitions before declaring these as "shared" or
+      processor-only; document each provider and the data it receives.
 4. **Store listing**:
    - App name: `SureWord` (30 char limit)
    - Short description (80 chars):
      `Bible study that stands on the Word - KJV answers, notes, and a daily walk.`
-   - Full description: see below.
+    - Full description: see below. Refresh it when a user-visible feature lands;
+      the current copy includes Pick Up Your Cross, Listen, Reading Plans,
+      Timeline/People/Places, My church, and rich attachments.
    - Icon: `docs/play-store/icon-512.png` · Feature graphic:
      `docs/play-store/feature-graphic-1024x500.png`
    - Screenshots: at least 2 phone screenshots (capture from the S24 Ultra:
@@ -137,11 +167,11 @@ pushes.
 ```
 SureWord is Bible study that stands on the Word. Ask anything about the
 Bible and get answers from an AI assistant that actually believes it -
-every response grounded in the King James Version, quoted word for word,
-never watered down.
+the KJV is the foundation and default, quoted word for word, with NKJV
+available when you select it.
 
 FOUNDED ON SCRIPTURE
-• Answers cite and quote the KJV exactly - tap any reference to open it
+• Answers cite and quote your selected Bible text exactly - KJV by default
 • Semantic Scripture search finds the verse you half-remember
 • Cross-references trace a verse across the whole Bible
 • Original languages: see the Hebrew and Greek behind any verse, word by
@@ -152,18 +182,27 @@ A COMPLETE STUDY APP
 • Tap any verse for an instant, reverent explanation
 • Rich Bible study notes with folders and tags - the assistant can find,
   read, and (when you ask) reorganize them
-• Attach photos, PDFs, and files to your questions
+• Attach photos, screenshots, PDFs, and text files to your questions - including
+  Paste screenshot from the clipboard
 
-A DAILY WALK
+YOUR STUDY, ORGANIZED
+• Reading Plans: choose a guided plan or have SureWord build one around your goal
+• Timeline, People & Places: walk Bible history and trace reviewed connections
+
+YOUR DAILY WALK
 • Pick Up Your Cross (Luke 9:23): a guided day built around one verse
   chosen for you - from what you have been reading, asking, and noting
+• Listen (SureWord Pro): hear the day's devotional with Read along, playback
+  speed, and lock-screen controls
+• Settings → My church: search for and save your congregation, with public
+  details and mission statement when the feature is enabled
 • A morning notification that leads with Scripture itself
 • The assistant remembers what matters to you across conversations -
   and you control every memory
 
 Your study belongs to you: no ads, no selling of data, and one account
 carries your conversations, notes, and daily walk across Android, web
-(sureword.app), and Mac.
+(sureword.app), and Mac/iOS clients where available.
 ```
 
 ## Assets

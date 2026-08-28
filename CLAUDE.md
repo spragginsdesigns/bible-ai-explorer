@@ -36,8 +36,8 @@ test surface when Android cannot run, not the product's primary destination.
    changes. A feature is only done when every supported client is accurate;
    never mark an unbuilt or untested Apple path as verified.
 5. **The backend is shared and fully active** — the Next.js API routes
-   (`src/app/api/*`) serve both clients, so server-side work (tools, prompts,
-   memory, persistence) automatically benefits both and auto-deploys to Vercel
+   (`src/app/api/*`) serve every client, so server-side work (tools, prompts,
+   memory, persistence) automatically benefits all of them and auto-deploys to Vercel
    on push. Prefer server-side changes over duplicating logic per client.
 
 **The web app must also always link to the Android APK** so web users can
@@ -64,7 +64,10 @@ IPA all live on GitHub Releases.
 - **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to production at https://sureword.app (legacy host https://bible-ai-explorer.vercel.app serves the same deployment). The Android app calls `https://sureword.app/api/*`, so server-side changes reach the phone only through this deploy — `/push-phone` alone never updates the API.
 - **App binaries ship ONLY via Play internal testing plus GitHub Releases** — never Google Drive or any other channel. Android: `bash mobile/scripts/push-phone.sh` builds one source revision, sends the AAB to Play, then publishes its matching APK under `android-v<version>`. macOS: `bash macos/release-dmg.sh` after the DMG build. iOS joins as `SureWord.ipa` when distribution starts.
 - **Release invariant — breaking it breaks persistent download links.** The versioned welcome cards discover the newest `android-v*` and `macos-v*` assets independently, but `releases/latest/download/<asset>` remains in persistent install surfaces and external docs. Every platform release script therefore carries forward every current fixed-name asset (`SureWord.apk`, `SureWord.dmg`, `SureWord.ipa`). Never rename those assets or publish a release outside the scripts.
-- **Vercel env vars** must match `.env.local` (OPENAI_API_KEY, DATABASE_URL, TAVILY_API_KEY) — set in Vercel dashboard under Project Settings > Environment Variables
+- **Vercel env vars:** Neon connection URLs come from the integration; configure
+  the application keys listed in the Environment Variables section under Project
+  Settings → Environment Variables, and do not restore the retired `ASTRA_DB_*`
+  variables.
 
 ## Terminology
 
@@ -130,7 +133,8 @@ There is exactly ONE application database, and the Android app never touches it 
 Android app (Expo)  ──HTTPS + Clerk token──>  Next.js API routes on Vercel
                                                       │ Prisma Client
                                                       v
-                              Neon Postgres · project `versemind` · db `neondb`
+                  Neon Postgres · project `versemind` · db `neondb`
+                         app data + pgvector embeddings
 ```
 
 | Fact | Value |
@@ -152,8 +156,9 @@ got there, and it left no history, which made a routine change look like an outa
 1. **The decoy database.** `ai-bible-explorer` on `ep-morning-star-a6x9ce52` has a
    byte-identical schema and **zero rows**. Nothing reads it. Its name looks more
    "correct" than `neondb`, which is exactly why it is dangerous. **Identify the
-   database by row count, not by name** - real production has data (39 users /
-   106 conversations / 371 messages as of 2026-08-10).
+   database by row count, not by name** - a read-only check on 2026-08-28
+   returned `current_database() = neondb`, schema `public`, 42 users, 255
+   conversations, 775 messages, 31,102 verse embeddings and 75 note embeddings.
 2. **An inherited `DATABASE_URL`.** A `DATABASE_URL` may already exist in the shell
    environment pointing at an unrelated database. Neither Node's `--env-file` nor
    Prisma's dotenv loader overrides an already-set variable, so it silently beats
@@ -209,7 +214,7 @@ redirect not on the list, silently, by omitting `external_verification_redirect_
 Web needs `/sign-in/sso-callback` (not just `/sso-callback`); native needs
 `sureword://sso-callback`.
 
-**The two clients' Clerk keys must move together.** The publishable key *encodes its
+**The web and native clients' Clerk keys must move together.** The publishable key *encodes its
 Frontend API host*, so `mobile/app.json`'s `extra.clerkPublishableKey` and the web's
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` must be the same key. Android shipped 1.7.0 with a
 key encoding `clerk.bible-ai-explorer.vercel.app` after Clerk moved to
@@ -223,7 +228,7 @@ the publishable key and nothing else.
 
 **Google OAuth is a third allowlist, separate from Clerk's.** The GCP client's
 *Authorized redirect URIs* must contain `https://clerk.sureword.app/v1/oauth_callback`,
-or sign-in dies at Google with `Error 400: redirect_uri_mismatch` — on both clients at
+or sign-in dies at Google with `Error 400: redirect_uri_mismatch` — across the clients at
 once, since they share one Google client. Google warns changes take "5 minutes to a few
 hours" to propagate. To check what is actually being sent, start the web Google flow and
 read the `redirect_uri` query param on the `accounts.google.com` URL.
@@ -293,10 +298,11 @@ Also required in `.env.local`:
   everyone. See `docs/FEATURES.md` → "Made with the day, and gated behind Pro".
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
-  it the audio routes answer `status: "unavailable"` and both clients hide the
+  it the audio routes answer `status: "unavailable"` and every client hides the
   Listen card entirely, so an unconfigured deploy shows no broken button.
   Billed per character (~3,000-5,500 per devotional), which is why audio is
-  generated on the user's first tap and never by the morning cron. See
+  scheduled with the daily cross and by the morning cron, never generated on a
+  tap. See
   `docs/FEATURES.md` → "Listen".
 - `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
   `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations").
@@ -304,7 +310,7 @@ Also required in `.env.local`:
   Settings → My church (`src/lib/google-places.ts`). Key lives in GCP project
   `versemind-auth`, restricted to `places.googleapis.com`; set in all three
   Vercel scopes on 2026-08-27. Without it every `/api/church*` route answers
-  `status: "unavailable"` and both clients hide the section entirely. See
+  `status: "unavailable"` and every client hides the section entirely. See
   `docs/FEATURES.md` → "My church".
 
 **AstraDB is retired (2026-08-19).** Its free tier hibernated the vector DB on
@@ -342,7 +348,8 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 - Bible verse retrieval = pgvector similarity in Neon plus IDF keyword blending over the bundled KJV (`searchScripture`), with keyword-only fallback if the vector store errs
 - UI uses Tailwind CSS + Shadcn/Radix components
 - Theme switching via next-themes (ThemeProvider)
-- Chat history stored client-side (localStorage)
+- Chat history persisted server-side in Prisma `Conversation`/`Message` rows;
+  clients keep transient view state and caches only
 
 ## Key Files
 
@@ -354,8 +361,9 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | RAG API route | `src/app/api/ask-question/route.ts` |
 | Tap-a-verse insight route | `src/app/api/verse-insight/route.ts` (docs: `docs/FEATURES.md`) |
 | Tap-a-verse client hooks | `src/components/bible/useVerseInsight.ts` + `mobile/src/features/bible/useVerseInsight.ts` (mirrored) |
-| Spoken devotional ("Listen") | `src/lib/daily-cross-audio.ts` + `src/lib/daily-cross-audio-script.ts`; route `src/app/api/verse-of-day/audio/route.ts` |
-| Listen cards | `src/components/cross/ListenCard.tsx` + `mobile/src/features/cross/ListenCard.tsx` (mirrored, with `listen.ts` state rules beside each) |
+| Spoken devotional ("Listen") | `src/lib/daily-cross-audio.ts` + `src/lib/daily-cross-audio-script.ts`; routes `src/app/api/verse-of-day/audio/route.ts` and `src/app/api/verse-of-day/audio/stream/route.ts` |
+| Listen cards | `src/components/cross/ListenCard.tsx`, `mobile/src/features/cross/ListenCard.tsx`, and `macos/Shared/DailyCross/ListenCard.swift` (Apple card shared by macOS and iOS) |
+| My church | `src/components/settings/ChurchSection.tsx`, `mobile/src/features/church/ChurchSection.tsx`, and `macos/Shared/Church/ChurchView.swift` |
 | Web search (Tavily) | `src/lib/tavily.ts` + `webSearch` tool in `src/lib/ai-tools.ts`; toggle API at `src/app/api/preferences/` |
 | Scripture vector search | `src/lib/scripture-search.ts` |
 | Note embeddings sync/search | `src/lib/note-embeddings.ts` |

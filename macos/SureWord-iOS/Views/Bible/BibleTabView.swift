@@ -162,7 +162,7 @@ struct BibleTabView: View {
                     .font(.system(size: 18))
                     .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Timeline & People")
+                    Text("Timeline, People & Places")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text("When it happened, who was there, and where")
@@ -188,7 +188,7 @@ struct BibleTabView: View {
         }
         .buttonStyle(.plain)
         .padding(.bottom, Spacing.sm)
-        .accessibilityLabel("Timeline and People — when it happened, who was there, and where")
+        .accessibilityLabel("Timeline, People & Places — when it happened, who was there, and where")
     }
 
     // MARK: - Books

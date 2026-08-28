@@ -11,7 +11,7 @@ import {
 const MEMORY_SELECT = { id: true, content: true, category: true, updatedAt: true } as const;
 
 /**
- * Memory management for the Settings → Memory screens on both clients.
+ * Memory management for the Settings → Memory screens on every client.
  * Listing works regardless of the enable toggle (users can always see and
  * delete what is stored); the toggle only gates prompt injection/extraction,
  * which lives in src/lib/memory.ts.

@@ -103,7 +103,7 @@ const BibleBookPicker: React.FC = () => {
           <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
         </Link>
 
-        {/* Timeline, People & Places - when it happened and who was there (mirrors the Android Bible tab card) */}
+        {/* Timeline, People & Places - when, who, and where (mirrors the Android Bible tab card) */}
         <Link
           href="/bible/timeline"
           className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
@@ -111,10 +111,10 @@ const BibleBookPicker: React.FC = () => {
           <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">◈</span>
           <span className="flex-1">
             <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
-              Timeline &amp; People
+              Timeline, People &amp; Places
             </span>
             <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
-              When it happened, and who was there
+              When, who, and where in Scripture
             </span>
           </span>
           <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>

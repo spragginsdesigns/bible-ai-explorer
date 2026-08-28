@@ -22,9 +22,9 @@ test("both Apple Bible readers expose native atlas entry points", async () => {
 		read("macos/SureWord-iOS/Views/Bible/ChapterReaderView.swift"),
 	]);
 
-	assert.match(macSidebar, /Timeline & People/);
+	assert.match(macSidebar, /Timeline, People & Places/);
 	assert.match(macReader, /Who's in this chapter/);
-	assert.match(iosBible, /Timeline & People/);
+	assert.match(iosBible, /Timeline, People & Places/);
 	assert.match(iosReader, /Who's in this chapter/);
 });
 

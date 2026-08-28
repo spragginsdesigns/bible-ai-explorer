@@ -6,11 +6,17 @@ into your study notes on request, and remembers you between conversations.
 
 **This is the primary SureWord client and the source of truth for
 features.** New features land here first — and the web app
-(bible-ai-explorer.vercel.app) MUST be brought to 1:1 feature parity in the
-same release cycle. Web may be a superset, never a subset. The parity rule
+(sureword.app), macOS app, and iOS source MUST be brought to capability parity
+in the same release cycle. A follower may be a superset, never a subset. The parity rule
 lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
+
+**Current source release:** 1.38.0 (Android versionCode 35, prepared for the
+next internal release). The latest local release tag remains `android-v1.37.1`;
+see `docs/PLAY_STORE.md` for the separately verified or unverified Play status.
+The 1.38.0 artifacts are already bound to code 35, so publish this prepared pair
+with `push-phone.sh --skip-build`; the default command is for the next bump.
 
 ## Stack
 
@@ -18,13 +24,13 @@ GitHub Releases (see the release checklist) so web users can install it.
 |---|---|
 | Runtime | Expo SDK 57 / React Native 0.86, TypeScript strict |
 | Navigation | expo-router v7 (Stack + custom glass tab bar) |
-| Auth | Clerk (`@clerk/clerk-expo`) — email-code + Google SSO; tokens in SecureStore |
+| Auth | Clerk (`@clerk/expo`) — email-code + Google SSO; tokens in SecureStore |
 | AI chat | Vercel AI SDK v7 (`@ai-sdk/react` useChat + `expo/fetch` streaming) |
 | Rich text | `@10play/tentap-editor` (Tiptap-compatible; HTML round-trips with the web editor) |
 | Markdown | react-native-markdown-display with custom Scripture blockquote styling |
 | Backend | The existing Next.js API on Vercel — no mobile-specific backend |
 
-The app talks to `https://bible-ai-explorer.vercel.app/api/*` with a Clerk
+The app talks to `https://sureword.app/api/*` with a Clerk
 Bearer token (`src/lib/api.ts`). Chat, tools (scripture search, exact passage
 lookup, web search, note-writing), user memory, and persistence are all
 server-side, shared 1:1 with the web app and the same database.
@@ -42,14 +48,26 @@ stock Material components; every surface is built from the theme tokens.
 mobile/
 ├── app/                    # expo-router routes
 │   ├── (auth)/sign-in.tsx  # email-code + Google sign-in
-│   └── (app)/              # authed: chat (index), notes/, glass tab bar
+│   └── (app)/              # authenticated routes and glass tab bar
+│       ├── index.tsx       # Chat
+│       ├── cross.tsx       # Pick Up Your Cross + Listen
+│       ├── bible/          # reader, search, plans, Timeline/People/Places
+│       ├── notes/          # notes library and rich editor
+│       ├── memories.tsx    # memory manager
+│       └── settings.tsx    # appearance, church, notifications, providers
 ├── src/
 │   ├── components/ui.tsx   # Screen, GlassCard, BrandTitle, buttons
 │   ├── theme/              # design tokens
 │   ├── lib/                # api client, chat view-model (ported from web)
 │   └── features/
-│       ├── chat/           # streaming chat, tool cards, slash commands
-│       └── notes/          # library, tentap editor, note AI panel
+│       ├── chat/           # streaming chat, tool cards, slash commands, attachments
+│       ├── bible/          # bundled reader, translations, highlights
+│       ├── atlas/          # Timeline, People & Places
+│       ├── cross/          # Listen and Daily Cross presentation
+│       ├── plan/           # Reading Plans
+│       ├── church/         # My church settings section
+│       ├── notes/          # library, TenTap editor, note AI panel
+│       └── memories/notifications/settings/updates/
 └── scripts/
     ├── push-phone.sh     # bump + build + publish to Play and GitHub
     ├── build-aab.sh      # signed all-ABI AAB plus website APK
@@ -65,20 +83,23 @@ npm install          # NOT pnpm - mobile is intentionally outside the workspace
 npx expo start       # dev server (Expo Go won't work - native modules; use a dev build)
 ```
 
-### Building release artifacts (Windows)
+### Building release artifacts (Windows / Git Bash)
+
+Run these commands in Git Bash from the repository root. WSL is not supported for
+the Android build environment; it can inject Linux SDK and `JAVA_HOME` paths.
 
 ```bash
-npx expo prebuild --platform android   # regenerates android/ (gitignored)
-# android/local.properties must contain (forward slashes matter):
-#   sdk.dir=C:/Users/Owner/AppData/Local/Android/Sdk
-#   cmake.dir=C:/Users/Owner/AppData/Local/Android/Sdk/cmake/3.31.6
-cd android
-JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" ./gradlew bundleRelease assembleRelease -x lint
+(cd mobile && npx expo prebuild --platform android) # regenerates android/ (gitignored)
+bash mobile/scripts/build-aab.sh       # upload-signed AAB + matching website APK
 ```
 
 The Android release flow is the primary acceptance path. `build-aab.sh` runs
 both Gradle release tasks so the Play AAB and the website APK come from the
 same source build. Do not publish the APK separately during a normal release.
+For a local-only sideload build, direct Gradle commands are allowed after
+prebuild, but the generated project uses the debug keystore; never upload that
+output to Play or GitHub. `build-aab.sh` patches the upload key and rejects a
+debug-signed AAB.
 
 Known Windows gotchas (all pre-solved in the checked-in config):
 
@@ -94,7 +115,9 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 - `reactNativeArchitectures=arm64-v8a` in `gradle.properties` — phone builds
   only need arm64; switch to `x86_64` for emulator testing (wipe `.cxx` dirs
   in node_modules when switching).
-- Release builds sign with the debug keystore - fine for sideloading.
+- Direct Gradle release builds sign with the debug keystore - fine only for a
+  local sideload. `build-aab.sh` signs the Play/GitHub artifacts with the
+  external upload key and fails closed if the AAB is still debug-signed.
 - **The `expo-audio` config plugin writes the media-playback service into
   `AndroidManifest.xml`** (`enableBackgroundPlayback: true` in `app.json`, since
   1.32.0). It adds `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and
@@ -109,14 +132,16 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 
 ### Pushing to the phone
 
+Run from the repository root in Git Bash:
+
 ```bash
 bash mobile/scripts/push-phone.sh                  # bump + build + publish Play and GitHub APK
 bash mobile/scripts/push-phone.sh --skip-build     # publish one previously bound AAB/APK pair, no bump
 ```
 
-Since 2026-08-19 this ships through the Play Store's internal testing track
-(live for testers within minutes, no review) instead of wireless ADB - the
-phone updates itself. After the Play upload succeeds, the same command
+Since 2026-08-19 this targets the Play Store's internal testing track (normally
+available to testers within minutes, with no review) instead of wireless ADB -
+the phone updates itself. After the Play upload succeeds, the same command
 publishes the matching `SureWord.apk` to GitHub Releases, which refreshes the
 APK served by the website download link. `build-aab.sh` writes a version and
 SHA-256 manifest for both artifacts; `push-phone.sh` verifies it before any

@@ -16,8 +16,9 @@ const cormorantGaramond = Cormorant_Garamond({
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://sureword.app"),
-	title: "SureWord",
-	description: "Explore the Bible with AI-powered insights and answers",
+	title: "SureWord — Bible study rooted in Scripture",
+	description:
+		"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "KJV", "SureWord"],
 	authors: [
 		{ name: "Austin Spraggins", url: "https://sureword.app" }
@@ -25,8 +26,9 @@ export const metadata: Metadata = {
 	creator: "Austin Spraggins",
 	publisher: "Spraggins Designs",
 	openGraph: {
-		title: "SureWord",
-		description: "Explore the Bible with AI-powered insights and answers",
+		title: "SureWord — Bible study rooted in Scripture",
+		description:
+			"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
 		url: "https://sureword.app",
 		siteName: "SureWord",
 		images: [
@@ -42,8 +44,9 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SureWord",
-		description: "Explore the Bible with AI-powered insights and answers",
+		title: "SureWord — Bible study rooted in Scripture",
+		description:
+			"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
 		creator: "@spragginsdesign",
 		images: ["/web-app-manifest-512x512.png"]
 	},

@@ -95,7 +95,7 @@ struct BibleSidebar: View {
                     .font(.system(size: 17))
                     .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Timeline & People")
+                    Text("Timeline, People & Places")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text("Explore Scripture's people and places")

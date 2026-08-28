@@ -3,10 +3,11 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Privacy Policy - SureWord",
-	description: "How SureWord handles your account, conversations, notes, and study data.",
+	description:
+		"How SureWord handles your account, Bible study, personalization, files, and native-app data.",
 };
 
-const LAST_UPDATED = "August 19, 2026";
+const LAST_UPDATED = "August 28, 2026";
 const CONTACT_EMAIL = "spragginsdesigns@gmail.com";
 
 /**
@@ -46,13 +47,28 @@ export default function PrivacyPage() {
 					<li>
 						<strong>Your study content.</strong> Conversations with the
 						assistant, Bible study notes, folders and tags, saved memories, and
-						file attachments you add to chats. These are stored on our servers
-						so they follow your account across devices.
+						file attachments you add to chats. This also includes verse
+						highlights, reading plans, plan progress, and completions. These are
+						stored on our servers so they follow your account across devices.
 					</li>
 					<li>
 						<strong>Reading activity.</strong> Which Bible chapters you read in
-						the app, used only to personalize your daily verse and suggested
-						questions.
+						the app, used to track reading-plan progress and personalize your
+						Daily Cross, suggested questions, and Bible study.
+					</li>
+					<li>
+						<strong>Daily Cross personalization.</strong> The verse and guide
+						prepared for you, its theme and selection rationale, bounded
+						evidence summaries from your own study, and the generated devotional
+						script, title, and audio status. This history helps SureWord avoid
+						unhelpful repetition and keep future guidance grounded in your walk.
+					</li>
+					<li>
+						<strong>Your home church.</strong> If you use My church, we store the
+						church you select and its public profile information, such as its
+						name, address, phone, website, map and photo references, mission, and
+						about text. SureWord does not request your device location for this
+						feature.
 					</li>
 					<li>
 						<strong>Settings.</strong> Preferences such as theme, Bible
@@ -61,9 +77,11 @@ export default function PrivacyPage() {
 						shown again after entry.
 					</li>
 					<li>
-						<strong>Push notification token.</strong> On Android, if you enable
-						the daily verse notification, a device push token and your chosen
-						delivery hour and timezone.
+						<strong>Native-app notification data.</strong> Where server push is
+						supported, a device token, platform, timezone, delivery hour, and the
+						enabled state for supported notifications. Android currently offers
+						separate Daily Cross and chat-reply choices; local-only reminders do
+						not create a server push token.
 					</li>
 				</ul>
 
@@ -71,23 +89,33 @@ export default function PrivacyPage() {
 					How AI processing works
 				</h2>
 				<p>
-					When you send a message, tap a verse for an explanation, or use your
-					daily verse, the relevant content (your message, conversation context,
-					and any content needed to answer, such as notes you reference) is sent
-					to an AI model provider to generate the response - OpenAI by default,
-					or Anthropic or Moonshot if you select their models. If you use the
-					web search feature, your search query is sent to Tavily. These
-					providers process the content to produce a response; we do not permit
-					them to use it for advertising.
+					When you send a message, tap a verse for an explanation, build an AI
+					reading plan, or receive personalized Daily Cross content, the content
+					needed for that request may be sent to an AI model provider. This can
+					include your message, conversation context, and relevant study content
+					such as reading activity, notes, memories, plan, or church. SureWord
+					uses app-managed OpenAI models for built-in experiences and can use
+					OpenAI, Anthropic, or Moonshot for chat and related features when you
+					select those providers.
+				</p>
+				<p>
+					If you use web search, the search query is sent to Tavily. If you use
+					My church, your search terms and selected place are sent to Google
+					Places, and SureWord may fetch the church&apos;s public website to find its
+					mission and about information. For Pro Daily Cross narration, the
+					generated devotional script is sent to ElevenLabs to create the audio.
+					These services process the content to deliver the feature; SureWord
+					does not use it for advertising.
 				</p>
 
 				<h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
 					Where data lives
 				</h2>
 				<p>
-					Study data is stored in a managed Postgres database (Neon) and file
-					attachments in private blob storage (Vercel), both in the United
-					States. Authentication data is held by Clerk. All traffic is
+					Account-linked study data is stored in a managed Postgres database
+					(Neon). File attachments and generated Daily Cross audio are stored in
+					private blob storage (Vercel). Authentication data is held by Clerk.
+					These services are hosted in the United States, and traffic is
 					encrypted in transit.
 				</p>
 
@@ -104,9 +132,10 @@ export default function PrivacyPage() {
 					Deleting your data
 				</h2>
 				<p>
-					You can delete individual conversations, notes, and memories (or clear
-					all memories) inside the app at any time; deletion is immediate and
-					permanent. To delete your entire account and everything it contains,
+					You can delete conversations, notes, memories, highlights, and your
+					saved church inside the app, and you can archive reading plans.
+					Deletion is immediate and permanent. To delete your entire account,
+					including its reading and Daily Cross history and stored files,
 					email{" "}
 					<a
 						href={`mailto:${CONTACT_EMAIL}`}

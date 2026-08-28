@@ -7,22 +7,25 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-Last full audit: 2026-08-27 (macOS 1.5.0 closed every ❌ in its column except
+Last full audit: 2026-08-28 (macOS 1.5.0 closed every ❌ in its column except
 password sign-in and the "answer is ready" push: BYOK AI Providers + the provider-grouped model/effort picker,
 live `data-status` updates, answer recovery after a dropped stream, the shared
 assistant-markdown normalizer (97/97 corpus vectors), gold labels on opening
 questions, Reading Plans end to end, Listen with Now Playing + speed + Pro lock,
 the parchment reader surface, and the `/plan` + `/who` slash commands. Shared
 code carried the chat-protocol pieces to iOS as well; iOS still lacks a Reading
-Plans screen.)
+Plans screen. The macOS 1.5.0 build is installed and its live paths were
+exercised; the 490-test macOS suite is green. iOS source/simulator build and
+test status remains separate from device, runtime, and distribution proof.)
 
-iOS audit: 2026-08-18 — the iOS client (`macos/SureWord-iOS/`, iOS 26, SwiftUI)
-reached the table below with BYOK included (a feature macOS still lacks). Known
-deferrals: editor toolbar undo/redo, hardware-Tab list indent, Dynamic Type
-live-rescaling inside the editor canvas, and APNs delivery (no `aps-environment`
-entitlement — the local daily reminder covers Verse of the Day). Verified:
-iOS 51/51 and macOS 306/306 tests green; signed-in flows are compile- and
-unit-tested but not yet run against a live Clerk session.
+iOS audit: source and simulator status is tracked independently from device,
+runtime, and distribution status. The iOS client (`macos/SureWord-iOS/`, iOS 26,
+SwiftUI) has the shared source and simulator test paths in this table; it is not
+claimed as device-tested, signed for distribution, or exercised against a live
+Clerk session. Known deferrals remain: editor toolbar undo/redo, hardware-Tab
+list indent, Dynamic Type live-rescaling inside the editor canvas, and APNs
+delivery (no `aps-environment` entitlement — the local daily reminder covers
+Verse of the Day).
 
 Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · ➕ superset (allowed)
 
@@ -30,9 +33,9 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth (v1.16.0) |
+| Android | `mobile/` | Source of truth (v1.38.0, versionCode 35) |
 | Web | `src/` | Tracked column-by-column below |
-| macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. See `macos/README.md`. Installed on Austin's Mac via `bash macos/install-mac.sh` - mandatory after any macOS change (1.5.0 installed 2026-08-27). |
+| macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. Current project: 1.6.0; last installed/released proof: 1.5.0 on 2026-08-27. See `macos/README.md`; `bash macos/install-mac.sh` is mandatory after any macOS change. |
 | iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
 
 Layout adapts to each form factor, which the parity rule allows: macOS uses a
@@ -68,7 +71,7 @@ tab selection). Same behavior, different plumbing.
 | Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | ✅ confirm dialog | ✅ confirm dialog |  |
 | Memory: enable toggle (off = not used/learned, rows kept) | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | ✅ Settings → Memory | Server state (`PATCH /api/memories`), enforced in `src/lib/memory.ts` |
 | Memory: manage screen (summary, add, delete, clear-all) | ✅ push-only `/memories` | ✅ `MemoryManager` dialog | ✅ sheet from Settings | ✅ push route from Settings | Summary via `POST /api/memories/summary` (on-demand LLM, never auto-fires) |
-| My church: search, save, profile card (photo, address, phone, website, Open in Google Maps, mission, about), remove | ✅ 1.36.0 | ✅ Settings → My church | 🟡 compiled, unverified in-app | 🟡 compiled, unverified in-app | `GET/PUT/DELETE /api/church`, `GET /api/church/search?q=`, photo proxy `GET /api/church/photo?placeId=`. Needs `GOOGLE_PLACES_API_KEY`; without it every route answers `status: "unavailable"` and both clients render nothing at all, heading included. The saved church is injected into the chat system prompt, so the assistant knows the congregation on every turn. Mission text is read from the church's own public website at save time. Apple clients share one `Section` (`macos/Shared/Church/`) rendered inline in both Settings forms; the search debounce, the stale-response guard and the `unavailable` blackout are ported from the Android store. SwiftUI has no `onTextLayout`, so the mission “Show more” toggle uses the web client's length heuristic rather than the laid-out line count. iOS is built and its suite is green; the macOS target cannot link because `SureWord/Bible/Views/` fails to compile on `main` for reasons unrelated to this feature, so the Church sources are proven only as far as compiling cleanly inside that target. Neither Apple client has been signed into and driven by hand yet |
+| My church: search, save, profile card (photo, address, phone, website, Open in Google Maps, mission, about), remove | ✅ 1.36.0 | ✅ Settings → My church | ✅ 1.5.0 (installed and live path exercised) | 🟡 source/simulator path; device/runtime/distribution unverified | `GET/PUT/DELETE /api/church`, `GET /api/church/search?q=`, photo proxy `GET /api/church/photo?placeId=`. Needs `GOOGLE_PLACES_API_KEY`; without it every route answers `status: "unavailable"` and all clients render nothing at all, heading included. The saved church is injected into the chat system prompt, so the assistant knows the congregation on every turn. Mission text is read from the church's own public website at save time. Apple clients share `macos/Shared/Church/ChurchView.swift`, rendered inline by `macos/SureWord/Settings/SettingsView.swift` and `macos/SureWord-iOS/Views/Settings/SettingsView.swift`; the search debounce, stale-response guard and `unavailable` blackout are ported from the Android store. SwiftUI has no `onTextLayout`, so the mission “Show more” toggle uses the web client's length heuristic rather than the laid-out line count. macOS is shipped and live-path exercised in 1.5.0; iOS source/simulator status is tracked separately and is not a device, runtime, or distribution claim |
 | About (version, KJV mission note) | ✅ | ✅ | ✅ | ✅ |  |
 | AI Providers: BYOK API keys (add / replace / remove, validated + encrypted) | ✅ Settings → AI Providers (1.11.0) | ✅ Settings → AI Providers | ✅ 1.5.0 Settings → AI Providers | ✅ Settings → AI Providers | `GET/POST/DELETE /api/providers`; keys unlock that provider's models in the picker; only last4 ever shown |
 | Verse of the Day: enable toggle + delivery hour | ✅ Settings → Verse of the Day (1.14.0) | 🟡 no browser notifications; `/cross` page is always available | ✅ 1.1.0 | 🟡 local reminder only | Stored per push token server-side (`POST/DELETE /api/push-tokens`); local hour in the device's timezone. Android delivery: remote Expo push once FCM/EAS is configured, locally scheduled daily notification until then. macOS schedules a repeating local `UNCalendarNotificationTrigger` at the chosen hour and registers no push token (APNs needs the paid program). iOS does attempt APNs registration for `POST /api/push-tokens`, but without the `aps-environment` entitlement (paid program) the registration always fails and the locally scheduled daily reminder is the delivery path |
@@ -87,7 +90,7 @@ tab selection). Same behavior, different plumbing.
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | ✅ history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | ✅ |  |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | ✅ |  |
-| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | ✅ | Defaults collapsed on all three; user expands on demand; thresholds aligned |
+| Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | ✅ | Defaults collapsed on all clients; user expands on demand; thresholds aligned |
 | Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
 | Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | ✅ scroll + flash |  |
 | Tavily web-results card | ✅ | ✅ | ✅ | ✅ |  |
@@ -118,8 +121,8 @@ tab selection). Same behavior, different plumbing.
 |---|---|---|---|---|---|
 | Book picker (testament sections, genre groups) | ✅ | ✅ | ✅ | ✅ drill-down: books → chapters → reader |  |
 | Chapter grid | ✅ | ✅ | ✅ | ✅ |  |
-| Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | ✅ | Same data bundle on all three (`mobile/src/features/bible/data/`) |
-| Parchment page surface (photoreal scroll paper, light + dark variants follow theme) | ✅ 1.19.0 | ✅ | ✅ 1.5.0 `ParchmentSheet` in the reader, Settings → Appearance toggle | ❌ | Textures from `scripts/generate-parchment.mjs` (`mobile/assets/parchment-*.webp`, `public/textures/`); ink tokens `parchmentInk/Number/Highlight` (mobile) and `.parchment-page` (web). Apple clients pending |
+| Reading screen (KJV bundled, per-book JSON) | ✅ | ✅ | ✅ | ✅ | Same KJV data contract across all clients; Android's bundle lives in `mobile/src/features/bible/data/` |
+| Parchment page surface (photoreal scroll paper, light + dark variants follow theme) | ✅ 1.19.0 | ✅ | ✅ 1.5.0 `ParchmentSheet` in the reader, Settings → Appearance toggle | ❌ | Textures from `scripts/generate-parchment.mjs` (`mobile/assets/parchment-*.webp`, `public/textures/`); ink tokens `parchmentInk/Number/Highlight` (mobile) and `.parchment-page` (web). iOS pending |
 | NKJV translation toggle (bolls.life) | ✅ | ✅ | ✅ | ✅ |  |
 | Offline verse search + reference quick-jump | ✅ | ✅ | ✅ | ✅ pushed search screen |  |
 | Verse actions (Copy / Share / Save to note / Expand with AI) | ✅ tap or long-press sheet | ✅ click/⌥ | ✅ click / context menu | ✅ tap → bottom sheet | Save-to-note = `POST /api/notes` + `PATCH /api/notes/:id` (ported `verseActions`) |
@@ -150,9 +153,10 @@ tab selection). Same behavior, different plumbing.
 
 ## Timeline, People & Places
 
-The macOS and iOS columns below are source-complete but remain 🟡 until the
-native schemes build and the flows are exercised on a Mac runner. Windows
-cannot honestly turn those cells green.
+The macOS and iOS columns below are source-complete. macOS builds, but these
+Atlas rows remain 🟡 until the native Atlas flow itself is exercised; iOS keeps
+the separate device/runtime/distribution gate described above. Windows cannot
+honestly turn those cells green.
 
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
@@ -166,7 +170,7 @@ cannot honestly turn those cells green.
 | "Ask about this" opens chat with a prefilled prompt | ✅ 1.30.0 | ✅ | 🟡 source implemented | 🟡 source implemented | Each native shell switches to Chat with a prompt filled in; it never sends for the user |
 | Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | 🟡 shared API model | 🟡 shared API model | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
 | "Who’s in this chapter" from the chapter reader | ✅ 1.30.0 people icon in the header | ✅ people icon in the header | 🟡 reader button | 🟡 reader toolbar | Opens the atlas with a validated book/chapter scope and deduplicates people and places from its events |
-| "Timeline & People" card on the Bible screen | ✅ 1.30.0 | ✅ | 🟡 Bible sidebar | 🟡 Bible tab | Native Apple entry points use their platform's existing Bible navigation |
+| "Timeline, People & Places" card on the Bible screen | ✅ 1.30.0 | ✅ | 🟡 Bible sidebar | 🟡 Bible tab | Native Apple entry points use their platform's existing Bible navigation |
 | Ussher dating, labelled as tradition and not Scripture | ✅ inline provenance + footnote | ✅ inline provenance + footnote | 🟡 source implemented | 🟡 source implemented | Structured dates preserve `yearLabel`; undated events are not mislabeled as traditional dates |
 | Assistant knows the atlas (`lookupBibleEntity` / `getBibleTimeline`) | ✅ 1.30.0 | ✅ | ✅ shared backend | ✅ shared backend | Read-only, no permission gate. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently. `lookupBibleEntity` also reports how many KJV verses name the person (`findOccurrences`, an exact word scan of the bundled text) |
 | `/who` slash command | ✅ 1.30.0 | ✅ | ✅ 1.5.0 | ✅ shared | Added to both `slashCommands.ts` copies and to `slashCommandGuidance` |
@@ -177,10 +181,10 @@ cannot honestly turn those cells green.
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
 | AI-personalized daily verse (context: reading history + chat + notes + memories; exact verse 30-day guard + primary-theme 3-day guard) | ✅ 1.37.1 | ✅ via `/cross` | ✅ shared backend + provenance | ✅ shared backend + provenance | Shared selector: built-in GPT-5.6 Sol xhigh with read-only context + KJV search tools; deterministic canonical-reference/theme validation; one retry; exclusion-aware 50+ verse fallback pool. Sol high writes only after the verse/theme/evidence are locked. `VerseOfDay` stores theme/evidence/model/fallback provenance. Go deeper messages carry a server-validated Daily Cross origin on every client so continuation study is labelled instead of treated as unrelated fresh intent. Personalized routes are private/no-store and clients refetch on focus/resume. Android 1.37.1 keeps the current day visible during a replacement and scrolls to the new verse when it arrives. |
-| Listen (spoken devotional): play/pause, elapsed/total, scrubber, "Read along" transcript | ✅ 1.28.0 (`expo-audio`) | ✅ `<audio>` + custom controls on `/cross` | ✅ 1.5.0 `AVPlayer` over the authenticated stream, LISTEN timeline stop | ✅ shared card; `UIBackgroundModes: audio` added to the iOS target (background playback compiled, not yet run on a device) | `GET`/`POST /api/verse-of-day/audio`; script written by built-in GPT-5.6 Sol high from the stored day plus its locked selection evidence (not a second sweep over every recent message/note), narrated by ElevenLabs (`eleven_multilingual_v2`), MP3 in private Vercel Blob against the `VerseOfDay` row. Generated **once per day, WITH the day** (`scheduleDailyCrossAudio` at every point a cross is stored - on-demand GET, chat `getDailyCross`, `replaceDailyCross`, and the cron), never on a tap; POST survives only as the manual retry. Playback goes through `GET|HEAD /api/verse-of-day/audio/stream` on our own origin with `Range` forwarded both ways. With no `ELEVENLABS_API_KEY` the routes answer `status: "unavailable"`; free accounts get the Pro panel. |
-| Listen playback speed (0.75x / 1x / 1.25x / 1.5x / 2x, remembered) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 `SettingsStore.listenRate` | ✅ shared | Cycling chip beside play. Persisted **per client**: web `localStorage` `sureword.listenRate`, Android settings store. Web `audio.playbackRate`; Android `player.setPlaybackRate(rate, "high")` with `shouldCorrectPitch`. Elapsed/total stay in real seconds at every speed. Cycle + normalization rules are pure and tested on both sides |
-| Listen: background playback + media notification | ✅ 1.32.0 | ✅ OS media card via `navigator.mediaSession` | ✅ 1.5.0 `MPNowPlayingInfoCenter` + remote commands (menu-bar Now Playing proved live) | 🟡 Control Center + background mode compiled; not yet run on a device | Android: `expo-audio`'s own media3 `MediaSessionService` - the config plugin's `enableBackgroundPlayback: true` adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares `expo.modules.audio.service.AudioControlsService`, and the card calls `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })` plus `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })`. Both are required: without the audio mode the native module pauses every player the instant the activity backgrounds (a screen timeout), and without the lock-screen registration Android kills background audio after ~3 minutes. Notification carries title, `Pick Up Your Cross · <reference>`, the square SureWord mark, play/pause, ±10s (fixed by the library) and the system scrubber; Bluetooth/headset keys come free with the media session. **Needs `expo prebuild` + a new build** - the manifest changed. Web needs no service: browsers hand an `<audio>` element to the OS themselves, so the card only supplies `MediaMetadata` and `seekbackward`/`seekforward`/`seekto` handlers. Neither client survives the card unmounting (the player is released with it) |
-| Listen is a SureWord Pro benefit (locked panel for free accounts) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 (code + test proved; account is Pro) | ✅ shared | `User.plan` column OR the `PRO_USER_IDS` env allowlist (`src/lib/entitlements.ts`; pure `resolvePlan` in `entitlements-rules.ts`). Server answers `status: "locked"` **before** any DB write, model call or ElevenLabs request, and the stream route refuses too - a free account costs nothing and cannot reach a narration directly. Both clients render an identical lock panel with NO button, since there is nowhere for one to go until billing exists. `GET /api/preferences` also returns `plan` |
+| Listen (spoken devotional): play/pause, elapsed/total, scrubber, "Read along" transcript | ✅ 1.28.0 (`expo-audio`) | ✅ `<audio>` + custom controls on `/cross` | ✅ 1.5.0 `AVPlayer` over the authenticated stream, LISTEN timeline stop (installed/live path exercised) | 🟡 shared card in source/simulator path; device/runtime/distribution unverified | `GET`/`POST /api/verse-of-day/audio`; script written by built-in GPT-5.6 Sol high from the stored day plus its locked selection evidence (not a second sweep over every recent message/note), narrated by ElevenLabs (`eleven_multilingual_v2`), MP3 in private Vercel Blob against the `VerseOfDay` row. Generated **once per day, WITH the day** (`scheduleDailyCrossAudio` at every point a cross is stored - on-demand GET, chat `getDailyCross`, `replaceDailyCross`, and the cron), never on a tap; POST survives only as the manual retry. Playback goes through `GET|HEAD /api/verse-of-day/audio/stream` on our own origin with `Range` forwarded both ways. With no `ELEVENLABS_API_KEY` the routes answer `status: "unavailable"`; free accounts get the Pro panel. |
+| Listen playback speed (0.75x / 1x / 1.25x / 1.5x / 2x, remembered) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 `SettingsStore.listenRate` | 🟡 shared source/simulator path; device/runtime/distribution unverified | Cycling chip beside play. Persisted **per client**: web `localStorage` `sureword.listenRate`, Android settings store, Apple `SettingsStore`. Web `audio.playbackRate`; Android `player.setPlaybackRate(rate, "high")` with `shouldCorrectPitch`. Elapsed/total stay in real seconds at every speed. Cycle + normalization rules are pure and tested across the React pair |
+| Listen: background playback + media notification | ✅ 1.32.0 | ✅ OS media card via `navigator.mediaSession` | ✅ 1.5.0 `MPNowPlayingInfoCenter` + remote commands (installed/live path exercised) | 🟡 Control Center + background mode compiled; device/runtime/distribution unverified | Android: `expo-audio`'s own media3 `MediaSessionService` - the config plugin's `enableBackgroundPlayback: true` adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares `expo.modules.audio.service.AudioControlsService`, and the card calls `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })` plus `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })`. Both are required: without the audio mode the native module pauses every player the instant the activity backgrounds (a screen timeout), and without the lock-screen registration Android kills background audio after ~3 minutes. Notification carries title, `Pick Up Your Cross · <reference>`, the square SureWord mark, play/pause, ±10s (fixed by the library) and the system scrubber; Bluetooth/headset keys come free with the media session. **Needs `expo prebuild` + a new build** - the manifest changed. Web needs no service: browsers hand an `<audio>` element to the OS themselves, so the card only supplies `MediaMetadata` and `seekbackward`/`seekforward`/`seekto` handlers. Android/web cards release playback when unmounted; the macOS model outlives its sidebar pane. |
+| Listen is a SureWord Pro benefit (locked panel for free accounts) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 (code + test proved; account is Pro) | 🟡 shared source/simulator path; device/runtime/distribution unverified | `User.plan` column OR the `PRO_USER_IDS` env allowlist (`src/lib/entitlements.ts`; pure `resolvePlan` in `entitlements-rules.ts`). Server answers `status: "locked"` **before** any DB write, model call or ElevenLabs request, and the stream route refuses too - a free account costs nothing and cannot reach a narration directly. Each implemented client renders an identical lock panel with NO button, since there is nowhere for one to go until billing exists. `GET /api/preferences` also returns `plan` |
 | Morning push notification carrying the verse text | ✅ 1.14.0, verse-text body + heads-up channel 1.17.0 | ❌ | 🟡 local reminder only | 🟡 local reminder only | Expo push; body is the KJV text itself and a tap while the app is running opens the Pick Up Your Cross screen. KNOWN GAP: a tap that cold-starts the app loses its deep link (upstream expo-notifications bug, see `usePushNotifications.ts`). macOS shows a local daily reminder that carries no verse and opens the Daily Cross; carrying the verse needs an APNs key from the paid Apple Developer Program. iOS is the same story: the app registers for remote notifications, but the target ships no `aps-environment` entitlement, so APNs never delivers a token and the local reminder (tap → Daily Cross sheet) is the delivery path |
 
 ## Notes
@@ -202,4 +206,4 @@ cannot honestly turn those cells green.
 1. Ship it on Android first (`mobile/`), bump `mobile/app.json` version + `mobile/CHANGELOG.md`.
 2. Port it to web, macOS and iOS in the same release cycle — same endpoints, same behavior; adapt only layout idioms.
 3. Update this file's tables; every client's cell must be ✅ before the release is done.
-4. Verify web with `pnpm lint` / `pnpm build`; Android with `cd mobile && npm run typecheck && npm test`; macOS with `cd macos && xcodegen && xcodebuild -scheme SureWord -destination 'platform=macOS' -derivedDataPath build test`; iOS with `cd macos && xcodebuild -scheme SureWord-iOS -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build-ios test`.
+4. Verify web with `pnpm lint` / `pnpm build`; Android with `cd mobile && npm run typecheck && npm test`; macOS with `cd macos && xcodegen && xcodebuild -scheme SureWord -destination 'platform=macOS' -derivedDataPath build.noindex test`; iOS with `cd macos && xcodebuild -scheme SureWord-iOS -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build-ios.noindex test`. Apple simulator/build checks do not substitute for device, runtime, or distribution proof.

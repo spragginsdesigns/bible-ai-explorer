@@ -478,7 +478,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 						<Text style={styles.lockTitle}>Listen is part of SureWord Pro</Text>
 						<Text style={styles.lockBody}>
 							A spoken devotional for every day&apos;s word, ready when you wake up.
-							Coming soon.
+							Self-service SureWord Pro access isn&apos;t available yet.
 						</Text>
 					</>
 				) : phase === "preparing" ? (
