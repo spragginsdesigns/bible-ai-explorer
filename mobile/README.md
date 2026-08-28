@@ -12,10 +12,10 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current release:** 1.39.0 (Android versionCode 37, tag
-`android-v1.39.0`). The release adds SureWord's custom AI guide and keeps each
-answer's thinking/tool activity inside one assistant row. It is published from
-one signed AAB/APK pair through `push-phone.sh --skip-build`.
+**Current release:** 1.40.0 (Android versionCode 38, tag
+`android-v1.40.0`). The release gives the Chat composer balanced clearance
+above the navigation bar, a unified lighter surface, and a restrained halo. It
+is published from one signed AAB/APK pair through `push-phone.sh --skip-build`.
 
 ## Stack
 

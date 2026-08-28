@@ -69,12 +69,13 @@ that APK automatically, so no site version constant is updated by hand.
 
 ## Current source status (2026-08-28)
 
-The checked-in Android source and current internal release are `1.39.0` /
-versionCode `37` (`mobile/app.json`, tag `android-v1.39.0`). The release adds
-SureWord's custom AI guide and fixes duplicate assistant rows during status and
-tool activity. It is built and published from one bound AAB/APK pair through
-`push-phone.sh --skip-build`; the matching `SureWord.apk` SHA-256 is
-`2a1ef634042b33c848382008349f00fbf5a58fb5709dfa6b18e391687cafd5bb`.
+The checked-in Android source and current internal release are `1.40.0` /
+versionCode `38` (`mobile/app.json`, tag `android-v1.40.0`). The release gives
+the Chat composer balanced clearance above the navigation bar, a unified
+lighter surface, and a restrained halo. It is built and published from one
+bound AAB/APK pair through `push-phone.sh --skip-build`; the matching
+`SureWord.apk` SHA-256 is
+`7646d5eb080437b8f53460d69122366eb62bd771e8854a7fd0e209ad7b40ceb6`.
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes

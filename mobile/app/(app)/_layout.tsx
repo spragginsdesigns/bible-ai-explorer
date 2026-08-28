@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, type Colors } from "@/theme";
+import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
@@ -153,7 +154,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 			gap: 3,
-			minHeight: 52,
+			minHeight: TAB_BAR_ITEM_HEIGHT,
 			borderRadius: radius.lg,
 		},
 		tabItemActive: {

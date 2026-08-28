@@ -3,12 +3,15 @@ import { Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing } from "@/theme";
 
+/** Height of each tab target rendered by app/(app)/_layout.tsx. */
+export const TAB_BAR_ITEM_HEIGHT = 52;
+
 /**
- * Height of the glass tab bar rendered by app/(app)/_layout.tsx, excluding the
- * safe-area padding beneath it. The bar is absolutely positioned, so screens
- * have to reserve this space themselves.
+ * Full height of the tab bar rendered by app/(app)/_layout.tsx, excluding the
+ * safe-area padding beneath it. Include the bar's vertical padding so screens
+ * reserve the real visible height instead of consuming their intended gap.
  */
-const TAB_BAR_HEIGHT = 52;
+export const TAB_BAR_HEIGHT = TAB_BAR_ITEM_HEIGHT + spacing.xs * 2;
 
 /** Vertical space the floating tab bar occupies at the bottom of a screen. */
 export function useTabBarSpace(): number {

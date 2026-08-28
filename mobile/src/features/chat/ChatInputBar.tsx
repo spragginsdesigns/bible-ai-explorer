@@ -374,19 +374,29 @@ const createStyles = (c: Colors) =>
 			gap: spacing.sm,
 			padding: spacing.sm,
 			paddingLeft: spacing.lg,
-			backgroundColor: c.glassLight,
+			backgroundColor: c.surfaceStrong,
 			borderColor: c.borderStrong,
-			borderWidth: StyleSheet.hairlineWidth,
+			borderWidth: 1,
 			borderRadius: radius.xl,
+			// A restrained light halo separates the composer from the black canvas.
+			boxShadow: [
+				{
+					offsetX: 0,
+					offsetY: 0,
+					blurRadius: 10,
+					spreadDistance: 0,
+					color: c.borderStrong,
+				},
+			],
 		},
 		barProminent: {
-			backgroundColor: c.glass,
 			borderColor: c.accentBorder,
 			borderWidth: 1,
 		},
 		input: {
 			paddingTop: spacing.md,
 			paddingBottom: spacing.md,
+			backgroundColor: "transparent",
 			color: c.text,
 			fontSize: 15,
 			lineHeight: 21,

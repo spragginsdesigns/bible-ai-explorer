@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.40.0 (versionCode 38) - 2026-08-28 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- The Chat question box now has balanced spacing above the navigation bar
+- A lighter surface and subtle glow make the question box easier to see
+
+**Dev notes:** The shared tab-bar metric now includes its vertical padding, preserving the intended composer gap. The native composer uses a stronger surface, border, and theme-aware halo.
+
+---
+
 ## 1.39.0 (versionCode 37) - 2026-08-28 - internal
 
 **What's new (Play):**
