@@ -5,6 +5,10 @@ import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { SureWordUIMessage } from "@/lib/ai-tools";
 import {
+	isRenderableChatMessage,
+	streamingAssistantId,
+} from "@/lib/chat/message-display";
+import {
 	dbMessageToUIMessage,
 	toViewMessage,
 	type ChatMessage,
@@ -131,18 +135,17 @@ export function useNoteAI(
 	const loading = status === "submitted" || historyLoading;
 
 	const messages: ChatMessage[] = useMemo(() => {
-		const lastAssistantId = [...uiMessages]
-			.reverse()
-			.find((message) => message.role === "assistant")?.id;
+		const busy = isStreaming || status === "submitted";
+		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
 		const viewMessages = uiMessages.map((message) =>
 			toViewMessage(message, {
 				isStreaming:
-					(isStreaming || status === "submitted") &&
+					busy &&
 					message.role === "assistant" &&
-					message.id === lastAssistantId,
+					message.id === activeAssistantId,
 			})
-		);
+		).filter(isRenderableChatMessage);
 
 		if (status === "submitted" && viewMessages.at(-1)?.role === "user") {
 			viewMessages.push({

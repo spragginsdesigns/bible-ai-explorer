@@ -17,9 +17,9 @@ import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import {
-	createStatusWriter,
 	hasPersistableContent,
 	persistableParts,
+	startStatusNarration,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { joinAssistantTextParts } from "@/utils/assistantMarkdown";
@@ -183,9 +183,10 @@ export async function POST(req: Request): Promise<Response> {
 			);
 		}
 
+		const responseMessageId = generateMessageId();
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: messages,
-			generateId: generateMessageId,
+			generateId: () => responseMessageId,
 			onError: (error) => {
 				if (!(error instanceof UserFacingError || error instanceof AiCredentialError)) {
 					console.error("note-ai stream error:", error);
@@ -204,7 +205,7 @@ export async function POST(req: Request): Promise<Response> {
 				);
 			},
 			execute: async ({ writer }) => {
-				const writeStatus = createStatusWriter(writer);
+				const writeStatus = startStatusNarration(writer, responseMessageId);
 				writeStatus("Getting ready");
 
 				const [memories, church] = await Promise.all([
@@ -243,6 +244,7 @@ export async function POST(req: Request): Promise<Response> {
 					toUIMessageStream<SureWordTools, SureWordUIMessage>({
 						stream: result.stream,
 						tools,
+						sendStart: false,
 					})
 				);
 			},

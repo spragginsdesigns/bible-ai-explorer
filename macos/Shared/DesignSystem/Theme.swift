@@ -212,6 +212,48 @@ extension View {
     }
 }
 
+// MARK: - AI guide
+
+/// The one visual identity for an assistant turn on macOS and iOS.
+struct SureWordGuideAvatar: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var size: CGFloat = 30
+    var active = false
+
+    @State private var pulse = false
+
+    private var shouldAnimate: Bool { active && !reduceMotion }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(theme.glass)
+                .overlay { Circle().strokeBorder(theme.accentBorder, lineWidth: 1) }
+
+            Image("SureWordGuide")
+                .resizable()
+                .scaledToFit()
+                .padding(size * 0.04)
+        }
+        .frame(width: size, height: size)
+        .scaleEffect(pulse ? 1.055 : 1)
+        .offset(y: pulse ? -1 : 0)
+        .animation(
+            shouldAnimate
+                ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+                : .easeOut(duration: 0.15),
+            value: pulse
+        )
+        .onAppear { pulse = shouldAnimate }
+        .onChange(of: active) { _, _ in pulse = shouldAnimate }
+        .onChange(of: reduceMotion) { _, _ in pulse = shouldAnimate }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("SureWord AI assistant")
+    }
+}
+
 // MARK: - Helpers
 
 extension Color {

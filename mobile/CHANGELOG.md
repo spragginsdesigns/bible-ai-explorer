@@ -14,6 +14,21 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.39.0 (versionCode 37) - 2026-08-28 - internal
+
+**What's new (Play):**
+
+NEW
+- SureWord now has a custom AI guide across Chat and Notes
+
+FIXED
+- Thinking and tool activity now stay in one clearly labeled assistant row
+- Chat no longer shows duplicate AI avatars while an answer starts
+
+**Dev notes:** Chat and Notes streams now open the persisted assistant id before status narration. Web, Android, macOS and iOS also discard legacy empty assistant shells and use the same guide artwork.
+
+---
+
 ## 1.38.1 (versionCode 36) - 2026-08-28 - internal
 
 **What's new (Play):**

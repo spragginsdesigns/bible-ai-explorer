@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Brain, Loader2, NotebookPen } from "lucide-react";
+import { Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -11,6 +11,7 @@ import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 import ChatFileAttachments from "./ChatFileAttachments";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
+import SureWordGuideAvatar from "./SureWordGuideAvatar";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -40,10 +41,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 
 	return (
 		<div className="flex gap-3 mb-4 animate-message-in">
-			<div className="flex-shrink-0 mt-1">
-				<div className="w-8 h-8 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center">
-					<Brain className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-				</div>
+			<div className="mt-1 flex-shrink-0">
+				<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
 			</div>
 			<div className="flex-1 min-w-0">
 				{message.content ? (

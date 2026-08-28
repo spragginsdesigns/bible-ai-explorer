@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import { radius, spacing } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -25,9 +26,7 @@ export function NoteAIMessage({ message }: { message: ChatViewMessage }) {
 
 	return (
 		<View style={styles.assistantRow}>
-			<View style={styles.avatar}>
-				<Text style={styles.avatarGlyph}>✦</Text>
-			</View>
+			<SureWordGuideAvatar size={26} active={Boolean(message.isStreaming)} />
 			<View style={styles.assistantBody}>
 				{/* The same normalizer the three other assistant renderers use;
 				    fb2eec4 wired it into chat and web but missed this panel. */}
@@ -72,18 +71,6 @@ const createStyles = (c: Colors) =>
 		userText: { color: c.text, fontSize: 14, lineHeight: 20 },
 
 		assistantRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-		avatar: {
-			width: 24,
-			height: 24,
-			borderRadius: 12,
-			marginTop: 2,
-			alignItems: "center",
-			justifyContent: "center",
-			backgroundColor: c.surface,
-			borderWidth: StyleSheet.hairlineWidth,
-			borderColor: c.borderStrong,
-		},
-		avatarGlyph: { color: c.accent, fontSize: 11 },
 		assistantBody: { flex: 1, minWidth: 0 },
 		activity: { color: c.textFaint, fontSize: 12, paddingVertical: 4 },
 

@@ -69,17 +69,12 @@ that APK automatically, so no site version constant is updated by hand.
 
 ## Current source status (2026-08-28)
 
-The checked-in Android source and current internal release are `1.38.1` /
-versionCode `36` (`mobile/app.json`, tag `android-v1.38.1`). On 2026-08-28 the
-publisher API accepted code 36 on the `internal` track, and the matching
-`SureWord.apk` was published to GitHub with SHA-256
-`1cf16be57b587375c4c674cd4922c44e433aea11e0d3d5aee8604c34f64232a0`.
-That confirms the internal/GitHub release, not production-track review,
-production availability, or tester installation.
-
-This release was built and published from a fresh bound AAB/APK pair with
-`push-phone.sh`. The default command now correctly treats 36 as the current
-code and prepares the next release as 37.
+The checked-in Android source and current internal release are `1.39.0` /
+versionCode `37` (`mobile/app.json`, tag `android-v1.39.0`). The release adds
+SureWord's custom AI guide and fixes duplicate assistant rows during status and
+tool activity. It is built and published from one bound AAB/APK pair through
+`push-phone.sh --skip-build`; the matching `SureWord.apk` SHA-256 is
+`2a1ef634042b33c848382008349f00fbf5a58fb5709dfa6b18e391687cafd5bb`.
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes

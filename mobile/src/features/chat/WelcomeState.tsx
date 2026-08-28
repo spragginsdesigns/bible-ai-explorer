@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef } from "react";
 import {
 	Animated,
 	Easing,
-	Image,
 	ImageBackground,
 	Pressable,
 	ScrollView,
@@ -11,6 +10,7 @@ import {
 	View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import { fonts, radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -94,15 +94,7 @@ export function WelcomeState({
 				resizeMode="cover"
 				accessibilityIgnoresInvertColors
 			>
-				<View style={styles.logoWell}>
-					<Image
-						source={require("../../../assets/icon.png")}
-						style={styles.logo}
-						resizeMode="cover"
-						accessibilityLabel="SureWord day star rising over an open Bible"
-						accessibilityIgnoresInvertColors
-					/>
-				</View>
+				<SureWordGuideAvatar variant="hero" size={154} />
 			</ImageBackground>
 
 			<View style={styles.scriptureBlock}>
@@ -177,27 +169,12 @@ const createStyles = (c: Colors) =>
 			paddingTop: spacing.xs,
 		},
 		art: {
-			height: 232,
+			height: 214,
 			alignItems: "center",
 			justifyContent: "center",
 			marginHorizontal: -spacing.xs,
 		},
 		artImage: { borderRadius: radius.sm },
-		logoWell: {
-			width: 112,
-			height: 112,
-			borderRadius: radius.full,
-			overflow: "hidden",
-			backgroundColor: "#0a0804",
-			borderColor: c.accentBorder,
-			borderWidth: 1,
-		},
-		logo: {
-			width: 112,
-			height: 112,
-			borderRadius: radius.full,
-			transform: [{ scale: 1.08 }],
-		},
 		scriptureBlock: {
 			marginTop: -spacing.sm,
 			paddingHorizontal: spacing.lg,

@@ -178,9 +178,11 @@ final class ChatViewModel {
     /// streaming, so earlier ones keep their settled follow-ups and cards.
     var messages: [ChatViewMessage] {
         let streamingID = Self.streamingAssistantID(in: uiMessages, isBusy: isBusy)
-        var views = uiMessages.map { message in
-            ChatViewMessage(message: message, isStreaming: message.id == streamingID)
-        }
+        var views = uiMessages
+            .map { message in
+                ChatViewMessage(message: message, isStreaming: message.id == streamingID)
+            }
+            .filter(\.hasRenderableContent)
 
         // Before the stream opens there is no assistant message yet — stand in
         // with a typing indicator so the send feels acknowledged. A recovery

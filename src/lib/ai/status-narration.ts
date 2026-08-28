@@ -11,6 +11,24 @@ const download = createDownload();
 export type StatusWriter = (label: string) => void;
 
 /**
+ * Open the one assistant turn that owns every status, tool call, and text
+ * chunk in this response.
+ *
+ * Status narration is written before `streamText` emits its own `start`
+ * chunk. Without this explicit start, the AI SDK first appends a client-id
+ * assistant message for the status part, then changes to the server id when
+ * the model stream opens and appends a second assistant row. The first row is
+ * empty after status cleanup, which is the duplicate avatar users saw.
+ */
+export function startStatusNarration(
+	writer: UIMessageStreamWriter<SureWordUIMessage>,
+	messageId: string
+): StatusWriter {
+	writer.write({ type: "start", messageId });
+	return createStatusWriter(writer);
+}
+
+/**
  * Every status write reuses one part id, so the client reconciles them into a
  * single line that updates in place instead of a growing list.
  */

@@ -44,6 +44,32 @@ export interface ChatViewMessage {
 	isStreaming?: boolean;
 }
 
+/** Only a trailing assistant turn can belong to the request in flight. */
+export function streamingAssistantId(
+	messages: readonly Pick<UIMessage, "id" | "role">[],
+	isBusy: boolean
+): string | undefined {
+	if (!isBusy) return undefined;
+	const last = messages.at(-1);
+	return last?.role === "assistant" ? last.id : undefined;
+}
+
+/** Remove settled assistant shells that would render as an avatar and nothing else. */
+export function isRenderableChatViewMessage(message: ChatViewMessage): boolean {
+	if (message.role === "user") return true;
+	return Boolean(
+		message.isStreaming ||
+		message.activity ||
+		message.content.trim() ||
+		message.attachments?.length ||
+		message.noteActions?.length ||
+		message.crossActions?.length ||
+		message.retrievedVerses?.length ||
+		message.tavilyResults?.length ||
+		message.followUps?.length
+	);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }

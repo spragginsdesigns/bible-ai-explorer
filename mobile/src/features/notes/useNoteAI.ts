@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { API_URL, makeAuthedFetch } from "@/lib/api";
-import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
+import {
+	dbMessageToUIMessage,
+	isRenderableChatViewMessage,
+	streamingAssistantId,
+	toViewMessage,
+	type ChatViewMessage,
+} from "@/lib/chatView";
 import * as api from "./api";
 import { useStableGetToken } from "./useStableGetToken";
 
@@ -158,18 +164,17 @@ export function useNoteAI(
 	}, [clearChatError, regenerate]);
 
 	const messages: ChatViewMessage[] = useMemo(() => {
-		const lastAssistantId = [...uiMessages]
-			.reverse()
-			.find((message) => message.role === "assistant")?.id;
+		const busy = isStreaming || status === "submitted";
+		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
 		const viewMessages = uiMessages.map((message) =>
 			toViewMessage(message, {
 				isStreaming:
-					(isStreaming || status === "submitted") &&
+					busy &&
 					message.role === "assistant" &&
-					message.id === lastAssistantId,
+					message.id === activeAssistantId,
 			})
-		);
+		).filter(isRenderableChatViewMessage);
 
 		if (status === "submitted" && viewMessages.at(-1)?.role === "user") {
 			viewMessages.push({

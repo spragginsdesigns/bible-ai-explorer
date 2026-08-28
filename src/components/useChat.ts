@@ -11,6 +11,10 @@ import {
 } from "@/lib/chat-attachment-types";
 import { completedHistory } from "@/lib/chat/answerRecovery";
 import {
+	isRenderableChatMessage,
+	streamingAssistantId,
+} from "@/lib/chat/message-display";
+import {
 	classifyChatError,
 	conversationStartError,
 	recoveryExhaustedError,
@@ -852,18 +856,17 @@ export const useChat = () => {
 	const loading = status === "submitted" || recovering;
 
 	const messages = useMemo(() => {
-		const lastAssistantId = [...uiMessages]
-			.reverse()
-			.find((message) => message.role === "assistant")?.id;
+		const busy = isStreaming || loading;
+		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
 		const viewMessages = uiMessages.map((message) =>
 			toViewMessage(message, {
 				isStreaming:
-					(isStreaming || loading) &&
+					busy &&
 					message.role === "assistant" &&
-					message.id === lastAssistantId,
+					message.id === activeAssistantId,
 			})
-		);
+		).filter(isRenderableChatMessage);
 
 		// While waiting for the stream to start there is no assistant message
 		// yet; show a typing indicator in its place.

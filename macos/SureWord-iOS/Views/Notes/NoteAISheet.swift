@@ -228,12 +228,7 @@ private struct NoteAIMessageView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         } else {
             HStack(alignment: .top, spacing: Spacing.sm) {
-                Image(systemName: "sparkles")
-                    .font(.caption2)
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 22, height: 22)
-                    .background(theme.surface, in: .circle)
-                    .overlay { Circle().strokeBorder(theme.borderStrong, lineWidth: 1) }
+                SureWordGuideAvatar(size: 22, active: message.isStreaming)
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {
@@ -314,4 +309,3 @@ private struct NoteMarkdownText: View {
         }
     }
 }
-

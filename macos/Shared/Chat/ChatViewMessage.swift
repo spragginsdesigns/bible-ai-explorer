@@ -90,6 +90,21 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     var matchStrength: MatchStrength? {
         averageSimilarity.map(MatchStrength.init(average:))
     }
+
+    /// A settled assistant shell has no UI except an otherwise duplicate avatar.
+    var hasRenderableContent: Bool {
+        if role == .user { return true }
+        guard role == .assistant else { return false }
+        return isStreaming
+            || activity != nil
+            || !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !tavilyResults.isEmpty
+            || !retrievedVerses.isEmpty
+            || !followUps.isEmpty
+            || !noteActions.isEmpty
+            || !crossActions.isEmpty
+            || !attachments.isEmpty
+    }
 }
 
 extension ChatViewMessage {

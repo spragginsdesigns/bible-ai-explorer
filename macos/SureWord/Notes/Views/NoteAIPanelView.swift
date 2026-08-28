@@ -218,12 +218,7 @@ struct NoteAIMessageView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         } else {
             HStack(alignment: .top, spacing: Spacing.sm) {
-                Text("✦")
-                    .font(.system(size: 10))
-                    .foregroundStyle(theme.accent)
-                    .frame(width: 20, height: 20)
-                    .background(theme.surface, in: .circle)
-                    .overlay { Circle().strokeBorder(theme.borderStrong, lineWidth: 1) }
+                SureWordGuideAvatar(size: 20, active: message.isStreaming)
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {

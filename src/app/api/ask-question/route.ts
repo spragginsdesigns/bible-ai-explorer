@@ -29,9 +29,9 @@ import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/err
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
 	createNarratedDownload,
-	createStatusWriter,
 	hasPersistableContent,
 	persistableParts,
+	startStatusNarration,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { isReasoningEffort } from "@/lib/ai/models";
@@ -512,9 +512,10 @@ export async function POST(req: Request): Promise<Response> {
 		// records the model that actually wrote it.
 		let resolvedModelId: string | null = null;
 
+		const responseMessageId = generateMessageId();
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
-			generateId: generateMessageId,
+			generateId: () => responseMessageId,
 			onError: (error) => {
 				if (!(error instanceof UserFacingError)) {
 					console.error("ask-question stream error:", error);
@@ -546,7 +547,7 @@ export async function POST(req: Request): Promise<Response> {
 				);
 			},
 			execute: async ({ writer }) => {
-				const writeStatus = createStatusWriter(writer);
+				const writeStatus = startStatusNarration(writer, responseMessageId);
 				writeStatus("Getting ready");
 
 				if (hasAttachments) writeStatus("Opening your attachments");
@@ -628,6 +629,7 @@ export async function POST(req: Request): Promise<Response> {
 					toUIMessageStream<SureWordTools, SureWordUIMessage>({
 						stream: result.stream,
 						tools,
+						sendStart: false,
 					})
 				);
 			},

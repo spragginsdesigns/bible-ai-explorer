@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import type { ChatViewMessage } from "@/lib/chatView";
 import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing } from "@/theme";
@@ -72,9 +73,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 
 	return (
 		<View style={styles.assistantRow}>
-			<View style={styles.avatar}>
-				<Text style={styles.avatarGlyph}>✦</Text>
-			</View>
+			<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
 			<View style={styles.assistantBody}>
 				{message.content ? (
 					<MarkdownBody
@@ -164,18 +163,6 @@ const createStyles = (c: Colors) =>
 			gap: spacing.md,
 			marginBottom: spacing.xl,
 		},
-		avatar: {
-			width: 30,
-			height: 30,
-			borderRadius: radius.full,
-			alignItems: "center",
-			justifyContent: "center",
-			backgroundColor: c.surface,
-			borderColor: c.borderStrong,
-			borderWidth: StyleSheet.hairlineWidth,
-			marginTop: 2,
-		},
-		avatarGlyph: { color: c.accent, fontSize: 14 },
 		assistantBody: { flex: 1, minWidth: 0 },
 		activityRow: {
 			flexDirection: "row",

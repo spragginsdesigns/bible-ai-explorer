@@ -22,7 +22,7 @@ and the daily walk follow the account.
 ## Clients and parity
 
 - **Android** (`mobile/`, Expo / React Native) is the primary client and first
-  acceptance target. The current checked-in version is **1.38.1 (versionCode 36)**.
+  acceptance target. The current checked-in version is **1.39.0 (versionCode 37)**.
 - **Web** (`src/`, Next.js) runs at [sureword.app](https://sureword.app).
 - **macOS** (`macos/SureWord/`, SwiftUI) is the native desktop client; the current
   project version is **1.6.0**.

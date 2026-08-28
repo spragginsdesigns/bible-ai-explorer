@@ -1,82 +1,70 @@
-# Historical: Android UI design QA
+# SureWord AI Guide Design QA
 
-> **Historical QA record — not a current release sign-off.** These captures and
-> comparisons document earlier Android review runs. Some source images live in
-> local or excluded Codex attachment paths and may not be available on another
-> machine. Re-run the relevant flow against the current build before treating a
-> result as release evidence.
+## Findings
 
-## Source truth
+- No actionable P0, P1, or P2 differences remain. The implementation preserves the selected character identity at the approved smaller scale and passes dark, light, compact, streaming, settled, accessibility, and Reduce Motion checks.
 
-- Bottom navigation failure: `.codex-remote-attachments/019ff287-ec2c-7180-b843-c1a8cf01d1f4/2f3f2f94-6af4-4e91-835d-e65c2b0b378e/1-Photo-1.jpg`
-- Stock attachment alert failure: `.codex-remote-attachments/019ff287-ec2c-7180-b843-c1a8cf01d1f4/67d7289b-6c68-4a31-8b74-99417f7023a4/1-Photo-1.jpg`
-- Accepted SureWord attachment sheet: `.codex-remote-attachments/019ff287-ec2c-7180-b843-c1a8cf01d1f4/46c5121b-c828-44ac-958a-f4f9341bd2f0/1-Photo-1.jpg`
-- NKJV inline-markup failure: `.codex-remote-attachments/019ff287-ec2c-7180-b843-c1a8cf01d1f4/46c5121b-c828-44ac-958a-f4f9341bd2f0/2-Photo-2.jpg`
+## Comparison target
 
-## Implementation evidence
+- Source visual truth: `C:\Users\Owner\.codex\generated_images\01a04963-caf7-7c33-8f77-36112e288b47\exec-4ee401c0-be78-47cf-9b89-acde65d5188f.png`
+- Implemented welcome capture: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\qa-welcome-dark.png`
+- Implemented chat capture: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\qa-chat-static.png`
+- Implemented Notes capture: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\qa-notes-dark.png`
+- Light-theme capture: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\qa-welcome-light.png`
+- Full comparison: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\comparison-full.png`
+- Focused hero comparison: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\comparison-hero.png`
+- Focused compact-avatar comparison: `C:\Users\Owner\AppData\Local\Temp\sureword-avatar-qa\comparison-avatar.png`
 
-- Physical Android screenshot: `.vercel/proof/bible-inline-italics-fixed-device.png`
-- Viewport: 1080 x 2340, dark appearance, NKJV, 1 Peter 1.
-- UI tree: verse 3 exposes `Blessed be the God...` with no raw markup; the
-  rendered screenshot shows only `be` in Cormorant Garamond italic.
-- Navigation: the same screenshot and UI tree show only Chat, Bible, and Notes,
-  with Bible selected.
-- Attachment sheet: the accepted device screenshot shows the branded dark
-  bottom sheet with camera, photo library, file, and clipboard sources.
+## Viewport and normalization
 
-## Diff history
+- Source pixels: 853 x 1844, generated for a 390 x 844 logical mobile viewport.
+- Implementation pixels: 1080 x 2400 on an Android 15 emulator at 420 dpi, approximately 411 x 914 dp including system bars.
+- Full-view comparison: both images normalized to 1200 px high and appended horizontally.
+- Focused hero comparison: source and implementation character regions normalized to 500 x 500 px.
+- Focused compact-avatar comparison: source and implementation assistant-avatar regions normalized to 240 x 240 px.
+- State: dark welcome, settled answer, active answer, Notes AI, light welcome, motion enabled, and Reduce Motion enabled.
+- The source is a conceptual chat composition while the shipped welcome screen retains SureWord's existing Scripture/composer/suggested-question flow. Full-view comparison therefore evaluates character identity, scale, palette, and hierarchy; the focused comparisons are the fidelity authority for the avatar itself.
 
-1. Failed: route discovery rendered push-only Settings and Memories entries in
-   the custom tab bar.
-2. Fixed: the tab bar now uses an explicit three-route allowlist and matching
-   Ionicons.
-3. Failed: attachment selection used a stock Android Material alert.
-4. Fixed: source selection now uses SureWord's existing dark bottom-sheet
-   primitive and tokens.
-5. Failed: the NKJV provider's `<i>be</i>` markup rendered literally.
-6. Fixed: supported emphasis is parsed into safe native text spans, while
-   downstream plain-text actions receive tag-free text.
+## Fidelity review
 
-## Result
+- Fonts and typography: the implementation preserves the existing Pirata One wordmark, Cormorant Garamond Scripture treatment, and system UI font. No product copy or text hierarchy was replaced by image content.
+- Spacing and layout rhythm: the hero is 154 dp inside the existing 214 dp stained-glass panel, matching the approved 150-170 dp range without consuming the first viewport. Compact chat and Notes avatars are 32 dp and 26 dp respectively.
+- Colors and visual tokens: parchment-gold pages, amber day-star, midnight blue, oxblood, and near-black surfaces match the selected direction in dark mode. The same RGBA asset remains legible without a dark rectangle in light mode.
+- Image quality and asset fidelity: `mobile/assets/sureword-guide.png` is a 768 x 768 truecolor RGBA PNG. Dark, light, hero, and compact captures show clean transparency, sharp star geometry, readable page edges, and no compression or alpha halos.
+- Copy and content: existing welcome Scripture, composer, suggested questions, chat markdown, and Notes AI content remain unchanged. Only the previous icon/glyph artwork was replaced.
+- Interaction states: the hero uses a slow breathing motion; only the currently streaming assistant avatar pulses; settled historical messages remain static. Two active-state captures differed visually. With Android Reduce Motion enabled, the same avatar crop was pixel-identical across captures (`0 (0)` comparison result).
+- Accessibility: Android's UI tree exposes `SureWord AI guide, a golden day star held by folded pages` for the hero and `SureWord AI assistant` for compact avatars.
+- Runtime: the normal credential-free release APK contains no QA marker, launches through the production auth route, and produced no app-process fatal, script-load, or React Native error matches. The emulator's Google Play Services image reports `SERVICE_NOT_AVAILABLE` for Firebase token retrieval; this is an AVD service issue outside the avatar path and did not crash SureWord.
 
-The physical-device comparison matches the requested dark SureWord treatment,
-the reported formatting defect is absent, and the user confirmed the fix.
+## Comparison history
 
-final result: passed
+1. Initial concept feedback: the selected guide consumed too much vertical space.
+2. Approved visual revision: the guide was reduced to roughly two-thirds of the original concept size.
+3. Implementation pass: the real hero was fixed at 154 dp, compact avatars were added to chat and Notes AI, and animation was gated by streaming state and Reduce Motion.
+4. Post-fix visual evidence: dark welcome, light welcome, settled answer, active answer, and Notes AI captures showed no remaining P0/P1/P2 issue.
 
----
+## Primary interactions tested
 
-# SureWord welcome redesign QA
+- Switched between welcome, chat, and Notes AI states using UI-tree-derived tap coordinates.
+- Switched dark and light themes.
+- Verified active avatar motion with two timed captures.
+- Verified Reduce Motion by disabling Android animations and obtaining an identical two-capture avatar crop.
+- Verified settled avatars remain static and readable.
 
-## Source truth
+## Cross-platform assistant-turn regression
 
-- Selected concept: `/Users/spragginsdesigns/.codex/generated_images/01a03c39-aaa1-78c3-8c30-0bc364cc3878/exec-3bea1e53-9c1e-48cc-a702-1420d457eded.png`
-- Android implementation capture: `/tmp/sureword-welcome-preview-dark-9s.png`
-- Normalized side-by-side comparison: `/Users/spragginsdesigns/.codex/visualizations/2026/08/26/01a03c39-aaa1-78c3-8c30-0bc364cc3878/sureword-design-qa-side-by-side.png`
-- Viewport: 1080 x 2400 Pixel 7 API 36, dark appearance.
+- Reported source: `C:\Users\Owner\Documents\Github_Repositories\bible-ai-explorer\.codex-remote-attachments\01a04963-caf7-7c33-8f77-36112e288b47\cb8079f4-ff71-4626-8e6f-b0b2bfca830c\1-Photo-1.jpg`.
+- Android reproduction capture after the fix: `C:\Users\Owner\AppData\Local\Temp\sureword-duplicate-avatar-qa\assistant-turn-qa.png`.
+- Confirmed cause: `data-status` arrived before the response `start`, so the AI SDK appended a temporary-id assistant row and then appended the persisted-id row when the model stream opened.
+- Server fix: chat and Notes streams now open the persisted assistant id before the first status and suppress the model stream's later start chunk.
+- Client guard: web, Android, macOS, and iOS discard settled assistant shells with no content, activity, attachment, card, or action. Only a trailing assistant message can be marked streaming.
+- Label behavior: tool/status activity remains inside the single assistant turn as visible text such as `Thinking...` or `Searching the Scriptures...`; it is not presented as a second avatar.
+- Android UI-tree proof: one `SureWord AI assistant` node, one `Thinking...` label, and one visible assistant row for the exact orphan-plus-active input shape. App-process error matches: zero.
+- Web proof: optimized Next.js production build passed after the cross-platform change.
+- Apple proof available on Windows: Swift source contracts, shared asset catalogs, 1x/2x/3x RGBA images, and mirrored macOS/iOS view wiring passed static regression tests. Xcode compilation remains the Mac-only shipping gate.
 
-## Axes
+## Follow-up polish
 
-- Layout: passed. Header, stained-glass hero, illuminated verse, prominent
-  composer, question hierarchy, and three-tab dock follow the selected concept.
-- Visual: passed. Black, sapphire, burgundy, antique gold, parchment type, and
-  restrained borders preserve the Living Manuscript plus Cathedral Light direction.
-- Interaction: passed. UI automation exposed all five preview question buttons;
-  selecting the featured question moved it into the real chat flow.
-- Content: passed. The implementation consumes `useSuggestedQuestions()`, promotes
-  the first returned question, and maps every remaining returned question in order.
-- Accessibility: passed. Question rows expose their complete question as button
-  labels; icon-only header and composer controls retain explicit labels.
-- Responsive fit: passed at 1080 x 2400 in both dark and light system appearance.
-  Real generated prompts are intentionally allowed to wrap instead of being
-  shortened to match the compact concept copy.
-
-## Verification boundary
-
-The visual capture used a temporary local preview array because the clean emulator
-had no Clerk session. That preview-only instrumentation was reverted. The production
-API mapping is covered by source inspection and the unit test that preserves every
-generated question in its original order; an authenticated live API response was not
-exercised on this emulator.
+- P3: the compact illustration necessarily loses some orbit-line detail at 26 dp, but the day-star and folded-page silhouette remain recognizable. No change is recommended unless a future round introduces a separately simplified micro-avatar asset.
 
 final result: passed

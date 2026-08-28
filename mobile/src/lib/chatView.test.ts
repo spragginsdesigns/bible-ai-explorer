@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	dbMessageToUIMessage,
+	isRenderableChatViewMessage,
 	parseFollowUps,
+	streamingAssistantId,
 	toViewMessage,
 	visibleResponseContent,
 } from "@/lib/chatView";
@@ -10,6 +12,29 @@ vi.mock("ai", () => ({})); // type-only import; keep vitest from resolving the p
 
 const textMessage = (id: string, role: "user" | "assistant", text: string, extra = {}) =>
 	({ id, role, parts: [{ type: "text", text }], ...extra }) as never;
+
+describe("assistant turn display", () => {
+	it("streams only a trailing assistant turn", () => {
+		expect(streamingAssistantId([
+			{ id: "a1", role: "assistant" },
+			{ id: "u2", role: "user" },
+		], true)).toBeUndefined();
+		expect(streamingAssistantId([
+			{ id: "a1", role: "assistant" },
+			{ id: "u2", role: "user" },
+			{ id: "a2", role: "assistant" },
+		], true)).toBe("a2");
+	});
+
+	it("hides only settled assistant shells with nothing to render", () => {
+		const empty = { id: "a", role: "assistant" as const, content: "" };
+		expect(isRenderableChatViewMessage(empty)).toBe(false);
+		expect(isRenderableChatViewMessage({ ...empty, isStreaming: true })).toBe(true);
+		expect(isRenderableChatViewMessage({ ...empty, activity: "Thinking" })).toBe(true);
+		expect(isRenderableChatViewMessage({ ...empty, content: "Answer" })).toBe(true);
+		expect(isRenderableChatViewMessage({ ...empty, retrievedVerses: [{ reference: "John 3:16", similarity: 1 }] })).toBe(true);
+	});
+});
 
 describe("visibleResponseContent", () => {
 	it("strips the follow-up block from the end", () => {

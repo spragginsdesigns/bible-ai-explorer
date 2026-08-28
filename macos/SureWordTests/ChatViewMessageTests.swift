@@ -11,6 +11,16 @@ struct ChatViewMessageTests {
         UIMessage(id: id, role: role, parts: [.text(id: "t", text: text)])
     }
 
+    @Test("A settled empty assistant shell has no renderable content")
+    func emptyAssistantShellIsHidden() {
+        let empty = ChatViewMessage(id: "a", role: .assistant, content: "")
+        #expect(!empty.hasRenderableContent)
+        #expect(ChatViewMessage(id: "a", role: .assistant, content: "", isStreaming: true).hasRenderableContent)
+        #expect(ChatViewMessage(id: "a", role: .assistant, content: "", activity: "Thinking").hasRenderableContent)
+        #expect(ChatViewMessage(id: "a", role: .assistant, content: "Answer").hasRenderableContent)
+        #expect(ChatViewMessage(id: "u", role: .user, content: "").hasRenderableContent)
+    }
+
     // MARK: visibleResponseContent
 
     @Test("Strips the follow-up block from the end")

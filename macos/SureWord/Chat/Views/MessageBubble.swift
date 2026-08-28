@@ -21,7 +21,10 @@ struct MessageBubble: View {
             if isUser {
                 userBubble
             } else {
-                assistantBody
+                HStack(alignment: .top, spacing: Spacing.md) {
+                    SureWordGuideAvatar(size: 30, active: message.isStreaming)
+                    assistantBody
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
@@ -65,7 +68,6 @@ struct MessageBubble: View {
             // Tool activity, shown only while the answer is still being written.
             if let activity = message.activity {
                 HStack(spacing: Spacing.sm) {
-                    Text("✦").foregroundStyle(theme.accent)
                     Text(activity).foregroundStyle(theme.textMuted)
                     TypingDots()
                 }

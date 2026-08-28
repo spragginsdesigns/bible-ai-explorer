@@ -1,6 +1,6 @@
 {
 	"name": "sureword-mobile",
-	"version": "1.38.1",
+	"version": "1.39.0",
 	"main": "expo-router/entry",
 	"scripts": {
 		"postinstall": "patch-package --error-on-fail",

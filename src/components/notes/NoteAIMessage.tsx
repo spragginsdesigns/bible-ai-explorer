@@ -1,10 +1,11 @@
 "use client";
 
 import React from "react";
-import { Brain, Loader2, NotebookPen } from "lucide-react";
+import { Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "../FormattedResponse";
 import type { ChatMessage } from "../useChat";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
+import SureWordGuideAvatar from "../SureWordGuideAvatar";
 
 interface NoteAIMessageProps {
 	message: ChatMessage;
@@ -25,10 +26,8 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 
 	return (
 		<div className="flex gap-2 mb-3 animate-message-in">
-			<div className="flex-shrink-0 mt-1">
-				<div className="w-6 h-6 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
-					<Brain className="w-3 h-3 text-amber-400" />
-				</div>
+			<div className="mt-1 flex-shrink-0">
+				<SureWordGuideAvatar size={24} active={Boolean(message.isStreaming)} />
 			</div>
 			<div className="flex-1 min-w-0">
 				{message.content ? (

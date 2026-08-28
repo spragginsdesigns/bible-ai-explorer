@@ -8,7 +8,13 @@ import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
-import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
+import {
+	dbMessageToUIMessage,
+	isRenderableChatViewMessage,
+	streamingAssistantId,
+	toViewMessage,
+	type ChatViewMessage,
+} from "@/lib/chatView";
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { markConversationStopped } from "@/features/notifications/chatStopSignals";
 import { completedHistory } from "./answerRecovery";
@@ -656,18 +662,17 @@ export function useSureWordChat(): SureWordChat {
 	const loading = status === "submitted" || recovering;
 
 	const messages = useMemo(() => {
-		const lastAssistantId = [...uiMessages]
-			.reverse()
-			.find((message) => message.role === "assistant")?.id;
+		const busy = isStreaming || loading;
+		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
 		const viewMessages = uiMessages.map((message) =>
 			toViewMessage(message, {
 				isStreaming:
-					(isStreaming || loading) &&
+					busy &&
 					message.role === "assistant" &&
-					message.id === lastAssistantId,
+					message.id === activeAssistantId,
 			})
-		);
+		).filter(isRenderableChatViewMessage);
 
 		// Before the stream opens there is no assistant message yet — stand in
 		// with a typing indicator.
