@@ -69,19 +69,17 @@ that APK automatically, so no site version constant is updated by hand.
 
 ## Current source status (2026-08-28)
 
-The checked-in Android source is now `1.38.0` / versionCode `35`
-(`mobile/app.json`), prepared for the next internal release. The latest local
-release tag remains `android-v1.37.1`, which points to the Android
-replacement-screen hotfix. This is repository/tag evidence, **not live Play
-verification**. Play Console track state, tester availability, listing
-completion, and review status are not asserted here and must be checked in
-Console before communicating them as live.
+The checked-in Android source and current internal release are `1.38.0` /
+versionCode `35` (`mobile/app.json`, tag `android-v1.38.0`). On 2026-08-28 the
+publisher API accepted code 35 on the `internal` track, and the matching
+`SureWord.apk` was published to GitHub with SHA-256
+`b16544fdf924c74e5f3f10c4a1b5f2605b246c07c89c4a85e8b40f9e66c5b4be`.
+That confirms the internal/GitHub release, not production-track review,
+production availability, or tester installation.
 
-The 1.38.0 AAB/APK pair has already been built and bound to versionCode 35 in
-`release-artifacts.env`, so this release must be published with
-`bash mobile/scripts/push-phone.sh --skip-build` after its source commit is on
-`main`. Running the default command now would correctly treat 35 as the current
-code and prepare the *next* release as 36.
+This release was prebuilt and published from its bound AAB/APK pair with
+`push-phone.sh --skip-build`. The default command now correctly treats 35 as
+the current code and prepares the next release as 36.
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes

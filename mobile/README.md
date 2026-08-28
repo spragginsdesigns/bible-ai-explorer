@@ -12,11 +12,11 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current source release:** 1.38.0 (Android versionCode 35, prepared for the
-next internal release). The latest local release tag remains `android-v1.37.1`;
-see `docs/PLAY_STORE.md` for the separately verified or unverified Play status.
-The 1.38.0 artifacts are already bound to code 35, so publish this prepared pair
-with `push-phone.sh --skip-build`; the default command is for the next bump.
+**Current release:** 1.38.0 (Android versionCode 35, tag
+`android-v1.38.0`). The publisher API accepted it on the Play internal track on
+2026-08-28, and GitHub serves the matching APK. The release used the prebuilt
+pair through `push-phone.sh --skip-build`; the default command now prepares the
+next versionCode bump.
 
 ## Stack
 
