@@ -432,7 +432,7 @@ Backgrounding the app and locking the phone are what keep playing.
 | Variable | Required | Meaning |
 |---|---|---|
 | `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and both clients hide the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
-| `ELEVENLABS_VOICE_ID` | no | Overrides the default voice without a deploy. Default `JBFqnCBsd6RMkjVDRZzb` ("George", ElevenLabs' own default library voice used in their quickstart) - warm, unhurried, mature male narration |
+| `ELEVENLABS_VOICE_ID` | no | Overrides the default voice per environment. Default `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations") - casual, natural American conversational delivery |
 | `PRO_USER_IDS` | no | Comma-separated Clerk ids granted SureWord Pro without a `User.plan` write. Wins over the column. With neither set, every account is free and Listen renders the locked panel for everyone |
 
 ### Surfaces

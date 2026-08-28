@@ -299,7 +299,7 @@ Also required in `.env.local`:
   generated on the user's first tap and never by the morning cron. See
   `docs/FEATURES.md` → "Listen".
 - `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
-  `JBFqnCBsd6RMkjVDRZzb` ("George", an ElevenLabs default library voice).
+  `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations").
 - `GOOGLE_PLACES_API_KEY` - Google Places API (New), server-side only, for
   Settings → My church (`src/lib/google-places.ts`). Key lives in GCP project
   `versemind-auth`, restricted to `places.googleapis.com`; set in all three

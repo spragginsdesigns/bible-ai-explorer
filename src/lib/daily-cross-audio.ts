@@ -191,12 +191,11 @@ export async function generateDevotionalScript(
 }
 
 /**
- * "George" from the ElevenLabs default voice library - the voice their own API
- * quickstart reaches for. Warm, unhurried, mature male narration, which is what
- * a devotional read into someone's ear needs; the bright conversational voices
- * fight the material. `ELEVENLABS_VOICE_ID` overrides it without a deploy.
+ * "Mark - Natural Conversations" from the ElevenLabs voice library. Its casual,
+ * natural American delivery keeps the devotional personal rather than sounding
+ * like a formal audiobook. `ELEVENLABS_VOICE_ID` can override it per environment.
  */
-const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
+const DEFAULT_VOICE_ID = "UgBBYS2sOqTuMpoF3BR0";
 
 /**
  * ElevenLabs' stability-first model for long-form narration (10,000 characters
