@@ -1,6 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { AiProvider } from "@prisma/client";
 import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
@@ -26,6 +27,7 @@ export const DB_PROVIDER: Record<ProviderId, AiProvider> = {
 	openai: "OPENAI",
 	anthropic: "ANTHROPIC",
 	moonshot: "MOONSHOT",
+	openrouter: "OPENROUTER",
 };
 
 /** Thrown when the user picked a model they have no working credentials for. */
@@ -40,6 +42,7 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 	openai: "OpenAI",
 	anthropic: "Anthropic",
 	moonshot: "Moonshot",
+	openrouter: "OpenRouter",
 };
 
 function serverKeyFor(provider: ProviderId): string | undefined {
@@ -50,6 +53,8 @@ function serverKeyFor(provider: ProviderId): string | undefined {
 			return process.env.ANTHROPIC_API_KEY;
 		case "moonshot":
 			return process.env.MOONSHOT_API_KEY;
+		case "openrouter":
+			return process.env.OPENROUTER_API_KEY;
 	}
 }
 
@@ -120,6 +125,15 @@ function buildModel(
 				apiKey,
 				supportsStructuredOutputs: structured,
 			})(providerModelId);
+		case "openrouter":
+			// This is the same official adapter used by Learnest. It preserves
+			// OpenRouter's unified reasoning options, tools, file parts and JSON
+			// schemas while attributing traffic to SureWord.
+			return createOpenRouter({
+				apiKey,
+				appName: "SureWord",
+				appUrl: "https://sureword.app",
+			})(providerModelId);
 	}
 }
 
@@ -139,6 +153,8 @@ function buildProviderOptions(
 			return { anthropic: effort ? { effort } : {} };
 		case "moonshot":
 			return { moonshot: effort ? { reasoningEffort: effort } : {} };
+		case "openrouter":
+			return effort ? { openrouter: { reasoning: { effort } } } : {};
 	}
 }
 

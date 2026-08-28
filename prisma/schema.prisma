@@ -76,6 +76,7 @@ enum AiProvider {
   OPENAI
   ANTHROPIC
   MOONSHOT
+  OPENROUTER
 }
 
 /// A user's own API key for an AI provider (BYOK). The key is encrypted at

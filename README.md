@@ -60,7 +60,7 @@ capabilities.
 | Layer | Technology |
 |---|---|
 | Web/API | Next.js 15.5.21 (App Router), TypeScript |
-| AI | Vercel AI SDK 7 with OpenAI, Anthropic, and Moonshot providers |
+| AI | Vercel AI SDK 7 with OpenAI, Anthropic, Moonshot, and OpenRouter providers |
 | Data | Neon Postgres via Prisma, including pgvector embeddings |
 | Auth | Clerk |
 | Search | Tavily for optional supplementary web results |
@@ -98,6 +98,7 @@ CREDENTIAL_ENCRYPTION_KEY=
 TAVILY_API_KEY=
 ANTHROPIC_API_KEY=
 MOONSHOT_API_KEY=
+OPENROUTER_API_KEY=
 ELEVENLABS_API_KEY=
 ELEVENLABS_VOICE_ID=
 GOOGLE_PLACES_API_KEY=

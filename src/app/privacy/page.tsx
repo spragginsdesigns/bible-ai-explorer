@@ -95,8 +95,8 @@ export default function PrivacyPage() {
 					include your message, conversation context, and relevant study content
 					such as reading activity, notes, memories, plan, or church. SureWord
 					uses app-managed OpenAI models for built-in experiences and can use
-					OpenAI, Anthropic, or Moonshot for chat and related features when you
-					select those providers.
+					OpenAI, Anthropic, Moonshot, or OpenRouter for chat and related features
+					when you select those providers.
 				</p>
 				<p>
 					If you use web search, the search query is sent to Tavily. If you use

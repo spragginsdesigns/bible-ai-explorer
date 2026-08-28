@@ -7,6 +7,7 @@ import {
 	REASONING_EFFORTS,
 	type ModelDefinition,
 	type ProviderId,
+	type ReasoningEffort,
 } from "./models";
 
 /**
@@ -36,6 +37,10 @@ const ENDPOINTS: Record<ProviderId, ProviderEndpoint> = {
 		url: "https://api.moonshot.ai/v1/models",
 		headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
 	},
+	openrouter: {
+		url: "https://openrouter.ai/api/v1/models",
+		headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
+	},
 };
 
 /**
@@ -59,6 +64,57 @@ function isMoonshotChatModel(id: string): boolean {
 interface ProviderModelRow {
 	id: string;
 	displayName?: string;
+	/** OpenRouter: does the model output text rather than only images/audio? */
+	chatOutput?: boolean;
+	/** OpenRouter: does the model advertise image input? */
+	imageInput?: boolean;
+	/** OpenRouter: exact reasoning levels advertised by this vendor/model. */
+	efforts?: ReasoningEffort[];
+	/** OpenRouter: can this model accept the tools SureWord always sends? */
+	supportsTools?: boolean;
+}
+
+function openRouterMeta(entry: Record<string, unknown>): Pick<
+	ProviderModelRow,
+	"chatOutput" | "imageInput" | "efforts" | "supportsTools"
+> {
+	const architecture =
+		typeof entry.architecture === "object" && entry.architecture !== null
+			? (entry.architecture as Record<string, unknown>)
+			: {};
+	const inputModalities = Array.isArray(architecture.input_modalities)
+		? architecture.input_modalities
+		: [];
+	const outputModalities = Array.isArray(architecture.output_modalities)
+		? architecture.output_modalities
+		: [];
+	const reasoning =
+		typeof entry.reasoning === "object" && entry.reasoning !== null
+			? (entry.reasoning as Record<string, unknown>)
+			: {};
+	const supportedEfforts = Array.isArray(reasoning.supported_efforts)
+		? reasoning.supported_efforts
+		: [];
+	const supportedParameters = Array.isArray(entry.supported_parameters)
+		? entry.supported_parameters
+		: [];
+
+	return {
+		chatOutput: outputModalities.length ? outputModalities.includes("text") : undefined,
+		imageInput: inputModalities.length ? inputModalities.includes("image") : undefined,
+		supportsTools: supportedParameters.length
+			? supportedParameters.includes("tools")
+			: undefined,
+		efforts: supportedEfforts
+			.filter(
+				(value): value is ReasoningEffort =>
+					typeof value === "string" &&
+					(REASONING_EFFORTS as readonly string[]).includes(value),
+			)
+			.sort(
+				(a, b) => REASONING_EFFORTS.indexOf(a) - REASONING_EFFORTS.indexOf(b),
+			),
+	};
 }
 
 function parseListResponse(provider: ProviderId, body: unknown): ProviderModelRow[] {
@@ -74,7 +130,10 @@ function parseListResponse(provider: ProviderId, body: unknown): ProviderModelRo
 			displayName:
 				provider === "anthropic" && typeof entry.display_name === "string"
 					? entry.display_name
+					: provider === "openrouter" && typeof entry.name === "string"
+						? entry.name
 					: undefined,
+			...(provider === "openrouter" ? openRouterMeta(entry) : {}),
 		});
 	}
 	return rows;
@@ -89,8 +148,13 @@ function toDefinition(provider: ProviderId, row: ProviderModelRow): ModelDefinit
 		label: row.displayName ?? prettyModelLabel(row.id),
 		provider,
 		providerModelId: row.id,
-		supportsAttachments: provider !== "moonshot",
-		efforts: modelSupportsEffort(provider, row.id) ? REASONING_EFFORTS : [],
+		supportsAttachments: row.imageInput ?? provider !== "moonshot",
+		efforts:
+			row.efforts && row.efforts.length > 0
+				? row.efforts
+				: modelSupportsEffort(provider, row.id)
+					? REASONING_EFFORTS
+					: [],
 	};
 }
 
@@ -147,6 +211,11 @@ export async function listProviderModels(
 		const rows = parseListResponse(provider, await response.json()).filter((row) => {
 			if (provider === "openai") return isOpenAiChatModel(row.id);
 			if (provider === "moonshot") return isMoonshotChatModel(row.id);
+			if (provider === "openrouter") {
+				// SureWord always supplies Scripture/note tools. OpenRouter otherwise
+				// accepts the selection and fails only when the first request arrives.
+				return row.chatOutput !== false && row.supportsTools !== false;
+			}
 			return true; // Anthropic's list is chat models only.
 		});
 		if (rows.length === 0) throw new Error(`${provider} models list came back empty`);

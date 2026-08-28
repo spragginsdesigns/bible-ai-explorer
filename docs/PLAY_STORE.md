@@ -134,7 +134,7 @@ requirements before using them.
    - All data **encrypted in transit**: yes. **Deletion mechanism**: yes
      (in-app deletion of content; account deletion via email - link the
      privacy page).
-    - Current provider notes: OpenAI/Anthropic/Moonshot process AI requests;
+    - Current provider notes: OpenAI/Anthropic/Moonshot/OpenRouter process AI requests;
       ElevenLabs processes Listen narration requests; Google Places powers the
       optional My church search/profile lookup. Re-check the current privacy
       policy and Play form definitions before declaring these as "shared" or

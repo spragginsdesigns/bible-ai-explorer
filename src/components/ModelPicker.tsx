@@ -34,6 +34,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 	openai: "OpenAI",
 	anthropic: "Anthropic",
 	moonshot: "Moonshot",
+	openrouter: "OpenRouter",
 };
 
 const EFFORT_OPTIONS = [

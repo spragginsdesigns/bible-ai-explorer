@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.38.1 (versionCode 36) - 2026-08-28 - internal
+
+**What's new (Play):**
+
+NEW
+- Connect your OpenRouter key in Settings → AI Providers
+- Choose compatible OpenRouter models from the Chat model picker
+- OpenRouter keys are validated and encrypted like your other AI provider keys
+
+**Dev notes:** The shared SureWord API now authenticates OpenRouter keys, lists compatible models and routes chat, tools, files and structured background work through the official adapter.
+
+---
+
 ## 1.38.0 (versionCode 35) - 2026-08-28 - internal
 
 **What's new (Play):**

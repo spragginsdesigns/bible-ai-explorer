@@ -8,10 +8,13 @@ import { DB_PROVIDER, isServerCredentialUser } from "@/lib/ai/provider";
 export const maxDuration = 30;
 
 /**
- * Validates a key against the provider's free models-list endpoint — proves
- * the key authenticates without spending tokens.
+ * Validates a key against the provider's free authentication probe — proves
+ * the key works without spending tokens.
  */
-async function validateKey(provider: ProviderId, apiKey: string): Promise<boolean> {
+async function validateKey(
+	provider: ProviderId,
+	apiKey: string,
+): Promise<{ ok: boolean; status: number }> {
 	const requests: Record<ProviderId, { url: string; headers: Record<string, string> }> = {
 		openai: {
 			url: "https://api.openai.com/v1/models",
@@ -25,10 +28,16 @@ async function validateKey(provider: ProviderId, apiKey: string): Promise<boolea
 			url: "https://api.moonshot.ai/v1/models",
 			headers: { Authorization: `Bearer ${apiKey}` },
 		},
+		// OpenRouter's models endpoint is public, so it would accept any string.
+		// `/key` returns metadata for the calling key and 401s on a bad one.
+		openrouter: {
+			url: "https://openrouter.ai/api/v1/key",
+			headers: { Authorization: `Bearer ${apiKey}` },
+		},
 	};
 	const { url, headers } = requests[provider];
 	const response = await fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
-	return response.ok;
+	return { ok: response.ok, status: response.status };
 }
 
 export async function GET(): Promise<Response> {
@@ -75,16 +84,22 @@ export async function POST(req: Request): Promise<Response> {
 		}
 		const trimmedKey = apiKey.trim();
 
-		let valid = false;
+		let probe: { ok: boolean; status: number };
 		try {
-			valid = await validateKey(provider, trimmedKey);
+			probe = await validateKey(provider, trimmedKey);
 		} catch {
 			return NextResponse.json(
 				{ error: "Could not reach the provider to validate the key. Try again." },
 				{ status: 502 },
 			);
 		}
-		if (!valid) {
+		if (!probe.ok) {
+			if (probe.status === 429 || probe.status >= 500) {
+				return NextResponse.json(
+					{ error: "The provider is busy right now. Try again in a minute." },
+					{ status: 503 },
+				);
+			}
 			return NextResponse.json({ error: "That API key was rejected by the provider." }, { status: 400 });
 		}
 

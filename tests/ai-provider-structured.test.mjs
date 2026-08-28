@@ -9,7 +9,7 @@ import {
 	UTILITY_MODELS,
 } from "../src/lib/ai/models.ts";
 
-const ALL = ["openai", "anthropic", "moonshot"];
+const ALL = ["openai", "anthropic", "moonshot", "openrouter"];
 
 test("every registered provider declares whether it honours a JSON schema", () => {
 	assert.deepEqual(
@@ -38,6 +38,7 @@ test("structured work runs on a utility model, which is why one flag per provide
 		assert.ok(UTILITY_MODELS[provider]?.providerModelId, `${provider} needs a utility model`);
 	}
 	assert.equal(UTILITY_MODELS.moonshot.providerModelId, "kimi-k3");
+	assert.equal(UTILITY_MODELS.openrouter.providerModelId, "z-ai/glm-5.3-flash");
 });
 
 test("Moonshot counts as capable, because buildModel opts it into json_schema", () => {
@@ -58,6 +59,18 @@ test("Moonshot counts as capable, because buildModel opts it into json_schema", 
 		fallbackFrom: null,
 		unsupported: false,
 	});
+});
+
+test("OpenRouter counts as capable because its pinned utility head advertises strict schemas", () => {
+	assert.equal(providerSupportsStructuredOutput("openrouter"), true);
+	assert.deepEqual(
+		decideStructuredProvider({
+			provider: "openrouter",
+			availableProviders: ["openrouter"],
+			structured: true,
+		}),
+		{ provider: "openrouter", fallbackFrom: null, unsupported: false },
+	);
 });
 
 test("a capable provider runs its own structured call, with no swap", () => {
@@ -95,7 +108,12 @@ function decideWith(table, options) {
 	return decideStructuredProvider({ ...options, supports: (provider) => table[provider] });
 }
 
-const MOONSHOT_INCAPABLE = { openai: true, anthropic: true, moonshot: false };
+const MOONSHOT_INCAPABLE = {
+	openai: true,
+	anthropic: true,
+	moonshot: false,
+	openrouter: true,
+};
 
 test("an incapable provider hands the call to the best capable one it can reach", () => {
 	assert.deepEqual(

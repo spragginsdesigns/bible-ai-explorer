@@ -43,12 +43,18 @@ const CANDIDATES = [
 	{ id: "anthropic/claude-opus-5", provider: "anthropic", model: "claude-opus-5" },
 	{ id: "anthropic/claude-sonnet-5", provider: "anthropic", model: "claude-sonnet-5" },
 	{ id: "moonshot/kimi-k3", provider: "moonshot", model: "kimi-k3" },
+	{
+		id: "openrouter/z-ai/glm-5.3-flash",
+		provider: "openrouter",
+		model: "z-ai/glm-5.3-flash",
+	},
 ];
 
 const KEY_ENV = {
 	openai: "OPENAI_API_KEY",
 	anthropic: "ANTHROPIC_API_KEY",
 	moonshot: "MOONSHOT_API_KEY",
+	openrouter: "OPENROUTER_API_KEY",
 };
 
 async function generate({ provider, model }, system, question) {
@@ -77,7 +83,11 @@ async function generate({ provider, model }, system, question) {
 	}
 
 	const baseUrl =
-		provider === "moonshot" ? "https://api.moonshot.ai/v1" : "https://api.openai.com/v1";
+		provider === "moonshot"
+			? "https://api.moonshot.ai/v1"
+			: provider === "openrouter"
+				? "https://openrouter.ai/api/v1"
+				: "https://api.openai.com/v1";
 	const response = await fetch(`${baseUrl}/chat/completions`, {
 		method: "POST",
 		headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
@@ -123,7 +133,12 @@ const enabled = process.env.RUN_MODEL_SMOKE === "1";
 // process.env as a side effect of importing a skipped test file.
 if (enabled) loadLocalEnv();
 const configured = enabled
-	? CANDIDATES.filter((candidate) => process.env[KEY_ENV[candidate.provider]])
+	? CANDIDATES.filter(
+			(candidate) =>
+				process.env[KEY_ENV[candidate.provider]] &&
+				(!process.env.MODEL_SMOKE_PROVIDER ||
+					candidate.provider === process.env.MODEL_SMOKE_PROVIDER),
+		)
 	: [];
 
 test("model formatting smoke", { skip: !enabled || configured.length === 0, timeout: 300000 }, async (t) => {

@@ -16,6 +16,7 @@
     "@ai-sdk/openai-compatible": "^3.0.30",
     "@ai-sdk/react": "^4.0.61",
     "@clerk/nextjs": "^7.7.1",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "@prisma/client": "^6.19.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@tiptap/extension-highlight": "^3.19.0",

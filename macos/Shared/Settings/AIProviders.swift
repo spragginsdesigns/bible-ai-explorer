@@ -82,6 +82,7 @@ enum AIModelsAPI {
         "openai": "OpenAI",
         "anthropic": "Anthropic",
         "moonshot": "Moonshot",
+        "openrouter": "OpenRouter",
     ]
 }
 

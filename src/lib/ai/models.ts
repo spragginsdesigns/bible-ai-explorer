@@ -1,4 +1,4 @@
-export type ProviderId = "openai" | "anthropic" | "moonshot";
+export type ProviderId = "openai" | "anthropic" | "moonshot" | "openrouter";
 
 export type ReasoningEffort = "low" | "medium" | "high";
 
@@ -47,6 +47,15 @@ export const PROVIDERS: readonly ProviderInfo[] = [
 		// `strict: true` and token-level constrained decoding, and the utility
 		// tier always runs on kimi-k3 (see UTILITY_MODELS), so the schema is
 		// honoured as long as buildModel opts the provider in.
+		supportsStructuredOutput: true,
+	},
+	{
+		id: "openrouter",
+		label: "OpenRouter",
+		keyUrl: "https://openrouter.ai/settings/keys",
+		// Utility work is pinned to GLM 5.3 Flash below. OpenRouter's live
+		// catalog advertises `structured_outputs`/`response_format` for that
+		// head, and the official adapter forwards the JSON schema unchanged.
 		supportsStructuredOutput: true,
 	},
 ];
@@ -103,6 +112,18 @@ export const MODELS: readonly ModelDefinition[] = [
 		supportsAttachments: false,
 		efforts: ["low", "medium", "high"],
 	},
+	{
+		id: "openrouter/z-ai/glm-5.3-flash",
+		label: "GLM 5.3 Flash",
+		provider: "openrouter",
+		providerModelId: "z-ai/glm-5.3-flash",
+		// OpenRouter advertises text/image/video input for this head. The
+		// official adapter also carries PDFs and text files as file parts.
+		supportsAttachments: true,
+		// SureWord's shared effort vocabulary stops at high; the model also
+		// advertises max, which clients intentionally do not offer yet.
+		efforts: ["low", "high"],
+	},
 ];
 
 export const DEFAULT_MODEL_ID = "openai/gpt-5.6-terra";
@@ -117,6 +138,7 @@ export const ATTACHMENT_CAPABLE_MODEL_IDS: readonly string[] = [
 	DEFAULT_MODEL_ID,
 	"anthropic/claude-sonnet-5",
 	"anthropic/claude-opus-5",
+	"openrouter/z-ai/glm-5.3-flash",
 ];
 
 /**
@@ -128,6 +150,7 @@ export const UTILITY_MODELS: Record<ProviderId, { providerModelId: string; effor
 	openai: { providerModelId: "gpt-5.6-terra", effort: "low" },
 	anthropic: { providerModelId: "claude-haiku-4-5", effort: null },
 	moonshot: { providerModelId: "kimi-k3", effort: "low" },
+	openrouter: { providerModelId: "z-ai/glm-5.3-flash", effort: "low" },
 };
 
 /** Order structured work falls back through, best first. */
@@ -135,6 +158,7 @@ export const STRUCTURED_FALLBACK_PROVIDER_IDS: readonly ProviderId[] = [
 	"openai",
 	"anthropic",
 	"moonshot",
+	"openrouter",
 ];
 
 export function providerSupportsStructuredOutput(provider: ProviderId): boolean {
@@ -210,6 +234,9 @@ export function isProviderId(value: unknown): value is ProviderId {
 
 /** Provider model names are opaque but must stay sane enough to send upstream. */
 const PROVIDER_MODEL_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,127}$/;
+// OpenRouter returns account-scoped aliases such as `~z-ai/glm-latest` from
+// its live catalog. They are callable model ids, not UI-only labels.
+const OPENROUTER_MODEL_ID_PATTERN = /^(?:[a-zA-Z0-9]|~[a-zA-Z0-9])[a-zA-Z0-9._:/~-]{0,127}$/;
 
 export function parseModelId(
 	modelId: string,
@@ -218,7 +245,9 @@ export function parseModelId(
 	if (slash <= 0) return null;
 	const provider = modelId.slice(0, slash);
 	const providerModelId = modelId.slice(slash + 1);
-	if (!isProviderId(provider) || !PROVIDER_MODEL_ID_PATTERN.test(providerModelId)) return null;
+	if (!isProviderId(provider)) return null;
+	const pattern = provider === "openrouter" ? OPENROUTER_MODEL_ID_PATTERN : PROVIDER_MODEL_ID_PATTERN;
+	if (!pattern.test(providerModelId)) return null;
 	return { provider, providerModelId };
 }
 
@@ -235,6 +264,10 @@ export function modelSupportsEffort(provider: ProviderId, providerModelId: strin
 			return !/haiku/i.test(providerModelId);
 		case "moonshot":
 			return true;
+		case "openrouter":
+			// OpenRouter model ids span many vendors. The live catalog supplies
+			// exact effort metadata; never guess for an arbitrary saved slug.
+			return false;
 	}
 }
 
@@ -267,6 +300,8 @@ export function resolveDefinition(modelId: string): ModelDefinition | undefined 
 		provider: parsed.provider,
 		providerModelId: parsed.providerModelId,
 		// Moonshot stays opted out of uploads until per-mime gating exists.
+		// OpenRouter's live catalog overrides this optimistic fallback with the
+		// model's advertised input modalities in every picker response.
 		supportsAttachments: parsed.provider !== "moonshot",
 		efforts: modelSupportsEffort(parsed.provider, parsed.providerModelId)
 			? REASONING_EFFORTS
