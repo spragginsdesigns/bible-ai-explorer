@@ -195,6 +195,56 @@ export async function resolvePendingLinks(note: {
 	}
 }
 
+/**
+ * Plain-text summary of one note's link graph, for injection into the note
+ * panel's system prompt so the assistant knows what this note links to and
+ * what links back to it. Returns null when the note has no links either way
+ * (the common case - keep the prompt free of an empty section). Best-effort
+ * like the syncs: a failure returns null rather than failing the chat turn.
+ */
+export async function describeNoteLinks(noteId: string): Promise<string | null> {
+	try {
+		const [outgoing, backlinks] = await Promise.all([
+			prisma.noteLink.findMany({
+				where: { sourceNoteId: noteId },
+				orderBy: { targetKey: "asc" },
+				select: { targetTitle: true, target: { select: { title: true } } },
+				take: 30,
+			}),
+			prisma.noteLink.findMany({
+				where: { targetNoteId: noteId },
+				orderBy: { source: { updatedAt: "desc" } },
+				select: { snippet: true, source: { select: { title: true } } },
+				take: 30,
+			}),
+		]);
+		if (outgoing.length === 0 && backlinks.length === 0) return null;
+
+		const lines: string[] = [];
+		if (outgoing.length > 0) {
+			lines.push("Notes this note links to (via [[wikilinks]] in its text):");
+			for (const link of outgoing) {
+				lines.push(
+					link.target
+						? `- [[${link.target.title}]]`
+						: `- [[${link.targetTitle}]] (pending - no note with this title exists yet)`
+				);
+			}
+		}
+		if (backlinks.length > 0) {
+			lines.push("Notes that link TO this note (its backlinks / linked mentions):");
+			for (const link of backlinks) {
+				const snippet = link.snippet ? ` - "${link.snippet.slice(0, 120)}"` : "";
+				lines.push(`- [[${link.source.title}]]${snippet}`);
+			}
+		}
+		return lines.join("\n");
+	} catch (error) {
+		console.error(`Failed to describe note links for ${noteId}:`, error);
+		return null;
+	}
+}
+
 export type Validated<T> = { ok: true; value: T } | { ok: false; error: string };
 
 /** Normalize a request body's `aliases`: trimmed, de-duplicated, non-empty. */
