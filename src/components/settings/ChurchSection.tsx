@@ -184,7 +184,7 @@ const ChurchSection: React.FC = () => {
 
 	return (
 		<section className="flex flex-col gap-2">
-			<h2 className="text-[11px] font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
+			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
 				MY CHURCH
 			</h2>
 			<div className={CARD_CLASS}>
@@ -284,7 +284,7 @@ const ChurchSection: React.FC = () => {
 
 								{mission && (
 									<div className="flex flex-col gap-1 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
-										<p className="text-[11px] font-bold tracking-[0.12em] text-neutral-500 dark:text-neutral-500">
+										<p className="text-metadata font-bold tracking-[0.12em] text-neutral-500 dark:text-neutral-500">
 											MISSION
 										</p>
 										<p
@@ -321,7 +321,7 @@ const ChurchSection: React.FC = () => {
 
 								{church.about && (
 									<div className="flex flex-col gap-1 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
-										<p className="text-[11px] font-bold tracking-[0.12em] text-neutral-500 dark:text-neutral-500">
+										<p className="text-metadata font-bold tracking-[0.12em] text-neutral-500 dark:text-neutral-500">
 											ABOUT
 										</p>
 										<p className="whitespace-pre-line text-[13px] leading-5 text-neutral-600 dark:text-neutral-300">

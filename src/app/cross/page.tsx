@@ -129,17 +129,17 @@ export default function DailyCrossPage() {
 					<button
 						type="button"
 						onClick={() => router.back()}
-						className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+						className="text-control font-semibold text-amber-600 dark:text-amber-400"
 					>
 						‹ Back
 					</button>
-					<h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100">
 						Pick Up Your Cross
 					</h1>
 					<span className="w-11" aria-hidden />
 				</div>
 
-				<p className="mb-5 text-center text-[13px] text-neutral-400 dark:text-neutral-500">{today}</p>
+				<p className="mb-5 text-center text-metadata text-neutral-400 dark:text-neutral-500">{today}</p>
 
 				{!entry && !error ? (
 					<div aria-label="Preparing your day" className="flex flex-col gap-3 py-8">
@@ -150,17 +150,17 @@ export default function DailyCrossPage() {
 								style={{ width: `${width}%`, animationDelay: `${index * 150}ms` }}
 							/>
 						))}
-						<p className="mt-3 text-center text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="mt-3 text-center text-metadata text-neutral-400 dark:text-neutral-500">
 							Preparing your day in the Word…
 						</p>
 					</div>
 				) : error ? (
 					<div className="glass-card gradient-border flex flex-col items-center gap-4 rounded-2xl p-8">
-						<p className="text-center text-sm leading-5 text-neutral-600 dark:text-neutral-300">{error}</p>
+						<p className="text-center text-support text-neutral-600 dark:text-neutral-300">{error}</p>
 						<button
 							type="button"
 							onClick={load}
-							className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+							className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-control font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 						>
 							Try again
 						</button>
@@ -172,10 +172,10 @@ export default function DailyCrossPage() {
 								<p className="text-[15px] font-bold text-amber-600 dark:text-amber-400">
 									{entry.reference}
 								</p>
-								<p className="font-[family-name:var(--font-cormorant)] text-[19px] leading-[30px] text-neutral-900 dark:text-neutral-100">
+								<p className="font-[family-name:var(--font-cormorant)] text-chat text-neutral-900 dark:text-neutral-100">
 									{entry.text}
 								</p>
-								<p className="text-[13.5px] italic leading-[19px] text-neutral-500 dark:text-neutral-400">
+								<p className="text-metadata italic text-neutral-500 dark:text-neutral-400">
 									{entry.reason}
 								</p>
 							</div>
@@ -185,7 +185,7 @@ export default function DailyCrossPage() {
 
 						{entry.whyToday && (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">
-								<p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-300">
+								<p className="text-support text-neutral-700 dark:text-neutral-300">
 									{entry.whyToday}
 								</p>
 							</TimelineStop>
@@ -193,7 +193,7 @@ export default function DailyCrossPage() {
 
 						{entry.application && (
 							<TimelineStop glyph="◆" label="FOR YOU">
-								<p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-300">
+								<p className="text-support text-neutral-700 dark:text-neutral-300">
 									{entry.application}
 								</p>
 							</TimelineStop>
@@ -204,7 +204,7 @@ export default function DailyCrossPage() {
 							const body = (
 								<>
 									<span className="flex items-center gap-2">
-										<span className="text-sm font-bold text-amber-600 dark:text-amber-400">
+									<span className="text-support font-bold text-amber-600 dark:text-amber-400">
 											{step.book} {step.chapter} ›
 										</span>
 										{isTodaysPlanReading(plan, step.book, step.chapter) && (
@@ -213,7 +213,7 @@ export default function DailyCrossPage() {
 											</span>
 										)}
 									</span>
-									<span className="block text-[13.5px] leading-[19px] text-neutral-600 dark:text-neutral-300">
+										<span className="block text-metadata text-neutral-600 dark:text-neutral-300">
 										{step.focus}
 									</span>
 								</>
@@ -243,7 +243,7 @@ export default function DailyCrossPage() {
 						{entry.question && (
 							<TimelineStop glyph="?" label="CARRY THIS">
 								<div className="rounded-2xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 p-4">
-									<p className="text-[14.5px] font-medium leading-[22px] text-neutral-900 dark:text-neutral-100">
+								<p className="text-support font-medium text-neutral-900 dark:text-neutral-100">
 										{entry.question}
 									</p>
 								</div>
@@ -254,14 +254,14 @@ export default function DailyCrossPage() {
 							<button
 								type="button"
 								onClick={goDeeper}
-								className="flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[15px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+								className="flex min-h-12 w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-control font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 							>
 								✦ Go deeper in chat
 							</button>
 
 							{confirmingReplace ? (
 								<div className="mt-2 flex flex-col gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] p-4">
-									<p className="text-[13.5px] leading-5 text-neutral-600 dark:text-neutral-300">
+									<p className="text-metadata text-neutral-600 dark:text-neutral-300">
 										Replace today&apos;s word with a new one? {entry.reference} won&apos;t come back.
 									</p>
 									<input
@@ -271,13 +271,13 @@ export default function DailyCrossPage() {
 										maxLength={200}
 										placeholder="Anything it should centre on? (optional)"
 										aria-label="What today's new word should centre on"
-										className="min-h-11 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/60 dark:bg-black/30 px-3 text-[14px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-amber-500/50 focus:outline-none"
+										className="min-h-11 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/60 dark:bg-black/30 px-3 text-support text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-amber-500/50 focus:outline-none"
 									/>
 									<div className="flex gap-2">
 										<button
 											type="button"
 											onClick={replaceToday}
-											className="min-h-11 flex-1 rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[14px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+											className="min-h-11 flex-1 rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-support font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 										>
 											Replace
 										</button>
@@ -287,7 +287,7 @@ export default function DailyCrossPage() {
 												setConfirmingReplace(false);
 												setFocus("");
 											}}
-											className="min-h-11 flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] text-[14px] font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+											className="min-h-11 flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] text-support font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
 										>
 											Cancel
 										</button>
@@ -297,7 +297,7 @@ export default function DailyCrossPage() {
 								<button
 									type="button"
 									onClick={() => setConfirmingReplace(true)}
-									className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-[14px] font-semibold text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+									className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-support font-semibold text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
 								>
 									↻ A different word for today
 								</button>

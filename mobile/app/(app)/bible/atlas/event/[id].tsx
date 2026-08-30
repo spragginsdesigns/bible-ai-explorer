@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import {
@@ -227,12 +229,12 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		backButton: { minHeight: 48, justifyContent: "center" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -241,19 +243,19 @@ const createStyles = (c: Colors) =>
 		emptyCard: { padding: spacing.lg },
 		emptyText: {
 			color: c.textSecondary,
-			fontSize: 14,
-			lineHeight: 21,
+			...typography.support,
+
 			textAlign: "center",
 		},
 		content: { paddingHorizontal: spacing.lg },
-		name: { color: c.text, fontSize: 30, fontWeight: "700" },
-		caption: { color: c.textMuted, fontSize: 13, marginTop: spacing.xs },
-		provenance: { color: c.textGhost, fontSize: 11.5, marginTop: spacing.xs },
+		name: { color: c.text, ...typography.screenTitle, fontWeight: "700" },
+		caption: { color: c.textMuted, ...typography.support, marginTop: spacing.xs },
+		provenance: { color: c.textGhost, ...typography.meta, marginTop: spacing.xs },
 		summaryCard: { padding: spacing.lg, marginTop: spacing.lg },
-		summary: { color: c.textSecondary, fontSize: 15, lineHeight: 23 },
+		summary: { color: c.textSecondary, ...typography.body },
 		sectionLabel: {
 			color: c.accentDim,
-			fontSize: 11.5,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			paddingTop: spacing.xl,
@@ -269,7 +271,7 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.accentSoft,
 			paddingHorizontal: spacing.md,
 		},
-		refLabel: { color: c.accent, fontSize: 13, fontWeight: "700" },
+		refLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		entityChip: {
 			minHeight: 48,
 			justifyContent: "center",
@@ -279,8 +281,8 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 			paddingHorizontal: spacing.md,
 		},
-		entityLabel: { color: c.textSecondary, fontSize: 13, fontWeight: "600" },
-		disambiguator: { color: c.textFaint, fontSize: 10.5, marginTop: 2 },
+		entityLabel: { color: c.textSecondary, ...typography.meta, fontWeight: "600" },
+		disambiguator: { color: c.textFaint, ...typography.meta, marginTop: 2 },
 		askButton: {
 			minHeight: 48,
 			marginTop: spacing.xl,
@@ -291,5 +293,5 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		askLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		askLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 	});

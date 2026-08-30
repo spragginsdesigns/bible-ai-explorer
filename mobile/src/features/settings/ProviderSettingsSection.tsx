@@ -4,14 +4,13 @@ import {
 	Linking,
 	Pressable,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard } from "@/components/ui";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import {
 	fetchProviders,
@@ -228,8 +227,8 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		card: { padding: spacing.lg, gap: spacing.md },
 		loadingCard: { minHeight: 80, alignItems: "center", justifyContent: "center" },
-		hint: { color: c.textFaint, fontSize: 12, lineHeight: 17 },
-		serverNote: { color: c.accent, fontSize: 12, lineHeight: 17 },
+		hint: { ...typography.support, color: c.textFaint },
+		serverNote: { ...typography.support, color: c.accent },
 		retryRow: {
 			flexDirection: "row",
 			alignItems: "center",
@@ -258,7 +257,7 @@ const createStyles = (c: Colors) =>
 		},
 		providerCopy: { flex: 1, minWidth: 0 },
 		providerName: { color: c.text, fontSize: 14.5, fontWeight: "600" },
-		providerStatus: { color: c.textFaint, fontSize: 12, marginTop: 1 },
+		providerStatus: { ...typography.meta, color: c.textFaint, marginTop: 1 },
 		actions: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		actionButton: {
 			minHeight: 34,
@@ -269,7 +268,7 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.borderStrong,
 		},
-		actionLabel: { color: c.textSecondary, fontSize: 12, fontWeight: "700" },
+		actionLabel: { ...typography.support, color: c.textSecondary, fontWeight: "700" },
 		editBox: { gap: spacing.sm },
 		keyInput: {
 			minHeight: 44,
@@ -293,14 +292,14 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			borderWidth: StyleSheet.hairlineWidth,
 		},
-		saveLabel: { color: c.accent, fontSize: 12, fontWeight: "700" },
-		cancelLabel: { color: c.textMuted, fontSize: 12, fontWeight: "700" },
+		saveLabel: { ...typography.support, color: c.accent, fontWeight: "700" },
+		cancelLabel: { ...typography.support, color: c.textMuted, fontWeight: "700" },
 		keyUrlButton: {
 			marginLeft: "auto",
 			flexDirection: "row",
 			alignItems: "center",
 			gap: 3,
 		},
-		keyUrlLabel: { color: c.textFaint, fontSize: 12, fontWeight: "600" },
-		error: { color: c.danger, fontSize: 12, lineHeight: 17 },
+		keyUrlLabel: { ...typography.support, color: c.textFaint, fontWeight: "600" },
+		error: { ...typography.support, color: c.danger },
 	});

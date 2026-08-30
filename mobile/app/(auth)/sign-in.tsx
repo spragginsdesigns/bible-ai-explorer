@@ -3,10 +3,10 @@ import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { Redirect, useRouter } from "expo-router";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
@@ -336,14 +336,14 @@ const createStyles = (c: Colors) =>
 		hero: { alignItems: "center", marginBottom: spacing.xxl },
 		tagline: {
 			color: c.textMuted,
-			fontSize: 14,
+			...typography.support,
 			marginTop: spacing.sm,
 			textAlign: "center",
 		},
 		card: { padding: spacing.xl },
 		label: {
 			color: c.textFaint,
-			fontSize: 12,
+			...typography.control,
 			fontWeight: "600",
 			textTransform: "uppercase",
 			letterSpacing: 0.8,
@@ -358,21 +358,21 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			color: c.text,
 			paddingHorizontal: spacing.lg,
-			fontSize: 15,
+			...typography.control,
 		},
 		codeInput: {
-			fontSize: 22,
+			...typography.control,
+			fontFamily: fonts.mono,
 			letterSpacing: 12,
 			textAlign: "center",
 		},
 		codeHint: {
 			color: c.textMuted,
-			fontSize: 13,
-			lineHeight: 19,
+			...typography.support,
 		},
 		error: {
 			color: c.danger,
-			fontSize: 13,
+			...typography.support,
 			marginTop: spacing.md,
 		},
 		dividerRow: {
@@ -382,18 +382,18 @@ const createStyles = (c: Colors) =>
 			marginVertical: spacing.lg,
 		},
 		divider: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.borderStrong },
-		dividerLabel: { color: c.textGhost, fontSize: 12 },
+		dividerLabel: { color: c.textGhost, ...typography.micro },
 		verse: {
 			fontFamily: fonts.verseItalic,
 			color: c.textMuted,
-			fontSize: 19,
+			...typography.chat,
 			textAlign: "center",
 			marginTop: spacing.xxl,
 			paddingHorizontal: spacing.xl,
 		},
 		verseRef: {
 			color: c.textGhost,
-			fontSize: 12,
+			...typography.meta,
 			textAlign: "center",
 			marginTop: spacing.xs,
 		},

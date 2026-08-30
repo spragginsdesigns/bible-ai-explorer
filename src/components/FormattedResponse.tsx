@@ -32,7 +32,7 @@ const FormattedResponse: React.FC<FormattedResponseProps> = ({ response }) => {
 		// (@tailwindcss/typography is not installed). The renderer map owns the
 		// styling now; the wrapper only has to stop long unbroken tokens from
 		// widening the message bubble.
-		<div className="min-w-0 break-words">
+		<div className="min-w-0 break-words text-chat">
 			<ReactMarkdown
 				remarkPlugins={[remarkGfm]}
 				components={markdownComponents}

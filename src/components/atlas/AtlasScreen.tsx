@@ -448,7 +448,7 @@ function SearchResults({
   }));
   return (
     <div className="pt-5">
-      <div className="mb-3 flex flex-wrap gap-2 text-[12px] text-neutral-500 dark:text-neutral-400">
+      <div className="mb-3 flex flex-wrap gap-2 text-metadata text-neutral-500 dark:text-neutral-400">
         {(["person", "place", "event"] as const)
           .filter((kind) => counts[kind] !== undefined)
           .map((kind) => (
@@ -683,7 +683,7 @@ function EntityChip({
       <span className="min-w-0 text-left">
         <span className="block truncate">{entity.name}</span>
         {entity.disambiguator && (
-          <span className="block truncate text-[11px] font-normal text-neutral-400 dark:text-neutral-500">
+          <span className="block truncate text-metadata font-normal text-neutral-400 dark:text-neutral-500">
             {entity.disambiguator}
           </span>
         )}
@@ -966,13 +966,13 @@ function EntityDetail({
                       {related.entity.name}
                     </span>
                     {related.entity.disambiguator && (
-                      <span className="block truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+                      <span className="block truncate text-metadata text-neutral-400 dark:text-neutral-500">
                         {related.entity.disambiguator}
                       </span>
                     )}
                   </span>
                 </span>
-                <span className="ml-3 flex-shrink-0 text-right text-[11px] capitalize text-neutral-400 dark:text-neutral-500">
+                <span className="ml-3 flex-shrink-0 text-right text-metadata capitalize text-neutral-400 dark:text-neutral-500">
                   {related.label} · {related.relation.certainty}
                 </span>
               </button>
@@ -1025,7 +1025,7 @@ function EntityDetail({
               {traceOpen && (
                 <div className="mt-3 rounded-xl bg-amber-500/10 p-3">
                   <label
-                    className="block text-[12px] font-semibold text-neutral-600 dark:text-neutral-300"
+                    className="block text-metadata font-semibold text-neutral-600 dark:text-neutral-300"
                     htmlFor="atlas-connection-target"
                   >
                     Trace to another person
@@ -1041,7 +1041,7 @@ function EntityDetail({
                     className="mt-2 min-h-[44px] w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-neutral-800 dark:border-white/10 dark:bg-neutral-950 dark:text-neutral-200"
                   />
                   {targetSearch.searching && (
-                    <p className="mt-2 text-[12px] text-neutral-500">
+                    <p className="mt-2 text-metadata text-neutral-500">
                       Searching people…
                     </p>
                   )}
@@ -1061,7 +1061,7 @@ function EntityDetail({
                               {person.name}
                             </span>
                             {person.disambiguator && (
-                              <span className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                              <span className="text-metadata text-neutral-400 dark:text-neutral-500">
                                 {person.disambiguator}
                               </span>
                             )}
@@ -1077,7 +1077,7 @@ function EntityDetail({
                         setConnectionTarget("");
                         setTargetQuery("");
                       }}
-                      className="mt-2 min-h-[40px] text-[12px] font-bold text-amber-600 dark:text-amber-400"
+                      className="mt-2 min-h-[40px] text-metadata font-bold text-amber-600 dark:text-amber-400"
                     >
                       Clear target
                     </button>
@@ -1115,7 +1115,7 @@ function EntityDetail({
                           )}
                           {connection.path?.relations[index] && (
                             <div className="mt-1">
-                              <p className="text-[12px] capitalize text-neutral-500 dark:text-neutral-400">
+                              <p className="text-metadata capitalize text-neutral-500 dark:text-neutral-400">
                                 {relationLabelFor(
                                   connection.path.relations[index],
                                   step.id,

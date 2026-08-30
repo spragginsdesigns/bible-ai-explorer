@@ -95,7 +95,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 			{open && (
 				<div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-80 max-w-[90vw] glass-card border border-black/[0.1] dark:border-white/[0.1] rounded-xl shadow-xl shadow-black/15 dark:shadow-black/60 p-3">
 					<div className="flex items-center justify-between mb-2">
-						<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-semibold">
+						<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-support font-semibold">
 							<BookOpen className="w-4 h-4" />
 							{reference}
 						</div>
@@ -107,20 +107,20 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 						</button>
 					</div>
 					{loading && (
-						<div className="flex items-center gap-2 text-neutral-500 text-xs py-2">
+						<div className="flex items-center gap-2 text-neutral-500 text-metadata py-2">
 							<Loader2 className="w-3.5 h-3.5 animate-spin" />
 							Loading {translation} text...
 						</div>
 					)}
 					{error && (
-						<p className="text-red-500 dark:text-red-400 text-xs">{error}</p>
+						<p className="text-red-500 dark:text-red-400 text-support">{error}</p>
 					)}
 					{verseData && (
 						<div className="max-h-48 overflow-y-auto custom-scrollbar font-[family-name:var(--font-cormorant)]">
-							<p className="text-base text-neutral-700 dark:text-neutral-300 leading-relaxed italic">
+							<p className="text-chat text-neutral-700 dark:text-neutral-300 italic">
 								{verseData.text}
 							</p>
-							<p className="text-xs text-neutral-400 dark:text-neutral-600 mt-2">
+							<p className="text-metadata text-neutral-400 dark:text-neutral-600 mt-2">
 								— {verseData.reference} ({verseData.translation})
 							</p>
 						</div>
@@ -130,7 +130,7 @@ const VersePopover: React.FC<VersePopoverProps> = ({ reference, children }) => {
 							<Link
 								href={bibleHref}
 								onClick={() => setOpen(false)}
-								className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+								className="flex items-center gap-1.5 text-control font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
 							>
 								<BookMarked className="w-3.5 h-3.5" />
 								Read in the Bible →

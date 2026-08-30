@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import type { CrossAction } from "@/lib/chatView";
-import { fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -50,14 +51,13 @@ const createStyles = (c: Colors) =>
 			borderWidth: 1,
 			borderRadius: radius.lg,
 		},
-		heading: { color: c.accent, fontSize: 12, fontWeight: "700", letterSpacing: 0.4 },
+		heading: { ...typography.meta, color: c.accent, fontWeight: "700", letterSpacing: 0.4 },
 		referenceRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: 6 },
 		reference: { color: c.text, fontSize: 14, fontWeight: "600" },
-		replaced: { color: c.textFaint, fontSize: 12.5 },
+		replaced: { ...typography.meta, color: c.textFaint },
 		verse: {
 			color: c.textSecondary,
 			fontFamily: fonts.verse,
-			fontSize: 14.5,
-			lineHeight: 21,
+			...typography.longForm,
 		},
 	});

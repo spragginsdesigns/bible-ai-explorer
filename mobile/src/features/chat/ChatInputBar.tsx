@@ -11,15 +11,15 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import PasteInput, {
 	type PastedFile,
 	type PasteTextInputInstance,
 } from "@mattermost/react-native-paste-input";
 import { Ionicons } from "@expo/vector-icons";
-import { fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import {
@@ -332,9 +332,9 @@ const createStyles = (c: Colors) =>
 		},
 		pillGlyph: { color: c.accent, fontSize: 11 },
 		pillLabel: {
+			...typography.meta,
 			flexShrink: 1,
 			color: c.accent,
-			fontSize: 12.5,
 			fontFamily: fonts.sans,
 			fontWeight: "600",
 		},
@@ -366,7 +366,7 @@ const createStyles = (c: Colors) =>
 		},
 		paletteCommand: { color: c.accent, fontSize: 14, fontWeight: "600" },
 		paletteHint: { color: c.textFaint, fontWeight: "400" },
-		paletteDescription: { color: c.textMuted, fontSize: 12.5, marginTop: 2 },
+		paletteDescription: { ...typography.support, color: c.textMuted, marginTop: 2 },
 
 		bar: {
 			flexDirection: "row",

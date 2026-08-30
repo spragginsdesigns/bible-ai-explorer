@@ -1,5 +1,7 @@
 import React from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
@@ -86,17 +88,17 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
 		headerSpacer: { width: 44 },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-		missing: { color: c.textMuted, fontSize: 14 },
+		missing: { color: c.textMuted, ...typography.support },
 		grid: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 		gridRow: { gap: spacing.sm, marginBottom: spacing.sm },
 		cell: {
@@ -110,5 +112,5 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		cellPressed: { backgroundColor: c.surfacePressed },
-		cellLabel: { color: c.textSecondary, fontSize: 15, fontWeight: "600" },
+		cellLabel: { color: c.textSecondary, ...typography.control, fontWeight: "600" },
 	});

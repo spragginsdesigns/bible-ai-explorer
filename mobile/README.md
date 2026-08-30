@@ -20,10 +20,11 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current release:** 1.40.0 (Android versionCode 38, tag
-`android-v1.40.0`). The release gives the Chat composer balanced clearance
-above the navigation bar, a unified lighter surface, and a restrained halo. It
-is published from one signed AAB/APK pair through `push-phone.sh --skip-build`.
+**Current release:** 1.43.0 (Android versionCode 41, tag
+`android-v1.43.0`). The release includes the latest welcome, launch animation,
+linked Notes work, and the shared Atkinson Hyperlegible typography system with
+Hack for code. It is published from one signed AAB/APK pair through
+`push-phone.sh --skip-build`.
 
 ## Stack
 
@@ -45,9 +46,11 @@ server-side, shared 1:1 with the web app and the same database.
 ## Design system
 
 Dark monochrome glassmorphism ported token-for-token from the web CSS —
-see `src/theme/index.ts`. Pirata One for the wordmark, Cormorant Garamond for
-quoted Scripture, amber accents, glass cards on a black mesh gradient. No
-stock Material components; every surface is built from the theme tokens.
+see `src/theme/index.ts`. Atkinson Hyperlegible is the readable body/UI family,
+Pirata One is reserved for the wordmark and decorative headings, Cormorant
+Garamond is reserved for validated Scripture, and Hack handles code. Amber
+accents and glass cards sit on the black mesh gradient. No stock Material
+components; every surface is built from the theme tokens.
 
 ## Project layout
 

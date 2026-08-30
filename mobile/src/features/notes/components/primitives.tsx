@@ -3,15 +3,15 @@ import {
 	Modal,
 	Pressable,
 	StyleSheet,
-	Text,
 	View,
 	type StyleProp,
 	type TextStyle,
 	type ViewStyle,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -217,7 +217,7 @@ const createStyles = (c: Colors) =>
 		chipActive: { backgroundColor: c.accentSoft, borderColor: c.accentBorder },
 		chipPressed: { backgroundColor: c.surfacePressed },
 		chipDot: { width: 7, height: 7, borderRadius: 4 },
-		chipLabel: { color: c.textMuted, fontSize: 12.5, fontWeight: "500", maxWidth: 150 },
+		chipLabel: { ...typography.meta, color: c.textMuted, fontWeight: "500", maxWidth: 150 },
 		chipLabelActive: { color: c.accent },
 
 		backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)" },

@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import {
@@ -194,11 +196,11 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		backButton: { minHeight: 48, justifyContent: "center" },
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -206,9 +208,9 @@ const createStyles = (c: Colors) =>
 		center: { flex: 1, justifyContent: "center", padding: spacing.lg },
 		content: { paddingHorizontal: spacing.lg },
 		intro: { paddingBottom: spacing.lg },
-		name: { color: c.text, fontSize: 28, fontWeight: "700" },
-		disambiguator: { color: c.textFaint, fontSize: 11.5, marginTop: 2 },
-		subtitle: { color: c.textMuted, fontSize: 13, marginTop: spacing.xs },
+		name: { color: c.text, ...typography.screenTitle, fontWeight: "700" },
+		disambiguator: { color: c.textFaint, ...typography.meta, marginTop: 2 },
+		subtitle: { color: c.textMuted, ...typography.support, marginTop: spacing.xs },
 		row: {
 			borderRadius: radius.lg,
 			borderWidth: StyleSheet.hairlineWidth,
@@ -225,9 +227,9 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		copy: { flex: 1, gap: 3 },
-		rowName: { color: c.text, fontSize: 15, fontWeight: "700" },
-		relationMeta: { color: c.textGhost, fontSize: 11.5 },
-		chevron: { color: c.textFaint, fontSize: 18 },
+		rowName: { color: c.text, ...typography.control, fontWeight: "700" },
+		relationMeta: { color: c.textGhost, ...typography.meta },
+		chevron: { color: c.textFaint, ...typography.chat },
 		refs: {
 			flexDirection: "row",
 			flexWrap: "wrap",
@@ -244,13 +246,13 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.accentSoft,
 			paddingHorizontal: spacing.md,
 		},
-		refLabel: { color: c.accent, fontSize: 12.5, fontWeight: "700" },
+		refLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		pressed: { opacity: 0.72 },
 		card: { padding: spacing.lg },
 		empty: {
 			color: c.textSecondary,
-			fontSize: 14,
-			lineHeight: 21,
+			...typography.support,
+
 			textAlign: "center",
 		},
 	});

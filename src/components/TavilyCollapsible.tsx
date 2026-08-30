@@ -31,7 +31,7 @@ const TavilyCollapsible: React.FC<TavilyCollapsibleProps> = ({ results }) => {
 		<div className="mt-3">
 			<button
 				onClick={() => setOpen(!open)}
-				className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+				className="flex items-center gap-1.5 text-metadata text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
 			>
 				{open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
 				{results.length} source{results.length !== 1 ? "s" : ""} found
@@ -43,13 +43,13 @@ const TavilyCollapsible: React.FC<TavilyCollapsibleProps> = ({ results }) => {
 							<div className="flex items-start gap-2">
 								<SourceIcon result={result} />
 								<div>
-									<p className="text-sm text-neutral-700 dark:text-neutral-300 font-medium">{result.title}</p>
-									<p className="text-xs text-neutral-500 mt-0.5 line-clamp-2">{result.content}</p>
+									<p className="text-support text-neutral-700 dark:text-neutral-300 font-medium">{result.title}</p>
+									<p className="text-support text-neutral-500 mt-0.5 line-clamp-2">{result.content}</p>
 									<a
 										href={result.url}
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 flex items-center gap-1 mt-1 w-fit"
+										className="text-metadata text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 flex items-center gap-1 mt-1 w-fit"
 									>
 										View source <ExternalLink className="w-3 h-3" />
 									</a>

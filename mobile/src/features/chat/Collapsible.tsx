@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
-import { radius, spacing } from "@/theme";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -82,7 +83,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.sm,
 			paddingVertical: 2,
 		},
-		badgeLabel: { fontSize: 10, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
+		badgeLabel: { ...typography.micro, fontWeight: "700", letterSpacing: 0.4, textTransform: "uppercase" },
 		chevron: {
 			marginLeft: "auto",
 			color: c.textFaint,

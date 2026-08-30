@@ -4,10 +4,10 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
@@ -750,11 +750,11 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		headerControl: { minHeight: 48, justifyContent: "center" },
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -770,7 +770,7 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.full,
 			paddingHorizontal: spacing.lg,
 		},
-		searchInput: { flex: 1, minHeight: 48, color: c.text, fontSize: 14 },
+		searchInput: { flex: 1, minHeight: 48, color: c.text, ...typography.control },
 		clearButton: {
 			minWidth: 48,
 			minHeight: 48,
@@ -796,7 +796,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		modeLabel: { color: c.textMuted, fontSize: 13, fontWeight: "600" },
+		modeLabel: { color: c.textMuted, ...typography.meta, fontWeight: "600" },
 		modeLabelActive: { color: c.accent },
 		eraScroll: { flexGrow: 0, flexShrink: 0 },
 		eraRow: {
@@ -817,24 +817,24 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		eraChipLabel: { color: c.textMuted, fontSize: 12.5, fontWeight: "600" },
+		eraChipLabel: { color: c.textMuted, ...typography.control, fontWeight: "600" },
 		eraChipLabelActive: { color: c.accent },
 		content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 		searchCounts: {
 			color: c.textFaint,
-			fontSize: 12,
+			...typography.meta,
 			paddingVertical: spacing.sm,
 		},
 		sectionLabel: {
 			color: c.accentDim,
-			fontSize: 11.5,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			paddingTop: spacing.sm,
 			paddingBottom: spacing.sm,
 		},
 		chapterHeader: { gap: spacing.sm, paddingBottom: spacing.lg },
-		hint: { color: c.textFaint, fontSize: 13, lineHeight: 19 },
+		hint: { color: c.textFaint, ...typography.support },
 		chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 		entityChip: {
 			minHeight: 48,
@@ -847,7 +847,7 @@ const createStyles = (c: Colors) =>
 		},
 		entityChipLabel: {
 			color: c.textSecondary,
-			fontSize: 13,
+			...typography.meta,
 			fontWeight: "600",
 		},
 		eventCard: {
@@ -861,20 +861,20 @@ const createStyles = (c: Colors) =>
 		},
 		eventYear: {
 			color: c.accent,
-			fontSize: 11.5,
+			...typography.meta,
 			fontWeight: "700",
 			letterSpacing: 0.6,
 			fontVariant: ["tabular-nums"],
 		},
-		eventProvenance: { color: c.textGhost, fontSize: 11 },
+		eventProvenance: { color: c.textGhost, ...typography.meta },
 		eventTitle: {
 			color: c.text,
-			fontSize: 15.5,
+			...typography.control,
 			fontWeight: "700",
-			lineHeight: 21,
+
 		},
-		eventSummary: { color: c.textMuted, fontSize: 13, lineHeight: 19 },
-		eventRefs: { color: c.textGhost, fontSize: 11.5, paddingTop: 2 },
+		eventSummary: { color: c.textMuted, ...typography.support },
+		eventRefs: { color: c.textGhost, ...typography.meta, paddingTop: 2 },
 		pressed: { opacity: 0.72 },
 		hitRow: {
 			flexDirection: "row",
@@ -890,18 +890,18 @@ const createStyles = (c: Colors) =>
 			minHeight: 64,
 		},
 		hitCopy: { flex: 1, gap: 3 },
-		hitName: { color: c.text, fontSize: 15, fontWeight: "700" },
-		disambiguator: { color: c.textFaint, fontSize: 11.5 },
-		chipDisambiguator: { color: c.textFaint, fontSize: 10.5 },
-		hitDescription: { color: c.textMuted, fontSize: 13, lineHeight: 18 },
-		hitMeta: { color: c.textGhost, fontSize: 11.5 },
-		chevron: { color: c.textFaint, fontSize: 18, fontWeight: "600" },
+		hitName: { color: c.text, ...typography.control, fontWeight: "700" },
+		disambiguator: { color: c.textFaint, ...typography.meta },
+		chipDisambiguator: { color: c.textFaint, ...typography.meta },
+		hitDescription: { color: c.textMuted, ...typography.support },
+		hitMeta: { color: c.textGhost, ...typography.meta },
+		chevron: { color: c.textFaint, ...typography.chat, fontWeight: "600" },
 		emptyCard: { padding: spacing.lg, marginTop: spacing.md },
-		emptyText: { color: c.textSecondary, fontSize: 14, lineHeight: 21 },
+		emptyText: { color: c.textSecondary, ...typography.support },
 		footnote: {
 			color: c.textGhost,
-			fontSize: 11.5,
-			lineHeight: 17,
+			...typography.meta,
+
 			paddingTop: spacing.md,
 			paddingBottom: spacing.lg,
 		},

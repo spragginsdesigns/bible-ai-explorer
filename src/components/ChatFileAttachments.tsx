@@ -73,11 +73,11 @@ export default function ChatFileAttachments({ attachments, onRemove }: ChatFileA
 								</span>
 							)}
 							<span className="min-w-0">
-								<span className="block truncate text-xs font-medium text-neutral-800 dark:text-neutral-200">
+								<span className="block truncate text-metadata font-medium text-neutral-800 dark:text-neutral-200">
 									{attachment.filename}
 								</span>
 								{attachment.size > 0 && (
-									<span className="block text-[10px] text-neutral-500">{formatBytes(attachment.size)}</span>
+									<span className="block text-metadata text-neutral-500">{formatBytes(attachment.size)}</span>
 								)}
 							</span>
 						</button>

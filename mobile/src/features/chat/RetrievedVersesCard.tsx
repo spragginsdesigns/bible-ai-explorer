@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import type { RetrievedVerse } from "@/lib/chatView";
 import { resolveReference } from "@/features/bible/books";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
-import { fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { Collapsible } from "./Collapsible";
@@ -169,13 +170,12 @@ const createStyles = (c: Colors) =>
 			gap: spacing.sm,
 		},
 		reference: { flexShrink: 1, color: c.accent, fontSize: 13, fontWeight: "600" },
-		percent: { color: c.textGhost, fontSize: 11, fontVariant: ["tabular-nums"] },
+		percent: { ...typography.micro, color: c.textGhost, fontVariant: ["tabular-nums"] },
 		verse: {
 			marginTop: spacing.xs,
 			color: c.textSecondary,
 			fontFamily: fonts.verse,
-			fontSize: 17,
-			lineHeight: 25,
+			...typography.longForm,
 		},
 		actions: {
 			flexDirection: "row",
@@ -195,5 +195,5 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		chipLabel: { color: c.textMuted, fontSize: 12, fontWeight: "600" },
+		chipLabel: { ...typography.meta, color: c.textMuted, fontWeight: "600" },
 	});

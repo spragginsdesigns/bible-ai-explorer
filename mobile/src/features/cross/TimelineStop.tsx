@@ -1,6 +1,7 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { spacing, type Colors } from "@/theme";
+import { StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { spacing, typography, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 
 /**
@@ -72,7 +73,7 @@ const createStyles = (c: Colors) =>
 		tlContent: { flex: 1, gap: spacing.sm, paddingBottom: spacing.xl },
 		sectionLabel: {
 			color: c.accentDim,
-			fontSize: 11.5,
+			...typography.meta,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			paddingTop: 6,

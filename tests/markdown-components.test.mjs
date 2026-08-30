@@ -282,6 +282,12 @@ test("C5: a real blockquote still renders, with its last paragraph margin remove
 	assert.ok(markup.includes('data-verse="John 3:16"'), markup);
 });
 
+test("C5: supporting blockquotes keep the body family instead of Scripture type", () => {
+	const markup = render("> A helpful study note without a verse reference");
+	assert.ok(markup.includes("<blockquote"), markup);
+	assert.ok(!markup.includes("font-[family-name:var(--font-cormorant)]"), markup);
+});
+
 test("C5: the flush selector covers a card or item that ends in a non-paragraph", () => {
 	// Every one of these ends in a block that carries its own mb-4/my-4 and is
 	// NOT a <p>: with `[&>p:last-child]` the margin stacked on the container's

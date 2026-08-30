@@ -5,9 +5,10 @@ import {
 	BackHandler,
 	KeyboardAvoidingView,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { spacing, type Colors } from "@/theme";
@@ -186,5 +187,5 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		fill: { flex: 1 },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-		error: { color: c.danger, fontSize: 14, textAlign: "center" },
+		error: { color: c.danger, ...typography.support, textAlign: "center" },
 	});

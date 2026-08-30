@@ -293,7 +293,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 										</span>
 									)}
 								</span>
-								<span className="flex-shrink-0 text-[11px] text-neutral-400 dark:text-neutral-600">
+								<span className="flex-shrink-0 text-metadata text-neutral-400 dark:text-neutral-600">
 									{relativeTime(note.updatedAt)}
 								</span>
 							</button>

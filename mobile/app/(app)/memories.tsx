@@ -5,10 +5,10 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import { radius, spacing, type Colors } from "@/theme";
@@ -358,11 +358,11 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 		},
 		backButtonPressed: { backgroundColor: c.surfacePressed },
-		backGlyph: { color: c.textMuted, fontSize: 22, marginTop: -2 },
+		backGlyph: { color: c.textMuted, ...typography.screenTitle, marginTop: -2 },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 17,
+			...typography.screenTitle,
 			fontWeight: "700",
 			textAlign: "center",
 		},
@@ -372,7 +372,7 @@ const createStyles = (c: Colors) =>
 		},
 		sectionLabel: {
 			color: c.textFaint,
-			fontSize: 11,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginTop: spacing.xl,
@@ -380,11 +380,11 @@ const createStyles = (c: Colors) =>
 			marginLeft: spacing.xs,
 		},
 		card: { padding: spacing.lg, gap: spacing.md },
-		hint: { color: c.textFaint, fontSize: 12, lineHeight: 17 },
-		summaryOverview: { color: c.text, fontSize: 14, lineHeight: 21 },
+		hint: { color: c.textFaint, ...typography.support },
+		summaryOverview: { color: c.text, ...typography.body },
 		summarySection: { gap: 4 },
-		summaryHeading: { color: c.text, fontSize: 14, fontWeight: "700" },
-		summaryText: { color: c.textMuted, fontSize: 13, lineHeight: 19 },
+		summaryHeading: { color: c.text, ...typography.control, fontWeight: "700" },
+		summaryText: { color: c.textMuted, ...typography.support },
 		summaryButton: {
 			minHeight: 44,
 			borderRadius: radius.lg,
@@ -395,7 +395,7 @@ const createStyles = (c: Colors) =>
 			borderWidth: 1,
 		},
 		summaryBusyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-		summaryButtonLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		summaryButtonLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		addRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		addInput: {
 			flex: 1,
@@ -406,7 +406,7 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 			paddingHorizontal: spacing.md,
 			color: c.text,
-			fontSize: 14,
+			...typography.support,
 		},
 		addButton: {
 			minHeight: 44,
@@ -418,14 +418,14 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			borderWidth: 1,
 		},
-		addButtonLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		addButtonLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		errorRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-		errorText: { flex: 1, color: c.danger, fontSize: 13, lineHeight: 18 },
-		retryLabel: { color: c.accent, fontSize: 13, fontWeight: "700" },
+		errorText: { flex: 1, color: c.danger, ...typography.support },
+		retryLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		groupGap: { marginTop: spacing.md },
 		groupLabel: {
 			color: c.textFaint,
-			fontSize: 11,
+			...typography.micro,
 			fontWeight: "700",
 			letterSpacing: 0.8,
 			marginBottom: spacing.xs,
@@ -436,7 +436,7 @@ const createStyles = (c: Colors) =>
 			gap: spacing.sm,
 			paddingVertical: spacing.sm,
 		},
-		memoryText: { flex: 1, color: c.text, fontSize: 14, lineHeight: 20 },
+		memoryText: { flex: 1, color: c.text, ...typography.support },
 		deleteButton: {
 			width: 32,
 			height: 32,
@@ -447,7 +447,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.border,
 			borderWidth: StyleSheet.hairlineWidth,
 		},
-		deleteGlyph: { color: c.danger, fontSize: 13 },
+		deleteGlyph: { color: c.danger, ...typography.meta },
 		clearButton: {
 			minHeight: 44,
 			borderRadius: radius.lg,
@@ -458,5 +458,5 @@ const createStyles = (c: Colors) =>
 			borderColor: c.dangerBorder,
 			borderWidth: 1,
 		},
-		clearLabel: { color: c.danger, fontSize: 14, fontWeight: "700" },
+		clearLabel: { color: c.danger, ...typography.control, fontWeight: "700" },
 	});

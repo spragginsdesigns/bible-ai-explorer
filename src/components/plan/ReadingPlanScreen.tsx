@@ -266,7 +266,7 @@ export default function ReadingPlanScreen() {
 							</button>
 						))}
 
-						<p className="mt-4 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+						<p className="mt-4 text-metadata font-bold uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
 							Build my own
 						</p>
 						<div className="glass-card flex flex-col gap-3 rounded-2xl p-5">
@@ -330,7 +330,7 @@ export default function ReadingPlanScreen() {
 
 				{plan && (
 					<>
-						<p className="mt-6 mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+						<p className="mt-6 mb-2 text-metadata font-bold uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
 							The whole plan
 						</p>
 						<ul className="flex flex-col gap-2">

@@ -4,13 +4,12 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { fetchNoteLinks } from "../api";
@@ -459,13 +458,13 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.sm,
 		},
 		fieldLabel: {
+			...typography.meta,
 			color: c.textFaint,
-			fontSize: 12,
 			fontWeight: "600",
 			marginTop: spacing.lg,
 			marginBottom: spacing.sm,
 		},
-		hint: { color: c.textGhost, fontSize: 12.5, lineHeight: 18 },
+		hint: { ...typography.support, color: c.textGhost },
 		loader: { alignSelf: "flex-start", marginVertical: spacing.md },
 		divider: {
 			height: StyleSheet.hairlineWidth,
@@ -505,7 +504,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.border,
 		},
 		aliasPressed: { backgroundColor: c.surfacePressed },
-		aliasLabel: { color: c.textSecondary, fontSize: 12.5, maxWidth: 190 },
+		aliasLabel: { ...typography.support, color: c.textSecondary, maxWidth: 190 },
 
 		inlineForm: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
 		inputFill: { flex: 1 },
@@ -539,7 +538,7 @@ const createStyles = (c: Colors) =>
 			borderBottomColor: c.border,
 		},
 		propertyBody: { flex: 1, minWidth: 0 },
-		propertyKey: { color: c.textFaint, fontSize: 11.5, fontWeight: "600" },
+		propertyKey: { ...typography.meta, color: c.textFaint, fontWeight: "600" },
 		propertyValue: { color: c.textSecondary, fontSize: 14, marginTop: 1 },
 
 		draftBox: {
@@ -583,8 +582,8 @@ const createStyles = (c: Colors) =>
 			borderColor: c.dangerBorder,
 			borderWidth: 1,
 		},
-		errorText: { flex: 1, color: c.danger, fontSize: 12.5, lineHeight: 18 },
-		errorRetry: { color: c.danger, fontSize: 12.5, fontWeight: "600" },
+		errorText: { ...typography.support, flex: 1, color: c.danger },
+		errorRetry: { ...typography.support, color: c.danger, fontWeight: "600" },
 
 		linkRow: {
 			flexDirection: "row",
@@ -596,7 +595,7 @@ const createStyles = (c: Colors) =>
 		},
 		linkTitle: { flex: 1, color: c.textSecondary, fontSize: 14 },
 		unresolved: { color: c.textGhost, fontStyle: "italic" },
-		createLabel: { color: c.accent, fontSize: 12.5, fontWeight: "600" },
+		createLabel: { ...typography.support, color: c.accent, fontWeight: "600" },
 
 		mentionRow: {
 			paddingVertical: spacing.sm,
@@ -604,6 +603,6 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		mentionTitle: { color: c.textSecondary, fontSize: 14 },
-		mentionSnippet: { color: c.textFaint, fontSize: 12.5, lineHeight: 18, marginTop: 2 },
-		mentionMeta: { color: c.textGhost, fontSize: 11, marginTop: 3 },
+		mentionSnippet: { ...typography.support, color: c.textFaint, marginTop: 2 },
+		mentionMeta: { ...typography.meta, color: c.textGhost, marginTop: 3 },
 	});

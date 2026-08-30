@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import type { ChatViewMessage } from "@/lib/chatView";
 import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { AddToNoteSheet } from "./AddToNoteSheet";
@@ -155,7 +156,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		userText: { color: c.text, fontSize: 15, lineHeight: 22 },
+		userText: { ...typography.chat, color: c.text },
 		userFiles: { marginBottom: spacing.sm },
 		userRefLink: { color: c.accent, textDecorationLine: "underline" },
 		assistantRow: {
@@ -183,5 +184,5 @@ const createStyles = (c: Colors) =>
 		},
 		addToNotePressed: { backgroundColor: c.surfacePressed },
 		addToNoteGlyph: { color: c.textFaint, fontSize: 12 },
-		addToNoteLabel: { color: c.textFaint, fontSize: 12.5 },
+		addToNoteLabel: { ...typography.meta, color: c.textFaint },
 	});

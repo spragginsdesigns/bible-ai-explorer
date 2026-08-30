@@ -5,9 +5,10 @@ import {
 	KeyboardAvoidingView,
 	Pressable,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { BrandTitle, Screen } from "@/components/ui";
@@ -327,7 +328,7 @@ const createStyles = (c: Colors) =>
 			paddingBottom: spacing.md,
 		},
 		headerTitle: { flex: 1, minWidth: 0 },
-		subtitle: { color: c.textFaint, fontSize: 12, marginTop: 2 },
+		subtitle: { color: c.textFaint, ...typography.support, marginTop: 2 },
 		headerButton: {
 			width: 40,
 			height: 40,
@@ -340,7 +341,7 @@ const createStyles = (c: Colors) =>
 		},
 		headerButtonPressed: { backgroundColor: c.surfacePressed },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-		centerLabel: { color: c.textFaint, fontSize: 13 },
+		centerLabel: { color: c.textFaint, ...typography.support },
 		centerPadded: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.lg },
 		inputWrap: {
 			paddingHorizontal: spacing.lg,

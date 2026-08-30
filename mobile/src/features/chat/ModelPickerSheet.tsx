@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "@/features/notes/components/primitives";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import {
 	setChatEffort,
 	setChatModel,
@@ -239,14 +240,14 @@ const createStyles = (c: Colors) =>
 		},
 		headerCopy: { flex: 1, minWidth: 0 },
 		eyebrow: {
+			...typography.meta,
 			color: c.accent,
-			fontSize: 10,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginBottom: spacing.xs,
 		},
 		title: { color: c.text, fontSize: 20, lineHeight: 26, fontWeight: "700" },
-		subtitle: { color: c.textFaint, fontSize: 12.5, lineHeight: 18, marginTop: 3 },
+		subtitle: { ...typography.support, color: c.textFaint, marginTop: 3 },
 		close: {
 			width: 38,
 			height: 38,
@@ -284,7 +285,7 @@ const createStyles = (c: Colors) =>
 		rowLocked: { opacity: 0.55 },
 		rowCopy: { flex: 1, minWidth: 0 },
 		rowLabel: { color: c.textSecondary, fontSize: 14.5, fontWeight: "600" },
-		rowDetail: { color: c.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: 2 },
+		rowDetail: { ...typography.meta, color: c.textFaint, marginTop: 2 },
 		modelRow: {
 			minHeight: 46,
 			flexDirection: "row",
@@ -308,8 +309,8 @@ const createStyles = (c: Colors) =>
 			gap: spacing.sm,
 		},
 		effortLabel: {
+			...typography.meta,
 			color: c.textFaint,
-			fontSize: 10,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 		},
@@ -325,5 +326,5 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 		},
 		effortChipActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		effortChipLabel: { color: c.textMuted, fontSize: 12.5, fontWeight: "700" },
+		effortChipLabel: { ...typography.meta, color: c.textMuted, fontWeight: "700" },
 	});

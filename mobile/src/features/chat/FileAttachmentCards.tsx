@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useAuth } from "@clerk/expo";
 import { useThemedStyles } from "@/features/settings/settingsStore";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import type { GetToken } from "@/lib/api";
 import {
 	type ChatAttachmentDescriptor,
@@ -108,10 +109,10 @@ const createStyles = (c: Colors) => StyleSheet.create({
 		width: 42, height: 42, borderRadius: radius.sm, alignItems: "center", justifyContent: "center",
 		backgroundColor: c.accentSoft,
 	},
-	fileGlyph: { color: c.accent, fontSize: 10, fontWeight: "700" },
+	fileGlyph: { ...typography.micro, color: c.accent, fontWeight: "700" },
 	labelWrap: { minWidth: 0, flexShrink: 1, paddingRight: spacing.sm },
-	filename: { color: c.text, fontSize: 12.5, fontWeight: "600" },
-	size: { color: c.textFaint, fontSize: 10, marginTop: 2 },
+		filename: { ...typography.meta, color: c.text, fontWeight: "600" },
+	size: { ...typography.micro, color: c.textFaint, marginTop: 2 },
 	remove: {
 		position: "absolute", right: -6, top: -6, width: 22, height: 22, borderRadius: radius.full,
 		alignItems: "center", justifyContent: "center", backgroundColor: c.bgElevated,

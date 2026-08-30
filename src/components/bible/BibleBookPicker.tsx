@@ -161,7 +161,7 @@ const BibleBookPicker: React.FC = () => {
                 section.groups.map(({ group, books }) => (
                   <div key={group ?? "ungrouped"} className="mb-4">
                     {group && (
-                      <p className="pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
+                      <p className="pb-2 text-metadata font-semibold uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
                         {group}
                       </p>
                     )}

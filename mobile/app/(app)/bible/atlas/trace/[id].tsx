@@ -3,10 +3,10 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import {
@@ -236,22 +236,22 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		backButton: { minHeight: 48, justifyContent: "center" },
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
 		spacer: { width: 52 },
 		content: { paddingHorizontal: spacing.lg },
-		name: { color: c.text, fontSize: 28, fontWeight: "700" },
-		disambiguator: { color: c.textFaint, fontSize: 11.5, marginTop: 2 },
+		name: { color: c.text, ...typography.screenTitle, fontWeight: "700" },
+		disambiguator: { color: c.textFaint, ...typography.meta, marginTop: 2 },
 		subtitle: {
 			color: c.textMuted,
-			fontSize: 13,
-			lineHeight: 19,
+			...typography.support,
+
 			marginTop: spacing.xs,
 		},
 		searchWrap: {
@@ -262,7 +262,7 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 			paddingHorizontal: spacing.lg,
 		},
-		input: { minHeight: 48, color: c.text, fontSize: 14 },
+		input: { minHeight: 48, color: c.text, ...typography.control },
 		results: { gap: spacing.sm, marginTop: spacing.md },
 		result: {
 			minHeight: 52,
@@ -273,12 +273,12 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 			paddingHorizontal: spacing.lg,
 		},
-		resultName: { color: c.text, fontSize: 14.5, fontWeight: "700" },
-		resultMeta: { color: c.textGhost, fontSize: 11.5, marginTop: 2 },
+		resultName: { color: c.text, ...typography.control, fontWeight: "700" },
+		resultMeta: { color: c.textGhost, ...typography.micro, marginTop: 2 },
 		path: { marginTop: spacing.lg },
 		sectionLabel: {
 			color: c.accentDim,
-			fontSize: 11.5,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginBottom: spacing.sm,
@@ -292,10 +292,10 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.accentSoft,
 			paddingHorizontal: spacing.lg,
 		},
-		nodeName: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		nodeName: { color: c.accent, ...typography.control, fontWeight: "700" },
 		edge: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-		edgeType: { color: c.textSecondary, fontSize: 13, fontWeight: "600" },
-		edgeRefs: { color: c.textGhost, fontSize: 11.5, marginTop: 2 },
+		edgeType: { color: c.textSecondary, ...typography.meta, fontWeight: "600" },
+		edgeRefs: { color: c.textGhost, ...typography.meta, marginTop: 2 },
 		refs: {
 			flexDirection: "row",
 			flexWrap: "wrap",
@@ -311,13 +311,13 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.accentSoft,
 			paddingHorizontal: spacing.md,
 		},
-		refLabel: { color: c.accent, fontSize: 12.5, fontWeight: "700" },
+		refLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		center: { flex: 1, justifyContent: "center", padding: spacing.lg },
 		card: { padding: spacing.lg },
 		empty: {
 			color: c.textSecondary,
-			fontSize: 14,
-			lineHeight: 21,
+			...typography.support,
+
 			textAlign: "center",
 		},
 	});

@@ -7,9 +7,10 @@ import {
 	Pressable,
 	Share,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
@@ -400,7 +401,7 @@ export default function BibleChapterScreen() {
 						onPress={() => stepFont(1)}
 						style={[styles.fontButton, fontStep === FONT_STEPS.length - 1 && { opacity: 0.35 }]}
 					>
-						<Text style={[styles.fontButtonLabel, { fontSize: 16 }]}>A+</Text>
+						<Text style={[styles.fontButtonLabel, { ...typography.body }]}>A+</Text>
 					</Pressable>
 				</View>
 			</View>
@@ -692,11 +693,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -720,11 +721,11 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		translationChipLabel: { color: c.textMuted, fontSize: 11, fontWeight: "700" },
+		translationChipLabel: { color: c.textMuted, ...typography.micro, fontWeight: "700" },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-		loadingLabel: { marginTop: spacing.md, color: c.textFaint, fontSize: 13 },
+		loadingLabel: { marginTop: spacing.md, color: c.textFaint, ...typography.support },
 		errorCard: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
-		errorText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		errorText: { color: c.textSecondary, ...typography.support, textAlign: "center" },
 		retry: {
 			borderRadius: radius.md,
 			backgroundColor: c.accentSoft,
@@ -733,7 +734,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.xl,
 			paddingVertical: spacing.sm,
 		},
-		retryLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		retryLabel: { color: c.accent, ...typography.control, fontWeight: "600" },
 		body: { flex: 1 },
 		// The page itself: fixed parchment the verses scroll over, like text
 		// moving across an unrolled scroll under a lamp.
@@ -749,7 +750,7 @@ const createStyles = (c: Colors) =>
 		verseItalic: { fontFamily: fonts.verseItalic },
 		verseNumber: {
 			color: c.parchmentNumber,
-			fontSize: 12,
+			...typography.micro,
 			fontFamily: fonts.sans,
 			fontWeight: "700",
 		},
@@ -757,7 +758,7 @@ const createStyles = (c: Colors) =>
 			marginTop: spacing.lg,
 			color: c.parchmentInk,
 			opacity: 0.55,
-			fontSize: 12,
+			...typography.micro,
 			textAlign: "center",
 			fontStyle: "italic",
 		},
@@ -780,7 +781,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		navChipLabel: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
+		navChipLabel: { color: c.textSecondary, ...typography.support, fontWeight: "600" },
 		askButton: {
 			position: "absolute",
 			right: spacing.xl,
@@ -791,7 +792,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.xl,
 			paddingVertical: spacing.md,
 		},
-		askButtonLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		askButtonLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		sheetVerseCard: {
 			borderRadius: radius.md,
 			borderWidth: StyleSheet.hairlineWidth,
@@ -803,8 +804,7 @@ const createStyles = (c: Colors) =>
 		sheetVerseText: {
 			color: c.textSecondary,
 			fontFamily: fonts.verse,
-			fontSize: 15,
-			lineHeight: 22,
+			...typography.chat,
 		},
 		expandButton: {
 			minHeight: 46,
@@ -816,10 +816,10 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 			marginBottom: spacing.sm,
 		},
-		expandButtonLabel: { color: c.accent, fontSize: 14.5, fontWeight: "700" },
+		expandButtonLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		sheetError: {
 			color: c.danger,
-			fontSize: 12.5,
+			...typography.support,
 			paddingHorizontal: spacing.sm,
 			paddingVertical: spacing.md,
 		},
@@ -831,11 +831,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.sm,
 			paddingVertical: 4,
 		},
-		fontButtonLabel: { color: c.textSecondary, fontSize: 12, fontWeight: "700" },
+		fontButtonLabel: { color: c.textSecondary, ...typography.control, fontWeight: "700" },
 		highlightSection: { marginBottom: spacing.sm },
 		highlightLabel: {
 			color: c.textMuted,
-			fontSize: 12,
+			...typography.support,
 			fontWeight: "700",
 			textTransform: "uppercase",
 			letterSpacing: 0.8,
@@ -862,7 +862,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			backgroundColor: c.surface,
 		},
-		swatchCustomLabel: { color: c.textMuted, fontSize: 18, fontWeight: "600", marginTop: -2 },
+		swatchCustomLabel: { color: c.textMuted, ...typography.chat, fontWeight: "600", marginTop: -2 },
 		pickerBackdrop: {
 			position: "absolute",
 			top: 0,
@@ -882,7 +882,7 @@ const createStyles = (c: Colors) =>
 		},
 		pickerTitle: {
 			color: c.text,
-			fontSize: 15,
+			...typography.control,
 			fontWeight: "600",
 			marginBottom: spacing.md,
 			textAlign: "center",

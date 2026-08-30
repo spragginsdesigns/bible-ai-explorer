@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import type { NoteAction } from "@/lib/chatView";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -46,6 +47,6 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.lg,
 		},
 		glyph: { color: c.accent, fontSize: 15 },
-		label: { flex: 1, color: c.textSecondary, fontSize: 13, lineHeight: 19 },
+		label: { ...typography.meta, flex: 1, color: c.textSecondary },
 		title: { color: c.accent, fontWeight: "600" },
 	});

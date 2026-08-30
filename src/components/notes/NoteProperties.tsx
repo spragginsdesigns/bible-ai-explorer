@@ -45,7 +45,7 @@ const ChipInput: React.FC<ChipInputProps> = ({ values, placeholder, onChange }) 
 			{values.map((value) => (
 				<span
 					key={value}
-					className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] bg-white/[0.05] border border-white/[0.08] text-neutral-300"
+					className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-metadata bg-white/[0.05] border border-white/[0.08] text-neutral-300"
 				>
 					{value}
 					<button
@@ -204,13 +204,13 @@ const NotePropertiesSection: React.FC<NotePropertiesSectionProps> = ({
 					<ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
 				)}
 				<span className="text-xs font-medium">Properties</span>
-				<span className="text-[10px] text-neutral-600">{entries.length}</span>
+				<span className="text-metadata text-neutral-600">{entries.length}</span>
 			</button>
 
 			{expanded && (
 				<div className="px-4 pb-3 space-y-3">
 					{/* Read-only facts */}
-					<dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1 text-[11px]">
+					<dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1 text-metadata">
 						<dt className="text-neutral-600">Created</dt>
 						<dd className="text-neutral-400">{formatDate(note.createdAt)}</dd>
 						<dt className="text-neutral-600">Updated</dt>
@@ -220,7 +220,7 @@ const NotePropertiesSection: React.FC<NotePropertiesSectionProps> = ({
 					</dl>
 
 					<div className="grid grid-cols-[88px_1fr] gap-x-3 items-start">
-						<span className="text-[11px] text-neutral-600 pt-1">Aliases</span>
+						<span className="text-metadata text-neutral-600 pt-1">Aliases</span>
 						<ChipInput
 							values={note.aliases}
 							placeholder="Add alias"
@@ -234,7 +234,7 @@ const NotePropertiesSection: React.FC<NotePropertiesSectionProps> = ({
 							className="grid grid-cols-[88px_1fr_auto] gap-x-3 items-start group"
 						>
 							<span
-								className="text-[11px] text-neutral-600 pt-1 truncate"
+								className="text-metadata text-neutral-600 pt-1 truncate"
 								title={key}
 							>
 								{key}

@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
-import { hasParents, type RenderRules } from "react-native-markdown-display";
-import { fonts, radius, spacing } from "@/theme";
+import type { RenderRules } from "react-native-markdown-display";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME } from "@/features/chat/verseLinks";
@@ -11,7 +12,11 @@ import {
 	sureWordMarkdownIt,
 	sureWordMarkdownRules,
 } from "@/features/chat/MarkdownBody";
-import { DEFAULT_IMAGE_HANDLER, NOTE_ALLOWED_IMAGE_HANDLERS } from "@/features/chat/markdownRules";
+import {
+	DEFAULT_IMAGE_HANDLER,
+	isScriptureBlockquote,
+	NOTE_ALLOWED_IMAGE_HANDLERS,
+} from "@/features/chat/markdownRules";
 
 /** Module scope: every one of these is a memo dependency of the library's AstRenderer. */
 const truncationMarker = <Text key="note-markdown-truncated">…</Text>;
@@ -39,12 +44,11 @@ export const NoteMarkdown = React.memo(function NoteMarkdown({ content }: { cont
 					{children}
 				</View>
 			),
-			// react-native-markdown-display has no descendant selectors, so the
-			// Scripture font is applied by checking the ancestor chain here.
+			// Only a quote carrying a validated verse link receives Scripture type.
 			textgroup: (node, children, parents) => (
 				<Text
 					key={node.key}
-					style={hasParents(parents, "blockquote") ? styles.verse : styles.textgroup}
+					style={isScriptureBlockquote(parents) ? styles.verse : styles.textgroup}
 				>
 					{children}
 				</Text>
@@ -96,20 +100,18 @@ const createStyles = (c: Colors) =>
 		},
 		verse: {
 			fontFamily: fonts.verse,
-			fontSize: 18,
-			lineHeight: 26,
+			...typography.longForm,
 			color: c.textSecondary,
 		},
 		textgroup: {
-			fontSize: 14,
-			lineHeight: 21,
+			...typography.body,
 			color: c.textSecondary,
 		},
 	});
 
 const createMarkdownStyles = (c: Colors) =>
 	StyleSheet.create({
-		body: { color: c.textSecondary, fontSize: 14, lineHeight: 21 },
+		body: { ...typography.body, fontFamily: fonts.body, color: c.textSecondary },
 		paragraph: { marginTop: 0, marginBottom: spacing.sm },
 		heading1: { color: c.text, fontSize: 18, fontWeight: "700", marginBottom: 6 },
 		heading2: { color: c.text, fontSize: 16, fontWeight: "700", marginBottom: 6 },
@@ -123,6 +125,7 @@ const createMarkdownStyles = (c: Colors) =>
 		bullet_list_icon: { color: c.accentDim, marginRight: 6 },
 		ordered_list_icon: { color: c.accentDim, marginRight: 6 },
 		code_inline: {
+			fontFamily: fonts.mono,
 			backgroundColor: c.surfaceStrong,
 			color: c.text,
 			borderRadius: radius.sm,

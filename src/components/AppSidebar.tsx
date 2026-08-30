@@ -117,7 +117,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 								key={id}
 								href={href}
 								aria-current={isActive ? "page" : undefined}
-								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[14px] text-sm font-medium border transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] ${
+								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[14px] text-control font-medium border transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] ${
 									isActive
 										? "sidebar-glass-control text-amber-700 dark:text-amber-300"
 										: "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] border-transparent"
@@ -145,11 +145,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 				<div className="border-t border-black/[0.06] dark:border-white/[0.06] p-3 flex items-center gap-2.5">
 					<UserButton />
 					<div className="min-w-0 flex-1">
-						<p className="truncate text-[13px] font-semibold text-neutral-800 dark:text-neutral-200">
+						<p className="truncate text-metadata font-semibold text-neutral-800 dark:text-neutral-200">
 							{name || email || "Signed in"}
 						</p>
 						{name && email && (
-							<p className="truncate text-[11px] text-neutral-400 dark:text-neutral-500">
+							<p className="truncate text-metadata text-neutral-400 dark:text-neutral-500">
 								{email}
 							</p>
 						)}

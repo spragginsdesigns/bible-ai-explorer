@@ -6,12 +6,12 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { AppText as Text } from "@/components/AppText";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
-import { fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
@@ -199,9 +199,8 @@ const createStyles = (c: Colors) =>
 			textAlign: "center",
 		},
 		subhead: {
+			...typography.chat,
 			color: c.parchmentInk,
-			fontSize: 17,
-			lineHeight: 24,
 			marginTop: spacing.sm,
 			textAlign: "center",
 		},
@@ -215,21 +214,20 @@ const createStyles = (c: Colors) =>
 			color: c.parchmentInk,
 			fontFamily: fonts.verse,
 			fontSize: 19,
-			lineHeight: 26,
+			lineHeight: 28,
 			textAlign: "center",
 		},
 		citation: {
+			...typography.meta,
 			color: c.accent,
-			fontSize: 11,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginTop: spacing.xs,
 			textAlign: "center",
 		},
 		trust: {
+			...typography.support,
 			color: c.textSecondary,
-			fontSize: 13,
-			lineHeight: 18,
 			marginTop: spacing.md,
 			textAlign: "center",
 		},
@@ -242,9 +240,8 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.md,
 		},
 		sectionHeadingText: {
+			...typography.meta,
 			color: c.accent,
-			fontFamily: fonts.verse,
-			fontSize: 13,
 			fontWeight: "600",
 			letterSpacing: 2,
 		},
@@ -260,19 +257,17 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.lg,
 		},
 		featuredReference: {
+			...typography.meta,
 			color: c.accent,
-			fontSize: 12,
 			fontWeight: "700",
 			letterSpacing: 1.5,
 			marginBottom: spacing.sm,
 		},
 		featuredBody: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		featuredLabel: {
+			...typography.chat,
 			flex: 1,
 			color: c.parchmentInk,
-			fontFamily: fonts.verse,
-			fontSize: 23,
-			lineHeight: 28,
 		},
 		questionRow: {
 			minHeight: 64,
@@ -285,15 +280,15 @@ const createStyles = (c: Colors) =>
 			borderBottomWidth: StyleSheet.hairlineWidth,
 		},
 		questionReference: {
+			...typography.meta,
 			// Wide enough for the longest kind label ("TODAY'S VERSE") on one line;
 			// the column only stays a column if every row reserves the same width.
 			width: 96,
 			color: c.accent,
-			fontSize: 11,
 			fontWeight: "700",
 			letterSpacing: 1,
 		},
-		questionLabel: { flex: 1, color: c.textSecondary, fontSize: 15, lineHeight: 21 },
+		questionLabel: { flex: 1, color: c.textSecondary, ...typography.body },
 		skeletonReference: {
 			width: 74,
 			height: 10,

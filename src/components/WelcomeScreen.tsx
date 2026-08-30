@@ -81,37 +81,37 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
               className="w-full h-full object-cover scale-110"
             />
           </div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
+          <p className="mb-2 text-metadata font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
             SureWord
           </p>
           <h1 className="text-4xl sm:text-6xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
             Come hungry for the Word.
           </h1>
-          <p className="text-neutral-700 dark:text-neutral-200 text-base leading-7 max-w-xl mx-auto">
+          <p className="text-chat text-neutral-700 dark:text-neutral-200 max-w-xl mx-auto">
             SureWord is your personal Bible study companion, shaped by your
             reading, questions, notes, and daily walk—helping you go deeper in
             Scripture every day.
           </p>
           <figure className="mt-5 max-w-lg mx-auto text-neutral-700 dark:text-neutral-200">
-            <blockquote className="text-sm italic leading-6">
+            <blockquote className="font-[family-name:var(--font-cormorant)] text-lg italic leading-7">
               “As newborn babes, desire the sincere milk of the word, that ye
               may grow thereby:”
             </blockquote>
-            <figcaption className="mt-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+            <figcaption className="mt-1 text-metadata font-medium text-neutral-600 dark:text-neutral-300">
               — 1 Peter 2:2, KJV
             </figcaption>
           </figure>
-          <p className="mt-4 text-sm leading-6 text-neutral-600 dark:text-neutral-300 max-w-lg mx-auto">
+          <p className="mt-4 text-support text-neutral-600 dark:text-neutral-300 max-w-lg mx-auto">
             Scripture comes first. Every answer is grounded in God&apos;s
             inerrant, infallible Word.
           </p>
         </div>
 
         <div className="mb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
+          <h2 className="text-metadata font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
             CHOSEN FROM YOUR STUDY
           </h2>
-          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
+          <p className="mt-1 text-support text-neutral-600 dark:text-neutral-300">
             Based on your reading, questions, notes, and daily walk.
           </p>
         </div>
@@ -146,10 +146,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
                 <button
                   key={item.key}
                   onClick={() => onSelectQuestion(item.question)}
-                  className="text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 text-sm group animate-message-in"
+                  className="text-control text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 group animate-message-in"
                 >
                   {item.label ? (
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-600/90 dark:text-amber-400/80">
+                    <span className="mb-1 block text-metadata font-semibold uppercase tracking-[0.14em] text-amber-600/90 dark:text-amber-400/80">
                       {item.label}
                     </span>
                   ) : null}
@@ -161,7 +161,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
         </div>
 
         <div className="mt-8">
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-3">
+          <p className="text-support text-neutral-500 dark:text-neutral-400 mb-3">
             ✦ SureWord is also a native app — same account, chats, notes, memories, and daily walk.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -174,12 +174,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
             >
               <AndroidLogo className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-400" />
               <span className="leading-tight">
-                <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+                <span className="block text-metadata font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
                   Download for
                 </span>
-                <span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+                <span className="block text-control font-semibold text-neutral-900 dark:text-neutral-100">
                   Android{" "}
-                  <span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+                  <span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
                     {releases.android.version}
                   </span>
                 </span>
@@ -194,12 +194,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
             >
               <AppleLogo className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-400" />
               <span className="leading-tight">
-                <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
+                <span className="block text-metadata font-medium uppercase tracking-[0.14em] text-neutral-500 dark:text-neutral-400">
                   Download for
                 </span>
-                <span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+                <span className="block text-control font-semibold text-neutral-900 dark:text-neutral-100">
                   macOS{" "}
-                  <span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+                  <span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
                     {releases.macos.version}
                   </span>
                 </span>

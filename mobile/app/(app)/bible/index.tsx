@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
@@ -223,7 +225,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: 10,
 		},
-		searchText: { color: c.textMuted, fontSize: 14 },
+		searchText: { color: c.textMuted, ...typography.support },
 		listContent: { paddingHorizontal: spacing.lg },
 		crossCard: {
 			flexDirection: "row",
@@ -251,14 +253,14 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		planGlyph: { color: c.textMuted, fontSize: 18 },
-		planTitle: { color: c.text, fontSize: 15, fontWeight: "700" },
-		planChevron: { color: c.textFaint, fontSize: 18, fontWeight: "600" },
-		crossGlyph: { color: c.accent, fontSize: 20 },
+		planGlyph: { color: c.textMuted, ...typography.chat },
+		planTitle: { color: c.text, ...typography.control, fontWeight: "700" },
+		planChevron: { color: c.textFaint, ...typography.chat, fontWeight: "600" },
+		crossGlyph: { color: c.accent, ...typography.screenTitle },
 		crossCopy: { flex: 1, gap: 2 },
-		crossTitle: { color: c.accent, fontSize: 15, fontWeight: "700" },
-		crossSubtitle: { color: c.textMuted, fontSize: 12.5 },
-		crossChevron: { color: c.accent, fontSize: 18, fontWeight: "600" },
+		crossTitle: { color: c.accent, ...typography.control, fontWeight: "700" },
+		crossSubtitle: { color: c.textMuted, ...typography.meta },
+		crossChevron: { color: c.accent, ...typography.chat, fontWeight: "600" },
 		testamentHeader: {
 			flexDirection: "row",
 			alignItems: "center",
@@ -267,20 +269,20 @@ const createStyles = (c: Colors) =>
 			paddingBottom: spacing.sm,
 		},
 		testamentHeaderPressed: { opacity: 0.7 },
-		chevron: { color: c.textFaint, fontSize: 12, width: 12 },
+		chevron: { color: c.textFaint, ...typography.micro, width: 12 },
 		testamentTitle: {
 			flex: 1,
 			color: c.textFaint,
-			fontSize: 12,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			textTransform: "uppercase",
 			letterSpacing: 1.2,
 		},
-		testamentCount: { color: c.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
+		testamentCount: { color: c.textGhost, ...typography.micro, fontVariant: ["tabular-nums"] },
 		groupHeader: {
 			fontFamily: fonts.sans,
 			color: c.textMuted,
-			fontSize: 11,
+			...typography.micro,
 			fontWeight: "600",
 			textTransform: "uppercase",
 			letterSpacing: 1,
@@ -301,6 +303,6 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.sm,
 		},
 		bookRowPressed: { backgroundColor: c.surfacePressed },
-		bookName: { color: c.textSecondary, fontSize: 15, fontWeight: "600" },
-		bookMeta: { color: c.textGhost, fontSize: 12, fontVariant: ["tabular-nums"] },
+		bookName: { color: c.textSecondary, ...typography.control, fontWeight: "600" },
+		bookMeta: { color: c.textGhost, ...typography.micro, fontVariant: ["tabular-nums"] },
 	});

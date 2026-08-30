@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { radius, spacing } from "@/theme";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { PRESET_TAG_COLORS, type Tag } from "../types";
@@ -156,7 +157,7 @@ const createStyles = (c: Colors) =>
 			borderTopWidth: StyleSheet.hairlineWidth,
 			borderTopColor: c.border,
 		},
-		newTagLabel: { color: c.textFaint, fontSize: 13.5 },
+		newTagLabel: { ...typography.meta, color: c.textFaint },
 
 		createBox: {
 			borderTopWidth: StyleSheet.hairlineWidth,

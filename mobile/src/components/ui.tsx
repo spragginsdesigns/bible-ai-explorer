@@ -2,13 +2,13 @@ import React from "react";
 import {
 	Pressable,
 	StyleSheet,
-	Text,
 	View,
 	type PressableProps,
 	type StyleProp,
 	type TextStyle,
 	type ViewStyle,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fonts, radius, spacing } from "@/theme";

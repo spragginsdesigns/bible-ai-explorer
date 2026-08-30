@@ -299,7 +299,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 									</div>
 								))}
 								<div className="flex items-center justify-between gap-2 pt-1">
-									<span className="text-[11px] text-neutral-400 dark:text-neutral-600">
+									<span className="text-metadata text-neutral-400 dark:text-neutral-600">
 										Updated {summaryGeneratedAt ? relativeTime(summaryGeneratedAt) : "just now"}
 									</span>
 									<button
@@ -352,7 +352,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 
 					{/* Saved memories */}
 					<div className="mt-4">
-						<p className="text-[11px] font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500">
+						<p className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500">
 							SAVED MEMORIES{memories ? ` (${memories.length})` : ""}
 						</p>
 						{memories === null && !loadError && (
@@ -380,7 +380,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 						)}
 						{groups.map((group) => (
 							<div key={group.category} className="mt-3">
-								<p className="text-[11px] font-bold tracking-[0.15em] text-amber-600/80 dark:text-amber-400/70 px-1">
+								<p className="text-metadata font-bold tracking-[0.15em] text-amber-600/80 dark:text-amber-400/70 px-1">
 									{group.label.toUpperCase()}
 								</p>
 								<div className="mt-1 flex flex-col">

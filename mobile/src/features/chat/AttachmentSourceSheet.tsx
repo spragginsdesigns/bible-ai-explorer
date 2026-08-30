@@ -1,8 +1,9 @@
 import React, { useCallback } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "@/features/notes/components/primitives";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import { useThemedStyles, useTheme } from "@/features/settings/settingsStore";
 
 interface AttachmentSourceSheetProps {
@@ -131,17 +132,16 @@ const createStyles = (c: Colors) =>
 		},
 		headerCopy: { flex: 1, minWidth: 0 },
 		eyebrow: {
+			...typography.meta,
 			color: c.accent,
-			fontSize: 10,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginBottom: spacing.xs,
 		},
 		title: { color: c.text, fontSize: 20, lineHeight: 26, fontWeight: "700" },
 		subtitle: {
+			...typography.support,
 			color: c.textFaint,
-			fontSize: 12.5,
-			lineHeight: 18,
 			marginTop: 3,
 		},
 		close: {
@@ -185,9 +185,8 @@ const createStyles = (c: Colors) =>
 		optionCopy: { flex: 1, minWidth: 0 },
 		optionLabel: { color: c.textSecondary, fontSize: 14.5, fontWeight: "600" },
 		optionDetail: {
+			...typography.meta,
 			color: c.textFaint,
-			fontSize: 11.5,
-			lineHeight: 16,
 			marginTop: 2,
 		},
 	});

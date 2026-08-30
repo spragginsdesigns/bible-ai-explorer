@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { radius, spacing } from "@/theme";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -34,8 +35,8 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		wrap: { marginTop: spacing.lg, gap: spacing.sm },
 		caption: {
+			...typography.support,
 			color: c.textGhost,
-			fontSize: 11,
 			fontWeight: "600",
 			letterSpacing: 0.6,
 			textTransform: "uppercase",

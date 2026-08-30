@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { useNotesSnapshot } from "../notesStore";
@@ -164,7 +165,7 @@ const createStyles = (c: Colors) =>
 		rowPressed: { backgroundColor: c.surfacePressed },
 		rowBody: { flex: 1, minWidth: 0, paddingVertical: spacing.xs },
 		rowTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "500" },
-		rowMeta: { marginTop: 2, color: c.textGhost, fontSize: 11 },
+		rowMeta: { ...typography.meta, marginTop: 2, color: c.textGhost },
 		empty: {
 			color: c.textFaint,
 			fontSize: 13,

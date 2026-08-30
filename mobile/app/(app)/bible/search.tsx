@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
@@ -169,11 +171,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -194,20 +196,20 @@ const createStyles = (c: Colors) =>
 			minHeight: 44,
 			color: c.text,
 			fontFamily: fonts.sans,
-			fontSize: 15,
+			...typography.control,
 		},
 		clearButton: { padding: spacing.xs },
-		clearLabel: { color: c.textMuted, fontSize: 20, fontWeight: "600" },
+		clearLabel: { color: c.textMuted, ...typography.control, fontWeight: "600" },
 		content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 		hint: {
 			color: c.textFaint,
-			fontSize: 13,
+			...typography.support,
 			textAlign: "center",
 			paddingVertical: spacing.lg,
 		},
 		count: {
 			color: c.textFaint,
-			fontSize: 12,
+			...typography.meta,
 			paddingVertical: spacing.sm,
 		},
 		jumpRow: {
@@ -219,7 +221,7 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 			marginBottom: spacing.sm,
 		},
-		jumpLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		jumpLabel: { color: c.accent, ...typography.control, fontWeight: "600" },
 		resultRow: {
 			backgroundColor: c.surface,
 			borderColor: c.border,
@@ -230,6 +232,6 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.sm,
 		},
 		rowPressed: { backgroundColor: c.surfacePressed },
-		resultRef: { color: c.accent, fontSize: 13, fontWeight: "700", marginBottom: spacing.xs },
-		resultText: { color: c.textSecondary, fontFamily: fonts.verse, fontSize: 16, lineHeight: 22 },
+		resultRef: { color: c.accent, ...typography.meta, fontWeight: "700", marginBottom: spacing.xs },
+		resultText: { color: c.textSecondary, fontFamily: fonts.verse, ...typography.chat },
 	});

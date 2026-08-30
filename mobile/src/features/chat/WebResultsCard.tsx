@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import type { TavilyResult } from "@/lib/chatView";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { Collapsible } from "./Collapsible";
@@ -56,8 +57,8 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		title: { color: c.text, fontSize: 13, fontWeight: "600" },
-		snippet: { marginTop: spacing.xs, color: c.textMuted, fontSize: 12, lineHeight: 18 },
+		snippet: { ...typography.support, marginTop: spacing.xs, color: c.textMuted },
 		linkRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
-		link: { flexShrink: 1, color: c.textGhost, fontSize: 11 },
-		linkGlyph: { color: c.textGhost, fontSize: 11 },
+		link: { ...typography.micro, flexShrink: 1, color: c.textGhost },
+		linkGlyph: { ...typography.micro, color: c.textGhost },
 	});

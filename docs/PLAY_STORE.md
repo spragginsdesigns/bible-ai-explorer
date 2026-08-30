@@ -67,15 +67,16 @@ that APK automatically, so no site version constant is updated by hand.
 | Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
 | Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
 
-## Current source status (2026-08-28)
+## Current source status (2026-08-30)
 
-The checked-in Android source and current internal release are `1.40.0` /
-versionCode `38` (`mobile/app.json`, tag `android-v1.40.0`). The release gives
-the Chat composer balanced clearance above the navigation bar, a unified
-lighter surface, and a restrained halo. It is built and published from one
-bound AAB/APK pair through `push-phone.sh --skip-build`; the matching
+The checked-in Android source and current internal release are `1.43.0` /
+versionCode `41` (`mobile/app.json`, tag `android-v1.43.0`). The release carries
+the latest main-branch welcome, launch animation, linked Notes work, and a
+cross-app Atkinson Hyperlegible typography system with Hack for code. It is
+built and published from one bound AAB/APK pair through
+`push-phone.sh --skip-build`; the matching
 `SureWord.apk` SHA-256 is
-`7646d5eb080437b8f53460d69122366eb62bd771e8854a7fd0e209ad7b40ceb6`.
+`09da864da14b780aa91c856382d6a44ae0e7e396af2d9f73fbef7e4130d3e1e1`.
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes

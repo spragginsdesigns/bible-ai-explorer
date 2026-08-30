@@ -5,11 +5,11 @@ import {
 	PanResponder,
 	Pressable,
 	StyleSheet,
-	Text,
 	View,
 	type GestureResponderEvent,
 	type LayoutChangeEvent,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import {
 	setAudioModeAsync,
 	useAudioPlayer,
@@ -27,7 +27,7 @@ import {
 } from "@/features/notifications/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { API_URL } from "@/lib/api";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import {
 	setListenRate,
 	useSettings,
@@ -614,9 +614,9 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.accentBorder,
 		},
-		preparingText: { color: c.textSecondary, fontSize: 14, textAlign: "center" },
-		preparingHint: { color: c.textFaint, fontSize: 12.5, textAlign: "center" },
-		failureText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		preparingText: { ...typography.support, color: c.textSecondary, textAlign: "center" },
+		preparingHint: { ...typography.support, color: c.textFaint, textAlign: "center" },
+		failureText: { ...typography.support, color: c.textSecondary, textAlign: "center" },
 		playerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		playButton: {
 			width: 48,

@@ -1,17 +1,34 @@
 import type { Metadata } from "next";
-import { Inter, Pirata_One, Cormorant_Garamond } from "next/font/google";
+import { Atkinson_Hyperlegible, Pirata_One, Cormorant_Garamond } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "../components/ThemeProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
 
-const inter = Inter({ subsets: ["latin"] });
+const atkinsonHyperlegible = Atkinson_Hyperlegible({
+	subsets: ["latin"],
+	weight: ["400", "700"],
+	style: ["normal", "italic"],
+	display: "swap",
+	variable: "--font-body",
+});
 const pirataOne = Pirata_One({ subsets: ["latin"], weight: "400", variable: "--font-pirata" });
 const cormorantGaramond = Cormorant_Garamond({
 	subsets: ["latin"],
 	weight: ["400", "500", "600", "700"],
 	style: ["normal", "italic"],
 	variable: "--font-cormorant",
+});
+const hack = localFont({
+	src: [
+		{ path: "./fonts/hack-regular.woff2", weight: "400", style: "normal" },
+		{ path: "./fonts/hack-italic.woff2", weight: "400", style: "italic" },
+		{ path: "./fonts/hack-bold.woff2", weight: "700", style: "normal" },
+		{ path: "./fonts/hack-bolditalic.woff2", weight: "700", style: "italic" },
+	],
+	display: "swap",
+	variable: "--font-mono",
 });
 
 export const metadata: Metadata = {
@@ -84,8 +101,14 @@ export default function RootLayout({
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 			</head>
-			<body className={`${inter.className} ${pirataOne.variable} ${cormorantGaramond.variable}`}>
-				<ClerkProvider>
+			<body className={`${atkinsonHyperlegible.variable} ${pirataOne.variable} ${cormorantGaramond.variable} ${hack.variable}`}>
+				<ClerkProvider
+					appearance={{
+						variables: {
+							fontFamily: "var(--font-body), system-ui, sans-serif",
+						},
+					}}
+				>
 					<ThemeProvider
 						attribute="class"
 						defaultTheme="system"

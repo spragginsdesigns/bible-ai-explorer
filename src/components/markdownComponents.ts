@@ -86,6 +86,34 @@ function isBlankNode(node: React.ReactNode): boolean {
 	return false;
 }
 
+/** A blockquote is Scripture only when its content carries a verse marker. */
+function containsVerseReference(
+	node: React.ReactNode,
+	verseRef?: VerseRefComponent,
+	parseVerseReferences?: (text: string) => TextSegment[]
+): boolean {
+	if (node === null || node === undefined || typeof node === "boolean") return false;
+	if (typeof node === "string") {
+		return Boolean(parseVerseReferences?.(node).some((segment) => segment.type === "verse-ref"));
+	}
+	if (Array.isArray(node)) {
+		return node.some((child) => containsVerseReference(child, verseRef, parseVerseReferences));
+	}
+	if (!React.isValidElement(node)) return false;
+	// The injected popover component is the most reliable marker before React
+	// renders its eventual data-verse attribute.
+	if (verseRef && node.type === verseRef) return true;
+	const props = node.props as HastElementProps & {
+		reference?: unknown;
+		"data-verse"?: unknown;
+	};
+	return (
+		typeof props.reference === "string" ||
+		typeof props["data-verse"] === "string" ||
+		containsVerseReference(props.children, verseRef, parseVerseReferences)
+	);
+}
+
 /** A link that leaves the app, and so needs target/rel hardening. */
 function isExternalHref(href: string | undefined): boolean {
 	if (typeof href !== "string") return false;
@@ -128,7 +156,7 @@ export function createMarkdownComponents({
 		p: ({ children }) =>
 			h(
 				"p",
-				{ className: "mb-4 text-neutral-700 dark:text-neutral-300 leading-relaxed" },
+				{ className: "mb-4 text-chat text-neutral-700 dark:text-neutral-300" },
 				processChildren(children)
 			),
 		h1: ({ children }) =>
@@ -136,7 +164,7 @@ export function createMarkdownComponents({
 				"h1",
 				{
 					className:
-						"text-2xl sm:text-3xl font-bold mb-4 text-neutral-900 dark:text-white border-b border-black/[0.1] dark:border-white/[0.08] pb-2",
+						"text-screen-title font-bold mb-4 text-neutral-900 dark:text-white border-b border-black/[0.1] dark:border-white/[0.08] pb-2",
 				},
 				processChildren(children)
 			),
@@ -149,7 +177,7 @@ export function createMarkdownComponents({
 				"h2",
 				{
 					className:
-						"text-xl sm:text-2xl font-semibold mb-3 text-neutral-800 dark:text-neutral-200 flex items-center",
+						"text-section-title font-semibold mb-3 text-neutral-800 dark:text-neutral-200 flex items-center",
 				},
 				h(Lightbulb, {
 					className:
@@ -162,7 +190,7 @@ export function createMarkdownComponents({
 				"h3",
 				{
 					className:
-						"text-lg sm:text-xl font-medium mb-2 text-neutral-700 dark:text-neutral-300 flex items-center",
+						"text-control font-medium mb-2 text-neutral-700 dark:text-neutral-300 flex items-center",
 				},
 				h(ChevronRight, {
 					className: "w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0 text-neutral-500",
@@ -174,7 +202,7 @@ export function createMarkdownComponents({
 				"h4",
 				{
 					className:
-						"text-base sm:text-lg font-semibold mt-4 mb-2 text-neutral-800 dark:text-neutral-200",
+						"text-control font-semibold mt-4 mb-2 text-neutral-800 dark:text-neutral-200",
 				},
 				processChildren(children)
 			),
@@ -183,7 +211,7 @@ export function createMarkdownComponents({
 				"h5",
 				{
 					className:
-						"text-sm sm:text-base font-semibold mt-3 mb-2 text-neutral-700 dark:text-neutral-300",
+						"text-support font-semibold mt-3 mb-2 text-neutral-700 dark:text-neutral-300",
 				},
 				processChildren(children)
 			),
@@ -192,7 +220,7 @@ export function createMarkdownComponents({
 				"h6",
 				{
 					className:
-						"text-xs sm:text-sm font-semibold uppercase tracking-wide mt-3 mb-2 text-neutral-500 dark:text-neutral-400",
+						"text-metadata font-semibold uppercase tracking-wide mt-3 mb-2 text-neutral-500 dark:text-neutral-400",
 				},
 				processChildren(children)
 			),
@@ -204,7 +232,7 @@ export function createMarkdownComponents({
 					"ul",
 					{
 						className:
-							"list-none mb-4 text-neutral-700 dark:text-neutral-300 space-y-2",
+							"list-none mb-4 text-chat text-neutral-700 dark:text-neutral-300 space-y-2",
 					},
 					children
 				)
@@ -220,7 +248,7 @@ export function createMarkdownComponents({
 					{
 						start,
 						className:
-							"list-decimal list-inside mb-4 text-neutral-700 dark:text-neutral-300 space-y-2",
+							"list-decimal list-inside mb-4 text-chat text-neutral-700 dark:text-neutral-300 space-y-2",
 					},
 					children
 				)
@@ -312,11 +340,14 @@ export function createMarkdownComponents({
 			// A mid-stream "> " with nothing after it would otherwise flash a
 			// fully-chromed empty card.
 			if (isBlankNode(children)) return null;
+			const scriptureQuote = containsVerseReference(children, VerseRef, parseVerseReferences);
 			return h(
 				"blockquote",
 				{
 					className:
-						"border-l-2 border-black/20 dark:border-white/20 pl-4 my-4 italic text-neutral-600 dark:text-neutral-400 bg-black/[0.02] dark:bg-white/[0.02] py-3 pr-3 rounded-r-lg font-[family-name:var(--font-cormorant)] text-lg",
+						`border-l-2 border-black/20 dark:border-white/20 pl-4 my-4 italic text-chat text-neutral-600 dark:text-neutral-400 bg-black/[0.02] dark:bg-white/[0.02] py-3 pr-3 rounded-r-lg${
+							scriptureQuote ? " font-[family-name:var(--font-cormorant)]" : ""
+						}`,
 				},
 				h(
 					"div",
@@ -346,7 +377,7 @@ export function createMarkdownComponents({
 					"pre",
 					{
 						className:
-							"mb-4 overflow-x-auto rounded-lg bg-black/[0.04] dark:bg-white/[0.04] p-3 text-sm",
+							"mb-4 overflow-x-auto rounded-lg bg-black/[0.04] dark:bg-white/[0.04] p-3 text-support",
 					},
 					children
 				)
@@ -384,7 +415,7 @@ export function createMarkdownComponents({
 					"table",
 					{
 						className:
-							"w-full text-sm border-collapse text-neutral-700 dark:text-neutral-300",
+							"w-full text-support border-collapse text-neutral-700 dark:text-neutral-300",
 					},
 					children
 				)

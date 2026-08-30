@@ -5,6 +5,9 @@ export default function SignInPage() {
 		<div className="min-h-screen flex items-center justify-center gradient-mesh">
 			<SignIn
 				appearance={{
+					variables: {
+						fontFamily: "var(--font-body), system-ui, sans-serif",
+					},
 					elements: {
 						rootBox: "mx-auto",
 						card: "bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.06] shadow-xl",

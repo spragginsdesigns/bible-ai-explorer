@@ -68,7 +68,7 @@ function ActionChip({
 	accent?: boolean;
 	disabled?: boolean;
 }) {
-	const className = `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${
+	const className = `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-metadata font-semibold transition-colors ${
 		accent
 			? "border-amber-500/25 bg-amber-500/[0.07] text-amber-700 dark:text-amber-400 hover:bg-amber-500/[0.12]"
 			: "border-black/[0.1] bg-black/[0.02] text-neutral-600 hover:bg-black/[0.05] dark:border-white/[0.1] dark:bg-white/[0.02] dark:text-neutral-400 dark:hover:bg-white/[0.06]"
@@ -184,7 +184,7 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 				<button
 					type="button"
 					onClick={() => setOpen(!open)}
-					className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+					className="flex items-center gap-1.5 text-metadata text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
 				>
 					{open ? (
 						<ChevronDown className="w-3.5 h-3.5" />
@@ -195,7 +195,7 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 					Retrieved Verses ({verses.length})
 				</button>
 				<span
-					className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${badge.className}`}
+					className={`inline-flex items-center gap-1 text-metadata px-2 py-0.5 rounded-full border ${badge.className}`}
 				>
 					{badge.label}
 				</span>
@@ -211,17 +211,17 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 									<BookOpen className="w-3.5 h-3.5 text-neutral-400 dark:text-neutral-600 mt-0.5 flex-shrink-0" />
 									<div className="flex-1 min-w-0">
 										<div className="flex items-center justify-between gap-2">
-											<p className="text-sm text-amber-700 dark:text-amber-400 font-semibold">
+											<p className="text-control text-amber-700 dark:text-amber-400 font-semibold">
 												{verse.reference}
 											</p>
 											<span
-												className={`text-xs px-1.5 py-0.5 rounded border ${verseBadge.className}`}
+													className={`text-metadata px-1.5 py-0.5 rounded border ${verseBadge.className}`}
 											>
 												{pct}%
 											</span>
 										</div>
 										{verse.text && (
-											<p className="mt-1 text-sm leading-relaxed text-neutral-600 dark:text-neutral-400 font-[family-name:var(--font-cormorant)] sm:text-base">
+												<p className="mt-1 text-chat text-neutral-600 dark:text-neutral-400 font-[family-name:var(--font-cormorant)]">
 												{verse.text}
 											</p>
 										)}

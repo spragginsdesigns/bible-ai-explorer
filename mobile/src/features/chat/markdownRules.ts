@@ -12,6 +12,31 @@ export interface MarkdownNodeLike {
 	children: readonly unknown[];
 }
 
+interface MarkdownTreeNode {
+	type?: unknown;
+	attributes?: Record<string, unknown>;
+	children?: readonly unknown[];
+}
+
+function containsVerseLink(node: unknown): boolean {
+	if (!node || typeof node !== "object") return false;
+	const candidate = node as MarkdownTreeNode;
+	if (
+		(candidate.type === "link" || candidate.type === "blocklink") &&
+		typeof candidate.attributes?.href === "string" &&
+		candidate.attributes.href.startsWith("verse-ref:")
+	) {
+		return true;
+	}
+	return candidate.children?.some(containsVerseLink) ?? false;
+}
+
+/** True only when the nearest blockquote contains a validated Bible link. */
+export function isScriptureBlockquote(parents: readonly MarkdownTreeNode[]): boolean {
+	const blockquote = parents.find((parent) => parent.type === "blockquote");
+	return blockquote ? containsVerseLink(blockquote) : false;
+}
+
 /**
  * linkify-it's own default generic TLDs, copied verbatim from
  * linkify-it/index.js (`tlds_default`). Repeated here because the only way to

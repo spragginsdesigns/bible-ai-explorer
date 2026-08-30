@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { AccentButton } from "@/components/ui";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { PRESET_TAG_COLORS } from "../types";
@@ -120,10 +121,9 @@ const createStyles = (c: Colors) =>
 		swatchActive: { borderColor: c.text },
 		submit: { marginTop: spacing.xl },
 		hint: {
+			...typography.support,
 			color: c.textGhost,
-			fontSize: 12,
 			textAlign: "center",
 			marginTop: spacing.md,
-			lineHeight: 17,
 		},
 	});

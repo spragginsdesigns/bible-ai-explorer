@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { Note, Tag } from "../types";
@@ -89,5 +90,5 @@ const createStyles = (c: Colors) =>
 		},
 		dots: { flexDirection: "row", alignItems: "center", gap: 5 },
 		tagDot: { width: 7, height: 7, borderRadius: 4 },
-		meta: { color: c.textGhost, fontSize: 11 },
+		meta: { ...typography.meta, color: c.textGhost },
 	});

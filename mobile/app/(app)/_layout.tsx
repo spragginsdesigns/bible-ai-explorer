@@ -1,11 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { Redirect, Tabs } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
@@ -160,5 +161,5 @@ const createStyles = (c: Colors) =>
 		tabItemActive: {
 			backgroundColor: c.accentSoft,
 		},
-		tabLabel: { color: c.textFaint, fontSize: 11, fontWeight: "600" },
+		tabLabel: { color: c.textFaint, ...typography.meta, fontWeight: "600" },
 	});

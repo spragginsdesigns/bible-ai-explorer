@@ -172,8 +172,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 			<div className="max-w-3xl mx-auto px-4 py-3">
 				{attachment && (
 					<div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/[0.07] py-1 pl-3 pr-2">
-						<span className="text-[11px] text-amber-600 dark:text-amber-400">✦</span>
-						<span className="truncate text-xs font-semibold text-amber-700 dark:text-amber-400">
+						<span className="text-metadata text-amber-600 dark:text-amber-400">✦</span>
+						<span className="truncate text-metadata font-semibold text-amber-700 dark:text-amber-400">
 							{attachment.reference} · {attachment.translation}
 						</span>
 						<button
@@ -198,13 +198,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
 					>
 						<div className="flex items-start justify-between gap-3">
 							<div className="min-w-0">
-								<p className="text-xs font-semibold text-red-700 dark:text-red-400">
+								<p className="text-support font-semibold text-red-700 dark:text-red-400">
 									{shownError.title}
 								</p>
-								<p className="mt-0.5 text-xs leading-5 text-neutral-600 dark:text-neutral-400">
+								<p className="mt-0.5 text-support text-neutral-600 dark:text-neutral-400">
 									{shownError.message}
 								</p>
-								<p className="mt-1 text-[10px] text-neutral-400 dark:text-neutral-600">
+								<p className="mt-1 text-xs leading-4 text-neutral-400 dark:text-neutral-600">
 									ref: {shownError.code}
 								</p>
 							</div>
@@ -222,7 +222,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 					</div>
 				)}
 				{dragging && (
-					<p className="mb-2 text-center text-xs font-medium text-amber-700 dark:text-amber-400">Drop files to attach</p>
+					<p className="mb-2 text-center text-support font-medium text-amber-700 dark:text-amber-400">Drop files to attach</p>
 				)}
 				<div className="relative">
 					{suggestions.length > 0 && !disabled && (
@@ -235,7 +235,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 										onClick={() => selectSuggestion(def)}
 										className="block w-full border-b border-black/[0.05] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-black/[0.03] dark:border-white/[0.05] dark:hover:bg-white/[0.05]"
 									>
-										<span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+										<span className="text-control font-semibold text-amber-700 dark:text-amber-400">
 											{def.command}
 											{def.hint && (
 												<span className="font-normal text-neutral-400 dark:text-neutral-500">
@@ -244,7 +244,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 												</span>
 											)}
 										</span>
-										<span className="mt-0.5 block truncate text-xs text-neutral-500 dark:text-neutral-400">
+										<span className="mt-0.5 block truncate text-support text-neutral-500 dark:text-neutral-400">
 											{def.description}
 										</span>
 									</button>
@@ -283,7 +283,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							placeholder="Ask a question about the Bible..."
 							rows={1}
 							disabled={disabled}
-							className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none py-1.5 max-h-[200px] text-sm sm:text-base"
+							className="flex-1 bg-transparent text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none py-1.5 max-h-[200px]"
 						/>
 						<button
 							type="button"
@@ -300,7 +300,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</button>
 					</div>
 				</div>
-				<p className="text-center text-xs text-neutral-400 dark:text-neutral-700 mt-2">
+				<p className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-2">
 					SureWord uses AI grounded in Scripture and the Bible translation you select. Use with discernment. Created by{" "}
 					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-neutral-500 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-400 transition-colors">
 						Austin Spraggins

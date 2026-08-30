@@ -77,7 +77,7 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 						<ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />
 					)}
 					<span className="text-xs font-medium">Links</span>
-					{links && <span className="text-[10px] text-neutral-600">{total}</span>}
+					{links && <span className="text-metadata text-neutral-600">{total}</span>}
 				</button>
 				<button
 					onClick={() => void load()}
@@ -92,15 +92,15 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 			{expanded && (
 				<div className="px-4 pb-3 space-y-3">
 					{isLoading && !links && (
-						<p className="text-[11px] text-neutral-600">Loading links...</p>
+						<p className="text-metadata text-neutral-600">Loading links...</p>
 					)}
 
 					{error && (
 						<div className="flex items-center gap-2">
-							<p className="text-[11px] text-red-400/80">Could not load links.</p>
+							<p className="text-metadata text-red-400/80">Could not load links.</p>
 							<button
 								onClick={() => void load()}
-								className="text-[11px] text-amber-400 hover:text-amber-300 transition-colors"
+								className="text-metadata text-amber-400 hover:text-amber-300 transition-colors"
 							>
 								Retry
 							</button>
@@ -110,13 +110,13 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 					{links && (
 						<>
 							<div>
-								<h4 className="flex items-center gap-1.5 text-[11px] text-neutral-500 mb-1.5">
+								<h4 className="flex items-center gap-1.5 text-metadata text-neutral-500 mb-1.5">
 									<Link2 className="w-3 h-3" />
 									Outgoing
 									<span className="text-neutral-600">{outgoing.length}</span>
 								</h4>
 								{outgoing.length === 0 ? (
-									<p className="text-[11px] text-neutral-600">
+									<p className="text-metadata text-neutral-600">
 										No links yet. Use the link button in the toolbar to reference
 										another note.
 									</p>
@@ -144,7 +144,7 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 													<button
 														onClick={() => void handleCreate(link.targetTitle)}
 														disabled={creating === link.targetTitle}
-														className="flex items-center gap-1 text-[11px] text-neutral-500 hover:text-amber-400 transition-colors disabled:opacity-50"
+														className="flex items-center gap-1 text-metadata text-neutral-500 hover:text-amber-400 transition-colors disabled:opacity-50"
 													>
 														<Plus className="w-3 h-3" />
 														{creating === link.targetTitle ? "Creating..." : "Create"}
@@ -157,13 +157,13 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 							</div>
 
 							<div>
-								<h4 className="flex items-center gap-1.5 text-[11px] text-neutral-500 mb-1.5">
+								<h4 className="flex items-center gap-1.5 text-metadata text-neutral-500 mb-1.5">
 									<CornerDownRight className="w-3 h-3" />
 									Linked mentions
 									<span className="text-neutral-600">{backlinks.length}</span>
 								</h4>
 								{backlinks.length === 0 ? (
-									<p className="text-[11px] text-neutral-600">
+									<p className="text-metadata text-neutral-600">
 										No other note links here yet.
 									</p>
 								) : (
@@ -178,7 +178,7 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 														{link.title || "Untitled Note"}
 													</span>
 													{link.snippet && (
-														<span className="block text-[11px] text-neutral-600 line-clamp-2">
+														<span className="block text-metadata text-neutral-600 line-clamp-2">
 															{link.snippet}
 														</span>
 													)}

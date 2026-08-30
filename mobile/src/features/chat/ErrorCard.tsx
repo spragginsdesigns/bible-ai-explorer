@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { radius, spacing } from "@/theme";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
@@ -52,7 +53,7 @@ const createStyles = (c: Colors) =>
 		},
 		title: { color: c.text, fontSize: 14, fontWeight: "700" },
 		message: { color: c.textSecondary, fontSize: 13, lineHeight: 20 },
-		ref: { color: c.textMuted, fontSize: 11 },
+		ref: { ...typography.micro, color: c.textMuted },
 		button: {
 			alignSelf: "flex-start",
 			paddingHorizontal: spacing.lg,

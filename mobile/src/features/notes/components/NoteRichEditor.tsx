@@ -1,5 +1,12 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
+import { Asset } from "expo-asset";
+import {
+	AtkinsonHyperlegible_400Regular,
+	AtkinsonHyperlegible_400Regular_Italic,
+	AtkinsonHyperlegible_700Bold,
+	AtkinsonHyperlegible_700Bold_Italic,
+} from "@expo-google-fonts/atkinson-hyperlegible";
 import {
 	CoreBridge,
 	PlaceholderBridge,
@@ -19,12 +26,32 @@ import { GlyphButton } from "./primitives";
 
 const AUTOSAVE_DELAY = 1500;
 const BRIDGE_TIMEOUT = 1200;
+const hackRegular = require("../../../../assets/fonts/Hack-Regular.ttf");
+const hackBold = require("../../../../assets/fonts/Hack-Bold.ttf");
+const hackItalic = require("../../../../assets/fonts/Hack-Italic.ttf");
+const hackBoldItalic = require("../../../../assets/fonts/Hack-BoldItalic.ttf");
 
 /**
- * The webview cannot use the app's loaded fonts, so Scripture blockquotes fall
- * back to a system serif. Everything else mirrors the theme tokens.
+ * TenTap's WebView is a separate document from React Native. Expo's cached
+ * Asset local URIs let CSS load the same bundled TTFs without a network hop;
+ * the system fallback remains deliberate for the brief pre-cache window.
  */
+const fontUri = (source: number) => {
+	const asset = Asset.fromModule(source);
+	return asset.localUri ?? asset.uri;
+};
+
+const cssUri = (uri: string) => uri.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
 const editorCss = (c: Colors) => `
+\t@font-face { font-family: "Hack"; src: url('${cssUri(fontUri(hackRegular))}') format('truetype'); font-style: normal; font-weight: 400; }
+\t@font-face { font-family: "Hack"; src: url('${cssUri(fontUri(hackBold))}') format('truetype'); font-style: normal; font-weight: 700; }
+\t@font-face { font-family: "Hack"; src: url('${cssUri(fontUri(hackItalic))}') format('truetype'); font-style: italic; font-weight: 400; }
+\t@font-face { font-family: "Hack"; src: url('${cssUri(fontUri(hackBoldItalic))}') format('truetype'); font-style: italic; font-weight: 700; }
+\t@font-face { font-family: "Atkinson Hyperlegible"; src: url('${cssUri(fontUri(AtkinsonHyperlegible_400Regular))}') format('truetype'); font-style: normal; font-weight: 400; }
+\t@font-face { font-family: "Atkinson Hyperlegible"; src: url('${cssUri(fontUri(AtkinsonHyperlegible_700Bold))}') format('truetype'); font-style: normal; font-weight: 700; }
+\t@font-face { font-family: "Atkinson Hyperlegible"; src: url('${cssUri(fontUri(AtkinsonHyperlegible_400Regular_Italic))}') format('truetype'); font-style: italic; font-weight: 400; }
+\t@font-face { font-family: "Atkinson Hyperlegible"; src: url('${cssUri(fontUri(AtkinsonHyperlegible_700Bold_Italic))}') format('truetype'); font-style: italic; font-weight: 700; }
 	html, body {
 		background-color: ${c.bgMid};
 		margin: 0;
@@ -33,6 +60,7 @@ const editorCss = (c: Colors) => `
 		background-color: ${c.bgMid};
 		color: ${c.text};
 		caret-color: ${c.accent};
+		font-family: "Atkinson Hyperlegible", sans-serif;
 		font-size: 16px;
 		line-height: 1.7;
 		padding: 16px 18px 120px;
@@ -63,12 +91,14 @@ const editorCss = (c: Colors) => `
 	}
 	.ProseMirror a { color: ${c.accent}; text-decoration: underline; }
 	.ProseMirror code {
+		font-family: "Hack", monospace;
 		background-color: ${c.surfaceStrong};
 		border-radius: 6px;
 		padding: 1px 5px;
 		font-size: 0.9em;
 	}
 	.ProseMirror pre {
+		font-family: "Hack", monospace;
 		background-color: ${c.surface};
 		border: 1px solid ${c.border};
 		border-radius: 12px;
@@ -306,7 +336,7 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 
 		return (
 			<View style={styles.container}>
-				<RichText editor={editor} />
+				<RichText editor={editor} allowFileAccess />
 				<View style={[styles.toolbarWrap, { paddingBottom: bottomInset }]}>
 					<View style={[styles.toolbarRow, toolbarHidden && styles.toolbarRowHidden]}>
 						<GlyphButton

@@ -18,6 +18,27 @@ const config = {
 			}
 		},
 		extend: {
+			fontFamily: {
+				// The root layout supplies --font-body with Atkinson Hyperlegible.
+				// Keep the fallback here so utility classes are also readable in
+				// isolated renders and during the font's loading window.
+				sans: ["var(--font-body)", "system-ui", "sans-serif"],
+				body: ["var(--font-body)", "system-ui", "sans-serif"],
+				mono: ["var(--font-mono)", "Hack", "ui-monospace", "monospace"],
+			},
+			fontSize: {
+				// Raise Tailwind's smallest stock role so legacy `text-xs`
+				// remains readable while it is migrated to semantic names.
+				xs: ["0.8125rem", { lineHeight: "1.125rem" }],
+				// Named type roles keep the web scale consistent across screens.
+				chat: ["1.0625rem", { lineHeight: "1.75rem" }],
+				body: ["1rem", { lineHeight: "1.5rem" }],
+				control: ["0.9375rem", { lineHeight: "1.375rem" }],
+				support: ["0.875rem", { lineHeight: "1.25rem" }],
+				metadata: ["0.8125rem", { lineHeight: "1.125rem" }],
+				"section-title": ["1.125rem", { lineHeight: "1.625rem" }],
+				"screen-title": ["1.375rem", { lineHeight: "1.875rem" }],
+			},
 			colors: {
 				border: "hsl(var(--border))",
 				input: "hsl(var(--input))",

@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.43.0 (versionCode 41) - 2026-08-30 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- A more readable Atkinson Hyperlegible type system across Chat, Bible, Notes, and Settings
+- Larger chat answers and clearer labels throughout SureWord
+- Scripture keeps its distinctive reading style, while code and technical text now use Hack
+
+**Dev notes:** Web and Android now share a semantic type scale. Android routes all normal text through shared Atkinson primitives, retains Pirata One for decorative headings and Cormorant Garamond only for validated Scripture, and bundles Hack offline for monospace content.
+
+---
+
 ## 1.42.0 (versionCode 40) - 2026-08-30 - internal
 
 **What's new (Play):**

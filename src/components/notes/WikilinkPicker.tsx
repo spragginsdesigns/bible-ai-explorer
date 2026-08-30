@@ -140,7 +140,7 @@ const WikilinkPicker: React.FC<WikilinkPickerProps> = ({
 						))}
 
 						{candidates.length === 0 && !showCreateRow && (
-							<p className="px-2 py-2 text-[11px] text-neutral-600">
+							<p className="px-2 py-2 text-metadata text-neutral-600">
 								No other notes yet.
 							</p>
 						)}

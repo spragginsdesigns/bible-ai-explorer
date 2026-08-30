@@ -69,11 +69,11 @@ const BibleSearch: React.FC = () => {
           <button
             type="button"
             onClick={() => router.back()}
-            className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+            className="text-control font-semibold text-amber-600 dark:text-amber-400"
           >
             ‹ Back
           </button>
-          <h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+          <h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100">
             Search
           </h1>
           <span className="w-11" aria-hidden />
@@ -88,7 +88,7 @@ const BibleSearch: React.FC = () => {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="min-h-11 flex-1 bg-transparent text-[15px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400/60 dark:placeholder:text-neutral-600 outline-none"
+            className="min-h-11 flex-1 bg-transparent text-body text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400/60 dark:placeholder:text-neutral-600 outline-none"
           />
           {input.length > 0 && (
             <button
@@ -106,14 +106,14 @@ const BibleSearch: React.FC = () => {
           <button
             type="button"
             onClick={() => openHit(reference)}
-            className="mb-2 w-full rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 py-3 text-left text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+            className="mb-2 w-full rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 py-3 text-left text-control font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
           >
             Go to {referenceLabel} →
           </button>
         )}
 
         {searched ? (
-          <p className="py-2 text-xs text-neutral-400 dark:text-neutral-500">
+          <p className="py-2 text-metadata text-neutral-400 dark:text-neutral-500">
             {hits.length === 0
               ? reference
                 ? ""
@@ -123,7 +123,7 @@ const BibleSearch: React.FC = () => {
                 : `${hits.length} result${hits.length === 1 ? "" : "s"}`}
           </p>
         ) : (
-          <p className="py-5 text-center text-[13px] text-neutral-400 dark:text-neutral-500">
+          <p className="py-5 text-center text-metadata text-neutral-400 dark:text-neutral-500">
             Search the King James text by word or phrase.
           </p>
         )}
@@ -136,10 +136,10 @@ const BibleSearch: React.FC = () => {
               onClick={() => openHit(hit)}
               className="mb-2 block w-full rounded-lg border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-3 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
             >
-              <span className="mb-1 block text-[13px] font-bold text-amber-600 dark:text-amber-400">
+              <span className="mb-1 block text-metadata font-bold text-amber-600 dark:text-amber-400">
                 {bookByOrder(hit.order)?.name ?? `Book ${hit.order}`} {hit.chapter}:{hit.verse}
               </span>
-              <span className="line-clamp-2 block font-[family-name:var(--font-cormorant)] text-base leading-[22px] text-neutral-600 dark:text-neutral-300">
+              <span className="line-clamp-2 block font-[family-name:var(--font-cormorant)] text-chat text-neutral-600 dark:text-neutral-300">
                 {hit.text}
               </span>
             </button>

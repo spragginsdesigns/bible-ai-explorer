@@ -90,7 +90,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 						<p className="text-neutral-500 text-xs mb-1">
 							Ask about your note
 						</p>
-						<p className="text-neutral-600 text-[11px] mb-4">
+						<p className="text-neutral-600 text-metadata mb-4">
 							The AI can see your note content and suggest relevant Bible verses
 						</p>
 						<button
@@ -117,7 +117,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 					<button
 						onClick={handleSuggestVerses}
 						disabled={loading || isStreaming}
-						className="flex items-center gap-1 text-[11px] text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-50"
+						className="flex items-center gap-1 text-metadata text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-50"
 					>
 						<Sparkles className="w-3 h-3" />
 						Suggest Verses

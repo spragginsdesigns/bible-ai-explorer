@@ -48,7 +48,7 @@ const THEME_OPTIONS = [
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
 	return (
-		<h2 className="text-[11px] font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
+		<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
 			{children}
 		</h2>
 	);
@@ -176,7 +176,7 @@ export default function SettingsPage() {
 					>
 						<ArrowLeft className="w-5 h-5" />
 					</Link>
-					<h1 className="flex-1 text-center lg:text-left text-[17px] lg:text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+					<h1 className="flex-1 text-center lg:text-left text-screen-title font-bold text-neutral-900 dark:text-neutral-100">
 						Settings
 					</h1>
 					<span className="min-w-[44px]" aria-hidden />
@@ -479,7 +479,7 @@ export default function SettingsPage() {
 									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
 										SureWord for Android
 									</span>
-									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+									<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
 										{ANDROID_VERSION}
 									</span>
 								</span>
@@ -503,7 +503,7 @@ export default function SettingsPage() {
 									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
 										SureWord for macOS
 									</span>
-									<span className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/70">
+									<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
 										{MACOS_VERSION}
 									</span>
 								</span>

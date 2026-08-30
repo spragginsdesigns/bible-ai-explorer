@@ -1,3 +1,5 @@
+import type { TextStyle } from "react-native";
+
 /**
  * SureWord mobile design system — monochrome glassmorphism, ported from
  * the web app (globals.css + Tailwind neutral/amber usage). No Material UI:
@@ -107,9 +109,44 @@ export const fonts = {
 	/** Cormorant Garamond — quoted Scripture */
 	verse: "CormorantGaramond_500Medium",
 	verseItalic: "CormorantGaramond_500Medium_Italic",
-	/** System sans for everything else */
-	sans: "System",
+	/** Atkinson Hyperlegible — bundled body family for every non-brand surface. */
+	body: "AtkinsonHyperlegible_400Regular",
+	bodyItalic: "AtkinsonHyperlegible_400Regular_Italic",
+	bodyBold: "AtkinsonHyperlegible_700Bold",
+	bodyBoldItalic: "AtkinsonHyperlegible_700Bold_Italic",
+	/** Hack — reserved for code and technical references. */
+	mono: "Hack_400Regular",
+	monoItalic: "Hack_400Regular_Italic",
+	monoBold: "Hack_700Bold",
+	monoBoldItalic: "Hack_700Bold_Italic",
+	/** Backwards-compatible name for existing style declarations. */
+	sans: "AtkinsonHyperlegible_400Regular",
 } as const;
+
+export type TypographyVariant =
+	| "chat"
+	| "longForm"
+	| "body"
+	| "control"
+	| "support"
+	| "meta"
+	| "micro"
+	| "sectionTitle"
+	| "screenTitle";
+
+/** Type scale shared by routes and text primitives. Values intentionally stay
+ * as plain RN style objects so a screen can spread or extend a token. */
+export const typography = {
+	chat: { fontSize: 17, lineHeight: 28 },
+	longForm: { fontSize: 17, lineHeight: 28 },
+	body: { fontSize: 16, lineHeight: 24 },
+	control: { fontSize: 15, lineHeight: 22 },
+	support: { fontSize: 14, lineHeight: 20 },
+	meta: { fontSize: 13, lineHeight: 18 },
+	micro: { fontSize: 12, lineHeight: 16 },
+	sectionTitle: { fontSize: 18, lineHeight: 26 },
+	screenTitle: { fontSize: 22, lineHeight: 30 },
+} as const satisfies Record<TypographyVariant, Pick<TextStyle, "fontSize" | "lineHeight">>;
 
 export const radius = {
 	sm: 8,

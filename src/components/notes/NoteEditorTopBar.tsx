@@ -198,7 +198,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 				{noteTags.map((tag) => (
 					<span
 						key={tag.id}
-						className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium"
+						className="inline-flex items-center px-2 py-0.5 rounded-full text-metadata font-medium"
 						style={{
 							backgroundColor: `${tag.color}20`,
 							color: tag.color,

@@ -44,7 +44,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, tags, isActive, onClick }) =>
 					{noteTags.slice(0, 3).map((tag) => (
 						<span
 							key={tag.id}
-							className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+							className="inline-flex items-center px-1.5 py-0.5 rounded-full text-metadata font-medium"
 							style={{
 								backgroundColor: `${tag.color}20`,
 								color: tag.color,
@@ -54,12 +54,12 @@ const NoteCard: React.FC<NoteCardProps> = ({ note, tags, isActive, onClick }) =>
 						</span>
 					))}
 					{noteTags.length > 3 && (
-						<span className="text-neutral-600 text-[10px]">
+						<span className="text-neutral-600 text-metadata">
 							+{noteTags.length - 3}
 						</span>
 					)}
 				</div>
-				<span className="text-neutral-600 text-[10px] flex-shrink-0">{dateStr}</span>
+				<span className="text-neutral-600 text-metadata flex-shrink-0">{dateStr}</span>
 			</div>
 		</button>
 	);

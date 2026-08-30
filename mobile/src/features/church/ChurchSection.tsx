@@ -6,15 +6,14 @@ import {
 	Linking,
 	Pressable,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 	type NativeSyntheticEvent,
 	type TextLayoutEventData,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard } from "@/components/ui";
-import { radius, spacing, type Colors } from "@/theme";
+import { radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import {
 	hostnameOf,
@@ -363,8 +362,8 @@ function LinkRow({
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		sectionLabel: {
+			...typography.meta,
 			color: c.textFaint,
-			fontSize: 11,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginTop: spacing.xl,
@@ -373,7 +372,7 @@ const createStyles = (c: Colors) =>
 		},
 		card: { padding: spacing.lg, gap: spacing.md },
 		loadingCard: { minHeight: 80, alignItems: "center", justifyContent: "center" },
-		hint: { color: c.textFaint, fontSize: 12, lineHeight: 17 },
+		hint: { ...typography.support, color: c.textFaint },
 		retryRow: {
 			flexDirection: "row",
 			alignItems: "center",
@@ -394,7 +393,7 @@ const createStyles = (c: Colors) =>
 		},
 		searchInput: { flex: 1, minWidth: 0, color: c.text, fontSize: 14, paddingVertical: spacing.sm },
 		savingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-		savingLabel: { flex: 1, minWidth: 0, color: c.accent, fontSize: 12, lineHeight: 17 },
+		savingLabel: { ...typography.support, flex: 1, minWidth: 0, color: c.accent },
 		resultRow: {
 			flexDirection: "row",
 			alignItems: "center",
@@ -417,7 +416,7 @@ const createStyles = (c: Colors) =>
 		},
 		resultCopy: { flex: 1, minWidth: 0, gap: 2 },
 		resultName: { color: c.text, fontSize: 14.5, fontWeight: "600" },
-		resultAddress: { color: c.textFaint, fontSize: 12, lineHeight: 16 },
+		resultAddress: { ...typography.meta, color: c.textFaint },
 		chevron: { color: c.textFaint, fontSize: 22, marginTop: -2 },
 		headerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		photo: {
@@ -435,7 +434,7 @@ const createStyles = (c: Colors) =>
 		},
 		headerCopy: { flex: 1, minWidth: 0, gap: 2 },
 		churchName: { color: c.text, fontSize: 16, fontWeight: "700" },
-		churchAddress: { color: c.textFaint, fontSize: 12.5, lineHeight: 17 },
+		churchAddress: { ...typography.meta, color: c.textFaint },
 		linkRow: {
 			flexDirection: "row",
 			alignItems: "center",
@@ -447,10 +446,10 @@ const createStyles = (c: Colors) =>
 		},
 		linkLabel: { flex: 1, minWidth: 0, color: c.textSecondary, fontSize: 13.5 },
 		missionBox: { gap: spacing.xs },
-		blockLabel: { color: c.textGhost, fontSize: 10, fontWeight: "700", letterSpacing: 1.1 },
+		blockLabel: { ...typography.meta, color: c.textGhost, fontWeight: "700", letterSpacing: 1.1 },
 		body: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
-		showMore: { color: c.accent, fontSize: 12, fontWeight: "700" },
-		sourceLabel: { color: c.textFaint, fontSize: 11.5, textDecorationLine: "underline" },
+		showMore: { ...typography.support, color: c.accent, fontWeight: "700" },
+		sourceLabel: { ...typography.meta, color: c.textFaint, textDecorationLine: "underline" },
 		actionsRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		actionButton: {
 			flex: 1,
@@ -462,7 +461,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			backgroundColor: c.surface,
 		},
-		actionLabel: { color: c.textSecondary, fontSize: 12.5, fontWeight: "700" },
+		actionLabel: { ...typography.support, color: c.textSecondary, fontWeight: "700" },
 		removeButton: {
 			minHeight: 40,
 			paddingHorizontal: spacing.lg,
@@ -472,7 +471,7 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.dangerBorder,
 		},
-		removeLabel: { color: c.danger, fontSize: 12.5, fontWeight: "700" },
-		cancelLabel: { color: c.textMuted, fontSize: 12, fontWeight: "700", textAlign: "center" },
-		error: { color: c.danger, fontSize: 12, lineHeight: 17 },
+		removeLabel: { ...typography.support, color: c.danger, fontWeight: "700" },
+		cancelLabel: { ...typography.support, color: c.textMuted, fontWeight: "700", textAlign: "center" },
+		error: { ...typography.support, color: c.danger },
 	});

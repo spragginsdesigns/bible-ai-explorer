@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAuth, useUser } from "@clerk/expo";
 import Constants from "expo-constants";
@@ -437,11 +439,11 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 		},
 		backButtonPressed: { backgroundColor: c.surfacePressed },
-		backGlyph: { color: c.textMuted, fontSize: 22, marginTop: -2 },
+		backGlyph: { color: c.textMuted, ...typography.screenTitle, marginTop: -2 },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 17,
+			...typography.screenTitle,
 			fontWeight: "700",
 			textAlign: "center",
 		},
@@ -451,7 +453,7 @@ const createStyles = (c: Colors) =>
 		},
 		sectionLabel: {
 			color: c.textFaint,
-			fontSize: 11,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			marginTop: spacing.xl,
@@ -476,16 +478,16 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		chipGlyph: { color: c.textMuted, fontSize: 14 },
-		chipLabel: { color: c.textMuted, fontSize: 13, fontWeight: "700" },
-		hint: { color: c.textFaint, fontSize: 12, lineHeight: 17 },
+		chipGlyph: { color: c.textMuted, ...typography.micro },
+		chipLabel: { color: c.textMuted, ...typography.meta, fontWeight: "700" },
+		hint: { color: c.textFaint, ...typography.support },
 		settingRow: {
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "space-between",
 			gap: spacing.md,
 		},
-		rowTitle: { color: c.text, fontSize: 15, fontWeight: "600" },
+		rowTitle: { color: c.text, ...typography.control, fontWeight: "600" },
 		hourStepper: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		hourButton: {
 			width: 36,
@@ -497,10 +499,10 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			backgroundColor: c.surface,
 		},
-		hourButtonLabel: { color: c.textSecondary, fontSize: 16, fontWeight: "700" },
+		hourButtonLabel: { color: c.textSecondary, ...typography.body, fontWeight: "700" },
 		hourLabel: {
 			color: c.text,
-			fontSize: 15,
+			...typography.control,
 			fontWeight: "600",
 			minWidth: 72,
 			textAlign: "center",
@@ -515,7 +517,7 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		manageText: { flex: 1, minWidth: 0, gap: 2 },
-		chevron: { color: c.textFaint, fontSize: 22, marginTop: -2 },
+		chevron: { color: c.textFaint, ...typography.screenTitle, marginTop: -2 },
 		accountRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		avatar: {
 			width: 44,
@@ -529,13 +531,13 @@ const createStyles = (c: Colors) =>
 		},
 		avatarGlyph: {
 			color: c.accent,
-			fontSize: 18,
+			...typography.chat,
 			fontWeight: "700",
 			fontFamily: fonts.sans,
 		},
 		accountText: { flex: 1, minWidth: 0 },
-		accountName: { color: c.text, fontSize: 15, fontWeight: "600" },
-		accountEmail: { color: c.textFaint, fontSize: 13, marginTop: 1 },
+		accountName: { color: c.text, ...typography.control, fontWeight: "600" },
+		accountEmail: { color: c.textFaint, ...typography.meta, marginTop: 1 },
 		signOutButton: {
 			minHeight: 44,
 			borderRadius: radius.lg,
@@ -545,6 +547,6 @@ const createStyles = (c: Colors) =>
 			borderColor: c.dangerBorder,
 			borderWidth: 1,
 		},
-		signOutLabel: { color: c.danger, fontSize: 14, fontWeight: "700" },
-		aboutName: { color: c.text, fontSize: 15, fontWeight: "600" },
+		signOutLabel: { color: c.danger, ...typography.control, fontWeight: "700" },
+		aboutName: { color: c.text, ...typography.control, fontWeight: "600" },
 	});

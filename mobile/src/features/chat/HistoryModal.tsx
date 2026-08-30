@@ -6,12 +6,12 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
 	View,
 } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { formatRelativeDate } from "./format";
@@ -278,7 +278,7 @@ const createStyles = (c: Colors) =>
 		rowActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
 		rowMain: { flex: 1, paddingVertical: spacing.xs, borderRadius: radius.md },
 		rowTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "500" },
-		rowDate: { marginTop: 2, color: c.textGhost, fontSize: 11 },
+		rowDate: { ...typography.meta, marginTop: 2, color: c.textGhost },
 		clearAll: {
 			marginTop: spacing.md,
 			paddingVertical: spacing.md,

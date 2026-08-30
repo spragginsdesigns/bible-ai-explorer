@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { radius, spacing, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { VerseInsightStatus } from "./useVerseInsight";

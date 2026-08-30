@@ -6,10 +6,10 @@ import {
 	RefreshControl,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
@@ -244,7 +244,7 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.border,
 		},
-		searchInput: { flex: 1, color: c.text, fontSize: 15, paddingVertical: 11 },
+		searchInput: { flex: 1, color: c.text, ...typography.control, paddingVertical: 11 },
 
 		// flexGrow: 0 alone does not save these rows: RN's baseHorizontal also
 		// sets flexShrink: 1, and the note list below overflows the column, so
@@ -261,10 +261,10 @@ const createStyles = (c: Colors) =>
 			paddingTop: spacing.lg,
 			paddingBottom: spacing.sm,
 		},
-		metaText: { color: c.textFaint, fontSize: 12 },
+		metaText: { color: c.textFaint, ...typography.meta },
 		error: {
 			color: c.danger,
-			fontSize: 12.5,
+			...typography.support,
 			paddingHorizontal: spacing.lg,
 			paddingBottom: spacing.sm,
 		},
@@ -273,6 +273,6 @@ const createStyles = (c: Colors) =>
 		listContent: { paddingHorizontal: spacing.lg, paddingBottom: TAB_BAR_CLEARANCE },
 		separator: { height: spacing.sm },
 		empty: { alignItems: "center", paddingTop: 64, gap: 6 },
-		emptyTitle: { color: c.textMuted, fontSize: 15, fontWeight: "600" },
-		emptyBody: { color: c.textGhost, fontSize: 13, textAlign: "center", paddingHorizontal: spacing.xl },
+		emptyTitle: { color: c.textMuted, ...typography.control, fontWeight: "600" },
+		emptyBody: { color: c.textGhost, ...typography.support, textAlign: "center", paddingHorizontal: spacing.xl },
 	});

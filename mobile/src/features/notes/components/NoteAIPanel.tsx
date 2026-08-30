@@ -5,12 +5,11 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import {
@@ -262,7 +261,7 @@ const createStyles = (c: Colors) =>
 		empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: spacing.xl },
 		emptyGlyph: { color: c.accentDim, fontSize: 28, marginBottom: spacing.sm },
 		emptyTitle: { color: c.textMuted, fontSize: 14, fontWeight: "600" },
-		emptyBody: { color: c.textGhost, fontSize: 12.5, textAlign: "center", lineHeight: 18 },
+		emptyBody: { ...typography.support, color: c.textGhost, textAlign: "center" },
 		suggestButton: {
 			marginTop: spacing.lg,
 			paddingHorizontal: spacing.lg,
@@ -274,7 +273,7 @@ const createStyles = (c: Colors) =>
 		},
 		suggestLabel: { color: c.accent, fontSize: 13, fontWeight: "600" },
 		suggestInline: { paddingHorizontal: spacing.lg, paddingBottom: 6 },
-		suggestInlineLabel: { color: c.accentDim, fontSize: 12 },
+		suggestInlineLabel: { ...typography.meta, color: c.accentDim },
 
 		palette: {
 			marginHorizontal: spacing.md,
@@ -293,7 +292,7 @@ const createStyles = (c: Colors) =>
 		},
 		paletteCommand: { color: c.accent, fontSize: 13, fontWeight: "600" },
 		paletteHint: { color: c.textFaint, fontWeight: "400" },
-		paletteDescription: { color: c.textMuted, fontSize: 11.5, marginTop: 1 },
+		paletteDescription: { ...typography.meta, color: c.textMuted, marginTop: 1 },
 
 		inputBar: {
 			flexDirection: "row",

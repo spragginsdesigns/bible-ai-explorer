@@ -1,7 +1,8 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { ChatViewMessage } from "@/lib/chatView";
@@ -68,11 +69,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.md,
 			paddingVertical: spacing.sm,
 		},
-		userText: { color: c.text, fontSize: 14, lineHeight: 20 },
+		userText: { ...typography.body, color: c.text },
 
 		assistantRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
 		assistantBody: { flex: 1, minWidth: 0 },
-		activity: { color: c.textFaint, fontSize: 12, paddingVertical: 4 },
+		activity: { ...typography.meta, color: c.textFaint, paddingVertical: 4 },
 
 		noteAction: {
 			flexDirection: "row",
@@ -87,6 +88,6 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 		},
 		noteActionGlyph: { color: c.accent, fontSize: 12 },
-		noteActionText: { flex: 1, color: c.textSecondary, fontSize: 12 },
+		noteActionText: { ...typography.support, flex: 1, color: c.textSecondary },
 		noteActionTitle: { color: c.accent, fontWeight: "600" },
 	});

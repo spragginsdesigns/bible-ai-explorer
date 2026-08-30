@@ -8,6 +8,12 @@ import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts, PirataOne_400Regular } from "@expo-google-fonts/pirata-one";
 import {
+	AtkinsonHyperlegible_400Regular,
+	AtkinsonHyperlegible_400Regular_Italic,
+	AtkinsonHyperlegible_700Bold,
+	AtkinsonHyperlegible_700Bold_Italic,
+} from "@expo-google-fonts/atkinson-hyperlegible";
+import {
 	CormorantGaramond_500Medium,
 	CormorantGaramond_500Medium_Italic,
 } from "@expo-google-fonts/cormorant-garamond";
@@ -23,6 +29,11 @@ import {
 } from "@/components/launchAnimationSession";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+const Hack_400Regular = require("../assets/fonts/Hack-Regular.ttf");
+const Hack_400Regular_Italic = require("../assets/fonts/Hack-Italic.ttf");
+const Hack_700Bold = require("../assets/fonts/Hack-Bold.ttf");
+const Hack_700Bold_Italic = require("../assets/fonts/Hack-BoldItalic.ttf");
 
 /**
  * Signs out locally when the API reports auth failure (a 401 that survives
@@ -68,6 +79,14 @@ function ThemedShell() {
 export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
 		PirataOne_400Regular,
+		AtkinsonHyperlegible_400Regular,
+		AtkinsonHyperlegible_400Regular_Italic,
+		AtkinsonHyperlegible_700Bold,
+		AtkinsonHyperlegible_700Bold_Italic,
+		Hack_400Regular,
+		Hack_400Regular_Italic,
+		Hack_700Bold,
+		Hack_700Bold_Italic,
 		CormorantGaramond_500Medium,
 		CormorantGaramond_500Medium_Italic,
 	});

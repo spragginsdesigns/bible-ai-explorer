@@ -14,6 +14,7 @@ import {
 	configureLinkify,
 	DEFAULT_IMAGE_HANDLER,
 	isLastChildOfBlockquote,
+	isScriptureBlockquote,
 	LINKIFY_TLDS,
 	NOTE_ALLOWED_IMAGE_HANDLERS,
 	softbreakContent,
@@ -213,6 +214,55 @@ describe("B5 the last paragraph in a blockquote drops its bottom margin", () => 
 
 	it("is false when there is no parent at all", () => {
 		expect(isLastChildOfBlockquote(paragraph(0), [])).toBe(false);
+	});
+});
+
+describe("B6 Scripture typography is limited to validated verse quotes", () => {
+	it("keeps an ordinary supporting quote in the body family", () => {
+		expect(
+			isScriptureBlockquote([
+				{ type: "blockquote", children: [{ type: "text", attributes: {}, children: [] }] },
+			])
+		).toBe(false);
+	});
+
+	it("recognises a verse link nested inside a blockquote", () => {
+		expect(
+			isScriptureBlockquote([
+				{
+					type: "paragraph",
+					children: [],
+				},
+				{
+					type: "blockquote",
+					children: [
+						{
+							type: "paragraph",
+							children: [
+								{
+									type: "link",
+									attributes: { href: "verse-ref:John 3:16" },
+									children: [],
+								},
+							],
+						},
+					],
+				},
+			])
+		).toBe(true);
+	});
+
+	it("does not treat an external link as Scripture", () => {
+		expect(
+			isScriptureBlockquote([
+				{
+					type: "blockquote",
+					children: [
+						{ type: "link", attributes: { href: "https://example.com" }, children: [] },
+					],
+				},
+			])
+		).toBe(false);
 	});
 });
 

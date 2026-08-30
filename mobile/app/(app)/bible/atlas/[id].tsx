@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { AppText as Text } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
@@ -392,12 +394,12 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		headerButton: { minHeight: 48, justifyContent: "center" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -412,28 +414,28 @@ const createStyles = (c: Colors) =>
 		emptyCard: { padding: spacing.lg },
 		emptyText: {
 			color: c.textSecondary,
-			fontSize: 14,
-			lineHeight: 21,
+			...typography.support,
+
 			textAlign: "center",
 		},
 
 		content: { paddingHorizontal: spacing.lg, gap: spacing.xs },
 		name: { fontFamily: fonts.brand, fontSize: 30, color: c.text },
-		disambiguator: { color: c.textFaint, fontSize: 12, marginTop: 2 },
-		subtitle: { color: c.textMuted, fontSize: 13 },
-		alsoCalled: { color: c.textFaint, fontSize: 12.5, fontStyle: "italic" },
+		disambiguator: { color: c.textFaint, ...typography.meta, marginTop: 2 },
+		subtitle: { color: c.textMuted, ...typography.support },
+		alsoCalled: { color: c.textFaint, ...typography.meta, fontStyle: "italic" },
 
 		descriptionCard: {
 			padding: spacing.lg,
 			gap: spacing.sm,
 			marginTop: spacing.md,
 		},
-		description: { color: c.textSecondary, fontSize: 15, lineHeight: 23 },
-		counts: { color: c.textGhost, fontSize: 11.5 },
+		description: { color: c.textSecondary, ...typography.body },
+		counts: { color: c.textGhost, ...typography.meta },
 
 		sectionLabel: {
 			color: c.accentDim,
-			fontSize: 11.5,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			paddingTop: spacing.lg,
@@ -452,7 +454,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.md,
 			paddingVertical: 7,
 		},
-		refChipLabel: { color: c.accent, fontSize: 13, fontWeight: "700" },
+		refChipLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 
 		entityChip: {
 			minHeight: 48,
@@ -469,7 +471,7 @@ const createStyles = (c: Colors) =>
 		},
 		entityChipLabel: {
 			color: c.textSecondary,
-			fontSize: 13,
+			...typography.meta,
 			fontWeight: "600",
 		},
 
@@ -488,13 +490,13 @@ const createStyles = (c: Colors) =>
 		eventYear: {
 			width: 88,
 			color: c.accent,
-			fontSize: 11.5,
+			...typography.micro,
 			fontWeight: "700",
 			fontVariant: ["tabular-nums"],
 		},
 		eventCopy: { flex: 1, gap: 2 },
-		eventTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
-		eventEra: { color: c.textGhost, fontSize: 11.5 },
+		eventTitle: { color: c.textSecondary, ...typography.control, fontWeight: "600" },
+		eventEra: { color: c.textGhost, ...typography.meta },
 		relationRow: {
 			width: "100%",
 			backgroundColor: c.surface,
@@ -520,11 +522,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingBottom: spacing.md,
 		},
-		relationType: { color: c.textSecondary, fontSize: 13.5, fontWeight: "600" },
-		relationMeta: { color: c.textGhost, fontSize: 11.5, marginTop: 3 },
-		chevron: { color: c.textFaint, fontSize: 18, fontWeight: "600" },
+		relationType: { color: c.textSecondary, ...typography.meta, fontWeight: "600" },
+		relationMeta: { color: c.textGhost, ...typography.meta, marginTop: 3 },
+		chevron: { color: c.textFaint, ...typography.chat, fontWeight: "600" },
 		viewAll: { minHeight: 48, alignItems: "center", justifyContent: "center" },
-		viewAllLabel: { color: c.accent, fontSize: 13.5, fontWeight: "700" },
+		viewAllLabel: { color: c.accent, ...typography.meta, fontWeight: "700" },
 		actionRow: { gap: spacing.sm, marginTop: spacing.lg },
 		actionChip: {
 			minHeight: 48,
@@ -535,7 +537,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		actionLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		actionLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 
 		askButton: {
 			marginTop: spacing.xl,
@@ -547,5 +549,5 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		askLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		askLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 	});

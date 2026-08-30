@@ -4,12 +4,11 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useRouter } from "expo-router";
-import { radius, spacing } from "@/theme";
+import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { fetchNotes } from "@/features/notes/api";
@@ -282,8 +281,8 @@ const createStyles = (c: Colors) =>
 			borderColor: c.dangerBorder,
 			borderWidth: 1,
 		},
-		errorText: { flex: 1, color: c.danger, fontSize: 12.5, lineHeight: 18 },
-		errorRetry: { color: c.danger, fontSize: 12.5, fontWeight: "600" },
+		errorText: { ...typography.support, flex: 1, color: c.danger },
+		errorRetry: { ...typography.support, color: c.danger, fontWeight: "600" },
 		list: { marginTop: spacing.md, flexGrow: 0 },
 		listContent: { gap: spacing.sm, paddingBottom: spacing.sm },
 		empty: {
@@ -307,8 +306,8 @@ const createStyles = (c: Colors) =>
 		noteRowPressed: { backgroundColor: c.surfacePressed },
 		noteRowBody: { flex: 1, minWidth: 0, paddingVertical: spacing.xs },
 		noteTitle: { color: c.textSecondary, fontSize: 14, fontWeight: "500" },
-		notePreview: { marginTop: 2, color: c.textFaint, fontSize: 12.5 },
-		noteMeta: { marginTop: 2, color: c.textGhost, fontSize: 11 },
+		notePreview: { ...typography.support, marginTop: 2, color: c.textFaint },
+		noteMeta: { ...typography.meta, marginTop: 2, color: c.textGhost },
 		dimmed: { opacity: 0.5 },
 		successCard: {
 			flexDirection: "row",

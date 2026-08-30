@@ -333,7 +333,7 @@ const ChapterReader: React.FC = () => {
               type="button"
               aria-pressed={translation === id}
               onClick={() => setTranslation(id)}
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              className={`rounded-full border px-2.5 py-1 text-metadata font-bold transition-colors ${
                 translation === id
                   ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
                   : "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
@@ -494,7 +494,7 @@ const ChapterReader: React.FC = () => {
 
             {/* Tapped verse */}
             <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
-              <p className="line-clamp-5 font-[family-name:var(--font-cormorant)] text-[15px] leading-[22px] text-neutral-700 dark:text-neutral-300">
+              <p className="line-clamp-5 font-[family-name:var(--font-cormorant)] text-chat text-neutral-700 dark:text-neutral-300">
                 {actionVerse.text}
               </p>
             </div>
@@ -541,7 +541,7 @@ const ChapterReader: React.FC = () => {
             {/* Highlight picker: presets + custom color; applies immediately
                 and leaves the panel open (YouVersion-style). */}
             <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
-              <p className="pb-2 text-[11px] font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+              <p className="pb-2 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
                 Highlight
               </p>
               <div className="flex flex-wrap items-center gap-2.5">

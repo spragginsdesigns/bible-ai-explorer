@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
+import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
 import Markdown, {
 	MarkdownIt,
@@ -8,7 +9,7 @@ import Markdown, {
 	type RenderFunction,
 	type RenderRules,
 } from "react-native-markdown-display";
-import { fonts, radius, spacing } from "@/theme";
+import { fonts, radius, spacing, typography } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from "./verseLinks";
@@ -17,6 +18,7 @@ import {
 	configureLinkify,
 	DEFAULT_IMAGE_HANDLER,
 	isLastChildOfBlockquote,
+	isScriptureBlockquote,
 	softbreakContent,
 } from "./markdownRules";
 
@@ -27,26 +29,24 @@ import {
  */
 const createMarkdownStyles = (c: Colors) => ({
 	body: {
+		...typography.chat,
 		color: c.text,
-		fontSize: 15,
-		lineHeight: 24,
+		fontFamily: fonts.body,
 	},
 	paragraph: {
 		marginTop: 0,
 		marginBottom: spacing.md,
 	},
 	heading1: {
+		...typography.screenTitle,
 		color: c.text,
-		fontSize: 21,
-		lineHeight: 28,
 		fontWeight: "700" as const,
 		marginTop: spacing.md,
 		marginBottom: spacing.xs,
 	},
 	heading2: {
+		...typography.sectionTitle,
 		color: c.text,
-		fontSize: 18,
-		lineHeight: 25,
 		fontWeight: "700" as const,
 		marginTop: spacing.md,
 		marginBottom: spacing.xs,
@@ -86,7 +86,7 @@ const createMarkdownStyles = (c: Colors) => ({
 	em: {
 		fontStyle: "italic" as const,
 	},
-	// The signature look: quoted Scripture as an amber-edged glass slab.
+	// Quote card chrome is shared; only validated Scripture gets Cormorant.
 	blockquote: {
 		backgroundColor: c.accentSoft,
 		borderColor: c.accent,
@@ -97,7 +97,6 @@ const createMarkdownStyles = (c: Colors) => ({
 		paddingHorizontal: spacing.lg,
 		paddingVertical: spacing.md,
 		color: c.textSecondary,
-		fontFamily: fonts.verse,
 		fontSize: 18,
 		lineHeight: 26,
 	},
@@ -133,6 +132,7 @@ const createMarkdownStyles = (c: Colors) => ({
 		marginRight: spacing.sm,
 	},
 	code_inline: {
+		fontFamily: fonts.mono,
 		backgroundColor: c.surfaceStrong,
 		borderWidth: 0,
 		borderRadius: radius.sm,
@@ -143,6 +143,7 @@ const createMarkdownStyles = (c: Colors) => ({
 		paddingHorizontal: spacing.xs,
 	},
 	code_block: {
+		fontFamily: fonts.mono,
 		backgroundColor: c.bgElevated,
 		borderColor: c.border,
 		borderWidth: StyleSheet.hairlineWidth,
@@ -152,6 +153,7 @@ const createMarkdownStyles = (c: Colors) => ({
 		marginBottom: spacing.md,
 	},
 	fence: {
+		fontFamily: fonts.mono,
 		backgroundColor: c.bgElevated,
 		borderColor: c.border,
 		borderWidth: StyleSheet.hairlineWidth,
@@ -219,6 +221,7 @@ interface MarkdownStyleBag {
 
 const localStyles = StyleSheet.create({
 	flushBottom: { marginBottom: 0 },
+	scriptureText: { fontFamily: fonts.verse },
 });
 
 /**
@@ -248,6 +251,14 @@ export const sureWordMarkdownRules: RenderRules = {
 	softbreak: (node, _children, parents, styles: MarkdownStyleBag) => (
 		<Text key={node.key} style={styles.softbreak}>
 			{softbreakContent(parents)}
+		</Text>
+	),
+	textgroup: (node, children, parents, styles: MarkdownStyleBag) => (
+		<Text
+			key={node.key}
+			style={[styles.textgroup, isScriptureBlockquote(parents) && localStyles.scriptureText]}
+		>
+			{children}
 		</Text>
 	),
 	paragraph: flushableBlock("_VIEW_SAFE_paragraph"),

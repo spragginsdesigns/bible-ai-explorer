@@ -224,7 +224,7 @@ const ModelPicker: React.FC = () => {
 						})}
 					</div>
 					<div className="border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
-						<p className="mb-2 text-[11px] font-bold tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
+						<p className="mb-2 text-metadata font-bold tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
 							REASONING
 						</p>
 						<div className="grid grid-cols-4 gap-1">
@@ -236,7 +236,7 @@ const ModelPicker: React.FC = () => {
 										key={option.label}
 										aria-pressed={active}
 										onClick={() => pickEffort(option.id)}
-										className={`rounded-lg border px-1 py-1.5 text-[11px] font-bold transition-colors ${
+										className={`rounded-lg border px-1 py-1.5 text-metadata font-bold transition-colors ${
 											active
 												? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
 												: "border-black/[0.1] bg-black/[0.03] text-neutral-500 hover:bg-black/[0.06] dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-400 dark:hover:bg-white/[0.06]"

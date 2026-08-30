@@ -7,10 +7,10 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	Text,
-	TextInput,
 	View,
 } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import { BOOKS } from "@/features/bible/books";
@@ -369,11 +369,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {
 			flex: 1,
 			color: c.text,
-			fontSize: 15,
+			...typography.screenTitle,
 			fontWeight: "600",
 			textAlign: "center",
 		},
@@ -381,7 +381,7 @@ const createStyles = (c: Colors) =>
 		content: { paddingHorizontal: spacing.xl },
 		date: {
 			color: c.textFaint,
-			fontSize: 13,
+			...typography.meta,
 			textAlign: "center",
 			marginBottom: spacing.lg,
 		},
@@ -396,11 +396,11 @@ const createStyles = (c: Colors) =>
 		skeletonHint: {
 			marginTop: spacing.md,
 			color: c.textFaint,
-			fontSize: 13,
+			...typography.meta,
 			textAlign: "center",
 		},
 		errorCard: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
-		errorText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		errorText: { color: c.textSecondary, ...typography.support, textAlign: "center" },
 		retry: {
 			borderRadius: radius.md,
 			backgroundColor: c.accentSoft,
@@ -409,18 +409,18 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.xl,
 			paddingVertical: spacing.sm,
 		},
-		retryLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		retryLabel: { color: c.accent, ...typography.control, fontWeight: "600" },
 		verseCard: { padding: spacing.lg, gap: spacing.md },
-		reference: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		reference: { color: c.accent, ...typography.control, fontWeight: "700" },
 		verseText: {
 			color: c.text,
 			fontFamily: fonts.verse,
-			fontSize: 19,
-			lineHeight: 30,
+			...typography.chat,
+
 		},
-		reason: { color: c.textMuted, fontSize: 13.5, lineHeight: 19, fontStyle: "italic" },
+		reason: { color: c.textMuted, ...typography.support, fontStyle: "italic" },
 		timeline: { marginTop: spacing.sm },
-		body: { color: c.textSecondary, fontSize: 14.5, lineHeight: 22 },
+		body: { color: c.textSecondary, ...typography.body },
 		studyRow: {
 			borderRadius: radius.md,
 			borderWidth: StyleSheet.hairlineWidth,
@@ -431,10 +431,10 @@ const createStyles = (c: Colors) =>
 			gap: 4,
 		},
 		studyHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-		studyReference: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		studyReference: { color: c.accent, ...typography.control, fontWeight: "700" },
 		planTag: {
 			color: c.textFaint,
-			fontSize: 9.5,
+			...typography.micro,
 			fontWeight: "700",
 			letterSpacing: 0.8,
 			borderRadius: radius.full,
@@ -444,14 +444,14 @@ const createStyles = (c: Colors) =>
 			paddingVertical: 2,
 			overflow: "hidden",
 		},
-		studyFocus: { color: c.textSecondary, fontSize: 13.5, lineHeight: 19 },
+		studyFocus: { color: c.textSecondary, ...typography.support },
 		questionCard: {
 			padding: spacing.lg,
 			gap: spacing.sm,
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		questionText: { color: c.text, fontSize: 14.5, lineHeight: 22, fontWeight: "500" },
+		questionText: { color: c.text, ...typography.body, fontWeight: "500" },
 		chatButton: {
 			minHeight: 48,
 			borderRadius: radius.lg,
@@ -461,7 +461,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		chatButtonLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		chatButtonLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		replaceButton: {
 			marginTop: spacing.sm,
 			minHeight: 44,
@@ -471,7 +471,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		replaceButtonLabel: { color: c.textFaint, fontSize: 14, fontWeight: "600" },
+		replaceButtonLabel: { color: c.textFaint, ...typography.control, fontWeight: "600" },
 		replacePanel: {
 			marginTop: spacing.sm,
 			gap: spacing.md,
@@ -481,7 +481,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			backgroundColor: c.surface,
 		},
-		replacePrompt: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
+		replacePrompt: { color: c.textSecondary, ...typography.body },
 		replaceProgress: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 		focusInput: {
 			minHeight: 44,
@@ -490,7 +490,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			paddingHorizontal: spacing.md,
 			color: c.text,
-			fontSize: 14,
+			...typography.support,
 		},
 		replaceButtons: { flexDirection: "row", gap: spacing.sm },
 		replaceConfirm: {
@@ -503,7 +503,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		replaceConfirmLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
+		replaceConfirmLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 		replaceCancel: {
 			flex: 1,
 			minHeight: 44,
@@ -513,5 +513,5 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		replaceCancelLabel: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
+		replaceCancelLabel: { color: c.textSecondary, ...typography.control, fontWeight: "600" },
 	});

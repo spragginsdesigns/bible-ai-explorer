@@ -31,7 +31,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 							<ChatFileAttachments attachments={message.attachments} />
 						</div>
 					)}
-					{message.content && <p className="text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>}
+					{message.content && <p className="text-chat text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>}
 				</div>
 			</div>
 		);
@@ -59,7 +59,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 					</div>
 				) : null}
 				{message.isStreaming && message.activity && (
-					<div className="flex items-center gap-2 py-2 text-sm text-neutral-500 dark:text-neutral-400">
+					<div className="flex items-center gap-2 py-2 text-support text-neutral-500 dark:text-neutral-400">
 						<Loader2 className="w-3.5 h-3.5 animate-spin" />
 						<span className="animate-pulse">{message.activity}...</span>
 					</div>
@@ -93,7 +93,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 								className="flex items-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 transition-colors hover:bg-amber-400/[0.12]"
 							>
 								<NotebookPen className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-								<span className="text-sm text-neutral-700 dark:text-neutral-300 truncate">
+								<span className="text-support text-neutral-700 dark:text-neutral-300 truncate">
 									{action.created ? "Created note" : "Added to note"}{" "}
 									<span className="font-medium text-amber-700 dark:text-amber-400">
 										{action.noteTitle}
@@ -111,11 +111,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 								href="/cross"
 								className="flex flex-col gap-1 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-3 transition-colors hover:bg-amber-400/[0.12]"
 							>
-								<span className="flex items-center gap-2 text-xs font-semibold tracking-wide text-amber-700 dark:text-amber-400">
+								<span className="flex items-center gap-2 text-metadata font-semibold tracking-wide text-amber-700 dark:text-amber-400">
 									<span aria-hidden>✝</span>
 									Pick Up Your Cross updated
 								</span>
-								<span className="text-sm font-medium text-neutral-800 dark:text-neutral-200">
+								<span className="text-control font-medium text-neutral-800 dark:text-neutral-200">
 									{action.reference}
 									{action.previousReference && (
 										<span className="font-normal text-neutral-500 dark:text-neutral-400">
@@ -124,7 +124,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 										</span>
 									)}
 								</span>
-								<span className="line-clamp-2 text-[13px] italic leading-5 text-neutral-600 dark:text-neutral-400">
+								<span className="line-clamp-2 text-support italic text-neutral-600 dark:text-neutral-400">
 									{action.text}
 								</span>
 							</Link>

@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { GlassCard, Screen } from "@/components/ui";
 import { BOOKS } from "@/features/bible/books";
@@ -412,16 +414,16 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
 		},
-		back: { color: c.accent, fontSize: 15, fontWeight: "600" },
-		title: { flex: 1, color: c.text, fontSize: 15, fontWeight: "600", textAlign: "center" },
+		back: { color: c.accent, ...typography.control, fontWeight: "600" },
+		title: { flex: 1, color: c.text, ...typography.screenTitle, fontWeight: "600", textAlign: "center" },
 		topBarSpacer: { width: 44 },
 		overflow: { width: 44, alignItems: "flex-end" },
-		overflowGlyph: { color: c.textMuted, fontSize: 20, fontWeight: "700" },
+		overflowGlyph: { color: c.textMuted, ...typography.screenTitle, fontWeight: "700" },
 		content: { paddingHorizontal: spacing.lg },
 		header: { gap: spacing.md },
-		hint: { color: c.textFaint, fontSize: 13, textAlign: "center", paddingVertical: spacing.lg },
+		hint: { color: c.textFaint, ...typography.support, textAlign: "center", paddingVertical: spacing.lg },
 		errorCard: { padding: spacing.lg, alignItems: "center", gap: spacing.md },
-		errorText: { color: c.textSecondary, fontSize: 14, textAlign: "center", lineHeight: 20 },
+		errorText: { color: c.textSecondary, ...typography.support, textAlign: "center" },
 		retry: {
 			borderRadius: radius.md,
 			backgroundColor: c.accentSoft,
@@ -430,10 +432,10 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.xl,
 			paddingVertical: spacing.sm,
 		},
-		retryLabel: { color: c.accent, fontSize: 14, fontWeight: "600" },
+		retryLabel: { color: c.accent, ...typography.control, fontWeight: "600" },
 
 		archiveCard: { padding: spacing.lg, gap: spacing.md },
-		archivePrompt: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
+		archivePrompt: { color: c.textSecondary, ...typography.body },
 		archiveButtons: { flexDirection: "row", gap: spacing.sm },
 		archiveConfirm: {
 			flex: 1,
@@ -444,7 +446,7 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		archiveConfirmLabel: { color: c.danger, fontSize: 14, fontWeight: "700" },
+		archiveConfirmLabel: { color: c.danger, ...typography.support, fontWeight: "700" },
 		archiveCancel: {
 			flex: 1,
 			minHeight: 44,
@@ -454,12 +456,12 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		archiveCancelLabel: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
+		archiveCancelLabel: { color: c.textSecondary, ...typography.support, fontWeight: "600" },
 
 		planHeader: { gap: spacing.md },
 		summaryCard: { padding: spacing.lg, gap: spacing.sm },
 		planTitle: { fontFamily: fonts.brand, fontSize: 24, color: c.text },
-		planDescription: { color: c.textMuted, fontSize: 13.5, lineHeight: 19 },
+		planDescription: { color: c.textMuted, ...typography.support },
 		barTrack: {
 			marginTop: spacing.xs,
 			height: 8,
@@ -471,16 +473,16 @@ const createStyles = (c: Colors) =>
 		summaryMeta: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
 		percent: {
 			color: c.accent,
-			fontSize: 22,
+			...typography.screenTitle,
 			fontWeight: "700",
 			fontVariant: ["tabular-nums"],
 		},
-		summaryCaption: { flex: 1, color: c.textFaint, fontSize: 12.5 },
-		streak: { color: c.textMuted, fontSize: 13, fontWeight: "600" },
+		summaryCaption: { flex: 1, color: c.textFaint, ...typography.meta },
+		streak: { color: c.textMuted, ...typography.meta, fontWeight: "600" },
 
 		doneCard: { padding: spacing.lg, gap: spacing.sm, borderColor: c.accentBorder },
-		doneTitle: { color: c.accent, fontSize: 16, fontWeight: "700" },
-		doneBody: { color: c.textSecondary, fontSize: 13.5, lineHeight: 20 },
+		doneTitle: { color: c.accent, ...typography.body, fontWeight: "700" },
+		doneBody: { color: c.textSecondary, ...typography.body },
 
 		todayCard: {
 			padding: spacing.lg,
@@ -490,7 +492,7 @@ const createStyles = (c: Colors) =>
 		},
 		todayLabel: {
 			color: c.accent,
-			fontSize: 12,
+			...typography.micro,
 			fontWeight: "700",
 			letterSpacing: 1.1,
 			textTransform: "uppercase",
@@ -504,8 +506,8 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.md,
 			paddingVertical: 8,
 		},
-		chipLabel: { color: c.accent, fontSize: 14, fontWeight: "700" },
-		todayFocus: { color: c.textSecondary, fontSize: 14, lineHeight: 21 },
+		chipLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
+		todayFocus: { color: c.textSecondary, ...typography.body },
 		markButton: {
 			minHeight: 44,
 			borderRadius: radius.md,
@@ -515,12 +517,12 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 		},
 		markButtonDone: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		markLabel: { color: c.textMuted, fontSize: 14, fontWeight: "600" },
+		markLabel: { color: c.textMuted, ...typography.support, fontWeight: "600" },
 		markLabelDone: { color: c.accent },
-		markHint: { color: c.textGhost, fontSize: 11.5, lineHeight: 16 },
+		markHint: { color: c.textGhost, ...typography.micro },
 
 		chooser: { gap: spacing.md },
-		lead: { color: c.textMuted, fontSize: 14, lineHeight: 21 },
+		lead: { color: c.textMuted, ...typography.body },
 		presetCard: {
 			gap: 6,
 			backgroundColor: c.surface,
@@ -531,15 +533,15 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		presetHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-		presetTitle: { flex: 1, color: c.text, fontSize: 15, fontWeight: "700" },
-		presetDays: { color: c.accent, fontSize: 12.5, fontVariant: ["tabular-nums"] },
-		presetDescription: { color: c.textMuted, fontSize: 13, lineHeight: 19 },
+		presetTitle: { flex: 1, color: c.text, ...typography.control, fontWeight: "700" },
+		presetDays: { color: c.accent, ...typography.meta, fontVariant: ["tabular-nums"] },
+		presetDescription: { color: c.textMuted, ...typography.support },
 
 		sectionLabel: {
 			marginTop: spacing.lg,
 			marginBottom: spacing.xs,
 			color: c.textFaint,
-			fontSize: 11,
+			...typography.sectionTitle,
 			fontWeight: "700",
 			letterSpacing: 1.2,
 			textTransform: "uppercase",
@@ -553,7 +555,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.md,
 			paddingVertical: spacing.sm,
 			color: c.text,
-			fontSize: 14,
+			...typography.support,
 			textAlignVertical: "top",
 		},
 		stepper: { flexDirection: "row", alignItems: "center", gap: spacing.md },
@@ -566,12 +568,12 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			justifyContent: "center",
 		},
-		stepGlyph: { color: c.textSecondary, fontSize: 20, fontWeight: "700" },
+		stepGlyph: { color: c.textSecondary, ...typography.screenTitle, fontWeight: "700" },
 		stepValue: {
 			flex: 1,
 			textAlign: "center",
 			color: c.text,
-			fontSize: 15,
+			...typography.control,
 			fontWeight: "600",
 			fontVariant: ["tabular-nums"],
 		},
@@ -586,7 +588,7 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 		},
 		dayChipActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		dayChipLabel: { color: c.textMuted, fontSize: 13, fontVariant: ["tabular-nums"] },
+		dayChipLabel: { color: c.textMuted, ...typography.meta, fontVariant: ["tabular-nums"] },
 		dayChipLabelActive: { color: c.accent, fontWeight: "700" },
 		buildButton: {
 			minHeight: 48,
@@ -598,7 +600,7 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 		},
 		buildButtonDisabled: { opacity: 0.5 },
-		buildButtonLabel: { color: c.accent, fontSize: 15, fontWeight: "700" },
+		buildButtonLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
 
 		dayRow: {
 			flexDirection: "row",
@@ -617,13 +619,13 @@ const createStyles = (c: Colors) =>
 		dayNumber: {
 			width: 32,
 			color: c.textFaint,
-			fontSize: 13,
+			...typography.meta,
 			fontWeight: "700",
 			fontVariant: ["tabular-nums"],
 		},
 		dayCopy: { flex: 1, gap: 2 },
-		dayReference: { color: c.textSecondary, fontSize: 14, fontWeight: "600" },
-		dayState: { color: c.textGhost, fontSize: 11.5 },
+		dayReference: { color: c.textSecondary, ...typography.support, fontWeight: "600" },
+		dayState: { color: c.textGhost, ...typography.meta },
 		tick: {
 			width: 32,
 			height: 32,
@@ -634,6 +636,6 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 		},
 		tickDone: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		tickGlyph: { color: c.textGhost, fontSize: 14, fontWeight: "700" },
+		tickGlyph: { color: c.textGhost, ...typography.support, fontWeight: "700" },
 		tickGlyphDone: { color: c.accent },
 	});

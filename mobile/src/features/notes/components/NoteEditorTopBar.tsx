@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
-import { spacing } from "@/theme";
+import { StyleSheet, View } from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { GlyphButton } from "./primitives";
@@ -117,6 +118,6 @@ const createStyles = (c: Colors) =>
 			fontWeight: "600",
 			paddingVertical: 4,
 		},
-		saving: { color: c.textGhost, fontSize: 10.5, marginTop: -2 },
-		saveError: { color: c.danger, fontSize: 10.5, marginTop: -2 },
+		saving: { ...typography.meta, color: c.textGhost, marginTop: -2 },
+		saveError: { ...typography.meta, color: c.danger, marginTop: -2 },
 	});
