@@ -11,10 +11,13 @@ import Link from "@tiptap/extension-link";
 import UnderlineExtension from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import EditorToolbar from "./EditorToolbar";
+import type { Note } from "@/types/notes";
 
 interface TiptapEditorProps {
 	content: string; // Tiptap JSON string or plain text
 	noteId: string;
+	/** Link targets offered by the insert-wikilink toolbar button. */
+	linkTargets?: Note[];
 	onSave: (data: {
 		content: string;
 		htmlContent: string;
@@ -29,7 +32,7 @@ export interface TiptapEditorHandle {
 }
 
 const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
-	{ content, noteId, onSave },
+	{ content, noteId, linkTargets, onSave },
 	ref
 ) {
 	const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -139,7 +142,7 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 
 	return (
 		<div className="flex flex-col flex-1 min-h-0">
-			<EditorToolbar editor={editor} />
+			<EditorToolbar editor={editor} notes={linkTargets} currentNoteId={noteId} />
 			<div className="flex-1 overflow-y-auto custom-scrollbar">
 				{/* Comfortable writing measure on desktop; full width on phones */}
 				<div className="mx-auto w-full max-w-3xl">

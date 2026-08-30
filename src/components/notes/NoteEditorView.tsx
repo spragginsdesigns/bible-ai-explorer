@@ -4,11 +4,13 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import NoteEditorTopBar from "./NoteEditorTopBar";
 import TiptapEditor, { type TiptapEditorHandle } from "./TiptapEditor";
 import NoteAIPanel from "./NoteAIPanel";
+import NoteInfoPanel from "./NoteInfoPanel";
 import type { NoteAppendEvent } from "@/hooks/useNoteAI";
 import type { Note, Folder, Tag } from "@/types/notes";
 
 interface NoteEditorViewProps {
 	note: Note;
+	notes: Note[];
 	folders: Folder[];
 	tags: Tag[];
 	onBack: () => void;
@@ -18,10 +20,13 @@ interface NoteEditorViewProps {
 	onToggleTag: (noteId: string, tagId: string) => void;
 	onCreateTag: (name: string, color: string) => void;
 	onDeleteTag: (id: string) => void;
+	onOpenNote: (id: string) => void;
+	onCreateLinkedNote: (title: string) => Promise<void>;
 }
 
 const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	note,
+	notes,
 	folders,
 	tags,
 	onBack,
@@ -31,6 +36,8 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	onToggleTag,
 	onCreateTag,
 	onDeleteTag,
+	onOpenNote,
+	onCreateLinkedNote,
 }) => {
 	const [aiPanelOpen, setAiPanelOpen] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
@@ -66,6 +73,11 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		[note.id]
 	);
 
+	const handleInfoUpdate = useCallback(
+		(changes: Partial<Note>) => onUpdate(note.id, changes),
+		[note.id, onUpdate]
+	);
+
 	return (
 		<div className="flex-1 flex flex-col min-h-0">
 			<NoteEditorTopBar
@@ -90,7 +102,14 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 						ref={editorRef}
 						content={note.content}
 						noteId={note.id}
+						linkTargets={notes}
 						onSave={handleSave}
+					/>
+					<NoteInfoPanel
+						note={note}
+						onUpdate={handleInfoUpdate}
+						onOpenNote={onOpenNote}
+						onCreateLinkedNote={onCreateLinkedNote}
 					/>
 				</div>
 

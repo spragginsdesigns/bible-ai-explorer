@@ -1,10 +1,24 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Note, Folder, Tag, NoteApiResponse } from "@/types/notes";
+import type { Note, Folder, Tag, NoteApiResponse, NoteLinks } from "@/types/notes";
 import { toNote } from "@/types/notes";
 
 export type SortOption = "updatedAt" | "createdAt" | "title";
+
+/**
+ * Outgoing wikilinks and backlinks for a note. The server owns link resolution;
+ * the client never derives backlinks from loaded notes.
+ */
+export async function fetchNoteLinks(id: string): Promise<NoteLinks> {
+	const res = await fetch(`/api/notes/${id}/links`);
+	if (!res.ok) throw new Error("Failed to load links");
+	const data: Partial<NoteLinks> = await res.json();
+	return {
+		outgoing: data.outgoing ?? [],
+		backlinks: data.backlinks ?? [],
+	};
+}
 
 export function useNotes() {
 	const [notes, setNotes] = useState<Note[]>([]);
@@ -56,7 +70,8 @@ export function useNotes() {
 			const q = searchQuery.toLowerCase();
 			return (
 				note.title.toLowerCase().includes(q) ||
-				note.plainText.toLowerCase().includes(q)
+				note.plainText.toLowerCase().includes(q) ||
+				note.aliases.some((alias) => alias.toLowerCase().includes(q))
 			);
 		}
 		return true;
@@ -79,9 +94,12 @@ export function useNotes() {
 
 	const activeNote = notes.find((n) => n.id === activeNoteId) ?? null;
 
-	const createNote = useCallback(async (folderId?: string | null): Promise<Note> => {
+	const createNote = useCallback(async (
+		folderId?: string | null,
+		title?: string
+	): Promise<Note> => {
 		const body = {
-			title: "Untitled Note",
+			title: title?.trim() || "Untitled Note",
 			content: "",
 			htmlContent: "",
 			plainText: "",

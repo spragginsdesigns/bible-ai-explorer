@@ -5,7 +5,7 @@ import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { GlyphButton } from "./primitives";
 
-/** Editor chrome: back, inline title, pin, tags and the AI panel toggle. */
+/** Editor chrome: back, inline title, pin, tags, note info and the AI panel toggle. */
 export function NoteEditorTopBar({
 	title,
 	isPinned,
@@ -17,6 +17,7 @@ export function NoteEditorTopBar({
 	onRename,
 	onTogglePin,
 	onOpenTags,
+	onOpenInfo,
 	onToggleAI,
 }: {
 	title: string;
@@ -30,6 +31,7 @@ export function NoteEditorTopBar({
 	onRename: (title: string) => void;
 	onTogglePin: () => void;
 	onOpenTags: () => void;
+	onOpenInfo: () => void;
 	onToggleAI: () => void;
 }) {
 	const [draft, setDraft] = useState(title);
@@ -77,6 +79,12 @@ export function NoteEditorTopBar({
 				accessibilityLabel={`Manage tags, ${tagCount} applied`}
 				onPress={onOpenTags}
 				active={tagCount > 0}
+				size={36}
+			/>
+			<GlyphButton
+				icon="information-circle-outline"
+				accessibilityLabel="Note info, properties and links"
+				onPress={onOpenInfo}
 				size={36}
 			/>
 			<GlyphButton

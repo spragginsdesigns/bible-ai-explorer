@@ -80,6 +80,14 @@ const NotesPage: React.FC = () => {
 		await deleteNote(id);
 	};
 
+	// Resolving an unresolved wikilink: create the target, then open it.
+	const handleCreateLinkedNote = useCallback(
+		async (title: string) => {
+			await createNote(null, title);
+		},
+		[createNote]
+	);
+
 	return (
 		<div
 			className="flex h-[100dvh] gradient-mesh overflow-hidden"
@@ -115,6 +123,7 @@ const NotesPage: React.FC = () => {
 				{activeNote ? (
 					<NoteEditorView
 						note={activeNote}
+						notes={notes}
 						folders={folders}
 						tags={tags}
 						onBack={() => setActiveNoteId(null)}
@@ -124,6 +133,8 @@ const NotesPage: React.FC = () => {
 						onToggleTag={toggleNoteTag}
 						onCreateTag={createTag}
 						onDeleteTag={deleteTag}
+						onOpenNote={setActiveNoteId}
+						onCreateLinkedNote={handleCreateLinkedNote}
 					/>
 				) : (
 					<>

@@ -144,7 +144,7 @@ requirements before using them.
       Timeline/People/Places, My church, and rich attachments.
    - Icon: `docs/play-store/icon-512.png` · Feature graphic:
      `docs/play-store/feature-graphic-1024x500.png`
-   - Screenshots: at least 2 phone screenshots (capture from the S24 Ultra:
+   - Screenshots: at least 2 phone screenshots (capture from the S26 Ultra:
      `adb exec-out screencap -p > shot.png` - chat with verses, Bible reader,
      Pick Up Your Cross, Notes).
    - Category: **Books & Reference**. Contact email: the account's public

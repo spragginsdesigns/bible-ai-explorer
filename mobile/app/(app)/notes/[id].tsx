@@ -13,8 +13,10 @@ import { Screen } from "@/components/ui";
 import { spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { useTabBarSpace } from "@/features/chat/layout";
+import { InsertWikilinkSheet } from "@/features/notes/components/InsertWikilinkSheet";
 import { NoteAIPanel } from "@/features/notes/components/NoteAIPanel";
 import { NoteEditorTopBar } from "@/features/notes/components/NoteEditorTopBar";
+import { NoteInfoSheet } from "@/features/notes/components/NoteInfoSheet";
 import {
 	NoteRichEditor,
 	type NoteRichEditorHandle,
@@ -23,6 +25,7 @@ import { NoteTagSheet } from "@/features/notes/components/NoteTagSheet";
 import type { NoteAppendEvent } from "@/features/notes/useNoteAI";
 import { useNoteEditorData } from "@/features/notes/useNoteEditorData";
 import { initialHtmlFor } from "@/features/notes/utils";
+import { formatWikilink } from "@/features/notes/wikilinks";
 
 /** Height of the parent layout's floating glass tab bar, which overlays this screen. */
 
@@ -37,6 +40,8 @@ export default function NoteEditorScreen() {
 	const editorRef = useRef<NoteRichEditorHandle>(null);
 	const [aiOpen, setAiOpen] = useState(false);
 	const [tagsOpen, setTagsOpen] = useState(false);
+	const [infoOpen, setInfoOpen] = useState(false);
+	const [wikilinkOpen, setWikilinkOpen] = useState(false);
 
 	const bottomInset = useTabBarSpace();
 
@@ -66,6 +71,18 @@ export default function NoteEditorScreen() {
 		// Save first so the assistant reads the current text, not the last autosave.
 		await editorRef.current?.flush();
 		setAiOpen(true);
+	}, []);
+
+	// Links are parsed server-side from the saved text, so an unflushed
+	// [[wikilink]] would be missing from the sheet that is meant to show it.
+	const openInfo = useCallback(async () => {
+		await editorRef.current?.flush();
+		setInfoOpen(true);
+	}, []);
+
+	const insertWikilink = useCallback((title: string) => {
+		setWikilinkOpen(false);
+		editorRef.current?.insertText(formatWikilink(title));
 	}, []);
 
 	const handleNoteAppended = useCallback(
@@ -102,6 +119,7 @@ export default function NoteEditorScreen() {
 					onRename={(title) => void data.renameNote(title)}
 					onTogglePin={() => void data.togglePin()}
 					onOpenTags={() => setTagsOpen(true)}
+					onOpenInfo={() => void openInfo()}
 					onToggleAI={() => void openAI()}
 				/>
 
@@ -115,6 +133,7 @@ export default function NoteEditorScreen() {
 						initialHtml={initialHtml}
 						onSave={data.save}
 						bottomInset={bottomInset}
+						onRequestWikilink={() => setWikilinkOpen(true)}
 					/>
 				) : (
 					<View style={styles.center}>
@@ -131,6 +150,25 @@ export default function NoteEditorScreen() {
 				onToggleTag={(tagId) => void data.toggleTag(tagId)}
 				onCreateTag={(name, color) => void data.createTag(name, color)}
 			/>
+
+			<InsertWikilinkSheet
+				visible={wikilinkOpen}
+				currentNoteId={noteId}
+				onClose={() => setWikilinkOpen(false)}
+				onSelect={insertWikilink}
+			/>
+
+			{note ? (
+				<NoteInfoSheet
+					visible={infoOpen}
+					note={note}
+					folderName={data.folders.find((folder) => folder.id === note.folderId)?.name ?? null}
+					onClose={() => setInfoOpen(false)}
+					onSaveAliases={(aliases) => void data.setAliases(aliases)}
+					onSaveProperties={(properties) => void data.setProperties(properties)}
+					onCreateLinkedNote={data.createLinkedNote}
+				/>
+			) : null}
 
 			{note ? (
 				<NoteAIPanel

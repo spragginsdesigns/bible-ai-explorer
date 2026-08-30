@@ -6,13 +6,16 @@ import {
 	RichText,
 	TenTapStartKit,
 	Toolbar,
+	useBridgeState,
 	useEditorBridge,
+	useKeyboard,
 } from "@10play/tentap-editor";
-import { radius } from "@/theme";
+import { radius, spacing } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
+import { GlyphButton } from "./primitives";
 
 const AUTOSAVE_DELAY = 1500;
 const BRIDGE_TIMEOUT = 1200;
@@ -107,9 +110,10 @@ const editorTheme = (c: Colors) => ({
 			height: 48,
 			minWidth: "100%" as const,
 			backgroundColor: c.bgElevated,
-			borderTopWidth: StyleSheet.hairlineWidth,
+			// The surrounding row draws the divider so it spans the extra button too.
+			borderTopWidth: 0,
 			borderBottomWidth: 0,
-			borderTopColor: c.borderStrong,
+			borderTopColor: "transparent",
 			borderBottomColor: "transparent",
 		},
 		toolbarButton: { backgroundColor: "transparent", paddingHorizontal: 5 },
@@ -149,23 +153,57 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 	});
 }
 
+/**
+ * Insert text at the caret from outside the webview.
+ *
+ * The bundled tentap editor wires only TenTapStartKit and never exposes the
+ * tiptap instance on `window`, so there is no editor global to command and a
+ * custom bridge would need a custom web build. Text therefore goes in the same
+ * way typing does: focus the ProseMirror element and let `execCommand` fire the
+ * input events ProseMirror already listens for, which also triggers the normal
+ * update -> autosave path. The retry covers the webview not having regained
+ * focus yet after a modal closes.
+ */
+function insertTextScript(text: string): string {
+	return `
+		(function () {
+			var text = ${JSON.stringify(text)};
+			var tries = 0;
+			function attempt() {
+				var el = document.querySelector('.ProseMirror');
+				if (el) {
+					if (document.activeElement !== el) el.focus();
+					if (document.execCommand('insertText', false, text)) return;
+				}
+				if (++tries < 12) setTimeout(attempt, 60);
+			}
+			attempt();
+		})();
+		true;
+	`;
+}
+
 export interface NoteRichEditorHandle {
 	/** Cancel the pending debounce and persist immediately. */
 	flush: () => Promise<void>;
 	/** Re-seed the document, e.g. after the AI appended to this note. */
 	replaceContent: (html: string) => void;
+	/** Write text at the caret, restoring focus first. */
+	insertText: (text: string) => void;
 }
 
 interface NoteRichEditorProps {
-	/** Read once on mount — remount (via key) to load a different note. */
+	/** Read once on mount - remount (via key) to load a different note. */
 	initialHtml: string;
 	onSave: (payload: NoteSavePayload) => Promise<void> | void;
 	/** Space reserved under the toolbar for the app's floating tab bar. */
 	bottomInset: number;
+	/** Opens the note picker; the screen inserts the chosen link through the ref. */
+	onRequestWikilink: () => void;
 }
 
 export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorProps>(
-	function NoteRichEditor({ initialHtml, onSave, bottomInset }, ref) {
+	function NoteRichEditor({ initialHtml, onSave, bottomInset, onRequestWikilink }, ref) {
 		const savedHtmlRef = useRef(initialHtml);
 		const latestHtmlRef = useRef(initialHtml);
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,6 +228,12 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		// the imperative handle and timers do not churn.
 		const editorRef = useRef(editor);
 		editorRef.current = editor;
+
+		// Same condition the Toolbar applies to itself, lifted so the wikilink
+		// button appears and disappears with it as one bar.
+		const editorState = useBridgeState(editor);
+		const { isKeyboardUp } = useKeyboard();
+		const toolbarHidden = !isKeyboardUp || !editorState.isFocused;
 
 		const persist = useCallback(async (html: string) => {
 			if (html === savedHtmlRef.current) return;
@@ -240,6 +284,13 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 					latestHtmlRef.current = html;
 					editorRef.current.setContent(html);
 				},
+				insertText: (text: string) => {
+					if (!text) return;
+					// `null` restores the selection the editor held before the sheet
+					// took focus, rather than jumping the caret.
+					editorRef.current.focus(null);
+					editorRef.current.injectJS(insertTextScript(text));
+				},
 			}),
 			[flush]
 		);
@@ -257,7 +308,21 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 			<View style={styles.container}>
 				<RichText editor={editor} />
 				<View style={[styles.toolbarWrap, { paddingBottom: bottomInset }]}>
-					<Toolbar editor={editor} />
+					<View style={[styles.toolbarRow, toolbarHidden && styles.toolbarRowHidden]}>
+						<GlyphButton
+							icon="link-outline"
+							accessibilityLabel="Link to a note"
+							onPress={onRequestWikilink}
+							size={34}
+							style={styles.wikilinkButton}
+						/>
+						<View style={styles.toolbarDivider} />
+						{/* The row already mirrors the Toolbar's own hide rule, so it must
+						    not hide itself as well and leave the button stranded. */}
+						<View style={styles.toolbarFill}>
+							<Toolbar editor={editor} hidden={false} />
+						</View>
+					</View>
 				</View>
 			</View>
 		);
@@ -268,4 +333,25 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		container: { flex: 1, backgroundColor: c.bgMid },
 		toolbarWrap: { backgroundColor: c.bgMid },
+		toolbarRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			backgroundColor: c.bgElevated,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.borderStrong,
+		},
+		toolbarRowHidden: { display: "none" },
+		wikilinkButton: {
+			marginLeft: spacing.sm,
+			marginRight: spacing.xs,
+			backgroundColor: "transparent",
+			borderColor: "transparent",
+		},
+		toolbarDivider: {
+			width: StyleSheet.hairlineWidth,
+			height: 22,
+			marginRight: spacing.xs,
+			backgroundColor: c.borderStrong,
+		},
+		toolbarFill: { flex: 1, minWidth: 0 },
 	});

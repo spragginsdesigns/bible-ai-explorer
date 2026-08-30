@@ -15,6 +15,32 @@ export interface Folder {
 	createdAt: string;
 }
 
+/** What a single custom note property can hold. */
+export type NotePropertyValue = string | number | boolean | string[];
+
+export type NoteProperties = Record<string, NotePropertyValue>;
+
+/** One `[[target]]` written in this note. `noteId` is null until a note claims that title. */
+export interface NoteOutgoingLink {
+	targetTitle: string;
+	noteId: string | null;
+	title: string | null;
+}
+
+/** A note that links here. The server supplies the snippet. */
+export interface NoteBacklink {
+	noteId: string;
+	title: string;
+	snippet: string;
+	updatedAt: string;
+}
+
+/** Both directions of a note's wikilink graph, resolved server-side. */
+export interface NoteLinks {
+	outgoing: NoteOutgoingLink[];
+	backlinks: NoteBacklink[];
+}
+
 export interface Note {
 	id: string;
 	/**
@@ -27,6 +53,10 @@ export interface Note {
 	plainText: string;
 	folderId: string | null;
 	tagIds: string[];
+	/** Extra titles a `[[wikilink]]` may resolve through. */
+	aliases: string[];
+	/** Free-form metadata beyond tags; null when the note carries none. */
+	properties: NoteProperties | null;
 	createdAt: string;
 	updatedAt: string;
 	isPinned: boolean;
@@ -49,6 +79,9 @@ export interface NoteApiResponse {
 	folderId: string | null;
 	isPinned: boolean;
 	wordCount: number;
+	/** Present on summary rows and single-note GETs alike; older servers omit it. */
+	aliases?: string[];
+	properties?: NoteProperties | null;
 	createdAt: string;
 	updatedAt: string;
 	tags?: { tag: Tag }[];
@@ -62,6 +95,8 @@ export type NotePatch = Partial<{
 	folderId: string | null;
 	isPinned: boolean;
 	wordCount: number;
+	aliases: string[];
+	properties: NoteProperties | null;
 }>;
 
 /** What the rich text editor hands back on every autosave. */
@@ -81,6 +116,8 @@ export function toNote(api: NoteApiResponse): Note {
 		plainText: api.plainText,
 		folderId: api.folderId,
 		tagIds: (api.tags ?? []).map((entry) => entry.tag.id),
+		aliases: api.aliases ?? [],
+		properties: api.properties ?? null,
 		createdAt: api.createdAt,
 		updatedAt: api.updatedAt,
 		isPinned: api.isPinned,

@@ -22,9 +22,14 @@ import {
 	Undo,
 	Redo,
 } from "lucide-react";
+import WikilinkPicker from "./WikilinkPicker";
+import { formatWikilink } from "@/types/notes";
+import type { Note } from "@/types/notes";
 
 interface EditorToolbarProps {
 	editor: Editor | null;
+	notes?: Note[];
+	currentNoteId?: string;
 }
 
 interface ToolbarButton {
@@ -34,8 +39,17 @@ interface ToolbarButton {
 	isActive?: boolean;
 }
 
-const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
+const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor, notes, currentNoteId }) => {
 	if (!editor) return null;
+
+	// Wikilinks stay plain text in the body; the server parses them on save.
+	const insertWikilink = (title: string) => {
+		editor
+			.chain()
+			.focus()
+			.insertContent({ type: "text", text: formatWikilink(title) })
+			.run();
+	};
 
 	const addLink = () => {
 		const url = window.prompt("URL:");
@@ -197,6 +211,16 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 	return (
 		<div className="flex items-center gap-0.5 px-2 py-1.5 lg:px-3 lg:py-2 border-b border-white/[0.06] glass-light overflow-x-auto scrollbar-hide">
 			{primaryGroups.map((group, gi) => renderGroup(group, gi, gi > 0))}
+			{notes && (
+				<>
+					<div className="w-px h-5 bg-white/[0.06] mx-1 flex-shrink-0" />
+					<WikilinkPicker
+						notes={notes}
+						currentNoteId={currentNoteId}
+						onSelect={insertWikilink}
+					/>
+				</>
+			)}
 			<div className="hidden md:contents">
 				{secondaryGroups.map((group, gi) => renderGroup(group, gi + primaryGroups.length, true))}
 			</div>

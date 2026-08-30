@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { countWords, htmlToPlainText, markdownToNoteHtml } from "@/lib/markdown";
 import { searchNoteEmbeddings, syncNoteEmbeddings } from "@/lib/note-embeddings";
+import { resolvePendingLinks, syncNoteLinks } from "@/lib/note-links";
 
 export interface AppendToNoteResult {
 	noteId: string;
@@ -71,6 +72,7 @@ export async function appendMarkdownToNote(options: {
 			title: note.title,
 			plainText,
 		});
+		await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText });
 
 		return {
 			noteId: note.id,
@@ -96,6 +98,17 @@ export async function appendMarkdownToNote(options: {
 		noteId: note.id,
 		title,
 		plainText: appendedPlainText,
+	});
+	await syncNoteLinks({
+		userId: options.userId,
+		noteId: note.id,
+		plainText: appendedPlainText,
+	});
+	await resolvePendingLinks({
+		userId: options.userId,
+		noteId: note.id,
+		title,
+		aliases: note.aliases,
 	});
 
 	return {
@@ -169,7 +182,14 @@ export async function rewriteNote(options: {
 
 	const note = await prisma.note.findFirst({
 		where: { id: options.noteId, userId: options.userId },
-		select: { id: true, title: true, wordCount: true, htmlContent: true, plainText: true },
+		select: {
+			id: true,
+			title: true,
+			aliases: true,
+			wordCount: true,
+			htmlContent: true,
+			plainText: true,
+		},
 	});
 	if (!note) {
 		throw new Error("Note not found.");
@@ -199,6 +219,15 @@ export async function rewriteNote(options: {
 		title,
 		plainText,
 	});
+	await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText });
+	if (title !== note.title) {
+		await resolvePendingLinks({
+			userId: options.userId,
+			noteId: note.id,
+			title,
+			aliases: note.aliases,
+		});
+	}
 
 	return {
 		noteId: note.id,

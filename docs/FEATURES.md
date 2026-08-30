@@ -967,3 +967,57 @@ Web behavior worth preserving, and mirrored on Android:
 - A long mission clamps to six lines behind "Show more" and carries a muted
   "From <hostname>" link to `missionSource`, so the user can see where the text
   was taken from.
+
+## Note wikilinks, backlinks, and properties
+
+*Shipped 2026-08-30 · Android 1.41.0 + web; macOS/iOS pending their next Mac
+build cycle (tracked in `PARITY.md`)*
+
+Notes link to each other the way Obsidian's do: typing `[[Note Title]]` in a
+note body (or picking a note from the editor's insert-link button) creates a
+link, and every note shows the links it makes plus the "Linked mentions" that
+point back at it. Notes also carry metadata beyond tags: aliases (alternate
+titles) and free-form properties - text, number, checkbox, or list values.
+
+How it works, and the decisions that shaped it:
+
+- **The server owns the link graph.** `src/lib/note-links.ts` parses
+  `[[Target]]` / `[[Target|display]]` / `[[Target#heading]]` out of a note's
+  `plainText` on every write path (create, PATCH, AI append, AI rewrite) and
+  rebuilds that note's `NoteLink` rows. plainText is the one body field every
+  client writes identically, which is why parsing does not touch the Tiptap
+  JSON or HTML. Clients never compute backlinks - list rows do not even carry
+  bodies.
+- **Links are plain text in the body (v1).** No Tiptap/ProseMirror wikilink
+  node on either client; the editor inserts the literal `[[Title]]` text and
+  the graph lives in the info panel/sheet. This kept the feature out of the
+  tentap webview's custom-build territory.
+- **Unresolved links are first-class.** A link to a title that no note holds
+  is stored with `targetNoteId = NULL` and rendered dimmed with a one-tap
+  create affordance. Creating or renaming a note claims every pending link
+  matching its title or aliases (`resolvePendingLinks`); deleting a target
+  unresolves its links via the FK's ON DELETE SET NULL. Resolution is
+  case-insensitive over title + aliases, and because titles are not unique,
+  the most recently updated note wins a collision. A rename never steals or
+  unresolves an already-resolved link.
+- **Sync survives the 1.5s autosave race.** Two overlapping syncs of one note
+  serialize on a per-note `pg_advisory_xact_lock` (transaction-scoped, so safe
+  over Neon's pooled connection), then upsert `ON CONFLICT` and trim - the
+  same idempotency discipline as `syncNoteEmbeddings`, for the same reason.
+- **API**: `GET /api/notes/[id]/links` returns `{ outgoing, backlinks }` with
+  snippets captured at parse time; `POST /api/notes` and `PATCH
+  /api/notes/[id]` accept `aliases` and `properties`, validated and capped
+  (`validateAliases` / `validateProperties`). `aliases` rides in the list
+  summary so pickers and search can match on it; `properties` stays out of
+  list payloads.
+- **Android** (1.41.0): a link button beside the editor toolbar opens a picker
+  sheet (cached-note search, "Link to:" row for new titles) inserting at the
+  caret via tentap `injectJS` + `execCommand('insertText')` - the bundled
+  webview exposes no tiptap global, so text enters the same way typing does
+  and flows through the normal autosave. The top bar's info icon opens the
+  properties + links sheet; opening it flushes the editor first so a
+  just-typed link is present. The notes cache key bumped to
+  `sureword.notes-cache.v2` because v1 rows lack the new fields.
+- **Web**: same capabilities, web-native layout - a toolbar button with a
+  popover picker, and a collapsible "Properties & links" drawer under the
+  editor.

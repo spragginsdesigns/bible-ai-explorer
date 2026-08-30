@@ -17,7 +17,10 @@ import type { Folder, Note, Tag } from "./types";
  * body fields are real rather than summary placeholders.
  */
 
-const STORAGE_KEY = "sureword.notes-cache.v1";
+// v2: v1 rows predate `aliases`/`properties`, and reading one back would hand
+// the UI a Note whose array fields are undefined. Dropping the old cache costs
+// one silent revalidation.
+const STORAGE_KEY = "sureword.notes-cache.v2";
 
 export interface NotesSnapshot {
 	notes: Note[];

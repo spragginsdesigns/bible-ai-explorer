@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
 import { syncNoteEmbeddings } from "@/lib/note-embeddings";
+import {
+	resolvePendingLinks,
+	syncNoteLinks,
+	validateAliases,
+	validateProperties,
+} from "@/lib/note-links";
 
 // Summary payloads omit the heavy content/htmlContent columns - list views
 // only need metadata + plainText, and full rows can make the list response
-// orders of magnitude larger.
+// orders of magnitude larger. `aliases` is in because clients resolve
+// wikilink autocomplete off the cached list; `properties` stays out.
 const NOTE_SUMMARY_SELECT = {
 	id: true,
 	title: true,
 	plainText: true,
+	aliases: true,
 	folderId: true,
 	isPinned: true,
 	wordCount: true,
@@ -52,18 +61,42 @@ export async function POST(req: Request) {
 	try {
 		const userId = await getAuthUser();
 		const body = await req.json();
+
+		const aliases = validateAliases(body.aliases ?? []);
+		if (!aliases.ok) {
+			return NextResponse.json({ error: aliases.error }, { status: 400 });
+		}
+		const properties = validateProperties(body.properties ?? null);
+		if (!properties.ok) {
+			return NextResponse.json({ error: properties.error }, { status: 400 });
+		}
+
 		const note = await prisma.note.create({
 			data: {
 				title: body.title || "Untitled Note",
 				content: body.content || "",
 				htmlContent: body.htmlContent || "",
 				plainText: body.plainText || "",
+				aliases: aliases.value,
+				properties: properties.value ?? Prisma.DbNull,
 				folderId: body.folderId || null,
 				userId,
 				isPinned: false,
 				wordCount: body.wordCount || 0,
 			},
 			include: { tags: { include: { tag: true } } },
+		});
+		// Links are awaited, not deferred: the client renders them straight after
+		// the create, and a new note also claims the links already pointing at
+		// its title.
+		if (note.plainText) {
+			await syncNoteLinks({ userId, noteId: note.id, plainText: note.plainText });
+		}
+		await resolvePendingLinks({
+			userId,
+			noteId: note.id,
+			title: note.title,
+			aliases: note.aliases,
 		});
 		if (note.plainText) {
 			waitUntil(

@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.41.0 (versionCode 39) - 2026-08-30 - internal
+
+**What's new (Play):**
+
+NEW
+- Link notes together: type [[Note Title]] or use the link button in the editor toolbar
+- Linked mentions: the new info panel shows every note that links to the one you are reading
+- Note properties: give notes aliases and your own metadata (text, numbers, checkboxes, lists), plus creation date, word count and folder at a glance
+- Links to notes that do not exist yet can be created with one tap
+
+**Dev notes:** Wikilinks are parsed server-side from plainText into a NoteLink table (unresolved links carry a null target and self-resolve when the title appears); aliases/properties are new Note columns. Editor insert goes through tentap injectJS + execCommand at the caret. Notes cache key bumped to v2.
+
+---
+
 ## 1.40.0 (versionCode 38) - 2026-08-28 - internal
 
 **What's new (Play):**

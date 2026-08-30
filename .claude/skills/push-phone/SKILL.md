@@ -1,6 +1,6 @@
 ---
 name: push-phone
-description: Build the SureWord Android AAB and release it to the Play Store internal testing track so Austin's Galaxy S24 Ultra updates through the Play Store. Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device.
+description: Build the SureWord Android AAB and release it to the Play Store internal testing track so Austin's Galaxy S26 Ultra updates through the Play Store. Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device.
 ---
 
 # Push SureWord to Austin's phone (via the Play Store)

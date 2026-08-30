@@ -10,7 +10,7 @@ import {
 	upsertNoteInCache,
 	useNotesSnapshot,
 } from "./notesStore";
-import { toNote, type Note, type NoteSavePayload } from "./types";
+import { toNote, type Note, type NoteProperties, type NoteSavePayload } from "./types";
 import { initialHtmlFor } from "./utils";
 import { useStableGetToken } from "./useStableGetToken";
 
@@ -190,6 +190,64 @@ export function useNoteEditorData(noteId: string) {
 		[getToken, noteId, note]
 	);
 
+	const setAliases = useCallback(
+		async (aliases: string[]) => {
+			const previous = note;
+			setNote((prev) => (prev ? { ...prev, aliases } : prev));
+			patchNoteInCache(noteId, { aliases });
+			try {
+				await api.patchNote(getToken, noteId, { aliases });
+			} catch (err) {
+				if (!mounted.current) return;
+				setNote(previous);
+				if (previous) upsertNoteInCache(previous);
+				setError(err instanceof Error ? err.message : "The aliases could not be saved.");
+			}
+		},
+		[getToken, noteId, note]
+	);
+
+	const setProperties = useCallback(
+		async (properties: NoteProperties) => {
+			const previous = note;
+			setNote((prev) => (prev ? { ...prev, properties } : prev));
+			patchNoteInCache(noteId, { properties });
+			try {
+				await api.patchNote(getToken, noteId, { properties });
+			} catch (err) {
+				if (!mounted.current) return;
+				setNote(previous);
+				if (previous) upsertNoteInCache(previous);
+				setError(err instanceof Error ? err.message : "The properties could not be saved.");
+			}
+		},
+		[getToken, noteId, note]
+	);
+
+	/**
+	 * Fill in an unresolved `[[wikilink]]`. The new note lands in this note's
+	 * folder so a linked pair stays filed together, and the server resolves the
+	 * link as soon as the title exists.
+	 */
+	const createLinkedNote = useCallback(
+		async (title: string): Promise<string | null> => {
+			try {
+				const created: Note = {
+					...toNote(await api.createNote(getToken, { title, folderId: note?.folderId ?? null })),
+					hasBody: true,
+				};
+				upsertNoteInCache(created);
+				return created.id;
+			} catch (err) {
+				if (mounted.current) {
+					setError(err instanceof Error ? err.message : "The note could not be created.");
+				}
+				return null;
+			}
+		},
+		[getToken, note?.folderId]
+	);
+
 	const createTag = useCallback(
 		async (name: string, color: string) => {
 			const tag = await api.createTag(getToken, name, color);
@@ -236,6 +294,9 @@ export function useNoteEditorData(noteId: string) {
 		togglePin,
 		moveToFolder,
 		toggleTag,
+		setAliases,
+		setProperties,
+		createLinkedNote,
 		createTag,
 		removeNote,
 		refetchHtml,

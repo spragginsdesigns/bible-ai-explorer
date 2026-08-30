@@ -9,40 +9,40 @@ datasource db {
 }
 
 model User {
-  id            String         @id // Clerk userId used directly
-  email         String?
-  name          String?
+  id                    String                 @id // Clerk userId used directly
+  email                 String?
+  name                  String?
   // When false, memories are neither injected into prompts nor extracted from
   // chats (Settings → Memory toggle). Existing UserMemory rows are kept.
-  memoryEnabled Boolean        @default(true)
+  memoryEnabled         Boolean                @default(true)
   // When false, the webSearch (Tavily) tool is not offered to the model
   // (Settings → Web Search toggle). Server-enforced in the chat routes.
-  webSearchEnabled Boolean     @default(true)
+  webSearchEnabled      Boolean                @default(true)
   // Subscription tier: "free" | "pro". SureWord Pro gates the paid benefits
   // (currently Listen, the spoken devotional). Read through
   // src/lib/entitlements.ts, never directly - the PRO_USER_IDS allowlist
   // grants Pro without a database write.
-  plan          String         @default("free")
+  plan                  String                 @default("free")
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
   // falls back to the default rather than erroring.
-  defaultModelId String?
-  defaultEffort  String?
-  createdAt     DateTime       @default(now())
-  conversations Conversation[]
-  notes         Note[]
-  folders       Folder[]
-  tags          Tag[]
-  memories      UserMemory[]
-  attachments   ChatAttachment[]
-  providerCredentials ProviderCredential[]
-  pushTokens    PushToken[]
-  readingEvents ReadingEvent[]
-  highlights    VerseHighlight[]
-  versesOfDay   VerseOfDay[]
+  defaultModelId        String?
+  defaultEffort         String?
+  createdAt             DateTime               @default(now())
+  conversations         Conversation[]
+  notes                 Note[]
+  folders               Folder[]
+  tags                  Tag[]
+  memories              UserMemory[]
+  attachments           ChatAttachment[]
+  providerCredentials   ProviderCredential[]
+  pushTokens            PushToken[]
+  readingEvents         ReadingEvent[]
+  highlights            VerseHighlight[]
+  versesOfDay           VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
-  readingPlans  ReadingPlan[]
-  church        UserChurch?
+  readingPlans          ReadingPlan[]
+  church                UserChurch?
 }
 
 // The user's home church (Settings → My church), picked from Google Places.
@@ -51,25 +51,25 @@ model User {
 // the user belongs to. `mission`/`about` are extracted from the church's own
 // public website and are treated as untrusted text at injection time.
 model UserChurch {
-  userId       String   @id
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  placeId      String   // Google Places (New) place id
-  name         String
-  address      String
-  phone        String?
-  website      String?
-  mapsUrl      String?
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId       String // Google Places (New) place id
+  name          String
+  address       String
+  phone         String?
+  website       String?
+  mapsUrl       String?
   // Logo/photo shown on the card. `photoSource` says where it came from:
   // "website" (favicon/og:image/apple-touch-icon URL, stored directly) or
   // "places" (served through GET /api/church/photo so the key stays server-side).
-  photoUrl     String?
-  photoSource  String?
-  photoName    String?  // Places photo resource name when photoSource = "places"
-  mission      String?  @db.Text // ≤ 1500 chars, extracted mission/vision statement
-  about        String?  @db.Text // ≤ 600 chars, one-paragraph description
+  photoUrl      String?
+  photoSource   String?
+  photoName     String? // Places photo resource name when photoSource = "places"
+  mission       String?  @db.Text // ≤ 1500 chars, extracted mission/vision statement
+  about         String?  @db.Text // ≤ 600 chars, one-paragraph description
   missionSource String? // URL the mission text came from
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 enum AiProvider {
@@ -107,12 +107,12 @@ model ProviderCredential {
 /// On first sign-in we match by verified email and re-key User.id, which
 /// cascades to every child row (all FKs to User are ON UPDATE CASCADE).
 model LegacyClerkAccount {
-  email        String    @id
-  legacyUserId String    @unique
+  email           String    @id
+  legacyUserId    String    @unique
   /// Set once the mapping has been consumed, so a re-key can never run twice.
-  claimedAt    DateTime?
+  claimedAt       DateTime?
   claimedByUserId String?
-  createdAt    DateTime  @default(now())
+  createdAt       DateTime  @default(now())
 }
 
 model UserMemory {
@@ -140,13 +140,13 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(cuid())
-  role           String       // "user" | "assistant"
-  content        String       @db.Text
-  metadata       Json?        // { tavilyResults, retrievedVerses, averageSimilarity, followUps }
+  id             String           @id @default(cuid())
+  role           String // "user" | "assistant"
+  content        String           @db.Text
+  metadata       Json? // { tavilyResults, retrievedVerses, averageSimilarity, followUps }
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
   attachments    ChatAttachment[]
 
   @@index([conversationId])
@@ -203,25 +203,56 @@ model Tag {
 }
 
 model Note {
-  id          String          @id @default(cuid())
-  title       String
-  content     String          @db.Text // Tiptap JSON
-  htmlContent String          @db.Text
-  plainText   String          @db.Text
-  folderId    String?
-  folder      Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  userId      String
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tags        NoteTag[]
-  aiMessages  NoteAIMessage[]
-  embeddings  NoteEmbedding[]
-  isPinned    Boolean         @default(false)
-  wordCount   Int             @default(0)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id            String          @id @default(cuid())
+  title         String
+  content       String          @db.Text // Tiptap JSON
+  htmlContent   String          @db.Text
+  plainText     String          @db.Text
+  /// Extra names a [[wikilink]] may resolve to besides the title. Titles are
+  /// not unique per user, so resolution is case-insensitive over title +
+  /// aliases and the most recently updated note wins a collision.
+  aliases       String[]        @default([])
+  /// Free-form note metadata (Obsidian-style properties): a flat object of
+  /// string/number/boolean/string[] values. Kept out of list payloads.
+  properties    Json?
+  folderId      String?
+  folder        Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags          NoteTag[]
+  aiMessages    NoteAIMessage[]
+  embeddings    NoteEmbedding[]
+  outgoingLinks NoteLink[]      @relation("NoteLinkSource")
+  incomingLinks NoteLink[]      @relation("NoteLinkTarget")
+  isPinned      Boolean         @default(false)
+  wordCount     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   @@index([userId])
   @@index([folderId])
+}
+
+/// One [[wikilink]] parsed out of a note's plainText, which is the only body
+/// field every client writes identically. Rows are rebuilt by
+/// src/lib/note-links.ts on every note write, so they are derived data: a row
+/// with targetNoteId null is a link to a note that does not exist yet, and it
+/// resolves itself when a note claiming that title or alias is written.
+model NoteLink {
+  id           String   @id @default(cuid())
+  sourceNoteId String
+  source       Note     @relation("NoteLinkSource", fields: [sourceNoteId], references: [id], onDelete: Cascade)
+  targetNoteId String?
+  target       Note?    @relation("NoteLinkTarget", fields: [targetNoteId], references: [id], onDelete: SetNull)
+  targetKey    String // lowercased trimmed target, for dedupe and resolution
+  targetTitle  String // raw target text as the user typed it
+  snippet      String   @db.Text // surrounding plainText, for backlink previews
+  userId       String
+  createdAt    DateTime @default(now())
+
+  @@unique([sourceNoteId, targetKey])
+  @@index([targetNoteId])
+  @@index([userId, targetKey])
 }
 
 /// pgvector index of KJV verse embeddings (text-embedding-3-large, 3072 dims
@@ -265,9 +296,9 @@ model NoteAIMessage {
   id        String   @id @default(cuid())
   noteId    String
   note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  role      String   // "user" | "assistant"
+  role      String // "user" | "assistant"
   content   String   @db.Text
-  metadata  Json?    // { parts: UIMessagePart[] }
+  metadata  Json? // { parts: UIMessagePart[] }
   createdAt DateTime @default(now())
 
   @@index([noteId])
@@ -277,20 +308,20 @@ model NoteAIMessage {
 /// the hourly verse-of-day cron matches against (send when the token's local
 /// hour equals notifyHour).
 model PushToken {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token      String   @unique // Expo push token
-  platform   String           // "ios" | "android"
-  timezone   String           // e.g. "America/Chicago"
-  notifyHour Int      @default(8) // local hour, 0-23
-  enabled    Boolean  @default(true) // verse-of-the-day pushes for this device
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String   @unique // Expo push token
+  platform    String // "ios" | "android"
+  timezone    String // e.g. "America/Chicago"
+  notifyHour  Int      @default(8) // local hour, 0-23
+  enabled     Boolean  @default(true) // verse-of-the-day pushes for this device
   /// "Your answer is ready" push when a chat answer finishes after the client
   /// disconnected. Independent of `enabled` so turning off the morning verse
   /// does not silence chat replies.
-  chatReplies Boolean @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  chatReplies Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 /// One chapter read, recorded by the readers after the chapter has been on
@@ -299,7 +330,7 @@ model ReadingEvent {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book        String   // e.g. "John"
+  book        String // e.g. "John"
   chapter     Int
   translation String   @default("KJV")
   readAt      DateTime @default(now())
@@ -314,10 +345,10 @@ model VerseHighlight {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   translation String   @default("KJV")
-  book        Int      // canonical order, 1-66
+  book        Int // canonical order, 1-66
   chapter     Int
   verse       Int
-  color       String   // "#RRGGBB"
+  color       String // "#RRGGBB"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -328,15 +359,15 @@ model VerseHighlight {
 /// The verse the cron picked and pushed to a user, kept both as history and as
 /// the exclusion list so recent picks are not repeated.
 model VerseOfDay {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book      String
-  chapter   Int
-  verse     Int
-  text      String
-  reason    String   // one-line AI rationale, shown in the notification body
-  sentAt    DateTime @default(now())
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    String
+  chapter Int
+  verse   Int
+  text    String
+  reason  String // one-line AI rationale, shown in the notification body
+  sentAt  DateTime @default(now())
 
   // "Pick Up Your Cross" guided-day content (nullable: rows from before the
   // guide existed, and fallback picks, may carry the verse alone).
@@ -351,14 +382,14 @@ model VerseOfDay {
   primaryThemeKey   String? // stable coarse key used by the three-day novelty guard
   themeTags         Json? // additional stable theme keys, never raw account content
   selectionMode     String? // "theme" | "focus" | "pinned" | "fallback"
-  selectionReason   String? @db.Text // concise rationale for choosing this direction
+  selectionReason   String?  @db.Text // concise rationale for choosing this direction
   selectionEvidence Json? // bounded source ids/summaries used by the selector
   selectorModel     String? // namespaced model id, e.g. "openai/gpt-5.6-sol"
   selectorEffort    String? // reasoning effort used for selection
   writerModel       String? // namespaced model id used to write the guided day
   writerEffort      String? // reasoning effort used for the guided-day prose
   isFallback        Boolean? // null = legacy/unknown; new writes always set true/false
-  fallbackReason    String? @db.Text
+  fallbackReason    String?  @db.Text
 
   // "Listen" - the spoken devotional for this day, generated with the day for
   // Pro users so it is waiting when they open Pick Up Your Cross.
@@ -381,7 +412,7 @@ model SuggestedQuestionSet {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  questions String   // JSON array of question strings
+  questions String // JSON array of question strings
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -400,7 +431,7 @@ model ReadingPlan {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   description String   @db.Text
-  source      String   // "preset" | "ai"
+  source      String // "preset" | "ai"
   presetKey   String? // set only when source = "preset"
   startDate   DateTime @default(now()) // day 1 of the plan begins here
   days        String   @db.Text // JSON: [{ day, readings: [{ book, chapter }], focus }]

@@ -200,6 +200,9 @@ honestly turn those cells green.
 | AI reads whole notes on demand (`readNote`) | ✅ | ✅ | ✅ | ✅ | Shared backend; in the per-note panel it defaults to the open note |
 | AI rewrites/reformats a note when asked (`updateNote`) | ✅ | ✅ | ✅ | ✅ | Shared backend; prompt-gated: only on explicit request, must `readNote` first, preserves user content |
 | Semantic note search (`findNotes` matches by meaning as well as wording) | ✅ | ✅ | ✅ | ✅ | `NoteEmbedding` pgvector table in Neon, re-embedded on every note write on any client (`src/lib/note-embeddings.ts`); backfilled once via `scripts/backfill-note-embeddings.mjs` |
+| Wikilinks `[[Note Title]]` + insert-link picker | ✅ 1.41.0 | ✅ | ❌ | ❌ | Server parses plainText into `NoteLink` rows on every write (`src/lib/note-links.ts`); links stay plain text in the body (no Tiptap node, deliberate v1). Android: toolbar-strip button + picker sheet inserting at the caret; web: toolbar button + popover. Apple clients need a Mac build cycle - gate: build both, exercise insert/links/properties, then flip these columns |
+| Backlinks ("Linked mentions") + outgoing links panel | ✅ 1.41.0 | ✅ | ❌ | ❌ | `GET /api/notes/[id]/links`; unresolved links (target note does not exist yet) render dimmed with one-tap create; deleting a target unresolves via FK SET NULL. Android: note info sheet; web: collapsible drawer under the editor |
+| Note properties: aliases + custom metadata (text/number/checkbox/list) | ✅ 1.41.0 | ✅ | ❌ | ❌ | `Note.aliases` (also matched by wikilink resolution and search) and `Note.properties` JSONB, validated server-side (`validateAliases`/`validateProperties` in `src/lib/note-links.ts`); read-only created/updated/words/folder shown beside them |
 
 ## How to add a feature (the parity workflow)
 

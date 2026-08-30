@@ -1,5 +1,5 @@
 import { apiJson, type GetToken } from "@/lib/api";
-import type { Folder, NoteApiResponse, NotePatch, Tag } from "./types";
+import type { Folder, NoteApiResponse, NoteLinks, NotePatch, Tag } from "./types";
 
 /** List rows come back without content/htmlContent; the editor fetches those per note. */
 export function fetchNotes(getToken: GetToken) {
@@ -20,6 +20,11 @@ export function patchNote(getToken: GetToken, id: string, patch: NotePatch) {
 
 export function deleteNote(getToken: GetToken, id: string) {
 	return apiJson<{ success: boolean }>(getToken, `/api/notes/${id}`, { method: "DELETE" });
+}
+
+/** Both link directions for one note. The server owns wikilink parsing and resolution. */
+export function fetchNoteLinks(getToken: GetToken, id: string) {
+	return apiJson<NoteLinks>(getToken, `/api/notes/${id}/links`);
 }
 
 export function fetchFolders(getToken: GetToken) {
