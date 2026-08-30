@@ -103,6 +103,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 						content={note.content}
 						noteId={note.id}
 						linkTargets={notes}
+						onOpenNote={onOpenNote}
 						onSave={handleSave}
 					/>
 					<NoteInfoPanel

@@ -48,6 +48,7 @@ const NoteInfoPanel: React.FC<NoteInfoPanelProps> = ({
 					<NotePropertiesSection note={note} onUpdate={onUpdate} />
 					<NoteLinksPanel
 						noteId={note.id}
+						refreshToken={note.updatedAt}
 						onOpenNote={onOpenNote}
 						onCreateLinkedNote={onCreateLinkedNote}
 					/>

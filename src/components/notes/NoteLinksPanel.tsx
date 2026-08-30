@@ -14,12 +14,15 @@ import type { NoteLinks } from "@/types/notes";
 
 interface NoteLinksPanelProps {
 	noteId: string;
+	/** Changes when the note is saved, so the panel refetches after edits. */
+	refreshToken?: string;
 	onOpenNote: (id: string) => void;
 	onCreateLinkedNote: (title: string) => Promise<void>;
 }
 
 const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 	noteId,
+	refreshToken,
 	onOpenNote,
 	onCreateLinkedNote,
 }) => {
@@ -44,7 +47,9 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 
 	useEffect(() => {
 		void load();
-	}, [load]);
+		// refreshToken tracks note.updatedAt: an autosave lands a beat before the
+		// server finishes syncing links, so refetching on it keeps the panel live.
+	}, [load, refreshToken]);
 
 	const handleCreate = async (title: string) => {
 		setCreating(title);

@@ -11,6 +11,7 @@ import Link from "@tiptap/extension-link";
 import UnderlineExtension from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import EditorToolbar from "./EditorToolbar";
+import { WikilinkDecoration } from "./extensions/WikilinkDecoration";
 import type { Note } from "@/types/notes";
 
 interface TiptapEditorProps {
@@ -18,6 +19,8 @@ interface TiptapEditorProps {
 	noteId: string;
 	/** Link targets offered by the insert-wikilink toolbar button. */
 	linkTargets?: Note[];
+	/** Open another note when a resolved in-body [[wikilink]] is clicked. */
+	onOpenNote?: (noteId: string) => void;
 	onSave: (data: {
 		content: string;
 		htmlContent: string;
@@ -32,11 +35,34 @@ export interface TiptapEditorHandle {
 }
 
 const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
-	{ content, noteId, linkTargets, onSave },
+	{ content, noteId, linkTargets, onOpenNote, onSave },
 	ref
 ) {
 	const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 	const lastNoteIdRef = useRef(noteId);
+
+	// The extension list is built once per editor, so the wikilink callbacks
+	// read these refs to always see the current note list and open handler.
+	const linkTargetsRef = useRef(linkTargets);
+	linkTargetsRef.current = linkTargets;
+	const onOpenNoteRef = useRef(onOpenNote);
+	onOpenNoteRef.current = onOpenNote;
+
+	// Mirrors the server's resolution rule in src/lib/note-links.ts:
+	// case-insensitive over title + aliases, most recently updated note wins.
+	const resolveTarget = useCallback((target: string): string | null => {
+		const key = target.trim().toLowerCase();
+		if (!key) return null;
+		let winner: { id: string; updatedAt: string } | null = null;
+		for (const note of linkTargetsRef.current ?? []) {
+			const names = [note.title, ...note.aliases];
+			if (!names.some((name) => name.trim().toLowerCase() === key)) continue;
+			if (!winner || note.updatedAt > winner.updatedAt) {
+				winner = { id: note.id, updatedAt: note.updatedAt };
+			}
+		}
+		return winner?.id ?? null;
+	}, []);
 
 	const doSave = useCallback(
 		(editor: ReturnType<typeof useEditor>) => {
@@ -68,10 +94,14 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 			}),
 			UnderlineExtension,
 			TextAlign.configure({ types: ["heading", "paragraph"] }),
+			WikilinkDecoration.configure({
+				resolveTarget,
+				onOpenNote: (id: string) => onOpenNoteRef.current?.(id),
+			}),
 		],
 		editorProps: {
 			attributes: {
-				class: "prose-editor outline-none min-h-[200px] md:min-h-[300px] px-3 py-3 md:px-4 break-words",
+				class: "prose-editor text-chat outline-none min-h-[200px] md:min-h-[300px] px-3 py-3 md:px-4 break-words",
 			},
 		},
 		onUpdate: ({ editor: ed }) => {

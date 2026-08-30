@@ -65,7 +65,8 @@
 		touch-action: manipulation;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground font-body text-body;
+		font-family: var(--font-body), system-ui, sans-serif;
 		overscroll-behavior-y: contain;
 	}
 }
@@ -628,8 +629,9 @@
    ═══════════════════════════════════════ */
 .prose-editor {
 	color: rgba(0, 0, 0, 0.85);
-	font-size: 0.9375rem;
-	line-height: 1.7;
+	font-size: 1.0625rem;
+	line-height: 1.75rem;
+	font-family: var(--font-body), system-ui, sans-serif;
 	overflow-wrap: break-word;
 	word-break: break-word;
 }
@@ -640,6 +642,29 @@
 
 .prose-editor:focus {
 	outline: none;
+}
+
+/* [[Wikilinks]] - decorated by WikilinkDecoration.ts; the text stays plain. */
+.prose-editor .wikilink {
+	color: #f59e0b;
+	cursor: pointer;
+	border-radius: 0.25rem;
+	transition: color 120ms ease, background-color 120ms ease;
+}
+
+.prose-editor .wikilink:hover {
+	color: #fbbf24;
+	background-color: rgba(245, 158, 11, 0.08);
+}
+
+/* A link whose note does not exist yet: muted, and not clickable. */
+.prose-editor .wikilink-unresolved {
+	color: rgba(0, 0, 0, 0.35);
+	cursor: text;
+}
+
+.dark .prose-editor .wikilink-unresolved {
+	color: rgba(229, 229, 229, 0.35);
 }
 
 .prose-editor p.is-editor-empty:first-child::before {
