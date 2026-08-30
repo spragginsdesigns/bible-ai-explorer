@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.42.0 (versionCode 40) - 2026-08-30 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- Come hungry for the Word: SureWord's new welcome centers Scripture and your personal daily walk
+- Your suggested questions are now clearly chosen from your reading, questions, notes, and memories
+- 1 Peter 2:2 now frames the study experience across Android, web, Mac, and iPhone
+
+**Dev notes:** The welcome message now leads with personalized Bible study companionship, keeps the Scripture-first trust statement secondary, and is guarded by cross-client copy parity tests.
+
+---
+
 ## 1.41.0 (versionCode 39) - 2026-08-30 - internal
 
 **What's new (Play):**
