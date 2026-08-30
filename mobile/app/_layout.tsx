@@ -17,6 +17,10 @@ import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
 import { hydrateNotificationSettings } from "@/features/notifications/notificationSettings";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import {
+	markLaunchAnimationStartedThisSession,
+	shouldShowLaunchAnimationThisSession,
+} from "@/components/launchAnimationSession";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -68,7 +72,9 @@ export default function RootLayout() {
 		CormorantGaramond_500Medium_Italic,
 	});
 	const [settingsReady, setSettingsReady] = useState(false);
-	const [showAnimatedSplash, setShowAnimatedSplash] = useState(true);
+	const [showAnimatedSplash, setShowAnimatedSplash] = useState(
+		shouldShowLaunchAnimationThisSession,
+	);
 
 	useEffect(() => {
 		Promise.all([hydrateSettings(), hydrateHighlights(), hydrateNotificationSettings()])
@@ -79,6 +85,10 @@ export default function RootLayout() {
 	useEffect(() => {
 		if (fontsLoaded && settingsReady) SplashScreen.hideAsync().catch(() => {});
 	}, [fontsLoaded, settingsReady]);
+
+	useEffect(() => {
+		if (showAnimatedSplash) markLaunchAnimationStartedThisSession();
+	}, [showAnimatedSplash]);
 
 	if (!fontsLoaded || !settingsReady) return null;
 

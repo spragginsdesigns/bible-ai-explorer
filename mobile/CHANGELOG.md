@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.42.0 (versionCode 40) - 2026-08-30 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- SureWord now opens with a short, smooth welcome built around “Come hungry for the Word.”
+- Returning from the background takes you straight back to where you left off without replaying the welcome
+
+**Dev notes:** The two-second Remotion H.264 launch asset plays once per Android JavaScript process. Activity or root recreation in the same process stays guarded; a true cold process start plays it once again.
+
+---
+
 ## 1.41.0 (versionCode 39) - 2026-08-30 - internal
 
 **What's new (Play):**

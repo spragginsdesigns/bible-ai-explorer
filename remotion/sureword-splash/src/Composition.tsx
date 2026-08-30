@@ -6,7 +6,7 @@ export const SureWordSplashComposition = () => {
 		<Composition
 			id="SureWordSplash"
 			component={SureWordSplash}
-			durationInFrames={84}
+			durationInFrames={60}
 			fps={30}
 			width={1080}
 			height={2340}
