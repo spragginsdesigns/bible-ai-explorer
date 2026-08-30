@@ -17,6 +17,15 @@ import type { Colors } from "@/theme";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import { buildSuggestedQuestionItems } from "./questionPresentation";
 
+export const WELCOME_HEADLINE = "Come hungry for the Word.";
+export const WELCOME_SUBHEAD =
+	"SureWord is your personal Bible study companion, shaped by your reading, questions, notes, and daily walk—helping you go deeper in Scripture every day.";
+export const WELCOME_VERSE =
+	"“As newborn babes, desire the sincere milk of the word, that ye may grow thereby:”";
+export const WELCOME_VERSE_CITATION = "— 1 Peter 2:2, KJV";
+export const WELCOME_TRUST =
+	"Scripture comes first. Every answer is grounded in God's inerrant, infallible Word.";
+
 function QuestionSkeleton() {
 	const styles = useThemedStyles(createStyles);
 	const pulse = useRef(new Animated.Value(0.35)).current;
@@ -58,7 +67,7 @@ function SectionHeading() {
 	const styles = useThemedStyles(createStyles);
 	return (
 		<View style={styles.sectionHeading}>
-			<Text style={styles.sectionHeadingText}>QUESTIONS FOR YOUR STUDY</Text>
+			<Text style={styles.sectionHeadingText}>CHOSEN FROM YOUR STUDY</Text>
 			<View style={styles.sectionRule} />
 			<Ionicons name="sparkles" size={12} style={styles.sectionSpark} />
 		</View>
@@ -98,15 +107,18 @@ export function WelcomeState({
 			</ImageBackground>
 
 			<View style={styles.scriptureBlock}>
-				<View style={styles.quoteRow}>
-					<Text style={styles.illuminatedInitial}>A</Text>
-					<Text style={styles.quote}>light that shineth in a dark place.</Text>
+				<Text style={styles.headline}>{WELCOME_HEADLINE}</Text>
+				<Text style={styles.subhead}>{WELCOME_SUBHEAD}</Text>
+				<View
+					style={styles.verseBlock}
+					accessible
+					accessibilityRole="text"
+					accessibilityLabel={`${WELCOME_VERSE} ${WELCOME_VERSE_CITATION}`}
+				>
+					<Text style={styles.verse}>{WELCOME_VERSE}</Text>
+					<Text style={styles.citation}>{WELCOME_VERSE_CITATION}</Text>
 				</View>
-				<View style={styles.citationRow}>
-					<View style={styles.citationRule} />
-					<Text style={styles.citation}>2 PETER 1:19</Text>
-					<View style={styles.citationRule} />
-				</View>
+				<Text style={styles.trust}>{WELCOME_TRUST}</Text>
 			</View>
 
 			<View style={styles.composer}>{composer}</View>
@@ -179,39 +191,47 @@ const createStyles = (c: Colors) =>
 			marginTop: -spacing.sm,
 			paddingHorizontal: spacing.lg,
 		},
-		quoteRow: {
-			flexDirection: "row",
-			alignItems: "flex-start",
-			justifyContent: "center",
-			gap: spacing.sm,
-		},
-		illuminatedInitial: {
+		headline: {
 			color: c.accent,
-			fontFamily: fonts.verse,
-			fontSize: 64,
-			lineHeight: 66,
+			fontFamily: fonts.brand,
+			fontSize: 32,
+			lineHeight: 38,
+			textAlign: "center",
 		},
-		quote: {
-			flex: 1,
+		subhead: {
+			color: c.parchmentInk,
+			fontSize: 17,
+			lineHeight: 24,
+			marginTop: spacing.sm,
+			textAlign: "center",
+		},
+		verseBlock: {
+			borderTopColor: c.accentBorder,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			marginTop: spacing.sm,
+			paddingTop: spacing.sm,
+		},
+		verse: {
 			color: c.parchmentInk,
 			fontFamily: fonts.verse,
-			fontSize: 29,
-			lineHeight: 34,
-			paddingTop: spacing.xs,
+			fontSize: 19,
+			lineHeight: 26,
+			textAlign: "center",
 		},
-		citationRow: {
-			flexDirection: "row",
-			alignItems: "center",
-			justifyContent: "center",
-			gap: spacing.md,
-			marginTop: spacing.sm,
-		},
-		citationRule: { flex: 1, maxWidth: 58, height: 1, backgroundColor: c.accentBorder },
 		citation: {
 			color: c.accent,
 			fontSize: 11,
 			fontWeight: "700",
-			letterSpacing: 2.6,
+			letterSpacing: 1.2,
+			marginTop: spacing.xs,
+			textAlign: "center",
+		},
+		trust: {
+			color: c.textSecondary,
+			fontSize: 13,
+			lineHeight: 18,
+			marginTop: spacing.md,
+			textAlign: "center",
 		},
 		composer: { marginTop: spacing.lg },
 		questionsSection: { marginTop: spacing.xl },

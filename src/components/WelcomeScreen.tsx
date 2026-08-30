@@ -81,18 +81,40 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
               className="w-full h-full object-cover scale-110"
             />
           </div>
-          <h1 className="text-5xl sm:text-7xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
-            <span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 dark:from-amber-300 dark:via-amber-400 dark:to-amber-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(200,160,40,0.3)]">
-              SureWord
-            </span>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
+            SureWord
+          </p>
+          <h1 className="text-4xl sm:text-6xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
+            Come hungry for the Word.
           </h1>
-          <p className="text-neutral-500 text-sm max-w-md mx-auto">
-            Ask anything about the Bible — answered by an AI that actually
-            believes it. Every answer stands on Scripture as God&apos;s
-            inerrant, infallible, final authority.
+          <p className="text-neutral-700 dark:text-neutral-200 text-base leading-7 max-w-xl mx-auto">
+            SureWord is your personal Bible study companion, shaped by your
+            reading, questions, notes, and daily walk—helping you go deeper in
+            Scripture every day.
+          </p>
+          <figure className="mt-5 max-w-lg mx-auto text-neutral-700 dark:text-neutral-200">
+            <blockquote className="text-sm italic leading-6">
+              “As newborn babes, desire the sincere milk of the word, that ye
+              may grow thereby:”
+            </blockquote>
+            <figcaption className="mt-1 text-xs font-medium text-neutral-600 dark:text-neutral-300">
+              — 1 Peter 2:2, KJV
+            </figcaption>
+          </figure>
+          <p className="mt-4 text-sm leading-6 text-neutral-600 dark:text-neutral-300 max-w-lg mx-auto">
+            Scripture comes first. Every answer is grounded in God&apos;s
+            inerrant, infallible Word.
           </p>
         </div>
 
+        <div className="mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
+            CHOSEN FROM YOUR STUDY
+          </h2>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
+            Based on your reading, questions, notes, and daily walk.
+          </p>
+        </div>
         <div
           className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8"
           aria-busy={loading}

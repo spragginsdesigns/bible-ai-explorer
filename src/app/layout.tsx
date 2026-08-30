@@ -16,9 +16,9 @@ const cormorantGaramond = Cormorant_Garamond({
 
 export const metadata: Metadata = {
 	metadataBase: new URL("https://sureword.app"),
-	title: "SureWord — Bible study rooted in Scripture",
+	title: "SureWord — Come hungry for the Word",
 	description:
-		"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
+		"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "KJV", "SureWord"],
 	authors: [
 		{ name: "Austin Spraggins", url: "https://sureword.app" }
@@ -26,9 +26,9 @@ export const metadata: Metadata = {
 	creator: "Austin Spraggins",
 	publisher: "Spraggins Designs",
 	openGraph: {
-		title: "SureWord — Bible study rooted in Scripture",
+		title: "SureWord — Come hungry for the Word",
 		description:
-			"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
+			"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
 		url: "https://sureword.app",
 		siteName: "SureWord",
 		images: [
@@ -44,9 +44,9 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SureWord — Bible study rooted in Scripture",
+		title: "SureWord — Come hungry for the Word",
 		description:
-			"Study the Bible with AI grounded in Scripture, a KJV reader, notes, reading plans, Bible Atlas, and a daily walk.",
+			"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
 		creator: "@spragginsdesign",
 		images: ["/web-app-manifest-512x512.png"]
 	},
