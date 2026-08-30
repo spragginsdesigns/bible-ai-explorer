@@ -147,8 +147,10 @@ export async function syncNoteLinks(note: {
 		await prisma.$transaction([
 			// Transaction-scoped on purpose: it is released at commit, so it is
 			// safe over the pooled (transaction-pooling) Neon connection, which a
-			// session-scoped advisory lock would not be.
-			prisma.$queryRaw`SELECT pg_advisory_xact_lock(${NOTE_LINK_LOCK_NAMESPACE}::int4, ${advisoryLockKey(note.noteId)}::int4)`,
+			// session-scoped advisory lock would not be. The ::text cast matters:
+			// pg_advisory_xact_lock returns void, which $queryRaw cannot
+			// deserialize (P2010), and the whole sync dies in its catch.
+			prisma.$queryRaw`SELECT pg_advisory_xact_lock(${NOTE_LINK_LOCK_NAMESPACE}::int4, ${advisoryLockKey(note.noteId)}::int4)::text`,
 			prisma.$executeRaw`
 				INSERT INTO "NoteLink" ("id","sourceNoteId","targetNoteId","targetKey","targetTitle","snippet","userId")
 				VALUES ${values}
