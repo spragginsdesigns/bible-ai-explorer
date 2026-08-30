@@ -1,8 +1,16 @@
 # SureWord for Android
 
-The native Android app for **SureWord** — a KJV Bible study companion that
-answers from a believing perspective, quotes Scripture word-for-word, writes
-into your study notes on request, and remembers you between conversations.
+**Come hungry for the Word.** SureWord is your personal Bible study companion,
+shaped by your reading, questions, notes, and daily walk—helping you go deeper
+in Scripture every day.
+
+The Android app uses the KJV by default, answers from a believing perspective,
+quotes Scripture word-for-word, writes into your study notes on request, and
+remembers you between conversations. Scripture comes first: answers are
+grounded in God's inerrant, infallible Word.
+
+> “As newborn babes, desire the sincere milk of the word, that ye may grow
+> thereby:” — 1 Peter 2:2, KJV
 
 **This is the primary SureWord client and the source of truth for
 features.** New features land here first — and the web app

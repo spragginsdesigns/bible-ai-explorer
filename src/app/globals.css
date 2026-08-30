@@ -65,8 +65,7 @@
 		touch-action: manipulation;
 	}
 	body {
-		@apply bg-background text-foreground font-body text-body;
-		font-family: var(--font-body), system-ui, sans-serif;
+		@apply bg-background text-foreground;
 		overscroll-behavior-y: contain;
 	}
 }
@@ -629,9 +628,8 @@
    ═══════════════════════════════════════ */
 .prose-editor {
 	color: rgba(0, 0, 0, 0.85);
-	font-size: 1.0625rem;
-	line-height: 1.75rem;
-	font-family: var(--font-body), system-ui, sans-serif;
+	font-size: 0.9375rem;
+	line-height: 1.7;
 	overflow-wrap: break-word;
 	word-break: break-word;
 }

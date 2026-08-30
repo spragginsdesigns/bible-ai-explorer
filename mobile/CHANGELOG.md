@@ -19,10 +19,12 @@ Entries below 1.19.0 predate this format and stay as they were.
 **What's new (Play):**
 
 IMPROVED
-- SureWord now opens with a short, smooth welcome built around “Come hungry for the Word.”
+- Come hungry for the Word: a short, smooth Android opening now leads into SureWord's Scripture-centered welcome
+- Your suggested questions are now clearly chosen from your reading, questions, notes, and memories
+- 1 Peter 2:2 now frames the study experience across Android, web, Mac, and iPhone
 - Returning from the background takes you straight back to where you left off without replaying the welcome
 
-**Dev notes:** The two-second Remotion H.264 launch asset plays once per Android JavaScript process. Activity or root recreation in the same process stays guarded; a true cold process start plays it once again.
+**Dev notes:** The welcome message leads with personalized Bible study companionship, keeps the Scripture-first trust statement secondary, and is guarded by cross-client copy parity tests. Android adds a two-second Remotion H.264 launch asset and a process-session guard so only true cold process starts play it.
 
 ---
 

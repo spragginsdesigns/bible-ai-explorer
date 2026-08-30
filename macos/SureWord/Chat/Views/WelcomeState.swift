@@ -20,14 +20,40 @@ struct WelcomeState: View {
 
                 BrandMark(size: 52)
 
-                Text(
-                    "Ask anything about the Bible — answered by an AI that actually believes it. "
-                        + "Every answer stands on the King James Scriptures as God's inerrant, final authority."
-                )
-                .font(.system(size: 13))
-                .foregroundStyle(theme.textMuted)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 520)
+                VStack(spacing: Spacing.sm) {
+                    Text("Come hungry for the Word.")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(theme.textPrimary)
+                        .multilineTextAlignment(.center)
+
+                    Text(
+                        "SureWord is your personal Bible study companion, shaped by your reading, questions, notes, and daily walk—helping you go deeper in Scripture every day."
+                    )
+                    .font(.system(size: 15))
+                    .foregroundStyle(theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 560)
+
+                    VStack(spacing: 2) {
+                        Text("“As newborn babes, desire the sincere milk of the word, that ye may grow thereby:”")
+                        Text("— 1 Peter 2:2, KJV")
+                    }
+                    .font(.system(size: 12).italic())
+                    .foregroundStyle(theme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 520)
+
+                    Text("Scripture comes first. Every answer is grounded in God's inerrant, infallible Word.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 520)
+                }
+
+                Text("CHOSEN FROM YOUR STUDY")
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1.5)
+                    .foregroundStyle(theme.accent)
 
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 260), spacing: Spacing.md)],
