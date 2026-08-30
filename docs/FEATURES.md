@@ -1021,3 +1021,12 @@ How it works, and the decisions that shaped it:
 - **Web**: same capabilities, web-native layout - a toolbar button with a
   popover picker, and a collapsible "Properties & links" drawer under the
   editor.
+- **The AI knows the graph.** `toolGuidance` (chat + note panel) instructs the
+  assistant to write cross-references in note content as `[[Exact Note Title]]`
+  (pending links to not-yet-written notes included), and the note panel's
+  system prompt carries the open note's outgoing links and backlinks
+  (`describeNoteLinks` in `src/lib/note-links.ts`), so it can answer "what
+  connects to this note" and extend the web of notes itself. Proven live
+  2026-08-30: asked about connections, the assistant listed the injected links
+  plus thematic matches from findNotes as wikilinks, then appended a
+  `[[...]]` reference that synced and resolved to a real note.
