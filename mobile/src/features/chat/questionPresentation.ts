@@ -1,5 +1,5 @@
 /**
- * Presentation for the opening "Questions for your study" chips.
+ * Presentation for the opening "Chosen from your study" cards.
  *
  * Mirrored with `src/utils/questionPresentation.ts` on web - mobile is outside
  * the pnpm workspace, so the file is duplicated rather than imported. Keep both

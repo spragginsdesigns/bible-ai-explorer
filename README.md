@@ -5,7 +5,9 @@
 <h1 align="center">SureWord</h1>
 
 <p align="center">
-  An AI-powered Bible study companion for believers, grounded first in the King James Version.
+  <strong>Come hungry for the Word.</strong><br />
+  SureWord is your personal Bible study companion, shaped by your reading,
+  questions, notes, and daily walk—helping you go deeper in Scripture every day.
 </p>
 
 <p align="center">
@@ -14,10 +16,14 @@
   <a href="https://github.com/spragginsdesigns/bible-ai-explorer/releases/latest/download/SureWord.dmg">Download macOS</a>
 </p>
 
+> “As newborn babes, desire the sincere milk of the word, that ye may grow
+> thereby:” — 1 Peter 2:2, KJV
+
 SureWord uses the KJV by default. NKJV is available as a selectable reader and
-answer translation. The web app, Android app, and native Apple clients use the
-same authenticated backend, so conversations, notes, memories, reading history,
-and the daily walk follow the account.
+answer translation. Scripture comes first: answers are grounded in God's
+inerrant, infallible Word. The web app, Android app, and native Apple clients
+use the same authenticated backend, so conversations, notes, memories, reading
+history, and the daily walk follow the account.
 
 ## Clients and parity
 

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Presentation for the opening "Questions for your study" chips.
+/// Presentation for the opening "Chosen from your study" cards.
 ///
 /// Port of `src/utils/questionPresentation.ts`, mirrored on Android as
 /// `mobile/src/features/chat/questionPresentation.ts`. Every chip carries a

@@ -138,7 +138,7 @@ requirements before using them.
 4. **Store listing**:
    - App name: `SureWord` (30 char limit)
    - Short description (80 chars):
-     `Bible study that stands on the Word - KJV answers, notes, and a daily walk.`
+     `Come hungry for the Word: your personal Bible study companion.`
     - Full description: see below. Refresh it when a user-visible feature lands;
       the current copy includes Pick Up Your Cross, Listen, Reading Plans,
       Timeline/People/Places, My church, and rich attachments.
@@ -159,10 +159,19 @@ requirements before using them.
 ## Store listing - full description (paste)
 
 ```
-SureWord is Bible study that stands on the Word. Ask anything about the
-Bible and get answers from an AI assistant that actually believes it -
-the KJV is the foundation and default, quoted word for word, with NKJV
-available when you select it.
+Come hungry for the Word.
+
+SureWord is your personal Bible study companion, shaped by your reading,
+questions, notes, and daily walk—helping you go deeper in Scripture every
+day. Scripture comes first: answers are grounded in God's inerrant, infallible
+Word.
+
+“As newborn babes, desire the sincere milk of the word, that ye may grow
+thereby:” — 1 Peter 2:2, KJV
+
+The KJV is the foundation and default, quoted word for word, with NKJV
+available when you select it. Ask anything about the Bible and study with an AI
+assistant that answers from a believing perspective.
 
 FOUNDED ON SCRIPTURE
 • Answers cite and quote your selected Bible text exactly - KJV by default
