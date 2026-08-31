@@ -17,12 +17,15 @@ function sourceFiles(directory) {
 
 test("web typography is Atkinson for body text and Hack for code", () => {
 	const layout = read("src/app/layout.tsx");
+	const globals = read("src/app/globals.css");
 	const tailwind = read("tailwind.config.ts");
 
 	assert.match(layout, /Atkinson_Hyperlegible/);
 	assert.match(layout, /variable: "--font-body"/);
 	assert.match(layout, /hack-regular\.woff2/);
 	assert.match(layout, /variable: "--font-mono"/);
+	assert.match(layout, /font-body text-body/);
+	assert.match(globals, /font-family: var\(--font-body\), system-ui, sans-serif/);
 	assert.match(tailwind, /chat: \["1\.0625rem", \{ lineHeight: "1\.75rem" \}\]/);
 	assert.match(tailwind, /mono: \["var\(--font-mono\)", "Hack"/);
 });

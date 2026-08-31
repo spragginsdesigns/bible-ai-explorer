@@ -65,7 +65,8 @@
 		touch-action: manipulation;
 	}
 	body {
-		@apply bg-background text-foreground;
+		@apply bg-background text-foreground font-body text-body;
+		font-family: var(--font-body), system-ui, sans-serif;
 		overscroll-behavior-y: contain;
 	}
 }
