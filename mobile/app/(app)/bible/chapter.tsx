@@ -7,6 +7,7 @@ import {
 	Pressable,
 	Share,
 	StyleSheet,
+	Text as ScriptureText,
 	View,
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
@@ -514,27 +515,27 @@ export default function BibleChapterScreen() {
 												: { backgroundColor: colors.accentSoft }),
 									]}
 								>
-									<Text
+									<ScriptureText
 										style={[
 											styles.verseText,
 											!parchment && { color: colors.textSecondary },
 											{ fontSize, lineHeight },
 										]}
 									>
-										<Text
+										<ScriptureText
 											style={[styles.verseNumber, !parchment && { color: colors.accentDim }]}
 										>
 											{verseNumber}{" "}
-										</Text>
+										</ScriptureText>
 										{segments.map((segment, segmentIndex) => (
-											<Text
+											<ScriptureText
 												key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
 												style={segment.italic ? styles.verseItalic : undefined}
 											>
 												{segment.text}
-											</Text>
+											</ScriptureText>
 										))}
-									</Text>
+									</ScriptureText>
 								</Pressable>
 							);
 						}}
@@ -750,8 +751,8 @@ const createStyles = (c: Colors) =>
 		verseItalic: { fontFamily: fonts.verseItalic },
 		verseNumber: {
 			color: c.parchmentNumber,
-			...typography.micro,
-			fontFamily: fonts.sans,
+			fontSize: 12,
+			fontFamily: "System",
 			fontWeight: "700",
 		},
 		copyright: {

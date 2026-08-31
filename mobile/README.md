@@ -20,11 +20,11 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current release:** 1.43.0 (Android versionCode 41, tag
-`android-v1.43.0`). The release includes the latest welcome, launch animation,
-linked Notes work, and the shared Atkinson Hyperlegible typography system with
-Hack for code. It is published from one signed AAB/APK pair through
-`push-phone.sh --skip-build`.
+**Current release:** 1.43.1 (Android versionCode 42, tag
+`android-v1.43.1`). The release restores the Bible chapter reader's original
+Scripture rendering and spacing while retaining Atkinson Hyperlegible throughout
+the rest of the app and Hack for code. It is published from one signed AAB/APK
+pair through `push-phone.sh --skip-build`.
 
 ## Stack
 

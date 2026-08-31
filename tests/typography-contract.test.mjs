@@ -43,7 +43,7 @@ test("Android exposes the agreed readable scale and bundled families", () => {
 	assert.match(rootLayout, /AtkinsonHyperlegible_400Regular/);
 });
 
-test("Android screens route all text through the shared primitives", () => {
+test("Android screens route normal UI text through the shared primitives", () => {
 	const offenders = [];
 	for (const path of [...sourceFiles("mobile/app"), ...sourceFiles("mobile/src")]) {
 		if (path.endsWith(join("components", "AppText.tsx"))) continue;
@@ -55,6 +55,15 @@ test("Android screens route all text through the shared primitives", () => {
 		}
 	}
 	assert.deepEqual(offenders, []);
+});
+
+test("Android Bible verses keep the native reader typography contract", () => {
+	const chapter = read("mobile/app/(app)/bible/chapter.tsx");
+
+	assert.match(chapter, /Text as ScriptureText/);
+	assert.match(chapter, /<ScriptureText[\s\S]*?styles\.verseText[\s\S]*?\{ fontSize, lineHeight \}/);
+	assert.match(chapter, /const lineHeight = Math\.round\(fontSize \* 1\.55\)/);
+	assert.match(chapter, /verseNumber: \{[\s\S]*?fontSize: 12,[\s\S]*?fontFamily: "System"/);
 });
 
 test("web components do not reintroduce explicit 10-12px text", () => {

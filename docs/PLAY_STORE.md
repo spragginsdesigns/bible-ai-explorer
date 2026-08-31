@@ -67,16 +67,16 @@ that APK automatically, so no site version constant is updated by hand.
 | Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
 | Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
 
-## Current source status (2026-08-30)
+## Current source status (2026-08-31)
 
-The checked-in Android source and current internal release are `1.43.0` /
-versionCode `41` (`mobile/app.json`, tag `android-v1.43.0`). The release carries
-the latest main-branch welcome, launch animation, linked Notes work, and a
-cross-app Atkinson Hyperlegible typography system with Hack for code. It is
-built and published from one bound AAB/APK pair through
+The checked-in Android source and current internal release are `1.43.1` /
+versionCode `42` (`mobile/app.json`, tag `android-v1.43.1`). The release restores
+the Bible chapter reader's original Scripture renderer and spacing while keeping
+the cross-app Atkinson Hyperlegible typography system and Hack for code
+elsewhere. It is built and published from one bound AAB/APK pair through
 `push-phone.sh --skip-build`; the matching
 `SureWord.apk` SHA-256 is
-`09da864da14b780aa91c856382d6a44ae0e7e396af2d9f73fbef7e4130d3e1e1`.
+`1c827cdb37d5bba5cb858a0fb76886a6efdd2f01a6c695b6ef13279608b3fa51`.
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes

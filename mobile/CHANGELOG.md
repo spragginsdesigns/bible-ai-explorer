@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.43.1 (versionCode 42) - 2026-08-31 - internal
+
+**What's new (Play):**
+
+FIXED
+- Restored the Bible reader's original Scripture spacing and rendering for comfortable chapter reading
+- Kept the new readable type system everywhere else in SureWord
+
+**Dev notes:** The chapter body again uses React Native's original nested text renderer, Cormorant Garamond Scripture face, 1.55 line-height scale, and system-font verse numbers. The Atkinson type system remains unchanged outside the verse body.
+
+---
+
 ## 1.43.0 (versionCode 41) - 2026-08-30 - internal
 
 **What's new (Play):**
