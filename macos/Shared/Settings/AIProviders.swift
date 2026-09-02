@@ -67,10 +67,31 @@ struct AIModelsResponse: Sendable, Equatable, Decodable {
         var effort: String?
     }
 
+    /// The single model a keyless account gets, served alongside
+    /// `access: "house"`.
+    ///
+    /// House mode is not a degraded keys mode. There is nothing to choose, so
+    /// the picker shows this one row, its note, and a way into Settings - and
+    /// never a locked provider the user cannot act on from there.
+    struct HouseModel: Sendable, Equatable, Decodable {
+        var modelId: String
+        var label: String
+        /// Pinned server-side (`"medium"`). Shown, never chosen: the picker
+        /// offers no reasoning chips in house mode.
+        var effort: String?
+        var note: String?
+    }
+
+    /// `"house"` while the account has no API keys of its own, `"keys"` once
+    /// it has one. Absent from older servers, which only ever spoke the keys
+    /// shape - so its absence must keep meaning "keys", not "unknown".
+    var access: String? = nil
     /// Absent from older servers; the picker derives rows from `models` then.
-    var providers: [AIProviderSummary]?
+    var providers: [AIProviderSummary]? = nil
     var models: [AIModel]
     var defaults: Defaults
+    /// Present only in house mode.
+    var house: HouseModel? = nil
 }
 
 enum AIModelsAPI {

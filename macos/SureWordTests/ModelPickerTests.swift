@@ -62,6 +62,83 @@ struct ModelPickerRulesTests {
         )
     }
 
+    /// What a keyless account gets: `access: "house"`, one model, no provider
+    /// rows at all, and the effort pinned server-side.
+    private static func houseResponse(
+        note: String? = "SureWord's own model, tuned for Scripture.",
+        effort: String? = "medium"
+    ) -> AIModelsResponse {
+        AIModelsResponse(
+            access: "house",
+            providers: [],
+            models: [
+                model("openai/gpt-5.6-luna", provider: "openai", label: "GPT-5.6 Luna")
+            ],
+            defaults: .init(modelId: "openai/gpt-5.6-luna", effort: effort),
+            house: .init(
+                modelId: "openai/gpt-5.6-luna",
+                label: "GPT-5.6 Luna",
+                effort: effort,
+                note: note
+            )
+        )
+    }
+
+    // MARK: - House mode
+
+    @Test("House mode shows one model, selected, whatever was stored before")
+    func houseMode() {
+        let data = Self.houseResponse()
+        #expect(ModelPickerRules.isHouse(data))
+        #expect(ModelPickerRules.house(in: data)?.label == "GPT-5.6 Luna")
+
+        // A pick left over from a key the account no longer has must not read
+        // as active beside the one model it can actually reach.
+        #expect(
+            ModelPickerRules.selectedModelID(in: data, stored: "anthropic/claude-opus-5")
+                == "openai/gpt-5.6-luna"
+        )
+        #expect(ModelPickerRules.selectedModelID(in: data, stored: nil) == "openai/gpt-5.6-luna")
+        #expect(ModelPickerRules.buttonLabel(in: data, stored: "anthropic/claude-opus-5") == "GPT-5.6 Luna")
+
+        // No provider rows, no chevrons, no effort chips: nothing here is a
+        // choice, and a locked row would only advertise one that is missing.
+        #expect(ModelPickerRules.providers(in: data).isEmpty)
+        #expect(ModelPickerRules.initialExpandedProvider(in: data, stored: nil) == nil)
+        #expect(ModelPickerRules.efforts(in: data, stored: nil).isEmpty)
+        #expect(!ModelPickerRules.supportsEffort(in: data, stored: nil))
+    }
+
+    @Test("The house note is the server's, or ours when it sends none")
+    func houseNoteCopy() throws {
+        let served = try #require(ModelPickerRules.house(in: Self.houseResponse()))
+        #expect(ModelPickerRules.houseNote(served) == "SureWord's own model, tuned for Scripture.")
+
+        // Whitespace is not a note: it would render as a blank line under the
+        // model name and read as a layout bug.
+        let blank = try #require(ModelPickerRules.house(in: Self.houseResponse(note: "   ")))
+        #expect(ModelPickerRules.houseNote(blank) == ModelPickerRules.fallbackHouseNote)
+
+        let absent = try #require(ModelPickerRules.house(in: Self.houseResponse(note: nil)))
+        #expect(ModelPickerRules.houseNote(absent) == ModelPickerRules.fallbackHouseNote)
+    }
+
+    @Test("Keys mode is the default reading, including for a server too old to say")
+    func keysModeUnlessSaidOtherwise() {
+        // No `access` field at all: the older payload only ever spoke keys, and
+        // its silence must not be read as house.
+        #expect(!ModelPickerRules.isHouse(Self.response()))
+        #expect(ModelPickerRules.house(in: Self.response()) == nil)
+        #expect(!ModelPickerRules.isHouse(nil))
+
+        // `access: "house"` with no block to render is not house mode either -
+        // there would be nothing to draw.
+        var broken = Self.houseResponse()
+        broken.house = nil
+        #expect(!ModelPickerRules.isHouse(broken))
+        #expect(ModelPickerRules.providers(in: broken).map(\.id) == ["openai"])
+    }
+
     // MARK: - Selection
 
     @Test("No list yet means no selection to render")
@@ -107,28 +184,42 @@ struct ModelPickerRulesTests {
 
     // MARK: - Grouping
 
-    @Test("Provider rows come from the payload, in its order")
+    @Test("Provider rows come from the payload, in its order, locked ones dropped")
     func providersFromPayload() {
         let data = Self.response()
         let providers = ModelPickerRules.providers(in: data)
-        #expect(providers.map(\.id) == ["openai", "anthropic"])
-        #expect(providers.map(\.available) == [true, false])
+        // Anthropic has no key on this account. It used to draw a locked row
+        // with an "Add your API key" subtitle - an advert the picker cannot act
+        // on, which made a keyless account's list read as mostly broken.
+        #expect(providers.map(\.id) == ["openai"])
+        #expect(providers.allSatisfy(\.available))
     }
 
     @Test("An older payload with no providers key derives the rows from the models")
     func providersDerived() {
         let data = Self.response(providers: nil)
         let providers = ModelPickerRules.providers(in: data)
-        #expect(providers.map(\.id) == ["openai", "anthropic"])
-        #expect(providers.map(\.label) == ["OpenAI", "Anthropic"])
-        // Availability is taken from the first model seen for that provider.
-        #expect(providers.map(\.available) == [true, false])
+        // Availability is taken from the first model seen for that provider,
+        // and the locked one is dropped just as it is from a modern payload.
+        #expect(providers.map(\.id) == ["openai"])
+        #expect(providers.map(\.label) == ["OpenAI"])
     }
 
     @Test("An empty providers array is treated as absent, not as no providers")
     func emptyProvidersDerived() {
         let data = Self.response(providers: [])
-        #expect(ModelPickerRules.providers(in: data).map(\.id) == ["openai", "anthropic"])
+        #expect(ModelPickerRules.providers(in: data).map(\.id) == ["openai"])
+    }
+
+    @Test("A payload whose providers are all locked draws no rows at all")
+    func everyProviderLocked() {
+        let data = Self.response(
+            providers: [AIProviderSummary(id: "anthropic", label: "Anthropic", available: false)]
+        )
+        #expect(ModelPickerRules.providers(in: data).isEmpty)
+        // The account default still names an OpenAI model, but there is no
+        // OpenAI row to open - expanding one that is not drawn opens nothing.
+        #expect(ModelPickerRules.initialExpandedProvider(in: data, stored: nil) == nil)
     }
 
     @Test("A provider we have no label for keeps its own id as its name")
@@ -141,13 +232,16 @@ struct ModelPickerRulesTests {
         #expect(ModelPickerRules.providers(in: data).map(\.label) == ["newco"])
     }
 
-    @Test("Models group under their provider")
+    @Test("Models group under their provider, and only reachable ones list")
     func modelsGrouped() {
         let data = Self.response()
         #expect(
             ModelPickerRules.models(ofProvider: "openai", in: data).map(\.id)
                 == ["openai/gpt-5.6-terra", "openai/gpt-4o-mini"]
         )
+        // Anthropic's models are in the payload but unreachable, so the picker
+        // never draws them - the same rule that drops their provider row.
+        #expect(ModelPickerRules.models(ofProvider: "anthropic", in: data).isEmpty)
         #expect(ModelPickerRules.models(ofProvider: "moonshot", in: data).isEmpty)
     }
 
@@ -169,13 +263,11 @@ struct ModelPickerRulesTests {
         #expect(ModelPickerRules.initialExpandedProvider(in: unknown, stored: nil) == "openai")
     }
 
-    @Test("Provider subtitle counts models, or tells a locked provider what it needs")
+    @Test("Provider subtitle counts models")
     func providerSubtitles() {
-        let unlocked = AIProviderSummary(id: "openai", label: "OpenAI", available: true)
-        let locked = AIProviderSummary(id: "anthropic", label: "Anthropic", available: false)
-        #expect(ModelPickerRules.providerSubtitle(unlocked, modelCount: 2) == "2 models")
-        #expect(ModelPickerRules.providerSubtitle(unlocked, modelCount: 1) == "1 model")
-        #expect(ModelPickerRules.providerSubtitle(locked, modelCount: 9) == "Add your API key in Settings")
+        #expect(ModelPickerRules.providerSubtitle(modelCount: 2) == "2 models")
+        #expect(ModelPickerRules.providerSubtitle(modelCount: 1) == "1 model")
+        #expect(ModelPickerRules.providerSubtitle(modelCount: 0) == "0 models")
     }
 
     // MARK: - Geometry
@@ -184,15 +276,14 @@ struct ModelPickerRulesTests {
     func listHeightMeasured() {
         let data = Self.response()
         let collapsed = ModelPickerRules.listHeight(in: data, expandedProvider: nil)
-        // Two provider rows and nothing else.
-        #expect(collapsed == 2 * ModelPickerRules.providerRowHeight + 2 * Spacing.xs)
+        // One provider row: the locked one is not drawn, so it is not measured.
+        #expect(collapsed == ModelPickerRules.providerRowHeight + 2 * Spacing.xs)
 
         let expanded = ModelPickerRules.listHeight(in: data, expandedProvider: "openai")
         #expect(expanded == collapsed + 2 * ModelPickerRules.modelRowHeight)
 
-        // A locked provider adds its "Add a … key" row on top of its models.
-        let locked = ModelPickerRules.listHeight(in: data, expandedProvider: "anthropic")
-        #expect(locked == collapsed + 3 * ModelPickerRules.modelRowHeight)
+        // A provider with no row of its own contributes nothing at all.
+        #expect(ModelPickerRules.listHeight(in: data, expandedProvider: "anthropic") == collapsed)
     }
 
     @Test("A long list is capped rather than growing the popover past the screen")
@@ -296,10 +387,45 @@ struct ModelPickerRulesTests {
 
     // MARK: - Wire decoding
 
+    @Test("Decodes the house payload the server sends a keyless account")
+    func decodesHousePayload() throws {
+        let json = """
+        {
+          "access": "house",
+          "providers": [],
+          "models": [
+            {
+              "id": "openai/gpt-5.6-luna",
+              "label": "GPT-5.6 Luna",
+              "provider": "openai",
+              "supportsAttachments": true,
+              "efforts": ["medium"],
+              "available": true
+            }
+          ],
+          "defaults": { "modelId": "openai/gpt-5.6-luna", "effort": "medium" },
+          "house": {
+            "modelId": "openai/gpt-5.6-luna",
+            "label": "GPT-5.6 Luna",
+            "effort": "medium",
+            "note": "SureWord's own model, tuned for Scripture."
+          }
+        }
+        """
+        let decoded = try JSONDecoder().decode(AIModelsResponse.self, from: Data(json.utf8))
+        #expect(decoded.access == "house")
+        #expect(decoded.house?.modelId == "openai/gpt-5.6-luna")
+        #expect(decoded.house?.label == "GPT-5.6 Luna")
+        #expect(decoded.house?.effort == "medium")
+        #expect(ModelPickerRules.isHouse(decoded))
+        #expect(ModelPickerRules.providers(in: decoded).isEmpty)
+    }
+
     @Test("Decodes the /api/ai/models payload, defaults included")
     func decodesPayload() throws {
         let json = """
         {
+          "access": "keys",
           "providers": [
             { "id": "openai", "label": "OpenAI", "available": true },
             { "id": "anthropic", "label": "Anthropic", "available": false }
@@ -323,6 +449,9 @@ struct ModelPickerRulesTests {
         #expect(decoded.defaults.modelId == "openai/gpt-5.6-terra")
         #expect(decoded.defaults.effort == nil)
         #expect(decoded.providers?.count == 2)
+        #expect(decoded.access == "keys")
+        #expect(decoded.house == nil)
+        #expect(!ModelPickerRules.isHouse(decoded))
     }
 
     @Test("A minimal model row still decodes - absent optionals take defaults")
@@ -336,6 +465,11 @@ struct ModelPickerRulesTests {
         #expect(decoded.models[0].efforts.isEmpty)
         #expect(decoded.models[0].supportsAttachments == false)
         #expect(decoded.defaults.effort == nil)
+        // A server too old to speak `access` is a keys server, not an unknown
+        // one: silence must never render the house panel.
+        #expect(decoded.access == nil)
+        #expect(decoded.house == nil)
+        #expect(!ModelPickerRules.isHouse(decoded))
     }
 }
 

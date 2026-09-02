@@ -9,6 +9,11 @@ import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
 
 interface WelcomeScreenProps {
   onSelectQuestion: (question: string) => void;
+  /**
+   * The chat composer, rendered inline under the hero so it stays above the
+   * fold on desktop. Android does the same (mobile WelcomeState `composer`).
+   */
+  composer?: React.ReactNode;
 }
 
 /** Chip-shaped placeholders while this user's own questions are being drawn. */
@@ -30,7 +35,10 @@ function isNativeRelease(value: unknown): value is NativeRelease {
   );
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
+  onSelectQuestion,
+  composer,
+}) => {
   const { questions, loading } = useSuggestedQuestions();
   const questionItems = React.useMemo(
     () => buildSuggestedQuestionItems(questions),
@@ -68,8 +76,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
   }, []);
 
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="max-w-2xl mx-auto px-4 text-center">
+    // Scrolls itself instead of centering: vertical centering let the intrinsic
+    // height win in the flex column and pushed the composer past the fold.
+    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+      <div className="max-w-4xl mx-auto px-4 pt-8 pb-10 text-center">
         <div className="mb-6">
           <div className="w-20 h-20 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow overflow-hidden">
             <Image
@@ -107,6 +117,19 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
           </p>
         </div>
 
+        {composer ? (
+          // The docked composer draws its own top divider against the viewport
+          // edge; mid-page it needs to read as a card instead. No
+          // `overflow-hidden` here: it would clip the model picker's popover,
+          // so the child gets the matching radius instead.
+          // `relative z-10` keeps the model popover above the question cards:
+          // their backdrop filters make stacking contexts that would otherwise
+          // paint over it, since they come later in the document.
+          <div className="relative z-10 mx-auto mb-8 w-full max-w-3xl rounded-2xl border border-black/[0.08] text-left dark:border-white/[0.06] [&>div]:rounded-2xl [&>div]:border-t-0">
+            {composer}
+          </div>
+        ) : null}
+
         <div className="mb-3">
           <h2 className="text-metadata font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
             CHOSEN FROM YOUR STUDY
@@ -116,7 +139,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSelectQuestion }) => {
           </p>
         </div>
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-8"
           aria-busy={loading}
           aria-label={
             loading ? "Preparing your questions" : "Suggested questions"

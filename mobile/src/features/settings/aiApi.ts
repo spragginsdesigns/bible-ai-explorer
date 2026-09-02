@@ -21,11 +21,31 @@ export interface AiProviderSummary {
 	available: boolean;
 }
 
+/**
+ * "house" = the account has no provider key of its own, so SureWord runs it on
+ * the house model and there is nothing to pick. "keys" = the account unlocked
+ * at least one provider and chooses among its own models.
+ */
+export type AiAccess = "house" | "keys";
+
+/** The single included model, sent only when `access` is "house". */
+export interface AiHouseMode {
+	modelId: string;
+	label: string;
+	/** Pinned by the server; the client stores it so requests agree. */
+	effort: string;
+	note: string;
+}
+
 export interface AiModelsResponse {
-	/** Absent from pre-1.12 servers; clients derive rows from `models` then. */
+	/** Absent from servers older than the house-mode release; treat as "keys". */
+	access?: AiAccess;
+	/** Only providers this account unlocked. Empty in house mode. */
 	providers?: AiProviderSummary[];
+	/** Only models this account can run. Exactly one entry in house mode. */
 	models: AiModel[];
 	defaults: { modelId: string; effort: string | null };
+	house?: AiHouseMode | null;
 }
 
 export interface ProviderStatus {

@@ -16,6 +16,11 @@ const isPublicRoute = createRouteMatcher([
 	// Church photo proxy: loaded by a plain <img> / RN Image with no session
 	// header, keyed only by a place id some user already saved (see the route).
 	"/api/church/photo",
+	// Original-language text and Strong's dictionary: public-domain reference
+	// data with no user state, cached hard at the edge. Keeping them signed-out
+	// lets every client render a tapped verse before a session exists.
+	"/api/bible/original",
+	"/api/bible/strongs",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

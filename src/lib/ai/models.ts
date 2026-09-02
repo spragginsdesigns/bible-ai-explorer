@@ -78,6 +78,22 @@ export interface ModelDefinition {
 // provider's list endpoint is unreachable or the user hasn't unlocked it yet.
 export const MODELS: readonly ModelDefinition[] = [
 	{
+		id: "openai/gpt-5.6-luna",
+		label: "GPT-5.6 Luna",
+		provider: "openai",
+		providerModelId: "gpt-5.6-luna",
+		supportsAttachments: true,
+		efforts: ["low", "medium", "high"],
+	},
+	{
+		id: "openai/gpt-5.6-sol",
+		label: "GPT-5.6 Sol",
+		provider: "openai",
+		providerModelId: "gpt-5.6-sol",
+		supportsAttachments: true,
+		efforts: ["low", "medium", "high"],
+	},
+	{
 		id: "openai/gpt-5.6-terra",
 		label: "GPT-5.6 Terra",
 		provider: "openai",
@@ -126,7 +142,16 @@ export const MODELS: readonly ModelDefinition[] = [
 	},
 ];
 
-export const DEFAULT_MODEL_ID = "openai/gpt-5.6-terra";
+export const DEFAULT_MODEL_ID = "openai/gpt-5.6-luna";
+
+/**
+ * The model every account without its own API key runs on, on SureWord's own
+ * OpenAI key. Those users get no model or effort picker at all, so this pair is
+ * the whole of their configuration: a house account is not a stored choice, and
+ * nothing about it is written back to the user row.
+ */
+export const HOUSE_MODEL_ID = "openai/gpt-5.6-luna";
+export const HOUSE_EFFORT: ReasoningEffort = "medium";
 
 /**
  * Models that can read the whole attachment pipeline (images, PDFs and text

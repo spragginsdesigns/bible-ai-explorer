@@ -14,6 +14,21 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.44.0 (versionCode 43) - 2026-09-02 - internal
+
+**What's new (Play):**
+
+NEW
+- Original language: tap any verse in Bible to see the Hebrew or Greek words behind it. Tap a word for its meaning, pronunciation, Strong's number and definition.
+- No API key needed: SureWord now answers every account with its built-in model, GPT-5.6 Luna. Add your own key in Settings to choose other models.
+
+IMPROVED
+- The model picker only lists models you can actually use.
+
+**Dev notes:** New public routes `GET /api/bible/original` and `GET /api/bible/strongs` (edge-cached; the 18 MB texts stay on the server). `GET /api/ai/models` now carries `access` and a `house` block; keyless accounts run on the server OpenAI key at medium effort (low for tap-a-verse) and locked providers are no longer returned. Server-side changes reach every installed build; the APK carries the verse-sheet section and the house-mode picker sheet.
+
+---
+
 ## 1.43.1 (versionCode 42) - 2026-08-31 - internal
 
 **What's new (Play):**

@@ -8,10 +8,21 @@ import SwiftUI
 // MARK: - Sheet
 
 /// Model + reasoning-effort picker, a port of
-/// `mobile/src/features/chat/ModelPickerSheet.tsx`: providers first, tap one to
-/// see every model its API key unlocks. Providers with no key on the account
-/// are locked and point at Settings. Picks persist in `SettingsStore` and ride
-/// every chat request; the server stores the last pick as the account default.
+/// `mobile/src/features/chat/ModelPickerSheet.tsx`.
+///
+/// Two shapes, decided by the server's `access` field. **House** (no keys on
+/// the account): one model, its effort pinned server-side, a one-line note,
+/// and a push into Settings. **Keys**: providers first, tap one to see every
+/// model it unlocks - and only providers the account can actually reach, since
+/// a locked row is an advert the user cannot act on from here.
+///
+/// The macOS `ModelPickerPopover` holds the same rules as pure functions in
+/// `ModelPickerRules`; that type lives in the macOS target, so this shell
+/// restates them inline. **If one changes, change both** (and the web and
+/// Android pickers with them).
+///
+/// Picks persist in `SettingsStore` and ride every chat request; the server
+/// stores the last pick as the account default.
 struct ModelPickerSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
@@ -31,9 +42,20 @@ struct ModelPickerSheet: View {
         ("high", "High"),
     ]
 
+    /// The house block, and only when the server actually said so. An older
+    /// payload carries neither field and stays in the keys shape it was
+    /// written for.
+    private var house: AIModelsResponse.HouseModel? {
+        guard let data, data.access == "house" else { return nil }
+        return data.house
+    }
+
     /// The local pick counts only while it names an available model; otherwise
-    /// the account default is shown, exactly as on Android.
+    /// the account default is shown, exactly as on Android. House mode
+    /// overrides it outright - there is one model, and a pick left over from a
+    /// key the account no longer has must not read as active beside it.
     private var selectedId: String? {
+        if let house { return house.modelId }
         if let data,
            data.models.contains(where: { $0.id == settings.chatModelId && $0.available }) {
             return settings.chatModelId
@@ -41,9 +63,14 @@ struct ModelPickerSheet: View {
         return data?.defaults.modelId
     }
 
+    /// Only providers the account can actually use. A locked row cannot be
+    /// acted on from a sheet, so it is an "Add your API key" advert wearing a
+    /// provider's name; Settings is where keys go, and the footer says so.
     private var providers: [AIProviderSummary] {
-        guard let data else { return [] }
-        if let providers = data.providers, !providers.isEmpty { return providers }
+        guard let data, house == nil else { return [] }
+        if let providers = data.providers, !providers.isEmpty {
+            return providers.filter(\.available)
+        }
         // Older payload shape: derive the provider rows from the flat list.
         var seen: [String: AIProviderSummary] = [:]
         var order: [String] = []
@@ -55,7 +82,13 @@ struct ModelPickerSheet: View {
             )
             order.append(model.provider)
         }
-        return order.compactMap { seen[$0] }
+        return order.compactMap { seen[$0] }.filter(\.available)
+    }
+
+    /// Models under a provider, unavailable ones dropped for the same reason
+    /// their providers are.
+    private func models(of provider: AIProviderSummary) -> [AIModel] {
+        (data?.models ?? []).filter { $0.provider == provider.id && $0.available }
     }
 
     var body: some View {
@@ -90,28 +123,40 @@ struct ModelPickerSheet: View {
 
     private var list: some View {
         List {
-            Section {
-                ForEach(providers) { provider in
-                    providerSection(provider)
+            if let house {
+                Section {
+                    houseRow(house)
+                    settingsLink("Add an API key")
+                } footer: {
+                    Text(Self.houseNote(house))
                 }
-            } footer: {
-                Text("Unlock more models by adding API keys in Settings.")
-            }
-
-            Section("Reasoning") {
-                HStack(spacing: Spacing.sm) {
-                    ForEach(Self.effortOptions, id: \.label) { option in
-                        let active = settings.chatEffort == option.id
-                            || (settings.chatEffort == nil && option.id == nil)
-                        Button(option.label) {
-                            settings.chatEffort = option.id
-                        }
-                        .buttonStyle(EffortChipStyle(active: active))
+            } else {
+                Section {
+                    ForEach(providers) { provider in
+                        providerSection(provider)
                     }
+                    settingsLink("Add another API key")
+                } footer: {
+                    Text("Each key you add unlocks that provider's models here.")
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
-                .padding(.vertical, Spacing.xs)
+
+                // House mode pins the effort server-side, so an inert chip row
+                // would only imply a choice the account does not have.
+                Section("Reasoning") {
+                    HStack(spacing: Spacing.sm) {
+                        ForEach(Self.effortOptions, id: \.label) { option in
+                            let active = settings.chatEffort == option.id
+                                || (settings.chatEffort == nil && option.id == nil)
+                            Button(option.label) {
+                                settings.chatEffort = option.id
+                            }
+                            .buttonStyle(EffortChipStyle(active: active))
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .padding(.vertical, Spacing.xs)
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -119,12 +164,53 @@ struct ModelPickerSheet: View {
         .background(theme.bgElevated)
     }
 
+    /// Copy under the house model when the server sends no `note` of its own.
+    /// Kept in step with `ModelPickerRules.fallbackHouseNote` on macOS.
+    static let fallbackHouseNote =
+        "Included with SureWord. Add your own API key to choose other models."
+
+    static func houseNote(_ house: AIModelsResponse.HouseModel) -> String {
+        let note = house.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return note.isEmpty ? fallbackHouseNote : note
+    }
+
+    /// What a keyless account sees: the one model it has, said plainly. No
+    /// disclosure chevrons and no effort chips - nothing here is a choice, and
+    /// dressing it up as one only implies choices that are missing.
+    private func houseRow(_ house: AIModelsResponse.HouseModel) -> some View {
+        HStack {
+            Text(house.label)
+                .font(.system(size: 14.5, weight: .bold))
+                .foregroundStyle(theme.accent)
+                .lineLimit(1)
+            Spacer()
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(theme.accent)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isSelected)
+    }
+
+    /// The way into Settings. A push, not a sheet: this sheet owns its own
+    /// `NavigationStack`, and the app's only other route to Settings is the
+    /// gear `NavigationLink` on each tab root, which a sheet cannot reach.
+    private func settingsLink(_ title: String) -> some View {
+        NavigationLink {
+            SettingsView()
+        } label: {
+            Label(title, systemImage: "key")
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundStyle(theme.accent)
+        }
+    }
+
     @ViewBuilder
     private func providerSection(_ provider: AIProviderSummary) -> some View {
-        let models = (data?.models ?? []).filter { $0.provider == provider.id }
+        let rows = models(of: provider)
         let isExpanded = expandedProvider == provider.id
 
-        if !models.isEmpty {
+        if !rows.isEmpty {
             Button {
                 withAnimation(.snappy) {
                     expandedProvider = isExpanded ? nil : provider.id
@@ -138,27 +224,17 @@ struct ModelPickerSheet: View {
                         Text(provider.label)
                             .font(.system(size: 14.5, weight: .semibold))
                             .foregroundStyle(theme.textSecondary)
-                        Text(
-                            provider.available
-                                ? "\(models.count) model\(models.count == 1 ? "" : "s")"
-                                : "Add your API key in Settings"
-                        )
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(theme.textFaint)
+                        Text("\(rows.count) model\(rows.count == 1 ? "" : "s")")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(theme.textFaint)
                     }
                     Spacer()
-                    if !provider.available {
-                        Image(systemName: "lock")
-                            .font(.system(size: 12))
-                            .foregroundStyle(theme.textGhost)
-                    }
                 }
                 .contentShape(.rect)
             }
-            .opacity(provider.available ? 1 : 0.55)
 
             if isExpanded {
-                ForEach(models) { model in
+                ForEach(rows) { model in
                     modelRow(model)
                 }
             }
@@ -186,8 +262,7 @@ struct ModelPickerSheet: View {
             .padding(.leading, Spacing.xl)
             .contentShape(.rect)
         }
-        .disabled(!model.available)
-        .opacity(model.available ? 1 : 0.55)
+        .accessibilityAddTraits(active ? [.isSelected] : [])
     }
 
     private func load() async {
@@ -195,9 +270,14 @@ struct ModelPickerSheet: View {
         do {
             let loaded = try await AIModelsAPI.load(api: api)
             data = loaded
-            // Each open lands on the provider of the current model.
+            // Each open lands on the provider of the current model - but only
+            // one that has a row. The account default can name a model whose
+            // provider was filtered out (a stale default left by a removed
+            // key), and expanding a section that is not drawn opens nothing.
+            let rows = providers
             let selectedProvider = loaded.models.first { $0.id == selectedId }?.provider
-            expandedProvider = selectedProvider ?? providers.first?.id
+            expandedProvider =
+                rows.contains { $0.id == selectedProvider } ? selectedProvider : rows.first?.id
         } catch {
             loadFailed = true
         }

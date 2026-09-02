@@ -3,76 +3,120 @@ import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
 	DEFAULT_MODEL_ID,
+	HOUSE_EFFORT,
+	HOUSE_MODEL_ID,
 	isReasoningEffort,
 	PROVIDERS,
 	resolveDefinition,
 	type ModelDefinition,
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
-import { apiKeyOrNull, availableProviders } from "@/lib/ai/provider";
+import { aiAccessFor, apiKeyOrNull, availableProviders } from "@/lib/ai/provider";
 
 export const maxDuration = 30;
 
+const HOUSE_NOTE =
+	"Included with SureWord. Add your own API key in Settings to choose other models.";
+
 /**
  * The single source every client (web, Android, macOS) renders its model
- * picker from. For each provider the user has unlocked, the model list comes
- * live from that provider's own /models endpoint — whatever the key can
- * reach — with the curated registry as label source and outage fallback.
- * Locked providers show their curated models so the picker can advertise
- * what adding a key unlocks.
+ * picker from.
+ *
+ * An account with no key of its own is in `house` mode: it runs on SureWord's
+ * key, on one model, and the response says so with a single-entry list and no
+ * providers, so a picker has nothing to render but the house note.
+ *
+ * An account with keys gets only what it can actually reach. For each unlocked
+ * provider the model list comes live from that provider's own /models endpoint
+ * (whatever the key can reach), with the curated registry as label source and
+ * outage fallback. Locked providers are omitted entirely rather than shown as
+ * unavailable, so no client can present a model it cannot run.
  */
 export async function GET(): Promise<Response> {
 	try {
 		const userId = await getAuthUserId();
-		const [providers, user] = await Promise.all([
-			availableProviders(userId),
+		const [access, user] = await Promise.all([
+			aiAccessFor(userId),
 			prisma.user.findUnique({
 				where: { id: userId },
 				select: { defaultModelId: true, defaultEffort: true },
 			}),
 		]);
 
+		if (access === "house") {
+			const house = resolveDefinition(HOUSE_MODEL_ID);
+			if (!house) throw new Error("The house AI model is not registered.");
+			return NextResponse.json({
+				access,
+				providers: [],
+				models: [
+					{
+						id: house.id,
+						label: house.label,
+						provider: house.provider,
+						supportsAttachments: house.supportsAttachments,
+						efforts: house.efforts,
+						available: true,
+					},
+				],
+				defaults: { modelId: house.id, effort: HOUSE_EFFORT },
+				house: {
+					modelId: house.id,
+					label: house.label,
+					effort: HOUSE_EFFORT,
+					note: HOUSE_NOTE,
+				},
+			});
+		}
+
+		const providers = await availableProviders(userId);
+		const unlocked = PROVIDERS.filter((provider) => providers[provider.id].available);
+
 		const catalogs = await Promise.all(
-			PROVIDERS.map(async (provider) => {
-				let models: ModelDefinition[];
-				if (providers[provider.id].available) {
-					const apiKey = await apiKeyOrNull(userId, provider.id);
-					models = apiKey
-						? await listProviderModels(provider.id, apiKey)
-						: curatedModelsFor(provider.id);
-				} else {
-					models = curatedModelsFor(provider.id);
-				}
+			unlocked.map(async (provider) => {
+				const apiKey = await apiKeyOrNull(userId, provider.id);
+				const models: ModelDefinition[] = apiKey
+					? await listProviderModels(provider.id, apiKey)
+					: curatedModelsFor(provider.id);
 				return { provider, models };
 			}),
 		);
 
-		const models = catalogs.flatMap(({ provider, models: definitions }) =>
+		const models = catalogs.flatMap(({ models: definitions }) =>
 			definitions.map((model) => ({
 				id: model.id,
 				label: model.label,
 				provider: model.provider,
 				supportsAttachments: model.supportsAttachments,
 				efforts: model.efforts,
-				available: providers[provider.id].available,
+				available: true,
 			})),
 		);
 
 		const storedDefault = user?.defaultModelId ? resolveDefinition(user.defaultModelId) : undefined;
-		const defaultModelId =
-			storedDefault && providers[storedDefault.provider].available ? storedDefault.id : DEFAULT_MODEL_ID;
+		// Never name a model the picker did not list: a selected-but-locked id is
+		// what made a picker show a model the user could not actually run. The
+		// registry default is the last resort for the degenerate case of an
+		// allowlisted account whose server keys are all unset.
+		const storedIsListed =
+			storedDefault !== undefined && models.some((model) => model.id === storedDefault.id);
+		const defaultModelId = storedIsListed
+			? storedDefault.id
+			: (models[0]?.id ?? DEFAULT_MODEL_ID);
 
 		return NextResponse.json({
-			providers: PROVIDERS.map((provider) => ({
+			access,
+			providers: unlocked.map((provider) => ({
 				id: provider.id,
 				label: provider.label,
-				available: providers[provider.id].available,
+				available: true,
 			})),
 			models,
 			defaults: {
 				modelId: defaultModelId,
 				effort: isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null,
 			},
+			house: null,
 		});
 	} catch (error) {
 		if (error instanceof Response) return error;

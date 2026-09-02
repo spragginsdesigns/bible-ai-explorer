@@ -85,9 +85,106 @@ view keeps re-proposing its width.
 
 - Apple clients use the shared Swift state machine above; the route needs no
   platform-specific behavior.
-- If explanations ever need tools/memories, resist doing it here — that is
+- If explanations ever need tools/memories, resist doing it here - that is
   what Expand with AI is for. This endpoint's contract is "fast, cheap,
   stateless".
+
+### Original language (shipped 2026-09-02, Android 1.44.0 + web)
+
+Under the explanation, the verse sheet shows the words behind the verse in
+their original script: Westminster Leningrad Codex Hebrew for the Old
+Testament, Scrivener 1894 Textus Receptus Greek for the New. Each word is a
+chip; tapping one opens a card with the lemma, transliteration, Strong's
+number and morphology code, the KJV gloss, and the Strong's definition.
+
+- **Data stays on the server.** `src/data/originals/` is 18 MB, four times the
+  KJV the Android app bundles, so two public routes serve it:
+  `GET /api/bible/original?book=<1-66>&chapter=&verse=` (the verse, word by
+  word, from `getOriginalVerse` in `src/lib/bible/originals.ts`) and
+  `GET /api/bible/strongs?number=H430` (`lookupStrongsEntry`). Both validate
+  input (400), answer 404 for a verse the original versification does not
+  carry, and send `Cache-Control: public, max-age=86400, s-maxage=604800`.
+  They are public-domain text with no user state, so `src/middleware.ts`
+  exempts them from Clerk and the CDN can cache them.
+- **Hebrew reads right to left.** The chip row flips direction for Hebrew
+  (`dir="rtl"` on web, `row-reverse` on Android, `layoutDirection` on Apple)
+  and cantillation marks (U+0591 to U+05AF) are stripped for display while
+  vowel points are kept; the pure helpers live in
+  `src/lib/bible/original-text.ts` and `mobile/src/features/bible/originalText.ts`.
+- **System fonts, on purpose.** Atkinson Hyperlegible carries no Hebrew or
+  Greek glyphs, so the original script is rendered with the platform's own
+  fallback (Noto Sans Hebrew and Roboto on Android, system-ui on web) instead
+  of the app font. Android uses React Native's bare `Text` for those glyphs,
+  not `AppText`, which would force the app face.
+- **Quiet failure.** A 404 or any transport error simply removes the section;
+  the sheet is complete without it. 404s are cached per session, transport
+  failures are not, so a reconnect still works. Strong's entries are cached
+  for the sheet's lifetime because the lexicon never changes.
+
+Files: `src/components/bible/OriginalLanguageSection.tsx` +
+`useOriginalVerse.ts` (web), `mobile/src/features/bible/OriginalLanguageSection.tsx`
++ `useOriginalVerse.ts` (Android), `macos/Shared/Bible/OriginalLanguageView.swift`
++ `OriginalLanguage.swift` (macOS and iOS, shared).
+
+---
+
+## The house model
+
+*Shipped 2026-09-02 · server + web + Android 1.44.0*
+
+Before this, an account with no API key of its own, and not on the
+`SERVER_CREDENTIAL_USER_IDS` allowlist, got "Add your OpenAI API key in
+Settings" on every question. A first-time user could not get a single answer.
+
+Now `resolveModel()` (`src/lib/ai/provider.ts`) decides an **access** for every
+call, from the pure rule in `src/lib/ai/access.ts`:
+
+- **`keys`**: the account owns at least one `ProviderCredential` row, or is
+  allowlisted. Behaviour is unchanged: their keys, their picks, their stored
+  defaults.
+- **`house`**: everyone else. The call runs on the server's `OPENAI_API_KEY`
+  with `HOUSE_MODEL_ID` (`openai/gpt-5.6-luna`, "GPT-5.6 Luna") at
+  `HOUSE_EFFORT` (`medium`). Medium is a ceiling, not a floor: a call site
+  that asks for `low` (tap-a-verse) keeps low, and nothing above medium is
+  honoured no matter what the request says. Utility work (memory extraction,
+  suggested questions, church profile, reading plans, memory summary) runs on
+  the OpenAI utility model with the same key, so those features now work for
+  keyless accounts too. A house answer is the server's choice, so
+  `ask-question` never writes it to `User.defaultModelId` / `defaultEffort`.
+  If the server has no `OPENAI_API_KEY`, the call throws
+  `HouseModelUnavailableError`, which still classifies as
+  `provider_key_missing` but says the server is unconfigured rather than
+  telling the user to add a key.
+
+`GET /api/ai/models` is what every picker renders from, and it now says which
+world the account is in:
+
+```
+{ access: "house" | "keys",
+  providers: [...only providers the account unlocked; [] in house mode],
+  models:    [...only models it can run; exactly Luna in house mode],
+  defaults:  { modelId, effort },          // house: Luna + "medium"
+  house:     { modelId, label, effort, note } | null }
+```
+
+Locked providers are no longer returned at all, so no client shows a padlocked
+"Add your API key" row; in keys mode `defaults.modelId` is the stored default
+when its provider is available, else the first listed model, never an id the
+picker did not list. In house mode the web picker (`src/components/ModelPicker.tsx`),
+the Android sheet (`mobile/src/features/chat/ModelPickerSheet.tsx` +
+`modelPickerRules.ts`) and the Apple popover/sheet (`ModelPickerRules` in
+`macos/SureWord/Chat/Views/ModelPickerPopover.swift`) render one selected row,
+the note "Included with SureWord. Add your own API key in Settings to choose
+other models.", and an "Add an API key" link into Settings, and hide the
+reasoning chips. Clients also pin their stored model/effort prefs to the house
+values so the chip and the request agree.
+
+The registry default (`DEFAULT_MODEL_ID`) moved from Terra to Luna at the same
+time, and Luna and Sol joined the curated `MODELS` list ahead of Terra.
+
+**Cost note.** House mode means SureWord pays for every keyless account's
+questions. That is the product decision (2026-09-02); the allowlist still
+exists only to let allowlisted accounts pick any model on server keys.
 
 ---
 

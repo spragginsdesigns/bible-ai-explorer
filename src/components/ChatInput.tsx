@@ -38,6 +38,8 @@ interface ChatInputProps {
 	onChangeText?: (text: string) => void;
 	/** Bump this number to focus the input (e.g. after a ?prompt= prefill). */
 	focusSignal?: number;
+	/** Passed to ModelPicker; "below" when this composer sits in a scroller. */
+	pickerPlacement?: "above" | "below";
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -59,6 +61,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	value,
 	onChangeText,
 	focusSignal,
+	pickerPlacement = "above",
 }) => {
 	const [innerText, setInnerText] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -253,7 +256,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</div>
 					)}
 					<div className="flex items-end gap-1 gradient-border liquid-glass rounded-xl px-2 py-2">
-						<ModelPicker />
+						<ModelPicker placement={pickerPlacement} />
 						<input
 							ref={fileInputRef}
 							type="file"

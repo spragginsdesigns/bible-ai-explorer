@@ -33,6 +33,7 @@ import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/t
 import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
+import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -575,6 +576,12 @@ export default function BibleChapterScreen() {
 					text={insightText}
 					error={insightError}
 					onRetry={retryInsight}
+				/>
+				<OriginalLanguageSection
+					getToken={getToken}
+					book={order}
+					chapter={chapter}
+					verse={actionVerse?.number ?? null}
 				/>
 				<Pressable
 					accessibilityRole="button"

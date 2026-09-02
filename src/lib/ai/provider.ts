@@ -7,10 +7,13 @@ import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
+import { decideAccess, houseEffortFor, type AiAccess } from "./access";
 import {
 	ATTACHMENT_CAPABLE_MODEL_IDS,
 	decideStructuredProvider,
 	DEFAULT_MODEL_ID,
+	HOUSE_EFFORT,
+	HOUSE_MODEL_ID,
 	isReasoningEffort,
 	providerSupportsStructuredOutput,
 	resolveDefinition,
@@ -44,6 +47,21 @@ const PROVIDER_LABELS: Record<ProviderId, string> = {
 	moonshot: "Moonshot",
 	openrouter: "OpenRouter",
 };
+
+/**
+ * Thrown when a keyless account asks a question and the server has no OpenAI
+ * key of its own to answer it with. It extends AiCredentialError so
+ * `codeForError` still classifies it as `provider_key_missing`, but the message
+ * must not tell the user to add a key: nothing they can do in Settings fixes a
+ * missing server-side env var.
+ */
+export class HouseModelUnavailableError extends AiCredentialError {
+	constructor() {
+		super("openai", PROVIDER_LABELS.openai);
+		this.name = "HouseModelUnavailableError";
+		this.message = "SureWord's built-in model is not configured on this server.";
+	}
+}
 
 function serverKeyFor(provider: ProviderId): string | undefined {
 	switch (provider) {
@@ -82,6 +100,17 @@ async function apiKeyFor(userId: string, provider: ProviderId): Promise<string> 
 		if (serverKey) return serverKey;
 	}
 	throw new AiCredentialError(provider, PROVIDER_LABELS[provider]);
+}
+
+/**
+ * Whether this account runs on SureWord's own key (house) or on credentials of
+ * its own (keys). One count answers it: owning any key at all, or being
+ * allowlisted, means the user picks their models and pays their own bills.
+ */
+export async function aiAccessFor(userId: string): Promise<AiAccess> {
+	const allowlisted = isServerCredentialUser(userId);
+	const ownKeyCount = await prisma.providerCredential.count({ where: { userId } });
+	return decideAccess({ allowlisted, ownKeyCount });
 }
 
 /** Non-throwing variant for callers that degrade gracefully (model listing). */
@@ -164,6 +193,11 @@ export interface ResolvedModel {
 	definition: ModelDefinition;
 	effort: ReasoningEffort | null;
 	/**
+	 * Which world this call ran in. `house` means the server picked both the
+	 * model and the effort, so callers must not record either as a user choice.
+	 */
+	access: AiAccess;
+	/**
 	 * The model the user actually picked, when it could not read the request's
 	 * attachments and this call ran on a capable one instead. Null otherwise.
 	 */
@@ -216,10 +250,16 @@ function utilityDefinition(provider: ProviderId): ModelDefinition {
 }
 
 /**
- * Single place every AI call site gets its model from. Resolution order for
- * the model and effort: explicit request value → the user's stored default →
- * the app default. Credentials: the user's own key for that provider, then
- * the server's key when the account is allowlisted, else AiCredentialError.
+ * Single place every AI call site gets its model from.
+ *
+ * An account with no key of its own runs on the house model: SureWord's own
+ * OpenAI key, one model, one effort, and every requested or stored preference
+ * ignored, because a user with no picker cannot have expressed one.
+ *
+ * For everyone else, resolution order for the model and effort is unchanged:
+ * explicit request value, then the user's stored default, then the app
+ * default. Credentials: the user's own key for that provider, then the
+ * server's key when the account is allowlisted, else AiCredentialError.
  */
 export async function resolveModel(options: {
 	userId: string;
@@ -239,6 +279,55 @@ export async function resolveModel(options: {
 	 */
 	structured?: boolean;
 }): Promise<ResolvedModel> {
+	const access = await aiAccessFor(options.userId);
+	const structuredCall = options.structured ?? Boolean(options.utility);
+
+	if (access === "house") {
+		// The house key is the only credential in play, so the attachment and
+		// structured-provider fallbacks have nothing to choose between: Luna reads
+		// every attachment type and OpenAI honours JSON schemas.
+		const houseKey = serverKeyFor("openai")?.trim();
+		if (!houseKey) throw new HouseModelUnavailableError();
+
+		if (options.utility) {
+			const utility = UTILITY_MODELS.openai;
+			return {
+				model: buildModel("openai", utility.providerModelId, houseKey, structuredCall),
+				providerOptions: buildProviderOptions("openai", utility.effort, false),
+				definition: utilityDefinition("openai"),
+				effort: utility.effort,
+				access,
+				attachmentFallbackFrom: null,
+				attachmentsUnsupported: false,
+				structuredFallbackFrom: null,
+				structuredOutputUnsupported: false,
+			};
+		}
+
+		const houseDefinition = resolveDefinition(HOUSE_MODEL_ID);
+		if (!houseDefinition) throw new Error("The house AI model is not registered.");
+		const preferredHouseEffort = houseEffortFor(options.effort);
+		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
+			? preferredHouseEffort
+			: null;
+
+		return {
+			model: buildModel("openai", houseDefinition.providerModelId, houseKey, structuredCall),
+			providerOptions: buildProviderOptions(
+				"openai",
+				houseEffort,
+				Boolean(options.attachments) && houseDefinition.supportsAttachments,
+			),
+			definition: houseDefinition,
+			effort: houseEffort,
+			access,
+			attachmentFallbackFrom: null,
+			attachmentsUnsupported: false,
+			structuredFallbackFrom: null,
+			structuredOutputUnsupported: false,
+		};
+	}
+
 	const user = await prisma.user.findUnique({
 		where: { id: options.userId },
 		select: { defaultModelId: true, defaultEffort: true },
@@ -266,8 +355,6 @@ export async function resolveModel(options: {
 		}
 	}
 
-	const structured = options.structured ?? Boolean(options.utility);
-
 	if (options.utility) {
 		// A provider that ignores the schema does not fail loudly: it returns
 		// well-formed JSON under keys it made up, and Zod rejects it after the
@@ -275,10 +362,10 @@ export async function resolveModel(options: {
 		const decision = decideStructuredProvider({
 			provider: definition.provider,
 			availableProviders:
-				structured && !providerSupportsStructuredOutput(definition.provider)
+				structuredCall && !providerSupportsStructuredOutput(definition.provider)
 					? await credentialedProviders(options.userId)
 					: [],
-			structured,
+			structured: structuredCall,
 		});
 
 		if (decision.unsupported) {
@@ -294,10 +381,11 @@ export async function resolveModel(options: {
 		const utilityKey = await apiKeyFor(options.userId, decision.provider);
 
 		return {
-			model: buildModel(decision.provider, utility.providerModelId, utilityKey, structured),
+			model: buildModel(decision.provider, utility.providerModelId, utilityKey, structuredCall),
 			providerOptions: buildProviderOptions(decision.provider, utility.effort, false),
 			definition: utilityModel,
 			effort: utility.effort,
+			access,
 			attachmentFallbackFrom: null,
 			attachmentsUnsupported: false,
 			structuredFallbackFrom: decision.fallbackFrom ? definition : null,
@@ -315,7 +403,7 @@ export async function resolveModel(options: {
 	const effort = definition.efforts.includes(preferredEffort) ? preferredEffort : null;
 
 	return {
-		model: buildModel(definition.provider, definition.providerModelId, apiKey, structured),
+		model: buildModel(definition.provider, definition.providerModelId, apiKey, structuredCall),
 		providerOptions: buildProviderOptions(
 			definition.provider,
 			effort,
@@ -323,6 +411,7 @@ export async function resolveModel(options: {
 		),
 		definition,
 		effort,
+		access,
 		attachmentFallbackFrom,
 		attachmentsUnsupported,
 		structuredFallbackFrom: null,

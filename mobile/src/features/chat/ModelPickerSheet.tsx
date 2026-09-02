@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import {
@@ -11,12 +12,13 @@ import {
 	useTheme,
 	useThemedStyles,
 } from "@/features/settings/settingsStore";
+import { fetchAiModels, type AiModelsResponse } from "@/features/settings/aiApi";
 import {
-	fetchAiModels,
-	PROVIDER_LABELS,
-	type AiModelsResponse,
-	type AiProviderSummary,
-} from "@/features/settings/aiApi";
+	houseMode,
+	modelsForProvider,
+	selectModelId,
+	visibleProviders,
+} from "./modelPickerRules";
 import type { GetToken } from "@/lib/api";
 
 interface ModelPickerSheetProps {
@@ -33,15 +35,20 @@ const EFFORT_OPTIONS: { id: string | null; label: string }[] = [
 ];
 
 /**
- * Model + reasoning-effort picker, mirroring the web chat's picker: providers
- * first, tap one to see every model its API key unlocks (listed live by the
- * server from the provider). Providers with no key on the account are locked
- * and point at Settings → AI Providers. Picks persist locally and ride every
- * chat request; the server stores the last pick as the account default.
+ * Model + reasoning-effort picker, mirroring the web chat's picker.
+ *
+ * Two shapes, decided by the server: an account with no provider key of its
+ * own gets "house mode" - the one included model, effort pinned, nothing to
+ * choose - while an account with keys gets its unlocked providers, tap one to
+ * see every model that key lists live. Locked providers are never rendered;
+ * the way in is the "Add an API key" row, not a dead row with a padlock.
+ * Picks persist locally and ride every chat request; the server stores the
+ * last pick as the account default and enforces house mode regardless.
  */
 export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerSheetProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const router = useRouter();
 	const { chatModelId, chatEffort } = useSettings();
 	const [data, setData] = useState<AiModelsResponse | null>(null);
 	const [loadFailed, setLoadFailed] = useState(false);
@@ -60,27 +67,23 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 		if (visible && !data) void load();
 	}, [visible, data, load]);
 
-	const selectedId =
-		data && data.models.some((model) => model.id === chatModelId && model.available)
-			? chatModelId
-			: data?.defaults.modelId ?? null;
+	const house = houseMode(data);
+	const selectedId = selectModelId(chatModelId, data);
+	const providers = useMemo(() => visibleProviders(data), [data]);
 
-	const providers = useMemo<AiProviderSummary[]>(() => {
-		if (!data) return [];
-		if (data.providers?.length) return data.providers;
-		// Older payload shape: derive the provider rows from the flat list.
-		const seen = new Map<string, AiProviderSummary>();
-		for (const model of data.models) {
-			if (!seen.has(model.provider)) {
-				seen.set(model.provider, {
-					id: model.provider,
-					label: PROVIDER_LABELS[model.provider] ?? model.provider,
-					available: model.available,
-				});
-			}
-		}
-		return [...seen.values()];
-	}, [data]);
+	// House mode pins both prefs so outgoing requests and the stored picks agree
+	// with what the server will actually run - otherwise a pick left over from a
+	// key that has since been removed keeps riding along on every message.
+	useEffect(() => {
+		if (!house) return;
+		if (chatModelId !== house.modelId) setChatModel(house.modelId);
+		if (chatEffort !== house.effort) setChatEffort(house.effort);
+	}, [house, chatModelId, chatEffort]);
+
+	const openProviderSettings = useCallback(() => {
+		onClose();
+		router.push("/settings");
+	}, [onClose, router]);
 
 	// Each open lands on the provider of the current model.
 	const selectedProvider = data?.models.find((model) => model.id === selectedId)?.provider ?? null;
@@ -94,10 +97,12 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 			<View style={styles.header}>
 				<View style={styles.headerCopy}>
 					<Text style={styles.eyebrow}>AI MODEL</Text>
-					<Text style={styles.title}>Choose a model</Text>
-					<Text style={styles.subtitle}>
-						Unlock more models by adding API keys in Settings
-					</Text>
+					<Text style={styles.title}>{house ? "Your model" : "Choose a model"}</Text>
+					{!house && (
+						<Text style={styles.subtitle}>
+							Unlock more models by adding API keys in Settings
+						</Text>
+					)}
 				</View>
 				<Pressable
 					accessibilityRole="button"
@@ -120,14 +125,44 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 				<View style={styles.centerBox}>
 					<ActivityIndicator color={colors.accent} />
 				</View>
+			) : house ? (
+				<View style={styles.houseBlock}>
+					<View
+						accessible
+						accessibilityRole="text"
+						accessibilityState={{ selected: true }}
+						accessibilityLabel={`${house.label}, selected model`}
+						style={[styles.row, styles.rowActive, styles.houseRow]}
+					>
+						<Text style={[styles.rowLabel, styles.houseLabel]} numberOfLines={1}>
+							{house.label}
+						</Text>
+						<Ionicons name="checkmark" size={16} color={colors.accent} />
+					</View>
+					<Text style={[styles.subtitle, styles.houseNote]}>{house.note}</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Add an API key in Settings"
+						onPress={openProviderSettings}
+						style={({ pressed }) => [
+							styles.row,
+							styles.houseAction,
+							pressed && { backgroundColor: colors.surfacePressed },
+						]}
+					>
+						<Ionicons name="key-outline" size={16} color={colors.textMuted} />
+						<View style={styles.rowCopy}>
+							<Text style={styles.rowLabel}>Add an API key</Text>
+							<Text style={styles.rowDetail}>Choose other models in Settings</Text>
+						</View>
+						<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+					</Pressable>
+				</View>
 			) : (
 				<>
 					<ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
 						{providers.map((provider) => {
-							const providerModels = data.models.filter(
-								(model) => model.provider === provider.id,
-							);
-							if (providerModels.length === 0) return null;
+							const providerModels = modelsForProvider(data, provider.id);
 							const isExpanded = expanded === provider.id;
 							return (
 								<View key={provider.id}>
@@ -140,7 +175,6 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 										style={({ pressed }) => [
 											styles.row,
 											pressed && { backgroundColor: colors.surfacePressed },
-											!provider.available && styles.rowLocked,
 										]}
 									>
 										<Ionicons
@@ -151,14 +185,9 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 										<View style={styles.rowCopy}>
 											<Text style={styles.rowLabel}>{provider.label}</Text>
 											<Text style={styles.rowDetail}>
-												{provider.available
-													? `${providerModels.length} model${providerModels.length === 1 ? "" : "s"}`
-													: "Add your API key in Settings"}
+												{`${providerModels.length} model${providerModels.length === 1 ? "" : "s"}`}
 											</Text>
 										</View>
-										{!provider.available && (
-											<Ionicons name="lock-closed-outline" size={16} color={colors.textGhost} />
-										)}
 									</Pressable>
 									{isExpanded &&
 										providerModels.map((model) => {
@@ -167,8 +196,7 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 												<Pressable
 													key={model.id}
 													accessibilityRole="button"
-													accessibilityState={{ selected: active, disabled: !model.available }}
-													disabled={!model.available}
+													accessibilityState={{ selected: active }}
 													onPress={() => {
 														setChatModel(model.id);
 														onClose();
@@ -177,7 +205,6 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 														styles.modelRow,
 														active && styles.rowActive,
 														pressed && { backgroundColor: colors.surfacePressed },
-														!model.available && styles.rowLocked,
 													]}
 												>
 													<Text
@@ -282,8 +309,14 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.sm,
 		},
 		rowActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		rowLocked: { opacity: 0.55 },
 		rowCopy: { flex: 1, minWidth: 0 },
+		houseBlock: { paddingBottom: spacing.sm },
+		// The house row is a status, not a choice, so it carries no chevron and
+		// the label takes the space a provider row gives its disclosure icon.
+		houseRow: { marginBottom: 0 },
+		houseLabel: { flex: 1, minWidth: 0, color: c.accent, fontWeight: "700" },
+		houseNote: { marginTop: spacing.sm, marginBottom: spacing.md },
+		houseAction: { marginBottom: 0 },
 		rowLabel: { color: c.textSecondary, fontSize: 14.5, fontWeight: "600" },
 		rowDetail: { ...typography.meta, color: c.textFaint, marginTop: 2 },
 		modelRow: {

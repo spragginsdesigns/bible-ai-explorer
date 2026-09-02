@@ -5,7 +5,7 @@ import test from "node:test";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "../src/utils/kjvBible.ts";
 import { countWords, htmlToPlainText, markdownToNoteHtml } from "../src/lib/markdown.ts";
 
-test("both chat routes run GPT-5.6 Terra through the AI SDK with tools", async () => {
+test("both chat routes run GPT-5.6 Luna through the AI SDK with tools", async () => {
 	for (const route of ["ask-question", "note-ai"]) {
 		const source = await readFile(
 			new URL(`../src/app/api/${route}/route.ts`, import.meta.url),

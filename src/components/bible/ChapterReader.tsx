@@ -9,6 +9,7 @@ import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/transl
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
 import { readParchmentPref, readTranslationPref, writeTranslationPref } from "@/lib/preferences";
 import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
+import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
 
@@ -529,6 +530,13 @@ const ChapterReader: React.FC = () => {
                 </p>
               ) : null}
             </div>
+
+            {/* Hebrew or Greek behind the verse, word by word with Strong's. */}
+            <OriginalLanguageSection
+              book={order}
+              chapter={chapter}
+              verse={actionVerse.number}
+            />
 
             <button
               type="button"

@@ -373,6 +373,19 @@ struct ChapterReaderPane: View {
                     onRetry: { model.insight.retry() }
                 )
 
+                // The Hebrew or Greek behind the verse, word by word. Renders
+                // nothing at all when the route has no text for this verse, so
+                // it costs the panel no height on the half of the canon each
+                // source text does not cover.
+                if let order = model.selectedBook {
+                    OriginalLanguageView(
+                        api: app.api,
+                        book: order,
+                        chapter: model.chapter,
+                        verse: number
+                    )
+                }
+
                 actionRow(reference: reference, text: text)
             }
             .padding(.horizontal, Spacing.xxl)

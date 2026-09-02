@@ -149,6 +149,37 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	const title = activeConversation?.title ?? "New Chat";
 
+	// The welcome renders the composer inline (Android parity), so the docked
+	// copy is suppressed there. Loading/error states keep the docked composer.
+	const showWelcome =
+		!historyLoading && !historyError && messages.length === 0;
+
+	// The welcome copy lives inside a scroll container, so its model popover has
+	// to open downward or the container clips it.
+	const renderChatInput = (pickerPlacement: "above" | "below") => (
+		<ChatInput
+			pickerPlacement={pickerPlacement}
+			onSend={handleSend}
+			loading={loading}
+			isStreaming={isStreaming}
+			disabled={historyLoading || Boolean(historyError)}
+			commands={CHAT_SLASH_COMMANDS}
+			onLocalCommand={onLocalCommand}
+			value={input}
+			onChangeText={setInput}
+			attachment={attachment}
+			onClearAttachment={clearAttachment}
+			fileAttachments={fileAttachments}
+			uploadingAttachments={uploadingAttachments}
+			attachmentError={attachmentError}
+			error={error}
+			onRetry={retrySend}
+			onFilesSelected={addFileAttachments}
+			onRemoveFileAttachment={(id) => void removeFileAttachment(id)}
+			focusSignal={focusSignal}
+		/>
+	);
+
 	return (
 		<div
 			className="flex h-[100dvh] gradient-mesh overflow-hidden"
@@ -171,7 +202,7 @@ const BibleAIExplorerInner: React.FC = () => {
 				/>
 			</AppSidebar>
 
-			<div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
+			<div className="flex-1 flex flex-col min-w-0 min-h-0 pb-20 lg:pb-0">
 				<ChatTopBar
 					title={title}
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -220,8 +251,11 @@ const BibleAIExplorerInner: React.FC = () => {
 							</div>
 						</div>
 					</div>
-				) : messages.length === 0 ? (
-					<WelcomeScreen onSelectQuestion={handleSend} />
+				) : showWelcome ? (
+					<WelcomeScreen
+						onSelectQuestion={handleSend}
+						composer={renderChatInput("below")}
+					/>
 				) : (
 					<MessageList
 						messages={messages}
@@ -230,26 +264,7 @@ const BibleAIExplorerInner: React.FC = () => {
 					/>
 				)}
 
-				<ChatInput
-					onSend={handleSend}
-					loading={loading}
-					isStreaming={isStreaming}
-					disabled={historyLoading || Boolean(historyError)}
-					commands={CHAT_SLASH_COMMANDS}
-					onLocalCommand={onLocalCommand}
-					value={input}
-					onChangeText={setInput}
-					attachment={attachment}
-					onClearAttachment={clearAttachment}
-					fileAttachments={fileAttachments}
-					uploadingAttachments={uploadingAttachments}
-					attachmentError={attachmentError}
-					error={error}
-					onRetry={retrySend}
-					onFilesSelected={addFileAttachments}
-					onRemoveFileAttachment={(id) => void removeFileAttachment(id)}
-					focusSignal={focusSignal}
-				/>
+				{showWelcome ? null : renderChatInput("above")}
 			</div>
 		</div>
 	);

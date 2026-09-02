@@ -15,12 +15,38 @@ enum ModelPickerRules {
     /// don't understand can never draw a chip that sends garbage upstream.
     static let effortOrder = ["low", "medium", "high"]
 
+    /// Copy under the house model when the server sends no `note` of its own.
+    static let fallbackHouseNote =
+        "Included with SureWord. Add your own API key to choose other models."
+
+    /// The house block, and only when the server actually said `access:
+    /// "house"`. An older payload has neither field and stays in keys mode,
+    /// which is the shape it was written for.
+    static func house(in data: AIModelsResponse?) -> AIModelsResponse.HouseModel? {
+        guard let data, data.access == "house" else { return nil }
+        return data.house
+    }
+
+    static func isHouse(_ data: AIModelsResponse?) -> Bool {
+        house(in: data) != nil
+    }
+
+    static func houseNote(_ house: AIModelsResponse.HouseModel) -> String {
+        let note = house.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return note.isEmpty ? fallbackHouseNote : note
+    }
+
     /// The id the picker shows as active. A locally stored pick only counts
     /// while it names a model the account can actually reach - a key removed in
     /// Settings must not leave the picker claiming a model that would fail - so
     /// anything else falls back to the account default.
+    ///
+    /// House mode overrides the stored id outright: there is exactly one model
+    /// the account can reach, and a pick left over from a key it no longer has
+    /// must not read as active next to it.
     static func selectedModelID(in data: AIModelsResponse?, stored: String?) -> String? {
         guard let data else { return nil }
+        if let house = house(in: data) { return house.modelId }
         if let stored, data.models.contains(where: { $0.id == stored && $0.available }) {
             return stored
         }
@@ -34,8 +60,17 @@ enum ModelPickerRules {
 
     /// Provider rows, newest payload first. Older servers omit `providers`, so
     /// the rows are derived from the flat model list in first-seen order.
+    ///
+    /// **Only providers the account can actually use are returned.** A locked
+    /// row is an "Add your API key" advert wearing a provider's name: it is not
+    /// a choice, it cannot be acted on from the picker, and it made a keyless
+    /// account's picker read as mostly broken. Settings is where keys are
+    /// added, and the footer is the one pointer to it.
     static func providers(in data: AIModelsResponse) -> [AIProviderSummary] {
-        if let providers = data.providers, !providers.isEmpty { return providers }
+        if isHouse(data) { return [] }
+        if let providers = data.providers, !providers.isEmpty {
+            return providers.filter(\.available)
+        }
         var seen: [String: AIProviderSummary] = [:]
         var order: [String] = []
         for model in data.models where seen[model.provider] == nil {
@@ -46,11 +81,13 @@ enum ModelPickerRules {
             )
             order.append(model.provider)
         }
-        return order.compactMap { seen[$0] }
+        return order.compactMap { seen[$0] }.filter(\.available)
     }
 
+    /// Models under a provider, unavailable ones dropped for the same reason
+    /// their providers are.
     static func models(ofProvider providerID: String, in data: AIModelsResponse) -> [AIModel] {
-        data.models.filter { $0.provider == providerID }
+        data.models.filter { $0.provider == providerID && $0.available }
     }
 
     /// Efforts a model accepts, in canonical order. Empty means the model
@@ -63,6 +100,18 @@ enum ModelPickerRules {
 
     static func supportsEffort(_ model: AIModel?) -> Bool {
         !efforts(for: model).isEmpty
+    }
+
+    /// Efforts to offer for the current selection. House mode pins the effort
+    /// server-side, so the control is not shown at all - an inert chip row is
+    /// worse than none.
+    static func efforts(in data: AIModelsResponse?, stored: String?) -> [String] {
+        if isHouse(data) { return [] }
+        return efforts(for: selectedModel(in: data, stored: stored))
+    }
+
+    static func supportsEffort(in data: AIModelsResponse?, stored: String?) -> Bool {
+        !efforts(in: data, stored: stored).isEmpty
     }
 
     /// The chip that reads as active for `model` - a *display* rule, never a
@@ -94,20 +143,34 @@ enum ModelPickerRules {
     /// Caption on the toolbar button - the model's own label, or a neutral word
     /// while the list is still loading or the default names nothing we know.
     static func buttonLabel(in data: AIModelsResponse?, stored: String?) -> String {
-        selectedModel(in: data, stored: stored)?.label ?? "Model"
+        if let model = selectedModel(in: data, stored: stored) { return model.label }
+        // House mode names its model even if the flat list disagrees with the
+        // block, which is the one place the label is guaranteed.
+        if let house = house(in: data) { return house.label }
+        return "Model"
     }
 
     /// The provider section open when the popover appears: the one holding the
     /// current model, else the first row.
+    ///
+    /// Only ever a provider that has a row. The account default can name a
+    /// model whose provider was filtered out (a stale default left behind by a
+    /// removed key), and expanding a section that is not drawn opens nothing
+    /// while making every other section look collapsed on purpose.
     static func initialExpandedProvider(in data: AIModelsResponse, stored: String?) -> String? {
-        if let model = selectedModel(in: data, stored: stored) { return model.provider }
-        return providers(in: data).first?.id
+        let rows = providers(in: data)
+        if let model = selectedModel(in: data, stored: stored),
+           rows.contains(where: { $0.id == model.provider }) {
+            return model.provider
+        }
+        return rows.first?.id
     }
 
-    /// Subtitle under a provider name.
-    static func providerSubtitle(_ provider: AIProviderSummary, modelCount: Int) -> String {
-        guard provider.available else { return "Add your API key in Settings" }
-        return "\(modelCount) model\(modelCount == 1 ? "" : "s")"
+    /// Subtitle under a provider name. Every row the picker draws is unlocked
+    /// now, so this only ever counts models - the "Add your API key" line it
+    /// used to carry has no row left to sit on.
+    static func providerSubtitle(modelCount: Int) -> String {
+        "\(modelCount) model\(modelCount == 1 ? "" : "s")"
     }
 
     // MARK: Geometry
@@ -131,8 +194,6 @@ enum ModelPickerRules {
             height += providerRowHeight
             guard provider.id == expandedProvider else { continue }
             height += CGFloat(rows.count) * modelRowHeight
-            // The locked provider's "Add a … key" row.
-            if !provider.available { height += modelRowHeight }
         }
         return min(height, maxListHeight)
     }
@@ -206,9 +267,13 @@ final class ModelPickerModel {
 // MARK: - Popover
 
 /// Model + reasoning-effort picker for the chat header - the Mac form of the
-/// iOS `ModelPickerSheet` and of the web `ModelPicker` dropdown. Providers
-/// first; click one to see every model its key unlocks. Providers with no key
-/// on the account are locked and point at Settings → AI Providers.
+/// iOS `ModelPickerSheet` and of the web `ModelPicker` dropdown.
+///
+/// Two shapes, decided by the server's `access` field. **House** (no keys on
+/// the account): one model, its effort pinned server-side, a one-line note,
+/// and a link into Settings. **Keys**: providers first, click one to see every
+/// model it unlocks - and only providers the account can actually reach, since
+/// a locked row is an advert, not a choice.
 ///
 /// The pick persists in `SettingsStore` and rides every `/api/ask-question`
 /// request, and the server records it as the account default.
@@ -236,13 +301,17 @@ struct ModelPickerPopover: View {
 
             if let data = models.data {
                 Divider().overlay(theme.border)
-                providerList(data)
-                if ModelPickerRules.supportsEffort(selected) {
-                    Divider().overlay(theme.border)
-                    reasoning
+                if let house = ModelPickerRules.house(in: data) {
+                    houseSection(house)
+                } else {
+                    providerList(data)
+                    if ModelPickerRules.supportsEffort(in: data, stored: settings.chatModelId) {
+                        Divider().overlay(theme.border)
+                        reasoning
+                    }
                 }
                 Divider().overlay(theme.border)
-                settingsLink
+                settingsLink(isHouse: ModelPickerRules.isHouse(data))
             } else if models.loadFailed, !models.isLoading {
                 // A load in flight outranks a past failure: a stale
                 // `loadFailed` must never draw Retry over a running request.
@@ -309,6 +378,36 @@ struct ModelPickerPopover: View {
         .padding(.vertical, Spacing.sm)
     }
 
+    // MARK: House mode
+
+    /// What a keyless account sees: the one model it has, said plainly. No
+    /// list, no chevrons, no reasoning chips - nothing here is a choice, and
+    /// dressing it up as one only implies choices that are missing.
+    private func houseSection(_ house: AIModelsResponse.HouseModel) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            HStack(spacing: Spacing.sm) {
+                Text(house.label)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(theme.accent)
+                    .lineLimit(1)
+                Spacer(minLength: Spacing.xs)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(theme.accent)
+            }
+            Text(ModelPickerRules.houseNote(house))
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textFaint)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isSelected)
+    }
+
     // MARK: Providers
 
     private func providerList(_ data: AIModelsResponse) -> some View {
@@ -322,9 +421,6 @@ struct ModelPickerPopover: View {
                             if expandedProvider == provider.id {
                                 ForEach(providerModels) { model in
                                     modelRow(model).id(model.id)
-                                }
-                                if !provider.available {
-                                    lockedHint(provider)
                                 }
                             }
                         }
@@ -358,21 +454,15 @@ struct ModelPickerPopover: View {
                     Text(provider.label)
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.textSecondary)
-                    Text(ModelPickerRules.providerSubtitle(provider, modelCount: count))
+                    Text(ModelPickerRules.providerSubtitle(modelCount: count))
                         .font(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
                 Spacer()
-                if !provider.available {
-                    Image(systemName: "lock")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textGhost)
-                }
             }
         }
         .buttonStyle(PickerRowStyle())
         .accessibilityLabel(provider.label)
-        .accessibilityHint(provider.available ? "" : "Locked. Add your API key in Settings.")
     }
 
     private func modelRow(_ model: AIModel) -> some View {
@@ -399,22 +489,8 @@ struct ModelPickerPopover: View {
             .padding(.leading, Spacing.lg)
         }
         .buttonStyle(PickerRowStyle())
-        .disabled(!model.available)
-        .opacity(model.available ? 1 : 0.5)
         .accessibilityAddTraits(active ? [.isSelected] : [])
-        .help(model.available ? model.id : "Add a \(model.provider) key in Settings to use this model.")
-    }
-
-    private func lockedHint(_ provider: AIProviderSummary) -> some View {
-        Button {
-            openProviderSettings()
-        } label: {
-            Label("Add a \(provider.label) key…", systemImage: "key")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .padding(.leading, Spacing.lg)
-        }
-        .buttonStyle(PickerRowStyle())
+        .help(model.id)
     }
 
     // MARK: Reasoning
@@ -450,14 +526,21 @@ struct ModelPickerPopover: View {
 
     // MARK: Footer
 
-    private var settingsLink: some View {
+    /// The one pointer at Settings. In house mode it is the whole call to
+    /// action, so it names the act ("Add an API key") rather than describing a
+    /// benefit.
+    private func settingsLink(isHouse: Bool) -> some View {
         Button {
             openProviderSettings()
         } label: {
             HStack(spacing: Spacing.xs) {
-                Text("Unlock more models with your own API keys")
+                Text(
+                    isHouse
+                        ? "Add an API key to unlock more models"
+                        : "Unlock more models with your own API keys"
+                )
                     .font(.system(size: 11))
-                    .foregroundStyle(theme.textFaint)
+                    .foregroundStyle(isHouse ? theme.accent : theme.textFaint)
                     // The popover is narrower than this line's ideal width;
                     // without wrapping the tail is clipped at the popover edge.
                     .lineLimit(2)

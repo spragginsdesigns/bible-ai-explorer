@@ -46,6 +46,19 @@ struct VerseSheetView: View {
                     onRetry: { insight.retry() }
                 )
 
+                // The Hebrew or Greek behind the verse, word by word. Renders
+                // nothing at all when the route has no text for this verse, so
+                // it costs the sheet no height on the half of the canon each
+                // source text does not cover.
+                if let order = app.bible.selectedBook {
+                    OriginalLanguageView(
+                        api: app.api,
+                        book: order,
+                        chapter: app.bible.chapter,
+                        verse: verse
+                    )
+                }
+
                 Button(action: onExpand) {
                     Label("Expand with AI", systemImage: "sparkles")
                         .font(.system(size: 14.5, weight: .bold))

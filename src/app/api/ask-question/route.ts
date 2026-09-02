@@ -34,7 +34,7 @@ import {
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
-import { isReasoningEffort } from "@/lib/ai/models";
+import { HOUSE_MODEL_ID, isReasoningEffort } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
@@ -570,6 +570,7 @@ export async function POST(req: Request): Promise<Response> {
 					model,
 					providerOptions,
 					definition,
+					access,
 					attachmentFallbackFrom,
 					attachmentsUnsupported,
 				} = await resolveModel({
@@ -589,15 +590,21 @@ export async function POST(req: Request): Promise<Response> {
 				// The picker's last choice becomes the default for every client. An
 				// invalid requested id resolves to a fallback model — don't record that
 				// fallback as if the user picked it.
-				const pickedModel = requestedModelId === definition.id ? definition.id : null;
-				if (pickedModel || requestedEffort) {
+				// A house answer is the server's choice, not the user's: those accounts
+				// have no picker, so recording Luna as their stored default would
+				// invent a preference and outlive the day they add their own key.
+				const houseAnswer = access === "house" && definition.id === HOUSE_MODEL_ID;
+				const pickedModel =
+					!houseAnswer && requestedModelId === definition.id ? definition.id : null;
+				const pickedEffort = houseAnswer ? null : requestedEffort;
+				if (pickedModel || pickedEffort) {
 					waitUntil(
 						prisma.user
 							.update({
 								where: { id: userId },
 								data: {
 									...(pickedModel ? { defaultModelId: pickedModel } : {}),
-									...(requestedEffort ? { defaultEffort: requestedEffort } : {}),
+									...(pickedEffort ? { defaultEffort: pickedEffort } : {}),
 								},
 							})
 							.catch((error) => console.error("Failed to persist model choice:", error)),
