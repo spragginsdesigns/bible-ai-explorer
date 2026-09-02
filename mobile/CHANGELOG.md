@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.45.0 (versionCode 44) - 2026-09-02 - internal
+
+**What's new (Play):**
+
+FIXED
+- Bible: the verse sheet now scrolls, so Expand with AI, Highlight, Copy, Share and Save to note are reachable again under the original-language words.
+
+IMPROVED
+- Tap-a-verse explanations open instantly for any verse someone has already tapped.
+
+**Dev notes:** `BottomSheet` gained a `scroll` mode (88% max height, pinned title, ScrollView body) used by the verse sheet. Server side, `POST /api/verse-insight` now reads and writes a shared `VerseInsight` cache keyed on translation, reference, verse-text hash and prompt version; that part reaches every installed build without this release.
+
+---
+
 ## 1.44.0 (versionCode 43) - 2026-09-02 - internal
 
 **What's new (Play):**

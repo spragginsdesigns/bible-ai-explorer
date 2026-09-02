@@ -2,6 +2,7 @@ import React from "react";
 import {
 	Modal,
 	Pressable,
+	ScrollView,
 	StyleSheet,
 	View,
 	type StyleProp,
@@ -113,6 +114,7 @@ export function BottomSheet({
 	title,
 	children,
 	heightRatio,
+	scroll = false,
 }: {
 	visible: boolean;
 	onClose: () => void;
@@ -120,6 +122,14 @@ export function BottomSheet({
 	children: React.ReactNode;
 	/** Fraction of screen height; omit to size to content. */
 	heightRatio?: number;
+	/**
+	 * Size to content but never past the screen, and scroll the body when it
+	 * overflows. The grabber and title stay pinned. For sheets whose content
+	 * grows at runtime (the verse sheet streams an explanation and then loads
+	 * the original-language words); sheets that host their own list keep the
+	 * default and size with `heightRatio`.
+	 */
+	scroll?: boolean;
 }) {
 	const insets = useSafeAreaInsets();
 	const styles = useThemedStyles(createStyles);
@@ -136,6 +146,7 @@ export function BottomSheet({
 				style={[
 					styles.sheet,
 					heightRatio ? { height: `${Math.round(heightRatio * 100)}%` } : undefined,
+					scroll ? styles.sheetScrollBound : undefined,
 					{ paddingBottom: Math.max(insets.bottom, spacing.md) },
 				]}
 			>
@@ -146,7 +157,17 @@ export function BottomSheet({
 						<GlyphButton icon="close" accessibilityLabel="Close" onPress={onClose} size={32} />
 					</View>
 				) : null}
-				{children}
+				{scroll ? (
+					<ScrollView
+						style={styles.sheetScroll}
+						keyboardShouldPersistTaps="handled"
+						showsVerticalScrollIndicator
+					>
+						{children}
+					</ScrollView>
+				) : (
+					children
+				)}
 			</View>
 		</Modal>
 	);
@@ -230,6 +251,10 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingTop: spacing.sm,
 		},
+		// Leaves a sliver of the page visible above a full sheet so it still
+		// reads as a sheet, and gives the body ScrollView a bound to shrink to.
+		sheetScrollBound: { maxHeight: "88%" },
+		sheetScroll: { flexGrow: 0, flexShrink: 1 },
 		grabber: {
 			alignSelf: "center",
 			width: 38,

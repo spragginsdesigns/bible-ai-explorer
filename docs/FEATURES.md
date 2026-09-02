@@ -38,9 +38,27 @@ Deliberate properties, in rough order of importance:
 - **Reasoning effort is pinned `low`** regardless of the user's chat effort
   default. A tap in the reader must answer in seconds; the model choice is the
   user's, the latency budget is ours.
-- **Nothing persists.** No conversation rows, no memory extraction, and —
-  unlike `ask-question` — the model used is **not** recorded as the account
-  default. A passive tap is not a pick.
+- **Nothing about the user persists.** No conversation rows, no memory
+  extraction, and — unlike `ask-question` — the model used is **not** recorded
+  as the account default. A passive tap is not a pick.
+- **Explanations are cached server-side and shared across accounts**
+  (`src/lib/verse-insight-cache.ts`, Prisma `VerseInsight`, added 2026-09-02).
+  The prompt carries only the verse — no memories, church or history — so one
+  explanation is as right for the next reader as for the first, and a verse
+  bills a model only the first time anyone in the world taps it. The route
+  checks the cache before it resolves a model, so a hit never needs a key. Key:
+  `(translation, reference, textHash, promptVersion)` — `textHash` is a sha256
+  of the whitespace-normalised verse text the client sent, so altered text
+  under a real reference cannot poison another reader's sheet;
+  `VERSE_INSIGHT_PROMPT_VERSION` (`src/lib/verse-insight-key.ts`) must be
+  bumped whenever `verseInsightSystemPrompt` changes so stale wording ages out.
+  Only a naturally finished (`finishReason === "stop"`), non-empty answer is
+  stored, written from `onEnd` after `result.consumeStream()` so closing the
+  sheet mid-stream still fills the cache. A hit is a single `text/plain` body
+  with `X-Verse-Insight-Cache: hit` (misses carry `miss`); clients read both
+  through the same stream path. Rows are kept for good — the table caps at
+  roughly 31k verses x 2 translations, a few MB. If the prompt ever takes user
+  context, this cache must become per-user or be removed.
 - **Prompt** is `verseInsightSystemPrompt(translation)` in
   `src/utils/systemPrompt.ts`: the full canonical SureWord persona plus a task
   addendum (2–4 plain sentences, no headings/lists/`[FOLLOWUP]` lines, never
@@ -53,8 +71,16 @@ Deliberate properties, in rough order of importance:
 `src/components/bible/useVerseInsight.ts` — same state machine on both:
 `idle → loading → streaming → done | error`.
 
-- **Session cache** keyed `translation:reference` — re-tapping a verse renders
-  instantly and never re-bills the model. Partial output is never cached.
+- **Session cache** keyed `translation:reference` — re-tapping a verse in the
+  same session renders without a request. Partial output is never cached. The
+  server cache above covers everything else (other sessions, other users).
+- **Android sheet scrolls** (1.45.0): `BottomSheet` gained a `scroll` mode
+  (`mobile/src/features/notes/components/primitives.tsx`) that caps the sheet
+  at 88% of the screen and scrolls the body under a pinned title. The verse
+  sheet uses it because its content grows twice after opening (the streamed
+  explanation, then the original-language words); before, a long verse plus
+  Greek pushed Expand / Highlight / Copy / Share / Save off the bottom with no
+  way to reach them.
 - **Run-id guard + AbortController** — only the latest `start()`/`reset()` may
   touch state, so a slow stream for verse A can never bleed into an open sheet
   for verse B; closing the sheet aborts the request.

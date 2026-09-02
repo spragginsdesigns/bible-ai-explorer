@@ -404,6 +404,27 @@ model VerseOfDay {
   @@index([userId, sentAt])
 }
 
+/// Tap-a-verse explanation cache, shared across every account. The prompt is
+/// the verse alone (no memories, church or history), so one explanation is as
+/// right for the next reader as for the first; a tap bills a model only the
+/// first time anyone opens that verse. If the prompt ever takes user context,
+/// this cache must become per-user or go. `promptVersion` is bumped with the
+/// prompt wording so stale explanations age out; `textHash` covers the verse
+/// text the client sent, so altered text under a real reference cannot poison
+/// another reader's sheet.
+model VerseInsight {
+  id            String   @id @default(cuid())
+  translation   String
+  reference     String // as the client shows it, e.g. "Luke 1:5"
+  textHash      String // sha256 of the whitespace-normalised verse text, truncated
+  promptVersion Int
+  text          String   @db.Text
+  model         String? // namespaced model id that wrote it, e.g. "openai/gpt-5.6-luna"
+  createdAt     DateTime @default(now())
+
+  @@unique([translation, reference, textHash, promptVersion])
+}
+
 /// A day's personalized welcome-screen questions, generated once (by the
 /// morning cron or the first app open of the day) and served from here so
 /// opening the app never waits on a model call. Newest row inside the reuse

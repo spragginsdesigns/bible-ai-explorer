@@ -563,7 +563,12 @@ export default function BibleChapterScreen() {
 				</View>
 			)}
 
-			<BottomSheet visible={actionVerse !== null} onClose={closeSheet} title={actionReference}>
+			<BottomSheet
+				visible={actionVerse !== null}
+				onClose={closeSheet}
+				title={actionReference}
+				scroll
+			>
 				{actionVerse ? (
 					<View style={styles.sheetVerseCard}>
 						<Text numberOfLines={5} style={styles.sheetVerseText}>
