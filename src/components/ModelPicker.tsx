@@ -508,6 +508,13 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 									type="text"
 									value={query}
 									onChange={(event) => setQuery(event.target.value)}
+									onKeyDown={(event) => {
+										// Enter takes the top hit, so typing "sol" and
+										// pressing Enter is the whole interaction.
+										if (event.key !== "Enter" || searchResults.length === 0) return;
+										event.preventDefault();
+										pickModel(searchResults[0]);
+									}}
 									placeholder="Search models"
 									aria-label="Search models"
 									className="w-full rounded-lg border border-black/[0.08] bg-black/[0.02] py-1.5 pl-7 pr-2 text-support text-neutral-800 outline-none placeholder:text-neutral-400 focus:border-amber-500/40 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-200 dark:placeholder:text-neutral-600"

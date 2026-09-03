@@ -408,8 +408,8 @@ export function capabilityPills(model: PickerModel | null | undefined): string[]
 /* Search                                                                      */
 /* -------------------------------------------------------------------------- */
 
-/** Above this many models the accordions alone stop being findable. */
-export const SEARCH_THRESHOLD = 8;
+/** Search shows whenever there is more than one model to choose between. */
+export const SEARCH_THRESHOLD = 1;
 
 export function shouldShowSearch(models: PickerModel[] | null | undefined): boolean {
 	if (!models) return false;
@@ -425,13 +425,25 @@ export function searchModels(
 	query: string,
 ): PickerModel[] {
 	const available = (models ?? []).filter((model) => model.available);
-	const needle = query.trim().toLowerCase();
-	if (!needle) return available;
-	return available.filter(
-		(model) =>
-			model.label.toLowerCase().includes(needle) ||
-			model.id.toLowerCase().includes(needle),
-	);
+	const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+	if (tokens.length === 0) return available;
+	// Every token must land somewhere in the label or the namespaced id (which
+	// carries the provider, so "anthropic" or "openrouter" work too). The
+	// compact form drops hyphens, dots and slashes so "gpt56" and "gpt 5.6"
+	// both find "GPT-5.6". Label hits outrank id-only hits; ties keep catalog
+	// order, so the curated heads stay on top.
+	const ranked: { model: PickerModel; rank: number }[] = [];
+	for (const model of available) {
+		const label = model.label.toLowerCase();
+		const haystack = `${label} ${model.id.toLowerCase()}`;
+		const compact = haystack.replace(/[\s_./:-]/g, "");
+		const hit = tokens.every((token) => haystack.includes(token) || compact.includes(token.replace(/[\s_./:-]/g, "")));
+		if (!hit) continue;
+		const first = tokens[0];
+		const rank = label.startsWith(first) ? 0 : label.includes(first) ? 1 : 2;
+		ranked.push({ model, rank });
+	}
+	return ranked.sort((a, b) => a.rank - b.rank).map((entry) => entry.model);
 }
 
 /* -------------------------------------------------------------------------- */

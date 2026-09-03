@@ -282,16 +282,46 @@ test("pills are capped at three and follow a fixed order", () => {
 
 /* -- search ---------------------------------------------------------------- */
 
-test("search only appears once the list stops being scannable", () => {
+test("search appears whenever there is more than one model to pick from", () => {
 	const many = Array.from({ length: 9 }, (_, index) =>
 		model({ id: `openai/m${index}`, label: `Model ${index}` }),
 	);
 	assert.equal(shouldShowSearch(many), true);
-	assert.equal(shouldShowSearch(many.slice(0, 8)), false);
+	assert.equal(shouldShowSearch(many.slice(0, 2)), true);
+	assert.equal(shouldShowSearch(many.slice(0, 1)), false);
 	// A revoked model is not a reason to show a search box.
 	assert.equal(
-		shouldShowSearch([...many.slice(0, 8), model({ id: "x", available: false })]),
+		shouldShowSearch([many[0], model({ id: "x", available: false })]),
 		false,
+	);
+});
+
+test("search matches every token, ignores punctuation, and ranks label hits first", () => {
+	const models = [
+		model({ id: "openai/gpt-5.6-luna", label: "GPT-5.6 Luna" }),
+		model({ id: "openai/gpt-5.6-sol", label: "GPT-5.6 Sol" }),
+		model({ id: "anthropic/claude-opus-5", label: "Claude Opus 5" }),
+		model({ id: "openrouter/anthropic/claude-opus-4.7", label: "Anthropic: Claude Opus 4.7" }),
+	];
+	// Two tokens, both must hit.
+	assert.deepEqual(
+		searchModels(models, "gpt sol").map((entry) => entry.id),
+		["openai/gpt-5.6-sol"],
+	);
+	// Punctuation-free typing still finds the hyphenated label.
+	assert.deepEqual(
+		searchModels(models, "gpt56").map((entry) => entry.id),
+		["openai/gpt-5.6-luna", "openai/gpt-5.6-sol"],
+	);
+	// A label that starts with the query outranks one that merely contains it.
+	assert.deepEqual(
+		searchModels(models, "claude opus").map((entry) => entry.id),
+		["anthropic/claude-opus-5", "openrouter/anthropic/claude-opus-4.7"],
+	);
+	// The provider prefix in the id is searchable on its own.
+	assert.deepEqual(
+		searchModels(models, "openrouter").map((entry) => entry.id),
+		["openrouter/anthropic/claude-opus-4.7"],
 	);
 });
 

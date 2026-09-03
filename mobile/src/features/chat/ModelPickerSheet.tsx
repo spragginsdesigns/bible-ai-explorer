@@ -234,6 +234,11 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 							autoCapitalize="none"
 							autoCorrect={false}
 							returnKeyType="search"
+							// The keyboard's Search key takes the top hit, so typing
+							// "sol" and tapping it is the whole interaction.
+							onSubmitEditing={() => {
+								if (results.length > 0) pickModel(results[0].id);
+							}}
 							style={styles.searchInput}
 						/>
 						{query.length > 0 ? (

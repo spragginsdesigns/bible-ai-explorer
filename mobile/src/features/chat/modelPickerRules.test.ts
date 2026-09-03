@@ -208,8 +208,9 @@ describe("showSearch / filterModels", () => {
 			models: Array.from({ length: count }, (_, index) => model(`m${index}`, "openai")),
 		});
 
-	it("grows a search field only past eight available models", () => {
-		expect(showSearch(many(8))).toBe(false);
+	it("grows a search field whenever there is more than one model to pick from", () => {
+		expect(showSearch(many(1))).toBe(false);
+		expect(showSearch(many(2))).toBe(true);
 		expect(showSearch(many(9))).toBe(true);
 		expect(showSearch(housePayload())).toBe(false);
 		expect(showSearch(null)).toBe(false);
@@ -217,12 +218,33 @@ describe("showSearch / filterModels", () => {
 
 	it("does not count models the account cannot run", () => {
 		const data = keysPayload({
-			models: [
-				...Array.from({ length: 8 }, (_, index) => model(`m${index}`, "openai")),
-				model("revoked", "anthropic", false),
-			],
+			models: [model("m0", "openai"), model("revoked", "anthropic", false)],
 		});
 		expect(showSearch(data)).toBe(false);
+	});
+
+	it("matches every token, ignores punctuation, and ranks label hits first", () => {
+		const data = keysPayload({
+			models: [
+				model("gpt-5.6-luna", "openai"),
+				model("gpt-5.6-sol", "openai"),
+				model("claude-opus-5", "anthropic"),
+				model("anthropic/claude-opus-4.7", "openrouter"),
+			],
+		});
+		// The fixture's id doubles as its label, so these exercise both fields.
+		expect(filterModels(data, "gpt sol").map((entry) => entry.id)).toEqual(["gpt-5.6-sol"]);
+		expect(filterModels(data, "gpt56").map((entry) => entry.id)).toEqual([
+			"gpt-5.6-luna",
+			"gpt-5.6-sol",
+		]);
+		expect(filterModels(data, "opus").map((entry) => entry.id)).toEqual([
+			"claude-opus-5",
+			"anthropic/claude-opus-4.7",
+		]);
+		expect(filterModels(data, "anthropic").map((entry) => entry.id)).toEqual([
+			"anthropic/claude-opus-4.7",
+		]);
 	});
 
 	it("matches label or id, case-insensitively, across providers", () => {

@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.48.0 (versionCode 47) - 2026-09-03 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- Chat: the model picker's search box is always there, finds models by any words in any order ("gpt sol", "claude opus", "openrouter"), ignores dots and dashes, and the keyboard's Search key picks the top match.
+
+**Dev notes:** `SEARCH_THRESHOLD` dropped to 1 and `filterModels` became tokenized with label-first ranking (mirrored on web); `onSubmitEditing` selects the first result.
+
 ## 1.47.0 (versionCode 46) - 2026-09-03 - internal
 
 **What's new (Play):**
