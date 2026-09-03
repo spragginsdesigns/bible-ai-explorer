@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
+	ScrollView,
 	StyleSheet,
 	View,
 } from "react-native";
@@ -187,140 +188,149 @@ export default function SignInScreen() {
 
 	return (
 		<Screen edges={["top", "bottom"]}>
-			<KeyboardAvoidingView behavior="padding" style={styles.container}>
-				<View style={styles.hero}>
-					<BrandTitle size={52} />
-					<Text style={styles.tagline}>
-						Study the Scriptures with a companion that believes them.
+			<KeyboardAvoidingView behavior="padding" style={styles.fill}>
+				{/* Centred while it fits, scrollable once the keyboard squeezes it: the
+				    hero used to be pushed up under the status bar on the password step
+				    rather than moving out of the way. */}
+				<ScrollView
+					contentContainerStyle={styles.container}
+					keyboardShouldPersistTaps="handled"
+					showsVerticalScrollIndicator={false}
+				>
+					<View style={styles.hero}>
+						<BrandTitle size={52} />
+						<Text style={styles.tagline}>
+							Study the Scriptures with a companion that believes them.
+						</Text>
+					</View>
+
+					<GlassCard style={styles.card}>
+						{step === "email" ? (
+							<>
+								<Text style={styles.label}>Email</Text>
+								<TextInput
+									value={email}
+									onChangeText={setEmail}
+									autoCapitalize="none"
+									autoComplete="email"
+									keyboardType="email-address"
+									placeholder="you@example.com"
+									placeholderTextColor={colors.textGhost}
+									style={styles.input}
+									onSubmitEditing={onContinue}
+								/>
+
+								{error && <Text style={styles.error}>{error}</Text>}
+
+								{pending ? (
+									<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+								) : (
+									<>
+										<AccentButton
+											label="Continue"
+											onPress={onContinue}
+											style={{ marginTop: spacing.lg }}
+										/>
+										<View style={styles.dividerRow}>
+											<View style={styles.divider} />
+											<Text style={styles.dividerLabel}>or</Text>
+											<View style={styles.divider} />
+										</View>
+										<GhostButton label="Continue with Google" onPress={onGoogle} />
+									</>
+								)}
+							</>
+						) : step === "password" ? (
+							<>
+								<Text style={styles.codeHint}>
+									Enter the password for{" "}
+									<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
+								</Text>
+								<Text style={styles.label}>Password</Text>
+								<TextInput
+									value={password}
+									onChangeText={setPassword}
+									autoCapitalize="none"
+									autoComplete="current-password"
+									secureTextEntry
+									placeholder="••••••••"
+									placeholderTextColor={colors.textGhost}
+									style={styles.input}
+									onSubmitEditing={onVerifyPassword}
+									autoFocus
+								/>
+
+								{error && <Text style={styles.error}>{error}</Text>}
+
+								{pending ? (
+									<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+								) : (
+									<>
+										<AccentButton
+											label="Sign in"
+											onPress={onVerifyPassword}
+											style={{ marginTop: spacing.lg }}
+										/>
+										<GhostButton
+											label="Email me a code instead"
+											onPress={onCodeInstead}
+											style={{ marginTop: spacing.md }}
+										/>
+										<GhostButton
+											label="Use a different email"
+											onPress={onBackToEmail}
+											style={{ marginTop: spacing.md }}
+										/>
+									</>
+								)}
+							</>
+						) : (
+							<>
+								<Text style={styles.codeHint}>
+									We sent a 6-digit code to{" "}
+									<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
+								</Text>
+								<Text style={styles.label}>Code</Text>
+								<TextInput
+									value={code}
+									onChangeText={setCode}
+									autoCapitalize="none"
+									keyboardType="number-pad"
+									maxLength={6}
+									placeholder="••••••"
+									placeholderTextColor={colors.textGhost}
+									style={[styles.input, styles.codeInput]}
+									onSubmitEditing={onVerifyCode}
+									autoFocus
+								/>
+
+								{error && <Text style={styles.error}>{error}</Text>}
+
+								{pending ? (
+									<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
+								) : (
+									<>
+										<AccentButton
+											label="Sign in"
+											onPress={onVerifyCode}
+											style={{ marginTop: spacing.lg }}
+										/>
+										<GhostButton
+											label="Use a different email"
+											onPress={onBackToEmail}
+											style={{ marginTop: spacing.md }}
+										/>
+									</>
+								)}
+							</>
+						)}
+					</GlassCard>
+
+					<Text style={styles.verse}>
+						{"“"}Thy word is a lamp unto my feet, and a light unto my path.{"”"}
 					</Text>
-				</View>
-
-				<GlassCard style={styles.card}>
-					{step === "email" ? (
-						<>
-							<Text style={styles.label}>Email</Text>
-							<TextInput
-								value={email}
-								onChangeText={setEmail}
-								autoCapitalize="none"
-								autoComplete="email"
-								keyboardType="email-address"
-								placeholder="you@example.com"
-								placeholderTextColor={colors.textGhost}
-								style={styles.input}
-								onSubmitEditing={onContinue}
-							/>
-
-							{error && <Text style={styles.error}>{error}</Text>}
-
-							{pending ? (
-								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
-							) : (
-								<>
-									<AccentButton
-										label="Continue"
-										onPress={onContinue}
-										style={{ marginTop: spacing.lg }}
-									/>
-									<View style={styles.dividerRow}>
-										<View style={styles.divider} />
-										<Text style={styles.dividerLabel}>or</Text>
-										<View style={styles.divider} />
-									</View>
-									<GhostButton label="Continue with Google" onPress={onGoogle} />
-								</>
-							)}
-						</>
-					) : step === "password" ? (
-						<>
-							<Text style={styles.codeHint}>
-								Enter the password for{" "}
-								<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
-							</Text>
-							<Text style={styles.label}>Password</Text>
-							<TextInput
-								value={password}
-								onChangeText={setPassword}
-								autoCapitalize="none"
-								autoComplete="current-password"
-								secureTextEntry
-								placeholder="••••••••"
-								placeholderTextColor={colors.textGhost}
-								style={styles.input}
-								onSubmitEditing={onVerifyPassword}
-								autoFocus
-							/>
-
-							{error && <Text style={styles.error}>{error}</Text>}
-
-							{pending ? (
-								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
-							) : (
-								<>
-									<AccentButton
-										label="Sign in"
-										onPress={onVerifyPassword}
-										style={{ marginTop: spacing.lg }}
-									/>
-									<GhostButton
-										label="Email me a code instead"
-										onPress={onCodeInstead}
-										style={{ marginTop: spacing.md }}
-									/>
-									<GhostButton
-										label="Use a different email"
-										onPress={onBackToEmail}
-										style={{ marginTop: spacing.md }}
-									/>
-								</>
-							)}
-						</>
-					) : (
-						<>
-							<Text style={styles.codeHint}>
-								We sent a 6-digit code to{" "}
-								<Text style={{ color: colors.textSecondary }}>{email.trim()}</Text>
-							</Text>
-							<Text style={styles.label}>Code</Text>
-							<TextInput
-								value={code}
-								onChangeText={setCode}
-								autoCapitalize="none"
-								keyboardType="number-pad"
-								maxLength={6}
-								placeholder="••••••"
-								placeholderTextColor={colors.textGhost}
-								style={[styles.input, styles.codeInput]}
-								onSubmitEditing={onVerifyCode}
-								autoFocus
-							/>
-
-							{error && <Text style={styles.error}>{error}</Text>}
-
-							{pending ? (
-								<ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
-							) : (
-								<>
-									<AccentButton
-										label="Sign in"
-										onPress={onVerifyCode}
-										style={{ marginTop: spacing.lg }}
-									/>
-									<GhostButton
-										label="Use a different email"
-										onPress={onBackToEmail}
-										style={{ marginTop: spacing.md }}
-									/>
-								</>
-							)}
-						</>
-					)}
-				</GlassCard>
-
-				<Text style={styles.verse}>
-					{"“"}Thy word is a lamp unto my feet, and a light unto my path.{"”"}
-				</Text>
-				<Text style={styles.verseRef}>Psalm 119:105</Text>
+					<Text style={styles.verseRef}>Psalm 119:105</Text>
+				</ScrollView>
 			</KeyboardAvoidingView>
 		</Screen>
 	);
@@ -328,12 +338,14 @@ export default function SignInScreen() {
 
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
+		fill: { flex: 1 },
 		container: {
-			flex: 1,
+			flexGrow: 1,
 			justifyContent: "center",
 			paddingHorizontal: spacing.xl,
+			paddingVertical: spacing.lg,
 		},
-		hero: { alignItems: "center", marginBottom: spacing.xxl },
+		hero: { alignItems: "center", marginBottom: spacing.xl },
 		tagline: {
 			color: c.textMuted,
 			...typography.support,

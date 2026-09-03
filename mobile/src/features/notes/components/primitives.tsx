@@ -133,6 +133,11 @@ export function BottomSheet({
 }) {
 	const insets = useSafeAreaInsets();
 	const styles = useThemedStyles(createStyles);
+	// In scroll mode the bottom inset moves off the sheet and onto the scrolled
+	// content: the viewport then reaches the sheet's edge (so a tall sheet shows
+	// one more row rather than slicing it on open), and the last row still ends
+	// a full inset plus a gap above the gesture pill once scrolled.
+	const bottomInset = Math.max(insets.bottom, spacing.md);
 	return (
 		<Modal
 			visible={visible}
@@ -147,7 +152,7 @@ export function BottomSheet({
 					styles.sheet,
 					heightRatio ? { height: `${Math.round(heightRatio * 100)}%` } : undefined,
 					scroll ? styles.sheetScrollBound : undefined,
-					{ paddingBottom: Math.max(insets.bottom, spacing.md) },
+					{ paddingBottom: scroll ? 0 : bottomInset },
 				]}
 			>
 				<View style={styles.grabber} />
@@ -160,6 +165,7 @@ export function BottomSheet({
 				{scroll ? (
 					<ScrollView
 						style={styles.sheetScroll}
+						contentContainerStyle={{ paddingBottom: bottomInset + spacing.lg }}
 						keyboardShouldPersistTaps="handled"
 						showsVerticalScrollIndicator
 					>

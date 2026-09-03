@@ -209,8 +209,14 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		header: {
 			paddingHorizontal: spacing.lg,
-			paddingTop: spacing.sm,
+			// 14, not 8: the Pirata One heading sits in a much shallower line box
+			// than the other screens' titles, so the smaller inset left this
+			// title ~18px above every other screen's title baseline.
+			paddingTop: 14,
 			paddingBottom: spacing.md,
+			// The book list scrolls under this bar; without a rule it hard-clips.
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
 		},
 		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
 		searchPill: {

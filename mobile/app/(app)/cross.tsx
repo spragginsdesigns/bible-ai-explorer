@@ -368,6 +368,9 @@ const createStyles = (c: Colors) =>
 			gap: spacing.md,
 			paddingHorizontal: spacing.lg,
 			paddingVertical: spacing.md,
+			// Content scrolls under this bar; without a rule it hard-clips.
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
 		},
 		back: { color: c.accent, ...typography.control, fontWeight: "600" },
 		title: {

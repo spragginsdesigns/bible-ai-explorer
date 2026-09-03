@@ -197,7 +197,10 @@ export default function MemoriesScreen() {
 					<Text style={styles.backGlyph}>‹</Text>
 				</Pressable>
 				<Text style={styles.title}>Memory</Text>
-				<View style={styles.backButton} />
+				{/* Balances the back button so the title stays optically centred.
+				    It must not paint the button's fill, or it reads as an empty
+				    disabled control sitting in the corner. */}
+				<View style={styles.backButtonSpacer} />
 			</View>
 
 			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -345,7 +348,13 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			gap: spacing.md,
 			paddingHorizontal: spacing.lg,
-			paddingVertical: spacing.md,
+			// 8, not 12: this bar is built around a 38pt back button rather than
+			// the bare title the other screens use, so the wider padding pushed
+			// its title ~10px below every other screen's title baseline.
+			paddingVertical: spacing.sm,
+			// Content scrolls under this bar; without a rule it hard-clips.
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
 		},
 		backButton: {
 			width: 38,
@@ -357,6 +366,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.border,
 			borderWidth: StyleSheet.hairlineWidth,
 		},
+		backButtonSpacer: { width: 38, height: 38 },
 		backButtonPressed: { backgroundColor: c.surfacePressed },
 		backGlyph: { color: c.textMuted, ...typography.screenTitle, marginTop: -2 },
 		title: {
@@ -377,7 +387,6 @@ const createStyles = (c: Colors) =>
 			letterSpacing: 1.2,
 			marginTop: spacing.xl,
 			marginBottom: spacing.sm,
-			marginLeft: spacing.xs,
 		},
 		card: { padding: spacing.lg, gap: spacing.md },
 		hint: { color: c.textFaint, ...typography.support },
@@ -396,7 +405,9 @@ const createStyles = (c: Colors) =>
 		},
 		summaryBusyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		summaryButtonLabel: { color: c.accent, ...typography.control, fontWeight: "700" },
-		addRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+		// Stretch, not centre: the input grows past its 44pt minimum as soon as
+		// the text wraps, and a centred Add button then sat short inside the row.
+		addRow: { flexDirection: "row", alignItems: "stretch", gap: spacing.sm },
 		addInput: {
 			flex: 1,
 			minHeight: 44,

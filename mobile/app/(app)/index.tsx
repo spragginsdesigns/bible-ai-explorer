@@ -326,6 +326,10 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.lg,
 			paddingTop: spacing.sm,
 			paddingBottom: spacing.md,
+			// The thread scrolls under this bar; the hairline gives the clip an
+			// edge, the way the note editor's bar already does.
+			borderBottomWidth: StyleSheet.hairlineWidth,
+			borderBottomColor: c.border,
 		},
 		headerTitle: { flex: 1, minWidth: 0 },
 		subtitle: { color: c.textFaint, ...typography.support, marginTop: 2 },

@@ -64,7 +64,21 @@ export function GlassCard({
 export function BrandTitle({ size = 34, style }: { size?: number; style?: StyleProp<TextStyle> }) {
 	const { colors } = useTheme();
 	return (
-		<Text style={[{ fontFamily: fonts.brand, fontSize: size, color: colors.text }, style]}>
+		<Text
+			style={[
+				{
+					fontFamily: fonts.brand,
+					fontSize: size,
+					// Pirata One reports a line box far shallower than its glyphs, and a
+					// root AppText inherits the 24pt body line height when it overrides
+					// only fontSize - which cropped the ascenders and descenders off the
+					// wordmark at display sizes. Scale the box with the face instead.
+					lineHeight: Math.round(size * 1.25),
+					color: colors.text,
+				},
+				style,
+			]}
+		>
 			SureWord
 		</Text>
 	);

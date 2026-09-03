@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -36,32 +36,54 @@ export function NoteEditorTopBar({
 	onToggleAI: () => void;
 }) {
 	const [draft, setDraft] = useState(title);
+	// A single-line TextInput scrolls to the caret, so a title longer than the
+	// bar showed its tail with the beginning cut off and no ellipsis. Resting
+	// state is therefore a Text, which truncates at the end; tapping it swaps in
+	// the real input, focused, so renaming is unchanged.
+	const [editing, setEditing] = useState(false);
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 
 	// Keep in sync when the server rewrites the title (e.g. AI-created notes).
 	useEffect(() => setDraft(title), [title]);
 
+	const commit = () => {
+		setEditing(false);
+		if (draft.trim() !== title) onRename(draft);
+	};
+
 	return (
 		<View style={styles.bar}>
 			<GlyphButton icon="arrow-back" accessibilityLabel="Back to notes" onPress={onBack} size={36} />
 
 			<View style={styles.titleWrap}>
-				<TextInput
-					value={draft}
-					onChangeText={setDraft}
-					onBlur={() => {
-						if (draft.trim() !== title) onRename(draft);
-					}}
-					onSubmitEditing={() => {
-						if (draft.trim() !== title) onRename(draft);
-					}}
-					placeholder="Untitled Note"
-					placeholderTextColor={colors.textGhost}
-					returnKeyType="done"
-					style={styles.title}
-					numberOfLines={1}
-				/>
+				{editing ? (
+					<TextInput
+						autoFocus
+						value={draft}
+						onChangeText={setDraft}
+						onBlur={commit}
+						onSubmitEditing={commit}
+						placeholder="Untitled Note"
+						placeholderTextColor={colors.textGhost}
+						returnKeyType="done"
+						style={styles.title}
+						numberOfLines={1}
+					/>
+				) : (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel={`Rename note, ${draft || "Untitled Note"}`}
+						onPress={() => setEditing(true)}
+					>
+						<Text
+							numberOfLines={1}
+							style={[styles.title, styles.titleText, !draft && { color: colors.textGhost }]}
+						>
+							{draft || "Untitled Note"}
+						</Text>
+					</Pressable>
+				)}
 				{isSaving ? <Text style={styles.saving}>Saving…</Text> : null}
 				{!isSaving && saveError ? (
 					<Text style={styles.saveError}>Couldn't save — will retry on next edit</Text>
@@ -115,9 +137,13 @@ const createStyles = (c: Colors) =>
 		title: {
 			color: c.text,
 			fontSize: 17,
+			lineHeight: 24,
 			fontWeight: "600",
 			paddingVertical: 4,
 		},
+		// Matches the input's resting height so swapping between the two does
+		// not nudge the bar, and truncates at the end instead of the start.
+		titleText: { minHeight: 32 },
 		saving: { ...typography.meta, color: c.textGhost, marginTop: -2 },
 		saveError: { ...typography.meta, color: c.danger, marginTop: -2 },
 	});

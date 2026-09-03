@@ -49,6 +49,15 @@ const FONT_STEPS = [17, 20, 24, 28] as const;
 const PARCHMENT_LIGHT = require("../../../assets/parchment-light.webp");
 const PARCHMENT_DARK = require("../../../assets/parchment-dark.webp");
 const HIGHLIGHT_MS = 2400;
+/**
+ * The floating "Ask AI" pill: its own height (label line box + vertical
+ * padding) and the gap it keeps from the tab bar. The reader reserves both,
+ * plus a breathing gap, at the end of its scroll so the last verses can be
+ * read clear of the pill instead of underneath it.
+ */
+const ASK_PILL_HEIGHT = 44;
+const ASK_PILL_BOTTOM_GAP = spacing.lg;
+const ASK_PILL_CLEARANCE = ASK_PILL_BOTTOM_GAP + ASK_PILL_HEIGHT + spacing.xxl;
 /** A chapter must stay on screen this long before it counts as read. */
 const READ_EVENT_DELAY_MS = 5000;
 /** Remembered for the whole app session, like the old reader's default. */
@@ -456,7 +465,10 @@ export default function BibleChapterScreen() {
 						ref={listRef}
 						data={verses}
 						keyExtractor={(_, index) => String(index + 1)}
-						contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace + 96 }]}
+						contentContainerStyle={[
+							styles.content,
+							{ paddingBottom: tabBarSpace + ASK_PILL_CLEARANCE },
+						]}
 						onScrollToIndexFailed={({ index }) => {
 							// Rows have variable height; approximate, then retry once laid out.
 							listRef.current?.scrollToOffset({ offset: index * 48, animated: false });
@@ -554,8 +566,8 @@ export default function BibleChapterScreen() {
 						}
 						style={({ pressed }) => [
 							styles.askButton,
-							{ bottom: tabBarSpace + spacing.lg },
-							pressed && { backgroundColor: colors.accentPressed },
+							{ bottom: tabBarSpace + ASK_PILL_BOTTOM_GAP },
+							pressed && styles.askButtonPressed,
 						]}
 					>
 						<Text style={styles.askButtonLabel}>✦ Ask AI</Text>
@@ -801,10 +813,22 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.full,
 			borderWidth: 1,
 			borderColor: c.accentBorder,
-			backgroundColor: c.accentSoft,
+			// Opaque, not the translucent accent wash: the pill floats over the
+			// parchment page, and a see-through fill let verse text read straight
+			// through the label. Elevation lifts it off the paper as well.
+			backgroundColor: c.bgElevated,
+			elevation: 4,
+			shadowColor: c.text,
+			shadowOpacity: 0.12,
+			shadowRadius: 6,
+			shadowOffset: { width: 0, height: 2 },
 			paddingHorizontal: spacing.xl,
 			paddingVertical: spacing.md,
 		},
+		// Pressed state stays opaque. `surfacePressed` is a translucent wash and
+		// would replace the fill outright, re-opening the very hole in the pill
+		// that the opaque fill above closes, so the press darkens with bgMid.
+		askButtonPressed: { backgroundColor: c.bgMid, borderColor: c.accent },
 		askButtonLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		sheetVerseCard: {
 			borderRadius: radius.md,

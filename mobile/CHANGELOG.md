@@ -14,6 +14,23 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.46.0 (versionCode 45) - 2026-09-02 - internal
+
+**What's new (Play):**
+
+FIXED
+- Bible: the Ask AI button no longer sits on top of the verses, and the verse sheet's highlight colours are visible as soon as it opens.
+- Chat: the conversation list no longer cuts off its last chat, and long book names in suggestions no longer split mid-word.
+- Notes: long titles now read from the start in the editor.
+- Settings: removed a stray empty button from the header.
+
+IMPROVED
+- Headers separate cleanly from scrolling content, and the sign-in wordmark is easier to read.
+
+**Dev notes:** Android half of the 2026-09-02 UI uniformity audit (chapter-reader FAB opacity + reader bottom inset, BottomSheet scroll-mode bottom safe-area, HistoryModal list padding, Settings/Memory header spacer, note title tail-ellipsis, header hairlines, WelcomeState label column, BrandTitle 52 to 40). Server side, the model picker now hides models older than 180 days; that reaches every installed build without this release.
+
+---
+
 ## 1.45.0 (versionCode 44) - 2026-09-02 - internal
 
 **What's new (Play):**

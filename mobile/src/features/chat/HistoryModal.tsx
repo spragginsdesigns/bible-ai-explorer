@@ -284,6 +284,10 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 			borderRadius: radius.lg,
 			alignItems: "center",
+			// A hairline above the footer so the list's scroll edge reads as a
+			// boundary rather than a row that happens to be cut in half.
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.border,
 		},
 		clearAllLabel: { color: c.danger, fontSize: 13, fontWeight: "500" },
 	});

@@ -280,13 +280,17 @@ const createStyles = (c: Colors) =>
 			borderBottomWidth: StyleSheet.hairlineWidth,
 		},
 		questionReference: {
-			...typography.meta,
-			// Wide enough for the longest kind label ("TODAY'S VERSE") on one line;
-			// the column only stays a column if every row reserves the same width.
-			width: 96,
+			// Micro rather than meta, with tighter tracking: the labels are
+			// upper-case book names, and the longest single word in the canon
+			// ("THESSALONIANS", 13 characters) has to fit the column on one line
+			// or the row breaks a book name mid-word. The column only stays a
+			// column if every row reserves the same width, so the width is fixed
+			// to that worst case rather than sized to each label.
+			...typography.micro,
+			width: 120,
 			color: c.accent,
 			fontWeight: "700",
-			letterSpacing: 1,
+			letterSpacing: 0.4,
 		},
 		questionLabel: { flex: 1, color: c.textSecondary, ...typography.body },
 		skeletonReference: {
