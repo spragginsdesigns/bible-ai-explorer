@@ -31,6 +31,9 @@ final class SettingsStore {
         static let verseOfDayHour = "settings.verseOfDay.hour"
         static let chatModelId = "settings.chat.modelId"
         static let chatEffort = "settings.chat.effort"
+        static let chatSpeed = "settings.chat.speed"
+        static let chatVerbosity = "settings.chat.verbosity"
+        static let chatMode = "settings.chat.mode"
         /// Same preference the web app keeps under `sureword.listenRate` and
         /// Android keeps in its settings store.
         static let listenRate = "settings.listen.rate"
@@ -77,9 +80,37 @@ final class SettingsStore {
         didSet { UserDefaults.standard.set(chatModelId, forKey: Key.chatModelId) }
     }
 
-    /// Reasoning effort override (`low` / `medium` / `high`), nil for Auto.
+    /// Reasoning effort override. The vocabulary is the server's
+    /// (`none` / `minimal` / `low` / `medium` / `high` / `xhigh` / `max`), and
+    /// a value the chosen model does not accept is dropped server-side rather
+    /// than erased here - see `ModelPickerRules.activeEffort`.
+    ///
+    /// Three states, not two. **Nil means "never chose"** and omits the key, so
+    /// the server applies the account's stored default. The Auto chip stores
+    /// `AskQuestionRequest.autoEffort` instead, which encodes as an explicit
+    /// null - "no reasoning override for this turn". Picking Auto must not read
+    /// as never having picked anything.
     var chatEffort: String? {
         didSet { UserDefaults.standard.set(chatEffort, forKey: Key.chatEffort) }
+    }
+
+    /// Service tier (`standard` / `fast`). **Nil means "never chose", not
+    /// "standard"** - picking the Standard chip stores `"standard"` verbatim.
+    /// The server reads an absent `speed` as "no opinion, apply the account's
+    /// stored default", so writing nil for Standard would leave a user who once
+    /// chose Fast running Fast for ever. Same rule for the two below.
+    var chatSpeed: String? {
+        didSet { UserDefaults.standard.set(chatSpeed, forKey: Key.chatSpeed) }
+    }
+
+    /// Answer length (`low` / `medium` / `high`), nil only if never chosen.
+    var chatVerbosity: String? {
+        didSet { UserDefaults.standard.set(chatVerbosity, forKey: Key.chatVerbosity) }
+    }
+
+    /// Reasoning mode (`standard` / `pro`), nil only if never chosen.
+    var chatMode: String? {
+        didSet { UserDefaults.standard.set(chatMode, forKey: Key.chatMode) }
     }
 
     /// Playback speed for the "Listen" spoken devotional. Normalised on the way
@@ -122,6 +153,9 @@ final class SettingsStore {
         verseOfDayHour = min(max(storedHour ?? Self.defaultVerseOfDayHour, 0), 23)
         chatModelId = defaults.string(forKey: Key.chatModelId)
         chatEffort = defaults.string(forKey: Key.chatEffort)
+        chatSpeed = defaults.string(forKey: Key.chatSpeed)
+        chatVerbosity = defaults.string(forKey: Key.chatVerbosity)
+        chatMode = defaults.string(forKey: Key.chatMode)
         // `object(forKey:)` so an unwritten key falls to the offered default
         // rather than to 0, which is not a speed.
         listenRate = Listen.normalizeRate(defaults.object(forKey: Key.listenRate))

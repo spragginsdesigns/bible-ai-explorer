@@ -1153,3 +1153,88 @@ How it works, and the decisions that shaped it:
   2026-08-30: asked about connections, the assistant listed the injected links
   plus thematic matches from findNotes as wikilinks, then appended a
   `[[...]]` reference that synced and resolved to a real note.
+
+## Run options: reasoning, speed, length, mode
+
+The picker used to offer three reasoning levels and nothing else, which was
+both too few (GPT-5.6 takes six, Kimi K3 defaults to a level we never sent) and
+too blunt (nothing controlled answer length, the thing readers actually notice).
+Four option rows now sit under the model list: **REASONING**, **SPEED**,
+**LENGTH**, **MODE**.
+
+**The vocabulary** lives in `src/lib/ai/models.ts`. Effort widened to the union
+of every provider's levels, ordered `none minimal low medium high xhigh max`.
+Speed is `standard | fast`, length (verbosity) `low | medium | high`, mode
+`standard | pro`. Each has a type guard, and each is nullable on the wire:
+null means the user expressed nothing, which is not the same as choosing the
+default.
+
+**Capabilities are derived, never assumed.** `deriveCapabilities(provider, id)`
+answers what one head accepts from its provider and id alone, verified against
+the installed SDK types and each vendor's model pages. GPT-5.6 takes `max`,
+older 5.x stops at `xhigh`, gpt-4 and chatgpt heads take no effort at all.
+Haiku and Sonnet 4.5 list none (Anthropic's SDK has no guard, so sending one is
+a hard 400). Fast mode exists on GPT-5.x except nano and chat variants, on
+Opus 5 and Opus 4.8, and on every OpenRouter head (where it is throughput
+routing rather than a premium tier). Verbosity is a real parameter only on
+OpenAI; everywhere else it travels as a sentence appended to the system prompt.
+Pro mode is GPT-5.6 only. Curated price, context window, tagline and tier come
+from a table keyed by model id, so they attach to live catalog rows too, and an
+uncurated model simply has none.
+
+**Nothing unsupported is ever sent.** `buildProviderOptions` gates every option
+on the definition of the model actually being built before mapping it:
+`reasoningEffort` / `textVerbosity` / `serviceTier` / `reasoningMode` for
+OpenAI, `effort` / `speed` for Anthropic, `reasoningEffort` for Moonshot,
+`reasoning.effort` / `provider.sort: "throughput"` for OpenRouter. It also
+sends `reasoningSummary: null` on every OpenAI call: the SDK silently defaults
+that to `"detailed"` whenever an effort is set, and no SureWord client renders
+reasoning parts, so we were paying for summaries nobody saw.
+
+**OpenRouter's chips are refreshed at request time.** Its per-model reasoning
+levels and verbosity parameter exist only in its live `/models` response, so a
+definition resolved from a stored id alone advertises neither. `resolveModel`
+therefore looks the id up in `listProviderModels("openrouter", key)` after the
+key is in hand and merges the live capabilities over the derived ones
+(`overlayLiveDefinition`, pure and unit-tested). Without it, every OpenRouter
+chip the picker rendered would be clamped away here and do nothing. The list is
+cached five minutes per key and never throws, so a failed fetch simply leaves
+the derived definition in place.
+
+**The house stays out of it.** A keyless account has no picker, so the house
+branch ignores speed, verbosity and mode outright. Fast mode alone roughly
+doubles the bill, and that bill is SureWord's.
+
+**Only chat opts in.** `resolveModel` takes the run options in a `run` bag, and
+passing it at all is what enables the user's stored defaults for them. Chat is
+the only caller that does, so tap-a-verse (whose cache key does not include
+them) and background utility work are never reshaped by a chat preference.
+
+**Persistence** mirrors the existing model/effort rule: the raw requested value
+of each option, when valid and outside house mode, is written to
+`User.defaultSpeed` / `defaultVerbosity` / `defaultMode` in the same
+`waitUntil` block. The stored value survives switching to a model that cannot
+honour it, because clamping happens at resolution rather than on write. The
+options that actually shaped a turn, where they differed from the model's
+ordinary behaviour, are recorded on the assistant message metadata beside
+`modelId`.
+
+**Auto is a choice, and effort is the one option a request can clear.** A body
+carrying `"effort": null` means the user tapped **Auto**, so the stored default
+must not fill it back in: the route sets `ignoreStoredEffort`, the pure
+`resolveEffortPreference` in `src/lib/ai/models.ts` skips the stored value, and
+the persistence block writes `defaultEffort: null`. A body with no `effort` key
+at all is unchanged, still meaning "no opinion" (Apple omits nil rather than
+sending null). Before this, choosing Auto after High quietly kept running High
+for the rest of the account's life. Speed, length and mode need no equivalent,
+because their clients send the explicit default value (`standard`, `medium`,
+`standard`) when the default chip is tapped, and null there keeps meaning "no
+opinion".
+
+`GET /api/ai/models` carries `speeds`, `verbosities`, `modes`, `defaultEffort`,
+`tagline`, `tier`, `contextWindow`, `pricing` and `fastModeNote` on every entry,
+and `defaults` grew `speed`, `verbosity` and `mode`. The mechanism behind
+verbosity is deliberately not sent: a client needs the values it may offer, not
+how they are delivered. Every new field is optional on the client side, so a
+build talking to an older server falls back to speeds `["standard"]`,
+verbosities `[]`, modes `["standard"]` and nulls.

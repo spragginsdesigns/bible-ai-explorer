@@ -24,6 +24,17 @@ export interface Settings {
 	chatModelId: string | null;
 	chatEffort: string | null;
 	/**
+	 * The rest of the run options from the model picker. Unlike chatEffort these
+	 * store their default explicitly ("standard" / "medium" / "standard"): the
+	 * server reads a null as "no opinion, apply the account default", so a null
+	 * would leave someone who once picked Fast running Fast forever. Null here
+	 * therefore means only "never chose". Stored raw, so a value the current
+	 * model rejects survives a detour through another model.
+	 */
+	chatSpeed: string | null;
+	chatVerbosity: string | null;
+	chatMode: string | null;
+	/**
 	 * Playback speed for the Listen devotional. Per-device, like every other
 	 * setting here - a speed someone picked on their phone is a habit, not an
 	 * account-level preference worth a round trip.
@@ -39,6 +50,9 @@ const DEFAULT_SETTINGS: Settings = {
 	parchment: true,
 	chatModelId: null,
 	chatEffort: null,
+	chatSpeed: null,
+	chatVerbosity: null,
+	chatMode: null,
 	listenRate: DEFAULT_LISTEN_RATE,
 };
 
@@ -73,6 +87,11 @@ export async function hydrateSettings(): Promise<void> {
 			parchment: parsed.parchment !== false,
 			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
 			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,
+			// This list is a whitelist, not a merge: a run option missing here is
+			// written to storage and then dropped on the next launch.
+			chatSpeed: typeof parsed.chatSpeed === "string" ? parsed.chatSpeed : null,
+			chatVerbosity: typeof parsed.chatVerbosity === "string" ? parsed.chatVerbosity : null,
+			chatMode: typeof parsed.chatMode === "string" ? parsed.chatMode : null,
 			// Normalized rather than trusted: a rate this build no longer offers
 			// would leave the speed chip outside its own cycle.
 			listenRate: normalizeListenRate(parsed.listenRate),
@@ -100,6 +119,18 @@ export function setChatModel(chatModelId: string | null) {
 
 export function setChatEffort(chatEffort: string | null) {
 	setSnapshot({ ...snapshot, chatEffort });
+}
+
+export function setChatSpeed(chatSpeed: string | null) {
+	setSnapshot({ ...snapshot, chatSpeed });
+}
+
+export function setChatVerbosity(chatVerbosity: string | null) {
+	setSnapshot({ ...snapshot, chatVerbosity });
+}
+
+export function setChatMode(chatMode: string | null) {
+	setSnapshot({ ...snapshot, chatMode });
 }
 
 export function setListenRate(listenRate: number) {

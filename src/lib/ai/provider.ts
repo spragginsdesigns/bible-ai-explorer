@@ -8,20 +8,32 @@ import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import { decideAccess, houseEffortFor, type AiAccess } from "./access";
+import { listProviderModels } from "./modelCatalog";
 import {
 	ATTACHMENT_CAPABLE_MODEL_IDS,
+	buildProviderOptions,
 	decideStructuredProvider,
 	DEFAULT_MODEL_ID,
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
 	isReasoningEffort,
+	isReasoningMode,
+	isSpeed,
+	isVerbosity,
+	NO_RUN_OPTIONS,
+	overlayLiveDefinition,
 	providerSupportsStructuredOutput,
 	resolveDefinition,
+	resolveEffortPreference,
 	STRUCTURED_FALLBACK_PROVIDER_IDS,
 	UTILITY_MODELS,
+	verbosityPromptHints,
 	type ModelDefinition,
 	type ProviderId,
 	type ReasoningEffort,
+	type ReasoningMode,
+	type Speed,
+	type Verbosity,
 } from "./models";
 
 const MOONSHOT_BASE_URL = "https://api.moonshot.ai/v1";
@@ -166,32 +178,21 @@ function buildModel(
 	}
 }
 
-function buildProviderOptions(
-	provider: ProviderId,
-	effort: ReasoningEffort | null,
-	attachments: boolean,
-): Record<string, Record<string, JSONValue>> {
-	switch (provider) {
-		case "openai": {
-			const options: Record<string, JSONValue> = {};
-			if (effort) options.reasoningEffort = effort;
-			if (attachments) options.passThroughUnsupportedFiles = true;
-			return { openai: options };
-		}
-		case "anthropic":
-			return { anthropic: effort ? { effort } : {} };
-		case "moonshot":
-			return { moonshot: effort ? { reasoningEffort: effort } : {} };
-		case "openrouter":
-			return effort ? { openrouter: { reasoning: { effort } } } : {};
-	}
-}
-
 export interface ResolvedModel {
 	model: LanguageModel;
 	providerOptions: Record<string, Record<string, JSONValue>>;
 	definition: ModelDefinition;
 	effort: ReasoningEffort | null;
+	/** Applied run options, after clamping to what this model accepts. */
+	speed: Speed | null;
+	verbosity: Verbosity | null;
+	mode: ReasoningMode | null;
+	/**
+	 * Sentences the caller must append to its system prompt, for choices this
+	 * provider cannot take as a parameter (every non-OpenAI verbosity today).
+	 * Empty for utility work and for every caller that sends no run options.
+	 */
+	promptHints: string[];
 	/**
 	 * Which world this call ran in. `house` means the server picked both the
 	 * model and the effort, so callers must not record either as a user choice.
@@ -267,6 +268,21 @@ export async function resolveModel(options: {
 	effort?: ReasoningEffort | null;
 	/** Effort used when neither the request nor the user's settings pick one. */
 	fallbackEffort?: ReasoningEffort;
+	/**
+	 * The request chose Auto explicitly (an `effort` key carrying JSON null), so
+	 * the stored default must not fill it back in. An absent key is unchanged:
+	 * no opinion, stored default applies. See `resolveEffortPreference`.
+	 */
+	ignoreStoredEffort?: boolean;
+	/**
+	 * Picker-driven run options for this turn. Only the chat path sends them.
+	 *
+	 * Passing the object at all - even empty - opts the call into the user's
+	 * stored speed/verbosity/mode defaults. Every other caller leaves it out, so
+	 * a chat preference never silently reshapes tap-a-verse (whose cache key
+	 * does not include it) or background utility work.
+	 */
+	run?: { speed?: Speed | null; verbosity?: Verbosity | null; mode?: ReasoningMode | null };
 	/** Chat sends user files; unsupported mime types must pass through to the model rather than fail validation. */
 	attachments?: boolean;
 	/** This request actually carries files: swap to a capable model rather than let the provider reject it. */
@@ -291,11 +307,21 @@ export async function resolveModel(options: {
 
 		if (options.utility) {
 			const utility = UTILITY_MODELS.openai;
+			const houseUtilityDefinition = utilityDefinition("openai");
 			return {
 				model: buildModel("openai", utility.providerModelId, houseKey, structuredCall),
-				providerOptions: buildProviderOptions("openai", utility.effort, false),
-				definition: utilityDefinition("openai"),
+				providerOptions: buildProviderOptions(
+					"openai",
+					{ ...NO_RUN_OPTIONS, effort: utility.effort },
+					false,
+					houseUtilityDefinition,
+				),
+				definition: houseUtilityDefinition,
 				effort: utility.effort,
+				speed: null,
+				verbosity: null,
+				mode: null,
+				promptHints: [],
 				access,
 				attachmentFallbackFrom: null,
 				attachmentsUnsupported: false,
@@ -313,13 +339,21 @@ export async function resolveModel(options: {
 
 		return {
 			model: buildModel("openai", houseDefinition.providerModelId, houseKey, structuredCall),
+			// Speed, verbosity and mode are ignored outright here. A house answer
+			// is billed to SureWord's own key, and fast mode alone doubles that
+			// bill, so an account with no picker gets no run options either.
 			providerOptions: buildProviderOptions(
 				"openai",
-				houseEffort,
+				{ ...NO_RUN_OPTIONS, effort: houseEffort },
 				Boolean(options.attachments) && houseDefinition.supportsAttachments,
+				houseDefinition,
 			),
 			definition: houseDefinition,
 			effort: houseEffort,
+			speed: null,
+			verbosity: null,
+			mode: null,
+			promptHints: [],
 			access,
 			attachmentFallbackFrom: null,
 			attachmentsUnsupported: false,
@@ -330,7 +364,13 @@ export async function resolveModel(options: {
 
 	const user = await prisma.user.findUnique({
 		where: { id: options.userId },
-		select: { defaultModelId: true, defaultEffort: true },
+		select: {
+			defaultModelId: true,
+			defaultEffort: true,
+			defaultSpeed: true,
+			defaultVerbosity: true,
+			defaultMode: true,
+		},
 	});
 
 	const picked =
@@ -382,9 +422,20 @@ export async function resolveModel(options: {
 
 		return {
 			model: buildModel(decision.provider, utility.providerModelId, utilityKey, structuredCall),
-			providerOptions: buildProviderOptions(decision.provider, utility.effort, false),
+			// Gated on the cheap sibling actually being built, not on `definition`,
+			// which is still the user's chat pick when no structured fallback fired.
+			providerOptions: buildProviderOptions(
+				decision.provider,
+				{ ...NO_RUN_OPTIONS, effort: utility.effort },
+				false,
+				utilityDefinition(decision.provider),
+			),
 			definition: utilityModel,
 			effort: utility.effort,
+			speed: null,
+			verbosity: null,
+			mode: null,
+			promptHints: [],
 			access,
 			attachmentFallbackFrom: null,
 			attachmentsUnsupported: false,
@@ -395,22 +446,71 @@ export async function resolveModel(options: {
 
 	const apiKey = await apiKeyFor(options.userId, definition.provider);
 
+	// The picker renders OpenRouter's chips from its live catalog, which is the
+	// only place its per-model reasoning levels and verbosity parameter exist.
+	// A definition resolved from an id alone advertises neither, so without this
+	// every OpenRouter chip would be clamped away here and do nothing. The list
+	// is cached five minutes per key and never throws, so this is cheap and
+	// falls back to the derived definition on any failure. Covers the
+	// attachment fallback too: `definition` is already the final choice.
+	if (definition.provider === "openrouter") {
+		definition = overlayLiveDefinition(
+			definition,
+			await listProviderModels("openrouter", apiKey),
+		);
+	}
+
 	const storedEffort = isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null;
 	const requestedEffort = isReasoningEffort(options.effort) ? options.effort : null;
-	const preferredEffort = requestedEffort ?? storedEffort ?? options.fallbackEffort ?? "medium";
+	const preferredEffort = resolveEffortPreference({
+		requested: requestedEffort,
+		explicitAuto: Boolean(options.ignoreStoredEffort),
+		stored: storedEffort,
+		fallback: options.fallbackEffort ?? "medium",
+	});
 	// Models that reject the reasoning parameter (Haiku, non-reasoning OpenAI
 	// heads) advertise no efforts; sending one anyway is a hard API error.
 	const effort = definition.efforts.includes(preferredEffort) ? preferredEffort : null;
+
+	// Same order as effort: this request, then the stored default, then nothing
+	// (which leaves the provider's own default in force). Clamped last, so a
+	// model that does not sell fast mode simply runs standard.
+	const requested = options.run;
+	const preferredSpeed = requested
+		? ((isSpeed(requested.speed) ? requested.speed : null) ??
+			(isSpeed(user?.defaultSpeed) ? user.defaultSpeed : null))
+		: null;
+	const preferredVerbosity = requested
+		? ((isVerbosity(requested.verbosity) ? requested.verbosity : null) ??
+			(isVerbosity(user?.defaultVerbosity) ? user.defaultVerbosity : null))
+		: null;
+	const preferredMode = requested
+		? ((isReasoningMode(requested.mode) ? requested.mode : null) ??
+			(isReasoningMode(user?.defaultMode) ? user.defaultMode : null))
+		: null;
+
+	const speed =
+		preferredSpeed && definition.speeds.includes(preferredSpeed) ? preferredSpeed : null;
+	const verbosity =
+		preferredVerbosity && definition.verbosities.includes(preferredVerbosity)
+			? preferredVerbosity
+			: null;
+	const mode = preferredMode && definition.modes.includes(preferredMode) ? preferredMode : null;
 
 	return {
 		model: buildModel(definition.provider, definition.providerModelId, apiKey, structuredCall),
 		providerOptions: buildProviderOptions(
 			definition.provider,
-			effort,
+			{ effort, speed, verbosity, mode },
 			Boolean(options.attachments) && definition.supportsAttachments,
+			definition,
 		),
 		definition,
 		effort,
+		speed,
+		verbosity,
+		mode,
+		promptHints: verbosityPromptHints(definition, verbosity),
 		access,
 		attachmentFallbackFrom,
 		attachmentsUnsupported,

@@ -6,8 +6,12 @@ import {
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
 	isReasoningEffort,
+	isReasoningMode,
+	isSpeed,
+	isVerbosity,
 	PROVIDERS,
 	resolveDefinition,
+	toModelPayload,
 	type ModelDefinition,
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
@@ -39,27 +43,33 @@ export async function GET(): Promise<Response> {
 			aiAccessFor(userId),
 			prisma.user.findUnique({
 				where: { id: userId },
-				select: { defaultModelId: true, defaultEffort: true },
+				select: {
+					defaultModelId: true,
+					defaultEffort: true,
+					defaultSpeed: true,
+					defaultVerbosity: true,
+					defaultMode: true,
+				},
 			}),
 		]);
 
 		if (access === "house") {
 			const house = resolveDefinition(HOUSE_MODEL_ID);
 			if (!house) throw new Error("The house AI model is not registered.");
+			// The house entry carries the same capability fields as any other, but
+			// a house client renders no option rows at all: the server picks both
+			// the model and how hard it works.
 			return NextResponse.json({
 				access,
 				providers: [],
-				models: [
-					{
-						id: house.id,
-						label: house.label,
-						provider: house.provider,
-						supportsAttachments: house.supportsAttachments,
-						efforts: house.efforts,
-						available: true,
-					},
-				],
-				defaults: { modelId: house.id, effort: HOUSE_EFFORT },
+				models: [toModelPayload(house)],
+				defaults: {
+					modelId: house.id,
+					effort: HOUSE_EFFORT,
+					speed: null,
+					verbosity: null,
+					mode: null,
+				},
 				house: {
 					modelId: house.id,
 					label: house.label,
@@ -83,14 +93,7 @@ export async function GET(): Promise<Response> {
 		);
 
 		const models = catalogs.flatMap(({ models: definitions }) =>
-			definitions.map((model) => ({
-				id: model.id,
-				label: model.label,
-				provider: model.provider,
-				supportsAttachments: model.supportsAttachments,
-				efforts: model.efforts,
-				available: true,
-			})),
+			definitions.map((model) => toModelPayload(model)),
 		);
 
 		const storedDefault = user?.defaultModelId ? resolveDefinition(user.defaultModelId) : undefined;
@@ -112,9 +115,15 @@ export async function GET(): Promise<Response> {
 				available: true,
 			})),
 			models,
+			// A stored value the selected model does not offer is still returned:
+			// the client renders it as the default chip without erasing it, so
+			// switching back to a model that does offer it restores the choice.
 			defaults: {
 				modelId: defaultModelId,
 				effort: isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null,
+				speed: isSpeed(user?.defaultSpeed) ? user.defaultSpeed : null,
+				verbosity: isVerbosity(user?.defaultVerbosity) ? user.defaultVerbosity : null,
+				mode: isReasoningMode(user?.defaultMode) ? user.defaultMode : null,
 			},
 			house: null,
 		});

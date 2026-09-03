@@ -34,7 +34,16 @@ import {
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
-import { HOUSE_MODEL_ID, isReasoningEffort } from "@/lib/ai/models";
+import {
+	HOUSE_MODEL_ID,
+	isReasoningEffort,
+	isReasoningMode,
+	isSpeed,
+	isVerbosity,
+	type ReasoningMode,
+	type Speed,
+	type Verbosity,
+} from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
@@ -354,6 +363,18 @@ async function persistUserMessage(options: {
 	});
 }
 
+/**
+ * Run options that actually shaped one turn, and only where they differed from
+ * the model's ordinary behaviour. Recorded on the message so an answer can be
+ * explained later: User.defaultSpeed and friends only say what the picker is
+ * set to now.
+ */
+interface AppliedRunOptions {
+	speed?: Speed;
+	verbosity?: Verbosity;
+	mode?: ReasoningMode;
+}
+
 async function persistAssistantResponse(options: {
 	userId: string;
 	conversationId: string;
@@ -361,6 +382,8 @@ async function persistAssistantResponse(options: {
 	responseMessage: UIMessage;
 	/** Resolved provider/model id, or null when resolution never happened. */
 	modelId: string | null;
+	/** Non-default run options this turn ran with. Empty for an ordinary turn. */
+	run: AppliedRunOptions;
 }): Promise<void> {
 	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
@@ -384,6 +407,9 @@ async function persistAssistantResponse(options: {
 		// schema change needed, and both clients already carry unknown metadata
 		// keys through hydration untouched (SureWordMessageMetadata is indexed).
 		if (options.modelId) metadata.modelId = options.modelId;
+		if (options.run.speed) metadata.speed = options.run.speed;
+		if (options.run.verbosity) metadata.verbosity = options.run.verbosity;
+		if (options.run.mode) metadata.mode = options.run.mode;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
 		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
@@ -504,13 +530,24 @@ export async function POST(req: Request): Promise<Response> {
 		const requestedModelId =
 			typeof requestData.modelId === "string" ? requestData.modelId : null;
 		const requestedEffort = isReasoningEffort(requestData.effort) ? requestData.effort : null;
+		// An `effort` key carrying JSON null is the user tapping Auto, which must
+		// clear the stored default rather than fall back to it. A missing key
+		// (Apple omits nil) still means "no opinion".
+		const explicitAutoEffort = "effort" in requestData && requestData.effort === null;
+		const requestedSpeed = isSpeed(requestData.speed) ? requestData.speed : null;
+		const requestedVerbosity = isVerbosity(requestData.verbosity)
+			? requestData.verbosity
+			: null;
+		const requestedMode = isReasoningMode(requestData.mode) ? requestData.mode : null;
 		const isOpeningQuestion =
 			validatedMessages.filter((message) => message.role === "user").length === 1;
 
 		// Set inside execute() once resolveModel has picked a head, read in
 		// onEnd (which runs after execute finishes) so the persisted turn
-		// records the model that actually wrote it.
+		// records the model that actually wrote it, and the run options that
+		// actually shaped it.
 		let resolvedModelId: string | null = null;
+		let resolvedRun: AppliedRunOptions = {};
 
 		const responseMessageId = generateMessageId();
 		const stream = createUIMessageStream<SureWordUIMessage>({
@@ -536,6 +573,7 @@ export async function POST(req: Request): Promise<Response> {
 						userMessage: lastMessage,
 						responseMessage,
 						modelId: resolvedModelId,
+						run: resolvedRun,
 					}).then(() => {
 						if (!clientLeft) return;
 						return notifyChatAnswerReady({
@@ -573,13 +611,25 @@ export async function POST(req: Request): Promise<Response> {
 					access,
 					attachmentFallbackFrom,
 					attachmentsUnsupported,
+					speed: appliedSpeed,
+					verbosity: appliedVerbosity,
+					mode: appliedMode,
+					promptHints,
 				} = await resolveModel({
 					userId,
 					modelId: requestedModelId,
 					effort: requestedEffort,
+					ignoreStoredEffort: explicitAutoEffort,
 					fallbackEffort: isOpeningQuestion ? "high" : "medium",
 					attachments: true,
 					requireAttachments: threadHasAttachments,
+					// Chat is the only surface with a picker, so it is the only caller
+					// that opts into speed/verbosity/mode and their stored defaults.
+					run: {
+						speed: requestedSpeed,
+						verbosity: requestedVerbosity,
+						mode: requestedMode,
+					},
 				});
 				resolvedModelId = definition.id;
 				if (attachmentFallbackFrom) {
@@ -596,25 +646,61 @@ export async function POST(req: Request): Promise<Response> {
 				const houseAnswer = access === "house" && definition.id === HOUSE_MODEL_ID;
 				const pickedModel =
 					!houseAnswer && requestedModelId === definition.id ? definition.id : null;
+				// The raw requested value is stored, not the clamped one: a choice the
+				// current model cannot honour must survive switching to one that can.
 				const pickedEffort = houseAnswer ? null : requestedEffort;
-				if (pickedModel || pickedEffort) {
+				// Auto is a choice, so it erases the stored effort. Nothing else
+				// clears a default: for the other three, null means "no opinion".
+				const clearEffort = !houseAnswer && !pickedEffort && explicitAutoEffort;
+				const pickedSpeed = houseAnswer ? null : requestedSpeed;
+				const pickedVerbosity = houseAnswer ? null : requestedVerbosity;
+				const pickedMode = houseAnswer ? null : requestedMode;
+				if (
+					pickedModel ||
+					pickedEffort ||
+					clearEffort ||
+					pickedSpeed ||
+					pickedVerbosity ||
+					pickedMode
+				) {
 					waitUntil(
 						prisma.user
 							.update({
 								where: { id: userId },
 								data: {
 									...(pickedModel ? { defaultModelId: pickedModel } : {}),
-									...(pickedEffort ? { defaultEffort: pickedEffort } : {}),
+									...(pickedEffort
+										? { defaultEffort: pickedEffort }
+										: clearEffort
+											? { defaultEffort: null }
+											: {}),
+									...(pickedSpeed ? { defaultSpeed: pickedSpeed } : {}),
+									...(pickedVerbosity ? { defaultVerbosity: pickedVerbosity } : {}),
+									...(pickedMode ? { defaultMode: pickedMode } : {}),
 								},
 							})
 							.catch((error) => console.error("Failed to persist model choice:", error)),
 					);
 				}
 
+				// Only the non-default values are worth recording: they are what makes
+				// this turn differ from the same model's ordinary answer.
+				resolvedRun = {
+					...(appliedSpeed && appliedSpeed !== "standard" ? { speed: appliedSpeed } : {}),
+					...(appliedVerbosity && appliedVerbosity !== "medium"
+						? { verbosity: appliedVerbosity }
+						: {}),
+					...(appliedMode && appliedMode !== "standard" ? { mode: appliedMode } : {}),
+				};
+
 				writeStatus("Thinking");
 				const result = streamText({
 					model,
-					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}`,
+					// promptHints carries the length choice for providers with no
+					// verbosity parameter (everything but OpenAI today). It is empty
+					// whenever the user asked for nothing, so the prompt is unchanged
+					// for an ordinary turn.
+					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${promptHints.map((hint) => `\n\n${hint}`).join("")}`,
 					messages: await convertToModelMessages(modelMessages),
 					tools,
 					stopWhen: isStepCount(8),

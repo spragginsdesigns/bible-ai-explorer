@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+	buildProviderOptions,
 	getModel,
 	isProviderId,
 	parseModelId,
@@ -25,7 +26,9 @@ test("OpenRouter is registered with a vendor-namespaced curated model", () => {
 		providerModelId: "z-ai/glm-5.3-flash",
 		effort: "low",
 	});
-	assert.deepEqual(getModel("openrouter/z-ai/glm-5.3-flash")?.efforts, ["low", "high"]);
+	// The curated snapshot mirrors what OpenRouter's catalog reports for this
+	// head; a live row overwrites it in every picker response.
+	assert.deepEqual(getModel("openrouter/z-ai/glm-5.3-flash")?.efforts, ["low", "high", "max"]);
 });
 
 test("OpenRouter live metadata filters non-chat rows and drives vision and effort", async () => {
@@ -51,5 +54,19 @@ test("OpenRouter keys use the authenticated /key probe and the official adapter"
 	assert.match(provider, /createOpenRouter\(\{/);
 	assert.match(provider, /appName: "SureWord"/);
 	assert.match(provider, /appUrl: "https:\/\/sureword\.app"/);
-	assert.match(provider, /openrouter: \{ reasoning: \{ effort \} \}/);
+});
+
+test("OpenRouter reasoning travels nested under its own key, not as a flat effort", () => {
+	// The adapter spreads providerOptions.openrouter verbatim into the request
+	// body, so a flat `effort` would be sent and silently ignored upstream.
+	const glm = getModel("openrouter/z-ai/glm-5.3-flash");
+	assert.deepEqual(
+		buildProviderOptions(
+			"openrouter",
+			{ effort: "max", speed: null, verbosity: null, mode: null },
+			false,
+			glm,
+		),
+		{ openrouter: { reasoning: { effort: "max" } } },
+	);
 });

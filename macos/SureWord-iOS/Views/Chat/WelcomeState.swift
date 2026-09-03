@@ -30,7 +30,7 @@ struct ChatWelcomeState: View {
                 VStack(spacing: Spacing.sm) {
                     Text("Come hungry for the Word.")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(theme.textPrimary)
+                        .foregroundStyle(theme.text)
                         .multilineTextAlignment(.center)
 
                     Text(

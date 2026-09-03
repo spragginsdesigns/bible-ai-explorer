@@ -10,10 +10,43 @@ import SwiftUI
 /// (`SureWord-iOS/Views/Chat/ModelPickerSheet.swift`) expresses the same rules
 /// inline. If one changes, change all of them.
 enum ModelPickerRules {
-    /// Canonical order of the reasoning chips. The server's `efforts` array is
-    /// filtered *through* this rather than rendered directly, so a value we
-    /// don't understand can never draw a chip that sends garbage upstream.
-    static let effortOrder = ["low", "medium", "high"]
+    /// Canonical order of the reasoning chips, lowest to highest. The server's
+    /// `efforts` array is filtered *through* this rather than rendered
+    /// directly, so a value we don't understand can never draw a chip that
+    /// sends garbage upstream.
+    static let effortOrder = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]
+
+    /// The other three option vocabularies, same filtering rule.
+    static let speedOrder = ["standard", "fast"]
+    static let verbosityOrder = ["low", "medium", "high"]
+    static let modeOrder = ["standard", "pro"]
+
+    /// The value each of those three runs at when nothing is stored. Unlike
+    /// reasoning they have no Auto chip: the default *is* a chip, and picking
+    /// it stores `"standard"` / `"medium"` / `"standard"` **verbatim**.
+    ///
+    /// Storing nil for the default would be a bug, not a tidy-up. The server
+    /// reads a missing `speed` / `verbosity` / `mode` as "no opinion, apply the
+    /// account's stored default", so a user who once chose Fast and then
+    /// deliberately chose Standard would keep running Fast for ever. Nil means
+    /// only one thing here: never chose.
+    static let defaultSpeed = "standard"
+    static let defaultVerbosity = "medium"
+    static let defaultMode = "standard"
+
+    /// Fixed copy under the MODE chips - Pro is expensive enough that the row
+    /// must say so before it is tapped. No trailing period: it matches the
+    /// other clients' string byte for byte.
+    static let proModeNote = "Deeper multi-pass reasoning; slower and pricier"
+
+    /// Chips per row. The full effort vocabulary is seven values plus Auto, and
+    /// eight chips across the popover leaves no room for a word like
+    /// "Minimal", so the row wraps instead of shrinking.
+    static let chipsPerRow = 4
+
+    /// Above this many reachable models the list gets a search field. Below it
+    /// the provider groups are quicker than typing.
+    static let searchThreshold = 8
 
     /// Copy under the house model when the server sends no `note` of its own.
     static let fallbackHouseNote =
@@ -126,19 +159,144 @@ enum ModelPickerRules {
     /// silently and permanently threw away a setting the user chose.
     /// So the preference survives, and only stops *showing* while the current
     /// model couldn't honour it - which reads as Auto.
+    /// The Auto sentinel is a stored *choice*, not an effort value, so it reads
+    /// as Auto here exactly as nil does. Checked explicitly rather than left to
+    /// "`auto` is never in a model's `efforts`" - that is true of today's
+    /// server, and is not a property this rule should depend on.
     static func activeEffort(_ stored: String?, for model: AIModel?) -> String? {
-        guard let stored else { return nil }
+        guard let stored, stored != AskQuestionRequest.autoEffort else { return nil }
         return efforts(for: model).contains(stored) ? stored : nil
+    }
+
+    /// What the Auto chip stores. Nil would mean "never chose" and omit the key
+    /// from the request, which is the server's cue to apply the account's
+    /// stored default - the opposite of what tapping Auto asks for.
+    static func storedEffort(_ effort: String?) -> String {
+        effort ?? AskQuestionRequest.autoEffort
     }
 
     static func effortLabel(_ effort: String?) -> String {
         switch effort {
+        case "none": "Off"
+        case "minimal": "Minimal"
         case "low": "Low"
         case "medium": "Medium"
         case "high": "High"
+        case "xhigh": "Extra"
+        case "max": "Max"
         default: "Auto"
         }
     }
+
+    static func speedLabel(_ speed: String?) -> String {
+        speed == "fast" ? "Fast" : "Standard"
+    }
+
+    static func verbosityLabel(_ verbosity: String?) -> String {
+        switch verbosity {
+        case "low": "Brief"
+        case "high": "Detailed"
+        default: "Normal"
+        }
+    }
+
+    static func modeLabel(_ mode: String?) -> String {
+        mode == "pro" ? "Pro" : "Standard"
+    }
+
+    // MARK: Speed / length / mode
+
+    /// Speed chips for a model, or none at all when it has only one speed - a
+    /// row whose every chip does the same thing is worse than no row.
+    ///
+    /// The default is forced back in even if the server omitted it, so the row
+    /// always offers a way back to Standard.
+    static func speeds(for model: AIModel?) -> [String] {
+        guard let model, model.speeds.contains("fast") else { return [] }
+        return speedOrder.filter { model.speeds.contains($0) || $0 == defaultSpeed }
+    }
+
+    /// Length chips. A model with no `verbosities` rejects the option outright;
+    /// one offering only the default has nothing to choose between.
+    static func verbosities(for model: AIModel?) -> [String] {
+        guard let model, !model.verbosities.isEmpty else { return [] }
+        let offered = verbosityOrder.filter {
+            model.verbosities.contains($0) || $0 == defaultVerbosity
+        }
+        return offered.count > 1 ? offered : []
+    }
+
+    /// Mode chips, only for a model that actually offers Pro.
+    static func modes(for model: AIModel?) -> [String] {
+        guard let model, model.modes.contains("pro") else { return [] }
+        return modeOrder.filter { model.modes.contains($0) || $0 == defaultMode }
+    }
+
+    static func speeds(in data: AIModelsResponse?, stored: String?) -> [String] {
+        if isHouse(data) { return [] }
+        return speeds(for: selectedModel(in: data, stored: stored))
+    }
+
+    static func verbosities(in data: AIModelsResponse?, stored: String?) -> [String] {
+        if isHouse(data) { return [] }
+        return verbosities(for: selectedModel(in: data, stored: stored))
+    }
+
+    static func modes(in data: AIModelsResponse?, stored: String?) -> [String] {
+        if isHouse(data) { return [] }
+        return modes(for: selectedModel(in: data, stored: stored))
+    }
+
+    /// Which chip reads as active. Display only, exactly like `activeEffort`:
+    /// a stored value the current model cannot honour falls back to the default
+    /// chip and is left in `SettingsStore` untouched.
+    ///
+    /// Nil (never chose) and the explicit default both read as the default
+    /// chip, which is what makes storing the default verbatim invisible here.
+    static func activeSpeed(_ stored: String?, for model: AIModel?) -> String {
+        guard let stored, speeds(for: model).contains(stored) else { return defaultSpeed }
+        return stored
+    }
+
+    static func activeVerbosity(_ stored: String?, for model: AIModel?) -> String {
+        guard let stored, verbosities(for: model).contains(stored) else { return defaultVerbosity }
+        return stored
+    }
+
+    static func activeMode(_ stored: String?, for model: AIModel?) -> String {
+        guard let stored, modes(for: model).contains(stored) else { return defaultMode }
+        return stored
+    }
+
+    // MARK: Seeding
+
+    /// Fills any option the user has never chosen on *this* device with the
+    /// account default the server sent, so the chips agree with a choice made
+    /// on another client instead of all reading Auto/Standard while the server
+    /// quietly runs something else.
+    ///
+    /// Only ever fills a nil - a local pick always wins - and never in house
+    /// mode, where the options are pinned server-side and there is no user
+    /// default to honour. Seeding is idempotent: the second call finds every
+    /// field non-nil and does nothing.
+    @MainActor
+    static func seedDefaults(from data: AIModelsResponse, into settings: SettingsStore) {
+        guard !isHouse(data) else { return }
+        if settings.chatEffort == nil, let effort = data.defaults.effort {
+            settings.chatEffort = effort
+        }
+        if settings.chatSpeed == nil, let speed = data.defaults.speed {
+            settings.chatSpeed = speed
+        }
+        if settings.chatVerbosity == nil, let verbosity = data.defaults.verbosity {
+            settings.chatVerbosity = verbosity
+        }
+        if settings.chatMode == nil, let mode = data.defaults.mode {
+            settings.chatMode = mode
+        }
+    }
+
+    // MARK: Labels
 
     /// Caption on the toolbar button - the model's own label, or a neutral word
     /// while the list is still loading or the default names nothing we know.
@@ -148,6 +306,141 @@ enum ModelPickerRules {
         // block, which is the one place the label is guaranteed.
         if let house = house(in: data) { return house.label }
         return "Model"
+    }
+
+    /// The model plus every option that is not at its default, e.g.
+    /// `GPT-5.6 Luna \u{00B7} High \u{00B7} Fast \u{00B7} Detailed`.
+    ///
+    /// Reasoning on Auto contributes nothing - Auto is the absence of a choice,
+    /// and spelling it out would make every default read as a setting. House
+    /// mode has no options at all, so it is always just the model.
+    static func summaryLabel(
+        in data: AIModelsResponse?,
+        stored: String?,
+        effort: String?,
+        speed: String?,
+        verbosity: String?,
+        mode: String?
+    ) -> String {
+        let name = buttonLabel(in: data, stored: stored)
+        if isHouse(data) { return name }
+        let model = selectedModel(in: data, stored: stored)
+
+        var parts = [name]
+        if let effort = activeEffort(effort, for: model) {
+            parts.append(effortLabel(effort))
+        }
+        let speedValue = activeSpeed(speed, for: model)
+        if speedValue != defaultSpeed { parts.append(speedLabel(speedValue)) }
+        let verbosityValue = activeVerbosity(verbosity, for: model)
+        if verbosityValue != defaultVerbosity { parts.append(verbosityLabel(verbosityValue)) }
+        let modeValue = activeMode(mode, for: model)
+        if modeValue != defaultMode { parts.append(modeLabel(modeValue)) }
+        return parts.joined(separator: " \u{00B7} ")
+    }
+
+    /// The second line under a model's name: its curated tagline, else a line
+    /// derived from what the server does know about it, else nothing. A blank
+    /// line under the name reads as a layout bug, so nil is returned rather
+    /// than an empty string.
+    static func metaLine(for model: AIModel) -> String? {
+        let tagline = model.tagline?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !tagline.isEmpty { return tagline }
+
+        var parts: [String] = []
+        if let context = model.contextWindow, context > 0 {
+            parts.append("\(contextText(context)) context")
+        }
+        if let pricing = model.pricing {
+            parts.append("\(priceText(pricing.input)) / \(priceText(pricing.output)) per M")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " \u{00B7} ")
+    }
+
+    /// 1,050,000 -> "1M", 1,500,000 -> "1.5M", 400,000 -> "400K".
+    ///
+    /// Millions round to the nearest **half** million, matching the other
+    /// clients: whole-million rounding turned a genuine 1.5M into "2M", and
+    /// full precision ("1.05M") is noise in a line whose job is a rough sense
+    /// of scale. Thousands stay whole - nobody needs "128.5K".
+    static func contextText(_ tokens: Int) -> String {
+        if tokens >= 1_000_000 {
+            let millions = (Double(tokens) / 500_000).rounded() / 2
+            if millions == millions.rounded() { return "\(Int(millions))M" }
+            return "\(String(format: "%.1f", millions))M"
+        }
+        if tokens >= 1_000 {
+            return "\(Int((Double(tokens) / 1_000).rounded()))K"
+        }
+        return "\(tokens)"
+    }
+
+    /// USD per million: "$2", "$0.20", "$4.50", "$0.0715". Whole dollars lose
+    /// the decimals; anything else keeps at least two and at most four, so a
+    /// cheap OpenRouter model does not round away to "$0.00".
+    static func priceText(_ value: Double) -> String {
+        if value == value.rounded(), abs(value) < 1_000_000 {
+            return "$\(Int(value))"
+        }
+        var text = String(format: "%.4f", value)
+        while text.hasSuffix("0"),
+              let dot = text.firstIndex(of: "."),
+              text.distance(from: dot, to: text.endIndex) > 3 {
+            text.removeLast()
+        }
+        return "$\(text)"
+    }
+
+    /// The tiny pills after a model's name. Capabilities only, never more than
+    /// three - the row is a list item, not a spec sheet.
+    static func pills(for model: AIModel) -> [String] {
+        var pills: [String] = []
+        if model.supportsAttachments { pills.append("Files") }
+        if model.speeds.contains("fast") { pills.append("Fast") }
+        if model.modes.contains("pro") { pills.append("Pro") }
+        return pills
+    }
+
+    // MARK: Search
+
+    /// A search field only earns its space once the groups stop being faster
+    /// than typing. House mode never gets one - there is one model.
+    static func showsSearch(in data: AIModelsResponse?) -> Bool {
+        guard let data, !isHouse(data) else { return false }
+        return data.models.filter(\.available).count > searchThreshold
+    }
+
+    static func isSearching(_ query: String) -> Bool {
+        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Flat results across every provider, matched on label or id. Unavailable
+    /// models stay hidden here for the same reason they are hidden in the
+    /// groups: the picker must not offer a model that would fail.
+    static func searchResults(in data: AIModelsResponse?, query: String) -> [AIModel] {
+        guard let data, isSearching(query) else { return [] }
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return data.models.filter { model in
+            model.available
+                && (model.label.lowercased().contains(needle)
+                    || model.id.lowercased().contains(needle))
+        }
+    }
+
+    static func providerLabel(for model: AIModel) -> String {
+        AIModelsAPI.providerLabels[model.provider] ?? model.provider
+    }
+
+    /// Chips wrapped into rows of `chipsPerRow`. Nil is a real option here -
+    /// it is the Auto chip - so the rows carry optionals rather than strings.
+    static func chipRows(
+        _ options: [String?],
+        perRow: Int = ModelPickerRules.chipsPerRow
+    ) -> [[String?]] {
+        guard perRow > 0, !options.isEmpty else { return [] }
+        return stride(from: 0, to: options.count, by: perRow).map { start in
+            Array(options[start..<min(start + perRow, options.count)])
+        }
     }
 
     /// The provider section open when the popover appears: the one holding the
@@ -177,7 +470,14 @@ enum ModelPickerRules {
 
     static let providerRowHeight: CGFloat = 42
     static let modelRowHeight: CGFloat = 30
+    /// The second line a model row grows by when it has a tagline or derived
+    /// meta to show.
+    static let modelRowMetaHeight: CGFloat = 14
     static let maxListHeight: CGFloat = 300
+
+    static func rowHeight(for model: AIModel) -> CGFloat {
+        metaLine(for: model) == nil ? modelRowHeight : modelRowHeight + modelRowMetaHeight
+    }
 
     /// Height for the scrolling half of the popover.
     ///
@@ -193,9 +493,19 @@ enum ModelPickerRules {
             guard !rows.isEmpty else { continue }
             height += providerRowHeight
             guard provider.id == expandedProvider else { continue }
-            height += CGFloat(rows.count) * modelRowHeight
+            height += rows.reduce(CGFloat.zero) { $0 + rowHeight(for: $1) }
         }
         return min(height, maxListHeight)
+    }
+
+    /// Height for the flat search results, measured the same way and capped the
+    /// same way. An empty result set still reserves one row for the "no
+    /// matches" line, so the popover does not collapse mid-keystroke.
+    static func searchListHeight(_ results: [AIModel]) -> CGFloat {
+        let padding = 2 * Spacing.xs
+        if results.isEmpty { return padding + modelRowHeight }
+        let rows = results.reduce(CGFloat.zero) { $0 + rowHeight(for: $1) }
+        return min(padding + rows, maxListHeight)
     }
 }
 
@@ -286,6 +596,9 @@ struct ModelPickerPopover: View {
     @Binding var isPresented: Bool
 
     @State private var expandedProvider: String?
+    /// Empty until the account has enough models to be worth searching; see
+    /// `ModelPickerRules.showsSearch`.
+    @State private var query = ""
 
     private var selectedID: String? {
         ModelPickerRules.selectedModelID(in: models.data, stored: settings.chatModelId)
@@ -304,11 +617,12 @@ struct ModelPickerPopover: View {
                 if let house = ModelPickerRules.house(in: data) {
                     houseSection(house)
                 } else {
-                    providerList(data)
-                    if ModelPickerRules.supportsEffort(in: data, stored: settings.chatModelId) {
+                    if ModelPickerRules.showsSearch(in: data) {
+                        searchField
                         Divider().overlay(theme.border)
-                        reasoning
                     }
+                    modelList(data)
+                    optionSections(data)
                 }
                 Divider().overlay(theme.border)
                 settingsLink(isHouse: ModelPickerRules.isHouse(data))
@@ -322,7 +636,7 @@ struct ModelPickerPopover: View {
                 loadingRow
             }
         }
-        .frame(width: 320)
+        .frame(width: 360)
         .background(theme.bgElevated)
         .task {
             // Expand from whatever is already cached *before* awaiting, so the
@@ -335,6 +649,11 @@ struct ModelPickerPopover: View {
             // its section opened.
             await models.load()
             expandInitialProvider()
+            // A default set on another client becomes this device's chip
+            // selection, but only where nothing has been chosen here.
+            if let data = models.data {
+                ModelPickerRules.seedDefaults(from: data, into: settings)
+            }
         }
     }
 
@@ -366,16 +685,61 @@ struct ModelPickerPopover: View {
             Image(systemName: "sparkles")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
-            Text("Choose a model")
+            Text(headerTitle)
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(theme.textSecondary)
-            Spacer()
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: Spacing.xs)
             if models.isLoading {
                 ProgressView().controlSize(.small)
             }
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
+        .help(headerTitle)
+    }
+
+    /// The model and every option that is not at its default, so what will
+    /// actually run is readable without opening a section. Falls back to the
+    /// invitation while there is no list to summarise.
+    private var headerTitle: String {
+        guard models.data != nil else { return "Choose a model" }
+        return ModelPickerRules.summaryLabel(
+            in: models.data,
+            stored: settings.chatModelId,
+            effort: settings.chatEffort,
+            speed: settings.chatSpeed,
+            verbosity: settings.chatVerbosity,
+            mode: settings.chatMode
+        )
+    }
+
+    // MARK: Search
+
+    private var searchField: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textGhost)
+            TextField("Search models", text: $query)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(theme.textSecondary)
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textGhost)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.xs)
     }
 
     // MARK: House mode
@@ -409,6 +773,37 @@ struct ModelPickerPopover: View {
     }
 
     // MARK: Providers
+
+    /// Groups while the search box is empty, one flat list while it is not:
+    /// a match under a collapsed provider would otherwise be invisible.
+    @ViewBuilder
+    private func modelList(_ data: AIModelsResponse) -> some View {
+        if ModelPickerRules.isSearching(query) {
+            searchResults(ModelPickerRules.searchResults(in: data, query: query))
+        } else {
+            providerList(data)
+        }
+    }
+
+    private func searchResults(_ results: [AIModel]) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if results.isEmpty {
+                    Text("No models match.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textFaint)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                } else {
+                    ForEach(results) { model in
+                        modelRow(model, showsProvider: true)
+                    }
+                }
+            }
+            .padding(.vertical, Spacing.xs)
+        }
+        .frame(height: ModelPickerRules.searchListHeight(results))
+    }
 
     private func providerList(_ data: AIModelsResponse) -> some View {
         ScrollViewReader { proxy in
@@ -465,63 +860,197 @@ struct ModelPickerPopover: View {
         .accessibilityLabel(provider.label)
     }
 
-    private func modelRow(_ model: AIModel) -> some View {
+    /// One model. Two lines when the server gave us something to say about it -
+    /// a tagline, or a context/price line derived from what it did send - plus
+    /// up to three capability pills after the name.
+    ///
+    /// `showsProvider` is the flat search shape: with no group header above the
+    /// row, the provider has to be named on it.
+    private func modelRow(_ model: AIModel, showsProvider: Bool = false) -> some View {
         let active = model.id == selectedID
+        let meta = ModelPickerRules.metaLine(for: model)
+        let pills = ModelPickerRules.pills(for: model)
         return Button {
-            // Only the model id. The stored effort is left exactly as it was -
-            // see `ModelPickerRules.activeEffort`.
+            // Only the model id. The stored options are left exactly as they
+            // were - see `ModelPickerRules.activeEffort`.
             settings.chatModelId = model.id
             isPresented = false
         } label: {
-            HStack(spacing: Spacing.sm) {
-                Text(model.label)
-                    .font(.system(size: 12.5, weight: active ? .bold : .regular))
-                    .foregroundStyle(active ? theme.accent : theme.textSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
+            HStack(alignment: .top, spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: Spacing.xs) {
+                        if showsProvider {
+                            Text(ModelPickerRules.providerLabel(for: model))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(theme.textGhost)
+                        }
+                        Text(model.label)
+                            .font(.system(size: 12.5, weight: active ? .bold : .regular))
+                            .foregroundStyle(active ? theme.accent : theme.textSecondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        ForEach(pills, id: \.self) { pill in
+                            Text(pill)
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(theme.textGhost)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1)
+                                .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
+                        }
+                    }
+                    if let meta {
+                        Text(meta)
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.textGhost)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: Spacing.xs)
                 if active {
                     Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(theme.accent)
                 }
             }
-            .padding(.leading, Spacing.lg)
+            .padding(.leading, showsProvider ? 0 : Spacing.lg)
         }
         .buttonStyle(PickerRowStyle())
         .accessibilityAddTraits(active ? [.isSelected] : [])
         .help(model.id)
     }
 
-    // MARK: Reasoning
+    // MARK: Options
 
-    private var reasoning: some View {
+    /// REASONING / SPEED / LENGTH / MODE, each drawn only when the selected
+    /// model offers more than one value for it. House mode reaches none of
+    /// this: the rules return empty lists for it.
+    @ViewBuilder
+    private func optionSections(_ data: AIModelsResponse) -> some View {
+        let efforts = ModelPickerRules.efforts(in: data, stored: settings.chatModelId)
+        let speeds = ModelPickerRules.speeds(in: data, stored: settings.chatModelId)
+        let verbosities = ModelPickerRules.verbosities(in: data, stored: settings.chatModelId)
+        let modes = ModelPickerRules.modes(in: data, stored: settings.chatModelId)
+
+        if !efforts.isEmpty || !speeds.isEmpty || !verbosities.isEmpty || !modes.isEmpty {
+            Divider().overlay(theme.border)
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                if !efforts.isEmpty { reasoningSection(efforts) }
+                if !speeds.isEmpty { speedSection(speeds) }
+                if !verbosities.isEmpty { lengthSection(verbosities) }
+                if !modes.isEmpty { modeSection(modes) }
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+        }
+    }
+
+    private func reasoningSection(_ efforts: [String]) -> some View {
+        // Auto first: it is the absence of an override, not the lowest one.
+        var options: [String?] = [nil]
+        options.append(contentsOf: efforts.map { Optional($0) })
+        // Display only: a stored effort the current model can't honour reads as
+        // Auto here, and stays in `SettingsStore` untouched.
+        let active = ModelPickerRules.activeEffort(settings.chatEffort, for: selected)
+        return optionSection("REASONING", note: nil) {
+            chipRows(options, active: active, label: ModelPickerRules.effortLabel) { effort in
+                // Auto stores a sentinel, not nil: nil would read as "never
+                // chose" and let the account default apply instead.
+                settings.chatEffort = ModelPickerRules.storedEffort(effort)
+            }
+        }
+    }
+
+    private func speedSection(_ speeds: [String]) -> some View {
+        let options: [String?] = speeds.map { Optional($0) }
+        let active: String? = ModelPickerRules.activeSpeed(settings.chatSpeed, for: selected)
+        return optionSection("SPEED", note: selected?.fastModeNote) {
+            // Verbatim, Standard included: nil means "never chose", and the
+            // server would read it as "apply the stored account default".
+            chipRows(options, active: active, label: ModelPickerRules.speedLabel) { speed in
+                settings.chatSpeed = speed
+            }
+        }
+    }
+
+    private func lengthSection(_ verbosities: [String]) -> some View {
+        let options: [String?] = verbosities.map { Optional($0) }
+        let active: String? = ModelPickerRules.activeVerbosity(
+            settings.chatVerbosity,
+            for: selected
+        )
+        return optionSection("LENGTH", note: nil) {
+            chipRows(options, active: active, label: ModelPickerRules.verbosityLabel) { verbosity in
+                settings.chatVerbosity = verbosity
+            }
+        }
+    }
+
+    private func modeSection(_ modes: [String]) -> some View {
+        let options: [String?] = modes.map { Optional($0) }
+        let active: String? = ModelPickerRules.activeMode(settings.chatMode, for: selected)
+        return optionSection("MODE", note: ModelPickerRules.proModeNote) {
+            chipRows(options, active: active, label: ModelPickerRules.modeLabel) { mode in
+                settings.chatMode = mode
+            }
+        }
+    }
+
+    private func optionSection<Chips: View>(
+        _ title: String,
+        note: String?,
+        @ViewBuilder chips: () -> Chips
+    ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text("REASONING")
+            Text(title)
                 .font(.system(size: 10, weight: .bold))
                 .tracking(1.2)
                 .foregroundStyle(theme.textGhost)
+            chips()
+            if let note, !note.isEmpty {
+                Text(note)
+                    .font(.system(size: 10))
+                    .foregroundStyle(theme.textGhost)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+    }
 
-            HStack(spacing: Spacing.xs) {
-                effortChip(nil)
-                ForEach(ModelPickerRules.efforts(for: selected), id: \.self) { effort in
-                    effortChip(effort)
+    /// The chip row itself, wrapped at `chipsPerRow`. The short last row is
+    /// padded with clear spacers so its chips keep a full row's width rather
+    /// than stretching to fill.
+    private func chipRows(
+        _ options: [String?],
+        active: String?,
+        label: @escaping (String?) -> String,
+        pick: @escaping (String?) -> Void
+    ) -> some View {
+        let rows = ModelPickerRules.chipRows(options)
+        return VStack(spacing: Spacing.xs) {
+            // Indexed rather than over the values: the options are `String?`,
+            // and nil (the Auto chip) is not `Hashable`-identifiable on its own.
+            ForEach(rows.indices, id: \.self) { rowIndex in
+                let row = rows[rowIndex]
+                HStack(spacing: Spacing.xs) {
+                    ForEach(row.indices, id: \.self) { index in
+                        let option = row[index]
+                        let isActive = option == active
+                        Button(label(option)) { pick(option) }
+                            .buttonStyle(EffortChipStyle(active: isActive))
+                            .accessibilityAddTraits(isActive ? [.isSelected] : [])
+                    }
+                    ForEach(
+                        Array(0..<max(ModelPickerRules.chipsPerRow - row.count, 0)),
+                        id: \.self
+                    ) { _ in
+                        Color.clear.frame(maxWidth: .infinity, minHeight: 24)
+                    }
                 }
             }
         }
-        .padding(.horizontal, Spacing.md)
-        .padding(.vertical, Spacing.sm)
-    }
-
-    private func effortChip(_ effort: String?) -> some View {
-        // Display only: a stored effort the current model can't honour reads as
-        // Auto here, and stays in `SettingsStore` untouched.
-        let active = ModelPickerRules.activeEffort(settings.chatEffort, for: selected) == effort
-        return Button(ModelPickerRules.effortLabel(effort)) {
-            settings.chatEffort = effort
-        }
-        .buttonStyle(EffortChipStyle(active: active))
-        .accessibilityAddTraits(active ? [.isSelected] : [])
     }
 
     // MARK: Footer

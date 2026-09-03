@@ -11,8 +11,29 @@ export interface AiModel {
 	label: string;
 	provider: string;
 	supportsAttachments: boolean;
+	/** Reasoning efforts this model offers, lowest to highest. */
 	efforts: string[];
 	available: boolean;
+	/**
+	 * Everything below is additive: a server older than the run-options release
+	 * omits it, so every field is optional and the picker falls back to the
+	 * conservative default (one speed, no verbosities, one mode, no metadata).
+	 * See modelPickerRules for those defaults.
+	 */
+	speeds?: string[];
+	verbosities?: string[];
+	modes?: string[];
+	/** What the provider runs when no effort is sent, when the server knows. */
+	defaultEffort?: string | null;
+	/** One curated line for the model row; null means derive from the numbers. */
+	tagline?: string | null;
+	tier?: string | null;
+	/** Context window in tokens. */
+	contextWindow?: number | null;
+	/** USD per 1M tokens. */
+	pricing?: { input: number; output: number } | null;
+	/** Caveat shown beside the Fast chip. */
+	fastModeNote?: string | null;
 }
 
 export interface AiProviderSummary {
@@ -44,7 +65,17 @@ export interface AiModelsResponse {
 	providers?: AiProviderSummary[];
 	/** Only models this account can run. Exactly one entry in house mode. */
 	models: AiModel[];
-	defaults: { modelId: string; effort: string | null };
+	/**
+	 * The account's stored defaults. Only `modelId` and `effort` come from every
+	 * server; the rest arrive with the run-options release.
+	 */
+	defaults: {
+		modelId: string;
+		effort: string | null;
+		speed?: string | null;
+		verbosity?: string | null;
+		mode?: string | null;
+	};
 	house?: AiHouseMode | null;
 }
 

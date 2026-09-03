@@ -9,6 +9,12 @@ import Foundation
 /// `ModelPickerPopover` decode this exact payload, and a second copy of the
 /// wire types is a second place for the server contract to drift.
 struct AIModel: Sendable, Equatable, Identifiable, Decodable {
+    /// USD per one million tokens, as the server curates it.
+    struct Pricing: Sendable, Equatable, Decodable {
+        var input: Double
+        var output: Double
+    }
+
     var id: String
     var label: String
     var provider: String
@@ -18,15 +24,41 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
     /// reasoning control may be offered for it.
     var efforts: [String] = []
     var available: Bool
+    /// Service tiers the model accepts. `["standard"]` alone means there is no
+    /// choice to offer, which is why it - not `[]` - is the default: a server
+    /// too old to send the field has exactly one speed.
+    var speeds: [String] = ["standard"]
+    /// Answer-length settings the model accepts. Empty means no control at all,
+    /// the same rule `efforts` follows.
+    var verbosities: [String] = []
+    /// Reasoning modes. `["standard"]` alone means no choice, as with `speeds`.
+    var modes: [String] = ["standard"]
+    /// What the provider runs when no effort is sent, when the server knows it.
+    var defaultEffort: String?
+    /// One curated line under the model's name. Nil for anything uncurated, in
+    /// which case the picker derives a line from `contextWindow` and `pricing`.
+    var tagline: String?
+    /// `"flagship"` / `"balanced"` / `"fast"`, or nil.
+    var tier: String?
+    var contextWindow: Int?
+    var pricing: Pricing?
+    /// Caveat shown next to the Fast chip, e.g. "About 2x the standard price".
+    var fastModeNote: String?
 
     private enum CodingKeys: String, CodingKey {
         case id, label, provider, supportsAttachments, efforts, available
+        case speeds, verbosities, modes, defaultEffort, tagline, tier
+        case contextWindow, pricing, fastModeNote
     }
 
     /// Written out rather than synthesized: Swift's `Codable` synthesis ignores
     /// a property's default value, so an absent `efforts` or
     /// `supportsAttachments` would throw and cost the whole picker its list
     /// rather than one capability flag.
+    ///
+    /// **Every new field must be `decodeIfPresent … ?? default` for that same
+    /// reason** - a new build talking to an older server would otherwise lose
+    /// the entire list rather than one capability.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -36,6 +68,15 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
             try container.decodeIfPresent(Bool.self, forKey: .supportsAttachments) ?? false
         efforts = try container.decodeIfPresent([String].self, forKey: .efforts) ?? []
         available = try container.decode(Bool.self, forKey: .available)
+        speeds = try container.decodeIfPresent([String].self, forKey: .speeds) ?? ["standard"]
+        verbosities = try container.decodeIfPresent([String].self, forKey: .verbosities) ?? []
+        modes = try container.decodeIfPresent([String].self, forKey: .modes) ?? ["standard"]
+        defaultEffort = try container.decodeIfPresent(String.self, forKey: .defaultEffort)
+        tagline = try container.decodeIfPresent(String.self, forKey: .tagline)
+        tier = try container.decodeIfPresent(String.self, forKey: .tier)
+        contextWindow = try container.decodeIfPresent(Int.self, forKey: .contextWindow)
+        pricing = try container.decodeIfPresent(Pricing.self, forKey: .pricing)
+        fastModeNote = try container.decodeIfPresent(String.self, forKey: .fastModeNote)
     }
 
     init(
@@ -44,7 +85,16 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
         provider: String,
         supportsAttachments: Bool = false,
         efforts: [String] = [],
-        available: Bool
+        available: Bool,
+        speeds: [String] = ["standard"],
+        verbosities: [String] = [],
+        modes: [String] = ["standard"],
+        defaultEffort: String? = nil,
+        tagline: String? = nil,
+        tier: String? = nil,
+        contextWindow: Int? = nil,
+        pricing: Pricing? = nil,
+        fastModeNote: String? = nil
     ) {
         self.id = id
         self.label = label
@@ -52,6 +102,15 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
         self.supportsAttachments = supportsAttachments
         self.efforts = efforts
         self.available = available
+        self.speeds = speeds
+        self.verbosities = verbosities
+        self.modes = modes
+        self.defaultEffort = defaultEffort
+        self.tagline = tagline
+        self.tier = tier
+        self.contextWindow = contextWindow
+        self.pricing = pricing
+        self.fastModeNote = fastModeNote
     }
 }
 
@@ -62,9 +121,19 @@ struct AIProviderSummary: Sendable, Equatable, Identifiable, Decodable {
 }
 
 struct AIModelsResponse: Sendable, Equatable, Decodable {
+    /// The account's stored picks, each nil when nothing has been chosen.
+    /// Every field but `modelId` is optional on the wire as well as here, so an
+    /// older server that only speaks `effort` still decodes.
     struct Defaults: Sendable, Equatable, Decodable {
         var modelId: String
         var effort: String?
+        // `= nil` is load-bearing, not decoration: the synthesized memberwise
+        // initializer only defaults a property that has an initial value, so
+        // without it every existing `.init(modelId:effort:)` call stops
+        // compiling.
+        var speed: String? = nil
+        var verbosity: String? = nil
+        var mode: String? = nil
     }
 
     /// The single model a keyless account gets, served alongside

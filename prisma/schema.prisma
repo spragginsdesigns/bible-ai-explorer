@@ -28,6 +28,14 @@ model User {
   // falls back to the default rather than erroring.
   defaultModelId        String?
   defaultEffort         String?
+  // Last run options the user picked beside the model: "standard" | "fast",
+  // "low" | "medium" | "high", "standard" | "pro". Nullable and unconstrained
+  // like defaultEffort above; validated on read (isSpeed / isVerbosity /
+  // isReasoningMode), and clamped again to what the chosen model accepts, so a
+  // value left over from another model is ignored rather than sent.
+  defaultSpeed          String?
+  defaultVerbosity      String?
+  defaultMode           String?
   createdAt             DateTime               @default(now())
   conversations         Conversation[]
   notes                 Note[]

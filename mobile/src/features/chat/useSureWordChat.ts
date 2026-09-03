@@ -28,6 +28,7 @@ import {
 	type VerseAttachment,
 } from "./verseActions";
 import { getSettings } from "@/features/settings/settingsStore";
+import { effortForRequest } from "./modelPickerRules";
 import {
 	type ChatAttachmentDescriptor,
 	type LocalChatAttachment,
@@ -295,15 +296,28 @@ export function useSureWordChat(): SureWordChat {
 			new DefaultChatTransport<UIMessage>({
 				api: `${API_URL}/api/ask-question`,
 				fetch: makeAuthedFetch(authToken) as unknown as TransportFetch,
-				prepareSendMessagesRequest: ({ messages }) => ({
-					body: {
-						messages,
-						conversationId: conversationIdRef.current,
-						translation: getSettings().translation,
-						modelId: getSettings().chatModelId,
-						effort: getSettings().chatEffort,
-					},
-				}),
+				prepareSendMessagesRequest: ({ messages }) => {
+					const settings = getSettings();
+					// Auto stores a sentinel that becomes an explicit null, while a
+					// device that has never opened the picker omits `effort` entirely:
+					// the server reads a null as "the user picked Auto" and would
+					// otherwise clear a default set on another device.
+					const effort = effortForRequest(settings.chatEffort);
+					return {
+						body: {
+							messages,
+							conversationId: conversationIdRef.current,
+							translation: settings.translation,
+							modelId: settings.chatModelId,
+							...(effort === undefined ? {} : { effort }),
+							// The other run options carry their default explicitly, so
+							// null here only ever means "never chose".
+							speed: settings.chatSpeed,
+							verbosity: settings.chatVerbosity,
+							mode: settings.chatMode,
+						},
+					};
+				},
 			}),
 		[authToken]
 	);

@@ -529,7 +529,10 @@ final class ChatViewModel {
             conversationId: activeConversationID,
             translation: settings.translation.rawValue,
             modelId: settings.chatModelId,
-            effort: settings.chatEffort
+            effort: settings.chatEffort,
+            speed: settings.chatSpeed,
+            verbosity: settings.chatVerbosity,
+            mode: settings.chatMode
         )
 
         streamTask = Task { [weak self] in

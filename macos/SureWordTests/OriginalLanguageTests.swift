@@ -9,6 +9,7 @@ import Testing
 /// Mirrors the same section on web and Android; the source texts are the
 /// Westminster Leningrad Codex (Hebrew) and the Textus Receptus (Greek).
 @Suite("Original language")
+@MainActor
 struct OriginalLanguageTests {
 
     // MARK: - Wire decoding

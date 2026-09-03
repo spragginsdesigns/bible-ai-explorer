@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.47.0 (versionCode 46) - 2026-09-03 - internal
+
+**What's new (Play):**
+
+NEW
+- Chat: the model picker now shows what each model can do, with a search box, a short description and price per model, and Reasoning, Speed, Length and Mode options that only appear when the model supports them.
+- Chat: reasoning goes from Off to Max on models that allow it, Fast mode is available on OpenAI, Claude Opus and OpenRouter, Brief/Normal/Detailed controls answer length, and Pro mode unlocks deeper reasoning on GPT-5.6.
+
+**Dev notes:** Android half of the model-picker overhaul. New run options (`speed`, `verbosity`, `mode`) ride every chat request and persist as account defaults (`User.defaultSpeed/defaultVerbosity/defaultMode`); the sheet filters every chip through the model's own capability arrays from `GET /api/ai/models`. Server side, OpenAI calls no longer request reasoning summaries nobody rendered.
+
 ## 1.46.0 (versionCode 45) - 2026-09-02 - internal
 
 **What's new (Play):**

@@ -66,6 +66,51 @@ export function writeEffortPref(effort: string | null) {
 }
 
 /**
+ * The other three per-request run options the model picker owns: response
+ * speed, answer length and reasoning mode. Same shape as the effort pref:
+ * null removes the key rather than storing "null", because absent means "no
+ * local pick" and the server then applies the account default.
+ */
+export const SPEED_PREF_KEY = "sureword-speed";
+export const VERBOSITY_PREF_KEY = "sureword-verbosity";
+export const MODE_PREF_KEY = "sureword-mode";
+
+function readOptionalPref(key: string): string | null {
+	if (typeof window === "undefined") return null;
+	return window.localStorage.getItem(key);
+}
+
+function writeOptionalPref(key: string, value: string | null) {
+	if (typeof window === "undefined") return;
+	if (value) window.localStorage.setItem(key, value);
+	else window.localStorage.removeItem(key);
+}
+
+export function readSpeedPref(): string | null {
+	return readOptionalPref(SPEED_PREF_KEY);
+}
+
+export function writeSpeedPref(speed: string | null) {
+	writeOptionalPref(SPEED_PREF_KEY, speed);
+}
+
+export function readVerbosityPref(): string | null {
+	return readOptionalPref(VERBOSITY_PREF_KEY);
+}
+
+export function writeVerbosityPref(verbosity: string | null) {
+	writeOptionalPref(VERBOSITY_PREF_KEY, verbosity);
+}
+
+export function readModePref(): string | null {
+	return readOptionalPref(MODE_PREF_KEY);
+}
+
+export function writeModePref(mode: string | null) {
+	writeOptionalPref(MODE_PREF_KEY, mode);
+}
+
+/**
  * Local caches of the server-persisted feature toggles (User.memoryEnabled,
  * User.webSearchEnabled). The settings screen seeds its toggle state from
  * these so a returning user sees the right position on first paint instead of

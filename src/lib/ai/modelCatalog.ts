@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import {
+	buildDefinition,
 	getModel,
-	modelSupportsEffort,
+	isReasoningEffort,
 	MODELS,
 	prettyModelLabel,
 	REASONING_EFFORTS,
 	type ModelDefinition,
+	type ModelPricing,
 	type ProviderId,
 	type ReasoningEffort,
 } from "./models";
@@ -83,11 +85,34 @@ interface ProviderModelRow {
 	efforts?: ReasoningEffort[];
 	/** OpenRouter: can this model accept the tools SureWord always sends? */
 	supportsTools?: boolean;
+	/** OpenRouter: the level the vendor runs when no effort is sent. */
+	defaultEffort?: ReasoningEffort;
+	/** OpenRouter: the model takes a real `verbosity` parameter. */
+	verbosityNative?: boolean;
+	/** OpenRouter: tokens the served endpoint actually accepts. */
+	contextWindow?: number;
+	/** OpenRouter: USD per 1M tokens, converted from its per-token strings. */
+	pricing?: ModelPricing;
+}
+
+/** OpenRouter prices per token, as strings. The picker shows per 1M tokens. */
+function perMillion(value: unknown): number | undefined {
+	if (typeof value !== "string" || value.trim() === "") return undefined;
+	const perToken = Number(value);
+	if (!Number.isFinite(perToken)) return undefined;
+	return Math.round(perToken * 1e6 * 10_000) / 10_000;
 }
 
 function openRouterMeta(entry: Record<string, unknown>): Pick<
 	ProviderModelRow,
-	"chatOutput" | "imageInput" | "efforts" | "supportsTools"
+	| "chatOutput"
+	| "imageInput"
+	| "efforts"
+	| "supportsTools"
+	| "defaultEffort"
+	| "verbosityNative"
+	| "contextWindow"
+	| "pricing"
 > {
 	const architecture =
 		typeof entry.architecture === "object" && entry.architecture !== null
@@ -109,6 +134,34 @@ function openRouterMeta(entry: Record<string, unknown>): Pick<
 	const supportedParameters = Array.isArray(entry.supported_parameters)
 		? entry.supported_parameters
 		: [];
+	const topProvider =
+		typeof entry.top_provider === "object" && entry.top_provider !== null
+			? (entry.top_provider as Record<string, unknown>)
+			: {};
+	const pricing =
+		typeof entry.pricing === "object" && entry.pricing !== null
+			? (entry.pricing as Record<string, unknown>)
+			: {};
+	// A model whose reasoning is mandatory rejects "none"; offering it would be
+	// a chip that 400s.
+	const mandatory = reasoning.mandatory === true;
+	const efforts = supportedEfforts
+		.filter((value): value is ReasoningEffort => isReasoningEffort(value))
+		.filter((value) => !(mandatory && value === "none"))
+		.sort((a, b) => REASONING_EFFORTS.indexOf(a) - REASONING_EFFORTS.indexOf(b));
+	const defaultEffort = isReasoningEffort(reasoning.default_effort)
+		? reasoning.default_effort
+		: undefined;
+	const input = perMillion(pricing.prompt);
+	const output = perMillion(pricing.completion);
+	// `context_length` and `top_provider.context_length` disagree on some heads;
+	// the served endpoint's figure is the honest one.
+	const contextWindow =
+		typeof topProvider.context_length === "number"
+			? topProvider.context_length
+			: typeof entry.context_length === "number"
+				? entry.context_length
+				: undefined;
 
 	return {
 		chatOutput: outputModalities.length ? outputModalities.includes("text") : undefined,
@@ -116,15 +169,13 @@ function openRouterMeta(entry: Record<string, unknown>): Pick<
 		supportsTools: supportedParameters.length
 			? supportedParameters.includes("tools")
 			: undefined,
-		efforts: supportedEfforts
-			.filter(
-				(value): value is ReasoningEffort =>
-					typeof value === "string" &&
-					(REASONING_EFFORTS as readonly string[]).includes(value),
-			)
-			.sort(
-				(a, b) => REASONING_EFFORTS.indexOf(a) - REASONING_EFFORTS.indexOf(b),
-			),
+		efforts,
+		defaultEffort,
+		verbosityNative: supportedParameters.length
+			? supportedParameters.includes("verbosity")
+			: undefined,
+		contextWindow,
+		pricing: input !== undefined && output !== undefined ? { input, output } : undefined,
 	};
 }
 
@@ -179,20 +230,34 @@ function parseListResponse(provider: ProviderId, body: unknown): ProviderModelRo
 
 function toDefinition(provider: ProviderId, row: ProviderModelRow): ModelDefinition {
 	const id = `${provider}/${row.id}`;
-	const curated = getModel(id);
-	if (curated) return curated;
+	const base =
+		getModel(id) ??
+		buildDefinition({
+			provider,
+			providerModelId: row.id,
+			label: row.displayName ?? prettyModelLabel(row.id),
+			supportsAttachments: row.imageInput ?? provider !== "moonshot",
+		});
+
+	// OpenRouter is the only list endpoint that reports per-model reasoning,
+	// verbosity, price and context. Its live row beats both the derivation and
+	// the curated snapshot, so a curated entry is overlaid rather than returned
+	// whole; label, ordering and attachment support stay curated.
+	if (provider !== "openrouter") return base;
+	const efforts = row.efforts && row.efforts.length > 0 ? row.efforts : base.efforts;
+	const defaultEffort = row.defaultEffort ?? base.defaultEffort;
 	return {
-		id,
-		label: row.displayName ?? prettyModelLabel(row.id),
-		provider,
-		providerModelId: row.id,
-		supportsAttachments: row.imageInput ?? provider !== "moonshot",
-		efforts:
-			row.efforts && row.efforts.length > 0
-				? row.efforts
-				: modelSupportsEffort(provider, row.id)
-					? REASONING_EFFORTS
-					: [],
+		...base,
+		efforts,
+		defaultEffort: defaultEffort && efforts.includes(defaultEffort) ? defaultEffort : null,
+		verbosityMechanism:
+			row.verbosityNative === undefined
+				? base.verbosityMechanism
+				: row.verbosityNative
+					? "native"
+					: "prompt",
+		contextWindow: row.contextWindow ?? base.contextWindow,
+		pricing: row.pricing ?? base.pricing,
 	};
 }
 

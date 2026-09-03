@@ -24,7 +24,15 @@ import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
-import { readEffortPref, readModelPref, readTranslationPref } from "@/lib/preferences";
+import { effortForRequest } from "@/components/modelPickerRules";
+import {
+	readEffortPref,
+	readModePref,
+	readModelPref,
+	readSpeedPref,
+	readTranslationPref,
+	readVerbosityPref,
+} from "@/lib/preferences";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 
@@ -491,7 +499,14 @@ export const useChat = () => {
 						// message without remounting the hook.
 						translation: readTranslationPref(),
 						modelId: readModelPref(),
-						effort: readEffortPref(),
+						// Undefined when this browser has never picked an effort, so
+						// JSON.stringify drops the key and the server keeps the
+						// account default a different device may have set. An
+						// explicit null here means the user chose Auto.
+						effort: effortForRequest(readEffortPref()),
+						speed: readSpeedPref(),
+						verbosity: readVerbosityPref(),
+						mode: readModePref(),
 					},
 				}),
 			}),
