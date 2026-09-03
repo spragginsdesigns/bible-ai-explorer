@@ -17,6 +17,12 @@ import {
  * releases — instead of the curated registry's snapshot. Curated entries
  * still win on label and ordering; the registry is also the fallback when a
  * provider's endpoint is down.
+ *
+ * Only recent heads are offered: every list endpoint reports when a model was
+ * created, and anything older than MAX_MODEL_AGE_MS is dropped so the picker
+ * never surfaces a years-old model (OpenAI alone still lists gpt-3.5-turbo
+ * and gpt-4 from 2023). Curated entries are exempt because the registry is
+ * hand-maintained; rows without a date are kept because they cannot be judged.
  */
 
 interface ProviderEndpoint {
@@ -61,9 +67,14 @@ function isMoonshotChatModel(id: string): boolean {
 	return /^(kimi|moonshot)/.test(id) && !OPENAI_NON_CHAT.test(id);
 }
 
+/** Models created more than this long ago are not offered (Austin, 2026-09-02: "last 6 months or less"). */
+export const MAX_MODEL_AGE_MS = 180 * 24 * 60 * 60 * 1000;
+
 interface ProviderModelRow {
 	id: string;
 	displayName?: string;
+	/** Epoch milliseconds the provider first listed the model, when reported. */
+	createdAt?: number;
 	/** OpenRouter: does the model output text rather than only images/audio? */
 	chatOutput?: boolean;
 	/** OpenRouter: does the model advertise image input? */
@@ -117,6 +128,32 @@ function openRouterMeta(entry: Record<string, unknown>): Pick<
 	};
 }
 
+/**
+ * OpenAI, Moonshot and OpenRouter report `created` as unix seconds;
+ * Anthropic reports `created_at` as an ISO-8601 string.
+ */
+function parseCreatedAt(entry: Record<string, unknown>): number | undefined {
+	if (typeof entry.created === "number" && Number.isFinite(entry.created)) {
+		return entry.created * 1000;
+	}
+	if (typeof entry.created_at === "string") {
+		const parsed = Date.parse(entry.created_at);
+		return Number.isNaN(parsed) ? undefined : parsed;
+	}
+	return undefined;
+}
+
+/** Recent enough to offer: curated, undated, or created within MAX_MODEL_AGE_MS. */
+export function isRecentModel(
+	provider: ProviderId,
+	row: Pick<ProviderModelRow, "id" | "createdAt">,
+	now = Date.now(),
+): boolean {
+	if (getModel(`${provider}/${row.id}`)) return true;
+	if (row.createdAt === undefined) return true;
+	return now - row.createdAt <= MAX_MODEL_AGE_MS;
+}
+
 function parseListResponse(provider: ProviderId, body: unknown): ProviderModelRow[] {
 	const data =
 		typeof body === "object" && body !== null && Array.isArray((body as { data?: unknown }).data)
@@ -127,6 +164,7 @@ function parseListResponse(provider: ProviderId, body: unknown): ProviderModelRo
 		if (typeof entry?.id !== "string") continue;
 		rows.push({
 			id: entry.id,
+			createdAt: parseCreatedAt(entry),
 			displayName:
 				provider === "anthropic" && typeof entry.display_name === "string"
 					? entry.display_name
@@ -209,6 +247,7 @@ export async function listProviderModels(
 		});
 		if (!response.ok) throw new Error(`${provider} models list returned ${response.status}`);
 		const rows = parseListResponse(provider, await response.json()).filter((row) => {
+			if (!isRecentModel(provider, row)) return false;
 			if (provider === "openai") return isOpenAiChatModel(row.id);
 			if (provider === "moonshot") return isMoonshotChatModel(row.id);
 			if (provider === "openrouter") {
