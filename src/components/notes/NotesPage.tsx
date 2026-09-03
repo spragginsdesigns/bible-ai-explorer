@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback } from "react";
+import Link from "next/link";
 import AppSidebar from "@/components/AppSidebar";
 import NotesSidebar from "./NotesSidebar";
 import NotesSearch from "./NotesSearch";
@@ -138,6 +139,23 @@ const NotesPage: React.FC = () => {
 					/>
 				) : (
 					<>
+						{/* Same back-link + centred-title header every other page
+						    uses; Notes was the only screen with no title at all. */}
+						<div className="mx-auto w-full max-w-5xl flex items-center gap-4 px-3 lg:px-8 pt-3 lg:pt-6">
+							{/* A Link, not router.back(): Notes is a root tab reachable
+							    from the bottom nav, so history-back can leave the app. */}
+							<Link
+								href="/"
+								aria-label="Back to chat"
+								className="text-control font-semibold text-amber-600 dark:text-amber-400"
+							>
+								‹ Back
+							</Link>
+							<h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100">
+								Notes
+							</h1>
+							<span className="w-11" aria-hidden />
+						</div>
 						<NotesSearch value={searchQuery} onChange={setSearchQuery} />
 						<NotesListView
 							notes={notes}

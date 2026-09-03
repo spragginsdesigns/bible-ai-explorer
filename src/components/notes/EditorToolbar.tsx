@@ -58,7 +58,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor, notes, currentNot
 		}
 	};
 
-	// Primary buttons shown on mobile, all buttons on desktop
+	// Groups rendered before the insert-note-link button
 	const primaryGroups: ToolbarButton[][] = [
 		[
 			{
@@ -120,7 +120,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor, notes, currentNot
 		],
 	];
 
-	// Secondary buttons hidden on mobile, shown on desktop
+	// Groups rendered after it; on narrow screens these are reached by
+	// scrolling the row rather than being hidden.
 	const secondaryGroups: ToolbarButton[][] = [
 		[
 			{
@@ -209,20 +210,36 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor, notes, currentNot
 	);
 
 	return (
-		<div className="flex items-center gap-0.5 px-2 py-1.5 lg:px-3 lg:py-2 border-b border-white/[0.06] glass-light overflow-x-auto scrollbar-hide">
-			{primaryGroups.map((group, gi) => renderGroup(group, gi, gi > 0))}
-			{notes && (
-				<>
-					<div className="w-px h-5 bg-white/[0.06] mx-1 flex-shrink-0" />
-					<WikilinkPicker
-						notes={notes}
-						currentNoteId={currentNoteId}
-						onSelect={insertWikilink}
-					/>
-				</>
-			)}
-			<div className="hidden md:contents">
-				{secondaryGroups.map((group, gi) => renderGroup(group, gi + primaryGroups.length, true))}
+		// The border and glass span the full width; the scroller inside is
+		// capped to the editor's writing column so the toolbar shares its left
+		// edge on desktop. Every button stays mounted at every width and the
+		// row scrolls when it cannot fit - none are hidden.
+		<div className="border-b border-white/[0.06] glass-light flex-shrink-0">
+			<div className="relative mx-auto w-full max-w-3xl">
+				<div className="flex items-center gap-0.5 px-3 py-1.5 md:px-4 md:py-2 overflow-x-auto scrollbar-hide">
+					{primaryGroups.map((group, gi) => renderGroup(group, gi, gi > 0))}
+					{notes && (
+						<>
+							<div className="w-px h-5 bg-white/[0.06] mx-1 flex-shrink-0" />
+							<WikilinkPicker
+								notes={notes}
+								currentNoteId={currentNoteId}
+								onSelect={insertWikilink}
+							/>
+						</>
+					)}
+					{secondaryGroups.map((group, gi) =>
+						renderGroup(group, gi + primaryGroups.length, true)
+					)}
+					{/* Trailing spacer so the last button clears the fade cue. */}
+					<div className="w-6 flex-shrink-0 md:hidden" aria-hidden />
+				</div>
+				{/* Fade at the right edge: the only hint that the row scrolls,
+				    since the scrollbar is suppressed. */}
+				<div
+					aria-hidden
+					className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/85 dark:from-neutral-950/85 to-transparent md:hidden"
+				/>
 			</div>
 		</div>
 	);

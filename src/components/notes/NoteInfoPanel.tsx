@@ -28,9 +28,10 @@ const NoteInfoPanel: React.FC<NoteInfoPanelProps> = ({
 
 	return (
 		<div className="flex-shrink-0 border-t border-white/[0.06] glass-light">
+			{/* Same centred column as the editor body, toolbar and header. */}
 			<button
 				onClick={() => setOpen(!open)}
-				className="w-full flex items-center gap-2 px-4 py-2 text-neutral-500 hover:text-neutral-300 transition-colors"
+				className="mx-auto w-full max-w-3xl flex items-center gap-2 px-3 md:px-4 py-2 text-neutral-500 hover:text-neutral-300 transition-colors"
 			>
 				<PanelBottom className="w-3.5 h-3.5 flex-shrink-0" />
 				<span className="text-xs font-medium flex-1 text-left">
@@ -44,7 +45,7 @@ const NoteInfoPanel: React.FC<NoteInfoPanelProps> = ({
 			</button>
 
 			{open && (
-				<div className="max-h-[45vh] overflow-y-auto custom-scrollbar border-t border-white/[0.06]">
+				<div className="mx-auto w-full max-w-3xl max-h-[45vh] overflow-y-auto custom-scrollbar border-t border-white/[0.06]">
 					<NotePropertiesSection note={note} onUpdate={onUpdate} />
 					<NoteLinksPanel
 						noteId={note.id}

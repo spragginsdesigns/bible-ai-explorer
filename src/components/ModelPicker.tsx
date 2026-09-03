@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import {
@@ -42,6 +43,27 @@ interface ModelsResponse {
 	house: HouseMode | null;
 }
 
+/** Popover geometry. The menu is `w-72`, so 288px. */
+const MENU_WIDTH = 288;
+/** Breathing room kept between the menu and every viewport edge. */
+const VIEWPORT_MARGIN = 8;
+/** Below this, the preferred side is too cramped and the menu flips. */
+const MIN_PREFERRED_HEIGHT = 260;
+/** The menu never grows past this, however tall the viewport is. */
+const MAX_MENU_HEIGHT = 420;
+
+/**
+ * Where the popover is pinned, in viewport coordinates. Exactly one of
+ * `top` / `bottom` is set: anchoring by `bottom` opens the menu upward
+ * without having to know its rendered height first.
+ */
+interface MenuPosition {
+	left: number;
+	top: number | null;
+	bottom: number | null;
+	maxHeight: number;
+}
+
 const EFFORT_OPTIONS = [
 	{ id: null, label: "Auto" },
 	{ id: "low", label: "Low" },
@@ -68,9 +90,9 @@ const EFFORT_OPTIONS = [
  */
 interface ModelPickerProps {
 	/**
-	 * Which way the popover opens. "above" suits the composer docked at the
-	 * viewport edge; "below" is for a composer sitting inside a scroll
-	 * container, where an upward popover is clipped by the container.
+	 * Preferred side. The menu renders in a portal and flips to the other
+	 * side when the preferred one cannot fit it, so this is a hint rather
+	 * than a promise.
 	 */
 	placement?: "above" | "below";
 }
@@ -81,7 +103,19 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	const [modelId, setModelId] = useState<string | null>(null);
 	const [effort, setEffort] = useState<string | null>(null);
 	const [expanded, setExpanded] = useState<string | null>(null);
+	const [position, setPosition] = useState<MenuPosition | null>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLButtonElement>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+	// The menu is portalled out of the trigger's subtree, so focus has to be
+	// moved into it by hand and handed back to the trigger on close.
+	const menuId = `model-picker-${useId()}`;
+	const focusedOnOpenRef = useRef(false);
+
+	const closeMenu = useCallback(() => {
+		setOpen(false);
+		triggerRef.current?.focus();
+	}, []);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -118,14 +152,85 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		};
 	}, []);
 
+	/**
+	 * Pins the menu in viewport coordinates. The composer can sit inside a
+	 * scroll container (the welcome screen), so an absolutely positioned menu
+	 * was clipped by that container and the reasoning control ended up
+	 * off-screen. A fixed, portalled menu has no clipping ancestor; all it
+	 * needs is collision handling of its own.
+	 */
+	const measure = useCallback((): MenuPosition | null => {
+		const trigger = triggerRef.current;
+		if (!trigger) return null;
+		const rect = trigger.getBoundingClientRect();
+		const spaceAbove = rect.top - VIEWPORT_MARGIN * 2;
+		const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_MARGIN * 2;
+		const preferAbove = placement === "above";
+		const preferredSpace = preferAbove ? spaceAbove : spaceBelow;
+		const otherSpace = preferAbove ? spaceBelow : spaceAbove;
+		// Keep the preferred side unless it is too cramped and the other side
+		// is genuinely roomier.
+		const useAbove =
+			preferredSpace >= MIN_PREFERRED_HEIGHT || preferredSpace >= otherSpace
+				? preferAbove
+				: !preferAbove;
+		const available = useAbove ? spaceAbove : spaceBelow;
+		return {
+			left: Math.round(
+				Math.max(
+					VIEWPORT_MARGIN,
+					Math.min(rect.left, window.innerWidth - MENU_WIDTH - VIEWPORT_MARGIN),
+				),
+			),
+			top: useAbove ? null : Math.round(rect.bottom + VIEWPORT_MARGIN),
+			bottom: useAbove
+				? Math.round(window.innerHeight - rect.top + VIEWPORT_MARGIN)
+				: null,
+			maxHeight: Math.round(Math.max(160, Math.min(available, MAX_MENU_HEIGHT))),
+		};
+	}, [placement]);
+
 	useEffect(() => {
-		if (!open) return;
+		if (!open) {
+			setPosition(null);
+			return;
+		}
+		setPosition(measure());
+		const reposition = () => setPosition(measure());
 		const close = (event: MouseEvent) => {
-			if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+			const target = event.target as Node;
+			if (containerRef.current?.contains(target)) return;
+			if (menuRef.current?.contains(target)) return;
+			closeMenu();
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") closeMenu();
 		};
 		document.addEventListener("mousedown", close);
-		return () => document.removeEventListener("mousedown", close);
-	}, [open]);
+		document.addEventListener("keydown", onKeyDown);
+		window.addEventListener("resize", reposition);
+		// Capture phase so scrolling any ancestor container repositions too.
+		window.addEventListener("scroll", reposition, true);
+		return () => {
+			document.removeEventListener("mousedown", close);
+			document.removeEventListener("keydown", onKeyDown);
+			window.removeEventListener("resize", reposition);
+			window.removeEventListener("scroll", reposition, true);
+		};
+	}, [open, measure, closeMenu]);
+
+	// Focus the menu once, on the render where it first has a position (and so
+	// actually exists in the DOM); repositioning on scroll must not re-focus.
+	useEffect(() => {
+		if (!open) {
+			focusedOnOpenRef.current = false;
+			return;
+		}
+		if (position && !focusedOnOpenRef.current) {
+			focusedOnOpenRef.current = true;
+			menuRef.current?.focus();
+		}
+	}, [open, position]);
 
 	const selected = useMemo(
 		() => data?.models.find((model) => model.id === modelId) ?? null,
@@ -158,7 +263,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		if (!model.available) return;
 		setModelId(model.id);
 		writeModelPref(model.id);
-		setOpen(false);
+		closeMenu();
 	};
 
 	const pickEffort = (id: string | null) => {
@@ -166,32 +271,24 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		writeEffortPref(id);
 	};
 
-	return (
-		<div ref={containerRef} className="relative">
-			<button
-				type="button"
-				onClick={() => setOpen((current) => !current)}
-				aria-haspopup="listbox"
-				aria-expanded={open}
-				aria-label="Choose AI model"
-				className="flex h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
-			>
-				<Sparkles className="h-3.5 w-3.5" />
-				<span className="hidden max-w-[110px] truncate sm:block">
-					{house?.label ?? selected?.label ?? "Model"}
-				</span>
-				<ChevronDown className="h-3 w-3" />
-			</button>
+	const activeLabel = house?.label ?? selected?.label ?? "Model";
 
-			{open && (
-				<div
-					className={`absolute left-0 z-30 w-72 overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg dark:border-white/[0.08] dark:bg-neutral-900 ${
-						placement === "below" ? "top-full mt-2" : "bottom-full mb-2"
-					}`}
-				>
-					{house ? (
-						<>
-							<div className="py-1" role="listbox" aria-label="AI model">
+	const menu = position && (
+		<div
+			ref={menuRef}
+			id={menuId}
+			tabIndex={-1}
+			style={{
+				left: position.left,
+				top: position.top ?? undefined,
+				bottom: position.bottom ?? undefined,
+				maxHeight: position.maxHeight,
+			}}
+			className="fixed z-50 flex w-72 flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg outline-none dark:border-white/[0.08] dark:bg-neutral-900"
+		>
+			{house ? (
+				<>
+					<div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar py-1" role="listbox" aria-label="AI model">
 								{/* Nothing to choose, so this row is text rather than a
 								    control: one model, already in use. */}
 								<div
@@ -205,7 +302,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 									<Check className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
 								</div>
 							</div>
-							<div className="border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+							<div className="flex-shrink-0 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
 								<p className="text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
 									{house.note}
 								</p>
@@ -221,7 +318,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 						</>
 					) : (
 						<>
-							<div className="max-h-80 overflow-y-auto custom-scrollbar py-1">
+							<div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar py-1">
 								{providers.map((provider) => {
 									const providerModels = data.models.filter(
 										(model) => model.provider === provider.id && model.available,
@@ -285,7 +382,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 									);
 								})}
 							</div>
-							<div className="border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
+							<div className="flex-shrink-0 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
 								<p className="mb-2 text-metadata font-bold tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
 									REASONING
 								</p>
@@ -312,8 +409,30 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 							</div>
 						</>
 					)}
-				</div>
-			)}
+		</div>
+	);
+
+	return (
+		<div ref={containerRef} className="relative">
+			<button
+				ref={triggerRef}
+				type="button"
+				onClick={() => setOpen((current) => !current)}
+				aria-haspopup="listbox"
+				aria-expanded={open}
+				aria-controls={menuId}
+				aria-label={`Choose AI model, currently ${activeLabel}`}
+				title={activeLabel}
+				className="flex h-11 max-w-[160px] items-center gap-1 rounded-lg border border-black/[0.08] px-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:border-white/[0.08] dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
+			>
+				<Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+				<span className="min-w-0 flex-1 truncate text-left">{activeLabel}</span>
+				<ChevronDown className="h-3 w-3 flex-shrink-0" />
+			</button>
+
+			{open && typeof document !== "undefined"
+				? createPortal(menu, document.body)
+				: null}
 		</div>
 	);
 };

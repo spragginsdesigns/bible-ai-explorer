@@ -250,7 +250,9 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 					</button>
 				</div>
 
-				<div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-1 px-1">
+				{/* pb-4 reserves room under the last row so the sticky Clear all
+				    footer never sits flush against a half-shown memory. */}
+				<div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-4">
 					{/* Summary block — manual trigger, each generation is an LLM call. */}
 					<div className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] p-3.5">
 						{summary === undefined && !summaryLoading && (

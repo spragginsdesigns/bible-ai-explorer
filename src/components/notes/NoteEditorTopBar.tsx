@@ -79,12 +79,15 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const noteTags = tags.filter((t) => note.tagIds.includes(t.id));
 
 	return (
+		// Both rows sit in the same centred max-w-3xl column as the editor body
+		// and toolbar, so the note header has one left edge instead of three.
 		<div className="flex flex-col border-b border-white/[0.06] glass flex-shrink-0">
 			{/* Top row */}
-			<div className="h-12 flex items-center justify-between px-3 gap-2">
+			<div className="mx-auto w-full max-w-3xl h-12 flex items-center justify-between px-3 md:px-4 gap-2">
 				<button
 					onClick={onBack}
-					className="text-neutral-500 hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-1"
+					aria-label="Back to notes"
+					className="text-neutral-500 hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
 				>
 					<ArrowLeft className="w-5 h-5" />
 				</button>
@@ -149,7 +152,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 			</div>
 
 			{/* Meta row: folder + tags */}
-			<div className="flex items-center gap-2 px-4 pb-2.5 overflow-x-auto scrollbar-hide">
+			<div className="mx-auto w-full max-w-3xl flex items-center gap-2 px-3 md:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
 				{/* Folder selector */}
 				<div className="relative" ref={folderMenuRef}>
 					<button

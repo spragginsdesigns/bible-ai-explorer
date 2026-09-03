@@ -169,9 +169,13 @@ const ChurchSection: React.FC = () => {
 		}
 	};
 
-	// Nothing is rendered until we know the feature exists, so an unconfigured
-	// deploy never flashes an empty "MY CHURCH" heading.
-	if (state === "loading" || state === "unavailable") return null;
+	// Nothing visible is rendered until we know the feature exists, so an
+	// unconfigured deploy never flashes an empty "MY CHURCH" heading. The empty
+	// anchor still has to exist, or the sidebar's "My church" jump link is dead
+	// while this is loading and on deploys without a Places key.
+	if (state === "loading" || state === "unavailable") {
+		return <section id="church" aria-hidden="true" />;
+	}
 
 	const saving = savingPlaceId !== null;
 	const trimmedQuery = query.trim();
@@ -183,7 +187,7 @@ const ChurchSection: React.FC = () => {
 	const showPhoto = church?.photoUrl != null && failedPhotoUrl !== church.photoUrl;
 
 	return (
-		<section className="flex flex-col gap-2">
+		<section id="church" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
 				MY CHURCH
 			</h2>

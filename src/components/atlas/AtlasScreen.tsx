@@ -306,24 +306,33 @@ const AtlasScreen: React.FC = () => {
             )}
           </label>
           {!trimmed && mode !== "places" && timeline.allEras.length > 0 && (
-            <div
-              className="flex flex-nowrap gap-2 overflow-x-auto py-4"
-              aria-label="Timeline eras"
-            >
-              <EraChip
-                label="All"
-                active={!urlEra}
-                onClick={() => selectEra(null)}
-              />
-              {timeline.allEras.map((name) => (
+            <div className="relative">
+              <div
+                className="flex flex-nowrap gap-2 overflow-x-auto py-4"
+                aria-label="Timeline eras"
+              >
                 <EraChip
-                  key={name}
-                  label={eraChipLabel(name)}
-                  title={name}
-                  active={urlEra === name}
-                  onClick={() => selectEra(urlEra === name ? null : name)}
+                  label="All"
+                  active={!urlEra}
+                  onClick={() => selectEra(null)}
                 />
-              ))}
+                {timeline.allEras.map((name) => (
+                  <EraChip
+                    key={name}
+                    label={eraChipLabel(name)}
+                    title={name}
+                    active={urlEra === name}
+                    onClick={() => selectEra(urlEra === name ? null : name)}
+                  />
+                ))}
+                {/* Trailing spacer so the last chip clears the fade cue. */}
+                <div className="w-6 flex-shrink-0 lg:hidden" aria-hidden />
+              </div>
+              {/* The row clipped mid-word with nothing to say it scrolled. */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white/85 dark:from-neutral-950/85 to-transparent lg:hidden"
+              />
             </div>
           )}
           {chapterScope && chapterView && !trimmed && mode === "timeline" && (

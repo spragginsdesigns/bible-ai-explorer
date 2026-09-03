@@ -164,11 +164,16 @@ export default function SettingsPage() {
 	const name = user?.fullName ?? user?.username ?? "";
 	const initial = (name || email || "✝").trim().charAt(0).toUpperCase();
 
+	// No page-level min-h or background here: SettingsShell already wraps this
+	// in the identical `min-h-[100dvh] gradient-mesh`, and stacking the two made
+	// mobile Settings a full 56px taller than the viewport.
 	return (
-		<div className="min-h-[100dvh] gradient-mesh">
+		<div>
 			<div className="mx-auto w-full max-w-xl lg:max-w-5xl px-5 lg:px-8 pb-28 lg:pb-16">
 				{/* Top bar */}
-				<div className="flex items-center gap-4 py-4 lg:py-6">
+				{/* Mobile gets this bar from SettingsShell (with a hamburger);
+				    desktop keeps the page title row. */}
+				<div className="hidden lg:flex items-center gap-4 py-4 lg:py-6">
 					<Link
 						href="/"
 						className="flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
@@ -186,7 +191,7 @@ export default function SettingsPage() {
 				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
 					<div className="flex flex-col gap-6 min-w-0">
 					{/* Appearance */}
-					<section className="flex flex-col gap-2">
+					<section id="appearance" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>APPEARANCE</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 							<div className="grid grid-cols-3 gap-2">
@@ -250,7 +255,7 @@ export default function SettingsPage() {
 					</section>
 
 					{/* Bible translation */}
-					<section className="flex flex-col gap-2">
+					<section id="translation" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>BIBLE TRANSLATION</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 							<div className="grid grid-cols-2 gap-2">
@@ -282,7 +287,7 @@ export default function SettingsPage() {
 					</section>
 
 					{/* Memory */}
-					<section className="flex flex-col gap-2">
+					<section id="memory" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>MEMORY</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 							<div className="flex items-center gap-3">
@@ -359,7 +364,7 @@ export default function SettingsPage() {
 					</section>
 
 					{/* Web search */}
-					<section className="flex flex-col gap-2">
+					<section id="web-search" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>WEB SEARCH</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 							<div className="flex items-center gap-3">
@@ -427,13 +432,13 @@ export default function SettingsPage() {
 
 					<div className="flex flex-col gap-6 min-w-0">
 					{/* AI providers */}
-					<section className="flex flex-col gap-2">
+					<section id="providers" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>AI PROVIDERS</SectionLabel>
 						<ProviderSettings />
 					</section>
 
 					{/* Account */}
-					<section className="flex flex-col gap-2">
+					<section id="account" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>ACCOUNT</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-4">
 							<div className="flex items-center gap-3">
@@ -463,7 +468,7 @@ export default function SettingsPage() {
 					</section>
 
 					{/* Get the app */}
-					<section className="flex flex-col gap-2">
+					<section id="get-the-app" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>GET THE APP</SectionLabel>
 						<a
 							href={ANDROID_APK_URL}
@@ -517,7 +522,7 @@ export default function SettingsPage() {
 					</section>
 
 					{/* About */}
-					<section className="flex flex-col gap-2">
+					<section id="about" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>ABOUT</SectionLabel>
 						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-2">
 							<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">

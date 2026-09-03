@@ -61,7 +61,10 @@ const NotesListView: React.FC<NotesListViewProps> = ({
 							</p>
 						</div>
 					) : (
-						<div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 items-stretch">
+						// grid-cols-1 is load-bearing: without it the implicit single
+						// column sizes to max-content, and one unbreakable tag or
+						// preview string pushed every card past the phone viewport.
+						<div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 items-stretch">
 							{notes.map((note) => (
 								<NoteCard
 									key={note.id}

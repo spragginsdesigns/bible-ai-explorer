@@ -17,10 +17,11 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 	const { setTheme } = useTheme();
 
 	return (
-		<div className="h-14 flex lg:hidden items-center justify-between px-4 border-b border-black/[0.08] dark:border-white/[0.06] glass flex-shrink-0">
+		<header className="h-14 flex lg:hidden items-center justify-between px-4 border-b border-black/[0.08] dark:border-white/[0.06] glass flex-shrink-0">
 			<div className="flex items-center gap-1 min-w-0">
 				<button
 					onClick={onToggleSidebar}
+					aria-label="Open sidebar"
 					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
 				>
 					<Menu className="w-5 h-5" />
@@ -33,6 +34,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 				<button
 					onClick={onNewChat}
 					title="New Chat"
+					aria-label="New chat"
 					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 				>
 					<SquarePen className="w-4 h-4" />
@@ -52,6 +54,8 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 						const isDark = document.documentElement.classList.contains("dark");
 						setTheme(isDark ? "light" : "dark");
 					}}
+					title="Toggle theme"
+					aria-label="Toggle theme"
 					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 				>
 					<Sun className="w-4 h-4 hidden dark:block" />
@@ -73,7 +77,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 					<UserButton />
 				</div>
 			</div>
-		</div>
+		</header>
 	);
 };
 

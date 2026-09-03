@@ -197,7 +197,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 					<p className="text-neutral-400 dark:text-neutral-600 text-metadata font-bold uppercase tracking-[0.12em] px-3 mb-2">
 						Tags
 					</p>
-					<div className="flex flex-wrap gap-1.5 px-2">
+					<div className="flex flex-wrap gap-1.5 px-2 min-w-0">
 						{tags.map((tag) => (
 							<button
 								key={tag.id}
@@ -205,8 +205,9 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 									onSelectTag(activeTagId === tag.id ? null : tag.id);
 									onNavigate?.();
 								}}
+								title={tag.name}
 								className={`
-									inline-flex items-center px-2 py-1 rounded-full text-metadata font-medium transition-all
+									inline-flex items-center px-2 py-1 rounded-full text-metadata font-medium transition-all max-w-full truncate
 									${activeTagId === tag.id
 										? "ring-1 ring-offset-1 ring-offset-transparent"
 										: "opacity-70 hover:opacity-100"

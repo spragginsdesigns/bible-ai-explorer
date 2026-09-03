@@ -52,7 +52,9 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp, convers
 			onScroll={checkIfNearBottom}
 			className="flex-1 overflow-y-auto custom-scrollbar"
 		>
-			<div className="max-w-3xl mx-auto px-4 py-6">
+			{/* Extra top padding on desktop: there is no top bar above the chat
+			    at lg, so at py-6 the first bubble sat 28px off the viewport. */}
+			<div className="max-w-3xl mx-auto px-4 py-6 lg:pt-12">
 				{messages.map((msg) => (
 					<ChatMessage
 						key={msg.id}

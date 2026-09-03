@@ -202,7 +202,7 @@ const BibleAIExplorerInner: React.FC = () => {
 				/>
 			</AppSidebar>
 
-			<div className="flex-1 flex flex-col min-w-0 min-h-0 pb-20 lg:pb-0">
+			<main className="flex-1 flex flex-col min-w-0 min-h-0 pb-20 lg:pb-0">
 				<ChatTopBar
 					title={title}
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -265,7 +265,7 @@ const BibleAIExplorerInner: React.FC = () => {
 				)}
 
 				{showWelcome ? null : renderChatInput("above")}
-			</div>
+			</main>
 		</div>
 	);
 };

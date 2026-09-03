@@ -79,7 +79,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     // Scrolls itself instead of centering: vertical centering let the intrinsic
     // height win in the flex column and pushed the composer past the fold.
     <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-      <div className="max-w-4xl mx-auto px-4 pt-8 pb-10 text-center">
+      {/* max-w-3xl, matching MessageList and the docked composer: at 4xl the
+          column jumped 64px narrower the moment the first message was sent. */}
+      <div className="max-w-3xl mx-auto px-4 pt-8 pb-10 text-center">
         <div className="mb-6">
           <div className="w-20 h-20 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow overflow-hidden">
             <Image
@@ -139,7 +141,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </p>
         </div>
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-8"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8"
           aria-busy={loading}
           aria-label={
             loading ? "Preparing your questions" : "Suggested questions"

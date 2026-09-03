@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users } from "lucide-react";
+import { Users, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
@@ -199,6 +199,17 @@ const ChapterReader: React.FC = () => {
     [startInsight, reference, translation]
   );
 
+  // Escape closes the verse sheet, matching every other dismissable panel in
+  // the app (and the close X added alongside it).
+  useEffect(() => {
+    if (!actionVerse) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closePanel();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [actionVerse, closePanel]);
+
   const retryInsight = useCallback(() => {
     if (!actionVerse) return;
     startInsight({ reference: actionReference, text: actionVerse.text, translation });
@@ -283,25 +294,30 @@ const ChapterReader: React.FC = () => {
 
   return (
     <div className="min-h-[100dvh] gradient-mesh">
-      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-32">
-        {/* Top bar */}
-        <div className="flex items-center gap-4 py-3 lg:py-5">
+      {/* Bottom padding reserves the floating Ask AI pill's band (its offset
+          plus its height plus a gap) so the pill never lands on verse text or
+          the Previous/Next row at the end of a chapter. */}
+      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-44 lg:pb-24">
+        {/* Top bar. A three-track grid with equal 1fr side slots keeps the
+            title on the column's centre line however wide the right cluster
+            grows; a plain flex row let the wider side push it off-centre. */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 py-3 lg:py-5">
           <button
             type="button"
             onClick={() => router.back()}
-            className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+            className="justify-self-start text-[15px] font-semibold text-amber-600 dark:text-amber-400"
           >
             ‹ Back
           </button>
-          <h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+          <h1 className="text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
             {reference}
           </h1>
-          <div className="flex gap-2">
+          <div className="flex justify-self-end gap-1 sm:gap-2">
             <Link
               href={`/bible/timeline?book=${order}&chapter=${chapter}`}
               aria-label="Who's in this chapter"
               title="Who's in this chapter"
-              className="flex items-center rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
             >
               <Users className="h-4 w-4" aria-hidden />
             </Link>
@@ -310,7 +326,7 @@ const ChapterReader: React.FC = () => {
               aria-label="Decrease text size"
               disabled={fontStep === 0}
               onClick={() => stepFont(-1)}
-              className={`rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-xs font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === 0 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-xs font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === 0 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
             >
               A−
             </button>
@@ -319,15 +335,16 @@ const ChapterReader: React.FC = () => {
               aria-label="Increase text size"
               disabled={fontStep === FONT_STEPS.length - 1}
               onClick={() => stepFont(1)}
-              className={`rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2.5 py-1 text-base font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === FONT_STEPS.length - 1 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-base font-bold text-neutral-600 dark:text-neutral-300 ${fontStep === FONT_STEPS.length - 1 ? "opacity-35" : "hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
             >
               A+
             </button>
           </div>
         </div>
 
-        {/* Translation chips */}
-        <div className="flex justify-end gap-1 pb-2">
+        {/* Translation chips: centred under the title so the header reads as
+            one balanced block rather than a right-hung second row. */}
+        <div className="flex justify-center gap-1 pb-2">
           {(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
             <button
               key={id}
@@ -472,9 +489,14 @@ const ChapterReader: React.FC = () => {
                   text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
                 })
               }
-              className="fixed bottom-24 right-6 lg:bottom-6 z-40 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-3 text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber backdrop-blur-md hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+              // Opaque, and a compact circle on phones: the old translucent
+              // full-label pill let verse text read straight through it and
+              // covered 112px of the reading column. Desktop has room for the
+              // label clear of the column, so it keeps the full pill.
+              className="fixed bottom-24 right-3 lg:bottom-6 lg:right-6 z-40 flex h-12 w-12 items-center justify-center gap-1.5 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-[hsl(var(--card))] text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber shadow-lg lg:h-auto lg:w-auto lg:px-6 lg:py-3 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors"
             >
-              ✦ Ask AI
+              <span aria-hidden>✦</span>
+              <span className="hidden lg:inline">Ask AI</span>
             </button>
           </>
         )}
@@ -482,150 +504,171 @@ const ChapterReader: React.FC = () => {
 
       {/* Verse action panel (web analog of Android's long-press sheet) */}
       {actionVerse && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${actionReference} actions`}
+        >
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={closePanel}
             aria-hidden
           />
-          <div className="glass relative w-full max-w-lg rounded-t-2xl border-t border-black/[0.08] dark:border-white/[0.08] p-4 pb-safe animate-message-in">
-            <p className="px-2 pb-3 text-center text-sm font-bold text-amber-600 dark:text-amber-400">
-              {actionReference}
-            </p>
-
-            {/* Tapped verse */}
-            <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
-              <p className="line-clamp-5 font-[family-name:var(--font-cormorant)] text-chat text-neutral-700 dark:text-neutral-300">
-                {actionVerse.text}
+          {/* Capped and scrollable: the sheet used to grow past the viewport
+              and push its own heading off the top of the screen with no way
+              back. Matches Android's 88%-height sheet with a pinned title. */}
+          <div className="glass relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-2xl border-t border-black/[0.08] dark:border-white/[0.08] animate-message-in">
+            <div className="relative flex-shrink-0 px-4 pb-3 pt-4">
+              <p className="px-8 text-center text-sm font-bold text-amber-600 dark:text-amber-400">
+                {actionReference}
               </p>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={closePanel}
+                className="absolute right-3 top-2 flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
             </div>
 
-            {/* Streaming AI explanation (glowing skeleton until tokens arrive) */}
-            <div className="flex min-h-16 flex-col justify-center px-2 py-3">
-              {insightStatus === "loading" ? (
-                <div aria-label="Generating an explanation" className="flex flex-col gap-2">
-                  <div className="h-3 w-full animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm" />
-                  <div className="h-3 w-[92%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:150ms]" />
-                  <div className="h-3 w-[64%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:300ms]" />
-                </div>
-              ) : insightStatus === "error" ? (
-                <div className="flex flex-col gap-2">
-                  <p className="text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
-                    {insightError}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={retryInsight}
-                    className="self-start text-[13.5px] font-semibold text-amber-600 dark:text-amber-400"
-                  >
-                    Try again
-                  </button>
-                </div>
-              ) : insightStatus !== "idle" ? (
-                <p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-200">
-                  {insightText}
-                  {insightStatus === "streaming" && (
-                    <span className="text-amber-600 dark:text-amber-400"> ▍</span>
-                  )}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+              {/* Tapped verse */}
+              <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
+                <p className="line-clamp-5 font-[family-name:var(--font-cormorant)] text-chat text-neutral-700 dark:text-neutral-300">
+                  {actionVerse.text}
                 </p>
-              ) : null}
-            </div>
-
-            {/* Hebrew or Greek behind the verse, word by word with Strong's. */}
-            <OriginalLanguageSection
-              book={order}
-              chapter={chapter}
-              verse={actionVerse.number}
-            />
-
-            <button
-              type="button"
-              onClick={() => askAI({ reference: actionReference, text: actionVerse.text })}
-              className="mb-2 flex min-h-[46px] w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[14.5px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
-            >
-              ✦ Expand with AI
-            </button>
-
-            {/* Highlight picker: presets + custom color; applies immediately
-                and leaves the panel open (YouVersion-style). */}
-            <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
-              <p className="pb-2 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                Highlight
-              </p>
-              <div className="flex flex-wrap items-center gap-2.5">
-                {HIGHLIGHT_COLORS.map((preset) => {
-                  const active = actionColor?.toLowerCase() === preset.hex.toLowerCase();
-                  return (
-                    <button
-                      key={preset.hex}
-                      type="button"
-                      aria-label={`Highlight ${preset.name}`}
-                      aria-pressed={active}
-                      onClick={() => setHighlightColor(actionVerse.number, preset.hex)}
-                      className={`h-9 w-9 rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105 ${
-                        active ? "ring-2 ring-amber-500 dark:ring-amber-400" : ""
-                      }`}
-                      style={{ backgroundColor: preset.hex }}
-                    />
-                  );
-                })}
-                <label
-                  aria-label="Custom highlight color"
-                  className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105"
-                  style={{
-                    background:
-                      "conic-gradient(#E84C3D, #F5A623, #F5D76E, #27AE60, #1ABC9C, #4A90D9, #9B59B6, #E87EA1, #E84C3D)",
-                  }}
-                >
-                  <input
-                    type="color"
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                    value={actionColor ?? "#F5D76E"}
-                    onChange={(event) =>
-                      setHighlightColor(actionVerse.number, event.target.value.toUpperCase())
-                    }
-                  />
-                </label>
               </div>
+
+              {/* Streaming AI explanation (glowing skeleton until tokens arrive) */}
+              <div className="flex min-h-16 flex-col justify-center px-2 py-3">
+                {insightStatus === "loading" ? (
+                  <div aria-label="Generating an explanation" className="flex flex-col gap-2">
+                    <div className="h-3 w-full animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm" />
+                    <div className="h-3 w-[92%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:150ms]" />
+                    <div className="h-3 w-[64%] animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm [animation-delay:300ms]" />
+                  </div>
+                ) : insightStatus === "error" ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+                      {insightError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryInsight}
+                      className="self-start text-[13.5px] font-semibold text-amber-600 dark:text-amber-400"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                ) : insightStatus !== "idle" ? (
+                  <p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-200">
+                    {insightText}
+                    {insightStatus === "streaming" && (
+                      <span className="text-amber-600 dark:text-amber-400"> ▍</span>
+                    )}
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Hebrew or Greek behind the verse, word by word with Strong's. */}
+              <OriginalLanguageSection
+                book={order}
+                chapter={chapter}
+                verse={actionVerse.number}
+              />
+
+              <button
+                type="button"
+                onClick={() => askAI({ reference: actionReference, text: actionVerse.text })}
+                className="mb-2 flex min-h-[46px] w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[14.5px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+              >
+                ✦ Expand with AI
+              </button>
+
+              {/* Highlight picker: presets + custom color; applies immediately
+                  and leaves the panel open (YouVersion-style). */}
+              <div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
+                <p className="pb-2 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                  Highlight
+                </p>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {HIGHLIGHT_COLORS.map((preset) => {
+                    const active = actionColor?.toLowerCase() === preset.hex.toLowerCase();
+                    return (
+                      <button
+                        key={preset.hex}
+                        type="button"
+                        aria-label={`Highlight ${preset.name}`}
+                        aria-pressed={active}
+                        onClick={() => setHighlightColor(actionVerse.number, preset.hex)}
+                        className={`h-9 w-9 rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105 ${
+                          active ? "ring-2 ring-amber-500 dark:ring-amber-400" : ""
+                        }`}
+                        style={{ backgroundColor: preset.hex }}
+                      />
+                    );
+                  })}
+                  <label
+                    aria-label="Custom highlight color"
+                    className="relative h-9 w-9 cursor-pointer overflow-hidden rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105"
+                    style={{
+                      background:
+                        "conic-gradient(#E84C3D, #F5A623, #F5D76E, #27AE60, #1ABC9C, #4A90D9, #9B59B6, #E87EA1, #E84C3D)",
+                    }}
+                  >
+                    <input
+                      type="color"
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      value={actionColor ?? "#F5D76E"}
+                      onChange={(event) =>
+                        setHighlightColor(actionVerse.number, event.target.value.toUpperCase())
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {actionColor && (
+                <button
+                  type="button"
+                  onClick={() => removeHighlight(actionVerse.number)}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+                >
+                  <span className="w-5 text-center text-amber-600 dark:text-amber-400">✕</span>
+                  Remove highlight
+                </button>
+              )}
+
+              {[
+                {
+                  glyph: "⧉",
+                  label: copied ? "Copied ✓" : "Copy",
+                  onPress: () => void onCopyVerse(),
+                },
+                { glyph: "↗", label: "Share", onPress: () => void onShareVerse() },
+                {
+                  glyph: "✎",
+                  label: saveBusy ? "Saving…" : "Save to note",
+                  onPress: () => void onSaveVerse(),
+                },
+              ].map((row) => (
+                <button
+                  key={row.glyph + row.label}
+                  type="button"
+                  onClick={row.onPress}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+                >
+                  <span className="w-5 text-center text-amber-600 dark:text-amber-400">{row.glyph}</span>
+                  {row.label}
+                </button>
+              ))}
+              {saveError && (
+                <p className="px-3 py-2 text-[12.5px] text-red-500 dark:text-red-400">{saveError}</p>
+              )}
+              <div className="pb-safe" aria-hidden />
             </div>
-
-            {actionColor && (
-              <button
-                type="button"
-                onClick={() => removeHighlight(actionVerse.number)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
-              >
-                <span className="w-5 text-center text-amber-600 dark:text-amber-400">✕</span>
-                Remove highlight
-              </button>
-            )}
-
-            {[
-              {
-                glyph: "⧉",
-                label: copied ? "Copied ✓" : "Copy",
-                onPress: () => void onCopyVerse(),
-              },
-              { glyph: "↗", label: "Share", onPress: () => void onShareVerse() },
-              {
-                glyph: "✎",
-                label: saveBusy ? "Saving…" : "Save to note",
-                onPress: () => void onSaveVerse(),
-              },
-            ].map((row) => (
-              <button
-                key={row.glyph + row.label}
-                type="button"
-                onClick={row.onPress}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
-              >
-                <span className="w-5 text-center text-amber-600 dark:text-amber-400">{row.glyph}</span>
-                {row.label}
-              </button>
-            ))}
-            {saveError && (
-              <p className="px-3 py-2 text-[12.5px] text-red-500 dark:text-red-400">{saveError}</p>
-            )}
           </div>
         </div>
       )}

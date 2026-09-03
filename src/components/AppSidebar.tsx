@@ -29,7 +29,13 @@ interface AppSidebarProps {
 	 * row on desktop and slides over as a drawer on mobile via open/onClose.
 	 */
 	docked?: boolean;
-	/** Mobile drawer state (ignored in docked mode). */
+	/**
+	 * Docked pages that still want the drawer on mobile (Settings). Without
+	 * it a docked sidebar is simply absent below `lg`, which leaves those
+	 * pages with no way to reach the chat history.
+	 */
+	mobileDrawer?: boolean;
+	/** Mobile drawer state (ignored by docked pages that opt out above). */
 	open?: boolean;
 	onClose?: () => void;
 	/** Contextual middle section: chat history, note folders, etc. */
@@ -51,6 +57,7 @@ const NAV = [
 const AppSidebar: React.FC<AppSidebarProps> = ({
 	active,
 	docked = false,
+	mobileDrawer = false,
 	open = false,
 	onClose,
 	children,
@@ -61,18 +68,23 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 	const name = user?.fullName ?? user?.username ?? "";
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 
+	const drawer = !docked || mobileDrawer;
+	const slide = open ? "translate-x-0" : "-translate-x-full lg:translate-x-0";
+
 	const positioning = docked
-		? "hidden lg:flex fixed inset-y-0 left-0"
-		: `flex fixed lg:relative top-0 left-0 h-full transition-transform duration-200 ease-in-out ${
-				open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-			}`;
+		? mobileDrawer
+			? `flex fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out ${slide}`
+			: "hidden lg:flex fixed inset-y-0 left-0"
+		: `flex fixed lg:relative top-0 left-0 h-full transition-transform duration-200 ease-in-out ${slide}`;
 
 	return (
 		<>
-			{/* Mobile backdrop */}
-			{!docked && open && (
+			{/* Mobile backdrop. z-45 rather than z-40: MobileBottomNav is also
+			    z-40 and paints later in the document, so at the same level the
+			    tab bar stayed bright and clickable through the scrim. */}
+			{drawer && open && (
 				<div
-					className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 lg:hidden"
+					className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[45] lg:hidden"
 					onClick={onClose}
 				/>
 			)}
@@ -97,7 +109,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 					>
 						SureWord
 					</Link>
-					{!docked && (
+					{drawer && (
 						<button
 							onClick={onClose}
 							aria-label="Close sidebar"

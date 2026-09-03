@@ -172,7 +172,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 				if (!disabled) handleFiles(event.dataTransfer.files);
 			}}
 		>
-			<div className="max-w-3xl mx-auto px-4 py-3">
+			<div className="max-w-3xl mx-auto px-4 py-2 sm:py-3">
 				{attachment && (
 					<div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/[0.07] py-1 pl-3 pr-2">
 						<span className="text-metadata text-amber-600 dark:text-amber-400">✦</span>
@@ -255,28 +255,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							</div>
 						</div>
 					)}
-					<div className="flex items-end gap-1 gradient-border liquid-glass rounded-xl px-2 py-2">
-						<ModelPicker placement={pickerPlacement} />
-						<input
-							ref={fileInputRef}
-							type="file"
-							multiple
-							accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json"
-							className="sr-only"
-							onChange={(event) => {
-								if (event.target.files) handleFiles(event.target.files);
-								event.target.value = "";
-							}}
-						/>
-						<button
-							type="button"
-							onClick={() => fileInputRef.current?.click()}
-							disabled={disabled}
-							aria-label="Attach files"
-							className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
-						>
-							{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-						</button>
+					{/* Two rows: the field owns the full width, the controls sit
+					    under it. A single row left the textarea 162px wide at
+					    390, which wrapped and then clipped the placeholder. */}
+					<div className="gradient-border liquid-glass rounded-xl px-2 py-1.5">
 						<textarea
 							ref={textareaRef}
 							value={text}
@@ -286,25 +268,55 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							placeholder="Ask a question about the Bible..."
 							rows={1}
 							disabled={disabled}
-							className="flex-1 bg-transparent text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none py-1.5 max-h-[200px]"
+							className="block w-full bg-transparent px-1 py-1.5 text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none max-h-[200px]"
 						/>
-						<button
-							type="button"
-							aria-label="Send message"
-							onClick={handleSubmit}
-							disabled={disabled || !canSend}
-							className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
-						>
-							{loading || isStreaming ? (
-								<Loader2 className="w-4 h-4 animate-spin" />
-							) : (
-								<Send className="w-4 h-4" />
-							)}
-						</button>
+						<div className="mt-0.5 flex items-center gap-1">
+							<ModelPicker placement={pickerPlacement} />
+							<input
+								ref={fileInputRef}
+								type="file"
+								multiple
+								accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json"
+								className="sr-only"
+								onChange={(event) => {
+									if (event.target.files) handleFiles(event.target.files);
+									event.target.value = "";
+								}}
+							/>
+							<button
+								type="button"
+								onClick={() => fileInputRef.current?.click()}
+								disabled={disabled}
+								aria-label="Attach files"
+								className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
+							>
+								{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+							</button>
+							<div className="flex-1" />
+							<button
+								type="button"
+								aria-label="Send message"
+								onClick={handleSubmit}
+								disabled={disabled || !canSend}
+								className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+							>
+								{loading || isStreaming ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<Send className="w-4 h-4" />
+								)}
+							</button>
+						</div>
 					</div>
 				</div>
-				<p className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-2">
-					SureWord uses AI grounded in Scripture and the Bible translation you select. Use with discernment. Created by{" "}
+				<p className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-1.5 sm:mt-2">
+					{/* The long form needs three lines at 390 and pushed the bottom
+					    chrome past a quarter of the viewport. */}
+					<span className="hidden sm:inline">
+						SureWord uses AI grounded in Scripture and the Bible translation you select.{" "}
+					</span>
+					<span className="sm:hidden">AI grounded in Scripture. </span>
+					Use with discernment. Created by{" "}
 					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-neutral-500 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-400 transition-colors">
 						Austin Spraggins
 					</a>
