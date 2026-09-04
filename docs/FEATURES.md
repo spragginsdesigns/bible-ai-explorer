@@ -1244,7 +1244,7 @@ verbosities `[]`, modes `["standard"]` and nulls.
 
 ## Account preferences
 
-*Shipped 2026-09-04 · Android 1.49.0 + web; Apple source complete, compile gate pending*
+*Shipped 2026-09-04 · Android 1.49.0 + web; Apple compiled and iOS-simulator tested, Mac install pending*
 
 Translation, parchment and the Listen rate used to never leave the device that
 set them, and the model pick rode along with a chat request while Memory had its
