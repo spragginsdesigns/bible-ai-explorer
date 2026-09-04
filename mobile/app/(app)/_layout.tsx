@@ -9,6 +9,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
@@ -98,6 +99,9 @@ function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 export default function AppLayout() {
 	const { isLoaded, isSignedIn } = useAuth();
 	const { colors } = useTheme();
+	// Account preferences: hydrate the server document, write every change back,
+	// and keep the persisted caches tied to the account that owns them.
+	usePreferencesSync();
 	// Verse-of-the-day: push-token registration + notification tap deep links.
 	usePushNotifications();
 	// Play in-app updates: background-download a newer build and self-install.

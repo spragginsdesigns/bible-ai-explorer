@@ -14,7 +14,8 @@ import {
 	shouldRefreshListenUrl,
 	type DailyCrossAudio,
 } from "@/components/cross/listen";
-import { readListenRatePref, writeListenRatePref } from "@/lib/preferences";
+import { readListenRatePref } from "@/lib/preferences";
+import { setListenRatePreference, usePreference } from "@/lib/preferencesSync";
 
 const FAILURE_TEXT = "Couldn't prepare audio - try again";
 
@@ -92,10 +93,10 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	const [playing, setPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [loadedDuration, setLoadedDuration] = useState(0);
-	// Seeded on mount, not at render: localStorage is not readable during the
-	// server render, and a first paint that disagreed with the stored speed
-	// would flicker.
-	const [rate, setRate] = useState(DEFAULT_LISTEN_RATE);
+	// The stored speed, which is an account preference: the server render has no
+	// localStorage, so it starts at the default and settles on the real value
+	// once this is on screen.
+	const rate = usePreference(readListenRatePref, DEFAULT_LISTEN_RATE);
 
 	// Where to pick a listen back up after a URL refresh, and whether one has
 	// already been spent on the current URL.
@@ -128,11 +129,6 @@ export default function ListenCard({ reference }: { reference?: string | null })
 		void loadState();
 	}, [loadState]);
 
-	// Seed the speed from this browser's stored preference, once.
-	useEffect(() => {
-		setRate(readListenRatePref());
-	}, []);
-
 	// The element is recreated whenever the source changes, and a fresh element
 	// starts at 1x - so the rate is applied as an effect rather than once on
 	// load, and re-applied every time either changes.
@@ -140,12 +136,10 @@ export default function ListenCard({ reference }: { reference?: string | null })
 		if (audioRef.current) audioRef.current.playbackRate = rate;
 	}, [rate, phase]);
 
+	// Reads the stored speed rather than closing over `rate`, so the chip cannot
+	// cycle from a value a hydrate has already moved past.
 	const cycleRate = useCallback(() => {
-		setRate((current) => {
-			const next = nextListenRate(current);
-			writeListenRatePref(next);
-			return next;
-		});
+		void setListenRatePreference(nextListenRate(readListenRatePref()));
 	}, []);
 
 	// Name the devotional on the OS media card and wire up its skip buttons.

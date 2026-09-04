@@ -17,6 +17,13 @@ import {
 	writeVerbosityPref,
 } from "@/lib/preferences";
 import {
+	setChatModelPreference,
+	setChatPrefsLocked,
+	setChatRunOptionPreference,
+	subscribePreferences,
+	type ChatRunOptionKey,
+} from "@/lib/preferencesSync";
+import {
 	activeChipId,
 	AUTO_EFFORT_SENTINEL,
 	capabilityPills,
@@ -184,7 +191,11 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 					// from localStorage on every send, so a stale model id left over
 					// from a key the account no longer has would be what the request
 					// carried while the chip claimed otherwise. Overwrite all of them
-					// so the chip and the request say the same thing.
+					// so the chip and the request say the same thing. These writes
+					// stay local: house mode is the server's own decision, not a
+					// pick worth storing on the account, and the lock keeps a
+					// later hydrate from putting the stored ids back.
+					setChatPrefsLocked(true);
 					setModelId(houseOnLoad.modelId);
 					setEffort(houseOnLoad.effort);
 					setSpeed(null);
@@ -197,6 +208,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 					writeModePref(null);
 					return;
 				}
+				setChatPrefsLocked(false);
 				const localModel = readModelPref();
 				const validLocal = body.models.find((model) => model.id === localModel && model.available);
 				setModelId(validLocal?.id ?? body.defaults.modelId);
@@ -214,6 +226,23 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 			cancelled = true;
 		};
 	}, []);
+
+	// A hydrate from the account (a pick made on the phone, or in another tab)
+	// rewrites the stored picks under a picker that is already mounted. Mirror
+	// them into the chips so what is shown and what the next request sends stay
+	// the same thing. House mode has nothing to follow: its values are pinned.
+	useEffect(() => {
+		if (!data || data.access === "house") return;
+		return subscribePreferences(() => {
+			const stored = readModelPref();
+			const valid = data.models.find((model) => model.id === stored && model.available);
+			setModelId(valid?.id ?? data.defaults.modelId);
+			setEffort(readEffortPref());
+			setSpeed(readSpeedPref());
+			setVerbosity(readVerbosityPref());
+			setMode(readModePref());
+		});
+	}, [data]);
 
 	/**
 	 * Pins the menu in viewport coordinates. The composer can sit inside a
@@ -361,7 +390,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	const pickModel = (model: PickerModel) => {
 		if (!model.available) return;
 		setModelId(model.id);
-		writeModelPref(model.id);
+		void setChatModelPreference(model.id);
 		closeMenu();
 	};
 
@@ -373,20 +402,23 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	 * than null, which would be indistinguishable from never having chosen.
 	 */
 	const pickOption = (section: OptionSectionKey, chipId: string | null) => {
+		let key: ChatRunOptionKey;
+		let value = chipId;
 		if (section === "reasoning") {
-			const value = chipId ?? AUTO_EFFORT_SENTINEL;
+			key = "effort";
+			value = chipId ?? AUTO_EFFORT_SENTINEL;
 			setEffort(value);
-			writeEffortPref(value);
 		} else if (section === "speed") {
+			key = "speed";
 			setSpeed(chipId);
-			writeSpeedPref(chipId);
 		} else if (section === "verbosity") {
+			key = "verbosity";
 			setVerbosity(chipId);
-			writeVerbosityPref(chipId);
 		} else {
+			key = "mode";
 			setMode(chipId);
-			writeModePref(chipId);
 		}
+		void setChatRunOptionPreference(key, value);
 	};
 
 	const activeLabel = house

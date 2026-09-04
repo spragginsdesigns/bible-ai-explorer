@@ -14,10 +14,15 @@ import { BottomSheet } from "@/features/notes/components/primitives";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import {
 	setChatEffort,
+	setChatEffortLocal,
 	setChatMode,
+	setChatModeLocal,
 	setChatModel,
+	setChatModelLocal,
 	setChatSpeed,
+	setChatSpeedLocal,
 	setChatVerbosity,
+	setChatVerbosityLocal,
 	useSettings,
 	useTheme,
 	useThemedStyles,
@@ -120,28 +125,33 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 	// key that has since been removed keeps riding along on every message. The
 	// house model runs one fixed configuration, so the three run options are
 	// cleared rather than pinned: a stale Fast must not survive a removed key.
+	//
+	// Local-only: this is the client agreeing with the server, not a choice.
+	// PATCHing it would overwrite the model this account picked while it still
+	// had a key, and lose it the moment the key comes back.
 	useEffect(() => {
 		if (!house) return;
-		if (chatModelId !== house.modelId) setChatModel(house.modelId);
-		if (chatEffort !== house.effort) setChatEffort(house.effort);
-		if (chatSpeed !== null) setChatSpeed(null);
-		if (chatVerbosity !== null) setChatVerbosity(null);
-		if (chatMode !== null) setChatMode(null);
+		if (chatModelId !== house.modelId) setChatModelLocal(house.modelId);
+		if (chatEffort !== house.effort) setChatEffortLocal(house.effort);
+		if (chatSpeed !== null) setChatSpeedLocal(null);
+		if (chatVerbosity !== null) setChatVerbosityLocal(null);
+		if (chatMode !== null) setChatModeLocal(null);
 	}, [house, chatModelId, chatEffort, chatSpeed, chatVerbosity, chatMode]);
 
 	// Keys mode: adopt the account defaults the server sent for anything this
 	// device has never chosen. The server applies them to the request either
 	// way, so without this the chips can say Standard while the answer runs Fast.
+	// Local-only for the same reason: these values came from the account row.
 	useEffect(() => {
 		if (!data || house) return;
 		const seed = seedRunOptions(
 			{ effort: chatEffort, speed: chatSpeed, verbosity: chatVerbosity, mode: chatMode },
 			data.defaults,
 		);
-		if (seed.effort) setChatEffort(seed.effort);
-		if (seed.speed) setChatSpeed(seed.speed);
-		if (seed.verbosity) setChatVerbosity(seed.verbosity);
-		if (seed.mode) setChatMode(seed.mode);
+		if (seed.effort) setChatEffortLocal(seed.effort);
+		if (seed.speed) setChatSpeedLocal(seed.speed);
+		if (seed.verbosity) setChatVerbosityLocal(seed.verbosity);
+		if (seed.mode) setChatModeLocal(seed.mode);
 	}, [data, house, chatEffort, chatSpeed, chatVerbosity, chatMode]);
 
 	const openProviderSettings = useCallback(() => {

@@ -55,12 +55,21 @@ function setSnapshot(next: Omit<NotesSnapshot, "hydrated">) {
 
 let hydratePromise: Promise<void> | null = null;
 
+/**
+ * Bumped by every clear. A read issued before a clear is still in flight after
+ * it, and would otherwise resolve straight into setSnapshot and hand the new
+ * account the previous account's notes.
+ */
+let generation = 0;
+
 /** Read the persisted cache exactly once per app run. */
 export function hydrateNotesCache(): Promise<void> {
 	if (!hydratePromise) {
+		const startedAt = generation;
 		hydratePromise = (async () => {
 			try {
 				const raw = await AsyncStorage.getItem(STORAGE_KEY);
+				if (generation !== startedAt) return;
 				if (raw) {
 					const parsed = JSON.parse(raw) as Partial<NotesSnapshot>;
 					setSnapshot({
@@ -80,6 +89,26 @@ export function hydrateNotesCache(): Promise<void> {
 		})();
 	}
 	return hydratePromise;
+}
+
+/**
+ * Drop every cached row and the persisted blob behind it. Called when the
+ * signed-in account is not the one this cache was written for, and on sign-out:
+ * notes are private study, and the next account must never see them.
+ *
+ * `hydratePromise` is replaced rather than cleared so a screen mounting later
+ * cannot re-read the file we are deleting; the snapshot is already marked
+ * hydrated, so the library falls straight through to a server load.
+ */
+export function clearNotesCache(): Promise<void> {
+	generation += 1;
+	snapshot = { notes: [], folders: [], tags: [], hydrated: true };
+	hydratePromise = Promise.resolve();
+	emit();
+	return AsyncStorage.removeItem(STORAGE_KEY).catch(() => {
+		// An unwritable store must never break sign-out; the snapshot is
+		// already empty, so nothing is shown from it either way.
+	});
 }
 
 /**

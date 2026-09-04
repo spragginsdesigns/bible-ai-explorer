@@ -20,6 +20,7 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
 import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
+import { usePreferencesLifecycle } from "@/features/settings/preferencesSync";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
 import { hydrateNotificationSettings } from "@/features/notifications/notificationSettings";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
@@ -43,6 +44,10 @@ const Hack_700Bold_Italic = require("../assets/fonts/Hack-BoldItalic.ttf");
  */
 function AuthFailureBridge({ children }: { children: React.ReactNode }) {
 	const { signOut } = useAuth();
+
+	// Sits here rather than in the (app) shell because signing out unmounts that
+	// shell: the cache clear has to be watched from above it.
+	usePreferencesLifecycle();
 
 	useEffect(() => {
 		setAuthFailureHandler(() => {

@@ -4,6 +4,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { meshGradients, palettes, type Colors, type ResolvedTheme } from "@/theme";
 import type { TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
+import {
+	DEFAULT_SYNCED_SETTINGS,
+	settingsFromDocument,
+	type PreferencesDocument,
+	type PreferencesPatch,
+} from "./preferences";
 
 /**
  * Persisted user settings (appearance + Bible translation), modeled on
@@ -11,6 +17,12 @@ import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/liste
  * hydrated from / persisted to AsyncStorage. Everything visual in the app
  * reads its palette through the hooks here so a theme change re-renders
  * the whole tree with the new colors.
+ *
+ * Every field except `themeMode` is an account preference owned by the server
+ * (`/api/preferences`): AsyncStorage is a first-paint cache of the account
+ * document, not the record. Setters therefore update locally and write through
+ * (see `setPreferencesWriter`), while the hydrate path and the model picker's
+ * own bookkeeping use the `*Local` setters, which must not write back.
  */
 
 export type ThemeMode = "system" | "dark" | "light";
@@ -34,26 +46,17 @@ export interface Settings {
 	chatSpeed: string | null;
 	chatVerbosity: string | null;
 	chatMode: string | null;
-	/**
-	 * Playback speed for the Listen devotional. Per-device, like every other
-	 * setting here - a speed someone picked on their phone is a habit, not an
-	 * account-level preference worth a round trip.
-	 */
+	/** Playback speed for the Listen devotional. Synced with the account. */
 	listenRate: number;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
 
+// The synced half comes from the contract module, so the first-adopt seed and
+// this store can never disagree about what "never chosen" looks like.
 const DEFAULT_SETTINGS: Settings = {
 	themeMode: "system",
-	translation: "KJV",
-	parchment: true,
-	chatModelId: null,
-	chatEffort: null,
-	chatSpeed: null,
-	chatVerbosity: null,
-	chatMode: null,
-	listenRate: DEFAULT_LISTEN_RATE,
+	...DEFAULT_SYNCED_SETTINGS,
 };
 
 let snapshot: Settings = DEFAULT_SETTINGS;
@@ -101,40 +104,157 @@ export async function hydrateSettings(): Promise<void> {
 	}
 }
 
+/**
+ * Sends one changed key to `PATCH /api/preferences`. `revert` undoes the
+ * optimistic local write and is called only when the server rejects it.
+ * `preferencesSync` registers the real writer for the signed-in session; while
+ * none is registered (signed out, or before the app shell mounts) changes stay
+ * local, which is exactly what the contract asks for on 401.
+ */
+export type PreferencesWriter = (patch: PreferencesPatch, revert: () => void) => void;
+
+let preferencesWriter: PreferencesWriter | null = null;
+
+export function setPreferencesWriter(writer: PreferencesWriter | null) {
+	preferencesWriter = writer;
+}
+
+function writeThrough(patch: PreferencesPatch, revert: () => void) {
+	preferencesWriter?.(patch, revert);
+}
+
+/**
+ * A revert that undoes one field, and only if that field still holds the value
+ * the failed write put there.
+ *
+ * A PATCH can fail long after the user has moved on. Restoring a whole captured
+ * snapshot would undo everything they did while it was in flight, and even
+ * restoring one field blindly would clobber a newer choice of that same field
+ * with a value two edits old. Whoever wrote last wins.
+ */
+function revertIfUnchanged<K extends keyof Settings>(
+	field: K,
+	wrote: Settings[K],
+	previous: Settings[K]
+): () => void {
+	return () => {
+		if (snapshot[field] !== wrote) return;
+		setSnapshot({ ...snapshot, [field]: previous });
+	};
+}
+
+/** Device setting by decision, so it never leaves the phone. */
 export function setThemeMode(themeMode: ThemeMode) {
 	setSnapshot({ ...snapshot, themeMode });
 }
 
 export function setBibleTranslation(translation: TranslationId) {
+	const previous = snapshot.translation;
 	setSnapshot({ ...snapshot, translation });
+	writeThrough({ translation }, revertIfUnchanged("translation", translation, previous));
 }
 
 export function setParchmentEnabled(parchment: boolean) {
+	const previous = snapshot.parchment;
 	setSnapshot({ ...snapshot, parchment });
+	writeThrough({ parchment }, revertIfUnchanged("parchment", parchment, previous));
 }
 
 export function setChatModel(chatModelId: string | null) {
+	const previous = snapshot.chatModelId;
 	setSnapshot({ ...snapshot, chatModelId });
+	writeThrough(
+		{ chat: { modelId: chatModelId } },
+		revertIfUnchanged("chatModelId", chatModelId, previous)
+	);
 }
 
 export function setChatEffort(chatEffort: string | null) {
+	const previous = snapshot.chatEffort;
 	setSnapshot({ ...snapshot, chatEffort });
+	writeThrough(
+		{ chat: { effort: chatEffort } },
+		revertIfUnchanged("chatEffort", chatEffort, previous)
+	);
 }
 
 export function setChatSpeed(chatSpeed: string | null) {
+	const previous = snapshot.chatSpeed;
 	setSnapshot({ ...snapshot, chatSpeed });
+	writeThrough(
+		{ chat: { speed: chatSpeed } },
+		revertIfUnchanged("chatSpeed", chatSpeed, previous)
+	);
 }
 
 export function setChatVerbosity(chatVerbosity: string | null) {
+	const previous = snapshot.chatVerbosity;
 	setSnapshot({ ...snapshot, chatVerbosity });
+	writeThrough(
+		{ chat: { verbosity: chatVerbosity } },
+		revertIfUnchanged("chatVerbosity", chatVerbosity, previous)
+	);
 }
 
 export function setChatMode(chatMode: string | null) {
+	const previous = snapshot.chatMode;
 	setSnapshot({ ...snapshot, chatMode });
+	writeThrough({ chat: { mode: chatMode } }, revertIfUnchanged("chatMode", chatMode, previous));
 }
 
 export function setListenRate(listenRate: number) {
-	setSnapshot({ ...snapshot, listenRate: normalizeListenRate(listenRate) });
+	const previous = snapshot.listenRate;
+	const next = normalizeListenRate(listenRate);
+	setSnapshot({ ...snapshot, listenRate: next });
+	writeThrough({ listenRate: next }, revertIfUnchanged("listenRate", next, previous));
+}
+
+/*
+ * Local-only chat setters. The model picker uses these for the two writes that
+ * are bookkeeping rather than a user's choice: pinning the house model when the
+ * account has no key of its own, and adopting the account defaults the server
+ * already applies. PATCHing either would tell the server something it just told
+ * us, and the house pin would overwrite the pick this account made back when it
+ * still had a key.
+ */
+
+export function setChatModelLocal(chatModelId: string | null) {
+	setSnapshot({ ...snapshot, chatModelId });
+}
+
+export function setChatEffortLocal(chatEffort: string | null) {
+	setSnapshot({ ...snapshot, chatEffort });
+}
+
+export function setChatSpeedLocal(chatSpeed: string | null) {
+	setSnapshot({ ...snapshot, chatSpeed });
+}
+
+export function setChatVerbosityLocal(chatVerbosity: string | null) {
+	setSnapshot({ ...snapshot, chatVerbosity });
+}
+
+export function setChatModeLocal(chatMode: string | null) {
+	setSnapshot({ ...snapshot, chatMode });
+}
+
+/**
+ * Adopt a server document wholesale. Every synced field is overwritten even
+ * when local already has a value - the account row is the record, and a device
+ * that quietly kept its own translation is the bug this replaces. Never writes
+ * back, or a hydrate would echo itself.
+ */
+export function applyServerPreferences(doc: PreferencesDocument) {
+	setSnapshot({ ...snapshot, ...settingsFromDocument(doc) });
+}
+
+/**
+ * Drop the synced fields when the cache turns out to belong to another
+ * account. `themeMode` survives: it is a device setting, and flipping the app
+ * to dark mid-session on a user switch would be startling and wrong.
+ */
+export function resetSyncedSettings() {
+	setSnapshot({ ...DEFAULT_SETTINGS, themeMode: snapshot.themeMode });
 }
 
 function subscribe(listener: () => void): () => void {

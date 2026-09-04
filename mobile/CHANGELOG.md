@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.49.0 (versionCode 48) - 2026-09-04 - internal
+
+**What's new (Play):**
+
+NEW
+- Your settings now follow your account: Bible translation, parchment page, Listen speed, model picks, Memory and Web Search sync across phone, web and Mac, and return on a fresh install.
+- Settings: a Web Search toggle on your phone.
+
+FIXED
+- Signing in with a different account no longer shows the previous account's cached notes, highlights or settings.
+
+**Dev notes:** `GET/PATCH /api/preferences` is now the whole account document (`User.translation/parchment/listenRate` + the chat columns + both toggles). `preferencesSync.ts` hydrates on sign-in and on foreground (15 s throttle, editSeq stale-fetch guard), every settings setter writes through, the picker's house pin and defaults seeding stay local, and `sureword.cache-owner` keys the settings/notes/highlights caches to the account (cleared on sign-out; a first launch after upgrade pushes local non-default values up before hydrating).
+
 ## 1.48.0 (versionCode 47) - 2026-09-03 - internal
 
 **What's new (Play):**

@@ -7,7 +7,8 @@ import { Users, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
-import { readParchmentPref, readTranslationPref, writeTranslationPref } from "@/lib/preferences";
+import { readParchmentPref, readTranslationPref } from "@/lib/preferences";
+import { setTranslationPreference, usePreference } from "@/lib/preferencesSync";
 import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
@@ -44,10 +45,10 @@ const ChapterReader: React.FC = () => {
   const verseParam = Number.parseInt(searchParams.get("verse") ?? "", 10) || null;
 
   const book = bookByOrder(order);
-  const [translation, setTranslationState] = useState<TranslationId>(readTranslationPref);
-  // Settings → Appearance → Parchment reader; re-read on mount is enough
-  // since Settings is a different route.
-  const [parchment] = useState(readParchmentPref);
+  // Both come from the account document, so they follow a change made in
+  // Settings, in another tab, or on the phone without a reload.
+  const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
+  const parchment = usePreference(readParchmentPref, true);
   const [verses, setVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,10 +147,9 @@ const ChapterReader: React.FC = () => {
     return () => clearTimeout(recordTimer);
   }, [loading, error, verses, book, translation, order, chapter]);
 
-  // The reader's chips and Settings share one persisted default (localStorage).
+  // The reader's chips and Settings share one account preference.
   const setTranslation = useCallback((id: TranslationId) => {
-    writeTranslationPref(id);
-    setTranslationState(id);
+    void setTranslationPreference(id);
   }, []);
 
   const stepFont = useCallback((delta: number) => {

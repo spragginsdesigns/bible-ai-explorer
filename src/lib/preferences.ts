@@ -9,6 +9,12 @@ import type { TranslationId } from "@/lib/bible/translations";
  * Client-side user preferences shared across the web app. The Android app
  * persists the same choices in AsyncStorage ("sureword.settings.v1"); on web
  * they live in localStorage.
+ *
+ * These are a cache of the account document, not the store of record: the
+ * server row is the source of truth and `src/lib/preferencesSync.ts` owns the
+ * hydrate/write-through pipe. Everything here stays a plain local read or
+ * write so first paint never waits on the network - go through the setters in
+ * preferencesSync for anything a user changed, so the other clients follow.
  */
 
 export const TRANSLATION_PREF_KEY = "sureword-translation";
@@ -49,9 +55,10 @@ export function readModelPref(): string | null {
 	return window.localStorage.getItem(MODEL_PREF_KEY);
 }
 
-export function writeModelPref(modelId: string) {
+export function writeModelPref(modelId: string | null) {
 	if (typeof window === "undefined") return;
-	window.localStorage.setItem(MODEL_PREF_KEY, modelId);
+	if (modelId) window.localStorage.setItem(MODEL_PREF_KEY, modelId);
+	else window.localStorage.removeItem(MODEL_PREF_KEY);
 }
 
 export function readEffortPref(): string | null {
@@ -143,35 +150,9 @@ export function writeWebSearchEnabledPref(enabled: boolean) {
 	window.localStorage.setItem(WEB_SEARCH_ENABLED_PREF_KEY, String(enabled));
 }
 
-/** Client helpers for /api/preferences (Settings → Web Search toggle). */
-async function parsePreferencesError(res: Response): Promise<never> {
-	const data = (await res.json().catch(() => null)) as { error?: string } | null;
-	throw new Error(data?.error ?? `Request failed (${res.status})`);
-}
-
-export async function fetchWebSearchEnabled(): Promise<{ webSearchEnabled: boolean }> {
-	const res = await fetch("/api/preferences", { credentials: "same-origin" });
-	if (!res.ok) return parsePreferencesError(res);
-	return (await res.json()) as { webSearchEnabled: boolean };
-}
-
-export async function setWebSearchEnabled(
-	webSearchEnabled: boolean
-): Promise<{ webSearchEnabled: boolean }> {
-	const res = await fetch("/api/preferences", {
-		method: "PATCH",
-		credentials: "same-origin",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ webSearchEnabled }),
-	});
-	if (!res.ok) return parsePreferencesError(res);
-	return (await res.json()) as { webSearchEnabled: boolean };
-}
-
 /**
- * Listen playback speed. Per-device on purpose: a speed someone picked on this
- * machine is a habit, not an account preference worth a round trip. Android
- * keeps the same value in its settings store.
+ * Listen playback speed. Synced with the account like the rest of this file;
+ * Android keeps the same value in its settings store.
  */
 export function readListenRatePref(): number {
 	if (typeof window === "undefined") return DEFAULT_LISTEN_RATE;

@@ -57,13 +57,21 @@ function setSnapshot(next: Map<string, string>) {
 	emit();
 }
 
+/**
+ * Bumped by every clear, for the same reason as the notes cache: a read issued
+ * before a clear is still in flight after it, and would repaint the previous
+ * account's colors over the cleared map.
+ */
+let generation = 0;
+
 /** Load the cached highlights once at startup (root layout holds the splash). */
 export async function hydrateHighlights(): Promise<void> {
 	if (hydrated) return;
 	hydrated = true;
+	const startedAt = generation;
 	try {
 		const raw = await AsyncStorage.getItem(STORAGE_KEY);
-		if (!raw) return;
+		if (!raw || generation !== startedAt) return;
 		const parsed = JSON.parse(raw) as Record<string, unknown>;
 		const next = new Map<string, string>();
 		for (const [k, value] of Object.entries(parsed)) {
@@ -77,7 +85,25 @@ export async function hydrateHighlights(): Promise<void> {
 	}
 }
 
-// Server revalidation, one in-flight GET per chapter — paging back and forth
+/**
+ * Drop every cached highlight and the persisted blob behind it. Called when
+ * the signed-in account is not the one this cache was written for, and on
+ * sign-out: the reader would otherwise paint one account's verses in another
+ * account's colors until each chapter revalidated.
+ */
+export function clearHighlightsCache(): Promise<void> {
+	generation += 1;
+	// Left marked hydrated: the startup read must not resurrect the file we
+	// are deleting, and every chapter revalidates against the server anyway.
+	hydrated = true;
+	snapshot = new Map();
+	emit();
+	return AsyncStorage.removeItem(STORAGE_KEY).catch(() => {
+		// An unwritable store must never break sign-out.
+	});
+}
+
+// Server revalidation, one in-flight GET per chapter - paging back and forth
 // must not stack duplicate requests.
 const inflight = new Set<string>();
 

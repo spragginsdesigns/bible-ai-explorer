@@ -5,6 +5,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "../components/ThemeProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
+import PreferencesSync from "../components/PreferencesSync";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
 	subsets: ["latin"],
@@ -117,6 +118,9 @@ export default function RootLayout({
 					>
 						{children}
 						<MobileBottomNav />
+						{/* One mount for the whole app: hydrates the account
+						    preferences and reports a write that did not stick. */}
+						<PreferencesSync />
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>

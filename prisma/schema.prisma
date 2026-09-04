@@ -36,6 +36,14 @@ model User {
   defaultSpeed          String?
   defaultVerbosity      String?
   defaultMode           String?
+  // Account preferences the clients sync through /api/preferences. They live
+  // on the account rather than on the device because a reader who switched to
+  // NKJV on their phone means it on the web too; theme and font size stay
+  // device settings. Validated on read (src/lib/preferences-contract.ts), so a
+  // value from a newer build degrades to the default instead of erroring.
+  translation           String                 @default("KJV") // "KJV" | "NKJV"
+  parchment             Boolean                @default(true)
+  listenRate            Float                  @default(1) // one of 0.75, 1, 1.25, 1.5, 2
   createdAt             DateTime               @default(now())
   conversations         Conversation[]
   notes                 Note[]

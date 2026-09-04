@@ -26,15 +26,18 @@ import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import {
 	readParchmentPref,
 	readTranslationPref,
-	writeParchmentPref,
-	writeTranslationPref,
 	readMemoryEnabledPref,
 	writeMemoryEnabledPref,
 	readWebSearchEnabledPref,
-	writeWebSearchEnabledPref,
-	fetchWebSearchEnabled,
-	setWebSearchEnabled,
 } from "@/lib/preferences";
+import {
+	hydratePreferences,
+	notifyPreferencesChanged,
+	setParchmentPreference,
+	setTranslationPreference,
+	setWebSearchPreference,
+	usePreference,
+} from "@/lib/preferencesSync";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
@@ -65,15 +68,18 @@ export default function SettingsPage() {
 	const { user } = useUser();
 	const { signOut } = useClerk();
 	const [mounted, setMounted] = useState(false);
-	const [translation, setTranslation] = useState<TranslationId>("KJV");
-	const [parchmentEnabled, setParchmentEnabledState] = useState(true);
-	const [memoryEnabled, setMemoryEnabledState] = useState<boolean | null>(null);
+	// Every synced value is read from the shared cache rather than held here, so
+	// a change made on another device (or in the reader) lands on this page as
+	// soon as the account document is hydrated.
+	const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
+	const parchmentEnabled = usePreference(readParchmentPref, true);
+	const memoryEnabled = usePreference(readMemoryEnabledPref, null);
+	const webSearchEnabled = usePreference(readWebSearchEnabledPref, null);
 	const [memoryCount, setMemoryCount] = useState<number | null>(null);
 	const [memoryLoadFailed, setMemoryLoadFailed] = useState(false);
 	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
 	const [memoryToggleError, setMemoryToggleError] = useState<string | null>(null);
 	const [memoryManagerOpen, setMemoryManagerOpen] = useState(false);
-	const [webSearchEnabled, setWebSearchEnabledState] = useState<boolean | null>(null);
 	const [webSearchLoadFailed, setWebSearchLoadFailed] = useState(false);
 	const [webSearchTogglePending, setWebSearchTogglePending] = useState(false);
 	const [webSearchToggleError, setWebSearchToggleError] = useState<string | null>(null);
@@ -82,8 +88,10 @@ export default function SettingsPage() {
 		setMemoryLoadFailed(false);
 		try {
 			const data = await fetchMemories();
-			setMemoryEnabledState(data.enabled);
+			// This route carries the memory switch as well as the list, so its
+			// answer updates the shared cache the toggle reads.
 			writeMemoryEnabledPref(data.enabled);
+			notifyPreferencesChanged();
 			setMemoryCount(data.memories.length);
 			setMemoryLoadFailed(false);
 		} catch {
@@ -91,48 +99,37 @@ export default function SettingsPage() {
 		}
 	};
 
-	const loadWebSearch = async () => {
+	// The whole account document, not just this toggle: one GET brings the
+	// translation, parchment, listen speed and chat picks up to date too.
+	const loadPreferences = async () => {
 		setWebSearchLoadFailed(false);
-		try {
-			const data = await fetchWebSearchEnabled();
-			setWebSearchEnabledState(data.webSearchEnabled);
-			writeWebSearchEnabledPref(data.webSearchEnabled);
-		} catch {
-			setWebSearchLoadFailed(true);
-		}
+		const ok = await hydratePreferences({ force: true });
+		if (!ok) setWebSearchLoadFailed(true);
 	};
 
 	useEffect(() => {
 		setMounted(true);
-		setTranslation(readTranslationPref());
-		setParchmentEnabledState(readParchmentPref());
-		// Seed both toggles from the local cache so a returning user sees the
-		// saved position immediately instead of "off" until the GET returns;
-		// the server value then replaces the cache.
-		const cachedMemory = readMemoryEnabledPref();
-		if (cachedMemory !== null) setMemoryEnabledState(cachedMemory);
-		const cachedWebSearch = readWebSearchEnabledPref();
-		if (cachedWebSearch !== null) setWebSearchEnabledState(cachedWebSearch);
 		void loadMemories();
-		void loadWebSearch();
+		void loadPreferences();
 	}, []);
 
 	const pickTranslation = (id: TranslationId) => {
-		setTranslation(id);
-		writeTranslationPref(id);
+		void setTranslationPreference(id);
 	};
 
 	// Optimistic toggle; reverts and surfaces the server error on failure.
 	const toggleMemory = async (next: boolean) => {
 		if (memoryTogglePending) return;
-		setMemoryEnabledState(next);
+		const previous = memoryEnabled;
+		writeMemoryEnabledPref(next);
+		notifyPreferencesChanged();
 		setMemoryTogglePending(true);
 		setMemoryToggleError(null);
 		try {
 			await setMemoryEnabled(next);
-			writeMemoryEnabledPref(next);
 		} catch (err) {
-			setMemoryEnabledState(!next);
+			writeMemoryEnabledPref(previous ?? !next);
+			notifyPreferencesChanged();
 			setMemoryToggleError(
 				err instanceof Error ? err.message : "Couldn't update memory settings."
 			);
@@ -141,23 +138,15 @@ export default function SettingsPage() {
 		}
 	};
 
-	// Same optimistic pattern as the memory toggle.
+	// Same optimistic pattern, run by the shared write-through pipe. Silent
+	// because this row already renders the failure under the toggle.
 	const toggleWebSearch = async (next: boolean) => {
 		if (webSearchTogglePending) return;
-		setWebSearchEnabledState(next);
 		setWebSearchTogglePending(true);
 		setWebSearchToggleError(null);
-		try {
-			await setWebSearchEnabled(next);
-			writeWebSearchEnabledPref(next);
-		} catch (err) {
-			setWebSearchEnabledState(!next);
-			setWebSearchToggleError(
-				err instanceof Error ? err.message : "Couldn't update web search settings."
-			);
-		} finally {
-			setWebSearchTogglePending(false);
-		}
+		const error = await setWebSearchPreference(next, { silent: true });
+		if (error) setWebSearchToggleError(error);
+		setWebSearchTogglePending(false);
 	};
 
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
@@ -233,11 +222,7 @@ export default function SettingsPage() {
 									aria-checked={parchmentEnabled}
 									aria-label="Parchment reader"
 									disabled={!mounted}
-									onClick={() => {
-										const next = !parchmentEnabled;
-										setParchmentEnabledState(next);
-										writeParchmentPref(next);
-									}}
+									onClick={() => void setParchmentPreference(!parchmentEnabled)}
 									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
 										parchmentEnabled
 											? "bg-amber-500 dark:bg-amber-400"
@@ -415,7 +400,7 @@ export default function SettingsPage() {
 									</p>
 									<button
 										type="button"
-										onClick={() => void loadWebSearch()}
+										onClick={() => void loadPreferences()}
 										className="text-xs font-bold text-amber-600 dark:text-amber-400"
 									>
 										Retry

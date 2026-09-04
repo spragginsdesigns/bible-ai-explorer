@@ -16,6 +16,12 @@ import {
 	useTheme,
 	type ThemeMode,
 } from "@/features/settings/settingsStore";
+import {
+	hydratePreferences,
+	noteMemoryEnabled,
+	updateWebSearchEnabled,
+	usePreferencesToggles,
+} from "@/features/settings/preferencesSync";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
@@ -98,9 +104,16 @@ export default function SettingsScreen() {
 	const name = user?.fullName ?? user?.username ?? "";
 	const version = Constants.expoConfig?.version ?? "";
 
+	// Seeded from the account document the app already hydrated, so both
+	// switches paint their real position on the first frame instead of sitting
+	// disabled until their own request lands.
+	const preferences = usePreferencesToggles();
 	const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null);
 	const [memoryCount, setMemoryCount] = useState<number | null>(null);
 	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
+	const memoryValue = memoryEnabled ?? preferences.memoryEnabled;
+	const [webSearchTogglePending, setWebSearchTogglePending] = useState(false);
+	const webSearchValue = preferences.webSearchEnabled;
 
 	// Re-fetched on focus so the saved count stays fresh after returning from
 	// the manage screen. A failure leaves the toggle disabled rather than
@@ -108,6 +121,10 @@ export default function SettingsScreen() {
 	useFocusEffect(
 		useCallback(() => {
 			let cancelled = false;
+			// Opening Settings is also the retry for a hydrate that failed at
+			// launch; without it the web-search switch would sit disabled for
+			// the rest of the session. Throttled inside the sync module.
+			void hydratePreferences();
 			void (async () => {
 				try {
 					const data = await memoriesApi.fetchMemories(getToken);
@@ -133,6 +150,9 @@ export default function SettingsScreen() {
 		void (async () => {
 			try {
 				await memoriesApi.setMemoryEnabled(getToken, enabled);
+				// Memory keeps its own endpoint; this only keeps the shared
+				// preferences snapshot from disagreeing with it.
+				noteMemoryEnabled(enabled);
 			} catch (err) {
 				setMemoryEnabled(!enabled);
 				Alert.alert(
@@ -141,6 +161,25 @@ export default function SettingsScreen() {
 				);
 			} finally {
 				setMemoryTogglePending(false);
+			}
+		})();
+	};
+
+	// Optimistic like the memory toggle above: the switch moves first and the
+	// sync module rolls it back if the account write fails.
+	const toggleWebSearch = (enabled: boolean) => {
+		if (webSearchTogglePending) return;
+		setWebSearchTogglePending(true);
+		void (async () => {
+			try {
+				await updateWebSearchEnabled(enabled);
+			} catch (err) {
+				Alert.alert(
+					"Could not update web search",
+					err instanceof Error && err.message ? err.message : "Your setting was not changed. Try again."
+				);
+			} finally {
+				setWebSearchTogglePending(false);
 			}
 		})();
 	};
@@ -250,11 +289,11 @@ export default function SettingsScreen() {
 						<Text style={styles.rowTitle}>Enable memory</Text>
 						<Switch
 							accessibilityLabel="Enable memory"
-							value={memoryEnabled ?? false}
-							disabled={memoryEnabled === null || memoryTogglePending}
+							value={memoryValue ?? false}
+							disabled={memoryValue === null || memoryTogglePending}
 							onValueChange={toggleMemory}
 							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
-							thumbColor={memoryEnabled ? colors.accent : colors.textFaint}
+							thumbColor={memoryValue ? colors.accent : colors.textFaint}
 						/>
 					</View>
 					<Text style={styles.hint}>
@@ -276,6 +315,25 @@ export default function SettingsScreen() {
 						</View>
 						<Text style={styles.chevron}>›</Text>
 					</Pressable>
+				</GlassCard>
+
+				<SectionLabel label="WEB SEARCH" />
+				<GlassCard style={styles.card}>
+					<View style={styles.settingRow}>
+						<Text style={styles.rowTitle}>Enable web search</Text>
+						<Switch
+							accessibilityLabel="Enable web search"
+							value={webSearchValue ?? false}
+							disabled={webSearchValue === null || webSearchTogglePending}
+							onValueChange={toggleWebSearch}
+							trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+							thumbColor={webSearchValue ? colors.accent : colors.textFaint}
+						/>
+					</View>
+					<Text style={styles.hint}>
+						Lets SureWord look up supplementary material online (church history,
+						archaeology, current events). Scripture stays the final authority.
+					</Text>
 				</GlassCard>
 
 				{/*
