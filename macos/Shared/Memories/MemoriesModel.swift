@@ -87,6 +87,16 @@ final class MemoriesModel {
         }
     }
 
+    /// Land the Memory flag an account-preferences hydrate brought back, so an
+    /// already-open Settings screen follows a change made on another client.
+    ///
+    /// A tap still in flight wins: its PATCH was issued after the GET, so the
+    /// optimistic value on screen is the newer of the two.
+    func applyRemote(enabled: Bool) {
+        guard !isTogglePending else { return }
+        isEnabled = enabled
+    }
+
     func add() async {
         guard let api, canAdd else { return }
         let content = draft.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -331,6 +331,13 @@ final class PreferencesSyncModel {
     private(set) var webSearchEnabled: Bool?
     private(set) var isWebSearchPending = false
 
+    /// The account's Memory flag as last hydrated, on the same "nil until the
+    /// server said so" rule as `webSearchEnabled`. The Settings screens feed it
+    /// to `MemoriesModel` so an already-open screen follows a change made on
+    /// another client; the toggle itself still writes through `/api/memories`,
+    /// never through this pipe.
+    private(set) var memoryEnabled: Bool?
+
     var errorAlert: ErrorAlert?
 
     /// True while a sheet that presents this alert itself is up. An alert
@@ -522,6 +529,17 @@ final class PreferencesSyncModel {
         )
     }
 
+    // MARK: Memory
+
+    /// The Memory toggle writes through `/api/memories`, not this model; the
+    /// Settings screens report where it landed so `memoryEnabled` keeps
+    /// tracking the last value the server agreed to. Without that, a later
+    /// hydrate returning the pre-toggle value would read as "no change" and
+    /// never reach the screen.
+    func recordMemoryEnabled(_ enabled: Bool?) {
+        memoryEnabled = enabled
+    }
+
     // MARK: Applying a document
 
     /// Land a document - a server response, or a rollback to the values a
@@ -533,6 +551,9 @@ final class PreferencesSyncModel {
     func apply(_ document: AccountPreferences, fromServer: Bool) {
         if let webSearchEnabled = document.webSearchEnabled {
             self.webSearchEnabled = webSearchEnabled
+        }
+        if let memoryEnabled = document.memoryEnabled {
+            self.memoryEnabled = memoryEnabled
         }
         settings.applyRemote { settings in
             if let translation = document.translation,

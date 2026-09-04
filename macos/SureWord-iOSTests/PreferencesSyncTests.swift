@@ -134,6 +134,7 @@ final class PreferencesSyncTests: XCTestCase {
         sync.apply(
             AccountPreferences(
                 webSearchEnabled: true,
+                memoryEnabled: true,
                 translation: "NKJV",
                 parchment: false,
                 listenRate: 1.5,
@@ -147,6 +148,7 @@ final class PreferencesSyncTests: XCTestCase {
         )
 
         XCTAssertEqual(sync.webSearchEnabled, true)
+        XCTAssertEqual(sync.memoryEnabled, true)
         XCTAssertEqual(settings.translation, .nkjv)
         XCTAssertFalse(settings.parchment)
         XCTAssertEqual(settings.listenRate, 1.5)
@@ -156,6 +158,27 @@ final class PreferencesSyncTests: XCTestCase {
         XCTAssertEqual(settings.chatVerbosity, "high")
         // Never mentioned, so untouched.
         XCTAssertNil(settings.chatMode)
+    }
+
+    func testApplyLeavesMemoryAloneWhenTheDocumentDoesNotMentionIt() {
+        // A server that predates the field, or a rollback that never touched
+        // it: absent means "not mentioned", not "off".
+        let sync = PreferencesSyncModel(transport: FakeTransport(), settings: SettingsStore())
+
+        sync.apply(AccountPreferences(webSearchEnabled: true), fromServer: true)
+
+        XCTAssertNil(sync.memoryEnabled)
+    }
+
+    func testARecordedMemoryToggleKeepsTheNextHydrateComparable() {
+        // The toggle PATCHes /api/memories itself; recording where it landed is
+        // what lets a hydrate that flips it back again register as a change.
+        let sync = PreferencesSyncModel(transport: FakeTransport(), settings: SettingsStore())
+        sync.apply(AccountPreferences(memoryEnabled: true), fromServer: true)
+
+        sync.recordMemoryEnabled(false)
+
+        XCTAssertEqual(sync.memoryEnabled, false)
     }
 
     func testApplyIgnoresATranslationTheClientDoesNotKnow() {

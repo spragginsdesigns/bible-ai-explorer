@@ -89,6 +89,11 @@ struct SettingsView: View {
             memory.configure(app.api)
             await memory.load()
         }
+        .onChange(of: app.preferences.memoryEnabled) { _, enabled in
+            // A hydrate on sign-in or foreground can bring back a Memory change
+            // made on another client while this screen is already open.
+            if let enabled { memory.applyRemote(enabled: enabled) }
+        }
         .task {
             church.configure(app.api)
             await church.load()
@@ -154,7 +159,12 @@ struct SettingsView: View {
                 "Enable memory",
                 isOn: Binding(
                     get: { memory.isEnabled ?? false },
-                    set: { enabled in Task { await memory.setEnabled(enabled) } }
+                    set: { enabled in
+                        Task {
+                            await memory.setEnabled(enabled)
+                            app.preferences.recordMemoryEnabled(memory.isEnabled)
+                        }
+                    }
                 )
             )
             .disabled(memory.isEnabled == nil || memory.isTogglePending)
