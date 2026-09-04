@@ -192,4 +192,13 @@ final class HighlightsStore {
     func reset() {
         colors = [:]
     }
+
+    /// Drop everything **including the file on disk** - highlights belong to an
+    /// account, so a user switch must not leave the last one's colours behind
+    /// for the next `hydrate()` to read back.
+    func clearCache() {
+        reset()
+        guard let cacheURL else { return }
+        try? FileManager.default.removeItem(at: cacheURL)
+    }
 }

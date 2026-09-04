@@ -181,4 +181,14 @@ final class NotesStore {
         folders = []
         tags = []
     }
+
+    /// Drop everything **including the file on disk**. This store is a
+    /// singleton that outlives a session, so a user switch has to clear it in
+    /// memory as well: notes belong to an account, and the next account must
+    /// never see the last one's cache.
+    func clearCache() {
+        reset()
+        guard let cacheURL else { return }
+        try? FileManager.default.removeItem(at: cacheURL)
+    }
 }

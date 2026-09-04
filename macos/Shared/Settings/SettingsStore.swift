@@ -45,12 +45,82 @@ final class SettingsStore {
     /// default, 8 in the morning.
     static let defaultVerseOfDayHour = 8
 
+    /// The account-preferences pipe, set by `PreferencesSyncModel` when a
+    /// signed-in session starts.
+    ///
+    /// Weak because the sync model holds this store: it is owned by `AppModel`
+    /// and dies with the session, at which point this correctly reads nil again
+    /// and edits stop being written through.
+    @ObservationIgnored weak var sync: PreferencesSyncModel?
+
+    /// True while a server document (or a rollback) is being landed, so the
+    /// setters below know not to send it straight back as an edit.
+    @ObservationIgnored private var isApplyingRemote = false
+
+    /// Apply values *without* writing them through to the server. Used for
+    /// hydration, for rollbacks, and for the model picker's seeding from
+    /// `/api/ai/models` - which fills in the account's own defaults and would
+    /// otherwise PATCH them back as if the user had chosen them.
+    func applyRemote(_ body: (SettingsStore) -> Void) {
+        let wasApplying = isApplyingRemote
+        isApplyingRemote = true
+        body(self)
+        isApplyingRemote = wasApplying
+    }
+
+    /// Reset every synced field to its default, locally only. Runs when the
+    /// signed-in account changes and on sign-out: these values belong to an
+    /// account, not to the device.
+    func resetSyncedPreferences() {
+        applyRemote { settings in
+            settings.translation = .kjv
+            settings.parchment = true
+            settings.listenRate = Listen.defaultRate
+            settings.chatModelId = nil
+            settings.chatEffort = nil
+            settings.chatSpeed = nil
+            settings.chatVerbosity = nil
+            settings.chatMode = nil
+        }
+    }
+
+    /// The synced fields as the first-adopt seed sees them
+    /// (`PreferencesAdoption`).
+    var syncedSnapshot: LocalPreferences {
+        LocalPreferences(
+            translation: translation.rawValue,
+            parchment: parchment,
+            listenRate: listenRate,
+            modelId: chatModelId,
+            // Auto is "no reasoning override for this turn", which is what a
+            // null column already means, so it is never worth seeding.
+            effort: Self.wireEffort(chatEffort),
+            speed: chatSpeed,
+            verbosity: chatVerbosity,
+            mode: chatMode
+        )
+    }
+
+    /// Write one changed field through to `PATCH /api/preferences`, with the
+    /// value it had before so a failure can put it back.
+    private func writeThrough(_ patch: PreferencesPatch, previous: AccountPreferences) {
+        guard !isApplyingRemote else { return }
+        sync?.push(patch, rollingBackTo: previous)
+    }
+
     var appearance: AppearanceSetting {
         didSet { UserDefaults.standard.set(appearance.rawValue, forKey: Key.appearance) }
     }
 
     var translation: TranslationID {
-        didSet { UserDefaults.standard.set(translation.rawValue, forKey: Key.translation) }
+        didSet {
+            UserDefaults.standard.set(translation.rawValue, forKey: Key.translation)
+            guard translation != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(translation: translation.rawValue),
+                previous: AccountPreferences(translation: oldValue.rawValue)
+            )
+        }
     }
 
     var verseOfDayEnabled: Bool {
@@ -77,7 +147,14 @@ final class SettingsStore {
     /// Rides every `/api/ask-question` request, like `chatModelId` in
     /// `mobile/src/features/settings/settingsStore.ts`.
     var chatModelId: String? {
-        didSet { UserDefaults.standard.set(chatModelId, forKey: Key.chatModelId) }
+        didSet {
+            UserDefaults.standard.set(chatModelId, forKey: Key.chatModelId)
+            guard chatModelId != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(chat: ChatPreferences(modelId: .some(chatModelId))),
+                previous: AccountPreferences(chat: ChatPreferences(modelId: .some(oldValue)))
+            )
+        }
     }
 
     /// Reasoning effort override. The vocabulary is the server's
@@ -91,7 +168,25 @@ final class SettingsStore {
     /// null - "no reasoning override for this turn". Picking Auto must not read
     /// as never having picked anything.
     var chatEffort: String? {
-        didSet { UserDefaults.standard.set(chatEffort, forKey: Key.chatEffort) }
+        didSet {
+            UserDefaults.standard.set(chatEffort, forKey: Key.chatEffort)
+            guard chatEffort != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(chat: ChatPreferences(effort: .some(Self.wireEffort(chatEffort)))),
+                // The rollback restores the *stored* value, sentinel and all -
+                // it is putting this device back the way it was, not describing
+                // a server column.
+                previous: AccountPreferences(chat: ChatPreferences(effort: .some(oldValue)))
+            )
+        }
+    }
+
+    /// `auto` is a local sentinel, not a value the server's `isReasoningEffort`
+    /// accepts, and `PATCH /api/preferences` answers an unknown effort with a
+    /// 400. On the wire it is the same null the ask-question request sends for
+    /// Auto (see `AskQuestionRequest.encode`).
+    private static func wireEffort(_ effort: String?) -> String? {
+        effort == AskQuestionRequest.autoEffort ? nil : effort
     }
 
     /// Service tier (`standard` / `fast`). **Nil means "never chose", not
@@ -100,17 +195,38 @@ final class SettingsStore {
     /// stored default", so writing nil for Standard would leave a user who once
     /// chose Fast running Fast for ever. Same rule for the two below.
     var chatSpeed: String? {
-        didSet { UserDefaults.standard.set(chatSpeed, forKey: Key.chatSpeed) }
+        didSet {
+            UserDefaults.standard.set(chatSpeed, forKey: Key.chatSpeed)
+            guard chatSpeed != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(chat: ChatPreferences(speed: .some(chatSpeed))),
+                previous: AccountPreferences(chat: ChatPreferences(speed: .some(oldValue)))
+            )
+        }
     }
 
     /// Answer length (`low` / `medium` / `high`), nil only if never chosen.
     var chatVerbosity: String? {
-        didSet { UserDefaults.standard.set(chatVerbosity, forKey: Key.chatVerbosity) }
+        didSet {
+            UserDefaults.standard.set(chatVerbosity, forKey: Key.chatVerbosity)
+            guard chatVerbosity != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(chat: ChatPreferences(verbosity: .some(chatVerbosity))),
+                previous: AccountPreferences(chat: ChatPreferences(verbosity: .some(oldValue)))
+            )
+        }
     }
 
     /// Reasoning mode (`standard` / `pro`), nil only if never chosen.
     var chatMode: String? {
-        didSet { UserDefaults.standard.set(chatMode, forKey: Key.chatMode) }
+        didSet {
+            UserDefaults.standard.set(chatMode, forKey: Key.chatMode)
+            guard chatMode != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(chat: ChatPreferences(mode: .some(chatMode))),
+                previous: AccountPreferences(chat: ChatPreferences(mode: .some(oldValue)))
+            )
+        }
     }
 
     /// Playback speed for the "Listen" spoken devotional. Normalised on the way
@@ -132,13 +248,28 @@ final class SettingsStore {
                 return
             }
             UserDefaults.standard.set(listenRate, forKey: Key.listenRate)
+            guard listenRate != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(listenRate: listenRate),
+                // Normalised: `oldValue` can be a rate this build no longer
+                // offers (the guard above is what replaced it), and a rollback
+                // must put back a speed the player can actually run.
+                previous: AccountPreferences(listenRate: Listen.normalizeRate(oldValue))
+            )
         }
     }
 
     /// The chapter reader's parchment page surface (Android 1.19.0 / web's
     /// `.parchment-page`). On by default, exactly as on the other clients.
     var parchment: Bool {
-        didSet { UserDefaults.standard.set(parchment, forKey: Key.parchment) }
+        didSet {
+            UserDefaults.standard.set(parchment, forKey: Key.parchment)
+            guard parchment != oldValue else { return }
+            writeThrough(
+                PreferencesPatch(parchment: parchment),
+                previous: AccountPreferences(parchment: oldValue)
+            )
+        }
     }
 
     init() {

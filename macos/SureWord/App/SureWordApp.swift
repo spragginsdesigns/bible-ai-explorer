@@ -141,8 +141,20 @@ struct RootView: View {
         // The API client's token provider needs a live Clerk session, so the
         // model is built on sign-in and torn down on sign-out — that teardown
         // is also what clears the previous user's conversations from memory.
-        .onChange(of: clerk.user?.id, initial: true) { _, userID in
-            root.app = userID == nil ? nil : AppModel(settings: settings)
+        .onChange(of: clerk.user?.id, initial: true) { previousID, userID in
+            guard let userID else {
+                root.app = nil
+                // Only a *real* sign-out clears the per-account caches.
+                // `initial: true` also fires with nil at launch, before Clerk
+                // has restored the session, and clearing there would throw away
+                // the cache on every cold start - the opposite of what a
+                // first-paint cache is for.
+                if previousID != nil {
+                    PreferencesSyncModel.clearAccountCaches(settings: settings, highlights: nil)
+                }
+                return
+            }
+            root.app = AppModel(settings: settings, userID: userID)
         }
     }
 }

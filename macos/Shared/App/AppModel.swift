@@ -56,6 +56,10 @@ final class AppModel {
     let suggestedQuestions: SuggestedQuestionsModel
     /// Shared Bible atlas networking/state for both native shells.
     let atlas: AtlasModel
+    /// Account preferences: hydrates the settings from the server and writes
+    /// every change back. Owned here so one pipe serves the Settings screens,
+    /// the model picker and the reader alike.
+    let preferences: PreferencesSyncModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false
@@ -68,7 +72,10 @@ final class AppModel {
     /// never needs this).
     var pendingNoteID: String?
 
-    init(settings: SettingsStore) {
+    /// `userID` is the Clerk id of the session this model is being built for.
+    /// It is what tells the preference sync whether the persisted caches belong
+    /// to this account or to the last one signed in on this device.
+    init(settings: SettingsStore, userID: String?) {
         self.settings = settings
         // A second 401 after the fresh-token retry means the session itself is
         // invalid, so sign out locally rather than leaving the app looking
@@ -84,6 +91,15 @@ final class AppModel {
         dailyCross = DailyCrossModel(api: api)
         suggestedQuestions = SuggestedQuestionsModel(api: api)
         atlas = AtlasModel(api: api)
+        preferences = PreferencesSyncModel(transport: api, settings: settings)
+        // Runs before anything has read the caches: the notes and highlights
+        // stores hydrate lazily, so clearing them here is what stops a second
+        // account seeing the first one's notes.
+        let highlights = self.highlights
+        preferences.start(userID: userID) {
+            highlights.clearCache()
+            NotesStore.shared.clearCache()
+        }
     }
 
     /// The session ended. Signing out drops this model (see the `onChange` in

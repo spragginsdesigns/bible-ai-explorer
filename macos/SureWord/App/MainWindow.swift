@@ -1,3 +1,4 @@
+import AppKit
 import ClerkKit
 import ClerkKitUI
 import SwiftUI
@@ -22,6 +23,9 @@ struct MainWindow: View {
             detail
         }
         .task { await app.chat.loadConversations() }
+        // First hydrate of the session: the server document replaces whatever
+        // this Mac had cached for the synced preferences.
+        .task { app.preferences.refresh(force: true) }
         // Keep the morning reminder in step with the settings, on every launch
         // and on every change to either half of the preference.
         .task(id: "\(app.settings.verseOfDayEnabled)-\(app.settings.verseOfDayHour)") {
@@ -34,6 +38,13 @@ struct MainWindow: View {
         .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
             app.section = .cross
         }
+        // A preference changed on the phone or the web should be here by the
+        // time the window is looked at again. `refresh` throttles itself, which
+        // matters on macOS: clicking back into the app fires this constantly.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            app.preferences.refresh()
+        }
+        .preferencesErrorAlert(app.preferences, isActive: !app.isSettingsPresented)
         .sheet(isPresented: $chat.isHistoryPresented) {
             HistoryPicker()
         }

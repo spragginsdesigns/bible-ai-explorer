@@ -9,6 +9,7 @@ import SwiftUI
 /// notification, a `sureword://cross` deep link, or the Bible header card.
 struct TabShell: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Home is Chat, matching Android's initial route.
     @State private var selectedTab: AppSection = .chat
@@ -36,6 +37,9 @@ struct TabShell: View {
             }
         }
         .task { await app.chat.loadConversations() }
+        // First hydrate of the session: the server document replaces whatever
+        // this phone had cached for the synced preferences.
+        .task { app.preferences.refresh(force: true) }
         // Keep the morning reminder in step with the settings, on every launch
         // and on every change to either half of the preference. Enabling the
         // toggle in Settings re-runs this, and `sync` is what requests
@@ -55,6 +59,17 @@ struct TabShell: View {
         .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
             openCross()
         }
+        // A preference changed on the Mac or the web should be here by the time
+        // the app is looked at again. `refresh` throttles itself.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            app.preferences.refresh()
+        }
+        // Settings is pushed inside this shell rather than presented over it,
+        // so one alert here covers a failed PATCH from Settings and from the
+        // reader alike. The model picker is a sheet and owns its own - an
+        // alert under a presented sheet never appears.
+        .preferencesErrorAlert(app.preferences, isActive: !app.preferences.isAlertOwnedBySheet)
         // A sureword://verse deep link (or an older verse-carrying push): open
         // the reader at the reference. `BibleModel.open` sets the pending verse
         // Lane 2's reader scrolls to and flashes.

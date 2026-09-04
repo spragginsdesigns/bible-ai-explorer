@@ -174,17 +174,21 @@ struct ModelPickerSheet: View {
         // pins its options server-side; anything else is keys mode.
         let isHouse = data.access == "house" && data.house != nil
         guard !isHouse else { return }
-        if settings.chatEffort == nil, let effort = data.defaults.effort {
-            settings.chatEffort = effort
-        }
-        if settings.chatSpeed == nil, let speed = data.defaults.speed {
-            settings.chatSpeed = speed
-        }
-        if settings.chatVerbosity == nil, let verbosity = data.defaults.verbosity {
-            settings.chatVerbosity = verbosity
-        }
-        if settings.chatMode == nil, let mode = data.defaults.mode {
-            settings.chatMode = mode
+        // Never PATCHes: these values *came from* the account, and writing them
+        // back would turn the server's own default into a choice made here.
+        settings.applyRemote { settings in
+            if settings.chatEffort == nil, let effort = data.defaults.effort {
+                settings.chatEffort = effort
+            }
+            if settings.chatSpeed == nil, let speed = data.defaults.speed {
+                settings.chatSpeed = speed
+            }
+            if settings.chatVerbosity == nil, let verbosity = data.defaults.verbosity {
+                settings.chatVerbosity = verbosity
+            }
+            if settings.chatMode == nil, let mode = data.defaults.mode {
+                settings.chatMode = mode
+            }
         }
     }
 
@@ -396,6 +400,12 @@ struct ModelPickerSheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await load() }
+        // Every chip in here PATCHes, and an alert attached to the shell
+        // underneath a presented sheet never appears - so this sheet presents
+        // its own, and tells the shell to stand down while it is up.
+        .preferencesErrorAlert(settings.sync)
+        .onAppear { settings.sync?.isAlertOwnedBySheet = true }
+        .onDisappear { settings.sync?.isAlertOwnedBySheet = false }
     }
 
     /// The model and its non-default options once there is a list to summarise,

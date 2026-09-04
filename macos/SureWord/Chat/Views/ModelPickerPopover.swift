@@ -279,20 +279,25 @@ enum ModelPickerRules {
     /// mode, where the options are pinned server-side and there is no user
     /// default to honour. Seeding is idempotent: the second call finds every
     /// field non-nil and does nothing.
+    /// Seeding never PATCHes: `applyRemote` is what keeps it local. These
+    /// values *came from* the account, so writing them back would turn "the
+    /// server's own default" into "a choice the user made here" and pin it.
     @MainActor
     static func seedDefaults(from data: AIModelsResponse, into settings: SettingsStore) {
         guard !isHouse(data) else { return }
-        if settings.chatEffort == nil, let effort = data.defaults.effort {
-            settings.chatEffort = effort
-        }
-        if settings.chatSpeed == nil, let speed = data.defaults.speed {
-            settings.chatSpeed = speed
-        }
-        if settings.chatVerbosity == nil, let verbosity = data.defaults.verbosity {
-            settings.chatVerbosity = verbosity
-        }
-        if settings.chatMode == nil, let mode = data.defaults.mode {
-            settings.chatMode = mode
+        settings.applyRemote { settings in
+            if settings.chatEffort == nil, let effort = data.defaults.effort {
+                settings.chatEffort = effort
+            }
+            if settings.chatSpeed == nil, let speed = data.defaults.speed {
+                settings.chatSpeed = speed
+            }
+            if settings.chatVerbosity == nil, let verbosity = data.defaults.verbosity {
+                settings.chatVerbosity = verbosity
+            }
+            if settings.chatMode == nil, let mode = data.defaults.mode {
+                settings.chatMode = mode
+            }
         }
     }
 

@@ -54,6 +54,8 @@ struct SettingsView: View {
 
             memorySection
 
+            WebSearchSection(preferences: app.preferences)
+
             churchSection
 
             ProviderSettingsSection()

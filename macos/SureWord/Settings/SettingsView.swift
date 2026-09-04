@@ -58,6 +58,8 @@ struct SettingsView: View {
 
                 memorySection
 
+                WebSearchSection(preferences: app.preferences)
+
                 churchSection
 
                 Section("Account") {
@@ -112,6 +114,7 @@ struct SettingsView: View {
             MemoriesView(model: memory)
         }
         .memoryErrorAlert(memory, isActive: !isMemoriesPresented)
+        .preferencesErrorAlert(app.preferences, isActive: !isMemoriesPresented)
         .confirmationDialog(
             "Sign out of SureWord?",
             isPresented: $isConfirmingSignOut,

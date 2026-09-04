@@ -499,9 +499,12 @@ out a paid feature. The rules are pure and tested (`resolvePlan` in
 *Shipped 2026-08-26*
 
 0.75x / 1x / 1.25x / 1.5x / 2x on a cycling chip beside the play button, on
-every client. Persisted **per client** - a speed picked on a phone is a habit,
-not an account preference worth a round trip: web keeps it in `localStorage`
-under `sureword.listenRate`, Android in its settings store. Web sets
+every client. Persisted **on the account** since 2026-09-04: the rate lives in
+`User.listenRate` and travels with the rest of the preferences document, so the
+pace someone settled on during a commute is the pace the desktop plays at that
+evening. Each client's own store (`localStorage` `sureword.listenRate` on web,
+the settings store on Android, `SettingsStore` on Apple) is now a first-paint
+cache of that value rather than the record of it. Web sets
 `audio.playbackRate`; Android calls `player.setPlaybackRate(rate, "high")` with
 `shouldCorrectPitch`, so 1.5x sounds like someone reading quickly rather than a
 chipmunk. Elapsed and total stay in **real seconds** at every speed - the clock
@@ -1238,3 +1241,35 @@ verbosity is deliberately not sent: a client needs the values it may offer, not
 how they are delivered. Every new field is optional on the client side, so a
 build talking to an older server falls back to speeds `["standard"]`,
 verbosities `[]`, modes `["standard"]` and nulls.
+
+## Account preferences
+
+*Shipped 2026-09-04 · Android 1.49.0 + web; Apple source complete, compile gate pending*
+
+Translation, parchment and the Listen rate used to never leave the device that
+set them, and the model pick rode along with a chat request while Memory had its
+own route. `GET/PATCH /api/preferences` is now the whole account document:
+`plan` (read-only), `webSearchEnabled`, `memoryEnabled`, `translation`,
+`parchment`, `listenRate`, and a `chat` bag of the raw stored `modelId`,
+`effort`, `speed`, `verbosity` and `mode`. Validation is pure in
+`src/lib/preferences-contract.ts` (`tests/preferences-contract.test.mjs`) and
+runs before any write, so a body with one bad field writes nothing.
+
+**The server is the record; every local store is a first-paint cache.** Clients
+hydrate the whole document on sign-in and on every return to the foreground,
+throttled to one fetch per 15 s, and a local `editSeq` discards a response that
+landed after the user edited something. Each change writes locally, PATCHes only
+the key that changed, and rolls back with a non-blocking notice if that fails.
+Settings, notes and highlight caches carry the Clerk user id they belong to and
+are discarded when a different user signs in, and on sign-out.
+
+**Upgrading resets nobody, and stale caches overwrite nobody**: a first launch
+after the upgrade reads the account first, then pushes up in one PATCH only the
+local non-default values whose column the account has never written. An account
+that already chose elsewhere always wins over whatever an old cache holds (on a
+shared device that cache may not even be this user's). **Auto is null on
+the wire** - the auto reasoning chip encodes as `chat.effort: null`, which
+clears the stored default instead of filling it back in.
+
+Device-only by decision: theme, reader font step, and the notification hour and
+switch, which was already stored per push token and so already per device.

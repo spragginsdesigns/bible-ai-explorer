@@ -8,7 +8,7 @@ import XCTest
 final class TabShellTests: XCTestCase {
     func testAppModelDefaultsToChatHome() {
         // Android's bottom tabs land on Chat; TabShell's selection does too.
-        let app = AppModel(settings: SettingsStore())
+        let app = AppModel(settings: SettingsStore(), userID: nil)
         XCTAssertEqual(app.section, .chat)
     }
 
