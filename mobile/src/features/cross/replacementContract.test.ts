@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(resolve(process.cwd(), "app/(app)/cross.tsx"), "utf8");
+const source = readFileSync(resolve(process.cwd(), "app/(app)/bible/cross.tsx"), "utf8");
 const replacementStart = source.indexOf("const replaceToday");
 const replacement = source.slice(
 	replacementStart,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Redirect, Tabs } from "expo-router";
@@ -13,6 +13,7 @@ import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
+import { afterTabDepartureGuard } from "@/lib/tabDeparture";
 
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
 	index: "Chat",
@@ -37,6 +38,7 @@ const TAB_ICONS: Record<
 };
 
 function SolidTabBar({ state, navigation }: BottomTabBarProps) {
+	const departing = useRef(false);
 	const insets = useSafeAreaInsets();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -64,13 +66,17 @@ function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							accessibilityLabel={`${label} tab`}
 							accessibilityState={{ selected: focused }}
 							onPress={() => {
-								const event = navigation.emit({
+								if (departing.current) return;
+								departing.current = true;
+								void afterTabDepartureGuard(() => {
+									const event = navigation.emit({
 									type: "tabPress",
 									target: route.key,
 									canPreventDefault: true,
-								});
-								if (!focused && !event.defaultPrevented)
-									navigation.navigate(route.name);
+									});
+									if (!focused && !event.defaultPrevented)
+										navigation.navigate(route.name);
+								}).finally(() => { departing.current = false; });
 							}}
 							style={({ pressed }) => [
 								styles.tabItem,
@@ -128,8 +134,6 @@ export default function AppLayout() {
 			<Tabs.Screen name="settings" options={{ href: null }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
-			{/* Push-only screen: reachable from the Bible tab, chat cards, and the morning notification. */}
-			<Tabs.Screen name="cross" options={{ href: null }} />
 		</Tabs>
 	);
 }

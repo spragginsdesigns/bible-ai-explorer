@@ -33,6 +33,16 @@ let snapshot: ReadonlyMap<string, string> = new Map();
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+type HighlightValue = string | undefined;
+
+// Revisions identify the latest local intent for each verse. The persisted
+// value is deliberately separate from the optimistic snapshot: a failed
+// write must return to the last value the server accepted, not to an older
+// optimistic intent.
+const revisions = new Map<string, number>();
+const persistedValues = new Map<string, HighlightValue>();
+const writeQueues = new Map<string, Promise<void>>();
+
 function key(ref: HighlightRef): string {
 	return `${ref.translation}:${ref.book}:${ref.chapter}:${ref.verse}`;
 }
@@ -55,6 +65,22 @@ function setSnapshot(next: Map<string, string>) {
 	snapshot = next;
 	persist();
 	emit();
+}
+
+function currentRevision(k: string): number {
+	return revisions.get(k) ?? 0;
+}
+
+function ensurePersistedValue(k: string): HighlightValue {
+	if (!persistedValues.has(k)) persistedValues.set(k, snapshot.get(k));
+	return persistedValues.get(k);
+}
+
+function applyValue(k: string, value: HighlightValue) {
+	const next = new Map(snapshot);
+	if (value === undefined) next.delete(k);
+	else next.set(k, value);
+	setSnapshot(next);
 }
 
 /**
@@ -80,6 +106,7 @@ export async function hydrateHighlights(): Promise<void> {
 			if (color) next.set(k, color);
 		}
 		snapshot = next;
+		for (const [k, value] of next) persistedValues.set(k, value);
 	} catch {
 		// A corrupt or unreadable cache falls back to a server refresh.
 	}
@@ -97,6 +124,10 @@ export function clearHighlightsCache(): Promise<void> {
 	// are deleting, and every chapter revalidates against the server anyway.
 	hydrated = true;
 	snapshot = new Map();
+	revisions.clear();
+	persistedValues.clear();
+	writeQueues.clear();
+	inflight.clear();
 	emit();
 	return AsyncStorage.removeItem(STORAGE_KEY).catch(() => {
 		// An unwritable store must never break sign-out.
@@ -112,14 +143,29 @@ function refreshChapter(getToken: GetToken, translation: TranslationId, book: nu
 	if (inflight.has(scope)) return;
 	inflight.add(scope);
 	const knownAtStart = new Set<string>();
-	for (const k of snapshot.keys()) {
-		if (k.startsWith(scope)) knownAtStart.add(k);
+	const revisionsAtStart = new Map<string, number>();
+	const pendingAtStart = new Set<string>();
+	const keysAtStart = new Set<string>([
+		...snapshot.keys(),
+		...revisions.keys(),
+		...persistedValues.keys(),
+	]);
+	for (const k of keysAtStart) {
+		if (k.startsWith(scope)) {
+			if (snapshot.has(k)) knownAtStart.add(k);
+			revisionsAtStart.set(k, currentRevision(k));
+			if (writeQueues.has(k)) pendingAtStart.add(k);
+		}
 	}
+	const startedGeneration = generation;
+	const canApply = (k: string) =>
+		!pendingAtStart.has(k) && currentRevision(k) === (revisionsAtStart.get(k) ?? 0);
 	apiJson<ChapterHighlightsResponse>(
 		getToken,
 		`/api/highlights?translation=${translation}&book=${book}&chapter=${chapter}`
 	)
 		.then((data) => {
+			if (generation !== startedGeneration) return;
 			const incoming = new Map<string, string>();
 			for (const entry of data.highlights ?? []) {
 				if (typeof entry.verse !== "number") continue;
@@ -131,16 +177,24 @@ function refreshChapter(getToken: GetToken, translation: TranslationId, book: nu
 			// knew about when the request started, so an optimistic write made
 			// mid-flight is never clobbered by a stale response.
 			for (const k of knownAtStart) {
-				if (!incoming.has(k)) next.delete(k);
+				if (!canApply(k)) continue;
+				if (!incoming.has(k)) {
+					next.delete(k);
+					persistedValues.set(k, undefined);
+				}
 			}
-			for (const [k, color] of incoming) next.set(k, color);
+			for (const [k, color] of incoming) {
+				if (!canApply(k)) continue;
+				next.set(k, color);
+				persistedValues.set(k, color);
+			}
 			setSnapshot(next);
 		})
 		.catch(() => {
 			// Offline or not signed in: keep the cached/optimistic snapshot.
 		})
 		.finally(() => {
-			inflight.delete(scope);
+			if (generation === startedGeneration) inflight.delete(scope);
 		});
 }
 
@@ -172,44 +226,61 @@ export function useChapterHighlights(
 	}, [all, scope]);
 }
 
-/** Optimistic upsert; rolls back if the server write fails. */
+/** Optimistic upsert, serialized with other intents for the same verse. */
 export async function setHighlight(getToken: GetToken, ref: HighlightRef & { color: string }) {
 	const k = key(ref);
 	const color = normalizeHighlightHex(ref.color);
 	if (!color) return;
-	const previous = snapshot.get(k);
-	const next = new Map(snapshot);
-	next.set(k, color);
-	setSnapshot(next);
-	try {
-		await apiJson(getToken, "/api/highlights", { method: "PUT", body: { ...ref, color } });
-	} catch (error) {
-		rollback(k, previous);
-		throw error;
-	}
+	return enqueueWrite(k, color, () =>
+		apiJson(getToken, "/api/highlights", { method: "PUT", body: { ...ref, color } })
+	);
 }
 
-/** Optimistic delete; rolls back if the server write fails. */
+/** Optimistic delete, serialized with other intents for the same verse. */
 export async function removeHighlight(getToken: GetToken, ref: HighlightRef) {
 	const k = key(ref);
-	const previous = snapshot.get(k);
-	if (previous === undefined) return;
-	const next = new Map(snapshot);
-	next.delete(k);
-	setSnapshot(next);
-	try {
-		await apiJson(getToken, "/api/highlights", { method: "DELETE", body: ref });
-	} catch (error) {
-		rollback(k, previous);
-		throw error;
-	}
+	if (snapshot.get(k) === undefined) return;
+	return enqueueWrite(k, undefined, () =>
+		apiJson(getToken, "/api/highlights", { method: "DELETE", body: ref })
+	);
 }
 
-function rollback(k: string, previous: string | undefined) {
-	const next = new Map(snapshot);
-	if (previous === undefined) next.delete(k);
-	else next.set(k, previous);
-	setSnapshot(next);
+function enqueueWrite(
+	k: string,
+	value: HighlightValue,
+	write: () => Promise<unknown>
+): Promise<void> {
+	const startedGeneration = generation;
+	const revision = currentRevision(k) + 1;
+	revisions.set(k, revision);
+	ensurePersistedValue(k);
+	applyValue(k, value);
+
+	const previous = writeQueues.get(k) ?? Promise.resolve();
+	const run = previous.catch(() => undefined).then(async () => {
+		// queue starts after the optimistic snapshot has been emitted
+		if (generation !== startedGeneration) return;
+		try {
+			await write();
+			if (generation !== startedGeneration) return;
+			persistedValues.set(k, value);
+		} catch (error) {
+			if (generation === startedGeneration && currentRevision(k) === revision) {
+				applyValue(k, persistedValues.get(k));
+			}
+			throw error;
+		}
+	});
+	writeQueues.set(k, run);
+	void run.then(
+		() => {
+			if (writeQueues.get(k) === run) writeQueues.delete(k);
+		},
+		() => {
+			if (writeQueues.get(k) === run) writeQueues.delete(k);
+		}
+	);
+	return run;
 }
 
 function subscribe(listener: () => void): () => void {

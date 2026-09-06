@@ -104,6 +104,9 @@ export function useNoteEditorData(noteId: string) {
 				if (mounted.current) {
 					setError(err instanceof Error ? err.message : "Changes could not be saved.");
 				}
+				// Keep the failure visible, but let the editor keep the document
+				// dirty so a later flush can retry this payload.
+				throw err;
 			} finally {
 				if (mounted.current) setIsSaving(false);
 			}
@@ -289,6 +292,7 @@ export function useNoteEditorData(noteId: string) {
 		isLoading,
 		isSaving,
 		error,
+		reportSaveError: setError,
 		save,
 		renameNote,
 		togglePin,

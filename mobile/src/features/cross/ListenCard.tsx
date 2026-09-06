@@ -73,6 +73,21 @@ const LOCK_SCREEN_CONTROLS: AudioLockScreenOptions = {
 };
 
 /**
+ * `useAudioPlayer` releases its native SharedObject during unmount. Android
+ * can therefore race a queued cleanup call and reject it with this one
+ * lifecycle error. Other player failures must remain visible to the caller.
+ */
+function isReleasedAudioPlayerError(error: unknown): boolean {
+	if (!error || typeof error !== "object") return false;
+	const candidate = error as { code?: unknown; message?: unknown };
+	return (
+		candidate.code === "ERR_USING_RELEASED_SHARED_OBJECT" ||
+		(typeof candidate.message === "string" &&
+			candidate.message.includes("ERR_USING_RELEASED_SHARED_OBJECT"))
+	);
+}
+
+/**
  * Keep playing with the screen off, and put the devotional on the lock screen.
  *
  * Without `shouldPlayInBackground` the native module pauses every player the
@@ -282,7 +297,11 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	// Leaving the screen must not leave a voice playing behind it.
 	useEffect(() => {
 		return () => {
-			player.pause();
+			try {
+				player.pause();
+			} catch (error) {
+				if (!isReleasedAudioPlayerError(error)) throw error;
+			}
 		};
 	}, [player]);
 

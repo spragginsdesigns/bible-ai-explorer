@@ -90,7 +90,7 @@ export default function BibleBooksScreen() {
 	};
 
 	const openDailyCross = () => {
-		router.push("/cross");
+		router.push("/bible/cross", { withAnchor: true });
 	};
 
 	const openReadingPlan = () => {

@@ -22,6 +22,7 @@ import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
+import { createNoteSaveController, type NoteSaveController } from "../noteSaveController";
 import { GlyphButton } from "./primitives";
 
 const AUTOSAVE_DELAY = 1500;
@@ -215,7 +216,8 @@ function insertTextScript(text: string): string {
 
 export interface NoteRichEditorHandle {
 	/** Cancel the pending debounce and persist immediately. */
-	flush: () => Promise<void>;
+	/** Returns false when the PATCH failed, leaving the note dirty for retry. */
+	flush: () => Promise<boolean>;
 	/** Re-seed the document, e.g. after the AI appended to this note. */
 	replaceContent: (html: string) => void;
 	/** Write text at the caret, restoring focus first. */
@@ -226,6 +228,7 @@ interface NoteRichEditorProps {
 	/** Read once on mount - remount (via key) to load a different note. */
 	initialHtml: string;
 	onSave: (payload: NoteSavePayload) => Promise<void> | void;
+	onCaptureError: (message: string) => void;
 	/** Space reserved under the toolbar for the app's floating tab bar. */
 	bottomInset: number;
 	/** Opens the note picker; the screen inserts the chosen link through the ref. */
@@ -233,9 +236,7 @@ interface NoteRichEditorProps {
 }
 
 export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorProps>(
-	function NoteRichEditor({ initialHtml, onSave, bottomInset, onRequestWikilink }, ref) {
-		const savedHtmlRef = useRef(initialHtml);
-		const latestHtmlRef = useRef(initialHtml);
+	function NoteRichEditor({ initialHtml, onSave, onCaptureError, bottomInset, onRequestWikilink }, ref) {
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 		const { colors } = useTheme();
@@ -245,6 +246,8 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 
 		const onSaveRef = useRef(onSave);
 		onSaveRef.current = onSave;
+		const onCaptureErrorRef = useRef(onCaptureError);
+		onCaptureErrorRef.current = onCaptureError;
 
 		const editor = useEditorBridge({
 			initialContent: initialHtml,
@@ -265,41 +268,47 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		const { isKeyboardUp } = useKeyboard();
 		const toolbarHidden = !isKeyboardUp || !editorState.isFocused;
 
-		const persist = useCallback(async (html: string) => {
-			if (html === savedHtmlRef.current) return;
-			savedHtmlRef.current = html;
-			latestHtmlRef.current = html;
-			const plainText = htmlToPlainText(html);
-			await onSaveRef.current({
-				content: html,
-				htmlContent: html,
-				plainText,
-				wordCount: countWords(plainText),
-			});
-		}, []);
-
 		const capture = useCallback(async () => {
-			const html = await withTimeout(editorRef.current.getHTML(), BRIDGE_TIMEOUT);
-			if (html === null) return latestHtmlRef.current;
-			latestHtmlRef.current = html;
-			return html;
+			return withTimeout(editorRef.current.getHTML(), BRIDGE_TIMEOUT);
 		}, []);
+		const saveControllerRef = useRef<NoteSaveController | null>(null);
+		if (!saveControllerRef.current) {
+			saveControllerRef.current = createNoteSaveController(
+				initialHtml,
+				capture,
+				async (html) => {
+					const plainText = htmlToPlainText(html);
+					await onSaveRef.current({
+						content: html,
+						htmlContent: html,
+						plainText,
+						wordCount: countWords(plainText),
+					});
+				},
+				(message) => onCaptureErrorRef.current(message)
+			);
+		}
+		const saveController = saveControllerRef.current;
+
+		const enqueueSave = useCallback(() => {
+			return saveController.enqueue();
+		}, [saveController]);
 
 		const scheduleSave = useCallback(() => {
 			if (timerRef.current) clearTimeout(timerRef.current);
 			timerRef.current = setTimeout(() => {
 				timerRef.current = null;
-				void capture().then(persist);
+				void enqueueSave().catch(() => {});
 			}, AUTOSAVE_DELAY);
-		}, [capture, persist]);
+		}, [enqueueSave]);
 
 		const flush = useCallback(async () => {
 			if (timerRef.current) {
 				clearTimeout(timerRef.current);
 				timerRef.current = null;
 			}
-			await persist(await capture());
-		}, [capture, persist]);
+			return saveController.flush();
+		}, [saveController]);
 
 		useImperativeHandle(
 			ref,
@@ -310,8 +319,7 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 						clearTimeout(timerRef.current);
 						timerRef.current = null;
 					}
-					savedHtmlRef.current = html;
-					latestHtmlRef.current = html;
+					saveController.replaceContent(html);
 					editorRef.current.setContent(html);
 				},
 				insertText: (text: string) => {
@@ -322,16 +330,16 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 					editorRef.current.injectJS(insertTextScript(text));
 				},
 			}),
-			[flush]
+			[flush, saveController]
 		);
 
 		// Last-chance save if the screen goes away without an explicit flush.
 		useEffect(
 			() => () => {
 				if (timerRef.current) clearTimeout(timerRef.current);
-				void persist(latestHtmlRef.current);
+				void saveController.lastChance().catch(() => {});
 			},
-			[persist]
+			[saveController]
 		);
 
 		return (

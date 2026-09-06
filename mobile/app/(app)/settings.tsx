@@ -557,8 +557,8 @@ const createStyles = (c: Colors) =>
 		rowTitle: { color: c.text, ...typography.control, fontWeight: "600" },
 		hourStepper: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		hourButton: {
-			width: 36,
-			height: 36,
+			width: 48,
+			height: 48,
 			borderRadius: radius.md,
 			alignItems: "center",
 			justifyContent: "center",

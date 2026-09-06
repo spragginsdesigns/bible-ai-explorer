@@ -156,8 +156,10 @@ export function ProviderSettingsSection({ getToken }: { getToken: GetToken }) {
 										accessibilityLabel={`Remove ${provider.label} key`}
 										disabled={pending}
 										onPress={() => remove(provider.id)}
-										hitSlop={8}
-										style={({ pressed }) => pressed && { opacity: 0.6 }}
+										style={({ pressed }) => [
+											styles.removeButton,
+											pressed && { opacity: 0.6 },
+										]}
 									>
 										<Ionicons name="trash-outline" size={17} color={colors.textFaint} />
 									</Pressable>
@@ -200,7 +202,7 @@ export function ProviderSettingsSection({ getToken }: { getToken: GetToken }) {
 										setKeyInput("");
 										setError(null);
 									}}
-									hitSlop={8}
+									style={styles.cancelButton}
 								>
 									<Text style={styles.cancelLabel}>Cancel</Text>
 								</Pressable>
@@ -258,10 +260,23 @@ const createStyles = (c: Colors) =>
 		providerCopy: { flex: 1, minWidth: 0 },
 		providerName: { color: c.text, fontSize: 14.5, fontWeight: "600" },
 		providerStatus: { ...typography.meta, color: c.textFaint, marginTop: 1 },
-		actions: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+		removeButton: {
+			width: 48,
+			height: 48,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		actions: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			flexShrink: 1,
+			flexWrap: "wrap",
+		},
 		actionButton: {
-			minHeight: 34,
+			minHeight: 48,
 			paddingHorizontal: spacing.md,
+			flexShrink: 1,
 			alignItems: "center",
 			justifyContent: "center",
 			borderRadius: radius.md,
@@ -280,12 +295,17 @@ const createStyles = (c: Colors) =>
 			color: c.text,
 			fontSize: 14,
 		},
-		editActions: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+		editActions: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.md,
+			flexWrap: "wrap",
+		},
 		saveButton: {
 			flexDirection: "row",
 			alignItems: "center",
 			gap: spacing.xs,
-			minHeight: 36,
+			minHeight: 48,
 			paddingHorizontal: spacing.md,
 			borderRadius: radius.md,
 			backgroundColor: c.accentSoft,
@@ -293,9 +313,17 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 		},
 		saveLabel: { ...typography.support, color: c.accent, fontWeight: "700" },
+		cancelButton: {
+			minHeight: 48,
+			paddingHorizontal: spacing.sm,
+			alignItems: "center",
+			justifyContent: "center",
+		},
 		cancelLabel: { ...typography.support, color: c.textMuted, fontWeight: "700" },
 		keyUrlButton: {
 			marginLeft: "auto",
+			minHeight: 48,
+			paddingHorizontal: spacing.sm,
 			flexDirection: "row",
 			alignItems: "center",
 			gap: 3,

@@ -16,7 +16,10 @@ export function CrossActionCard({ action }: { action: CrossAction }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
-	const openCross = useCallback(() => router.push("/cross"), [router]);
+	const openCross = useCallback(
+		() => router.push("/bible/cross", { withAnchor: true }),
+		[router]
+	);
 
 	return (
 		<Pressable

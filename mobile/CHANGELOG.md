@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.50.0 (versionCode 49) - 2026-09-06 - internal
+
+**What's new (Play):**
+
+- Pick Up Your Cross now stays in Bible navigation: return from a study passage to your devotional, then to the Bible home.
+- Quick highlight color changes and removals save in the order you choose them.
+- Note autosaves keep newer edits from being overwritten; a failed save stays available to retry before leaving.
+- Larger touch targets make notification time and AI provider controls easier to use.
+- Fixed a black screen after Android recreates the devotional screen.
+
+**Dev notes:** Cross is nested under the Bible stack with an anchored legacy `/cross` redirect. Highlight writes serialize per verse and reject stale read/rollback results. Note captures and body saves share a queue with successful-save dirty tracking; primary tab changes flush before removing the editor. Settings controls use 48dp targets. Listen cleanup ignores only the native already-released-player error. Android experience evidence and remaining audit limits are recorded in `docs/android-experience-2026-09-06.md`.
+
 ## 1.49.0 (versionCode 48) - 2026-09-04 - internal
 
 **What's new (Play):**

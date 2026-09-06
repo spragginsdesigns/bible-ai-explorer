@@ -67,7 +67,9 @@ function LoadingBars() {
  * "Pick Up Your Cross" (Luke 9:23) — the guided daily walk as a timeline:
  * today's verse, why it was chosen from the user's actual week, how it
  * applies, a short study path, and one question to carry. Opened from the
- * morning notification, or any time from the Bible tab. Mirrors
+	 * morning notification, or any time from the Bible tab. It lives inside
+	 * the Bible stack so reading a study step returns to this screen, then Bible.
+	 * Mirrors
  * src/app/cross/page.tsx on web.
  */
 export default function DailyCrossScreen() {

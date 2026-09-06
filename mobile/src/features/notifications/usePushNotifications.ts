@@ -127,7 +127,7 @@ export function usePushNotifications(): void {
 			} else if (target.screen === "chat") {
 				router.push({ pathname: "/", params: { conversationId: target.conversationId } });
 			} else {
-				router.push("/cross");
+				router.push("/bible/cross", { withAnchor: true });
 			}
 		};
 

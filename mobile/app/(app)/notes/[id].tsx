@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { registerTabDepartureGuard } from "@/lib/tabDeparture";
 import { Screen } from "@/components/ui";
 import { spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -47,19 +48,33 @@ export default function NoteEditorScreen() {
 	const bottomInset = useTabBarSpace();
 
 	const goBack = useCallback(async () => {
-		await editorRef.current?.flush();
+		const flushed = await editorRef.current?.flush();
+		if (flushed === false) return;
 		// Always land on the notes hub: pops to it when it's in the stack,
 		// replaces otherwise (plain back() could fall out to another tab).
 		router.dismissTo("/notes");
 	}, [router]);
 
-	useEffect(() => {
-		const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-			void goBack();
-			return true;
-		});
-		return () => subscription.remove();
-	}, [goBack]);
+	useFocusEffect(
+		useCallback(() => {
+			const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+				// Native Modal sheets own Back; do not turn it into a screen exit.
+				if (aiOpen || tagsOpen || infoOpen || wikilinkOpen) return false;
+				void goBack();
+				return true;
+			});
+			return () => subscription.remove();
+		}, [aiOpen, tagsOpen, infoOpen, wikilinkOpen, goBack])
+	);
+
+	// Flush before the tab changes: popToTopOnBlur otherwise destroys the
+	// WebView before the debounce captures the latest keystrokes. Intercepting
+	// stack removal is too late to keep a failed save visible on the Notes tab.
+	useFocusEffect(
+		useCallback(() => {
+			return registerTabDepartureGuard(async () => (await editorRef.current?.flush()) !== false);
+		}, [])
+	);
 
 	useEffect(() => {
 		const subscription = AppState.addEventListener("change", (state) => {
@@ -70,14 +85,14 @@ export default function NoteEditorScreen() {
 
 	const openAI = useCallback(async () => {
 		// Save first so the assistant reads the current text, not the last autosave.
-		await editorRef.current?.flush();
+		if ((await editorRef.current?.flush()) === false) return;
 		setAiOpen(true);
 	}, []);
 
 	// Links are parsed server-side from the saved text, so an unflushed
 	// [[wikilink]] would be missing from the sheet that is meant to show it.
 	const openInfo = useCallback(async () => {
-		await editorRef.current?.flush();
+		if ((await editorRef.current?.flush()) === false) return;
 		setInfoOpen(true);
 	}, []);
 
@@ -133,6 +148,7 @@ export default function NoteEditorScreen() {
 						ref={editorRef}
 						initialHtml={initialHtml}
 						onSave={data.save}
+						onCaptureError={data.reportSaveError}
 						bottomInset={bottomInset}
 						onRequestWikilink={() => setWikilinkOpen(true)}
 					/>

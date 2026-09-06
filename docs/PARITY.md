@@ -31,6 +31,14 @@ Legend: ✅ full parity · 🟡 partial / different behavior · ❌ missing · �
 
 ## Clients
 
+Android experience pass (2026-09-06): version 1.50.0 / code 49 passed emulator verification
+for Bible-owned Daily Cross navigation (legacy `/cross` still redirects), ordered
+highlight and note writes, save-before-tab-departure, larger Settings controls,
+and safe Listen player teardown. This is an Android-only repair pass at Austin's
+request; corresponding web/macOS/iOS experience audits and Windows planning are
+tracked separately in TickTick. No new Apple or web runtime verification is
+claimed. See [Android experience evidence](android-experience-2026-09-06.md).
+
 | Client | Path | Status |
 |---|---|---|
 | Android | `mobile/` | Source of truth (v1.38.0, versionCode 35) |
