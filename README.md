@@ -25,10 +25,23 @@ inerrant, infallible Word. The web app, Android app, and native Apple clients
 use the same authenticated backend, so conversations, notes, memories, reading
 history, and the daily walk follow the account.
 
+## App screenshots
+
+Explore SureWord's Scripture-connected AI, tap-a-verse explanations, Daily Cross,
+Hebrew and Greek word study, Bible atlas, offline KJV reader, notes, and reading
+plans. These are real screenshots from the Android app, presented in SureWord's
+black-and-gold Play Store artwork.
+
+[![Eight SureWord Android screenshots showing Bible study chat, verse explanations, Daily Cross, original languages, biblical context, offline reading, study notes, and reading plans](docs/play-store/promo-2026-09-06/contact-sheet.png)](docs/play-store/promo-2026-09-06/README.md)
+
+[View the full-size images](docs/play-store/promo-2026-09-06/screenshots/) ·
+[Download the eight-image PNG pack](docs/play-store/promo-2026-09-06/sureword-play-store-promos.zip) ·
+[Artwork sources and research](docs/play-store/promo-2026-09-06/README.md)
+
 ## Clients and parity
 
 - **Android** (`mobile/`, Expo / React Native) is the primary client and first
-  acceptance target. The current checked-in version is **1.39.0 (versionCode 37)**.
+  acceptance target. The current checked-in version is **1.50.0 (versionCode 49)**.
 - **Web** (`src/`, Next.js) runs at [sureword.app](https://sureword.app).
 - **macOS** (`macos/SureWord/`, SwiftUI) is the native desktop client; the current
   project version is **1.6.0**.
@@ -143,6 +156,8 @@ for the generated Xcode project.
   product features
 - [`docs/PARITY.md`](docs/PARITY.md) — per-client capability and verification status
 - [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md) — Android Play release procedure
+- [`docs/play-store/promo-2026-09-06/README.md`](docs/play-store/promo-2026-09-06/README.md) —
+  eight Play Store promo images, download pack, editable layouts, and source evidence
 - [`mobile/README.md`](mobile/README.md) — Android build and release workflow
 - [`macos/README.md`](macos/README.md) — Apple build, install, and test workflow
 - [`src/data/bible-atlas/README.md`](src/data/bible-atlas/README.md) — atlas data

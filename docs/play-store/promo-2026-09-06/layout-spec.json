@@ -1,0 +1,82 @@
+[
+  {
+    "id": "01-personal-bible-study",
+    "feature": "SCRIPTURE-CONNECTED AI",
+    "headline": ["Questions welcome.", "Scripture first."],
+    "subtitle": "Ask about a passage. Follow the linked Scripture.",
+    "source": "extra-chat-question.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1830 },
+    "panelWidth": 824,
+    "alt": "SureWord answers a question about John 1:1 with a completed explanation, a KJV quotation, and linked Scripture."
+  },
+  {
+    "id": "02-tap-a-verse",
+    "feature": "TAP-A-VERSE STUDY",
+    "headline": ["Tap a verse.", "Go deeper."],
+    "subtitle": "Read an explanation. Keep exploring with AI.",
+    "source": "06-verse-insight.png",
+    "crop": { "left": 0, "top": 310, "width": 1080, "height": 1605 },
+    "panelWidth": 936,
+    "alt": "The John 1:1 verse sheet in SureWord, showing the Bible verse, a completed AI explanation, original Greek words and Expand with AI."
+  },
+  {
+    "id": "03-daily-cross",
+    "feature": "PICK UP YOUR CROSS",
+    "headline": ["Scripture for", "your daily walk."],
+    "subtitle": "Daily Cross connects your study to everyday life.",
+    "source": "extra-cross.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1560 },
+    "panelWidth": 936,
+    "alt": "SureWord Daily Cross shows a For You personal application followed by linked study cards for Matthew 6 and Luke 9."
+  },
+  {
+    "id": "04-original-languages",
+    "feature": "HEBREW & GREEK WORD STUDY",
+    "headline": ["Discover the words", "behind the Word."],
+    "subtitle": "Explore Hebrew and Greek with Strong’s definitions.",
+    "source": "10-original-language.png",
+    "crop": { "left": 0, "top": 310, "width": 1080, "height": 1635 },
+    "panelWidth": 922,
+    "alt": "John 1:1's Greek word chips with logos selected and the actual Strong's G3056 definition, transliteration and KJV gloss."
+  },
+  {
+    "id": "05-biblical-context",
+    "feature": "TIMELINE, PEOPLE & PLACES",
+    "headline": ["See the story", "come together."],
+    "subtitle": "Connect biblical people, places and events.",
+    "source": "03-timeline.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1880 },
+    "panelWidth": 808,
+    "alt": "SureWord's Bible atlas shows timeline filters, Genesis events, linked passages, and dates labeled traditional Ussher chronology."
+  },
+  {
+    "id": "06-offline-kjv",
+    "feature": "YOUR BIBLE, WITH YOU",
+    "headline": ["Keep Scripture", "close."],
+    "subtitle": "Read the KJV offline, wherever the day takes you.",
+    "source": "05-reader-kjv.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1880 },
+    "panelWidth": 808,
+    "alt": "SureWord's John 1 reader with KJV selected, text-size controls, NKJV option, and Ask AI. KJV is available offline."
+  },
+  {
+    "id": "07-study-notes",
+    "feature": "CONNECTED STUDY NOTES",
+    "headline": ["Keep your study.", "Build on it."],
+    "subtitle": "Save answers and verses in your own study notes.",
+    "source": "extra-note-clean.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1650 },
+    "panelWidth": 922,
+    "alt": "A real John 1:1 Study note saved from a SureWord chat answer, with formatted Scripture, study text and note organization controls."
+  },
+  {
+    "id": "08-reading-plans",
+    "feature": "READING PLANS",
+    "headline": ["Make room", "for the Word."],
+    "subtitle": "Choose a plan. Progress updates as you read.",
+    "source": "15-plan.png",
+    "crop": { "left": 0, "top": 145, "width": 1080, "height": 1600 },
+    "panelWidth": 936,
+    "alt": "SureWord's reading-plan chooser offers the Gospels, Psalms and Proverbs, the New Testament, and the whole Bible."
+  }
+]

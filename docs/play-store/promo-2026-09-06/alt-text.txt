@@ -1,0 +1,23 @@
+01-personal-bible-study.png
+SureWord answers a question about John 1:1 with a completed explanation, a KJV quotation, and linked Scripture.
+
+02-tap-a-verse.png
+The John 1:1 verse sheet in SureWord, showing the Bible verse, a completed AI explanation, original Greek words and Expand with AI.
+
+03-daily-cross.png
+SureWord Daily Cross shows a For You personal application followed by linked study cards for Matthew 6 and Luke 9.
+
+04-original-languages.png
+John 1:1's Greek word chips with logos selected and the actual Strong's G3056 definition, transliteration and KJV gloss.
+
+05-biblical-context.png
+SureWord's Bible atlas shows timeline filters, Genesis events, linked passages, and dates labeled traditional Ussher chronology.
+
+06-offline-kjv.png
+SureWord's John 1 reader with KJV selected, text-size controls, NKJV option, and Ask AI. KJV is available offline.
+
+07-study-notes.png
+A real John 1:1 Study note saved from a SureWord chat answer, with formatted Scripture, study text and note organization controls.
+
+08-reading-plans.png
+SureWord's reading-plan chooser offers the Gospels, Psalms and Proverbs, the New Testament, and the whole Bible.

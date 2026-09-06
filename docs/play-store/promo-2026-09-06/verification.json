@@ -1,0 +1,292 @@
+{
+  "android": {
+    "version": "1.50.0",
+    "versionCode": 49,
+    "commit": "68f67f7",
+    "device": "emulator-5554"
+  },
+  "export": {
+    "width": 1080,
+    "height": 1920,
+    "format": "PNG",
+    "channels": 3,
+    "alpha": false
+  },
+  "browserErrors": [],
+  "typography": [
+    {
+      "id": "01-personal-bible-study",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "02-tap-a-verse",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "03-daily-cross",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "04-original-languages",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "05-biblical-context",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "06-offline-kjv",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "07-study-notes",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    },
+    {
+      "id": "08-reading-plans",
+      "titleWidth": 948,
+      "titleBox": 948,
+      "subWidth": 952,
+      "subBox": 952
+    }
+  ],
+  "images": [
+    {
+      "id": "01-personal-bible-study",
+      "source": "extra-chat-question.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "f9fca75b5f83b352c9b86ebf399a479c573b217670f2a75aa630901cb0345c48",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1830
+      },
+      "panelDimensions": [
+        824,
+        1396
+      ],
+      "panelSha256": "dab8ea5d980c6450cb4ee13630c9823b4a2469e7a7c360baeb0050ff0f942e02",
+      "placement": {
+        "left": 128,
+        "top": 432
+      },
+      "alt": "SureWord answers a question about John 1:1 with a completed explanation, a KJV quotation, and linked Scripture.",
+      "finalSha256": "843c4dd6b5bd799456a598ca380e0033c30d81ff00b10eb3749ae717ef72d93a",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "02-tap-a-verse",
+      "source": "06-verse-insight.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "1e271a78fa1e7cb23fbfc992208fb2e45dd7be837a0006300f009b4466992b5e",
+      "crop": {
+        "left": 0,
+        "top": 310,
+        "width": 1080,
+        "height": 1605
+      },
+      "panelDimensions": [
+        936,
+        1391
+      ],
+      "panelSha256": "5ee55193c13d6a8228cb316828c46c76e64031dd5917fcddb1389b3ecc1acb37",
+      "placement": {
+        "left": 72,
+        "top": 432
+      },
+      "alt": "The John 1:1 verse sheet in SureWord, showing the Bible verse, a completed AI explanation, original Greek words and Expand with AI.",
+      "finalSha256": "dc05445fcbcdfa61469f4a41ba3399a4b0ac1d25e49ea68df4da51d03234f1ec",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "03-daily-cross",
+      "source": "extra-cross.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "1e173d56037b6a3c2d1d83e796d146aac6d4bdf28e9b16f14cd71a5b634a205f",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1560
+      },
+      "panelDimensions": [
+        936,
+        1352
+      ],
+      "panelSha256": "6d12f93b531ffd46d24b8554eacd6567ef542083f5092041bca660d74e3092f2",
+      "placement": {
+        "left": 72,
+        "top": 432
+      },
+      "alt": "SureWord Daily Cross shows a For You personal application followed by linked study cards for Matthew 6 and Luke 9.",
+      "finalSha256": "84fc6a5823982a46870e35a711a5426863364b06f747f98fd3ebf36711ac7b83",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "04-original-languages",
+      "source": "10-original-language.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "93c44350cf6d89198a5e385d5c8cacda7aac6433a7d059f98c6da9143ef8739e",
+      "crop": {
+        "left": 0,
+        "top": 310,
+        "width": 1080,
+        "height": 1635
+      },
+      "panelDimensions": [
+        922,
+        1396
+      ],
+      "panelSha256": "8d5553595d28e8dff15c395c4a813c8b31f3892f8657d979f504812dbb81df12",
+      "placement": {
+        "left": 79,
+        "top": 432
+      },
+      "alt": "John 1:1's Greek word chips with logos selected and the actual Strong's G3056 definition, transliteration and KJV gloss.",
+      "finalSha256": "969e928625323404f35b74cbdbf840567853b46854324017463e24b906476d00",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "05-biblical-context",
+      "source": "03-timeline.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "eb45492b2f7bcdcd63f4b906b383a898fe618bfa3228f0f4ff1404c58526eeba",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1880
+      },
+      "panelDimensions": [
+        808,
+        1407
+      ],
+      "panelSha256": "f45c090763d1c7fc7fa3a639b89ca192bf6cf843b32b9c88f6c4267d5abfd291",
+      "placement": {
+        "left": 136,
+        "top": 432
+      },
+      "alt": "SureWord's Bible atlas shows timeline filters, Genesis events, linked passages, and dates labeled traditional Ussher chronology.",
+      "finalSha256": "ed1467dbb80cc6aed5fabb7a67365871a91f89c1f7c350f5b9af407da3fb7daa",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "06-offline-kjv",
+      "source": "05-reader-kjv.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "22d3cbb35fefa9286e5477fef7348e83b00bae44954121693d944947a5c5a5e8",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1880
+      },
+      "panelDimensions": [
+        808,
+        1407
+      ],
+      "panelSha256": "c8a17bd1f604c34f591c9ed642db7adeb3b9aead9391c123100a8827ea8ce2ed",
+      "placement": {
+        "left": 136,
+        "top": 432
+      },
+      "alt": "SureWord's John 1 reader with KJV selected, text-size controls, NKJV option, and Ask AI. KJV is available offline.",
+      "finalSha256": "39b5b7c3111ce62bfcd87db6628af6957693b6fc0fe48ec9a52b8a86dd1b6b23",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "07-study-notes",
+      "source": "extra-note-clean.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "756160ea2c363f14d97b3836a1cf030d9993a88e5c81d6de5aecef33ceb5a9cb",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1650
+      },
+      "panelDimensions": [
+        922,
+        1409
+      ],
+      "panelSha256": "0650b49d22863a1581d8b1459757a3c4d74d7c653f26d68ca8f5403f5b52728f",
+      "placement": {
+        "left": 79,
+        "top": 432
+      },
+      "alt": "A real John 1:1 Study note saved from a SureWord chat answer, with formatted Scripture, study text and note organization controls.",
+      "finalSha256": "d389501b1355c2b4ffad3a0bd57fd51ce7aecfb9e0c16f6fcc559b9c45c362be",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    },
+    {
+      "id": "08-reading-plans",
+      "source": "15-plan.png",
+      "sourceDimensions": [
+        1080,
+        2340
+      ],
+      "sourceSha256": "44cb9a23328e826895ddeb82d24bc1de1a2b070aee09e3e55d7aef73ad147e29",
+      "crop": {
+        "left": 0,
+        "top": 145,
+        "width": 1080,
+        "height": 1600
+      },
+      "panelDimensions": [
+        936,
+        1387
+      ],
+      "panelSha256": "4fa2af824ee29eaf27924264a0e916b59437218a65ca4d91c7fbec0f09450ba9",
+      "placement": {
+        "left": 72,
+        "top": 432
+      },
+      "alt": "SureWord's reading-plan chooser offers the Gospels, Psalms and Proverbs, the New Testament, and the whole Bible.",
+      "finalSha256": "1139c59e502fda4c35bb586bac20f297695a7ede3638a0dcd4b872911272c63a",
+      "pixelIntegrity": "PASS: screenshot interior matches original crop and resize exactly"
+    }
+  ]
+}
