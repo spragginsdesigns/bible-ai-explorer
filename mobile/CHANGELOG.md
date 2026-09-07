@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.53.0 (versionCode 53) - 2026-09-07 - internal
+
+**What's new (Play):**
+
+- Ask about the original Hebrew and Greek: SureWord can now find every verse where a Hebrew or Greek word appears, by the word itself, its Strong's number, or how it is spelled in English (hesed, agape, shalom).
+- The transcript shows "Searching the Hebrew and Greek" while it looks, and the verses land in the Retrieved Verses card.
+
+**Dev notes:** The `searchOriginalLanguage` tool is server-side (Neon `OriginalVerse` table: WLC Hebrew + TR Greek, Strong's array GIN + consonantal/plain tsvector, aligned to KJV verse numbers where the versification is known) and already answers on every installed build; this release adds the Android activity label and routes the output through the existing retrieved-verses card. The Apple label is in source, uncompiled until the next Mac gate.
+
 ## 1.52.0 (versionCode 52) - 2026-09-07 - internal
 
 **What's new (Play):**

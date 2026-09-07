@@ -112,6 +112,7 @@ extension ChatViewMessage {
     static let toolActivityLabels: [String: String] = [
         "tool-searchScripture": "Searching the Scriptures",
         "tool-findVerses": "Searching the Bible for those words",
+        "tool-searchOriginalLanguage": "Searching the Hebrew and Greek",
         "tool-getPassage": "Opening the passage",
         "tool-webSearch": "Searching the web",
         "tool-addToNote": "Writing to your note",
@@ -214,9 +215,11 @@ extension ChatViewMessage {
             guard tool.state == .outputAvailable, let output = tool.output?.objectValue else { continue }
 
             switch tool.type {
-            // findVerses returns the same ScriptureSearchToolOutput shape as
-            // searchScripture, so both feed the one "Retrieved Verses" card.
-            case "tool-searchScripture", "tool-findVerses":
+            // findVerses and searchOriginalLanguage return the same
+            // ScriptureSearchToolOutput shape as searchScripture (the
+            // original-language tool adds fields we ignore here), so all three
+            // feed the one "Retrieved Verses" card.
+            case "tool-searchScripture", "tool-findVerses", "tool-searchOriginalLanguage":
                 let verses = Self.parseVerses(output["verses"])
                 retrievedVerses.append(contentsOf: verses)
                 similarities.append(contentsOf: verses.map(\.similarity))

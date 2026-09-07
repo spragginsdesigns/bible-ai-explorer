@@ -185,6 +185,53 @@ describe("toViewMessage", () => {
 		);
 	});
 
+	it("renders searchOriginalLanguage output through the same retrieved-verses card", () => {
+		const message = {
+			id: "m3d",
+			role: "assistant",
+			parts: [
+				{
+					type: "tool-searchScripture",
+					state: "output-available",
+					output: { verses: [{ reference: "John 3:16", similarity: 0.9 }] },
+				},
+				{
+					type: "tool-searchOriginalLanguage",
+					state: "output-available",
+					output: {
+						verses: [
+							{ reference: "Genesis 1:1", similarity: 0.7, text: "In the beginning God created" },
+							{ reference: "John 1:1", similarity: 0.5 },
+						],
+						averageSimilarity: 0.6,
+						formatted: "Genesis 1:1; John 1:1",
+						total: 2,
+						resolved: { lemma: "bara", strongs: "H1254" },
+						matches: [{ reference: "Genesis 1:1", strongs: "H1254" }],
+					},
+				},
+			],
+		} as never;
+		const view = toViewMessage(message, { isStreaming: false });
+		expect(view.retrievedVerses).toEqual([
+			{ reference: "John 3:16", similarity: 0.9 },
+			{ reference: "Genesis 1:1", similarity: 0.7, text: "In the beginning God created" },
+			{ reference: "John 1:1", similarity: 0.5 },
+		]);
+		expect(view.averageSimilarity).toBeCloseTo(0.7);
+	});
+
+	it("labels a running searchOriginalLanguage call as a Hebrew and Greek search", () => {
+		const message = {
+			id: "m3e",
+			role: "assistant",
+			parts: [{ type: "tool-searchOriginalLanguage", state: "input-available" }],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBe(
+			"Searching the Hebrew and Greek",
+		);
+	});
+
 	it("shows tool activity only while streaming", () => {
 		const message = {
 			id: "m4",
