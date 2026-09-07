@@ -76,22 +76,22 @@ export async function POST(req: Request) {
 			category = body.category;
 		}
 
-		const count = await prisma.userMemory.count({ where: { userId } });
-		if (count >= MAX_MEMORIES_PER_USER) {
+		const memory = await prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+			const count = await tx.userMemory.count({ where: { userId } });
+			if (count >= MAX_MEMORIES_PER_USER) return null;
+			return tx.userMemory.create({
+				data: { userId, content, category },
+				select: MEMORY_SELECT,
+			});
+		});
+		if (!memory) {
 			return NextResponse.json(
 				{ error: "Memory is full. Delete some saved memories first." },
 				{ status: 400 }
 			);
 		}
 
-		const memory = await prisma.userMemory.create({
-			data: {
-				userId,
-				content,
-				category,
-			},
-			select: MEMORY_SELECT,
-		});
 		return NextResponse.json(memory, { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;
@@ -104,7 +104,10 @@ export async function POST(req: Request) {
 export async function DELETE() {
 	try {
 		const userId = await getAuthUser();
-		await prisma.userMemory.deleteMany({ where: { userId } });
+		await prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+			await tx.userMemory.deleteMany({ where: { userId } });
+		});
 		return NextResponse.json({ success: true });
 	} catch (err) {
 		if (err instanceof Response) return err;

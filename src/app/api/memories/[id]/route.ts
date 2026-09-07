@@ -11,7 +11,10 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
-		const { count } = await prisma.userMemory.deleteMany({ where: { id, userId } });
+		const { count } = await prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+			return tx.userMemory.deleteMany({ where: { id, userId } });
+		});
 		if (count === 0) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
 		}
@@ -38,9 +41,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 				{ status: 400 }
 			);
 		}
-		const { count } = await prisma.userMemory.updateMany({
-			where: { id, userId },
-			data: { content },
+		const { count } = await prisma.$transaction(async (tx) => {
+			await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+			return tx.userMemory.updateMany({ where: { id, userId }, data: { content } });
 		});
 		if (count === 0) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });

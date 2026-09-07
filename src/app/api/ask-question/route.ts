@@ -45,6 +45,7 @@ import {
 	type Verbosity,
 } from "@/lib/ai/models";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
+import { usedMemoryTools } from "@/lib/memory-policy";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
@@ -429,7 +430,7 @@ async function persistAssistantResponse(options: {
 			},
 		});
 
-		if (userText) {
+		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			await extractAndStoreMemories({ userId: options.userId, userText });
 		}
 	} catch (error) {

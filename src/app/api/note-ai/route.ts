@@ -24,6 +24,7 @@ import {
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { joinAssistantTextParts } from "@/utils/assistantMarkdown";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
+import { usedMemoryTools } from "@/lib/memory-policy";
 import { describeNoteLinks } from "@/lib/note-links";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
@@ -118,7 +119,7 @@ async function persistExchange(options: {
 			},
 		});
 
-		if (userText) {
+		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			await extractAndStoreMemories({ userId: options.userId, userText });
 		}
 	} catch (error) {

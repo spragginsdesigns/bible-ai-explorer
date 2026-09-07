@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.50.1 (versionCode 50) - 2026-09-06 - internal
+
+**What's new (Play):**
+
+- Ask SureWord to remember, update, or forget something directly in chat, with clear progress while it works.
+- Requests to save both a note and a memory now do both. Memory actions respect your account and Memory setting.
+
+**Dev notes:** Direct memory tools and success receipts are shared server-side, reaching existing clients after backend deployment. Authenticated ownership filters and serialized writes protect account isolation; explicit tool turns skip background extraction and stale extractions cannot overwrite newer memory state. Activity labels are mirrored across web, Android, and Apple source.
+
+---
+
 ## 1.50.0 (versionCode 49) - 2026-09-06 - internal
 
 **What's new (Play):**

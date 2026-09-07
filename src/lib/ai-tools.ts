@@ -1,6 +1,7 @@
 import { tool, type InferUITools, type UIMessage } from "ai";
 import type { SureWordMessageMetadata } from "@/lib/chat-attachment-types";
 import { z } from "zod";
+import { buildMemoryTools } from "@/lib/memory-tools";
 import {
 	formatVersesForModel,
 	searchScripture,
@@ -857,6 +858,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 	});
 
 	return {
+		...buildMemoryTools(context.userId),
 		searchScripture: searchScriptureTool,
 		getPassage: getPassageTool,
 		getCrossReferences: getCrossReferencesTool,

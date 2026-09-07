@@ -123,6 +123,23 @@ describe("toViewMessage", () => {
 		expect(toViewMessage(message, { isStreaming: false }).activity).toBeUndefined();
 	});
 
+	it("shows distinct activity labels for memory tools", () => {
+		const labels = [
+			["tool-listMemories", "Reading your memories"],
+			["tool-saveMemory", "Saving your memory"],
+			["tool-updateMemory", "Updating your memory"],
+			["tool-deleteMemories", "Deleting your memories"],
+		] as const;
+		for (const [type, label] of labels) {
+			const message = {
+				id: `memory-${type}`,
+				role: "assistant",
+				parts: [{ type, state: "input-available" }],
+			} as never;
+			expect(toViewMessage(message, { isStreaming: true }).activity).toBe(label);
+		}
+	});
+
 	it("shows the server status label, and lets a running tool override it", () => {
 		const status = {
 			id: "m4a",
