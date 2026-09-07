@@ -934,6 +934,80 @@ for queries that already name the words.
 
 ---
 
+## Original-language search (`searchOriginalLanguage`)
+
+*Shipped 2026-09-07 - web + shared backend*
+
+`getOriginalText` answers "what does this verse say in Hebrew". The question a
+word study actually asks is the other direction: **where does this word
+occur?** `searchOriginalLanguage` answers that one. Give it a Strong's number
+(`H2617`), the word pasted in its own alphabet, or a transliteration
+(`hesed`, `agape`, `shalom`), optionally scoped to one book or one language,
+and it returns the verses of the Westminster Leningrad Codex and Scrivener's
+1894 Textus Receptus where the word occurs, each with the matching words
+picked out and the user's translation alongside.
+
+It is backed by the `OriginalVerse` table in Neon: one row per verse of the
+original text, with a `strongs` `text[]` under a GIN index and a GENERATED
+`tsvector` over a `plain` column (consonantal Hebrew, NFD-stripped lowercase
+Greek). A Strong's search is an array overlap (`"strongs" && $1::text[]`); a
+word search is `"search" @@ to_tsquery('simple', ...)`. A second `count(*)`
+over the same predicate returns `total`, so the model can say "245 verses,
+showing 20" instead of implying the page is the whole answer.
+
+**The dictionary is `simple` here for the same reason it is for `findVerses`,
+and prefix matching does more work.** Postgres has no Hebrew or Greek stemmer
+at all, and both languages inflect far more heavily than English, so every
+query word becomes a prefix lexeme: `αγαπ:*` reaches ἀγάπη, ἀγάπης and ἀγάπην
+alike.
+
+**Transliteration is the interesting half.** Strong's writes its
+transliterations in a 19th-century phonetic notation nobody types: H2617 is
+`chêçêd`, G26 is `agápē`, H430 is `ʼĕlôhîym`, H3068 is `Yᵉhôvâh`.
+`normalizeTranslit` (`src/lib/bible/original-search.ts`) folds both the
+dictionary's spelling and the user's onto one skeleton, and the rules are all
+there is to it:
+
+| Rule | Why |
+|------|-----|
+| NFD, lowercase, drop combining marks | Circumflexes and macrons are vowel length; nobody types them |
+| `c` + cedilla -> `s` | Strong's writes samekh as `ç`; it is an /s/, and stripping the cedilla alone leaves the misleading "checed" |
+| Superscripts `ᵉ ᵃ ᵒ ᵘ` -> their base letter | Shewa and the hatephs are real vowels a reader spells out; dropping them turns `Yᵉhôvâh` into "yhovah" |
+| Drop everything not a-z | Removes the aleph and ayin marks (`ʼ ʻ`), spaces, punctuation, digits |
+| `ch` -> `h` | Strong's spells both Hebrew chet and Greek chi `ch`, while readers write "hesed" as often as "chesed". Safe because the dictionary side is folded too |
+| `iy` -> `i`, `ow` -> `o`, `uw` -> `u` | Mater lectionis: a vowel written with a consonant letter, so `ʼĕlôhîym` is "elohim" and `shâlôwm` is "shalom" |
+| A four-entry alias table | "Jehovah", "Yahweh" and "YHWH" are not transliterations of `Yᵉhôvâh` at all, but they are what readers type |
+
+Resolution then ranks **exact transliteration > transliteration prefix >
+gloss word**, and only the best tier is actually searched: mixing an exact
+transliteration with loose gloss matches would bury the word the user asked
+about under every entry sharing one English rendering. The gloss tier is what
+makes "lovingkindness" find H2617, and it needs one trick - Strong's writes
+that rendering as `(loving-) kindness`, so each comma-separated segment of the
+KJV column is indexed both as its bare words and as its letters-only squash.
+Gloss keys go through the same fold as the query, or "charity" would index as
+itself while a user's "charity" normalized to "harity" and never met it.
+
+**The versification caveat is real and the prompt names it.** The Hebrew and
+Greek carry their own verse numbering - a Psalm's title is verse 1 in the WLC -
+so the table holds the original coordinates in `book/chapter/verse` and the
+aligned KJV coordinates in `kjvBook/kjvChapter/kjvVerse`, which are null when
+the alignment is unknown. An aligned hit reports its KJV reference and quotes
+the user's translation. An unaligned hit reports its own reference with
+`(WLC numbering)` or `(TR numbering)` appended, sets `kjvAligned: false`, and
+shows the original text itself in place of a translation; the model is told to
+say so plainly rather than pass it off as a KJV reference.
+
+Output extends `ScriptureSearchToolOutput`, so the existing retrieved-verses
+card renders it unchanged on every client, with `total`, `resolved` (the
+Strong's entries actually searched) and `matches` (the matching words, with
+lemma, transliteration and gloss) added for the model and for any client that
+later wants to render a word-study card. Every hit reports `similarity: 1`,
+for the same reason `findVerses` does. Activity label: **Searching the Hebrew
+and Greek**.
+
+---
+
 ## Timeline, People & Places
 
 A KJV-grounded reference for **when** things happened and **who** and **where** -

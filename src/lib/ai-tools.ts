@@ -62,6 +62,19 @@ import {
 	type OriginalVerse,
 	type StrongsEntry,
 } from "@/lib/bible/originals";
+import { stripCantillation } from "@/lib/bible/original-text";
+import {
+	buildOriginalTsQuery,
+	detectScript,
+	greekPlainQuery,
+	hebrewPlainQuery,
+	normalizeStrongsNumber,
+	resolveStrongsByWord,
+	searchOriginalVerses,
+	type OriginalLanguage,
+	type OriginalVerseRow,
+	type StrongsCandidate,
+} from "@/lib/bible/original-search";
 
 export interface ScriptureSearchToolOutput {
 	verses: RetrievedVerse[];
@@ -171,6 +184,47 @@ export interface CrossReferencesToolOutput {
 	formatted: string;
 }
 
+/**
+ * The reading form of an original-language verse. Hebrew keeps its vowel
+ * points but loses the cantillation accents, which are chanting marks rather
+ * than part of the word; Greek is already stored unaccented.
+ */
+function displayOriginal(language: OriginalLanguage, text: string): string {
+	return language === "Hebrew" ? stripCantillation(text) : text;
+}
+
+/**
+ * The words of a matched verse that are the reason it matched, enriched from
+ * the bundled text with lemma, transliteration and gloss. A Strong's search
+ * matches by number; a text search matches by the same plain prefix the
+ * tsquery used, so the words highlighted are the words Postgres found.
+ */
+async function matchedWordsFor(
+	row: OriginalVerseRow,
+	wantedIds: ReadonlySet<string>,
+	wantedPrefixes: readonly string[]
+): Promise<OriginalMatchedWord[]> {
+	const original = await getOriginalVerse(row.book, row.chapter, row.verse);
+	if (!original) return [];
+	const plainOf = row.language === "Hebrew" ? hebrewPlainQuery : greekPlainQuery;
+	const matched: OriginalMatchedWord[] = [];
+	for (const word of original.words) {
+		const byNumber = word.strongs !== "" && wantedIds.has(word.strongs);
+		const byText =
+			wantedPrefixes.length > 0 &&
+			wantedPrefixes.some((prefix) => plainOf(word.text).startsWith(prefix));
+		if (!byNumber && !byText) continue;
+		matched.push({
+			text: displayOriginal(row.language, word.text),
+			strongs: word.strongs,
+			...(word.lemma ? { lemma: word.lemma } : {}),
+			...(word.translit ? { translit: word.translit } : {}),
+			...(word.gloss ? { gloss: word.gloss } : {}),
+		});
+	}
+	return matched;
+}
+
 export interface OriginalTextToolOutput extends OriginalVerse {
 	reference: string;
 	formatted: string;
@@ -178,6 +232,40 @@ export interface OriginalTextToolOutput extends OriginalVerse {
 
 export interface StrongsToolOutput extends StrongsEntry {
 	number: string;
+}
+
+/** One word of an original-language verse that matched the search. */
+export interface OriginalMatchedWord {
+	text: string;
+	strongs: string;
+	lemma?: string;
+	translit?: string;
+	gloss?: string;
+}
+
+/** One verse of the original text that matched, with the words that matched. */
+export interface OriginalSearchMatch {
+	/** KJV reference when the row is aligned, else the original one, labelled. */
+	reference: string;
+	/** Always the original text's own numbering: "Psalms 51:3" in the WLC. */
+	originalReference: string;
+	language: OriginalLanguage;
+	/** The verse as it is displayed: Hebrew without cantillation, or Greek. */
+	original: string;
+	matchedWords: OriginalMatchedWord[];
+	/** False when the row has no KJV coordinates, so the reference is not KJV. */
+	kjvAligned: boolean;
+}
+
+/**
+ * The verses card shape plus everything a word study needs: how many verses
+ * matched in all, which Strong's numbers the search actually ran on, and the
+ * matching words themselves.
+ */
+export interface OriginalSearchToolOutput extends ScriptureSearchToolOutput {
+	total: number;
+	resolved: { strongs: string; lemma: string; translit: string; gloss: string }[];
+	matches: OriginalSearchMatch[];
 }
 
 /** How many atlas hits a lookup hands back before it is just a list. */
@@ -512,6 +600,223 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				throw new Error(`No Strong's entry found for "${number}". Use H#### for Hebrew or G#### for Greek.`);
 			}
 			return { number: number.trim().toUpperCase(), ...entry };
+		},
+	});
+
+	const searchOriginalLanguageTool = tool({
+		description:
+			"Search the inspired Hebrew (Westminster Leningrad Codex) and Greek (Scrivener 1894 Textus Receptus) text itself by original word, Strong's number, or transliteration, and get every verse where that word or root occurs. This is the tool for word studies: \"every verse with hesed\", \"where does agape appear in 1 John\", \"verses containing H7965\". It reports how many verses match in all, not just the page it returns. Use getOriginalText when you want one verse word by word, and lookupStrongs when you want the dictionary entry; use this when you want the occurrences.",
+		inputSchema: z.object({
+			strongs: z
+				.string()
+				.optional()
+				.describe('A Strong\'s number with its language prefix: "H2617" (Hebrew) or "G26" (Greek).'),
+			word: z
+				.string()
+				.optional()
+				.describe(
+					'The word to find: Hebrew or Greek text pasted as-is, or a transliteration such as "hesed", "agape", "shalom". Transliterations are resolved to Strong\'s numbers first.'
+				),
+			language: z
+				.enum(["Hebrew", "Greek"])
+				.optional()
+				.describe("Restrict the search to one testament's language. Omit to search both."),
+			book: z
+				.string()
+				.optional()
+				.describe('Restrict the search to one book, e.g. "Psalms" or "1 John". Omit for the whole Bible.'),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(20)
+				.optional()
+				.describe("How many verses to return (default 8)."),
+		}),
+		execute: async ({
+			strongs,
+			word,
+			language,
+			book,
+			limit,
+		}): Promise<OriginalSearchToolOutput> => {
+			const askedStrongs = strongs?.trim();
+			const askedWord = word?.trim();
+			if (!askedStrongs && !askedWord) {
+				throw new Error(
+					"searchOriginalLanguage needs strongs (e.g. H2617) or word (Hebrew/Greek text, or a transliteration such as hesed). Pass at least one."
+				);
+			}
+
+			let bookNumber: number | undefined;
+			if (book) {
+				bookNumber = getKjvBookNumber(book);
+				if (!bookNumber) {
+					throw new Error(`Unknown book name: "${book}". Use standard KJV book names, or omit book.`);
+				}
+			}
+
+			const resolved: StrongsCandidate[] = [];
+			let strongsIds: string[] | undefined;
+			let plainText: string | undefined;
+			let searchLanguage: OriginalLanguage | undefined = language;
+			let ambiguous = false;
+
+			if (askedStrongs) {
+				const number = normalizeStrongsNumber(askedStrongs);
+				if (!number) {
+					throw new Error(
+						`"${askedStrongs}" is not a Strong's number. Use H#### for Hebrew or G#### for Greek.`
+					);
+				}
+				const entry = await lookupStrongsEntry(number);
+				if (!entry) {
+					throw new Error(`No Strong's entry found for "${number}".`);
+				}
+				strongsIds = [number];
+				resolved.push({
+					strongs: number,
+					lemma: entry.lemma,
+					translit: entry.translit,
+					gloss: entry.kjv || entry.def,
+					matchKind: "translit",
+				});
+			}
+
+			if (askedWord) {
+				const script = detectScript(askedWord);
+				if (script === "hebrew") {
+					plainText = hebrewPlainQuery(askedWord);
+					searchLanguage ??= "Hebrew";
+				} else if (script === "greek") {
+					plainText = greekPlainQuery(askedWord);
+					searchLanguage ??= "Greek";
+				} else if (!strongsIds) {
+					// A Latin spelling names a lemma, not a string in the text, so it
+					// has to become Strong's numbers before anything can be searched.
+					const candidates = await resolveStrongsByWord(askedWord, language);
+					if (candidates.length === 0) {
+						throw new Error(
+							`No Hebrew or Greek word matches "${askedWord}". Try its Strong's number, the word in its own alphabet, or another spelling.`
+						);
+					}
+					// Only the best tier searches. Mixing an exact transliteration with
+					// loose gloss matches would bury the word actually asked about
+					// under every entry that shares one English rendering.
+					const best = candidates[0].matchKind;
+					const chosen = candidates.filter((candidate) => candidate.matchKind === best);
+					resolved.push(...chosen);
+					strongsIds = chosen.map((candidate) => candidate.strongs);
+					ambiguous = chosen.length > 1;
+				}
+			}
+
+			const result = await searchOriginalVerses({
+				...(strongsIds ? { strongs: strongsIds } : {}),
+				...(plainText ? { text: plainText } : {}),
+				...(searchLanguage ? { language: searchLanguage } : {}),
+				...(bookNumber !== undefined ? { book: bookNumber } : {}),
+				limit: limit ?? 8,
+			});
+
+			const wantedIds = new Set(strongsIds ?? []);
+			const wantedPrefixes = plainText ? plainText.split(/\s+/).filter(Boolean) : [];
+			const matches: OriginalSearchMatch[] = [];
+			const verses: RetrievedVerse[] = [];
+
+			for (const row of result.rows) {
+				const display = displayOriginal(row.language, row.text);
+				const bookName = getKjvBookName(row.book) ?? `Book ${row.book}`;
+				const originalReference = `${bookName} ${row.chapter}:${row.verse}`;
+				const { kjvBook, kjvChapter, kjvVerse } = row;
+				const kjvAligned = kjvBook !== null && kjvChapter !== null && kjvVerse !== null;
+
+				let reference: string;
+				let text: string | undefined;
+				if (kjvBook !== null && kjvChapter !== null && kjvVerse !== null) {
+					const kjvName = getKjvBookName(kjvBook) ?? `Book ${kjvBook}`;
+					reference = `${kjvName} ${kjvChapter}:${kjvVerse}`;
+					text = await getVerseText(translation, kjvBook, kjvChapter, kjvVerse);
+				} else {
+					// The Hebrew and Greek carry their own versification (Psalm titles
+					// are verse 1 in the WLC), so an unaligned hit must say which
+					// numbering it is in rather than pass as a KJV reference.
+					reference = `${originalReference} (${row.language === "Hebrew" ? "WLC" : "TR"} numbering)`;
+				}
+
+				matches.push({
+					reference,
+					originalReference,
+					language: row.language,
+					original: display,
+					matchedWords: await matchedWordsFor(row, wantedIds, wantedPrefixes),
+					kjvAligned,
+				});
+				verses.push({ reference, similarity: 1, text: text ?? display });
+			}
+
+			const scope = [
+				bookNumber === undefined ? "" : ` in ${getKjvBookName(bookNumber) ?? book}`,
+				searchLanguage === undefined ? "" : ` (${searchLanguage} only)`,
+			].join("");
+			const subject =
+				resolved.length > 0
+					? `Strong's ${resolved
+							.map(
+								(entry) =>
+									`${entry.strongs} = ${entry.lemma} (${entry.translit}) "${entry.gloss.slice(0, 70)}"`
+							)
+							.join("; ")}`
+					: `the words "${askedWord ?? ""}"`;
+			const header = [
+				`Searched the original text for ${subject}${scope}.`,
+				`${result.total} verse${result.total === 1 ? "" : "s"} match; showing ${matches.length}.`,
+				ambiguous
+					? "That spelling matched more than one Strong's entry, so say which words these hits are and let the user narrow it."
+					: "",
+				matches.some((match) => !match.kjvAligned)
+					? "Some hits are in the original text's own numbering, not the KJV's; say so plainly for those."
+					: "",
+			]
+				.filter(Boolean)
+				.join(" ");
+
+			const blocks = matches.map((match, index) => {
+				const words = match.matchedWords.map((matched) => {
+					const parts = [matched.text];
+					if (matched.strongs) parts.push(matched.strongs);
+					if (matched.lemma && matched.lemma !== matched.text) parts.push(`lemma ${matched.lemma}`);
+					if (matched.translit) parts.push(matched.translit);
+					if (matched.gloss) parts.push(`KJV: ${matched.gloss.slice(0, 70)}`);
+					return `  - ${parts.join(" | ")}`;
+				});
+				const quoted = verses[index]?.text;
+				return [
+					`${match.reference} (${match.language})`,
+					`  ${match.original}`,
+					...(words.length > 0 ? ["  matched:", ...words] : []),
+					quoted ? `  ${translation}: "${quoted}"` : "",
+				]
+					.filter(Boolean)
+					.join("\n");
+			});
+
+			return {
+				verses,
+				averageSimilarity: verses.length > 0 ? 1 : 0,
+				formatted:
+					matches.length > 0
+						? `${header}\n\n${blocks.join("\n\n")}`
+						: `${header} No verse in the original text matched.`,
+				total: result.total,
+				resolved: resolved.map(({ strongs: number, lemma, translit, gloss }) => ({
+					strongs: number,
+					lemma,
+					translit,
+					gloss,
+				})),
+				matches,
+			};
 		},
 	});
 
@@ -973,6 +1278,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		getCrossReferences: getCrossReferencesTool,
 		getOriginalText: getOriginalTextTool,
 		lookupStrongs: lookupStrongsTool,
+		searchOriginalLanguage: searchOriginalLanguageTool,
 		lookupBibleEntity: lookupBibleEntityTool,
 		getBibleTimeline: getBibleTimelineTool,
 		webSearch: webSearchTool,

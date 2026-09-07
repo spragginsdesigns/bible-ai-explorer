@@ -103,7 +103,7 @@ export interface StrongsEntry {
   kjv: string;
 }
 
-type StrongsDictionary = Record<string, StrongsEntry>;
+export type StrongsDictionary = Record<string, StrongsEntry>;
 
 let hebrewDict: StrongsDictionary | null = null;
 let greekDict: StrongsDictionary | null = null;
@@ -117,6 +117,18 @@ async function getDictionary(language: "hebrew" | "greek"): Promise<StrongsDicti
   greekDict ??= (await import("@/data/originals/strongs-greek.json"))
     .default as StrongsDictionary;
   return greekDict;
+}
+
+/**
+ * A whole Strong's dictionary, for callers that must scan every entry rather
+ * than look one up: original-search.ts builds its transliteration index this
+ * way. The dictionaries themselves stay lazily loaded and cached here, so
+ * asking for one costs nothing a second time.
+ */
+export async function getStrongsDictionary(
+  language: "hebrew" | "greek"
+): Promise<StrongsDictionary> {
+  return getDictionary(language);
 }
 
 /** Strong's dictionary entry for a number like "H430" or "G3056". */

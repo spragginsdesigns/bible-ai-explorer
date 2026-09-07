@@ -300,6 +300,39 @@ model KjvVerse {
   @@id([book, chapter, verse])
 }
 
+/// Verse-grain index of the bundled original-language Bible: the Westminster
+/// Leningrad Codex for books 1-39, Scrivener's 1894 Textus Receptus for books
+/// 40-66. Keyed by the ORIGINAL versification, which is not the KJV's -
+/// `text` is the verse as bundled (pointed Hebrew), `plain` the folded search
+/// form, `strongs` its distinct Strong's ids. Populated by
+/// scripts/backfill-original-verses.mjs.
+///
+/// The kjv columns are nullable because the WLC numbers Psalm superscriptions
+/// as verse 1, so 66 verses have no KJV coordinate, and they are not unique
+/// because four WLC verses are the second half of a KJV verse another WLC
+/// verse already covers. scripts/lib/original-versification.mjs holds the
+/// verified alignment.
+///
+/// `search` is a GENERATED tsvector column and its GIN index, the GIN index on
+/// `strongs`, and the kjv lookup index exist only in the migration SQL -
+/// Prisma can express none of them, so a future `migrate dev` must not drop
+/// them.
+model OriginalVerse {
+  book       Int
+  chapter    Int
+  verse      Int
+  language   String
+  text       String                  @db.Text
+  plain      String                  @db.Text
+  strongs    String[]
+  kjvBook    Int?
+  kjvChapter Int?
+  kjvVerse   Int?
+  search     Unsupported("tsvector")
+
+  @@id([book, chapter, verse])
+}
+
 /// pgvector index of the user's note chunks for semantic note search.
 /// Kept in sync by src/lib/note-embeddings.ts on every note write; rows
 /// disappear with their note via the FK cascade.

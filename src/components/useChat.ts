@@ -243,8 +243,14 @@ export function toViewMessage(
 		if (toolPart.state !== "output-available" || !isRecord(toolPart.output)) continue;
 
 		const output = toolPart.output;
-		// findVerses returns the same shape, so it renders through the same card.
-		if (part.type === "tool-searchScripture" || part.type === "tool-findVerses") {
+		// findVerses and searchOriginalLanguage both return the verses card's
+		// shape (the latter with extra fields the card ignores), so all three
+		// render through the same card.
+		if (
+			part.type === "tool-searchScripture" ||
+			part.type === "tool-findVerses" ||
+			part.type === "tool-searchOriginalLanguage"
+		) {
 			const verses = parseVerses(output.verses);
 			retrievedVerses.push(...verses);
 			similarities.push(...verses.map((verse) => verse.similarity));
