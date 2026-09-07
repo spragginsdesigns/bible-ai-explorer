@@ -270,13 +270,17 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const findVersesTool = tool({
 		description:
-			`Exact-word and phrase search across the whole Bible, instant and free. Use it when the user quotes or half-remembers wording ("be still and know"), asks for every verse containing a word ("loveth", "adder"), or wants a fast lookup. Quote a phrase in double quotes to require those words in that order; bare words match by prefix, so "lov" also finds loveth and loved. Prefer searchScripture for questions about meaning or topic, and getPassage when a reference is already named. Returns the exact ${translation} text.`,
+			`Exact-word and phrase search across the whole Bible, instant and free. Use it when the user quotes or half-remembers wording ("be still and know"), asks for every verse containing a word ("loveth", "adder"), or wants a fast lookup. Quote a phrase in double quotes to require those words in that order; bare words match by prefix, so "lov" also finds loveth and loved. Pass book to search one book only ("every verse in Proverbs with loveth"); never put the book name in the query. Prefer searchScripture for questions about meaning or topic, and getPassage when a reference is already named. Returns the exact ${translation} text.`,
 		inputSchema: z.object({
 			query: z
 				.string()
 				.describe(
-					'The words to find, e.g. loveth, or "be still and know". Not a question - the words you expect the verse itself to contain.'
+					'The words to find, e.g. loveth, or "be still and know". Not a question - the words you expect the verse itself to contain. Never a book name; use book for that.'
 				),
+			book: z
+				.string()
+				.optional()
+				.describe('Restrict the search to one book, e.g. "Proverbs" or "1 John". Omit to search the whole Bible.'),
 			limit: z
 				.number()
 				.int()
@@ -285,7 +289,15 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				.optional()
 				.describe("How many verses to return (default 8)."),
 		}),
-		execute: async ({ query, limit }): Promise<ScriptureSearchToolOutput> => {
+		execute: async ({ query, book, limit }): Promise<ScriptureSearchToolOutput> => {
+			let bookNumber: number | undefined;
+			if (book) {
+				bookNumber = getKjvBookNumber(book);
+				if (!bookNumber) {
+					throw new Error(`Unknown book name: "${book}". Use standard KJV book names, or omit book.`);
+				}
+			}
+
 			// A query that is itself a reference ("John 3:16", "Psalm 23") is a
 			// lookup, not a word search: answer it from the passage so the model
 			// never has to re-ask through getPassage.
@@ -312,7 +324,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				}
 			}
 
-			const hits = await findVersesFullText(query, limit ?? 8);
+			const hits = await findVersesFullText(query, limit ?? 8, { book: bookNumber });
 			const verses: RetrievedVerse[] = await Promise.all(
 				hits.map(async (hit) => {
 					const bookName = getKjvBookName(hit.book) ?? `Book ${hit.book}`;

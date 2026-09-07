@@ -9,6 +9,7 @@
  * semantic search talks itself out of; `searchScripture` still owns meaning
  * and topic questions.
  */
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export interface FullTextVerseHit {
@@ -100,14 +101,23 @@ interface RankedRow {
 	rank: number;
 }
 
-async function runTsQuery(tsquery: string, limit: number): Promise<RankedRow[]> {
+async function runTsQuery(tsquery: string, limit: number, book?: number): Promise<RankedRow[]> {
+	// "Every verse with loveth in Proverbs" is a filter on the primary key's
+	// first column, so it belongs in SQL rather than in a post-filter that
+	// would silently drop hits past the LIMIT.
+	const bookFilter = book === undefined ? Prisma.empty : Prisma.sql`AND "book" = ${book}`;
 	return prisma.$queryRaw<RankedRow[]>`
 		SELECT "book", "chapter", "verse", "text", ts_rank_cd("search", q) AS "rank"
 		FROM "KjvVerse", to_tsquery('simple', ${tsquery}) q
-		WHERE "search" @@ q
+		WHERE "search" @@ q ${bookFilter}
 		ORDER BY "rank" DESC, "book", "chapter", "verse"
 		LIMIT ${limit}
 	`;
+}
+
+export interface FindVersesOptions {
+	/** Restrict hits to one book (1-66, canonical order). */
+	book?: number;
 }
 
 /**
@@ -118,15 +128,16 @@ async function runTsQuery(tsquery: string, limit: number): Promise<RankedRow[]> 
  */
 export async function findVersesFullText(
 	query: string,
-	limit: number
+	limit: number,
+	options: FindVersesOptions = {}
 ): Promise<FullTextVerseHit[]> {
 	const parsed = parseVerseQuery(query);
 	if (parsed.clauses.length === 0) return [];
 	const safeLimit = Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Math.trunc(limit) || MIN_LIMIT));
 
-	let rows = await runTsQuery(parsed.clauses.join(" & "), safeLimit);
+	let rows = await runTsQuery(parsed.clauses.join(" & "), safeLimit, options.book);
 	if (rows.length === 0 && parsed.bareWords >= 2) {
-		rows = await runTsQuery(parsed.clauses.join(" | "), safeLimit);
+		rows = await runTsQuery(parsed.clauses.join(" | "), safeLimit, options.book);
 	}
 	if (rows.length === 0) return [];
 
