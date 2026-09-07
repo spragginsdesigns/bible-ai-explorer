@@ -4,6 +4,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 	default: {
 		getItem: vi.fn(async () => null),
 		setItem: vi.fn(async () => undefined),
+		removeItem: vi.fn(async () => undefined),
 	},
 }));
 
@@ -73,6 +74,31 @@ describe("applyServerSnapshot", () => {
 		// No direct getter for folders/tags; assert via a follow-up snapshot.
 		applyServerSnapshot([makeNote("b")], [folder], [tag]);
 		expect(getCachedNote("b")).not.toBeNull();
+	});
+});
+
+describe("hydrateNotesCache", () => {
+	it("publishes the cached library without writing it back", async () => {
+		// The store hydrates once per app run, so this needs a module instance
+		// the earlier tests have not already marked hydrated. The AsyncStorage
+		// double is shared across the registry reset, hence the call-count
+		// baseline rather than `not.toHaveBeenCalled()`.
+		vi.resetModules();
+		const storage = (await import("@react-native-async-storage/async-storage")).default;
+		vi.mocked(storage.getItem).mockResolvedValueOnce(
+			JSON.stringify({
+				notes: [makeNote("a", { htmlContent: "<p>body</p>", hasBody: true })],
+				folders: [],
+				tags: [],
+			})
+		);
+		const store = await import("./notesStore");
+		const writesBefore = vi.mocked(storage.setItem).mock.calls.length;
+
+		await store.hydrateNotesCache();
+
+		expect(store.getCachedNote("a")?.htmlContent).toBe("<p>body</p>");
+		expect(vi.mocked(storage.setItem).mock.calls.length).toBe(writesBefore);
 	});
 });
 

@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.51.0 (versionCode 51) - 2026-09-07 - internal
+
+**What's new (Play):**
+
+- Bible search no longer pauses on your first search.
+- Reading long chapters stays smooth while a verse explanation is loading.
+- Chat keeps up with long conversations while an answer is streaming.
+- Reading plan progress now updates everywhere at once: the Bible home card, the plan screen, and Pick Up Your Cross.
+- Photos attach faster: large pictures are sized down before sending.
+- Faster app launch.
+
+**Dev notes:** KJV books pre-warm one per frame when Search mounts (`warmAllKjvBooks`); verse rows are a memoized `VerseRow` with a no-markup fast path in `parseBibleVerseMarkup`; the chat view-model reuses settled `UIMessage` conversions via a WeakMap (`toViewMessageCached`); reading plans live in one `planStore` (`useSyncExternalStore`, in-flight dedup, generation guard, cleared with the other caches on account change); notes hydration no longer re-persists, highlights skip identical chapter refreshes; seven non-first-frame fonts load after the splash gate; `reanimated-color-picker` is required lazily; photo picks over 2048px are resized and re-encoded as JPEG with `expo-image-manipulator` (new native dependency, prebuild required). No capability changes; PARITY.md untouched.
+
 ## 1.50.1 (versionCode 50) - 2026-09-06 - internal
 
 **What's new (Play):**

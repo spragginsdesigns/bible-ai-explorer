@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { typography } from "@/theme";
@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder, resolveReference, type Reference } from "@/features/bible/books";
-import { searchKjv, type KjvSearchHit } from "@/features/bible/kjv";
+import { searchKjv, warmAllKjvBooks, type KjvSearchHit } from "@/features/bible/kjv";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -33,6 +33,11 @@ export default function BibleSearchScreen() {
 		() => (trimmed ? resolveReference(trimmed) : null),
 		[trimmed]
 	);
+
+	// Parse the bundled books in the background while the first query is still
+	// being typed, so the debounced search below does not stall the UI thread on
+	// ~4 MB of JSON. One book per frame, and dropped if the screen closes first.
+	useEffect(() => warmAllKjvBooks(), []);
 
 	useEffect(() => {
 		const timer = setTimeout(() => {

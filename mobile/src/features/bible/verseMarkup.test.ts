@@ -25,4 +25,24 @@ describe("parseBibleVerseMarkup", () => {
 	it("does not leak malformed closing tags into visible text", () => {
 		expect(bibleVersePlainText("Blessed <i>be</i></i> the Lord")).toBe("Blessed be the Lord");
 	});
+
+	// The bundled KJV never carries markup, so tag-free text takes a fast path
+	// that skips the scan entirely; it must return exactly what the scan did.
+	it("returns tag-free text as one plain segment", () => {
+		expect(parseBibleVerseMarkup("In the beginning God created the heaven")).toEqual([
+			{ text: "In the beginning God created the heaven", italic: false }
+		]);
+		expect(parseBibleVerseMarkup("")).toEqual([]);
+	});
+
+	it("still parses NKJV-style markup when the fast path does not apply", () => {
+		const marked = "Blessed <i>be</i> the God &amp; Father";
+		expect(parseBibleVerseMarkup(marked)).toEqual([
+			{ text: "Blessed ", italic: false },
+			{ text: "be", italic: true },
+			{ text: " the God & Father", italic: false }
+		]);
+		// An entity with no tags must keep decoding rather than fall through.
+		expect(bibleVersePlainText("Alpha &amp; Omega")).toBe("Alpha & Omega");
+	});
 });

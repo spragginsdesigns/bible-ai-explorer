@@ -12,7 +12,7 @@ import {
 	dbMessageToUIMessage,
 	isRenderableChatViewMessage,
 	streamingAssistantId,
-	toViewMessage,
+	toViewMessageCached,
 	type ChatViewMessage,
 } from "@/lib/chatView";
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
@@ -37,6 +37,7 @@ import {
 	uploadChatAttachments,
 	validateLocalAttachmentBatch,
 } from "./fileAttachments";
+import { downscaleImageForUpload } from "./imageDownscale";
 import { pastedImageMetadata, type PastedImageFile } from "./pastedImages";
 
 export interface Conversation {
@@ -180,16 +181,31 @@ export function useSureWordChat(): SureWordChat {
 		});
 	}, []);
 
+	const prepareImageAssets = useCallback(async (
+		assets: readonly ImagePicker.ImagePickerAsset[],
+	): Promise<LocalChatAttachment[]> => {
+		// Sequential, not Promise.all: each downscale decodes a full bitmap
+		// natively, and five camera-sized frames held at once is where a
+		// mid-range phone starts killing the app for memory.
+		const prepared: LocalChatAttachment[] = [];
+		for (const asset of assets) {
+			prepared.push(imageAssetToLocal(await downscaleImageForUpload(asset)));
+		}
+		return prepared;
+	}, [imageAssetToLocal]);
+
 	const takePhoto = useCallback(async () => {
 		try {
 			const permission = await ImagePicker.requestCameraPermissionsAsync();
 			if (!permission.granted) throw new Error("Camera permission is required to take a photo.");
+			// quality stays 1: downscaleImageForUpload does the compression, and
+			// asking the picker for a lossy pass first would only stack artifacts.
 			const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
-			if (!result.canceled) await addLocalAttachments(result.assets.map(imageAssetToLocal));
+			if (!result.canceled) await addLocalAttachments(await prepareImageAssets(result.assets));
 		} catch (error) {
 			setAttachmentError(error instanceof Error ? error.message : "Could not open the camera.");
 		}
-	}, [addLocalAttachments, imageAssetToLocal]);
+	}, [addLocalAttachments, prepareImageAssets]);
 
 	const chooseImages = useCallback(async () => {
 		try {
@@ -199,11 +215,11 @@ export function useSureWordChat(): SureWordChat {
 				selectionLimit: Math.max(1, 5 - fileAttachments.length),
 				quality: 1,
 			});
-			if (!result.canceled) await addLocalAttachments(result.assets.map(imageAssetToLocal));
+			if (!result.canceled) await addLocalAttachments(await prepareImageAssets(result.assets));
 		} catch (error) {
 			setAttachmentError(error instanceof Error ? error.message : "Could not open the photo library.");
 		}
-	}, [addLocalAttachments, fileAttachments.length, imageAssetToLocal]);
+	}, [addLocalAttachments, fileAttachments.length, prepareImageAssets]);
 
 	const chooseFiles = useCallback(async () => {
 		try {
@@ -680,7 +696,7 @@ export function useSureWordChat(): SureWordChat {
 		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
 		const viewMessages = uiMessages.map((message) =>
-			toViewMessage(message, {
+			toViewMessageCached(message, {
 				isStreaming:
 					busy &&
 					message.role === "assistant" &&

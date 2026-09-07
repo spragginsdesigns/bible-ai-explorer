@@ -77,6 +77,10 @@ function ensurePersistedValue(k: string): HighlightValue {
 }
 
 function applyValue(k: string, value: HighlightValue) {
+	// Re-applying the value already on screen (the same color tapped twice, or
+	// a rollback to a baseline we never actually left) would rewrite the whole
+	// persisted map and wake every subscriber for no visible change.
+	if (value === undefined ? !snapshot.has(k) : snapshot.get(k) === value) return;
 	const next = new Map(snapshot);
 	if (value === undefined) next.delete(k);
 	else next.set(k, value);
@@ -173,22 +177,31 @@ function refreshChapter(getToken: GetToken, translation: TranslationId, book: nu
 				if (color) incoming.set(`${scope}${entry.verse}`, color);
 			}
 			const next = new Map(snapshot);
-			// Drop entries the server no longer has — but only ones we already
+			// A chapter almost always comes back exactly as cached, so track
+			// whether anything actually moved: re-persisting the entire
+			// highlights map (and re-rendering the reader) on every chapter
+			// open is pure cost. The rollback baseline is a separate map and
+			// is still refreshed either way.
+			let changed = false;
+			// Drop entries the server no longer has - but only ones we already
 			// knew about when the request started, so an optimistic write made
 			// mid-flight is never clobbered by a stale response.
 			for (const k of knownAtStart) {
 				if (!canApply(k)) continue;
 				if (!incoming.has(k)) {
-					next.delete(k);
+					if (next.delete(k)) changed = true;
 					persistedValues.set(k, undefined);
 				}
 			}
 			for (const [k, color] of incoming) {
 				if (!canApply(k)) continue;
-				next.set(k, color);
+				if (next.get(k) !== color) {
+					next.set(k, color);
+					changed = true;
+				}
 				persistedValues.set(k, color);
 			}
-			setSnapshot(next);
+			if (changed) setSnapshot(next);
 		})
 		.catch(() => {
 			// Offline or not signed in: keep the cached/optimistic snapshot.

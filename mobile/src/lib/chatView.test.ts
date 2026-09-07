@@ -5,6 +5,7 @@ import {
 	parseFollowUps,
 	streamingAssistantId,
 	toViewMessage,
+	toViewMessageCached,
 	visibleResponseContent,
 } from "@/lib/chatView";
 
@@ -64,6 +65,33 @@ describe("parseFollowUps", () => {
 
 	it("returns [] when there are none", () => {
 		expect(parseFollowUps("No follow-ups here.")).toEqual([]);
+	});
+});
+
+describe("toViewMessageCached", () => {
+	it("reuses the settled conversion for the same message object", () => {
+		const message = textMessage("c1", "assistant", "Hello");
+		const first = toViewMessageCached(message, { isStreaming: false });
+		const second = toViewMessageCached(message, { isStreaming: false });
+		expect(second).toBe(first);
+		expect(second).toEqual(toViewMessage(message, { isStreaming: false }));
+	});
+
+	it("does not serve a streaming view-model once the stream has settled", () => {
+		const message = textMessage("c2", "assistant", "Hello");
+		const streamed = toViewMessageCached(message, { isStreaming: true });
+		expect(streamed.isStreaming).toBe(true);
+		const settled = toViewMessageCached(message, { isStreaming: false });
+		expect(settled).not.toBe(streamed);
+		expect(settled.isStreaming).toBeUndefined();
+		expect(settled).toEqual(toViewMessage(message, { isStreaming: false }));
+	});
+
+	it("keeps a different message object out of the cache", () => {
+		const first = toViewMessageCached(textMessage("c3", "assistant", "One"), { isStreaming: false });
+		const second = toViewMessageCached(textMessage("c4", "assistant", "Two"), { isStreaming: false });
+		expect(second).not.toBe(first);
+		expect(second).toMatchObject({ id: "c4", content: "Two" });
 	});
 });
 

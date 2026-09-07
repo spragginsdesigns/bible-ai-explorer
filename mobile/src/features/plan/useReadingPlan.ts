@@ -1,27 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import {
-	archiveReadingPlan,
-	fetchReadingPlans,
-	setPlanDay,
-	startGoalPlan,
-	startPresetPlan,
-} from "./api";
-import type { ReadingPlan, ReadingPlanPreset, ReadingPlansView } from "./types";
+	archiveActivePlan,
+	ensureLoaded,
+	getPlanSnapshot,
+	reloadPlans,
+	setPlanDayDone,
+	startPlanGoal,
+	startPlanPreset,
+	subscribePlanStore,
+} from "./planStore";
+import type { ReadingPlan, ReadingPlanPreset } from "./types";
 
 /**
  * The plan the user is following, and everything the plan screen does to it.
  *
- * Every mutation answers with the whole plan and fresh progress, so the hook
- * never has to guess what a tick did to the streak - it just swaps the plan in.
+ * A thin binding over `planStore`: the state and every mutation live in that
+ * module, so the Bible home card, the plan screen and the Daily Cross study
+ * path share one plan and one fetch instead of three of each.
  * Mirrors `src/components/plan/useReadingPlan.ts` on web.
  */
-
-const GENERIC_FAILURE = "Your reading plan could not be loaded. Check your connection and try again.";
-
-function messageFor(error: unknown): string {
-	return error instanceof Error && error.message ? error.message : GENERIC_FAILURE;
-}
 
 export interface UseReadingPlan {
 	plan: ReadingPlan | null;
@@ -40,81 +38,44 @@ export interface UseReadingPlan {
 
 export function useReadingPlan(): UseReadingPlan {
 	const getToken = useStableGetToken();
-	const [view, setView] = useState<ReadingPlansView | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const snapshot = useSyncExternalStore(subscribePlanStore, getPlanSnapshot);
 
-	const load = useCallback(() => {
-		setError(null);
-		setLoading(true);
-		fetchReadingPlans(getToken)
-			.then(setView)
-			.catch((err: unknown) => setError(messageFor(err)))
-			.finally(() => setLoading(false));
+	// `getToken` is identity-stable, so this runs on mount - the store dedupes
+	// it, so three screens mounting together cost one request - and again
+	// whenever the store is cleared under a mounted screen (account handover),
+	// because the load that was in flight at that moment was dropped.
+	useEffect(() => {
+		void ensureLoaded(getToken);
+	}, [getToken, snapshot.generation]);
+
+	const reload = useCallback(() => {
+		void reloadPlans(getToken);
 	}, [getToken]);
 
-	useEffect(() => {
-		load();
-	}, [load]);
-
-	/** Run one mutation, keeping the presets we already have beside the new plan. */
-	const mutate = useCallback(
-		async (run: () => Promise<ReadingPlan>) => {
-			setBusy(true);
-			setError(null);
-			try {
-				const plan = await run();
-				setView((previous) => ({ active: plan, presets: previous?.presets ?? [] }));
-			} catch (err: unknown) {
-				setError(messageFor(err));
-			} finally {
-				setBusy(false);
-			}
-		},
-		[]
-	);
-
 	const startPreset = useCallback(
-		(presetKey: string) => mutate(() => startPresetPlan(getToken, presetKey)),
-		[getToken, mutate]
+		(presetKey: string) => startPlanPreset(getToken, presetKey),
+		[getToken]
 	);
 
 	const startGoal = useCallback(
-		(goal: string, days: number) => mutate(() => startGoalPlan(getToken, goal, days)),
-		[getToken, mutate]
+		(goal: string, days: number) => startPlanGoal(getToken, goal, days),
+		[getToken]
 	);
-
-	const plan = view?.active ?? null;
 
 	const setDayDone = useCallback(
-		async (day: number, done: boolean) => {
-			if (!plan) return;
-			await mutate(() => setPlanDay(getToken, plan.id, day, done));
-		},
-		[getToken, mutate, plan]
+		(day: number, done: boolean) => setPlanDayDone(getToken, day, done),
+		[getToken]
 	);
 
-	const archive = useCallback(async () => {
-		if (!plan) return;
-		setBusy(true);
-		setError(null);
-		try {
-			setView(await archiveReadingPlan(getToken, plan.id));
-		} catch (err: unknown) {
-			setError(messageFor(err));
-		} finally {
-			setBusy(false);
-		}
-	}, [getToken, plan]);
+	const archive = useCallback(() => archiveActivePlan(getToken), [getToken]);
 
 	return {
-		plan,
-		presets: view?.presets ?? [],
-		loading,
-		busy,
-		error,
-		reload: load,
+		plan: snapshot.view?.active ?? null,
+		presets: snapshot.view?.presets ?? [],
+		loading: snapshot.loading,
+		busy: snapshot.busy,
+		error: snapshot.error,
+		reload,
 		startPreset,
 		startGoal,
 		setDayDone,

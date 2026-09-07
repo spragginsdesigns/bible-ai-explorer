@@ -47,9 +47,12 @@ function persist() {
 	});
 }
 
-function setSnapshot(next: Omit<NotesSnapshot, "hydrated">) {
+function setSnapshot(next: Omit<NotesSnapshot, "hydrated">, options?: { persist?: boolean }) {
 	snapshot = { ...next, hydrated: true };
-	persist();
+	// Hydration publishes exactly what AsyncStorage just handed back, so
+	// writing it again would re-stringify the whole library (note bodies
+	// included) for a byte-identical blob. Only real mutations persist.
+	if (options?.persist !== false) persist();
 	emit();
 }
 
@@ -72,11 +75,14 @@ export function hydrateNotesCache(): Promise<void> {
 				if (generation !== startedAt) return;
 				if (raw) {
 					const parsed = JSON.parse(raw) as Partial<NotesSnapshot>;
-					setSnapshot({
-						notes: parsed.notes ?? [],
-						folders: parsed.folders ?? [],
-						tags: parsed.tags ?? [],
-					});
+					setSnapshot(
+						{
+							notes: parsed.notes ?? [],
+							folders: parsed.folders ?? [],
+							tags: parsed.tags ?? [],
+						},
+						{ persist: false }
+					);
 				}
 			} catch {
 				// Corrupt or unreadable cache: fall through to a network load.

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
@@ -37,10 +37,26 @@ export const MessageBubble = React.memo(function MessageBubble({
 	const router = useRouter();
 	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 
+	// Both parses run over the whole message body, so they are hoisted above the
+	// user/assistant split to keep the hook order unconditional, and each one
+	// short-circuits for the role that never uses it.
+	// Plain-text user bubbles still get tappable Bible references (assistant
+	// messages get theirs via MarkdownBody).
+	const segments = useMemo(
+		() => (message.role === "user" ? segmentVerseReferences(message.content) : null),
+		[message.role, message.content],
+	);
+	const assistantMarkdown = useMemo(
+		() =>
+			message.role === "user" || !message.content
+				? null
+				: normalizeAssistantMarkdown(message.content, {
+					streaming: Boolean(message.isStreaming),
+				}),
+		[message.role, message.content, message.isStreaming],
+	);
+
 	if (message.role === "user") {
-		// Plain-text bubble, but Bible references still become tappable links
-		// into the reader (assistant messages get this via MarkdownBody).
-		const segments = segmentVerseReferences(message.content);
 		return (
 			<View style={styles.userRow}>
 				<View style={styles.userBubble}>
@@ -50,7 +66,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 						</View>
 					)}
 					{message.content.length > 0 && <Text style={styles.userText}>
-						{segments.map((segment, index) =>
+						{(segments ?? []).map((segment, index) =>
 							segment.type === "verse-ref" ? (
 								<Text
 									key={`ref-${index}`}
@@ -76,12 +92,8 @@ export const MessageBubble = React.memo(function MessageBubble({
 		<View style={styles.assistantRow}>
 			<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
 			<View style={styles.assistantBody}>
-				{message.content ? (
-					<MarkdownBody
-						content={normalizeAssistantMarkdown(message.content, {
-							streaming: Boolean(message.isStreaming),
-						})}
-					/>
+				{assistantMarkdown !== null ? (
+					<MarkdownBody content={assistantMarkdown} />
 				) : message.isStreaming && !message.activity ? (
 					<TypingDots />
 				) : null}

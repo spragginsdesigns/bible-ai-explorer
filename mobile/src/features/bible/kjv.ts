@@ -88,6 +88,47 @@ function getKjvBook(order: number): RawBook {
 	return book;
 }
 
+/**
+ * Parse one book into the session cache ahead of the reader or search needing
+ * it. Idempotent: an already-cached book is a Map hit, and an unknown order is
+ * ignored rather than thrown because nothing is waiting on this work.
+ */
+export function warmKjvBook(order: number): void {
+	if (!LOADERS[order]) return;
+	getKjvBook(order);
+}
+
+/**
+ * Warm every book, one per frame, so the first search does not evaluate ~4 MB
+ * of book JSON in a single JS turn while the user is typing. Returns a cancel
+ * function, which callers should wire straight to their unmount.
+ */
+export function warmAllKjvBooks(): () => void {
+	let index = 0;
+	let frame: number | null = null;
+	let timer: ReturnType<typeof setTimeout> | null = null;
+
+	const step = () => {
+		warmKjvBook(BOOKS[index].order);
+		index += 1;
+		frame = index < BOOKS.length ? requestAnimationFrame(step) : null;
+	};
+
+	// The mount commit gets to paint before the first book is parsed, and from
+	// there one book per frame keeps any two parses out of the same frame.
+	timer = setTimeout(() => {
+		timer = null;
+		frame = requestAnimationFrame(step);
+	}, 0);
+
+	return () => {
+		if (timer !== null) clearTimeout(timer);
+		if (frame !== null) cancelAnimationFrame(frame);
+		timer = null;
+		frame = null;
+	};
+}
+
 /** All verses of a chapter, 1-indexed by chapter number. Throws when out of range. */
 export function getKjvChapter(order: number, chapter: number): string[] {
 	const meta = bookByOrder(order);

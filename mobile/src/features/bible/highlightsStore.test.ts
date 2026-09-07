@@ -1,12 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type Subscribe = (listener: () => void) => () => void;
+
+// The store's `subscribe` is module-private; the hook hands it to
+// useSyncExternalStore, which is the only place a test can get hold of it.
+const hoisted = vi.hoisted(() => ({ subscribeRef: { current: null as Subscribe | null } }));
+
 vi.mock("react", async () => {
 	const actual = await vi.importActual<typeof import("react")>("react");
 	return {
 		...actual,
 		useEffect: (effect: () => void) => effect(),
 		useMemo: <T>(factory: () => T) => factory(),
-		useSyncExternalStore: (_subscribe: unknown, getSnapshot: () => unknown) => getSnapshot(),
+		useSyncExternalStore: (subscribe: Subscribe, getSnapshot: () => unknown) => {
+			hoisted.subscribeRef.current = subscribe;
+			return getSnapshot();
+		},
 	};
 });
 
@@ -52,6 +61,13 @@ function cachedHighlights(): Record<string, string> {
 	const calls = vi.mocked(AsyncStorage.setItem).mock.calls;
 	const latest = calls.at(-1)?.[1];
 	return latest ? (JSON.parse(latest) as Record<string, string>) : {};
+}
+
+/** Subscribe to the store the way the reader does. Requires a prior hook call. */
+function subscribeForTest(listener: () => void): () => void {
+	const subscribe = hoisted.subscribeRef.current;
+	if (!subscribe) throw new Error("no hook has subscribed to the store yet");
+	return subscribe(listener);
 }
 
 async function flushQueue() {
@@ -180,6 +196,46 @@ describe("highlight write ordering", () => {
 		await flushQueue();
 		expect(cachedHighlights()["KJV:43:3:16"]).toBe("#4A90D9");
 		expect(mockedApiJson).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not rewrite or re-emit when a chapter comes back unchanged", async () => {
+		mockedApiJson.mockResolvedValueOnce({});
+		await setHighlight(vi.fn(), { ...ref, color: "#f5d76e" });
+
+		const chapter = deferred<{ highlights: { verse: number; color: string }[] }>();
+		mockedApiJson.mockReturnValueOnce(chapter.promise);
+		useChapterHighlights("KJV", 43, 3);
+
+		const writesBefore = vi.mocked(AsyncStorage.setItem).mock.calls.length;
+		const seen: number[] = [];
+		const unsubscribe = subscribeForTest(() => seen.push(1));
+		chapter.resolve({ highlights: [{ verse: 16, color: "#F5D76E" }] });
+		await flushQueue();
+		unsubscribe();
+
+		expect(vi.mocked(AsyncStorage.setItem).mock.calls.length).toBe(writesBefore);
+		expect(seen).toHaveLength(0);
+		expect(cachedHighlights()["KJV:43:3:16"]).toBe("#F5D76E");
+	});
+
+	it("persists and emits when a chapter comes back changed", async () => {
+		mockedApiJson.mockResolvedValueOnce({});
+		await setHighlight(vi.fn(), { ...ref, color: "#f5d76e" });
+
+		const chapter = deferred<{ highlights: { verse: number; color: string }[] }>();
+		mockedApiJson.mockReturnValueOnce(chapter.promise);
+		useChapterHighlights("KJV", 43, 3);
+
+		const writesBefore = vi.mocked(AsyncStorage.setItem).mock.calls.length;
+		const seen: number[] = [];
+		const unsubscribe = subscribeForTest(() => seen.push(1));
+		chapter.resolve({ highlights: [{ verse: 16, color: "#4A90D9" }] });
+		await flushQueue();
+		unsubscribe();
+
+		expect(vi.mocked(AsyncStorage.setItem).mock.calls.length).toBeGreaterThan(writesBefore);
+		expect(seen.length).toBeGreaterThan(0);
+		expect(cachedHighlights()["KJV:43:3:16"]).toBe("#4A90D9");
 	});
 
 	it("invalidates in-flight and queued writes when the account cache is cleared", async () => {

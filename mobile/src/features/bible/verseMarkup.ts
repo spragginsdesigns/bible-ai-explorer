@@ -33,6 +33,13 @@ function decodeEntities(text: string): string {
  * safe text segments and discard any other provider markup.
  */
 export function parseBibleVerseMarkup(markup: string): BibleVerseSegment[] {
+	// The bundled KJV carries no tags and no entities, so the reader's hot path
+	// is every verse of every chapter taking this branch: without a "<" there is
+	// nothing to strip, and without an "&" there is nothing to decode.
+	if (!markup.includes("<") && !markup.includes("&")) {
+		return markup ? [{ text: markup, italic: false }] : [];
+	}
+
 	const segments: BibleVerseSegment[] = [];
 	let italicDepth = 0;
 	let cursor = 0;

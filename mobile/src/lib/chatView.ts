@@ -281,6 +281,35 @@ export function toViewMessage(
 	};
 }
 
+/**
+ * Settled conversions keyed by the UIMessage object they came from.
+ *
+ * toViewMessage reads nothing but the message and the isStreaming flag, and
+ * @ai-sdk/react replaces only the trailing message on each stream tick while
+ * every earlier UIMessage keeps its identity. So a settled conversion stays
+ * correct for the life of that object, and reusing it keeps the memoized
+ * MessageBubble from re-rendering the whole transcript ~20x a second.
+ */
+const settledViewMessages = new WeakMap<UIMessage, ChatViewMessage>();
+
+/**
+ * toViewMessage with a settled-only cache. Streaming conversions are never
+ * stored: when the stream ends, `busy` flips false while the last assistant
+ * message keeps its identity, so a cached streaming view-model would freeze
+ * that turn mid-answer (still typing, follow-ups and verses withheld).
+ */
+export function toViewMessageCached(
+	message: UIMessage,
+	options: { isStreaming: boolean }
+): ChatViewMessage {
+	if (options.isStreaming) return toViewMessage(message, options);
+	const cached = settledViewMessages.get(message);
+	if (cached) return cached;
+	const view = toViewMessage(message, options);
+	settledViewMessages.set(message, view);
+	return view;
+}
+
 /** Map a stored DB message row to a UIMessage (same logic as the web client). */
 export function dbMessageToUIMessage(value: unknown): UIMessage {
 	if (

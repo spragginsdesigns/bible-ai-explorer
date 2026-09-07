@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearHighlightsCache } from "@/features/bible/highlightsStore";
 import { clearNotesCache } from "@/features/notes/notesStore";
+import { clearPlanStore } from "@/features/plan/planStore";
 import { cacheDiscardFor, type CacheDiscard } from "./preferences";
 import { resetSyncedSettings } from "./settingsStore";
 
@@ -28,6 +29,8 @@ async function readOwner(): Promise<string | null> {
 
 async function clearCaches(scope: Exclude<CacheDiscard, "none">): Promise<void> {
 	if (scope === "all") resetSyncedSettings();
+	// The plan store is memory-only, so clearing it is synchronous.
+	clearPlanStore();
 	await Promise.all([clearNotesCache(), clearHighlightsCache()]);
 }
 

@@ -9,13 +9,13 @@ import {
 	StyleSheet,
 	Text as ScriptureText,
 	View,
+	type ListRenderItemInfo,
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
-import ColorPicker, { HueSlider, Panel1, Preview } from "reanimated-color-picker";
 import { GlassCard, Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { saveVerseToNote } from "@/features/chat/verseActions";
@@ -31,6 +31,7 @@ import {
 } from "@/features/bible/highlightsStore";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
+import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
@@ -67,6 +68,88 @@ interface ActionVerse {
 	number: number;
 	text: string;
 }
+
+type ChapterStyles = ReturnType<typeof createStyles>;
+
+interface VerseRowProps {
+	/** The verse as the provider gave it - KJV plain text, NKJV inline markup. */
+	markup: string;
+	verseNumber: number;
+	/** Stored highlight color for this verse, if any. */
+	verseColor: string | undefined;
+	/** True only for the verse a ?verse= deep link is briefly flashing. */
+	flashed: boolean;
+	parchment: boolean;
+	fontSize: number;
+	lineHeight: number;
+	styles: ChapterStyles;
+	colors: Colors;
+	onPress: (verseNumber: number, plainText: string) => void;
+}
+
+/**
+ * One verse row. Memoized on primitives plus the identity-stable themed
+ * `styles`/`colors`, because tapping a verse streams its explanation into this
+ * same screen: every token is a state write here, and without the memo each one
+ * would re-render and re-parse every mounted verse of the chapter.
+ */
+const VerseRow = React.memo(function VerseRow({
+	markup,
+	verseNumber,
+	verseColor,
+	flashed,
+	parchment,
+	fontSize,
+	lineHeight,
+	styles,
+	colors,
+	onPress,
+}: VerseRowProps) {
+	const segments = useMemo(() => parseBibleVerseMarkup(markup), [markup]);
+	// The sheet, clipboard and Ask AI all want the verse without markup; joining
+	// the segments avoids parsing the same string a second time.
+	const plainText = useMemo(() => segments.map((segment) => segment.text).join(""), [segments]);
+	const open = useCallback(
+		() => onPress(verseNumber, plainText),
+		[onPress, verseNumber, plainText]
+	);
+
+	return (
+		<Pressable
+			accessibilityRole="button"
+			delayLongPress={300}
+			onPress={open}
+			onLongPress={open}
+			style={[
+				styles.verseRow,
+				verseColor ? { backgroundColor: highlightWash(verseColor) } : undefined,
+				// The deep-link flash comes last so it wins over the wash.
+				flashed &&
+					(parchment ? styles.verseRowHighlighted : { backgroundColor: colors.accentSoft }),
+			]}
+		>
+			<ScriptureText
+				style={[
+					styles.verseText,
+					!parchment && { color: colors.textSecondary },
+					{ fontSize, lineHeight },
+				]}
+			>
+				<ScriptureText style={[styles.verseNumber, !parchment && { color: colors.accentDim }]}>
+					{verseNumber}{" "}
+				</ScriptureText>
+				{segments.map((segment, segmentIndex) => (
+					<ScriptureText
+						key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
+						style={segment.italic ? styles.verseItalic : undefined}
+					>
+						{segment.text}
+					</ScriptureText>
+				))}
+			</ScriptureText>
+		</Pressable>
+	);
+});
 
 /**
  * Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), verse
@@ -358,6 +441,33 @@ export default function BibleChapterScreen() {
 	const fontSize = FONT_STEPS[fontStep];
 	const lineHeight = Math.round(fontSize * 1.55);
 
+	// Keeps VerseRow's onPress identity stable while the insight sheet streams:
+	// openVerse only changes when the chapter or translation does.
+	const onVersePress = useCallback(
+		(verseNumber: number, plainText: string) => {
+			openVerse({ number: verseNumber, text: plainText });
+		},
+		[openVerse]
+	);
+
+	const renderVerse = useCallback(
+		({ item, index }: ListRenderItemInfo<string>) => (
+			<VerseRow
+				markup={item}
+				verseNumber={index + 1}
+				verseColor={highlights.get(index + 1)}
+				flashed={highlighted === index + 1}
+				parchment={parchment}
+				fontSize={fontSize}
+				lineHeight={lineHeight}
+				styles={styles}
+				colors={colors}
+				onPress={onVersePress}
+			/>
+		),
+		[highlights, highlighted, parchment, fontSize, lineHeight, styles, colors, onVersePress]
+	);
+
 	if (!book) {
 		return (
 			<Screen>
@@ -507,51 +617,7 @@ export default function BibleChapterScreen() {
 								</View>
 							</View>
 						}
-						renderItem={({ item, index }) => {
-							const verseNumber = index + 1;
-							const plainText = bibleVersePlainText(item);
-							const segments = parseBibleVerseMarkup(item);
-							const verseColor = highlights.get(verseNumber);
-							return (
-								<Pressable
-									accessibilityRole="button"
-									delayLongPress={300}
-									onPress={() => openVerse({ number: verseNumber, text: plainText })}
-									onLongPress={() => openVerse({ number: verseNumber, text: plainText })}
-									style={[
-										styles.verseRow,
-										verseColor ? { backgroundColor: highlightWash(verseColor) } : undefined,
-										// The deep-link flash comes last so it wins over the wash.
-										highlighted === verseNumber &&
-											(parchment
-												? styles.verseRowHighlighted
-												: { backgroundColor: colors.accentSoft }),
-									]}
-								>
-									<ScriptureText
-										style={[
-											styles.verseText,
-											!parchment && { color: colors.textSecondary },
-											{ fontSize, lineHeight },
-										]}
-									>
-										<ScriptureText
-											style={[styles.verseNumber, !parchment && { color: colors.accentDim }]}
-										>
-											{verseNumber}{" "}
-										</ScriptureText>
-										{segments.map((segment, segmentIndex) => (
-											<ScriptureText
-												key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
-												style={segment.italic ? styles.verseItalic : undefined}
-											>
-												{segment.text}
-											</ScriptureText>
-										))}
-									</ScriptureText>
-								</Pressable>
-							);
-						}}
+						renderItem={renderVerse}
 					/>
 					<Pressable
 						accessibilityRole="button"
@@ -690,18 +756,16 @@ export default function BibleChapterScreen() {
 				<View style={styles.pickerCard} pointerEvents="box-none">
 					<View style={styles.pickerCardInner}>
 						<Text style={styles.pickerTitle}>Custom color</Text>
-						<ColorPicker
-							value={actionVerseColor ?? HIGHLIGHT_PRESETS[0].color}
-							onCompleteJS={(result) => {
-								applyHighlight(result.hex);
-								setPickerVisible(false);
-							}}
-							style={styles.picker}
-						>
-							<Preview hideInitialColor />
-							<Panel1 />
-							<HueSlider />
-						</ColorPicker>
+						{pickerVisible ? (
+							<HighlightColorPicker
+								value={actionVerseColor ?? HIGHLIGHT_PRESETS[0].color}
+								onComplete={(hex) => {
+									applyHighlight(hex);
+									setPickerVisible(false);
+								}}
+								style={styles.picker}
+							/>
+						) : null}
 					</View>
 				</View>
 			</Modal>

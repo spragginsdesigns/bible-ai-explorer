@@ -6,6 +6,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import * as Font from "expo-font";
 import { useFonts, PirataOne_400Regular } from "@expo-google-fonts/pirata-one";
 import {
 	AtkinsonHyperlegible_400Regular,
@@ -35,6 +36,10 @@ const Hack_400Regular = require("../assets/fonts/Hack-Regular.ttf");
 const Hack_400Regular_Italic = require("../assets/fonts/Hack-Italic.ttf");
 const Hack_700Bold = require("../assets/fonts/Hack-Bold.ttf");
 const Hack_700Bold_Italic = require("../assets/fonts/Hack-BoldItalic.ttf");
+
+/** Module-level so a remount (or a strict-mode double effect) cannot re-request
+ * the deferred faces that are already registered. */
+let deferredFontsRequested = false;
 
 /**
  * Signs out locally when the API reports auth failure (a 401 that survives
@@ -82,18 +87,13 @@ function ThemedShell() {
 }
 
 export default function RootLayout() {
+	// Only the four faces the first frame can actually paint hold the splash:
+	// upright body text, its bold, the brand title and upright Scripture.
 	const [fontsLoaded] = useFonts({
 		PirataOne_400Regular,
 		AtkinsonHyperlegible_400Regular,
-		AtkinsonHyperlegible_400Regular_Italic,
 		AtkinsonHyperlegible_700Bold,
-		AtkinsonHyperlegible_700Bold_Italic,
-		Hack_400Regular,
-		Hack_400Regular_Italic,
-		Hack_700Bold,
-		Hack_700Bold_Italic,
 		CormorantGaramond_500Medium,
-		CormorantGaramond_500Medium_Italic,
 	});
 	const [settingsReady, setSettingsReady] = useState(false);
 	const [showAnimatedSplash, setShowAnimatedSplash] = useState(
@@ -105,6 +105,27 @@ export default function RootLayout() {
 			.catch(() => {})
 			.finally(() => setSettingsReady(true));
 	}, []);
+
+	// The remaining seven faces - every italic plus the whole Hack family
+	// (~1.27 MB, code blocks only) - are registered under the same names right
+	// after the blocking set resolves, while the intro animation is on screen.
+	// Android's new architecture renders a not-yet-loaded family in the system
+	// font rather than crashing, so the worst case is a brief substitution.
+	useEffect(() => {
+		if (!fontsLoaded || deferredFontsRequested) return;
+		deferredFontsRequested = true;
+		Font.loadAsync({
+			AtkinsonHyperlegible_400Regular_Italic,
+			AtkinsonHyperlegible_700Bold_Italic,
+			Hack_400Regular,
+			Hack_400Regular_Italic,
+			Hack_700Bold,
+			Hack_700Bold_Italic,
+			CormorantGaramond_500Medium_Italic,
+		}).catch(() => {
+			// Cosmetic: an unregistered face falls back to the system font.
+		});
+	}, [fontsLoaded]);
 
 	useEffect(() => {
 		if (fontsLoaded && settingsReady) SplashScreen.hideAsync().catch(() => {});
