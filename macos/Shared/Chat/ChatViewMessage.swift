@@ -111,6 +111,7 @@ extension ChatViewMessage {
     /// Labels for in-flight tool calls, keyed by the TS part discriminator.
     static let toolActivityLabels: [String: String] = [
         "tool-searchScripture": "Searching the Scriptures",
+        "tool-findVerses": "Searching the Bible for those words",
         "tool-getPassage": "Opening the passage",
         "tool-webSearch": "Searching the web",
         "tool-addToNote": "Writing to your note",
@@ -213,7 +214,9 @@ extension ChatViewMessage {
             guard tool.state == .outputAvailable, let output = tool.output?.objectValue else { continue }
 
             switch tool.type {
-            case "tool-searchScripture":
+            // findVerses returns the same ScriptureSearchToolOutput shape as
+            // searchScripture, so both feed the one "Retrieved Verses" card.
+            case "tool-searchScripture", "tool-findVerses":
                 let verses = Self.parseVerses(output["verses"])
                 retrievedVerses.append(contentsOf: verses)
                 similarities.append(contentsOf: verses.map(\.similarity))

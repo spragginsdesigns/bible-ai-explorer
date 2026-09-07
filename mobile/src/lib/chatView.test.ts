@@ -141,6 +141,50 @@ describe("toViewMessage", () => {
 		expect(view.retrievedVerses).toEqual([{ reference: "Psalm 23:1", similarity: 0.8 }]);
 	});
 
+	it("renders findVerses output through the same retrieved-verses card as searchScripture", () => {
+		const message = {
+			id: "m3b",
+			role: "assistant",
+			parts: [
+				{
+					type: "tool-searchScripture",
+					state: "output-available",
+					output: { verses: [{ reference: "John 3:16", similarity: 0.9 }] },
+				},
+				{
+					type: "tool-findVerses",
+					state: "output-available",
+					output: {
+						verses: [
+							{ reference: "Psalm 23:1", similarity: 0.7, text: "The LORD is my shepherd" },
+							{ reference: "Psalm 23:2", similarity: 0.5 },
+						],
+						averageSimilarity: 0.6,
+						formatted: "Psalm 23:1-2",
+					},
+				},
+			],
+		} as never;
+		const view = toViewMessage(message, { isStreaming: false });
+		expect(view.retrievedVerses).toEqual([
+			{ reference: "John 3:16", similarity: 0.9 },
+			{ reference: "Psalm 23:1", similarity: 0.7, text: "The LORD is my shepherd" },
+			{ reference: "Psalm 23:2", similarity: 0.5 },
+		]);
+		expect(view.averageSimilarity).toBeCloseTo(0.7);
+	});
+
+	it("labels a running findVerses call as an exact-word Bible search", () => {
+		const message = {
+			id: "m3c",
+			role: "assistant",
+			parts: [{ type: "tool-findVerses", state: "input-available" }],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBe(
+			"Searching the Bible for those words",
+		);
+	});
+
 	it("shows tool activity only while streaming", () => {
 		const message = {
 			id: "m4",

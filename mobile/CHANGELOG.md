@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.52.0 (versionCode 52) - 2026-09-07 - internal
+
+**What's new (Play):**
+
+- Chat can now look up exact Bible wording instantly: quote a phrase or name a word and SureWord finds every verse that contains it.
+- The transcript shows "Searching the Bible for those words" while it looks, and the verses appear in the Retrieved Verses card.
+
+**Dev notes:** The `findVerses` tool is server-side (Neon `KjvVerse` full-text index, commit 832d08e) and already works on every installed build; this release adds the Android activity label and routes the tool's output through the existing retrieved-verses card (`mobile/src/lib/chatView.ts`). The macOS/iOS label is in source (`macos/Shared/Chat/ChatViewMessage.swift`), uncompiled until the next Mac gate.
+
 ## 1.51.0 (versionCode 51) - 2026-09-07 - internal
 
 **What's new (Play):**

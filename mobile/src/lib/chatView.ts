@@ -76,6 +76,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-searchScripture": "Searching the Scriptures",
+	"tool-findVerses": "Searching the Bible for those words",
 	"tool-getPassage": "Opening the passage",
 	"tool-webSearch": "Searching the web",
 	"tool-addToNote": "Writing to your note",
@@ -207,7 +208,9 @@ export function toViewMessage(
 		if (toolPart.state !== "output-available" || !isRecord(toolPart.output)) continue;
 
 		const output = toolPart.output;
-		if (toolPart.type === "tool-searchScripture") {
+		// findVerses returns the same ScriptureSearchToolOutput shape as
+		// searchScripture, so both feed the one "Retrieved Verses" card.
+		if (toolPart.type === "tool-searchScripture" || toolPart.type === "tool-findVerses") {
 			const verses = parseVerses(output.verses);
 			retrievedVerses.push(...verses);
 			similarities.push(...verses.map((verse) => verse.similarity));
