@@ -5,6 +5,7 @@
  */
 export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	searchScripture: "Searching the Scriptures",
+	findVerses: "Searching the Bible for those words",
 	getPassage: "Opening the passage",
 	webSearch: "Searching the web",
 	addToNote: "Writing to your note",

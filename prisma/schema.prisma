@@ -284,6 +284,22 @@ model VerseEmbedding {
   @@id([book, chapter, verse])
 }
 
+/// Full-text index of the bundled KJV, one row per verse, so exact-word and
+/// phrase lookups cost a GIN index scan instead of an in-process scan of the
+/// whole corpus. Populated by scripts/backfill-kjv-verses.mjs; queried with
+/// raw SQL in src/lib/bible/verse-fulltext.ts. `search` is a GENERATED
+/// tsvector column and its GIN index exists only in the migration SQL -
+/// Prisma can express neither, so a future `migrate dev` must not drop them.
+model KjvVerse {
+  book    Int
+  chapter Int
+  verse   Int
+  text    String                  @db.Text
+  search  Unsupported("tsvector")
+
+  @@id([book, chapter, verse])
+}
+
 /// pgvector index of the user's note chunks for semantic note search.
 /// Kept in sync by src/lib/note-embeddings.ts on every note write; rows
 /// disappear with their note via the FK cascade.

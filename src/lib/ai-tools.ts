@@ -44,6 +44,8 @@ import {
 	type PlanWithProgress,
 } from "@/lib/reading-plans";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
+import { resolveReference } from "@/lib/bible/books";
+import { findVersesFullText } from "@/lib/bible/verse-fulltext";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
 import {
 	ATLAS_ERAS,
@@ -138,6 +140,30 @@ const PLAN_DAYS_AHEAD = 3;
 
 const MAX_PASSAGE_VERSES = 30;
 const MAX_CROSS_REFERENCES = 8;
+
+/**
+ * The verses of one passage in the user's translation, word for word, capped
+ * at MAX_PASSAGE_VERSES and stopping at the end of the chapter. Shared by
+ * getPassage and by findVerses, which answers a query that is itself a bare
+ * reference with the passage instead of a word search.
+ */
+async function readPassageVerses(
+	bookNumber: number,
+	bookName: string,
+	chapter: number,
+	verseStart: number,
+	verseEnd: number | undefined,
+	translation: TranslationId
+): Promise<RetrievedVerse[]> {
+	const end = Math.min(verseEnd ?? verseStart, verseStart + MAX_PASSAGE_VERSES - 1);
+	const verses: RetrievedVerse[] = [];
+	for (let verse = verseStart; verse <= end; verse++) {
+		const text = await getVerseText(translation, bookNumber, chapter, verse);
+		if (!text) break;
+		verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text });
+	}
+	return verses;
+}
 
 export interface CrossReferencesToolOutput {
 	reference: string;
@@ -242,6 +268,76 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const findVersesTool = tool({
+		description:
+			`Exact-word and phrase search across the whole Bible, instant and free. Use it when the user quotes or half-remembers wording ("be still and know"), asks for every verse containing a word ("loveth", "adder"), or wants a fast lookup. Quote a phrase in double quotes to require those words in that order; bare words match by prefix, so "lov" also finds loveth and loved. Prefer searchScripture for questions about meaning or topic, and getPassage when a reference is already named. Returns the exact ${translation} text.`,
+		inputSchema: z.object({
+			query: z
+				.string()
+				.describe(
+					'The words to find, e.g. loveth, or "be still and know". Not a question - the words you expect the verse itself to contain.'
+				),
+			limit: z
+				.number()
+				.int()
+				.min(1)
+				.max(20)
+				.optional()
+				.describe("How many verses to return (default 8)."),
+		}),
+		execute: async ({ query, limit }): Promise<ScriptureSearchToolOutput> => {
+			// A query that is itself a reference ("John 3:16", "Psalm 23") is a
+			// lookup, not a word search: answer it from the passage so the model
+			// never has to re-ask through getPassage.
+			const reference = resolveReference(query);
+			if (reference) {
+				const bookName = getKjvBookName(reference.order) ?? `Book ${reference.order}`;
+				const start = reference.verse ?? 1;
+				// No verse in the reference means a whole chapter: read from verse 1
+				// up to the shared cap.
+				const verses = await readPassageVerses(
+					reference.order,
+					bookName,
+					reference.chapter,
+					start,
+					reference.verse ?? start + MAX_PASSAGE_VERSES - 1,
+					translation
+				);
+				if (verses.length > 0) {
+					return {
+						verses,
+						averageSimilarity: 1,
+						formatted: formatVersesForModel(verses, translation),
+					};
+				}
+			}
+
+			const hits = await findVersesFullText(query, limit ?? 8);
+			const verses: RetrievedVerse[] = await Promise.all(
+				hits.map(async (hit) => {
+					const bookName = getKjvBookName(hit.book) ?? `Book ${hit.book}`;
+					// The index is KJV, but the user reads their own translation, so
+					// the matched verse is quoted from theirs.
+					const text = await getVerseText(translation, hit.book, hit.chapter, hit.verse);
+					// An exact-word hit contains the words by definition, and ts_rank_cd
+					// is not a cosine, so it reports full strength like getPassage does;
+					// the index's rank only decides the order.
+					return {
+						reference: `${bookName} ${hit.chapter}:${hit.verse}`,
+						similarity: 1,
+						...(text ? { text } : {}),
+					};
+				})
+			);
+
+			return {
+				verses,
+				averageSimilarity: verses.length > 0 ? 1 : 0,
+				formatted: formatVersesForModel(verses, translation),
+			};
+		},
+	});
+
 	const getPassageTool = tool({
 		description:
 			`Look up the exact ${translation} text of a specific passage by reference, e.g. John 3:16 or Romans 8:28-39. Use this when you or the user name a specific reference, so every quotation is word-for-word.`,
@@ -262,14 +358,14 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
 			}
 			const bookName = getKjvBookName(bookNumber) ?? book;
-			const end = Math.min(verseEnd ?? verseStart, verseStart + MAX_PASSAGE_VERSES - 1);
-
-			const verses: RetrievedVerse[] = [];
-			for (let verse = verseStart; verse <= end; verse++) {
-				const text = await getVerseText(translation, bookNumber, chapter, verse);
-				if (!text) break;
-				verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text });
-			}
+			const verses = await readPassageVerses(
+				bookNumber,
+				bookName,
+				chapter,
+				verseStart,
+				verseEnd,
+				translation
+			);
 
 			if (verses.length === 0) {
 				throw new Error(
@@ -860,6 +956,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 	return {
 		...buildMemoryTools(context.userId),
 		searchScripture: searchScriptureTool,
+		findVerses: findVersesTool,
 		getPassage: getPassageTool,
 		getCrossReferences: getCrossReferencesTool,
 		getOriginalText: getOriginalTextTool,

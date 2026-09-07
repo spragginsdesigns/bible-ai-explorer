@@ -892,6 +892,48 @@ count themselves.
 
 ---
 
+## Exact-word search (`findVerses`)
+
+*Shipped 2026-09-07 - web + shared backend*
+
+`searchScripture` searches by meaning, which is the wrong instrument for "what
+verse says be still and know" or "every verse with loveth". `findVerses` is the
+other half: a Postgres full-text index over the whole KJV, one row per verse in
+the `KjvVerse` table with a GENERATED `tsvector` column and a GIN index
+(migration `20260907190000_kjv_verse_fulltext`, seeded by
+`scripts/backfill-kjv-verses.mjs` from the same `src/data/kjv/*.json` the app
+quotes from, so a match is byte-identical to the quotation). It costs no
+embedding call and no model call, so it is instant and free.
+
+**The dictionary is `simple`, not `english`.** Snowball's English stemmer was
+built for modern prose and does not fold the KJV's archaic inflections
+(loveth, lovest, believeth) onto their roots, so `english` would buy almost
+nothing while destroying the ability to match a word the user typed exactly.
+`simple` lowercases and stops there; `buildVerseTsQuery`
+(`src/lib/bible/verse-fulltext.ts`) adds the recall back where it belongs, by
+turning every bare word into a prefix match (`'lov':*`) and every `"quoted
+phrase"` into an ordered phrase of exact lexemes (`'be' <-> 'still'`). It also
+strips every character that is not a letter, digit, apostrophe or space, so a
+`&` or `!` a user types is searched for, never executed as a tsquery operator.
+Requiring all terms is tried first; if that finds nothing and the user typed
+two or more bare words, the same terms are retried as "any of these" so a
+partial recollection still ranks.
+
+A query that is itself a bare reference ("John 3:16", "Psalm 23") is answered
+with that passage rather than a word search, through the same helper
+`getPassage` uses. Output is the `ScriptureSearchToolOutput` shape, so the
+existing retrieved-verses card renders it unchanged. Every hit reports
+`similarity: 1`, as `getPassage` does: these verses literally contain the
+words, and `ts_rank_cd` is not a cosine, so feeding it to the match-strength
+badge would only mislabel exact matches as broad ones. Rank still orders them.
+
+`searchScripture` is unchanged: its keyword half still uses the in-process
+IDF scan, because IDF weighting is what makes a long natural-language query
+surface its rare words, and `ts_rank_cd` has no notion of rarity. The index is
+for queries that already name the words.
+
+---
+
 ## Timeline, People & Places
 
 A KJV-grounded reference for **when** things happened and **who** and **where** -
