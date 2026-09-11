@@ -95,6 +95,80 @@ export function sanitizeDevotionalScript(raw: string): string {
 }
 
 /**
+ * The pause ElevenLabs is asked to hold between paragraphs. Blank lines in the
+ * text are not a reliable pause in `eleven_multilingual_v2`; a `<break>` tag
+ * is (their "Prompting" docs). Just under a second is a reader taking a breath
+ * between thoughts, not a dramatic silence; their docs warn that long or many
+ * breaks make the voice unstable.
+ */
+export const PARAGRAPH_BREAK = '<break time="0.9s" />';
+
+/**
+ * The text actually sent to the narrator: the stored script with a breath at
+ * every paragraph boundary. Applied at synthesis only - the stored script is
+ * what "Read along" shows, and a break tag on screen is a bug.
+ */
+export function withSpokenPauses(script: string): string {
+	return script
+		.split(/\n{2,}/)
+		.map((paragraph) => paragraph.trim())
+		.filter(Boolean)
+		.join(` ${PARAGRAPH_BREAK} `);
+}
+
+/**
+ * The first name to greet someone by, from the display name Clerk gave us.
+ * Null when there is nothing usable, so the script greets without a name
+ * rather than saying "hey null" or reading out an email address.
+ */
+export function firstNameOf(name: string | null | undefined): string | null {
+	if (!name) return null;
+	const first = name.trim().split(/\s+/)[0] ?? "";
+	if (!first || first.includes("@") || first.length > 30) return null;
+	return first;
+}
+
+export type PartOfDay = "morning" | "afternoon" | "evening" | "night";
+
+/**
+ * Where the listener is in their day, so the greeting can say "good morning"
+ * only when it is. The devotional is written at their notify hour, so this is
+ * the hour it will most likely be heard. Null when the timezone is unknown or
+ * invalid; the greeting then stays time-neutral.
+ */
+export function partOfDayIn(timezone: string | null | undefined, now: Date = new Date()): PartOfDay | null {
+	if (!timezone) return null;
+	let hour: number;
+	try {
+		const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hour12: false }).formatToParts(now);
+		const part = parts.find((item) => item.type === "hour");
+		if (!part) return null;
+		// hour12: false can render midnight as "24" in some ICU versions.
+		hour = Number(part.value) % 24;
+	} catch {
+		return null;
+	}
+	if (Number.isNaN(hour)) return null;
+	if (hour < 5) return "night";
+	if (hour < 12) return "morning";
+	if (hour < 17) return "afternoon";
+	if (hour < 21) return "evening";
+	return "night";
+}
+
+/**
+ * How a past devotional opened - its first two sentences - so the writer can
+ * be told what not to say again. A daily voice that greets the same way every
+ * day stops sounding like a person by the third day.
+ */
+export function openingOf(script: string, maxChars = 220): string {
+	const firstParagraph = script.trim().split(/\n{2,}/)[0] ?? "";
+	const sentences = firstParagraph.match(/[^.!?]+[.!?]+["'”’]?/g);
+	const opening = sentences ? sentences.slice(0, 2).join("").trim() : firstParagraph;
+	return opening.length > maxChars ? `${opening.slice(0, maxChars).trimEnd()}...` : opening;
+}
+
+/**
  * Cut to `limit` characters at the last paragraph break, else the last sentence
  * end, so a trimmed script never ends mid-word.
  */

@@ -345,11 +345,25 @@ the verses three either side of the day's verse, and up to five ranked
 cross-references (`src/lib/bible/crossRefs.ts`) - all with exact KJV wording
 read from the bundled corpus, never from the model.
 
-The script greets them, reads the verse in full, says why it was set before
-them today, opens the passage up, walks the study path, prays, and ends on the
-carry-through question. Length is the model's call between **250 and 900
-words**, chosen by how much *real* context exists - the same honesty rule as
-`whyToday`: a thin day gets a short devotional rather than a padded one.
+The script is written to be *heard*, not read (rewritten 2026-09-11 after the
+first version came out as an essay: "Hello." for an opening, no contractions,
+every sentence the same length, and "this verse was set before you"). It opens
+like a friend - by first name, matched to the part of their day - then gives
+the reference before the verse, reads it in full, says in the first person why
+it was chosen, opens the passage up, walks the study path, prays for them by
+name, and ends on the carry-through question. The model is told to use
+contractions, vary sentence length, and never announce a section. Length is
+the model's call between **250 and 900 words**, chosen by how much *real*
+context exists - the same honesty rule as `whyToday`: a thin day gets a short
+devotional rather than a padded one.
+
+Three inputs feed that opening (`loadListener` in `src/lib/daily-cross-audio.ts`):
+the first name from `User.name`, fetched from Clerk and stored the first time
+it is empty (the sign-in profile sync never ran for most accounts, so the
+column was blank for nearly everyone); the part of day in the timezone of
+their newest push token, since the day is written at their notify hour; and
+the first two sentences of their last four devotionals, which the model is
+told not to reuse, so the greeting is not the same every morning.
 
 Because it is spoken, the model is told to write numerals and references the
 way they are *said* ("First Corinthians thirteen, verse four"), and
@@ -357,6 +371,10 @@ way they are *said* ("First Corinthians thirteen, verse four"), and
 anything a narrator would otherwise read out loud - markdown headings,
 emphasis, bullets, block quotes and stage directions like `[pause]` - then
 trims at a paragraph boundary under ElevenLabs' 10,000-character request cap.
+At synthesis only, `withSpokenPauses()` turns every paragraph break into a
+`<break time="0.9s" />` tag, because a blank line is not a reliable pause in
+`eleven_multilingual_v2` and a break tag is; the stored script, which "Read
+along" shows, never carries the tag.
 
 ### Narration and storage
 

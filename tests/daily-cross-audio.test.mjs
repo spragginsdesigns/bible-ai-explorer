@@ -12,6 +12,11 @@ import {
 	isSpeechConfigured,
 	resolveStoredAudio,
 	sanitizeDevotionalScript,
+	firstNameOf,
+	openingOf,
+	partOfDayIn,
+	withSpokenPauses,
+	PARAGRAPH_BREAK,
 	sanitizeDevotionalTitle,
 } from "../src/lib/daily-cross-audio-script.ts";
 import {
@@ -307,4 +312,44 @@ test("clients are pointed at our own origin, not the blob host", () => {
 		DAILY_CROSS_AUDIO_STREAM_PATH.startsWith("/"),
 		"the path is relative so web plays it same-origin and Android joins it onto API_URL"
 	);
+});
+
+test("the narrator gets a breath at every paragraph, the transcript gets none", () => {
+	const stored = "Hey Austin, good morning.\n\nRomans chapter twelve.\n\n\nAmen.";
+	assert.equal(
+		withSpokenPauses(stored),
+		`Hey Austin, good morning. ${PARAGRAPH_BREAK} Romans chapter twelve. ${PARAGRAPH_BREAK} Amen.`
+	);
+	assert.doesNotMatch(stored, /<break/);
+	assert.equal(withSpokenPauses("One paragraph only."), "One paragraph only.");
+});
+
+test("a first name comes from the profile, never an email or nothing", () => {
+	assert.equal(firstNameOf("Austin Spraggins"), "Austin");
+	assert.equal(firstNameOf("  Austin "), "Austin");
+	assert.equal(firstNameOf("austin@example.com"), null);
+	assert.equal(firstNameOf(""), null);
+	assert.equal(firstNameOf(null), null);
+	assert.equal(firstNameOf(undefined), null);
+});
+
+test("part of day follows the listener's own clock, and unknown stays unknown", () => {
+	const noonUtc = new Date("2026-09-11T12:00:00Z");
+	assert.equal(partOfDayIn("America/Los_Angeles", noonUtc), "morning"); // 05:00 PDT
+	assert.equal(partOfDayIn("Europe/London", noonUtc), "afternoon"); // 13:00 BST
+	assert.equal(partOfDayIn("Asia/Bangkok", noonUtc), "evening"); // 19:00 ICT
+	assert.equal(partOfDayIn("Asia/Tokyo", noonUtc), "night"); // 21:00 JST
+	assert.equal(partOfDayIn("Pacific/Auckland", noonUtc), "night"); // 00:00 NZST
+	assert.equal(partOfDayIn("Not/AZone", noonUtc), null);
+	assert.equal(partOfDayIn(null, noonUtc), null);
+});
+
+test("a past opening is its first two sentences, cut if it runs on", () => {
+	assert.equal(
+		openingOf("Hello. Let this clear word steady your heart today. Romans twelve, verse two.\n\nNext paragraph."),
+		"Hello. Let this clear word steady your heart today."
+	);
+	assert.equal(openingOf("No punctuation at all"), "No punctuation at all");
+	const long = openingOf(`${"word ".repeat(80)}.`, 40);
+	assert.ok(long.length <= 43 && long.endsWith("..."));
 });

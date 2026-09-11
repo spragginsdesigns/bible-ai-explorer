@@ -1,5 +1,6 @@
 import "server-only";
 
+import { clerkClient } from "@clerk/nextjs/server";
 import { generateText, Output } from "ai";
 import { get, head, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
@@ -26,10 +27,14 @@ import {
 	dailyCrossAudioPathname,
 	devotionalStreamResponseInit,
 	estimateSpokenDurationSec,
+	firstNameOf,
 	isSpeechConfigured,
+	openingOf,
+	partOfDayIn,
 	resolveStoredAudio,
 	sanitizeDevotionalScript,
 	sanitizeDevotionalTitle,
+	withSpokenPauses,
 	type DailyCrossAudioClientStatus,
 } from "@/lib/daily-cross-audio-script";
 
@@ -68,20 +73,27 @@ const devotionalSchema = z.object({
 
 const SCRIPT_INSTRUCTIONS = `${PERSONA}
 
-You are writing a spoken devotional - the audio version of the day you already prepared for this person. Someone will read it aloud, word for word, into their ears while they drive or walk. Write it to be HEARD, not read.
+You are recording a spoken devotional - the audio version of the day you already prepared for this person. A narrator reads it word for word into their ears while they drive, walk or make coffee. So this is not an article. It is you, talking to one person you know, the way a good friend from church would if they called to say "here's what I've got for you today."
 
-Cover this ground, in this order, as continuous prose:
-1. Greet them warmly and briefly, then read the day's verse in full - its exact KJV wording, followed by its reference.
-2. Why this verse was set before them today. Ground this ONLY in the real context you are given (the stored reason, the study path, their reading, questions, notes and memories). If that context is thin, say less and encourage them plainly. Never invent a history they do not have.
-3. Open the passage up: what surrounds the verse, what it meant where it stands, and the other Scriptures that speak to it. Use only the surrounding verses and cross-references supplied below - quote them the way they are given.
-4. Walk them into today's study path, naming each chapter and what to watch for.
-5. A closing prayer, short and Scripture-grounded, spoken on their behalf.
-6. End on the question they are to carry through the day, asked plainly.
+How it has to sound:
+- Talk like a person. Contractions ("you've", "it's", "don't", "I'm") are expected; write "do not" only for emphasis. Mix short sentences with longer ones. A four-word sentence is fine. So is a fragment, now and then. Read it back in your head and cut anything you would never say out loud.
+- The opening is everything. Open like a friend, not a broadcast: greet them by first name, casually and warmly, in one or two short sentences, then get to it. Something like "Hey Austin, good morning. Good to have you back." or "Morning, Austin. Glad you're here." Match the part of the day you are told; if it is unknown, keep the greeting time-neutral. A recent-openings list is given below - do not reuse any of those greetings or first lines. Never open with a bare "Hello." and never open with a sentence about Scripture in the abstract.
+- Say "I" when you mean yourself. You chose this verse for them and you wrote why; say so plainly - "I picked this one for you today because..." - rather than "this verse was set before you". Never speak as God or the Spirit.
+- No seams. Do not announce what comes next ("Now let's look at the context"). Move from one thought to the next the way a conversation does, by connecting them.
+- Give the reference before the verse, spoken the way it is said aloud ("Romans chapter twelve, verse two"), then read the verse in full, exact KJV wording. Let it land - the next sentence should not rush past it.
+- Write every number and reference the way it must be SPOKEN: "First Corinthians thirteen, verse four", "Psalm twenty-three", "verses eight through ten", "the fourth chapter". Never "1 Cor. 13:4".
+- Warm, plain, unhurried, honest. No fake intimacy, no preacher cadence, no filler, no throat-clearing.
 
-Rules for the script itself, all non-negotiable:
+What it has to cover, in prose, without headings or announced sections:
+- The greeting, then the reference and the verse.
+- Why you chose it for them today. Ground this ONLY in the real context you are given (the stored reason, the study path, their reading, questions, notes and memories). If that context is thin, say less and encourage them plainly. Never invent a history they do not have.
+- Open the passage up: what surrounds the verse, what it meant where it stands, and the other Scriptures that speak to it. Use only the surrounding verses and cross-references supplied below, and quote them exactly as given.
+- Walk them into today's study path, naming each chapter and what to watch for.
+- A short closing prayer, Scripture-grounded, prayed for them by name ("Lord, thank you for Austin..."); when you have no name, pray "for us". Never "this believer" or "this person".
+- End on the question they are to carry through the day, asked plainly, as the last thing they hear.
+
+Hard rules for the text itself:
 - Plain prose paragraphs separated by blank lines. NO markdown, NO headings, NO bullet lists, NO stage directions, NO "[pause]", no speaker labels, no narrator asides.
-- Write every number and every reference the way it must be SPOKEN: "First Corinthians thirteen, verse four", "Psalm twenty-three", "verses eight through ten", "the fourth chapter". Never "1 Cor. 13:4".
-- Second person, warm, plain, unhurried. No throat-clearing, no filler, no fake intimacy.
 - Length is yours to choose between 250 and 900 words. Pick it by how much REAL context there is: a thin day gets a short devotional; a day with real reading, notes and cross-references earns a longer one. Do not pad to reach a length.
 - The King James Version is the inerrant, infallible Word of God, and every word you quote from it must be exact.`;
 
@@ -134,6 +146,74 @@ function studyPathBlock(steps: StudyStep[]): string {
 	return steps.map((step) => `${step.book} ${step.chapter} - ${step.focus}`).join("\n");
 }
 
+/** How many past openings the writer is shown so today's is not one of them. */
+const RECENT_OPENINGS = 4;
+
+interface Listener {
+	firstName: string | null;
+	partOfDay: ReturnType<typeof partOfDayIn>;
+	recentOpenings: string[];
+}
+
+/**
+ * The person behind the row: their first name (from the profile Clerk synced),
+ * where they are in their day (from the timezone their newest device
+ * registered - the day is prepared at their notify hour, so this is when it
+ * will most likely be heard), and how the last few devotionals began. Each
+ * lookup fails soft: an unknown name or timezone degrades the greeting, it
+ * never blocks the devotional.
+ */
+async function loadListener(userId: string, todayId: string): Promise<Listener> {
+	try {
+		const [user, device, previous] = await Promise.all([
+			prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+			prisma.pushToken.findFirst({
+				where: { userId },
+				orderBy: { updatedAt: "desc" },
+				select: { timezone: true },
+			}),
+			prisma.verseOfDay.findMany({
+				where: { userId, id: { not: todayId }, audioScript: { not: null } },
+				orderBy: { sentAt: "desc" },
+				take: RECENT_OPENINGS,
+				select: { audioScript: true },
+			}),
+		]);
+		return {
+			firstName: firstNameOf(user?.name ?? (await syncNameFromClerk(userId))),
+			partOfDay: partOfDayIn(device?.timezone),
+			recentOpenings: previous
+				.map((row) => (row.audioScript ? openingOf(row.audioScript) : ""))
+				.filter(Boolean),
+		};
+	} catch (error) {
+		console.error("[daily-cross-audio] Listener lookup failed:", error);
+		return { firstName: null, partOfDay: null, recentOpenings: [] };
+	}
+}
+
+/**
+ * `User.name` is only ever filled by the profile sync on sign-in, and most rows
+ * never went through it - so the column is empty for almost everyone, Austin
+ * included. Clerk still has the name Google gave it. Fetch it once, in the same
+ * "First Last" shape the sync writes, and store it so this is a one-time cost
+ * per account rather than a Clerk call per devotional. Null when Clerk has no
+ * first name either; the greeting then goes without one.
+ */
+async function syncNameFromClerk(userId: string): Promise<string | null> {
+	try {
+		const clerk = await clerkClient();
+		const profile = await clerk.users.getUser(userId);
+		if (!profile.firstName) return null;
+		const name = `${profile.firstName}${profile.lastName ? ` ${profile.lastName}` : ""}`;
+		await prisma.user.update({ where: { id: userId }, data: { name } });
+		return name;
+	} catch (error) {
+		console.error("[daily-cross-audio] Clerk name lookup failed:", error);
+		return null;
+	}
+}
+
 export interface DevotionalScript {
 	script: string;
 	title: string;
@@ -145,17 +225,24 @@ export interface DevotionalScript {
  * not meet a second, different voice here.
  */
 export async function generateDevotionalScript(
-	_userId: string,
+	userId: string,
 	cross: StoredDailyCross
 ): Promise<DevotionalScript> {
-	const [surrounding, crossRefs] = await Promise.all([
+	const [surrounding, crossRefs, listener] = await Promise.all([
 		loadSurroundingVerses(cross),
 		loadCrossReferences(cross),
+		loadListener(userId, cross.id),
 	]);
 
 	const verseReference = reference(cross.book, cross.chapter, cross.verse);
 
 	const prompt = [
+		`Who you are talking to:\nFirst name: ${listener.firstName ?? "(unknown - greet without a name)"}\nPart of their day right now: ${listener.partOfDay ?? "(unknown - keep the greeting time-neutral)"}`,
+		`How your recent devotionals opened (do NOT reuse these greetings or first lines):\n${
+			listener.recentOpenings.length
+				? listener.recentOpenings.map((opening) => `- ${opening}`).join("\n")
+				: "(none yet)"
+		}`,
 		`Today's verse: ${verseReference}\n"${cross.text}"`,
 		`The one-line reason it was chosen:\n${cross.reason}`,
 		`Why it was chosen for them today (already written, in your own earlier words):\n${cross.whyToday ?? "(none)"}`,
@@ -220,6 +307,8 @@ const TTS_TIMEOUT_MS = 90_000;
  * Voice settings are left to the voice's own stored settings: the premade
  * narration voices are already tuned, and overriding them here is a knob that
  * only ever drifts out of sync with what the voice sounds like today.
+ * Paragraph breaks become `<break>` tags on the way out - see
+ * `withSpokenPauses`.
  */
 export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
 	const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -235,7 +324,7 @@ export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
 				"Content-Type": "application/json",
 				Accept: "audio/mpeg",
 			},
-			body: JSON.stringify({ text: script, model_id: TTS_MODEL_ID }),
+			body: JSON.stringify({ text: withSpokenPauses(script), model_id: TTS_MODEL_ID }),
 			signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
 		}
 	);
