@@ -3,6 +3,7 @@ import { clearHighlightsCache } from "@/features/bible/highlightsStore";
 import { clearNotesCache } from "@/features/notes/notesStore";
 import { clearPlanStore } from "@/features/plan/planStore";
 import { cacheDiscardFor, type CacheDiscard } from "./preferences";
+import { clearSettingsData } from "./settingsData";
 import { resetSyncedSettings } from "./settingsStore";
 
 /**
@@ -31,7 +32,9 @@ async function clearCaches(scope: Exclude<CacheDiscard, "none">): Promise<void> 
 	if (scope === "all") resetSyncedSettings();
 	// The plan store is memory-only, so clearing it is synchronous.
 	clearPlanStore();
-	await Promise.all([clearNotesCache(), clearHighlightsCache()]);
+	// The settings-data cache (provider keys, church, memory count) is account
+	// data like the notes, so it goes in both scopes.
+	await Promise.all([clearNotesCache(), clearHighlightsCache(), clearSettingsData()]);
 }
 
 /**

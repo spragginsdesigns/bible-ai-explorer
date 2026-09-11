@@ -73,7 +73,7 @@ tab selection). Same behavior, different plumbing.
 
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
-| Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | ✅ sidebar gear → sheet, ⌘, and App menu | ✅ toolbar gear on every tab root → push |  |
+| Settings screen + gear entry point | ✅ `⚙` in chat header → `/settings` (push-only) | ✅ gear in chat top bar → `/settings` | ✅ sidebar gear → sheet, ⌘, and App menu | ✅ toolbar gear on every tab root → push | Android 1.54.0: the AI Providers, My church and memory-count sections read a persisted per-account store (`mobile/src/features/settings/settingsData.ts`) that is prefetched at sign-in and revalidated in place on focus, so the screen paints at its final height on the first frame; before that the cards grew when their requests landed and a fast scroll to Check for updates landed on a provider button. Layout-stability work, not a capability: web/Apple unchanged |
 | Appearance: System / Dark / Light | ✅ persisted (AsyncStorage) | ✅ persisted (next-themes) | ✅ persisted (UserDefaults) | ✅ persisted (UserDefaults) |  |
 | Default Bible translation (KJV/NKJV) | ✅ shared with reader chips + chat attach fallback | ✅ same | ✅ same | ✅ same | Stored on the account (`User.translation`) and synced through `GET/PATCH /api/preferences`, so the choice follows the user between clients. AI answers quote the selected translation (sent as `translation` in the `/api/ask-question` body); note AI stays KJV |
 | Sign out | ✅ confirm dialog → `signOut()` | ✅ button → Clerk `signOut` | ✅ confirm dialog | ✅ confirm dialog |  |

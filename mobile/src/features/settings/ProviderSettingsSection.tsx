@@ -12,12 +12,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { GlassCard } from "@/components/ui";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
-import {
-	fetchProviders,
-	removeProviderKey,
-	saveProviderKey,
-	type ProvidersResponse,
-} from "./aiApi";
+import { PROVIDER_LABELS, removeProviderKey, saveProviderKey } from "./aiApi";
+import { refreshProviders, useSettingsData } from "./settingsData";
 import type { GetToken } from "@/lib/api";
 
 /**
@@ -25,25 +21,32 @@ import type { GetToken } from "@/lib/api";
  * or remove per-provider API keys. A saved key unlocks that provider's models
  * in the chat model picker. Keys are validated server-side before storage and
  * only ever shown as their last four characters afterwards.
+ *
+ * The provider list comes from the shared settings-data store (prefetched at
+ * sign-in, persisted between launches), so the card is its full height from
+ * the first frame. It used to be an 80pt spinner that grew by several hundred
+ * points when the request landed, which pushed "Check for updates" out from
+ * under a fast scroll and onto these Add key / Remove buttons.
  */
 export function ProviderSettingsSection({ getToken }: { getToken: GetToken }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
-	const [data, setData] = useState<ProvidersResponse | null>(null);
-	const [loadFailed, setLoadFailed] = useState(false);
+	const slice = useSettingsData().providers;
+	const data = slice.data;
 	const [editing, setEditing] = useState<string | null>(null);
 	const [keyInput, setKeyInput] = useState("");
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const load = useCallback(async () => {
-		setLoadFailed(false);
-		try {
-			setData(await fetchProviders(getToken));
-		} catch {
-			setLoadFailed(true);
-		}
-	}, [getToken]);
+	// Revalidates in place and joins a prefetch already in flight. A failure
+	// only surfaces when there is nothing cached to show instead.
+	const load = useCallback(
+		() =>
+			refreshProviders(getToken).catch(() => {
+				// Reported through the store's `failed` flag.
+			}),
+		[getToken]
+	);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -85,23 +88,50 @@ export function ProviderSettingsSection({ getToken }: { getToken: GetToken }) {
 		})();
 	};
 
-	if (loadFailed) {
+	if (!data && slice.failed) {
 		return (
 			<GlassCard style={styles.card}>
 				<View style={styles.retryRow}>
 					<Text style={styles.hint}>Couldn&apos;t load provider settings.</Text>
-					<Pressable accessibilityRole="button" onPress={() => void load()} hitSlop={8}>
-						<Text style={styles.retry}>Retry</Text>
-					</Pressable>
+					{slice.loading ? (
+						<ActivityIndicator size="small" color={colors.accent} />
+					) : (
+						<Pressable accessibilityRole="button" onPress={() => void load()} hitSlop={8}>
+							<Text style={styles.retry}>Retry</Text>
+						</Pressable>
+					)}
 				</View>
 			</GlassCard>
 		);
 	}
 
 	if (!data) {
+		// Cold cache (first open after install): one placeholder row per known
+		// provider at the real row height, so the card does not grow when the
+		// list lands. Nothing here is tappable.
 		return (
-			<GlassCard style={[styles.card, styles.loadingCard]}>
-				<ActivityIndicator color={colors.accent} />
+			<GlassCard style={styles.card}>
+				<Text style={styles.hint}>
+					Bring your own API keys to unlock each provider&apos;s models in the chat
+					model picker. Keys are validated, stored encrypted, and used only for
+					your own conversations.
+				</Text>
+				{Object.entries(PROVIDER_LABELS).map(([id, label]) => (
+					<View key={id} style={styles.providerBox} accessibilityLabel={`Loading ${label}`}>
+						<View style={styles.providerRow}>
+							<View style={styles.providerIcon}>
+								<Ionicons name="key-outline" size={17} color={colors.accent} />
+							</View>
+							<View style={styles.providerCopy}>
+								<Text style={styles.providerName}>{label}</Text>
+								<Text style={styles.providerStatus}>Loading…</Text>
+							</View>
+							<View style={[styles.actionButton, styles.actionPlaceholder]}>
+								<ActivityIndicator size="small" color={colors.textFaint} />
+							</View>
+						</View>
+					</View>
+				))}
 			</GlassCard>
 		);
 	}
@@ -228,7 +258,6 @@ export function ProviderSettingsSection({ getToken }: { getToken: GetToken }) {
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		card: { padding: spacing.lg, gap: spacing.md },
-		loadingCard: { minHeight: 80, alignItems: "center", justifyContent: "center" },
 		hint: { ...typography.support, color: c.textFaint },
 		serverNote: { ...typography.support, color: c.accent },
 		retryRow: {
@@ -284,6 +313,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 		},
 		actionLabel: { ...typography.support, color: c.textSecondary, fontWeight: "700" },
+		actionPlaceholder: { minWidth: 72, borderStyle: "dashed", opacity: 0.6 },
 		editBox: { gap: spacing.sm },
 		keyInput: {
 			minHeight: 44,

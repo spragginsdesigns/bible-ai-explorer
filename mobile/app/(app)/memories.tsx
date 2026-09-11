@@ -25,6 +25,7 @@ import {
 	type MemorySummary,
 } from "@/features/memories/api";
 import { groupMemoriesByCategory } from "@/features/memories/utils";
+import { noteMemoryCount } from "@/features/settings/settingsData";
 
 type SummaryState =
 	| { status: "idle" }
@@ -53,6 +54,12 @@ export default function MemoriesScreen() {
 	const [memories, setMemories] = useState<MemoryRecord[]>([]);
 	const [hasLoaded, setHasLoaded] = useState(false);
 	const [loadError, setLoadError] = useState<string | null>(null);
+
+	// Keeps the "N saved" line under Settings -> Manage memories exact after an
+	// add, delete or clear here, without a refetch on the way back.
+	useEffect(() => {
+		if (hasLoaded && !loadError) noteMemoryCount(memories.length);
+	}, [hasLoaded, loadError, memories]);
 
 	const [summaryState, setSummaryState] = useState<SummaryState>({ status: "idle" });
 	const [addText, setAddText] = useState("");

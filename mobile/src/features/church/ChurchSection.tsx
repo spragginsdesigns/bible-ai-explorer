@@ -49,16 +49,31 @@ export function ChurchSection({ getToken }: { getToken: GetToken }) {
 		<>
 			<Text style={styles.sectionLabel}>MY CHURCH</Text>
 			{church.load === "loading" ? (
-				<GlassCard style={[styles.card, styles.loadingCard]}>
-					<ActivityIndicator color={colors.accent} />
+				// Cold cache only: the profile is prefetched at sign-in and
+				// persisted, so this shape (a header row) is a height stand-in
+				// for the saved card rather than a bare spinner.
+				<GlassCard style={styles.card}>
+					<View style={styles.headerRow} accessibilityLabel="Loading your church">
+						<View style={[styles.photo, styles.photoFallback]}>
+							<ActivityIndicator size="small" color={colors.accent} />
+						</View>
+						<View style={styles.headerCopy}>
+							<Text style={styles.churchName}>Loading your church…</Text>
+							<Text style={styles.churchAddress}>{DESCRIPTION}</Text>
+						</View>
+					</View>
 				</GlassCard>
 			) : church.load === "failed" ? (
 				<GlassCard style={styles.card}>
 					<View style={styles.retryRow}>
 						<Text style={styles.hint}>Couldn&apos;t load your church.</Text>
-						<Pressable accessibilityRole="button" onPress={church.reload} hitSlop={8}>
-							<Text style={styles.retry}>Retry</Text>
-						</Pressable>
+						{church.reloading ? (
+							<ActivityIndicator size="small" color={colors.accent} />
+						) : (
+							<Pressable accessibilityRole="button" onPress={church.reload} hitSlop={8}>
+								<Text style={styles.retry}>Retry</Text>
+							</Pressable>
+						)}
 					</View>
 				</GlassCard>
 			) : church.picking ? (
@@ -371,7 +386,6 @@ const createStyles = (c: Colors) =>
 			marginLeft: spacing.xs,
 		},
 		card: { padding: spacing.lg, gap: spacing.md },
-		loadingCard: { minHeight: 80, alignItems: "center", justifyContent: "center" },
 		hint: { ...typography.support, color: c.textFaint },
 		retryRow: {
 			flexDirection: "row",

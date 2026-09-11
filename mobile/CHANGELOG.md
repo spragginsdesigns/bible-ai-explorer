@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.54.0 (versionCode 54) - 2026-09-11 - internal
+
+**What's new (Play):**
+
+- Settings no longer shifts under your thumb. The AI Providers, My church and Memory sections are ready the moment the screen opens, so a fast scroll down to Check for updates lands where you meant to tap instead of on an Add key or Remove button.
+- Settings stays ready between launches and refreshes quietly in the background.
+
+**Dev notes:** New `mobile/src/features/settings/settingsData.ts`: a persisted, per-account store for `/api/providers`, `/api/church` and the `/api/memories` count, prefetched right after `adoptCacheOwner` at sign-in and revalidated in place on every Settings focus (stale-while-revalidate, one in-flight request per section under a 35s ceiling because the Clerk token step before the timed fetch can hang for good after an offline launch, generation-guarded and cleared with the other user caches). `ProviderSettingsSection` and `useChurchSection` read it instead of fetching on mount; their cold-cache placeholders now match the loaded height (one row per known provider) instead of an 80pt spinner. The `ScrollView` also sets `maintainVisibleContentPosition` as a backstop. The Memories screen reports its count so "N saved" is exact on the way back. Church request functions moved to `mobile/src/features/church/api.ts` (re-exported from `churchStore.ts`).
+
 ## 1.53.0 (versionCode 53) - 2026-09-07 - internal
 
 **What's new (Play):**

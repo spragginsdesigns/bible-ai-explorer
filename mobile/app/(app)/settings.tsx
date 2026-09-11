@@ -33,6 +33,11 @@ import {
 	useNotificationSettings,
 } from "@/features/notifications/notificationSettings";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
+import {
+	noteMemoryEnabled as noteMemoryEnabledInData,
+	prefetchSettingsData,
+	useSettingsData,
+} from "@/features/settings/settingsData";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
@@ -108,38 +113,29 @@ export default function SettingsScreen() {
 	// switches paint their real position on the first frame instead of sitting
 	// disabled until their own request lands.
 	const preferences = usePreferencesToggles();
+	// Providers, church and the memory count: prefetched at sign-in and
+	// persisted, so every section below paints at its final height on the
+	// first frame and revalidates in place. This is what keeps "Check for
+	// updates" from sliding out from under a fast scroll.
+	const settingsData = useSettingsData();
 	const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null);
-	const [memoryCount, setMemoryCount] = useState<number | null>(null);
 	const [memoryTogglePending, setMemoryTogglePending] = useState(false);
-	const memoryValue = memoryEnabled ?? preferences.memoryEnabled;
+	const memoryValue =
+		memoryEnabled ?? preferences.memoryEnabled ?? settingsData.memories.data?.enabled ?? null;
+	const memoryCount = settingsData.memories.data?.count ?? null;
 	const [webSearchTogglePending, setWebSearchTogglePending] = useState(false);
 	const webSearchValue = preferences.webSearchEnabled;
 
-	// Re-fetched on focus so the saved count stays fresh after returning from
-	// the manage screen. A failure leaves the toggle disabled rather than
-	// breaking the rest of Settings.
+	// Revalidated on focus so the saved count stays fresh after returning from
+	// the manage screen. A failure leaves whatever was cached in place rather
+	// than breaking the rest of Settings.
 	useFocusEffect(
 		useCallback(() => {
-			let cancelled = false;
 			// Opening Settings is also the retry for a hydrate that failed at
 			// launch; without it the web-search switch would sit disabled for
 			// the rest of the session. Throttled inside the sync module.
 			void hydratePreferences();
-			void (async () => {
-				try {
-					const data = await memoriesApi.fetchMemories(getToken);
-					if (cancelled) return;
-					setMemoryEnabled(data.enabled);
-					setMemoryCount(data.memories.length);
-				} catch {
-					if (cancelled) return;
-					setMemoryEnabled(null);
-					setMemoryCount(null);
-				}
-			})();
-			return () => {
-				cancelled = true;
-			};
+			void prefetchSettingsData(getToken);
 		}, [getToken])
 	);
 
@@ -150,9 +146,10 @@ export default function SettingsScreen() {
 		void (async () => {
 			try {
 				await memoriesApi.setMemoryEnabled(getToken, enabled);
-				// Memory keeps its own endpoint; this only keeps the shared
-				// preferences snapshot from disagreeing with it.
+				// Memory keeps its own endpoint; these only keep the shared
+				// preferences and settings-data snapshots from disagreeing with it.
 				noteMemoryEnabled(enabled);
+				noteMemoryEnabledInData(enabled);
 			} catch (err) {
 				setMemoryEnabled(!enabled);
 				Alert.alert(
@@ -233,7 +230,14 @@ export default function SettingsScreen() {
 				<View style={styles.backButtonSpacer} />
 			</View>
 
-			<ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+			<ScrollView
+				contentContainerStyle={styles.content}
+				showsVerticalScrollIndicator={false}
+				// Belt and braces for the case the cache is cold: if a card above
+				// the viewport does change height, keep the first visible card
+				// where it is instead of pushing the rows under the thumb.
+				maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+			>
 				<SectionLabel label="APPEARANCE" />
 				<GlassCard style={styles.card}>
 					<View style={styles.chipRow}>

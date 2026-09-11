@@ -4,6 +4,7 @@ import { useAuth } from "@clerk/expo";
 import { ApiError, type GetToken } from "@/lib/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { adoptCacheOwner, clearUserCaches } from "./cacheOwner";
+import { prefetchSettingsData } from "./settingsData";
 import {
 	overridesToPush,
 	parsePreferencesDocument,
@@ -251,6 +252,10 @@ export function usePreferencesSync(): void {
 			// before the new account's document lands on top of it.
 			const discard = await adoptCacheOwner(userId);
 			if (cancelled) return;
+			// Warm the Settings sections (providers, church, memory count) now,
+			// after the caches are claimed, so the screen paints at its real
+			// height whenever it is first opened. Never rejects.
+			void prefetchSettingsData(getToken);
 			// "private" means no owner was recorded, so this is an upgrade and
 			// the settings still on this phone predate the account columns.
 			if (discard === "private") await seedThenHydrate();

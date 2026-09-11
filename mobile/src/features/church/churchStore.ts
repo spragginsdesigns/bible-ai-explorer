@@ -1,61 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
-import { ApiError, apiJson, type GetToken } from "@/lib/api";
+import { ApiError, type GetToken } from "@/lib/api";
 import {
 	CHURCH_SEARCH_DEBOUNCE_MS,
 	isLatestRequest,
 	shouldSearch,
 	type ChurchProfile,
-	type ChurchResponse,
-	type ChurchSearchResponse,
 	type ChurchSearchResult,
 } from "./church";
+import { removeChurch, saveChurch, searchChurches } from "./api";
+import { noteChurch, refreshChurch, useSettingsData } from "@/features/settings/settingsData";
 
 /**
- * Network calls and screen state for Settings -> MY CHURCH.
+ * Screen state for Settings -> MY CHURCH.
  *
- * Pure helpers and the response shapes live in `church.ts`; this module owns
- * everything that talks to the API or holds React state, so `ChurchSection`
- * stays presentational.
+ * Pure helpers and the response shapes live in `church.ts`, the requests in
+ * `api.ts`, and the saved profile itself in the shared settings-data store
+ * (prefetched at sign-in and persisted, so the card paints at its real height
+ * on the first frame). This module owns only what the picker needs while it
+ * is open, so `ChurchSection` stays presentational.
  */
-
-/**
- * Saving is slow on purpose: the server resolves the place, fetches the
- * church's own website and has the model extract the mission statement, which
- * has been measured at up to ~20s. The default 30s API timeout leaves almost
- * no headroom on a slow connection.
- */
-const SAVE_TIMEOUT_MS = 60_000;
-
-export function fetchChurch(getToken: GetToken) {
-	return apiJson<ChurchResponse>(getToken, "/api/church");
-}
-
-export function searchChurches(getToken: GetToken, query: string) {
-	return apiJson<ChurchSearchResponse>(
-		getToken,
-		`/api/church/search?q=${encodeURIComponent(query)}`
-	);
-}
-
-export function saveChurch(getToken: GetToken, placeId: string) {
-	return apiJson<{ status: "ok"; church: ChurchProfile }>(
-		getToken,
-		"/api/church",
-		{ method: "PUT", body: { placeId } },
-		{ timeoutMs: SAVE_TIMEOUT_MS }
-	);
-}
-
-export function removeChurch(getToken: GetToken) {
-	return apiJson<{ status: "ok"; church: null }>(getToken, "/api/church", { method: "DELETE" });
-}
 
 /** How the section as a whole should render. */
 export type ChurchLoadState = "loading" | "unavailable" | "failed" | "ready";
 
 export interface ChurchSectionState {
 	load: ChurchLoadState;
+	/** A profile refresh is in flight; the failed card shows it beside Retry. */
+	reloading: boolean;
 	church: ChurchProfile | null;
 	/** True while the picker is open: no church saved, or "Change church" tapped. */
 	picking: boolean;
@@ -85,15 +57,28 @@ function serverMessage(error: unknown, fallback: string): string {
 }
 
 export function useChurchSection(getToken: GetToken): ChurchSectionState & ChurchSectionActions {
-	const [load, setLoad] = useState<ChurchLoadState>("loading");
-	const [church, setChurch] = useState<ChurchProfile | null>(null);
-	const [picking, setPicking] = useState(false);
+	const slice = useSettingsData().church;
+	// "Change church" tapped while a church is saved. With no church saved the
+	// picker shows on its own, so this never has to be seeded from the data.
+	const [changing, setChanging] = useState(false);
 	const [query, setQueryState] = useState("");
 	const [results, setResults] = useState<ChurchSearchResult[]>([]);
 	const [searchPending, setSearchPending] = useState(false);
 	const [searchError, setSearchError] = useState<string | null>(null);
 	const [savingPlaceId, setSavingPlaceId] = useState<string | null>(null);
 	const [removing, setRemoving] = useState(false);
+
+	const response = slice.data;
+	const load: ChurchLoadState =
+		response === null
+			? slice.failed
+				? "failed"
+				: "loading"
+			: response.status === "unavailable"
+				? "unavailable"
+				: "ready";
+	const church = response?.status === "ok" ? response.church : null;
+	const picking = load === "ready" && (church === null || changing);
 
 	// Monotonic id of the newest search; older responses are dropped.
 	const searchRequestId = useRef(0);
@@ -105,24 +90,13 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 		};
 	}, []);
 
+	// Revalidates in place: a card already on screen keeps its content while
+	// the fresh profile lands, and a failure only surfaces when there is
+	// nothing to show instead. Joins the prefetch if one is still in flight.
 	const reload = useCallback(() => {
-		setLoad("loading");
-		void (async () => {
-			try {
-				const data = await fetchChurch(getToken);
-				if (!mounted.current) return;
-				if (data.status === "unavailable") {
-					setLoad("unavailable");
-					return;
-				}
-				setChurch(data.church);
-				setPicking(data.church === null);
-				setLoad("ready");
-			} catch {
-				if (!mounted.current) return;
-				setLoad("failed");
-			}
-		})();
+		refreshChurch(getToken).catch(() => {
+			// Reported through the store's `failed` flag.
+		});
 	}, [getToken]);
 
 	useEffect(() => {
@@ -150,7 +124,7 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 					const data = await searchChurches(getToken, trimmed);
 					if (!mounted.current || !isLatestRequest(requestId, searchRequestId.current)) return;
 					if (data.status === "unavailable") {
-						setLoad("unavailable");
+						noteChurch({ status: "unavailable" });
 						return;
 					}
 					setResults(data.results);
@@ -187,9 +161,9 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 			void (async () => {
 				try {
 					const data = await saveChurch(getToken, placeId);
+					noteChurch({ status: "ok", church: data.church });
 					if (!mounted.current) return;
-					setChurch(data.church);
-					setPicking(false);
+					setChanging(false);
 					setQueryState("");
 					setResults([]);
 					setSearchError(null);
@@ -210,7 +184,7 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 	);
 
 	const startChange = useCallback(() => {
-		setPicking(true);
+		setChanging(true);
 		setQueryState("");
 		setResults([]);
 		setSearchError(null);
@@ -218,7 +192,7 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 
 	/** Only offered while a church is saved, so cancelling returns to its card. */
 	const cancelChange = useCallback(() => {
-		setPicking(false);
+		setChanging(false);
 		setQueryState("");
 		setResults([]);
 		setSearchError(null);
@@ -230,9 +204,9 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 		void (async () => {
 			try {
 				await removeChurch(getToken);
+				noteChurch({ status: "ok", church: null });
 				if (!mounted.current) return;
-				setChurch(null);
-				setPicking(true);
+				setChanging(false);
 				setQueryState("");
 				setResults([]);
 			} catch (error) {
@@ -249,6 +223,7 @@ export function useChurchSection(getToken: GetToken): ChurchSectionState & Churc
 
 	return {
 		load,
+		reloading: slice.loading,
 		church,
 		picking,
 		query,
