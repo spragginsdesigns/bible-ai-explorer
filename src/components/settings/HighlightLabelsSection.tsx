@@ -45,6 +45,16 @@ export function useHighlightLabels(): HighlightLabels {
 	const [labels, setLabels] = useState<HighlightLabels>({});
 	useEffect(() => {
 		setLabels(readHighlightLabels());
+		// The cache is this device's; the account is the record. Without this a
+		// rename made on the phone shows hue names here until Settings is opened.
+		fetch("/api/preferences", { credentials: "same-origin" })
+			.then((res) => (res.ok ? res.json() : null))
+			.then((doc: { highlightLabels?: HighlightLabels } | null) => {
+				if (!doc?.highlightLabels) return;
+				writeHighlightLabels(doc.highlightLabels);
+				setLabels(doc.highlightLabels);
+			})
+			.catch(() => {});
 		return subscribePreferences(() => setLabels(readHighlightLabels()));
 	}, []);
 	return labels;

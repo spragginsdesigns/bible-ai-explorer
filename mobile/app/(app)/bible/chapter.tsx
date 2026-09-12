@@ -353,7 +353,7 @@ export default function BibleChapterScreen() {
 	const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
 	// B6: the user's names for the highlight colours, re-read when a verse is
 	// tapped so a Settings rename shows the next time the sheet opens.
-	const highlightLabels = useHighlightLabels(actionVerse?.number);
+	const highlightLabels = useHighlightLabels(actionVerse?.number, getToken);
 
 	const closeSheet = useCallback(() => {
 		setActionVerse(null);

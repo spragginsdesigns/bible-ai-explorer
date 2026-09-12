@@ -75,17 +75,26 @@ export async function saveHighlightLabels(
 	});
 }
 
-/** Reactive-enough read: loads once on mount, reloads when `reloadKey` changes. */
-export function useHighlightLabels(reloadKey?: unknown): HighlightLabels {
+/**
+ * Reactive-enough read: the local cache paints first, then the account
+ * document refreshes it. Without the second half a rename made on another
+ * device shows hue names here until Settings is opened.
+ */
+export function useHighlightLabels(reloadKey?: unknown, getToken?: GetToken): HighlightLabels {
 	const [labels, setLabels] = useState<HighlightLabels>({});
 	useEffect(() => {
 		let cancelled = false;
 		void readHighlightLabels().then((stored) => {
 			if (!cancelled) setLabels(stored);
 		});
+		if (getToken) {
+			void hydrateHighlightLabels(getToken).then((synced) => {
+				if (!cancelled) setLabels(synced);
+			});
+		}
 		return () => {
 			cancelled = true;
 		};
-	}, [reloadKey]);
+	}, [reloadKey, getToken]);
 	return labels;
 }
