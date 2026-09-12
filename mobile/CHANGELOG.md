@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.55.1 (versionCode 56) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- SureWord knows your day: it greets you by name and sees today's cross, your week's reading and the verses you marked.
+- Short follow-ups get short answers.
+- Add to notes writes a real study note in your voice, not the chat reply.
+- Chats name themselves; history gains search, rename and a safer delete.
+- Tap a verse for related passages, name your highlight colours, continue where you left off, start notes from a template, and search either translation.
+
+**Dev notes:** Supersedes versionCode 55, which was uploaded from a lane branch before the four client merges landed. This build is main at e982475: deferred notification permission (proven on the emulator - nothing at launch, the dialog appears on the first Pick Up Your Cross visit), conversation history search/rename/confirmed swipe-delete, the See also cross-reference row, highlight colour names that follow the account, continue reading on the Bible home, note templates, translation-aware reader search, and the receipts parser (cards render in a later build). Learn a verse is held back: the API shipped, the screens land once a verse can be added to the queue.
+
 ## 1.55.0 (versionCode 55) - 2026-09-12 - internal
 
 **What's new (Play):**
