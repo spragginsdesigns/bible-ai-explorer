@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import * as api from "./api";
+import type { NoteTemplateSeed } from "./components/CreateItemSheet";
 import {
 	addFolderToCache,
 	addTagToCache,
@@ -134,12 +135,26 @@ export function useNotesLibrary() {
 		});
 	}, [notes, searchQuery, activeFolderId, activeTagId, sortBy]);
 
-	const createNote = useCallback(async (): Promise<Note> => {
+	const createNote = useCallback(async (seed?: NoteTemplateSeed | null): Promise<Note> => {
 		const created = toNote(
-			await api.createNote(getToken, { title: "Untitled Note", folderId: activeFolderId })
+			await api.createNote(getToken, { title: seed?.title ?? "Untitled Note", folderId: activeFolderId })
 		);
-		upsertNoteInCache({ ...created, hasBody: true });
-		return created;
+		if (!seed) {
+			upsertNoteInCache({ ...created, hasBody: true });
+			return created;
+		}
+		// The create route only takes title/folderId, so the template body lands
+		// in a follow-up patch before the editor opens.
+		const patched = toNote(
+			await api.patchNote(getToken, created.id, {
+				content: seed.html,
+				htmlContent: seed.html,
+				plainText: seed.plainText,
+				wordCount: seed.wordCount,
+			})
+		);
+		upsertNoteInCache({ ...patched, hasBody: true });
+		return patched;
 	}, [getToken, activeFolderId]);
 
 	const deleteNote = useCallback(
