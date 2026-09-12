@@ -1,3 +1,5 @@
+import { readingTimezone } from "@/lib/reading-time";
+import { readingRequestContext } from "@/lib/reading-tools";
 import {
 	convertToModelMessages,
 	createIdGenerator,
@@ -132,6 +134,7 @@ async function persistExchange(options: {
 }
 
 export async function POST(req: Request): Promise<Response> {
+	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
 
@@ -169,11 +172,13 @@ export async function POST(req: Request): Promise<Response> {
 			where: { id: userId },
 			select: { webSearchEnabled: true },
 		});
-		const tools = buildSureWordTools({
+		const readingContext = {
+			...readingRequestContext(requestData, readingReceivedAt),
 			userId,
 			defaultNoteId: note.id,
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
-		});
+		};
+		const tools = buildSureWordTools(readingContext);
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -189,6 +194,21 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
+
+		// Persist the user turn before tools run. The original server receipt
+		// timestamp anchors relative reading dates on retries across midnight.
+		const existingUserMessage = await prisma.noteAIMessage.findUnique({ where: { id: lastMessage.id }, select: { noteId: true, role: true, metadata: true } });
+		if (existingUserMessage && (existingUserMessage.noteId !== note.id || existingUserMessage.role !== "user")) {
+			throw new UserFacingError("Message ID is already in use.");
+		}
+		const savedUserMessage = await prisma.noteAIMessage.upsert({
+			where: { id: lastMessage.id }, update: {},
+			create: { id: lastMessage.id, noteId: note.id, role: "user", content: extractText(lastMessage), createdAt: readingReceivedAt, metadata: { readingTimezone: readingContext.timezone } },
+			select: { createdAt: true, metadata: true },
+		});
+		const originalReadingMetadata = savedUserMessage.metadata && typeof savedUserMessage.metadata === "object" && !Array.isArray(savedUserMessage.metadata) ? savedUserMessage.metadata : {};
+		readingContext.timezone = readingTimezone("readingTimezone" in originalReadingMetadata ? originalReadingMetadata.readingTimezone : readingContext.timezone);
+		readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
 
 		const responseMessageId = generateMessageId();
 		const stream = createUIMessageStream<SureWordUIMessage>({

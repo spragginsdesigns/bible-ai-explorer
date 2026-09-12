@@ -116,7 +116,7 @@ struct AskQuestionRequest: Encodable {
     var mode: String?
 
     private enum CodingKeys: String, CodingKey {
-        case messages, conversationId, translation, modelId, effort, speed, verbosity, mode
+        case messages, conversationId, translation, modelId, effort, speed, verbosity, mode, timezone
     }
 
     /// Written out rather than synthesized for exactly one reason: `effort`
@@ -126,6 +126,7 @@ struct AskQuestionRequest: Encodable {
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(messages, forKey: .messages)
+        try container.encode(TimeZone.current.identifier, forKey: .timezone)
         try container.encodeIfPresent(conversationId, forKey: .conversationId)
         try container.encode(translation, forKey: .translation)
         try container.encodeIfPresent(modelId, forKey: .modelId)

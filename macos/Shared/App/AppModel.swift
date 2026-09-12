@@ -62,7 +62,9 @@ final class AppModel {
     let preferences: PreferencesSyncModel
 
     var section: AppSection = .chat
-    var isSettingsPresented = false
+    var isSettingsPresented = false {
+        didSet { bible.reading.setObscured(isSettingsPresented, reason: "settings") }
+    }
     /// Set when a verse card asks to open the reader; consumed by the Bible
     /// phase once that pane exists.
     var pendingVerseReference: String?
@@ -89,7 +91,14 @@ final class AppModel {
         )
         chat = ChatViewModel(api: api, settings: settings)
         highlights = HighlightsStore(api: api, cacheURL: HighlightsStore.defaultCacheURL)
-        bible = BibleModel(api: api)
+        let readingAPI = APIClient(
+            token: { fresh in
+                guard let userID else { return nil }
+                return try await ClerkAuth.token(for: userID, fresh: fresh)
+            },
+            onAuthFailure: { }
+        )
+        bible = BibleModel(api: api, reading: ReadingJournal(account: userID, api: readingAPI))
         bible.highlights = highlights
         dailyCross = DailyCrossModel(api: api)
         suggestedQuestions = SuggestedQuestionsModel(api: api)
@@ -115,9 +124,11 @@ final class AppModel {
     deinit {
         let chat = chat
         let listen = dailyCross.listen
+        let reading = bible.reading
         Task { @MainActor in
             chat.teardown()
             listen.reset()
+            reading.teardown()
         }
     }
 }

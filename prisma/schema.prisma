@@ -57,6 +57,13 @@ model User {
   providerCredentials   ProviderCredential[]
   pushTokens            PushToken[]
   readingEvents         ReadingEvent[]
+  readingLogEntries     ReadingLogEntry[]
+  readingLogChapters    ReadingLogChapter[]
+  readingLogDays        ReadingLogDay[]
+  readingLogChapterDays ReadingLogChapterDay[]
+  readingLogSessions    ReadingLogSession[]
+  readingLogTotals      ReadingLogTotals?
+  readingLogStreaks     ReadingLogStreak[]
   highlights            VerseHighlight[]
   versesOfDay           VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
@@ -406,6 +413,7 @@ model ReadingEvent {
   readAt      DateTime @default(now())
 
   @@index([userId, readAt])
+  @@index([userId, id])
 }
 
 /// A user's colored highlight on a single verse. Book is the canonical
@@ -590,4 +598,114 @@ model LearnReviewReceipt {
 
   @@unique([userId, operationId])
   @@index([userId, cardId])
+}
+
+/// Durable chapter snapshots, grouped into reading sessions. Deleted entries
+/// retain their idempotency key so delayed offline retries cannot resurrect them.
+// Live timeline/passage/calendar partial indexes live in the SQL migration;
+// Prisma 6 cannot express WHERE deletedAt IS NULL indexes.
+model ReadingLogEntry {
+  userId        String
+  eventId       String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId     String
+  revision      Int       @default(1)
+  source        String
+  book          Int
+  chapter       Int
+  verseRanges   Json
+  translation   String    @default("KJV")
+  occurredAt    DateTime
+  reportedAt    DateTime  @default(now())
+  localDate     String    @db.VarChar(10)
+  timezone      String
+  precision     String
+  completed     Boolean
+  evidence      String
+  activeSeconds Int       @default(0)
+  deletedAt     DateTime?
+  correctedAt   DateTime?
+  updatedAt     DateTime  @updatedAt
+
+  @@id([userId, eventId])
+  @@unique([userId, sessionId, book, chapter])
+  @@index([userId, sessionId])
+  @@index([userId, localDate])
+}
+
+/// At most 1,189 rows per account. Verse counters make overlapping coverage
+/// and corrections exact without rereading years of events.
+model ReadingLogChapter {
+  userId            String
+  book              Int
+  chapter           Int
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries           Int       @default(0)
+  chapterReadings   Int       @default(0)
+  partialReadings   Int       @default(0)
+  verseCounts       Int[]
+  lastReadAt        DateTime?
+  lastCompletedAt   DateTime?
+  lastCompletedDate String?   @db.VarChar(10)
+
+  @@id([userId, book, chapter])
+}
+
+model ReadingLogDay {
+  userId          String
+  localDate       String @db.VarChar(10)
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries         Int    @default(0)
+  chapterReadings Int    @default(0)
+  partialReadings Int    @default(0)
+
+  @@id([userId, localDate])
+}
+
+model ReadingLogSession {
+  userId    String
+  sessionId String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   Int    @default(0)
+
+  @@id([userId, sessionId])
+}
+
+model ReadingLogTotals {
+  legacyBackfilled Boolean   @default(false)
+  legacyCursor     String?
+  userId           String    @id
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions         Int       @default(0)
+  chapterReadings  Int       @default(0)
+  partialReadings  Int       @default(0)
+  uniqueChapters   Int       @default(0)
+  activeDays       Int       @default(0)
+  lastReadAt       DateTime?
+}
+
+/// Daily passage counters answer annual coverage without scanning reread events.
+model ReadingLogChapterDay {
+  userId          String
+  localDate       String @db.VarChar(10)
+  book            Int
+  chapter         Int
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries         Int    @default(0)
+  chapterReadings Int    @default(0)
+  partialReadings Int    @default(0)
+  verseCounts     Int[]
+
+  @@id([userId, localDate, book, chapter])
+}
+
+/// Disjoint active calendar intervals. Long streaks cost one row to query.
+model ReadingLogStreak {
+  userId    String
+  startDate String @db.VarChar(10)
+  endDate   String @db.VarChar(10)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, startDate])
+  @@index([userId, endDate])
 }

@@ -115,6 +115,7 @@ final class RootModel {
 
 /// Chooses between the signed-out and signed-in shells, and owns theme resolution.
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(Clerk.self) private var clerk
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var systemScheme
@@ -135,6 +136,7 @@ struct RootView: View {
                 ProgressView().controlSize(.small)
             }
         }
+        .onChange(of: scenePhase) { _, phase in root.app?.bible.reading.setForeground(phase == .active) }
         .sureWordTheme(for: scheme)
         .preferredColorScheme(settings.appearance.colorScheme)
         .environment(\.clerkTheme, .sureWord(scheme: scheme))
@@ -142,6 +144,7 @@ struct RootView: View {
         // model is built on sign-in and torn down on sign-out — that teardown
         // is also what clears the previous user's conversations from memory.
         .onChange(of: clerk.user?.id, initial: true) { previousID, userID in
+            root.app?.bible.reading.teardown()
             guard let userID else {
                 root.app = nil
                 // Only a *real* sign-out clears the per-account caches.
@@ -155,6 +158,7 @@ struct RootView: View {
                 return
             }
             root.app = AppModel(settings: settings, userID: userID)
+            root.app?.bible.reading.setForeground(scenePhase == .active)
         }
     }
 }

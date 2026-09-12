@@ -14,6 +14,7 @@ struct BibleSection: View {
     private var model: BibleModel { app.bible }
     @State private var showingAtlas = false
     @State private var showingPlan = false
+    @State private var showingHistory = false
     @State private var atlasBook: Int?
     @State private var atlasChapter: Int?
 
@@ -44,6 +45,13 @@ struct BibleSection: View {
         }
         .background { MeshBackground() }
         .navigationTitle("Bible")
+        .toolbar { Button { showingHistory = true } label: { Label("Reading history", systemImage: "clock.arrow.circlepath") } }
+        .sheet(isPresented: $showingHistory) {
+            ReadingHistoryView(model: model.reading) { entry in
+                showBible(); model.open(order: entry.book, chapter: entry.chapter)
+            }
+        }
+        .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
                 Text(toast)

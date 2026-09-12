@@ -45,7 +45,7 @@ struct CrossAction: Sendable, Equatable, Identifiable {
 /// and `src/lib/chat/receipts.ts`. Both TS copies share one fixture; the
 /// receipt cases in `ChatViewMessageTests` mirror it, so change all three together.
 enum ChatReceiptKind: String, Sendable, Equatable {
-    case note, memory, highlight, plan, cross, preference, church
+    case note, memory, highlight, plan, cross, preference, church, reading
 }
 
 enum ChatReceiptSettingsSection: String, Sendable, Equatable {
@@ -58,6 +58,7 @@ enum ChatReceiptTarget: Sendable, Equatable {
     case memories(memoryID: String?)
     case chapter(book: Int, chapter: Int, verse: Int?, translation: TranslationID?)
     case plan
+    case readingHistory
     case cross
     case settings(section: ChatReceiptSettingsSection?)
 }
@@ -179,6 +180,11 @@ extension ChatViewMessage {
         "tool-getReadingPlan": "Opening your reading plan",
         "tool-startReadingPlan": "Setting up your reading plan",
         "tool-markReadingPlanDay": "Marking your reading",
+        "tool-logReading": "Saving your reading",
+        "tool-searchReadingHistory": "Checking your reading history",
+        "tool-getReadingStats": "Checking your reading progress",
+        "tool-correctReadingLog": "Correcting your reading log",
+        "tool-removeReadingLog": "Removing the reading entry",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
@@ -453,6 +459,22 @@ extension ChatViewMessage {
         case "setDailyCross":
             guard let reference = nonEmpty(output["reference"]) else { return nil }
             return ChatReceipt(id: id, kind: .cross, label: "Today's cross: \(reference)", target: .cross)
+
+        case "logReading":
+            guard output["success"]?.boolValue == true,
+                  let reference = nonEmpty(output["reference"]),
+                  let localDate = nonEmpty(output["localDate"]),
+                  let book = positiveInteger(output["book"]),
+                  let chapter = positiveInteger(output["chapter"])
+            else { return nil }
+            return ChatReceipt(id: id, kind: .reading, label: "Logged \(reference) · \(localDate)", target: .readingHistory)
+
+        case "correctReadingLog", "removeReadingLog":
+            guard output["success"]?.boolValue == true,
+                  nonEmpty(output["eventId"]) != nil,
+                  toolName != "removeReadingLog" || output["removed"]?.boolValue == true
+            else { return nil }
+            return ChatReceipt(id: id, kind: .reading, label: toolName == "correctReadingLog" ? "Reading log corrected" : "Reading entry removed", target: .readingHistory)
 
         case "startReadingPlan":
             guard output["hasPlan"]?.boolValue == true,

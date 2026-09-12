@@ -34,6 +34,8 @@ private struct ParchmentSheet: View {
 /// a long-press bottom sheet; a Mac gets both a click-to-open inline row and the
 /// same four items on the right-click menu.
 struct ChapterReaderPane: View {
+    @Environment(\.appearsActive) private var appearsActive
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
 
@@ -54,6 +56,7 @@ struct ChapterReaderPane: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ReadingSyncStatus(model: model.reading)
             topBar
 
             if model.loading {
@@ -71,16 +74,18 @@ struct ChapterReaderPane: View {
         .task(id: model.chapterKey(translation)) {
             await model.load(translation: translation)
         }
-        // Reading history for "Pick Up Your Cross": a chapter counts as read
-        // only once it has actually been on screen for a few seconds. Keyed on
-        // `loadedKey` rather than the selection so the clock starts when the
-        // text is really there, and paging away cancels the wait mid-sleep.
-        .task(id: model.loadedKey) {
-            guard model.loadedKey == model.chapterKey(translation) else { return }
-            try? await Task.sleep(for: BibleModel.readEventDelay)
-            guard !Task.isCancelled else { return }
-            model.recordRead(translation: translation)
+        .onAppear {
+            model.reading.setReaderVisible(true)
+            model.reading.setForeground(scenePhase == .active)
+            model.reading.setReaderFocused(appearsActive)
+            model.prepareReading(translation: translation)
         }
+        .onDisappear { model.reading.setReaderVisible(false) }
+        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
+        .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
+        .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
+        .onChange(of: appearsActive) { _, active in model.reading.setReaderFocused(active) }
+
     }
 
     // MARK: - Chrome
@@ -222,10 +227,14 @@ struct ChapterReaderPane: View {
                     ForEach(Array(model.verses.enumerated()), id: \.offset) { index, markup in
                         verseRow(number: index + 1, markup: markup)
                             .id(index + 1)
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation)
+                            }
                     }
 
                     footer
                 }
+                .id(model.loadedKey)
                 .padding(.horizontal, Spacing.xxl)
                 .frame(maxWidth: 760, alignment: .leading)
                 .frame(maxWidth: .infinity)

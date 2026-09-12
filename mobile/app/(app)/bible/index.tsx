@@ -3,15 +3,16 @@ import { AppState, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
+import { Ionicons } from "@expo/vector-icons";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
 import type { TranslationId } from "@/features/bible/translations";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
-import { apiJson, type GetToken } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -113,13 +114,9 @@ export default function BibleBooksScreen() {
 	// Read-only here: the card shows where the plan stands and hands the user
 	// on to the plan screen, which owns every action.
 	const { plan } = useReadingPlan();
-	const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+	const { isLoaded, isSignedIn, userId } = useAuth();
 
-	// The API layer's `{ fresh: true }` maps to Clerk's cache skip.
-	const getApiToken = useCallback<GetToken>(
-		(opts) => getToken(opts?.fresh ? { skipCache: true } : undefined),
-		[getToken]
-	);
+	const getApiToken = useStableGetToken();
 
 	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
 	// Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
@@ -207,6 +204,7 @@ export default function BibleBooksScreen() {
 		<Screen>
 			<View style={styles.header}>
 				<Text style={styles.heading}>Bible</Text>
+				<Pressable accessibilityRole="button" accessibilityLabel="Reading log" onPress={() => router.push("/bible/history")} hitSlop={8}><Ionicons name="time-outline" size={22} color={colors.accent} /></Pressable>
 				<Pressable
 					accessibilityRole="button"
 					onPress={openSearch}

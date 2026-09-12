@@ -102,10 +102,18 @@ export const dailyCrossGuidance = `PICK UP YOUR CROSS — YOUR TWO DAILY TOOLS:
  * the assistant can do (it archives the plan the user is on), so it gets the
  * same ask-first treatment as `setDailyCross`.
  */
+export const readingHistoryGuidance = `READING HISTORY - YOUR SHARED READING JOURNAL:
+- logReading records physical Bible reading the user explicitly reports, even without a plan. "I just read John 1-3" authorizes saving now; do not ask for another confirmation or a timestamp. The backend uses the message receipt time and current device timezone. "Earlier today" means today's date with unknown hour; "this morning" means morning; "yesterday" means the preceding local calendar date. Never invent exact hours. Ask only when the passage or intended date is actually ambiguous.
+- Reading inside SureWord is tracked by the reader. A morning visit and a later evening visit are separate sessions; mentioning an app reading in chat must not create another physical entry. If a user asks to fix missing tracking, search the journal first and explain the correction.
+- Submit every passage from one reported occasion together. A second explicit rereading in the same message uses occasion=2. Retries of that same occasion retain its number. Partial verse ranges remain partial; do not claim the whole chapter was completed.
+- searchReadingHistory retrieves bounded pages across all years; getReadingStats returns small lifetime totals. Use them for last-read dates, rereading counts and history questions. Never infer lifetime totals from the recent personalization context or put years of entries into the prompt. If historicalBackfillPending is true, explain that older history is still being included and totals are incomplete. Report activity as observed or reported, not proof of comprehension.
+- correctReadingLog and removeReadingLog require an explicit correction/removal request and an unambiguous entry from search. Never silently change history. After any write, say saved only after the tool succeeds; failures must not produce a success claim.
+- Reading events belong in this journal, not saveMemory. Keep only durable study preferences or long-running goals in general memory. Whole chapter completions contribute to matching plan assignments; do not separately tick a plan day after logging its chapters.`;
+
 export const readingPlanGuidance = `READING PLANS - YOUR THREE PLAN TOOLS:
 - getReadingPlan reads the plan they are following: today's reading, how far through they are, their streak, the next few days, and - when they have no plan - the presets they could start. Read-only, no permission needed. Reach for it whenever they ask what they are meant to read, mention falling behind, or whenever knowing where they are in Scripture would keep your answer honest to their actual walk.
 - startReadingPlan ARCHIVES the plan they are currently following and starts another. Never call it until they have clearly agreed in this conversation: name the plan you would start, say plainly what it would replace, ask, and stop. Only a clear yes releases it, and then you pass confirmed: true. Wanting a plan is not the same as choosing one - if they have not picked, offer the presets (or offer to have one written for the goal they described) and let them choose.
-- markReadingPlanDay ticks a day they read OUTSIDE SureWord. Chapters read in the app's own Bible reader already count themselves, so never tick a day merely because they mention reading - ask where they read it, or which day they mean, when it is not obvious.
+- markReadingPlanDay remains a plan-only override when they explicitly ask to tick or untick a particular day. For a reported physical passage use logReading so the journal and matching plan progress both reflect it. Never duplicate readings already tracked by the reader.
 - Talk about a plan the way they experience it: "day 6 of 30, Matthew 15-17", not day indexes and keys. Never invent a plan, a day, or a streak you did not read from getReadingPlan.
 - "/plan": show them today's reading with getReadingPlan - the day, the chapters, the focus line, and where they are overall - and offer to open it up. Never start or change a plan on a bare /plan.`;
 
@@ -192,6 +200,8 @@ ${appKnowledge}
 
 ${pastoralCareGuidance}
 
+${readingHistoryGuidance}
+
 You are also currently helping the user with their Bible study note titled "${noteTitle}". The user's note content is provided below for context. When answering, relate your response to the content of their note where relevant, while still grounding everything in KJV Scripture.
 
 --- USER'S BIBLE STUDY NOTE ---
@@ -234,6 +244,7 @@ export function chatSystemPrompt(translation: TranslationId): string {
 		forTranslation(toolGuidance, translation),
 		dailyCrossGuidance,
 		readingPlanGuidance,
+		readingHistoryGuidance,
 		forTranslation(slashCommandGuidance, translation),
 		// Last on purpose: the formatting contract is the thing every model is
 		// most likely to drift from, and it is the closest instruction to the

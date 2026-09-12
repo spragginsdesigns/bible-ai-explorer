@@ -18,12 +18,12 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 **What's new (Play):**
 
-- Offline Learn progress now survives closing the app and syncs once when you reconnect.
-- Learn a verse from the reader and practice with missing words or from the reference alone.
-- Note templates, Markdown copy, highlight colour names, and reading-plan progress work consistently across your study screens.
-- Includes the reviewed conversation-history and related-passage improvements.
+- Offline Learn progress survives an app restart and syncs once when you reconnect.
+- Your reading log keeps lifetime sessions and partial passages. Log physical-Bible reading or correct entries in chat.
+- Note templates, Markdown copy, highlight labels, related passages, and continue-reading work together across your study screens.
+- Includes the reviewed conversation-history improvements.
 
-**Dev notes:** Integrates the completed Codex review of Kimi's workflow branch (0571c73). Durable account-scoped review operations use revision checks and transactional receipts; migration 20260912210000_learn_review_receipts is required before deployment. The API continues accepting legacy result-only reviews. Root, mobile, and isolated database regression tests passed before rollout. Windows Store onboarding and Apple UI parity remain separate.
+**Dev notes:** Integrates Kimi's completed workflow review (0571c73) with main's durable reading journal (d519d85). Offline Learn operations use revision checks and transactional receipts while preserving legacy result-only review requests. The receipt migration follows the already-applied reading-log migration. Account-scoped review and reading queues survive restarts and retries. Windows Store onboarding and Apple release validation remain separate.
 
 ## 1.56.0 (versionCode 57) - 2026-09-12 - internal
 

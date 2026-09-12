@@ -124,6 +124,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 					onClose={() => setNoteSheetOpen(false)}
 				/>
 
+				{message.receipts?.filter((receipt) => receipt.kind === "reading").map((receipt) => (
+					<Pressable key={receipt.id} accessibilityRole="link" accessibilityLabel={`${receipt.label}. Open reading history`}
+						onPress={() => router.push("/bible/history")}
+						style={({ pressed }) => [styles.addToNote, { minHeight: 44 }, pressed && styles.addToNotePressed]}>
+						<Text style={[styles.addToNoteLabel, { color: colors.accent }]}>{receipt.label} ›</Text>
+					</Pressable>
+				))}
+
 				{message.noteActions?.map((action, index) => (
 					<NoteActionCard key={`${action.noteId}-${index}`} action={action} />
 				))}

@@ -6,7 +6,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 
 import { fetch as expoFetch } from "expo/fetch";
-import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, type GetToken } from "./api";
+import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, subscribeApiAvailability, type GetToken } from "./api";
 
 const jsonResponse = (status: number, body: unknown) =>
 	new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -159,4 +159,26 @@ describe("auth failure reporting", () => {
 		await expect(apiJson(async () => "tok", "/api/x")).resolves.toEqual({ ok: true });
 		expect(handler).not.toHaveBeenCalled();
 	});
+});
+
+
+describe("API recovery signal", () => {
+ it("signals successful unrelated requests and excludes reading sync itself", async () => {
+  const listener = vi.fn(); const unsubscribe = subscribeApiAvailability(listener);
+  const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => jsonResponse(200, {}));
+  try {
+   await apiJson(async () => "token", "/api/notes");
+   expect(listener).toHaveBeenCalledTimes(1);
+   await apiJson(async () => "token", "/api/reading-log", {method: "POST", body: {}});
+   expect(listener).toHaveBeenCalledTimes(1);
+   unsubscribe(); await apiJson(async () => "token", "/api/notes");
+   expect(listener).toHaveBeenCalledTimes(1);
+  } finally { unsubscribe(); spy.mockRestore(); }
+ });
+});
+
+it("turns Android ConnectException failures into a friendly offline error", async () => {
+ const spy=vi.spyOn(globalThis,"fetch").mockRejectedValue(new Error("fetch failed: java.net.ConnectException: Failed to connect to /127.0.0.1:3015"));
+ try { await expect(apiJson(async()=>"token","/api/reading-log")).rejects.toMatchObject({isNetworkError:true,message:"You appear to be offline. Reconnect and try again."}); }
+ finally {spy.mockRestore();}
 });

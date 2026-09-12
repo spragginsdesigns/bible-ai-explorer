@@ -145,6 +145,7 @@ struct RootView: View {
         // model is built on sign-in and torn down on sign-out — that teardown
         // is also what clears the previous user's conversations from memory.
         .onChange(of: clerk.user?.id, initial: true) { previousID, userID in
+            app?.bible.reading.teardown()
             guard let userID else {
                 app = nil
                 // Only a *real* sign-out clears the per-account caches.

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "../FormattedResponse";
 import type { ChatMessage } from "../useChat";
@@ -54,6 +55,11 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-1.5 h-3 bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
+				{message.receipts?.filter((receipt) => receipt.kind === "reading").map((receipt) => (
+					<Link key={receipt.id} href="/bible/history" className="mt-2 flex min-h-11 items-center text-sm text-amber-700 dark:text-amber-400 hover:underline">
+						{receipt.label} ›
+					</Link>
+				))}
 				{message.noteActions && message.noteActions.length > 0 && (
 					<div className="mt-2 space-y-1.5">
 						{message.noteActions.map((action, index) => (

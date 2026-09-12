@@ -109,6 +109,11 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-getReadingPlan": "Opening your reading plan",
 	"tool-startReadingPlan": "Setting up your reading plan",
 	"tool-markReadingPlanDay": "Marking your reading",
+	"tool-logReading": "Saving your reading",
+	"tool-searchReadingHistory": "Checking your reading history",
+	"tool-getReadingStats": "Checking your reading progress",
+	"tool-correctReadingLog": "Correcting your reading log",
+	"tool-removeReadingLog": "Removing the reading entry",
 };
 
 export function visibleResponseContent(content: string, isStreaming = false): string {

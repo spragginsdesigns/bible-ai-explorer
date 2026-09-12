@@ -54,6 +54,7 @@ function loadDayContext({ prisma = {}, findTodayCross = async () => null, getTod
 			highlightLabelFor,
 			prisma,
 			getTodayPlanReading,
+			recentReadingChapters: (userId, since, limit) => prisma.readingEvent.findMany({ where: { userId, readAt: { gte: since } }, take: limit }),
 		},
 	);
 }

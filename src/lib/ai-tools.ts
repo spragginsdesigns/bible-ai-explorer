@@ -1,6 +1,7 @@
 import { tool, type InferUITools, type UIMessage } from "ai";
 import type { SureWordMessageMetadata } from "@/lib/chat-attachment-types";
 import { z } from "zod";
+import { buildReadingTools, type ReadingToolContext } from "@/lib/reading-tools";
 import { buildMemoryTools } from "@/lib/memory-tools";
 import {
 	formatVersesForModel,
@@ -336,7 +337,7 @@ export interface HighlightsToolOutput {
 	formatted: string;
 }
 
-export interface SureWordToolContext {
+export interface SureWordToolContext extends ReadingToolContext {
 	userId: string;
 	/** When set (note chat), addToNote defaults to this note. */
 	defaultNoteId?: string;
@@ -1350,6 +1351,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	return {
 		...buildMemoryTools(context.userId),
+		...buildReadingTools(context),
 		searchScripture: searchScriptureTool,
 		findVerses: findVersesTool,
 		getPassage: getPassageTool,

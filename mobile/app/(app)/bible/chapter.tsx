@@ -27,7 +27,8 @@ import {
 } from "@/features/chat/verseActions";
 import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
-import { recordReadingEvent } from "@/features/notifications/api";
+import { useReadingLogStatus } from "@/features/reading/readingLogStore";
+import { useReaderTracking } from "@/features/reading/useReaderTracking";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { HIGHLIGHT_PRESETS, highlightWash } from "@/features/bible/highlights";
 import { highlightLabelFor } from "@/features/settings/preferences";
@@ -72,8 +73,6 @@ const HIGHLIGHT_MS = 2400;
 const ASK_PILL_HEIGHT = 44;
 const ASK_PILL_BOTTOM_GAP = spacing.lg;
 const ASK_PILL_CLEARANCE = ASK_PILL_BOTTOM_GAP + ASK_PILL_HEIGHT + spacing.xxl;
-/** A chapter must stay on screen this long before it counts as read. */
-const READ_EVENT_DELAY_MS = 5000;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
@@ -171,6 +170,7 @@ const VerseRow = React.memo(function VerseRow({
  */
 export default function BibleChapterScreen() {
 	const router = useRouter();
+	const readingStatus = useReadingLogStatus();
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
 	const styles = useThemedStyles(createStyles);
@@ -233,7 +233,6 @@ export default function BibleChapterScreen() {
 
 	const listRef = useRef<FlatList<string>>(null);
 	const lastFlashed = useRef<string | null>(null);
-	const lastRecordedRead = useRef<string | null>(null);
 	const requestId = useRef(0);
 	const sheetVisibleRef = useRef(false);
 	const pendingCrossReference = useRef<
@@ -307,21 +306,9 @@ export default function BibleChapterScreen() {
 		};
 	}, [loading, error, loadedKey, chapterKey, verses, verseParam]);
 
-	// Reading history: once a chapter has actually been on screen for a few
-	// seconds, record it server-side (it feeds verse-of-the-day
-	// personalization). Fire-and-forget — failures are swallowed — and guarded
-	// per chapter so effect re-runs and paging back within this mounted screen
-	// don't double-post. The server also dedupes within an hour.
-	useEffect(() => {
-		if (loading || error || loadedKey !== chapterKey || !book) return;
-		if (lastRecordedRead.current === chapterKey) return;
-		const timer = setTimeout(() => {
-			if (lastRecordedRead.current === chapterKey) return;
-			lastRecordedRead.current = chapterKey;
-			recordReadingEvent(getToken, { book: book.name, chapter, translation }).catch(() => {});
-		}, READ_EVENT_DELAY_MS);
-		return () => clearTimeout(timer);
-	}, [loading, error, loadedKey, chapterKey, book, chapter, translation, getToken]);
+	const readingTracking = useReaderTracking({book: order, chapter, translation, verseCount: verses.length,
+		ready: !loading && !error && loadedKey === chapterKey && !!book,
+		obscured: actionVerse !== null || pickerVisible});
 
 	const stepFont = useCallback((delta: number) => {
 		setFontStep((step) => {
@@ -629,6 +616,8 @@ export default function BibleChapterScreen() {
 				))}
 			</View>
 
+			{readingStatus.error ? <Pressable accessibilityRole="button" onPress={() => router.push("/bible/history")} style={{paddingHorizontal: spacing.lg, paddingBottom: spacing.sm}}><Text accessibilityRole="alert" style={{color: colors.danger, ...typography.support}}>{readingStatus.error} Open reading log →</Text></Pressable> : null}
+
 			{loading ? (
 				<View style={styles.center}>
 					<ActivityIndicator color={colors.accent} />
@@ -656,7 +645,10 @@ export default function BibleChapterScreen() {
 						/>
 					)}
 					<FlatList
+						key={chapterKey}
+						{...readingTracking}
 						ref={listRef}
+						style={{ marginBottom: tabBarSpace }}
 						data={verses}
 						keyExtractor={(_, index) => String(index + 1)}
 						contentContainerStyle={[

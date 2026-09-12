@@ -517,6 +517,7 @@ export const useChat = () => {
 				api: "/api/ask-question",
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
+						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 						messages,
 						conversationId: conversationIdRef.current,
 						// Read per request so a settings change applies to the next

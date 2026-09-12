@@ -58,6 +58,7 @@ export function useNoteAI(
 				api: "/api/note-ai",
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
+						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 						messages,
 						noteId: noteIdRef.current,
 					},

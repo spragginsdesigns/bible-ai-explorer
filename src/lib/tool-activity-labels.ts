@@ -30,6 +30,11 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	getReadingPlan: "Opening your reading plan",
 	startReadingPlan: "Setting up your reading plan",
 	markReadingPlanDay: "Marking your reading",
+	logReading: "Saving your reading",
+	searchReadingHistory: "Checking your reading history",
+	getReadingStats: "Checking your reading progress",
+	correctReadingLog: "Correcting your reading log",
+	removeReadingLog: "Removing the reading entry",
 };
 
 export function toolActivityLabel(toolName: string): string {

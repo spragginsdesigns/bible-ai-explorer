@@ -5,6 +5,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "../components/ThemeProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
+import ReadingLogSync from "../components/bible/readingLogClient";
 import PreferencesSync from "../components/PreferencesSync";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
@@ -121,6 +122,7 @@ export default function RootLayout({
 						{/* One mount for the whole app: hydrates the account
 						    preferences and reports a write that did not stick. */}
 						<PreferencesSync />
+						<ReadingLogSync />
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>
