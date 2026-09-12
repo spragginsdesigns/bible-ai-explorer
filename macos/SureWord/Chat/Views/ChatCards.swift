@@ -77,9 +77,14 @@ private struct VerseRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
-                Text(verse.reference)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.accent)
+                    Text(verse.reference)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                    if let translation = verse.translation {
+                        Text(translation.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(theme.textFaint)
+                    }
                 Spacer()
                 // Actions appear on hover — the Mac equivalent of Android's
                 // long-press sheet.

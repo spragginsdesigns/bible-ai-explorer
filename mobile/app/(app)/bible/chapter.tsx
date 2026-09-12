@@ -18,7 +18,11 @@ import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
-import { saveVerseToNote } from "@/features/chat/verseActions";
+import {
+	parseTranslationId,
+	readerTranslation,
+	saveVerseToNote,
+} from "@/features/chat/verseActions";
 import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { recordReadingEvent } from "@/features/notifications/api";
@@ -162,7 +166,13 @@ export default function BibleChapterScreen() {
 	const tabBarSpace = useTabBarSpace();
 	const styles = useThemedStyles(createStyles);
 	const { colors, isDark } = useTheme();
-	const params = useLocalSearchParams<{ book?: string; chapter?: string; verse?: string }>();
+	const params = useLocalSearchParams<{
+		book?: string;
+		chapter?: string;
+		verse?: string;
+		/** Source translation from a retrieved-verse deep link; local only. */
+		translation?: string;
+	}>();
 
 	// The params ARE what the reader shows — they must never be copied into
 	// state. `bible` is a nested stack that keeps this screen mounted, so a
@@ -175,9 +185,20 @@ export default function BibleChapterScreen() {
 		Number.parseInt(typeof params.verse === "string" ? params.verse : "", 10) || null;
 
 	const book: Book | null = bookByOrder(order);
-	// The reader's translation chips and Settings share one persisted default.
-	const { translation, parchment } = useSettings();
-	const setTranslation = setBibleTranslation;
+	// A retrieved verse carries its source translation in the route so Read opens
+	// the matching text. Keep that override local: opening a source card must not
+	// silently change the account-wide default in Settings. Tapping a chip is an
+	// explicit preference choice, so it clears the route override and persists it.
+	const sourceTranslationParam = parseTranslationId(params.translation);
+	const { translation: accountTranslation, parchment } = useSettings();
+	const translation = readerTranslation(accountTranslation, params.translation);
+	const setTranslation = useCallback(
+		(next: TranslationId) => {
+			if (sourceTranslationParam) router.setParams({ translation: undefined });
+			setBibleTranslation(next);
+		},
+		[router, sourceTranslationParam]
+	);
 	const [verses, setVerses] = useState<string[]>([]);
 	// Which chapter `verses` actually holds. Params change a render before the
 	// new text arrives, so without this the effects below would run once against

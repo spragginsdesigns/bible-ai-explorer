@@ -3,6 +3,7 @@ import Foundation
 extension Notification.Name {
     /// Posted by the chat tab when a retrieved-verse card asks to open the
     /// passage in the Bible reader. The reference is in `userInfo["reference"]`;
+    /// and a known source translation is carried in `userInfo["translation"]`;
     /// TabShell (Lane 5/Lane 6) is the single observer — it stages the
     /// reference on `AppModel.pendingVerseReference` and selects the Bible tab,
     /// whose root consumes the pending value and pushes the reader.

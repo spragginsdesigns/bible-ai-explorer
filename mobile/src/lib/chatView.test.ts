@@ -141,6 +141,48 @@ describe("toViewMessage", () => {
 		expect(view.retrievedVerses).toEqual([{ reference: "Psalm 23:1", similarity: 0.8 }]);
 	});
 
+	it("preserves recognized translation provenance and drops invalid values", () => {
+		const toolTypes = [
+			"tool-searchScripture",
+			"tool-findVerses",
+			"tool-searchOriginalLanguage",
+			"tool-getPassage",
+		] as const;
+		for (const [index, type] of toolTypes.entries()) {
+			const message = {
+				id: `translation-${index}`,
+				role: "assistant",
+				parts: [{
+					type,
+					state: "output-available",
+					output: {
+						verses: [
+							{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" },
+							{ reference: "John 3:17", similarity: 0.8, translation: "ESV" },
+						],
+					},
+				}],
+			} as never;
+			const view = toViewMessage(message, { isStreaming: false });
+			expect(view.retrievedVerses).toEqual([
+				{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" },
+				{ reference: "John 3:17", similarity: 0.8 },
+			]);
+		}
+	});
+
+	it("keeps legacy retrieved verses unlabeled when no translation was stored", () => {
+		const message = textMessage("legacy-translation", "assistant", "Answer", {
+			metadata: {
+				retrievedVerses: [{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…" }],
+			},
+		});
+		const view = toViewMessage(message, { isStreaming: false });
+		expect(view.retrievedVerses).toEqual([
+			{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…" },
+		]);
+	});
+
 	it("renders findVerses output through the same retrieved-verses card as searchScripture", () => {
 		const message = {
 			id: "m3b",
@@ -414,6 +456,26 @@ describe("dbMessageToUIMessage", () => {
 		});
 		expect(ui.parts).toEqual([{ type: "text", text: "Saved" }]);
 		expect(ui.metadata).toEqual({ followUps: ["Next?"] });
+	});
+
+	it("restores translation provenance from a stored tool part", () => {
+		const ui = dbMessageToUIMessage({
+			id: "history-translation",
+			role: "assistant",
+			content: "",
+			metadata: {
+				parts: [{
+					type: "tool-getPassage",
+					state: "output-available",
+					output: {
+						verses: [{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" }],
+					},
+				}],
+			},
+		});
+		expect(toViewMessage(ui, { isStreaming: false }).retrievedVerses).toEqual([
+			{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" },
+		]);
 	});
 
 	it("drops stored status parts on restore", () => {

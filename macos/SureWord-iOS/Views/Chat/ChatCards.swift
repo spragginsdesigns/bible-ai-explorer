@@ -83,6 +83,11 @@ private struct VerseRow: View {
                     Text(verse.reference)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.accent)
+                    if let translation = verse.translation {
+                        Text(translation.rawValue)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(theme.textFaint)
+                    }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))

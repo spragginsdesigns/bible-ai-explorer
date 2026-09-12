@@ -15,7 +15,14 @@ vi.mock("@/features/notes/api", () => ({
 }));
 
 import { createNote, deleteNote, patchNote } from "@/features/notes/api";
-import { composeMessageWithAttachment, formatVerseForSharing, saveVerseToNote } from "./verseActions";
+import {
+	composeMessageWithAttachment,
+	formatVerseForSharing,
+	parseTranslationId,
+	readerRouteParams,
+	readerTranslation,
+	saveVerseToNote,
+} from "./verseActions";
 
 const getToken = async () => "token";
 
@@ -24,12 +31,58 @@ beforeEach(() => vi.clearAllMocks());
 describe("formatVerseForSharing", () => {
 	it("formats reference and text as a quotation", () => {
 		expect(
-			formatVerseForSharing({ reference: "John 3:16", text: "For God so loved the world…" })
+			formatVerseForSharing(
+				{ reference: "John 3:16", text: "For God so loved the world…" },
+				"KJV",
+			)
 		).toBe('John 3:16 — "For God so loved the world…" (KJV)');
 	});
 
-	it("handles a missing text", () => {
-		expect(formatVerseForSharing({ reference: "Psalm 23:1" })).toBe("Psalm 23:1 (KJV)");
+	it("uses the source translation when the caller does not override it", () => {
+		expect(
+			formatVerseForSharing({
+				reference: "John 3:16",
+				text: "For God so loved the world…",
+				translation: "NKJV",
+			})
+		).toBe('John 3:16 — "For God so loved the world…" (NKJV)');
+	});
+
+	it("omits an unknown translation instead of assuming KJV", () => {
+		expect(formatVerseForSharing({ reference: "Psalm 23:1" })).toBe("Psalm 23:1");
+		expect(
+			formatVerseForSharing(
+				{ reference: "Psalm 23:1", translation: "NKJV" },
+				"KJV",
+			)
+		).toBe("Psalm 23:1 (KJV)");
+	});
+});
+
+describe("reader translation routing", () => {
+	it("accepts only supported route translations", () => {
+		expect(parseTranslationId("NKJV")).toBe("NKJV");
+		expect(parseTranslationId("KJV")).toBe("KJV");
+		expect(parseTranslationId("ESV")).toBeNull();
+		expect(parseTranslationId(undefined)).toBeNull();
+	});
+
+	it("uses the source translation locally without changing the account default", () => {
+		expect(readerTranslation("KJV", "NKJV")).toBe("NKJV");
+		expect(readerTranslation("NKJV", null)).toBe("NKJV");
+	});
+
+	it("builds a source-aware chapter route and preserves legacy route shape", () => {
+		expect(readerRouteParams({ order: 43, chapter: 3, verse: 16 }, "NKJV")).toEqual({
+			book: "43",
+			chapter: "3",
+			verse: "16",
+			translation: "NKJV",
+		});
+		expect(readerRouteParams({ order: 43, chapter: 3 })).toEqual({
+			book: "43",
+			chapter: "3",
+		});
 	});
 });
 
@@ -78,7 +131,7 @@ describe("saveVerseToNote", () => {
 		const id = await saveVerseToNote(getToken, {
 			reference: "John 3:16",
 			text: "For God so loved the world…",
-		});
+		}, "KJV");
 
 		expect(id).toBe("note-1");
 		expect(createNote).toHaveBeenCalledWith(getToken, { title: "John 3:16", folderId: null });
@@ -110,6 +163,40 @@ describe("saveVerseToNote", () => {
 		];
 		expect(patch.htmlContent).toContain("<p>(NKJV)</p>");
 		expect(patch.plainText).toBe('John 3:16 — "For God so loved…" (NKJV)');
+	});
+
+	it("uses a source translation when the save caller does not provide one", async () => {
+		vi.mocked(createNote).mockResolvedValue({ id: "note-source" } as never);
+		vi.mocked(patchNote).mockResolvedValue({} as never);
+
+		await saveVerseToNote(getToken, {
+			reference: "John 3:16",
+			text: "For God so loved…",
+			translation: "NKJV",
+		});
+
+		const [, , patch] = vi.mocked(patchNote).mock.calls[0] as unknown as [
+			unknown,
+			string,
+			{ htmlContent: string; plainText: string },
+		];
+		expect(patch.htmlContent).toContain("<p>(NKJV)</p>");
+		expect(patch.plainText).toBe('John 3:16 — "For God so loved…" (NKJV)');
+	});
+
+	it("does not write a guessed translation into a legacy note", async () => {
+		vi.mocked(createNote).mockResolvedValue({ id: "note-legacy" } as never);
+		vi.mocked(patchNote).mockResolvedValue({} as never);
+
+		await saveVerseToNote(getToken, { reference: "John 3:16", text: "For God so loved…" });
+
+		const [, , patch] = vi.mocked(patchNote).mock.calls[0] as unknown as [
+			unknown,
+			string,
+			{ htmlContent: string; plainText: string },
+		];
+		expect(patch.htmlContent).not.toContain("(KJV)");
+		expect(patch.plainText).toBe('John 3:16 — "For God so loved…"');
 	});
 
 	it("escapes HTML in verse text", async () => {

@@ -7,6 +7,7 @@ struct BibleReaderRequest: Hashable, Identifiable {
     let order: Int
     let chapter: Int
     let verse: Int?
+    var translation: TranslationID? = nil
 }
 
 extension Notification.Name {
@@ -62,7 +63,12 @@ struct BibleTabView: View {
         .navigationTitle("Bible")
         .settingsGearToolbar()
         .navigationDestination(item: $readerRequest) { request in
-            ChapterReaderView(order: request.order, chapter: request.chapter, verse: request.verse)
+            ChapterReaderView(
+                order: request.order,
+                chapter: request.chapter,
+                verse: request.verse,
+                translation: request.translation
+            )
         }
         // A verse reference tapped in chat lands here. Consume it once: the
         // tab root is long-lived, so leaving the value set would re-push the
@@ -74,10 +80,12 @@ struct BibleTabView: View {
                 readerRequest = BibleReaderRequest(
                     order: reference.order,
                     chapter: reference.chapter,
-                    verse: reference.verse
+                    verse: reference.verse,
+                    translation: app.pendingVerseTranslation
                 )
             }
             app.pendingVerseReference = nil
+            app.pendingVerseTranslation = nil
         }
     }
 

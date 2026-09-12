@@ -8,17 +8,30 @@ import type { TranslationId } from "./translations";
 export interface VerseRef {
   reference: string;
   text?: string;
+  /** Translation that produced this text; absent on legacy/history rows. */
+  translation?: TranslationId;
 }
 
-/** "John 3:16 — \"For God so loved...\" (KJV)" plain-text form for copy/share. */
+/** Resolve an action's explicit translation before the source's provenance. */
+export function sourceTranslation(
+  verse: VerseRef,
+  translation?: TranslationId | string,
+): string | undefined {
+  const explicit = typeof translation === "string" ? translation.trim() : "";
+  return explicit || verse.translation;
+}
+
+/** "John 3:16 — \"For God so loved...\" (translation)" plain-text form. */
 export function formatVerseForSharing(
   verse: VerseRef,
-  translation: TranslationId | string = "KJV"
+  translation?: TranslationId | string
 ): string {
   const body = verse.text?.trim();
+  const label = sourceTranslation(verse, translation);
+  const suffix = label ? ` (${label})` : "";
   return body
-    ? `${verse.reference} — "${body}" (${translation})`
-    : `${verse.reference} (${translation})`;
+    ? `${verse.reference} — "${body}"${suffix}`
+    : `${verse.reference}${suffix}`;
 }
 
 /**
@@ -28,13 +41,14 @@ export function formatVerseForSharing(
  */
 export async function saveVerseToNote(
   verse: VerseRef,
-  translation: TranslationId | string = "KJV"
+  translation?: TranslationId | string
 ): Promise<string> {
   const text = verse.text?.trim() ?? "";
+  const label = sourceTranslation(verse, translation);
   const htmlContent =
     `<blockquote><p><strong>${escapeHtml(verse.reference)}</strong></p>` +
     (text ? `<p>${escapeHtml(text)}</p>` : "") +
-    `<p>(${escapeHtml(String(translation))})</p>` +
+    (label ? `<p>(${escapeHtml(label)})</p>` : "") +
     "</blockquote>";
   const plainText = formatVerseForSharing(verse, translation);
   const wordCount = plainText.split(/\s+/).filter(Boolean).length;

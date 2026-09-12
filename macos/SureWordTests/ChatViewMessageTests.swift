@@ -87,6 +87,7 @@ struct ChatViewMessageTests {
                                 "reference": .string("John 3:16"),
                                 "similarity": .number(0.9),
                                 "text": .string("For God so loved…"),
+                                "translation": .string("NKJV"),
                             ]),
                             .object([
                                 "reference": .string("John 3:17"),
@@ -100,6 +101,7 @@ struct ChatViewMessageTests {
         )
         let view = ChatViewMessage(message: message, isStreaming: false)
         #expect(view.retrievedVerses.count == 2)
+        #expect(view.retrievedVerses.first?.translation == .nkjv)
         let average = try #require(view.averageSimilarity)
         #expect(abs(average - 0.8) < 0.0001)
     }

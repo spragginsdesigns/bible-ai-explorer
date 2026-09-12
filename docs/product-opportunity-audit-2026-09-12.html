@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SureWord Product Opportunity Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#09090b;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.06);
+  --surface-3:rgba(255,255,255,.10);
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --fg:#fafafa;
+  --fg-2:#d4d4d8;
+  --muted:#a1a1aa;
+  --dim:#8b8b95;
+  --accent:#3b82f6;
+  --accent-2:#22d3ee;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+  --info:#8b5cf6;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
+  --edge:inset 0 1px 0 rgba(255,255,255,.06);
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --max:1040px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-image:radial-gradient(900px 420px at 50% -120px, rgba(34,211,238,.16), transparent 70%),radial-gradient(700px 360px at 85% -60px, rgba(59,130,246,.12), transparent 70%);background-repeat:no-repeat}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
+.wrap{width:min(100% - 2.5rem, var(--max));margin-inline:auto}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:clamp(1.9rem,4.5vw,2.75rem);font-weight:700;letter-spacing:-.03em}
+h2{font-size:1.35rem}
+h3{font-size:1rem}
+h4{font-size:.9rem;color:var(--muted);margin:1.4rem 0 .5rem;text-transform:uppercase;letter-spacing:.06em;font-size:.74rem}
+p{margin:.5rem 0}
+code,pre,.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:.1em .4em;border-radius:6px;overflow-wrap:anywhere}
+.grid>*{min-width:0}
+pre{margin:.75rem 0 0;padding:.9rem 1rem;background:#0c0c0f;border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;line-height:1.6;overflow:auto;white-space:pre}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+header{padding:3.5rem 0 2rem}
+.eyebrow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+.eyebrow .sep{color:var(--dim);letter-spacing:0}
+header h1{margin:.8rem 0 .6rem;max-width:24ch}
+.dek{max-width:64ch;font-size:1.08rem;color:var(--fg-2)}
+.meta{margin-top:1rem;font-family:var(--mono);font-size:.76rem;color:var(--dim)}
+nav{position:sticky;top:0;z-index:5;padding:.6rem 0;background:rgba(9,9,11,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);padding-right:2.5rem}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;padding:.34rem .8rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--muted);background:var(--surface)}
+nav a:hover{color:var(--fg);border-color:var(--border-strong);text-decoration:none}
+main{padding:1.5rem 0 4rem}
+section{margin:2.5rem 0}
+section>h2{margin-bottom:.35rem}
+.lead{color:var(--muted);max-width:66ch;margin:0 0 1rem}
+.grid{display:grid;gap:.9rem}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;box-shadow:var(--shadow),var(--edge)}
+.card h3{margin-bottom:.35rem}
+.card p{color:var(--fg-2)}
+.card p:last-child{margin-bottom:0}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.4rem;flex-wrap:wrap}
+.card-head .badges{display:flex;gap:.35rem;flex-wrap:wrap}
+.verdict{border-left:3px solid var(--accent-2);background:linear-gradient(90deg,rgba(34,211,238,.08),var(--surface) 40%)}
+.verdict strong{color:var(--fg)}
+.kpi{padding:1rem 1.15rem}
+.kpi .label{font-size:.74rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.kpi .value{display:block;margin:.25rem 0 .1rem;font-family:var(--mono);font-size:1.9rem;font-weight:500;letter-spacing:-.03em;line-height:1.1}
+.kpi .delta{font-size:.78rem;color:var(--muted)}
+.kpi .delta.down{color:var(--bad)}
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.14rem .55rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.badge.ok{--c:var(--ok)}
+.badge.warn{--c:var(--warn)}
+.badge.bad{--c:var(--bad)}
+.badge.info{--c:var(--info)}
+.badge.neutral{--c:var(--muted)}
+.badge.accent{--c:var(--accent-2)}
+details{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-top:.8rem}
+summary{cursor:pointer;padding:.65rem .95rem;font-size:.84rem;font-weight:500;color:var(--muted);list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:.4rem;height:.4rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details[open] summary{color:var(--fg);border-bottom:1px solid var(--border)}
+details .body{padding:.75rem .95rem 1rem;font-size:.9rem;color:var(--fg-2)}
+details .body>:first-child{margin-top:0}
+dl{margin:0;display:grid;grid-template-columns:8.5rem 1fr;gap:.35rem .8rem;font-size:.88rem}
+dt{color:var(--muted);font-weight:500}
+dd{margin:0;color:var(--fg-2)}
+.table{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--edge)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:.6rem .85rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+th{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+td.num,th.num{text-align:right;white-space:nowrap}
+.bars{display:grid;gap:.45rem}
+.bar{display:grid;grid-template-columns:minmax(6rem,14rem) 1fr auto;gap:.75rem;align-items:center;font-size:.86rem}
+.bar .track{display:block;height:.55rem;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar .fill{display:block;height:100%;width:var(--v);background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+.bar .n{color:var(--muted)}
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:.6rem;counter-reset:s}
+.steps li{position:relative;padding:.85rem 1rem .85rem 3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg-2)}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.9rem;top:.8rem;width:1.5rem;height:1.5rem;display:grid;place-items:center;border-radius:999px;background:var(--surface-3);color:var(--fg);font:600 .74rem var(--mono)}
+.steps strong{color:var(--fg)}
+ul.plain{margin:.4rem 0 0;padding-left:1.1rem;color:var(--fg-2)}
+ul.plain li{margin:.25rem 0}
+.rank{display:inline-grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:999px;background:var(--surface-3);font:600 .74rem var(--mono);color:var(--fg);margin-right:.5rem;vertical-align:middle}
+footer{border-top:1px solid var(--border);padding:1.25rem 0 2.5rem;font-size:.8rem;color:var(--dim)}
+footer a{color:var(--muted)}
+@media (max-width:820px){.cols-4{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){
+  header{padding:2.4rem 0 1.4rem}
+  .wrap{width:min(100% - 1.5rem, var(--max))}
+  .cols-2{grid-template-columns:1fr}
+  .cols-4{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .card{padding:.95rem 1rem}
+  .kpi .value{font-size:1.6rem}
+  .bar{grid-template-columns:1fr auto}
+  .bar .track{grid-column:1 / -1;order:3}
+  dl{grid-template-columns:1fr}
+  dt{margin-top:.4rem}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}summary::before{transition:none}}
+@media print{body{background:#fff;color:#111}nav{display:none}.card,.table,details{box-shadow:none;border-color:#ddd;background:#fff}details{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap">
+    <div class="eyebrow">SureWord<span class="sep">/</span>Product Opportunity Audit<span class="sep">/</span>2026-09-12</div>
+    <h1>Fix the first ninety seconds, then make chat a companion that knows the day.</h1>
+    <p class="dek">The chat chrome is real and cheap to cut, but it is not the leak. The leak is a new user on the web tapping a canned question, receiving a 2,949-character essay from an assistant that does not know their name, and never coming back. Most of the fix is server-side and reaches all four clients on one deploy.</p>
+    <div class="meta">Prepared by Claude Code · Read-only audit, nothing implemented · 11 area agents, 4 cross-cutting agents, 8 specialist reviewers · Production data from Neon <code>neondb</code> (44 users) · Working tree at 2e6e99b plus uncommitted verse-actions work</div>
+  </div>
+</header>
+
+<nav aria-label="Sections">
+  <div class="wrap">
+    <a href="#summary">Summary</a>
+    <a href="#findings">Findings</a>
+    <a href="#ranking">Ranking</a>
+    <a href="#recs">Recommendations</a>
+    <a href="#rejected">Rejected</a>
+    <a href="#method">Method</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="summary">
+    <div class="card verdict">
+      <div class="card-head"><h3>Verdict</h3><span class="badge accent">Confirmed in production data</span></div>
+      <p><strong>SureWord has an activation problem dressed as a chat-density problem.</strong> 36 of 44 accounts used the app on exactly one calendar day, with a median lifetime under two minutes. Every account that returned had the reader, a push token, or a daily cross; none of the leavers had any of the three. The chat "feels like too much" for the same reason new users bounce: the server asks for conversation while the client draws a document and the prompt never tells the model who it is talking to.</p>
+      <p>The highest-leverage work is one server release (know the user's name, know the day, answer short) and one client release (a quiet turn with actions on hover or long-press, and a single receipt line for every write). Both are S effort. The bigger bets (a walk history, an evening close, prayer follow-up) are good, but they serve five accounts today and belong after the first-run fixes.</p>
+    </div>
+    <div class="grid cols-4" style="margin-top:.9rem">
+      <div class="card kpi"><span class="label">One-day users</span><span class="value">36 / 44</span><span class="delta down">median lifetime 1.9 min, 2 actions</span></div>
+      <div class="card kpi"><span class="label">First answer length</span><span class="value">2,949</span><span class="delta">chars; 22 of 44 first questions were a canned chip</span></div>
+      <div class="card kpi"><span class="label">Unanswered chats</span><span class="value">27</span><span class="delta down">8% of 339 hold a question and no answer</span></div>
+      <div class="card kpi"><span class="label">AI tools never fired</span><span class="value">9 / 24</span><span class="delta">all four memory tools, highlights, both plan writes</span></div>
+    </div>
+  </section>
+
+  <section id="findings">
+    <h2>What the audit found</h2>
+    <p class="lead">Eight findings that reorder the work. Each one was verified against the repo or the production database, not inferred from a feature list.</p>
+    <div class="grid">
+
+      <div class="card">
+        <div class="card-head"><h3>Returning users are the ones who touched the reader or got a morning contact, not the ones who chatted longer</h3><span class="badge accent">Confirmed</span></div>
+        <p>First-conversation length was 2.81 messages for users who never returned and 3.13 for those who did, so chat depth does not predict return. Of the 8 returners, 5 had a push token, 4 read a chapter, 5 received a daily cross. Of the 32 leavers, zero had any of the three. This is n=40 and correlational, but it is the only directional evidence in the data and it points at the day loop, not the chat turn.</p>
+        <details><summary>Evidence</summary><div class="body">
+          <p>Read-only SQL over <code>Message</code>, <code>ReadingEvent</code>, <code>PushToken</code>, <code>VerseOfDay</code> in <code>neondb</code> (PM and Growth reviewers, re-run independently). Only 5 of 44 accounts have ever had a push token; 0 of the 28 accounts created March to July installed the native app. Web is 89% of the user base and has no retention channel: <code>User.email</code> is never synced (<code>src/lib/auth.ts:124</code> has zero callers) and the morning cron iterates push tokens only (<code>src/app/api/cron/verse-of-day/route.ts:90</code>).</p>
+        </div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The chat is heavy because the client amplifies structure the prompt already asks the model to avoid</h3><span class="badge accent">Confirmed</span></div>
+        <p>The system prompt asks for "one to three short conversational paragraphs with no headings" on follow-ups (<code>src/utils/systemPrompt.ts:29</code>), then ships 28,700 characters of expository framing every turn with no mechanical enforcement. On Android a two-paragraph follow-up carries about 234px of furniture under 180px of prose: an unconditional "Add to notes" row, a collapsed "Retrieved Verses (6)" card with a similarity percentage per verse, a captioned follow-up block, and an avatar on every row. On web the markdown renderer puts a lightbulb on every h2, a checkmark on every bullet and a tinted card on every blockquote.</p>
+        <details><summary>Evidence and per-element verdicts</summary><div class="body">
+          <p><code>mobile/src/features/chat/MessageBubble.tsx:108-148</code> gates every card on <code>settled</code>, never on the answer's weight. <code>mobile/src/features/chat/MarkdownBody.tsx:40-53</code> maps a model h1 to the app's 22px screen-title style. <code>src/components/markdownComponents.ts:175-199, 273-292, 339-371</code> adds the icons. <code>src/components/ChatInput.tsx:312-323</code> prints an AI disclaimer and a creator byline under every turn. The match badge is false signal: <code>src/lib/bible/verse-fulltext.ts:156</code> returns <code>rank / topRank</code>, so the exact-word tool's top hit is always 100% and is then averaged with a cosine score at <code>src/components/useChat.ts:309-315</code>.</p>
+          <div class="table" style="margin-top:.6rem"><table>
+            <thead><tr><th>Element</th><th>Verdict</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td>Markdown icons (h2, h3, bullets)</td><td><span class="badge bad">Cut</span></td><td>Four bullets read as a completed task list</td></tr>
+              <tr><td>Retrieval percentage and match badge</td><td><span class="badge bad">Cut</span></td><td>Two scales averaged into one number; keep raw value behind a dev flag</td></tr>
+              <tr><td>Follow-up caption "If you'd like to keep exploring"</td><td><span class="badge bad">Cut</span></td><td>20px of uppercase explaining that two buttons are questions</td></tr>
+              <tr><td>Creator byline under composer</td><td><span class="badge bad">Cut</span></td><td>About-screen content on every turn of every chat</td></tr>
+              <tr><td>22px h1 inside a bubble</td><td><span class="badge bad">Clamp</span></td><td>Model heading renders at the size of the app's own screen title</td></tr>
+              <tr><td>Unconditional "Add to notes"</td><td><span class="badge warn">Move</span></td><td>To hover (web) and long-press (Android), where Copy, Share and Try again join it</td></tr>
+              <tr><td>Avatar on every assistant row</td><td><span class="badge warn">Demote</span></td><td>First turn and streaming turn only</td></tr>
+              <tr><td>AI disclaimer</td><td><span class="badge warn">Demote</span></td><td>Welcome screen and Settings, not the composer</td></tr>
+              <tr><td>Amber accent saturation</td><td><span class="badge warn">Demote</span></td><td>7 to 10 amber regions per answer; reserve amber for Scripture and the receipt line</td></tr>
+              <tr><td>Scripture blockquote left rule and serif</td><td><span class="badge ok">Keep</span></td><td>This is how Scripture reads as Scripture; lose the icon and fill only</td></tr>
+            </tbody>
+          </table></div>
+          <p style="margin-top:.6rem">Note the density audit was done in dark mode only. Light mode ships with a "system" default (<code>mobile/src/features/settings/settingsStore.ts:58</code>) and amber-600 on near-white is a louder accent than gold on black, so every cut needs a light-mode screenshot before it ships.</p>
+        </div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The assistant knows the app but not the person</h3><span class="badge accent">Confirmed</span></div>
+        <p>On turn one the model receives a full product tour (<code>appKnowledge</code>) but not the user's name, today's cross, their plan day, what they read this week, or what they highlighted. <code>User.name</code> is null for 43 of 44 accounts because the only function that syncs it has zero callers, while the spoken devotional works around this and prays for the user by name. The volatile prompt carries memories and church only (<code>src/app/api/ask-question/route.ts:702</code>), even though <code>loadStudyContext</code> already assembles reading, notes, plan and today's verse for the welcome chips and the daily cross.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The writes Austin cares about are invisible, and the reads the model does for itself are loud</h3><span class="badge accent">Confirmed</span></div>
+        <p>Note saves get an amber card and the daily cross gets a three-line card. Memory saves, memory edits, plan starts and plan ticks leave nothing once the stream ends: <code>useChat.ts:265-284</code> and <code>mobile/src/lib/chatView.ts:234-253</code> build receipts for two tools out of eight write tools. All four memory tools have fired zero times in production. The window is only six days, but the older zeros are the telling ones: <code>getHighlights</code>, <code>setDailyCross</code> and both plan writes have never fired either. A tool nobody sees fire is a tool nobody learns exists.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The backend is a release ahead of every client</h3><span class="badge accent">Confirmed</span></div>
+        <p>Reading history has a POST and no GET (231 rows nobody can see). The highlights list function with totals and verse text exists and is reachable only through a tool that has never fired. 21 provenance columns on <code>VerseOfDay</code> (theme, evidence, why-today) are written daily and read by zero clients; the day itself is unreachable after 20 hours. 225,683 cross-reference edges have no UI. Note semantic search is maintained on every write and no search box calls it. The plan's <code>todayDay</code> ships in every payload and no client renders "3 days behind".</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>27 conversations hold a user question and no assistant answer</h3><span class="badge bad">Defect, unexplained</span></div>
+        <p>Verified today: 27 of 339 conversations across 15 users, 13 of them since August 1, so this is not only the stream-disconnect bug fixed earlier. Twelve belong to one-day users, which is a third of everything that cohort ever started. Nothing measures whether an answer arrives. There is no product instrumentation of any kind: the only telemetry is a shape-only <code>console.info</code> and neither package manifest has an analytics or error-reporting dependency.</p>
+        <details><summary>Query</summary><div class="body"><pre><code>WITH c AS (SELECT c.id, c."userId", c."createdAt",
+  COUNT(*) FILTER (WHERE m.role='user') u, COUNT(*) FILTER (WHERE m.role='assistant') a
+  FROM "Conversation" c LEFT JOIN "Message" m ON m."conversationId"=c.id GROUP BY 1,2,3)
+SELECT count(*) FILTER (WHERE u>0 AND a=0)                      -- 27
+     , count(DISTINCT "userId") FILTER (WHERE u>0 AND a=0)      -- 15
+     , count(*) FILTER (WHERE u>0 AND a=0 AND "createdAt">='2026-08-01') -- 13
+FROM c;</code></pre></div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The working tree cannot be shipped by committing only the modified files</h3><span class="badge bad">Release trap</span></div>
+        <p>The modified <code>ask-question/route.ts</code> imports <code>@/lib/ai/prompt-cache</code> and <code>@/lib/ai/chat-metrics</code>. Both are untracked, as are <code>answer-eval.ts</code>, the three tests, <code>scripts/eval-answers.mjs</code> and its fixtures. The committed route has zero references to them, so production has no prompt-cache split, no step-limit metric and no eval harness today. A "commit touched files only" push breaks the Vercel build on a missing module. The same tree carries an iOS compile break: <code>macos/SureWord-iOS/Views/Bible/BibleTabView.swift:10</code> declares <code>let translation: TranslationID? = nil</code>, which Swift omits from the memberwise init that lines 80-85 call with four arguments.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Five more live defects sit under the opportunities</h3><span class="badge warn">Fix first</span></div>
+        <ul class="plain">
+          <li><strong>Push fan-out per token.</strong> The morning cron sends one push per token (<code>cron/verse-of-day/route.ts:125</code>); one account with 143 tokens receives 76 identical notifications. <code>src/lib/push.ts:112</code> also filters chat replies on <code>enabled</code>, contradicting the schema comment at <code>prisma/schema.prisma:384-387</code>.</li>
+          <li><strong>Cold permission prompt.</strong> Android requests notification permission seconds after sign-in (<code>mobile/app/(app)/_layout.tsx:112</code> with <code>enabled: true</code> default) before the user has seen a verse. A denial is effectively permanent on modern Android and it is the product's only retention channel.</li>
+          <li><strong>The welcome screen makes a claim the server computed to be false.</strong> "CHOSEN FROM YOUR STUDY" and the hero paragraph render for new accounts while <code>src/lib/suggested-questions.ts:126</code> returns <code>personalized: false</code> and no client reads it. <code>src/lib/daily-cross.ts:75</code> already states the honesty rule the welcome copy breaks.</li>
+          <li><strong>Empty notes feed personalization.</strong> 61 of 136 notes are empty and 65 are "Untitled Note"; two accounts have <code>- Untitled Note:</code> in their daily-cross context today. One <code>where</code> clause at <code>src/lib/study-context.ts:73</code>.</li>
+          <li><strong>PARITY.md:111 is false.</strong> It marks note-receipt cards done on macOS while <code>macos/SureWord/Chat/Views/ChatView.swift:154</code> still answers taps with "Notes arrive in a later phase."</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="ranking">
+    <h2>Ranked recommendations</h2>
+    <p class="lead">Score = User Value × Frequency × Strategic Fit × Confidence ÷ Engineering Cost, each 1 to 5. The formula punishes once-per-user items, so two are ranked by judgment and marked. Effort corrections from the architect and red-team reviews are applied.</p>
+    <div class="table"><table>
+      <thead><tr><th>#</th><th>Recommendation</th><th>Group</th><th class="num">UV</th><th class="num">Freq</th><th class="num">Fit</th><th class="num">Conf</th><th class="num">Cost</th><th class="num">Score</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><a href="#r1">The assistant knows your name on turn one</a></td><td>Quick win</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num">1</td><td class="num">500</td></tr>
+        <tr><td class="num">2</td><td><a href="#r2">Conversational by default: a turn-shape hint the model actually receives</a></td><td>High value</td><td class="num">5</td><td class="num">5</td><td class="num">5</td><td class="num">4</td><td class="num">2</td><td class="num">250</td></tr>
+        <tr><td class="num">3</td><td><a href="#r3">A "today" block in the chat prompt</a></td><td>Data / AI</td><td class="num">4</td><td class="num">5</td><td class="num">5</td><td class="num">4</td><td class="num">2</td><td class="num">200</td></tr>
+        <tr><td class="num">4</td><td><a href="#r4">An honest welcome screen with the composer first</a></td><td>UX</td><td class="num">4</td><td class="num">5</td><td class="num">4</td><td class="num">4</td><td class="num">2</td><td class="num">160</td></tr>
+        <tr><td class="num">5</td><td><a href="#r5">The quiet turn: light and heavy answers, actions on hover or long-press</a></td><td>High value</td><td class="num">4</td><td class="num">5</td><td class="num">4</td><td class="num">4</td><td class="num">2</td><td class="num">160</td></tr>
+        <tr><td class="num">6</td><td><a href="#r6">Three write tools: file a note, mark a verse, change a setting</a></td><td>Power user</td><td class="num">4</td><td class="num">3</td><td class="num">5</td><td class="num">4</td><td class="num">2</td><td class="num">120</td></tr>
+        <tr><td class="num">7</td><td><a href="#r7">Reading history you and the assistant can both read</a></td><td>High value</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num">107</td></tr>
+        <tr><td class="num">8</td><td><a href="#r8">The assistant runs the first conversation</a> <span class="badge neutral">judgment</span></td><td>New feature</td><td class="num">5</td><td class="num">2</td><td class="num">5</td><td class="num">4</td><td class="num">2</td><td class="num">100</td></tr>
+        <tr><td class="num">9</td><td><a href="#r9">One receipt line for every write, memory first</a></td><td>High value</td><td class="num">5</td><td class="num">3</td><td class="num">5</td><td class="num">4</td><td class="num">3</td><td class="num">100</td></tr>
+        <tr><td class="num">10</td><td><a href="#r10">Cross-references in the verse sheet</a></td><td>New feature</td><td class="num">5</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num">3</td><td class="num">100</td></tr>
+        <tr><td class="num">11</td><td><a href="#r11">Answer the day's question</a></td><td>New feature</td><td class="num">5</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num">3</td><td class="num">100</td></tr>
+        <tr><td class="num">12</td><td><a href="#r12">Conversations you can find again</a></td><td>UX</td><td class="num">4</td><td class="num">3</td><td class="num">4</td><td class="num">4</td><td class="num">2</td><td class="num">96</td></tr>
+        <tr><td class="num">13</td><td><a href="#r13">Notes anchored to verses, and saving into the note you are already in</a></td><td>New feature</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">3</td><td class="num">85</td></tr>
+        <tr><td class="num">14</td><td><a href="#r14">Prayer requests that come back to you</a></td><td>New feature</td><td class="num">5</td><td class="num">3</td><td class="num">5</td><td class="num">3</td><td class="num">3</td><td class="num">75</td></tr>
+        <tr><td class="num">15</td><td><a href="#r15">Never open a blank note</a></td><td>UX</td><td class="num">4</td><td class="num">3</td><td class="num">3</td><td class="num">4</td><td class="num">2</td><td class="num">72</td></tr>
+        <tr><td class="num">16</td><td><a href="#r16">My Walk: one history surface, and the receipt behind "why this verse"</a></td><td>Strategic bet</td><td class="num">4</td><td class="num">3</td><td class="num">4</td><td class="num">4</td><td class="num">3</td><td class="num">64</td></tr>
+        <tr><td class="num">17</td><td><a href="#r17">A morning email for web users</a></td><td>Strategic bet</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num">3</td><td class="num">3</td><td class="num">60</td></tr>
+        <tr><td class="num">18</td><td><a href="#r18">A front door: Play production, a public page, and an honest install button</a> <span class="badge neutral">judgment</span></td><td>Strategic bet</td><td class="num">5</td><td class="num">1</td><td class="num">4</td><td class="num">5</td><td class="num">3</td><td class="num">33</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="card" style="margin-top:.9rem">
+      <h3>Where the reviewers disagreed</h3>
+      <p class="lead" style="margin-bottom:.6rem">Eight seats scored independently. Agreement was near-total on the top three; the disputes below are recorded rather than averaged away.</p>
+      <ul class="plain">
+        <li><strong>Receipts (#9).</strong> Five wave-1 reports made it the consensus top pick. The PM, UX and red-team seats pushed back: it renders writes that have fired 15 times ever, and the binding constraint is invocation, not visibility. Kept at #9, shipped with #5 so the reclaimed amber budget is spent on it, and with #8 so there is something to render.</li>
+        <li><strong>My Walk (#16).</strong> The surface-stored-data thesis argued one journal beats five screens; the new-user and red-team seats note 35 of 44 accounts would see an empty page. Kept as a strategic bet; its server half (#7) ships first and stands alone.</li>
+        <li><strong>Voice.</strong> The companion thesis wanted device text-to-speech and no mic (Gboard already dictates); the red team says device TTS is below the brand's ElevenLabs bar and no speech module is installed either way. Deferred entirely; see Rejected.</li>
+        <li><strong>Android-first vs where users are.</strong> CLAUDE.md makes Android the primary client. 89% of accounts are web-only and no account created March to July installed anything. The parity rule is sound engineering discipline; it is not an audience claim, and the ranking above favors server-side work partly for that reason. This is Austin's call, not the audit's.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="recs">
+    <h2>Recommendations</h2>
+    <p class="lead">Grouped as requested. Each card carries the full brief: problem, evidence, experience, reuse, effort, impact, confidence, dependencies, risks, why now, first slice. Evidence is folded.</p>
+
+    <h4>0. Fix first (obligations, not opportunities)</h4>
+    <ol class="steps">
+      <li><strong>Commit the working tree, including the untracked <code>src/lib/ai/*</code> modules, tests, eval script and fixtures, after changing <code>let</code> to <code>var</code> at <code>BibleTabView.swift:10</code>.</strong> Until this lands, no push is safe and three audit arguments describe code production does not run.</li>
+      <li><strong>Instrument answer arrival.</strong> Log a metric when a user turn persists with no assistant message within the request, and add a saved SQL view for weekly day-2 return, conversation depth and tool-fire counts. Without this, nothing below will be known to have worked.</li>
+      <li><strong>One push per user, and chat replies survive the morning toggle.</strong> Group the cron by user before sending; re-read <code>push.ts:112</code> against the schema comment before changing it, since the comment may describe intent rather than shipped behaviour.</li>
+      <li><strong>Delay the notification permission prompt</strong> until after the first settled exchange or the first visit to the Cross screen. One condition in <code>usePushNotifications</code>.</li>
+      <li><strong>Write pastoral escalation into the persona</strong> (Scripture, then your pastor, then immediate help when life is in danger, never a verse as a substitute) and add it as a seventh doctrine-review dimension. A search for crisis, self-harm or counselor across the codebase returns nothing, and both the memory extractor and #14 below deliberately handle life circumstances. This is also the sharpest Play-listing risk ahead of #18.</li>
+      <li><strong>Correct PARITY.md:111</strong> and wire the macOS note receipt tap, or mark it missing.</li>
+    </ol>
+
+    <h4>1. Quick wins</h4>
+    <div class="grid">
+      <div class="card" id="r1">
+        <div class="card-head"><h3><span class="rank">1</span>The assistant knows your name on turn one</h3><div class="badges"><span class="badge neutral">XS</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> <code>User.name</code> is null for 43 of 44 accounts and <code>User.email</code> is never captured, so chat cannot address the person and web users cannot be reached. The narrated devotional already syncs the name itself because its script prays for the user by name.</p>
+        <p><strong>Experience.</strong> The first line of any answer can say "Austin," and the volatile prompt carries "The user's name is Austin" for every model. Nothing visible changes except that the companion stops being anonymous. The same guarded sync captures the email that #17 needs.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/lib/auth.ts:124</code> (<code>getAuthUserWithProfile</code>, zero callers); <code>src/lib/daily-cross-audio.ts:92</code> (its own Clerk name sync); memory report §3.</dd>
+          <dt>Reuses</dt><dd>The guarded <code>syncNameFromClerk</code> pattern the audio path uses, not <code>getAuthUserWithProfile</code>, which adds an unconditional upsert to a hot path and nulls a good name on a partial fetch (architect correction).</dd>
+          <dt>Dependencies</dt><dd>None.</dd>
+          <dt>Risks</dt><dd>A Clerk read on a hot path; do it once per session and cache on the row.</dd>
+          <dt>Why now</dt><dd>Every reviewer's number one. It is the precondition for #3, #8 and #17 and costs an afternoon.</dd>
+          <dt>First slice</dt><dd>Call the guarded sync in the ask-question route when <code>User.name</code> is null; add one line to the volatile system prompt.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r4">
+        <div class="card-head"><h3><span class="rank">4</span>An honest welcome screen with the composer first</h3><div class="badges"><span class="badge neutral">XS to S</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> The welcome screen is the most-rendered surface in the product (217 of 339 conversations never got past it). Its first sentence is a claim the server computed to be false, the composer is the seventh element on the screen, and half of all first questions are one of the four hardcoded chips under "CHOSEN FROM YOUR STUDY".</p>
+        <p><strong>Experience.</strong> Art, headline, composer, then the questions, labelled "Questions to begin with" until the account has a study to draw on. Today's cross sits below the composer for accounts that have one. The install cards keep the APK link but say what a sideload is.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/components/WelcomeScreen.tsx:84-235</code> (nine stacked blocks before the cards); <code>mobile/src/features/chat/WelcomeState.tsx:99-124</code> (586px precede the input at 1.0x font scale, and system font scaling is unbounded while the art height is fixed); <code>src/lib/suggested-questions.ts:126</code> (<code>personalized: false</code>, read by no client); <code>src/utils/commonQuestions.ts:16-23</code>; Growth reviewer: 22 of 44 first questions are a default chip.</dd>
+          <dt>Reuses</dt><dd>The composer is already passed in as a prop; <code>parseSuggestedQuestionsResponse</code> just needs to keep the flag; the string constants exist on both clients.</dd>
+          <dt>Dependencies</dt><dd>None. Fix all three false strings (heading, subline, hero paragraph) or none.</dd>
+          <dt>Risks</dt><dd>Headline and epigraph are brand copy; cut the fixed art height, not the copy. The APK link must stay visible per CLAUDE.md.</dd>
+          <dt>Why now</dt><dd>About five new accounts arrive every month and 82% leave inside two minutes on this screen.</dd>
+          <dt>First slice</dt><dd>Read <code>personalized</code> on both clients and swap the heading; move the composer directly under the headline.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Small things the reviewers found that no candidate covered</h3><div class="badges"><span class="badge neutral">XS each</span></div></div>
+        <ul class="plain">
+          <li><strong>Named highlight colours.</strong> <code>HIGHLIGHT_COLORS</code> (<code>src/lib/highlights.ts:12-21</code>) is Yellow, Orange, Red. Every marking system a student is taught is categorical: promises, commands, God's character. Eight editable labels on the preference document turn a 146-row table from "they used teal" into "they mark promises", which is what makes <code>getHighlights</code> quotable and what #3 needs to read them honestly.</li>
+          <li><strong>Web keyboard shortcuts.</strong> The only global key handlers on web are three Escape listeners. Ten lines of <code>keydown</code> for new chat, focus composer, history, previous and next chapter (targets already computed at <code>ChapterReader.tsx:184-186</code>) is a daily win for the one power user on a Windows PC and costs nothing on Android.</li>
+          <li><strong>Copy a note as Markdown.</strong> <code>src/utils/markdownConverter.ts</code> is a working Turndown converter with zero callers. Notes have no export on any client, which an Obsidian user cannot live with. One button on web; do not let the dead-code cleanup delete it.</li>
+          <li><strong>Render "N days behind" on the plan screen.</strong> <code>todayDay</code> ships in every plan payload and no client uses it. One line, and it is the only plan work worth doing this quarter.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h4>2. High-value product improvements</h4>
+    <div class="grid">
+      <div class="card" id="r2">
+        <div class="card-head"><h3><span class="rank">2</span>Conversational by default: a turn-shape hint the model actually receives</h3><div class="badges"><span class="badge neutral">S</span><span class="badge ok">Impact Very High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> A "why?" gets an essay. The route already computes <code>isOpeningQuestion</code> and uses it only to pick reasoning effort; the verbosity run option is fully wired per provider and is null unless a user opens a picker. The obvious fix (set verbosity from turn shape) is dead for nearly every account: the house-access branch returns <code>verbosity: null</code> and no prompt hints by design, and house is 41 of 44 accounts.</p>
+        <p><strong>Experience.</strong> A short follow-up that names no new reference comes back as two tight paragraphs. A fresh opening question still gets the full study. An explicit user choice in the picker is never overridden. Nothing is visible except that the assistant stops lecturing.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/utils/systemPrompt.ts:29</code> (asks for short follow-ups); <code>src/app/api/ask-question/route.ts:546, 627</code> (signal computed, used for effort only); <code>src/lib/ai/provider.ts:338-352</code> (house branch discards verbosity); Growth: first answers average 2,949 characters.</dd>
+          <dt>Reuses</dt><dd>One pure function beside the existing helpers, joined as a sentence into <code>volatileSystem</code> at <code>route.ts:702</code>, the same mechanism <code>VERBOSITY_PROMPT_HINTS</code> already uses for non-OpenAI providers. Record the applied shape in <code>metadata.verbosity</code>, which has zero readers today.</dd>
+          <dt>Dependencies</dt><dd>Fix-first item 1 (the prompt-cache module must be committed). Ship with #5 so the client renders what the server shortened.</dd>
+          <dt>Risks</dt><dd>A short but deep question ("is Christ eternally begotten?") gets clipped. Key on conversation position plus absence of a new reference, never on length alone. Add a <code>conversationalShape</code> check (no h2, no list, three paragraphs or fewer) and six follow-up fixtures to the eval harness so this can regress visibly.</dd>
+          <dt>Why now</dt><dd>It is the single behaviour the owner named, it reduces output tokens on SureWord's own key, and it reaches four clients on one deploy.</dd>
+          <dt>First slice</dt><dd>The pure function, the one-line join, the eval check.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r5">
+        <div class="card-head"><h3><span class="rank">5</span>The quiet turn: light and heavy answers, actions on hover or long-press</h3><div class="badges"><span class="badge neutral">S per client</span><span class="badge ok">Impact Very High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> Every assistant turn gets identical furniture regardless of weight, and the surface has exactly one per-message action ("Add to notes") and zero hidden ones: no copy, no share, no try again outside the red error card. See the per-element verdict table above.</p>
+        <p><strong>Experience.</strong> A light turn (no tool output, no write, short content) renders prose and follow-up chips only. A heavy turn keeps a quiet "5 verses from Scripture" line with a five-verse cap. Hovering (web) or long-pressing (Android) an answer reveals Copy, Share, Add to notes, Try again. Long-press a user message to edit and resend. Nothing is removed; three things move and four are added.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>MessageBubble.tsx:108-148</code>; <code>ChatMessage.tsx:70-79</code>; <code>markdownComponents.ts:175-371</code>; <code>RetrievedVersesCard.tsx:141-149</code>; <code>ChatInput.tsx:312-323</code>; <code>grep onLongPress mobile/src/features/chat</code> returns nothing; <code>regenerate</code> reachable only via <code>useSureWordChat.ts:686</code>.</dd>
+          <dt>Reuses</dt><dd><code>ChatViewMessage</code> already carries every signal for the predicate; the notes <code>BottomSheet</code> primitive; the <code>group-hover</code> idiom from <code>ChatSidebar.tsx:73</code>; clipboard and Share already imported in <code>verseActions.ts</code>; <code>FormattedResponse</code> is shared with the note AI panel, so renderer cuts land there too.</dd>
+          <dt>Dependencies</dt><dd>Client predicate must key on the same signal as #2. Web and Android in one cycle per the parity rule; Apple in the same release cycle, with the gate stated.</dd>
+          <dt>Risks</dt><dd>Long-press is undiscoverable: ship a one-time hint. The wordmark in the Android header and the avatar are brand calls; separate them from the measurable cuts. Light mode needs its own acceptance shot.</dd>
+          <dt>Why now</dt><dd>Purely subtractive, no server dependency, and it is what "too much" actually is.</dd>
+          <dt>First slice</dt><dd>Drop the avatar and "Add to notes" on tool-free turns under 400 characters; add Copy and Try again to the hover row and the long-press sheet; delete the bullet checkmarks and the percentage column.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r7">
+        <div class="card-head"><h3><span class="rank">7</span>Reading history you and the assistant can both read</h3><div class="badges"><span class="badge neutral">S server, M with cards</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> 231 chapter reads across five users, two with 16 and 17 active days, and no way for anyone to see them: the route is POST-only and the table is indexed for a history query that does not exist. "What did I read yesterday?" is unanswerable. There is no continue-reading entry point anywhere; returning users re-navigate the book picker.</p>
+        <p><strong>Experience.</strong> A "Continue reading: Judges 7" row at the top of the Bible home. In chat, "what have I read this week?" answers itself. A "days in the Word" line that is a fact, not a streak badge.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/app/api/reading-events/route.ts:20</code> (POST only); <code>@@index([userId, readAt])</code> on the model; PM: 4 of 8 returners read a chapter, 0 of 32 leavers did; plans are dead (2 ever) while reading is the discipline these users actually have.</dd>
+          <dt>Reuses</dt><dd>A pure <code>reading-history.ts</code> mirroring <code>reading-plan-progress.ts</code>, whose streak loop generalises off a plan; <code>PushToken.timezone</code> for local days (the "server does not know the timezone" comment is stale).</dd>
+          <dt>Dependencies</dt><dd>None for the GET and tool. Cards need the parity pass.</dd>
+          <dt>Risks</dt><dd>One row per chapter view is thin data; do not build an analytics dashboard on it.</dd>
+          <dt>Why now</dt><dd>Reader engagement is the one behaviour that separates returners from leavers, and this is the only reader signal the product has never acknowledged.</dd>
+          <dt>First slice</dt><dd><code>GET /api/reading-events</code> summary, a <code>getReadingHistory</code> tool, and the continue-reading row on Android.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r9">
+        <div class="card-head"><h3><span class="rank">9</span>One receipt line for every write, memory first</h3><div class="badges"><span class="badge neutral">M (3 parsers, 4 renderers)</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> The assistant can permanently change what it remembers about you and show nothing for it, while a note save gets a full amber card. No client can edit a memory: the PATCH route exists with zero callers. Adding five more cards would worsen the density problem while fixing the feedback problem.</p>
+        <p><strong>Experience.</strong> One quiet tappable line under the answer: "Saved to Romans study · Remembered · Marked day 6". Every state-changing tool earns a fragment; no read tool does. The memory fragment opens edit and forget. Amber is then reserved for Scripture and this line.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>useChat.ts:265-284</code> and <code>chatView.ts:234-253</code> (two of eight write tools get receipts); <code>src/app/api/memories/[id]/route.ts:29-57</code> (PATCH, zero callers); <code>memory-tools.ts:41-49</code> returns everything a receipt needs; architect: the Apple parser is shared but the two <code>ChatCards.swift</code> files are not, so one lane costs 3+4 once and per-tool cards cost 3+4 each.</dd>
+          <dt>Reuses</dt><dd>The <code>noteActions</code> and <code>crossActions</code> pipeline end to end; <code>deleteMemories</code> as undo; the cross keeps its verse preview because that is content, not chrome.</dd>
+          <dt>Dependencies</dt><dd>Ship after #5 (spend the reclaimed amber budget here) and with #8 (so a memory write actually happens). Passive extraction has no tool part and needs a data part in a second slice, or "Remembered" will mean "sometimes".</dd>
+          <dt>Risks</dt><dd>Four-client work; Apple cannot be built here. State the gate rather than marking it verified.</dd>
+          <dt>Why now</dt><dd>It is the workflow Austin named, and a tool nobody sees fire is a tool nobody learns exists.</dd>
+          <dt>First slice</dt><dd>Memory receipts on web and Android using the existing card style; wire PATCH into the manage screens.</dd>
+        </dl></div></details>
+      </div>
+    </div>
+
+    <h4>3. New feature opportunities</h4>
+    <div class="grid">
+      <div class="card" id="r8">
+        <div class="card-head"><h3><span class="rank">8</span>The assistant runs the first conversation</h3><div class="badges"><span class="badge neutral">S server, M with migration</span><span class="badge ok">Impact Very High</span><span class="badge warn">Confidence Medium-High</span></div></div>
+        <p><strong>Problem.</strong> First run is sign-in, then an empty chat, on every client. No tour, no profile step, no way for a new user to learn that Cross, Notes, Plans, Memory or the Timeline exist. The best onboarding asset is inert: a complete screen-by-screen tour already sits in every prompt, and the server already computes emptiness.</p>
+        <p><strong>Experience.</strong> The first message greets by name, asks what to call them and where they are in their walk, saves both with the memory tools, and offers one thing to do next (today's cross, or a first chapter). One native Android moment afterwards for the notification hour. Nobody is interviewed twice.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>systemPrompt.ts:42-56</code> (<code>appKnowledge</code>); <code>study-context.ts</code> (<code>isEmpty</code>); no <code>onboardedAt</code>, no onboarding row in PARITY.md; Growth: median one-day user lifetime 1.9 minutes.</dd>
+          <dt>Reuses</dt><dd>A FIRST CONVERSATION prompt block gated on the counts already loaded; <code>saveMemory</code>; <code>UserChurch</code>; #1 for the name. Replaces the five-slide plan (three dependencies, per-client, strands Apple).</dd>
+          <dt>Dependencies</dt><dd>#1. Pastoral guidance (fix-first 5) before it asks about someone's season of life. Ship with #9 so the memory write is visible.</dd>
+          <dt>Risks</dt><dd>Formula punishes it (once per user). Conversational onboarding can feel like an interview: keep it to two questions and let the user skip by simply asking something.</dd>
+          <dt>Why now</dt><dd>About five new accounts a month arrive and leak at 85%. This is aimed at the only cohort that exists, and it is what finally makes the memory tools fire.</dd>
+          <dt>First slice</dt><dd>The prompt block plus <code>isFirstConversation</code>, no migration; add <code>User.onboardedAt</code> in the second slice.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r10">
+        <div class="card-head"><h3><span class="rank">10</span>Cross-references in the verse sheet</h3><div class="badges"><span class="badge neutral">M (L on Android)</span><span class="badge ok">Impact High</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> "Scripture interprets Scripture" is the hermeneutic the product is built on, and 225,683 ranked cross-reference edges sit in the repo reachable only by the chat model and the Listen script. The verse sheet already shows the Hebrew or Greek, highlight, copy, share and save; the one thing a student reaches for next is not there.</p>
+        <p><strong>Experience.</strong> A collapsed "See also" row in the verse sheet with the top five references and their text; tap one to read it in place, or ask the assistant to walk the chain.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/lib/bible/crossRefs.ts:104</code> (callers: <code>ai-tools.ts:500</code>, <code>daily-cross-audio.ts:126</code> only); cross-references appear nowhere under <code>mobile/</code>, and Metro cannot lazy-require a computed path (architect), so Android needs an API, not a 2.9MB bundle.</dd>
+          <dt>Reuses</dt><dd>A public <code>GET /api/bible/crossrefs</code> over the existing function; the verse sheet's existing section pattern (<code>OriginalLanguageSection</code>).</dd>
+          <dt>Dependencies</dt><dd>None. Independent of user data; good on day one for a user with nothing.</dd>
+          <dt>Risks</dt><dd>Android bundling versus fetch is unsettled; the sheet has no nav stack for tapping through, so start with read-in-place.</dd>
+          <dt>Why now</dt><dd>The domain expert's top item; every other reader capability already exists and this is the missing leg of inductive study.</dd>
+          <dt>First slice</dt><dd>The GET plus the web sheet section; Android fetches the same route.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r11">
+        <div class="card-head"><h3><span class="rank">11</span>Answer the day's question</h3><div class="badges"><span class="badge neutral">M</span><span class="badge ok">Impact Very High for its users</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> Pick Up Your Cross ends with a single question to carry through the day, the most personal output in the pipeline, and it is a read-only label. There is no column, route or control to answer it, journal it, or mark the day done, and the day vanishes after 20 hours. Morning and evening is the oldest devotional rhythm there is; the product has a morning and no evening.</p>
+        <p><strong>Experience.</strong> An input under "Carry this" and a way to answer it by talking ("about today's question…"). Optionally each answer appends to a running "Pick Up Your Cross" note. Later, an evening reminder whose body is the question verbatim, off by default.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>VerseOfDay</code> has 21 provenance columns and no response column; <code>findTodayCross</code> looks back 20 hours (<code>daily-cross.ts:35, 512-518</code>); <code>partOfDayIn()</code> already computes "evening" purely to pick a greeting (<code>daily-cross-audio-script.ts:139-157</code>).</dd>
+          <dt>Reuses</dt><dd>Two nullable columns, a PATCH branch on the today route, an <code>answerDailyCross</code> tool, <code>POST /api/notes/append</code>, the generic push sender and tap router for the evening half.</dd>
+          <dt>Dependencies</dt><dd>Fix-first 3 before any evening push. Do not feed answers back into the selector yet.</dd>
+          <dt>Risks</dt><dd>Only 5 accounts have ever received a cross, so this serves few people today. Push half reaches four accounts with notifications enabled.</dd>
+          <dt>Why now</dt><dd>Zero model calls, and it is the moment the product starts holding the user's own words rather than a log of what the app did.</dd>
+          <dt>First slice</dt><dd>The columns, the PATCH, the input. No push.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r13">
+        <div class="card-head"><h3><span class="rank">13</span>Notes anchored to verses, and saving into the note you are already in</h3><div class="badges"><span class="badge neutral">S then M</span><span class="badge ok">Impact Very High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> Notes and the reader are strangers. Saving a verse from the reader forks a throwaway note titled with the reference and navigates you out of the chapter; 20 such notes exist and 17 were never touched again. A 66-book verse regex was written for anchoring and is dead code. "What have I written on Romans 8?" is the question a study Bible answers and this app cannot.</p>
+        <p><strong>Experience.</strong> Save-to-note from the reader opens the same note picker chat already has, defaulting to the note you last worked in. Later, a "Your study" line in the verse sheet: your note, your highlight, the day you asked about it.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/lib/bible/verseActions.ts:56-62</code> (always creates); notes report: 20 verse-titled notes, 17 untouched; <code>NoteLink</code> has 3 rows after a year, so a derive-on-write anchor must be cheap to justify.</dd>
+          <dt>Reuses</dt><dd><code>AddToNoteSheet</code> and <code>POST /api/notes/append</code>; later a <code>VerseTouch</code> event table that also absorbs the chat-verse extraction from <code>Message.metadata.parts</code>.</dd>
+          <dt>Dependencies</dt><dd>The picker slice must ship before anchoring, or the index is seeded with 20 dead notes.</dd>
+          <dt>Risks</dt><dd>The anchor table is a migration against production. Verse coordinates differ across three code paths (book id vs name) and need one resolver.</dd>
+          <dt>Why now</dt><dd>It is the one structural link between the two halves of the product, and the picker half is S.</dd>
+          <dt>First slice</dt><dd>Reader save-to-note goes through the existing picker.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r14">
+        <div class="card-head"><h3><span class="rank">14</span>Prayer requests that come back to you</h3><div class="badges"><span class="badge neutral">M</span><span class="badge ok">Impact Very High</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> "Prayer requests" is a memory category with a display string and an extraction instruction that hunts for them, and no behaviour: no status, no date, nothing ever revisits one. It is the most distinctive promise a devotional companion can make and the only one no competitor's feature list explains away.</p>
+        <p><strong>Experience.</strong> "You asked me to pray with you about your dad's surgery on Tuesday. How did it go?" A prayer block in the same context loader as #3; three nullable columns (status, askedAt, followUpAfter) on <code>UserMemory</code>; the assistant closes one when you say it is answered.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/lib/memory.ts:102</code>; 5 prayer-category memories exist across 2 users; the memory tools have never fired.</dd>
+          <dt>Reuses</dt><dd>#3's context block, the memory tools, the receipt line from #9.</dd>
+          <dt>Dependencies</dt><dd>Fix-first 5 (pastoral escalation) is a hard gate. #8 and #9 so requests actually get saved and seen.</dd>
+          <dt>Risks</dt><dd>The pastoral failure mode: a request resurfaced badly (a death, a divorce) does real harm. Never resurface without the guardrail text, and let the user close a request in one tap.</dd>
+          <dt>Why now</dt><dd>Cheap once #3 exists, and it is the most honest reason to return tomorrow that is not a streak.</dd>
+          <dt>First slice</dt><dd>The three columns and the context block; no push.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Scripture memorization over marked verses</h3><div class="badges"><span class="badge neutral">M</span><span class="badge warn">Impact Medium-High</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> Memorization is a universal Christian discipline and the product has no trace of it (<code>rg -il memoriz</code> returns nothing). A highlight is already a user saying "this verse matters to me", which is the first step of choosing a verse to memorize.</p>
+        <p><strong>Experience.</strong> "Learn this verse" on the verse sheet adds it to a short review queue; the assistant quizzes you conversationally ("finish this: For God so loved…") and the reader hides progressively more words. No new content, no model call for the queue itself.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd>Domain reviewer; <code>VerseHighlight</code> is per user, per verse, per translation with a timestamp; the bundled KJV text is offline on Android.</dd>
+          <dt>Reuses</dt><dd>Highlights, the verse sheet, a memory category or one small table.</dd>
+          <dt>Dependencies</dt><dd>Named highlight colours (quick wins) make "promises" a natural queue.</dd>
+          <dt>Risks</dt><dd>Unvalidated demand; treat as an experiment behind one sheet action.</dd>
+          <dt>Why now</dt><dd>The only daily-return mechanic in the audit that is not a push notification.</dd>
+          <dt>First slice</dt><dd>A "Learn" flag on a highlight and one chat prompt block that offers a review when there is something to review.</dd>
+        </dl></div></details>
+      </div>
+    </div>
+
+    <h4>4. UX improvements</h4>
+    <div class="grid">
+      <div class="card" id="r12">
+        <div class="card-head"><h3><span class="rank">12</span>Conversations you can find again</h3><div class="badges"><span class="badge neutral">S (corrected from M)</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> Titles are the first 60 characters the user typed, set once and never revisited. No search, no rename, no pin. The history list stamps rows with <code>createdAt</code> even though the conversations route already sorts by and returns <code>updatedAt</code>; the Android type simply drops the field.</p>
+        <p><strong>Experience.</strong> After the first exchange the conversation quietly retitles itself ("Assurance in Romans 8"). A search field over titles. Rows stamped by last activity. Long-press to rename or pin.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>useChat.ts:805-809</code>, <code>useSureWordChat.ts:617</code>; <code>src/app/api/conversations/route.ts:10-11</code> (already selects and orders by <code>updatedAt</code>); <code>HistoryModal.tsx:163</code>; 339 threads, 64% noise burying about 34 real studies.</dd>
+          <dt>Reuses</dt><dd>The utility model path in the existing <code>waitUntil</code> block for a one-time auto-title; <code>filterNotesByQuery</code> as the filter shape; <code>pinned</code> is a one-column migration and can wait.</dd>
+          <dt>Dependencies</dt><dd>None.</dd>
+          <dt>Risks</dt><dd>Retitle exactly once or it churns; clients cache the title at creation and must refresh.</dd>
+          <dt>Why now</dt><dd>Server-side auto-title needs no client change and no schema change.</dd>
+          <dt>First slice</dt><dd>Auto-title on the first assistant turn; Android reads <code>updatedAt</code>.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r15">
+        <div class="card-head"><h3><span class="rank">15</span>Never open a blank note</h3><div class="badges"><span class="badge neutral">S</span><span class="badge ok">Impact High for notes</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> 65 of 136 notes are "Untitled Note", 61 have zero words, 48 are both. The "+" button hands people a blank rectangle and they abandon it. Properties are used by zero notes and nothing reads them anyway.</p>
+        <p><strong>Experience.</strong> New note asks for one of three shapes believers actually write: verse study (seeded with the passage), sermon notes (seeded with Sunday's date and the church name from the profile), prayer journal (seeded with today). Blank remains an option. Templates emit properties so the field finally has a writer.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd>Notes report production counts; <code>UserChurch</code> exists; <code>Note.properties</code> zero rows.</dd>
+          <dt>Reuses</dt><dd><code>CreateItemSheet</code>, the properties model, the church profile.</dd>
+          <dt>Dependencies</dt><dd>None.</dd>
+          <dt>Risks</dt><dd>Three templates, not ten; each one is a parity row.</dd>
+          <dt>Why now</dt><dd>It directly moves a number already measurable: the share of empty notes.</dd>
+          <dt>First slice</dt><dd>The three-shape chooser on Android with seeded titles only.</dd>
+        </dl></div></details>
+      </div>
+    </div>
+
+    <h4>5. Power-user features</h4>
+    <div class="grid">
+      <div class="card" id="r6">
+        <div class="card-head"><h3><span class="rank">6</span>Three write tools: file a note, mark a verse, change a setting</h3><div class="badges"><span class="badge neutral">S each, server-only</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> The assistant can write notes but not tag, file, pin or rename them, so 85% of notes sit unfiled. It can read highlights but not make one, although <code>PUT /api/highlights</code> is a plain upsert. It can recite "Settings, then My church" but cannot change a preference or set the church, both one wrapper away. Meanwhile the registry is already 24 tools against an 8-step budget.</p>
+        <p><strong>Experience.</strong> "File that under Romans and tag it grace." "Mark verse 28 for me." "Turn web search off." Each lands as a fragment on the receipt line. At most two new tools per release; widen <code>readNote</code> to return folder, aliases and properties for free first, which removes half the need.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>src/lib/ai-tools.ts:1275-1297</code>; <code>PATCH /api/notes/[id]</code> already takes folder, tags, pin, aliases; <code>src/app/api/highlights/route.ts:65</code>; <code>PATCH /api/preferences</code> and <code>setUserChurch</code> exist; 21 of 136 notes filed.</dd>
+          <dt>Reuses</dt><dd>The routes' own validation; <code>resolveReference</code> for "Romans 8:28"; <code>HIGHLIGHT_COLORS</code>.</dd>
+          <dt>Dependencies</dt><dd>#9, or the new tools join the nine that have never fired. A preference tool changes the prompt-cache key (it already encodes <code>webSearchEnabled</code>), so extend the key or two users share a poisoned prefix.</dd>
+          <dt>Risks</dt><dd>Tool-registry bloat; watch <code>stepLimitReached</code> once it is committed and running.</dd>
+          <dt>Why now</dt><dd>Server-only, all four clients on deploy, and it is the "does things for you" half of the owner's framing.</dd>
+          <dt>First slice</dt><dd><code>organizeNote</code> and <code>highlightVerse</code>; preferences and church in the next release.</dd>
+        </dl></div></details>
+      </div>
+    </div>
+
+    <h4>6. Data and AI opportunities</h4>
+    <div class="grid">
+      <div class="card" id="r3">
+        <div class="card-head"><h3><span class="rank">3</span>A "today" block in the chat prompt</h3><div class="badges"><span class="badge neutral">S, server-only</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> The welcome chips are generated from the user's reading, notes, plan and today's verse. Tapping one sends it to an assistant that knows none of that until it spends one of its eight steps asking. The prompt tells the model highlights are "evidence about what they are wrestling with" and never puts one in front of it.</p>
+        <p><strong>Experience.</strong> Ask "what should I read tonight?" and the first sentence already knows you are on day 6 of the Gospels and marked three verses in Romans 8 yesterday, with no visible tool step. About ten lines, roughly 170 tokens, on the uncached half of the prompt.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>route.ts:702</code> (memories and church only); <code>study-context.ts:59-136</code>; <code>suggested-questions.ts:189-209</code>; highlights are absent from both <code>loadStudyContext</code> and the daily-cross context loader.</dd>
+          <dt>Reuses</dt><dd>A <code>formatTodayBlock()</code> beside <code>formatChurchBlock</code>, fed by the same queries. Do not call <code>loadStudyContext</code> as-is from chat: it re-runs the memory and church loads the route already did. Add the four extra reads to the existing <code>Promise.all</code>.</dd>
+          <dt>Dependencies</dt><dd>Fix-first (empty-note filter) or the assistant reads "Untitled Note" back to people. #1 for the name. Fix-first 1 for the cache split.</dd>
+          <dt>Risks</dt><dd>Honesty: reuse <code>isEmpty</code> so a new account gets no block rather than an invented one. Explicit cache breakpoints exist only for Anthropic and recent OpenAI models; other BYOK providers pay the full prompt every turn regardless.</dd>
+          <dt>Why now</dt><dd>The only candidate that makes chat the spine of the day, and it reaches four clients on one deploy.</dd>
+          <dt>First slice</dt><dd>Plan day plus today's cross reference, guarded by <code>isEmpty</code>; measure volatile prompt size in the existing metric.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Measure the product, not just the model</h3><div class="badges"><span class="badge neutral">XS to S</span><span class="badge ok">Impact High</span><span class="badge ok">Confidence High</span></div></div>
+        <p>Every number in this report came from hand-run SQL. Add a <code>conversationalShape</code> check to the eval harness so #2 can regress visibly, an answer-arrival metric for the 27 unanswered conversations, and one saved view over messages, reading events, push tokens and days-of-day giving weekly day-2 return, conversation depth and tool-fire counts. Highlights should also feed the daily-cross selector (one <code>Promise.all</code> entry), since marking a verse is the purest zero-typing signal the product collects and the selector reads everything except it.</p>
+      </div>
+    </div>
+
+    <h4>7. Larger strategic bets</h4>
+    <div class="grid">
+      <div class="card" id="r16">
+        <div class="card-head"><h3><span class="rank">16</span>My Walk: one history surface, and the receipt behind "why this verse"</h3><div class="badges"><span class="badge neutral">M</span><span class="badge ok">Impact High for active users</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> Reading events, highlights, notes, past crosses and memories are five thin logs nobody can see. Separately they justify nothing (the second-most-active account's largest category is 45 rows); merged, the top two accounts hold 440 and 151 entries, which is a real feed. Five screens is 20 parity cells and five Apple debts; one is four cells. The daily cross's twelve provenance columns, including a human-readable theme and "why today", are written to be displayed and never are.</p>
+        <p><strong>Experience.</strong> One card on the Bible home opens a reverse-chronological, verse-anchored journal with filter chips (Read, Marked, Wrote, Asked, Cross). A past day shows what it was built from. A past narration plays again. Later, the verse hub in the reader is the same read model projected by verse.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd>Surface-stored-data thesis with per-user counts; 35 of 44 accounts have zero rows across all five sources; <code>VerseOfDay</code> columns and <code>today/route.ts:28-43</code> DTO; every narration is still in Blob storage with script and duration on the row.</dd>
+          <dt>Reuses</dt><dd>#7's GET, a widened highlights GET, a verse-of-day history GET over the existing index, a union cursor query (three index additions, no new table until usage justifies <code>VerseTouch</code>), <code>chapterHrefForReference</code> for row links.</dd>
+          <dt>Dependencies</dt><dd>#7. Write the empty state first, because most accounts will see it.</dd>
+          <dt>Risks</dt><dd>Serves about nine accounts today. Do not Pro-gate a record of the user's own data. Not a fourth tab.</dd>
+          <dt>Why now</dt><dd>Month two, after the first-run work. The server half is cheap and stands alone.</dd>
+          <dt>First slice</dt><dd>The three GETs and a <code>getMyWalk</code> tool; then one Android screen.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r17">
+        <div class="card-head"><h3><span class="rank">17</span>A morning email for web users</h3><div class="badges"><span class="badge neutral">M</span><span class="badge ok">Impact High</span><span class="badge warn">Confidence Medium</span></div></div>
+        <p><strong>Problem.</strong> 89% of accounts are web-only and web has zero retention hooks: no push, no email, no email address even stored. The one thing every returner had was a scheduled morning contact or the native app.</p>
+        <p><strong>Experience.</strong> Today's cross, once a day, in an email the user opted into during the first conversation. Not browser push, which reaches the people who could not install the app with a permission prompt they will deny.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>cron/verse-of-day/route.ts:90</code> iterates push tokens only; 0 of 28 spring accounts installed the app; <code>User.email</code> unsynced.</dd>
+          <dt>Reuses</dt><dd>The cron's per-user local-hour computation, the daily-cross DTO, #1's email capture. Provision the email provider through the Vercel marketplace rather than hand-wiring an SDK.</dd>
+          <dt>Dependencies</dt><dd>#1, fix-first 3 (the cron must send once per user before it sends anything new).</dd>
+          <dt>Risks</dt><dd>New vendor; deliverability; the cross must be prepared for users without push tokens, which the cron does not do today.</dd>
+          <dt>Why now</dt><dd>It is the only channel that reaches the population that actually signs up.</dd>
+          <dt>First slice</dt><dd>Capture the email; render today's cross on the web welcome screen for accounts that have one; the email itself is the third step.</dd>
+        </dl></div></details>
+      </div>
+
+      <div class="card" id="r18">
+        <div class="card-head"><h3><span class="rank">18</span>A front door: Play production, a public page, an honest install button, and account deletion</h3><div class="badges"><span class="badge neutral">S code, L process</span><span class="badge ok">Impact Very High</span><span class="badge ok">Confidence High</span></div></div>
+        <p><strong>Problem.</strong> All 41 changelog entries are internal; the primary client has never left Play internal testing. Every logged-out web visitor is sent to a bare Clerk login box; there is no landing page, robots, sitemap or share route. The only install path a friend can use is a raw APK sideload dressed as a download button, with no word about unknown sources. Account deletion routes to an email address, which is a live Play compliance issue. There is no billing, and there should not be yet: the addressable Pro population is roughly zero.</p>
+        <p><strong>Experience.</strong> A public page at the root with today's verse and the install links; the Play production track; the download button naming what a sideload is; a public deletion request page and an in-app delete before the production listing, not after. The share action on a day or verse carries a link, or it has a viral coefficient of zero by construction.</p>
+        <details><summary>Evidence, reuse, first slice</summary><div class="body"><dl>
+          <dt>Evidence</dt><dd><code>middleware.ts:56</code>; <code>WelcomeScreen.tsx:192-212</code>; <code>mobile/CHANGELOG.md</code>; privacy policy and Play declaration; the share payload carries no URL.</dd>
+          <dt>Reuses</dt><dd><code>GET /api/native-releases</code>, the welcome cards, the Clerk delete-user API plus the cascade FKs already on every table.</dd>
+          <dt>Dependencies</dt><dd>Fix-first 5 (pastoral text) before a public listing. The $99 Apple developer membership is a separate decision that gates an 8,609-line iOS client from reaching a single device; Android reaches more people per unit of effort and should go first.</dd>
+          <dt>Risks</dt><dd>Pouring arrivals into a funnel that loses 80% on day one converts reach into churn; ship #1, #2, #4 and #8 first.</dd>
+          <dt>Why now</dt><dd>The formula cannot see it (touched once per user), but it is the only item that changes the denominator.</dd>
+          <dt>First slice</dt><dd>One line of copy on the download button and the deletion request page; the Play production submission follows the first-run release.</dd>
+        </dl></div></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="rejected">
+    <h2>Ideas considered and rejected</h2>
+    <p class="lead">Every "do not pursue" item from the eleven area reports and eight reviews, grouped by the reason. Nothing here should be revived without new evidence.</p>
+    <div class="table"><table>
+      <thead><tr><th>Idea</th><th>Reason</th></tr></thead>
+      <tbody>
+        <tr><td>Chat read-aloud or an audio Bible on ElevenLabs</td><td>Inverts the deliberate once-a-day cost model (<code>daily-cross-audio.ts:50-54</code>, 60-narration cron cap). Device TTS is below the brand's Listen bar and no speech module is installed either way; Gboard already dictates into the composer. Defer voice entirely.</td></tr>
+        <tr><td>A bigger slash palette (/hebrew, /greek, /xref, /marked)</td><td>Names hidden capabilities in a syntax a new user never discovers. Discoverability is receipts and follow-up offer chips, which are already at parity on four clients. Prune the three commands that duplicate header buttons instead.</td></tr>
+        <tr><td>Interactive Yes/No confirmation cards</td><td>Already rejected in writing at <code>docs/FEATURES.md:640-658</code>; the conversational form behaves identically on four clients.</td></tr>
+        <tr><td>A "conversational mode" toggle, model or token badges, a reasoning panel, a persistent tool timeline</td><td>Metadata on a surface whose problem is metadata. The turn shape already says which voice to use.</td></tr>
+        <tr><td>The five-slide onboarding carousel from the September 1 plan</td><td>Three dependencies, per-client, strands macOS and iOS. #8 does the job from the server.</td></tr>
+        <tr><td>Billing (Stripe, Play Billing, RevenueCat) this quarter</td><td>41 internal releases and no public listing: the Pro population is about zero. Capture intent on the locked Listen card. Pro gates ElevenLabs cost only; gating Scripture features would damage the mission for no margin.</td></tr>
+        <tr><td>Web push notifications</td><td>Reaches the people who could not install the app with a permission prompt they will deny. Fix distribution and use email.</td></tr>
+        <tr><td>A geographic map, a whole-Bible family tree, a note graph</td><td>Zero of 93 places carry coordinates; 113 of 186 people have no reviewed relation; 3 NoteLink rows exist. Each would render a dot.</td></tr>
+        <tr><td>Analytics or spiritual-growth dashboards, streak badges</td><td>One row per chapter view is thin, and it turns a companion into a tracker. One honest line plus a chat tool beats a dashboard.</td></tr>
+        <tr><td>Plan catch-up and conversational plan editing beyond "N days behind"</td><td>2 plans ever, 0 AI-written, 1 manual tick. Reading, not plans, is the discipline these users have.</td></tr>
+        <tr><td>Church enrichment (service times, staff, sermons via scraping)</td><td>1 UserChurch row; stale-data liability; the rules file deliberately forbids answering about service times.</td></tr>
+        <tr><td>Daily-cross thumbs up / down</td><td>Drifts the selector toward comfort verses. Answering the carry-question is the honest signal.</td></tr>
+        <tr><td>Chapter companion (cached summaries and outlines)</td><td>An uncheckable cached commentary layer on a product whose value is that every claim is grounded in the text.</td></tr>
+        <tr><td>Atlas density, timeline axis, Ussher dates as measured fact</td><td>7 lookupBibleEntity and 2 getBibleTimeline calls in the product's lifetime; a numeric axis publishes a chronology as fact.</td></tr>
+        <tr><td>Apple: widgets, Watch, share extensions, the Mac study desk, backlinks parity, iOS plans</td><td>Every entitlement-bearing item needs the paid program, which does not exist; the rest is L effort on a machine that cannot build it for zero observed users. Decide the $99 membership explicitly; build nothing on the simulator until then.</td></tr>
+        <tr><td>Social features: shared highlights, public notes, group plans, a podcast feed</td><td>Every FK is user-scoped with cascade delete; the narration is written for one person by name; it fights the private-devotional posture.</td></tr>
+        <tr><td>Personalizing tap-a-verse insight, sharing or exporting memories, a denomination picker</td><td>The insight cache is cross-account by design; memories hold prayer requests; a denomination picker invites the assistant to take doctrinal sides against the single KJV voice.</td></tr>
+        <tr><td>Chat-side RAG over past conversations, pgvector over memories, rolling context summaries, Redis rate limiting, a second rich-text editor, CRDT note collaboration</td><td>Architecture the codebase has already argued against in comments and docs, each for a problem nobody has.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="method">
+    <h2>Method</h2>
+    <p class="lead">Read-only. No repo file was modified. Three waves of agents, then this synthesis.</p>
+    <ul class="plain">
+      <li><strong>Map.</strong> Directory tree, <code>docs/FEATURES.md</code>, <code>docs/PARITY.md</code>, <code>docs/PLANNED-FEATURES.md</code>, the 24-tool registry, the system prompt, the Prisma schema.</li>
+      <li><strong>Wave 1, eleven area agents:</strong> web chat UI, Android chat UI, chat engine, memory and personalization, notes, Bible reader, Pick Up Your Cross and Listen, reading plans and atlas, settings and growth, data model and backend inventory (with production counts), Apple clients and parity. 87 opportunity blocks with file:line evidence.</li>
+      <li><strong>Wave 2, four cross-cutting agents:</strong> a merge editor (87 blocks to 57 candidates, plus verification of three disputed claims and eleven contradictions), and three theses: the conversational companion, surfacing stored data, the daily rhythm and retention.</li>
+      <li><strong>Wave 3, eight reviewers</strong> scoring independently: product manager, UX designer, power user, new user, domain expert, software architect, growth, red team. The PM and growth seats ran their own retention SQL; the red team spot-checked 15 citations and found three stretched (conversation route already returns updatedAt; the verses card is collapsed by default on every client, so that part of the density evidence was wrong; a middleware allowlist miscount).</li>
+      <li><strong>Independently verified by the lead:</strong> the 27 unanswered conversations (query above), the untracked AI modules and the committed route having zero references to them, the conversations route's <code>updatedAt</code>, and the absence of cross-references from the mobile tree.</li>
+      <li><strong>Production data</strong> came from read-only queries against Neon <code>neondb</code> (project versemind), identity confirmed by <code>current_database()</code> and a 44-user count, never the empty decoy. Numbers are a snapshot at 2026-09-12; the memory tools shipped six days earlier, so their zero is partly recency.</li>
+      <li><strong>Not done:</strong> no screenshots, no runtime on device or emulator, no light-mode rendering check, no Apple build. Effort estimates are from reading code, corrected where the architect or red team found a hidden migration or parity bill.</li>
+      <li><strong>Working files:</strong> all agent reports are in the session scratchpad under <code>wave1/</code>, <code>wave2/</code>, <code>wave3/</code>; the master candidate list is <code>wave2/master-candidates.md</code>.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">Generated 2026-09-12 · Single-file HTML, no external dependencies beyond fonts · <a href="#top">Back to top</a></div>
+</footer>
+
+</body>
+</html>

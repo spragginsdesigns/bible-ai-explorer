@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
+import type { TranslationId } from "@/features/bible/translations";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "./assistantMarkdown";
 
 /** View-model types ported from the web app (src/components/useChat.ts). */
@@ -7,6 +8,8 @@ export interface RetrievedVerse {
 	reference: string;
 	similarity: number;
 	text?: string;
+	/** Translation that produced this text; absent on legacy/history rows. */
+	translation?: TranslationId;
 }
 
 export interface TavilyResult {
@@ -140,6 +143,9 @@ function parseVerses(value: unknown): RetrievedVerse[] {
 			reference: verse.reference,
 			similarity: verse.similarity,
 			...(typeof verse.text === "string" ? { text: verse.text } : {}),
+			...(verse.translation === "KJV" || verse.translation === "NKJV"
+				? { translation: verse.translation }
+				: {}),
 		}];
 	});
 }

@@ -71,12 +71,8 @@ extension VerseAttachment {
 // MARK: - Verse actions
 
 enum VerseActions {
-    static func copy(reference: String, text: String?, translation: TranslationID = .kjv) {
-        let value = VerseAttachment.formatForSharing(
-            reference: reference,
-            text: text,
-            translation: translation
-        )
+    static func copy(reference: String, text: String?, translation: TranslationID? = nil) {
+        let value = formatSource(reference: reference, text: text, translation: translation)
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
@@ -93,18 +89,14 @@ enum VerseActions {
         api: APIClient,
         reference: String,
         text: String?,
-        translation: TranslationID = .kjv
+        translation: TranslationID? = nil
     ) async throws -> String {
         let body = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let html = "<blockquote><p><strong>\(escapeHTML(reference))</strong></p>"
             + (body.isEmpty ? "" : "<p>\(escapeHTML(body))</p>")
-            + "<p>(\(escapeHTML(translation.rawValue)))</p>"
+            + (translation.map { "<p>(\(escapeHTML($0.rawValue)))</p>" } ?? "")
             + "</blockquote>"
-        let plainText = VerseAttachment.formatForSharing(
-            reference: reference,
-            text: text,
-            translation: translation
-        )
+        let plainText = formatSource(reference: reference, text: text, translation: translation)
         let wordCount = plainText.split(whereSeparator: \.isWhitespace).count
 
         struct NewNote: Encodable {
@@ -138,6 +130,25 @@ enum VerseActions {
             throw error
         }
         return note.id
+    }
+
+    /// Legacy chat rows have no translation provenance. Keep those actions
+    /// unlabeled instead of claiming the text is KJV; current sources pass one.
+    private static func formatSource(
+        reference: String,
+        text: String?,
+        translation: TranslationID?
+    ) -> String {
+        guard let translation else {
+            let body = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let body, !body.isEmpty else { return reference }
+            return "\(reference) — \"\(body)\""
+        }
+        return VerseAttachment.formatForSharing(
+            reference: reference,
+            text: text,
+            translation: translation
+        )
     }
 
     private static func escapeHTML(_ value: String) -> String {

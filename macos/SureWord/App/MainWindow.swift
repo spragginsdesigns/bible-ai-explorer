@@ -70,6 +70,7 @@ struct MainWindow: View {
                 onCrossReplaced: { app.dailyCross.invalidate() }
             ) { verse in
                 app.section = .bible
+                app.pendingVerseTranslation = verse.translation
                 app.pendingVerseReference = verse.reference
             }
             .navigationTitle(app.chat.activeConversation?.title ?? "New chat")

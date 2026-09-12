@@ -32,8 +32,12 @@ import {
 	dailyCrossGuidance,
 	noteAISystemPrompt,
 	slashCommandGuidance,
+	appKnowledge,
+	systemPrompt,
 	toolGuidance,
 } from "@/utils/systemPrompt";
+import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
+import { logChatStepMetric } from "@/lib/ai/chat-metrics";
 
 export const maxDuration = 120;
 
@@ -172,6 +176,7 @@ export async function POST(req: Request): Promise<Response> {
 		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
+		const requestMessageCount = requestData.messages.length;
 		const messages = await validateUIMessages<SureWordUIMessage>({
 			messages: recentMessages,
 			tools,
@@ -215,7 +220,7 @@ export async function POST(req: Request): Promise<Response> {
 					loadUserChurch(userId),
 					describeNoteLinks(note.id),
 				]);
-				const system = `${noteAISystemPrompt(
+				const fullSystem = `${noteAISystemPrompt(
 					note.title,
 					note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH),
 					linksSummary
@@ -224,16 +229,46 @@ export async function POST(req: Request): Promise<Response> {
 				// not fire until the user has agreed to it.
 				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}${formatChurchBlock(church)}`;
 
-				const { model, providerOptions } = await resolveModel({ userId, fallbackEffort: "medium" });
+				const { model, providerOptions, definition } = await resolveModel({ userId, fallbackEffort: "medium" });
+				const { stableSystem, volatileSystem } = splitStableSystemPrefix(
+					fullSystem,
+					`${systemPrompt}\n\n${appKnowledge}`,
+				);
+				const promptCache = buildPromptCachePlan({
+					provider: definition.provider,
+					modelId: definition.providerModelId,
+					stableSystem,
+					volatileSystem,
+					providerOptions,
+					cacheKey: `sureword:note-ai:v1:${definition.providerModelId}:${userPrefs?.webSearchEnabled ?? true}`,
+				});
 
 				writeStatus("Thinking");
 				const result = streamText({
 					model,
-					system,
+					system: promptCache.system,
 					messages: await convertToModelMessages(messages),
 					tools,
 					stopWhen: isStepCount(8),
-					providerOptions,
+					providerOptions: promptCache.providerOptions,
+					onStepEnd: (event) => {
+						logChatStepMetric(
+							{
+								surface: "note-ai",
+								provider: definition.provider,
+								modelId: definition.providerModelId,
+								toolCount: Object.keys(tools).length,
+								memoryCount: memories.length,
+								historyMessages: messages.length,
+								historyTruncated: requestMessageCount > MAX_REQUEST_MESSAGES,
+								maxHistoryMessages: MAX_REQUEST_MESSAGES,
+								stepLimit: 8,
+								stableSystemChars: stableSystem.length,
+								volatileSystemChars: volatileSystem.length,
+							},
+							event,
+						);
+					},
 					onToolExecutionStart: ({ toolCall }) => {
 						writeStatus(toolActivityLabel(toolCall.toolName));
 					},

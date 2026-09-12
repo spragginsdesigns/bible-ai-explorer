@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SureWord Changes Review Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark;--bg:#09090b;--surface:rgba(255,255,255,.04);--surface-2:rgba(255,255,255,.06);--surface-3:rgba(255,255,255,.10);--border:rgba(255,255,255,.08);--border-strong:rgba(255,255,255,.14);--fg:#fafafa;--fg-2:#d4d4d8;--muted:#a1a1aa;--dim:#8b8b95;--accent:#3b82f6;--accent-2:#22d3ee;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--info:#8b5cf6;--radius:12px;--radius-lg:16px;--shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);--edge:inset 0 1px 0 rgba(255,255,255,.06);--font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;--mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--max:960px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased;background-image:radial-gradient(900px 420px at 50% -120px, rgba(34,211,238,.16), transparent 70%),radial-gradient(700px 360px at 85% -60px, rgba(59,130,246,.12), transparent 70%);background-repeat:no-repeat}
+a{color:var(--accent-2);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
+.wrap{width:min(100% - 2.5rem, var(--max));margin-inline:auto}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:clamp(1.8rem,4.5vw,2.5rem);font-weight:700;letter-spacing:-.03em;text-wrap:balance}
+h2{font-size:1.3rem}h3{font-size:1rem}
+p{margin:.5rem 0}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:.1em .4em;border-radius:6px;overflow-wrap:anywhere}
+header{padding:3rem 0 1.5rem}
+.eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+.eyebrow .sep{color:var(--dim);margin:0 .5rem}
+header h1{margin:.8rem 0 .6rem;max-width:26ch}
+.dek{max-width:62ch;font-size:1.05rem;color:var(--fg-2)}
+.meta{margin-top:.9rem;font-family:var(--mono);font-size:.76rem;color:var(--dim)}
+nav{position:sticky;top:0;z-index:5;padding:.6rem 0;background:rgba(9,9,11,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;padding-right:2.5rem;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent)}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;padding:.34rem .8rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--muted);background:var(--surface)}
+nav a:hover{color:var(--fg);border-color:var(--border-strong);text-decoration:none}
+main{padding:1.2rem 0 4rem}
+section{margin:2.4rem 0}
+section>h2{margin-bottom:.3rem}
+.lead{color:var(--muted);max-width:64ch;margin:0 0 1rem}
+.grid{display:grid;gap:.8rem}.grid>*{min-width:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.15rem;box-shadow:var(--shadow),var(--edge)}
+.verdict{border-left:3px solid var(--accent-2);background:linear-gradient(90deg,rgba(34,211,238,.08),var(--surface) 40%)}
+.verdict strong{color:var(--fg)}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;flex-wrap:wrap;margin-bottom:.55rem}
+.head h3{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.id{display:inline-grid;place-items:center;min-width:2.2rem;height:1.5rem;padding:0 .4rem;border-radius:999px;background:var(--surface-3);font:600 .72rem var(--mono);color:var(--fg)}
+.badges{display:flex;gap:.35rem;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;padding:.14rem .55rem;border-radius:999px;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.badge.ok{--c:var(--ok)}.badge.warn{--c:var(--warn)}.badge.bad{--c:var(--bad)}.badge.info{--c:var(--info)}.badge.neutral{--c:var(--muted)}.badge.accent{--c:var(--accent-2)}
+.badge.fable{--c:#f472b6}.badge.codex{--c:#34d399}.badge.kimi{--c:#a78bfa}
+.naw{display:grid;grid-template-columns:4.2rem 1fr;gap:.3rem .8rem;font-size:.92rem}
+.naw dt{font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:.2rem}
+.naw dd{margin:0;color:var(--fg-2)}
+.naw dd.after{color:var(--fg)}
+.rel{display:flex;align-items:baseline;gap:.7rem;flex-wrap:wrap}
+.rel .tag{font-family:var(--mono);font-size:.74rem;color:var(--dim)}
+.table{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:.55rem .8rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+th{font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+ul.plain{margin:.4rem 0 0;padding-left:1.1rem;color:var(--fg-2)}ul.plain li{margin:.25rem 0}
+ol.steps{list-style:none;padding:0;margin:.4rem 0 0;display:grid;gap:.5rem;counter-reset:s}
+ol.steps li{position:relative;padding:.7rem .9rem .7rem 2.8rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg-2)}
+ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.8rem;top:.65rem;width:1.4rem;height:1.4rem;display:grid;place-items:center;border-radius:999px;background:var(--surface-3);color:var(--fg);font:600 .72rem var(--mono)}
+ol.steps strong{color:var(--fg)}
+footer{border-top:1px solid var(--border);padding:1.2rem 0 2.5rem;font-size:.8rem;color:var(--dim)}
+@media (max-width:560px){header{padding:2.2rem 0 1.2rem}.wrap{width:min(100% - 1.5rem, var(--max))}.card{padding:.9rem .95rem}.naw{grid-template-columns:1fr}.naw dt{padding-top:.4rem}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap">
+    <div class="eyebrow">SureWord<span class="sep">/</span>Changes review sheet v2<span class="sep">/</span>2026-09-12</div>
+    <h1>Every change, who builds it, and in what order.</h1>
+    <p class="dek">All items from v1 are approved. This version adds what you asked for (notes house style, cost guard, learn-a-verse, Windows app, landing page, tap-a-verse that knows your notes), assigns every item to one of three orchestrators, and sets the stage order. Each item still reads Now / After / Why with an ID.</p>
+    <div class="meta">Owners: <span class="badge fable">Fable</span> Claude Code Fable 5.1 (this session) · <span class="badge codex">Codex</span> Codex Astra orchestrator · <span class="badge kimi">Kimi</span> Kimi K3 agent swarms · Sizes: XS under an hour, S a day, M a few days, L a week or more</div>
+  </div>
+</header>
+
+<nav aria-label="Sections"><div class="wrap">
+  <a href="#you">What you do</a><a href="#who">Who takes what</a><a href="#rules">Rules for every lane</a><a href="#s0">Stage 0</a><a href="#s1">Stage 1</a><a href="#s2">Stage 2</a><a href="#s3">Stage 3</a><a href="#no">Not doing</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="you">
+  <div class="card verdict">
+    <p><strong>What you actually do with SureWord (from your account, atmosphere9999, read-only).</strong> Daily since about August 5, 27 of the last 56 days, peaks during the working day (8am to 3pm) and again 7pm to 10pm; you are not a morning-devotional user. 89 real conversations (20 more were a seeded eval run on August 27). 72% are one question and one answer. Of your last 120 messages: 19 doctrine, 19 "save this to a note", 19 bare follow-ups like "why?", 10 personal life, 10 verse explanations, 8 Bible facts, 7 word studies, 7 memory requests, 5 parenting, 5 daily cross, 0 reading plans. The assistant calls getPassage 3.5 times per answer (299 calls). You have 16 notes, all written by the assistant from chat; the per-note AI panel has never been opened. Your kept notes already share a shape: 400 to 900 words, first person, 3 to 7 sections with claim-style headings, verses as blockquotes ending "Book 1:1, KJV", and a closing "what I do next" section. Four short notes call you "Austin" in the third person; that is the biggest style bug. Three note saves persisted a null input and produced a duplicate pair. Listen audio was ready on 21 of 21 eligible days but nothing records whether it was played. A second email-less account holds 112 of the 136 notes in the database, mostly "Untitled Note", so note metrics in v1 were skewed by it.</p>
+  </div>
+</section>
+
+<section id="who">
+  <h2>Who takes what</h2>
+  <p class="lead">One writer per file. Every lane ships web and Android; Apple is a stated gate, not a claim. The Fable lane owns the backend, the shared contracts, migrations, Play publishing and final integration.</p>
+  <div class="table"><table>
+    <thead><tr><th>Owner</th><th>Owns these paths (nobody else edits them)</th><th>Items</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge fable">Fable</span></td><td><code>src/app/api/**</code>, <code>src/lib/**</code>, <code>src/utils/**</code>, <code>prisma/**</code>, <code>scripts/**</code>, <code>tests/**</code>, <code>src/components/useChat.ts</code> and <code>mobile/src/lib/chatView.ts</code> (the part parsers), <code>docs/PARITY.md</code>, <code>docs/FEATURES.md</code>, <code>mobile/CHANGELOG.md</code>, <code>mobile/app.json</code>, <code>vercel.json</code></td><td>F1 to F6, A1 to A7, N1 notes style, N2 cost guard, B4 server half, C1 API, C2, C3 server, C4, C6 API, C7, C8 deletion API and Play production, all migrations, all Play pushes</td></tr>
+      <tr><td><span class="badge codex">Codex</span></td><td><code>src/app/(marketing)/**</code> (new), <code>src/app/page.tsx</code> logged-out branch, <code>src/components/WelcomeScreen.tsx</code>, <code>src/components/Chat*.tsx</code>, <code>MessageList.tsx</code>, <code>FormattedResponse.tsx</code>, <code>markdownComponents.ts</code>, <code>RetrievedVersesCollapsible.tsx</code>, <code>FollowUpChips.tsx</code>, <code>mobile/src/features/chat/**</code>, <code>mobile/app/(app)/index.tsx</code>, <code>src/components/bible/ChapterReader.tsx</code> and <code>mobile/app/(app)/bible/chapter.tsx</code> (verse sheet UI), My Walk screens</td><td>N6 landing page, B1, B2, B3, B4 client half, C3 verse-sheet UI, C6 UI, C8 public pages</td></tr>
+      <tr><td><span class="badge kimi">Kimi</span></td><td><code>windows/**</code> (new), <code>src/components/learn/**</code> and <code>mobile/src/features/learn/**</code> (new), <code>src/app/bible/learn/**</code> and <code>mobile/app/(app)/bible/learn.tsx</code> (new), <code>mobile/src/features/notes/components/CreateItemSheet.tsx</code>, <code>src/components/notes/**</code>, <code>src/components/settings/**</code> and <code>mobile/app/(app)/settings.tsx</code> (highlight colour names section), <code>src/lib/shortcuts.ts</code> (new), <code>mobile/app/(app)/bible/index.tsx</code> and <code>src/components/bible/BibleBookPicker.tsx</code> (continue-reading row), <code>ChatSidebar.tsx</code> and <code>HistoryModal.tsx</code></td><td>N5 Windows app, N4 learn a verse, B5, B6, B7, B8, B9, C1 verse-sheet "See also" UI</td></tr>
+    </tbody>
+  </table></div>
+  <p class="lead" style="margin-top:.9rem">Two shared files need a contract before two lanes touch them. Fable publishes both in Stage 0: the receipt shape on a chat message (one <code>receipts</code> array with kind, label, target) that Codex renders, and the learn-a-verse API (queue, review, progress) that Kimi builds against.</p>
+</section>
+
+<section id="rules">
+  <h2>Rules for every lane</h2>
+  <ol class="steps">
+    <li><strong>Work on a branch, not on main.</strong> <code>codex/&lt;item&gt;</code>, <code>kimi/&lt;item&gt;</code>. Main auto-deploys to sureword.app and the Android app calls it, so a half-done lane on main is a live outage. Fable merges branches after review and proof; Vercel preview URLs are the review surface for web.</li>
+    <li><strong>Prove on the real product path before calling anything done.</strong> Android emulator or device first (<code>docs/android-emulator-proof-recipe</code> in memory), then web in a browser at desktop and 375px. Static checks are support only: <code>pnpm lint &amp;&amp; pnpm build</code> for web, <code>cd mobile &amp;&amp; npm run typecheck &amp;&amp; npm test</code> for Android. Screenshots go in <code>artifacts/&lt;item&gt;/</code>.</li>
+    <li><strong>Capability parity in the same cycle.</strong> Whatever ships on Android ships on web in the same branch. macOS and iOS cannot be built on this PC: update <code>docs/PARITY.md</code> with the exact gate and never mark Apple verified.</li>
+    <li><strong>Touched files only.</strong> Conventional Commits, never <code>git add -A</code>, never commit <code>mobile/.phone-addr</code> or secrets. Nobody but Fable runs <code>push-phone.sh</code>, bumps <code>mobile/app.json</code>, or writes <code>mobile/CHANGELOG.md</code>; Android releases are batched per stage.</li>
+    <li><strong>No new dependency, migration, or tool without asking Fable.</strong> The model already juggles 24 tools; migrations go through <code>prisma migrate deploy</code> against production by Fable only.</li>
+    <li><strong>Return format for every finished item:</strong> branch name, files changed, the commands run with real output, proof screenshots, open risks. Never "tests pass" alone.</li>
+  </ol>
+</section>
+
+<section id="s0">
+  <div class="rel"><h2>Stage 0 · Today</h2><span class="tag">Fable · unblocks everyone</span></div>
+  <div class="grid">
+    <div class="card"><div class="head"><h3><span class="id">F1</span>Commit the working tree, fix the iOS build</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Done this session</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>31 modified files plus untracked <code>src/lib/ai/*</code> modules that the chat route imports; a normal push would break the Vercel build. iOS <code>let</code> that should be <code>var</code>.</dd>
+      <dt>After</dt><dd class="after">Everything committed together and pushed; web lint clean, mobile typecheck clean, 618 tests green. Android release of the verse-translation work is batched into the Stage 2 push.</dd>
+      <dt>Why</dt><dd>Nothing else can ship until the tree is consistent.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F2</span>Measure answers and return</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>27 of 339 conversations hold a question and no answer; nothing measures it. No product analytics exist.</dd>
+      <dt>After</dt><dd class="after">A metric fires when a user turn is saved with no reply; one SQL view reports weekly day-2 return, depth, tool fires, and monthly spend by service (see N2).</dd>
+      <dt>Why</dt><dd>Otherwise nothing below is known to have worked.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F3</span>One morning push per person</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>One notification per device token; one account gets 76 copies. Turning off the morning verse also kills "answer is ready" pushes.</dd><dt>After</dt><dd class="after">One push per user; the two toggles are independent.</dd><dt>Why</dt><dd>Every future push inherits this.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F4</span>Ask for notification permission later</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Android shows the permission dialog seconds after sign-in.</dd><dt>After</dt><dd class="after">Asked after the first real exchange or the first visit to Pick Up Your Cross.</dd><dt>Why</dt><dd>A "no" is permanent on modern Android.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F5</span>Pastoral escalation in the persona</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>The prompt says nothing about crisis, abuse or self-harm disclosures, while memory extraction hunts for life circumstances.</dd><dt>After</dt><dd class="after">Scripture, then your pastor, then immediate help when life is in danger, never a verse as a substitute. Plus an eval dimension.</dd><dt>Why</dt><dd>Gate for C4 and for a public listing.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F6</span>Fix the note-save bug and the parity row</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Three addToNote calls on your account persisted a null input and wrote the same fact under two titles. PARITY.md claims a macOS note receipt that shows a "later phase" toast.</dd><dt>After</dt><dd class="after">Input validated and persisted; duplicate guard by title; parity row corrected.</dd><dt>Why</dt><dd>Real defect on the workflow you use most.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">F7</span>Publish the two shared contracts</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Codex and Kimi would each invent a shape.</dd><dt>After</dt><dd class="after">A <code>receipts</code> array on chat messages (web and Android parsers emit it; clients render it) and a learn-a-verse API spec, both in <code>docs/FEATURES.md</code>.</dd><dt>Why</dt><dd>One writer per file only works if the contract lands first.</dd></dl></div>
+  </div>
+</section>
+
+<section id="s1">
+  <div class="rel"><h2>Stage 1 · Week 1</h2><span class="tag">three lanes in parallel · no shared files</span></div>
+  <div class="grid">
+    <div class="card"><div class="head"><h3><span class="id">A1</span>It knows your name</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Name blank for 43 of 44 accounts; email never stored.</dd><dt>After</dt><dd class="after">Filled from Clerk once, carried in the prompt; answers can address you.</dd><dt>Why</dt><dd>Precondition for A3, A7, C7.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A2</span>Short question, short answer</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>"Why?" gets an essay. 19 of your last 120 messages are bare follow-ups.</dd><dt>After</dt><dd class="after">A one-sentence prompt hint on follow-ups that name no new passage; explicit picker choice always wins; an eval check guards it. Must be a prompt hint, not the verbosity setting, which the built-in model path ignores.</dd><dt>Why</dt><dd>The behaviour you named.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A3</span>It knows your day</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Chat gets memories and church only. Highlights never reach it or the daily cross selector. Empty notes do.</dd><dt>After</dt><dd class="after">Ten lines: today's cross and question, plan day, chapters this week, latest highlights (with their names once B6 lands), open prayer memories. Empty notes filtered out.</dd><dt>Why</dt><dd>"What should I read tonight?" answers itself.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A4</span>Conversations title themselves</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Title is the first 60 characters you typed, forever.</dd><dt>After</dt><dd class="after">Short title written once after the first answer by the cheap utility model.</dd><dt>Why</dt><dd>Pairs with B5.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A5</span>Two new things it can do</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S each</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Cannot file, tag, pin or rename a note; cannot mark a verse.</dd><dt>After</dt><dd class="after">"File that under Romans and tag it grace." "Mark verse 28 for me." Preferences and church tools in Stage 2.</dd><dt>Why</dt><dd>The "have it call tools" half of how you use it.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A6</span>It can see what you have read</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>231 chapter reads recorded, no way to read them back.</dd><dt>After</dt><dd class="after">A read endpoint and a tool. Feeds B8 and C6.</dd><dt>Why</dt><dd>Reading is the habit real users have.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A7</span>The first conversation is an introduction</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S to M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Sign in, empty chat, no tour.</dd><dt>After</dt><dd class="after">Greets by name, asks what to call you and where you are in your walk, remembers both, offers one next step. Replaces the slide deck.</dd><dt>Why</dt><dd>Five new accounts a month, 82% gone in two minutes.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">N1</span>Notes in your voice, every time</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">New</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Note tools say only "clean, well-structured markdown, verses as blockquotes". The model appends by default and only edited a note once you asked "you can edit instead of appending, right?". Four notes call you "Austin".</dd>
+      <dt>After</dt><dd class="after">A written house style in the note tools and the eval: first person, never your name; 400 to 900 words; a descriptive title, never a bare reference; provenance bullets when it comes from church or a photo; 3 to 7 headings that state a claim; primary verses as full blockquotes ending "Book 1:1, KJV" in the translation you are reading, supporting refs inline; bold only for a defined term; a closing section that says what you do next; plain, doctrinally definite, honest where Scripture is silent; a related-note wikilink line when one exists; and rewrite rather than stack when the subject already has a note. The same style drives the templates in B7 and the "Pick Up Your Cross" journal in C2.</dd>
+      <dt>Why</dt><dd>All 16 of your notes were written by the assistant. The style is already there in the ones you keep; this makes it the default instead of luck.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">N2</span>Cost guard</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">New</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>The hourly cron prepares a day and ElevenLabs audio for every account with a push token whether or not they open the app; 21 narrations were generated for you with no record of a play. getPassage runs 3.5 times per answer. One account holds 143 push tokens.</dd>
+      <dt>After</dt><dd class="after">The cron prepares days only for accounts active in the last 30 days; audio is generated only for accounts that played Listen in the last 14 days, with a play event recorded so that rule can work; passage lookups within one answer are cached; stale push tokens pruned; a monthly spend line per service (OpenAI, ElevenLabs, Tavily, Neon, Vercel) in the F2 view.</dd>
+      <dt>Why</dt><dd>Only you use it daily. The bill should look like one user, not forty.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">N6</span>A landing page</h3><div class="badges"><span class="badge codex">Codex</span><span class="badge ok">New</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Every logged-out visitor to sureword.app is sent to a bare Clerk login box. No robots, sitemap or share route.</dd>
+      <dt>After</dt><dd class="after">A public root page: what SureWord is in one line, today's verse (public, no account), install cards for Android APK, Play (when live), macOS DMG, Windows (when live), and web sign-in. Brand: the day star over the open Word in gold on near-black, KJV throughout. Public verse and native-release data come from existing routes; middleware allowlists the marketing paths.</dd>
+      <dt>Why</dt><dd>There is currently no way for a stranger to become a user.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">N5</span>SureWord for Windows</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge ok">New</span><span class="badge neutral">M then L</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>No Windows app. The web app already has a PWA manifest at <code>public/site.webmanifest</code> and maskable icons from the logo pipeline.</dd>
+      <dt>After</dt><dd class="after">Phase 1: a Microsoft Store listing built from the web app with PWABuilder (MSIX), so Windows gets full parity for free and a Start-menu icon. Phase 2, only if Phase 1 shows demand: a native shell (Tauri) in <code>windows/</code> adding a system tray, native notifications for the morning cross, and a global "Ask SureWord" hotkey. Store assets come from <code>scripts/apply-logo.py</code>, never hand-drawn.</dd>
+      <dt>Why</dt><dd>You live on a Windows PC all day; the app should too. PWA first keeps one codebase.</dd></dl></div>
+  </div>
+</section>
+
+<section id="s2">
+  <div class="rel"><h2>Stage 2 · Week 2</h2><span class="tag">the quiet chat · Codex on chat, Kimi on the small wins, Fable on receipts and tools</span></div>
+  <div class="grid">
+    <div class="card"><div class="head"><h3><span class="id">B1</span>An honest welcome screen, composer first</h3><div class="badges"><span class="badge codex">Codex</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>"CHOSEN FROM YOUR STUDY" over hardcoded questions; composer is the seventh element; download button is a raw sideload.</dd><dt>After</dt><dd class="after">Art, headline, composer, then questions labelled honestly; today's cross below the composer when you have one; art height cut so large system fonts do not sink the input.</dd><dt>Why</dt><dd>The most-seen screen in the product.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B2</span>Light answers look light</h3><div class="badges"><span class="badge codex">Codex</span><span class="badge neutral">S per client</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>234px of furniture under a two-paragraph reply on Android; lightbulbs, checkmarks and quote cards on web; a byline under every turn.</dd><dt>After</dt><dd class="after">Tool-free short turns: prose and chips only. Cut icons, percentages, match badge, follow-up caption, byline; clamp headings. Keep the gold rule and serif on Scripture. Avatar on first and streaming turns only. Your two calls: the wordmark in the Android header, and the avatar.</dd><dt>Why</dt><dd>The prompt asks for prose; the client drew a document.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B3</span>Long-press or hover for actions</h3><div class="badges"><span class="badge codex">Codex</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>One permanent button, no copy, no share, "Try again" only on errors.</dd><dt>After</dt><dd class="after">Copy, Share, Add to notes, Try again on hover or long-press; edit and resend on your own message; one-time hint.</dd><dt>Why</dt><dd>Makes B2 safe: one removed, four added.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B4</span>One receipt line for everything it saves</h3><div class="badges"><span class="badge fable">Fable server</span><span class="badge codex">Codex client</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Notes get a big card; memory, plan and highlight writes show nothing.</dd><dt>After</dt><dd class="after">"Saved to Romans study · Remembered · Marked Romans 8:28" as one tappable line; tap Remembered to edit or forget. Fable emits the receipts (including a data part for passive memory extraction); Codex renders it on web and Android.</dd><dt>Why</dt><dd>Nine of 24 tools have never fired because nobody sees them work.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">A8</span>Settings and church by talking</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>It can recite "Settings, then My church" and cannot do either.</dd><dt>After</dt><dd class="after">"Turn web search off." "My church is First Missionary Baptist." Two tools, prompt-cache key extended so per-user tool descriptions do not collide.</dd><dt>Why</dt><dd>Everything you say should land somewhere without a menu.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B5</span>Find a conversation again</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Truncated first message, creation date, no search, unconfirmed delete on every row.</dd><dt>After</dt><dd class="after">Search, last-activity stamps (already sent by the server), delete behind swipe, rename.</dd><dt>Why</dt><dd>Works with A4's titles.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B6</span>Name your highlight colours</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge neutral">XS</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Yellow, Orange, Red.</dd><dt>After</dt><dd class="after">Eight editable labels in Settings; the assistant and the cross can say "you marked this as a promise". Stored in the synced preference document.</dd><dt>Why</dt><dd>Feeds A3 and N4.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B7</span>Never open a blank note</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge neutral">S</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>"+" opens an empty rectangle.</dd><dt>After</dt><dd class="after">Verse study, sermon notes (Sunday's date, your church), prayer journal, or blank, each seeded in the N1 house style.</dd><dt>Why</dt><dd>Small for you since the assistant writes your notes; matters for anyone who types.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B8</span>Continue reading, and "3 days behind"</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge neutral">XS each</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Re-navigate the book picker every time; plan screen hides how far behind you are.</dd><dt>After</dt><dd class="after">A "Continue reading: Judges 7" row on the Bible home (from A6); the plan screen renders the number it already receives.</dd><dt>Why</dt><dd>Reader engagement predicts return.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">B9</span>Web shortcuts, copy a note as Markdown</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge neutral">XS each</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Web has no shortcuts; notes have no export though a Turndown converter sits unused in the repo.</dd><dt>After</dt><dd class="after">New chat, focus composer, history, previous and next chapter on keys. "Copy as Markdown" on a note, Obsidian-ready.</dd><dt>Why</dt><dd>Daily wins on the PC.</dd></dl></div>
+  </div>
+</section>
+
+<section id="s3">
+  <div class="rel"><h2>Stage 3 · Weeks 3 to 4</h2><span class="tag">the app knows you as well as you know yourself</span></div>
+  <div class="grid">
+    <div class="card"><div class="head"><h3><span class="id">C3</span>Tap a verse, and it knows what you have written about it</h3><div class="badges"><span class="badge fable">Fable server</span><span class="badge codex">Codex UI</span><span class="badge neutral">S then M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Saving a verse from the reader forks a throwaway note and kicks you out of the chapter. The tap-a-verse explanation is the same for every account by design (it is cached across users) and knows nothing about your notes, highlights or past questions on that verse.</dd>
+      <dt>After</dt><dd class="after">First: reader save-to-note uses the same note picker chat has. Then: a per-verse index of everything you have touched (notes that quote it, your highlight, the chat where you asked about it, the day it was your cross). The verse sheet shows a "Your study" line above the cached explanation ("You wrote about this in Following Jesus, Week 1, and marked it as a promise"), and "Expand with AI" carries that context into chat so the assistant can mention it properly. The shared explanation stays cached; only the personal line is per user.</dd>
+      <dt>Why</dt><dd>Your exact request, and the one structural link between the two halves of the product.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">N4</span>Learn a verse</h3><div class="badges"><span class="badge kimi">Kimi</span><span class="badge ok">New</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>No memorization anywhere in the product.</dd>
+      <dt>After</dt><dd class="after">One verse per screen, full-bleed, the way Scroll The Bible does it, with one job: learn this verse. "Learn" on the verse sheet or on a highlight adds it to your queue. Opening Learn shows today's three cards. Each card runs a short ladder: read it, then the same verse with every fourth word hidden, then half hidden, then say it from the reference alone; tap a blank to reveal, swipe to advance. Spaced repetition decides which three come back tomorrow (a verse you got right waits longer). No streak counter, no hearts, no badges; the only number is "verses you know". The assistant can quiz you in chat too ("finish this: For God so loved…") and mark one as known. New tables and routes come from Fable's Stage 0 spec; Android and web screens are Kimi's.</dd>
+      <dt>Why</dt><dd>Scroll The Bible has 14,000 ratings at 4.8 because it does one simple thing per screen. Memorization is the discipline the app is best placed for, and the daily reason to open it that is not a notification.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C1</span>Cross-references in the verse sheet</h3><div class="badges"><span class="badge fable">Fable API</span><span class="badge kimi">Kimi UI</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>225,683 links in the repo, reachable only by the chat model.</dd><dt>After</dt><dd class="after">A collapsed "See also" row with the top five and their text, served by an API since the file is not in the Android bundle.</dd><dt>Why</dt><dd>Scripture interprets Scripture.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C2</span>Answer the day's question</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>The carry-question is a read-only label; the day vanishes after 20 hours. Your peak hours are the working day and 7pm to 10pm, so an evening close fits you better than the 8am push.</dd><dt>After</dt><dd class="after">An input under "Carry this" and "about today's question…" in chat; answers append to a running "Pick Up Your Cross" note in the N1 style. Later an evening reminder with the question, off by default, sent by the F3-fixed pipeline.</dd><dt>Why</dt><dd>Morning and evening is the oldest devotional rhythm.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C4</span>Prayer requests that come back to you</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge warn">Needs F5</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>A memory category with no behaviour. 10 of your last 120 messages were about your own life and 5 about parenting.</dd><dt>After</dt><dd class="after">"You asked me to pray with you about … on Tuesday. How did it go?" Status and date on the memory; close one in a tap or by saying so.</dd><dt>Why</dt><dd>The most honest reason to return that is not a streak.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C6</span>My Walk</h3><div class="badges"><span class="badge fable">Fable API</span><span class="badge codex">Codex UI</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>Chapters read, highlights, notes, past crosses and memories are five logs nobody can see; past narrations sit paid-for and unreachable.</dd><dt>After</dt><dd class="after">One card on the Bible home opens a reverse-chronological journal with filters; a past day shows what it was built from and plays its narration again. Empty state written first.</dd><dt>Why</dt><dd>One surface, not five screens.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C7</span>A morning email for web users</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">M</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>89% of accounts are web-only with no channel at all.</dd><dt>After</dt><dd class="after">Today's cross by email, opted into during A7, sent only to accounts active in the last 30 days (N2).</dd><dt>Why</dt><dd>The only channel that reaches the people who sign up.</dd></dl></div>
+
+    <div class="card"><div class="head"><h3><span class="id">C8</span>Play production, account deletion, Windows Store listing</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge codex">Codex pages</span><span class="badge kimi">Kimi Store</span><span class="badge neutral">S code, L process</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>41 Android releases, all internal. Deletion is an email address, which Play rejects for production.</dd><dt>After</dt><dd class="after">Deletion request page and in-app delete (Codex pages, Fable API using the cascade FKs), then the Play production track (Fable), then the Microsoft Store submission (Kimi). Billing stays off until there is an audience.</dd><dt>Why</dt><dd>The only item that changes how many people exist to help. After Stages 1 and 2, or arrivals pour into a leaky funnel.</dd></dl></div>
+  </div>
+</section>
+
+<section id="no">
+  <h2>Not doing (unless you say otherwise)</h2>
+  <div class="table"><table>
+    <thead><tr><th>Idea</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Improving the per-note AI panel</td><td>Never opened on your account; every note came from chat. Dropped from the plan.</td></tr>
+      <tr><td>Voice in chat</td><td>ElevenLabs per answer breaks the cost model; phone TTS is below the Listen bar; Gboard already dictates.</td></tr>
+      <tr><td>More slash commands, confirmation cards, a conversational-mode toggle, model badges, a reasoning panel</td><td>More chrome on a surface whose problem is chrome.</td></tr>
+      <tr><td>The five-slide onboarding</td><td>A7 does it from the server for every client.</td></tr>
+      <tr><td>Billing, web push, Pro-gating anything but Listen</td><td>No public audience yet.</td></tr>
+      <tr><td>Streaks, hearts, badges in Learn a verse</td><td>Keep the Scroll-The-Bible simplicity; the only number is verses you know.</td></tr>
+      <tr><td>Map, family tree, note graph, dashboards</td><td>No data behind them.</td></tr>
+      <tr><td>Plan editing, church scraping, cross thumbs, chapter summaries, atlas expansion</td><td>No usage behind them; you have never used a reading plan.</td></tr>
+      <tr><td>Native Windows (WinUI) before the PWA proves demand; Apple widgets, Watch, Mac study desk</td><td>PWA first; Apple needs the paid program or a Mac that can build.</td></tr>
+      <tr><td>Social or sharing features, memory export, a denomination picker</td><td>Private-devotional posture; single KJV voice.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Generated 2026-09-12 · v2 with owners and stages · Reply with IDs to change anything · Prompts for each orchestrator live in docs/prompts/</div></footer>
+
+</body>
+</html>

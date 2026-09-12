@@ -51,6 +51,8 @@ import { formatChurchBlock } from "@/lib/church-rules";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
+import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
+import { logChatStepMetric } from "@/lib/ai/chat-metrics";
 export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 24;
@@ -487,6 +489,7 @@ export async function POST(req: Request): Promise<Response> {
 		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
+		const requestMessageCount = requestData.messages.length;
 		const allMessages = await validateUIMessages<SureWordUIMessage>({
 			messages: recentMessages,
 			tools,
@@ -695,18 +698,43 @@ export async function POST(req: Request): Promise<Response> {
 				};
 
 				writeStatus("Thinking");
+				const stableSystem = chatSystemPrompt(translation);
+				const volatileSystem = `${formatMemoryBlock(memories)}${formatChurchBlock(church)}${promptHints.map((hint) => `\n\n${hint}`).join("")}`;
+				const promptCache = buildPromptCachePlan({
+					provider: definition.provider,
+					modelId: definition.providerModelId,
+					stableSystem,
+					volatileSystem,
+					providerOptions,
+					cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${userPrefs?.webSearchEnabled ?? true}`,
+				});
 				const result = streamText({
 					model,
-					// promptHints carries the length choice for providers with no
-					// verbosity parameter (everything but OpenAI today). It is empty
-					// whenever the user asked for nothing, so the prompt is unchanged
-					// for an ordinary turn.
-					system: `${chatSystemPrompt(translation)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${promptHints.map((hint) => `\n\n${hint}`).join("")}`,
+					system: promptCache.system,
 					messages: await convertToModelMessages(modelMessages),
 					tools,
 					stopWhen: isStepCount(8),
-					providerOptions,
+					providerOptions: promptCache.providerOptions,
 					experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
+					onStepEnd: (event) => {
+						logChatStepMetric(
+							{
+								surface: "ask-question",
+								provider: definition.provider,
+								modelId: definition.providerModelId,
+								translation,
+								toolCount: Object.keys(tools).length,
+								memoryCount: memories.length,
+								historyMessages: modelMessages.length,
+								historyTruncated: requestMessageCount > MAX_REQUEST_MESSAGES,
+								maxHistoryMessages: MAX_REQUEST_MESSAGES,
+								stepLimit: 8,
+								stableSystemChars: stableSystem.length,
+								volatileSystemChars: volatileSystem.length,
+							},
+							event,
+						);
+					},
 					onToolExecutionStart: ({ toolCall }) => {
 						writeStatus(toolActivityLabel(toolCall.toolName));
 					},

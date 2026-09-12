@@ -6,6 +6,8 @@ struct RetrievedVerse: Sendable, Equatable, Identifiable {
     var reference: String
     var similarity: Double
     var text: String?
+    /// Translation that produced this text; absent on legacy/history rows.
+    var translation: TranslationID? = nil
 
     var id: String { "\(reference)-\(similarity)" }
 }
@@ -319,7 +321,8 @@ extension ChatViewMessage {
             return RetrievedVerse(
                 reference: reference,
                 similarity: similarity,
-                text: verse["text"]?.stringValue
+                text: verse["text"]?.stringValue,
+                translation: verse["translation"]?.stringValue.flatMap(TranslationID.init(rawValue:))
             )
         }
     }

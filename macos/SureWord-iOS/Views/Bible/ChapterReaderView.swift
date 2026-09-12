@@ -25,7 +25,15 @@ struct ChapterReaderView: View {
     var verse: Int? = nil
 
     private var model: BibleModel { app.bible }
-    private var translation: TranslationID { app.settings.translation }
+    @State private var localTranslationOverride: TranslationID?
+    private var translation: TranslationID { localTranslationOverride ?? app.settings.translation }
+
+    init(order: Int, chapter: Int, verse: Int? = nil, translation: TranslationID? = nil) {
+        self.order = order
+        self.chapter = chapter
+        self.verse = verse
+        _localTranslationOverride = State(initialValue: translation)
+    }
 
     /// "John 3". The model answers once it has caught up with this screen's
     /// location; until then (the first render after a push) fall back to the
@@ -113,6 +121,7 @@ struct ChapterReaderView: View {
             ForEach(TranslationID.allCases, id: \.self) { id in
                 let isActive = translation == id
                 Button {
+                    localTranslationOverride = nil
                     settings.translation = id
                 } label: {
                     Text(id.label)

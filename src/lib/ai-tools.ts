@@ -173,7 +173,7 @@ async function readPassageVerses(
 	for (let verse = verseStart; verse <= end; verse++) {
 		const text = await getVerseText(translation, bookNumber, chapter, verse);
 		if (!text) break;
-		verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text });
+		verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text, translation });
 	}
 	return verses;
 }
@@ -425,6 +425,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					return {
 						reference: `${bookName} ${hit.chapter}:${hit.verse}`,
 						similarity: 1,
+						translation,
 						...(text ? { text } : {}),
 					};
 				})
@@ -529,7 +530,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 						}
 					}
 					const text = texts.length > 0 ? texts.join(" ") : undefined;
-					return { reference, ...(text ? { text } : {}) };
+					return { reference, translation, ...(text ? { text } : {}) };
 				})
 			);
 
@@ -752,7 +753,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					matchedWords: await matchedWordsFor(row, wantedIds, wantedPrefixes),
 					kjvAligned,
 				});
-				verses.push({ reference, similarity: 1, text: text ?? display });
+				// Unaligned original text is Hebrew/Greek, not the requested English translation.
+				verses.push({ reference, similarity: 1, text: text ?? display, ...(text ? { translation } : {}) });
 			}
 
 			const scope = [

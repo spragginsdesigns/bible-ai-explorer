@@ -10,12 +10,13 @@ import type { TranslationId } from "@/lib/bible/translations";
 import {
 	formatVerseForSharing,
 	saveVerseToNote,
+	sourceTranslation,
 } from "@/lib/bible/verseActions";
 import type { RetrievedVerse } from "@/components/useChat";
 import type { DailyCrossMessageOrigin } from "@/lib/chat-attachment-types";
 import { stripTranslationTag } from "@/utils/verseParser";
 
-export { formatVerseForSharing, saveVerseToNote, resolveReference };
+export { formatVerseForSharing, saveVerseToNote, resolveReference, sourceTranslation };
 
 /** A verse or whole chapter the user attached to their next chat question. */
 export interface VerseAttachment {
@@ -41,14 +42,14 @@ export function composeMessageWithAttachment(
 }
 
 export async function copyVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text">
+	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" }
 ): Promise<void> {
 	await navigator.clipboard.writeText(formatVerseForSharing(verse));
 }
 
 /** System share sheet where available, clipboard copy otherwise. */
 export async function shareVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text">
+	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" }
 ): Promise<void> {
 	const text = formatVerseForSharing(verse);
 	if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -60,10 +61,14 @@ export async function shareVerse(
 
 /**
  * Deep link into the Bible reader for a "John 3:16"-style reference, e.g.
- * "/bible/chapter?book=43&chapter=3&verse=16". Returns null when the
- * reference cannot be resolved (the caller hides the Read chip).
+ * "/bible/chapter?book=43&chapter=3&verse=16". A known source translation is
+ * carried as a local reader override. Returns null when the reference cannot
+ * be resolved (the caller hides the Read chip).
  */
-export function chapterHrefForReference(reference: string): string | null {
+export function chapterHrefForReference(
+	reference: string,
+	translation?: TranslationId | string,
+): string | null {
 	// verseParser may capture a trailing translation tag ("John 3:16 KJV");
 	// strip it before resolving or the anchored pattern fails to match. The
 	// tag list lives in verseParser, which is what captured the tag - a second
@@ -75,5 +80,7 @@ export function chapterHrefForReference(reference: string): string | null {
 		chapter: String(target.chapter),
 	});
 	if (target.verse) params.set("verse", String(target.verse));
+	const label = sourceTranslation({ reference }, translation);
+	if (label === "KJV" || label === "NKJV") params.set("translation", label);
 	return `/bible/chapter?${params.toString()}`;
 }

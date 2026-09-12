@@ -66,6 +66,9 @@ final class AppModel {
     /// Set when a verse card asks to open the reader; consumed by the Bible
     /// phase once that pane exists.
     var pendingVerseReference: String?
+    /// Translation that produced the pending chat source. This is a one-hop
+    /// reader override and never mutates the account preference.
+    var pendingVerseTranslation: TranslationID?
     /// Set when a chat note-receipt asks to open the note it wrote; consumed
     /// by the Notes tab root, which pushes the editor. The iOS counterpart of
     /// `pendingVerseReference` (macOS opens notes inside its own section and

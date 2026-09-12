@@ -41,7 +41,7 @@ struct ChapterReaderPane: View {
     let askAI: (_ reference: String, _ text: String) -> Void
     let showAtlas: (_ book: Int, _ chapter: Int) -> Void
 
-    private var translation: TranslationID { app.settings.translation }
+    private var translation: TranslationID { model.translationOverride ?? app.settings.translation }
 
     /// The parchment page surface, per the shared setting. Off restores the
     /// plain reader on the app's own shell, exactly as on Android and web -
@@ -133,6 +133,7 @@ struct ChapterReaderPane: View {
             ForEach(TranslationID.allCases, id: \.self) { id in
                 let isActive = translation == id
                 Button {
+                    model.translationOverride = nil
                     settings.translation = id
                 } label: {
                     Text(id.label)

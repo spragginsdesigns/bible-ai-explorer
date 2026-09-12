@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Users, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
@@ -38,6 +38,7 @@ function readFontStep(): number {
  */
 const ChapterReader: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const order = Number.parseInt(searchParams.get("book") ?? "1", 10);
@@ -47,7 +48,14 @@ const ChapterReader: React.FC = () => {
   const book = bookByOrder(order);
   // Both come from the account document, so they follow a change made in
   // Settings, in another tab, or on the phone without a reload.
-  const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
+  const accountTranslation = usePreference<TranslationId>(readTranslationPref, "KJV");
+  // A chat source can open the reader in the translation that produced its
+  // text. This is a local route override; the account preference changes only
+  // when the user explicitly taps a reader translation chip.
+  const routeTranslation = searchParams.get("translation");
+  const translation: TranslationId = routeTranslation === "NKJV" || routeTranslation === "KJV"
+    ? routeTranslation
+    : accountTranslation;
   const parchment = usePreference(readParchmentPref, true);
   const [verses, setVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,8 +157,13 @@ const ChapterReader: React.FC = () => {
 
   // The reader's chips and Settings share one account preference.
   const setTranslation = useCallback((id: TranslationId) => {
+    if (routeTranslation === "KJV" || routeTranslation === "NKJV") {
+      const next = new URLSearchParams(searchParams.toString());
+      next.delete("translation");
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    }
     void setTranslationPreference(id);
-  }, []);
+  }, [pathname, routeTranslation, router, searchParams]);
 
   const stepFont = useCallback((delta: number) => {
     setFontStep((step) => {
@@ -268,8 +281,12 @@ const ChapterReader: React.FC = () => {
   const fontSize = FONT_STEPS[fontStep];
   const lineHeight = Math.round(fontSize * 1.55);
 
+  // A source translation opened from chat must survive paging, as it does on
+  // Android and Apple; without it Next silently flips back to the account default.
   const navHref = (target: { order: number; chapter: number }) =>
-    `/bible/chapter?book=${target.order}&chapter=${target.chapter}`;
+    `/bible/chapter?book=${target.order}&chapter=${target.chapter}${
+      routeTranslation === "KJV" || routeTranslation === "NKJV" ? `&translation=${routeTranslation}` : ""
+    }`;
 
   if (!book) {
     return (

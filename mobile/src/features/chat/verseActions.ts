@@ -5,13 +5,45 @@ import type { RetrievedVerse } from "@/lib/chatView";
 import type { TranslationId } from "@/features/bible/translations";
 import { createNote, deleteNote, patchNote } from "@/features/notes/api";
 
+type VerseActionSource = Pick<RetrievedVerse, "reference" | "text"> & {
+	translation?: TranslationId;
+};
+
+/** Parse a route value without allowing an arbitrary string to change reader state. */
+export function parseTranslationId(value: unknown): TranslationId | null {
+	return value === "KJV" || value === "NKJV" ? value : null;
+}
+
+/** A source-card translation wins only for that reader route, never globally. */
+export function readerTranslation(
+	accountTranslation: TranslationId,
+	sourceTranslation: unknown,
+): TranslationId {
+	return parseTranslationId(sourceTranslation) ?? accountTranslation;
+}
+
+/** Build the chapter route for a retrieved source while preserving legacy routes. */
+export function readerRouteParams(
+	target: { order: number; chapter: number; verse?: number },
+	translation?: TranslationId,
+): { book: string; chapter: string; verse?: string; translation?: TranslationId } {
+	return {
+		book: String(target.order),
+		chapter: String(target.chapter),
+		...(target.verse ? { verse: String(target.verse) } : {}),
+		...(translation ? { translation } : {}),
+	};
+}
+
 /** "John 3:16 — \"For God so loved...\" (KJV)" plain-text form for copy/share. */
 export function formatVerseForSharing(
-	verse: Pick<RetrievedVerse, "reference" | "text">,
-	translation = "KJV"
+	verse: VerseActionSource,
+	translation?: TranslationId
 ): string {
 	const body = verse.text?.trim();
-	return body ? `${verse.reference} — "${body}" (${translation})` : `${verse.reference} (${translation})`;
+	const label = translation ?? verse.translation;
+	const suffix = label ? ` (${label})` : "";
+	return body ? `${verse.reference} — "${body}"${suffix}` : `${verse.reference}${suffix}`;
 }
 
 /** The narrowly-scoped source attribution carried by a Daily Cross CTA. */
@@ -45,12 +77,12 @@ export function composeMessageWithAttachment(
 	return trimmed ? `${verseBlock}\n\n${trimmed}` : verseBlock;
 }
 
-export async function copyVerse(verse: Pick<RetrievedVerse, "reference" | "text">): Promise<void> {
-	await Clipboard.setStringAsync(formatVerseForSharing(verse));
+export async function copyVerse(verse: VerseActionSource, translation?: TranslationId): Promise<void> {
+	await Clipboard.setStringAsync(formatVerseForSharing(verse, translation));
 }
 
-export async function shareVerse(verse: Pick<RetrievedVerse, "reference" | "text">): Promise<void> {
-	await Share.share({ message: formatVerseForSharing(verse) });
+export async function shareVerse(verse: VerseActionSource, translation?: TranslationId): Promise<void> {
+	await Share.share({ message: formatVerseForSharing(verse, translation) });
 }
 
 /**
@@ -60,14 +92,16 @@ export async function shareVerse(verse: Pick<RetrievedVerse, "reference" | "text
  */
 export async function saveVerseToNote(
 	getToken: GetToken,
-	verse: Pick<RetrievedVerse, "reference" | "text">,
-	translation = "KJV"
+	verse: VerseActionSource,
+	translation?: TranslationId
 ): Promise<string> {
 	const text = verse.text?.trim() ?? "";
+	const label = translation ?? verse.translation;
+	const translationParagraph = label ? `<p>(${escapeHtml(label)})</p>` : "";
 	const htmlContent =
 		`<blockquote><p><strong>${escapeHtml(verse.reference)}</strong></p>` +
 		(text ? `<p>${escapeHtml(text)}</p>` : "") +
-		`<p>(${escapeHtml(translation)})</p>` +
+		translationParagraph +
 		"</blockquote>";
 	const plainText = formatVerseForSharing(verse, translation);
 	const wordCount = plainText.split(/\s+/).filter(Boolean).length;

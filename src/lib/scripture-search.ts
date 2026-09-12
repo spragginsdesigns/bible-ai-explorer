@@ -10,6 +10,8 @@ export interface RetrievedVerse {
 	reference: string;
 	similarity: number;
 	text?: string;
+	/** Absent on older saved conversations; never infer it from today's settings. */
+	translation?: TranslationId;
 }
 
 export interface ScriptureSearchResult {
@@ -189,7 +191,7 @@ export async function searchScripture(
 			const reference = `${bookName} ${chapter}:${verse}`;
 			const text = await getVerseText(translation, book, chapter, verse);
 
-			return { reference, similarity, ...(text ? { text } : {}) };
+			return { reference, similarity, translation, ...(text ? { text } : {}) };
 		})
 	);
 

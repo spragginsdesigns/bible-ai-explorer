@@ -17,6 +17,7 @@ import {
 	copyVerse,
 	saveVerseToNote,
 	shareVerse,
+	sourceTranslation,
 } from "@/lib/chat/verseActions";
 
 interface RetrievedVersesCollapsibleProps {
@@ -132,7 +133,7 @@ function VerseActions({ verse }: { verse: RetrievedVerse }) {
 
 	// Unresolvable references (unexpected formats) get no Read chip rather than
 	// linking to a broken route.
-	const readHref = chapterHrefForReference(verse.reference);
+	const readHref = chapterHrefForReference(verse.reference, sourceTranslation(verse));
 
 	return (
 		<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -214,6 +215,11 @@ const RetrievedVersesCollapsible: React.FC<RetrievedVersesCollapsibleProps> = ({
 											<p className="text-control text-amber-700 dark:text-amber-400 font-semibold">
 												{verse.reference}
 											</p>
+											{verse.translation && (
+												<span className="text-metadata text-neutral-400 dark:text-neutral-500">
+													{verse.translation}
+												</span>
+											)}
 											<span
 													className={`text-metadata px-1.5 py-0.5 rounded border ${verseBadge.className}`}
 											>

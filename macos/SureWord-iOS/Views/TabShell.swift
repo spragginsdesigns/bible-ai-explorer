@@ -81,7 +81,10 @@ struct TabShell: View {
         // `ChatRouting`). The shell is the single writer of
         // `pendingVerseReference`, so the Bible tab root consumes it once.
         .onReceive(NotificationCenter.default.publisher(for: .openBibleVerse)) { note in
-            openVerse(note.userInfo?["reference"] as? String)
+            openVerse(
+                note.userInfo?["reference"] as? String,
+                translation: note.userInfo?["translation"] as? String
+            )
         }
         // A note receipt tapped in chat: stage the note for the Notes tab root
         // (the `pendingVerseReference` pattern) and switch tabs; the root
@@ -129,13 +132,14 @@ struct TabShell: View {
         app.dailyCross.load(force: true)
     }
 
-    private func openVerse(_ raw: String?) {
+    private func openVerse(_ raw: String?, translation: String? = nil) {
         // The documented reader hook: the Bible tab root observes
         // `pendingVerseReference`, resolves it, and pushes the reader itself
         // (see `BibleTabView`). Raw string, not a resolved Reference —
         // resolution is the consumer's job, and an unresolvable reference is
         // dropped there exactly as Android no-ops it.
         guard let raw, Bible.resolveReference(raw) != nil else { return }
+        app.pendingVerseTranslation = translation.flatMap(TranslationID.init(rawValue:))
         app.pendingVerseReference = raw
         selectedTab = .bible
     }

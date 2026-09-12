@@ -146,7 +146,7 @@ struct ChatView: View {
                         MessageBubble(
                             message: message,
                             onVerseCopy: { verse in
-                                VerseActions.copy(reference: verse.reference, text: verse.text)
+                                VerseActions.copy(reference: verse.reference, text: verse.text, translation: verse.translation)
                                 show(toast: "Copied \(verse.reference)")
                             },
                             onVerseSaveToNote: { verse in save(verse) },
@@ -226,7 +226,8 @@ struct ChatView: View {
                 try await VerseActions.saveToNote(
                     api: api,
                     reference: verse.reference,
-                    text: verse.text
+                    text: verse.text,
+                    translation: verse.translation
                 )
                 show(toast: "Saved \(verse.reference) to your notes")
             } catch {

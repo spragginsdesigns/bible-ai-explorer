@@ -9,7 +9,7 @@ import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { Collapsible } from "./Collapsible";
-import { copyVerse, saveVerseToNote, shareVerse } from "./verseActions";
+import { copyVerse, readerRouteParams, saveVerseToNote, shareVerse } from "./verseActions";
 
 /**
  * Retrieval confidence, ported from the web's RetrievedVersesCollapsible. The
@@ -70,13 +70,9 @@ function VerseActions({ verse }: { verse: RetrievedVerse }) {
 		if (!target) return;
 		router.push({
 			pathname: "/bible/chapter",
-			params: {
-				book: String(target.order),
-				chapter: String(target.chapter),
-				...(target.verse ? { verse: String(target.verse) } : {}),
-			},
+			params: readerRouteParams(target, verse.translation),
 		});
-	}, [router, verse.reference]);
+	}, [router, verse.reference, verse.translation]);
 
 	return (
 		<View style={styles.actions}>

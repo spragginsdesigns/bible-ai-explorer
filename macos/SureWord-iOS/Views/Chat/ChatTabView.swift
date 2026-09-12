@@ -125,7 +125,7 @@ struct ChatTabView: View {
             ChatMessageList(
                 chat: chat,
                 onVerseCopy: { verse in
-                    VerseActions.copy(reference: verse.reference, text: verse.text)
+                    VerseActions.copy(reference: verse.reference, text: verse.text, translation: verse.translation)
                     show(toast: "Copied \(verse.reference)")
                 },
                 onVerseSaveToNote: { verse in save(verse) },
@@ -152,10 +152,14 @@ struct ChatTabView: View {
     /// switches tabs; the Bible tab root consumes the pending value and pushes
     /// the reader.
     private func readInBible(_ verse: RetrievedVerse) {
+        var userInfo: [AnyHashable: Any] = ["reference": verse.reference]
+        if let translation = verse.translation {
+            userInfo["translation"] = translation.rawValue
+        }
         NotificationCenter.default.post(
             name: .openBibleVerse,
             object: nil,
-            userInfo: ["reference": verse.reference]
+            userInfo: userInfo
         )
     }
 
@@ -177,7 +181,8 @@ struct ChatTabView: View {
                 try await VerseActions.saveToNote(
                     api: app.api,
                     reference: verse.reference,
-                    text: verse.text
+                    text: verse.text,
+                    translation: verse.translation
                 )
                 show(toast: "Saved \(verse.reference) to your notes")
             } catch {

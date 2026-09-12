@@ -4,9 +4,8 @@ import Foundation
 /// `mobile/app/(app)/bible/chapter.tsx` and `search.tsx`, which are two screens
 /// on Android and two panes of one window here.
 ///
-/// The translation is deliberately *not* stored: the reader's chips write the
-/// shared `SettingsStore` default, exactly as the Android reader does, so the
-/// chat attachment and the reader can never disagree about what is on screen.
+/// The account translation remains in `SettingsStore`; a one-hop chat source
+/// may temporarily override it while its reader is open.
 @MainActor
 @Observable
 final class BibleModel {
@@ -36,6 +35,9 @@ final class BibleModel {
     private(set) var selectedBook: Int?
     private(set) var chapter = 1
     private(set) var pane: Pane = .chapters
+    /// Local translation override for a chat source. Cleared by ordinary reader
+    /// navigation or when the user explicitly selects a translation chip.
+    var translationOverride: TranslationID?
 
     // MARK: Reading
 
@@ -166,6 +168,7 @@ final class BibleModel {
     func selectBook(_ order: Int) {
         guard Bible.book(order: order) != nil else { return }
         selectedBook = order
+        translationOverride = nil
         pane = .chapters
         dismissVerseActions()
     }
@@ -173,15 +176,22 @@ final class BibleModel {
     func showChapterGrid() {
         guard selectedBook != nil else { return }
         pane = .chapters
+        translationOverride = nil
         dismissVerseActions()
     }
 
     /// Open a chapter in the reader, optionally scrolling to and flashing a verse.
-    func open(order: Int, chapter: Int, verse: Int? = nil) {
+    func open(
+        order: Int,
+        chapter: Int,
+        verse: Int? = nil,
+        translationOverride: TranslationID? = nil
+    ) {
         guard let book = Bible.book(order: order), chapter >= 1, chapter <= book.chapters else {
             return
         }
         selectedBook = order
+        self.translationOverride = translationOverride
         self.chapter = chapter
         pane = .reader
         pendingVerse = verse
@@ -189,15 +199,24 @@ final class BibleModel {
         dismissVerseActions()
     }
 
-    func open(_ reference: Reference) {
-        open(order: reference.order, chapter: reference.chapter, verse: reference.verse)
+    func open(_ reference: Reference, translationOverride: TranslationID? = nil) {
+        open(
+            order: reference.order,
+            chapter: reference.chapter,
+            verse: reference.verse,
+            translationOverride: translationOverride
+        )
     }
 
     /// Page to an adjacent chapter. Clearing the pending verse stops the flash
     /// from firing again in the chapter just paged into.
     func go(to location: Bible.Location?) {
         guard let location else { return }
-        open(order: location.order, chapter: location.chapter)
+        open(
+            order: location.order,
+            chapter: location.chapter,
+            translationOverride: translationOverride
+        )
     }
 
     func stepFont(_ delta: Int) {

@@ -67,9 +67,10 @@ struct BibleSection: View {
             guard let pending else { return }
             showBible()
             if let reference = Bible.resolveReference(pending) {
-                model.open(reference)
+                model.open(reference, translationOverride: app.pendingVerseTranslation)
             }
             app.pendingVerseReference = nil
+            app.pendingVerseTranslation = nil
         }
     }
 
