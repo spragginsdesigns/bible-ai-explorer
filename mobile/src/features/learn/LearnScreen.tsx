@@ -8,7 +8,8 @@ import { Screen } from "@/components/ui";
 import { getKjvChapter } from "@/features/bible/kjv";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { fonts, radius, spacing, type Colors } from "@/theme";
-import { isOfflineMessage, type GetToken } from "@/lib/api";
+import { isOfflineMessage } from "@/lib/api";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { fetchLearnToday, reviewLearnCard } from "./api";
 import { applyReview, parseCard, parseToday, verseWords, type LearnToday } from "./learn";
 
@@ -18,8 +19,7 @@ export default function LearnScreen() {
  return <LearnSession key={userId} userId={userId} />;
 }
 function LearnSession({ userId }: { userId: string }) {
- const { getToken } = useAuth();
- const token: GetToken = useCallback(options => getToken({ skipCache: options?.fresh }), [getToken]);
+ const token = useStableGetToken();
  const router = useRouter();
  const { colors } = useTheme();
  const styles = useThemedStyles(createStyles);
@@ -130,5 +130,4 @@ const createStyles = (c: Colors) => StyleSheet.create({
  empty:{color:c.textMuted,textAlign:"center",marginVertical:spacing.xl},
  emptyTitle:{color:c.text,fontFamily:fonts.verse,fontSize:28,lineHeight:36,textAlign:"center"},
 });
-
 
