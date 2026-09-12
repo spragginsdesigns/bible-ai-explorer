@@ -39,6 +39,7 @@ import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
+import { SeeAlsoSection } from "@/features/bible/SeeAlsoSection";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -686,6 +687,13 @@ export default function BibleChapterScreen() {
 					book={order}
 					chapter={chapter}
 					verse={actionVerse?.number ?? null}
+				/>
+				{/* C1: Scripture interprets Scripture (Kimi lane; fail-soft until
+				    /api/bible/crossrefs is deployed). */}
+				<SeeAlsoSection
+					getToken={getToken}
+					reference={actionVerse ? actionReference : null}
+					translation={translation}
 				/>
 				<Pressable
 					accessibilityRole="button"
