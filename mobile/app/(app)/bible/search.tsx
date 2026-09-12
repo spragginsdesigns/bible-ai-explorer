@@ -6,18 +6,18 @@ import { useRouter } from "expo-router";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder, resolveReference, type Reference } from "@/features/bible/books";
-import { searchKjv, warmAllKjvBooks, type KjvSearchHit } from "@/features/bible/kjv";
+import { warmAllKjvBooks } from "@/features/bible/kjv";
+import { searchBible, BIBLE_SEARCH_ERROR, type BibleSearchHit } from "@/features/bible/search";
+import type { TranslationId } from "@/features/bible/translations";
 import { fonts, radius, spacing, type Colors } from "@/theme";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { useSettings, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 const SEARCH_LIMIT = 100;
 const DEBOUNCE_MS = 300;
 
 /**
- * Offline verse search over the bundled KJV plus a "John 3:16"-style reference
- * quick-jump. Search runs in a debounced effect (the first call parses every
- * book JSON synchronously) and stale results are dropped when the input has
- * moved on.
+ * Translation-aware phrase search with offline KJV and a reference quick-jump.
+ * Superseded requests are cancelled and stale results are dropped.
  */
 export default function BibleSearchScreen() {
 	const router = useRouter();
@@ -25,8 +25,15 @@ export default function BibleSearchScreen() {
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [input, setInput] = useState("");
-	const [hits, setHits] = useState<KjvSearchHit[]>([]);
+	const [hits, setHits] = useState<BibleSearchHit[]>([]);
 	const [searched, setSearched] = useState("");
+	const { translation: accountTranslation } = useSettings();
+	const [selectedTranslation, setSelectedTranslation] = useState<TranslationId | null>(null);
+	const translation = selectedTranslation ?? accountTranslation;
+	const [resultTranslation, setResultTranslation] = useState<TranslationId>(translation);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [attempt, setAttempt] = useState(0);
 
 	const trimmed = input.trim();
 	const reference = useMemo<Reference | null>(
@@ -40,33 +47,35 @@ export default function BibleSearchScreen() {
 	useEffect(() => warmAllKjvBooks(), []);
 
 	useEffect(() => {
+		const controller = new AbortController();
+		let active = true;
+		setHits([]);
+		setSearched("");
+		setError(null);
+		setLoading(trimmed.length >= 2 && !reference);
 		const timer = setTimeout(() => {
-			const query = input.trim();
-			const snapshot = input;
-			if (query.length < 2) {
-				setHits([]);
-				setSearched("");
-				return;
-			}
-			const results = searchKjv(query, SEARCH_LIMIT);
-			// Ignore the run if the input changed while the books were loading.
-			setInput((current) => {
-				if (current === snapshot) {
-					setHits(results);
-					setSearched(query);
-				}
-				return current;
+			if (trimmed.length < 2 || reference) return;
+			void searchBible(trimmed, translation, SEARCH_LIMIT, controller.signal).then((result) => {
+				if (!active) return;
+				setHits(result.hits);
+				setResultTranslation(result.translation);
+				setSearched(trimmed);
+			}).catch(() => {
+				if (active) setError(BIBLE_SEARCH_ERROR);
+			}).finally(() => {
+				if (active) setLoading(false);
 			});
 		}, DEBOUNCE_MS);
-		return () => clearTimeout(timer);
-	}, [input]);
+		return () => { active = false; clearTimeout(timer); controller.abort(); };
+	}, [trimmed, reference, translation, attempt]);
 
-	const openHit = (hit: { order: number; chapter: number; verse?: number }) => {
+	const openHit = (hit: { order: number; chapter: number; verse?: number; translation?: TranslationId }) => {
 		router.push({
 			pathname: "/bible/chapter",
 			params: {
 				book: String(hit.order),
 				chapter: String(hit.chapter),
+				translation: hit.translation ?? translation,
 				...(hit.verse ? { verse: String(hit.verse) } : {}),
 			},
 		});
@@ -89,18 +98,26 @@ export default function BibleSearchScreen() {
 					<Text style={styles.jumpLabel}>Go to {referenceLabel} →</Text>
 				</Pressable>
 			) : null}
-			{searched ? (
+			{error ? (
+				<View accessibilityLiveRegion="polite">
+					<Text style={styles.count}>{error}</Text>
+					<Pressable accessibilityRole="button" onPress={() => setAttempt((value) => value + 1)} style={styles.jumpRow}><Text style={styles.jumpLabel}>Retry search</Text></Pressable>
+				</View>
+			) : loading ? (
+				<Text accessibilityLiveRegion="polite" style={styles.count}>Searching {translation} and checking other wording…</Text>
+			) : searched ? (
 				<Text style={styles.count}>
 					{hits.length === 0
 						? reference
 							? ""
-							: "No verses found."
+							: "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
 						: hits.length >= SEARCH_LIMIT
-							? `First ${SEARCH_LIMIT} of many — refine your search`
+							? `First ${SEARCH_LIMIT} results. Refine your search.`
 							: `${hits.length} result${hits.length === 1 ? "" : "s"}`}
+					{hits.length > 0 && resultTranslation !== translation && ` in ${resultTranslation}. No phrase matches in ${translation}.`}
 				</Text>
 			) : (
-				<Text style={styles.hint}>Search the King James text by word or phrase.</Text>
+				<Text style={styles.hint}>Search {translation} by word or phrase. If there are no matches, we check {translation === "KJV" ? "NKJV" : "KJV"} too. NKJV requires a connection.</Text>
 			)}
 		</View>
 	);
@@ -118,8 +135,9 @@ export default function BibleSearchScreen() {
 			</View>
 
 			<View style={styles.inputCard}>
-				<TextInput
-					autoFocus
+					<TextInput
+						autoFocus
+						accessibilityLabel="Search Bible verses"
 					value={input}
 					onChangeText={setInput}
 					placeholder='Search verses or try "John 3:16"'
@@ -142,6 +160,14 @@ export default function BibleSearchScreen() {
 				) : null}
 			</View>
 
+			<View style={{ flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg }}>
+				{(["KJV", "NKJV"] as const).map((id) => (
+					<Pressable key={id} accessibilityRole="button" accessibilityLabel={`Search ${id}`} accessibilityState={{ selected: translation === id }} onPress={() => setSelectedTranslation(id)} style={[styles.jumpRow, { opacity: translation === id ? 1 : 0.6 }]}>
+						<Text style={styles.jumpLabel}>{id}</Text>
+					</Pressable>
+				))}
+			</View>
+
 			<FlatList
 				data={searched ? hits : []}
 				keyExtractor={(hit) => `${hit.order}:${hit.chapter}:${hit.verse}`}
@@ -155,7 +181,7 @@ export default function BibleSearchScreen() {
 						style={({ pressed }) => [styles.resultRow, pressed && styles.rowPressed]}
 					>
 						<Text style={styles.resultRef}>
-							{bookByOrder(hit.order)?.name ?? `Book ${hit.order}`} {hit.chapter}:{hit.verse}
+							{bookByOrder(hit.order)?.name ?? `Book ${hit.order}`} {hit.chapter}:{hit.verse} {hit.translation}
 						</Text>
 						<Text numberOfLines={2} style={styles.resultText}>
 							{hit.text}

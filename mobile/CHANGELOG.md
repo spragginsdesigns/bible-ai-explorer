@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.55.0 (versionCode 55) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Bible search now uses your selected translation and checks the other translation when a phrase has no matches.
+- Find Job 1:8 by searching "blameless and upright."
+- Search results show their translation and open the matching reader text.
+- Failed searches show a retry option instead of saying no verses were found.
+
+**Dev notes:** Translation-aware KJV/NKJV phrase lookup, cancellation of superseded requests, explicit result provenance, and reference navigation. KJV matches remain available offline. Live provider regression checks cover the reported Job 1:8 phrase on web and Android.
+
 ## 1.54.0 (versionCode 54) - 2026-09-11 - internal
 
 **What's new (Play):**
