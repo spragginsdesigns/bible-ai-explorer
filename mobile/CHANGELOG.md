@@ -23,7 +23,7 @@ Entries below 1.19.0 predate this format and stay as they were.
 - Note templates, Markdown copy, highlight labels, related passages, and continue-reading work together across your study screens.
 - Includes the reviewed conversation-history improvements.
 
-**Dev notes:** Integrates Kimi's completed workflow review (0571c73) with main's durable reading journal (d519d85). Offline Learn operations use revision checks and transactional receipts while preserving legacy result-only review requests. The receipt migration follows the already-applied reading-log migration. Account-scoped review and reading queues survive restarts and retries. Windows Store onboarding and Apple release validation remain separate.
+**Dev notes:** Integrates Kimi's completed workflow review (0571c73) with main's durable reading journal (d519d85). Offline Learn operations use revision checks and transactional receipts while preserving legacy result-only review requests. The receipt migration follows the already-applied reading-log migration. Account-scoped review and reading queues survive restarts and retries. Windows Store onboarding and Apple release validation remain separate. Encrypted Clerk resource caching preserves account identity during offline cold starts.
 
 ## 1.56.0 (versionCode 57) - 2026-09-12 - internal
 
