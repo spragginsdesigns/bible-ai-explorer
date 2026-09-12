@@ -45,6 +45,8 @@ export interface Conversation {
 	id: string;
 	title: string;
 	createdAt: string;
+	/** Last activity. The list route orders by it; history rows stamp with it. */
+	updatedAt: string;
 }
 
 export interface SureWordChat {
@@ -490,7 +492,12 @@ export function useSureWordChat(): SureWordChat {
 			try {
 				const data = await apiJson<Conversation[]>(authToken, "/api/conversations");
 				setConversations(
-					data.map((c) => ({ id: c.id, title: c.title, createdAt: c.createdAt }))
+					data.map((c) => ({
+						id: c.id,
+						title: c.title,
+						createdAt: c.createdAt,
+						updatedAt: c.updatedAt ?? c.createdAt,
+					}))
 				);
 			} catch {
 				// Non-fatal: chatting still works without the history list.
@@ -624,7 +631,12 @@ export function useSureWordChat(): SureWordChat {
 					conversationIdRef.current = created.id;
 					setActiveConversationId(created.id);
 					setConversations((prev) => [
-						{ id: created.id, title, createdAt: new Date().toISOString() },
+						{
+							id: created.id,
+							title,
+							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
+						},
 						...prev,
 					]);
 				} catch (error) {

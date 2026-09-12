@@ -102,7 +102,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	};
 
 	const commitRename = async (convo: SidebarConversation) => {
-		const title = editValue.trim();
+		// The route collapses runs of whitespace; match it so the optimistic
+		// title is the one the server stores.
+		const title = editValue.replace(/\s+/g, " ").trim();
 		setEditingId(null);
 		if (!title || title === titleOf(convo)) return;
 		try {
@@ -225,6 +227,9 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 									}}
 									onBlur={() => void commitRename(convo)}
 									onClick={(e) => e.stopPropagation()}
+									// The route rejects anything longer, and the error would
+									// read as "couldn't rename" with no reason given.
+									maxLength={120}
 									aria-label="Rename chat"
 									className="flex-1 min-w-0 bg-transparent outline-none border-b border-amber-600/50 dark:border-amber-400/50 text-control text-neutral-900 dark:text-neutral-100"
 								/>

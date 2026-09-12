@@ -93,6 +93,8 @@ export interface Conversation {
 	id: string;
 	title: string;
 	createdAt: string;
+	/** Last activity. The list route orders by it; history rows stamp with it. */
+	updatedAt: string;
 }
 
 const HISTORY_LOAD_ERROR =
@@ -671,10 +673,11 @@ export const useChat = () => {
 				if (res.ok) {
 					const data = await res.json();
 					setConversations(
-						data.map((c: { id: string; title: string; createdAt: string }) => ({
+						data.map((c: { id: string; title: string; createdAt: string; updatedAt?: string }) => ({
 							id: c.id,
 							title: c.title,
 							createdAt: c.createdAt,
+							updatedAt: c.updatedAt ?? c.createdAt,
 						}))
 					);
 				}
@@ -831,6 +834,7 @@ export const useChat = () => {
 							id: created.id,
 							title: title.slice(0, 60),
 							createdAt: new Date().toISOString(),
+							updatedAt: new Date().toISOString(),
 						},
 						...prev,
 					]);

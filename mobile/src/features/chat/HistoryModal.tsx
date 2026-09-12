@@ -70,6 +70,9 @@ export function HistoryModal({
 	const [renames, setRenames] = useState<Record<string, string>>({});
 	const [renamingId, setRenamingId] = useState<string | null>(null);
 	const [renameValue, setRenameValue] = useState("");
+	// A swipe plus one tap must not destroy a conversation: web asks "Sure?"
+	// on the first press, and a destructive action has to match across clients.
+	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const anim = useRef(new Animated.Value(0)).current;
 
@@ -150,7 +153,9 @@ export function HistoryModal({
 
 	const commitRename = useCallback(
 		async (conversation: HistoryConversation) => {
-			const title = renameValue.trim();
+			// The route collapses runs of whitespace; match it so the optimistic
+			// title is the one the server stores.
+			const title = renameValue.replace(/\s+/g, " ").trim();
 			setRenamingId(null);
 			if (!title || title === titleOf(conversation)) return;
 			try {
@@ -186,11 +191,20 @@ export function HistoryModal({
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel={`Delete ${titleOf(conversation)}`}
-						onPress={() => onDelete(conversation.id)}
+						onPress={() => {
+							if (confirmDeleteId !== conversation.id) {
+								setConfirmDeleteId(conversation.id);
+								return;
+							}
+							setConfirmDeleteId(null);
+							onDelete(conversation.id);
+						}}
 						style={[styles.swipeAction, styles.swipeDelete]}
 					>
 						<Ionicons name="trash-outline" size={16} color="#fff" />
-						<Text style={styles.swipeActionLabel}>Delete</Text>
+						<Text style={styles.swipeActionLabel}>
+							{confirmDeleteId === conversation.id ? "Sure?" : "Delete"}
+						</Text>
 					</Pressable>
 				)}
 				renderLeftActions={() => (
@@ -215,6 +229,8 @@ export function HistoryModal({
 								selectTextOnFocus
 								returnKeyType="done"
 								onSubmitEditing={() => void commitRename(conversation)}
+								// The route rejects anything longer (400).
+								maxLength={120}
 								accessibilityLabel="Rename conversation"
 								style={styles.renameInput}
 							/>
