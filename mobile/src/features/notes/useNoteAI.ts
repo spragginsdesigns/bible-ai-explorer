@@ -75,7 +75,7 @@ export function useNoteAI(
 				api: `${API_URL}/api/note-ai`,
 				fetch: makeAuthedFetch(getToken) as unknown as typeof globalThis.fetch,
 				prepareSendMessagesRequest: ({ messages }) => ({
-					body: { messages, noteId: noteIdRef.current },
+					body: { messages, noteId: noteIdRef.current, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
 				}),
 			}),
 		[getToken]

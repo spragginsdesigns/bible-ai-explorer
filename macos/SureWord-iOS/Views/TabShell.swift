@@ -36,10 +36,12 @@ struct TabShell: View {
                 }
             }
         }
-        .task { await app.chat.loadConversations() }
+        .task { app.bible.reading.setForeground(scenePhase == .active); await app.chat.loadConversations() }
         // First hydrate of the session: the server document replaces whatever
         // this phone had cached for the synced preferences.
         .task { app.preferences.refresh(force: true) }
+        .onChange(of: selectedTab) { _, tab in if tab != .bible { app.bible.reading.setReaderVisible(false) } }
+        .onChange(of: isCrossPresented) { _, visible in app.bible.reading.setObscured(visible, reason: "cross") }
         // Keep the morning reminder in step with the settings, on every launch
         // and on every change to either half of the preference. Enabling the
         // toggle in Settings re-runs this, and `sync` is what requests
@@ -62,6 +64,7 @@ struct TabShell: View {
         // A preference changed on the Mac or the web should be here by the time
         // the app is looked at again. `refresh` throttles itself.
         .onChange(of: scenePhase) { _, phase in
+            app.bible.reading.setForeground(phase == .active)
             guard phase == .active else { return }
             app.preferences.refresh()
         }

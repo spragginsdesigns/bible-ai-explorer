@@ -203,6 +203,10 @@
 				{ "id": "call_turn_highlight", "kind": "highlight", "label": "Marked Romans 8:28", "target": { "screen": "chapter", "book": 45, "chapter": 8, "verse": 28, "translation": "KJV" } },
 				{ "id": "memoryExtracted:mem_turn", "kind": "memory", "label": "Remembered", "target": { "screen": "memories", "memoryId": "mem_turn" }, "undo": { "type": "forgetMemory", "memoryId": "mem_turn" } }
 			]
-		}
+		},
+		{"name": "physical reading durable save links to reading history", "parts": [{"type": "tool-logReading", "toolCallId": "read1", "state": "output-available", "output": {"success": true, "reference": "John 1–3", "book": 43, "chapter": 1, "localDate": "2026-09-12"}}], "expected": [{"id": "read1", "kind": "reading", "label": "Logged John 1–3 · 2026-09-12", "target": {"screen": "readingHistory"}}]},
+		{"name": "reading save failure has no receipt", "parts": [{"type": "tool-logReading", "state": "output-error", "output": {"success": true}}], "expected": []},
+		{"name": "reading correction and removal receipts", "parts": [{"type": "tool-correctReadingLog", "toolCallId": "fix", "state": "output-available", "output": {"success": true, "eventId": "a"}}, {"type": "tool-removeReadingLog", "toolCallId": "remove", "state": "output-available", "output": {"success": true, "eventId": "b", "removed": true}}], "expected": [{"id": "fix", "kind": "reading", "label": "Reading log corrected", "target": {"screen": "readingHistory"}}, {"id": "remove", "kind": "reading", "label": "Reading entry removed", "target": {"screen": "readingHistory"}}]},
+		{"name": "reading removal already absent has no new receipt", "parts": [{"type": "tool-removeReadingLog", "toolCallId": "remove", "state": "output-available", "output": {"success": true, "eventId": "b", "removed": false}}], "expected": []}
 	]
 }

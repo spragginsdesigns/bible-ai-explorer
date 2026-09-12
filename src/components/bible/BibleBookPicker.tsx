@@ -116,6 +116,7 @@ const BibleBookPicker: React.FC = () => {
           <h1 className="font-[family-name:var(--font-pirata)] text-4xl lg:text-5xl text-neutral-900 dark:text-neutral-100 drop-shadow-[0_0_8px_rgba(200,160,40,0.3)]">
             Bible
           </h1>
+          <Link href="/bible/history" className="rounded-xl px-3 py-2 text-sm text-amber-700 dark:text-amber-400">Reading log</Link>
           <Link
             href="/bible/search"
             className="flex items-center gap-2 rounded-full border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-2.5 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors lg:w-96"

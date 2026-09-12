@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.57.0 (versionCode 58) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Your Bible reading now has a lasting reading log. Returning later records a new session, including partial passages.
+- Tell SureWord what you read in your physical Bible. Ask about your history or correct an entry in chat.
+- Read offline and sync when you return. Reading tracking pauses in the background.
+- Includes Learn a verse and the latest offline practice improvements.
+
+**Dev notes:** Android tracks visible verses with foreground dwell and persists compact, revisioned chapter snapshots before syncing. Account-scoped replay survives restarts, retries are idempotent, and history uses bounded pages. Shared server tools log physical readings with exact or honest approximate times, query lifetime summaries, and correct/remove entries. The additive journal migration retains legacy history and labels its older evidence. Web and Apple source share the reading contract; this entry describes the Android release. Local reliability and performance checks do not establish a production delivery SLO or hardware battery measurements.
+
 ## 1.56.0 (versionCode 57) - 2026-09-12 - internal
 
 **What's new (Play):**

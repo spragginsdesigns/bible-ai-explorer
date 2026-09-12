@@ -324,6 +324,7 @@ export function useSureWordChat(): SureWordChat {
 					const effort = effortForRequest(settings.chatEffort);
 					return {
 						body: {
+						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 							messages,
 							conversationId: conversationIdRef.current,
 							translation: settings.translation,

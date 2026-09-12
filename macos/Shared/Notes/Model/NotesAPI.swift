@@ -157,6 +157,7 @@ struct NotesAPI: Sendable {
 /// message, and answers 400 otherwise
 /// (`src/app/api/note-ai/route.ts`).
 struct NoteAIRequest: Encodable {
+    var timezone: String = TimeZone.current.identifier
     var messages: [JSONValue]
     var noteId: String
 }

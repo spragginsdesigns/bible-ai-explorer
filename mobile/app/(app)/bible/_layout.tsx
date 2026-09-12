@@ -26,6 +26,7 @@ export default function BibleLayout() {
 			<Stack.Screen name="cross" />
 			<Stack.Screen name="search" />
 			<Stack.Screen name="plan" />
+			<Stack.Screen name="history" />
 			<Stack.Screen name="timeline" />
 			<Stack.Screen name="atlas/[id]" />
 			<Stack.Screen name="atlas/event/[id]" />

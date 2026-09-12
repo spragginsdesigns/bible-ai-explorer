@@ -11,6 +11,7 @@ import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
+import { useReadingLogSync } from "@/features/reading/readingLogStore";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 import { afterTabDepartureGuard } from "@/lib/tabDeparture";
@@ -108,6 +109,7 @@ export default function AppLayout() {
 	// Account preferences: hydrate the server document, write every change back,
 	// and keep the persisted caches tied to the account that owns them.
 	usePreferencesSync();
+	useReadingLogSync();
 	// Verse-of-the-day: push-token registration + notification tap deep links.
 	// Never prompts on mount; the permission dialog waits for a first settled
 	// answer or Cross visit (see features/notifications/permissionPrompt).

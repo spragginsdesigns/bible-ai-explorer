@@ -1,3 +1,5 @@
+import { readingTimezone } from "@/lib/reading-time";
+import { readingRequestContext, type ReadingToolContext } from "@/lib/reading-tools";
 import {
 	convertToModelMessages,
 	createIdGenerator,
@@ -338,6 +340,8 @@ async function persistUserMessage(options: {
 	conversationId: string;
 	userMessage: SureWordUIMessage;
 	origin: DailyCrossMessageOrigin | null;
+	readingReceivedAt: Date;
+	readingContext: ReadingToolContext;
 }): Promise<Date> {
 	const userText = extractText(options.userMessage);
 	const ids = attachmentIds(options.userMessage);
@@ -352,7 +356,7 @@ async function persistUserMessage(options: {
 
 		const existing = await tx.message.findUnique({
 			where: { id: options.userMessage.id },
-			select: { role: true, conversationId: true },
+			select: { role: true, conversationId: true, metadata: true },
 		});
 		if (existing && (existing.role !== "user" || existing.conversationId !== conversation.id)) {
 			throw new UserFacingError("Message ID is already in use.");
@@ -367,11 +371,15 @@ async function persistUserMessage(options: {
 		// metadata key is carried through unchanged for backward compatibility.
 		delete metadata.attachmentIds;
 		delete metadata.origin;
+		const previousMetadata = existing?.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata) ? existing.metadata : {};
+		const originalTimezone = readingTimezone("readingTimezone" in previousMetadata ? previousMetadata.readingTimezone : options.readingContext.timezone);
+		metadata.readingTimezone = originalTimezone;
+		options.readingContext.timezone = originalTimezone;
 		if (ids.length > 0) metadata.attachmentIds = ids;
 		if (options.origin) metadata.origin = options.origin;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
-		await tx.message.upsert({
+		const savedUserMessage = await tx.message.upsert({
 			where: { id: options.userMessage.id },
 			update: { content: userText, metadata: metadataJson },
 			create: {
@@ -379,9 +387,13 @@ async function persistUserMessage(options: {
 				conversationId: conversation.id,
 				role: "user",
 				content: userText,
+				createdAt: options.readingReceivedAt,
 				metadata: metadataJson,
 			},
 		});
+
+		// Preserve the original server receipt time on regenerate, including midnight retries.
+		options.readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
 
 		for (const id of ids) {
 			const linked = await tx.chatAttachment.updateMany({
@@ -498,6 +510,7 @@ async function persistAssistantResponse(options: {
 }
 
 export async function POST(req: Request): Promise<Response> {
+	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
 
@@ -549,11 +562,13 @@ export async function POST(req: Request): Promise<Response> {
 					(profile) => profile.name,
 				);
 		if (!storedName) waitUntil(namePromise);
-		const tools = buildSureWordTools({
+		const readingContext = {
+			...readingRequestContext(requestData, readingReceivedAt),
 			userId,
 			translation,
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
-		});
+		};
+		const tools = buildSureWordTools(readingContext);
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -710,6 +725,8 @@ export async function POST(req: Request): Promise<Response> {
 						conversationId,
 						userMessage: lastMessage,
 						origin: dailyCrossOrigin,
+						readingReceivedAt,
+						readingContext,
 					});
 				}
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { recordLegacyReading, ReadingLogError } from "@/lib/reading-log";
 import { loadReadingHistory } from "@/lib/reading-history";
 
 const eventSchema = z.object({
@@ -9,8 +9,6 @@ const eventSchema = z.object({
 	chapter: z.number().int().min(1).max(200),
 	translation: z.string().min(1).max(20).optional(),
 });
-
-const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
 
 /**
  * The caller's reading history, summarized: the chapter to continue from,
@@ -23,6 +21,7 @@ export async function GET() {
 		return NextResponse.json(await loadReadingHistory(userId));
 	} catch (error) {
 		if (error instanceof Response) return error;
+		if (error instanceof ReadingLogError) return NextResponse.json({ error: error.message }, { status: error.status });
 		console.error("[api/reading-events] GET failed", error);
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
@@ -47,26 +46,10 @@ export async function POST(req: Request) {
 		}
 		const { book, chapter, translation } = parsed.data;
 
-		const recent = await prisma.readingEvent.findFirst({
-			where: {
-				userId,
-				book,
-				chapter,
-				readAt: { gte: new Date(Date.now() - DEDUPE_WINDOW_MS) },
-			},
-			select: { id: true },
-		});
-		if (recent) {
-			return NextResponse.json({ recorded: false });
-		}
-
-		await prisma.readingEvent.create({
-			data: { userId, book, chapter, translation: translation ?? "KJV" },
-		});
-
-		return NextResponse.json({ recorded: true });
+		return NextResponse.json(await recordLegacyReading(userId, book, chapter, translation));
 	} catch (error) {
 		if (error instanceof Response) return error;
+		if (error instanceof ReadingLogError) return NextResponse.json({ error: error.message }, { status: error.status });
 		console.error("[api/reading-events] POST failed", error);
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}

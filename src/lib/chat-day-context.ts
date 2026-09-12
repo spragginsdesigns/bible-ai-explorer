@@ -1,3 +1,4 @@
+import { recentReadingChapters } from "@/lib/reading-log";
 import { bookByOrder } from "@/lib/bible/books";
 import { firstNameOf } from "@/lib/daily-cross-audio-script";
 import { findTodayCross } from "@/lib/daily-cross";
@@ -72,14 +73,7 @@ export async function loadChatDayContext(
 	const [cross, plan, readingEvents, highlights] = await Promise.all([
 		findTodayCross(userId).catch(logFailure("Today's cross lookup")),
 		getTodayPlanReading(userId).catch(logFailure("Reading plan lookup")),
-		prisma.readingEvent
-			.findMany({
-				where: { userId, readAt: { gte: readingSince } },
-				orderBy: { readAt: "desc" },
-				take: RECENT_READING_SCAN,
-				select: { book: true, chapter: true },
-			})
-			.catch(logFailure("Recent reading lookup")),
+		recentReadingChapters(userId, readingSince, RECENT_READING_SCAN).catch(logFailure("Recent reading lookup")),
 		prisma.verseHighlight
 			.findMany({
 				where: { userId },
@@ -94,7 +88,7 @@ export async function loadChatDayContext(
 	// in count keeps the chapter read most recently in front.
 	const chapterCounts = new Map<string, number>();
 	for (const event of readingEvents ?? []) {
-		const reference = `${event.book} ${event.chapter}`;
+		const reference = event.reference ?? `${event.book} ${event.chapter}`;
 		chapterCounts.set(reference, (chapterCounts.get(reference) ?? 0) + 1);
 	}
 

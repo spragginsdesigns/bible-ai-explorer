@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useBrowserReading } from "./useBrowserReading";
+import { useReadingLogStatus } from "./readingLogClient";
 import { Users, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
@@ -44,6 +46,7 @@ function readFontStep(): number {
  */
 const ChapterReader: React.FC = () => {
   const router = useRouter();
+  const readingStatus = useReadingLogStatus();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -91,7 +94,8 @@ const ChapterReader: React.FC = () => {
   } = useChapterHighlights(translation, order, chapter);
 
   const lastFlashed = useRef<string | null>(null);
-  const lastRecordedRead = useRef<string | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const chapterKey = `${translation}:${order}:${chapter}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -99,6 +103,7 @@ const ChapterReader: React.FC = () => {
     try {
       const next = await getChapter(translation, order, chapter);
       setVerses(next);
+      setLoadedKey(`${translation}:${order}:${chapter}`);
     } catch (err) {
       setVerses([]);
       setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
@@ -116,6 +121,7 @@ const ChapterReader: React.FC = () => {
         const next = await getChapter(translation, order, chapter);
         if (cancelled) return;
         setVerses(next);
+        setLoadedKey(`${translation}:${order}:${chapter}`);
         window.scrollTo(0, 0);
       } catch (err) {
         if (cancelled) return;
@@ -148,23 +154,11 @@ const ChapterReader: React.FC = () => {
     return () => clearTimeout(scrollTimer);
   }, [loading, error, verses, translation, order, chapter, verseParam]);
 
-  // Reading history for the verse-of-the-day cron: count a chapter once it has
-  // been on screen ~5s, at most once per chapter view (the ref also absorbs
-  // StrictMode's double effect). Fire-and-forget — failures are swallowed.
-  useEffect(() => {
-    if (loading || error || !verses.length || !book) return;
-    const readKey = `${translation}:${order}:${chapter}`;
-    if (lastRecordedRead.current === readKey) return;
-    const recordTimer = setTimeout(() => {
-      lastRecordedRead.current = readKey;
-      fetch("/api/reading-events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ book: book.name, chapter, translation }),
-      }).catch(() => {});
-    }, 5000);
-    return () => clearTimeout(recordTimer);
-  }, [loading, error, verses, book, translation, order, chapter]);
+  useBrowserReading({
+    book: order, chapter, translation, verseCount: verses.length,
+    ready: !loading && !error && loadedKey === chapterKey && !!book,
+    obscured: actionVerse !== null,
+  });
 
   // The reader's chips and Settings share one account preference.
   const setTranslation = useCallback((id: TranslationId) => {
@@ -407,6 +401,12 @@ const ChapterReader: React.FC = () => {
           ))}
         </div>
 
+        {readingStatus.error ? (
+          <p role="alert" className="mx-auto max-w-3xl px-4 py-2 text-red-600">
+            {readingStatus.error}{" "}
+            <Link href="/bible/history" className="underline">Open reading log</Link>
+          </p>
+        ) : null}
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500 dark:border-amber-400/30 dark:border-t-amber-400" />
@@ -449,6 +449,7 @@ const ChapterReader: React.FC = () => {
                     key={verseNumber}
                     type="button"
                     id={`bible-verse-${verseNumber}`}
+                    data-reading-verse={verseNumber}
                     onClick={() => openVerse({ number: verseNumber, text })}
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
                       highlighted === verseNumber

@@ -84,6 +84,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						onClose={() => setAddToNoteOpen(false)}
 					/>
 				)}
+				{message.receipts?.filter((receipt) => receipt.kind === "reading").map((receipt) => (
+					<Link key={receipt.id} href="/bible/history" className="mt-2 flex min-h-11 items-center text-sm text-amber-700 dark:text-amber-400 hover:underline">
+						{receipt.label} ›
+					</Link>
+				))}
 				{message.noteActions && message.noteActions.length > 0 && (
 					<div className="mt-3 space-y-2">
 						{message.noteActions.map((action, index) => (

@@ -29,6 +29,18 @@ export interface ApiRequestOptions {
 	timeoutMs?: number;
 }
 
+/** Successful foreground requests let durable outboxes resume after connectivity returns. */
+const availabilityListeners = new Set<() => void>();
+export function subscribeApiAvailability(listener: () => void): () => void {
+	availabilityListeners.add(listener);
+	return () => { availabilityListeners.delete(listener); };
+}
+function reportApiAvailability(url: string, response: Response): void {
+	// Reading sync must not trigger its own scheduler recursively.
+	if (!response.ok || url.includes("/api/reading-log")) return;
+	for (const listener of availabilityListeners) listener();
+}
+
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
@@ -89,7 +101,8 @@ function isNetworkFailure(error: unknown): boolean {
 	if (error instanceof ApiError) return error.isNetworkError;
 	if (!(error instanceof Error)) return false;
 	// React Native / undici network failures surface as TypeError("Network request failed").
-	return error.name === "TypeError" || error.name === "AbortError";
+	return error.name === "TypeError" || error.name === "AbortError" ||
+		/network request failed|failed to fetch|fetch failed|ConnectException|Unable to resolve host/i.test(error.message);
 }
 
 async function fetchWithTimeout(
@@ -178,6 +191,7 @@ export function makeAuthedFetch(getToken: GetToken) {
 		let res = await attempt(false);
 		if (res.status === 401) res = await attempt(true);
 		if (res.status === 401) reportAuthFailure();
+		reportApiAvailability(url, res);
 		return res;
 	};
 }
@@ -222,5 +236,7 @@ export async function apiJson<T>(
 		}
 		throw new ApiError(message, { status: res.status });
 	}
-	return (await res.json()) as T;
+	const data = (await res.json()) as T;
+	reportApiAvailability(path, res);
+	return data;
 }

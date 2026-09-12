@@ -35,6 +35,7 @@ struct BibleTabView: View {
     @State private var collapsed: Set<Book.Testament> = []
     /// Non-nil pushes the reader — the chat verse-card deep-link path.
     @State private var readerRequest: BibleReaderRequest?
+    @State private var showingHistory = false
 
     private var model: BibleModel { app.bible }
 
@@ -44,6 +45,10 @@ struct BibleTabView: View {
                 searchPill
                 crossCard
                 atlasCard
+                Button { showingHistory = true } label: {
+                    Label("Reading history", systemImage: "clock.arrow.circlepath")
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, Spacing.md)
+                }
 
                 ForEach(BibleBookList.rows(collapsed: collapsed)) { row in
                     switch row {
@@ -62,6 +67,12 @@ struct BibleTabView: View {
         .background { MeshBackground() }
         .navigationTitle("Bible")
         .settingsGearToolbar()
+        .sheet(isPresented: $showingHistory) {
+            ReadingHistoryView(model: model.reading) { entry in
+                readerRequest = BibleReaderRequest(order: entry.book, chapter: entry.chapter, verse: nil, translation: nil)
+            }
+        }
+        .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         .navigationDestination(item: $readerRequest) { request in
             ChapterReaderView(
                 order: request.order,

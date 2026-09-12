@@ -136,6 +136,10 @@ struct ChatMessageBubble: View {
                 WebResultsCard(results: message.tavilyResults)
             }
 
+            ForEach(message.receipts.filter { $0.kind == .reading }) { receipt in
+                Text(receipt.label).font(.system(size: 12)).foregroundStyle(theme.textFaint).textSelection(.enabled)
+            }
+
             ForEach(message.noteActions) { action in
                 NoteActionCard(action: action) { onOpenNote(action) }
             }

@@ -3,6 +3,7 @@ import "server-only";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { bookByOrder } from "@/lib/bible/books";
 import { resolveModel } from "@/lib/ai/provider";
 import { PERSONA } from "@/lib/daily-cross";
 import { loadStudyContext } from "@/lib/study-context";
@@ -120,13 +121,21 @@ function asSource(value: string): ReadingPlanSource {
 async function withProgress(userId: string, row: PlanRow): Promise<PlanWithProgress> {
 	const days = parseStoredDays(row.days);
 
-	const [completions, readingEvents] = await Promise.all([
+	const [completions, chapters, totals] = await Promise.all([
 		prisma.readingPlanCompletion.findMany({ where: { planId: row.id }, select: { day: true } }),
-		prisma.readingEvent.findMany({
-			where: { userId, readAt: { gte: row.startDate } },
-			select: { book: true, chapter: true },
-		}),
+		prisma.readingLogChapter.findMany({ where: { userId, chapterReadings: { gt: 0 } }, take: 1189,
+			select: { book: true, chapter: true, lastCompletedAt: true } }),
+		prisma.readingLogTotals.findUnique({ where: { userId }, select: { legacyBackfilled: true } }),
 	]);
+	// Coarse records store their local day's earliest possible instant as an
+	// internal bound. They count only when even that bound follows plan start.
+	const readingEvents = chapters.filter((chapter) => chapter.lastCompletedAt && chapter.lastCompletedAt >= row.startDate)
+		.map((chapter) => ({ book: bookByOrder(chapter.book)!.name, chapter: chapter.chapter }));
+	if (!totals?.legacyBackfilled) {
+		// Bounded DISTINCT legacy compatibility during resumable migration.
+		const legacy = await prisma.$queryRaw<{ book: string; chapter: number }[]>`SELECT DISTINCT book, chapter FROM "ReadingEvent" WHERE "userId" = ${userId} AND "readAt" >= ${row.startDate} LIMIT 1189`;
+		readingEvents.push(...legacy);
+	}
 
 	const progress = computePlanProgress({
 		days,

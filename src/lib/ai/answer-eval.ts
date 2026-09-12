@@ -149,6 +149,9 @@ export const DEFAULT_WRITE_TOOLS = [
 	"setDailyCross",
 	"startReadingPlan",
 	"markReadingPlanDay",
+	"logReading",
+	"correctReadingLog",
+	"removeReadingLog",
 ];
 
 /** Human-review dimensions; never collapsed into the mechanical pass bit. */

@@ -16,9 +16,6 @@ final class BibleModel {
     static let searchLimit = KJVLibrary.defaultSearchLimit
     static let searchDebounce = Duration.milliseconds(300)
     static let highlightDuration = Duration.milliseconds(2400)
-    /// A chapter must stay on screen this long before it counts as read,
-    /// matching `READ_EVENT_DELAY_MS` in the Android reader.
-    static let readEventDelay = Duration.seconds(5)
 
     private enum Key {
         static let fontStep = "bible.fontStep"
@@ -95,12 +92,10 @@ final class BibleModel {
     private var saveTask: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var flashTask: Task<Void, Never>?
-    /// Chapters already reported this session, so a re-render or paging back
-    /// doesn't re-post. The server dedupes within the hour as well; this just
-    /// keeps the app from making the call at all.
-    private var recordedReads: Set<String> = []
+    let reading: ReadingJournal
 
-    init(api: APIClient, defaults: UserDefaults = .standard) {
+    init(api: APIClient, defaults: UserDefaults = .standard, reading: ReadingJournal? = nil) {
+        self.reading = reading ?? ReadingJournal(account: nil, api: nil)
         self.api = api
         self.defaults = defaults
         insight = VerseInsightModel(api: api)
@@ -298,28 +293,15 @@ final class BibleModel {
 
     // MARK: - Reading history
 
-    /// Report that the current chapter was read — the history that shapes which
-    /// verse "Pick Up Your Cross" picks. The caller waits `readEventDelay`
-    /// first, so a chapter merely paged through never counts.
-    ///
-    /// Fire-and-forget by design: this is a background nicety, and a failure
-    /// must never surface in the reader.
-    func recordRead(translation: TranslationID) {
+    func prepareReading(translation: TranslationID) {
         guard let book, loadedKey == chapterKey(translation) else { return }
-        let key = chapterKey(translation)
-        guard !recordedReads.contains(key) else { return }
-        recordedReads.insert(key)
+        reading.enter(book: book.order, chapter: chapter, translation: translation.rawValue, verseCount: verses.count)
+    }
 
-        let name = book.name
-        let chapter = chapter
-        Task { [api] in
-            try? await DailyCrossAPI.recordReading(
-                api: api,
-                book: name,
-                chapter: chapter,
-                translation: translation
-            )
-        }
+    func readingVisibility(verse: Int, visible: Bool, translation: TranslationID) {
+        guard loadedKey == chapterKey(translation) else { return }
+        prepareReading(translation: translation)
+        reading.visibility(verse: verse, isVisible: visible)
     }
 
     // MARK: - Verse actions

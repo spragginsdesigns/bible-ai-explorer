@@ -1,3 +1,4 @@
+import { recentReadingChapters } from "@/lib/reading-log";
 import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
@@ -63,10 +64,7 @@ export interface StudyContext {
 export async function loadStudyContext(userId: string): Promise<StudyContext> {
 	const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
 	const [readingEvents, messages, notes, memories, recentPicks, planReading, church] = await Promise.all([
-		prisma.readingEvent.findMany({
-			where: { userId, readAt: { gte: readingSince } },
-			select: { book: true, chapter: true },
-		}),
+		recentReadingChapters(userId, readingSince, 200),
 		prisma.message.findMany({
 			where: { role: "user", conversation: { userId } },
 			orderBy: { createdAt: "desc" },
@@ -105,7 +103,7 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 
 	const readingCounts = new Map<string, number>();
 	for (const event of readingEvents) {
-		const reference = `${event.book} ${event.chapter}`;
+		const reference = event.reference ?? `${event.book} ${event.chapter}`;
 		readingCounts.set(reference, (readingCounts.get(reference) ?? 0) + 1);
 	}
 

@@ -14,6 +14,14 @@ enum ClerkAuth {
         return try await session.getToken(.init(skipCache: fresh))
     }
 
+    /// Durable work must never borrow a newly signed-in account's token.
+    static func token(for account: String, fresh: Bool) async throws -> String? {
+        guard Clerk.shared.user?.id == account else { throw APIError(message: "The reading account changed.", status: 401) }
+        let value = try await token(fresh: fresh)
+        guard Clerk.shared.user?.id == account else { throw APIError(message: "The reading account changed.", status: 401) }
+        return value
+    }
+
     /// A token provider the networking layer can hold without importing ClerkKit.
     static var tokenProvider: TokenProvider {
         { fresh in try await ClerkAuth.token(fresh: fresh) }

@@ -1,16 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "@clerk/expo";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
-import { apiJson, type GetToken } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -84,18 +84,12 @@ export default function BibleBooksScreen() {
 	// Read-only here: the card shows where the plan stands and hands the user
 	// on to the plan screen, which owns every action.
 	const { plan } = useReadingPlan();
-	const { getToken } = useAuth();
-
-	// The API layer's `{ fresh: true }` maps to Clerk's cache skip.
-	const getApiToken = useCallback<GetToken>(
-		(opts) => getToken(opts?.fresh ? { skipCache: true } : undefined),
-		[getToken]
-	);
+	const getApiToken = useStableGetToken();
 
 	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
 	// Fail-soft: signed out or the route not yet deployed leaves it hidden.
 	const [lastRead, setLastRead] = useState<LastRead | null>(null);
-	useEffect(() => {
+	useFocusEffect(useCallback(() => {
 		let cancelled = false;
 		apiJson<{ lastRead?: LastRead | null }>(getApiToken, "/api/reading-events")
 			.then((data) => {
@@ -105,7 +99,7 @@ export default function BibleBooksScreen() {
 		return () => {
 			cancelled = true;
 		};
-	}, [getApiToken]);
+	}, [getApiToken]));
 
 	const continueTarget = useMemo(() => {
 		if (!lastRead) return null;
@@ -156,6 +150,7 @@ export default function BibleBooksScreen() {
 		<Screen>
 			<View style={styles.header}>
 				<Text style={styles.heading}>Bible</Text>
+				<Pressable accessibilityRole="button" accessibilityLabel="Reading log" onPress={() => router.push("/bible/history")} hitSlop={8}><Ionicons name="time-outline" size={22} color={colors.accent} /></Pressable>
 				<Pressable
 					accessibilityRole="button"
 					onPress={openSearch}

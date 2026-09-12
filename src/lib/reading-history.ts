@@ -32,14 +32,14 @@ export interface ReadingEventInput {
 
 export interface ReadingHistory {
 	lastRead: { book: string; chapter: number; translation: string; readAt: string } | null;
-	/** Distinct chapters read on each of the last 7 local days (today included), summed. */
+	/** Completed chapter readings in the last 7 local days, including reread sessions. */
 	chaptersLast7Days: number;
 	chaptersLast30Days: number;
 	/** Local days in the last 30 (today included) with at least one chapter read. */
 	activeDaysLast30: number;
 	/** Consecutive local days with reading, ending today; an unread today does not break it yet. */
 	currentStreakDays: number;
-	/** Books by distinct chapters read across the loaded history, most first. */
+	/** Books by distinct completed chapters across lifetime history, most first. */
 	topBooks: { book: string; chapters: number }[];
 	/** Newest reads first. */
 	recent: { book: string; chapter: number; readAt: string }[];
@@ -162,24 +162,45 @@ export function summarizeReadingHistory(
 	};
 }
 
-/** Load one user's recent reading and their device timezone, then summarize. */
+/** Lifetime summaries use bounded aggregates, not a rolling event scan. */
 export async function loadReadingHistory(userId: string, now: Date = new Date()): Promise<ReadingHistory> {
-	const { prisma } = await import("@/lib/prisma");
-	const [events, device] = await Promise.all([
-		prisma.readingEvent.findMany({
-			where: {
-				userId,
-				readAt: { gte: new Date(now.getTime() - READING_HISTORY_WINDOW_DAYS * 24 * 60 * 60 * 1000) },
-			},
-			orderBy: { readAt: "desc" },
-			take: READING_HISTORY_MAX_EVENTS,
-			select: { book: true, chapter: true, translation: true, readAt: true },
-		}),
-		prisma.pushToken.findFirst({
-			where: { userId },
-			orderBy: { updatedAt: "desc" },
-			select: { timezone: true },
-		}),
-	]);
-	return summarizeReadingHistory(events, { now, timeZone: device?.timezone });
+  const { prisma } = await import("@/lib/prisma");
+  const { bookByOrder } = await import("@/lib/bible/books");
+  const { recentReadingChapters } = await import("@/lib/reading-log");
+  const device = await prisma.pushToken.findFirst({ where: { userId }, orderBy: { updatedAt: "desc" }, select: { timezone: true } });
+  const today = localDayKey(now, resolveReadingTimezone(device?.timezone));
+  const since30 = shiftDayKey(today, -29);
+  const [totals, days, chapters, latest, recent, streak] = await Promise.all([
+    prisma.readingLogTotals.findUnique({ where: { userId } }),
+    prisma.readingLogDay.findMany({ where: { userId, localDate: { gte: since30, lte: today }, entries: { gt: 0 } }, take: 30 }),
+    prisma.readingLogChapter.findMany({ where: { userId, chapterReadings: { gt: 0 } }, take: 1189 }),
+    prisma.readingLogEntry.findFirst({ where: { userId, deletedAt: null }, orderBy: [{ occurredAt: "desc" }, { eventId: "desc" }] }),
+    recentReadingChapters(userId, new Date(0), MAX_RECENT_READS),
+    prisma.readingLogStreak.findFirst({ where: { userId, endDate: { gte: shiftDayKey(today, -1) }, startDate: { lte: today } }, orderBy: { endDate: "desc" } }),
+  ]);
+  if (!totals?.legacyBackfilled) {
+    // Temporary rollout compatibility only. Completion of resumable backfill
+    // removes this bounded legacy read and makes all lifetime totals complete.
+    const legacy = await prisma.readingEvent.findMany({ where: { userId, readAt: { gte: new Date(now.getTime() - READING_HISTORY_WINDOW_DAYS * 86400_000) } }, orderBy: { readAt: "desc" }, take: READING_HISTORY_MAX_EVENTS });
+    const fallback = summarizeReadingHistory(legacy, { now, timeZone: device?.timezone });
+    return { ...fallback, lastRead: latest && (!fallback.lastRead || latest.occurredAt > new Date(fallback.lastRead.readAt)) ? {
+      book: bookByOrder(latest.book)!.name, chapter: latest.chapter, translation: latest.translation,
+      readAt: ["exact", "legacy"].includes(latest.precision) ? latest.occurredAt.toISOString() : latest.localDate,
+    } : fallback.lastRead, recent: recent.map((entry) => ({ book: entry.book, chapter: entry.chapter, readAt: ["exact", "legacy"].includes(entry.precision) ? entry.readAt.toISOString() : entry.localDate })) };
+  }
+  const books = new Map<string, { chapters: number; newest: number }>();
+  for (const chapter of chapters) {
+    const name = bookByOrder(chapter.book)!.name;
+    const previous = books.get(name) ?? { chapters: 0, newest: 0 };
+    books.set(name, { chapters: previous.chapters + 1, newest: Math.max(previous.newest, chapter.lastReadAt?.getTime() ?? 0) });
+  }
+  return {
+    lastRead: latest ? { book: bookByOrder(latest.book)!.name, chapter: latest.chapter, translation: latest.translation,
+      readAt: ["exact", "legacy"].includes(latest.precision) ? latest.occurredAt.toISOString() : latest.localDate } : null,
+    chaptersLast7Days: days.filter((day) => day.localDate >= shiftDayKey(today, -6)).reduce((sum, day) => sum + day.chapterReadings, 0),
+    chaptersLast30Days: days.reduce((sum, day) => sum + day.chapterReadings, 0), activeDaysLast30: days.length,
+    currentStreakDays: streak ? Math.round((new Date(streak.endDate > today ? today : streak.endDate).getTime() - new Date(streak.startDate).getTime()) / 86400_000) + 1 : 0,
+    topBooks: [...books.entries()].sort(([, a], [, b]) => b.chapters - a.chapters || b.newest - a.newest).slice(0, MAX_TOP_BOOKS).map(([book, data]) => ({ book, chapters: data.chapters })),
+    recent: recent.map((entry) => ({ book: entry.book, chapter: entry.chapter, readAt: ["exact", "legacy"].includes(entry.precision) ? entry.readAt.toISOString() : entry.localDate })),
+  };
 }

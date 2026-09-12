@@ -1,3 +1,4 @@
+import { recentReadingChapters } from "@/lib/reading-log";
 import { Output, ToolLoopAgent, isStepCount, tool, type LanguageModel } from "ai";
 import { z } from "zod";
 import { builtInDailyCrossModel } from "@/lib/ai/built-in-openai";
@@ -147,12 +148,7 @@ async function defaultContext(request: DailyCrossContextRequest): Promise<Select
 			take: 15,
 			select: { id: true, title: true, plainText: true, updatedAt: true },
 		}),
-		prisma.readingEvent.findMany({
-			where: { userId: request.userId, readAt: { gte: readingSince } },
-			orderBy: { readAt: "desc" },
-			take: 60,
-			select: { book: true, chapter: true, readAt: true },
-		}),
+		recentReadingChapters(request.userId, readingSince, 60),
 		getTodayPlanReading(request.userId).catch(() => null),
 		loadUserChurch(request.userId),
 	]);
@@ -182,7 +178,7 @@ async function defaultContext(request: DailyCrossContextRequest): Promise<Select
 	);
 	const readingCounts = new Map<string, number>();
 	for (const reading of readings) {
-		const reference = `${reading.book} ${reading.chapter}`;
+		const reference = reading.reference ?? `${reading.book} ${reading.chapter}`;
 		readingCounts.set(reference, (readingCounts.get(reference) ?? 0) + 1);
 	}
 	for (const [reference, count] of Array.from(readingCounts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20)) {

@@ -9,13 +9,14 @@
  */
 
 export type ChatReceiptKind =
-	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church";
+	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "reading";
 
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
 	| { screen: "memories"; memoryId?: string }
 	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" }
 	| { screen: "plan" }
+	| { screen: "readingHistory" }
 	| { screen: "cross" }
 	| { screen: "settings"; section?: "memory" | "church" | "preferences" };
 
@@ -107,6 +108,19 @@ function toolReceipt(
 			const reference = nonEmptyString(output.reference);
 			if (!reference) return null;
 			return { id, kind: "cross", label: `Today's cross: ${reference}`, target: { screen: "cross" } };
+		}
+		case "logReading": {
+			const reference = nonEmptyString(output.reference);
+			const localDate = nonEmptyString(output.localDate);
+			const book = positiveInteger(output.book);
+			const chapter = positiveInteger(output.chapter);
+			if (output.success !== true || !reference || !localDate || book === null || chapter === null) return null;
+			return { id, kind: "reading", label: `Logged ${reference} · ${localDate}`, target: { screen: "readingHistory" } };
+		}
+		case "correctReadingLog":
+		case "removeReadingLog": {
+			if (output.success !== true || !nonEmptyString(output.eventId) || (toolName === "removeReadingLog" && output.removed !== true)) return null;
+			return { id, kind: "reading", label: toolName === "correctReadingLog" ? "Reading log corrected" : "Reading entry removed", target: { screen: "readingHistory" } };
 		}
 		case "startReadingPlan": {
 			const title = nonEmptyString(output.title);

@@ -17,6 +17,7 @@ import UIKit
 /// the model, never the stack), so reading position survives a trip to another
 /// tab — the same reason `AppModel` owns the model.
 struct ChapterReaderView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
 
@@ -46,6 +47,7 @@ struct ChapterReaderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            ReadingSyncStatus(model: model.reading)
             translationChips
 
             if model.loading {
@@ -72,16 +74,16 @@ struct ChapterReaderView: View {
         .task(id: model.chapterKey(translation)) {
             await model.load(translation: translation)
         }
-        // Reading history for "Pick Up Your Cross": a chapter counts as read
-        // only once it has actually been on screen for a few seconds. Keyed on
-        // `loadedKey` rather than the selection so the clock starts when the
-        // text is really there, and paging away cancels the wait mid-sleep.
-        .task(id: model.loadedKey) {
-            guard model.loadedKey == model.chapterKey(translation) else { return }
-            try? await Task.sleep(for: BibleModel.readEventDelay)
-            guard !Task.isCancelled else { return }
-            model.recordRead(translation: translation)
+        .onAppear {
+            model.reading.setReaderVisible(true)
+            model.reading.setForeground(scenePhase == .active)
+            model.prepareReading(translation: translation)
         }
+        .onDisappear { model.reading.setReaderVisible(false) }
+        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
+        .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
+        .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
+
         // Tap-a-verse. Swiping the sheet down dismisses it through the same
         // path as the close button, so the stream is cancelled either way.
         .sheet(isPresented: Binding(
@@ -233,10 +235,14 @@ struct ChapterReaderView: View {
                     ForEach(Array(model.verses.enumerated()), id: \.offset) { index, markup in
                         verseRow(number: index + 1, markup: markup)
                             .id(index + 1)
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation)
+                            }
                     }
 
                     footer
                 }
+                .id(model.loadedKey)
                 .padding(.horizontal, Spacing.xl)
             }
             // The reader's breathing room is a content margin rather than
