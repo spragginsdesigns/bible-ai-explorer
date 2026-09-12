@@ -13,6 +13,7 @@ import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
+import SeeAlsoSection from "./SeeAlsoSection";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const FONT_STEP_KEY = "bible-reader-font-step";
@@ -595,6 +596,10 @@ const ChapterReader: React.FC = () => {
                 chapter={chapter}
                 verse={actionVerse.number}
               />
+
+              {/* C1: Scripture interprets Scripture (Kimi lane; fail-soft until
+                  /api/bible/crossrefs is deployed). */}
+              <SeeAlsoSection reference={actionReference} translation={translation} />
 
               <button
                 type="button"
