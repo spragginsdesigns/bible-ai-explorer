@@ -190,6 +190,21 @@ export default function BibleBooksScreen() {
 						)}
 						<Pressable
 							accessibilityRole="button"
+							accessibilityLabel="Learn a verse - today's memory practice"
+							onPress={() => router.push("/bible/learn")}
+							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+						>
+							<Text style={styles.planGlyph}>✧</Text>
+							<View style={styles.crossCopy}>
+								<Text style={styles.planTitle}>Learn a verse</Text>
+								<Text style={styles.crossSubtitle}>
+									Today&apos;s memory practice, one verse at a time
+								</Text>
+							</View>
+							<Text style={styles.planChevron}>›</Text>
+						</Pressable>
+						<Pressable
+							accessibilityRole="button"
 							accessibilityLabel={plan ? "Reading plan - today's reading" : "Start a reading plan"}
 							onPress={openReadingPlan}
 							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
