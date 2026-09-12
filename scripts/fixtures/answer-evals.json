@@ -177,6 +177,9 @@
         ],
         [
           "searchScripture"
+        ],
+        [
+          "getPassage"
         ]
       ],
       "requiredReferences": [

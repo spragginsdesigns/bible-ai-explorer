@@ -329,6 +329,41 @@ export function evidenceTextFor(evidence: RetrievedEvidence[], citation: string)
 	return normalizeAnswerText(pieces.map(({ item }) => item.text).join(" "));
 }
 
+/**
+ * Is a cited reference covered by the retrieval evidence?
+ *
+ * The tools answer one object per verse, so a range the model both fetched and
+ * cited ("Ephesians 2:8-9") is never covered by any single source. A range is
+ * backed when every verse in it was retrieved; anything else is unsupported.
+ */
+export function referenceBacked(sources: readonly string[], citation: string): boolean {
+	if (sources.some((source) => referenceCovers(source, citation) || refKey(source) === refKey(citation))) {
+		return true;
+	}
+	const cited = parseReference(citation);
+	if (!cited) return false;
+	const start = cited.chapter * 1000 + cited.verse;
+	const end = cited.endChapter * 1000 + cited.endVerse;
+	if (end <= start) return false;
+	const covered = new Set<number>();
+	for (const source of sources) {
+		const parsed = parseReference(source);
+		if (!parsed || parsed.book !== cited.book) continue;
+		const from = parsed.chapter * 1000 + parsed.verse;
+		const to = parsed.endChapter * 1000 + parsed.endVerse;
+		for (let position = Math.max(from, start); position <= Math.min(to, end); position += 1) {
+			covered.add(position);
+		}
+	}
+	// Verse numbering is not dense across a chapter break, so only a citation
+	// inside one chapter can be proved verse by verse this way.
+	if (cited.endChapter !== cited.chapter) return false;
+	for (let position = start; position <= end; position += 1) {
+		if (!covered.has(position)) return false;
+	}
+	return true;
+}
+
 function hasReference(text: string, expected: string): boolean {
 	return extractBibleReferences(text).some((reference) => referenceCovers(reference, expected) || refKey(reference) === refKey(expected));
 }
@@ -446,7 +481,7 @@ function scoreReferences(
 	let fabricated = true;
 	if (expected.allCitationsBackedByTools) {
 		const backed = sourceReferences(observation.toolCalls);
-		const unsupported = extractBibleReferences(answer).filter((reference) => !backed.some((source) => referenceCovers(source, reference) || refKey(source) === refKey(reference)));
+		const unsupported = extractBibleReferences(answer).filter((reference) => !referenceBacked(backed, reference));
 		if (unsupported.length > 0) {
 			fabricated = false;
 			failures.push(`citation(s) lack successful tool evidence: ${[...new Set(unsupported)].join(", ")}`);

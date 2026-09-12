@@ -298,3 +298,15 @@ test("a quotation spanning several verses is matched against the verses stitched
 	assert.equal(evidenceTextFor(evidence, "Ephesians 2:8"), evidence[0].text.toLowerCase().replace(/[^a-z0-9:;,.'" -]/g, "").trim().length ? evidenceTextFor(evidence, "Ephesians 2:8") : null);
 	assert.equal(evidenceTextFor(evidence, "Romans 8:28-29"), null);
 });
+
+test("a cited verse range counts as backed when every verse in it was retrieved", async () => {
+	const { referenceBacked } = await import("../src/lib/ai/answer-eval.ts");
+	// getPassage answers per verse, so a range the model fetched and cited is
+	// covered by no single source; it is backed only when every verse is there.
+	assert.equal(referenceBacked(["Ephesians 2:8", "Ephesians 2:9"], "Ephesians 2:8-9"), true);
+	assert.equal(referenceBacked(["Ephesians 2:8"], "Ephesians 2:8-9"), false);
+	assert.equal(referenceBacked(["Ephesians 2:8-10"], "Ephesians 2:8-9"), true);
+	assert.equal(referenceBacked(["Romans 8:28"], "Ephesians 2:8-9"), false);
+	// A range crossing a chapter boundary cannot be proved verse by verse.
+	assert.equal(referenceBacked(["Psalms 22:31", "Psalms 23:1"], "Psalms 22:31-23:1"), false);
+});
