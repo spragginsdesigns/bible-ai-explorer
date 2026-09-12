@@ -18,10 +18,13 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 **What's new (Play):**
 
-- Bible search now uses your selected translation and checks the other translation when a phrase has no matches.
-- Find Job 1:8 by searching "blameless and upright."
-- Search results show their translation and open the matching reader text.
-- Failed searches show a retry option instead of saying no verses were found.
+- SureWord knows your day: it greets you by name and sees today's cross, your week's reading and the verses you marked.
+- Short follow-ups get short answers.
+- Add to notes writes a real study note in your voice, not the chat reply.
+- Chats name themselves; history gains search, rename and a safer delete.
+- Tap a verse for related passages, name your highlight colours, continue where you left off, start notes from a template, and search either translation.
+
+**Dev notes:** Server-side work reached every installed build on deploy (name and day context in the prompt, short-follow-up hint, note composer on `POST /api/notes/append`, conversation auto-titles, `highlightVerse` / `organizeNote` tools, `GET /api/reading-events`, `GET /api/bible/crossrefs`, `highlightLabels` on the preferences document, and the tool-loop time budget that stopped slow turns being killed with the answer unsaved). This build carries the Android halves: deferred notification permission (first settled answer or first Cross visit), conversation history search/rename/confirmed swipe-delete, the See also cross-reference row, highlight colour names, continue reading on the Bible home, note templates, and the receipts parser (cards render in a later build). Learn a verse is held back: the API shipped, the screens land once a verse can be added to the queue.
 
 **Dev notes:** Translation-aware KJV/NKJV phrase lookup, cancellation of superseded requests, explicit result provenance, and reference navigation. KJV matches remain available offline. Live provider regression checks cover the reported Job 1:8 phrase on web and Android.
 
