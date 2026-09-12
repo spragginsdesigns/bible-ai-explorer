@@ -33,6 +33,7 @@ import {
 	useNotificationSettings,
 } from "@/features/notifications/notificationSettings";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
+import { HighlightLabelsSection } from "@/features/settings/HighlightLabelsSection";
 import {
 	noteMemoryEnabled as noteMemoryEnabledInData,
 	prefetchSettingsData,
@@ -286,6 +287,8 @@ export default function SettingsScreen() {
 						fetched when needed. SureWord&apos;s AI answers use the translation you select.
 					</Text>
 				</GlassCard>
+
+				<HighlightLabelsSection getToken={getToken} />
 
 				<SectionLabel label="MEMORY" />
 				<GlassCard style={styles.card}>
