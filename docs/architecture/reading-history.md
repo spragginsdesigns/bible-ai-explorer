@@ -37,11 +37,15 @@ Automatic qualified viewing and explicit physical reports retain distinct eviden
 
 1. Apply `20260913010000_durable_reading_log` before deploying readers or tool code that writes the new endpoint. Inspect the existing `ReadingEvent` table size first: its new `(userId, id)` backfill index uses standard `CREATE INDEX`, which briefly blocks writes during construction. For a large legacy table, prepare that index concurrently in a separate migration before rollout. This creates tables, indexes, constraints, and functions only; it does not backfill a large production journal inside deployment.
 2. Deploy the server compatibility layer and drain in-flight old-server writes before backfill. `/api/reading-events` continues accepting old clients, preserves its legacy one-hour suppression, and writes explicitly labeled legacy observations to the shared log.
-3. Run the resumable backfill in a controlled process with the production database environment:
+3. From the repository root, run the resumable backfill in a controlled process with the production database environment already loaded:
 
    ```sh
-   NODE_OPTIONS=--conditions=react-server pnpm dlx tsx scripts/backfill-reading-history.ts
+   NODE_PATH="$PWD/node_modules/next/dist/compiled" \
+     NODE_OPTIONS=--conditions=react-server \
+     pnpm dlx --allow-build=esbuild tsx scripts/backfill-reading-history.ts
    ```
+
+   pnpm 12 requires `--allow-build=esbuild` for the `tsx` dependency's install script. `NODE_PATH` resolves Next's bundled `server-only` marker, which is not a direct dependency here; the React server condition selects its server entry point. These settings apply only to this command.
 
    `--user=<Clerk ID>` limits scope. Each 50-row transaction commits the account's cursor along with its new summaries. Original `ReadingEvent` rows are never deleted. Unknown book mappings or invalid chapters stop that account with the original event ID; resolve these records deliberately before resuming.
 4. Require every historical account's `legacyBackfilled` flag before claiming complete lifetime history. While it is false, compatibility consumers retain bounded access to old history and the new stats expose `historicalBackfillPending: true`. Release should wait for the backfill to finish; the fallback is not a permanent lifetime query implementation.

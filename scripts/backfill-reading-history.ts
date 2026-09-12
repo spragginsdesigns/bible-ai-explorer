@@ -1,5 +1,7 @@
-/** Run with tsx and React's server condition after deploying the schema:
- * NODE_OPTIONS=--conditions=react-server pnpm dlx tsx scripts/backfill-reading-history.ts
+/** Run from the repository root after deploying the schema, with database env loaded:
+ * NODE_PATH="$PWD/node_modules/next/dist/compiled" NODE_OPTIONS=--conditions=react-server pnpm dlx --allow-build=esbuild tsx scripts/backfill-reading-history.ts
+ * pnpm 12 needs esbuild's install script; NODE_PATH resolves Next's bundled
+ * server-only marker, and the React server condition selects its server entry.
  * Use --user=<Clerk ID> to limit the run. Each 50-row transaction stores its
  * durable cursor. Interrupting and rerunning is safe. Never deletes old rows.
  */
