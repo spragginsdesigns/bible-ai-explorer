@@ -8,6 +8,8 @@ import NotesSearch from "./NotesSearch";
 import NotesListView from "./NotesListView";
 import NoteEditorView from "./NoteEditorView";
 import NotesTopBar from "./NotesTopBar";
+import NoteTemplatePicker from "./NoteTemplatePicker";
+import { buildNoteTemplate, type NoteTemplateId } from "./noteTemplates";
 import { useNotes } from "@/hooks/useNotes";
 
 const SWIPE_THRESHOLD = 50;
@@ -15,6 +17,9 @@ const EDGE_ZONE = 30;
 
 const NotesPage: React.FC = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+	const [churchName, setChurchName] = useState<string | null>(null);
+	const churchFetched = useRef(false);
 	const touchStartX = useRef(0);
 	const touchStartY = useRef(0);
 	const isSwiping = useRef(false);
@@ -73,8 +78,36 @@ const NotesPage: React.FC = () => {
 		[sidebarOpen]
 	);
 
-	const handleCreateNote = async () => {
-		await createNote();
+	// B7: "+" opens the template picker instead of a blank page. The church
+	// name personalises the sermon template; fetched lazily, once.
+	const handleCreateNote = () => {
+		setTemplatePickerOpen(true);
+		if (churchFetched.current) return;
+		churchFetched.current = true;
+		fetch("/api/church")
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data: { status?: string; church?: { name?: string } | null } | null) => {
+				if (data && data.status !== "unavailable" && data.church?.name) {
+					setChurchName(data.church.name);
+				}
+			})
+			.catch(() => {});
+	};
+
+	const handlePickTemplate = async (id: NoteTemplateId) => {
+		setTemplatePickerOpen(false);
+		const seed = buildNoteTemplate(id, { churchName });
+		if (!seed) {
+			await createNote();
+			return;
+		}
+		const note = await createNote(null, seed.title);
+		await updateNote(note.id, {
+			content: seed.html,
+			htmlContent: seed.html,
+			plainText: seed.plainText,
+			wordCount: seed.wordCount,
+		});
 	};
 
 	const handleDeleteNote = async (id: string) => {
@@ -99,8 +132,7 @@ const NotesPage: React.FC = () => {
 				active="notes"
 				open={sidebarOpen}
 				onClose={() => setSidebarOpen(false)}
-			>
-				<NotesSidebar
+			>				<NotesSidebar
 					folders={folders}
 					tags={tags}
 					activeFolderId={activeFolderId}
@@ -168,6 +200,11 @@ const NotesPage: React.FC = () => {
 					</>
 				)}
 			</div>
+			<NoteTemplatePicker
+				open={templatePickerOpen}
+				onClose={() => setTemplatePickerOpen(false)}
+				onPick={(id) => void handlePickTemplate(id)}
+			/>
 		</div>
 	);
 };
