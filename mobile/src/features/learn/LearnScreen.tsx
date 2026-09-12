@@ -11,7 +11,7 @@ import { fonts, radius, spacing, type Colors } from "@/theme";
 import { isOfflineMessage } from "@/lib/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { fetchLearnToday, reviewLearnCard } from "./api";
-import { applyReview, parseCard, parseToday, verseWords, type LearnToday } from "./learn";
+import { allowCachedPractice, applyReview, parseCard, parseToday, verseWords, type LearnToday } from "./learn";
 
 export default function LearnScreen() {
  const { userId, isLoaded } = useAuth();
@@ -47,7 +47,7 @@ function LearnSession({ userId }: { userId: string }) {
    if (mounted.current) { setToday(data); setOffline(false); setNeedsReload(false); setRevealed(new Set()); }
   } catch (e) {
    let cached: LearnToday | null = null;
-   if (isOfflineMessage(e)) {
+   if (allowCachedPractice(e)) {
     try { const stored = await AsyncStorage.getItem(cacheKey); if (stored) cached = parseToday(JSON.parse(stored)); } catch { /* Ignore invalid cached data. */ }
    }
    if (mounted.current) {
@@ -90,7 +90,7 @@ function LearnSession({ userId }: { userId: string }) {
    <Text style={styles.title}>Learn a verse</Text>
    {today && <Text style={styles.count}>{today.knownCount} verses you know</Text>}
   </View>
-  {offline && <View style={styles.notice}><Text style={styles.muted}>Offline practice. Your saved schedule will not change.</Text><Pressable accessibilityRole="button" disabled={busy} onPress={() => void load()} style={styles.back}><Text style={styles.link}>Reconnect</Text></Pressable></View>}
+  {offline && <View style={styles.notice}><Text style={styles.muted}>Practicing saved verses. Your saved schedule will not change.</Text><Pressable accessibilityRole="button" disabled={busy} onPress={() => void load()} style={styles.back}><Text style={styles.link}>Reconnect</Text></Pressable></View>}
   {error && <View accessibilityRole="alert" style={styles.notice}><Text style={styles.muted}>{error}</Text><Pressable accessibilityRole="button" disabled={busy} onPress={() => void load()} style={styles.back}><Text style={styles.link}>Reload verses</Text></Pressable></View>}
   {!today && !error && <Text style={styles.empty}>Loading your verses...</Text>}
   {today && !card && <View style={styles.study}><Text style={styles.emptyTitle}>{today.queueCount ? "Today's practice is complete." : "Start with a verse you want to remember."}</Text><Text style={styles.hint}>{today.queueCount ? "Your next verses will be ready when they are due." : "Choose Learn this verse from the Bible reader or a highlight."}</Text></View>}
@@ -130,4 +130,3 @@ const createStyles = (c: Colors) => StyleSheet.create({
  empty:{color:c.textMuted,textAlign:"center",marginVertical:spacing.xl},
  emptyTitle:{color:c.text,fontFamily:fonts.verse,fontSize:28,lineHeight:36,textAlign:"center"},
 });
-

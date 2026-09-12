@@ -1,8 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { applyReview, maskVerse, parseToday, verseWords, type LearnCard } from "./learn";
+import { allowCachedPractice, applyReview, maskVerse, parseToday, verseWords, type LearnCard } from "./learn";
 const verse = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
 const card: LearnCard = { id:"a",book:43,chapter:3,verse:16,translation:"KJV",reference:"John 3:16",text:verse,stage:0,intervalDays:0,dueAt:"2026-09-12T00:00:00Z",knownAt:null };
 describe("Learn contract", () => {
+ it("allows saved rehearsal when token refresh fails before the API request", () => {
+  expect(allowCachedPractice(new TypeError("Network request failed"))).toBe(true);
+  expect(allowCachedPractice(new Error("Clerk token refresh unavailable"))).toBe(true);
+ });
+ it("does not use cached practice to hide an authentication failure", () => {
+  expect(allowCachedPractice({status:401})).toBe(false);
+  expect(allowCachedPractice({status:403})).toBe(false);
+ });
  it("keeps KJV text at the read stage", () => expect(maskVerse(verse,0)).toBe(verse));
  it("hides every fourth word", () => expect(maskVerse(verse,1)).toBe("For God so ____ the world, that ____ gave his only ____ Son, that whosoever ____ in him should ____ perish, but have ____ life."));
  it("hides half the words", () => expect(maskVerse(verse,2)).toBe("For ____ so ____ the ____, that ____ gave ____ only ____ Son, ____ whosoever ____ in ____ should ____ perish, ____ have ____ life."));
@@ -24,4 +32,3 @@ describe("Learn contract", () => {
   expect(() => applyReview({cards:[card],knownCount:0,queueCount:1},card,{...card,id:"b"},"good")).toThrow();
  });
 });
-

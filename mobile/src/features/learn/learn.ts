@@ -6,6 +6,12 @@ export interface LearnCard {
 }
 export interface LearnToday { cards: LearnCard[]; knownCount: number; queueCount: number }
 export interface VerseWord { text: string; hidden: boolean; blank: string }
+/** Token refresh can fail before apiJson wraps network errors. Cached rehearsal
+ * stays read-only, and explicit authentication failures must still require sign-in. */
+export function allowCachedPractice(error: unknown): boolean {
+ const status = error && typeof error === "object" && "status" in error ? error.status : undefined;
+ return status !== 401 && status !== 403;
+}
 /** Whitespace defines a word; punctuation surrounding a blank remains visible. */
 export function verseWords(text: string, stage: LearnStage): VerseWord[] {
  return text.trim().split(/\s+/).filter(Boolean).map((word, index) => {
@@ -53,4 +59,3 @@ export function applyReview(today: LearnToday, before: LearnCard, updated: Learn
   cards: finished ? today.cards.filter(card => card.id !== before.id) : today.cards.map(card => card.id === before.id ? updated : card),
  };
 }
-
