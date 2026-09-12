@@ -6,6 +6,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
+import { resourceCache } from "@clerk/expo/resource-cache";
 import * as Font from "expo-font";
 import { useFonts, PirataOne_400Regular } from "@expo-google-fonts/pirata-one";
 import {
@@ -138,7 +139,13 @@ export default function RootLayout() {
 	if (!fontsLoaded || !settingsReady) return null;
 
 	return (
-		<ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+		<ClerkProvider
+			publishableKey={CLERK_PUBLISHABLE_KEY}
+			tokenCache={tokenCache}
+			// Clerk's encrypted resource cache restores the existing account on
+			// offline cold starts, so reading stays attributed to its owner.
+			__experimental_resourceCache={resourceCache}
+		>
 			<AuthFailureBridge>
 				<View style={{ flex: 1 }}>
 					<ThemedShell />
