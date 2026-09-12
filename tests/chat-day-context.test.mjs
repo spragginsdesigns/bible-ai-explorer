@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { firstNameOf } from "../src/lib/daily-cross-audio-script.ts";
 import { HIGHLIGHT_COLORS } from "../src/lib/highlights.ts";
+import { highlightLabelFor } from "../src/lib/preferences-contract.ts";
 import { isMeaningfulNote } from "../src/lib/study-context-format.ts";
 import { chatSystemPrompt, firstConversationGuidance } from "../src/utils/systemPrompt.ts";
 
@@ -45,7 +46,15 @@ function loadDayContext({ prisma = {}, findTodayCross = async () => null, getTod
 			"hasAnsweredConversationBefore",
 			"loadChatDayContext",
 		],
-		{ bookByOrder, firstNameOf, findTodayCross, HIGHLIGHT_COLORS, prisma, getTodayPlanReading },
+		{
+			bookByOrder,
+			firstNameOf,
+			findTodayCross,
+			HIGHLIGHT_COLORS,
+			highlightLabelFor,
+			prisma,
+			getTodayPlanReading,
+		},
 	);
 }
 

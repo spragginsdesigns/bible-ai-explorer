@@ -44,6 +44,9 @@ model User {
   translation           String                 @default("KJV") // "KJV" | "NKJV"
   parchment             Boolean                @default(true)
   listenRate            Float                  @default(1) // one of 0.75, 1, 1.25, 1.5, 2
+  // What the user calls each highlight colour ("yellow" -> "Promises"), so a
+  // marked verse carries the user's own taxonomy into chat and the daily cross.
+  highlightLabels       Json?
   createdAt             DateTime               @default(now())
   conversations         Conversation[]
   notes                 Note[]
@@ -58,6 +61,7 @@ model User {
   versesOfDay           VerseOfDay[]
   suggestedQuestionSets SuggestedQuestionSet[]
   readingPlans          ReadingPlan[]
+  verseMemories         VerseMemory[]
   church                UserChurch?
 }
 
@@ -540,4 +544,32 @@ model ReadingPlanCompletion {
   completedAt DateTime    @default(now())
 
   @@unique([planId, day])
+}
+
+/// One verse the user is learning by heart (Learn a verse). One card per verse
+/// per user regardless of translation, so re-adding John 3:16 from an NKJV
+/// chapter switches `translation` and keeps the schedule already built on it.
+/// The ladder that moves `stage`, `intervalDays` and `dueAt` is
+/// src/lib/learn-schedule.ts; `knownAt` is set the first time the interval
+/// reaches 16 days and is never cleared, and counting those rows is the only
+/// score the feature keeps.
+model VerseMemory {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book           Int // canonical order, 1-66
+  chapter        Int
+  verse          Int
+  translation    String    @default("KJV") // "KJV" | "NKJV"
+  source         String // "sheet" | "highlight" | "chat"
+  stage          Int       @default(0) // 0-3
+  intervalDays   Int       @default(0)
+  dueAt          DateTime // midnight of the day it comes back, in the user's zone
+  lastReviewedAt DateTime?
+  knownAt        DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, book, chapter, verse])
+  @@index([userId, dueAt])
 }

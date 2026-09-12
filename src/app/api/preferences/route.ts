@@ -48,6 +48,7 @@ const PREFERENCE_SELECT = {
 	translation: true,
 	parchment: true,
 	listenRate: true,
+	highlightLabels: true,
 	defaultModelId: true,
 	defaultEffort: true,
 	defaultSpeed: true,

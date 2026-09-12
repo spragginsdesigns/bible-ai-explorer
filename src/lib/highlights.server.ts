@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
+import { highlightLabelFor, type HighlightLabels } from "@/lib/preferences-contract";
 import { getChapter, type TranslationId } from "@/lib/bible/translations";
 import { resolveReference } from "@/lib/bible/books";
 import { getKjvBookName } from "@/utils/kjvBible";
@@ -16,6 +17,8 @@ export interface HighlightedVerse {
 	color: string;
 	/** Preset name for that hex ("Yellow"), or null for a custom colour. */
 	colorName: string | null;
+	/** What this user calls that colour ("Promises"), when they have named it. */
+	label?: string;
 	text?: string;
 	highlightedAt: string;
 }
@@ -46,10 +49,15 @@ function colorNameFor(hex: string): string | null {
  * The user's highlighted verses, newest first, with the verse text filled in
  * from the requested translation. Chapters are loaded once each rather than
  * once per verse, so a book full of highlights is still a handful of reads.
+ *
+ * `labels` is the account's names for the eight preset colours (the
+ * `highlightLabels` preference). Pass it and each verse carries the user's own
+ * word for its colour; leave it out and only the hue name is reported.
  */
 export async function listUserHighlights(
 	userId: string,
 	query: HighlightQuery,
+	labels: HighlightLabels = {},
 ): Promise<HighlightListing> {
 	const where = {
 		userId,
@@ -87,13 +95,16 @@ export async function listUserHighlights(
 	const highlights = rows.map((row): HighlightedVerse => {
 		const book = getKjvBookName(row.book) ?? `Book ${row.book}`;
 		const text = chapters.get(`${row.book}:${row.chapter}`)?.[row.verse - 1];
+		const colorName = colorNameFor(row.color);
+		const label = highlightLabelFor(labels, colorName);
 		return {
 			reference: `${book} ${row.chapter}:${row.verse}`,
 			book,
 			chapter: row.chapter,
 			verse: row.verse,
 			color: row.color,
-			colorName: colorNameFor(row.color),
+			colorName,
+			...(label ? { label } : {}),
 			...(text ? { text } : {}),
 			highlightedAt: row.updatedAt.toISOString(),
 		};
@@ -112,7 +123,10 @@ export function formatHighlightsForModel(
 		return `The user has no highlighted verses ${scope}.`;
 	}
 	const lines = listing.highlights.map((highlight) => {
-		const colour = highlight.colorName ?? highlight.color;
+		const hue = highlight.colorName ?? highlight.color;
+		// The user's own word for the colour is the point of naming it, so it
+		// rides beside the hue: "(Blue: Promises)".
+		const colour = highlight.label ? `${hue}: ${highlight.label}` : hue;
 		const text = highlight.text ? ` - "${highlight.text}"` : "";
 		return `- ${highlight.reference} (${colour})${text}`;
 	});

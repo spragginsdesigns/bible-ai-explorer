@@ -36,6 +36,51 @@ export const LISTEN_RATES: readonly number[] = [0.75, 1, 1.25, 1.5, 2];
 export const DEFAULT_LISTEN_RATE = 1;
 
 /**
+ * The eight preset hues a highlight can be, as lowercase ids. Duplicated from
+ * `HIGHLIGHT_COLORS` in `src/lib/highlights.ts` for the same reason
+ * `LISTEN_RATES` is duplicated: this module holds no runtime imports. The test
+ * asserts the two lists are the same, so they cannot drift.
+ *
+ * The id is the preset's name lowercased because that is what the stored hex
+ * already resolves to everywhere else (`colorNameFor`, `resolveHighlightColor`),
+ * and a hex would make the document unreadable.
+ */
+export const HIGHLIGHT_COLOR_IDS: readonly string[] = [
+	"yellow",
+	"orange",
+	"red",
+	"pink",
+	"purple",
+	"blue",
+	"teal",
+	"green",
+];
+
+/** Long enough for "Promises to claim", short enough to sit beside a swatch. */
+export const MAX_HIGHLIGHT_LABEL_LENGTH = 24;
+
+/**
+ * What the user calls each highlight colour ("yellow" -> "Promises"), so the
+ * reader, the assistant and the daily cross can say "you marked this as a
+ * promise". A colour with no entry keeps its hue name, so the default document
+ * is an empty map rather than eight copies of the preset names.
+ */
+export type HighlightLabels = Record<string, string>;
+
+/**
+ * The user's name for a colour, or null to fall back to the hue name. Takes the
+ * preset name the highlight already resolved to ("Yellow"), since that is what
+ * both the tool output and the day block have in hand.
+ */
+export function highlightLabelFor(
+	labels: HighlightLabels,
+	colorName: string | null | undefined
+): string | null {
+	if (!colorName) return null;
+	return labels[colorName.toLowerCase()] ?? null;
+}
+
+/**
  * What the model registry says is valid, handed in by the caller. `knowsModel`
  * is `resolveDefinition()` reduced to a yes/no; the four lists are the exported
  * vocabularies the `isReasoningEffort`/`isSpeed`/`isVerbosity`/`isReasoningMode`
@@ -66,6 +111,7 @@ export interface PreferencesDocument {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	highlightLabels: HighlightLabels;
 	chat: PreferencesChatDocument;
 }
 
@@ -76,6 +122,12 @@ export interface PreferencesUserRow {
 	translation: string;
 	parchment: boolean;
 	listenRate: number;
+	/**
+	 * The `highlightLabels` JSON column, unread. Optional so a caller that has
+	 * not selected it still builds a document - it reads as "no labels yet",
+	 * which is also what every account holds until one is saved.
+	 */
+	highlightLabels?: unknown;
 	defaultModelId: string | null;
 	defaultEffort: string | null;
 	defaultSpeed: string | null;
@@ -93,6 +145,7 @@ export interface PreferencesPatchData {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	highlightLabels?: HighlightLabels;
 	defaultModelId?: string | null;
 	defaultEffort?: string | null;
 	defaultSpeed?: string | null;
@@ -115,6 +168,57 @@ function isListenRate(value: unknown): value is number {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The stored labels, read leniently: anything the column holds that is not a
+ * usable label for a known colour is dropped, and the rest still arrive. A
+ * stricter read would let one entry written by a newer build (a ninth colour,
+ * say) blank the seven labels the user can see.
+ */
+function readStoredHighlightLabels(stored: unknown): HighlightLabels {
+	if (!isPlainObject(stored)) return {};
+	const labels: HighlightLabels = {};
+	for (const id of HIGHLIGHT_COLOR_IDS) {
+		const raw = stored[id];
+		if (typeof raw !== "string") continue;
+		const label = raw.trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
+		if (label) labels[id] = label;
+	}
+	return labels;
+}
+
+/**
+ * Validate a labels map for writing. The map is stored whole, so a PATCH sends
+ * every label to keep; an empty string clears one, which is how a user goes
+ * back to the hue name.
+ */
+function readHighlightLabels(
+	value: unknown
+): { ok: true; labels: HighlightLabels } | { ok: false; error: string } {
+	if (!isPlainObject(value)) return { ok: false, error: "highlightLabels must be a JSON object" };
+
+	const labels: HighlightLabels = {};
+	for (const [id, raw] of Object.entries(value)) {
+		if (!HIGHLIGHT_COLOR_IDS.includes(id)) {
+			return {
+				ok: false,
+				error: `highlightLabels may only name these colours: ${HIGHLIGHT_COLOR_IDS.join(", ")}`,
+			};
+		}
+		if (typeof raw !== "string") {
+			return { ok: false, error: `highlightLabels.${id} must be a string` };
+		}
+		const label = raw.trim();
+		if (label.length > MAX_HIGHLIGHT_LABEL_LENGTH) {
+			return {
+				ok: false,
+				error: `highlightLabels.${id} must be ${MAX_HIGHLIGHT_LABEL_LENGTH} characters or fewer`,
+			};
+		}
+		if (label) labels[id] = label;
+	}
+	return { ok: true, labels };
 }
 
 /**
@@ -152,6 +256,7 @@ export function toPreferencesDocument(
 		translation: isTranslationId(translation) ? translation : DEFAULT_TRANSLATION,
 		parchment: user?.parchment ?? true,
 		listenRate: isListenRate(listenRate) ? listenRate : DEFAULT_LISTEN_RATE,
+		highlightLabels: readStoredHighlightLabels(user?.highlightLabels),
 		chat: {
 			modelId: user?.defaultModelId ?? null,
 			effort: pickFromVocabulary<ReasoningEffort>(user?.defaultEffort, models.efforts),
@@ -217,6 +322,12 @@ export function parsePreferencesPatch(body: unknown, models: ModelVocabulary): P
 					};
 				}
 				data.listenRate = value;
+				break;
+			}
+			case "highlightLabels": {
+				const parsed = readHighlightLabels(value);
+				if (!parsed.ok) return { ok: false, error: parsed.error };
+				data.highlightLabels = parsed.labels;
 				break;
 			}
 			case "chat": {

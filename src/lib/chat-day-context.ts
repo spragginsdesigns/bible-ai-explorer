@@ -2,6 +2,7 @@ import { bookByOrder } from "@/lib/bible/books";
 import { firstNameOf } from "@/lib/daily-cross-audio-script";
 import { findTodayCross } from "@/lib/daily-cross";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
+import { highlightLabelFor, type HighlightLabels } from "@/lib/preferences-contract";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
 
@@ -38,8 +39,11 @@ export interface ChatDayContext {
 	} | null;
 	/** Most-read first, then most recent. */
 	recentChapters: { reference: string; count: number }[];
-	/** Newest first. `colorName` is null for a colour outside the preset list. */
-	highlights: { reference: string; colorName: string | null }[];
+	/**
+	 * Newest first. `colorName` is null for a colour outside the preset list;
+	 * `label` is the name this user gave that colour, when they gave one.
+	 */
+	highlights: { reference: string; colorName: string | null; label?: string }[];
 }
 
 export const EMPTY_CHAT_DAY_CONTEXT: ChatDayContext = {
@@ -56,7 +60,14 @@ function logFailure(what: string): (error: unknown) => null {
 	};
 }
 
-export async function loadChatDayContext(userId: string): Promise<ChatDayContext> {
+/**
+ * `labels` is the account's names for the highlight colours (the
+ * `highlightLabels` preference); without it the block reports the hue alone.
+ */
+export async function loadChatDayContext(
+	userId: string,
+	labels: HighlightLabels = {},
+): Promise<ChatDayContext> {
 	const readingSince = new Date(Date.now() - RECENT_READING_DAYS * 24 * 60 * 60 * 1000);
 	const [cross, plan, readingEvents, highlights] = await Promise.all([
 		findTodayCross(userId).catch(logFailure("Today's cross lookup")),
@@ -113,10 +124,13 @@ export async function loadChatDayContext(userId: string): Promise<ChatDayContext
 			const preset = HIGHLIGHT_COLORS.find(
 				(color) => color.hex.toLowerCase() === highlight.color.trim().toLowerCase(),
 			);
+			const colorName = preset?.name ?? null;
+			const label = highlightLabelFor(labels, colorName);
 			return [
 				{
 					reference: `${book.name} ${highlight.chapter}:${highlight.verse}`,
-					colorName: preset?.name ?? null,
+					colorName,
+					...(label ? { label } : {}),
 				},
 			];
 		}),
@@ -161,7 +175,14 @@ export function formatTodayBlock(context: ChatDayContext): string {
 	}
 	if (context.highlights.length > 0) {
 		const marks = context.highlights
-			.map((highlight) => (highlight.colorName ? `${highlight.reference} (${highlight.colorName})` : highlight.reference))
+			.map((highlight) => {
+				// "(Blue: Promises)" when they have named the colour, "(Blue)" when
+				// they have not, and the bare reference for a colour off the presets.
+				const colour = highlight.label
+					? `${highlight.colorName}: ${highlight.label}`
+					: highlight.colorName;
+				return colour ? `${highlight.reference} (${colour})` : highlight.reference;
+			})
 			.join(", ");
 		lines.push(`- Their most recent highlights: ${marks}.`);
 	}

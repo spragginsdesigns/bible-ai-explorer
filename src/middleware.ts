@@ -20,6 +20,7 @@ const isPublicRoute = createRouteMatcher([
 	// data with no user state, cached hard at the edge. Keeping them signed-out
 	// lets every client render a tapped verse before a session exists.
 	"/api/bible/original",
+	"/api/bible/crossrefs",
 	"/api/bible/strongs",
 ]);
 
