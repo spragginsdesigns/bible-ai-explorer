@@ -146,7 +146,7 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 	return { prisma, state };
 }
 
-function loadLearn(prisma) {
+function loadLearn(prisma, overrides = {}) {
 	return loadModule(
 		"../src/lib/learn.ts",
 		["addCard", "formatLearnReference", "learnVerseText", "removeCard", "reviewCardById", "todayCards"],
@@ -157,10 +157,9 @@ function loadLearn(prisma) {
 				if (book !== 43 || chapter !== 3) throw new Error("no such chapter");
 				return [...JOHN_3, ...Array(13).fill("filler"), JOHN_3_16];
 			},
-			getChapter: async () => {
-				throw new Error("network is not available in tests");
-			},
+			getChapter: async () => Array(16).fill("NKJV text <i>with</i> italics &amp; entities."),
 			...schedule,
+			...overrides,
 		}
 	);
 }
@@ -284,9 +283,13 @@ test("adding a verse twice returns the same card and never resets the schedule",
 	assert.equal(state.cards.length, 1);
 	const [, where, data] = state.calls.find(([name]) => name === "verseMemory.update");
 	assert.deepEqual([where, data], [{ id: "existing" }, { translation: "NKJV" }]);
-	// NKJV text is unreachable in this test, so the card falls back to the
-	// bundled KJV rather than shipping an empty verse.
-	assert.equal(second.card.text, JOHN_3_16);
+	assert.equal(second.card.text, "NKJV text with italics & entities.");
+});
+
+test("NKJV outages never return KJV text labeled as NKJV", async () => {
+	const { prisma } = makeDb();
+	const { learnVerseText } = loadLearn(prisma, { getChapter: async () => { throw new Error("upstream unavailable"); } });
+	await assert.rejects(learnVerseText("NKJV", 43, 3, 16), /upstream unavailable/);
 });
 
 test("a new card starts unread and due at the user's midnight today", async () => {

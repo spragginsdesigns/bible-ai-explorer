@@ -10,8 +10,7 @@ import { applyReview, parseCard, parseToday, verseWords, type LearnToday } from 
  * reference alone). Tap a blank to reveal it. The only number shown is
  * "verses you know". Mirrors mobile/src/features/learn/LearnScreen.tsx.
  *
- * The /api/learn routes are the backend lane's; until they ship the screen
- * shows the empty state rather than an error.
+ * A failed or uncertain write requires reloading the queue before continuing.
  */
 const LearnScreen: React.FC = () => {
 	const [today, setToday] = useState<LearnToday | null>(null);
@@ -89,17 +88,17 @@ const LearnScreen: React.FC = () => {
 				{unavailable ? (
 					<div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
 						<p className="font-[family-name:var(--font-cormorant)] text-2xl text-neutral-800 dark:text-neutral-200">
-							Learn is almost ready.
+							Your verses could not be loaded or saved.
 						</p>
 						<p className="text-support text-neutral-500 dark:text-neutral-400">
-							The memory queue comes online with the server update. Check back shortly.
+							Check your connection, then reload your verses before continuing.
 						</p>
 						<button
 							onClick={() => void load()}
 							disabled={busy}
 							className="mt-2 rounded-xl border border-amber-600/40 dark:border-amber-400/30 px-4 py-2 text-control font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
 						>
-							Try again
+							Reload verses
 						</button>
 					</div>
 				) : !today ? (

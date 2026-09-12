@@ -14,6 +14,7 @@ import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
 import SeeAlsoSection from "./SeeAlsoSection";
+import { addLearnVerse } from "@/components/learn/api";
 import {
 	highlightLabelForHex,
 	useHighlightLabels,
@@ -71,6 +72,9 @@ const ChapterReader: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [learnBusy, setLearnBusy] = useState(false);
+  const [learnError, setLearnError] = useState<string | null>(null);
+  const learnOperation = useRef(false);
   const {
     status: insightStatus,
     text: insightText,
@@ -203,6 +207,7 @@ const ChapterReader: React.FC = () => {
     setCopied(false);
     setSaveError(null);
     resetInsight();
+    setLearnError(null);
   }, [resetInsight]);
 
   // Tap-a-verse: opening the panel immediately starts streaming a short AI
@@ -286,6 +291,22 @@ const ChapterReader: React.FC = () => {
   }, [actionVerse, actionReference, saveBusy, router, closePanel, translation]);
 
   const fontSize = FONT_STEPS[fontStep];
+  const onLearnVerse = async () => {
+    if (!actionVerse || learnOperation.current) return;
+    learnOperation.current = true;
+    setLearnBusy(true);
+    setLearnError(null);
+    try {
+      await addLearnVerse({ book: order, chapter, verse: actionVerse.number, translation, source: actionColor ? "highlight" : "sheet" });
+      closePanel();
+      router.push("/bible/learn");
+    } catch {
+      setLearnError("The verse could not be added. Check your connection and try again.");
+    } finally {
+      learnOperation.current = false;
+      setLearnBusy(false);
+    }
+  };
   const lineHeight = Math.round(fontSize * 1.55);
 
   // A source translation opened from chat must survive paging, as it does on
@@ -699,6 +720,12 @@ const ChapterReader: React.FC = () => {
                   {row.label}
                 </button>
               ))}
+              <button type="button" onClick={() => void onLearnVerse()} disabled={learnBusy}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] disabled:opacity-50">
+                <span aria-hidden className="w-5 text-center text-amber-600 dark:text-amber-400">✧</span>
+                {learnBusy ? "Adding verse…" : "Learn this verse"}
+              </button>
+              {learnError && <p role="alert" className="px-3 py-2 text-[12.5px] text-red-500 dark:text-red-400">{learnError}</p>}
               {saveError && (
                 <p className="px-3 py-2 text-[12.5px] text-red-500 dark:text-red-400">{saveError}</p>
               )}

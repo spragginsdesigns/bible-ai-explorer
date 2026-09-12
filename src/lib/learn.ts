@@ -8,9 +8,7 @@
  *
  * Text is resolved server-side so web and Apple can render a card without
  * carrying a Bible, but Android may prefer its bundled copy. KJV comes out of
- * the bundled corpus the reader already uses, so the common case costs no
- * network call; an NKJV card falls back to the bundled KJV text rather than
- * failing if the upstream chapter cannot be fetched.
+ * the bundled corpus. NKJV failures stay errors so KJV text is never labeled NKJV.
  */
 import { prisma } from "@/lib/prisma";
 import { bookByOrder } from "@/lib/bible/books";
@@ -99,8 +97,7 @@ export function formatLearnReference(book: number, chapter: number, verse: numbe
 
 /**
  * The verse text for a card. KJV is bundled; NKJV is fetched by the same loader
- * the reader uses and falls back to the bundled KJV when that fetch fails, so a
- * card always has something to show.
+ * the reader uses. Strip provider markup before splitting words for practice.
  */
 export async function learnVerseText(
 	translation: TranslationId,
@@ -109,13 +106,17 @@ export async function learnVerseText(
 	verse: number,
 ): Promise<string | undefined> {
 	if (translation !== "KJV") {
-		try {
-			const verses = await getChapter(translation, book, chapter);
-			const text = verses[verse - 1];
-			if (text) return text;
-		} catch {
-			// Fall through to the bundled text below.
-		}
+		const verses = await getChapter(translation, book, chapter);
+		const text = verses[verse - 1];
+		return text === undefined ? undefined : text.replace(/<[^>]*>/g, "")
+			.replace(/&(#x[\da-f]+|#\d+|amp|apos|gt|lt|nbsp|quot);/gi, (entity, name: string) => {
+				const key = name.toLowerCase();
+				if (key.startsWith("#")) {
+					const point = key.startsWith("#x") ? parseInt(key.slice(2), 16) : Number(key.slice(1));
+					return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+				}
+				return ({ amp: "&", apos: "'", gt: ">", lt: "<", nbsp: " ", quot: '"' } as Record<string, string>)[key] ?? entity;
+			}).replace(/\s+/g, " ").trim();
 	}
 	try {
 		return (await getKjvChapter(book, chapter))[verse - 1];

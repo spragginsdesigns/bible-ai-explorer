@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.56.0 (versionCode 57) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Learn a verse is ready. Tap a Bible verse, choose Learn this verse, and practice from the Bible tab.
+- Practice moves from the full verse to missing words, then recall from the reference. Tap blanks for help.
+- Downloaded verses support offline practice. Your saved schedule updates when you practice online.
+- Includes the integrated conversation history, note templates, highlight labels, related passages, and continue-reading improvements.
+
+**Dev notes:** Integrates Kimi's remaining Learn screens and completes the verse-sheet queue entry point on web and Android. Preserves KJV/NKJV source translation, removes provider HTML from practice text, and treats NKJV retrieval failures as errors instead of relabeling KJV. Includes the Windows installation/runbook documentation; Store submission remains separate.
+
 ## 1.55.1 (versionCode 56) - 2026-09-12 - internal
 
 **What's new (Play):**

@@ -40,6 +40,7 @@ import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
 import { SeeAlsoSection } from "@/features/bible/SeeAlsoSection";
+import { addLearnVerse } from "@/features/learn/api";
 import { presetLabelForHex, useHighlightLabels } from "@/features/bible/highlightLabels";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
@@ -215,6 +216,9 @@ export default function BibleChapterScreen() {
 	const [copied, setCopied] = useState(false);
 	const [saveBusy, setSaveBusy] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
+	const [learnBusy, setLearnBusy] = useState(false);
+	const [learnError, setLearnError] = useState<string | null>(null);
+	const learnOperation = useRef(false);
 	const {
 		status: insightStatus,
 		text: insightText,
@@ -360,6 +364,7 @@ export default function BibleChapterScreen() {
 		setCopied(false);
 		setSaveError(null);
 		resetInsight();
+		setLearnError(null);
 	}, [resetInsight]);
 
 	// Tap-a-verse: opening the sheet immediately starts streaming a short AI
@@ -437,6 +442,22 @@ export default function BibleChapterScreen() {
 
 	// The color currently stored for the verse the sheet is acting on, if any.
 	const actionVerseColor = actionVerse ? highlights.get(actionVerse.number) : undefined;
+	const onLearnVerse = async () => {
+		if (!actionVerse || learnOperation.current) return;
+		learnOperation.current = true;
+		setLearnBusy(true);
+		setLearnError(null);
+		try {
+			await addLearnVerse(getToken, { book: order, chapter, verse: actionVerse.number, translation, source: actionVerseColor ? "highlight" : "sheet" });
+			closeSheet();
+			router.push("/bible/learn");
+		} catch {
+			setLearnError("The verse could not be added. Check your connection and try again.");
+		} finally {
+			learnOperation.current = false;
+			setLearnBusy(false);
+		}
+	};
 
 	// Highlight writes are optimistic — the verse row recolors immediately and
 	// the store rolls back if the PUT/DELETE fails, so the sheet just fires.
@@ -774,6 +795,8 @@ export default function BibleChapterScreen() {
 					label={saveBusy ? "Saving…" : "Save to note"}
 					onPress={() => void onSaveVerse()}
 				/>
+				<SheetRow icon="school-outline" label={learnBusy ? "Adding verse…" : "Learn this verse"} onPress={() => void onLearnVerse()} />
+				{learnError ? <Text accessibilityRole="alert" style={styles.sheetError}>{learnError}</Text> : null}
 				{saveError ? <Text style={styles.sheetError}>{saveError}</Text> : null}
 			</BottomSheet>
 
