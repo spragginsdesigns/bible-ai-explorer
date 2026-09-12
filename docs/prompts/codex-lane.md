@@ -1,8 +1,15 @@
 # Prompt for the Codex Astra orchestrator: SureWord frontend lane
 
-Paste everything below the line into Codex, started in `C:\Users\Owner\Documents\Github_Repositories\bible-ai-explorer`.
+Paste everything below the line into Codex, started in `C:/Users/Owner/Documents/Github_Repositories/sureword-codex` (your own git worktree; see below).
 
 ---
+
+## IMPORTANT: work in your own worktree, not the main checkout (added 2026-09-12)
+
+The main checkout at `C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer` belongs to the Fable lane, which has workers editing files there right now. **Do not run `git checkout`, `git switch`, `git stash` or `git add` in that directory**; switching branches there moves other agents' uncommitted work onto your branch.
+
+Your worktree is `C:/Users/Owner/Documents/Github_Repositories/sureword-codex` on branch `codex/stage-lane`, created from origin/main at 6aa06fb. Do all of your work there. First run, inside it: `pnpm install` (repo root) and `cd mobile && npm install` (mobile is a separate npm tree). Cut one branch per item from `codex/stage-lane` if you like (`git switch -c codex/<item>` inside your worktree only). Push your branches to origin; the Fable lane reviews and merges to main. Before starting each item, `git fetch origin && git rebase origin/main` inside your worktree so you build on the latest contracts (receipts and Learn a verse are in docs/FEATURES.md).
+
 
 You own the frontend lane of the SureWord plan. Read, in this order, before touching anything:
 

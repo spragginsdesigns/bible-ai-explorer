@@ -2,6 +2,7 @@ import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
 import type { TranslationId } from "@/features/bible/translations";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "./assistantMarkdown";
+import { buildReceipts, type ChatReceipt } from "./receipts";
 
 /** View-model types ported from the web app (src/components/useChat.ts). */
 export interface RetrievedVerse {
@@ -42,6 +43,12 @@ export interface ChatViewMessage {
 	followUps?: string[];
 	noteActions?: NoteAction[];
 	crossActions?: CrossAction[];
+	/**
+	 * One line for everything the assistant saved this turn (docs/FEATURES.md,
+	 * Receipts). Carried alongside noteActions/crossActions until every client
+	 * renders receipts.
+	 */
+	receipts?: ChatReceipt[];
 	attachments?: ChatAttachmentDescriptor[];
 	activity?: string;
 	isStreaming?: boolean;
@@ -281,6 +288,8 @@ export function toViewMessage(
 				? similarities.reduce((sum, s) => sum + s, 0) / similarities.length
 				: undefined;
 
+	const receipts = buildReceipts(message.parts);
+
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
@@ -291,6 +300,7 @@ export function toViewMessage(
 		...(followUps.length > 0 ? { followUps } : {}),
 		...(noteActions.length > 0 ? { noteActions } : {}),
 		...(crossActions.length > 0 ? { crossActions } : {}),
+		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),

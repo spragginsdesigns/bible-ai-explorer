@@ -5,6 +5,14 @@ import { getOrCreateDailyCrossAudio } from "@/lib/daily-cross-audio";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
 import { planMorningAudience } from "@/lib/push-audience";
+import {
+	AUDIO_ACTIVITY_WINDOW_MS,
+	PUSH_ACTIVITY_WINDOW_MS,
+	isActiveWithin,
+	lastActivityByUser,
+	splitByActivity,
+	type UserActivityRow,
+} from "@/lib/cron-audience";
 
 // Loops over users with a per-user AI call and a push send; needs the full
 // function budget. Node runtime is required (Prisma + fs for the KJV corpus).
@@ -56,6 +64,43 @@ function trayVerse(text: string, max = 240): string {
 	return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
+/**
+ * Each user's newest activity inside the push window, from one grouped query
+ * over every activity source rather than four lookups per user. Returns null
+ * when the read fails, so the caller can choose how to degrade.
+ */
+async function loadRecentActivity(userIds: readonly string[], now: Date): Promise<Map<string, Date> | null> {
+	if (userIds.length === 0) return new Map();
+	// Columns are UTC `timestamp(3)`; casting the ISO string to `timestamp`
+	// drops the Z and compares wall clock to wall clock, both in UTC.
+	const since = new Date(now.getTime() - PUSH_ACTIVITY_WINDOW_MS).toISOString();
+	const ids = [...userIds];
+	try {
+		const rows = await prisma.$queryRaw<UserActivityRow[]>`
+			SELECT c."userId" AS "userId", MAX(m."createdAt") AS "lastActiveAt"
+			FROM "Message" m JOIN "Conversation" c ON c.id = m."conversationId"
+			WHERE c."userId" = ANY(${ids}::text[]) AND m.role = 'user' AND m."createdAt" >= ${since}::timestamp
+			GROUP BY c."userId"
+			UNION ALL
+			SELECT "userId", MAX("readAt") FROM "ReadingEvent"
+			WHERE "userId" = ANY(${ids}::text[]) AND "readAt" >= ${since}::timestamp
+			GROUP BY "userId"
+			UNION ALL
+			SELECT "userId", MAX("updatedAt") FROM "VerseHighlight"
+			WHERE "userId" = ANY(${ids}::text[]) AND "updatedAt" >= ${since}::timestamp
+			GROUP BY "userId"
+			UNION ALL
+			SELECT "userId", MAX("updatedAt") FROM "Note"
+			WHERE "userId" = ANY(${ids}::text[]) AND "updatedAt" >= ${since}::timestamp
+			GROUP BY "userId"
+		`;
+		return lastActivityByUser(rows);
+	} catch (error) {
+		console.error("[cron/verse-of-day] Activity lookup failed:", error);
+		return null;
+	}
+}
+
 async function mapWithConcurrency<T, R>(
 	items: readonly T[],
 	limit: number,
@@ -97,7 +142,20 @@ export async function GET(request: Request) {
 	// Due-ness is decided once per user (their newest device's timezone and
 	// hour), never per token: per-token due checks are how one account with a
 	// pile of stale install tokens received dozens of identical mornings.
-	const dueUsers = planMorningAudience(enabledTokens, now, localHour).slice(0, MAX_USERS_PER_RUN);
+	const planned = planMorningAudience(enabledTokens, now, localHour);
+	// Filtered before the per-run cap, so an hour crowded with dormant accounts
+	// cannot push an active one out of its slot. A failed lookup keeps the old
+	// behaviour for the push (everyone planned) and narrates nobody ahead of
+	// time - a missed morning is worse than a missed pre-warm, and on-demand
+	// audio still covers anyone who opens the day.
+	const recentActivity = await loadRecentActivity(
+		planned.map((audience) => audience.userId),
+		now,
+	);
+	const { active, inactive } = recentActivity
+		? splitByActivity(planned, recentActivity, now, PUSH_ACTIVITY_WINDOW_MS)
+		: { active: planned, inactive: [] };
+	const dueUsers = active.slice(0, MAX_USERS_PER_RUN);
 	const generationSignal = AbortSignal.timeout(DAILY_CROSS_GENERATION_BUDGET_MS);
 	// Sol/xhigh selection plus Sol/high writing is intentionally more expensive
 	// than the old single utility call. Start the capped due cohort together and
@@ -153,8 +211,14 @@ export async function GET(request: Request) {
 	// because one narration was hanging. Sequential, capped, and bounded by the
 	// clock - see MAX_AUDIO_PER_RUN / AUDIO_BUDGET_MS. Opening the day schedules
 	// anything this run has to defer.
-	const audio = { generated: 0, skipped: 0, failed: 0 };
+	const audio = { generated: 0, skipped: 0, failed: 0, inactive: 0 };
 	for (const { userId } of dueUsers) {
+		// Pre-warming a narration nobody may play this week is the cost this
+		// guards against; the today route narrates on demand when they open it.
+		if (!recentActivity || !isActiveWithin(recentActivity, userId, now, AUDIO_ACTIVITY_WINDOW_MS)) {
+			audio.inactive += 1;
+			continue;
+		}
 		if (audio.generated >= MAX_AUDIO_PER_RUN || Date.now() - now.getTime() > AUDIO_BUDGET_MS) {
 			audio.skipped += 1;
 			continue;
@@ -179,6 +243,9 @@ export async function GET(request: Request) {
 	}
 
 	return NextResponse.json({
+		plannedUsers: planned.length,
+		skippedInactiveUsers: inactive.length,
+		activityCheck: recentActivity ? "ok" : "failed",
 		dueUsers: dueUsers.length,
 		sent,
 		failed,

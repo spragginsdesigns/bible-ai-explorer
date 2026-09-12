@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { loadReadingHistory } from "@/lib/reading-history";
 
 const eventSchema = z.object({
 	book: z.string().min(1).max(50),
@@ -10,6 +11,22 @@ const eventSchema = z.object({
 });
 
 const DEDUPE_WINDOW_MS = 60 * 60 * 1000;
+
+/**
+ * The caller's reading history, summarized: the chapter to continue from,
+ * chapter and day counts over the last week and month in their own timezone,
+ * the current streak, the books they read most, and the latest reads.
+ */
+export async function GET() {
+	try {
+		const userId = await getAuthUser();
+		return NextResponse.json(await loadReadingHistory(userId));
+	} catch (error) {
+		if (error instanceof Response) return error;
+		console.error("[api/reading-events] GET failed", error);
+		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+	}
+}
 
 /**
  * Record that the caller read a chapter. Intentionally dumb: the clients

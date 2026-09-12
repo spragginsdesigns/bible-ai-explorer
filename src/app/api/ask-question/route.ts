@@ -12,7 +12,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { ChatAttachmentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, syncProfileFromClerk } from "@/lib/auth";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
@@ -48,7 +48,15 @@ import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/
 import { usedMemoryTools } from "@/lib/memory-policy";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
-import { chatSystemPrompt } from "@/utils/systemPrompt";
+import {
+	formatTodayBlock,
+	formatUserNameLine,
+	hasAnsweredConversationBefore,
+	loadChatDayContext,
+} from "@/lib/chat-day-context";
+import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
+import { maybeTitleConversation } from "@/lib/conversation-title";
+import { chatSystemPrompt, firstConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
@@ -61,6 +69,21 @@ export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 24;
 const MAX_CONTEXT_ATTACHMENTS = 5;
+/**
+ * The longest the prompt waits for a first-time Clerk profile read. The read
+ * starts when the request arrives, so it has normally finished long before the
+ * prompt is built; past this the turn goes out without the name, and the write
+ * still lands (waitUntil) for the next turn.
+ */
+const PROFILE_SYNC_PROMPT_WAIT_MS = 800;
+
+function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<T>((resolve) => {
+		timer = setTimeout(() => resolve(fallback), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
 
 // The assistant message id MUST be generated server-side: without it the UI
 // message stream leaves responseMessage.id as "", and every exchange's
@@ -383,6 +406,12 @@ interface AppliedRunOptions {
 	speed?: Speed;
 	verbosity?: Verbosity;
 	mode?: ReasoningMode;
+	/**
+	 * Set when the short follow-up prompt hint shaped this turn. Its own key,
+	 * not `verbosity`: that one records a run option the provider received,
+	 * and this is a sentence in the prompt.
+	 */
+	turnShape?: TurnShape;
 }
 
 async function persistAssistantResponse(options: {
@@ -423,6 +452,7 @@ async function persistAssistantResponse(options: {
 		if (options.run.speed) metadata.speed = options.run.speed;
 		if (options.run.verbosity) metadata.verbosity = options.run.verbosity;
 		if (options.run.mode) metadata.mode = options.run.mode;
+		if (options.run.turnShape) metadata.turnShape = options.run.turnShape;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
 		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
@@ -442,6 +472,16 @@ async function persistAssistantResponse(options: {
 			},
 		});
 		persisted = true;
+		// Replaces the "first 60 characters you typed" title once, after the
+		// first answer; it never throws and never overwrites a user's rename.
+		waitUntil(
+			maybeTitleConversation({
+				userId: options.userId,
+				conversationId: conversation.id,
+				userText,
+				assistantText: cleanText,
+			}),
+		);
 
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			await extractAndStoreMemories({ userId: options.userId, userText });
@@ -492,8 +532,18 @@ export async function POST(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true },
+			select: { webSearchEnabled: true, name: true, email: true },
 		});
+		// Started now, not when the prompt is built, so a first-time Clerk read
+		// runs alongside validation and persistence instead of in front of the
+		// first token. Once the name is stored this is a resolved promise.
+		const storedName = userPrefs?.name ?? null;
+		const namePromise: Promise<string | null> = storedName
+			? Promise.resolve(storedName)
+			: syncProfileFromClerk(userId, { name: null, email: userPrefs?.email ?? null }).then(
+					(profile) => profile.name,
+				);
+		if (!storedName) waitUntil(namePromise);
 		const tools = buildSureWordTools({
 			userId,
 			translation,
@@ -657,9 +707,12 @@ export async function POST(req: Request): Promise<Response> {
 					});
 				}
 
-				const [memories, church] = await Promise.all([
+				const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
 					loadUserMemories(userId),
 					loadUserChurch(userId),
+					loadChatDayContext(userId),
+					hasAnsweredConversationBefore(userId, conversationId),
+					settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 				]);
 				const {
 					model,
@@ -742,9 +795,16 @@ export async function POST(req: Request): Promise<Response> {
 					);
 				}
 
+				// Any verbosity the user chose, sent now or stored from the picker,
+				// outranks the automatic short-follow-up shape.
+				const shapeHint = turnShapeHint(validatedMessages, {
+					verbosity: requestedVerbosity ?? appliedVerbosity,
+				});
+
 				// Only the non-default values are worth recording: they are what makes
 				// this turn differ from the same model's ordinary answer.
 				resolvedRun = {
+					...(shapeHint ? { turnShape: "short" as const } : {}),
 					...(appliedSpeed && appliedSpeed !== "standard" ? { speed: appliedSpeed } : {}),
 					...(appliedVerbosity && appliedVerbosity !== "medium"
 						? { verbosity: appliedVerbosity }
@@ -754,7 +814,18 @@ export async function POST(req: Request): Promise<Response> {
 
 				writeStatus("Thinking");
 				const stableSystem = chatSystemPrompt(translation);
-				const volatileSystem = `${formatMemoryBlock(memories)}${formatChurchBlock(church)}${promptHints.map((hint) => `\n\n${hint}`).join("")}`;
+				// Per-user context only, all of it uncached. The first-conversation
+				// block holds for every turn of that conversation (its own text says
+				// to ask only once), and the shape hint goes last, nearest the answer.
+				const volatileSystem = [
+					formatUserNameLine(userName),
+					formatMemoryBlock(memories),
+					formatChurchBlock(church),
+					formatTodayBlock(dayContext),
+					answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
+					...promptHints.map((hint) => `\n\n${hint}`),
+					shapeHint ? `\n\n${shapeHint}` : "",
+				].join("");
 				const promptCache = buildPromptCachePlan({
 					provider: definition.provider,
 					modelId: definition.providerModelId,

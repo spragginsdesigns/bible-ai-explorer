@@ -1,5 +1,75 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "./prisma";
+
+export interface StoredProfile {
+	name: string | null;
+	email: string | null;
+}
+
+/**
+ * How long one instance waits before asking Clerk again about an account whose
+ * profile could not be completed (no first name in Clerk, or the call failed).
+ * Without it, such an account would cost a Clerk call on every chat turn.
+ */
+const PROFILE_SYNC_RETRY_MS = 6 * 60 * 60 * 1000;
+const PROFILE_SYNC_MEMO_LIMIT = 1_000;
+const profileSyncAttempts = new Map<string, number>();
+
+/**
+ * Fill `User.name` and `User.email` from Clerk where they are still empty.
+ *
+ * Most rows were created by `ensureUserRecord`, which knows only the Clerk id,
+ * so the columns are blank for almost every account even though Clerk has the
+ * name Google gave it. This is the guarded form of the Listen devotional's own
+ * sync, not `getAuthUserWithProfile`: it never overwrites a stored value, never
+ * writes null, and the conditional `updateMany` keeps a concurrent write that
+ * landed first. The name uses the same "First Last" shape as that sync. Only a
+ * verified primary address is stored as the email, the same rule the legacy
+ * account claim above applies.
+ *
+ * Returns the profile as it now stands. Never throws.
+ */
+export async function syncProfileFromClerk(
+	userId: string,
+	stored: StoredProfile,
+): Promise<StoredProfile> {
+	if (stored.name && stored.email) return stored;
+	const lastAttempt = profileSyncAttempts.get(userId);
+	if (lastAttempt !== undefined && Date.now() - lastAttempt < PROFILE_SYNC_RETRY_MS) return stored;
+	if (profileSyncAttempts.size >= PROFILE_SYNC_MEMO_LIMIT) profileSyncAttempts.clear();
+	profileSyncAttempts.set(userId, Date.now());
+
+	try {
+		const clerk = await clerkClient();
+		const profile = await clerk.users.getUser(userId);
+		const name = profile.firstName
+			? `${profile.firstName}${profile.lastName ? ` ${profile.lastName}` : ""}`
+			: null;
+		const primary =
+			profile.emailAddresses.find((address) => address.id === profile.primaryEmailAddressId) ??
+			profile.emailAddresses[0];
+		const email =
+			primary && primary.verification?.status === "verified"
+				? primary.emailAddress.toLowerCase()
+				: null;
+
+		const writes: Promise<unknown>[] = [];
+		if (!stored.name && name) {
+			writes.push(prisma.user.updateMany({ where: { id: userId, name: null }, data: { name } }));
+		}
+		if (!stored.email && email) {
+			writes.push(prisma.user.updateMany({ where: { id: userId, email: null }, data: { email } }));
+		}
+		await Promise.all(writes);
+
+		const synced = { name: stored.name ?? name, email: stored.email ?? email };
+		if (synced.name && synced.email) profileSyncAttempts.delete(userId);
+		return synced;
+	} catch (error) {
+		console.error("Clerk profile sync failed:", error);
+		return stored;
+	}
+}
 
 /**
  * Re-attach a returning user's data after the move from the development Clerk

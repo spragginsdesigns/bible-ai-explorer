@@ -367,3 +367,203 @@ struct StreamingAssistantIDTests {
         #expect(ChatViewModel.streamingAssistantID(in: [], isBusy: true) == nil)
     }
 }
+
+/// Receipts, case for case with `tests/fixtures/chat-receipts.json`, the fixture
+/// the web and Android suites share. The fixture is outside `macos/`, which is
+/// all a Mac build sees, so the cases are restated here; change them together.
+@Suite("Chat receipts")
+struct ChatReceiptTests {
+
+    private func tool(
+        _ name: String,
+        _ callID: String,
+        state: ToolState = .outputAvailable,
+        input: [String: JSONValue] = [:],
+        output: [String: JSONValue]? = nil
+    ) -> UIMessagePart {
+        .tool(ToolPart(
+            toolCallId: callID,
+            toolName: name,
+            state: state,
+            input: .object(input),
+            output: output.map { .object($0) }
+        ))
+    }
+
+    private func receipts(_ parts: [UIMessagePart]) -> [ChatReceipt] {
+        ChatViewMessage(
+            message: UIMessage(id: "m", role: .assistant, parts: parts),
+            isStreaming: false
+        ).receipts
+    }
+
+    private func planOutput() -> [String: JSONValue] {
+        ["hasPlan": .bool(true), "title": .string("The Gospels in 30 Days"), "dayCount": .number(30)]
+    }
+
+    @Test("addToNote that created a note says Saved to")
+    func noteCreated() {
+        let parts = [tool("addToNote", "call_note_created", output: [
+            "noteId": .string("note_1"), "noteTitle": .string("Romans study"),
+            "appendedHtml": .string("<h2>Grace</h2>"), "created": .bool(true), "matchedExisting": .bool(false),
+        ])]
+        #expect(receipts(parts) == [
+            ChatReceipt(id: "call_note_created", kind: .note, label: "Saved to Romans study", target: .note(noteID: "note_1")),
+        ])
+    }
+
+    @Test("addToNote that appended, with or without matchedExisting, says Added to")
+    func noteAppended() {
+        let legacy = tool("addToNote", "call_note_appended", output: [
+            "noteId": .string("note_2"), "noteTitle": .string("Prayer journal"), "created": .bool(false),
+        ])
+        let matched = tool("addToNote", "call_note_matched", output: [
+            "noteId": .string("note_1"), "noteTitle": .string("Romans study"),
+            "created": .bool(false), "matchedExisting": .bool(true),
+        ])
+        #expect(receipts([legacy, matched]) == [
+            ChatReceipt(id: "call_note_appended", kind: .note, label: "Added to Prayer journal", target: .note(noteID: "note_2")),
+            ChatReceipt(id: "call_note_matched", kind: .note, label: "Added to Romans study", target: .note(noteID: "note_1")),
+        ])
+    }
+
+    @Test("A tool that threw or declined leaves no receipt")
+    func failuresLeaveNoReceipt() {
+        let threw = tool("addToNote", "call_note_error", state: .outputError)
+        let declined = tool("saveMemory", "call_mem_failed", output: [
+            "success": .bool(false), "error": .string("Memory is full."),
+        ])
+        let refused = tool("startReadingPlan", "call_plan_refused", state: .outputError)
+        #expect(receipts([threw, declined, refused]).isEmpty)
+    }
+
+    @Test("updateNote says Updated")
+    func noteUpdated() {
+        let parts = [tool("updateNote", "call_note_updated", output: [
+            "noteId": .string("note_3"), "noteTitle": .string("Sermon notes"),
+            "previousWordCount": .number(120), "wordCount": .number(140),
+        ])]
+        #expect(receipts(parts) == [
+            ChatReceipt(id: "call_note_updated", kind: .note, label: "Updated Sermon notes", target: .note(noteID: "note_3")),
+        ])
+    }
+
+    @Test("Each saved memory is Remembered with an undo")
+    func memoriesSaved() {
+        func saved(_ callID: String, _ memoryID: String, created: Bool) -> UIMessagePart {
+            tool("saveMemory", callID, output: [
+                "success": .bool(true), "created": .bool(created),
+                "memory": .object(["id": .string(memoryID), "content": .string("Fact"), "category": .string("personal")]),
+            ])
+        }
+        let parts: [UIMessagePart] = [
+            saved("call_mem_a", "mem_a", created: true),
+            .text(id: "t", text: "I will remember both."),
+            saved("call_mem_b", "mem_b", created: false),
+        ]
+        #expect(receipts(parts) == [
+            ChatReceipt(id: "call_mem_a", kind: .memory, label: "Remembered",
+                        target: .memories(memoryID: "mem_a"), undo: .forgetMemory(memoryID: "mem_a")),
+            ChatReceipt(id: "call_mem_b", kind: .memory, label: "Remembered",
+                        target: .memories(memoryID: "mem_b"), undo: .forgetMemory(memoryID: "mem_b")),
+        ])
+    }
+
+    @Test("updateMemory and deleteMemories")
+    func memoriesChanged() {
+        let updated = tool("updateMemory", "call_mem_updated", output: [
+            "success": .bool(true), "memory": .object(["id": .string("mem_1")]),
+        ])
+        let deletedThree = tool("deleteMemories", "call_mem_deleted", output: ["success": .bool(true), "deleted": .number(3)])
+        let deletedOne = tool("deleteMemories", "call_mem_deleted_one", output: ["success": .bool(true), "deleted": .number(1)])
+        let deletedNone = tool("deleteMemories", "call_mem_deleted_none", output: ["success": .bool(true), "deleted": .number(0)])
+        #expect(receipts([updated, deletedThree, deletedOne, deletedNone]) == [
+            ChatReceipt(id: "call_mem_updated", kind: .memory, label: "Memory updated", target: .memories(memoryID: "mem_1")),
+            ChatReceipt(id: "call_mem_deleted", kind: .memory, label: "Forgot 3 memories", target: .memories(memoryID: nil)),
+            ChatReceipt(id: "call_mem_deleted_one", kind: .memory, label: "Forgot 1 memory", target: .memories(memoryID: nil)),
+        ])
+    }
+
+    @Test("setDailyCross keeps its cross card and adds a receipt")
+    func dailyCross() {
+        let parts = [tool("setDailyCross", "call_cross", output: [
+            "reference": .string("James 1:4"), "text": .string("But let patience have her perfect work"),
+            "reason": .string("Patience"), "previousReference": .string("Romans 5:3"),
+        ])]
+        let view = ChatViewMessage(message: UIMessage(id: "m", role: .assistant, parts: parts), isStreaming: false)
+        #expect(view.crossActions.count == 1)
+        #expect(view.receipts == [
+            ChatReceipt(id: "call_cross", kind: .cross, label: "Today's cross: James 1:4", target: .cross),
+        ])
+    }
+
+    @Test("Reading plan start and day mark; an untick leaves no receipt")
+    func readingPlan() {
+        let started = tool("startReadingPlan", "call_plan_started", input: ["confirmed": .bool(true)], output: planOutput())
+        let marked = tool("markReadingPlanDay", "call_plan_marked", input: ["day": .number(4)], output: planOutput())
+        let unmarked = tool("markReadingPlanDay", "call_plan_unmarked",
+                            input: ["day": .number(4), "done": .bool(false)], output: planOutput())
+        #expect(receipts([started, marked, unmarked]) == [
+            ChatReceipt(id: "call_plan_started", kind: .plan, label: "Started The Gospels in 30 Days", target: .plan),
+            ChatReceipt(id: "call_plan_marked", kind: .plan, label: "Marked day 4", target: .plan),
+        ])
+    }
+
+    @Test("highlightVerse names a colour only when it is not the default")
+    func highlights() {
+        let yellow = tool("highlightVerse", "call_highlight_default", output: [
+            "success": .bool(true), "reference": .string("Romans 8:28"), "book": .string("Romans"),
+            "bookNumber": .number(45), "chapter": .number(8), "verse": .number(28),
+            "color": .string("#F5D76E"), "colorName": .string("Yellow"), "translation": .string("KJV"),
+        ])
+        let green = tool("highlightVerse", "call_highlight_green", output: [
+            "success": .bool(true), "reference": .string("Psalms 23:1-3"), "book": .string("Psalms"),
+            "bookNumber": .number(19), "chapter": .number(23), "verse": .number(1),
+            "color": .string("#27AE60"), "colorName": .string("Green"), "translation": .string("NKJV"),
+        ])
+        #expect(receipts([yellow, green]) == [
+            ChatReceipt(id: "call_highlight_default", kind: .highlight, label: "Marked Romans 8:28",
+                        target: .chapter(book: 45, chapter: 8, verse: 28, translation: .kjv)),
+            ChatReceipt(id: "call_highlight_green", kind: .highlight, label: "Marked Psalms 23:1-3 as Green",
+                        target: .chapter(book: 19, chapter: 23, verse: 1, translation: .nkjv)),
+        ])
+    }
+
+    @Test("organizeNote says Filed")
+    func organizeNote() {
+        let parts = [tool("organizeNote", "call_note_organized", output: [
+            "success": .bool(true), "noteId": .string("note_1"), "title": .string("Romans study"),
+            "folder": .string("Romans"), "tags": .array([.string("grace")]), "pinned": .bool(false),
+        ])]
+        #expect(receipts(parts) == [
+            ChatReceipt(id: "call_note_organized", kind: .note, label: "Filed Romans study", target: .note(noteID: "note_1")),
+        ])
+    }
+
+    @Test("A passive memory extraction looks like a tool save")
+    func memoryExtracted() {
+        let parts: [UIMessagePart] = [
+            .text(id: "t", text: "Amen."),
+            .data(DataPart(name: "memoryExtracted", id: nil, value: .object([
+                "memoryId": .string("mem_passive"), "content": .string("Attends a Baptist church"),
+            ]))),
+        ]
+        #expect(receipts(parts) == [
+            ChatReceipt(id: "memoryExtracted:mem_passive", kind: .memory, label: "Remembered",
+                        target: .memories(memoryID: "mem_passive"), undo: .forgetMemory(memoryID: "mem_passive")),
+        ])
+    }
+
+    @Test("Read tools, status narration and in-flight writes leave no receipt")
+    func readsLeaveNoReceipt() {
+        let parts: [UIMessagePart] = [
+            .data(DataPart(name: "status", id: "status", value: .object(["label": .string("Thinking")]))),
+            tool("getPassage", "call_read_passage", output: ["verses": .array([])]),
+            tool("findNotes", "call_read_notes", output: ["notes": .array([])]),
+            tool("listMemories", "call_read_memories", output: ["success": .bool(true), "memories": .array([])]),
+            tool("getDailyCross", "call_read_cross", output: ["reference": .string("James 1:4"), "text": .string("x")]),
+            tool("saveMemory", "call_mem_streaming", state: .inputAvailable),
+        ]
+        #expect(receipts(parts).isEmpty)
+    }
+}

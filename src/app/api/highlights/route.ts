@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { upsertUserHighlight } from "@/lib/highlights.server";
 
 const verseKey = {
 	translation: z.string().min(1).max(20),
@@ -75,13 +76,7 @@ export async function PUT(req: Request) {
 		}
 		const { translation, book, chapter, verse, color } = parsed.data;
 
-		const highlight = await prisma.verseHighlight.upsert({
-			where: {
-				userId_translation_book_chapter_verse: { userId, translation, book, chapter, verse },
-			},
-			update: { color },
-			create: { userId, translation, book, chapter, verse, color },
-		});
+		const highlight = await upsertUserHighlight(userId, { translation, book, chapter, verse, color });
 
 		return NextResponse.json(highlight);
 	} catch (error) {

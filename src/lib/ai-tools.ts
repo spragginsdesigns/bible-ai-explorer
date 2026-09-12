@@ -11,18 +11,27 @@ import { tavilySearch, type TavilyResult } from "@/lib/tavily";
 import {
 	appendMarkdownToNote,
 	findUserNotes,
+	MAX_ORGANIZE_NAME_LENGTH,
+	MAX_ORGANIZE_TAGS,
+	organizeUserNote,
 	readUserNote,
 	rewriteNote,
 	type AppendToNoteResult,
 	type NoteContent,
 	type NoteSummary,
+	type OrganizeNoteResult,
 	type RewriteNoteResult,
 } from "@/lib/notes-io";
+import { NOTE_HOUSE_STYLE } from "@/utils/noteHouseStyle";
 import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { HIGHLIGHT_COLORS } from "@/lib/highlights";
 import {
 	formatHighlightsForModel,
+	highlightReference,
 	listUserHighlights,
+	MAX_HIGHLIGHT_VERSES,
 	type HighlightedVerse,
+	type HighlightVerseResult,
 } from "@/lib/highlights.server";
 import {
 	findTodayCross,
@@ -102,6 +111,10 @@ export type AddToNoteToolOutput = AppendToNoteResult;
 export type ReadNoteToolOutput = NoteContent;
 
 export type UpdateNoteToolOutput = RewriteNoteResult;
+
+export type OrganizeNoteToolOutput = OrganizeNoteResult;
+
+export type HighlightVerseToolOutput = HighlightVerseResult;
 
 /** Today's "Pick Up Your Cross", flattened for the model and the receipt card. */
 export interface DailyCrossToolOutput {
@@ -997,10 +1010,14 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	// NOTE_HOUSE_STYLE is identical for every user, so appending it keeps these
+	// descriptions inside the cached prompt without touching the cache key.
 	const addToNoteTool = tool({
-		description: context.defaultNoteId
-			? "Add content to the user's Bible study notes. Only call this when the user asks you to add, save, or write something to their note. ALWAYS omit noteId in this conversation - \"this note\" or \"my note\" means the note that is currently open, even if earlier tool results in this conversation mention another note id. Pass a noteId only when the user explicitly names a DIFFERENT note. Write the content as clean markdown (headings, lists, blockquotes for verses)."
-			: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. If the user already has a note with the same or nearly the same title, the content is appended to that note instead and the result has matchedExisting: true - then tell the user you added it to their existing note, by its title. If a call fails, retry with the same title rather than a new one. Write the content as clean markdown (headings, lists, blockquotes for verses).",
+		description: `${
+			context.defaultNoteId
+				? "Add content to the user's Bible study notes. Only call this when the user asks you to add, save, or write something to their note. ALWAYS omit noteId in this conversation - \"this note\" or \"my note\" means the note that is currently open, even if earlier tool results in this conversation mention another note id. Pass a noteId only when the user explicitly names a DIFFERENT note. Write the content as clean markdown (headings, lists, blockquotes for verses)."
+				: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. If the user already has a note with the same or nearly the same title, the content is appended to that note instead and the result has matchedExisting: true - then tell the user you added it to their existing note, by its title. If a call fails, retry with the same title rather than a new one. Write the content as clean markdown (headings, lists, blockquotes for verses)."
+		}\n\n${NOTE_HOUSE_STYLE}`,
 		inputSchema: z.object({
 			markdown: z.string().describe("The content to append, as markdown."),
 			noteId: z
@@ -1032,8 +1049,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const readNoteTool = tool({
 		description: context.defaultNoteId
-			? "Read the full content of one of the user's Bible study notes. Omit noteId to read the note that is currently open. ALWAYS read a note with this tool before editing it with updateNote."
-			: "Read the full content of one of the user's Bible study notes, located via findNotes. ALWAYS read a note with this tool before editing it with updateNote, and use it whenever answering well requires the note's actual content rather than the short preview findNotes returns.",
+			? "Read the full content of one of the user's Bible study notes, with its folder, tags, pin, aliases and properties. Omit noteId to read the note that is currently open. ALWAYS read a note with this tool before editing it with updateNote."
+			: "Read the full content of one of the user's Bible study notes, located via findNotes, with its folder, tags, pin, aliases and properties. ALWAYS read a note with this tool before editing it with updateNote, and use it whenever answering well requires the note's actual content rather than the short preview findNotes returns.",
 		inputSchema: z.object({
 			noteId: z
 				.string()
@@ -1053,7 +1070,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const updateNoteTool = tool({
 		description:
-			"REPLACE the entire content of one of the user's Bible study notes with rewritten markdown, optionally retitling it. This OVERWRITES what the note currently says, so: (1) only call it when the user explicitly asks you to edit, reformat, reorganize, correct, or clean up a note — never to merely add content (use addToNote for that); (2) you MUST have read the note with readNote in this conversation first; (3) preserve everything the user wrote unless they asked you to change it — reformatting means restructuring their content faithfully, not summarizing or trimming it.",
+			`REPLACE the entire content of one of the user's Bible study notes with rewritten markdown, optionally retitling it. This OVERWRITES what the note currently says, so: (1) call it when the user asks you to edit, reformat, reorganize, correct, or clean up a note, or when they ask you to save material on a subject one of their notes already covers (weave the new material into that note rather than stacking a new section with addToNote); never call it on your own initiative; (2) you MUST have read the note with readNote in this conversation first; (3) preserve everything the user wrote unless they asked you to change it - reformatting means restructuring their content faithfully, not summarizing or trimming it.\n\n${NOTE_HOUSE_STYLE}`,
 		inputSchema: z.object({
 			markdown: z
 				.string()
@@ -1275,6 +1292,62 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const highlightVerseTool = tool({
+		description: `Highlight a verse, or a short range of up to ${MAX_HIGHLIGHT_VERSES} verses, in the user's SureWord Bible reader (${translation}), exactly as if they had marked it themselves. ONLY call it when the user asks you to mark or highlight a verse; never because a verse came up. Pass the full reference, working out "verse 28" from the conversation. Leave color out for yellow; pass one only when they name it (${HIGHLIGHT_COLORS.map((color) => color.name).join(", ")}). A verse that is already highlighted just changes colour.`,
+		inputSchema: z.object({
+			reference: z
+				.string()
+				.describe('Book, chapter and verse or verse range, e.g. "Romans 8:28" or "Psalms 23:1-3".'),
+			color: z
+				.string()
+				.optional()
+				.describe("Colour name the user asked for. Omit for yellow."),
+		}),
+		execute: async ({ reference, color }): Promise<HighlightVerseToolOutput> =>
+			highlightReference({ userId: context.userId, reference, color, translation }),
+	});
+
+	const organizeNoteTool = tool({
+		description:
+			"File, tag, rename or pin one of the user's notes: put it in a folder (matched to their folders by name, created when none matches), add tags (matched by name, created when missing; tags already on the note stay), give it a new title, or pin or unpin it. ONLY call it when the user asks to file, tag, rename, pin or organize a note. Locate the note with findNotes first; readNote shows the folder and tags it already has. It never changes what the note says.",
+		inputSchema: z.object({
+			noteId: z
+				.string()
+				.optional()
+				.describe("Note id from findNotes. Omit to organize the currently open note (note chat only)."),
+			title: z.string().optional().describe("New title, only when the user asked to rename the note."),
+			folderName: z
+				.string()
+				.max(MAX_ORGANIZE_NAME_LENGTH)
+				.optional()
+				.describe('Folder to file the note in, by name, e.g. "Romans". Omit to leave it where it is.'),
+			tags: z
+				.array(z.string().max(MAX_ORGANIZE_NAME_LENGTH))
+				.max(MAX_ORGANIZE_TAGS)
+				.optional()
+				.describe('Tag names to add, e.g. ["grace"]. Omit to leave tags alone.'),
+			// Deliberately not a boolean: models fill every field of a schema, so
+			// a boolean arrived as `false` on requests that never mentioned
+			// pinning and silently unpinned the user's note. An explicit action
+			// with null for "leave it" cannot be produced by that habit.
+			pin: z
+				.enum(["pin", "unpin"])
+				.nullable()
+				.optional()
+				.describe(
+					'Only when the user asked to pin or unpin: "pin" or "unpin". Use null when they said nothing about pinning.',
+				),
+		}),
+		execute: async ({ noteId, title, folderName, tags, pin }): Promise<OrganizeNoteToolOutput> => {
+			const pinned = pin === "pin" ? true : pin === "unpin" ? false : undefined;
+			const targetNoteId = noteId?.trim() || context.defaultNoteId;
+			if (!targetNoteId) {
+				throw new Error("No note specified. Use findNotes first to locate the note.");
+			}
+			return organizeUserNote({ userId: context.userId, noteId: targetNoteId, title, folderName, tags, pinned });
+		},
+	});
+
 	return {
 		...buildMemoryTools(context.userId),
 		searchScripture: searchScriptureTool,
@@ -1291,7 +1364,9 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		readNote: readNoteTool,
 		updateNote: updateNoteTool,
 		findNotes: findNotesTool,
+		organizeNote: organizeNoteTool,
 		getHighlights: getHighlightsTool,
+		highlightVerse: highlightVerseTool,
 		getDailyCross: getDailyCrossTool,
 		setDailyCross: setDailyCrossTool,
 		getReadingPlan: getReadingPlanTool,

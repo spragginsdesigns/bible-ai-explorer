@@ -62,6 +62,11 @@ export interface AnswerEvalExpectation {
 	};
 	/** A human reviewer rubric id, reported but never mechanically passed. */
 	doctrineRubric?: string;
+	/**
+	 * The answer is a short conversational follow-up: no headings, no lists,
+	 * at most CONVERSATIONAL_MAX_PARAGRAPHS prose paragraphs.
+	 */
+	conversationalShape?: boolean;
 }
 
 export interface AnswerEvalFixture {
@@ -88,6 +93,32 @@ export interface AnswerEvalChecks {
 	memory: boolean;
 	noForbiddenTools: boolean;
 	noFabricatedReferences: boolean;
+	conversationalShape: boolean;
+}
+
+export const CONVERSATIONAL_MAX_PARAGRAPHS = 3;
+
+/**
+ * Shape is not theology, so unlike DOCTRINE_REVIEW_DIMENSIONS it can be
+ * mechanised: a short follow-up reads as conversation. Blockquoted Scripture
+ * is allowed and not counted as a paragraph; [FOLLOWUP] lines are ignored.
+ */
+export function scoreConversationalShape(text: string): string[] {
+	const failures: string[] = [];
+	const body = text
+		.split(/\r?\n/)
+		.filter((line) => !/^[ \t]*\[FOLLOWUP\]/.test(line))
+		.join("\n")
+		.trim();
+	if (/^[ \t]*#{1,6}[ \t]/m.test(body)) failures.push("short follow-up answer used a heading");
+	if (/^[ \t]*(?:[-*+]|\d+[.)])[ \t]/m.test(body)) failures.push("short follow-up answer used a list");
+	const paragraphs = body
+		.split(/\n[ \t]*\n/)
+		.filter((block) => block.trim() && !/^[ \t]*>/.test(block));
+	if (paragraphs.length > CONVERSATIONAL_MAX_PARAGRAPHS) {
+		failures.push(`short follow-up answer ran to ${paragraphs.length} paragraphs`);
+	}
+	return failures;
 }
 
 export interface AnswerEvalScore {
@@ -262,6 +293,42 @@ export function extractRetrievedEvidence(calls: AnswerToolCall[]): RetrievedEvid
 	return evidence;
 }
 
+/**
+ * Canonical text a blockquote can be checked against, normalized.
+ *
+ * A single verse matches one evidence item, but the retrieval tools return one
+ * object per verse, so a quotation of Ephesians 2:8-9 exists in the evidence
+ * only as two separate verses. Stitch the verses a cited range covers back
+ * together, in canonical order, before comparing; otherwise every accurate
+ * multi-verse quotation is reported as unsupported.
+ */
+export function evidenceTextFor(evidence: RetrievedEvidence[], citation: string): string | null {
+	const direct = evidence.find(
+		(item) => referenceCovers(item.reference, citation) || refKey(item.reference) === refKey(citation),
+	);
+	if (direct) return normalizeAnswerText(direct.text);
+
+	const cited = parseReference(citation);
+	if (!cited) return null;
+	const start = cited.chapter * 1000 + cited.verse;
+	const end = cited.endChapter * 1000 + cited.endVerse;
+	if (end <= start) return null;
+	const pieces = evidence
+		.map((item) => ({ item, parsed: parseReference(item.reference) }))
+		.filter(({ parsed }) => {
+			if (!parsed || parsed.book !== cited.book) return false;
+			const position = parsed.chapter * 1000 + parsed.verse;
+			return position >= start && position <= end;
+		})
+		.sort((a, b) => {
+			const left = a.parsed!.chapter * 1000 + a.parsed!.verse;
+			const right = b.parsed!.chapter * 1000 + b.parsed!.verse;
+			return left - right;
+		});
+	if (pieces.length === 0) return null;
+	return normalizeAnswerText(pieces.map(({ item }) => item.text).join(" "));
+}
+
 function hasReference(text: string, expected: string): boolean {
 	return extractBibleReferences(text).some((reference) => referenceCovers(reference, expected) || refKey(reference) === refKey(expected));
 }
@@ -429,10 +496,10 @@ function scoreQuotes(
 		const refs = extractBibleReferences(block.join(" "));
 		if (refs.length === 0) continue;
 		const citation = refs.at(-1)!;
-		const source = evidence.find((item) => referenceCovers(item.reference, citation) || refKey(item.reference) === refKey(citation));
+		const sourceText = evidenceTextFor(evidence, citation);
 		const body = normalizeAnswerText(block.filter((line) => !extractBibleReferences(line).length).join(" "))
 			.replace(/^["']|["']$/g, "");
-		if (!source || body.length < 8 || !normalizeAnswerText(source.text).includes(body)) {
+		if (!sourceText || body.length < 8 || !sourceText.includes(body)) {
 			failures.push(`blockquote ${citation} was not supported by exact tool text`);
 			pass = false;
 		}
@@ -473,6 +540,12 @@ export function scoreAnswer(
 	const referenceResult = expectedError ? { required: true, fabricated: true } : scoreReferences(fixture, observation, failures);
 	const quotes = expectedError ? true : scoreQuotes(fixture, observation, failures);
 	const memory = expectedError ? true : scoreMemory(fixture, observation, failures);
+	const shapeFailures =
+		expectedError || !fixture.expectation.conversationalShape
+			? []
+			: scoreConversationalShape(observation.text);
+	failures.push(...shapeFailures);
+	const conversationalShape = shapeFailures.length === 0;
 	const forbidden = !failures.some((failure) => failure.startsWith("forbidden write tool used:"));
 	const checks: AnswerEvalChecks = {
 		status,
@@ -485,6 +558,7 @@ export function scoreAnswer(
 		memory,
 		noForbiddenTools: forbidden,
 		noFabricatedReferences: referenceResult.fabricated,
+		conversationalShape,
 	};
 	return {
 		fixtureId: fixture.id,

@@ -2,7 +2,11 @@ import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
-import { formatStudyQuestions } from "@/lib/study-context-format";
+import {
+	PLACEHOLDER_NOTE_TITLE,
+	formatStudyQuestions,
+	isMeaningfulNote,
+} from "@/lib/study-context-format";
 
 /**
  * One user's recent walk, formatted for a prompt: what they have been reading,
@@ -69,12 +73,19 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			take: RECENT_MESSAGES,
 			select: { content: true, metadata: true },
 		}),
-		prisma.note.findMany({
-			where: { userId },
-			orderBy: { updatedAt: "desc" },
-			take: RECENT_NOTES,
-			select: { title: true, plainText: true },
-		}),
+		// The cheap exclusions run in SQL; whitespace-only text can only be seen
+		// here, so a few extra rows are read and the list is trimmed below.
+		prisma.note
+			.findMany({
+				where: {
+					userId,
+					NOT: [{ plainText: "" }, { title: PLACEHOLDER_NOTE_TITLE }],
+				},
+				orderBy: { updatedAt: "desc" },
+				take: RECENT_NOTES * 2,
+				select: { title: true, plainText: true },
+			})
+			.then((rows) => rows.filter(isMeaningfulNote).slice(0, RECENT_NOTES)),
 		loadUserMemories(userId),
 		prisma.verseOfDay.findMany({
 			where: { userId },

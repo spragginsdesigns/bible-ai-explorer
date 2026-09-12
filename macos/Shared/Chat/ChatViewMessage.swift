@@ -38,6 +38,46 @@ struct CrossAction: Sendable, Equatable, Identifiable {
     var id: String { "\(reference)-\(previousReference ?? "")" }
 }
 
+// MARK: - Receipts
+
+/// One line for everything the assistant saves: the contract in
+/// `docs/FEATURES.md` ("Receipts"), ported from `mobile/src/lib/receipts.ts`
+/// and `src/lib/chat/receipts.ts`. Both TS copies share one fixture; the
+/// receipt cases in `ChatViewMessageTests` mirror it, so change all three together.
+enum ChatReceiptKind: String, Sendable, Equatable {
+    case note, memory, highlight, plan, cross, preference, church
+}
+
+enum ChatReceiptSettingsSection: String, Sendable, Equatable {
+    case memory, church, preferences
+}
+
+/// Where tapping the fragment goes. Mirrors the TS `ChatReceiptTarget` union.
+enum ChatReceiptTarget: Sendable, Equatable {
+    case note(noteID: String)
+    case memories(memoryID: String?)
+    case chapter(book: Int, chapter: Int, verse: Int?, translation: TranslationID?)
+    case plan
+    case cross
+    case settings(section: ChatReceiptSettingsSection?)
+}
+
+/// Present only when the client can undo from the fragment.
+enum ChatReceiptUndo: Sendable, Equatable {
+    /// `DELETE /api/memories/[id]`.
+    case forgetMemory(memoryID: String)
+}
+
+struct ChatReceipt: Sendable, Equatable, Identifiable {
+    /// Stable within the message: the tool call id, or `memoryExtracted:<id>`.
+    var id: String
+    var kind: ChatReceiptKind
+    /// The whole user-facing fragment, already worded.
+    var label: String
+    var target: ChatReceiptTarget
+    var undo: ChatReceiptUndo? = nil
+}
+
 struct ChatAttachment: Sendable, Equatable, Identifiable {
     var id: String
     var filename: String
@@ -83,6 +123,9 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     var followUps: [String] = []
     var noteActions: [NoteAction] = []
     var crossActions: [CrossAction] = []
+    /// Carried alongside `noteActions`/`crossActions` until every client
+    /// renders receipts.
+    var receipts: [ChatReceipt] = []
     var attachments: [ChatAttachment] = []
     /// Live "Getting ready / Reading <file> / Thinking" line, or the label of
     /// a tool that is mid-flight. Only ever set while streaming.
@@ -302,10 +345,183 @@ extension ChatViewMessage {
             followUps: followUps,
             noteActions: noteActions,
             crossActions: crossActions,
+            receipts: Self.buildReceipts(message.parts),
             attachments: attachments,
             activity: isStreaming ? activity : nil,
             isStreaming: isStreaming
         )
+    }
+
+    // MARK: Receipts
+
+    /// A highlight in the reader's default colour needs no "as Yellow" suffix.
+    private static let defaultHighlightColorName = "Yellow"
+
+    /// Receipts for one message, in part order, from settled parts only. A
+    /// tool that threw is `outputError` and one that declined has
+    /// `success: false`; neither leaves a receipt. Same rules as
+    /// `buildReceipts` in `mobile/src/lib/receipts.ts`.
+    static func buildReceipts(_ parts: [UIMessagePart]) -> [ChatReceipt] {
+        var receipts: [ChatReceipt] = []
+        for (index, part) in parts.enumerated() {
+            if let data = part.dataPart {
+                // Data parts carry no tool call id; the memory id is unique
+                // within a message.
+                if data.name == "memoryExtracted",
+                   let memoryID = nonEmpty(data.value["memoryId"]) {
+                    receipts.append(memoryReceipt(id: "memoryExtracted:\(memoryID)", memoryID: memoryID))
+                }
+                continue
+            }
+            guard let tool = part.toolPart,
+                  tool.state == .outputAvailable,
+                  let output = tool.output,
+                  output.objectValue != nil,
+                  output["success"]?.boolValue != false
+            else { continue }
+            let id = tool.toolCallId.isEmpty ? "part-\(index)" : tool.toolCallId
+            if let receipt = toolReceipt(
+                toolName: tool.toolName,
+                id: id,
+                input: tool.input ?? .null,
+                output: output
+            ) {
+                receipts.append(receipt)
+            }
+        }
+        return receipts
+    }
+
+    private static func toolReceipt(
+        toolName: String,
+        id: String,
+        input: JSONValue,
+        output: JSONValue
+    ) -> ChatReceipt? {
+        switch toolName {
+        case "addToNote", "updateNote":
+            guard let noteID = nonEmpty(output["noteId"]),
+                  let noteTitle = nonEmpty(output["noteTitle"])
+            else { return nil }
+            let label: String
+            if toolName == "updateNote" {
+                label = "Updated \(noteTitle)"
+            } else if output["created"]?.boolValue == true, output["matchedExisting"]?.boolValue != true {
+                label = "Saved to \(noteTitle)"
+            } else {
+                label = "Added to \(noteTitle)"
+            }
+            return ChatReceipt(id: id, kind: .note, label: label, target: .note(noteID: noteID))
+
+        case "organizeNote":
+            guard let noteID = nonEmpty(output["noteId"]),
+                  let title = nonEmpty(output["title"])
+            else { return nil }
+            return ChatReceipt(id: id, kind: .note, label: "Filed \(title)", target: .note(noteID: noteID))
+
+        case "saveMemory":
+            guard output["success"]?.boolValue == true,
+                  let memoryID = nonEmpty(output["memory"]?["id"])
+            else { return nil }
+            return memoryReceipt(id: id, memoryID: memoryID)
+
+        case "updateMemory":
+            guard output["success"]?.boolValue == true,
+                  let memoryID = nonEmpty(output["memory"]?["id"])
+            else { return nil }
+            return ChatReceipt(
+                id: id,
+                kind: .memory,
+                label: "Memory updated",
+                target: .memories(memoryID: memoryID)
+            )
+
+        case "deleteMemories":
+            // deleteMemories refuses unless every id is owned, so a zero count
+            // means nothing changed and there is nothing to receipt.
+            guard output["success"]?.boolValue == true,
+                  let deleted = positiveInteger(output["deleted"])
+            else { return nil }
+            let noun = deleted == 1 ? "memory" : "memories"
+            return ChatReceipt(
+                id: id,
+                kind: .memory,
+                label: "Forgot \(deleted) \(noun)",
+                target: .memories(memoryID: nil)
+            )
+
+        case "setDailyCross":
+            guard let reference = nonEmpty(output["reference"]) else { return nil }
+            return ChatReceipt(id: id, kind: .cross, label: "Today's cross: \(reference)", target: .cross)
+
+        case "startReadingPlan":
+            guard output["hasPlan"]?.boolValue == true,
+                  let title = nonEmpty(output["title"])
+            else { return nil }
+            return ChatReceipt(id: id, kind: .plan, label: "Started \(title)", target: .plan)
+
+        case "markReadingPlanDay":
+            // The plan output does not say which day was ticked, so the number
+            // comes from the call. An untick (done: false) has no contract
+            // label, and "Marked day n" would state the opposite of what
+            // happened, so it leaves no receipt.
+            guard output["hasPlan"]?.boolValue == true,
+                  let day = positiveInteger(input["day"]),
+                  input["done"]?.boolValue != false
+            else { return nil }
+            return ChatReceipt(id: id, kind: .plan, label: "Marked day \(day)", target: .plan)
+
+        case "highlightVerse":
+            guard output["success"]?.boolValue == true,
+                  let reference = nonEmpty(output["reference"]),
+                  let book = positiveInteger(output["bookNumber"]),
+                  let chapter = positiveInteger(output["chapter"]),
+                  let verse = positiveInteger(output["verse"])
+            else { return nil }
+            let label: String
+            if let colorName = nonEmpty(output["colorName"]), colorName != defaultHighlightColorName {
+                label = "Marked \(reference) as \(colorName)"
+            } else {
+                label = "Marked \(reference)"
+            }
+            let translation = output["translation"]?.stringValue.flatMap(TranslationID.init(rawValue:))
+            return ChatReceipt(
+                id: id,
+                kind: .highlight,
+                label: label,
+                target: .chapter(book: book, chapter: chapter, verse: verse, translation: translation)
+            )
+
+        default:
+            return nil
+        }
+    }
+
+    private static func memoryReceipt(id: String, memoryID: String) -> ChatReceipt {
+        ChatReceipt(
+            id: id,
+            kind: .memory,
+            label: "Remembered",
+            target: .memories(memoryID: memoryID),
+            undo: .forgetMemory(memoryID: memoryID)
+        )
+    }
+
+    private static func nonEmpty(_ value: JSONValue?) -> String? {
+        guard let string = value?.stringValue,
+              !string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return nil }
+        return string
+    }
+
+    /// JSON numbers arrive as `Double`; only a whole number of at least 1 counts.
+    private static func positiveInteger(_ value: JSONValue?) -> Int? {
+        guard let number = value?.doubleValue,
+              number >= 1,
+              number < 1_000_000_000,
+              number.rounded() == number
+        else { return nil }
+        return Int(number)
     }
 
     // MARK: Lenient parsing

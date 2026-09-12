@@ -16,6 +16,23 @@ function dailyCrossReference(metadata: unknown): string | null {
 		: null;
 }
 
+/** The title every client gives a note nobody named. */
+export const PLACEHOLDER_NOTE_TITLE = "Untitled Note";
+
+/**
+ * Whether a note is evidence of study. A blank note, or one still carrying the
+ * placeholder title, is an abandoned tap on "new note": fed into a prompt it
+ * gets read back to the user as a study called "Untitled Note".
+ */
+export function isMeaningfulNote(note: { title: string; plainText: string }): boolean {
+	const title = note.title.trim();
+	return (
+		note.plainText.trim().length > 0 &&
+		title.length > 0 &&
+		title.toLowerCase() !== PLACEHOLDER_NOTE_TITLE.toLowerCase()
+	);
+}
+
 /** Preserve follow-up study while preventing it from masquerading as fresh intent. */
 export function formatStudyQuestions(
 	messages: readonly StudyQuestionMessage[],

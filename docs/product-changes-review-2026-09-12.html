@@ -80,14 +80,14 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0 2.5rem;font-size:.8re
 </header>
 
 <nav aria-label="Sections"><div class="wrap">
-  <a href="#you">What you do</a><a href="#who">Who takes what</a><a href="#rules">Rules for every lane</a><a href="#s0">Stage 0</a><a href="#s1">Stage 1</a><a href="#s2">Stage 2</a><a href="#s3">Stage 3</a><a href="#no">Not doing</a>
+  <a href="#you">What you do</a><a href="#who">Who takes what</a><a href="#rules">Rules for every lane</a><a href="#s0">Stage 0 · shipped</a><a href="#s1">Stage 1</a><a href="#s2">Stage 2</a><a href="#s3">Stage 3</a><a href="#no">Not doing</a>
 </div></nav>
 
 <main class="wrap">
 
 <section id="you">
   <div class="card verdict">
-    <p><strong>What you actually do with SureWord (from your account, atmosphere9999, read-only).</strong> Daily since about August 5, 27 of the last 56 days, peaks during the working day (8am to 3pm) and again 7pm to 10pm; you are not a morning-devotional user. 89 real conversations (20 more were a seeded eval run on August 27). 72% are one question and one answer. Of your last 120 messages: 19 doctrine, 19 "save this to a note", 19 bare follow-ups like "why?", 10 personal life, 10 verse explanations, 8 Bible facts, 7 word studies, 7 memory requests, 5 parenting, 5 daily cross, 0 reading plans. The assistant calls getPassage 3.5 times per answer (299 calls). You have 16 notes, all written by the assistant from chat; the per-note AI panel has never been opened. Your kept notes already share a shape: 400 to 900 words, first person, 3 to 7 sections with claim-style headings, verses as blockquotes ending "Book 1:1, KJV", and a closing "what I do next" section. Four short notes call you "Austin" in the third person; that is the biggest style bug. Three note saves persisted a null input and produced a duplicate pair. Listen audio was ready on 21 of 21 eligible days but nothing records whether it was played. A second email-less account holds 112 of the 136 notes in the database, mostly "Untitled Note", so note metrics in v1 were skewed by it.</p>
+    <p><strong>What you actually do with SureWord (from your account, atmosphere9999, read-only).</strong> Daily since about August 5, 27 of the last 56 days, peaks during the working day (8am to 3pm) and again 7pm to 10pm; you are not a morning-devotional user. 89 real conversations (20 more were a seeded eval run on August 27). 72% are one question and one answer. Of your last 120 messages: 19 doctrine, 19 "save this to a note", 19 bare follow-ups like "why?", 10 personal life, 10 verse explanations, 8 Bible facts, 7 word studies, 7 memory requests, 5 parenting, 5 daily cross, 0 reading plans. The assistant calls getPassage 3.5 times per answer (299 calls). You have 16 notes, all written by the assistant from chat; the per-note AI panel has never been opened. Your kept notes already share a shape: 400 to 900 words, first person, 3 to 7 sections with claim-style headings, verses as blockquotes ending "Book 1:1, KJV", and a closing "what I do next" section. Four short notes call you "Austin" in the third person; that is the biggest style bug. Three note saves persisted a null input and produced a duplicate pair. Listen audio was ready on 21 of 21 eligible days but nothing records whether it was played. The email-less account holding 112 of the 136 notes and 143 push tokens is the Play reviewer demo login, signed into by Google's device farm and our own QA emulators, so it is excluded from every metric.</p>
   </div>
 </section>
 
@@ -120,29 +120,29 @@ footer{border-top:1px solid var(--border);padding:1.2rem 0 2.5rem;font-size:.8re
 <section id="s0">
   <div class="rel"><h2>Stage 0 · Today</h2><span class="tag">Fable · unblocks everyone</span></div>
   <div class="grid">
-    <div class="card"><div class="head"><h3><span class="id">F1</span>Commit the working tree, fix the iOS build</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Done this session</span></div></div>
+    <div class="card"><div class="head"><h3><span class="id">F1</span>Commit the working tree, fix the iOS build</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 301e185</span></div></div>
       <dl class="naw"><dt>Now</dt><dd>31 modified files plus untracked <code>src/lib/ai/*</code> modules that the chat route imports; a normal push would break the Vercel build. iOS <code>let</code> that should be <code>var</code>.</dd>
       <dt>After</dt><dd class="after">Everything committed together and pushed; web lint clean, mobile typecheck clean, 618 tests green. Android release of the verse-translation work is batched into the Stage 2 push.</dd>
       <dt>Why</dt><dd>Nothing else can ship until the tree is consistent.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F2</span>Measure answers and return</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
-      <dl class="naw"><dt>Now</dt><dd>27 of 339 conversations hold a question and no answer; nothing measures it. No product analytics exist.</dd>
+    <div class="card"><div class="head"><h3><span class="id">F2</span>Measure answers and return</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>27 of 339 conversations hold a question and no answer; only 2 of them happened after the August 17 stream fix. Nothing measured it.</dd>
       <dt>After</dt><dd class="after">A metric fires when a user turn is saved with no reply; one SQL view reports weekly day-2 return, depth, tool fires, and monthly spend by service (see N2).</dd>
       <dt>Why</dt><dd>Otherwise nothing below is known to have worked.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F3</span>One morning push per person</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
-      <dl class="naw"><dt>Now</dt><dd>One notification per device token; one account gets 76 copies. Turning off the morning verse also kills "answer is ready" pushes.</dd><dt>After</dt><dd class="after">One push per user; the two toggles are independent.</dd><dt>Why</dt><dd>Every future push inherits this.</dd></dl></div>
+    <div class="card"><div class="head"><h3><span class="id">F3</span>One morning push per person</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
+      <dl class="naw"><dt>Now</dt><dd>One notification per device token; the Play reviewer account's 143 device-farm tokens each got the morning push. Turning off the morning verse also killed "answer is ready" pushes.</dd><dt>After</dt><dd class="after">One push per user, to at most their three newest devices, timed by their newest device; the two toggles are independent. Android asks for permission after the first answer or first Cross visit (F4, proven on device with the next Play release).</dd><dt>Why</dt><dd>Every future push inherits this.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F4</span>Ask for notification permission later</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+    <div class="card"><div class="head"><h3><span class="id">F4</span>Ask for notification permission later</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
       <dl class="naw"><dt>Now</dt><dd>Android shows the permission dialog seconds after sign-in.</dd><dt>After</dt><dd class="after">Asked after the first real exchange or the first visit to Pick Up Your Cross.</dd><dt>Why</dt><dd>A "no" is permanent on modern Android.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F5</span>Pastoral escalation in the persona</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+    <div class="card"><div class="head"><h3><span class="id">F5</span>Pastoral escalation in the persona</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
       <dl class="naw"><dt>Now</dt><dd>The prompt says nothing about crisis, abuse or self-harm disclosures, while memory extraction hunts for life circumstances.</dd><dt>After</dt><dd class="after">Scripture, then your pastor, then immediate help when life is in danger, never a verse as a substitute. Plus an eval dimension.</dd><dt>Why</dt><dd>Gate for C4 and for a public listing.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F6</span>Fix the note-save bug and the parity row</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">XS</span></div></div>
+    <div class="card"><div class="head"><h3><span class="id">F6</span>Fix the note-save bug and the parity row</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
       <dl class="naw"><dt>Now</dt><dd>Three addToNote calls on your account persisted a null input and wrote the same fact under two titles. PARITY.md claims a macOS note receipt that shows a "later phase" toast.</dd><dt>After</dt><dd class="after">Input validated and persisted; duplicate guard by title; parity row corrected.</dd><dt>Why</dt><dd>Real defect on the workflow you use most.</dd></dl></div>
 
-    <div class="card"><div class="head"><h3><span class="id">F7</span>Publish the two shared contracts</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge neutral">S</span></div></div>
+    <div class="card"><div class="head"><h3><span class="id">F7</span>Publish the two shared contracts</h3><div class="badges"><span class="badge fable">Fable</span><span class="badge ok">Shipped 6aa06fb</span></div></div>
       <dl class="naw"><dt>Now</dt><dd>Codex and Kimi would each invent a shape.</dd><dt>After</dt><dd class="after">A <code>receipts</code> array on chat messages (web and Android parsers emit it; clients render it) and a learn-a-verse API spec, both in <code>docs/FEATURES.md</code>.</dd><dt>Why</dt><dd>One writer per file only works if the contract lands first.</dd></dl></div>
   </div>
 </section>

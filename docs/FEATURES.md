@@ -1463,7 +1463,8 @@ export interface ChatReceipt {
 | `deleteMemories` | `Forgot {n} memor{y/ies}` | memories | none |
 | `setDailyCross` | `Today's cross: {reference}` | cross | none |
 | `startReadingPlan` | `Started {planTitle}` | plan | none |
-| `markReadingPlanDay` | `Marked day {n}` | plan | none |
+| `markReadingPlanDay`, `done: true` | `Marked day {n}` | plan | none |
+| `markReadingPlanDay`, `done: false` | no receipt (un-ticking restores the state the user already sees on the plan screen) | none | none |
 | `highlightVerse` (new) | `Marked {reference}` or `Marked {reference} as {colourName}` | chapter + verse | none |
 | `organizeNote` (new) | `Filed {noteTitle}` | note | none |
 | `updatePreferences` (new) | `{setting} {on/off/value}` | settings + preferences | none |
@@ -1477,7 +1478,7 @@ assistant says what failed in prose. `forgetMemory` calls
 preview below the line, because that is content, not chrome. Passive
 extraction currently writes rows with no part at all; the backend lane adds the
 `data-memoryExtracted` part (persisted, not stripped by status narration) so a
-passive save and a tool save look identical.
+passive save and a tool save look identical. Shipping that part touches four filters that drop every `data-*` part today and must all let `data-memoryExtracted` through in the same change: `persistableParts` in `src/lib/ai/status-narration.ts`, the web history restore in `src/components/useChat.ts`, the Android restore in `mobile/src/lib/chatView.ts`, and `UIMessagePart(json:)` in the Apple history decoder. Until then passive saves show no receipt on replay.
 
 ### Learn a verse
 

@@ -273,3 +273,28 @@ test("SSE parser preserves structured error text", () => {
 	const parsed = parseUiMessageStream('data: {"type":"error","errorText":"provider rejected the request"}\n');
 	assert.equal(parsed.routeError, "provider rejected the request");
 });
+
+test("conversational shape passes prose and quoted Scripture, fails headings, lists and long answers", async () => {
+	const { scoreConversationalShape } = await import("../src/lib/ai/answer-eval.ts");
+	assert.deepEqual(scoreConversationalShape("Grace is unearned.\n\n> \"For by grace are ye saved\"\n> \u2014 Ephesians 2:8, KJV\n\nThat is why it humbles us.\n[FOLLOWUP] What about works?"), []);
+	assert.ok(scoreConversationalShape("## Why\n\nBecause.").some((f) => f.includes("heading")));
+	assert.ok(scoreConversationalShape("Because:\n\n- one\n- two").some((f) => f.includes("list")));
+	assert.ok(scoreConversationalShape("a\n\nb\n\nc\n\nd").some((f) => f.includes("4 paragraphs")));
+});
+
+test("a quotation spanning several verses is matched against the verses stitched together", async () => {
+	const { evidenceTextFor } = await import("../src/lib/ai/answer-eval.ts");
+	// getPassage returns one object per verse, so a range exists in the
+	// evidence only as its parts; every accurate multi-verse quotation was
+	// reported as unsupported before they were joined.
+	const evidence = [
+		{ reference: "Ephesians 2:8", text: "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:" },
+		{ reference: "Ephesians 2:9", text: "Not of works, lest any man should boast." },
+	];
+	const stitched = evidenceTextFor(evidence, "Ephesians 2:8-9");
+	assert.ok(stitched);
+	assert.ok(stitched.includes("gift of god"));
+	assert.ok(stitched.includes("lest any man should boast"));
+	assert.equal(evidenceTextFor(evidence, "Ephesians 2:8"), evidence[0].text.toLowerCase().replace(/[^a-z0-9:;,.'" -]/g, "").trim().length ? evidenceTextFor(evidence, "Ephesians 2:8") : null);
+	assert.equal(evidenceTextFor(evidence, "Romans 8:28-29"), null);
+});

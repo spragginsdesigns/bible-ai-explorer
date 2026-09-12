@@ -20,6 +20,7 @@ import {
 	recoveryExhaustedError,
 	type ClassifiedChatError,
 } from "@/lib/chat/chatErrors";
+import { buildReceipts, type ChatReceipt } from "@/lib/chat/receipts";
 import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
@@ -75,6 +76,12 @@ export interface ChatMessage {
 	followUps?: string[];
 	noteActions?: NoteAction[];
 	crossActions?: CrossAction[];
+	/**
+	 * One line for everything the assistant saved this turn (docs/FEATURES.md,
+	 * Receipts). Carried alongside noteActions/crossActions until every client
+	 * renders receipts.
+	 */
+	receipts?: ChatReceipt[];
 	attachments?: ChatAttachmentDescriptor[];
 	/** Human-readable label for the tool currently running, e.g. "Searching the Scriptures". */
 	activity?: string;
@@ -313,6 +320,8 @@ export function toViewMessage(
 				? similarities.reduce((sum, s) => sum + s, 0) / similarities.length
 				: undefined;
 
+	const receipts = buildReceipts(message.parts);
+
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
@@ -323,6 +332,7 @@ export function toViewMessage(
 		...(followUps.length > 0 ? { followUps } : {}),
 		...(noteActions.length > 0 ? { noteActions } : {}),
 		...(crossActions.length > 0 ? { crossActions } : {}),
+		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),

@@ -3,14 +3,8 @@ import { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
-import { syncNoteEmbeddings } from "@/lib/note-embeddings";
-import {
-	type NoteProperties,
-	resolvePendingLinks,
-	syncNoteLinks,
-	validateAliases,
-	validateProperties,
-} from "@/lib/note-links";
+import { patchUserNote } from "@/lib/notes-io";
+import { type NoteProperties, validateAliases, validateProperties } from "@/lib/note-links";
 
 function isNotFound(err: unknown): boolean {
 	return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
@@ -59,49 +53,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 			properties = parsed.value;
 		}
 
-		// Single round trip: the userId guard lives in the update itself
-		// (extendedWhereUnique) instead of a separate findFirst.
-		const note = await prisma.note.update({
-			where: { id, userId },
-			data: {
-				...(body.title !== undefined && { title: body.title }),
-				...(body.content !== undefined && { content: body.content }),
-				...(body.htmlContent !== undefined && { htmlContent: body.htmlContent }),
-				...(body.plainText !== undefined && { plainText: body.plainText }),
-				...(aliases !== undefined && { aliases }),
-				...(properties !== undefined && { properties: properties ?? Prisma.DbNull }),
-				...(body.folderId !== undefined && { folderId: body.folderId }),
-				...(body.isPinned !== undefined && { isPinned: body.isPinned }),
-				...(body.wordCount !== undefined && { wordCount: body.wordCount }),
+		// The userId guard lives in the update itself, so a missing or foreign
+		// note surfaces as P2025 below; embeddings sync off the response path.
+		const note = await patchUserNote(
+			userId,
+			id,
+			{
+				title: body.title,
+				content: body.content,
+				htmlContent: body.htmlContent,
+				plainText: body.plainText,
+				aliases,
+				properties,
+				folderId: body.folderId,
+				isPinned: body.isPinned,
+				wordCount: body.wordCount,
 			},
-			include: { tags: { include: { tag: true } } },
-		});
-		// Awaited, unlike the embeddings below: the editor re-reads links right
-		// after a save, so a deferred sync would show the previous set.
-		if (body.plainText !== undefined) {
-			await syncNoteLinks({ userId, noteId: note.id, plainText: note.plainText });
-		}
-		// A rename or a new alias can only resolve links, never unresolve them.
-		if (body.title !== undefined || aliases !== undefined) {
-			await resolvePendingLinks({
-				userId,
-				noteId: note.id,
-				title: note.title,
-				aliases: note.aliases,
-			});
-		}
-		// Keep the semantic note index in step with content changes, off the
-		// response path — a failed sync only degrades AI note search.
-		if (body.title !== undefined || body.plainText !== undefined) {
-			waitUntil(
-				syncNoteEmbeddings({
-					userId,
-					noteId: note.id,
-					title: note.title,
-					plainText: note.plainText,
-				})
-			);
-		}
+			{ deferEmbeddings: waitUntil }
+		);
 		return NextResponse.json(note);
 	} catch (err) {
 		if (err instanceof Response) return err;

@@ -1,7 +1,8 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { countWords, htmlToPlainText, markdownToNoteHtml } from "@/lib/markdown";
 import { searchNoteEmbeddings, syncNoteEmbeddings } from "@/lib/note-embeddings";
-import { resolvePendingLinks, syncNoteLinks } from "@/lib/note-links";
+import { resolvePendingLinks, syncNoteLinks, validateProperties, type NoteProperties } from "@/lib/note-links";
 
 export interface AppendToNoteResult {
 	noteId: string;
@@ -246,22 +247,36 @@ export interface NoteContent {
 	truncated: boolean;
 	wordCount: number;
 	tags: string[];
+	/** Name of the folder the note is filed in, or null when unfiled. */
+	folder: string | null;
+	pinned: boolean;
+	/** Extra names a [[wikilink]] may resolve to besides the title. */
+	aliases: string[];
+	/** Obsidian-style properties, or null when the note has none (or they are malformed). */
+	properties: NoteProperties | null;
 	updatedAt: string;
 }
 
-/** Read a full note for the AI, including its body, so it can edit it faithfully. */
+/**
+ * Read a full note for the AI, including its body, so it can edit it
+ * faithfully, and how it is organized (folder, tags, pin, aliases,
+ * properties), so it can file it without guessing what is already there.
+ */
 export async function readUserNote(
 	userId: string,
 	noteId: string
 ): Promise<NoteContent> {
 	const note = await prisma.note.findFirst({
 		where: { id: noteId, userId },
-		include: { tags: { include: { tag: true } } },
+		include: { tags: { include: { tag: true } }, folder: { select: { name: true } } },
 	});
 	if (!note) {
 		throw new Error("Note not found.");
 	}
 	const html = note.htmlContent || note.plainText;
+	// The column is free JSON; only a shape the editor itself would accept is
+	// shown to the model, so a malformed row cannot masquerade as properties.
+	const properties = validateProperties(note.properties ?? null);
 	return {
 		noteId: note.id,
 		title: note.title,
@@ -269,7 +284,229 @@ export async function readUserNote(
 		truncated: html.length > MAX_READ_CONTENT_LENGTH,
 		wordCount: note.wordCount,
 		tags: note.tags.map((noteTag) => noteTag.tag.name),
+		folder: note.folder?.name ?? null,
+		pinned: note.isPinned,
+		aliases: note.aliases,
+		properties: properties.ok ? properties.value : null,
 		updatedAt: note.updatedAt.toISOString(),
+	};
+}
+
+/** Fields PATCH /api/notes/[id] may change, already validated by the caller. */
+export interface NotePatch {
+	title?: string;
+	content?: string;
+	htmlContent?: string;
+	plainText?: string;
+	aliases?: string[];
+	properties?: NoteProperties | null;
+	folderId?: string | null;
+	isPinned?: boolean;
+	wordCount?: number;
+}
+
+/**
+ * Apply a note patch and keep links and the semantic index in step. Shared by
+ * PATCH /api/notes/[id] and the organizeNote tool. Throws Prisma's P2025 when
+ * the note does not exist or belongs to someone else, because the userId guard
+ * lives in the update itself (extendedWhereUnique) instead of a separate read.
+ */
+export async function patchUserNote(
+	userId: string,
+	noteId: string,
+	patch: NotePatch,
+	options: {
+		/**
+		 * Hand the embedding sync to the platform instead of awaiting it; the
+		 * route passes waitUntil so a slow sync never holds the response.
+		 */
+		deferEmbeddings?: (task: Promise<void>) => void;
+	} = {}
+) {
+	const note = await prisma.note.update({
+		where: { id: noteId, userId },
+		data: {
+			...(patch.title !== undefined && { title: patch.title }),
+			...(patch.content !== undefined && { content: patch.content }),
+			...(patch.htmlContent !== undefined && { htmlContent: patch.htmlContent }),
+			...(patch.plainText !== undefined && { plainText: patch.plainText }),
+			...(patch.aliases !== undefined && { aliases: patch.aliases }),
+			...(patch.properties !== undefined && { properties: patch.properties ?? Prisma.DbNull }),
+			...(patch.folderId !== undefined && { folderId: patch.folderId }),
+			...(patch.isPinned !== undefined && { isPinned: patch.isPinned }),
+			...(patch.wordCount !== undefined && { wordCount: patch.wordCount }),
+		},
+		include: { tags: { include: { tag: true } } },
+	});
+	// Awaited, unlike the embeddings below: the editor re-reads links right
+	// after a save, so a deferred sync would show the previous set.
+	if (patch.plainText !== undefined) {
+		await syncNoteLinks({ userId, noteId: note.id, plainText: note.plainText });
+	}
+	// A rename or a new alias can only resolve links, never unresolve them.
+	if (patch.title !== undefined || patch.aliases !== undefined) {
+		await resolvePendingLinks({
+			userId,
+			noteId: note.id,
+			title: note.title,
+			aliases: note.aliases,
+		});
+	}
+	// A failed sync only degrades AI note search, so it may run off the
+	// response path when the caller allows it.
+	if (patch.title !== undefined || patch.plainText !== undefined) {
+		const sync = syncNoteEmbeddings({
+			userId,
+			noteId: note.id,
+			title: note.title,
+			plainText: note.plainText,
+		});
+		if (options.deferEmbeddings) options.deferEmbeddings(sync);
+		else await sync;
+	}
+	return note;
+}
+
+/** Same grey POST /api/tags gives a tag created without a colour. */
+export const DEFAULT_TAG_COLOR = "#6b7280";
+export const MAX_ORGANIZE_TAGS = 10;
+export const MAX_ORGANIZE_NAME_LENGTH = 60;
+
+export interface OrganizeNoteResult {
+	success: true;
+	noteId: string;
+	/** The note's title after the change, for the "Filed {noteTitle}" receipt. */
+	title: string;
+	folder: string | null;
+	tags: string[];
+	pinned: boolean;
+	/** True when folderName matched no folder and one was created. */
+	createdFolder: boolean;
+	/** Tag names that did not exist and were created. */
+	createdTags: string[];
+}
+
+/**
+ * File, tag, rename or pin one note for the assistant. A folder or tag is
+ * matched to the user's existing ones by name, case-insensitively, and created
+ * only when none matches, so "file it under romans" lands in "Romans". Tags are
+ * added, never removed: the model rarely holds the full tag list, and dropping
+ * a tag the user chose is worse than leaving one on.
+ */
+export async function organizeUserNote(options: {
+	userId: string;
+	noteId: string;
+	title?: string;
+	folderName?: string;
+	tags?: readonly string[];
+	pinned?: boolean;
+}): Promise<OrganizeNoteResult> {
+	const { userId, noteId } = options;
+	// Models send empty strings for fields they mean to omit.
+	const title = options.title?.trim().slice(0, 200) || undefined;
+	const folderName = options.folderName?.trim().slice(0, MAX_ORGANIZE_NAME_LENGTH) || undefined;
+	const tagNames: string[] = [];
+	for (const raw of options.tags ?? []) {
+		const name = raw.trim().replace(/^#/, "").slice(0, MAX_ORGANIZE_NAME_LENGTH);
+		if (name && !tagNames.some((seen) => seen.toLowerCase() === name.toLowerCase())) tagNames.push(name);
+	}
+	if (tagNames.length > MAX_ORGANIZE_TAGS) tagNames.length = MAX_ORGANIZE_TAGS;
+	if (!title && !folderName && tagNames.length === 0 && options.pinned === undefined) {
+		throw new Error("Nothing to change: pass a title, folderName, tags, or pinned.");
+	}
+
+	const owned = await prisma.note.findFirst({ where: { id: noteId, userId }, select: { id: true } });
+	if (!owned) {
+		throw new Error("Note not found.");
+	}
+
+	let folderId: string | undefined;
+	let createdFolder = false;
+	if (folderName) {
+		const folder = await prisma.folder.findFirst({
+			where: { userId, name: { equals: folderName, mode: "insensitive" } },
+			orderBy: { sortOrder: "asc" },
+			select: { id: true },
+		});
+		if (folder) {
+			folderId = folder.id;
+		} else {
+			// Appended last, the way POST /api/folders orders a new folder.
+			const count = await prisma.folder.count({ where: { userId } });
+			const created = await prisma.folder.create({
+				data: { userId, name: folderName, sortOrder: count },
+				select: { id: true },
+			});
+			folderId = created.id;
+			createdFolder = true;
+		}
+	}
+
+	const createdTags: string[] = [];
+	if (tagNames.length > 0) {
+		const existing = await prisma.tag.findMany({
+			where: {
+				userId,
+				OR: tagNames.map((name) => ({ name: { equals: name, mode: "insensitive" as const } })),
+			},
+			orderBy: { createdAt: "asc" },
+			select: { id: true, name: true },
+		});
+		const idByName = new Map<string, string>();
+		for (const tag of existing) {
+			const key = tag.name.toLowerCase();
+			if (!idByName.has(key)) idByName.set(key, tag.id);
+		}
+		const tagIds: string[] = [];
+		for (const name of tagNames) {
+			let tagId = idByName.get(name.toLowerCase());
+			if (!tagId) {
+				const created = await prisma.tag.create({
+					data: { userId, name, color: DEFAULT_TAG_COLOR },
+					select: { id: true },
+				});
+				tagId = created.id;
+				createdTags.push(name);
+			}
+			tagIds.push(tagId);
+		}
+		await prisma.noteTag.createMany({
+			data: tagIds.map((tagId) => ({ noteId, tagId })),
+			skipDuplicates: true,
+		});
+	}
+
+	const patch: NotePatch = {
+		...(title !== undefined && { title }),
+		...(folderId !== undefined && { folderId }),
+		...(options.pinned !== undefined && { isPinned: options.pinned }),
+	};
+	if (Object.keys(patch).length > 0) {
+		await patchUserNote(userId, noteId, patch);
+	}
+
+	const note = await prisma.note.findFirst({
+		where: { id: noteId, userId },
+		select: {
+			id: true,
+			title: true,
+			isPinned: true,
+			folder: { select: { name: true } },
+			tags: { select: { tag: { select: { name: true } } } },
+		},
+	});
+	if (!note) {
+		throw new Error("Note not found.");
+	}
+	return {
+		success: true,
+		noteId: note.id,
+		title: note.title,
+		folder: note.folder?.name ?? null,
+		tags: note.tags.map((noteTag) => noteTag.tag.name),
+		pinned: note.isPinned,
+		createdFolder,
+		createdTags,
 	};
 }
 
