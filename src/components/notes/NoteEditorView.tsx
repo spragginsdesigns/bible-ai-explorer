@@ -78,6 +78,13 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		[note.id, onUpdate]
 	);
 
+	const handleCopyMarkdown = useCallback(async (title: string) => {
+		if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+		const markdown = editorRef.current?.getMarkdown(title);
+		if (markdown === undefined) throw new Error("Editor unavailable");
+		await navigator.clipboard.writeText(markdown);
+	}, []);
+
 	return (
 		<div className="flex-1 flex flex-col min-h-0">
 			<NoteEditorTopBar
@@ -92,6 +99,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				onToggleTag={(tagId) => onToggleTag(note.id, tagId)}
 				onCreateTag={onCreateTag}
 				onDeleteTag={onDeleteTag}
+				onCopyMarkdown={handleCopyMarkdown}
 				aiPanelOpen={aiPanelOpen}
 				onToggleAIPanel={() => setAiPanelOpen(!aiPanelOpen)}
 			/>
