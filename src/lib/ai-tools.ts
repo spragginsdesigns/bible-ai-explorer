@@ -1000,7 +1000,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 	const addToNoteTool = tool({
 		description: context.defaultNoteId
 			? "Add content to the user's Bible study notes. Only call this when the user asks you to add, save, or write something to their note. ALWAYS omit noteId in this conversation - \"this note\" or \"my note\" means the note that is currently open, even if earlier tool results in this conversation mention another note id. Pass a noteId only when the user explicitly names a DIFFERENT note. Write the content as clean markdown (headings, lists, blockquotes for verses)."
-			: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. Write the content as clean markdown (headings, lists, blockquotes for verses).",
+			: "Add content to one of the user's Bible study notes, or create a new note. Only call this when the user asks you to add or save something to their notes. Use findNotes first when the user names an existing note; pass title (and no noteId) to create a new note. If the user already has a note with the same or nearly the same title, the content is appended to that note instead and the result has matchedExisting: true - then tell the user you added it to their existing note, by its title. If a call fails, retry with the same title rather than a new one. Write the content as clean markdown (headings, lists, blockquotes for verses).",
 		inputSchema: z.object({
 			markdown: z.string().describe("The content to append, as markdown."),
 			noteId: z
@@ -1023,6 +1023,9 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				markdown,
 				noteId: targetNoteId,
 				title,
+				// A retried or regenerated "save this" must land in the note the
+				// first attempt created, not in a near-duplicate beside it.
+				matchExistingTitle: true,
 			});
 		},
 	});

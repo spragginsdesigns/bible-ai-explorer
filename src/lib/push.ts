@@ -1,12 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import {
+	chatReplyRecipientWhere,
+	chunkByRecipients,
+	classifyTickets,
+	type ExpoTicket,
+	type PushRecipient,
+} from "@/lib/push-audience";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const EXPO_PUSH_CHUNK_SIZE = 100;
 
-/** One queued Expo push, carrying the row id so a dead token can be retired. */
+/**
+ * One logical notification for one person, fanned out to their devices in a
+ * single Expo message. Each recipient carries its row id so a dead token can
+ * be retired.
+ */
 export interface PendingPush {
-	tokenId: string;
-	to: string;
+	recipients: PushRecipient[];
 	title: string;
 	/** iOS-only second line; Android carries the same context inside `body`. */
 	subtitle?: string;
@@ -14,11 +24,6 @@ export interface PendingPush {
 	data: Record<string, unknown>;
 	/** Android notification channel the payload should land in. */
 	channelId: string;
-}
-
-interface ExpoPushTicket {
-	status: "ok" | "error";
-	details?: { error?: string };
 }
 
 /**
@@ -34,15 +39,18 @@ export async function sendExpoPushMessages(
 ): Promise<number> {
 	let deactivated = 0;
 
-	for (let start = 0; start < messages.length; start += EXPO_PUSH_CHUNK_SIZE) {
-		const chunk = messages.slice(start, start + EXPO_PUSH_CHUNK_SIZE);
+	for (const chunk of chunkByRecipients(messages, EXPO_PUSH_CHUNK_SIZE)) {
+		const recipients = chunk.flatMap((piece) => piece.recipients);
 		try {
 			const response = await fetch(EXPO_PUSH_URL, {
 				method: "POST",
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
 				body: JSON.stringify(
-					chunk.map((message) => ({
-						to: message.to,
+					chunk.map(({ message, recipients: pieceRecipients }) => ({
+						to:
+							pieceRecipients.length === 1
+								? pieceRecipients[0].to
+								: pieceRecipients.map((recipient) => recipient.to),
 						title: message.title,
 						...(message.subtitle ? { subtitle: message.subtitle } : {}),
 						body: message.body,
@@ -61,19 +69,17 @@ export async function sendExpoPushMessages(
 				continue;
 			}
 
-			const receipt = (await response.json()) as { data?: ExpoPushTicket[] };
+			const receipt = (await response.json()) as { data?: ExpoTicket[] };
 			const tickets = Array.isArray(receipt.data) ? receipt.data : [];
-			for (let index = 0; index < tickets.length; index++) {
-				const ticket = tickets[index];
-				if (ticket?.status !== "error") continue;
-				if (ticket.details?.error === "DeviceNotRegistered") {
-					await prisma.pushToken.delete({ where: { id: chunk[index].tokenId } }).catch(() => {});
-					deactivated += 1;
-				} else {
-					// Non-fatal ticket errors (InvalidCredentials, rate limits, …)
-					// must be visible in logs rather than vanishing silently.
-					console.error(`[${label}] Push ticket error:`, ticket.details ?? ticket);
-				}
+			const { retiredTokenIds, errors } = classifyTickets(recipients, tickets);
+			for (const tokenId of retiredTokenIds) {
+				await prisma.pushToken.delete({ where: { id: tokenId } }).catch(() => {});
+				deactivated += 1;
+			}
+			for (const ticketError of errors) {
+				// Non-fatal ticket errors (InvalidCredentials, rate limits, …)
+				// must be visible in logs rather than vanishing silently.
+				console.error(`[${label}] Push ticket error:`, ticketError);
 			}
 		} catch (error) {
 			console.error(`[${label}] Expo push send failed:`, error);
@@ -109,20 +115,21 @@ export async function notifyChatAnswerReady(options: {
 
 	try {
 		const tokens = await prisma.pushToken.findMany({
-			where: { userId: options.userId, enabled: true, chatReplies: true },
+			where: chatReplyRecipientWhere(options.userId),
 			select: { id: true, token: true },
 		});
 		if (tokens.length === 0) return;
 
 		await sendExpoPushMessages(
-			tokens.map((token) => ({
-				tokenId: token.id,
-				to: token.token,
-				title: "Your answer is ready",
-				body: preview,
-				data: { screen: "chat", conversationId: options.conversationId },
-				channelId: CHAT_REPLY_CHANNEL_ID,
-			})),
+			[
+				{
+					recipients: tokens.map((token) => ({ tokenId: token.id, to: token.token })),
+					title: "Your answer is ready",
+					body: preview,
+					data: { screen: "chat", conversationId: options.conversationId },
+					channelId: CHAT_REPLY_CHANNEL_ID,
+				},
+			],
 			"chat-reply-push"
 		);
 	} catch (error) {

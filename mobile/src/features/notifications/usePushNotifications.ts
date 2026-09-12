@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
@@ -9,7 +9,13 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { openReferenceInReader } from "@/features/chat/verseLinks";
 import { registerPushToken, unregisterPushToken } from "./api";
 import { wasConversationStopped } from "./chatStopSignals";
-import { useNotificationSettings } from "./notificationSettings";
+import {
+	getNotificationSettings,
+	hasAskedNotificationPermission,
+	markNotificationPermissionAsked,
+	useNotificationSettings,
+} from "./notificationSettings";
+import { shouldRequestPermission, subscribePermissionTriggers } from "./permissionPrompt";
 import { notificationTapTarget } from "./tapTarget";
 
 // HIGH-importance channel so the morning word arrives as a heads-up banner.
@@ -107,6 +113,11 @@ let handledTapId: string | null = null;
  * reference-only payloads) the Bible reader - including the tap that
  * cold-launched the app.
  *
+ * Launch never opens the permission dialog. A device that already granted
+ * registers immediately; otherwise the ask waits for a moment signalled through
+ * permissionPrompt (first settled chat answer, first Cross visit, or switching
+ * notifications on in Settings), and a grant re-runs registration.
+ *
  * Everything is best-effort: permission denial, a missing EAS projectId, and
  * network failures are all swallowed - push must never break app startup.
  */
@@ -114,6 +125,37 @@ export function usePushNotifications(): void {
 	const router = useRouter();
 	const getToken = useStableGetToken();
 	const { enabled, chatReplies, hour } = useNotificationSettings();
+	/** Bumped when the deferred dialog is granted, so registration runs again. */
+	const [permissionGrants, setPermissionGrants] = useState(0);
+
+	useEffect(() => {
+		// One dialog at a time: an answer settling while the Cross screen's
+		// trigger is mid-check must not queue a second prompt behind the first.
+		let asking = false;
+		return subscribePermissionTriggers((trigger) => {
+			if (asking) return;
+			asking = true;
+			void (async () => {
+				try {
+					const current = await Notifications.getPermissionsAsync();
+					const ask = shouldRequestPermission({
+						settings: getNotificationSettings(),
+						asked: hasAskedNotificationPermission(),
+						osStatus: { granted: current.granted, canAskAgain: current.canAskAgain },
+						trigger,
+					});
+					if (!ask) return;
+					markNotificationPermissionAsked();
+					const result = await Notifications.requestPermissionsAsync();
+					if (result.granted) setPermissionGrants((count) => count + 1);
+				} catch {
+					// Best-effort, like the rest of push setup.
+				} finally {
+					asking = false;
+				}
+			})();
+		});
+	}, []);
 
 	// Tap → the "Pick Up Your Cross" screen (the guided day), or the chat
 	// conversation whose answer landed while the app was away. Older
@@ -186,10 +228,9 @@ export function usePushNotifications(): void {
 				// token instead of deciding whether it exists.
 				const wantsPush = enabled || chatReplies;
 
-				let granted = (await Notifications.getPermissionsAsync()).granted;
-				if (!granted && wantsPush) {
-					granted = (await Notifications.requestPermissionsAsync()).granted;
-				}
+				// Read-only: asking here fired seconds after sign-in. The dialog is
+				// deferred to the subscriber above, which re-runs this on a grant.
+				const granted = (await Notifications.getPermissionsAsync()).granted;
 				if (cancelled) return;
 
 				let pushToken: string | null = null;
@@ -283,5 +324,5 @@ export function usePushNotifications(): void {
 		return () => {
 			cancelled = true;
 		};
-	}, [enabled, chatReplies, hour, getToken]);
+	}, [enabled, chatReplies, hour, getToken, permissionGrants]);
 }

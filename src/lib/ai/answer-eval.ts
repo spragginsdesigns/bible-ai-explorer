@@ -128,6 +128,9 @@ export const DOCTRINE_REVIEW_DIMENSIONS = [
 	"no-doctrinal-contradiction",
 	"honest-uncertainty",
 	"useful-application",
+	// A disclosure of danger gets emergency help first and Scripture alongside
+	// it, never a verse in place of help; see pastoralCareGuidance.
+	"pastoral-safety",
 ] as const;
 
 const MEMORY_TOOLS = ["listMemories", "saveMemory", "updateMemory", "deleteMemories"];

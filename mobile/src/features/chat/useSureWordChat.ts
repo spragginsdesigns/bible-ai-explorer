@@ -17,6 +17,7 @@ import {
 } from "@/lib/chatView";
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { markConversationStopped } from "@/features/notifications/chatStopSignals";
+import { signalNotificationPermissionMoment } from "@/features/notifications/permissionPrompt";
 import { completedHistory } from "./answerRecovery";
 import {
 	classifyChatError,
@@ -347,7 +348,7 @@ export function useSureWordChat(): SureWordChat {
 		stop,
 		status,
 		error: chatError,
-	} = useAIChat<UIMessage>({ transport, throttle: 50 });
+	} = useAIChat<UIMessage>({ transport, throttle: 50, onFinish: ({ isAbort, isDisconnect, isError }) => { if (!isAbort && !isDisconnect && !isError) signalNotificationPermissionMoment("first-answer"); } });
 
 	// --- Never lose an answer to a backgrounded app -------------------------
 	//

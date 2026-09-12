@@ -26,6 +26,7 @@ import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { signalNotificationPermissionMoment } from "@/features/notifications/permissionPrompt";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -144,6 +145,7 @@ export default function DailyCrossScreen() {
 	useFocusEffect(
 		useCallback(() => {
 			load();
+			signalNotificationPermissionMoment("cross-visit");
 			const subscription = AppState.addEventListener("change", (state) => {
 				if (state === "active") load();
 			});

@@ -4,6 +4,7 @@ import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily
 import { getOrCreateDailyCrossAudio } from "@/lib/daily-cross-audio";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
+import { planMorningAudience } from "@/lib/push-audience";
 
 // Loops over users with a per-user AI call and a push send; needs the full
 // function budget. Node runtime is required (Prisma + fs for the KJV corpus).
@@ -78,7 +79,9 @@ async function mapWithConcurrency<T, R>(
 /**
  * Hourly cron: every registered push token carries its timezone and preferred
  * local hour, so each run serves the users whose local time just reached their
- * notify hour. One verse per user per run, even with several devices.
+ * notify hour. One push per user per run, fanned out to their devices in a
+ * single Expo message - see planMorningAudience for how disagreeing devices
+ * and stale installs are resolved.
  */
 export async function GET(request: Request) {
 	const expected = process.env.CRON_SECRET;
@@ -87,23 +90,20 @@ export async function GET(request: Request) {
 	}
 
 	const now = new Date();
-	const enabledTokens = await prisma.pushToken.findMany({ where: { enabled: true } });
-	const dueTokens = enabledTokens.filter((token) => localHour(token.timezone, now) === token.notifyHour);
-
-	const tokensByUser = new Map<string, typeof dueTokens>();
-	for (const token of dueTokens) {
-		const list = tokensByUser.get(token.userId) ?? [];
-		list.push(token);
-		tokensByUser.set(token.userId, list);
-	}
-
-	const dueUsers = Array.from(tokensByUser.entries()).slice(0, MAX_USERS_PER_RUN);
+	const enabledTokens = await prisma.pushToken.findMany({
+		where: { enabled: true },
+		select: { id: true, userId: true, token: true, timezone: true, notifyHour: true, updatedAt: true },
+	});
+	// Due-ness is decided once per user (their newest device's timezone and
+	// hour), never per token: per-token due checks are how one account with a
+	// pile of stale install tokens received dozens of identical mornings.
+	const dueUsers = planMorningAudience(enabledTokens, now, localHour).slice(0, MAX_USERS_PER_RUN);
 	const generationSignal = AbortSignal.timeout(DAILY_CROSS_GENERATION_BUDGET_MS);
 	// Sol/xhigh selection plus Sol/high writing is intentionally more expensive
 	// than the old single utility call. Start the capped due cohort together and
 	// give every call one shared abort deadline; serial waves cannot fit inside
 	// the platform limit, while the hard 50-user cap bounds the provider burst.
-	const prepared = await mapWithConcurrency(dueUsers, DAILY_CROSS_CONCURRENCY, async ([userId, tokens]) => {
+	const prepared = await mapWithConcurrency(dueUsers, DAILY_CROSS_CONCURRENCY, async ({ userId, recipients }) => {
 		try {
 			// A day already generated on demand (the user opened the Daily Cross
 			// screen before their notify hour) is reused, not regenerated — one
@@ -122,22 +122,21 @@ export async function GET(request: Request) {
 			}
 
 			const reference = `${cross.book} ${cross.chapter}:${cross.verse}`;
-			const pushes = tokens.map((token): PendingPush => ({
-					tokenId: token.id,
-					to: token.token,
-					title: "✝ Pick up your cross",
-					// subtitle renders on iOS only; Android carries the reference
-					// inside the body instead.
-					subtitle: reference,
-					// Lead with the Scripture itself - the AI's why-line waits on
-					// the Daily Cross screen the tap opens.
-					body: `“${trayVerse(cross.text)}” - ${reference}`,
-					data: { screen: "cross", book: cross.book, chapter: cross.chapter, verse: cross.verse },
-					// The app's heads-up channel; clients older than 1.17.0 lack it
-					// and fall back to a default channel - the push still displays.
-					channelId: DAILY_CROSS_CHANNEL_ID,
-				}));
-			return { ok: true as const, pushes };
+			const push: PendingPush = {
+				recipients,
+				title: "✝ Pick up your cross",
+				// subtitle renders on iOS only; Android carries the reference
+				// inside the body instead.
+				subtitle: reference,
+				// Lead with the Scripture itself - the AI's why-line waits on
+				// the Daily Cross screen the tap opens.
+				body: `“${trayVerse(cross.text)}” - ${reference}`,
+				data: { screen: "cross", book: cross.book, chapter: cross.chapter, verse: cross.verse },
+				// The app's heads-up channel; clients older than 1.17.0 lack it
+				// and fall back to a default channel - the push still displays.
+				channelId: DAILY_CROSS_CHANNEL_ID,
+			};
+			return { ok: true as const, pushes: [push] };
 		} catch (error) {
 			console.error(`[cron/verse-of-day] Failed user ${userId}:`, error);
 			return { ok: false as const, pushes: [] as PendingPush[] };
@@ -155,7 +154,7 @@ export async function GET(request: Request) {
 	// clock - see MAX_AUDIO_PER_RUN / AUDIO_BUDGET_MS. Opening the day schedules
 	// anything this run has to defer.
 	const audio = { generated: 0, skipped: 0, failed: 0 };
-	for (const [userId] of dueUsers) {
+	for (const { userId } of dueUsers) {
 		if (audio.generated >= MAX_AUDIO_PER_RUN || Date.now() - now.getTime() > AUDIO_BUDGET_MS) {
 			audio.skipped += 1;
 			continue;

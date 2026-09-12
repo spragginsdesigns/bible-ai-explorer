@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { signalNotificationPermissionMoment } from "./permissionPrompt";
 
 /**
  * Verse-of-the-day notification preferences, modeled on settingsStore: a
@@ -30,6 +31,13 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 };
 
 let snapshot: NotificationSettings = DEFAULT_SETTINGS;
+/**
+ * When this install last showed the OS permission dialog (epoch ms). Kept out
+ * of NotificationSettings because it is device state, not a preference, but
+ * persisted in the same blob so it hydrates with the settings before the
+ * (app) layout mounts.
+ */
+let permissionAskedAt: number | null = null;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
@@ -40,7 +48,9 @@ function setSnapshot(next: NotificationSettings) {
 }
 
 function persist() {
-	AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)).catch(() => {});
+	AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...snapshot, permissionAskedAt })).catch(
+		() => {}
+	);
 }
 
 /** Load the saved preferences once at startup (root layout holds the splash). */
@@ -50,7 +60,11 @@ export async function hydrateNotificationSettings(): Promise<void> {
 	try {
 		const raw = await AsyncStorage.getItem(STORAGE_KEY);
 		if (!raw) return;
-		const parsed = JSON.parse(raw) as Partial<NotificationSettings>;
+		const parsed = JSON.parse(raw) as Partial<NotificationSettings> & {
+			permissionAskedAt?: unknown;
+		};
+		permissionAskedAt =
+			typeof parsed.permissionAskedAt === "number" ? parsed.permissionAskedAt : null;
 		snapshot = {
 			enabled: typeof parsed.enabled === "boolean" ? parsed.enabled : DEFAULT_SETTINGS.enabled,
 			hour:
@@ -67,12 +81,18 @@ export async function hydrateNotificationSettings(): Promise<void> {
 	}
 }
 
+// Settings is the only caller of these two setters, so switching one on is an
+// explicit request for notifications and asks for permission right away.
 export function setVerseOfDayEnabled(enabled: boolean) {
+	const switchedOn = enabled && !snapshot.enabled;
 	setSnapshot({ ...snapshot, enabled });
+	if (switchedOn) signalNotificationPermissionMoment("settings-enabled");
 }
 
 export function setChatRepliesEnabled(chatReplies: boolean) {
+	const switchedOn = chatReplies && !snapshot.chatReplies;
 	setSnapshot({ ...snapshot, chatReplies });
+	if (switchedOn) signalNotificationPermissionMoment("settings-enabled");
 }
 
 export function setVerseOfDayHour(hour: number) {
@@ -94,4 +114,14 @@ export function useNotificationSettings(): NotificationSettings {
 /** Non-reactive read of the current preferences, for one-shot request bodies. */
 export function getNotificationSettings(): NotificationSettings {
 	return snapshot;
+}
+
+export function hasAskedNotificationPermission(): boolean {
+	return permissionAskedAt !== null;
+}
+
+/** Recorded before the dialog opens, so two triggers racing cannot both ask. */
+export function markNotificationPermissionAsked(): void {
+	permissionAskedAt = Date.now();
+	persist();
 }

@@ -1407,3 +1407,131 @@ clears the stored default instead of filling it back in.
 
 Device-only by decision: theme, reader font step, and the notification hour and
 switch, which was already stored per push token and so already per device.
+
+---
+
+## Contracts for the 2026-09-12 plan (receipts, Learn a verse)
+
+Published first so the three lanes in
+[`product-changes-review-2026-09-12.html`](product-changes-review-2026-09-12.html)
+build against one shape. The backend lane owns the server half of both; the
+frontend lane renders receipts; the Windows/Learn lane builds the Learn screens.
+Change a contract here before changing it in code.
+
+### Receipts: one line for everything the assistant saves
+
+Every **state-changing** tool leaves exactly one receipt on the assistant
+message; **no read tool does** (reads keep the transient activity line). The
+parsers (`src/components/useChat.ts`, `mobile/src/lib/chatView.ts`,
+`macos/Shared/Chat/ChatViewMessage.swift`) derive receipts from persisted
+`tool-*` parts, so history replays the same line. Clients render all receipts of
+a turn as **one line** of tappable fragments joined by " · ", in the accent
+colour, under the answer. The existing `noteActions` and `crossActions` stay on
+the view model until every client renders receipts, then they are removed.
+
+```ts
+export type ChatReceiptKind =
+	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church";
+
+export type ChatReceiptTarget =
+	| { screen: "note"; noteId: string }
+	| { screen: "memories"; memoryId?: string }
+	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" }
+	| { screen: "plan" }
+	| { screen: "cross" }
+	| { screen: "settings"; section?: "memory" | "church" | "preferences" };
+
+export interface ChatReceipt {
+	/** Stable within the message: `${toolCallId}` or `${toolCallId}:${index}`. */
+	id: string;
+	kind: ChatReceiptKind;
+	/** The whole user-facing fragment, already worded: "Saved to Romans study". */
+	label: string;
+	target: ChatReceiptTarget;
+	/** Present only when the client can undo from the fragment. */
+	undo?: { type: "forgetMemory"; memoryId: string };
+}
+```
+
+| Tool part (output-available, success) | label | target | undo |
+|---|---|---|---|
+| `addToNote`, created | `Saved to {noteTitle}` | note | none |
+| `addToNote`, appended or `matchedExisting` | `Added to {noteTitle}` | note | none |
+| `updateNote` | `Updated {noteTitle}` | note | none |
+| `saveMemory` (one per saved memory) | `Remembered` | memories + memoryId | forgetMemory |
+| `updateMemory` | `Memory updated` | memories + memoryId | none |
+| `deleteMemories` | `Forgot {n} memor{y/ies}` | memories | none |
+| `setDailyCross` | `Today's cross: {reference}` | cross | none |
+| `startReadingPlan` | `Started {planTitle}` | plan | none |
+| `markReadingPlanDay` | `Marked day {n}` | plan | none |
+| `highlightVerse` (new) | `Marked {reference}` or `Marked {reference} as {colourName}` | chapter + verse | none |
+| `organizeNote` (new) | `Filed {noteTitle}` | note | none |
+| `updatePreferences` (new) | `{setting} {on/off/value}` | settings + preferences | none |
+| `setChurch` (new) | `Church set to {name}` | settings + church | none |
+| `data-memoryExtracted` (new data part, passive extraction) | `Remembered` | memories + memoryId | forgetMemory |
+
+Rules: a failed tool (`success: false` or an error state) leaves no receipt; the
+assistant says what failed in prose. `forgetMemory` calls
+`DELETE /api/memories/[id]` and, on success, replaces the fragment with
+`Forgotten` for the rest of the session. The cross receipt may keep its verse
+preview below the line, because that is content, not chrome. Passive
+extraction currently writes rows with no part at all; the backend lane adds the
+`data-memoryExtracted` part (persisted, not stripped by status narration) so a
+passive save and a tool save look identical.
+
+### Learn a verse
+
+One verse per screen, one job. The server stores the queue and the schedule;
+Android renders offline from the bundled KJV and syncs reviews when online.
+
+**Table** `VerseMemory` (backend lane migration): `id`, `userId`, `book` (1-66
+canonical order), `chapter`, `verse`, `translation` (`KJV` | `NKJV`), `source`
+(`sheet` | `highlight` | `chat`), `stage` (0-3), `intervalDays` (int, starts 0),
+`dueAt`, `lastReviewedAt?`, `knownAt?`, `createdAt`, `updatedAt`. Unique on
+`[userId, book, chapter, verse]` (one card per verse regardless of translation;
+re-adding in another translation updates `translation`). Index `[userId, dueAt]`.
+
+**Routes** (all Clerk-authenticated, all user-scoped):
+
+| Method and path | Body | Returns |
+|---|---|---|
+| `GET /api/learn/today` | none | `{ cards: LearnCard[] (at most 3, due first, then newest unstarted), knownCount, queueCount }` |
+| `POST /api/learn` | `{ book, chapter, verse, translation, source }` | `LearnCard` (idempotent; 200 for existing) |
+| `POST /api/learn/[id]/review` | `{ result: "again" \| "good" }` | `LearnCard` |
+| `DELETE /api/learn/[id]` | none | `{ ok: true }` |
+
+```ts
+export interface LearnCard {
+	id: string;
+	book: number; chapter: number; verse: number;
+	translation: "KJV" | "NKJV";
+	reference: string;        // "John 3:16"
+	text: string;             // server-resolved; Android may prefer the bundled text
+	stage: 0 | 1 | 2 | 3;
+	intervalDays: number;
+	dueAt: string;            // ISO
+	knownAt: string | null;
+}
+```
+
+**The ladder** (same on every client). Stage 0: read the whole verse. Stage 1:
+hide every word whose index `% 4 === 3`. Stage 2: hide every word whose index
+`% 2 === 1`. Stage 3: show only the reference and blanks for every word. Words
+are split on whitespace; leading and trailing punctuation stays visible next to
+the blank, so "world:" becomes "____:". Tap a blank to reveal it. Both clients
+implement `maskVerse(text, stage)` as a pure function with the same fixture
+test (John 3:16 KJV at each stage).
+
+**Scheduling** (server, pure `src/lib/learn-schedule.ts`). `good` at stages 0-2
+advances the stage and makes the card due again **the same day** (it stays in
+today's three). `good` at stage 3 sets `intervalDays` to `max(1, intervalDays *
+2)` (first pass 1, then 2, 4, 8, 16, 32), stays at stage 3, and sets `dueAt =
+today + intervalDays` in the user's timezone. `again` at any stage sets stage to
+1, `intervalDays` to 0 and `dueAt` to today. `knownAt` is set the first time
+`intervalDays >= 16` and never cleared; `knownCount` counts rows with `knownAt`.
+No streaks, hearts, levels or badges; the only number a client shows is
+"verses you know".
+
+**Entry points.** "Learn this verse" on the verse sheet and on a highlight
+(`source: sheet | highlight`); a `learnVerse` chat tool and a chat quiz are the
+backend lane's, added later and counted against the tool budget.

@@ -109,6 +109,8 @@ export default function AppLayout() {
 	// and keep the persisted caches tied to the account that owns them.
 	usePreferencesSync();
 	// Verse-of-the-day: push-token registration + notification tap deep links.
+	// Never prompts on mount; the permission dialog waits for a first settled
+	// answer or Cross visit (see features/notifications/permissionPrompt).
 	usePushNotifications();
 	// Play in-app updates: background-download a newer build and self-install.
 	useInAppUpdates();

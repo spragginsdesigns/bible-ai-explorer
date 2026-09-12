@@ -52,7 +52,11 @@ import { chatSystemPrompt } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
-import { logChatStepMetric } from "@/lib/ai/chat-metrics";
+import {
+	logChatOutcomeMetric,
+	logChatStepMetric,
+	type ChatOutcomeExit,
+} from "@/lib/ai/chat-metrics";
 export const maxDuration = 120;
 
 const MAX_REQUEST_MESSAGES = 24;
@@ -306,13 +310,15 @@ async function persistUserMessage(options: {
 	conversationId: string;
 	userMessage: SureWordUIMessage;
 	origin: DailyCrossMessageOrigin | null;
-}): Promise<void> {
+}): Promise<Date> {
 	const userText = extractText(options.userMessage);
 	const ids = attachmentIds(options.userMessage);
-	await prisma.$transaction(async (tx) => {
+	// The conversation's creation time is returned only so the outcome metric
+	// can bucket first turns apart from returning threads.
+	return prisma.$transaction(async (tx) => {
 		const conversation = await tx.conversation.findFirst({
 			where: { id: options.conversationId, userId: options.userId },
-			select: { id: true },
+			select: { id: true, createdAt: true },
 		});
 		if (!conversation) throw new UserFacingError("Conversation not found.", "conversation_not_found");
 
@@ -363,6 +369,7 @@ async function persistUserMessage(options: {
 				throw new UserFacingError("An attachment could not be linked to the message.");
 			}
 		}
+		return conversation.createdAt;
 	});
 }
 
@@ -387,14 +394,17 @@ async function persistAssistantResponse(options: {
 	modelId: string | null;
 	/** Non-default run options this turn ran with. Empty for an ordinary turn. */
 	run: AppliedRunOptions;
-}): Promise<void> {
-	if (!hasPersistableContent(options.responseMessage)) return;
+}): Promise<ChatOutcomeExit> {
+	if (!hasPersistableContent(options.responseMessage)) return "empty_response";
+	// Set once the assistant row is written, so a memory-extraction failure
+	// afterwards is not miscounted as an unanswered turn.
+	let persisted = false;
 	try {
 		const conversation = await prisma.conversation.findFirst({
 			where: { id: options.conversationId, userId: options.userId },
 			select: { id: true },
 		});
-		if (!conversation) return;
+		if (!conversation) return "conversation_missing";
 
 		const userText = extractText(options.userMessage);
 		const assistantText = extractAssistantText(options.responseMessage);
@@ -431,6 +441,7 @@ async function persistAssistantResponse(options: {
 				metadata: metadataJson,
 			},
 		});
+		persisted = true;
 
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			await extractAndStoreMemories({ userId: options.userId, userText });
@@ -438,6 +449,7 @@ async function persistAssistantResponse(options: {
 	} catch (error) {
 		console.error("Failed to persist assistant response:", error);
 	}
+	return persisted ? "persisted" : "persist_error";
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -553,18 +565,58 @@ export async function POST(req: Request): Promise<Response> {
 		let resolvedModelId: string | null = null;
 		let resolvedRun: AppliedRunOptions = {};
 
+		// Outcome metric state. A user turn can be saved and then never answered
+		// (setup throw, provider error, empty output, persistence failure), and
+		// nothing else records which exit it took. Filled in as the turn runs
+		// and read once in onEnd; only set when persistUserMessage succeeded,
+		// because a turn with no saved user message is not an unanswered one.
+		let conversationCreatedAt: Date | null = null;
+		let metricProvider: string | null = null;
+		let metricModelId: string | null = null;
+		let metricStepCount = 0;
+		let metricLastStepFinishReason: string | null = null;
+		let metricError: unknown = null;
+		const recordTurnError = (error: unknown): void => {
+			// First error wins: a provider error reaches the stream-level onError
+			// again as a plain Error rebuilt from its client text, which would
+			// otherwise overwrite the real class name.
+			if (metricError === null) metricError = error;
+		};
+
 		const responseMessageId = generateMessageId();
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
 			onError: (error) => {
+				recordTurnError(error);
 				if (!(error instanceof UserFacingError)) {
 					console.error("ask-question stream error:", error);
 				}
 				return streamErrorText(error);
 			},
-			onEnd: ({ responseMessage, isAborted }) => {
-				if (isAborted || !conversationId) return;
+			onEnd: ({ responseMessage, isAborted, finishReason }) => {
+				if (!conversationId) return;
+				const userTurnSaved = conversationCreatedAt !== null;
+				const emitOutcome = (exit: ChatOutcomeExit): void => {
+					if (!userTurnSaved) return;
+					logChatOutcomeMetric({
+						surface: "ask-question",
+						provider: metricProvider,
+						modelId: metricModelId,
+						conversationCreatedAt,
+						stepCount: metricStepCount,
+						finishReason: finishReason ?? metricLastStepFinishReason,
+						error: metricError,
+						exit,
+						answerHasText: responseMessage.parts.some(
+							(part) => part.type === "text" && part.text.trim().length > 0,
+						),
+					});
+				};
+				if (isAborted) {
+					emitOutcome("aborted");
+					return;
+				}
 				// `req.signal` aborts when the client's connection drops - the app
 				// being backgrounded, the screen locking, the network changing.
 				// The answer still finished here (see consumeSseStream below), so
@@ -578,7 +630,8 @@ export async function POST(req: Request): Promise<Response> {
 						responseMessage,
 						modelId: resolvedModelId,
 						run: resolvedRun,
-					}).then(() => {
+					}).then((exit) => {
+						emitOutcome(exit);
 						if (!clientLeft) return;
 						return notifyChatAnswerReady({
 							userId,
@@ -596,7 +649,7 @@ export async function POST(req: Request): Promise<Response> {
 				const messages = await hydrateTrustedAttachments(validatedMessages, userId);
 
 				if (conversationId) {
-					await persistUserMessage({
+					conversationCreatedAt = await persistUserMessage({
 						userId,
 						conversationId,
 						userMessage: lastMessage,
@@ -636,6 +689,8 @@ export async function POST(req: Request): Promise<Response> {
 					},
 				});
 				resolvedModelId = definition.id;
+				metricProvider = definition.provider;
+				metricModelId = definition.providerModelId;
 				if (attachmentFallbackFrom) {
 					writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
 				}
@@ -716,7 +771,16 @@ export async function POST(req: Request): Promise<Response> {
 					stopWhen: isStepCount(8),
 					providerOptions: promptCache.providerOptions,
 					experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
+					// Supplying onError replaces streamText's default console.error, so
+					// the log line is kept here; the real error object is only
+					// visible at this layer, before the UI stream flattens it to text.
+					onError: ({ error }) => {
+						recordTurnError(error);
+						console.error(error);
+					},
 					onStepEnd: (event) => {
+						metricStepCount = event.stepNumber + 1;
+						metricLastStepFinishReason = event.finishReason;
 						logChatStepMetric(
 							{
 								surface: "ask-question",

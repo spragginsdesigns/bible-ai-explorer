@@ -108,7 +108,7 @@ tab selection). Same behavior, different plumbing.
 | Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | ✅ scroll + flash |  |
 | Tavily web-results card | ✅ | ✅ | ✅ | ✅ |  |
 | Follow-up chips (max 2, `[FOLLOWUP]` parsing) | ✅ | ✅ | ✅ | ✅ |  |
-| Note-action receipt cards | ✅ | ✅ | ✅ | ✅ tap opens the note in the editor |  |
+| Note-action receipt cards | ✅ | ✅ | 🟡 card renders; tap shows "Notes arrive in a later phase" (`macos/SureWord/Chat/Views/ChatView.swift:154`) | ✅ tap opens the note in the editor | Corrected 2026-09-12: macOS was marked ✅ in error |
 | App-aware assistant (knows SureWord's screens, settings, commands and features) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | Shared `appKnowledge` block in `src/utils/systemPrompt.ts`, written from this file; also carried by the per-note AI panel |
 | Daily-cross tools in chat (read today's word; replace it only after the user confirms) | ✅ 1.15.0 | ✅ | ✅ 1.2.0 | ✅ | `getDailyCross` / `setDailyCross` in `src/lib/ai-tools.ts`; confirmation is enforced in `dailyCrossGuidance`, not by a UI gate |
 | Cross-references tool (`getCrossReferences`: curated refs + exact text per verse) | ✅ | ✅ | ✅ | ✅ | Server-side tool over the bundled openbible.info set (`src/data/crossrefs/`, CC-BY); all clients get it through the shared backend |

@@ -8,11 +8,100 @@ export interface AppendToNoteResult {
 	noteTitle: string;
 	appendedHtml: string;
 	created: boolean;
+	/**
+	 * True when a new-note request was redirected into an existing note whose
+	 * title matched the requested one (see findMatchingNoteTitle).
+	 */
+	matchedExisting: boolean;
 }
 
 const MAX_APPEND_MARKDOWN_LENGTH = 8000;
 const MAX_REWRITE_MARKDOWN_LENGTH = 24000;
 const MAX_READ_CONTENT_LENGTH = 24000;
+
+/** How many of the user's most recently updated notes a title match considers. */
+const TITLE_MATCH_CANDIDATE_LIMIT = 500;
+const TITLE_MATCH_MIN_JACCARD = 0.75;
+const PLACEHOLDER_TITLES = new Set(["untitled note", "untitled", "note from sureword", "new note"]);
+const TITLE_STOPWORDS = new Set([
+	"a", "an", "the", "and", "or", "of", "on", "in", "to", "for", "my", "our",
+	"about", "from", "with", "note",
+]);
+
+/** Lowercase, strip accents and punctuation, collapse whitespace. */
+export function normalizeNoteTitle(title: string): string {
+	return title
+		.normalize("NFKD")
+		.replace(/\p{M}/gu, "")
+		.toLowerCase()
+		.replace(/&/g, " and ")
+		.replace(/[^\p{L}\p{N}]+/gu, " ")
+		.trim();
+}
+
+/** Meaningful title words, with a naive plural fold so "Books" meets "Book". */
+export function noteTitleTokens(title: string): Set<string> {
+	const tokens = new Set<string>();
+	for (const word of normalizeNoteTitle(title).split(" ")) {
+		if (!word) continue;
+		const folded = word.length > 3 && /[^su]s$/.test(word) && !word.endsWith("is")
+			? word.slice(0, -1)
+			: word;
+		if (!TITLE_STOPWORDS.has(folded)) tokens.add(folded);
+	}
+	return tokens;
+}
+
+/**
+ * Similarity of two note titles in [0, 1]: 1 for the same title after
+ * normalization, otherwise the Jaccard overlap of their meaningful words.
+ * Titles whose numbers differ ("Week 1" vs "Week 2", "Romans 8" vs "Romans 9")
+ * always score 0, because a series of notes must never collapse into one.
+ */
+export function noteTitleSimilarity(a: string, b: string): number {
+	const normalizedA = normalizeNoteTitle(a);
+	if (!normalizedA) return 0;
+	// Placeholder titles name no subject: matching them would pour a new study
+	// into whichever empty "Untitled Note" happened to be newest.
+	if (PLACEHOLDER_TITLES.has(normalizedA) || PLACEHOLDER_TITLES.has(normalizeNoteTitle(b))) return 0;
+	if (normalizedA === normalizeNoteTitle(b)) return 1;
+
+	const tokensA = noteTitleTokens(a);
+	const tokensB = noteTitleTokens(b);
+	if (tokensA.size === 0 || tokensB.size === 0) return 0;
+
+	const numbers = (tokens: Set<string>) =>
+		[...tokens].filter((token) => /\d/.test(token)).sort().join(" ");
+	if (numbers(tokensA) !== numbers(tokensB)) return 0;
+
+	let shared = 0;
+	for (const token of tokensA) if (tokensB.has(token)) shared += 1;
+	return shared / (tokensA.size + tokensB.size - shared);
+}
+
+/**
+ * The existing note a requested new-note title most likely duplicates, or
+ * null. Deliberately conservative: appending into the wrong note is worse
+ * than a near-duplicate, so only an identical normalized title or a word
+ * overlap of at least 75% counts. Ties go to the earlier candidate, so pass
+ * candidates most recently updated first.
+ */
+export function findMatchingNoteTitle<T extends { title: string }>(
+	title: string,
+	candidates: readonly T[]
+): T | null {
+	let best: T | null = null;
+	let bestScore = 0;
+	for (const candidate of candidates) {
+		const score = noteTitleSimilarity(title, candidate.title);
+		if (score >= TITLE_MATCH_MIN_JACCARD && score > bestScore) {
+			best = candidate;
+			bestScore = score;
+			if (score === 1) break;
+		}
+	}
+	return best;
+}
 
 /**
  * Append AI-authored markdown to an existing note, or create a new note when
@@ -31,6 +120,13 @@ export async function appendMarkdownToNote(options: {
 	 * /api/notes/append route passes a larger one for whole chat answers.
 	 */
 	maxLength?: number;
+	/**
+	 * When creating a new titled note, first look for an existing note of this
+	 * user with the same or a near-identical title and append there instead.
+	 * The AI tool opts in: a retried or regenerated save otherwise leaves the
+	 * same content in two differently titled notes.
+	 */
+	matchExistingTitle?: boolean;
 }): Promise<AppendToNoteResult> {
 	const markdown = options.markdown.slice(
 		0,
@@ -42,9 +138,16 @@ export async function appendMarkdownToNote(options: {
 	}
 	const appendedPlainText = htmlToPlainText(appendedHtml);
 
-	if (options.noteId) {
+	const requestedTitle = options.title?.trim();
+	const matchedNote =
+		!options.noteId && requestedTitle && options.matchExistingTitle
+			? await findNoteMatchingTitle(options.userId, requestedTitle)
+			: null;
+	const targetNoteId = options.noteId || matchedNote?.id;
+
+	if (targetNoteId) {
 		const note = await prisma.note.findFirst({
-			where: { id: options.noteId, userId: options.userId },
+			where: { id: targetNoteId, userId: options.userId },
 		});
 		if (!note) {
 			throw new Error("Note not found.");
@@ -79,10 +182,11 @@ export async function appendMarkdownToNote(options: {
 			noteTitle: note.title,
 			appendedHtml,
 			created: false,
+			matchedExisting: matchedNote !== null,
 		};
 	}
 
-	const title = options.title?.trim() || "Note from SureWord";
+	const title = requestedTitle || "Note from SureWord";
 	const note = await prisma.note.create({
 		data: {
 			userId: options.userId,
@@ -116,7 +220,22 @@ export async function appendMarkdownToNote(options: {
 		noteTitle: note.title,
 		appendedHtml,
 		created: true,
+		matchedExisting: false,
 	};
+}
+
+/** The user's existing note whose title a new-note request duplicates, if any. */
+async function findNoteMatchingTitle(
+	userId: string,
+	title: string
+): Promise<{ id: string; title: string } | null> {
+	const candidates = await prisma.note.findMany({
+		where: { userId },
+		orderBy: { updatedAt: "desc" },
+		take: TITLE_MATCH_CANDIDATE_LIMIT,
+		select: { id: true, title: true },
+	});
+	return findMatchingNoteTitle(title, candidates);
 }
 
 export interface NoteContent {
