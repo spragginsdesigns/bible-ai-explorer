@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.57.1 (versionCode 59) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Keep a lifetime reading log, including rereads and partial passages. Log physical Bible reading and correct entries in chat.
+- Reading stays saved through offline restarts and syncs when you reconnect. History loading now times out cleanly if your connection is unavailable.
+- Includes the latest offline Learn, note templates, highlight labels, and related-passage improvements.
+
+**Dev notes:** Combines the Windows study integration with the reviewed reading journal and encrypted offline account restoration. Supersedes the version 58 candidate with bounded history requests, retaining queued readings and account ownership through process death and expired tokens. Release artifacts must be rebuilt from this version's final commit; prior version 58 artifacts are not reused.
+
 ## 1.57.0 (versionCode 58) - 2026-09-12 - internal
 
 **What's new (Play):**
