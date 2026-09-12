@@ -39,6 +39,7 @@ import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
+import { presetLabelForHex, useHighlightLabels } from "@/features/bible/highlightLabels";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -349,6 +350,9 @@ export default function BibleChapterScreen() {
 
 	const reference = book ? `${book.name} ${chapter}` : "";
 	const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
+	// B6: the user's names for the highlight colours, re-read when a verse is
+	// tapped so a Settings rename shows the next time the sheet opens.
+	const highlightLabels = useHighlightLabels(actionVerse?.number);
 
 	const closeSheet = useCallback(() => {
 		setActionVerse(null);
@@ -706,7 +710,7 @@ export default function BibleChapterScreen() {
 							<Pressable
 								key={preset.color}
 								accessibilityRole="button"
-								accessibilityLabel={`Highlight ${preset.name}`}
+								accessibilityLabel={`Highlight ${highlightLabels[preset.name.toLowerCase()] ?? preset.name}`}
 								accessibilityState={{ selected: actionVerseColor === preset.color }}
 								onPress={() => applyHighlight(preset.color)}
 								style={[
@@ -737,6 +741,11 @@ export default function BibleChapterScreen() {
 							<Text style={styles.swatchCustomLabel}>+</Text>
 						</Pressable>
 					</View>
+					{actionVerseColor && presetLabelForHex(highlightLabels, actionVerseColor) ? (
+						<Text style={styles.highlightCaption}>
+							Marked as “{presetLabelForHex(highlightLabels, actionVerseColor)}”
+						</Text>
+					) : null}
 					{actionVerseColor ? (
 						<SheetRow
 							icon="color-fill-outline"
@@ -963,6 +972,12 @@ const createStyles = (c: Colors) =>
 			letterSpacing: 0.8,
 			paddingHorizontal: spacing.sm,
 			marginBottom: spacing.sm,
+		},
+		highlightCaption: {
+			color: c.textMuted,
+			...typography.meta,
+			paddingHorizontal: spacing.sm,
+			paddingTop: spacing.xs,
 		},
 		swatchRow: {
 			flexDirection: "row",

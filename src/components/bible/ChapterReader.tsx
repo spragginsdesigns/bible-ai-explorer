@@ -13,6 +13,10 @@ import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
+import {
+	highlightLabelForHex,
+	useHighlightLabels,
+} from "@/components/settings/HighlightLabelsSection";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const FONT_STEP_KEY = "bible-reader-font-step";
@@ -73,6 +77,8 @@ const ChapterReader: React.FC = () => {
     start: startInsight,
     reset: resetInsight,
   } = useVerseInsight();
+  // B6: the user's names for the highlight colours ("Marked as a promise").
+  const highlightLabels = useHighlightLabels();
   const {
     highlights: verseHighlights,
     setColor: setHighlightColor,
@@ -613,11 +619,13 @@ const ChapterReader: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2.5">
                   {HIGHLIGHT_COLORS.map((preset) => {
                     const active = actionColor?.toLowerCase() === preset.hex.toLowerCase();
+                    const label = highlightLabels[preset.name.toLowerCase()] ?? preset.name;
                     return (
                       <button
                         key={preset.hex}
                         type="button"
-                        aria-label={`Highlight ${preset.name}`}
+                        aria-label={`Highlight ${label}`}
+                        title={label}
                         aria-pressed={active}
                         onClick={() => setHighlightColor(actionVerse.number, preset.hex)}
                         className={`h-9 w-9 rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105 ${
@@ -645,6 +653,11 @@ const ChapterReader: React.FC = () => {
                     />
                   </label>
                 </div>
+                {actionColor && highlightLabelForHex(highlightLabels, actionColor) ? (
+                  <p className="pt-2 text-metadata text-neutral-500 dark:text-neutral-400">
+                    Marked as &ldquo;{highlightLabelForHex(highlightLabels, actionColor)}&rdquo;
+                  </p>
+                ) : null}
               </div>
 
               {actionColor && (
