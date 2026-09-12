@@ -13,7 +13,7 @@ import { Screen } from "@/components/ui";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
-import { apiJson } from "@/lib/api";
+import { fetchReadingHistory } from "@/features/reading/readingLogApi";
 import { type ReadingEntry } from "@/features/reading/readingLogCore";
 import {
 	retryBlockedReadings,
@@ -60,9 +60,10 @@ export default function ReadingHistoryScreen() {
 			setBusy(true);
 			setError(null);
 			try {
-				const page = await apiJson<HistoryPage>(
+				const page = await fetchReadingHistory<HistoryPage>(
 					getToken,
-					`/api/reading-log?limit=30${next ? "&cursor=" + encodeURIComponent(next) : ""}`
+					`/api/reading-log?limit=30${next ? "&cursor=" + encodeURIComponent(next) : ""}`,
+					() => !!account && id === request.current && owner.current === account
 				);
 				if (id !== request.current || owner.current !== account) return;
 				setEntries((old) =>

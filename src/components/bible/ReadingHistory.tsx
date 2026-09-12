@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { bookByOrder } from "@/lib/bible/books";
 import { retryBlockedReadings, useReadingLogStatus } from "./readingLogClient";
 import type { ReadingEntry } from "../../../mobile/src/features/reading/readingLogCore";
+import { withReadingDeadline } from "../../../mobile/src/features/reading/readingDeadline";
 type Entry = Omit<ReadingEntry, "occurredAt"> & { occurredAt: string | null };
 interface Page {
 	entries: Entry[];
@@ -33,26 +34,36 @@ export default function ReadingHistory() {
 	const load = useCallback(async (next?: string) => {
 		const id = ++sequence.current;
 		const owner = auth.current.userId;
-		if (!owner) return;
+		if (!owner) {
+			setBusy(false);
+			setError(null);
+			return;
+		}
 		setBusy(true);
 		setError(null);
 		try {
-			const token = await auth.current.getToken();
-			if (auth.current.userId !== owner || !token) return;
-			const res = await fetch(
-				`/api/reading-log?limit=30${next ? "&cursor=" + encodeURIComponent(next) : ""}`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-					credentials: "omit",
-					signal: AbortSignal.timeout(15_000),
-				}
-			);
-			if (!res.ok)
-				throw new Error(
-					"Reading history could not be loaded. Check your connection and try again."
+			const page = await withReadingDeadline(async (live, signal) => {
+				const current = () =>
+					live() && sequence.current === id && auth.current.userId === owner;
+				if (!current()) return null;
+				const token = await auth.current.getToken();
+				if (!current()) return null;
+				if (!token) throw new Error("Sign in again to load your reading history.");
+				const res = await fetch(
+					`/api/reading-log?limit=30${next ? "&cursor=" + encodeURIComponent(next) : ""}`,
+					{
+						headers: { Authorization: `Bearer ${token}` },
+						credentials: "omit",
+						signal,
+					}
 				);
-			const page: Page = await res.json();
-			if (sequence.current !== id || auth.current.userId !== owner) return;
+				if (!res.ok)
+					throw new Error(
+						"Reading history could not be loaded. Check your connection and try again."
+					);
+				return (await res.json()) as Page;
+			});
+			if (!page || sequence.current !== id || auth.current.userId !== owner) return;
 			setEntries((old) =>
 				next
 					? [
@@ -66,9 +77,11 @@ export default function ReadingHistory() {
 			setCursor(page.nextCursor);
 			setStats(page.stats);
 		} catch (e) {
-			if (sequence.current === id)
+			if (sequence.current === id && auth.current.userId === owner)
 				setError(
-					e instanceof Error
+					e && typeof e === "object" && "isTimeout" in e
+						? "Reading history timed out. Check your connection and try again."
+						: e instanceof Error
 						? e.message
 						: "Reading history could not be loaded."
 				);
