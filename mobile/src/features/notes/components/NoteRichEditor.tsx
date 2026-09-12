@@ -23,6 +23,7 @@ import type { Colors } from "@/theme";
 import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
 import { createNoteSaveController, type NoteSaveController } from "../noteSaveController";
+import { noteDocumentToMarkdown } from "../noteMarkdownExport";
 import { GlyphButton } from "./primitives";
 
 const AUTOSAVE_DELAY = 1500;
@@ -218,6 +219,7 @@ export interface NoteRichEditorHandle {
 	/** Cancel the pending debounce and persist immediately. */
 	/** Returns false when the PATCH failed, leaving the note dirty for retry. */
 	flush: () => Promise<boolean>;
+ getMarkdown: (title: string) => Promise<string>;
 	/** Re-seed the document, e.g. after the AI appended to this note. */
 	replaceContent: (html: string) => void;
 	/** Write text at the caret, restoring focus first. */
@@ -314,6 +316,11 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 			ref,
 			() => ({
 				flush,
+                getMarkdown: async (title: string) => {
+                    const document = await withTimeout(editorRef.current.getJSON(), BRIDGE_TIMEOUT);
+                    if (document === null) throw new Error("Could not read the editor. Please try again.");
+                    return noteDocumentToMarkdown(title, document);
+                },
 				replaceContent: (html: string) => {
 					if (timerRef.current) {
 						clearTimeout(timerRef.current);

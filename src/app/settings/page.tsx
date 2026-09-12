@@ -42,6 +42,7 @@ import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
 import ChurchSection from "@/components/settings/ChurchSection";
+import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -270,6 +271,8 @@ export default function SettingsPage() {
 							</p>
 						</div>
 					</section>
+
+					<HighlightLabelsSection key={user?.id ?? "signed-out"} />
 
 					{/* Memory */}
 					<section id="memory" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">

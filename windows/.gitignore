@@ -1,0 +1,13 @@
+# PWABuilder output and local signing/install artifacts
+*.zip
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.cer
+*.pfx
+*.pem
+*.appinstaller
+install.ps1
+readme.html
+utils/

@@ -334,6 +334,7 @@ function PlanHeader({
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const daysBehind = plan.status === "active" ? Math.max(0, plan.todayDay - plan.currentDay) : 0;
 
 	return (
 		<View style={styles.planHeader}>
@@ -348,6 +349,11 @@ function PlanHeader({
 					<Text style={styles.summaryCaption}>{progressCaption(plan)}</Text>
 				</View>
 				<Text style={styles.streak}>🔥 {streakLabel(plan.streak)}</Text>
+				{daysBehind > 0 ? (
+					<Text style={styles.behind}>
+						{daysBehind} {daysBehind === 1 ? "day" : "days"} behind
+					</Text>
+				) : null}
 			</GlassCard>
 
 			{plan.status === "completed" ? (
@@ -479,6 +485,7 @@ const createStyles = (c: Colors) =>
 		},
 		summaryCaption: { flex: 1, color: c.textFaint, ...typography.meta },
 		streak: { color: c.textMuted, ...typography.meta, fontWeight: "600" },
+		behind: { color: c.textMuted, ...typography.meta, fontWeight: "600" },
 
 		doneCard: { padding: spacing.lg, gap: spacing.sm, borderColor: c.accentBorder },
 		doneTitle: { color: c.accent, ...typography.body, fontWeight: "700" },

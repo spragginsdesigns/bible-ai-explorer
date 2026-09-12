@@ -1,6 +1,62 @@
 import type { TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
 
+export const HIGHLIGHT_LABEL_IDS = [
+	"yellow",
+	"orange",
+	"red",
+	"pink",
+	"purple",
+	"blue",
+	"teal",
+	"green",
+] as const;
+
+export type HighlightLabelId = (typeof HIGHLIGHT_LABEL_IDS)[number];
+export type HighlightLabels = Partial<Record<HighlightLabelId, string>>;
+
+export const MAX_HIGHLIGHT_LABEL_LENGTH = 24;
+export const EMPTY_HIGHLIGHT_LABELS: HighlightLabels = Object.freeze({});
+
+function isHighlightLabelId(value: string): value is HighlightLabelId {
+	return (HIGHLIGHT_LABEL_IDS as readonly string[]).includes(value);
+}
+
+export function normalizeHighlightLabels(value: unknown): HighlightLabels {
+	const record = asRecord(value);
+	if (!record) return EMPTY_HIGHLIGHT_LABELS;
+	const labels: HighlightLabels = {};
+	for (const [id, raw] of Object.entries(record)) {
+		if (!isHighlightLabelId(id) || typeof raw !== "string") continue;
+		const label = raw.trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
+		if (label) labels[id] = label;
+	}
+	return Object.keys(labels).length > 0 ? labels : EMPTY_HIGHLIGHT_LABELS;
+}
+
+export function mergeHighlightLabelEdits(
+	base: HighlightLabels,
+	edits: Partial<Record<HighlightLabelId, string>>
+): HighlightLabels {
+	const merged: HighlightLabels = { ...normalizeHighlightLabels(base) };
+	for (const id of HIGHLIGHT_LABEL_IDS) {
+		if (!Object.prototype.hasOwnProperty.call(edits, id)) continue;
+		const label = (edits[id] ?? "").trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
+		if (label) merged[id] = label;
+		else delete merged[id];
+	}
+	return normalizeHighlightLabels(merged);
+}
+
+export function highlightLabelFor(
+	labels: HighlightLabels,
+	colorName: string | null | undefined
+): string | null {
+	if (!colorName) return null;
+	const id = colorName.toLowerCase();
+	return isHighlightLabelId(id) ? labels[id] ?? null : null;
+}
+
 /**
  * Pure rules for the account preferences document served by
  * `GET/PATCH /api/preferences`. The server row is the single source of truth
@@ -30,6 +86,8 @@ export interface PreferencesDocument {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	/** null only when this build is talking to an older response with no field. */
+	highlightLabels: HighlightLabels | null;
 	chat: PreferencesChat;
 }
 
@@ -40,6 +98,7 @@ export interface PreferencesPatch {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	highlightLabels?: HighlightLabels;
 	chat?: Partial<PreferencesChat>;
 }
 
@@ -48,6 +107,7 @@ export interface SyncedSettingsFields {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	highlightLabels: HighlightLabels | null;
 	chatModelId: string | null;
 	chatEffort: string | null;
 	chatSpeed: string | null;
@@ -64,6 +124,7 @@ export const DEFAULT_SYNCED_SETTINGS: SyncedSettingsFields = {
 	translation: "KJV",
 	parchment: true,
 	listenRate: DEFAULT_LISTEN_RATE,
+	highlightLabels: null,
 	chatModelId: null,
 	chatEffort: null,
 	chatSpeed: null,
@@ -150,6 +211,10 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 		// Normalized rather than trusted: a rate this build no longer offers
 		// would leave the Listen speed chip outside its own cycle.
 		listenRate: normalizeListenRate(doc.listenRate),
+		highlightLabels:
+			Object.prototype.hasOwnProperty.call(doc, "highlightLabels") && asRecord(doc.highlightLabels)
+				? normalizeHighlightLabels(doc.highlightLabels)
+				: null,
 		chat: {
 			modelId: asNullableString(chat.modelId),
 			effort: asNullableString(chat.effort),
@@ -166,6 +231,7 @@ export function settingsFromDocument(doc: PreferencesDocument): SyncedSettingsFi
 		translation: doc.translation,
 		parchment: doc.parchment,
 		listenRate: doc.listenRate,
+		highlightLabels: doc.highlightLabels,
 		chatModelId: doc.chat.modelId,
 		chatEffort: doc.chat.effort,
 		chatSpeed: doc.chat.speed,

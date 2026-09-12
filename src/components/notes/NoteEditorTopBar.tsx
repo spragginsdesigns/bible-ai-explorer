@@ -44,6 +44,9 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const [showTagMenu, setShowTagMenu] = useState(false);
 	const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">("idle");
 	const titleRef = useRef<HTMLInputElement>(null);
+ const currentNote = useRef(note.id);
+ currentNote.current = note.id;
+ const copyBusy = useRef(false);
 	const folderMenuRef = useRef<HTMLDivElement>(null);
 	const tagMenuRef = useRef<HTMLDivElement>(null);
 
@@ -82,13 +85,17 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const currentFolder = folders.find((f) => f.id === note.folderId);
 	const noteTags = tags.filter((t) => note.tagIds.includes(t.id));
 	const copyMarkdown = async () => {
-		if (!onCopyMarkdown) return;
+		if (!onCopyMarkdown || copyBusy.current) return;
+        copyBusy.current = true;
+        const owner = note.id;
 		setCopyStatus("idle");
 		try {
 			await onCopyMarkdown(titleValue.trim() || "Untitled Note");
-			setCopyStatus("success");
+			if (currentNote.current === owner) setCopyStatus("success");
 		} catch {
-			setCopyStatus("error");
+			if (currentNote.current === owner) setCopyStatus("error");
+        } finally {
+            copyBusy.current = false;
 		}
 	};
 

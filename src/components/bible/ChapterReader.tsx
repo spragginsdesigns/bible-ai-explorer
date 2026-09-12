@@ -8,8 +8,16 @@ import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
 import { readParchmentPref, readTranslationPref } from "@/lib/preferences";
-import { setTranslationPreference, usePreference } from "@/lib/preferencesSync";
+import {
+  highlightLabelFor,
+  setTranslationPreference,
+  useHighlightLabels,
+  usePreference,
+} from "@/lib/preferencesSync";
 import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
+import { useGlobalShortcuts } from "@/lib/shortcuts";
+import { AddLearnButton } from "@/components/learn/AddLearnButton";
+import CrossReferencesSection from "./CrossReferencesSection";
 import OriginalLanguageSection from "./OriginalLanguageSection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
@@ -40,6 +48,7 @@ const ChapterReader: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  useGlobalShortcuts();
 
   const order = Number.parseInt(searchParams.get("book") ?? "1", 10);
   const chapter = Number.parseInt(searchParams.get("chapter") ?? "1", 10);
@@ -57,6 +66,7 @@ const ChapterReader: React.FC = () => {
     ? routeTranslation
     : accountTranslation;
   const parchment = usePreference(readParchmentPref, true);
+  const highlightLabels = useHighlightLabels();
   const [verses, setVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,6 +200,10 @@ const ChapterReader: React.FC = () => {
   const reference = book ? `${book.name} ${chapter}` : "";
   const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
   const actionColor = actionVerse ? verseHighlights.get(actionVerse.number) : undefined;
+  const actionPreset = actionColor
+    ? HIGHLIGHT_COLORS.find((preset) => preset.hex.toLowerCase() === actionColor.toLowerCase())
+    : undefined;
+  const actionHighlightLabel = highlightLabelFor(highlightLabels, actionPreset?.name);
 
   const closePanel = useCallback(() => {
     setActionVerse(null);
@@ -596,6 +610,13 @@ const ChapterReader: React.FC = () => {
                 verse={actionVerse.number}
               />
 
+              <CrossReferencesSection
+                key={`${actionReference}:${translation}`}
+                reference={actionReference}
+                translation={translation}
+                onNavigate={closePanel}
+              />
+
               <button
                 type="button"
                 onClick={() => askAI({ reference: actionReference, text: actionVerse.text })}
@@ -613,11 +634,13 @@ const ChapterReader: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2.5">
                   {HIGHLIGHT_COLORS.map((preset) => {
                     const active = actionColor?.toLowerCase() === preset.hex.toLowerCase();
+                    const label = highlightLabelFor(highlightLabels, preset.name) ?? preset.name;
                     return (
                       <button
                         key={preset.hex}
                         type="button"
-                        aria-label={`Highlight ${preset.name}`}
+                        aria-label={`Highlight ${label}`}
+                        title={label}
                         aria-pressed={active}
                         onClick={() => setHighlightColor(actionVerse.number, preset.hex)}
                         className={`h-9 w-9 rounded-full border border-black/10 dark:border-white/15 transition-transform hover:scale-105 ${
@@ -645,6 +668,11 @@ const ChapterReader: React.FC = () => {
                     />
                   </label>
                 </div>
+                {actionHighlightLabel && (
+                  <p className="pt-2 text-metadata text-neutral-500 dark:text-neutral-400">
+                    Marked as &ldquo;{actionHighlightLabel}&rdquo;
+                  </p>
+                )}
               </div>
 
               {actionColor && (
@@ -657,6 +685,14 @@ const ChapterReader: React.FC = () => {
                   Remove highlight
                 </button>
               )}
+
+              <AddLearnButton
+                book={order}
+                chapter={chapter}
+                verse={actionVerse.number}
+                translation={translation}
+                source={actionColor ? "highlight" : "sheet"}
+              />
 
               {[
                 {

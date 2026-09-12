@@ -10,7 +10,7 @@ export function fetchNote(getToken: GetToken, id: string) {
 	return apiJson<NoteApiResponse>(getToken, `/api/notes/${id}`);
 }
 
-export function createNote(getToken: GetToken, body: { title: string; folderId: string | null }) {
+export function createNote(getToken: GetToken, body: { title: string; folderId: string | null; content?: string; htmlContent?: string; plainText?: string; wordCount?: number }) {
 	return apiJson<NoteApiResponse>(getToken, "/api/notes", { method: "POST", body });
 }
 

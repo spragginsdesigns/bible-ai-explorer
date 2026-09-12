@@ -1,3 +1,5 @@
+import { useAuth } from "@clerk/expo";
+import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
@@ -32,11 +34,16 @@ import { formatWikilink } from "@/features/notes/wikilinks";
 /** Height of the parent layout's floating glass tab bar, which overlays this screen. */
 
 export default function NoteEditorScreen() {
-	const router = useRouter();
-	const { colors } = useTheme();
-	const styles = useThemedStyles(createStyles);
-	const params = useLocalSearchParams<{ id: string | string[] }>();
-	const noteId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
+ const { userId, isLoaded } = useAuth();
+ const params = useLocalSearchParams<{ id: string | string[] }>();
+ const noteId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
+ if (!isLoaded || !userId) return <Screen><Text>Sign in to open your notes.</Text></Screen>;
+ return <NoteEditorSession key={`${userId}:${noteId}`} noteId={noteId} />;
+}
+function NoteEditorSession({ noteId }: { noteId: string }) {
+ const router = useRouter();
+ const { colors } = useTheme();
+ const styles = useThemedStyles(createStyles);
 
 	const data = useNoteEditorData(noteId);
 	const editorRef = useRef<NoteRichEditorHandle>(null);
@@ -46,6 +53,18 @@ export default function NoteEditorScreen() {
 	const [wikilinkOpen, setWikilinkOpen] = useState(false);
 
 	const bottomInset = useTabBarSpace();
+ const activeNoteRef = useRef(noteId);
+ const mounted = useRef(true);
+ useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+ activeNoteRef.current = noteId;
+ const copyMarkdown = useCallback(async (title: string) => {
+  const owner = noteId;
+  if (!editorRef.current) throw new Error("The editor is not ready. Please try again.");
+  const markdown = await editorRef.current.getMarkdown(title);
+  if (!mounted.current || activeNoteRef.current !== owner) throw new Error("The note changed. Please try again.");
+  const copied = await Clipboard.setStringAsync(markdown);
+  if (!copied) throw new Error("Could not write to the clipboard.");
+ }, [noteId]);
 
 	const goBack = useCallback(async () => {
 		const flushed = await editorRef.current?.flush();
@@ -125,6 +144,9 @@ export default function NoteEditorScreen() {
 				behavior="padding"
 			>
 				<NoteEditorTopBar
+                    key={noteId}
+                    noteId={noteId}
+                    onCopyMarkdown={copyMarkdown}
 					title={note?.title ?? ""}
 					isPinned={note?.isPinned ?? false}
 					isSaving={data.isSaving}
@@ -145,6 +167,7 @@ export default function NoteEditorScreen() {
 					</View>
 				) : note ? (
 					<NoteRichEditor
+                        key={noteId}
 						ref={editorRef}
 						initialHtml={initialHtml}
 						onSave={data.save}

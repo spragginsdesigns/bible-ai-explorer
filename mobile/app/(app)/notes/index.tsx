@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/expo";
 import React, { useCallback, useState } from "react";
 import {
 	ActivityIndicator,
@@ -16,6 +17,7 @@ import { Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { CreateItemSheet } from "@/features/notes/components/CreateItemSheet";
+import type { NoteTemplateId, NoteTemplateSeed } from "@/features/notes/components/CreateItemSheet";
 import { NoteActionSheet } from "@/features/notes/components/NoteActionSheet";
 import { NoteCard } from "@/features/notes/components/NoteCard";
 import { Chip, GlyphButton } from "@/features/notes/components/primitives";
@@ -25,13 +27,18 @@ import { SORT_LABELS, nextSort, useNotesLibrary } from "@/features/notes/useNote
 const TAB_BAR_CLEARANCE = 100;
 
 export default function NotesListScreen() {
+ const { userId, isLoaded } = useAuth();
+ if (!isLoaded || !userId) return <Screen><Text>Sign in to open your notes.</Text></Screen>;
+ return <NotesListSession key={userId} />;
+}
+function NotesListSession() {
 	const router = useRouter();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const library = useNotesLibrary();
 
 	const [actionNote, setActionNote] = useState<Note | null>(null);
-	const [createKind, setCreateKind] = useState<"folder" | "tag" | null>(null);
+	const [createKind, setCreateKind] = useState<"folder" | "tag" | "note" | null>(null);
 	const [isCreatingNote, setIsCreatingNote] = useState(false);
 
 	// Silently pick up edits made on the editor screen when coming back to the
@@ -43,14 +50,19 @@ export default function NotesListScreen() {
 		}, [library.revalidate])
 	);
 
-	const handleNewNote = async () => {
+	// B7: "+" opens the template sheet; the choice below creates the note.
+	const handleNewNote = () => {
+		setCreateKind("note");
+	};
+
+	const handleTemplatePick = async (_id: NoteTemplateId, seed: NoteTemplateSeed | null) => {
 		if (isCreatingNote) return;
 		setIsCreatingNote(true);
 		try {
-			const note = await library.createNote();
-			router.push(`/notes/${note.id}`);
-		} catch {
-			// The error banner from the library hook covers the failure.
+			const note = await library.createNote(seed);
+			return () => router.push(`/notes/${note.id}`);
+		} catch (error) {
+            throw error;
 		} finally {
 			setIsCreatingNote(false);
 		}
@@ -63,7 +75,7 @@ export default function NotesListScreen() {
 				<GlyphButton
 					icon="add"
 					accessibilityLabel="New note"
-					onPress={() => void handleNewNote()}
+					onPress={handleNewNote}
 					disabled={isCreatingNote}
 					active
 					size={40}
@@ -215,6 +227,7 @@ export default function NotesListScreen() {
 					if (createKind === "tag") void library.createTag(name, color);
 					else void library.createFolder(name);
 				}}
+				onSelectTemplate={handleTemplatePick}
 			/>
 		</Screen>
 	);

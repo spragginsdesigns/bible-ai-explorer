@@ -121,3 +121,59 @@ test("every learn route calls getAuthUser before anything else", () => {
 		);
 	}
 });
+
+const validReview = {
+ result: "good", operationId: "fca6bc76-c0f4-402d-bda9-765a4f2295eb", expectedRevision: 0,
+ reviewedAt: "2025-09-12T18:00:00.000Z", timezone: "America/Los_Angeles",
+};
+class ReviewConflict extends Error {
+ constructor(code, currentCard = null) { super(code); this.code = code; this.currentCard = currentCard; }
+}
+function reviewRoute(overrides = {}) {
+ const calls = [];
+ const handlers = loadModule("../src/app/api/learn/[id]/review/route.ts", ["POST"], {
+  NextResponse, z, getAuthUser: async () => "alice", LearnReviewConflict: ReviewConflict,
+  reviewCardById: async (...args) => { calls.push(args); return {id: "card", revision: 1}; },
+  reviewCardOperation: async (...args) => { calls.push(args); return {operationId: args[2].operationId, appliedRevision:1, replayed:false, currentCard:{id:"card",revision:1}}; },
+  ...overrides,
+ });
+ return {calls, send: (body) => handlers.POST({json:async()=>body},{params:Promise.resolve({id:"card"})})};
+}
+test("review route retains legacy response and uses modern acknowledgement",async()=>{
+ const route=reviewRoute();
+ assert.deepEqual((await route.send({result:"good"})).body,{id:"card",revision:1});
+ const modern=await route.send(validReview);assert.equal(modern.body.appliedRevision,1);
+ assert.deepEqual(route.calls[1],["alice","card",validReview]);
+});
+test("partial, impossible, future and invalid-zone modern reviews never reach database",async()=>{
+ const route=reviewRoute();
+ const invalid=[
+  {result:"good",operationId:validReview.operationId},
+  {...validReview,operationId:"not-uuid"}, {...validReview,expectedRevision:-1},
+  {...validReview,reviewedAt:"2025-02-30T12:00:00.000Z"},
+  {...validReview,reviewedAt:"9999-01-01T12:00:00.000Z"},
+  {...validReview,reviewedAt:"0001-01-01T12:00:00.000Z"},
+  {...validReview,timezone:"+02:00"}, {...validReview,timezone:"Not/AZone"}, {...validReview,timezone:""},
+ ];
+ for(const body of invalid) assert.equal((await route.send(body)).status,400,JSON.stringify(body));
+ assert.equal(route.calls.length,0);
+});
+test("conflicts and deleted receipt acknowledgement preserve exact public shapes",async()=>{
+ const currentCard={id:"card",revision:3};
+ const conflict=reviewRoute({reviewCardOperation:async()=>{throw new ReviewConflict("revision_conflict",currentCard)}});
+ assert.deepEqual(await conflict.send(validReview),{status:409,body:{error:"revision_conflict",code:"revision_conflict",currentCard}});
+ const replay=reviewRoute({reviewCardOperation:async()=>({operationId:validReview.operationId,appliedRevision:1,replayed:true,currentCard:null})});
+ assert.equal((await replay.send(validReview)).body.currentCard,null);
+});
+test("add distinguishes invalid coordinates from unavailable requested translation",async()=>{
+ let writes=0;
+ const {POST}=loadModule("../src/app/api/learn/route.ts",["POST"],{
+  NextResponse,z,getAuthUser:async()=>"alice",
+  learnVerseText:async(translation,_book,_chapter,verse)=>translation==="KJV"&&verse===16?"KJV text":undefined,
+  addCard:async()=>{writes++;throw new Error("should not write")},
+ });
+ const body={book:43,chapter:3,verse:16,translation:"NKJV",source:"sheet"};
+ assert.equal((await POST({json:async()=>body})).status,503);
+ assert.equal((await POST({json:async()=>({...body,verse:199})})).status,400);
+ assert.equal(writes,0);
+});

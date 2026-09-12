@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@clerk/expo";
 import { AppState } from "react-native";
 import * as api from "./api";
+import type { NoteTemplateSeed } from "./noteTemplates";
 import {
 	addFolderToCache,
 	addTagToCache,
@@ -40,6 +42,9 @@ export function nextSort(sort: NoteSort): NoteSort {
  */
 export function useNotesLibrary() {
 	const getToken = useStableGetToken();
+ const { userId } = useAuth();
+ const currentOwner = useRef(userId);
+ currentOwner.current = userId;
 	const { notes, folders, tags, hydrated } = useNotesSnapshot();
 
 	const [hasLoaded, setHasLoaded] = useState(false);
@@ -134,13 +139,21 @@ export function useNotesLibrary() {
 		});
 	}, [notes, searchQuery, activeFolderId, activeTagId, sortBy]);
 
-	const createNote = useCallback(async (): Promise<Note> => {
-		const created = toNote(
-			await api.createNote(getToken, { title: "Untitled Note", folderId: activeFolderId })
-		);
+	const createNote = useCallback(async (seed?: NoteTemplateSeed | null): Promise<Note> => {
+		const owner = userId;
+        if (!owner) throw new Error("Sign in before creating a note.");
+        const ownerToken: typeof getToken = options => {
+            if (!mounted.current || currentOwner.current !== owner) throw new Error("Your account changed. Reopen your notes.");
+            return getToken(options);
+        };
+        const created = toNote(await api.createNote(ownerToken, {
+			title: seed?.title ?? "Untitled Note", folderId: activeFolderId,
+			...(seed ? { content: seed.content, htmlContent: seed.html, plainText: seed.plainText, wordCount: seed.wordCount } : {}),
+		}));
+		if (!mounted.current || currentOwner.current !== owner) throw new Error("Your account changed. Reopen your notes.");
 		upsertNoteInCache({ ...created, hasBody: true });
 		return created;
-	}, [getToken, activeFolderId]);
+	}, [getToken, activeFolderId, userId]);
 
 	const deleteNote = useCallback(
 		async (id: string) => {

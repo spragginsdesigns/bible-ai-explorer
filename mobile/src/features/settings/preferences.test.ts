@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
 	PREFERENCES_REFRESH_INTERVAL_MS,
 	DEFAULT_SYNCED_SETTINGS,
+	HIGHLIGHT_LABEL_IDS,
 	cacheDiscardFor,
+	highlightLabelFor,
+	mergeHighlightLabelEdits,
+	normalizeHighlightLabels,
 	overridesToPush,
 	parsePreferencesDocument,
 	settingsFromDocument,
@@ -19,6 +23,7 @@ const FULL_DOCUMENT = {
 	translation: "NKJV",
 	parchment: false,
 	listenRate: 1.5,
+	highlightLabels: { yellow: "Promises", blue: "Prayer" },
 	chat: {
 		modelId: "openai/gpt-5.6-luna",
 		effort: "high",
@@ -37,6 +42,7 @@ describe("parsePreferencesDocument", () => {
 			translation: "NKJV",
 			parchment: false,
 			listenRate: 1.5,
+			highlightLabels: { yellow: "Promises", blue: "Prayer" },
 			chat: {
 				modelId: "openai/gpt-5.6-luna",
 				effort: "high",
@@ -55,6 +61,7 @@ describe("parsePreferencesDocument", () => {
 			translation: "KJV",
 			parchment: true,
 			listenRate: 1,
+			highlightLabels: null,
 			chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 		});
 	});
@@ -79,6 +86,11 @@ describe("parsePreferencesDocument", () => {
 		});
 	});
 
+	it("does not treat a malformed highlight map as a loaded empty map", () => {
+		expect(parsePreferencesDocument({ highlightLabels: null })?.highlightLabels).toBeNull();
+		expect(parsePreferencesDocument({ highlightLabels: [] })?.highlightLabels).toBeNull();
+	});
+
 	it("rejects anything that is not an object", () => {
 		expect(parsePreferencesDocument(null)).toBeNull();
 		expect(parsePreferencesDocument("<html>error</html>")).toBeNull();
@@ -93,6 +105,7 @@ describe("settingsFromDocument", () => {
 			translation: "NKJV",
 			parchment: false,
 			listenRate: 1.5,
+			highlightLabels: { yellow: "Promises", blue: "Prayer" },
 			chatModelId: "openai/gpt-5.6-luna",
 			chatEffort: "high",
 			chatSpeed: "fast",
@@ -104,6 +117,48 @@ describe("settingsFromDocument", () => {
 	it("carries no theme mode, which stays a device setting", () => {
 		const doc = parsePreferencesDocument({}) as PreferencesDocument;
 		expect(Object.keys(settingsFromDocument(doc))).not.toContain("themeMode");
+	});
+});
+
+describe("highlight label contract", () => {
+	it("keeps the mobile palette pinned to the eight server ids", () => {
+		expect(HIGHLIGHT_LABEL_IDS).toEqual([
+			"yellow",
+			"orange",
+			"red",
+			"pink",
+			"purple",
+			"blue",
+			"teal",
+			"green",
+		]);
+	});
+
+	it("normalizes stored labels without letting malformed entries poison the map", () => {
+		expect(
+			normalizeHighlightLabels({
+				yellow: "  Promises  ",
+				blue: "123456789012345678901234more",
+				green: "   ",
+				orange: 7,
+				chartreuse: "Unknown",
+			})
+		).toEqual({ yellow: "Promises", blue: "123456789012345678901234" });
+	});
+
+	it("merges touched rows into the latest whole map and clears an empty row", () => {
+		expect(
+			mergeHighlightLabelEdits(
+				{ yellow: "Promises", blue: "Prayer", green: "Growth" },
+				{ yellow: "  Grace  ", blue: "" }
+			)
+		).toEqual({ yellow: "Grace", green: "Growth" });
+	});
+
+	it("resolves a custom label case-insensitively and otherwise uses the hue fallback", () => {
+		expect(highlightLabelFor({ purple: "Prophecy" }, "Purple")).toBe("Prophecy");
+		expect(highlightLabelFor({ purple: "Prophecy" }, "Green")).toBeNull();
+		expect(highlightLabelFor({ purple: "Prophecy" }, null)).toBeNull();
 	});
 });
 

@@ -1,14 +1,56 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/lib/bible/books";
+import type { TranslationId } from "@/lib/bible/translations";
 import { planCardSubtitle } from "@/components/plan/planView";
 import { useReadingPlan } from "@/components/plan/useReadingPlan";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
+
+/**
+ * The slice of GET /api/reading-events the continue-reading row needs.
+ */
+interface LastRead {
+  book: string;
+  chapter: number;
+  translation: TranslationId;
+  readAt: string;
+}
+
+interface LastReadState {
+  userId: string;
+  value: LastRead | null;
+}
+
+const BOOK_BY_NAME = new Map(BOOKS.map((book) => [book.name, book]));
+
+function parseLastRead(value: unknown): LastRead | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.book !== "string" ||
+    typeof candidate.chapter !== "number" ||
+    !Number.isInteger(candidate.chapter) ||
+    (candidate.translation !== "KJV" && candidate.translation !== "NKJV") ||
+    typeof candidate.readAt !== "string"
+  ) {
+    return null;
+  }
+  const book = BOOK_BY_NAME.get(candidate.book);
+  const chapter = candidate.chapter as number;
+  if (!book || chapter < 1 || chapter > book.chapters) return null;
+  return {
+    book: book.name,
+    chapter,
+    translation: candidate.translation,
+    readAt: candidate.readAt,
+  };
+}
 
 type Testament = "OT" | "NT";
 
@@ -55,9 +97,60 @@ function buildSections(): TestamentSection[] {
  */
 const BibleBookPicker: React.FC = () => {
   const [collapsed, setCollapsed] = useState(sessionCollapsed);
+  const { isLoaded, isSignedIn, userId } = useAuth();
   // Read-only here: the card shows where the plan stands and hands the user on
   // to the plan page, which owns every action.
   const { plan } = useReadingPlan();
+
+  // B8: "Continue reading: Judges 7" from the reading-history route (A6).
+  // Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
+  const [lastRead, setLastRead] = useState<LastReadState | null>(null);
+  const requestId = useRef(0);
+
+  const loadLastRead = useCallback(async () => {
+    const id = ++requestId.current;
+    if (!isLoaded || !isSignedIn || !userId) {
+      setLastRead(null);
+      return;
+    }
+    try {
+      const response = await fetch("/api/reading-events", { cache: "no-store" });
+      if (!response.ok) throw new Error(`Reading history request failed: ${response.status}`);
+      const data: unknown = await response.json();
+      const value =
+        data && typeof data === "object" && "lastRead" in data
+          ? parseLastRead((data as Record<string, unknown>).lastRead)
+          : null;
+      if (requestId.current === id) setLastRead({ userId, value });
+    } catch {
+      if (requestId.current === id) setLastRead({ userId, value: null });
+    }
+  }, [isLoaded, isSignedIn, userId]);
+
+  useEffect(() => {
+    void loadLastRead();
+    if (!isSignedIn) return;
+    const onWake = () => {
+      if (document.visibilityState === "visible") void loadLastRead();
+    };
+    window.addEventListener("focus", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      requestId.current += 1;
+      window.removeEventListener("focus", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
+  }, [isSignedIn, loadLastRead]);
+
+  const continueTarget = useMemo(() => {
+    if (!userId || lastRead?.userId !== userId || !lastRead.value) return null;
+    const book = BOOK_BY_NAME.get(lastRead.value.book);
+    if (!book) return null;
+    return {
+      label: `${book.name} ${lastRead.value.chapter}`,
+      href: `/bible/chapter?book=${book.order}&chapter=${lastRead.value.chapter}&translation=${lastRead.value.translation}`,
+    };
+  }, [lastRead, userId]);
 
   const toggleTestament = (testament: Testament) => {
     setCollapsed((prev) => {
@@ -85,6 +178,41 @@ const BibleBookPicker: React.FC = () => {
             Search the Bible
           </Link>
         </div>
+
+        {/* Continue reading - the last valid chapter this account opened. */}
+        {continueTarget && (
+          <Link
+            href={continueTarget.href}
+            className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+          >
+            <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">→</span>
+            <span className="flex-1">
+              <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+                Continue reading
+              </span>
+              <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+                {continueTarget.label}
+              </span>
+            </span>
+            <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+          </Link>
+        )}
+
+        <Link
+          href="/bible/learn"
+          className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+        >
+          <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">✦</span>
+          <span className="flex-1">
+            <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+              Learn a verse
+            </span>
+            <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+              Practice today&apos;s verses
+            </span>
+          </span>
+          <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+        </Link>
 
         {/* Reading plan - where they are in it, or an invitation (mirrors the Android Bible tab card) */}
         <Link

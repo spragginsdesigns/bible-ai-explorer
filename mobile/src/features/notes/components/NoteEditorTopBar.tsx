@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { spacing, typography } from "@/theme";
@@ -20,8 +20,12 @@ export function NoteEditorTopBar({
 	onOpenTags,
 	onOpenInfo,
 	onToggleAI,
+ onCopyMarkdown,
+ noteId,
 }: {
 	title: string;
+ noteId?: string;
+ onCopyMarkdown?: (title: string) => Promise<void>;
 	isPinned: boolean;
 	isSaving: boolean;
 	/** Set when the last save/mutation failed; shown in place of "Saving…". */
@@ -36,6 +40,23 @@ export function NoteEditorTopBar({
 	onToggleAI: () => void;
 }) {
 	const [draft, setDraft] = useState(title);
+ const [copyStatus, setCopyStatus] = useState<string | null>(null);
+ const [copying, setCopying] = useState(false);
+ const copyBusy = useRef(false);
+ const currentNote = useRef(noteId);
+ currentNote.current = noteId;
+ useEffect(() => { setCopyStatus(null); }, [noteId]);
+ const copy = async () => {
+  if (!onCopyMarkdown || copyBusy.current) return;
+  const owner = noteId;
+  copyBusy.current = true; setCopying(true); setCopyStatus(null);
+  try {
+   await onCopyMarkdown(draft.trim() || "Untitled Note");
+   if (currentNote.current === owner) setCopyStatus("Markdown copied");
+  } catch (error) {
+   if (currentNote.current === owner) setCopyStatus(error instanceof Error ? error.message : "Could not copy Markdown.");
+  } finally { copyBusy.current = false; setCopying(false); }
+ };
 	// A single-line TextInput scrolls to the caret, so a title longer than the
 	// bar showed its tail with the beginning cut off and no ellipsis. Resting
 	// state is therefore a Text, which truncates at the end; tapping it swaps in
@@ -84,7 +105,9 @@ export function NoteEditorTopBar({
 						</Text>
 					</Pressable>
 				)}
-				{isSaving ? <Text style={styles.saving}>Saving…</Text> : null}
+				{onCopyMarkdown && <Pressable accessibilityRole="button" accessibilityLabel="Copy note as Markdown" disabled={copying} onPress={() => void copy()} style={{ minHeight: 44, justifyContent: "center" }}><Text style={{ color: colors.accent }}>{copying ? "Copying..." : "Copy Markdown"}</Text></Pressable>}
+                {copyStatus && <Text accessibilityLiveRegion="polite" style={styles.saving}>{copyStatus}</Text>}
+                {isSaving ? <Text style={styles.saving}>Saving…</Text> : null}
 				{!isSaving && saveError ? (
 					<Text style={styles.saveError}>Couldn't save — will retry on next edit</Text>
 				) : null}

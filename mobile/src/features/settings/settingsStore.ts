@@ -9,6 +9,9 @@ import {
 	settingsFromDocument,
 	type PreferencesDocument,
 	type PreferencesPatch,
+	EMPTY_HIGHLIGHT_LABELS,
+	normalizeHighlightLabels,
+	type HighlightLabels,
 } from "./preferences";
 
 /**
@@ -48,6 +51,8 @@ export interface Settings {
 	chatMode: string | null;
 	/** Playback speed for the Listen devotional. Synced with the account. */
 	listenRate: number;
+	/** Account highlight names. Null until this account has hydrated. */
+	highlightLabels: HighlightLabels | null;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
@@ -98,6 +103,10 @@ export async function hydrateSettings(): Promise<void> {
 			// Normalized rather than trusted: a rate this build no longer offers
 			// would leave the speed chip outside its own cycle.
 			listenRate: normalizeListenRate(parsed.listenRate),
+			highlightLabels:
+				parsed.highlightLabels && typeof parsed.highlightLabels === "object"
+					? normalizeHighlightLabels(parsed.highlightLabels)
+					: null,
 		};
 	} catch {
 		// A corrupt or unreadable store falls back to defaults.
@@ -209,6 +218,11 @@ export function setListenRate(listenRate: number) {
 	writeThrough({ listenRate: next }, revertIfUnchanged("listenRate", next, previous));
 }
 
+/** Adopt labels confirmed by the preferences endpoint without writing them back. */
+export function setHighlightLabelsFromServer(highlightLabels: HighlightLabels) {
+	setSnapshot({ ...snapshot, highlightLabels: normalizeHighlightLabels(highlightLabels) });
+}
+
 /*
  * Local-only chat setters. The model picker uses these for the two writes that
  * are bookkeeping rather than a user's choice: pinning the house model when the
@@ -266,6 +280,11 @@ function subscribe(listener: () => void): () => void {
 
 export function useSettings(): Settings {
 	return useSyncExternalStore(subscribe, () => snapshot);
+}
+
+/** Reader-facing hook. An unhydrated account uses the standard hue names. */
+export function useHighlightLabels(): HighlightLabels {
+	return useSettings().highlightLabels ?? EMPTY_HIGHLIGHT_LABELS;
 }
 
 /** Non-reactive read of the current settings, for one-shot request bodies. */

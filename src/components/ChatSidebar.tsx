@@ -208,11 +208,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 								: "text-neutral-600 dark:text-neutral-500 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] hover:text-neutral-800 dark:hover:text-neutral-300 border border-transparent"
 							}
 						`}
-						onClick={() => {
-							if (editing) return;
-							onSelectConversation(convo.id);
-							onNavigate?.();
-						}}
 					>
 						<MessageSquare className="w-4 h-4 flex-shrink-0 self-start mt-0.5" />
 						{editing ? (
@@ -225,7 +220,6 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 										if (e.key === "Enter") void commitRename(convo);
 										if (e.key === "Escape") setEditingId(null);
 									}}
-									onBlur={() => void commitRename(convo)}
 									onClick={(e) => e.stopPropagation()}
 									// The route rejects anything longer, and the error would
 									// read as "couldn't rename" with no reason given.
@@ -256,19 +250,22 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 							</div>
 						) : (
 							<>
-								<span className="flex-1 min-w-0">
+								<button type="button" className="flex-1 min-w-0 text-left"
+									aria-label={`Open ${titleOf(convo)}`}
+									aria-pressed={convo.id === activeConversationId}
+									onClick={() => { onSelectConversation(convo.id); onNavigate?.(); }}>
 									<span className="block truncate">{titleOf(convo)}</span>
 									<span className="block text-metadata text-neutral-400 dark:text-neutral-600">
 										{formatLastActivity(convo.updatedAt ?? convo.createdAt)}
 									</span>
-								</span>
+								</button>
 								<button
 									onClick={(e) => {
 										e.stopPropagation();
 										startRename(convo);
 									}}
 									aria-label={`Rename ${titleOf(convo)}`}
-									className="opacity-0 group-hover:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-opacity"
+									className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-opacity"
 								>
 									<Pencil className="w-3.5 h-3.5" />
 								</button>
@@ -281,7 +278,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 									className={`transition-opacity ${
 										confirming
 											? "text-red-500 dark:text-red-400 text-metadata font-semibold opacity-100"
-											: "opacity-0 group-hover:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400"
+											: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400"
 									}`}
 								>
 									{confirming ? "Sure?" : <Trash2 className="w-3.5 h-3.5" />}

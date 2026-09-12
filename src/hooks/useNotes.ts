@@ -96,15 +96,16 @@ export function useNotes() {
 
 	const createNote = useCallback(async (
 		folderId?: string | null,
-		title?: string
+		title?: string,
+		seed?: { content: string; html: string; plainText: string; wordCount: number } | null
 	): Promise<Note> => {
 		const body = {
 			title: title?.trim() || "Untitled Note",
-			content: "",
-			htmlContent: "",
-			plainText: "",
+			content: seed?.content ?? "",
+			htmlContent: seed?.html ?? "",
+			plainText: seed?.plainText ?? "",
 			folderId: folderId ?? activeFolderId,
-			wordCount: 0,
+			wordCount: seed?.wordCount ?? 0,
 		};
 
 		const res = await fetch("/api/notes", {

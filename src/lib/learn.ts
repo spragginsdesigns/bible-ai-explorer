@@ -9,9 +9,9 @@
  * Text is resolved server-side so web and Apple can render a card without
  * carrying a Bible, but Android may prefer its bundled copy. KJV comes out of
  * the bundled corpus the reader already uses, so the common case costs no
- * network call; an NKJV card falls back to the bundled KJV text rather than
- * failing if the upstream chapter cannot be fetched.
+ * network call. Unavailable NKJV text is never replaced with another translation.
  */
+import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { bookByOrder } from "@/lib/bible/books";
 import { getKjvChapter } from "@/lib/bible/kjv";
@@ -38,6 +38,8 @@ export interface LearnCard {
 	/** "John 3:16". */
 	reference: string;
 	text: string;
+	textUnavailable?: boolean;
+	revision: number;
 	stage: LearnStage;
 	intervalDays: number;
 	/** ISO instant: midnight of the day the card comes back, in the user's zone. */
@@ -66,6 +68,7 @@ export interface LearnVerseKey {
 /** The columns a card needs, so every query selects the same set. */
 const cardSelect = {
 	id: true,
+	revision: true,
 	book: true,
 	chapter: true,
 	verse: true,
@@ -78,6 +81,7 @@ const cardSelect = {
 
 interface CardRow {
 	id: string;
+	revision: number;
 	book: number;
 	chapter: number;
 	verse: number;
@@ -97,43 +101,43 @@ export function formatLearnReference(book: number, chapter: number, verse: numbe
 	return `${bookByOrder(book)?.name ?? String(book)} ${chapter}:${verse}`;
 }
 
-/**
- * The verse text for a card. KJV is bundled; NKJV is fetched by the same loader
- * the reader uses and falls back to the bundled KJV when that fetch fails, so a
- * card always has something to show.
- */
+/** Resolve only the requested translation. Missing text must never be mislabeled. */
 export async function learnVerseText(
-	translation: TranslationId,
-	book: number,
-	chapter: number,
-	verse: number,
+ translation: TranslationId, book: number, chapter: number, verse: number,
 ): Promise<string | undefined> {
-	if (translation !== "KJV") {
-		try {
-			const verses = await getChapter(translation, book, chapter);
-			const text = verses[verse - 1];
-			if (text) return text;
-		} catch {
-			// Fall through to the bundled text below.
-		}
-	}
-	try {
-		return (await getKjvChapter(book, chapter))[verse - 1];
-	} catch {
-		return undefined;
-	}
+ try {
+  const chapterText = translation === "KJV"
+   ? await getKjvChapter(book, chapter)
+   : await getChapter(translation, book, chapter);
+  const text = chapterText[verse - 1];
+  if (!text || translation === "KJV") return text || undefined;
+  // Provider markup is presentation, not part of the words being memorized.
+  const plainText = text.replace(/<[^>]*>/g, "")
+   .replace(/&(#x[\da-f]+|#\d+|amp|apos|gt|lt|nbsp|quot);/gi, (entity, name: string) => {
+    const key = name.toLowerCase();
+    if (key.startsWith("#")) {
+     const point = key.startsWith("#x") ? parseInt(key.slice(2), 16) : Number(key.slice(1));
+     return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : entity;
+    }
+    return ({ amp: "&", apos: "'", gt: ">", lt: "<", nbsp: " ", quot: '"' } as Record<string, string>)[key] ?? entity;
+   }).replace(/\s+/g, " ").trim();
+  return plainText || undefined;
+ } catch { return undefined; }
 }
 
 async function toCard(row: CardRow): Promise<LearnCard> {
 	const translation = toTranslation(row.translation);
+	const text = await learnVerseText(translation, row.book, row.chapter, row.verse);
 	return {
 		id: row.id,
+		revision: row.revision,
 		book: row.book,
 		chapter: row.chapter,
 		verse: row.verse,
 		translation,
 		reference: formatLearnReference(row.book, row.chapter, row.verse),
-		text: (await learnVerseText(translation, row.book, row.chapter, row.verse)) ?? "",
+		text: text ?? "",
+		...(text ? {} : { textUnavailable: true }),
 		stage: toLearnStage(row.stage),
 		intervalDays: row.intervalDays,
 		dueAt: row.dueAt.toISOString(),
@@ -169,16 +173,16 @@ export async function todayCards(userId: string, now: Date = new Date()): Promis
 	const dueBefore = startOfTomorrow(now, timezone);
 	const dueFilter = { userId, dueAt: { lt: dueBefore } };
 
-	const [rows, queueCount, knownCount] = await Promise.all([
+	const [rows, queueCount, knownCount] = await prisma.$transaction([
 		prisma.verseMemory.findMany({
 			where: dueFilter,
-			orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
+			orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }, { id: "asc" }],
 			take: LEARN_DAILY_LIMIT,
 			select: cardSelect,
 		}),
 		prisma.verseMemory.count({ where: dueFilter }),
 		prisma.verseMemory.count({ where: { userId, knownAt: { not: null } } }),
-	]);
+	], { isolationLevel: "RepeatableRead" });
 
 	return {
 		cards: await Promise.all(rows.map((row) => toCard(row))),
@@ -201,53 +205,134 @@ export async function addCard(
 ): Promise<{ card: LearnCard; created: boolean }> {
 	const { book, chapter, verse, translation, source } = key;
 
-	const existing = await prisma.verseMemory.findUnique({
-		where: { userId_book_chapter_verse: { userId, book, chapter, verse } },
-		select: cardSelect,
-	});
-	if (existing) {
-		const row =
-			toTranslation(existing.translation) === translation
-				? existing
-				: await prisma.verseMemory.update({
-						where: { id: existing.id },
-						data: { translation },
-						select: cardSelect,
-					});
-		return { card: await toCard(row), created: false };
-	}
+ const dueAt = startOfToday(now, await learnTimezone(userId));
+ const outcome = await retryLearnTransaction(() => prisma.$transaction(async (tx) => {
+  const existing = await tx.verseMemory.findUnique({
+   where: { userId_book_chapter_verse: { userId, book, chapter, verse } }, select: cardSelect,
+  });
+  if (existing) {
+   if (toTranslation(existing.translation) === translation) return { row: existing, created: false };
+   const changed = await tx.verseMemory.updateMany({
+    where: { id: existing.id, userId, revision: existing.revision },
+    data: { translation, revision: { increment: 1 } },
+   });
+   if (!changed.count) throw new LearnRetry();
+   const row = await tx.verseMemory.findFirstOrThrow({ where: { id: existing.id, userId }, select: cardSelect });
+   return { row, created: false };
+  }
+  const row = await tx.verseMemory.create({ data: { userId, book, chapter, verse, translation, source, dueAt }, select: cardSelect });
+  return { row, created: true };
+ }));
+ return { card: await toCard(outcome.row), created: outcome.created };
+}
 
-	const dueAt = startOfToday(now, await learnTimezone(userId));
-	const row = await prisma.verseMemory.create({
-		data: { userId, book, chapter, verse, translation, source, dueAt },
-		select: cardSelect,
-	});
-	return { card: await toCard(row), created: true };
+export interface LearnReviewOperation {
+ result: LearnResult;
+ operationId: string;
+ expectedRevision: number;
+ reviewedAt: string;
+ timezone: string;
+}
+
+export interface LearnReviewAcknowledgement {
+ operationId: string;
+ appliedRevision: number;
+ replayed: boolean;
+ currentCard: LearnCard | null;
+}
+
+export class LearnReviewConflict extends Error {
+ code: "operation_id_reused" | "revision_conflict";
+ currentCard: LearnCard | null;
+ constructor(code: "operation_id_reused" | "revision_conflict", currentCard: LearnCard | null) {
+  super(code);
+  this.code = code;
+  this.currentCard = currentCard;
+ }
+}
+
+class LearnRetry extends Error {}
+
+/** Retry the entire aborted transaction, never a query inside an aborted transaction. */
+async function retryLearnTransaction<T>(run: () => Promise<T>): Promise<T> {
+ for (let attempt = 0; ; attempt++) {
+  try { return await run(); } catch (error) {
+   const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+   if (attempt >= 4 || (!(error instanceof LearnRetry) && code !== "P2034" && code !== "P2002")) throw error;
+  }
+ }
+}
+
+/** Legacy reviews remain bare-card responses but participate in revision concurrency. */
+export async function reviewCardById(
+ userId: string, id: string, result: LearnResult, now: Date = new Date(),
+): Promise<LearnCard | null> {
+ const timezone = await learnTimezone(userId);
+ const row = await retryLearnTransaction(() => prisma.$transaction(async (tx) => {
+  const existing = await tx.verseMemory.findFirst({ where: { id, userId }, select: cardSelect });
+  if (!existing) return null;
+  const next = reviewCard(existing, result, now, timezone);
+  const changed = await tx.verseMemory.updateMany({
+   where: { id, userId, revision: existing.revision }, data: { ...next, revision: { increment: 1 } },
+  });
+  if (!changed.count) throw new LearnRetry();
+  return tx.verseMemory.findFirstOrThrow({ where: { id, userId }, select: cardSelect });
+ }));
+ return row ? toCard(row) : null;
 }
 
 /**
- * Record one review. Returns null when the card is not this user's, which the
- * route answers as a 404 rather than leaking that the id exists.
+ * A receipt and its schedule change commit together. Receipts outlive card deletion.
+ * reviewedAt accepts Unix epoch onward without an aging cutoff: delayed reviews retain their local day.
+ * Validation of the public request happens in the route before this function runs.
  */
-export async function reviewCardById(
-	userId: string,
-	id: string,
-	result: LearnResult,
-	now: Date = new Date(),
-): Promise<LearnCard | null> {
-	const existing = await prisma.verseMemory.findFirst({
-		where: { id, userId },
-		select: { id: true, stage: true, intervalDays: true, knownAt: true },
-	});
-	if (!existing) return null;
-
-	const next = reviewCard(existing, result, now, await learnTimezone(userId));
-	const row = await prisma.verseMemory.update({
-		where: { id: existing.id },
-		data: next,
-		select: cardSelect,
-	});
-	return toCard(row);
+export async function reviewCardOperation(
+ userId: string, id: string, operation: LearnReviewOperation,
+): Promise<LearnReviewAcknowledgement | null> {
+ const payloadHash = createHash("sha256").update(JSON.stringify([
+  id, operation.result, operation.expectedRevision, new Date(operation.reviewedAt).toISOString(), operation.timezone,
+ ])).digest("hex");
+ const outcome = await retryLearnTransaction(() => prisma.$transaction(async (tx) => {
+  const receipt = await tx.learnReviewReceipt.findUnique({
+   where: { userId_operationId: { userId, operationId: operation.operationId } },
+  });
+  if (receipt) {
+   if (receipt.payloadHash !== payloadHash) return { kind: "operation_id_reused" as const, row: null };
+   const row = await tx.verseMemory.findFirst({ where: { id, userId }, select: cardSelect });
+   return { kind: "applied" as const, row, appliedRevision: receipt.appliedRevision, replayed: true };
+  }
+  const existing = await tx.verseMemory.findFirst({ where: { id, userId }, select: cardSelect });
+  if (!existing || existing.revision !== operation.expectedRevision) {
+   // Under ReadCommitted a matching operation can commit between the first
+   // receipt lookup and the card read. Check again before declaring conflict.
+   const committedReceipt = await tx.learnReviewReceipt.findUnique({
+    where: { userId_operationId: { userId, operationId: operation.operationId } },
+   });
+   if (committedReceipt) {
+    if (committedReceipt.payloadHash !== payloadHash) return { kind: "operation_id_reused" as const, row: null };
+    const row = await tx.verseMemory.findFirst({ where: { id, userId }, select: cardSelect });
+    return { kind: "applied" as const, row, appliedRevision: committedReceipt.appliedRevision, replayed: true };
+   }
+   if (!existing) return null;
+   return { kind: "revision_conflict" as const, row: existing };
+  }
+  const next = reviewCard(existing, operation.result, new Date(operation.reviewedAt), operation.timezone);
+  const changed = await tx.verseMemory.updateMany({
+   where: { id, userId, revision: operation.expectedRevision }, data: { ...next, revision: { increment: 1 } },
+  });
+  // Re-enter receipt lookup after a concurrent winner, including an identical request.
+  if (!changed.count) throw new LearnRetry();
+  const row = await tx.verseMemory.findFirstOrThrow({ where: { id, userId }, select: cardSelect });
+  await tx.learnReviewReceipt.create({ data: {
+   userId, operationId: operation.operationId, cardId: id, payloadHash, appliedRevision: row.revision,
+  } });
+  return { kind: "applied" as const, row, appliedRevision: row.revision, replayed: false };
+ }));
+ if (!outcome) return null;
+ // Text can require network IO. Resolve it only after releasing transaction locks.
+ const currentCard = outcome.row ? await toCard(outcome.row) : null;
+ if (outcome.kind !== "applied") throw new LearnReviewConflict(outcome.kind, currentCard);
+ return { operationId: operation.operationId, appliedRevision: outcome.appliedRevision, replayed: outcome.replayed, currentCard };
 }
 
 /** Drop a card. Returns false when it is not this user's. */

@@ -10,6 +10,7 @@ interface SettingsSectionNavProps {
 const SECTIONS = [
 	{ id: "appearance", label: "Appearance" },
 	{ id: "translation", label: "Bible translation" },
+	{ id: "highlight-labels", label: "Highlight labels" },
 	{ id: "memory", label: "Memory" },
 	{ id: "web-search", label: "Web search" },
 	{ id: "church", label: "My church" },

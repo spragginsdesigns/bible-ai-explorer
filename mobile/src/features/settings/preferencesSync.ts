@@ -7,15 +7,23 @@ import { adoptCacheOwner, clearUserCaches } from "./cacheOwner";
 import { prefetchSettingsData } from "./settingsData";
 import {
 	overridesToPush,
+	mergeHighlightLabelEdits,
 	parsePreferencesDocument,
 	settingsFromDocument,
 	shouldApplyResponse,
 	shouldFetchNow,
 	type PreferencesDocument,
+	type HighlightLabelId,
+	type HighlightLabels,
 	type PreferencesPatch,
 } from "./preferences";
 import { fetchPreferences, patchPreferences } from "./preferencesApi";
-import { applyServerPreferences, getSettings, setPreferencesWriter } from "./settingsStore";
+import {
+	applyServerPreferences,
+	getSettings,
+	setHighlightLabelsFromServer,
+	setPreferencesWriter,
+} from "./settingsStore";
 
 /**
  * Keeps this device's preferences in step with the account row.
@@ -61,6 +69,8 @@ export function usePreferencesToggles(): PreferencesToggles {
  * functions called from taps, not hooks.
  */
 let tokenGetter: GetToken | null = null;
+let activeUserId: string | null = null;
+let accountSeq = 0;
 
 /**
  * Bumped on every user edit. A GET or PATCH response is applied only if this
@@ -70,7 +80,7 @@ let tokenGetter: GetToken | null = null;
 let editSeq = 0;
 
 let lastFetchAt: number | null = null;
-let inflightFetch: Promise<void> | null = null;
+let inflightFetch: { accountSeq: number; promise: Promise<void> } | null = null;
 
 function applyDocument(doc: PreferencesDocument) {
 	applyServerPreferences(doc);
@@ -116,18 +126,26 @@ function reportFailure(error: unknown) {
 async function requestPatch(patch: PreferencesPatch): Promise<void> {
 	const getToken = tokenGetter;
 	if (!getToken) return;
+	const accountSeqAtRequest = accountSeq;
 	const seqAtRequest = ++editSeq;
 	const doc = parsePreferencesDocument(await patchPreferences(getToken, patch));
-	if (doc && shouldApplyResponse(seqAtRequest, editSeq)) applyDocument(doc);
+	if (
+		doc &&
+		accountSeqAtRequest === accountSeq &&
+		shouldApplyResponse(seqAtRequest, editSeq)
+	) {
+		applyDocument(doc);
+	}
 }
 
 /** The settings store's write-through path: fire and forget, roll back on failure. */
 function writePreference(patch: PreferencesPatch, revert: () => void) {
+	const accountSeqAtRequest = accountSeq;
 	void (async () => {
 		try {
 			await requestPatch(patch);
 		} catch (error) {
-			if (isSilentFailure(error)) return;
+			if (accountSeqAtRequest !== accountSeq || isSilentFailure(error)) return;
 			revert();
 			reportFailure(error);
 		}
@@ -144,21 +162,30 @@ export async function hydratePreferences(force = false): Promise<void> {
 	if (!getToken) return;
 	const now = Date.now();
 	if (!force && !shouldFetchNow(lastFetchAt, now)) return;
-	if (inflightFetch) return inflightFetch;
+	if (inflightFetch?.accountSeq === accountSeq) return inflightFetch.promise;
 	lastFetchAt = now;
 	const seqAtRequest = editSeq;
-	inflightFetch = (async () => {
+	const accountSeqAtRequest = accountSeq;
+	let run!: Promise<void>;
+	run = (async () => {
 		try {
 			const doc = parsePreferencesDocument(await fetchPreferences(getToken));
-			if (doc && shouldApplyResponse(seqAtRequest, editSeq)) applyDocument(doc);
+			if (
+				doc &&
+				accountSeqAtRequest === accountSeq &&
+				shouldApplyResponse(seqAtRequest, editSeq)
+			) {
+				applyDocument(doc);
+			}
 		} catch {
 			// Offline, 401, or a server that has no such route yet: keep local.
 			// A failed hydrate must never blank out Settings.
 		} finally {
-			inflightFetch = null;
+			if (inflightFetch?.promise === run) inflightFetch = null;
 		}
 	})();
-	return inflightFetch;
+	inflightFetch = { accountSeq: accountSeqAtRequest, promise: run };
+	return run;
 }
 
 /**
@@ -177,6 +204,7 @@ async function seedThenHydrate(): Promise<void> {
 	const getToken = tokenGetter;
 	if (!getToken) return;
 	const seqAtRequest = editSeq;
+	const accountSeqAtRequest = accountSeq;
 	lastFetchAt = Date.now();
 
 	let server: PreferencesDocument | null = null;
@@ -187,7 +215,13 @@ async function seedThenHydrate(): Promise<void> {
 		// the overwrite this version exists to prevent.
 		return;
 	}
-	if (!server || !shouldApplyResponse(seqAtRequest, editSeq)) return;
+	if (
+		!server ||
+		accountSeqAtRequest !== accountSeq ||
+		!shouldApplyResponse(seqAtRequest, editSeq)
+	) {
+		return;
+	}
 
 	const patch = overridesToPush(getSettings(), settingsFromDocument(server));
 	if (!patch) {
@@ -198,7 +232,7 @@ async function seedThenHydrate(): Promise<void> {
 		await requestPatch(patch);
 	} catch {
 		// The document already in hand is still the truth for this session.
-		applyDocument(server);
+		if (accountSeqAtRequest === accountSeq) applyDocument(server);
 	}
 }
 
@@ -207,13 +241,65 @@ async function seedThenHydrate(): Promise<void> {
  * Settings screen can report the failure in its own words.
  */
 export async function updateWebSearchEnabled(enabled: boolean): Promise<void> {
+	const accountSeqAtRequest = accountSeq;
 	const previous = toggles.webSearchEnabled;
 	setToggles({ ...toggles, webSearchEnabled: enabled });
 	try {
 		await requestPatch({ webSearchEnabled: enabled });
 	} catch (error) {
-		setToggles({ ...toggles, webSearchEnabled: previous });
+		if (accountSeqAtRequest === accountSeq) {
+			setToggles({ ...toggles, webSearchEnabled: previous });
+		}
 		throw error;
+	}
+}
+
+export type HighlightLabelsSaveResult =
+	| { ok: true; labels: HighlightLabels }
+	| { ok: false; error: string };
+
+let highlightSaveSeq = 0;
+
+/** GET, merge touched rows, then PATCH the full replacement map. */
+export async function saveHighlightLabelEdits(
+	edits: Partial<Record<HighlightLabelId, string>>
+): Promise<HighlightLabelsSaveResult> {
+	const getToken = tokenGetter;
+	const userIdAtRequest = activeUserId;
+	if (!getToken || !userIdAtRequest) {
+		return { ok: false, error: "Sign in before saving highlight labels." };
+	}
+	const accountSeqAtRequest = accountSeq;
+	const saveSeq = ++highlightSaveSeq;
+	editSeq += 1;
+
+	try {
+		const latest = parsePreferencesDocument(await fetchPreferences(getToken));
+		if (!latest || latest.highlightLabels === null) {
+			throw new Error("Highlight labels are not available yet.");
+		}
+		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
+			return { ok: false, error: "Your account changed before the labels were saved." };
+		}
+		const next = mergeHighlightLabelEdits(latest.highlightLabels, edits);
+		const confirmed = parsePreferencesDocument(
+			await patchPreferences(getToken, { highlightLabels: next })
+		);
+		if (!confirmed || confirmed.highlightLabels === null) {
+			throw new Error("The server did not confirm the highlight labels.");
+		}
+		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
+			return { ok: false, error: "Your account changed before the labels were saved." };
+		}
+		if (saveSeq === highlightSaveSeq) {
+			setHighlightLabelsFromServer(confirmed.highlightLabels);
+		}
+		return { ok: true, labels: confirmed.highlightLabels };
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error && error.message ? error.message : "Couldn't save highlight labels.",
+		};
 	}
 }
 
@@ -245,13 +331,20 @@ export function usePreferencesSync(): void {
 	}, [getToken]);
 
 	useEffect(() => {
-		if (!isSignedIn || !userId) return;
+		const nextUserId = isSignedIn && userId ? userId : null;
+		if (activeUserId !== nextUserId) {
+			activeUserId = nextUserId;
+			accountSeq += 1;
+			editSeq += 1;
+			lastFetchAt = null;
+		}
+		if (!nextUserId) return;
 		let cancelled = false;
 		void (async () => {
 			// Order matters: a cache belonging to another account is dropped
 			// before the new account's document lands on top of it.
-			const discard = await adoptCacheOwner(userId);
-			if (cancelled) return;
+			const discard = await adoptCacheOwner(nextUserId);
+			if (cancelled || activeUserId !== nextUserId) return;
 			// Warm the Settings sections (providers, church, memory count) now,
 			// after the caches are claimed, so the screen paints at its real
 			// height whenever it is first opened. Never rejects.
@@ -263,6 +356,12 @@ export function usePreferencesSync(): void {
 		})();
 		return () => {
 			cancelled = true;
+			if (activeUserId === nextUserId) {
+				activeUserId = null;
+				accountSeq += 1;
+				editSeq += 1;
+				lastFetchAt = null;
+			}
 		};
 	}, [isSignedIn, userId]);
 

@@ -34,9 +34,13 @@ export async function POST(req: Request) {
 
 		// Reject coordinates that are inside the allowed ranges but not in the
 		// Bible, so the queue can never hold a card with no verse to show.
-		const text = await learnVerseText(translation, book, chapter, verse);
+		const text = await learnVerseText("KJV", book, chapter, verse);
 		if (!text) {
 			return NextResponse.json({ error: "That verse does not exist." }, { status: 400 });
+		}
+
+		if (translation !== "KJV" && !(await learnVerseText(translation, book, chapter, verse))) {
+			return NextResponse.json({ error: "That translation is temporarily unavailable." }, { status: 503 });
 		}
 
 		const { card, created } = await addCard(userId, parsed.data);

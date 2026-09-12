@@ -46,6 +46,7 @@ export default function ReadingPlanScreen() {
 	const [confirmingArchive, setConfirmingArchive] = useState(false);
 
 	const today = currentPlanDay(plan);
+	const daysBehind = plan?.status === "active" ? Math.max(0, plan.todayDay - plan.currentDay) : 0;
 
 	const adjustDays = (delta: number) =>
 		setGoalDays((previous) => Math.min(Math.max(previous + delta, MIN_GOAL_DAYS), MAX_GOAL_DAYS));
@@ -168,6 +169,11 @@ export default function ReadingPlanScreen() {
 							<p className="text-[13px] font-semibold text-neutral-500 dark:text-neutral-400">
 								🔥 {streakLabel(plan.streak)}
 							</p>
+							{daysBehind > 0 && (
+								<p className="text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-neutral-400">
+									{daysBehind} {daysBehind === 1 ? "day" : "days"} behind
+								</p>
+							)}
 						</div>
 
 						{plan.status === "completed" ? (

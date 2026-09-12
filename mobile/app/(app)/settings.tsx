@@ -39,6 +39,7 @@ import {
 	useSettingsData,
 } from "@/features/settings/settingsData";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
+import { HighlightLabelsSection } from "@/features/settings/HighlightLabelsSection";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "system", label: "System", glyph: "◐" },
@@ -286,6 +287,8 @@ export default function SettingsScreen() {
 						fetched when needed. SureWord&apos;s AI answers use the translation you select.
 					</Text>
 				</GlassCard>
+
+				<HighlightLabelsSection key={user?.id ?? "signed-out"} />
 
 				<SectionLabel label="MEMORY" />
 				<GlassCard style={styles.card}>

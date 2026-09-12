@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -50,6 +51,7 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 			id: `card-${index + 1}`,
 			translation: "KJV",
 			source: "sheet",
+			revision: 0,
 			stage: 0,
 			intervalDays: 0,
 			lastReviewedAt: null,
@@ -65,6 +67,7 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 	const matches = (row, where) => {
 		if (where.userId !== undefined && row.userId !== where.userId) return false;
 		if (where.id !== undefined && row.id !== where.id) return false;
+		if (where.revision !== undefined && row.revision !== where.revision) return false;
 		if (where.dueAt?.lt !== undefined && !(row.dueAt.getTime() < where.dueAt.lt.getTime())) {
 			return false;
 		}
@@ -75,13 +78,14 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 		[...rows].sort((a, b) => {
 			for (const clause of orderBy ?? []) {
 				const [field, direction] = Object.entries(clause)[0];
-				const delta = a[field].getTime() - b[field].getTime();
+				const delta = a[field] instanceof Date ? a[field].getTime() - b[field].getTime() : String(a[field]).localeCompare(String(b[field]));
 				if (delta !== 0) return direction === "desc" ? -delta : delta;
 			}
 			return 0;
 		});
 
 	const prisma = {
+		$transaction: async (input) => typeof input === "function" ? input(prisma) : Promise.all(input),
 		pushToken: {
 			findFirst: async () => {
 				state.calls.push(["pushToken.findFirst"]);
@@ -118,7 +122,8 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 				state.calls.push(["verseMemory.create", data]);
 				const row = {
 					id: `card-${state.nextId++}`,
-					stage: 0,
+					revision: 0,
+			stage: 0,
 					intervalDays: 0,
 					lastReviewedAt: null,
 					knownAt: null,
@@ -129,7 +134,21 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 				state.cards.push(row);
 				return row;
 			},
-			update: async ({ where, data }) => {
+			findFirstOrThrow: async (query) => {
+    const row = await prisma.verseMemory.findFirst(query);
+    if (!row) throw new Error("missing");
+    return row;
+   },
+   updateMany: async ({ where, data }) => {
+    state.calls.push(["verseMemory.updateMany", where, data]);
+    const rows = state.cards.filter((row) => matches(row, where));
+    for (const row of rows) {
+     const revision = row.revision + (data.revision?.increment ?? 0);
+     Object.assign(row, data, { revision });
+    }
+    return { count: rows.length };
+   },
+   update: async ({ where, data }) => {
 				state.calls.push(["verseMemory.update", where, data]);
 				const row = state.cards.find((entry) => entry.id === where.id);
 				Object.assign(row, data);
@@ -146,12 +165,13 @@ function makeDb({ cards = [], timezone = LA } = {}) {
 	return { prisma, state };
 }
 
-function loadLearn(prisma) {
+function loadLearn(prisma, overrides = {}) {
 	return loadModule(
 		"../src/lib/learn.ts",
 		["addCard", "formatLearnReference", "learnVerseText", "removeCard", "reviewCardById", "todayCards"],
 		{
 			prisma,
+			createHash,
 			bookByOrder: (order) => (order === 43 ? { name: "John" } : null),
 			getKjvChapter: async (book, chapter) => {
 				if (book !== 43 || chapter !== 3) throw new Error("no such chapter");
@@ -161,6 +181,7 @@ function loadLearn(prisma) {
 				throw new Error("network is not available in tests");
 			},
 			...schedule,
+			...overrides,
 		}
 	);
 }
@@ -282,11 +303,12 @@ test("adding a verse twice returns the same card and never resets the schedule",
 	assert.equal(second.card.translation, "NKJV");
 	assert.equal(second.card.stage, 3);
 	assert.equal(state.cards.length, 1);
-	const [, where, data] = state.calls.find(([name]) => name === "verseMemory.update");
-	assert.deepEqual([where, data], [{ id: "existing" }, { translation: "NKJV" }]);
-	// NKJV text is unreachable in this test, so the card falls back to the
-	// bundled KJV rather than shipping an empty verse.
-	assert.equal(second.card.text, JOHN_3_16);
+	const [, where, data] = state.calls.find(([name]) => name === "verseMemory.updateMany");
+	assert.deepEqual([where, data], [{ id: "existing", userId: alice, revision: 0 }, { translation: "NKJV", revision: { increment: 1 } }]);
+	// NKJV unavailability is explicit and never mislabeled KJV.
+	assert.equal(second.card.text, "");
+	assert.equal(second.card.textUnavailable, true);
+	assert.equal(second.card.revision, 1);
 });
 
 test("a new card starts unread and due at the user's midnight today", async () => {
@@ -355,4 +377,27 @@ test("a verse outside the bundled text resolves to nothing, so the route can ref
 	assert.equal(await learnVerseText("KJV", 43, 3, 999), undefined);
 	assert.equal(await learnVerseText("KJV", 43, 99, 1), undefined);
 	assert.equal(formatLearnReference(43, 3, 16), "John 3:16");
+});
+
+
+test("NKJV Learn cards normalize provider markup and entities before practice", async () => {
+ const { prisma } = makeDb({ cards: [john(16, { translation: "NKJV", dueAt: NOW })] });
+ const { todayCards, learnVerseText } = loadLearn(prisma, {
+  getChapter: async () => Array(16).fill("  NKJV <i>text</i> &amp; &#65; &#x42; &quot;quoted&quot;&nbsp;words.  "),
+ });
+ assert.equal(await learnVerseText("NKJV", 43, 3, 16), 'NKJV text & A B "quoted" words.');
+ const today = await todayCards(alice, NOW);
+ assert.equal(today.cards[0].translation, "NKJV");
+ assert.equal(today.cards[0].text, 'NKJV text & A B "quoted" words.');
+ assert.equal(today.cards[0].textUnavailable, undefined);
+});
+
+test("empty NKJV markup is unavailable without substituting KJV", async () => {
+ const { prisma } = makeDb({ cards: [john(16, { translation: "NKJV", dueAt: NOW })] });
+ const { todayCards, learnVerseText } = loadLearn(prisma, { getChapter: async () => Array(16).fill("<i></i>&nbsp;") });
+ assert.equal(await learnVerseText("NKJV", 43, 3, 16), undefined);
+ const today = await todayCards(alice, NOW);
+ assert.equal(today.cards[0].translation, "NKJV");
+ assert.equal(today.cards[0].text, "");
+ assert.equal(today.cards[0].textUnavailable, true);
 });

@@ -111,6 +111,7 @@ export function Chip({
 export function BottomSheet({
 	visible,
 	onClose,
+	onDismiss,
 	title,
 	children,
 	heightRatio,
@@ -118,6 +119,8 @@ export function BottomSheet({
 }: {
 	visible: boolean;
 	onClose: () => void;
+	/** Native dismissal completion on iOS. Optional; other consumers are unchanged. */
+	onDismiss?: () => void;
 	title?: string;
 	children: React.ReactNode;
 	/** Fraction of screen height; omit to size to content. */
@@ -145,6 +148,7 @@ export function BottomSheet({
 			animationType="slide"
 			statusBarTranslucent
 			onRequestClose={onClose}
+            onDismiss={onDismiss}
 		>
 			<Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
 			<View

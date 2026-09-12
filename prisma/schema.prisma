@@ -62,6 +62,7 @@ model User {
   suggestedQuestionSets SuggestedQuestionSet[]
   readingPlans          ReadingPlan[]
   verseMemories         VerseMemory[]
+  learnReviewReceipts    LearnReviewReceipt[]
   church                UserChurch?
 }
 
@@ -563,6 +564,7 @@ model VerseMemory {
   translation    String    @default("KJV") // "KJV" | "NKJV"
   source         String // "sheet" | "highlight" | "chat"
   stage          Int       @default(0) // 0-3
+  revision       Int       @default(0)
   intervalDays   Int       @default(0)
   dueAt          DateTime // midnight of the day it comes back, in the user's zone
   lastReviewedAt DateTime?
@@ -572,4 +574,20 @@ model VerseMemory {
 
   @@unique([userId, book, chapter, verse])
   @@index([userId, dueAt])
+}
+
+/// An immutable acknowledgement for an offline review. Kept after card deletion
+/// so retrying an old operation can acknowledge it without touching a new card.
+model LearnReviewReceipt {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operationId     String
+  cardId          String
+  payloadHash     String
+  appliedRevision Int
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, operationId])
+  @@index([userId, cardId])
 }

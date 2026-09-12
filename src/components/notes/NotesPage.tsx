@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import AppSidebar from "@/components/AppSidebar";
 import NotesSidebar from "./NotesSidebar";
@@ -8,13 +9,27 @@ import NotesSearch from "./NotesSearch";
 import NotesListView from "./NotesListView";
 import NoteEditorView from "./NoteEditorView";
 import NotesTopBar from "./NotesTopBar";
+import NoteTemplatePicker from "./NoteTemplatePicker";
+import { buildNoteTemplate, type NoteTemplateId } from "./noteTemplates";
 import { useNotes } from "@/hooks/useNotes";
 
 const SWIPE_THRESHOLD = 50;
 const EDGE_ZONE = 30;
 
 const NotesPage: React.FC = () => {
+ const { user, isLoaded } = useUser();
+ if (!isLoaded) return <p role="status">Loading your notes...</p>;
+ if (!user) return <Link href="/sign-in">Sign in to open your notes</Link>;
+ return <NotesSession key={user.id} />;
+};
+const NotesSession: React.FC = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+	const [creating, setCreating] = useState(false);
+ const [createError, setCreateError] = useState<string | null>(null);
+ const creation = useRef(false);
+ const mounted = useRef(true);
+ useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 	const touchStartX = useRef(0);
 	const touchStartY = useRef(0);
 	const isSwiping = useRef(false);
@@ -73,8 +88,31 @@ const NotesPage: React.FC = () => {
 		[sidebarOpen]
 	);
 
-	const handleCreateNote = async () => {
-		await createNote();
+	const handleCreateNote = () => {
+		setCreateError(null);
+		setTemplatePickerOpen(true);
+	};
+	const handlePickTemplate = async (id: NoteTemplateId) => {
+		if (creation.current) return;
+		creation.current = true; setCreating(true); setCreateError(null);
+		try {
+			let churchName: string | null = null;
+			if (id === "sermon") {
+				const response = await fetch("/api/church", { cache: "no-store" });
+				if (!response.ok) throw new Error("Could not load your church. Please try again.");
+				const data = await response.json();
+				if (data.status !== "unavailable" && typeof data.church?.name === "string") churchName = data.church.name;
+			}
+			if (!mounted.current) return;
+			const seed = buildNoteTemplate(id, { churchName });
+			await createNote(undefined, seed?.title, seed);
+			if (mounted.current) setTemplatePickerOpen(false);
+		} catch {
+			if (mounted.current) setCreateError("Could not finish creating the note. Check your notes before trying again.");
+		} finally {
+			creation.current = false;
+			if (mounted.current) setCreating(false);
+		}
 	};
 
 	const handleDeleteNote = async (id: string) => {
@@ -168,6 +206,13 @@ const NotesPage: React.FC = () => {
 					</>
 				)}
 			</div>
+			<NoteTemplatePicker
+				open={templatePickerOpen}
+				onClose={() => { if (!creation.current) setTemplatePickerOpen(false); }}
+                busy={creating}
+                error={createError}
+				onPick={(id) => void handlePickTemplate(id)}
+			/>
 		</div>
 	);
 };

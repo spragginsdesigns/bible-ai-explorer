@@ -7,6 +7,8 @@ import type { TranslationId } from "@/lib/bible/translations";
 import type { PreferencesDocument } from "@/lib/preferences-contract";
 import {
 	EFFORT_PREF_KEY,
+	EMPTY_HIGHLIGHT_LABELS,
+	HIGHLIGHT_LABELS_PREF_KEY,
 	MEMORY_ENABLED_PREF_KEY,
 	MODE_PREF_KEY,
 	MODEL_PREF_KEY,
@@ -15,7 +17,11 @@ import {
 	TRANSLATION_PREF_KEY,
 	VERBOSITY_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
+	highlightLabelFor,
+	mergeHighlightLabelEdits,
+	normalizeHighlightLabels,
 	readEffortPref,
+	readHighlightLabelsPref,
 	readListenRatePref,
 	readModePref,
 	readModelPref,
@@ -25,6 +31,7 @@ import {
 	readVerbosityPref,
 	readWebSearchEnabledPref,
 	writeEffortPref,
+	writeHighlightLabelsPref,
 	writeListenRatePref,
 	writeModePref,
 	writeModelPref,
@@ -34,6 +41,8 @@ import {
 	writeTranslationPref,
 	writeVerbosityPref,
 	writeWebSearchEnabledPref,
+	type HighlightLabelId,
+	type HighlightLabels,
 } from "@/lib/preferences";
 
 /**
@@ -62,6 +71,7 @@ const SYNCED_KEYS = [
 	TRANSLATION_PREF_KEY,
 	PARCHMENT_PREF_KEY,
 	LISTEN_RATE_PREF_KEY,
+	HIGHLIGHT_LABELS_PREF_KEY,
 	MEMORY_ENABLED_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
 	MODEL_PREF_KEY,
@@ -80,7 +90,27 @@ interface PreferencesPatchBody {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	highlightLabels?: HighlightLabels;
 	chat?: Partial<Record<"modelId" | ChatRunOptionKey, string | null>>;
+}
+
+type PreferencesDocumentWithLabels = PreferencesDocument & { highlightLabels?: unknown };
+
+function labelsFromDocument(document: PreferencesDocument): HighlightLabels | null {
+	const candidate = document as PreferencesDocumentWithLabels;
+	if (!("highlightLabels" in candidate)) return null;
+	if (
+		typeof candidate.highlightLabels !== "object" ||
+		candidate.highlightLabels === null ||
+		Array.isArray(candidate.highlightLabels)
+	) {
+		return null;
+	}
+	return normalizeDocumentLabels(candidate.highlightLabels);
+}
+
+function normalizeDocumentLabels(value: unknown): HighlightLabels {
+	return normalizeHighlightLabels(value);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -119,6 +149,18 @@ export function usePreference<T>(read: () => T, serverValue: T): T {
 	const getServerSnapshot = useCallback(() => serverValue, [serverValue]);
 	return useSyncExternalStore(subscribePreferences, read, getServerSnapshot);
 }
+
+/** Reactive labels for reader consumers. Missing cache resolves to hue-name defaults. */
+export function useHighlightLabels(): HighlightLabels {
+	return usePreference(readHighlightLabelsPref, null) ?? EMPTY_HIGHLIGHT_LABELS;
+}
+
+/** Nullable form for Settings, where null means the account is not hydrated yet. */
+export function useHighlightLabelsPreference(): HighlightLabels | null {
+	return usePreference(readHighlightLabelsPref, null);
+}
+
+export { highlightLabelFor };
 
 /* -------------------------------------------------------------------------- */
 /* Non-blocking error surface                                                 */
@@ -211,6 +253,8 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
 	writeListenRatePref(document.listenRate);
 	writeMemoryEnabledPref(document.memoryEnabled);
 	writeWebSearchEnabledPref(document.webSearchEnabled);
+	const highlightLabels = labelsFromDocument(document);
+	if (highlightLabels !== null) writeHighlightLabelsPref(highlightLabels);
 	if (!chatPrefsLocked) {
 		writeModelPref(document.chat.modelId);
 		writeEffortPref(document.chat.effort);
@@ -231,8 +275,9 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
  * seen take effect; the PATCH's own response carries the fresher document.
  */
 let editSeq = 0;
+let accountSeq = 0;
 let lastHydrateAt = 0;
-let inFlightHydrate: Promise<boolean> | null = null;
+let inFlightHydrate: { accountSeq: number; promise: Promise<boolean> } | null = null;
 
 /**
  * Pull the whole document and replace the local cache with it.
@@ -241,28 +286,30 @@ let inFlightHydrate: Promise<boolean> | null = null;
  */
 export function hydratePreferences(options: { force?: boolean } = {}): Promise<boolean> {
 	if (typeof window === "undefined") return Promise.resolve(false);
-	if (inFlightHydrate) return inFlightHydrate;
+	if (inFlightHydrate?.accountSeq === accountSeq) return inFlightHydrate.promise;
 	const now = Date.now();
 	if (!options.force && now - lastHydrateAt < HYDRATE_THROTTLE_MS) {
 		return Promise.resolve(true);
 	}
 	lastHydrateAt = now;
 	const seqAtRequest = editSeq;
-	const run = (async () => {
+	const accountSeqAtRequest = accountSeq;
+	let run!: Promise<boolean>;
+	run = (async () => {
 		try {
 			const document = await fetchPreferences();
 			if (!document) return true;
-			if (editSeq !== seqAtRequest) return true;
+			if (editSeq !== seqAtRequest || accountSeq !== accountSeqAtRequest) return true;
 			applyPreferencesDocument(document);
 			return true;
 		} catch {
 			// Hydration is best effort: the cache from last time still stands.
 			return false;
 		} finally {
-			inFlightHydrate = null;
+			if (inFlightHydrate?.promise === run) inFlightHydrate = null;
 		}
 	})();
-	inFlightHydrate = run;
+	inFlightHydrate = { accountSeq: accountSeqAtRequest, promise: run };
 	return run;
 }
 
@@ -331,6 +378,12 @@ export async function adoptOrHydratePreferences(userId: string): Promise<boolean
 	if (window.localStorage.getItem(ADOPTED_KEY) === userId) {
 		return hydratePreferences({ force: true });
 	}
+	const accountSeqAtRequest = accountSeq;
+	const editSeqAtRequest = editSeq;
+	const stillCurrent = () =>
+		accountSeq === accountSeqAtRequest &&
+		editSeq === editSeqAtRequest &&
+		readCacheOwner() === userId;
 
 	let server: PreferencesDocument | null;
 	try {
@@ -340,6 +393,7 @@ export async function adoptOrHydratePreferences(userId: string): Promise<boolean
 	}
 	// No document means 401: nothing to adopt, and local still stands.
 	if (!server) return true;
+	if (!stillCurrent()) return true;
 	// As fresh as a hydrate, so it starts the wake throttle either way.
 	lastHydrateAt = Date.now();
 
@@ -351,7 +405,7 @@ export async function adoptOrHydratePreferences(userId: string): Promise<boolean
 	}
 	try {
 		const seeded = await patchPreferences(overrides);
-		if (seeded) {
+		if (seeded && stillCurrent()) {
 			applyPreferencesDocument(seeded);
 			window.localStorage.setItem(ADOPTED_KEY, userId);
 			return true;
@@ -359,7 +413,7 @@ export async function adoptOrHydratePreferences(userId: string): Promise<boolean
 	} catch {
 		// The seed did not land; the document just read is still the truth.
 	}
-	applyPreferencesDocument(server);
+	if (stillCurrent()) applyPreferencesDocument(server);
 	return true;
 }
 
@@ -375,6 +429,8 @@ function readCacheOwner(): string | null {
 /** Drop every synced value so the next account does not inherit this one's. */
 export function clearSyncedPreferences(): void {
 	if (typeof window === "undefined") return;
+	accountSeq += 1;
+	editSeq += 1;
 	for (const key of SYNCED_KEYS) window.localStorage.removeItem(key);
 	window.localStorage.removeItem(CACHE_OWNER_KEY);
 	notifyPreferencesChanged();
@@ -389,6 +445,7 @@ export function claimPreferencesCache(userId: string): void {
 	if (typeof window === "undefined") return;
 	const owner = readCacheOwner();
 	if (owner && owner !== userId) clearSyncedPreferences();
+	else if (owner !== userId) accountSeq += 1;
 	window.localStorage.setItem(CACHE_OWNER_KEY, userId);
 }
 
@@ -419,23 +476,75 @@ async function writeThrough(
 	apply();
 	notifyPreferencesChanged();
 	const seq = ++editSeq;
+	const accountSeqAtRequest = accountSeq;
 	try {
 		const document = await patchPreferences(patch);
 		// A signed-out client gets no document and keeps the local write; a later
 		// edit means this response is already stale, so it is dropped.
-		if (document && editSeq === seq) applyPreferencesDocument(document);
+		if (document && editSeq === seq && accountSeq === accountSeqAtRequest) {
+			applyPreferencesDocument(document);
+		}
 		return null;
 	} catch (err) {
 		// Only undo a value that is still the one this write put there. Something
 		// newer - a second tap, or a hydrate - has already replaced it otherwise,
 		// and rolling back would throw that away instead of this.
-		if (stillHolds()) {
+		if (accountSeq === accountSeqAtRequest && stillHolds()) {
 			rollback();
 			notifyPreferencesChanged();
 		}
 		const message = err instanceof Error ? err.message : fallbackMessage;
 		if (!options.silent) setSyncError(message);
 		return message;
+	}
+}
+
+export type HighlightLabelsSaveResult =
+	| { ok: true; labels: HighlightLabels }
+	| { ok: false; error: string };
+
+let highlightSaveSeq = 0;
+
+/**
+ * Save touched rows without erasing labels this editor did not load. The GET
+ * is deliberate: highlightLabels is a whole-map replacement in PATCH.
+ */
+export async function saveHighlightLabelEdits(
+	edits: Partial<Record<HighlightLabelId, string>>
+): Promise<HighlightLabelsSaveResult> {
+	if (typeof window === "undefined") return { ok: false, error: "Labels can only be saved here." };
+	const ownerAtRequest = readCacheOwner();
+	if (!ownerAtRequest) return { ok: false, error: "Sign in before saving highlight labels." };
+	const accountSeqAtRequest = accountSeq;
+	const saveSeq = ++highlightSaveSeq;
+	editSeq += 1;
+
+	try {
+		const latest = await fetchPreferences();
+		if (!latest) throw new Error("Sign in before saving highlight labels.");
+		if (accountSeq !== accountSeqAtRequest || readCacheOwner() !== ownerAtRequest) {
+			return { ok: false, error: "Your account changed before the labels were saved." };
+		}
+		const latestLabels = labelsFromDocument(latest);
+		if (latestLabels === null) throw new Error("Highlight labels are not available yet.");
+		const next = mergeHighlightLabelEdits(latestLabels, edits);
+		const confirmed = await patchPreferences({ highlightLabels: next });
+		if (!confirmed) throw new Error("Sign in before saving highlight labels.");
+		if (accountSeq !== accountSeqAtRequest || readCacheOwner() !== ownerAtRequest) {
+			return { ok: false, error: "Your account changed before the labels were saved." };
+		}
+		const confirmedLabels = labelsFromDocument(confirmed);
+		if (confirmedLabels === null) throw new Error("The server did not confirm the highlight labels.");
+		if (saveSeq === highlightSaveSeq) {
+			writeHighlightLabelsPref(confirmedLabels);
+			notifyPreferencesChanged();
+		}
+		return { ok: true, labels: confirmedLabels };
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error && error.message ? error.message : "Couldn't save highlight labels.",
+		};
 	}
 }
 

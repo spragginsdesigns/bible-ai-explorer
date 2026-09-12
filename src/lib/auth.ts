@@ -135,10 +135,12 @@ async function ensureUserRecord(userId: string): Promise<void> {
 
 	if (await claimLegacyAccount(userId)) return;
 
-	await prisma.user.upsert({
-		where: { id: userId },
-		update: {},
-		create: { id: userId, email: null, name: null },
+	// Empty-update upserts can become a read followed by a create. First-run
+	// clients load several routes in parallel, so let Postgres arbitrate the
+	// unique ID atomically without overwriting a row another request created.
+	await prisma.user.createMany({
+		data: [{ id: userId, email: null, name: null }],
+		skipDuplicates: true,
 	});
 }
 

@@ -1,19 +1,62 @@
-import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { AppState, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
+import type { TranslationId } from "@/features/bible/translations";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
+import { apiJson, type GetToken } from "@/lib/api";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
+
+/**
+ * The slice of GET /api/reading-events the continue-reading row needs.
+ */
+interface LastRead {
+	book: string;
+	chapter: number;
+	translation: TranslationId;
+	readAt: string;
+}
+
+interface LastReadState {
+	userId: string;
+	value: LastRead | null;
+}
+
+const BOOK_BY_NAME = new Map(BOOKS.map((book) => [book.name, book]));
+
+function parseLastRead(value: unknown): LastRead | null {
+	if (!value || typeof value !== "object") return null;
+	const candidate = value as Record<string, unknown>;
+	if (
+		typeof candidate.book !== "string" ||
+		typeof candidate.chapter !== "number" ||
+		!Number.isInteger(candidate.chapter) ||
+		(candidate.translation !== "KJV" && candidate.translation !== "NKJV") ||
+		typeof candidate.readAt !== "string"
+	) {
+		return null;
+	}
+	const book = BOOK_BY_NAME.get(candidate.book);
+	const chapter = candidate.chapter as number;
+	if (!book || chapter < 1 || chapter > book.chapters) return null;
+	return {
+		book: book.name,
+		chapter,
+		translation: candidate.translation,
+		readAt: candidate.readAt,
+	};
+}
 
 type Testament = "OT" | "NT";
 
@@ -70,6 +113,61 @@ export default function BibleBooksScreen() {
 	// Read-only here: the card shows where the plan stands and hands the user
 	// on to the plan screen, which owns every action.
 	const { plan } = useReadingPlan();
+	const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+
+	// The API layer's `{ fresh: true }` maps to Clerk's cache skip.
+	const getApiToken = useCallback<GetToken>(
+		(opts) => getToken(opts?.fresh ? { skipCache: true } : undefined),
+		[getToken]
+	);
+
+	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
+	// Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
+	const [lastRead, setLastRead] = useState<LastReadState | null>(null);
+	const requestId = useRef(0);
+	const loadLastRead = useCallback(() => {
+		const id = ++requestId.current;
+		if (!isLoaded || !isSignedIn || !userId) {
+			setLastRead(null);
+			return;
+		}
+		apiJson<{ lastRead?: unknown }>(getApiToken, "/api/reading-events")
+			.then((data) => {
+				if (requestId.current === id) {
+					setLastRead({ userId, value: parseLastRead(data.lastRead) });
+				}
+			})
+			.catch(() => {
+				if (requestId.current === id) setLastRead({ userId, value: null });
+			});
+	}, [getApiToken, isLoaded, isSignedIn, userId]);
+
+	useFocusEffect(
+		useCallback(() => {
+			loadLastRead();
+			const subscription = AppState.addEventListener("change", (state) => {
+				if (state === "active") loadLastRead();
+			});
+			return () => {
+				requestId.current += 1;
+				subscription.remove();
+			};
+		}, [loadLastRead])
+	);
+
+	const continueTarget = useMemo(() => {
+		if (!userId || lastRead?.userId !== userId || !lastRead.value) return null;
+		const book = BOOK_BY_NAME.get(lastRead.value.book);
+		if (!book) return null;
+		return {
+			label: `${book.name} ${lastRead.value.chapter}`,
+			params: {
+				book: String(book.order),
+				chapter: String(lastRead.value.chapter),
+				translation: lastRead.value.translation,
+			},
+		};
+	}, [lastRead, userId]);
 
 	const toggleTestament = (testament: Testament) => {
 		setCollapsed((prev) => {
@@ -97,6 +195,10 @@ export default function BibleBooksScreen() {
 		router.push("/bible/plan");
 	};
 
+	const openLearn = () => {
+		router.push("/(app)/bible/learn");
+	};
+
 	const openTimeline = () => {
 		router.push("/bible/timeline");
 	};
@@ -120,6 +222,36 @@ export default function BibleBooksScreen() {
 				contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
 				ListHeaderComponent={
 					<>
+						{continueTarget && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={`Continue reading ${continueTarget.label}`}
+								onPress={() =>
+									router.push({ pathname: "/bible/chapter", params: continueTarget.params })
+								}
+								style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+							>
+								<Text style={styles.planGlyph}>→</Text>
+								<View style={styles.crossCopy}>
+									<Text style={styles.planTitle}>Continue reading</Text>
+									<Text style={styles.crossSubtitle}>{continueTarget.label}</Text>
+								</View>
+								<Text style={styles.planChevron}>›</Text>
+							</Pressable>
+						)}
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Learn a verse"
+							onPress={openLearn}
+							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+						>
+							<Text style={styles.planGlyph}>✦</Text>
+							<View style={styles.crossCopy}>
+								<Text style={styles.planTitle}>Learn a verse</Text>
+								<Text style={styles.crossSubtitle}>Practice today&apos;s verses</Text>
+							</View>
+							<Text style={styles.planChevron}>›</Text>
+						</Pressable>
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel={plan ? "Reading plan - today's reading" : "Start a reading plan"}

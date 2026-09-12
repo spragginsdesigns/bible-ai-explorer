@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
+	AppState,
 	FlatList,
 	Image,
 	Modal,
+	Platform,
 	Pressable,
 	Share,
 	StyleSheet,
@@ -28,6 +30,7 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { recordReadingEvent } from "@/features/notifications/api";
 import { bookByOrder, type Book } from "@/features/bible/books";
 import { HIGHLIGHT_PRESETS, highlightWash } from "@/features/bible/highlights";
+import { highlightLabelFor } from "@/features/settings/preferences";
 import {
 	removeHighlight,
 	setHighlight,
@@ -39,9 +42,15 @@ import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
+import {
+	CrossReferencesSection,
+	type CrossReferenceTarget,
+} from "@/features/bible/CrossReferencesSection";
+import { AddLearnButton } from "@/features/learn/AddLearnButton";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
+	useHighlightLabels,
 	useSettings,
 	useThemedStyles,
 	useTheme,
@@ -191,6 +200,7 @@ export default function BibleChapterScreen() {
 	// explicit preference choice, so it clears the route override and persists it.
 	const sourceTranslationParam = parseTranslationId(params.translation);
 	const { translation: accountTranslation, parchment } = useSettings();
+	const highlightLabels = useHighlightLabels();
 	const translation = readerTranslation(accountTranslation, params.translation);
 	const setTranslation = useCallback(
 		(next: TranslationId) => {
@@ -225,6 +235,11 @@ export default function BibleChapterScreen() {
 	const lastFlashed = useRef<string | null>(null);
 	const lastRecordedRead = useRef<string | null>(null);
 	const requestId = useRef(0);
+	const sheetVisibleRef = useRef(false);
+	const pendingCrossReference = useRef<
+		(CrossReferenceTarget & { translation: TranslationId }) | null
+	>(null);
+	const dismissFocusSubscription = useRef<ReturnType<typeof AppState.addEventListener> | null>(null);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
@@ -349,6 +364,7 @@ export default function BibleChapterScreen() {
 
 	const reference = book ? `${book.name} ${chapter}` : "";
 	const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
+	sheetVisibleRef.current = actionVerse !== null;
 
 	const closeSheet = useCallback(() => {
 		setActionVerse(null);
@@ -356,6 +372,47 @@ export default function BibleChapterScreen() {
 		setSaveError(null);
 		resetInsight();
 	}, [resetInsight]);
+
+	const cancelCrossReferenceNavigation = useCallback(() => {
+		pendingCrossReference.current = null;
+		dismissFocusSubscription.current?.remove();
+		dismissFocusSubscription.current = null;
+	}, []);
+
+	const finishCrossReferenceDismissal = useCallback(() => {
+		const target = pendingCrossReference.current;
+		if (!target || sheetVisibleRef.current) return;
+		cancelCrossReferenceNavigation();
+		router.push({
+			pathname: "/bible/chapter",
+			params: {
+				book: String(target.order),
+				chapter: String(target.chapter),
+				...(target.verse !== undefined ? { verse: String(target.verse) } : {}),
+				translation: target.translation,
+			},
+		});
+	}, [cancelCrossReferenceNavigation, router]);
+
+	useEffect(() => () => cancelCrossReferenceNavigation(), [cancelCrossReferenceNavigation]);
+	useEffect(() => {
+		if (actionVerse) cancelCrossReferenceNavigation();
+	}, [actionVerse, cancelCrossReferenceNavigation]);
+
+	const openCrossReference = useCallback(
+		(target: CrossReferenceTarget) => {
+			cancelCrossReferenceNavigation();
+			pendingCrossReference.current = { ...target, translation };
+			if (Platform.OS === "android") {
+				dismissFocusSubscription.current = AppState.addEventListener(
+					"focus",
+					finishCrossReferenceDismissal
+				);
+			}
+			closeSheet();
+		},
+		[cancelCrossReferenceNavigation, closeSheet, finishCrossReferenceDismissal, translation]
+	);
 
 	// Tap-a-verse: opening the sheet immediately starts streaming a short AI
 	// explanation of the tapped verse (cached per verse for the session).
@@ -428,10 +485,16 @@ export default function BibleChapterScreen() {
 		} finally {
 			setSaveBusy(false);
 		}
-	}, [actionVerse, actionReference, saveBusy, getToken, router, closeSheet]);
+	}, [actionVerse, actionReference, saveBusy, getToken, translation, router, closeSheet]);
 
 	// The color currently stored for the verse the sheet is acting on, if any.
 	const actionVerseColor = actionVerse ? highlights.get(actionVerse.number) : undefined;
+	const actionVersePreset = actionVerseColor
+		? HIGHLIGHT_PRESETS.find(
+				(preset) => preset.color.toLowerCase() === actionVerseColor.toLowerCase()
+			)
+		: undefined;
+	const actionHighlightLabel = highlightLabelFor(highlightLabels, actionVersePreset?.name);
 
 	// Highlight writes are optimistic — the verse row recolors immediately and
 	// the store rolls back if the PUT/DELETE fails, so the sheet just fires.
@@ -664,6 +727,7 @@ export default function BibleChapterScreen() {
 
 			<BottomSheet
 				visible={actionVerse !== null}
+				onDismiss={Platform.OS === "ios" ? finishCrossReferenceDismissal : undefined}
 				onClose={closeSheet}
 				title={actionReference}
 				scroll
@@ -687,6 +751,13 @@ export default function BibleChapterScreen() {
 					chapter={chapter}
 					verse={actionVerse?.number ?? null}
 				/>
+				<CrossReferencesSection
+					key={`${actionReference}:${translation}`}
+					reference={actionReference}
+					translation={translation}
+					enabled={actionVerse !== null}
+					onNavigate={openCrossReference}
+				/>
 				<Pressable
 					accessibilityRole="button"
 					onPress={() => {
@@ -702,20 +773,23 @@ export default function BibleChapterScreen() {
 				<View style={styles.highlightSection}>
 					<Text style={styles.highlightLabel}>Highlight</Text>
 					<View style={styles.swatchRow}>
-						{HIGHLIGHT_PRESETS.map((preset) => (
-							<Pressable
-								key={preset.color}
-								accessibilityRole="button"
-								accessibilityLabel={`Highlight ${preset.name}`}
-								accessibilityState={{ selected: actionVerseColor === preset.color }}
-								onPress={() => applyHighlight(preset.color)}
-								style={[
-									styles.swatch,
-									{ backgroundColor: preset.color },
-									actionVerseColor === preset.color && styles.swatchSelected,
-								]}
-							/>
-						))}
+						{HIGHLIGHT_PRESETS.map((preset) => {
+							const label = highlightLabelFor(highlightLabels, preset.name) ?? preset.name;
+							return (
+								<Pressable
+									key={preset.color}
+									accessibilityRole="button"
+									accessibilityLabel={`Highlight ${label}`}
+									accessibilityState={{ selected: actionVerseColor === preset.color }}
+									onPress={() => applyHighlight(preset.color)}
+									style={[
+										styles.swatch,
+										{ backgroundColor: preset.color },
+										actionVerseColor === preset.color && styles.swatchSelected,
+									]}
+								/>
+							);
+						})}
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Custom highlight color"
@@ -737,6 +811,11 @@ export default function BibleChapterScreen() {
 							<Text style={styles.swatchCustomLabel}>+</Text>
 						</Pressable>
 					</View>
+					{actionHighlightLabel ? (
+						<Text style={styles.highlightCaption}>
+							Marked as “{actionHighlightLabel}”
+						</Text>
+					) : null}
 					{actionVerseColor ? (
 						<SheetRow
 							icon="color-fill-outline"
@@ -746,6 +825,16 @@ export default function BibleChapterScreen() {
 						/>
 					) : null}
 				</View>
+				{actionVerse ? (
+					<AddLearnButton
+						book={order}
+						chapter={chapter}
+						verse={actionVerse.number}
+						translation={translation}
+						source={actionVerseColor ? "highlight" : "sheet"}
+						onAdded={closeSheet}
+					/>
+				) : null}
 				<SheetRow
 					icon={copied ? "checkmark" : "copy-outline"}
 					label={copied ? "Copied ✓" : "Copy"}
@@ -963,6 +1052,12 @@ const createStyles = (c: Colors) =>
 			letterSpacing: 0.8,
 			paddingHorizontal: spacing.sm,
 			marginBottom: spacing.sm,
+		},
+		highlightCaption: {
+			color: c.textMuted,
+			...typography.meta,
+			paddingHorizontal: spacing.sm,
+			paddingTop: spacing.xs,
 		},
 		swatchRow: {
 			flexDirection: "row",
