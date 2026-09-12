@@ -108,4 +108,3 @@ manifest members, require a new package and Store submission.
 - [PWABuilder: Modern and classic package behavior](https://github.com/pwa-builder/pwabuilder-windows-chromium-docs/blob/master/classic-package.md)
 - [PWABuilder: Common package identity errors](https://github.com/pwa-builder/pwabuilder-windows-chromium-docs/blob/master/package-errors.md)
 - [Microsoft: MSIX package requirements and Store signing](https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements)
-
