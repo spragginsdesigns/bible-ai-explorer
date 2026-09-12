@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, MessageSquare, Search, Pencil, Check, X } from "lucide-react";
 import type { Conversation } from "./useChat";
+import { useGlobalShortcuts } from "@/lib/shortcuts";
 
 /**
  * The server list payload already carries updatedAt (ordered by it), but the
@@ -61,7 +62,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 	const [confirmClear, setConfirmClear] = useState(false);
 	const editInputRef = useRef<HTMLInputElement>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
 	const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// B9 bindings on the chat surface: `n` new chat, `h` focuses history
+	// search; `/` (composer) and `[`/`]` (chapters) are handled by the hook.
+	useGlobalShortcuts({
+		onNewChat,
+		onOpenHistory: () => searchInputRef.current?.focus(),
+	});
 
 	useEffect(() => {
 		if (editingId) editInputRef.current?.focus();
@@ -152,6 +161,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 					<div className="mx-1 mb-1.5 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] focus-within:border-amber-600/40 dark:focus-within:border-amber-400/40 transition-colors">
 						<Search className="w-3.5 h-3.5 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
 						<input
+							ref={searchInputRef}
 							value={query}
 							onChange={(e) => setQuery(e.target.value)}
 							placeholder="Search chats"
