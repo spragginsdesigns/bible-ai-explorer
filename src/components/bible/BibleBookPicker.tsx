@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/lib/bible/books";
@@ -9,6 +9,18 @@ import { useReadingPlan } from "@/components/plan/useReadingPlan";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
+
+/**
+ * The slice of GET /api/reading-events the continue-reading row needs. The
+ * route (A6) answers 404 until the backend lane ships it; the row stays
+ * hidden then.
+ */
+interface LastRead {
+  book: string;
+  chapter: number;
+  translation: string;
+  readAt: string;
+}
 
 type Testament = "OT" | "NT";
 
@@ -59,6 +71,33 @@ const BibleBookPicker: React.FC = () => {
   // to the plan page, which owns every action.
   const { plan } = useReadingPlan();
 
+  // B8: "Continue reading: Judges 7" from the reading-history route (A6).
+  // Fail-soft: signed out or the route not yet deployed leaves it hidden.
+  const [lastRead, setLastRead] = useState<LastRead | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/reading-events")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { lastRead?: LastRead | null } | null) => {
+        if (!cancelled && data?.lastRead) setLastRead(data.lastRead);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const continueTarget = useMemo(() => {
+    if (!lastRead) return null;
+    const book = BOOKS.find((entry) => entry.name === lastRead.book);
+    if (!book) return null;
+    const chapter = Math.min(Math.max(lastRead.chapter, 1), book.chapters);
+    return {
+      label: `${book.name} ${chapter}`,
+      href: `/bible/chapter?book=${book.order}&chapter=${chapter}&translation=${encodeURIComponent(lastRead.translation)}`,
+    };
+  }, [lastRead]);
+
   const toggleTestament = (testament: Testament) => {
     setCollapsed((prev) => {
       const next = { ...prev, [testament]: !prev[testament] };
@@ -85,6 +124,25 @@ const BibleBookPicker: React.FC = () => {
             Search the Bible
           </Link>
         </div>
+
+        {/* Continue reading - the last chapter they opened (B8; hidden until the A6 route ships or when signed out) */}
+        {continueTarget && (
+          <Link
+            href={continueTarget.href}
+            className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+          >
+            <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">→</span>
+            <span className="flex-1">
+              <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+                Continue reading
+              </span>
+              <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+                {continueTarget.label}
+              </span>
+            </span>
+            <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+          </Link>
+        )}
 
         {/* Reading plan - where they are in it, or an invitation (mirrors the Android Bible tab card) */}
         <Link

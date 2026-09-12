@@ -1,19 +1,33 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "@clerk/expo";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
+import { apiJson, type GetToken } from "@/lib/api";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
+
+/**
+ * The slice of GET /api/reading-events the continue-reading row needs. The
+ * route (A6) answers 404 until the backend lane ships it; the row stays
+ * hidden then.
+ */
+interface LastRead {
+	book: string;
+	chapter: number;
+	translation: string;
+	readAt: string;
+}
 
 type Testament = "OT" | "NT";
 
@@ -70,6 +84,43 @@ export default function BibleBooksScreen() {
 	// Read-only here: the card shows where the plan stands and hands the user
 	// on to the plan screen, which owns every action.
 	const { plan } = useReadingPlan();
+	const { getToken } = useAuth();
+
+	// The API layer's `{ fresh: true }` maps to Clerk's cache skip.
+	const getApiToken = useCallback<GetToken>(
+		(opts) => getToken(opts?.fresh ? { skipCache: true } : undefined),
+		[getToken]
+	);
+
+	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
+	// Fail-soft: signed out or the route not yet deployed leaves it hidden.
+	const [lastRead, setLastRead] = useState<LastRead | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		apiJson<{ lastRead?: LastRead | null }>(getApiToken, "/api/reading-events")
+			.then((data) => {
+				if (!cancelled && data.lastRead) setLastRead(data.lastRead);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [getApiToken]);
+
+	const continueTarget = useMemo(() => {
+		if (!lastRead) return null;
+		const book = BOOKS.find((entry) => entry.name === lastRead.book);
+		if (!book) return null;
+		const chapter = Math.min(Math.max(lastRead.chapter, 1), book.chapters);
+		return {
+			label: `${book.name} ${chapter}`,
+			params: {
+				book: String(book.order),
+				chapter: String(chapter),
+				translation: lastRead.translation,
+			},
+		};
+	}, [lastRead]);
 
 	const toggleTestament = (testament: Testament) => {
 		setCollapsed((prev) => {
@@ -120,6 +171,23 @@ export default function BibleBooksScreen() {
 				contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
 				ListHeaderComponent={
 					<>
+						{continueTarget && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={`Continue reading ${continueTarget.label}`}
+								onPress={() =>
+									router.push({ pathname: "/bible/chapter", params: continueTarget.params })
+								}
+								style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+							>
+								<Text style={styles.planGlyph}>→</Text>
+								<View style={styles.crossCopy}>
+									<Text style={styles.planTitle}>Continue reading</Text>
+									<Text style={styles.crossSubtitle}>{continueTarget.label}</Text>
+								</View>
+								<Text style={styles.planChevron}>›</Text>
+							</Pressable>
+						)}
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel={plan ? "Reading plan - today's reading" : "Start a reading plan"}
