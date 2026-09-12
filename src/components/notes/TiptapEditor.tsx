@@ -12,6 +12,7 @@ import UnderlineExtension from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import EditorToolbar from "./EditorToolbar";
 import { WikilinkDecoration } from "./extensions/WikilinkDecoration";
+import { noteHtmlToMarkdown } from "./noteMarkdownExport";
 import type { Note } from "@/types/notes";
 
 interface TiptapEditorProps {
@@ -32,6 +33,8 @@ interface TiptapEditorProps {
 export interface TiptapEditorHandle {
 	/** Append HTML (e.g. AI-authored content) to the end of the document. */
 	appendHtml: (html: string) => void;
+	/** Read the current editor state for export, bypassing the save debounce. */
+	getMarkdown: (title: string) => string;
 }
 
 const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
@@ -166,6 +169,12 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 				if (debounceRef.current) clearTimeout(debounceRef.current);
 				doSave(editor);
 			},
+			getMarkdown: (title: string) =>
+				editor
+					? noteHtmlToMarkdown(title, editor.getHTML())
+					: (() => {
+						throw new Error("Editor unavailable");
+					})(),
 		}),
 		[editor, doSave]
 	);

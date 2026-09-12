@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Trash2, Pin, PinOff, FolderOpen, Tag as TagIcon, Brain } from "lucide-react";
+import { ArrowLeft, Trash2, Pin, PinOff, FolderOpen, Tag as TagIcon, Brain, Copy } from "lucide-react";
 import TagManager from "./TagManager";
 import type { Note, Folder, Tag } from "@/types/notes";
 
@@ -17,6 +17,7 @@ interface NoteEditorTopBarProps {
 	onToggleTag: (tagId: string) => void;
 	onCreateTag: (name: string, color: string) => void;
 	onDeleteTag: (id: string) => void;
+	onCopyMarkdown?: (title: string) => Promise<void>;
 	aiPanelOpen?: boolean;
 	onToggleAIPanel?: () => void;
 }
@@ -33,6 +34,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	onToggleTag,
 	onCreateTag,
 	onDeleteTag,
+	onCopyMarkdown,
 	aiPanelOpen,
 	onToggleAIPanel,
 }) => {
@@ -40,13 +42,15 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const [titleValue, setTitleValue] = useState(note.title);
 	const [showFolderMenu, setShowFolderMenu] = useState(false);
 	const [showTagMenu, setShowTagMenu] = useState(false);
+	const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">("idle");
 	const titleRef = useRef<HTMLInputElement>(null);
 	const folderMenuRef = useRef<HTMLDivElement>(null);
 	const tagMenuRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		setTitleValue(note.title);
-	}, [note.title]);
+		setCopyStatus("idle");
+	}, [note.title, note.id]);
 
 	useEffect(() => {
 		if (isEditingTitle && titleRef.current) {
@@ -77,6 +81,16 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 
 	const currentFolder = folders.find((f) => f.id === note.folderId);
 	const noteTags = tags.filter((t) => note.tagIds.includes(t.id));
+	const copyMarkdown = async () => {
+		if (!onCopyMarkdown) return;
+		setCopyStatus("idle");
+		try {
+			await onCopyMarkdown(titleValue.trim() || "Untitled Note");
+			setCopyStatus("success");
+		} catch {
+			setCopyStatus("error");
+		}
+	};
 
 	return (
 		// Both rows sit in the same centred max-w-3xl column as the editor body
@@ -117,6 +131,16 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 				)}
 
 				<div className="flex items-center gap-0">
+					{onCopyMarkdown && (
+						<button
+							onClick={copyMarkdown}
+							title="Copy note as Markdown"
+							aria-label="Copy note as Markdown"
+							className="text-neutral-500 hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+						>
+							<Copy className="w-4 h-4" />
+						</button>
+					)}
 					{onToggleAIPanel && (
 						<button
 							onClick={onToggleAIPanel}
@@ -153,6 +177,11 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 
 			{/* Meta row: folder + tags */}
 			<div className="mx-auto w-full max-w-3xl flex items-center gap-2 px-3 md:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
+				{copyStatus !== "idle" && (
+					<span role="status" aria-live="polite" className={copyStatus === "success" ? "text-xs text-emerald-400" : "text-xs text-red-400"}>
+						{copyStatus === "success" ? "Markdown copied" : "Copy failed. Check clipboard permissions."}
+					</span>
+				)}
 				{/* Folder selector */}
 				<div className="relative" ref={folderMenuRef}>
 					<button
