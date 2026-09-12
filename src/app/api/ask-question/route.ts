@@ -60,12 +60,17 @@ import { chatSystemPrompt, firstConversationGuidance } from "@/utils/systemPromp
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
+import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 import {
 	logChatOutcomeMetric,
 	logChatStepMetric,
 	type ChatOutcomeExit,
 } from "@/lib/ai/chat-metrics";
-export const maxDuration = 120;
+// Matches vercel.json for this route. At 120 a slow BYOK provider taking four
+// tool steps was killed mid-loop by the platform, which runs no callback: the
+// user's question was saved and the answer was lost with nothing logged. See
+// TOOL_LOOP_BUDGET_MS for the guard that stops the loop before that happens.
+export const maxDuration = 300;
 
 const MAX_REQUEST_MESSAGES = 24;
 const MAX_CONTEXT_ATTACHMENTS = 5;
@@ -620,6 +625,7 @@ export async function POST(req: Request): Promise<Response> {
 		// nothing else records which exit it took. Filled in as the turn runs
 		// and read once in onEnd; only set when persistUserMessage succeeded,
 		// because a turn with no saved user message is not an unanswered one.
+		const turnStartedAtMs = Date.now();
 		let conversationCreatedAt: Date | null = null;
 		let metricProvider: string | null = null;
 		let metricModelId: string | null = null;
@@ -839,7 +845,9 @@ export async function POST(req: Request): Promise<Response> {
 					system: promptCache.system,
 					messages: await convertToModelMessages(modelMessages),
 					tools,
-					stopWhen: isStepCount(8),
+					// Either limit ends the loop cleanly, so the answer is streamed,
+					// persisted and measured. Only the platform timeout loses a turn.
+					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
 					providerOptions: promptCache.providerOptions,
 					experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
 					// Supplying onError replaces streamText's default console.error, so

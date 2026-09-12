@@ -6,12 +6,11 @@ import {
 	Pressable,
 	ScrollView,
 	StyleSheet,
-	TextInput,
 	View,
 } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
-import { AppText as Text } from "@/components/AppText";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";

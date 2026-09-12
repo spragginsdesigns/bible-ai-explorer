@@ -183,3 +183,18 @@ test("outcome metric normalizes missing finish reason and odd step counts", () =
 	assert.equal(metric.provider, null);
 	assert.equal(metric.conversationAge, "under_1m");
 });
+
+test("the tool loop stops on its own time budget, before the platform can kill the turn", async () => {
+	const { isOverTimeBudget, TOOL_LOOP_BUDGET_MS } = await import("../src/lib/ai/tool-loop-budget.ts");
+	// A turn killed by the platform runs no callback: the question is saved and
+	// the answer is lost with nothing logged (seen in production 2026-09-12,
+	// a BYOK provider four tool steps deep at 120s).
+	let clock = 1_000;
+	assert.ok(TOOL_LOOP_BUDGET_MS < 300_000, "the budget must sit under the route's maxDuration");
+	const stop = isOverTimeBudget(clock, 210_000, () => clock);
+	assert.equal(stop(), false);
+	clock += 209_999;
+	assert.equal(stop(), false);
+	clock += 1;
+	assert.equal(stop(), true);
+});
