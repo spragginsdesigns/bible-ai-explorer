@@ -10,7 +10,7 @@ import { parseCard } from "./learn";
 
 export interface AddLearnProps {
 	book: number; chapter: number; verse: number;
-	translation: "KJV" | "NKJV";
+	translation: "KJV" | "NKJV" | "BSB";
 	source: "sheet" | "highlight" | "suggestion";
 	/** Set where the surrounding text alone does not name the verse being added. */
 	accessibilityLabel?: string;

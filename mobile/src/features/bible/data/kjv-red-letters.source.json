@@ -1,0 +1,17 @@
+{
+  "source": "https://ebible.org/Scriptures/eng-kjv_usfm.zip",
+  "copyright": "https://ebible.org/eng-kjv/copyright.htm",
+  "sourceSha256": "1165788907a8bbe93c3299d89eb5134d942038e5dca2c0832beb13e8f72441d0",
+  "verses": 2028,
+  "byBook": {
+    "MAT": 644,
+    "MRK": 286,
+    "LUK": 587,
+    "JHN": 419,
+    "ACT": 27,
+    "1CO": 2,
+    "2CO": 1,
+    "REV": 62
+  },
+  "method": "USFM wj markers; alphanumeric alignment with explicit reviewed edition aliases; stored exact text guards offsets at runtime."
+}

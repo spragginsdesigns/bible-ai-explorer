@@ -7,7 +7,7 @@ const addSchema = z.object({
 	book: z.number().int().min(1).max(66), // canonical order, 1-66
 	chapter: z.number().int().min(1).max(200),
 	verse: z.number().int().min(1).max(200),
-	translation: z.enum(["KJV", "NKJV"]),
+	translation: z.enum(["KJV", "NKJV", "BSB"]),
 	source: z.enum(["sheet", "highlight", "chat", "suggestion"]),
 });
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 			return NextResponse.json(
 				{
 					error:
-						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV or NKJV and a 'source' of sheet, highlight, chat or suggestion are required.",
+						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV, NKJV or BSB and a 'source' of sheet, highlight, chat or suggestion are required.",
 				},
 				{ status: 400 }
 			);

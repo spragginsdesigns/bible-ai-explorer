@@ -1,0 +1,12 @@
+{
+  "source": "https://bereanbible.com/bsb_usj.zip",
+  "rights": "https://berean.bible/licensing.htm",
+  "sha256": "53acad65d590f5bc8cded3e14b37b7b02916f6a365211bcf60ea733ecd800e8f",
+  "textVerificationSource": "https://bereanbible.com/bsb.txt",
+  "textSha256": "2ac3af1de52d4e68261cba91d85c320b7eadc6560e830d99e591767b8ff5ca96",
+  "books": 66,
+  "chapters": 1189,
+  "verses": 31102,
+  "headings": 3140,
+  "redLetterVerses": 2047
+}

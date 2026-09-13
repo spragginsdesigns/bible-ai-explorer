@@ -96,7 +96,7 @@ export const SINGLE_ABBREVIATIONS = [
 ];
 
 /** Translation tags the model may append to a reference. */
-export const TRANSLATION_TAGS = "NKJV|KJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP";
+export const TRANSLATION_TAGS = "BSB|NKJV|KJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP";
 
 // The numeral of a numbered book, with the space the model may omit ("2Cor").
 const volumeNumber = `[123]\\s?`;

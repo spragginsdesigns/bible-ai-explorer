@@ -75,7 +75,7 @@ const refPattern = `\\d{1,3}:\\d{1,3}(?:\\s*${rangeDashes}\\s*\\d{1,3}(?::\\d{1,
 // 3:14:"), so only a colon that starts another number is rejected.
 const referenceBoundary = `(?!\\d)(?!:\\d)`;
 // Optional trailing translation tag (KJV, NIV, ESV, etc.)
-const translationPattern = `(?:\\s+(?:KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP))?`;
+const translationPattern = `(?:\\s+(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP))?`;
 
 const REFERENCE_REGEX_SOURCE = `(${bookPattern}${refPattern}${referenceBoundary}${translationPattern})`;
 
@@ -88,7 +88,7 @@ const REFERENCE_REGEX_SOURCE = `(${bookPattern}${refPattern}${referenceBoundary}
  */
 export const VERSE_REFERENCE_REGEX = new RegExp(REFERENCE_REGEX_SOURCE, "gi");
 
-const TRAILING_TRANSLATION = /\s+(?:KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i;
+const TRAILING_TRANSLATION = /\s+(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i;
 /** "John 3:16-4:2" and an en-dashed "1 John 5:1-4" both open at their first verse. */
 const TRAILING_RANGE = new RegExp(`\\s*${rangeDashes}\\s*\\d{1,3}(?::\\d{1,3})?$`);
 /** "Gen.1:1" -> "Gen. 1:1": resolveReference requires whitespace before the chapter. */

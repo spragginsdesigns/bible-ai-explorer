@@ -8,7 +8,7 @@ import { suggestionKey, type LearnSuggestion, type LearnSuggestionsView } from "
 
 export interface SuggestedVersesProps {
 	view: LearnSuggestionsView;
-	translation: "KJV" | "NKJV";
+	translation: "KJV" | "NKJV" | "BSB";
 	/** Stands in for the row that was just added, so the confirmation outlives it. */
 	confirmation: string | null;
 	onAdded: (suggestion: LearnSuggestion) => void;

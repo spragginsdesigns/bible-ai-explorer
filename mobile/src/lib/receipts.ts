@@ -15,7 +15,7 @@ export type ChatReceiptKind =
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
 	| { screen: "memories"; memoryId?: string }
-	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" }
+	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" | "BSB" }
 	| { screen: "plan" }
 	| { screen: "readingHistory" }
 	| { screen: "cross" }
@@ -151,7 +151,7 @@ function toolReceipt(
 					? `Marked ${reference} as ${colorName}`
 					: `Marked ${reference}`;
 			const translation =
-				output.translation === "KJV" || output.translation === "NKJV" ? output.translation : undefined;
+				output.translation === "KJV" || output.translation === "NKJV" || output.translation === "BSB" ? output.translation : undefined;
 			return {
 				id,
 				kind: "highlight",

@@ -1,5 +1,6 @@
 import { searchKjv, type KjvSearchHit } from "./kjv";
-import { bookByOrder } from "./books";
+import { loadBsbChapter } from "./bsb";
+import { BOOKS, bookByOrder } from "./books";
 import type { TranslationId } from "./translations";
 
 export interface BibleSearchHit extends KjvSearchHit {
@@ -27,6 +28,18 @@ function plainText(text: string): string {
 
 async function searchTranslation(query: string, translation: TranslationId, limit: number, signal?: AbortSignal): Promise<BibleSearchHit[]> {
   if (signal?.aborted) throw new Error(BIBLE_SEARCH_ERROR);
+  if (translation === "BSB") {
+    const hits: BibleSearchHit[] = [];
+    const needle = query.toLowerCase();
+    for (const book of BOOKS) for (let chapter = 1; chapter <= book.chapters; chapter++) {
+      if (signal?.aborted) throw new Error(BIBLE_SEARCH_ERROR);
+      for (const verse of await loadBsbChapter(book.order, chapter)) {
+        if (verse.text.toLowerCase().includes(needle)) hits.push({ order: book.order, chapter, verse: verse.number, text: verse.text, translation });
+        if (hits.length >= limit) return hits;
+      }
+    }
+    return hits;
+  }
   if (translation === "KJV") {
     return (await searchKjv(query, limit)).map((hit) => ({ ...hit, translation }));
   }

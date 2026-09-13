@@ -214,6 +214,7 @@ ${markdownOutputRules}`;
 }
 
 const TRANSLATION_FULL_NAMES: Record<TranslationId, string> = {
+	BSB: "Berean Standard Bible",
 	KJV: "King James Version",
 	NKJV: "New King James Version",
 };

@@ -20,11 +20,14 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current release:** 1.59.0 (Android versionCode 61, tag
-`android-v1.59.0`). Chat shows contextual updates in a separate activity card,
-with expandable “Worked for” history, passages and sources. Follow-up recovery
-and hardware keyboard layout are improved. Play internal and GitHub serve one
-matching signed AAB/APK pair; release hashes and Play readback were verified.
+**Current release:** 1.60.0 (Android versionCode 62, tag
+`android-v1.60.0`). The Bible reader has sourced KJV/BSB red letters, section
+headings, quieter controls, and a chapter-navigation dock. The full Berean
+Standard Bible is bundled for offline reading and search. Existing Scripture
+text, highlights and reading references are preserved. Play internal and
+GitHub serve the matching signed AAB/APK pair; release hashes and Play readback
+were verified. The shared web/backend supports BSB; the Apple SwiftUI reader
+migration remains pending. See `scripts/bible/README.md` for source provenance.
 
 ## Stack
 

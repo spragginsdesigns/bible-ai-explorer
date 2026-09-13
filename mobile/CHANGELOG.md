@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.60.0 (versionCode 62) - 2026-09-13 - internal
+
+**What's new (Play):**
+
+- A calmer Bible reader with more breathing room, simpler reading controls, and easier chapter navigation.
+- Jesus' words appear in red in KJV and BSB, with section headings to guide your reading.
+- Read and search the full Berean Standard Bible offline, alongside KJV.
+- Your highlights, notes, and reading history stay with you.
+
+**Dev notes:** Adds publisher-sourced BSB text, speech spans, headings, and italics; all 31,102 verse slots are checked against the publisher's plain-text edition. KJV retains its existing text with validated eBible speech annotations and separately credited BSB editorial headings. Shared web/backend supports BSB preferences, lookup, search, attachments, and learning, plus public cached chapter/version endpoints. NKJV annotations and the SwiftUI reader migration remain separate work. Verified Android reader, settings, and chapter navigation in the emulator.
+
 ## 1.59.0 (versionCode 61) - 2026-09-12 - internal
 
 **What's new (Play):**

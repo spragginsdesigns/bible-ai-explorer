@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 		const body: unknown = await req.json();
 		const reference = isRecord(body) ? body.reference : undefined;
 		const translation: TranslationId =
-			isRecord(body) && body.translation === "NKJV" ? "NKJV" : "KJV";
+			isRecord(body) && (body.translation === "BSB" || body.translation === "NKJV") ? body.translation : "KJV";
 
 		if (!reference || typeof reference !== "string") {
 			return NextResponse.json(

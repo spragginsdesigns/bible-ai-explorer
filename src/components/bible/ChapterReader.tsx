@@ -1,5 +1,7 @@
 "use client";
 
+import { getBsbChapter } from "@/lib/bible/bsb";
+import { readerVerseSegments, readerSectionHeadings } from "@/lib/bible/redLetters";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -65,7 +67,7 @@ const ChapterReader: React.FC = () => {
   // text. This is a local route override; the account preference changes only
   // when the user explicitly taps a reader translation chip.
   const routeTranslation = searchParams.get("translation");
-  const translation: TranslationId = routeTranslation === "NKJV" || routeTranslation === "KJV"
+  const translation: TranslationId = routeTranslation === "NKJV" || routeTranslation === "KJV" || routeTranslation === "BSB"
     ? routeTranslation
     : accountTranslation;
   const parchment = usePreference(readParchmentPref, true);
@@ -161,7 +163,7 @@ const ChapterReader: React.FC = () => {
 
   // The reader's chips and Settings share one account preference.
   const setTranslation = useCallback((id: TranslationId) => {
-    if (routeTranslation === "KJV" || routeTranslation === "NKJV") {
+    if (routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB") {
       const next = new URLSearchParams(searchParams.toString());
       next.delete("translation");
       router.replace(`${pathname}?${next.toString()}`, { scroll: false });
@@ -293,7 +295,7 @@ const ChapterReader: React.FC = () => {
   // Android and Apple; without it Next silently flips back to the account default.
   const navHref = (target: { order: number; chapter: number }) =>
     `/bible/chapter?book=${target.order}&chapter=${target.chapter}${
-      routeTranslation === "KJV" || routeTranslation === "NKJV" ? `&translation=${routeTranslation}` : ""
+      routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB" ? `&translation=${routeTranslation}` : ""
     }`;
 
   if (!book) {
@@ -430,9 +432,12 @@ const ChapterReader: React.FC = () => {
               {verses.map((text, index) => {
                 const verseNumber = index + 1;
                 const verseColor = verseHighlights.get(verseNumber);
+                const formatted = translation === "BSB" ? getBsbChapter(order, chapter)[index] : null;
+                const segments = readerVerseSegments(text, translation, order, chapter, verseNumber);
                 return (
+                  <div key={verseNumber}>
+                  {readerSectionHeadings(translation, order, chapter, verseNumber).map((heading, i) => <h3 key={i} className="mb-5 mt-8 font-serif text-2xl italic text-neutral-900 dark:text-neutral-100">{heading}</h3>)}
                   <button
-                    key={verseNumber}
                     type="button"
                     id={`bible-verse-${verseNumber}`}
                     data-reading-verse={verseNumber}
@@ -468,10 +473,12 @@ const ChapterReader: React.FC = () => {
                       >
                         {verseNumber}
                       </span>
-                      {text}
+                      {segments.map((segment, i) => <span key={i} className={segment.jesusSpeech ? "text-[#a12e2a] dark:text-[#ef8a83]" : undefined} style={{ fontStyle: segment.italic ? "italic" : undefined }}>{segment.text}</span>)}
+                      {formatted?.omitted ? <span className="text-sm text-neutral-500">Not included in this edition’s main text.</span> : null}
                     </span>
                     <span className="block h-4" aria-hidden />
                   </button>
+                  </div>
                 );
               })}
 
@@ -482,6 +489,7 @@ const ChapterReader: React.FC = () => {
                 }`}
               >
                 {TRANSLATIONS[translation].label} - {TRANSLATIONS[translation].copyright}
+                {translation === "KJV" ? " · Editorial headings: BSB" : ""}
               </p>
               <div className="mt-6 flex gap-4">
                 {neighbors.prev ? (

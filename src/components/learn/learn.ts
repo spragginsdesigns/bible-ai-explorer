@@ -7,7 +7,7 @@ export interface LearnCard {
 	book: number;
 	chapter: number;
 	verse: number;
-	translation: "KJV" | "NKJV";
+	translation: "KJV" | "NKJV" | "BSB";
 	reference: string;
 	text: string;
 	textUnavailable?: true;
@@ -73,7 +73,7 @@ export function parseCard(value: unknown): LearnCard {
 		!Number.isInteger(card.book) || card.book! < 1 || card.book! > 66 ||
 		!Number.isInteger(card.chapter) || card.chapter! < 1 ||
 		!Number.isInteger(card.verse) || card.verse! < 1 ||
-		!["KJV", "NKJV"].includes(card.translation!) ||
+		!["KJV", "NKJV", "BSB"].includes(card.translation!) ||
 		typeof card.reference !== "string" || !card.reference.trim() ||
 		typeof card.text !== "string" ||
 		!(textUnavailable === undefined || textUnavailable === true) ||

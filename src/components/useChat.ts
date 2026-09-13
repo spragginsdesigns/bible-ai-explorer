@@ -45,7 +45,7 @@ export interface RetrievedVerse {
 	similarity: number;
 	text?: string;
 	/** Translation that produced this text; absent on legacy/history rows. */
-	translation?: "KJV" | "NKJV";
+	translation?: "KJV" | "NKJV" | "BSB";
 }
 
 export interface TavilyResult {
@@ -165,7 +165,7 @@ function parseVerses(value: unknown): RetrievedVerse[] {
 			reference: verse.reference,
 			similarity: verse.similarity,
 			...(typeof verse.text === "string" ? { text: verse.text } : {}),
-			...(verse.translation === "KJV" || verse.translation === "NKJV"
+			...(verse.translation === "KJV" || verse.translation === "NKJV" || verse.translation === "BSB"
 				? { translation: verse.translation }
 				: {}),
 		}];
