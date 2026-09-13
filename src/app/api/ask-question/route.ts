@@ -549,7 +549,7 @@ export async function POST(req: Request): Promise<Response> {
 		// The client sends the Bible translation chosen in settings; the system
 		// prompt and Scripture tools quote that translation instead of the KJV.
 		const translation: TranslationId =
-			requestData.translation === "NKJV" ? "NKJV" : "KJV";
+			requestData.translation === "BSB" ? "BSB" : requestData.translation === "NKJV" ? "NKJV" : "KJV";
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },

@@ -266,7 +266,7 @@ export default function SettingsPage() {
 								})}
 							</div>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								Used by the Bible reader and verse attachments. KJV works fully offline; NKJV
+								Used by the Bible reader and verse attachments. KJV and BSB work fully offline; NKJV
 								is fetched when needed. SureWord&apos;s AI answers use the translation you select.
 							</p>
 						</div>

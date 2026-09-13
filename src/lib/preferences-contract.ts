@@ -20,7 +20,7 @@ import type { TranslationId } from "./bible/translations";
 import type { ReasoningEffort, ReasoningMode, Speed, Verbosity } from "./ai/models";
 
 /** The translations the reader can be set to. Mirrors `TRANSLATIONS`. */
-export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV"];
+export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV", "BSB"];
 
 export const DEFAULT_TRANSLATION: TranslationId = "KJV";
 

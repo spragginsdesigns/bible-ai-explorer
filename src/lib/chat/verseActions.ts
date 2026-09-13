@@ -42,14 +42,14 @@ export function composeMessageWithAttachment(
 }
 
 export async function copyVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" }
+	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" | "BSB" }
 ): Promise<void> {
 	await navigator.clipboard.writeText(formatVerseForSharing(verse));
 }
 
 /** System share sheet where available, clipboard copy otherwise. */
 export async function shareVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" }
+	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" | "BSB" }
 ): Promise<void> {
 	const text = formatVerseForSharing(verse);
 	if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
@@ -81,6 +81,6 @@ export function chapterHrefForReference(
 	});
 	if (target.verse) params.set("verse", String(target.verse));
 	const label = sourceTranslation({ reference }, translation);
-	if (label === "KJV" || label === "NKJV") params.set("translation", label);
+	if (label === "KJV" || label === "NKJV" || label === "BSB") params.set("translation", label);
 	return `/bible/chapter?${params.toString()}`;
 }

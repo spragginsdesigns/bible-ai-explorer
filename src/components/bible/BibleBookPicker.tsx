@@ -36,7 +36,7 @@ function parseLastRead(value: unknown): LastRead | null {
     typeof candidate.book !== "string" ||
     typeof candidate.chapter !== "number" ||
     !Number.isInteger(candidate.chapter) ||
-    (candidate.translation !== "KJV" && candidate.translation !== "NKJV") ||
+    (candidate.translation !== "KJV" && candidate.translation !== "NKJV" && candidate.translation !== "BSB") ||
     typeof candidate.readAt !== "string"
   ) {
     return null;

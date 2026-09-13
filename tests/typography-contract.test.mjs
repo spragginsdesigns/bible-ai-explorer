@@ -62,7 +62,7 @@ test("Android Bible verses keep the native reader typography contract", () => {
 
 	assert.match(chapter, /Text as ScriptureText/);
 	assert.match(chapter, /<ScriptureText[\s\S]*?styles\.verseText[\s\S]*?\{ fontSize, lineHeight \}/);
-	assert.match(chapter, /const lineHeight = Math\.round\(fontSize \* 1\.55\)/);
+	assert.match(chapter, /const lineHeight = Math\.round\(fontSize \* 1\.8\)/);
 	assert.match(chapter, /verseNumber: \{[\s\S]*?fontSize: 12,[\s\S]*?fontFamily: "System"/);
 });
 

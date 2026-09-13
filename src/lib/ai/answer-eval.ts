@@ -9,7 +9,7 @@
  * them.
  */
 
-export type AnswerTranslation = "KJV" | "NKJV";
+export type AnswerTranslation = "KJV" | "NKJV" | "BSB";
 
 export interface AnswerToolCall {
 	name: string;
@@ -246,7 +246,7 @@ const BIBLE_BOOKS = [
 
 const BOOK_PATTERN = BIBLE_BOOKS.sort((a, b) => b.length - a.length).map((book) => book.replace(/ /g, "\\s+")).join("|");
 const REFERENCE_PATTERN = new RegExp(
-	`\\b(?:${BOOK_PATTERN})\\s+\\d{1,3}:\\d{1,3}(?:\\s*[-–—]\\s*(?:\\d{1,3}:)?\\d{1,3})?(?:\\s*,?\\s*(?:KJV|NKJV))?\\b`,
+	`\\b(?:${BOOK_PATTERN})\\s+\\d{1,3}:\\d{1,3}(?:\\s*[-–—]\\s*(?:\\d{1,3}:)?\\d{1,3})?(?:\\s*,?\\s*(?:KJV|NKJV|BSB))?\\b`,
 	"gi",
 );
 
@@ -393,16 +393,16 @@ function sourceTranslation(calls: AnswerToolCall[]): AnswerTranslation | null {
 		if (Array.isArray(value)) return value.forEach(visit);
 		const record = asRecord(value);
 		if (record) return Object.entries(record).forEach(([key, child]) => {
-			if (key === "translation" && (child === "KJV" || child === "NKJV")) values.push(child);
+			if (key === "translation" && (child === "KJV" || child === "NKJV" || child === "BSB")) values.push(child);
 			visit(child);
 		});
 		if (typeof value === "string") values.push(value);
 	};
 	for (const call of calls) visit(call.output);
 	for (const value of values) {
-		if (value === "KJV" || value === "NKJV") return value;
+		if (value === "KJV" || value === "NKJV" || value === "BSB") return value;
 		if (typeof value !== "string") continue;
-		const match = value.match(/\b(KJV|NKJV)\s*:/i);
+		const match = value.match(/\b(KJV|NKJV|BSB)\s*:/i);
 		if (match) return match[1].toUpperCase() as AnswerTranslation;
 	}
 	return null;
@@ -435,9 +435,9 @@ function scoreTranslation(
 ): boolean {
 	const expected = fixture.expectation.translation ?? fixture.translation;
 	if (!expected) return true;
-	const opposite = expected === "KJV" ? "NKJV" : "KJV";
+	const opposite = ["KJV", "NKJV", "BSB"].filter(value => value !== expected).join("|");
 	const answer = normalizeAnswerText(observation.text);
-	const explicitOpposite = new RegExp(`\\b${opposite.toLowerCase()}\\b`).test(answer) && !new RegExp(`\\b${expected.toLowerCase()}\\b`).test(answer);
+	const explicitOpposite = new RegExp(`\\b(?:${opposite.toLowerCase()})\\b`).test(answer) && !new RegExp(`\\b${expected.toLowerCase()}\\b`).test(answer);
 	const source = sourceTranslation(observation.toolCalls);
 	if (observation.translation !== expected || explicitOpposite || (source !== null && source !== expected)) {
 		failures.push(`translation mismatch: expected ${expected}`);

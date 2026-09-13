@@ -117,6 +117,7 @@ const BibleSearch: React.FC = () => {
           <select id="search-translation" value={translation} onChange={(event) => setSelectedTranslation(event.target.value as TranslationId)} className="rounded-lg border border-neutral-500/30 bg-white dark:bg-neutral-900 px-3 py-2">
             <option value="KJV">KJV</option>
             <option value="NKJV">NKJV</option>
+            <option value="BSB">BSB</option>
           </select>
         </div>
 

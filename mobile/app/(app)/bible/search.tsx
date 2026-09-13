@@ -161,7 +161,7 @@ export default function BibleSearchScreen() {
 			</View>
 
 			<View style={{ flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg }}>
-				{(["KJV", "NKJV"] as const).map((id) => (
+				{(["KJV", "NKJV", "BSB"] as const).map((id) => (
 					<Pressable key={id} accessibilityRole="button" accessibilityLabel={`Search ${id}`} accessibilityState={{ selected: translation === id }} onPress={() => setSelectedTranslation(id)} style={[styles.jumpRow, { opacity: translation === id ? 1 : 0.6 }]}>
 						<Text style={styles.jumpLabel}>{id}</Text>
 					</Pressable>

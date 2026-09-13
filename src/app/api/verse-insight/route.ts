@@ -45,7 +45,7 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
-		const translation: TranslationId = data.translation === "NKJV" ? "NKJV" : "KJV";
+		const translation: TranslationId = data.translation === "BSB" ? "BSB" : data.translation === "NKJV" ? "NKJV" : "KJV";
 		const modelId = typeof data.modelId === "string" ? data.modelId : null;
 
 		const cacheKey = { translation, reference, text };

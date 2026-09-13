@@ -38,7 +38,9 @@ import {
 	useChapterHighlights,
 } from "@/features/bible/highlightsStore";
 import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
-import { bibleVersePlainText, parseBibleVerseMarkup } from "@/features/bible/verseMarkup";
+import { bibleVersePlainText } from "@/features/bible/verseMarkup";
+import { getBsbChapter } from "@/features/bible/bsb";
+import { readerVerseSegments, readerSectionHeadings } from "@/features/bible/redLetters";
 import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
@@ -64,15 +66,6 @@ const FONT_STEPS = [17, 20, 24, 28] as const;
 const PARCHMENT_LIGHT = require("../../../assets/parchment-light.webp");
 const PARCHMENT_DARK = require("../../../assets/parchment-dark.webp");
 const HIGHLIGHT_MS = 2400;
-/**
- * The floating "Ask AI" pill: its own height (label line box + vertical
- * padding) and the gap it keeps from the tab bar. The reader reserves both,
- * plus a breathing gap, at the end of its scroll so the last verses can be
- * read clear of the pill instead of underneath it.
- */
-const ASK_PILL_HEIGHT = 44;
-const ASK_PILL_BOTTOM_GAP = spacing.lg;
-const ASK_PILL_CLEARANCE = ASK_PILL_BOTTOM_GAP + ASK_PILL_HEIGHT + spacing.xxl;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
@@ -84,6 +77,10 @@ interface ActionVerse {
 type ChapterStyles = ReturnType<typeof createStyles>;
 
 interface VerseRowProps {
+	bookOrder: number;
+	chapterNumber: number;
+	translation: TranslationId;
+	redLetterColor: string;
 	/** The verse as the provider gave it - KJV plain text, NKJV inline markup. */
 	markup: string;
 	verseNumber: number;
@@ -106,6 +103,10 @@ interface VerseRowProps {
  * would re-render and re-parse every mounted verse of the chapter.
  */
 const VerseRow = React.memo(function VerseRow({
+	bookOrder,
+	chapterNumber,
+	translation,
+	redLetterColor,
 	markup,
 	verseNumber,
 	verseColor,
@@ -117,49 +118,66 @@ const VerseRow = React.memo(function VerseRow({
 	colors,
 	onPress,
 }: VerseRowProps) {
-	const segments = useMemo(() => parseBibleVerseMarkup(markup), [markup]);
+	const segments = useMemo(
+		() => readerVerseSegments(markup, translation, bookOrder, chapterNumber, verseNumber),
+		[markup, translation, bookOrder, chapterNumber, verseNumber],
+	);
 	// The sheet, clipboard and Ask AI all want the verse without markup; joining
 	// the segments avoids parsing the same string a second time.
 	const plainText = useMemo(() => segments.map((segment) => segment.text).join(""), [segments]);
 	const open = useCallback(
 		() => onPress(verseNumber, plainText),
-		[onPress, verseNumber, plainText]
+		[onPress, verseNumber, plainText],
 	);
 
+	const formatted =
+		translation === "BSB" ? getBsbChapter(bookOrder, chapterNumber)[verseNumber - 1] : null;
 	return (
-		<Pressable
-			accessibilityRole="button"
-			delayLongPress={300}
-			onPress={open}
-			onLongPress={open}
-			style={[
-				styles.verseRow,
-				verseColor ? { backgroundColor: highlightWash(verseColor) } : undefined,
-				// The deep-link flash comes last so it wins over the wash.
-				flashed &&
-					(parchment ? styles.verseRowHighlighted : { backgroundColor: colors.accentSoft }),
-			]}
-		>
-			<ScriptureText
+		<View>
+			{readerSectionHeadings(translation, bookOrder, chapterNumber, verseNumber).map((heading, index) => (
+				<Text key={`${index}:${heading}`} accessibilityRole="header" style={styles.sectionHeading}>
+					{heading}
+				</Text>
+			))}
+			<Pressable
+				accessibilityRole="button"
+				delayLongPress={300}
+				onPress={open}
+				onLongPress={open}
 				style={[
-					styles.verseText,
-					!parchment && { color: colors.textSecondary },
-					{ fontSize, lineHeight },
+					styles.verseRow,
+					// The deep-link flash comes last so it wins over the wash.
+					flashed &&
+						(parchment ? styles.verseRowHighlighted : { backgroundColor: colors.accentSoft }),
 				]}
 			>
-				<ScriptureText style={[styles.verseNumber, !parchment && { color: colors.accentDim }]}>
-					{verseNumber}{" "}
-				</ScriptureText>
-				{segments.map((segment, segmentIndex) => (
-					<ScriptureText
-						key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
-						style={segment.italic ? styles.verseItalic : undefined}
-					>
-						{segment.text}
+				<ScriptureText
+					style={[styles.verseText, !parchment && { color: colors.text }, { fontSize, lineHeight }]}
+				>
+					<ScriptureText style={[styles.verseNumber, !parchment && { color: colors.textMuted }]}>
+						{verseNumber}
+						{"\u2002"}
 					</ScriptureText>
-				))}
-			</ScriptureText>
-		</Pressable>
+					{formatted?.omitted ? (
+						<ScriptureText style={styles.omittedVerse}>
+							Not included in this edition’s main text.
+						</ScriptureText>
+					) : null}
+					{segments.map((segment, segmentIndex) => (
+						<ScriptureText
+							key={`${segmentIndex}:${segment.italic ? "i" : "r"}`}
+							style={[
+								segment.italic ? styles.verseItalic : undefined,
+								segment.jesusSpeech ? { color: redLetterColor } : undefined,
+								verseColor ? { backgroundColor: highlightWash(verseColor) } : undefined,
+							]}
+						>
+							{segment.text}
+						</ScriptureText>
+					))}
+				</ScriptureText>
+			</Pressable>
+		</View>
 	);
 });
 
@@ -207,7 +225,7 @@ export default function BibleChapterScreen() {
 			if (sourceTranslationParam) router.setParams({ translation: undefined });
 			setBibleTranslation(next);
 		},
-		[router, sourceTranslationParam]
+		[router, sourceTranslationParam],
 	);
 	const [verses, setVerses] = useState<string[]>([]);
 	// Which chapter `verses` actually holds. Params change a render before the
@@ -217,6 +235,7 @@ export default function BibleChapterScreen() {
 	const [loadedKey, setLoadedKey] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [readerOptionsVisible, setReaderOptionsVisible] = useState(false);
 	const [fontStep, setFontStep] = useState(sessionFontStep);
 	const [highlighted, setHighlighted] = useState<number | null>(null);
 	const [actionVerse, setActionVerse] = useState<ActionVerse | null>(null);
@@ -238,7 +257,9 @@ export default function BibleChapterScreen() {
 	const pendingCrossReference = useRef<
 		(CrossReferenceTarget & { translation: TranslationId }) | null
 	>(null);
-	const dismissFocusSubscription = useRef<ReturnType<typeof AppState.addEventListener> | null>(null);
+	const dismissFocusSubscription = useRef<ReturnType<typeof AppState.addEventListener> | null>(
+		null,
+	);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
@@ -306,9 +327,14 @@ export default function BibleChapterScreen() {
 		};
 	}, [loading, error, loadedKey, chapterKey, verses, verseParam]);
 
-	const readingTracking = useReaderTracking({book: order, chapter, translation, verseCount: verses.length,
+	const readingTracking = useReaderTracking({
+		book: order,
+		chapter,
+		translation,
+		verseCount: verses.length,
 		ready: !loading && !error && loadedKey === chapterKey && !!book,
-		obscured: actionVerse !== null || pickerVisible});
+		obscured: actionVerse !== null || pickerVisible || readerOptionsVisible,
+	});
 
 	const stepFont = useCallback((delta: number) => {
 		setFontStep((step) => {
@@ -326,9 +352,17 @@ export default function BibleChapterScreen() {
 		const nextBook = bookByOrder(order + 1);
 		return {
 			prev:
-				chapter > 1 ? at(order, chapter - 1) : prevBook ? at(prevBook.order, prevBook.chapters) : null,
+				chapter > 1
+					? at(order, chapter - 1)
+					: prevBook
+						? at(prevBook.order, prevBook.chapters)
+						: null,
 			next:
-				chapter < current.chapters ? at(order, chapter + 1) : nextBook ? at(nextBook.order, 1) : null,
+				chapter < current.chapters
+					? at(order, chapter + 1)
+					: nextBook
+						? at(nextBook.order, 1)
+						: null,
 		};
 	}, [order, chapter]);
 
@@ -346,7 +380,7 @@ export default function BibleChapterScreen() {
 				verse: "",
 			});
 		},
-		[router]
+		[router],
 	);
 
 	const reference = book ? `${book.name} ${chapter}` : "";
@@ -393,12 +427,12 @@ export default function BibleChapterScreen() {
 			if (Platform.OS === "android") {
 				dismissFocusSubscription.current = AppState.addEventListener(
 					"focus",
-					finishCrossReferenceDismissal
+					finishCrossReferenceDismissal,
 				);
 			}
 			closeSheet();
 		},
-		[cancelCrossReferenceNavigation, closeSheet, finishCrossReferenceDismissal, translation]
+		[cancelCrossReferenceNavigation, closeSheet, finishCrossReferenceDismissal, translation],
 	);
 
 	// Tap-a-verse: opening the sheet immediately starts streaming a short AI
@@ -412,12 +446,16 @@ export default function BibleChapterScreen() {
 				translation,
 			});
 		},
-		[startInsight, reference, translation]
+		[startInsight, reference, translation],
 	);
 
 	const retryInsight = useCallback(() => {
 		if (!actionVerse) return;
-		startInsight({ reference: actionReference, text: actionVerse.text, translation });
+		startInsight({
+			reference: actionReference,
+			text: actionVerse.text,
+			translation,
+		});
 	}, [actionVerse, actionReference, startInsight, translation]);
 
 	const askAI = useCallback(
@@ -432,14 +470,12 @@ export default function BibleChapterScreen() {
 				},
 			});
 		},
-		[router, closeSheet, translation]
+		[router, closeSheet, translation],
 	);
 
 	const onCopyVerse = useCallback(async () => {
 		if (!actionVerse) return;
-		await Clipboard.setStringAsync(
-			`${actionReference} — "${actionVerse.text}" (${translation})`
-		);
+		await Clipboard.setStringAsync(`${actionReference} — "${actionVerse.text}" (${translation})`);
 		setCopied(true);
 		setTimeout(closeSheet, 600);
 	}, [actionVerse, actionReference, translation, closeSheet]);
@@ -463,7 +499,7 @@ export default function BibleChapterScreen() {
 					reference: actionReference,
 					text: actionVerse.text,
 				},
-				translation
+				translation,
 			);
 			closeSheet();
 			router.push({ pathname: "/notes/[id]", params: { id: noteId } });
@@ -478,7 +514,7 @@ export default function BibleChapterScreen() {
 	const actionVerseColor = actionVerse ? highlights.get(actionVerse.number) : undefined;
 	const actionVersePreset = actionVerseColor
 		? HIGHLIGHT_PRESETS.find(
-				(preset) => preset.color.toLowerCase() === actionVerseColor.toLowerCase()
+				(preset) => preset.color.toLowerCase() === actionVerseColor.toLowerCase(),
 			)
 		: undefined;
 	const actionHighlightLabel = highlightLabelFor(highlightLabels, actionVersePreset?.name);
@@ -496,7 +532,7 @@ export default function BibleChapterScreen() {
 				color,
 			}).catch(() => {});
 		},
-		[actionVerse, getToken, translation, order, chapter]
+		[actionVerse, getToken, translation, order, chapter],
 	);
 
 	const onRemoveHighlight = useCallback(() => {
@@ -510,7 +546,7 @@ export default function BibleChapterScreen() {
 	}, [actionVerse, getToken, translation, order, chapter]);
 
 	const fontSize = FONT_STEPS[fontStep];
-	const lineHeight = Math.round(fontSize * 1.55);
+	const lineHeight = Math.round(fontSize * 1.8);
 
 	// Keeps VerseRow's onPress identity stable while the insight sheet streams:
 	// openVerse only changes when the chapter or translation does.
@@ -518,13 +554,17 @@ export default function BibleChapterScreen() {
 		(verseNumber: number, plainText: string) => {
 			openVerse({ number: verseNumber, text: plainText });
 		},
-		[openVerse]
+		[openVerse],
 	);
 
 	const renderVerse = useCallback(
 		({ item, index }: ListRenderItemInfo<string>) => (
 			<VerseRow
 				markup={item}
+				bookOrder={order}
+				chapterNumber={chapter}
+				translation={translation}
+				redLetterColor={isDark ? "#EF8A83" : "#A12E2A"}
 				verseNumber={index + 1}
 				verseColor={highlights.get(index + 1)}
 				flashed={highlighted === index + 1}
@@ -536,15 +576,33 @@ export default function BibleChapterScreen() {
 				onPress={onVersePress}
 			/>
 		),
-		[highlights, highlighted, parchment, fontSize, lineHeight, styles, colors, onVersePress]
+		[
+			highlights,
+			highlighted,
+			parchment,
+			fontSize,
+			lineHeight,
+			styles,
+			colors,
+			onVersePress,
+			order,
+			chapter,
+			translation,
+			isDark,
+		],
 	);
 
 	if (!book) {
 		return (
 			<Screen>
 				<View style={styles.topBar}>
-					<Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8}>
-						<Text style={styles.back}>‹ Back</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Back to chapters"
+						onPress={() => router.back()}
+						style={styles.fontButton}
+					>
+						<Ionicons name="chevron-back" size={24} color={colors.text} />
 					</Pressable>
 				</View>
 				<View style={styles.center}>
@@ -555,24 +613,53 @@ export default function BibleChapterScreen() {
 	}
 
 	return (
-		<Screen>
+		<Screen style={{ backgroundColor: isDark ? "#121212" : "#FAF9F6" }}>
 			<View style={styles.topBar}>
-				<Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8}>
-					<Text style={styles.back}>‹ Back</Text>
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Back to chapters"
+					onPress={() => router.back()}
+					style={styles.fontButton}
+				>
+					<Ionicons name="chevron-back" size={24} color={colors.text} />
 				</Pressable>
-				<Text numberOfLines={1} style={styles.title}>
-					{reference}
-				</Text>
+				<View style={styles.headerSpacer} />
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel={`Translation and reading settings, ${translation}`}
+					onPress={() => setReaderOptionsVisible(true)}
+					style={styles.translationChip}
+				>
+					<Ionicons name="globe-outline" size={18} color={colors.text} />
+					<Text style={styles.translationChipLabel}>{translation}</Text>
+					<Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+				</Pressable>
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Reading settings"
+					onPress={() => setReaderOptionsVisible(true)}
+					style={styles.fontButton}
+				>
+					<Ionicons name="text-outline" size={22} color={colors.text} />
+				</Pressable>
+			</View>
+			<BottomSheet
+				visible={readerOptionsVisible}
+				onClose={() => setReaderOptionsVisible(false)}
+				title="Reading settings"
+			>
+				<Text style={styles.optionsLabel}>Text size & chapter people</Text>
 				<View style={styles.fontControls}>
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Who's in this chapter"
-						onPress={() =>
+						onPress={() => {
+							setReaderOptionsVisible(false);
 							router.push({
 								pathname: "/bible/timeline",
 								params: { book: String(order), chapter: String(chapter) },
-							})
-						}
+							});
+						}}
 						style={styles.fontButton}
 					>
 						<Ionicons name="people-outline" size={15} color={colors.textSecondary} />
@@ -596,27 +683,44 @@ export default function BibleChapterScreen() {
 						<Text style={[styles.fontButtonLabel, { ...typography.body }]}>A+</Text>
 					</Pressable>
 				</View>
-			</View>
-
-			<View style={styles.translationRow}>
-				{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
-					<Pressable
-						key={id}
-						accessibilityRole="button"
-						accessibilityState={{ selected: translation === id }}
-						onPress={() => setTranslation(id)}
-						style={[styles.translationChip, translation === id && styles.translationChipActive]}
-					>
-						<Text
-							style={[styles.translationChipLabel, translation === id && { color: colors.accent }]}
+				<Text style={styles.optionsLabel}>Translation</Text>
+				<View style={styles.translationRow}>
+					{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
+						<Pressable
+							key={id}
+							accessibilityRole="button"
+							accessibilityState={{ selected: translation === id }}
+							onPress={() => setTranslation(id)}
+							style={[styles.translationChip, translation === id && styles.translationChipActive]}
 						>
-							{id}
-						</Text>
-					</Pressable>
-				))}
-			</View>
+							<Text
+								style={[styles.translationChipLabel, translation === id && { color: colors.text }]}
+							>
+								{id}
+							</Text>
+						</Pressable>
+					))}
+				</View>
+				<Text style={styles.optionsLabel}>
+					{translation === "KJV"
+						? "KJV words of Jesus · eBible edition. Editorial headings · BSB."
+						: translation === "BSB"
+							? "Section headings and words of Jesus · Berean Standard Bible"
+							: "Red letters aren't available from our NKJV text provider yet."}
+				</Text>
+			</BottomSheet>
 
-			{readingStatus.error ? <Pressable accessibilityRole="button" onPress={() => router.push("/bible/history")} style={{paddingHorizontal: spacing.lg, paddingBottom: spacing.sm}}><Text accessibilityRole="alert" style={{color: colors.danger, ...typography.support}}>{readingStatus.error} Open reading log →</Text></Pressable> : null}
+			{readingStatus.error ? (
+				<Pressable
+					accessibilityRole="button"
+					onPress={() => router.push("/bible/history")}
+					style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}
+				>
+					<Text accessibilityRole="alert" style={{ color: colors.danger, ...typography.support }}>
+						{readingStatus.error} Open reading log →
+					</Text>
+				</Pressable>
+			) : null}
 
 			{loading ? (
 				<View style={styles.center}>
@@ -648,72 +752,95 @@ export default function BibleChapterScreen() {
 						key={chapterKey}
 						{...readingTracking}
 						ref={listRef}
-						style={{ marginBottom: tabBarSpace }}
+						style={styles.readerList}
 						data={verses}
 						keyExtractor={(_, index) => String(index + 1)}
-						contentContainerStyle={[
-							styles.content,
-							{ paddingBottom: tabBarSpace + ASK_PILL_CLEARANCE },
-						]}
+						ListHeaderComponent={
+							readerSectionHeadings(translation, order, chapter, 1).length > 0 ? null : (
+								<Text accessibilityRole="header" style={styles.chapterHeading}>
+									{reference}
+								</Text>
+							)
+						}
+						contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl }]}
 						onScrollToIndexFailed={({ index }) => {
 							// Rows have variable height; approximate, then retry once laid out.
-							listRef.current?.scrollToOffset({ offset: index * 48, animated: false });
+							listRef.current?.scrollToOffset({
+								offset: index * 48,
+								animated: false,
+							});
 							setTimeout(
-								() => listRef.current?.scrollToIndex({ index, viewPosition: 0.15, animated: false }),
-								250
+								() =>
+									listRef.current?.scrollToIndex({
+										index,
+										viewPosition: 0.15,
+										animated: false,
+									}),
+								250,
 							);
 						}}
 						ListFooterComponent={
 							<View>
 								<Text
-									style={[
-										styles.copyright,
-										!parchment && { color: colors.textGhost, opacity: 1 },
-									]}
+									style={[styles.copyright, !parchment && { color: colors.textGhost, opacity: 1 }]}
 								>
 									{TRANSLATIONS[translation].label} — {TRANSLATIONS[translation].copyright}
 								</Text>
-								<View style={styles.navRow}>
-									<Pressable
-										accessibilityRole="button"
-										disabled={!neighbors.prev}
-										onPress={() => goTo(neighbors.prev)}
-										style={[styles.navChip, !neighbors.prev && { opacity: 0.35 }]}
-									>
-										<Text style={styles.navChipLabel}>‹ Previous</Text>
-									</Pressable>
-									<Pressable
-										accessibilityRole="button"
-										disabled={!neighbors.next}
-										onPress={() => goTo(neighbors.next)}
-										style={[styles.navChip, styles.navChipAccent, !neighbors.next && { opacity: 0.35 }]}
-									>
-										<Text style={[styles.navChipLabel, { color: colors.accent }]}>Next ›</Text>
-									</Pressable>
-								</View>
 							</View>
 						}
 						renderItem={renderVerse}
 					/>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel={`Ask AI about ${reference}`}
-						onPress={() =>
-							askAI({
-								reference,
-								text: verses
-									.map((text, index) => `${index + 1} ${bibleVersePlainText(text)}`)
-									.join("\n"),
-							})
-						}
-						style={({ pressed }) => [
-							styles.askButton,
-							{ bottom: tabBarSpace + ASK_PILL_BOTTOM_GAP },
-							pressed && styles.askButtonPressed,
-						]}
-					>
-						<Text style={styles.askButtonLabel}>✦ Ask AI</Text>
-					</Pressable>
+					<View style={[styles.readerDock, { marginBottom: tabBarSpace }]}>
+						<View style={styles.chapterNavigator}>
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Previous chapter"
+								disabled={!neighbors.prev}
+								onPress={() => goTo(neighbors.prev)}
+								style={[styles.dockArrow, !neighbors.prev && { opacity: 0.3 }]}
+							>
+								<Ionicons name="chevron-back" size={24} color={colors.text} />
+							</Pressable>
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={`Choose chapter, ${reference}`}
+								onPress={() =>
+									router.push({ pathname: "/bible/chapters", params: { book: String(order) } })
+								}
+								style={styles.chapterPicker}
+							>
+								<Text numberOfLines={1} style={styles.chapterLabel}>
+									{reference}
+								</Text>
+								<Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+							</Pressable>
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Next chapter"
+								disabled={!neighbors.next}
+								onPress={() => goTo(neighbors.next)}
+								style={[styles.dockArrow, !neighbors.next && { opacity: 0.3 }]}
+							>
+								<Ionicons name="chevron-forward" size={24} color={colors.text} />
+							</Pressable>
+						</View>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={`Ask AI about ${reference}`}
+							onPress={() =>
+								askAI({
+									reference,
+									text: verses
+										.map((text, index) => `${index + 1} ${bibleVersePlainText(text)}`)
+										.join("\n"),
+								})
+							}
+							style={styles.dockAI}
+						>
+							<Ionicons name="sparkles-outline" size={21} color={colors.text} />
+							<Text style={styles.dockAILabel}>Ask AI</Text>
+						</Pressable>
+					</View>
 				</View>
 			)}
 
@@ -772,7 +899,9 @@ export default function BibleChapterScreen() {
 									key={preset.color}
 									accessibilityRole="button"
 									accessibilityLabel={`Highlight ${label}`}
-									accessibilityState={{ selected: actionVerseColor === preset.color }}
+									accessibilityState={{
+										selected: actionVerseColor === preset.color,
+									}}
 									onPress={() => applyHighlight(preset.color)}
 									style={[
 										styles.swatch,
@@ -794,7 +923,9 @@ export default function BibleChapterScreen() {
 							style={[
 								styles.swatch,
 								styles.swatchCustom,
-								actionVerseColor !== undefined && { backgroundColor: actionVerseColor },
+								actionVerseColor !== undefined && {
+									backgroundColor: actionVerseColor,
+								},
 								actionVerseColor !== undefined &&
 									!HIGHLIGHT_PRESETS.some((preset) => preset.color === actionVerseColor) &&
 									styles.swatchSelected,
@@ -804,9 +935,7 @@ export default function BibleChapterScreen() {
 						</Pressable>
 					</View>
 					{actionHighlightLabel ? (
-						<Text style={styles.highlightCaption}>
-							Marked as “{actionHighlightLabel}”
-						</Text>
+						<Text style={styles.highlightCaption}>Marked as “{actionHighlightLabel}”</Text>
 					) : null}
 					{actionVerseColor ? (
 						<SheetRow
@@ -895,12 +1024,16 @@ const createStyles = (c: Colors) =>
 		fontControls: { flexDirection: "row", gap: spacing.sm },
 		translationRow: {
 			flexDirection: "row",
-			justifyContent: "flex-end",
-			gap: 4,
+			justifyContent: "flex-start",
+			gap: 8,
 			paddingHorizontal: spacing.lg,
 			paddingBottom: spacing.sm,
 		},
 		translationChip: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			minHeight: 44,
 			borderRadius: radius.full,
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.borderStrong,
@@ -909,14 +1042,31 @@ const createStyles = (c: Colors) =>
 			paddingVertical: 4,
 		},
 		translationChipActive: {
-			borderColor: c.accentBorder,
-			backgroundColor: c.accentSoft,
+			borderColor: c.textMuted,
+			backgroundColor: c.surfacePressed,
 		},
-		translationChipLabel: { color: c.textMuted, ...typography.micro, fontWeight: "700" },
-		center: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-		loadingLabel: { marginTop: spacing.md, color: c.textFaint, ...typography.support },
+		translationChipLabel: {
+			color: c.textMuted,
+			...typography.micro,
+			fontWeight: "700",
+		},
+		center: {
+			flex: 1,
+			alignItems: "center",
+			justifyContent: "center",
+			padding: spacing.xl,
+		},
+		loadingLabel: {
+			marginTop: spacing.md,
+			color: c.textFaint,
+			...typography.support,
+		},
 		errorCard: { padding: spacing.xl, alignItems: "center", gap: spacing.md },
-		errorText: { color: c.textSecondary, ...typography.support, textAlign: "center" },
+		errorText: {
+			color: c.textSecondary,
+			...typography.support,
+			textAlign: "center",
+		},
 		retry: {
 			borderRadius: radius.md,
 			backgroundColor: c.accentSoft,
@@ -929,21 +1079,104 @@ const createStyles = (c: Colors) =>
 		body: { flex: 1 },
 		// The page itself: fixed parchment the verses scroll over, like text
 		// moving across an unrolled scroll under a lamp.
-		paper: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: undefined, height: undefined },
-		content: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
-		verseRow: { borderRadius: radius.md, paddingHorizontal: spacing.xs },
+		paper: {
+			position: "absolute",
+			top: 0,
+			right: 0,
+			bottom: 0,
+			left: 0,
+			width: undefined,
+			height: undefined,
+		},
+		readerList: { flex: 1 },
+		headerSpacer: { flex: 1 },
+		optionsLabel: {
+			color: c.textMuted,
+			...typography.support,
+			marginTop: spacing.lg,
+			marginBottom: spacing.sm,
+		},
+		sectionHeading: {
+			fontFamily: fonts.verseItalic,
+			fontSize: 24,
+			lineHeight: 34,
+			color: c.text,
+			marginTop: 16,
+			marginBottom: 20,
+		},
+		omittedVerse: { color: c.textMuted, fontSize: 14, fontStyle: "italic" },
+		chapterHeading: {
+			fontFamily: fonts.verseItalic,
+			fontSize: 28,
+			lineHeight: 38,
+			color: c.text,
+			marginBottom: 28,
+		},
+		content: {
+			paddingHorizontal: 28,
+			paddingTop: 24,
+			width: "100%",
+			maxWidth: 720,
+			alignSelf: "center",
+		},
+		readerDock: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 12,
+			paddingHorizontal: 20,
+			paddingVertical: 12,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.borderStrong,
+		},
+		chapterNavigator: {
+			flex: 1,
+			flexDirection: "row",
+			alignItems: "center",
+			backgroundColor: c.surfacePressed,
+			borderRadius: radius.full,
+			minHeight: 52,
+		},
+		dockArrow: {
+			width: 44,
+			minHeight: 52,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		chapterPicker: {
+			flex: 1,
+			minHeight: 52,
+			flexDirection: "row",
+			gap: 6,
+			alignItems: "center",
+			justifyContent: "center",
+		},
+		chapterLabel: {
+			flexShrink: 1,
+			color: c.text,
+			...typography.control,
+			fontWeight: "700",
+		},
+		dockAI: {
+			minWidth: 52,
+			minHeight: 52,
+			alignItems: "center",
+			justifyContent: "center",
+			gap: 2,
+		},
+		dockAILabel: { color: c.textMuted, ...typography.micro },
+		verseRow: { borderRadius: 4 },
 		verseRowHighlighted: { backgroundColor: c.parchmentHighlight },
 		verseText: {
 			color: c.parchmentInk,
 			fontFamily: fonts.verse,
-			marginBottom: spacing.md,
+			marginBottom: 16,
 		},
 		verseItalic: { fontFamily: fonts.verseItalic },
 		verseNumber: {
 			color: c.parchmentNumber,
 			fontSize: 12,
 			fontFamily: "System",
-			fontWeight: "700",
+			fontWeight: "400",
 		},
 		copyright: {
 			marginTop: spacing.lg,
@@ -953,49 +1186,6 @@ const createStyles = (c: Colors) =>
 			textAlign: "center",
 			fontStyle: "italic",
 		},
-		navRow: {
-			flexDirection: "row",
-			gap: spacing.md,
-			marginTop: spacing.xl,
-		},
-		navChip: {
-			flex: 1,
-			minHeight: 44,
-			borderRadius: radius.lg,
-			borderWidth: StyleSheet.hairlineWidth,
-			borderColor: c.borderStrong,
-			backgroundColor: c.surface,
-			alignItems: "center",
-			justifyContent: "center",
-		},
-		navChipAccent: {
-			borderColor: c.accentBorder,
-			backgroundColor: c.accentSoft,
-		},
-		navChipLabel: { color: c.textSecondary, ...typography.support, fontWeight: "600" },
-		askButton: {
-			position: "absolute",
-			right: spacing.xl,
-			borderRadius: radius.full,
-			borderWidth: 1,
-			borderColor: c.accentBorder,
-			// Opaque, not the translucent accent wash: the pill floats over the
-			// parchment page, and a see-through fill let verse text read straight
-			// through the label. Elevation lifts it off the paper as well.
-			backgroundColor: c.bgElevated,
-			elevation: 4,
-			shadowColor: c.text,
-			shadowOpacity: 0.12,
-			shadowRadius: 6,
-			shadowOffset: { width: 0, height: 2 },
-			paddingHorizontal: spacing.xl,
-			paddingVertical: spacing.md,
-		},
-		// Pressed state stays opaque. `surfacePressed` is a translucent wash and
-		// would replace the fill outright, re-opening the very hole in the pill
-		// that the opaque fill above closes, so the press darkens with bgMid.
-		askButtonPressed: { backgroundColor: c.bgMid, borderColor: c.accent },
-		askButtonLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		sheetVerseCard: {
 			borderRadius: radius.md,
 			borderWidth: StyleSheet.hairlineWidth,
@@ -1019,7 +1209,11 @@ const createStyles = (c: Colors) =>
 			justifyContent: "center",
 			marginBottom: spacing.sm,
 		},
-		expandButtonLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
+		expandButtonLabel: {
+			color: c.accent,
+			...typography.support,
+			fontWeight: "700",
+		},
 		sheetError: {
 			color: c.danger,
 			...typography.support,
@@ -1027,6 +1221,10 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.md,
 		},
 		fontButton: {
+			minWidth: 44,
+			minHeight: 44,
+			alignItems: "center",
+			justifyContent: "center",
 			borderRadius: radius.md,
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.borderStrong,
@@ -1034,7 +1232,11 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.sm,
 			paddingVertical: 4,
 		},
-		fontButtonLabel: { color: c.textSecondary, ...typography.control, fontWeight: "700" },
+		fontButtonLabel: {
+			color: c.textSecondary,
+			...typography.control,
+			fontWeight: "700",
+		},
 		highlightSection: { marginBottom: spacing.sm },
 		highlightLabel: {
 			color: c.textMuted,
@@ -1071,7 +1273,12 @@ const createStyles = (c: Colors) =>
 			borderColor: c.borderStrong,
 			backgroundColor: c.surface,
 		},
-		swatchCustomLabel: { color: c.textMuted, ...typography.chat, fontWeight: "600", marginTop: -2 },
+		swatchCustomLabel: {
+			color: c.textMuted,
+			...typography.chat,
+			fontWeight: "600",
+			marginTop: -2,
+		},
 		pickerBackdrop: {
 			position: "absolute",
 			top: 0,
@@ -1080,7 +1287,12 @@ const createStyles = (c: Colors) =>
 			left: 0,
 			backgroundColor: "rgba(0,0,0,0.72)",
 		},
-		pickerCard: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+		pickerCard: {
+			flex: 1,
+			alignItems: "center",
+			justifyContent: "center",
+			padding: spacing.xl,
+		},
 		pickerCardInner: {
 			alignSelf: "stretch",
 			borderRadius: radius.xl,

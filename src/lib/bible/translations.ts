@@ -3,11 +3,13 @@
  * fetched from bolls.life per chapter with a timeout and cached in memory for
  * the session. Ported from mobile/src/features/bible/translations.ts.
  */
+import { loadBsbChapter } from "./bsb";
 import { getKjvChapter } from "./kjv";
 
-export type TranslationId = "KJV" | "NKJV";
+export type TranslationId = "KJV" | "NKJV" | "BSB";
 
 export const TRANSLATIONS: Record<TranslationId, { id: TranslationId; label: string; copyright: string }> = {
+  BSB: { id: "BSB", label: "Berean Standard Bible", copyright: "Public domain · BSB Publishing" },
   KJV: { id: "KJV", label: "KJV", copyright: "Public domain" },
   NKJV: { id: "NKJV", label: "NKJV", copyright: "© Thomas Nelson — text via bolls.life" },
 };
@@ -57,7 +59,8 @@ export async function getChapter(
   order: number,
   chapter: number
 ): Promise<string[]> {
-  if (translation === "KJV") {
+  if (translation === "BSB") return (await loadBsbChapter(order, chapter)).map(verse => verse.text);
+	if (translation === "KJV") {
     try {
       return await getKjvChapter(order, chapter);
     } catch {

@@ -157,7 +157,7 @@ function parseVerses(value: unknown): RetrievedVerse[] {
 			reference: verse.reference,
 			similarity: verse.similarity,
 			...(typeof verse.text === "string" ? { text: verse.text } : {}),
-			...(verse.translation === "KJV" || verse.translation === "NKJV"
+			...(verse.translation === "KJV" || verse.translation === "NKJV" || verse.translation === "BSB"
 				? { translation: verse.translation }
 				: {}),
 		}];

@@ -91,7 +91,7 @@ export async function hydrateSettings(): Promise<void> {
 				parsed.themeMode === "dark" || parsed.themeMode === "light" || parsed.themeMode === "system"
 					? parsed.themeMode
 					: DEFAULT_SETTINGS.themeMode,
-			translation: parsed.translation === "NKJV" ? "NKJV" : "KJV",
+			translation: parsed.translation === "BSB" ? "BSB" : parsed.translation === "NKJV" ? "NKJV" : "KJV",
 			parchment: parsed.parchment !== false,
 			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
 			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,

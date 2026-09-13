@@ -93,7 +93,7 @@ interface CardRow {
 }
 
 function toTranslation(value: string): TranslationId {
-	return value === "NKJV" ? "NKJV" : "KJV";
+	return value === "BSB" ? "BSB" : value === "NKJV" ? "NKJV" : "KJV";
 }
 
 /** "John 3:16", or "43 3:16" for a book order the metadata does not know. */

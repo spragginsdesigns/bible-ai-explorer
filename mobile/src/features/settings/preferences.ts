@@ -206,7 +206,7 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 		plan: doc.plan === "pro" ? "pro" : "free",
 		webSearchEnabled: doc.webSearchEnabled !== false,
 		memoryEnabled: doc.memoryEnabled !== false,
-		translation: doc.translation === "NKJV" ? "NKJV" : "KJV",
+		translation: doc.translation === "BSB" ? "BSB" : doc.translation === "NKJV" ? "NKJV" : "KJV",
 		parchment: doc.parchment !== false,
 		// Normalized rather than trusted: a rate this build no longer offers
 		// would leave the Listen speed chip outside its own cycle.

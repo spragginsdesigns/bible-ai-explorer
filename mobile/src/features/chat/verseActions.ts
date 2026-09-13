@@ -11,7 +11,7 @@ type VerseActionSource = Pick<RetrievedVerse, "reference" | "text"> & {
 
 /** Parse a route value without allowing an arbitrary string to change reader state. */
 export function parseTranslationId(value: unknown): TranslationId | null {
-	return value === "KJV" || value === "NKJV" ? value : null;
+	return value === "KJV" || value === "NKJV" || value === "BSB" ? value : null;
 }
 
 /** A source-card translation wins only for that reader route, never globally. */

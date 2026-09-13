@@ -124,7 +124,7 @@ function LearnSession() {
 	const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
 	const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
 	const [confirmation, setConfirmation] = useState<string | null>(null);
-	const [translation] = useState<"KJV" | "NKJV">(() => readTranslationPref());
+	const [translation] = useState<"KJV" | "NKJV" | "BSB">(() => readTranslationPref());
 	const operation = useRef(false);
 	const mounted = useRef(true);
 	const touch = useRef<{ x: number; y: number } | null>(null);

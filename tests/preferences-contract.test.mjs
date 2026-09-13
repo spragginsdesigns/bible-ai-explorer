@@ -55,8 +55,8 @@ test("the listen rates the server accepts are the ones the card offers", () => {
 	assert.equal(DEFAULT_LISTEN_RATE, 1);
 });
 
-test("the translations the server accepts are the two the reader offers", () => {
-	assert.deepEqual(TRANSLATION_IDS, ["KJV", "NKJV"]);
+test("the translations the server accepts are the translations the reader offers", () => {
+	assert.deepEqual(TRANSLATION_IDS, ["KJV", "NKJV", "BSB"]);
 	assert.equal(DEFAULT_TRANSLATION, "KJV");
 });
 
@@ -94,12 +94,13 @@ test("booleans must be real booleans", () => {
 	}
 });
 
-test("translation must be one of the two translations", () => {
+test("translation must be a supported translation", () => {
+	assert.deepEqual(parse({ translation: "BSB" }), { ok: true, data: { translation: "BSB" } });
 	assert.deepEqual(parse({ translation: "NKJV" }), { ok: true, data: { translation: "NKJV" } });
 	for (const bad of ["ESV", "kjv", "", null, 1]) {
 		const result = parse({ translation: bad });
 		assert.equal(result.ok, false, `expected ${JSON.stringify(bad)} to be rejected`);
-		assert.equal(result.error, "translation must be one of: KJV, NKJV");
+		assert.equal(result.error, "translation must be one of: KJV, NKJV, BSB");
 	}
 });
 

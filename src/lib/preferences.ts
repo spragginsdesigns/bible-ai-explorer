@@ -107,7 +107,8 @@ export function writeHighlightLabelsPref(labels: HighlightLabels): void {
 
 export function readTranslationPref(): TranslationId {
 	if (typeof window === "undefined") return "KJV";
-	return window.localStorage.getItem(TRANSLATION_PREF_KEY) === "NKJV" ? "NKJV" : "KJV";
+	const saved = window.localStorage.getItem(TRANSLATION_PREF_KEY);
+	return saved === "BSB" || saved === "NKJV" ? saved : "KJV";
 }
 
 export function writeTranslationPref(translation: TranslationId) {
