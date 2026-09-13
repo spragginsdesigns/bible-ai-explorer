@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { AiCredentialError, resolveModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import {
 	hasPersistableContent,
@@ -138,7 +138,7 @@ async function persistExchange(options: {
 	}
 }
 
-import { withIncludedAiRequest } from "@/lib/billing/usage";
+import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 export const POST = withIncludedAiRequest(handlePost, "note-ai");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -201,6 +201,10 @@ async function handlePost(req: Request): Promise<Response> {
 				chatErrorPayload("invalid_input", "Invalid input: the last message must be a non-empty user message."),
 				{ status: 400 }
 			);
+		}
+
+		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
+			await reserveIncludedRequest(userId);
 		}
 
 		// Persist the user turn before tools run. The original server receipt

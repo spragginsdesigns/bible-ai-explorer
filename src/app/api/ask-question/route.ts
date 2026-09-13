@@ -26,7 +26,7 @@ import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { resolveModel } from "@/lib/ai/provider";
+import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
@@ -513,7 +513,7 @@ async function persistAssistantResponse(options: {
 	return persisted ? "persisted" : "persist_error";
 }
 
-import { withIncludedAiRequest } from "@/lib/billing/usage";
+import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 export const POST = withIncludedAiRequest(handlePost, "ask-question");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -668,6 +668,9 @@ async function handlePost(req: Request): Promise<Response> {
 		};
 
 		const responseMessageId = generateMessageId();
+		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
+			await reserveIncludedRequest(userId);
+		}
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
