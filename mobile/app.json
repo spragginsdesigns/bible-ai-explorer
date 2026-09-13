@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "SureWord",
 		"slug": "sureword",
-		"version": "1.57.1",
+		"version": "1.58.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "sureword",

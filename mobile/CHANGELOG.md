@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.58.0 (versionCode 60) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Learn a verse now suggests what to learn. SureWord reads your own walk, the verses you marked, the chapters you read, what you asked about, and offers the ones Scripture itself leans on most, saying why it chose each.
+- Four ways to practise the same verse: fill the blanks, first letters, tap the words back into order, or write it out and have it checked word for word.
+- Which one you get follows how well you know the verse, and you can switch at any time.
+
+**Dev notes:** Server half shipped earlier (b71f9a8, aeb1f16): `GET /api/learn/suggestions` ranks a verse only when weight and nearness are both true. Weight is inbound cross-references from the bundled corpus, inverted once into `src/data/learn/verse-significance.json` (225,683 edges, 10,792 verses at 12+); nearness is highlights, reading, chat citations, past crosses and notes. At most two per source, and a reading signal needs weight 40+ because it names only a chapter. This build carries the Android client: the "Suggested for you" section (which becomes the screen when nothing is due, so the empty state is never a dead end) and the four practice modes (`practice.ts`, byte-identical with web). Typed mode passes "good" only on a word-for-word round, and the swipe gesture answers to the same check. No server change for the modes.
+
 ## 1.57.1 (versionCode 59) - 2026-09-12 - internal
 
 **What's new (Play):**
