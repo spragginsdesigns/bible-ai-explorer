@@ -198,3 +198,19 @@ test("the tool loop stops on its own time budget, before the platform can kill t
 	clock += 1;
 	assert.equal(stop(), true);
 });
+
+test("both chat routes run the tool loop under the same wall-clock budget", async () => {
+	const { readFileSync } = await import("node:fs");
+	const { fileURLToPath } = await import("node:url");
+	const read = (relativePath) =>
+		readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
+	for (const route of ["../src/app/api/ask-question/route.ts", "../src/app/api/note-ai/route.ts"]) {
+		const source = read(route);
+		assert.match(source, /export const maxDuration = 300;/, route);
+		assert.match(
+			source,
+			/stopWhen: \[isStepCount\(8\), isOverTimeBudget\(turnStartedAtMs, TOOL_LOOP_BUDGET_MS\)\]/,
+			route,
+		);
+	}
+});

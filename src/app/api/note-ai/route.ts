@@ -40,8 +40,13 @@ import {
 } from "@/utils/systemPrompt";
 import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
 import { logChatStepMetric } from "@/lib/ai/chat-metrics";
+import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 
-export const maxDuration = 120;
+// Matches vercel.json for this route. Same guard as ask-question: a slow
+// provider several tool steps into a turn was killed mid-loop by the platform,
+// which runs no callback, so the turn vanished with nothing logged. See
+// TOOL_LOOP_BUDGET_MS for the guard that stops the loop before that happens.
+export const maxDuration = 300;
 
 const MAX_REQUEST_MESSAGES = 16;
 const MAX_NOTE_CONTENT_LENGTH = 16000;
@@ -211,6 +216,7 @@ export async function POST(req: Request): Promise<Response> {
 		readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
 
 		const responseMessageId = generateMessageId();
+		const turnStartedAtMs = Date.now();
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: messages,
 			generateId: () => responseMessageId,
@@ -269,7 +275,9 @@ export async function POST(req: Request): Promise<Response> {
 					system: promptCache.system,
 					messages: await convertToModelMessages(messages),
 					tools,
-					stopWhen: isStepCount(8),
+					// Either limit ends the loop cleanly, so the answer is streamed,
+					// persisted and measured. Only the platform timeout loses a turn.
+					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
 					providerOptions: promptCache.providerOptions,
 					onStepEnd: (event) => {
 						logChatStepMetric(
