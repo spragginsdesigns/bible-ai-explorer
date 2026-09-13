@@ -1,6 +1,6 @@
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { stripeClient } from "@/lib/billing/stripe";
+import { stripeClient, billingReturnOrigin } from "@/lib/billing/stripe";
 import { rejectCrossSiteMutation } from "@/lib/billing/request";
 
 export async function POST(req: Request) {
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       );
     const session = await stripeClient().billingPortal.sessions.create({
       customer: billing.stripeCustomerId,
-      return_url: "https://sureword.app/membership",
+      return_url: `${billingReturnOrigin()}/membership`,
     });
     return Response.json({ url: session.url });
   } catch (error) {

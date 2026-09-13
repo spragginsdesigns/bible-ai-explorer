@@ -237,6 +237,7 @@ try {
     "server-only": {},
     stripe: Stripe,
     "./plans": plans,
+    "./return-origin": load("src/lib/billing/return-origin.ts", {}),
   });
   let checkoutCreates = 0;
   let amount = 1500;
@@ -278,6 +279,7 @@ try {
       stripeClient: () => checkoutStripe,
       billingAvailable: () => true,
       verifiedProPrice: realStripeHelpers.verifiedProPrice,
+      billingReturnOrigin: () => "https://sureword.app",
     },
   });
   const checkouts = await Promise.all([

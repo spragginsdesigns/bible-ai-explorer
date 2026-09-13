@@ -7,6 +7,7 @@ import {
   billingAvailable,
   stripeClient,
   verifiedProPrice,
+  billingReturnOrigin,
 } from "@/lib/billing/stripe";
 
 export async function POST(req: Request) {
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
       );
     const stripe = stripeClient();
     const price = await verifiedProPrice(stripe);
+    const returnOrigin = billingReturnOrigin();
     let billing = await prisma.billingSubscription.findUnique({
       where: { userId },
     });
@@ -108,8 +110,8 @@ export async function POST(req: Request) {
             client_reference_id: userId,
             metadata: { surewordPriceId: price.id },
             subscription_data: { metadata: { surewordUserId: userId } },
-            success_url: "https://sureword.app/membership?checkout=success",
-            cancel_url: "https://sureword.app/membership",
+            success_url: `${returnOrigin}/membership?checkout=success`,
+            cancel_url: `${returnOrigin}/membership`,
             integration_identifier: `sureword-${integrationSuffix}`,
           },
           { idempotencyKey: attempt },

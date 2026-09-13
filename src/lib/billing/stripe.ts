@@ -1,6 +1,17 @@
 import "server-only";
 import Stripe from "stripe";
 import { PRO_MONTHLY_PRICE_CENTS } from "./plans";
+import { resolveBillingReturnOrigin } from "./return-origin";
+
+export function billingReturnOrigin() {
+  const testMode = /^(sk|rk)_test_/.test(
+    process.env.STRIPE_SECRET_KEY?.trim() ?? "",
+  );
+  return resolveBillingReturnOrigin(
+    process.env.SUREWORD_BILLING_RETURN_ORIGIN,
+    testMode,
+  );
+}
 
 export function stripeClient() {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
