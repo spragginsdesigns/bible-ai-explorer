@@ -6,6 +6,7 @@ import { usageEnabled, usageSnapshot } from "@/lib/billing/usage";
 import { PRO_MONTHLY_PRICE_CENTS } from "@/lib/billing/plans";
 import { billingAvailable } from "@/lib/billing/stripe";
 import { rejectCrossSiteMutation } from "@/lib/billing/request";
+import { accountSubscription, playBillingAvailable } from "@/lib/billing/subscription";
 
 export async function GET() {
   try {
@@ -16,10 +17,7 @@ export async function GET() {
       getUserPlan(userId),
       aiAccessFor(userId),
       enabled
-        ? prisma.billingSubscription.findUnique({
-            where: { userId },
-            select: { status: true, periodEnd: true, cancelAtPeriodEnd: true },
-          })
+        ? accountSubscription(userId)
         : null,
       enabled && !owner ? usageSnapshot(userId) : null,
       prisma.providerCredential.count({ where: { userId } }),
@@ -30,11 +28,17 @@ export async function GET() {
         owner,
         access,
         hasPersonalKeys: ownKeys > 0,
-        subscription,
+        subscription: subscription ? {
+          status: subscription.status,
+          periodEnd: subscription.periodEnd,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          provider: subscription.provider,
+        } : null,
         usage,
         enabled,
         priceCents: PRO_MONTHLY_PRICE_CENTS,
         checkoutAvailable: billingAvailable(),
+        playCheckoutAvailable: playBillingAvailable(),
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );

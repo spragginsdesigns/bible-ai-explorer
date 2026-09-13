@@ -3,6 +3,8 @@ import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isServerCredentialUser } from "@/lib/ai/provider";
 import { rejectCrossSiteMutation } from "@/lib/billing/request";
+import { accountSubscription } from "@/lib/billing/subscription";
+import { activeSubscription } from "@/lib/billing/plans";
 import {
   billingAvailable,
   stripeClient,
@@ -28,6 +30,9 @@ export async function POST(req: Request) {
         { error: "Your owner account already has Pro access." },
         { status: 409 },
       );
+    const membership = await accountSubscription(userId);
+    if (membership?.provider === "google-play" && activeSubscription(membership))
+      return Response.json({ error: "Your Pro subscription is managed by Google Play." }, { status: 409 });
     const stripe = stripeClient();
     const price = await verifiedProPrice(stripe);
     const returnOrigin = billingReturnOrigin();

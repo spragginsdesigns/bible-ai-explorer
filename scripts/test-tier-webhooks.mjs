@@ -275,6 +275,8 @@ try {
     "@/lib/prisma": { prisma },
     "@/lib/ai/provider": { isServerCredentialUser: () => false },
     "@/lib/billing/request": load("src/lib/billing/request.ts", {}),
+    "@/lib/billing/subscription": { accountSubscription: async () => null },
+    "@/lib/billing/plans": load("src/lib/billing/plans.ts", {}),
     "@/lib/billing/stripe": {
       stripeClient: () => checkoutStripe,
       billingAvailable: () => true,

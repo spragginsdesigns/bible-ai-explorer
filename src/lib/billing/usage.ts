@@ -8,6 +8,7 @@ import { getUserPlan } from "@/lib/entitlements";
 import { calendarMonthWindow, quotaDecision, utcDayWindow } from "./plans";
 import { IncludedAiLimitError } from "./usage-errors";
 import type { AiAccess } from "@/lib/ai/access";
+import { accountSubscription } from "./subscription";
 
 type Scope = {
   id: string;
@@ -41,7 +42,7 @@ export function resolveRequestAccess(
 export async function usageSnapshot(userId: string, now = new Date()) {
   const pro = (await getUserPlan(userId)) === "pro";
   const subscription = pro
-    ? await prisma.billingSubscription.findUnique({ where: { userId } })
+    ? await accountSubscription(userId)
     : null;
   const month =
     subscription &&
@@ -133,7 +134,7 @@ async function reserve(scope: Scope, userId: string) {
           return;
         }
         const sub = pro
-          ? await tx.billingSubscription.findUnique({ where: { userId } })
+          ? await accountSubscription(userId, tx)
           : null;
         const month =
           sub && sub.periodStart <= now && sub.periodEnd > now
@@ -195,6 +196,14 @@ async function reserve(scope: Scope, userId: string) {
     throw error;
   });
   return scope.reservation;
+}
+
+/** Reserve before a foreground handler opens its stream, so quota failures remain HTTP errors. */
+export async function reserveIncludedRequest(userId: string) {
+  if (!usageEnabled()) return;
+  const scope = scopes.getStore();
+  if (!scope) throw new Error("Included chat requires a metered request scope.");
+  await reserve(scope, userId);
 }
 
 async function finish(scope: Scope) {

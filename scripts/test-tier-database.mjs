@@ -140,6 +140,7 @@ try {
     meterIncludedModel,
     usageSnapshot,
     resolveRequestAccess,
+    reserveIncludedRequest,
   } = load("src/lib/billing/usage.ts");
   function handler(userId, options = {}) {
     return withIncludedAiRequest(async () => {
@@ -184,6 +185,17 @@ try {
   assert.equal(responses.filter((r) => r.status === 200).length, 10);
   assert.equal(responses.filter((r) => r.status === 429).length, 2);
   assert.equal((await usageSnapshot(freeId)).dailyRemaining, 0);
+  checks++;
+  let openedStream = false;
+  const preflight = withIncludedAiRequest(async () => {
+    await reserveIncludedRequest(freeId);
+    openedStream = true;
+    return new Response("stream opened");
+  }, "preflight-test");
+  const exhausted = await preflight(new Request("http://localhost/test"));
+  assert.equal(exhausted.status, 429);
+  assert.equal(openedStream, false);
+  assert.equal((await exhausted.json()).code, "rate_limited");
   checks++;
   const ledger = await prisma.aiUsageRequest.findMany({
     where: { userId: freeId },
@@ -306,6 +318,7 @@ try {
       passed: checks,
       cases: [
         "12 concurrent Free requests admit exactly 10",
+        "exhausted allowance rejects before the stream opens",
         "token/cache cost settlement",
         "concurrent idempotency",
         "failed answer releases allowance",

@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.61.0 (versionCode 63) - 2026-09-13 - internal
+
+**What's new (Play):**
+
+- Free study remains available with 10 included AI actions each day.
+- Pro membership can use Google Play billing when enabled for your account.
+- Restore a Google Play subscription on another device after Google confirms it.
+- Your Bible, notes, highlights and saved study remain available when AI limits are reached.
+
+**Dev notes:** Adds the native Google Play subscription flow for `sureword_pro`, including localized pricing, account binding, server verification and acknowledgement only after verification. Merchant product configuration and production enablement remain pending; purchase UI is feature-flagged off until the backend reports Play checkout availability.
+
 ## 1.60.0 (versionCode 62) - 2026-09-13 - internal
 
 **What's new (Play):**

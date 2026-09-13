@@ -17,6 +17,7 @@ type Membership = {
   enabled: boolean;
   checkoutAvailable: boolean;
   subscription: {
+    provider: "stripe" | "google-play";
     status: string;
     periodEnd: string;
     cancelAtPeriodEnd: boolean;
@@ -234,13 +235,15 @@ export default function MembershipPage() {
                     {new Date(data.subscription.periodEnd).toLocaleDateString()}
                     .
                   </p>
-                  <button
+                  {data.subscription.provider === "google-play" ? (
+                    <a href="https://play.google.com/store/account/subscriptions?sku=sureword_pro&package=com.spragginsdesigns.sureword" className="mt-4 inline-block rounded-lg border border-white/20 px-4 py-3 text-sm">Manage in Google Play</a>
+                  ) : <button
                     disabled={busy}
                     onClick={() => void openBilling("portal")}
                     className="mt-4 rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50"
                   >
                     Manage billing
-                  </button>
+                  </button>}
                 </>
               )}
             </section>

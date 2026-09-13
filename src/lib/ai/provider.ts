@@ -8,7 +8,7 @@ import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import { houseKeyFor } from "./house-key";
-import { meterIncludedModel, usageEnabled, resolveRequestAccess } from "@/lib/billing/usage";
+import { meterIncludedModel, usageEnabled, resolveRequestAccess, reserveIncludedRequest } from "@/lib/billing/usage";
 import { decideAccess, houseEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
 import {
@@ -356,6 +356,7 @@ export async function resolveModel(options: {
 
 		const houseDefinition = resolveDefinition(HOUSE_MODEL_ID);
 		if (!houseDefinition) throw new Error("The house AI model is not registered.");
+		await reserveIncludedRequest(options.userId);
 		const preferredHouseEffort = houseEffortFor(options.effort);
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
 			? preferredHouseEffort

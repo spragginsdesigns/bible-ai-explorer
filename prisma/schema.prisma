@@ -25,6 +25,7 @@ model User {
   plan                  String                 @default("free")
   aiPreference          AiPreference?
   billingSubscription   BillingSubscription?
+  googlePlaySubscription GooglePlaySubscription?
   aiUsageRequests       AiUsageRequest[]
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
@@ -97,6 +98,21 @@ model BillingSubscription {
   periodEnd            DateTime
   cancelAtPeriodEnd    Boolean  @default(false)
   updatedAt            DateTime @updatedAt
+}
+
+model GooglePlaySubscription {
+  userId                 String   @id
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseTokenHash      String   @unique
+  latestSuccessfulOrderId String?
+  encryptedPurchaseToken String
+  productId              String
+  status                 String
+  periodStart            DateTime
+  periodEnd              DateTime
+  cancelAtPeriodEnd      Boolean  @default(false)
+  lastVerifiedAt         DateTime
+  updatedAt              DateTime @updatedAt
 }
 
 model BillingEvent {

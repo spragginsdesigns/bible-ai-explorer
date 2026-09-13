@@ -2,6 +2,8 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { activeSubscription } from "@/lib/billing/plans";
+import { accountSubscription } from "@/lib/billing/subscription";
+import { refreshGooglePlaySubscription } from "@/lib/billing/google-play";
 import {
 	parseUserIdAllowlist,
 	resolvePlan,
@@ -31,7 +33,8 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 	const allowlist = parseUserIdAllowlist(process.env.PRO_USER_IDS);
 	if (allowlist.includes(userId) || parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS).includes(userId)) return "pro";
 	if (process.env.SUREWORD_USAGE_ENABLED === "true") {
-		const subscription = await prisma.billingSubscription.findUnique({ where: { userId } });
+		await refreshGooglePlaySubscription(userId);
+		const subscription = await accountSubscription(userId);
 		if (subscription && activeSubscription(subscription)) return "pro";
 	}
 
