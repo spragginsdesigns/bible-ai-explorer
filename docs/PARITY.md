@@ -7,18 +7,18 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Free and Pro foundation, 2026-09-13 (not released)
+## Free and BYOK release, 2026-09-13; paid checkout gated
 
-Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 10/day. Both use Luna medium for ordinary chat and low for short utilities. Billing and usage activation remain behind server flags.
+Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 10/day. Both use Luna medium for ordinary chat and low for short utilities. Production usage enforcement is enabled. Stripe and Google Play purchase flags remain disabled pending merchant activation and real purchase tests.
 
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Membership balance and included/personal-key choice | Source, type check and production JS export | Authenticated local UI/API verified | Source and unsigned macOS build passed | Source and simulator build passed | `docs/sureword-tier-implementation-2026-09-13.html`; installed native interaction remains a release gate |
-| Shared usage enforcement | Shared API; native runtime pending | Isolated DB and real chat verified | Shared API; native runtime pending | Shared API; native runtime pending | 9 database cases; a real answer changed 10 remaining to 9 |
-| Subscription purchase | Play Billing not implemented | Stripe integration, checkout disabled pending real account/sandbox checks | StoreKit not implemented | StoreKit not implemented | 12 signed-webhook/checkout cases with controlled Stripe responses; not a live payment receipt |
-| Signed-out landing page | Not applicable | Local desktop/mobile render verified | Not applicable | Not applicable | Public root, $15 pricing, no-card Free entry |
+| Membership balance and included/personal-key choice | 1.61.0 (63), Play alpha/internal completed and signed APK launch verified; authenticated native interaction unverified | Production owner membership and local Free/BYOK API verified | Source and unsigned macOS build passed | Source and simulator build passed | `docs/sureword-tier-implementation-2026-09-13.html` |
+| Shared usage enforcement | Shared production API; full native runtime scenario unverified | Production metering enabled; compiled app tenth Free answer 200, eleventh 429, BYOK after exhaustion 200 without debit | Shared API; native runtime pending | Shared API; native runtime pending | 10 database cases; 923 web logic tests, 16 skipped |
+| Subscription purchase | Native Play purchase/restore compiled, 798 mobile tests; disabled pending Google merchant setup and real store purchase | Stripe integration; disabled pending account activation, application credential and real sandbox lifecycle | StoreKit not implemented | StoreKit not implemented | 12 Stripe fixture cases and 21 Play backend tests; no real purchase receipt |
+| Signed-out landing page | Not applicable | Production landing and signup verified | Not applicable | Not applicable | Public root, $15 coming-soon pricing, no-card Free entry |
 
-The existing complimentary/owner audio grants are preserved. Audio for new subscriptions has a separate activation flag until its cost is measured. No Play/App Store publication or production migration is claimed by this section.
+The existing complimentary/owner audio grants are preserved. Audio for new subscriptions has a separate activation flag until its cost is measured. PR #21 merged to main as `f4612b4`; Vercel Production `dpl_HzeZNNuCCNtmtq4RUZd9XbjCYZut` was Ready with sureword.app assigned. Five billing migrations were applied after snapshot branch `br-delicate-star-ak14gozu`, preserving all 44 users. Android tag `android-v1.61.0` targets `c90576e`; published APK SHA-256 `439835906b049408029a19227bfa3c9e3bb53f1e44c58c5568f57018c8003433`. Google public production access remains unavailable: Console showed one tester against the twelve-testers/fourteen-days requirement. Apple release binaries were not rebuilt.
 
 Last full audit: 2026-08-28 (macOS 1.5.0 closed every ❌ in its column except
 password sign-in and the "answer is ready" push: BYOK AI Providers + the provider-grouped model/effort picker,
