@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.59.0 (versionCode 61) - 2026-09-12 - internal
+
+**What's new (Play):**
+
+- Follow SureWord's work in a new activity card, with helpful summaries as it researches and prepares your answer.
+- Expand “Worked for” to revisit the steps, passages, and sources behind an answer.
+- Smoother follow-ups and connection recovery, plus better hardware keyboard support.
+
+**Dev notes:** Shared backend adds factual progress snapshots and optional fast narration. The Android client renders and restores the new activity history. Fixes orphaned OpenAI history references, distinguishes explicit provider failures from transport loss, recognizes Android connection aborts, and preserves composer clearance with a zero-height hardware-keyboard IME. Includes all changes in 1.58.0. Authenticated native passage, web research, saved-history and follow-up runs were verified; the user approved the final activity UI.
+
 ## 1.58.0 (versionCode 60) - 2026-09-12 - internal
 
 **What's new (Play):**

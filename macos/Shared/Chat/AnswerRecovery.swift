@@ -17,10 +17,10 @@ enum AnswerRecovery {
     /// Same 3s as the Android client.
     static let pollInterval: Duration = .seconds(3)
 
-    /// How long to keep collecting. The route's own budget is 120s
+    /// How long to keep collecting. The chat route allows 300s
     /// (`maxDuration`), so this outlasts the slowest possible answer plus its
     /// persistence.
-    static let maxDuration: Duration = .seconds(150)
+    static let maxDuration: Duration = .seconds(330)
 
     /// How long to wait after a resume before judging the stream at all. A
     /// stream that merely stalled while the Mac slept often resumes on its own,
@@ -70,9 +70,9 @@ enum AnswerRecovery {
     /// `APIError.server(status:message:)` for every non-2xx, and a non-2xx means
     /// the route never ran: the user message was never persisted, so there is
     /// nothing in the conversation to collect. Feeding one into the poll buys a
-    /// 150-second wait that can only ever end in "We couldn't retrieve that
+    /// 330-second wait that can only ever end in "We couldn't retrieve that
     /// answer" - hiding the real error (rate limited, model unavailable, 500)
-    /// for two and a half minutes first.
+    /// for five and a half minutes first.
     static func isTransportFailure(_ error: any Error) -> Bool {
         if let apiError = error as? APIError {
             // A decoded HTTP status means the server answered.

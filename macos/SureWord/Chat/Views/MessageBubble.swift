@@ -65,8 +65,11 @@ struct MessageBubble: View {
     @ViewBuilder
     private var assistantBody: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            // Tool activity, shown only while the answer is still being written.
-            if let activity = message.activity {
+            if let progress = message.progress {
+                WorkActivityView(progress: progress, isStreaming: message.isStreaming)
+            }
+            // Legacy streams still have a single activity label.
+            if let activity = message.activity, message.progress == nil {
                 HStack(spacing: Spacing.sm) {
                     Text(activity).foregroundStyle(theme.textMuted)
                     TypingDots()
@@ -86,7 +89,7 @@ struct MessageBubble: View {
 
             if !message.content.isEmpty {
                 MarkdownBody(text: message.content, streaming: message.isStreaming)
-            } else if message.isStreaming, message.activity == nil {
+            } else if message.isStreaming, message.activity == nil, message.progress == nil {
                 TypingDots()
             }
 

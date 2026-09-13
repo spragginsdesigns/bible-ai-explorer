@@ -20,8 +20,8 @@ enum UIMessagePart: Sendable, Equatable {
     case reasoning(id: String, text: String)
     case tool(ToolPart)
     case file(FilePart)
-    /// App-defined `data-*` payload. The only one SureWord renders is
-    /// `data-status`, the live "Getting ready / Thinking / …" narration the
+    /// App-defined `data-*` payload, including public work history and
+    /// `data-status`, the legacy "Getting ready / Thinking / …" narration the
     /// route writes before the first token (`src/lib/ai/status-narration.ts`).
     case data(DataPart)
 

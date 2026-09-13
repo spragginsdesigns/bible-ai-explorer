@@ -11,6 +11,7 @@ import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 import ChatFileAttachments from "./ChatFileAttachments";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
+import WorkActivity from "./WorkActivity";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
 
 interface ChatMessageProps {
@@ -45,20 +46,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 				<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
 			</div>
 			<div className="flex-1 min-w-0">
+				{message.progress && <WorkActivity progress={message.progress} isStreaming={Boolean(message.isStreaming)} />}
 				{message.content ? (
 					<FormattedResponse
 						response={normalizeAssistantMarkdown(message.content, {
 							streaming: Boolean(message.isStreaming),
 						})}
 					/>
-				) : message.isStreaming && !message.activity ? (
+				) : message.isStreaming && !message.activity && !message.progress ? (
 					<div className="flex items-center gap-1 py-2">
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce" />
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-200" />
 						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-500" />
 					</div>
 				) : null}
-				{message.isStreaming && message.activity && (
+				{message.isStreaming && message.activity && !message.progress && (
 					<div className="flex items-center gap-2 py-2 text-support text-neutral-500 dark:text-neutral-400">
 						<Loader2 className="w-3.5 h-3.5 animate-spin" />
 						<span className="animate-pulse">{message.activity}...</span>

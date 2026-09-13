@@ -19,7 +19,7 @@ import { ErrorCard } from "@/features/chat/ErrorCard";
 import { HistoryModal } from "@/features/chat/HistoryModal";
 import { MessageList } from "@/features/chat/MessageList";
 import { WelcomeState } from "@/features/chat/WelcomeState";
-import { useTabBarSpace } from "@/features/chat/layout";
+import { useKeyboardVisible, useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useSureWordChat } from "@/features/chat/useSureWordChat";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
@@ -36,6 +36,7 @@ export default function ChatScreen() {
 	const [modelPickerOpen, setModelPickerOpen] = useState(false);
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
+	const keyboardVisible = useKeyboardVisible();
 	const params = useLocalSearchParams<{
 		prompt?: string;
 		attachRef?: string;
@@ -205,6 +206,7 @@ export default function ChatScreen() {
 			<KeyboardAvoidingView
 				style={styles.fill}
 				behavior="padding"
+				enabled={keyboardVisible}
 			>
 				<View style={styles.header}>
 					<View style={styles.headerTitle}>

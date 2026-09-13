@@ -7,6 +7,60 @@ so they can be maintained without re-deriving the design.
 
 ---
 
+## Chat activity and work history
+
+*Implemented and tested locally 2026-09-12; release pending.*
+
+Every new chat response on web, Android, macOS and iOS has an elapsed timer,
+current activity in a separate styled card, and expandable history. Completed responses retain a
+"Worked for…" row when reopened. A preamble no longer hides later tool activity.
+
+`src/lib/ai/progress-narration.ts` turns actual tool start/result events and
+supported public model summaries into one `data-progress` snapshot. The snapshot
+uses a stable part id and increasing sequence, with at most 48 visible entries,
+bounded summary text, and up to six HTTP(S) source links per search. Tool errors
+remain errors in the history. Raw tool arguments and results are not displayed.
+
+The chat route opts into OpenAI public reasoning summaries when reasoning is
+enabled, and summarized adaptive thinking on supported Anthropic models. Other
+providers still get tool activity and elapsed time. Public summaries are not
+guaranteed on every turn. An optional fast narrator turns the question, bounded
+activity facts, and available public summaries into short contextual messages.
+It uses Luna without reasoning on OpenAI, or the existing utility model on
+Anthropic/OpenRouter, with the same provider and credential policy as the answer.
+Moonshot retains factual activity without an additional model call.
+
+Narration runs alongside the answer with no retries, a four-second deadline,
+a maximum of six calls per turn, and coalescing for simultaneous events. New
+activity, answer text, and completion cancel stale narration. Failure leaves
+the factual status available; it never delays or fails the answer. Raw tool
+results, private memory contents and credentials are not sent to the narrator.
+A ten-second
+heartbeat updates elapsed time without inventing activity; after twenty seconds
+without a meaningful event the UI says that no new update has arrived.
+
+Terminal snapshots are saved in existing message metadata by `persistableParts`
+and restored by every chat client. Display data is removed before model input.
+Legacy `data-status` remains available for older clients and the note assistant.
+Recovery waits up to 330 seconds, covering the route's 300-second ceiling. Stopping
+the client stream still leaves the existing server completion/recovery behavior
+intact; a disconnected live snapshot is labeled "Updates stopped…". Explicit
+server failures show an error and unlock the composer immediately; only a lost
+connection enters the recovery loop.
+
+OpenAI history that has no reasoning protocol parts is replayed as full text and
+tool calls, without orphaned item references. This prevents a follow-up from
+being rejected for an omitted reasoning item. Complete reasoning-bearing
+messages and other providers' metadata remain intact. Android follows a new
+user message even when the first activity arrives in the same render.
+
+Authenticated Android → localhost → Luna verification covered passage retrieval,
+web search, contextual narration, error/retry, and reopening saved work history.
+The passage run completed in 11.3 seconds, web research in 36.6 seconds, and a
+follow-up after the history fix in 15.2 seconds. These are observed runs, not
+latency guarantees. Shared macOS and iOS UI builds passed; their live provider
+flows have not been rechecked for this change.
+
 ## Tap-a-verse
 
 *Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS 1.1.0 (2026-08-17)*
@@ -1324,9 +1378,9 @@ on the definition of the model actually being built before mapping it:
 `reasoningEffort` / `textVerbosity` / `serviceTier` / `reasoningMode` for
 OpenAI, `effort` / `speed` for Anthropic, `reasoningEffort` for Moonshot,
 `reasoning.effort` / `provider.sort: "throughput"` for OpenRouter. It also
-sends `reasoningSummary: null` on every OpenAI call: the SDK silently defaults
-that to `"detailed"` whenever an effort is set, and no SureWord client renders
-reasoning parts, so we were paying for summaries nobody saw.
+defaults OpenAI calls to `reasoningSummary: null`, since utility surfaces do not
+display summaries. Chat explicitly overrides that to `"auto"` when reasoning is
+enabled and renders the public summary through its activity history.
 
 **OpenRouter's chips are refreshed at request time.** Its per-model reasoning
 levels and verbosity parameter exist only in its live `/models` response, so a

@@ -1,5 +1,8 @@
 "use client";
 
+import { progressFromParts, type ChatProgress } from "@/lib/chat/progress";
+import { shouldRecoverChatStream } from "@/lib/chat/streamRecovery";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -85,6 +88,7 @@ export interface ChatMessage {
 	attachments?: ChatAttachmentDescriptor[];
 	/** Human-readable label for the tool currently running, e.g. "Searching the Scriptures". */
 	activity?: string;
+	progress?: ChatProgress;
 	isStreaming?: boolean;
 	timestamp: number;
 }
@@ -103,10 +107,10 @@ const HISTORY_LOAD_ERROR =
 /** How often the recovery poll asks the server whether the answer has landed. */
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
 /**
- * How long to keep collecting. The route's own budget is 120s (maxDuration),
+ * How long to keep collecting. The chat route allows 300s (maxDuration),
  * so this outlasts the slowest possible answer plus its persistence.
  */
-const RECOVERY_MAX_MS = 150_000;
+const RECOVERY_MAX_MS = 330_000;
 /**
  * Grace period after the tab becomes visible again. A stream that merely
  * stalled while hidden often resumes on its own, and tearing it down to poll
@@ -302,7 +306,8 @@ export function toViewMessage(
 
 	// Server status lines narrate the wait; once the answer itself is on screen
 	// they are stale. A tool running mid-answer still says what it is doing.
-	const activity = toolActivity ?? (content.trim() ? undefined : statusActivity);
+	const progress = progressFromParts(message.parts);
+	const activity = progress ? (progress.state === "running" ? progress.label : undefined) : toolActivity ?? (content.trim() ? undefined : statusActivity);
 
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
@@ -337,6 +342,7 @@ export function toViewMessage(
 		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
+		...(progress ? { progress } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
 		timestamp: Date.now(),
 	};
@@ -356,7 +362,7 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
 	const restoredParts = Array.isArray(metadata.parts)
 		? (metadata.parts as SureWordUIMessage["parts"]).filter(
-			(part) => !part.type.startsWith("data-"),
+			(part) => part.type === "data-progress" || !part.type.startsWith("data-"),
 		)
 		: [{ type: "text" as const, text: value.content }];
 	const storedAttachments = Array.isArray(value.attachments)
@@ -633,13 +639,18 @@ export const useChat = () => {
 		[clearError, setUIMessages]
 	);
 
-	// A broken stream is a collection job, not a failure to show the user.
+	// Only connection loss is recoverable. A server error has already ended the answer.
 	useEffect(() => {
 		if (!chatError) return;
+		if (!shouldRecoverChatStream(chatError)) {
+			cancelRecovery();
+			setSendError(classifyChatError({ message: chatError.message }));
+			return;
+		}
 		const conversationId = pendingAnswerRef.current;
 		if (!conversationId) return;
 		void collectPendingAnswer(conversationId);
-	}, [chatError, collectPendingAnswer]);
+	}, [chatError, cancelRecovery, collectPendingAnswer]);
 
 	// Coming back to the tab: give a stalled stream a moment to resume, and
 	// collect from the server only once it is clear nothing is arriving.

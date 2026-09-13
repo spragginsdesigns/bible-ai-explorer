@@ -19,7 +19,8 @@ interface MessageListProps {
 export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, children }: MessageListProps) {
 	const scrollRef = useRef<ScrollView>(null);
 	const nearBottom = useRef(true);
-	const previousCount = useRef(messages.length);
+	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
+	const previousUserId = useRef(latestUserId);
 
 	const latestAssistantId = [...messages]
 		.reverse()
@@ -39,13 +40,14 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 
 	// A newly sent question always pulls the view back down.
 	useEffect(() => {
-		const last = messages[messages.length - 1];
-		if (messages.length > previousCount.current && last?.role === "user") {
+		// The first activity can arrive in the same render as the user's message.
+		// Follow the new user id even when an assistant row is already last.
+		if (latestUserId && latestUserId !== previousUserId.current) {
 			nearBottom.current = true;
 			scrollRef.current?.scrollToEnd({ animated: true });
 		}
-		previousCount.current = messages.length;
-	}, [messages]);
+		previousUserId.current = latestUserId;
+	}, [latestUserId]);
 
 	return (
 		<ScrollView

@@ -131,6 +131,7 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     /// Live "Getting ready / Reading <file> / Thinking" line, or the label of
     /// a tool that is mid-flight. Only ever set while streaming.
     var activity: String?
+    var progress: ChatProgress?
     var isStreaming = false
 
     var matchStrength: MatchStrength? {
@@ -229,6 +230,7 @@ extension ChatViewMessage {
         var crossActions: [CrossAction] = []
         // The server's narration of the wait, replaced in place all stream.
         var statusActivity: String?
+        var progress: ChatProgress?
         // A tool that is running right now; it outranks the status line.
         var toolActivity: String?
 
@@ -250,8 +252,9 @@ extension ChatViewMessage {
                 continue
             }
             if let data = part.dataPart {
-                // `data-status` is the only data part any SureWord client
-                // renders; a malformed one is ignored rather than shown.
+                // The stable progress snapshot survives history restore; legacy
+                // status labels remain supported for older servers.
+                if data.name == "progress", let snapshot = ChatProgress(data.value), snapshot.sequence >= (progress?.sequence ?? -1) { progress = snapshot }
                 if data.name == "status", let label = data.value["label"]?.stringValue {
                     statusActivity = label
                 }
@@ -353,7 +356,8 @@ extension ChatViewMessage {
             crossActions: crossActions,
             receipts: Self.buildReceipts(message.parts),
             attachments: attachments,
-            activity: isStreaming ? activity : nil,
+            activity: isStreaming ? (progress?.state == "running" ? progress?.label : activity) : nil,
+            progress: progress,
             isStreaming: isStreaming
         )
     }

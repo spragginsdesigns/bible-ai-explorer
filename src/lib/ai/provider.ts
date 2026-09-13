@@ -250,6 +250,22 @@ function utilityDefinition(provider: ProviderId): ModelDefinition {
 	return definition;
 }
 
+/** Small, optional activity writer. Its failure never prevents the main answer. */
+export async function resolveProgressModel(userId: string, provider: ProviderId): Promise<Pick<ResolvedModel, "model" | "providerOptions"> | null> {
+	// Kimi's thinking pass is too expensive for a short status line; factual tool updates still work.
+	if (provider === "moonshot") return null;
+	let key = await apiKeyOrNull(userId, provider);
+	if (!key && provider === "openai" && await aiAccessFor(userId) === "house") key = serverKeyFor("openai") ?? null;
+	if (!key) return null;
+	const modelId = provider === "openai" ? "gpt-5.6-luna" : UTILITY_MODELS[provider].providerModelId;
+	return {
+		model: buildModel(provider, modelId, key),
+		providerOptions: provider === "openai"
+			? { openai: { reasoningEffort: "none", reasoningSummary: null, textVerbosity: "low" } }
+			: {},
+	};
+}
+
 /**
  * Single place every AI call site gets its model from.
  *

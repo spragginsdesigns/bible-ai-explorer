@@ -71,11 +71,18 @@ export function createNarratedDownload(options: {
 }
 
 /**
- * Status parts narrate the wait and must not outlive the stream: replaying a
- * stored one would show a finished answer as though it were still working.
+ * Legacy status parts describe the live wait and are dropped. The terminal
+ * progress snapshot is display history and survives so a completed answer can
+ * show its duration and expandable activity. It is stripped from model input.
  */
 export function persistableParts<PART extends { type: string }>(parts: PART[]): PART[] {
-	return parts.filter((part) => !part.type.startsWith("data-"));
+	return parts.filter((part) => {
+		if (part.type === "data-progress") {
+			const data = (part as { data?: { state?: string } }).data;
+			return data?.state === "complete" || data?.state === "error";
+		}
+		return !part.type.startsWith("data-");
+	});
 }
 
 /**

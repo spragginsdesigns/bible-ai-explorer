@@ -14,6 +14,7 @@ import { MarkdownBody } from "./MarkdownBody";
 import { NoteActionCard } from "./NoteActionCard";
 import { CrossActionCard } from "./CrossActionCard";
 import { RetrievedVersesCard } from "./RetrievedVersesCard";
+import { WorkActivity } from "./WorkActivity";
 import { TypingDots } from "./TypingDots";
 import { openReferenceInReader, segmentVerseReferences } from "./verseLinks";
 import { WebResultsCard } from "./WebResultsCard";
@@ -92,13 +93,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 		<View style={styles.assistantRow}>
 			<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
 			<View style={styles.assistantBody}>
+				{message.progress && <WorkActivity progress={message.progress} isStreaming={Boolean(message.isStreaming)} />}
 				{assistantMarkdown !== null ? (
 					<MarkdownBody content={assistantMarkdown} />
-				) : message.isStreaming && !message.activity ? (
+				) : message.isStreaming && !message.activity && !message.progress ? (
 					<TypingDots />
 				) : null}
 
-				{message.isStreaming && message.activity && (
+				{message.isStreaming && message.activity && !message.progress && (
 					<View style={styles.activityRow}>
 						<ActivityIndicator size="small" color={colors.accentDim} />
 						<Text style={styles.activityLabel}>{message.activity}...</Text>

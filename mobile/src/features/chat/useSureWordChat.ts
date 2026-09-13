@@ -19,6 +19,7 @@ import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { markConversationStopped } from "@/features/notifications/chatStopSignals";
 import { signalNotificationPermissionMoment } from "@/features/notifications/permissionPrompt";
 import { completedHistory } from "./answerRecovery";
+import { shouldRecoverChatStream } from "@/lib/streamRecovery";
 import {
 	classifyChatError,
 	recoveryExhaustedError,
@@ -95,10 +96,10 @@ const CONVERSATION_CREATE_ERROR =
 /** How often the recovery poll asks the server whether the answer has landed. */
 const RECOVERY_POLL_INTERVAL_MS = 3_000;
 /**
- * How long to keep collecting. The route's own budget is 120s (maxDuration),
+ * How long to keep collecting. The chat route allows 300s (maxDuration),
  * so this outlasts the slowest possible answer plus its persistence.
  */
-const RECOVERY_MAX_MS = 150_000;
+const RECOVERY_MAX_MS = 330_000;
 /**
  * Grace period after the app returns to the foreground. A stream that merely
  * stalled while backgrounded often resumes on its own, and tearing it down to
@@ -457,13 +458,18 @@ export function useSureWordChat(): SureWordChat {
 		[authToken, clearError, setUIMessages]
 	);
 
-	// A broken stream is a collection job, not a failure to show the user.
+	// Only connection loss is recoverable. A server error has already ended the answer.
 	useEffect(() => {
 		if (!chatError) return;
+		if (!shouldRecoverChatStream(chatError)) {
+			cancelRecovery();
+			setSendError(classifyChatError(chatError));
+			return;
+		}
 		const conversationId = pendingAnswerRef.current;
 		if (!conversationId) return;
 		void collectPendingAnswer(conversationId);
-	}, [chatError, collectPendingAnswer]);
+	}, [chatError, cancelRecovery, collectPendingAnswer]);
 
 	// Coming back to the app: give a stalled stream a moment to resume, and
 	// collect from the server only once it is clear nothing is arriving.

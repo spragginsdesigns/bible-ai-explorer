@@ -35,6 +35,9 @@ import {
 	persistableParts,
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
+import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progress-narration";
+import { createProgressSummarizer } from "@/lib/ai/progress-summary";
+import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import {
 	HOUSE_MODEL_ID,
@@ -573,7 +576,9 @@ export async function POST(req: Request): Promise<Response> {
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
 		const allMessages = await validateUIMessages<SureWordUIMessage>({
-			messages: recentMessages,
+			messages: recentMessages.map((message: UIMessage) => ({
+				...message, parts: Array.isArray(message?.parts) ? message.parts.filter((part) => !part.type?.startsWith("data-")) : message?.parts,
+			})),
 			tools,
 		});
 
@@ -713,207 +718,233 @@ export async function POST(req: Request): Promise<Response> {
 				);
 			},
 			execute: async ({ writer }) => {
-				const writeStatus = startStatusNarration(writer, responseMessageId);
-				writeStatus("Getting ready");
-
-				if (hasAttachments) writeStatus("Opening your attachments");
-				const messages = await hydrateTrustedAttachments(validatedMessages, userId);
-
-				if (conversationId) {
-					conversationCreatedAt = await persistUserMessage({
-						userId,
-						conversationId,
-						userMessage: lastMessage,
-						origin: dailyCrossOrigin,
-						readingReceivedAt,
-						readingContext,
-					});
-				}
-
-				const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
-					loadUserMemories(userId),
-					loadUserChurch(userId),
-					loadChatDayContext(userId),
-					hasAnsweredConversationBefore(userId, conversationId),
-					settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
-				]);
-				const {
-					model,
-					providerOptions,
-					definition,
-					access,
-					attachmentFallbackFrom,
-					attachmentsUnsupported,
-					speed: appliedSpeed,
-					verbosity: appliedVerbosity,
-					mode: appliedMode,
-					promptHints,
-				} = await resolveModel({
-					userId,
-					modelId: requestedModelId,
-					effort: requestedEffort,
-					ignoreStoredEffort: explicitAutoEffort,
-					fallbackEffort: isOpeningQuestion ? "high" : "medium",
-					attachments: true,
-					requireAttachments: threadHasAttachments,
-					// Chat is the only surface with a picker, so it is the only caller
-					// that opts into speed/verbosity/mode and their stored defaults.
-					run: {
-						speed: requestedSpeed,
-						verbosity: requestedVerbosity,
-						mode: requestedMode,
-					},
-				});
-				resolvedModelId = definition.id;
-				metricProvider = definition.provider;
-				metricModelId = definition.providerModelId;
-				if (attachmentFallbackFrom) {
-					writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
-				}
-				const modelMessages = attachmentsUnsupported ? withoutFileParts(messages) : messages;
-
-				// The picker's last choice becomes the default for every client. An
-				// invalid requested id resolves to a fallback model — don't record that
-				// fallback as if the user picked it.
-				// A house answer is the server's choice, not the user's: those accounts
-				// have no picker, so recording Luna as their stored default would
-				// invent a preference and outlive the day they add their own key.
-				const houseAnswer = access === "house" && definition.id === HOUSE_MODEL_ID;
-				const pickedModel =
-					!houseAnswer && requestedModelId === definition.id ? definition.id : null;
-				// The raw requested value is stored, not the clamped one: a choice the
-				// current model cannot honour must survive switching to one that can.
-				const pickedEffort = houseAnswer ? null : requestedEffort;
-				// Auto is a choice, so it erases the stored effort. Nothing else
-				// clears a default: for the other three, null means "no opinion".
-				const clearEffort = !houseAnswer && !pickedEffort && explicitAutoEffort;
-				const pickedSpeed = houseAnswer ? null : requestedSpeed;
-				const pickedVerbosity = houseAnswer ? null : requestedVerbosity;
-				const pickedMode = houseAnswer ? null : requestedMode;
-				if (
-					pickedModel ||
-					pickedEffort ||
-					clearEffort ||
-					pickedSpeed ||
-					pickedVerbosity ||
-					pickedMode
-				) {
-					waitUntil(
-						prisma.user
-							.update({
-								where: { id: userId },
-								data: {
-									...(pickedModel ? { defaultModelId: pickedModel } : {}),
-									...(pickedEffort
-										? { defaultEffort: pickedEffort }
-										: clearEffort
-											? { defaultEffort: null }
-											: {}),
-									...(pickedSpeed ? { defaultSpeed: pickedSpeed } : {}),
-									...(pickedVerbosity ? { defaultVerbosity: pickedVerbosity } : {}),
-									...(pickedMode ? { defaultMode: pickedMode } : {}),
-								},
-							})
-							.catch((error) => console.error("Failed to persist model choice:", error)),
-					);
-				}
-
-				// Any verbosity the user chose, sent now or stored from the picker,
-				// outranks the automatic short-follow-up shape.
-				const shapeHint = turnShapeHint(validatedMessages, {
-					verbosity: requestedVerbosity ?? appliedVerbosity,
-				});
-
-				// Only the non-default values are worth recording: they are what makes
-				// this turn differ from the same model's ordinary answer.
-				resolvedRun = {
-					...(shapeHint ? { turnShape: "short" as const } : {}),
-					...(appliedSpeed && appliedSpeed !== "standard" ? { speed: appliedSpeed } : {}),
-					...(appliedVerbosity && appliedVerbosity !== "medium"
-						? { verbosity: appliedVerbosity }
-						: {}),
-					...(appliedMode && appliedMode !== "standard" ? { mode: appliedMode } : {}),
-				};
-
-				writeStatus("Thinking");
-				const stableSystem = chatSystemPrompt(translation);
-				// Per-user context only, all of it uncached. The first-conversation
-				// block holds for every turn of that conversation (its own text says
-				// to ask only once), and the shape hint goes last, nearest the answer.
-				const volatileSystem = [
-					formatUserNameLine(userName),
-					formatMemoryBlock(memories),
-					formatChurchBlock(church),
-					formatTodayBlock(dayContext),
-					answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
-					...promptHints.map((hint) => `\n\n${hint}`),
-					shapeHint ? `\n\n${shapeHint}` : "",
-				].join("");
-				const promptCache = buildPromptCachePlan({
-					provider: definition.provider,
-					modelId: definition.providerModelId,
-					stableSystem,
-					volatileSystem,
-					providerOptions,
-					cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${userPrefs?.webSearchEnabled ?? true}`,
-				});
-				const result = streamText({
-					model,
-					system: promptCache.system,
-					messages: await convertToModelMessages(modelMessages),
-					tools,
-					// Either limit ends the loop cleanly, so the answer is streamed,
-					// persisted and measured. Only the platform timeout loses a turn.
-					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
-					providerOptions: promptCache.providerOptions,
-					experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
-					// Supplying onError replaces streamText's default console.error, so
-					// the log line is kept here; the real error object is only
-					// visible at this layer, before the UI stream flattens it to text.
-					onError: ({ error }) => {
-						recordTurnError(error);
-						console.error(error);
-					},
-					onStepEnd: (event) => {
-						metricStepCount = event.stepNumber + 1;
-						metricLastStepFinishReason = event.finishReason;
-						logChatStepMetric(
-							{
-								surface: "ask-question",
-								provider: definition.provider,
-								modelId: definition.providerModelId,
-								translation,
-								toolCount: Object.keys(tools).length,
-								memoryCount: memories.length,
-								historyMessages: modelMessages.length,
-								historyTruncated: requestMessageCount > MAX_REQUEST_MESSAGES,
-								maxHistoryMessages: MAX_REQUEST_MESSAGES,
-								stepLimit: 8,
-								stableSystemChars: stableSystem.length,
-								volatileSystemChars: volatileSystem.length,
-							},
-							event,
-						);
-					},
-					onToolExecutionStart: ({ toolCall }) => {
-						writeStatus(toolActivityLabel(toolCall.toolName));
-					},
-					onToolExecutionEnd: () => {
-						writeStatus("Thinking");
-					},
-				});
-
-				// Run to completion even if the client disconnects, so persistence and
-				// memory extraction still happen.
-				result.consumeStream();
-
-				writer.merge(
-					toUIMessageStream<SureWordTools, SureWordUIMessage>({
-						stream: result.stream,
-						tools,
-						sendStart: false,
-					})
+				const legacyStatus = startStatusNarration(writer, responseMessageId);
+				const progress = createProgressNarration(
+					(data) => writer.write({ type: "data-progress", id: "progress", data }), responseMessageId,
 				);
+				const writeStatus = (label: string) => { legacyStatus(label); progress.status(label); };
+				try {
+					writeStatus("Getting ready");
+
+					if (hasAttachments) writeStatus("Opening your attachments");
+					const messages = await hydrateTrustedAttachments(validatedMessages, userId);
+
+					if (conversationId) {
+						conversationCreatedAt = await persistUserMessage({
+							userId,
+							conversationId,
+							userMessage: lastMessage,
+							origin: dailyCrossOrigin,
+							readingReceivedAt,
+							readingContext,
+						});
+					}
+
+					const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
+						loadUserMemories(userId),
+						loadUserChurch(userId),
+						loadChatDayContext(userId),
+						hasAnsweredConversationBefore(userId, conversationId),
+						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
+					]);
+					const {
+						model,
+						providerOptions,
+						definition,
+						access,
+						attachmentFallbackFrom,
+						attachmentsUnsupported,
+						speed: appliedSpeed,
+						verbosity: appliedVerbosity,
+						mode: appliedMode,
+						promptHints,
+					} = await resolveModel({
+						userId,
+						modelId: requestedModelId,
+						effort: requestedEffort,
+						ignoreStoredEffort: explicitAutoEffort,
+						fallbackEffort: isOpeningQuestion ? "high" : "medium",
+						attachments: true,
+						requireAttachments: threadHasAttachments,
+						// Chat is the only surface with a picker, so it is the only caller
+						// that opts into speed/verbosity/mode and their stored defaults.
+						run: {
+							speed: requestedSpeed,
+							verbosity: requestedVerbosity,
+							mode: requestedMode,
+						},
+					});
+					resolvedModelId = definition.id;
+					metricProvider = definition.provider;
+					metricModelId = definition.providerModelId;
+					if (attachmentFallbackFrom) {
+						writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
+					}
+					const modelMessages = attachmentsUnsupported ? withoutFileParts(messages) : messages;
+
+					// The picker's last choice becomes the default for every client. An
+					// invalid requested id resolves to a fallback model — don't record that
+					// fallback as if the user picked it.
+					// A house answer is the server's choice, not the user's: those accounts
+					// have no picker, so recording Luna as their stored default would
+					// invent a preference and outlive the day they add their own key.
+					const houseAnswer = access === "house" && definition.id === HOUSE_MODEL_ID;
+					const pickedModel =
+						!houseAnswer && requestedModelId === definition.id ? definition.id : null;
+					// The raw requested value is stored, not the clamped one: a choice the
+					// current model cannot honour must survive switching to one that can.
+					const pickedEffort = houseAnswer ? null : requestedEffort;
+					// Auto is a choice, so it erases the stored effort. Nothing else
+					// clears a default: for the other three, null means "no opinion".
+					const clearEffort = !houseAnswer && !pickedEffort && explicitAutoEffort;
+					const pickedSpeed = houseAnswer ? null : requestedSpeed;
+					const pickedVerbosity = houseAnswer ? null : requestedVerbosity;
+					const pickedMode = houseAnswer ? null : requestedMode;
+					if (
+						pickedModel ||
+						pickedEffort ||
+						clearEffort ||
+						pickedSpeed ||
+						pickedVerbosity ||
+						pickedMode
+					) {
+						waitUntil(
+							prisma.user
+								.update({
+									where: { id: userId },
+									data: {
+										...(pickedModel ? { defaultModelId: pickedModel } : {}),
+										...(pickedEffort
+											? { defaultEffort: pickedEffort }
+											: clearEffort
+												? { defaultEffort: null }
+												: {}),
+										...(pickedSpeed ? { defaultSpeed: pickedSpeed } : {}),
+										...(pickedVerbosity ? { defaultVerbosity: pickedVerbosity } : {}),
+										...(pickedMode ? { defaultMode: pickedMode } : {}),
+									},
+								})
+								.catch((error) => console.error("Failed to persist model choice:", error)),
+						);
+					}
+
+					// Any verbosity the user chose, sent now or stored from the picker,
+					// outranks the automatic short-follow-up shape.
+					const shapeHint = turnShapeHint(validatedMessages, {
+						verbosity: requestedVerbosity ?? appliedVerbosity,
+					});
+
+					// Only the non-default values are worth recording: they are what makes
+					// this turn differ from the same model's ordinary answer.
+					resolvedRun = {
+						...(shapeHint ? { turnShape: "short" as const } : {}),
+						...(appliedSpeed && appliedSpeed !== "standard" ? { speed: appliedSpeed } : {}),
+						...(appliedVerbosity && appliedVerbosity !== "medium"
+							? { verbosity: appliedVerbosity }
+							: {}),
+						...(appliedMode && appliedMode !== "standard" ? { mode: appliedMode } : {}),
+					};
+
+					writeStatus("Thinking");
+					const stableSystem = chatSystemPrompt(translation);
+					// Per-user context only, all of it uncached. The first-conversation
+					// block holds for every turn of that conversation (its own text says
+					// to ask only once), and the shape hint goes last, nearest the answer.
+					const volatileSystem = [
+						formatUserNameLine(userName),
+						formatMemoryBlock(memories),
+						formatChurchBlock(church),
+						formatTodayBlock(dayContext),
+						answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
+						...promptHints.map((hint) => `\n\n${hint}`),
+						shapeHint ? `\n\n${shapeHint}` : "",
+					].join("");
+					const promptCache = buildPromptCachePlan({
+						provider: definition.provider,
+						modelId: definition.providerModelId,
+						stableSystem,
+						volatileSystem,
+						providerOptions,
+						cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${userPrefs?.webSearchEnabled ?? true}`,
+					});
+					progress.enableNarrator(createProgressSummarizer(userId, definition.provider), extractText(lastMessage));
+					const result = streamText({
+						model,
+						system: promptCache.system,
+						messages: withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages)),
+						tools,
+						// Either limit ends the loop cleanly, so the answer is streamed,
+						// persisted and measured. Only the platform timeout loses a turn.
+						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
+						providerOptions: progressProviderOptions(definition.provider, definition.providerModelId, promptCache.providerOptions),
+						onChunk: ({ chunk }) => {
+							if (chunk.type === "text-delta") progress.answer();
+							// Only documented public summaries. Other providers can expose raw reasoning.
+							if (definition.provider === "openai" || definition.provider === "anthropic") {
+								if (chunk.type === "reasoning-delta") progress.summary(chunk.id, chunk.text);
+								if (chunk.type === "reasoning-end") progress.summary(chunk.id, "", true);
+							}
+						},
+						onEnd: () => progress.finish(metricError !== null),
+						onAbort: () => progress.finish(true),
+						experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
+						// Supplying onError replaces streamText's default console.error, so
+						// the log line is kept here; the real error object is only
+						// visible at this layer, before the UI stream flattens it to text.
+						onError: ({ error }) => {
+							recordTurnError(error);
+							progress.finish(true);
+							console.error(error);
+						},
+						onStepEnd: (event) => {
+							metricStepCount = event.stepNumber + 1;
+							metricLastStepFinishReason = event.finishReason;
+							logChatStepMetric(
+								{
+									surface: "ask-question",
+									provider: definition.provider,
+									modelId: definition.providerModelId,
+									translation,
+									toolCount: Object.keys(tools).length,
+									memoryCount: memories.length,
+									historyMessages: modelMessages.length,
+									historyTruncated: requestMessageCount > MAX_REQUEST_MESSAGES,
+									maxHistoryMessages: MAX_REQUEST_MESSAGES,
+									stepLimit: 8,
+									stableSystemChars: stableSystem.length,
+									volatileSystemChars: volatileSystem.length,
+								},
+								event,
+							);
+						},
+						onToolExecutionStart: ({ toolCall }) => {
+							legacyStatus(toolActivityLabel(toolCall.toolName));
+							progress.toolStart(toolCall, toolActivityLabel(toolCall.toolName));
+						},
+						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
+							legacyStatus("Thinking");
+							progress.toolEnd(toolCall, toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type === "tool-error");
+						},
+					});
+
+					// Run to completion even if the client disconnects, so persistence and
+					// memory extraction still happen.
+					const consumption = result.consumeStream();
+
+					writer.merge(
+						toUIMessageStream<SureWordTools, SureWordUIMessage>({
+							stream: result.stream,
+							tools,
+							sendStart: false,
+							sendReasoning: false,
+						})
+					);
+					await consumption;
+					progress.finish(metricError !== null);
+				} catch (error) {
+					progress.finish(true);
+					throw error;
+				}
 			},
 		});
 

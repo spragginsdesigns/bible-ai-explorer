@@ -1,3 +1,4 @@
+import { progressFromParts, type ChatProgress } from "./chatProgress";
 import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
 import type { TranslationId } from "@/features/bible/translations";
@@ -51,6 +52,7 @@ export interface ChatViewMessage {
 	receipts?: ChatReceipt[];
 	attachments?: ChatAttachmentDescriptor[];
 	activity?: string;
+	progress?: ChatProgress;
 	isStreaming?: boolean;
 }
 
@@ -273,7 +275,8 @@ export function toViewMessage(
 
 	// Server status lines narrate the wait; once the answer itself is on screen
 	// they are stale. A tool running mid-answer still says what it is doing.
-	const activity = toolActivity ?? (content.trim() ? undefined : statusActivity);
+	const progress = progressFromParts(message.parts);
+	const activity = progress ? (progress.state === "running" ? progress.label : undefined) : toolActivity ?? (content.trim() ? undefined : statusActivity);
 
 	const followUps = options.isStreaming
 		? parseFollowUps(text)
@@ -308,6 +311,7 @@ export function toViewMessage(
 		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
+		...(progress ? { progress } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
 	};
 }
@@ -355,7 +359,7 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 	const metadata = isRecord(value.metadata) ? value.metadata : {};
 	const restoredParts = Array.isArray(metadata.parts)
 		? (metadata.parts as UIMessage["parts"]).filter(
-			(part) => !part.type.startsWith("data-"),
+			(part) => part.type === "data-progress" || !part.type.startsWith("data-"),
 		)
 		: [{ type: "text" as const, text: value.content }];
 	const storedAttachments = Array.isArray(value.attachments)

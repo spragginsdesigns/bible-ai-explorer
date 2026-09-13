@@ -769,10 +769,8 @@ export function buildProviderOptions(
 			if (nativeVerbosity) options.textVerbosity = nativeVerbosity;
 			if (fast) options.serviceTier = "fast";
 			if (pro) options.reasoningMode = "pro";
-			// The SDK defaults reasoningSummary to "detailed" whenever an effort is
-			// set, and no SureWord client renders reasoning parts, so every summary
-			// we do not ask for is output tokens paid for nothing. Explicit null is
-			// the only way to turn it off.
+			// Utility calls have no activity UI. Chat explicitly opts in through
+			// progressProviderOptions and renders public summaries in work history.
 			options.reasoningSummary = null;
 			if (attachments) options.passThroughUnsupportedFiles = true;
 			return { openai: options };

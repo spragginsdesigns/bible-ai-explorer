@@ -1481,11 +1481,12 @@ function toDailyCrossOutput(cross: {
 export type SureWordTools = ReturnType<typeof buildSureWordTools>;
 
 /**
- * Transient data parts the routes stream alongside the answer. `status` is what
- * the assistant is doing right now; it is never persisted.
+ * Display data streamed alongside the answer. `status` is transient;
+ * the terminal `progress` snapshot is persisted as expandable work history.
  */
 export type SureWordDataTypes = {
 	status: { label: string };
+	progress: import("@/lib/chat/progress").ChatProgress;
 };
 
 /** UIMessage typed with the SureWord tool set, shared by server and client. */

@@ -24,10 +24,12 @@ export function useTabBarSpace(): number {
 
 /** True while the soft keyboard is shown. */
 export function useKeyboardVisible(): boolean {
-	const [visible, setVisible] = useState(false);
+	const [visible, setVisible] = useState(() => (Keyboard.metrics()?.height ?? 0) > 0);
 
 	useEffect(() => {
-		const show = Keyboard.addListener("keyboardDidShow", () => setVisible(true));
+		// Android can report a visible IME with zero height for a hardware
+		// keyboard. Keep tab clearance then, or Send ends up under the tabs.
+		const show = Keyboard.addListener("keyboardDidShow", event => setVisible(event.endCoordinates.height > 0));
 		const hide = Keyboard.addListener("keyboardDidHide", () => setVisible(false));
 		return () => {
 			show.remove();

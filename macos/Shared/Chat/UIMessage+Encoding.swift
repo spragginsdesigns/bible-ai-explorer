@@ -11,11 +11,8 @@ extension UIMessage {
         var object: [String: JSONValue] = [
             "id": .string(id),
             "role": .string(role.rawValue),
-            // `data-*` parts are deliberately dropped. They narrate one turn's
-            // wait and nothing else: the route strips them before persisting
-            // (`persistableParts` in src/lib/ai/status-narration.ts), and
-            // `validateUIMessages` is called without data schemas, so replaying
-            // one would risk a 400 on the next question for no gain.
+            // Display history is never replayed as model input. Persisted
+            // progress is decoded for the UI, then stripped on outgoing turns.
             "parts": .array(parts.compactMap(\.json)),
         ]
         if let metadata { object["metadata"] = metadata }

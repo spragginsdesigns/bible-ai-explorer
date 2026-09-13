@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SureWord: useful progress throughout the wait</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens (do not change; this is the standard) ---------- */
+:root{
+  color-scheme:dark;
+  --bg:#09090b;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.06);
+  --surface-3:rgba(255,255,255,.10);
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --fg:#fafafa;
+  --fg-2:#d4d4d8;
+  --muted:#a1a1aa;
+  --dim:#8b8b95;
+  --accent:#3b82f6;
+  --accent-2:#22d3ee;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+  --info:#8b5cf6;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
+  --edge:inset 0 1px 0 rgba(255,255,255,.06);
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --max:1040px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 var(--font);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-image:
+    radial-gradient(900px 420px at 50% -120px, rgba(34,211,238,.16), transparent 70%),
+    radial-gradient(700px 360px at 85% -60px, rgba(59,130,246,.12), transparent 70%);
+  background-repeat:no-repeat;
+}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
+.wrap{width:min(100% - 2.5rem, var(--max));margin-inline:auto}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:clamp(1.9rem,4.5vw,2.75rem);font-weight:700;letter-spacing:-.03em}
+h2{font-size:1.35rem}
+h3{font-size:1rem}
+p{margin:.5rem 0}
+code,pre,.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:.1em .4em;border-radius:6px}
+pre{margin:.75rem 0 0;padding:.9rem 1rem;background:#0c0c0f;border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;line-height:1.6;overflow:auto;white-space:pre}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+
+/* ---------- header ---------- */
+header{padding:3.5rem 0 2rem}
+.eyebrow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+.eyebrow .sep{color:var(--dim);letter-spacing:0}
+header h1{margin:.8rem 0 .6rem;max-width:22ch}
+.dek{max-width:60ch;font-size:1.08rem;color:var(--fg-2)}
+.meta{margin-top:1rem;font-family:var(--mono);font-size:.76rem;color:var(--dim)}
+
+/* ---------- sticky nav (use only when 4+ sections) ---------- */
+nav{position:sticky;top:0;z-index:5;padding:.6rem 0;background:rgba(9,9,11,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);padding-right:2.5rem}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;padding:.34rem .8rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--muted);background:var(--surface)}
+nav a:hover{color:var(--fg);border-color:var(--border-strong);text-decoration:none}
+
+/* ---------- layout ---------- */
+main{padding:1.5rem 0 4rem}
+section{margin:2.5rem 0}
+section>h2{margin-bottom:.35rem}
+.lead{color:var(--muted);max-width:64ch;margin:0 0 1rem}
+.grid{display:grid;gap:.9rem}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;box-shadow:var(--shadow),var(--edge)}
+.card h3{margin-bottom:.35rem}
+.card p{color:var(--fg-2)}
+.card p:last-child{margin-bottom:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.4rem}
+.verdict{border-left:3px solid var(--accent-2);background:linear-gradient(90deg,rgba(34,211,238,.08),var(--surface) 40%)}
+.verdict strong{color:var(--fg)}
+
+/* KPI tiles: max 4 per report */
+.kpi{padding:1rem 1.15rem}
+.kpi .label{font-size:.74rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.kpi .value{display:block;margin:.25rem 0 .1rem;font-family:var(--mono);font-size:1.9rem;font-weight:500;letter-spacing:-.03em;line-height:1.1}
+.kpi .delta{font-size:.78rem;color:var(--muted)}
+.kpi .delta.up{color:var(--ok)}
+.kpi .delta.down{color:var(--bad)}
+
+/* badges: tinted flat, never gradient, never shadowed */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.14rem .55rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.badge.ok{--c:var(--ok)}
+.badge.warn{--c:var(--warn)}
+.badge.bad{--c:var(--bad)}
+.badge.info{--c:var(--info)}
+.badge.neutral{--c:var(--muted)}
+.badge.accent{--c:var(--accent-2)}
+
+/* evidence stays folded */
+details{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-top:.8rem}
+summary{cursor:pointer;padding:.65rem .95rem;font-size:.84rem;font-weight:500;color:var(--muted);list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:.4rem;height:.4rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details[open] summary{color:var(--fg);border-bottom:1px solid var(--border)}
+details .body{padding:.75rem .95rem 1rem;font-size:.9rem;color:var(--fg-2)}
+details .body>:first-child{margin-top:0}
+
+/* tables */
+.table{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--edge)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:.6rem .85rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+th{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+td.num,th.num{text-align:right;white-space:nowrap}
+
+/* simple bar chart (no library) */
+.bars{display:grid;gap:.45rem}
+.bar{display:grid;grid-template-columns:minmax(6rem,14rem) 1fr auto;gap:.75rem;align-items:center;font-size:.86rem}
+.bar .track{display:block;height:.55rem;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar .fill{display:block;height:100%;width:var(--v);background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+.bar .n{color:var(--muted)}
+
+/* steps / recommendations */
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:.6rem;counter-reset:s}
+.steps li{position:relative;padding:.85rem 1rem .85rem 3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg-2)}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.9rem;top:.8rem;width:1.5rem;height:1.5rem;display:grid;place-items:center;border-radius:999px;background:var(--surface-3);color:var(--fg);font:600 .74rem var(--mono)}
+.steps strong{color:var(--fg)}
+
+ul.plain{margin:.4rem 0 0;padding-left:1.1rem;color:var(--fg-2)}
+ul.plain li{margin:.25rem 0}
+hr{border:0;border-top:1px solid var(--border);margin:2rem 0}
+footer{border-top:1px solid var(--border);padding:1.25rem 0 2.5rem;font-size:.8rem;color:var(--dim)}
+footer a{color:var(--muted)}
+
+/* ---------- responsive ---------- */
+@media (max-width:820px){
+  .cols-3,.cols-4{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  header{padding:2.4rem 0 1.4rem}
+  .wrap{width:min(100% - 1.5rem, var(--max))}
+  .cols-2,.cols-3{grid-template-columns:1fr}
+  .cols-4{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .card{padding:.95rem 1rem}
+  .kpi .value{font-size:1.6rem}
+  .bar{grid-template-columns:1fr auto;}
+  .bar .track{grid-column:1 / -1;order:3}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}summary::before{transition:none}}
+@media print{
+  body{background:#fff;color:#111}
+  nav{display:none}
+  .card,.table,details{box-shadow:none;border-color:#ddd;background:#fff}
+  details{page-break-inside:avoid}
+}
+
+/* Small additions for the interactive example and long evidence paths. */
+.grid > *{min-width:0}code{overflow-wrap:anywhere}pre code{overflow-wrap:normal}
+.demo-controls{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-top:1rem}
+.demo-controls label{color:var(--muted);font-size:.85rem}
+.demo-controls select,.demo-controls button{font:inherit;font-size:.85rem;min-height:42px;color:var(--fg);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius);padding:.5rem .7rem;max-width:100%}
+.demo-controls button{cursor:pointer}.demo-controls button:disabled{opacity:.4;cursor:default}
+.demo-controls select{min-width:0}.demo-controls option{background:var(--bg)}
+#demo-history{padding-left:1.2rem}#demo-time{white-space:nowrap;color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<header id="top"><div class="wrap">
+<div class="eyebrow">SureWord<span class="sep">/</span>Progress experience research<span class="sep">/</span>2026-09-12</div>
+<h1>Show useful progress throughout the wait.</h1>
+<p class="dek">Use real tool activity and provider summaries in one calm status area. Keep a truthful fallback for silence, and measure how soon the answer actually arrives.</p>
+<div class="meta">Prepared by Codex · Android first · Local source at 44709af plus working changes · Proposal, no app changes</div>
+</div></header>
+<nav aria-label="Sections"><div class="wrap"><a href="#summary">Recommendation</a><a href="#findings">Current gaps</a><a href="#research">Research</a><a href="#experience">Try the experience</a><a href="#next">Build sequence</a><a href="#method">Evidence &amp; limits</a></div></nav>
+<main class="wrap"><section class="wrap" aria-label="Implementation update"><div class="card"><h2>Implementation update · September 12</h2><p>The research below records the initial investigation. The local implementation now includes a separate activity card, contextual messages from an optional fast narrator, expandable saved history, and explicit failure recovery. Real signed-in Android runs reached the provider, retrieved passages and web sources, saved their activity, and successfully retried a follow-up after fixing OpenAI history references.</p><p>See <a href="FEATURES.md">Chat activity and work history in FEATURES.md</a> for the final behavior and verification scope. No production deployment or store release has been performed.</p></div></section>
+<section id="summary">
+<div class="card verdict"><div class="card-head"><h3>Build a hybrid progress system</h3><span class="badge accent">Proposed</span></div>
+<p><strong>Keep tool updates deterministic, add concise public model summaries, and make long waits actionable.</strong> SureWord already streams status data, but its current model and rendering choices leave long gaps with little to say. Start with the existing stream; evaluate a separate narrator only if the resulting language still needs work.</p>
+</div>
+<div class="grid cols-4" style="margin-top:.9rem">
+<div class="card kpi"><span class="label">Acknowledgment</span><span class="value">Immediate</span><span class="delta">Local feedback on send</span></div>
+<div class="card kpi"><span class="label">Narrative cadence</span><span class="value">4–6s</span><span class="delta">Starting design target, when new facts exist</span></div>
+<div class="card kpi"><span class="label">Long wait</span><span class="value">~30s</span><span class="delta">Proposed point to surface more control</span></div>
+<div class="card kpi"><span class="label">Extra narrator calls</span><span class="value">0</span><span class="delta">First experiment</span></div>
+</div>
+</section>
+<section id="findings">
+<h2>The current code leaves gaps in narration</h2><p class="lead">These behaviors are verified in local source. The screenshot alone does not reveal its model, elapsed wait, or network condition.</p>
+<div class="grid">
+<div class="card"><div class="card-head"><h3>Status changes depend almost entirely on tool events</h3><span class="badge ok">Confirmed</span></div>
+<p>The route emits “Getting ready,” then “Thinking,” then a tool label while a tool executes. Every tool completion resets the line to “Thinking,” and the writer has no mechanism to describe a long interval inside the model.</p>
+<details><summary>Source evidence</summary><div class="body"><p><code>src/app/api/ask-question/route.ts:716</code>, <code>:838</code>, <code>:898</code>; <code>src/lib/ai/status-narration.ts:35</code>.</p><pre><code>onToolExecutionStart: ({ toolCall }) =&gt; {
+  writeStatus(toolActivityLabel(toolCall.toolName));
+},
+onToolExecutionEnd: () =&gt; {
+  writeStatus("Thinking");
+}</code></pre><p>The writer reuses <code>id: "status"</code>, which is a good basis for an updating row. Labels use tool names but not passage references or completed results. The client can override server copy with its own generic label during pending tool parts.</p></div></details>
+</div>
+<div class="card"><div class="card-head"><h3>OpenAI summaries are off, and mobile ignores reasoning parts</h3><span class="badge ok">Confirmed</span></div>
+<p><code>buildProviderOptions</code> explicitly sets <code>reasoningSummary = null</code>. Mobile converts text, status and tool parts to visible content, skipping reasoning parts, so turning summaries on by itself would not make them visible.</p>
+<details><summary>Source evidence and provider limits</summary><div class="body"><p><code>src/lib/ai/models.ts:772</code>; <code>mobile/src/lib/chatView.ts:208</code>. Installed <code>@ai-sdk/openai</code> defaults summaries to detailed when reasoning effort is present, and explicit null overrides that default.</p><p>The local house model is GPT-5.6 Luna at medium effort; the BYOK route can default opening questions to high when no preference overrides it. This does not identify the screenshot's configuration.</p><p>The code comment attributes the summary setting to cost. That is a rationale, not a measured billing result: OpenAI's <a href="https://openai.com/index/new-tools-and-features-in-the-responses-api/">2025 announcement</a> described summaries as available at no additional cost. Verify current model usage and latency instead of assuming the comment proves a saving.</p></div></details>
+</div>
+<div class="card"><div class="card-head"><h3>Any answer text hides server status</h3><span class="badge ok">Confirmed</span></div>
+<p>The mobile mapper hides server status once text exists, while allowing active tool labels to remain. A brief opening acknowledgment would therefore suppress later server narration unless progress and answer content are modeled separately.</p>
+<details><summary>Code and existing test</summary><div class="body"><p><code>mobile/src/lib/chatView.ts:276</code>; matching behavior exists in <code>src/components/useChat.ts:305</code>.</p><pre><code>const activity = toolActivity ??
+  (content.trim() ? undefined : statusActivity);</code></pre><p><code>npm test -- src/lib/chatView.test.ts</code> passed 34 tests. The existing test at line 326 explicitly asserts that status disappears after text arrives. This is current behavior, not proof of a repaired experience.</p></div></details>
+</div>
+<div class="card"><div class="card-head"><h3>Long waits need a clearer recovery and stop contract</h3><span class="badge warn">Code gap</span></div>
+<p>The server allows 300 seconds, but mobile recovery gives up after 150 seconds. The “Stop generating” control visually shows another spinner, and the server is intentionally designed to finish after the client disconnects.</p>
+<details><summary>Source evidence and implication</summary><div class="body"><p><code>src/app/api/ask-question/route.ts:75</code> sets <code>maxDuration = 300</code>; <code>mobile/src/features/chat/useSureWordChat.ts:101</code> sets <code>RECOVERY_MAX_MS = 150_000</code> and still describes a 120-second route.</p><p><code>src/lib/ai/tool-loop-budget.ts:11</code> sets a 210-second loop budget. It is checked between steps, so it is not a hard interrupt for a stalled individual call.</p><p><code>mobile/src/features/chat/ChatInputBar.ts:285</code> labels a spinner “Stop generating.” <code>useSureWordChat.ts:391</code> stops client streaming, while the server drains the response at <code>route.ts:906</code> and <code>:928</code>. A real server cancellation signal must be distinct from leaving the app.</p><p>The mismatch could make a late answer appear failed after a disconnect. I have not reproduced that condition on a device.</p></div></details>
+</div>
+</div></section>
+<section id="research">
+<h2>What others actually expose</h2><p class="lead">Public product descriptions and primary API documentation, checked September 12, 2026. Provider capabilities are model specific.</p>
+<div class="table"><table><thead><tr><th>Source</th><th>Documented behavior</th><th>What SureWord should take from it</th></tr></thead><tbody>
+<tr><td><a href="https://openai.com/index/new-tools-and-features-in-the-responses-api/">OpenAI / ChatGPT</a><br><a href="https://developers.openai.com/api/docs/guides/reasoning#reasoning-summaries">Reasoning API</a></td><td>OpenAI describes API reasoning summaries as similar to ChatGPT's display. Summaries require opt-in and model support.</td><td>Use the provider's public summary channel where supported. Public sources do not establish ChatGPT's complete internal narrator architecture.</td></tr>
+<tr><td><a href="https://platform.claude.com/docs/en/build-with-claude/thinking#summarized-thinking">Claude thinking</a></td><td>Anthropic explicitly says a different model generates its summaries. Selected models also expose brief progress updates between tools through a beta display mode.</td><td>Your second-model idea is real. Prefer available provider updates before building another narration service; summaries can still arrive late or empty.</td></tr>
+<tr><td><a href="https://ai.google.dev/gemini-api/docs/thinking">Gemini thinking</a></td><td>Thought summaries can arrive incrementally via SSE. Some thought blocks have empty or absent summaries.</td><td>Design the UI to work with and without narrative events. This is a pattern reference, not a recommendation to add a provider.</td></tr>
+<tr><td><a href="https://openai.com/index/introducing-deep-research/">ChatGPT deep research</a></td><td>The documented experience shows completed steps and sources, and supports stepping away with completion notification.</td><td>Make detailed activity expandable. Only promise background completion when run state and notification eligibility support it.</td></tr>
+<tr><td><a href="https://ai-sdk.dev/docs/ai-sdk-ui/streaming-data">Vercel AI SDK</a></td><td>Custom data travels alongside text over SSE. Stable part IDs update in place; transient data is handled through <code>onData</code>.</td><td>The existing transport can carry richer progress. A new WebSocket system is unnecessary for this first iteration.</td></tr>
+<tr><td><a href="https://www.nngroup.com/articles/designing-for-waits-and-interruptions/">Nielsen Norman Group</a><br><a href="https://developers.openai.com/api/docs/guides/latency-optimization#make-your-users-wait-less">OpenAI latency guide</a></td><td>NN/g recommends meaningful steps for long waits when estimates are unreliable. OpenAI recommends streaming and surfacing real steps.</td><td>Show completed work and useful output. Avoid invented percentages, countdowns, and timer-driven stories.</td></tr>
+</tbody></table></div>
+<details><summary>Which narration approach should we choose?</summary><div class="body"><div class="table"><table><thead><tr><th>Approach</th><th>Strength</th><th>Limitation</th><th>Decision</th></tr></thead><tbody>
+<tr><td>Tool events + templates</td><td>Immediate, factual, portable</td><td>Silent during internal model work</td><td>Foundation</td></tr>
+<tr><td>Provider public summaries / updates</td><td>Context while the model works</td><td>Timing, length and support vary; descriptions are not verified tool receipts</td><td>First experiment</td></tr>
+<tr><td>Main-model commentary</td><td>Natural explanation of intent and results</td><td>May begin only after a long initial think; plain text currently hides status</td><td>Optional, separate channel</td></tr>
+<tr><td>Separate small narrator</td><td>Consistent voice across providers</td><td>Extra calls, stale-result races, cannot see unexposed work</td><td>Only if the first experiment needs it</td></tr>
+<tr><td>Rotating timer phrases</td><td>Easy to add</td><td>Can imply work that never occurred</td><td>Use timers only for elapsed time and wait notices</td></tr>
+</tbody></table></div><p>If a narrator is added, feed only approved public summaries and sanitized event facts, cap it to one short sentence, deduplicate inputs, allow one in-flight call, and drop outputs whose run or sequence is stale. It must never delay the answer or require a new provider for a BYOK user without an explicit product decision.</p></div></details>
+</section>
+<section id="experience">
+<h2>A calm row that gives the wait meaning</h2><p class="lead">One headline, one short explanation, optional elapsed time, and expandable activity. This interactive example uses fictional events and timing, not a replay or measured performance.</p>
+<div class="card">
+<p><strong>Example question:</strong> Why did Jesus turn water into wine in John 2? I thought we weren't supposed to drink alcohol.</p>
+<div class="demo-controls"><label for="scenario">Scenario</label><select id="scenario"><option value="normal">Passage lookup and summary</option><option value="quiet">Model produces no summary</option><option value="disconnect">Connection drops</option></select><button id="next-event" type="button">Next event</button><button id="reset-demo" type="button">Reset</button></div>
+<div class="card verdict" style="margin-top:1rem" role="status" aria-live="polite" aria-atomic="true"><div class="card-head"><h3 id="demo-title">Preparing your answer</h3><span class="mono" id="demo-time">0s</span></div><p id="demo-copy">Your question is ready to send.</p></div>
+<p class="meta" id="demo-evidence"></p>
+<details><summary>Activity for this simulated turn</summary><div class="body"><ol id="demo-history" class="plain"></ol></div></details>
+</div>
+<div class="grid cols-2" style="margin-top:.9rem">
+<div class="card"><h3>Keep the narrative useful</h3><p>“Opening John 2:1–11” should come from the actual passage request. “Considering how this relates to drunkenness” should come from a public model update, not a timer guessing what the model might do.</p><p>Prefer a complete short sentence every meaningful transition. Start with a 4–6 second cadence for narrative replacement, coalesce bursts, and show errors or cancellation immediately.</p></div>
+<div class="card"><h3>Handle silence honestly</h3><p>When there is no new information, keep the last activity and show elapsed time. Around 30 seconds, add a neutral waiting notice and a clearly visible Stop control; offer background completion only when supported for that run.</p><p>Distinguish “Still waiting for the response” from “Connection lost.” A live server heartbeat proves connectivity, not model progress.</p></div>
+</div>
+<details><summary>Rendering and event rules</summary><div class="body">
+<p><strong>Priority:</strong> failure / connection / cancellation state, then currently running tools, then the latest provider progress update, then a neutral wait fallback. Keep pending parallel tools as a set keyed by call ID; one tool ending must not reset another to “Thinking.”</p>
+<p><strong>Content:</strong> maintain separate progress, commentary and answer fields. Never hide all progress because a preamble exists; collapse it when substantive answer text streams and bring it back if tools resume.</p>
+<p><strong>Lifecycle:</strong> attach run ID, increasing sequence, event time, phase, source and optional tool-call ID to progress. Keep a current snapshot plus a small completed-activity list; terminal state wins over late summary callbacks.</p>
+<pre><code>{
+  type: "data-progress", id: "progress",
+  data: {
+    runId: "...", sequence: 4,
+    phase: "tool", source: "tool",
+    toolCallId: "...",
+    headline: "Opening John 2:1–11",
+    detail: "Looking at the wedding passage you mentioned."
+  }
+}</code></pre>
+<p><strong>Storage:</strong> keep transient progress out of answer text, conversational memory and embeddings. Preserve provider protocol blocks unchanged where required; store durable run state separately for recovery. If choosing SDK <code>transient: true</code>, wire <code>onData</code> on every client first, since the current mapper reads message parts.</p>
+<p><strong>Accessibility:</strong> normal readable type instead of tiny italic copy, restrained motion, no forced scrolling, polite announcements on meaningful changes, and no screen-reader announcement for every elapsed second. Use an obvious square Stop icon or text label.</p>
+</div></details>
+</section>
+<section id="next">
+<h2>Build and evaluate it in this order</h2><ol class="steps">
+<li><strong>Instrument the actual wait.</strong> Add client timing for acknowledgment, first meaningful status, first answer text and longest progress gap. Separate setup, provider, tool and network delay.</li>
+<li><strong>Prototype the shared progress contract on Android.</strong> Reuse SSE, add passage-aware tool labels, distinct quiet/reconnecting states and a visible Stop action. Align recovery deadlines with server run state.</li>
+<li><strong>Run a provider-summary experiment.</strong> Enable summaries only on supported chat models and render them separately. Compare event-only progress against event-plus-summary using real questions before deciding on a narrator.</li>
+<li><strong>Reduce delay and prove the full path.</strong> Inspect redundant tool calls, cache behavior and effort settings against answer quality. Validate Android first, then web and Swift clients; commit or release only after the design decision.</li>
+</ol>
+<details><summary>Proposed acceptance checks and measurement</summary><div class="body">
+<p><strong>Scenario set:</strong> the supplied John 2 question, an ordinary no-tool question, a factual passage lookup, a personal follow-up, a document, original-language research, multiple concurrent tools, a failed lookup, a quiet provider, and app background / foreground with a slow answer. Include the house model and representative supported BYOK providers.</p>
+<p><strong>Experience checks:</strong> immediate send acknowledgment; no static unexplained wait beyond the long-wait threshold; real references and results in tool updates; no stale updates after answer completion; preserved answer after reconnect; explicit failed and cancelled states. Prompt-only preambles and tool labels must not be counted as first answer text.</p>
+<p><strong>Metrics:</strong> p50/p95 time to first useful feedback and first answer, longest meaningful-progress gap, completion latency, abandonment and retry rates, answer quality, narrator / summary overhead and usage. Existing <code>src/lib/ai/chat-metrics.ts</code> has per-step first-output timing, but that is not the user's time to visible answer.</p>
+<p><strong>Decision rule:</strong> choose the simplest variant users can understand throughout the wait, with no material answer-quality loss. If summaries arrive only at the end, do not claim they solve the early gap; improve routing or expose tool stages instead. Do not lower reasoning globally based on one screenshot.</p>
+</div></details>
+</section>
+<section id="method">
+<h2>Evidence and limits</h2>
+<ul class="plain"><li>Read the supplied Android screenshot, shared status writer, chat route, provider settings, mobile mapper, message component, composer and recovery code; checked the matching web status rule.</li><li>Ran the existing mobile mapper suite: 34 tests passed. No app implementation was changed.</li><li>Used primary OpenAI, Anthropic, Google, Vercel and NN/g sources linked beside their claims. Documentation describes capabilities, not measured behavior of SureWord's installed models.</li><li>No production timing logs or authenticated live turn were captured. No phone/emulator reproduction, provider experiment, notification delivery or true server cancellation was verified.</li><li>Existing worktree edits were preserved. Code line numbers refer to this inspected checkout and can move as ongoing work continues.</li></ul>
+<details><summary>Reproduce the local findings</summary><div class="body"><pre><code>rg -n 'writeStatus|onToolExecution|toUIMessageStream' src/app/api/ask-question/route.ts
+rg -n 'reasoningSummary' src/lib/ai/models.ts
+rg -n 'statusActivity|toolActivity' mobile/src/lib/chatView.ts
+rg -n 'RECOVERY_MAX_MS|maxDuration' mobile/src/features/chat/useSureWordChat.ts src/app/api/ask-question/route.ts
+cd mobile
+npm test -- src/lib/chatView.test.ts</code></pre><p>Report rendering and interactions were checked at 1440px and 375px with agent-browser. The example is a design aid and does not call an LLM or SureWord API.</p></div></details>
+</section>
+</main><footer><div class="wrap">Generated September 12, 2026 · Single-file HTML · Research and proposal · <a href="#top">Back to top</a></div></footer>
+<script>
+const sequences = {
+  normal: [
+    [0, 'Preparing your answer', 'Your question is being sent.', 'Local send acknowledgment. The server has not accepted the turn yet.'],
+    [1, 'Working on your question', 'Your question was received.', 'Simulated server acceptance.'],
+    [3, 'Opening John 2:1–11', 'Looking at the wedding passage you mentioned.', 'Simulated getPassage start with a validated passage reference.'],
+    [7, 'John 2:1–11 is ready', 'The wedding passage is available for the answer.', 'Simulated successful getPassage result.'],
+    [11, 'Connecting the passage to your concern', 'Considering why John calls this a sign and how it relates to your question about wine.', 'Illustrative public model summary, not a verified research action.'],
+    [17, 'Answer arriving', 'The substantive answer begins streaming here. Activity collapses above it.', 'Simulated first answer text, distinct from acknowledgment or commentary.']
+  ],
+  quiet: [
+    [1, 'Working on your question', 'Your question was received.', 'Simulated server acceptance; no tool or public summary events.'],
+    [18, 'Working on your question', 'No new update yet.', 'Elapsed time alone does not justify inventing an activity.'],
+    [32, 'Still waiting for the response', 'This is taking a little longer. You can stop this request.', 'Simulated live connection, with no substantive progress.'],
+    [90, 'The response did not finish', 'You can retry when you are ready.', 'Simulated provider deadline reached. This is an error, not a thinking state.']
+  ],
+  disconnect: [
+    [2, 'Working on your question', 'Your question was received.', 'Simulated server acceptance.'],
+    [9, 'Connection lost', 'Trying to reconnect to your answer.', 'Simulated transport failure. No claim about model progress.'],
+    [18, 'Your answer is still in progress', 'The connection is back. Waiting for the answer to finish.', 'Simulated run-state lookup confirms the same run is active.'],
+    [40, 'Answer ready', 'Your saved answer has been recovered.', 'Simulated successful retrieval of the completed answer.']
+  ]
+};
+const picker = document.querySelector('#scenario');
+const next = document.querySelector('#next-event');
+let index = 0;
+function renderDemo() {
+  const steps = sequences[picker.value];
+  const [seconds, title, copy, evidence] = steps[index];
+  document.querySelector('#demo-title').textContent = title;
+  document.querySelector('#demo-copy').textContent = copy;
+  document.querySelector('#demo-time').textContent = seconds + 's';
+  document.querySelector('#demo-evidence').textContent = 'Illustrative event ' + (index + 1) + '/' + steps.length + ': ' + evidence;
+  const history = document.querySelector('#demo-history');
+  history.replaceChildren();
+  steps.slice(0, index + 1).forEach(([time, label]) => {
+    const row = document.createElement('li');
+    row.textContent = time + 's · ' + label;
+    history.append(row);
+  });
+  next.disabled = index === steps.length - 1;
+}
+next.addEventListener('click', () => { index += 1; renderDemo(); });
+picker.addEventListener('change', () => { index = 0; renderDemo(); });
+document.querySelector('#reset-demo').addEventListener('click', () => { index = 0; renderDemo(); });
+renderDemo();
+
+</script>
+</body>
+</html>

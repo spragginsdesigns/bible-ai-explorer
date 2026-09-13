@@ -103,6 +103,7 @@ tab selection). Same behavior, different plumbing.
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | ✅ history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | ✅ |  |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | ✅ |  |
+| Contextual activity card and saved “Worked for” history | ✅ 1.59.0 candidate, authenticated Android runs and user-approved UI | ✅ implemented, logic and component checks | ✅ 1.9.0 source and build | ✅ shared source and simulator build; device runtime unverified | Shared bounded `data-progress` snapshots, optional same-provider fast narration, elapsed time, tool results and safe source links. Narrator failures never block the answer. See `FEATURES.md`. |
 | Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | ✅ | Defaults collapsed on all clients; user expands on demand; thresholds aligned |
 | Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
 | Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | ✅ scroll + flash |  |

@@ -289,7 +289,7 @@ export function ChatInputBar({
 							pressed && { backgroundColor: colors.surfacePressed },
 						]}
 					>
-						<ActivityIndicator size="small" color={colors.accentDim} />
+						<Ionicons name="stop" size={18} color={colors.accent} />
 					</Pressable>
 				) : (
 					<Pressable
