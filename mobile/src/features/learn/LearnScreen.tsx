@@ -10,9 +10,16 @@ import { getKjvChapter } from "@/features/bible/kjv";
 import { useSettings, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { fetchLearnSuggestions, fetchLearnToday, reviewLearnCard } from "./api";
-import { verseWords, type LearnResult } from "./learn";
+import { type LearnResult } from "./learn";
 import { LearnSyncStore, type LearnSyncSnapshot } from "./learnSync";
 import { LearnTokenBridge } from "./learnTokenBridge";
+import {
+	chooseLearnMode,
+	resolveLearnMode,
+	type LearnMode,
+	type LearnModeSelection,
+} from "./practice";
+import { VersePractice } from "./VersePractice";
 import { SuggestedVerses } from "./SuggestedVerses";
 import {
 	addedConfirmation,
@@ -49,7 +56,10 @@ function LearnSession({ userId }: { userId: string }) {
 		timezone: () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 	}));
 	const [snapshot, setSnapshot] = useState<LearnSyncSnapshot>(() => store.getSnapshot());
-	const [revealed, setRevealed] = useState<Set<number>>(new Set());
+	// A finished review starts a fresh round even when the card stays on screen.
+	const [round, setRound] = useState(0);
+	const [selection, setSelection] = useState<LearnModeSelection | null>(null);
+	const [typedRound, setTypedRound] = useState<string | null>(null);
 	const [interactionBusy, setInteractionBusy] = useState(false);
 	const [localError, setLocalError] = useState<string | null>(null);
 	const [suggestions, setSuggestions] = useState<LearnSuggestion[]>([]);
@@ -133,7 +143,14 @@ function LearnSession({ userId }: { userId: string }) {
 			// The matching server text remains available when the bundle has no entry.
 		}
 	}
-	const words = card ? verseWords(verseText, card.stage) : [];
+	// How well the verse is known picks the mode; the reader may change it for
+	// the card in front of them, and nothing about that reaches the server.
+	const practice = card ? resolveLearnMode(card, selection) : null;
+	const mode: LearnMode = practice?.mode ?? "blanks";
+	const practiceRound = card ? `${card.id}:${card.revision}:${round}:${mode}` : "";
+	// Type it out passes "good" only when every word matched, so a swipe and the
+	// button answer to the same gate.
+	const typedReady = mode !== "typed" || (Boolean(practiceRound) && typedRound === practiceRound);
 	const conflict = snapshot.conflicts[0];
 	const cardBlocked = Boolean(card && snapshot.conflicts.some((item) => item.cardId === card.id));
 	const suggestionsView = learnSuggestionsView({
@@ -157,12 +174,13 @@ function LearnSession({ userId }: { userId: string }) {
 
 	const review = async (result: LearnResult) => {
 		if (!card || interactionBusy || cardBlocked || !verseText.trim()) return;
+		if (result === "good" && !typedReady) return;
 		const wasOffline = store.getSnapshot().connection === "offline";
 		setInteractionBusy(true);
 		setLocalError(null);
 		try {
 			await store.enqueue(card.id, result);
-			setRevealed(new Set());
+			setRound((value) => value + 1);
 			if (!wasOffline) runSyncRef.current(false);
 		} catch (error) {
 			setLocalError(error instanceof Error ? error.message : "Could not save this review.");
@@ -177,7 +195,7 @@ function LearnSession({ userId }: { userId: string }) {
 		setLocalError(null);
 		try {
 			await store.useLatestSchedule(conflict.cardId);
-			setRevealed(new Set());
+			setRound((value) => value + 1);
 		} catch (error) {
 			setLocalError(error instanceof Error ? error.message : "Could not load the latest schedule.");
 		} finally {
@@ -191,7 +209,7 @@ function LearnSession({ userId }: { userId: string }) {
 	const pendingLabel = `${snapshot.pendingCount} saved review${snapshot.pendingCount === 1 ? "" : "s"}`;
 
 	return <Screen edges={["top", "bottom"]}>
-		<ScrollView contentContainerStyle={styles.content}>
+		<ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 			<View style={styles.header}>
 				<Pressable
 					accessibilityRole="button"
@@ -281,26 +299,16 @@ function LearnSession({ userId }: { userId: string }) {
 			>
 				<Text style={styles.reference}>{card.reference} · {card.translation}</Text>
 				{verseText.trim() ? <>
-					<Text style={styles.verse}>
-						{words.map((word, index) => <Text key={index} style={styles.verse}>
-							{index ? " " : ""}
-							{word.hidden && !revealed.has(index)
-								? <Text
-									accessibilityRole="button"
-									accessibilityLabel={`Reveal word ${index + 1}`}
-									onPress={disabled ? undefined : () => setRevealed((old) => new Set(old).add(index))}
-									style={[styles.verse, styles.blank]}
-								>{word.blank}</Text>
-								: word.text}
-						</Text>)}
-					</Text>
-					<Text style={styles.hint}>
-						{card.stage === 0
-							? "Read the verse, then continue."
-							: card.stage === 3
-								? "Say the verse from its reference. Tap a blank for help."
-								: "Recall the missing words. Tap a blank for help, then continue."}
-					</Text>
+					<VersePractice
+						key={practiceRound}
+						mode={mode}
+						text={verseText}
+						stage={card.stage}
+						seed={card.revision}
+						disabled={disabled}
+						onModeChange={(next) => setSelection(chooseLearnMode(card, next))}
+						onTypedScore={(perfect) => setTypedRound(perfect ? practiceRound : null)}
+					/>
 					<View style={styles.actions}>
 						<Pressable
 							accessibilityRole="button"
@@ -313,10 +321,10 @@ function LearnSession({ userId }: { userId: string }) {
 						</Pressable>
 						<Pressable
 							accessibilityRole="button"
-							accessibilityState={{ disabled }}
-							disabled={disabled}
+							accessibilityState={{ disabled: disabled || !typedReady }}
+							disabled={disabled || !typedReady}
 							onPress={() => void review("good")}
-							style={[styles.button, { backgroundColor: colors.accent }, disabled && styles.disabled]}
+							style={[styles.button, { backgroundColor: colors.accent }, (disabled || !typedReady) && styles.disabled]}
 						>
 							<Text style={styles.primaryText}>{interactionBusy ? "Saving..." : card.stage === 3 ? "I remembered" : "Continue"}</Text>
 						</Pressable>
@@ -357,8 +365,6 @@ const createStyles = (colors: Colors) => StyleSheet.create({
 	noticeButton: { minHeight: 44, alignSelf: "flex-start", justifyContent: "center", marginTop: spacing.sm, paddingHorizontal: spacing.sm },
 	study: { flex: 1, justifyContent: "center", paddingVertical: spacing.xl },
 	reference: { color: colors.accent, fontFamily: fonts.bodyBold, textAlign: "center", fontSize: 16, marginBottom: spacing.xl },
-	verse: { color: colors.text, fontFamily: fonts.verse, fontSize: 30, lineHeight: 44, textAlign: "center" },
-	blank: { color: colors.accent, textDecorationLine: "underline" },
 	hint: { color: colors.textMuted, fontSize: 14, lineHeight: 21, textAlign: "center", marginTop: spacing.xl },
 	actions: { flexDirection: "row", gap: spacing.md, marginTop: spacing.xl },
 	button: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radius.lg, padding: spacing.md, alignItems: "center", justifyContent: "center" },

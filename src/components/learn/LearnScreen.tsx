@@ -9,12 +9,18 @@ import {
 	parseCard,
 	parseReviewAcknowledgement,
 	parseToday,
-	verseWords,
 	type LearnCard,
 	type LearnResult,
 	type LearnReviewOperation,
 	type LearnToday,
 } from "./learn";
+import {
+	chooseLearnMode,
+	resolveLearnMode,
+	type LearnMode,
+	type LearnModeSelection,
+} from "./practice";
+import { VersePractice } from "./VersePractice";
 import { SuggestedVerses } from "./SuggestedVerses";
 import {
 	addedConfirmation,
@@ -106,7 +112,10 @@ export default function LearnScreen() {
 
 function LearnSession() {
 	const [today, setToday] = useState<LearnToday | null>(null);
-	const [revealed, setRevealed] = useState<Set<number>>(new Set());
+	// A finished review starts a fresh round even when the card stays on screen.
+	const [round, setRound] = useState(0);
+	const [selection, setSelection] = useState<LearnModeSelection | null>(null);
+	const [typedRound, setTypedRound] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState<PendingReview | null>(null);
@@ -134,7 +143,7 @@ function LearnSession() {
 			const data = parseToday(await request("/api/learn/today"));
 			if (mounted.current) {
 				setToday(data);
-				setRevealed(new Set());
+				setRound((value) => value + 1);
 				if (recoverAttempt) {
 					setPending(null);
 					setConflict(null);
@@ -188,7 +197,7 @@ function LearnSession() {
 				setToday(next);
 				setPending(null);
 				setConflict(null);
-				setRevealed(new Set());
+				setRound((value) => value + 1);
 			}
 		} catch (caught) {
 			if (!mounted.current) return;
@@ -206,9 +215,20 @@ function LearnSession() {
 		}
 	};
 
+	const card = today?.cards[0];
+	// How well the verse is known picks the mode; the reader may change it for
+	// the card in front of them, and nothing about that reaches the server.
+	const practice = card ? resolveLearnMode(card, selection) : null;
+	const mode: LearnMode = practice?.mode ?? "blanks";
+	const practiceRound = card ? `${card.id}:${card.revision}:${round}:${mode}` : "";
+	// Type it out passes "good" only when every word matched, so a swipe and the
+	// button answer to the same gate.
+	const typedReady = mode !== "typed" || (Boolean(practiceRound) && typedRound === practiceRound);
+
 	const review = (result: LearnResult) => {
 		const card = today?.cards[0];
 		if (!card || operation.current || pending || !card.text.trim()) return;
+		if (result === "good" && !typedReady) return;
 		const payload: LearnReviewOperation = Object.freeze({
 			result,
 			operationId: crypto.randomUUID(),
@@ -221,7 +241,6 @@ function LearnSession() {
 		void sendReview(attempt);
 	};
 
-	const card = today?.cards[0];
 	const suggestionsView = useMemo(() => learnSuggestionsView({
 		suggestions,
 		dismissed,
@@ -243,7 +262,6 @@ function LearnSession() {
 		else setToday((old) => old ? { ...old, queueCount: old.queueCount + 1 } : old);
 	};
 
-	const words = card ? verseWords(card.text, card.stage) : [];
 	const controlsDisabled = busy || Boolean(pending) || !card?.text.trim();
 	const buttonClass = "min-h-11 rounded-xl border border-neutral-300 px-4 py-3 text-sm dark:border-white/20 disabled:opacity-50";
 
@@ -287,30 +305,19 @@ function LearnSession() {
 			>
 				<h2 className="mb-8 text-center text-base text-amber-700 dark:text-amber-400">{card.reference} · {card.translation}</h2>
 				{card.text.trim() ? <>
-					<p className="text-center font-serif text-[clamp(1.6rem,6vw,2.6rem)] leading-relaxed">
-						{words.map((word, index) => <span key={index}>
-							{index > 0 ? " " : ""}
-							{word.hidden && !revealed.has(index)
-								? <button
-									type="button"
-									disabled={controlsDisabled}
-									aria-label={`Reveal word ${index + 1}`}
-									onClick={() => setRevealed((old) => new Set(old).add(index))}
-									className="min-h-11 rounded px-1 text-amber-700 underline decoration-dotted underline-offset-8 focus-visible:outline focus-visible:outline-2 dark:text-amber-400"
-								>{word.blank}</button>
-								: word.text}
-						</span>)}
-					</p>
-					<p className="mt-8 text-center text-sm text-neutral-600 dark:text-neutral-400">
-						{card.stage === 0
-							? "Read the verse, then continue."
-							: card.stage === 3
-								? "Say the verse from its reference. Tap a blank for help."
-								: "Recall the missing words. Tap a blank for help, then continue."}
-					</p>
+					<VersePractice
+						key={practiceRound}
+						mode={mode}
+						text={card.text}
+						stage={card.stage}
+						seed={card.revision}
+						disabled={controlsDisabled}
+						onModeChange={(next) => setSelection(chooseLearnMode(card, next))}
+						onTypedScore={(perfect) => setTypedRound(perfect ? practiceRound : null)}
+					/>
 					<div className="mt-8 grid grid-cols-2 gap-3">
 						<button disabled={controlsDisabled} onClick={() => review("again")} className={buttonClass}>Practice again</button>
-						<button disabled={controlsDisabled} onClick={() => review("good")} className={`${buttonClass} border-amber-500 bg-amber-400 font-semibold text-neutral-950`}>
+						<button disabled={controlsDisabled || !typedReady} onClick={() => review("good")} className={`${buttonClass} border-amber-500 bg-amber-400 font-semibold text-neutral-950`}>
 							{busy ? "Saving..." : card.stage === 3 ? "I remembered" : "Continue"}
 						</button>
 					</div>
