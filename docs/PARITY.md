@@ -41,7 +41,7 @@ claimed. See [Android experience evidence](android-experience-2026-09-06.md).
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth (v1.57.1, versionCode 59; Play internal and GitHub release verified 2026-09-12) |
+| Android | `mobile/` | Source of truth (v1.59.0, versionCode 61; Play internal readback and matching GitHub APK verified 2026-09-12) |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. Current project: 1.6.0; last installed/released proof: 1.5.0 on 2026-08-27. See `macos/README.md`; `bash macos/install-mac.sh` is mandatory after any macOS change. |
 | iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
@@ -103,7 +103,7 @@ tab selection). Same behavior, different plumbing.
 | Conversation list / switch / delete / clear-all | ✅ history modal | ✅ sidebar | ✅ sidebar Recents + ⌘K history sheet | ✅ history sheet | Layout adaptation, OK |
 | History restore from `metadata.parts` | ✅ | ✅ | ✅ | ✅ |  |
 | Tool activity labels while streaming | ✅ | ✅ | ✅ | ✅ |  |
-| Contextual activity card and saved “Worked for” history | ✅ 1.59.0 candidate, authenticated Android runs and user-approved UI | ✅ implemented, logic and component checks | ✅ 1.9.0 source and build | ✅ shared source and simulator build; device runtime unverified | Shared bounded `data-progress` snapshots, optional same-provider fast narration, elapsed time, tool results and safe source links. Narrator failures never block the answer. See `FEATURES.md`. |
+| Contextual activity card and saved “Worked for” history | ✅ 1.59.0 (61), Play internal + GitHub; authenticated Android runs and user-approved UI | ✅ production `9e11e71`, logic and component checks | ✅ 1.9.0 (10), Release build installed + DMG published; live provider flow unverified | ✅ shared source and simulator build; device runtime unverified | Shared bounded `data-progress` snapshots, optional same-provider fast narration, elapsed time, tool results and safe source links. Narrator failures never block the answer. See `FEATURES.md`. |
 | Retrieved-verses card w/ match-strength badge | ✅ (>0.75 Strong / >0.6 Moderate / Broad) | ✅ | ✅ | ✅ | Defaults collapsed on all clients; user expands on demand; thresholds aligned |
 | Verse actions: Copy / Share / Save-to-note / Read-in-Bible | ✅ | ✅ | ✅ | ✅ | Share = share sheet / Web Share / `ShareLink` |
 | Tappable verse refs in chat → jump to reader | ✅ | ✅ popover + "Read in the Bible" link | ✅ scroll + flash | ✅ scroll + flash |  |

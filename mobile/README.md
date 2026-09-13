@@ -20,11 +20,11 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current release:** 1.50.1 (Android versionCode 50, tag
-`android-v1.50.1`). Chat can read, save, edit and delete your memories through
-the shared backend, with clear activity labels while each action runs.
-It is published from one signed AAB/APK
-pair through `push-phone.sh --skip-build`.
+**Current release:** 1.59.0 (Android versionCode 61, tag
+`android-v1.59.0`). Chat shows contextual updates in a separate activity card,
+with expandable “Worked for” history, passages and sources. Follow-up recovery
+and hardware keyboard layout are improved. Play internal and GitHub serve one
+matching signed AAB/APK pair; release hashes and Play readback were verified.
 
 ## Stack
 

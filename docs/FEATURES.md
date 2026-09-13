@@ -9,7 +9,7 @@ so they can be maintained without re-deriving the design.
 
 ## Chat activity and work history
 
-*Implemented and tested locally 2026-09-12; release pending.*
+*Shipped 2026-09-12 · web/API (`9e11e71`) · Android 1.59.0 (61), Play internal + GitHub · macOS 1.9.0 (10), installed + GitHub. iOS source and simulator build only.*
 
 Every new chat response on web, Android, macOS and iOS has an elapsed timer,
 current activity in a separate styled card, and expandable history. Completed responses retain a
@@ -60,6 +60,16 @@ The passage run completed in 11.3 seconds, web research in 36.6 seconds, and a
 follow-up after the history fix in 15.2 seconds. These are observed runs, not
 latency guarantees. Shared macOS and iOS UI builds passed; their live provider
 flows have not been rechecked for this change.
+
+Release checks passed: 871 web logic tests (16 skipped), all 779 Android tests,
+both TypeScript checks, lint, and [GitHub CI](https://github.com/spragginsdesigns/bible-ai-explorer/actions/runs/34735835910).
+[Vercel production](https://vercel.com/spragginsdesigns-projects/bible-ai-explorer/6qudF9LkaQ2TEsatQ2G6vCXixQqP)
+completed for `9e11e71`. Play readback confirmed internal release 1.59.0 / 61
+as `completed`, with the same SHA-256 as the built AAB. The
+[Android release](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/android-v1.59.0)
+has the matching APK and carries the new 1.9.0 DMG; both GitHub asset hashes
+match the local release artifacts. Windows built and published the Play bundle;
+the authenticated Mac published the APK after the GitHub preflight passed.
 
 ## Tap-a-verse
 
