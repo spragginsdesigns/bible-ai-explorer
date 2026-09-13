@@ -10,7 +10,9 @@ export interface AddLearnProps {
 	chapter: number;
 	verse: number;
 	translation: "KJV" | "NKJV";
-	source: "sheet" | "highlight";
+	source: "sheet" | "highlight" | "suggestion";
+	/** Set where the surrounding text alone does not name the verse being added. */
+	accessibilityLabel?: string;
 	onAdded?: () => void;
 }
 
@@ -20,7 +22,7 @@ export function AddLearnButton(props: AddLearnProps) {
 	return <LearnAction key={`${user.id}:${props.book}:${props.chapter}:${props.verse}:${props.translation}`} {...props} />;
 }
 
-function LearnAction({ onAdded, ...verse }: AddLearnProps) {
+function LearnAction({ onAdded, accessibilityLabel, ...verse }: AddLearnProps) {
 	const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 	const request = useRef<AbortController | null>(null);
 	const mounted = useRef(true);
@@ -55,7 +57,7 @@ function LearnAction({ onAdded, ...verse }: AddLearnProps) {
 	useEffect(() => { if (status === "saved") onAddedRef.current?.(); }, [status]);
 	return <div className="my-2">
 		{status === "saved" ? <p role="status" className="text-sm text-neutral-600 dark:text-neutral-300">Added to Learn. <Link href="/bible/learn" className="inline-block min-h-11 py-3 font-semibold text-amber-700 dark:text-amber-400">Open Learn</Link></p> :
-			<button type="button" disabled={status === "saving"} onClick={() => void add()} className="min-h-11 w-full rounded-xl border border-amber-600/25 px-3 py-2.5 text-sm font-semibold text-amber-700 disabled:opacity-50 dark:text-amber-400">{status === "saving" ? "Adding..." : "Learn this verse"}</button>}
+			<button type="button" aria-label={accessibilityLabel} disabled={status === "saving"} onClick={() => void add()} className="min-h-11 w-full rounded-xl border border-amber-600/25 px-3 py-2.5 text-sm font-semibold text-amber-700 disabled:opacity-50 dark:text-amber-400">{status === "saving" ? "Adding..." : "Learn this verse"}</button>}
 		{status === "error" && <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">Could not add this verse. Check your connection and try again.</p>}
 	</div>;
 }

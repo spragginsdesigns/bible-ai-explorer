@@ -27,7 +27,7 @@ import {
 } from "@/lib/learn-schedule";
 
 /** Where the card was added from, for later product questions only. */
-export type LearnSource = "sheet" | "highlight" | "chat";
+export type LearnSource = "sheet" | "highlight" | "chat" | "suggestion";
 
 export interface LearnCard {
 	id: string;

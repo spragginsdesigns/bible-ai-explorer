@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { readTranslationPref } from "@/lib/preferences";
 import {
 	applyReviewAcknowledgement,
 	parseCard,
@@ -14,6 +15,14 @@ import {
 	type LearnReviewOperation,
 	type LearnToday,
 } from "./learn";
+import { SuggestedVerses } from "./SuggestedVerses";
+import {
+	addedConfirmation,
+	learnSuggestionsView,
+	loadSuggestions,
+	suggestionKey,
+	type LearnSuggestion,
+} from "./suggestions";
 
 type ReviewConflictCode = "revision_conflict" | "operation_id_reused" | "missing";
 
@@ -102,6 +111,11 @@ function LearnSession() {
 	const [error, setError] = useState<string | null>(null);
 	const [pending, setPending] = useState<PendingReview | null>(null);
 	const [conflict, setConflict] = useState<ReviewConflictCode | null>(null);
+	const [suggestions, setSuggestions] = useState<LearnSuggestion[]>([]);
+	const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+	const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
+	const [confirmation, setConfirmation] = useState<string | null>(null);
+	const [translation] = useState<"KJV" | "NKJV">(() => readTranslationPref());
 	const operation = useRef(false);
 	const mounted = useRef(true);
 	const touch = useRef<{ x: number; y: number } | null>(null);
@@ -137,6 +151,17 @@ function LearnSession() {
 	}, []);
 
 	useEffect(() => { void load(); }, [load]);
+
+	// Suggestions are additive: loadSuggestions turns any failure into no rows,
+	// which leaves today's cards exactly as they were.
+	useEffect(() => {
+		let cancelled = false;
+		void (async () => {
+			const rows = await loadSuggestions(() => request("/api/learn/suggestions"));
+			if (!cancelled) setSuggestions(rows);
+		})();
+		return () => { cancelled = true; };
+	}, []);
 
 	const sendReview = async (attempt: PendingReview) => {
 		if (!today || operation.current) return;
@@ -197,6 +222,27 @@ function LearnSession() {
 	};
 
 	const card = today?.cards[0];
+	const suggestionsView = useMemo(() => learnSuggestionsView({
+		suggestions,
+		dismissed,
+		added,
+		hasCard: Boolean(card),
+	}), [suggestions, dismissed, added, card]);
+
+	const dismissSuggestion = (suggestion: LearnSuggestion) => {
+		setDismissed((old) => new Set(old).add(suggestionKey(suggestion)));
+	};
+
+	const acceptSuggestion = (suggestion: LearnSuggestion) => {
+		setAdded((old) => new Set(old).add(suggestionKey(suggestion)));
+		setConfirmation(addedConfirmation(suggestion.reference));
+		// With nothing due, the added verse is the session, so fetch it. With a
+		// card already on screen the queue only grew, and reloading would wipe
+		// the words the user has revealed.
+		if (!card) void load();
+		else setToday((old) => old ? { ...old, queueCount: old.queueCount + 1 } : old);
+	};
+
 	const words = card ? verseWords(card.text, card.stage) : [];
 	const controlsDisabled = busy || Boolean(pending) || !card?.text.trim();
 	const buttonClass = "min-h-11 rounded-xl border border-neutral-300 px-4 py-3 text-sm dark:border-white/20 disabled:opacity-50";
@@ -219,7 +265,7 @@ function LearnSession() {
 			</div> : null}
 
 			{!today && !error ? <p role="status" className="my-auto text-center">Loading your verses...</p> : null}
-			{today && !card ? <section className="my-auto text-center">
+			{today && !card && suggestionsView.showEmptyText ? <section className="my-auto text-center">
 				<h2 className="font-serif text-3xl">No verses are due right now.</h2>
 				<p className="mt-4 text-neutral-600 dark:text-neutral-400">Return when a saved verse is due, or choose Learn this verse from the Bible reader to add one.</p>
 			</section> : null}
@@ -274,6 +320,14 @@ function LearnSession() {
 					<button disabled={busy} onClick={() => void load()} className={`mt-3 ${buttonClass}`}>Reload verse</button>
 				</div>}
 			</section> : null}
+
+			{today ? <SuggestedVerses
+				view={suggestionsView}
+				translation={translation}
+				confirmation={confirmation}
+				onAdded={acceptSuggestion}
+				onDismiss={dismissSuggestion}
+			/> : null}
 		</div>
 	</main>;
 }

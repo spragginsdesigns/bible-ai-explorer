@@ -8,7 +8,7 @@ const addSchema = z.object({
 	chapter: z.number().int().min(1).max(200),
 	verse: z.number().int().min(1).max(200),
 	translation: z.enum(["KJV", "NKJV"]),
-	source: z.enum(["sheet", "highlight", "chat"]),
+	source: z.enum(["sheet", "highlight", "chat", "suggestion"]),
 });
 
 /**

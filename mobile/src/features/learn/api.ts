@@ -8,9 +8,15 @@ import {
 	type LearnToday,
 } from "./learn";
 import { LearnReviewFailure, type LearnConflictCode } from "./learnSync";
+import { loadSuggestions, type LearnSuggestion } from "./suggestions";
 
 export function fetchLearnToday(getToken: GetToken): Promise<LearnToday> {
 	return apiJson<LearnToday>(getToken, "/api/learn/today");
+}
+
+/** Suggested verses. Never rejects: a failure is "no suggestions today". */
+export function fetchLearnSuggestions(getToken: GetToken): Promise<LearnSuggestion[]> {
+	return loadSuggestions(() => apiJson<unknown>(getToken, "/api/learn/suggestions"));
 }
 
 function isConflictCode(value: unknown): value is Exclude<LearnConflictCode, "missing"> {

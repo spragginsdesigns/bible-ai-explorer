@@ -7,12 +7,19 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { AppText as Text } from "@/components/AppText";
 import { Screen } from "@/components/ui";
 import { getKjvChapter } from "@/features/bible/kjv";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { useSettings, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { fonts, radius, spacing, type Colors } from "@/theme";
-import { fetchLearnToday, reviewLearnCard } from "./api";
+import { fetchLearnSuggestions, fetchLearnToday, reviewLearnCard } from "./api";
 import { verseWords, type LearnResult } from "./learn";
 import { LearnSyncStore, type LearnSyncSnapshot } from "./learnSync";
 import { LearnTokenBridge } from "./learnTokenBridge";
+import { SuggestedVerses } from "./SuggestedVerses";
+import {
+	addedConfirmation,
+	learnSuggestionsView,
+	suggestionKey,
+	type LearnSuggestion,
+} from "./suggestions";
 
 const RETRY_DELAYS_MS = [1_500, 5_000, 15_000] as const;
 
@@ -45,6 +52,12 @@ function LearnSession({ userId }: { userId: string }) {
 	const [revealed, setRevealed] = useState<Set<number>>(new Set());
 	const [interactionBusy, setInteractionBusy] = useState(false);
 	const [localError, setLocalError] = useState<string | null>(null);
+	const [suggestions, setSuggestions] = useState<LearnSuggestion[]>([]);
+	const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+	const [added, setAdded] = useState<ReadonlySet<string>>(new Set());
+	const [confirmation, setConfirmation] = useState<string | null>(null);
+	const { translation } = useSettings();
+	const suggestionsRequest = useRef(false);
 	const visible = useRef(false);
 	const retryAttempt = useRef(0);
 	const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -70,6 +83,21 @@ function LearnSession({ userId }: { userId: string }) {
 	}, [clearRetry, store]);
 	runSyncRef.current = runSync;
 
+	const loadSuggestions = useCallback(async () => {
+		if (suggestionsRequest.current) return;
+		suggestionsRequest.current = true;
+		// Additive: fetchLearnSuggestions never rejects, so an offline device or
+		// a deploy without this endpoint simply shows no suggestions, and the
+		// next focus tries again.
+		try {
+			setSuggestions(await fetchLearnSuggestions(tokenBridge.getToken));
+		} finally {
+			suggestionsRequest.current = false;
+		}
+	}, [tokenBridge]);
+	const loadSuggestionsRef = useRef(loadSuggestions);
+	loadSuggestionsRef.current = loadSuggestions;
+
 	useEffect(() => {
 		store.activate();
 		const unsubscribe = store.subscribe(setSnapshot);
@@ -84,6 +112,7 @@ function LearnSession({ userId }: { userId: string }) {
 	useFocusEffect(useCallback(() => {
 		visible.current = true;
 		runSyncRef.current(true);
+		void loadSuggestionsRef.current();
 		const subscription = AppState.addEventListener("change", (state) => {
 			if (state === "active") runSyncRef.current(true);
 		});
@@ -107,6 +136,24 @@ function LearnSession({ userId }: { userId: string }) {
 	const words = card ? verseWords(verseText, card.stage) : [];
 	const conflict = snapshot.conflicts[0];
 	const cardBlocked = Boolean(card && snapshot.conflicts.some((item) => item.cardId === card.id));
+	const suggestionsView = learnSuggestionsView({
+		suggestions,
+		dismissed,
+		added,
+		hasCard: Boolean(card),
+	});
+
+	const dismissSuggestion = (suggestion: LearnSuggestion) => {
+		setDismissed((old) => new Set(old).add(suggestionKey(suggestion)));
+	};
+
+	const acceptSuggestion = (suggestion: LearnSuggestion) => {
+		setAdded((old) => new Set(old).add(suggestionKey(suggestion)));
+		setConfirmation(addedConfirmation(suggestion.reference));
+		// With nothing due, the added verse is the session. The store owns the
+		// queue, so a sync is what brings the new card and count in.
+		if (!card) runSyncRef.current(true);
+	};
 
 	const review = async (result: LearnResult) => {
 		if (!card || interactionBusy || cardBlocked || !verseText.trim()) return;
@@ -207,7 +254,7 @@ function LearnSession({ userId }: { userId: string }) {
 				<Text style={styles.emptyTitle}>Connect to download your practice verses.</Text>
 				<Text style={styles.hint}>Once downloaded, this session works without a connection.</Text>
 			</View> : null}
-			{today && !card ? <View style={styles.study}>
+			{today && !card && suggestionsView.showEmptyText ? <View style={styles.study}>
 				<Text style={styles.emptyTitle}>No verses are due right now.</Text>
 				<Text style={styles.hint}>
 					{snapshot.pendingCount
@@ -282,6 +329,14 @@ function LearnSession({ userId }: { userId: string }) {
 					</Pressable>
 				</View>}
 			</View> : null}
+
+			{today ? <SuggestedVerses
+				view={suggestionsView}
+				translation={translation}
+				confirmation={confirmation}
+				onAdded={acceptSuggestion}
+				onDismiss={dismissSuggestion}
+			/> : null}
 		</ScrollView>
 	</Screen>;
 }
