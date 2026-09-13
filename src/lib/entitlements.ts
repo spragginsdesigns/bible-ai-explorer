@@ -1,6 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { activeSubscription } from "@/lib/billing/plans";
+import { accountSubscription } from "@/lib/billing/subscription";
+import { refreshGooglePlaySubscription } from "@/lib/billing/google-play";
 import {
 	parseUserIdAllowlist,
 	resolvePlan,
@@ -28,7 +31,12 @@ export { parseUserIdAllowlist, resolvePlan, type PlanInput, type UserPlan };
 export async function getUserPlan(userId: string): Promise<UserPlan> {
 	// The allowlist alone is enough, so skip the query when it already answers.
 	const allowlist = parseUserIdAllowlist(process.env.PRO_USER_IDS);
-	if (allowlist.includes(userId)) return "pro";
+	if (allowlist.includes(userId) || parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS).includes(userId)) return "pro";
+	if (process.env.SUREWORD_USAGE_ENABLED === "true") {
+		await refreshGooglePlaySubscription(userId);
+		const subscription = await accountSubscription(userId);
+		if (subscription && activeSubscription(subscription)) return "pro";
+	}
 
 	const user = await prisma.user.findUnique({
 		where: { id: userId },

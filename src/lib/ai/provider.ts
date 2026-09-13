@@ -7,6 +7,8 @@ import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
+import { houseKeyFor } from "./house-key";
+import { meterIncludedModel, usageEnabled, resolveRequestAccess, reserveIncludedRequest } from "@/lib/billing/usage";
 import { decideAccess, houseEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
 import {
@@ -120,9 +122,15 @@ async function apiKeyFor(userId: string, provider: ProviderId): Promise<string> 
  * allowlisted, means the user picks their models and pays their own bills.
  */
 export async function aiAccessFor(userId: string): Promise<AiAccess> {
+	return resolveRequestAccess(userId, async () => {
 	const allowlisted = isServerCredentialUser(userId);
+	if (!allowlisted && usageEnabled()) {
+		const user = await prisma.aiPreference.findUnique({ where: { userId }, select: { includedAiPreferred: true } });
+		return decideAccess({ allowlisted, ownKeyCount: 0, includedPreference: user?.includedAiPreferred ?? null });
+	}
 	const ownKeyCount = await prisma.providerCredential.count({ where: { userId } });
 	return decideAccess({ allowlisted, ownKeyCount });
+	});
 }
 
 /** Non-throwing variant for callers that degrade gracefully (model listing). */
@@ -153,7 +161,7 @@ function buildModel(
 	providerModelId: string,
 	apiKey: string,
 	structured = false,
-): LanguageModel {
+): Exclude<LanguageModel, string> {
 	switch (provider) {
 		case "openai":
 			return createOpenAI({ apiKey })(providerModelId);
@@ -254,12 +262,12 @@ function utilityDefinition(provider: ProviderId): ModelDefinition {
 export async function resolveProgressModel(userId: string, provider: ProviderId): Promise<Pick<ResolvedModel, "model" | "providerOptions"> | null> {
 	// Kimi's thinking pass is too expensive for a short status line; factual tool updates still work.
 	if (provider === "moonshot") return null;
-	let key = await apiKeyOrNull(userId, provider);
-	if (!key && provider === "openai" && await aiAccessFor(userId) === "house") key = serverKeyFor("openai") ?? null;
+	const house = await aiAccessFor(userId) === "house";
+	const key = house && provider === "openai" ? houseKeyFor(process.env) : await apiKeyOrNull(userId, provider);
 	if (!key) return null;
 	const modelId = provider === "openai" ? "gpt-5.6-luna" : UTILITY_MODELS[provider].providerModelId;
 	return {
-		model: buildModel(provider, modelId, key),
+		model: house ? meterIncludedModel(userId, buildModel(provider, modelId, key), true) : buildModel(provider, modelId, key),
 		providerOptions: provider === "openai"
 			? { openai: { reasoningEffort: "none", reasoningSummary: null, textVerbosity: "low" } }
 			: {},
@@ -318,14 +326,14 @@ export async function resolveModel(options: {
 		// The house key is the only credential in play, so the attachment and
 		// structured-provider fallbacks have nothing to choose between: Luna reads
 		// every attachment type and OpenAI honours JSON schemas.
-		const houseKey = serverKeyFor("openai")?.trim();
+		const houseKey = houseKeyFor(process.env);
 		if (!houseKey) throw new HouseModelUnavailableError();
 
 		if (options.utility) {
-			const utility = UTILITY_MODELS.openai;
-			const houseUtilityDefinition = utilityDefinition("openai");
+			const utility = { providerModelId: "gpt-5.6-luna", effort: "low" as const };
+			const houseUtilityDefinition = resolveDefinition(HOUSE_MODEL_ID)!;
 			return {
-				model: buildModel("openai", utility.providerModelId, houseKey, structuredCall),
+				model: meterIncludedModel(options.userId, buildModel("openai", utility.providerModelId, houseKey, structuredCall), true),
 				providerOptions: buildProviderOptions(
 					"openai",
 					{ ...NO_RUN_OPTIONS, effort: utility.effort },
@@ -348,13 +356,14 @@ export async function resolveModel(options: {
 
 		const houseDefinition = resolveDefinition(HOUSE_MODEL_ID);
 		if (!houseDefinition) throw new Error("The house AI model is not registered.");
+		await reserveIncludedRequest(options.userId);
 		const preferredHouseEffort = houseEffortFor(options.effort);
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
 			? preferredHouseEffort
 			: null;
 
 		return {
-			model: buildModel("openai", houseDefinition.providerModelId, houseKey, structuredCall),
+			model: meterIncludedModel(options.userId, buildModel("openai", houseDefinition.providerModelId, houseKey, structuredCall)),
 			// Speed, verbosity and mode are ignored outright here. A house answer
 			// is billed to SureWord's own key, and fast mode alone doubles that
 			// bill, so an account with no picker gets no run options either.

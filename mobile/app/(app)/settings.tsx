@@ -33,6 +33,7 @@ import {
 	useNotificationSettings,
 } from "@/features/notifications/notificationSettings";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
+import { MembershipSection } from "@/features/settings/MembershipSection";
 import {
 	noteMemoryEnabled as noteMemoryEnabledInData,
 	prefetchSettingsData,
@@ -416,6 +417,7 @@ export default function SettingsScreen() {
 				</GlassCard>
 
 				<SectionLabel label="AI PROVIDERS" />
+				<MembershipSection getToken={getToken} />
 				<ProviderSettingsSection getToken={getToken} />
 
 				<SectionLabel label="APP UPDATES" />

@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 
+import { readStoredHighlightLabels } from "../src/lib/preferences-contract.ts";
+
 const read = (relativePath) =>
 	readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
 
@@ -350,4 +352,58 @@ test("the cap never leaves the screen half empty when nothing else is waiting", 
 
 	assert.equal(ranked.length, 3, "all three survive once the cap has had its pass");
 	assert.deepEqual(new Set(ranked.map((suggestion) => suggestion.source)), new Set(["highlight"]));
+});
+
+/* --------------------------------------------------------------- the route */
+
+test("GET /api/learn/suggestions hands suggestVerses the account's translation and colour names", async () => {
+	const calls = [];
+	const { GET } = loadModule("../src/app/api/learn/suggestions/route.ts", ["GET"], {
+		NextResponse: { json: (body, init) => ({ status: init?.status ?? 200, body }) },
+		getAuthUser: async () => "user_1",
+		DEFAULT_TRANSLATION: "KJV",
+		TRANSLATION_IDS: ["KJV", "NKJV"],
+		readStoredHighlightLabels,
+		suggestVerses: async (...args) => {
+			calls.push(args);
+			return [];
+		},
+		prisma: {
+			user: {
+				findUnique: async () => ({
+					translation: "NKJV",
+					highlightLabels: { blue: "Promises" },
+				}),
+			},
+		},
+	});
+
+	const response = await GET();
+	assert.equal(response.status, 200);
+	assert.deepEqual(response.body, { suggestions: [] });
+	assert.deepEqual(calls, [["user_1", "NKJV", { blue: "Promises" }]]);
+});
+
+test("GET /api/learn/suggestions degrades a stored labels value that is not a map to no labels", async () => {
+	const calls = [];
+	const { GET } = loadModule("../src/app/api/learn/suggestions/route.ts", ["GET"], {
+		NextResponse: { json: (body, init) => ({ status: init?.status ?? 200, body }) },
+		getAuthUser: async () => "user_1",
+		DEFAULT_TRANSLATION: "KJV",
+		TRANSLATION_IDS: ["KJV", "NKJV"],
+		readStoredHighlightLabels,
+		suggestVerses: async (...args) => {
+			calls.push(args);
+			return [];
+		},
+		prisma: {
+			user: {
+				findUnique: async () => ({ translation: "KJV", highlightLabels: "Promises" }),
+			},
+		},
+	});
+
+	const response = await GET();
+	assert.equal(response.status, 200);
+	assert.deepEqual(calls, [["user_1", "KJV", {}]]);
 });

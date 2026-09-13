@@ -2,6 +2,9 @@
 	"functions": {
 		"src/app/api/ask-question/route.ts": {
 			"maxDuration": 300
+		},
+		"src/app/api/note-ai/route.ts": {
+			"maxDuration": 300
 		}
 	},
 	"crons": [

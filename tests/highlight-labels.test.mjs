@@ -295,3 +295,23 @@ test("the today block names the colour the way the user does", () => {
 		/- Their most recent highlights: Romans 8:28 \(Blue: Promises\), James 1:12 \(Yellow\), Psalms 46:1\./,
 	);
 });
+
+/* ------------------------------------------------------------- call sites */
+
+test("the chat route reads the labels column once and hands it to the day context and the tools", () => {
+	const source = read("../src/app/api/ask-question/route.ts");
+	// The route already fetches the user row for name and web search; the
+	// labels ride that select rather than a second query.
+	assert.match(
+		source,
+		/select: \{ webSearchEnabled: true, name: true, email: true, highlightLabels: true \}/,
+	);
+	assert.match(source, /readStoredHighlightLabels\(userPrefs\?\.highlightLabels\)/);
+	assert.match(source, /loadChatDayContext\(userId, highlightLabels\)/);
+	assert.match(source, /webSearchEnabled: userPrefs\?\.webSearchEnabled \?\? true,\s*highlightLabels,/);
+});
+
+test("the highlights tool lists with the account's colour names", () => {
+	const source = read("../src/lib/ai-tools.ts");
+	assert.match(source, /listUserHighlights\(context\.userId, \{[\s\S]*?\}, context\.highlightLabels\)/);
+});

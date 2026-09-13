@@ -1,5 +1,6 @@
 import { APICallError } from "ai";
 import { AiCredentialError } from "./provider";
+import { IncludedAiLimitError } from "@/lib/billing/usage-errors";
 import type { ChatErrorCode } from "@/lib/chat/chatErrors";
 
 /**
@@ -19,6 +20,7 @@ export class UserFacingError extends Error {
 }
 
 export function codeForError(error: unknown): ChatErrorCode {
+	if (error instanceof IncludedAiLimitError) return "rate_limited";
 	if (error instanceof UserFacingError) return error.code;
 	if (error instanceof AiCredentialError) return "provider_key_missing";
 	if (APICallError.isInstance(error)) return "provider_error";
@@ -45,7 +47,7 @@ const INTERNAL_STREAM_MESSAGE = "An error occurred.";
  */
 export function streamErrorText(error: unknown): string {
 	const code = codeForError(error);
-	if (error instanceof UserFacingError || error instanceof AiCredentialError) {
+	if (error instanceof UserFacingError || error instanceof AiCredentialError || error instanceof IncludedAiLimitError) {
 		return `[${code}] ${error.message}`;
 	}
 	if (code === "provider_error") return `[${code}] ${PROVIDER_STREAM_MESSAGE}`;

@@ -48,3 +48,16 @@ test("house effort is a medium ceiling: low passes through, nothing above medium
 	assert.equal(houseEffortFor(undefined), "medium");
 	assert.equal(houseEffortFor("max"), "medium");
 });
+
+test("included quality is independent of subscription and callers cannot request a higher bill", () => {
+	assert.equal(houseEffortFor(null), "medium");
+	assert.equal(houseEffortFor("max"), "medium");
+	assert.equal(houseEffortFor("low"), "low");
+});
+
+test("adding or deleting a key does not silently change the selected payer", () => {
+	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 1, includedPreference: null }), "house");
+	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 1, includedPreference: true }), "house");
+	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 0, includedPreference: false }), "keys");
+	assert.equal(decideAccess({ allowlisted: true, ownKeyCount: 0, includedPreference: true }), "keys");
+});

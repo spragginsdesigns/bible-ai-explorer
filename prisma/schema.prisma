@@ -23,6 +23,10 @@ model User {
   // src/lib/entitlements.ts, never directly - the PRO_USER_IDS allowlist
   // grants Pro without a database write.
   plan                  String                 @default("free")
+  aiPreference          AiPreference?
+  billingSubscription   BillingSubscription?
+  googlePlaySubscription GooglePlaySubscription?
+  aiUsageRequests       AiUsageRequest[]
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
   // falls back to the default rather than erroring.
@@ -78,6 +82,62 @@ model User {
 // beside memories (src/lib/church.ts) so the assistant knows the congregation
 // the user belongs to. `mission`/`about` are extracted from the church's own
 // public website and are treated as untrusted text at injection time.
+model AiPreference {
+  userId              String  @id
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  includedAiPreferred Boolean @default(false)
+}
+
+model BillingSubscription {
+  userId               String   @id
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String   @unique
+  stripeSubscriptionId String?  @unique
+  status               String   @default("incomplete")
+  periodStart          DateTime
+  periodEnd            DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  updatedAt            DateTime @updatedAt
+}
+
+model GooglePlaySubscription {
+  userId                 String   @id
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseTokenHash      String   @unique
+  latestSuccessfulOrderId String?
+  encryptedPurchaseToken String
+  productId              String
+  status                 String
+  periodStart            DateTime
+  periodEnd              DateTime
+  cancelAtPeriodEnd      Boolean  @default(false)
+  lastVerifiedAt         DateTime
+  updatedAt              DateTime @updatedAt
+}
+
+model BillingEvent {
+  id          String   @id
+  processedAt DateTime @default(now())
+}
+
+model AiUsageRequest {
+  id             String   @id
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  idempotencyKey String
+  surface        String
+  status         String   @default("reserved")
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  cacheTokens    Int      @default(0)
+  costMicros     Int      @default(0)
+  calls          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt, status])
+}
+
 model UserChurch {
   userId        String   @id
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)

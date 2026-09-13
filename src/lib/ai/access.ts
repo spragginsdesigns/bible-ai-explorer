@@ -13,7 +13,8 @@
 export type AiAccess = "house" | "keys";
 
 /**
- * The effort a house call runs at. Medium is the ceiling, not a floor: a call
+ * The effort an included call runs at. Both plans use the same tested setting.
+ * Medium is the ceiling, not a floor: a call
  * site that asks for low (tap-a-verse pins it for latency) keeps low, and
  * nothing above medium is honoured, so a hand-crafted request cannot raise the
  * server's bill. Pure so the money rule has a test.
@@ -27,7 +28,11 @@ export function decideAccess(options: {
 	allowlisted: boolean;
 	/** How many provider keys this account has stored of its own. */
 	ownKeyCount: number;
+	/** Undefined preserves legacy behavior; null means a new account defaults to included AI. */
+	includedPreference?: boolean | null;
 }): AiAccess {
+	if (options.allowlisted) return "keys";
+	if (options.includedPreference !== undefined) return options.includedPreference === false ? "keys" : "house";
 	// One key is enough to leave the house: the picker still lists only the
 	// providers that key unlocks, so there is nothing to fall back to.
 	return options.allowlisted || options.ownKeyCount > 0 ? "keys" : "house";

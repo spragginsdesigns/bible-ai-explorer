@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { DEFAULT_TRANSLATION, TRANSLATION_IDS } from "@/lib/preferences-contract";
+import {
+	DEFAULT_TRANSLATION,
+	TRANSLATION_IDS,
+	readStoredHighlightLabels,
+} from "@/lib/preferences-contract";
 import type { TranslationId } from "@/lib/bible/translations";
 import { suggestVerses } from "@/lib/learn-suggestions";
 import { prisma } from "@/lib/prisma";
@@ -16,14 +20,20 @@ export async function GET() {
 		const userId = await getAuthUser();
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { translation: true },
+			select: { translation: true, highlightLabels: true },
 		});
 		const stored = user?.translation;
 		const translation: TranslationId = (TRANSLATION_IDS as readonly string[]).includes(stored ?? "")
 			? (stored as TranslationId)
 			: DEFAULT_TRANSLATION;
 
-		return NextResponse.json({ suggestions: await suggestVerses(userId, translation) });
+		return NextResponse.json({
+			suggestions: await suggestVerses(
+				userId,
+				translation,
+				readStoredHighlightLabels(user?.highlightLabels),
+			),
+		});
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("[api/learn/suggestions] GET failed", error);

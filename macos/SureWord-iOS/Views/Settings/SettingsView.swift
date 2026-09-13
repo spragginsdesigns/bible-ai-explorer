@@ -60,6 +60,8 @@ struct SettingsView: View {
 
             ProviderSettingsSection()
 
+            MembershipSection(api: app.api)
+
             Section("Account") {
                 if let name = accountName {
                     LabeledContent("Signed in as", value: name)

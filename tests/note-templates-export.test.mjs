@@ -29,8 +29,8 @@ test("all template seeds match between clients and contain a valid editor docume
   assert.ok(document.content.length >= 6);
   assert.equal(seed.wordCount, seed.plainText.trim().split(/\s+/).length);
   assert.ok(!seed.html.includes("<church>"));
-  assert.ok(!seed.title.includes("—"));
-  assert.ok(!seed.plainText.includes("—"));
+  assert.ok(!seed.title.includes("â€”"));
+  assert.ok(!seed.plainText.includes("â€”"));
   assert.match(nativeExporter.noteDocumentToMarkdown(seed.title, document), /What I do next/);
  }
 });

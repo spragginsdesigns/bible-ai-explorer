@@ -422,6 +422,7 @@ export default function SettingsPage() {
 					{/* AI providers */}
 					<section id="providers" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>AI PROVIDERS</SectionLabel>
+						<Link href="/membership" className="mb-4 flex items-center justify-between rounded-xl border border-amber-500/20 p-4 text-amber-700 dark:text-amber-300"><span>Membership &amp; included AI</span><ChevronRight size={18} /></Link>
 						<ProviderSettings />
 					</section>
 

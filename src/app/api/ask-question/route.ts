@@ -26,7 +26,7 @@ import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { resolveModel } from "@/lib/ai/provider";
+import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
@@ -64,6 +64,7 @@ import { maybeTitleConversation } from "@/lib/conversation-title";
 import { chatSystemPrompt, firstConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
+import { readStoredHighlightLabels } from "@/lib/preferences-contract";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 import {
@@ -512,7 +513,10 @@ async function persistAssistantResponse(options: {
 	return persisted ? "persisted" : "persist_error";
 }
 
-export async function POST(req: Request): Promise<Response> {
+import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "ask-question");
+
+async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
@@ -553,8 +557,11 @@ export async function POST(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true, name: true, email: true },
+			select: { webSearchEnabled: true, name: true, email: true, highlightLabels: true },
 		});
+		// Read leniently, the way the preferences document does: a label written
+		// by a newer build degrades to the hue name, never to an error.
+		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
 		// Started now, not when the prompt is built, so a first-time Clerk read
 		// runs alongside validation and persistence instead of in front of the
 		// first token. Once the name is stored this is a resolved promise.
@@ -570,6 +577,7 @@ export async function POST(req: Request): Promise<Response> {
 			userId,
 			translation,
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
+			highlightLabels,
 		};
 		const tools = buildSureWordTools(readingContext);
 
@@ -660,6 +668,9 @@ export async function POST(req: Request): Promise<Response> {
 		};
 
 		const responseMessageId = generateMessageId();
+		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
+			await reserveIncludedRequest(userId);
+		}
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
@@ -743,7 +754,7 @@ export async function POST(req: Request): Promise<Response> {
 					const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
 						loadUserMemories(userId),
 						loadUserChurch(userId),
-						loadChatDayContext(userId),
+						loadChatDayContext(userId, highlightLabels),
 						hasAnsweredConversationBefore(userId, conversationId),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 					]);

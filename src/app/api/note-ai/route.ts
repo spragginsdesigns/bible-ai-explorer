@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
-import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { AiCredentialError, resolveModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
 import {
 	hasPersistableContent,
@@ -40,8 +40,13 @@ import {
 } from "@/utils/systemPrompt";
 import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
 import { logChatStepMetric } from "@/lib/ai/chat-metrics";
+import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 
-export const maxDuration = 120;
+// Matches vercel.json for this route. Same guard as ask-question: a slow
+// provider several tool steps into a turn was killed mid-loop by the platform,
+// which runs no callback, so the turn vanished with nothing logged. See
+// TOOL_LOOP_BUDGET_MS for the guard that stops the loop before that happens.
+export const maxDuration = 300;
 
 const MAX_REQUEST_MESSAGES = 16;
 const MAX_NOTE_CONTENT_LENGTH = 16000;
@@ -133,7 +138,10 @@ async function persistExchange(options: {
 	}
 }
 
-export async function POST(req: Request): Promise<Response> {
+import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "note-ai");
+
+async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
@@ -195,6 +203,10 @@ export async function POST(req: Request): Promise<Response> {
 			);
 		}
 
+		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
+			await reserveIncludedRequest(userId);
+		}
+
 		// Persist the user turn before tools run. The original server receipt
 		// timestamp anchors relative reading dates on retries across midnight.
 		const existingUserMessage = await prisma.noteAIMessage.findUnique({ where: { id: lastMessage.id }, select: { noteId: true, role: true, metadata: true } });
@@ -211,6 +223,7 @@ export async function POST(req: Request): Promise<Response> {
 		readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
 
 		const responseMessageId = generateMessageId();
+		const turnStartedAtMs = Date.now();
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: messages,
 			generateId: () => responseMessageId,
@@ -269,7 +282,9 @@ export async function POST(req: Request): Promise<Response> {
 					system: promptCache.system,
 					messages: await convertToModelMessages(messages),
 					tools,
-					stopWhen: isStepCount(8),
+					// Either limit ends the loop cleanly, so the answer is streamed,
+					// persisted and measured. Only the platform timeout loses a turn.
+					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
 					providerOptions: promptCache.providerOptions,
 					onStepEnd: (event) => {
 						logChatStepMetric(

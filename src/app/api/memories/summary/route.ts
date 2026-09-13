@@ -32,7 +32,10 @@ const SUMMARY_INSTRUCTIONS = `You write the "memory summary" for SureWord, a KJV
  * "regenerate" is simply another POST). Works while memory is disabled so the
  * manage screen can still show what is stored.
  */
-export async function POST() {
+import { withIncludedAiRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "memory-summary");
+
+async function handlePost() {
 	try {
 		const userId = await getAuthUserId();
 		const memories = await prisma.userMemory.findMany({

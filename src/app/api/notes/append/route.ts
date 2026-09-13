@@ -26,7 +26,10 @@ export const maxDuration = 90;
  *         conversationId?: string, compose?: boolean }
  * 200:  { noteId, noteTitle, created, composed }
  */
-export async function POST(req: Request) {
+import { withIncludedAiRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "note-compose");
+
+async function handlePost(req: Request) {
 	try {
 		const userId = await getAuthUser();
 		const body = await req.json().catch(() => null);
