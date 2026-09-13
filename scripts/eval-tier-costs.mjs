@@ -161,6 +161,7 @@ for (let repeat = 0; repeat < repetitions; repeat++) {
         outputTokens = 0,
         reasoningTokens = 0,
         cacheTokens = 0,
+        cacheWriteTokens = 0,
         cost = 0,
         answer = "",
         calls = [],
@@ -234,15 +235,18 @@ for (let repeat = 0; repeat < repetitions; repeat++) {
         }
         const usage = data.usage;
         const cached = usage?.input_tokens_details?.cached_tokens ?? 0;
+        const written = usage?.input_tokens_details?.cache_write_tokens ?? 0;
         const stepCost =
-          (((usage?.input_tokens ?? 0) - cached) * 0.2) / 1e6 +
+          (((usage?.input_tokens ?? 0) - cached - written) * 0.2) / 1e6 +
           (cached * 0.02) / 1e6 +
+          (written * 0.25) / 1e6 +
           ((usage?.output_tokens ?? 0) * 1.2) / 1e6;
         totalCost += stepCost;
         cost += stepCost;
         inputTokens += usage?.input_tokens ?? 0;
         outputTokens += usage?.output_tokens ?? 0;
         cacheTokens += cached;
+        cacheWriteTokens += written;
         reasoningTokens += usage?.output_tokens_details?.reasoning_tokens ?? 0;
         input.push(...(data.output ?? []));
         const toolCalls = (data.output ?? []).filter(
@@ -289,6 +293,7 @@ for (let repeat = 0; repeat < repetitions; repeat++) {
         outputTokens,
         reasoningTokens,
         cacheTokens,
+        cacheWriteTokens,
         cost,
         calls,
         expectedReferencePresent: expected
