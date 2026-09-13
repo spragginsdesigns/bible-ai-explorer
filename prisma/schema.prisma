@@ -570,7 +570,7 @@ model VerseMemory {
   chapter        Int
   verse          Int
   translation    String    @default("KJV") // "KJV" | "NKJV"
-  source         String // "sheet" | "highlight" | "chat"
+  source         String // "sheet" | "highlight" | "chat" | "suggestion"
   stage          Int       @default(0) // 0-3
   revision       Int       @default(0)
   intervalDays   Int       @default(0)

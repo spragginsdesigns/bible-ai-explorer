@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 			return NextResponse.json(
 				{
 					error:
-						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV or NKJV and a 'source' of sheet, highlight or chat are required.",
+						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV or NKJV and a 'source' of sheet, highlight, chat or suggestion are required.",
 				},
 				{ status: 400 }
 			);
