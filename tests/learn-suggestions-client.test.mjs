@@ -80,6 +80,32 @@ test("drops only the rows that break the contract", () => {
 	assert.deepEqual(rows.map((row) => row.reference), ["Romans 8:28", "John 3:16"]);
 });
 
+test("the GET vocabulary is the signal, not the POST vocabulary", () => {
+	// A row names why the verse was chosen: highlight, reading, chat, cross or
+	// note. "suggestion" is what the client POSTs back when adding one, and it
+	// is never a signal, so a row carrying it is not a row.
+	const signals = ["highlight", "reading", "chat", "cross", "note"];
+	for (const source of signals) {
+		assert.equal(parseSuggestions({ suggestions: [{ ...SUGGESTIONS[0], source }] })[0].source, source);
+	}
+	for (const source of ["suggestion", "sheet", "reading ", "Reading", ""]) {
+		assert.deepEqual(parseSuggestions({ suggestions: [{ ...SUGGESTIONS[0], source }] }), []);
+	}
+});
+
+test("the fallback row, with no personal signal, is a valid row", () => {
+	const fallback = {
+		...SUGGESTIONS[0],
+		source: "reading",
+		reason: "You have no recent marks or reading to go on, so this is one of the verses the rest of " +
+			"Scripture leans on most in Romans 8, the last chapter you read, and Scripture points back to it 86 times.",
+	};
+	const rows = parseSuggestions({ suggestions: [fallback] });
+	assert.equal(rows.length, 1);
+	assert.equal(rows[0].source, "reading");
+	assert.equal(rows[0].reason, fallback.reason);
+});
+
 test("keeps one row per verse and never more than five", () => {
 	const repeated = parseSuggestions({ suggestions: [SUGGESTIONS[0], { ...SUGGESTIONS[0], reason: "Another reason." }] });
 	assert.deepEqual(repeated.map((row) => row.reason), [SUGGESTIONS[0].reason]);

@@ -74,6 +74,30 @@ for (const [client, suggestions] of [["Android", mobileSuggestions], ["web", web
 			expect(rows.map((row) => row.reference)).toEqual(["Romans 8:28", "John 3:16"]);
 		});
 
+		it("reads the GET vocabulary, not the POST vocabulary", () => {
+			// A row names why the verse was chosen. "suggestion" is what the
+			// client POSTs back when adding one, and is never a signal.
+			for (const source of ["highlight", "reading", "chat", "cross", "note"]) {
+				const rows = suggestions.parseSuggestions({ suggestions: [{ ...SUGGESTIONS[0], source }] });
+				expect(rows[0].source).toBe(source);
+			}
+			for (const source of ["suggestion", "sheet", "reading ", "Reading", ""]) {
+				expect(suggestions.parseSuggestions({ suggestions: [{ ...SUGGESTIONS[0], source }] })).toEqual([]);
+			}
+		});
+
+		it("accepts the fallback row that has no personal signal", () => {
+			const fallback = {
+				...SUGGESTIONS[0],
+				source: "reading" as const,
+				reason: "You have no recent marks or reading to go on, so this is one of the verses the rest of " +
+					"Scripture leans on most in Romans 8, the last chapter you read, and Scripture points back to it 86 times.",
+			};
+			const rows = suggestions.parseSuggestions({ suggestions: [fallback] });
+			expect(rows).toHaveLength(1);
+			expect(rows[0].reason).toBe(fallback.reason);
+		});
+
 		it("keeps one row per verse and never more than five", () => {
 			const repeated = suggestions.parseSuggestions({
 				suggestions: [SUGGESTIONS[0], { ...SUGGESTIONS[0], reason: "Another reason." }],
