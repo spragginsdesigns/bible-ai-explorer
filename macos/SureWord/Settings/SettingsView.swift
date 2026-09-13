@@ -56,6 +56,8 @@ struct SettingsView: View {
 
                 providerSection
 
+                MembershipSection(api: app.api)
+
                 memorySection
 
                 WebSearchSection(preferences: app.preferences)

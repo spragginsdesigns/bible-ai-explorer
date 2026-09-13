@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 
 /**
  * Mobile bottom navigation: a 1:1 port of the Android glass tab bar
@@ -22,8 +23,9 @@ const HIDDEN_PREFIXES = ["/sign-in", "/sign-up"];
 
 const MobileBottomNav: React.FC = () => {
 	const pathname = usePathname();
+	const { isSignedIn } = useAuth();
 
-	if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
+	if (!isSignedIn || pathname === "/terms" || HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
 
 	return (
 		<nav

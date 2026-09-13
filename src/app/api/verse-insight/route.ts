@@ -24,7 +24,10 @@ const MAX_TEXT_LENGTH = 2500;
  * stored text. A hit is answered as a single plain-text body with
  * `X-Verse-Insight-Cache: hit`; clients read it through the same stream path.
  */
-export async function POST(req: Request): Promise<Response> {
+import { withIncludedAiRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "verse-insight");
+
+async function handlePost(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
 

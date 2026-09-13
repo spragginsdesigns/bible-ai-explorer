@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
 import { parseUserIdAllowlist, resolvePlan } from "@/lib/entitlements-rules";
+import { getUserPlan } from "@/lib/entitlements";
 import { parsePreferencesPatch, toPreferencesDocument } from "@/lib/preferences-contract";
 import type { ModelVocabulary } from "@/lib/preferences-contract";
 import {
@@ -64,11 +65,7 @@ export async function GET() {
 			where: { id: userId },
 			select: PREFERENCE_SELECT,
 		});
-		const plan = resolvePlan({
-			plan: user?.plan ?? null,
-			userId,
-			allowlist: parseUserIdAllowlist(process.env.PRO_USER_IDS),
-		});
+		const plan = await getUserPlan(userId);
 		return NextResponse.json(toPreferencesDocument(user, plan, MODEL_VOCABULARY));
 	} catch (err) {
 		if (err instanceof Response) return err;
@@ -91,11 +88,7 @@ export async function PATCH(req: Request) {
 			data: parsed.data,
 			select: PREFERENCE_SELECT,
 		});
-		const plan = resolvePlan({
-			plan: user.plan,
-			userId,
-			allowlist: parseUserIdAllowlist(process.env.PRO_USER_IDS),
-		});
+		const plan = await getUserPlan(userId);
 		return NextResponse.json(toPreferencesDocument(user, plan, MODEL_VOCABULARY));
 	} catch (err) {
 		if (err instanceof Response) return err;

@@ -513,7 +513,10 @@ async function persistAssistantResponse(options: {
 	return persisted ? "persisted" : "persist_error";
 }
 
-export async function POST(req: Request): Promise<Response> {
+import { withIncludedAiRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "ask-question");
+
+async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();

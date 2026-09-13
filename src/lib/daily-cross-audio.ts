@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 import { isProUser } from "@/lib/entitlements";
 import type { UserPlan } from "@/lib/entitlements-rules";
+import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { builtInDailyCrossModel } from "@/lib/ai/built-in-openai";
 import {
@@ -412,6 +413,10 @@ function speechAvailable(): boolean {
 async function refuseAudio(userId: string): Promise<DailyCrossAudio | null> {
 	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
 	if (!(await isProUser(userId))) return LOCKED_AUDIO;
+	// Preserve existing complimentary access. Subscription audio opens separately
+	// once its synthesis costs have been measured; buying chat must not start an unpriced voice workload.
+	const existingGrant = [...parseUserIdAllowlist(process.env.PRO_USER_IDS), ...parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS)].includes(userId);
+	if (process.env.SUREWORD_USAGE_ENABLED === "true" && !existingGrant && process.env.SUREWORD_PRO_AUDIO_ENABLED !== "true") return UNAVAILABLE_AUDIO;
 	return null;
 }
 

@@ -7,6 +7,19 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Free and Pro foundation, 2026-09-13 (not released)
+
+Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 10/day. Both use Luna medium for ordinary chat and low for short utilities. Billing and usage activation remain behind server flags.
+
+| Capability | Android | Web | macOS | iOS | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Membership balance and included/personal-key choice | Source, type check and production JS export | Authenticated local UI/API verified | Source and unsigned macOS build passed | Source and simulator build passed | `docs/sureword-tier-implementation-2026-09-13.html`; installed native interaction remains a release gate |
+| Shared usage enforcement | Shared API; native runtime pending | Isolated DB and real chat verified | Shared API; native runtime pending | Shared API; native runtime pending | 9 database cases; a real answer changed 10 remaining to 9 |
+| Subscription purchase | Play Billing not implemented | Stripe integration, checkout disabled pending real account/sandbox checks | StoreKit not implemented | StoreKit not implemented | 12 signed-webhook/checkout cases with controlled Stripe responses; not a live payment receipt |
+| Signed-out landing page | Not applicable | Local desktop/mobile render verified | Not applicable | Not applicable | Public root, $15 pricing, no-card Free entry |
+
+The existing complimentary/owner audio grants are preserved. Audio for new subscriptions has a separate activation flag until its cost is measured. No Play/App Store publication or production migration is claimed by this section.
+
 Last full audit: 2026-08-28 (macOS 1.5.0 closed every ❌ in its column except
 password sign-in and the "answer is ready" push: BYOK AI Providers + the provider-grouped model/effort picker,
 live `data-status` updates, answer recovery after a dropped stream, the shared

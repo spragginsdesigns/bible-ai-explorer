@@ -16,11 +16,14 @@ import {
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
 import { aiAccessFor, apiKeyOrNull, availableProviders } from "@/lib/ai/provider";
+import { houseEffortFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
 
 const HOUSE_NOTE =
-	"Included with SureWord. Add your own API key in Settings to choose other models.";
+	process.env.SUREWORD_USAGE_ENABLED === "true"
+		? "Included with SureWord. Use Membership in Settings to switch to a personal API key and choose other models."
+		: "Included with SureWord. Add your own API key in Settings to choose other models.";
 
 /**
  * The single source every client (web, Android, macOS) renders its model
@@ -54,6 +57,7 @@ export async function GET(): Promise<Response> {
 		]);
 
 		if (access === "house") {
+			const houseEffort = houseEffortFor(null);
 			const house = resolveDefinition(HOUSE_MODEL_ID);
 			if (!house) throw new Error("The house AI model is not registered.");
 			// The house entry carries the same capability fields as any other, but
@@ -65,7 +69,7 @@ export async function GET(): Promise<Response> {
 				models: [toModelPayload(house)],
 				defaults: {
 					modelId: house.id,
-					effort: HOUSE_EFFORT,
+					effort: houseEffort,
 					speed: null,
 					verbosity: null,
 					mode: null,
@@ -73,7 +77,7 @@ export async function GET(): Promise<Response> {
 				house: {
 					modelId: house.id,
 					label: house.label,
-					effort: HOUSE_EFFORT,
+					effort: houseEffort,
 					note: HOUSE_NOTE,
 				},
 			});

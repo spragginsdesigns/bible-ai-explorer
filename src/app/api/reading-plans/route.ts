@@ -36,7 +36,10 @@ export async function GET(): Promise<Response> {
  * one written for them. Either way the plan they were on is archived first -
  * one plan at a time, on every client and from chat.
  */
-export async function POST(req: Request): Promise<Response> {
+import { withIncludedAiRequest } from "@/lib/billing/usage";
+export const POST = withIncludedAiRequest(handlePost, "reading-plans");
+
+async function handlePost(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
 
