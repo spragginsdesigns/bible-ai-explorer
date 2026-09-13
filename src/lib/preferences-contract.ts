@@ -174,9 +174,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * The stored labels, read leniently: anything the column holds that is not a
  * usable label for a known colour is dropped, and the rest still arrive. A
  * stricter read would let one entry written by a newer build (a ninth colour,
- * say) blank the seven labels the user can see.
+ * say) blank the seven labels the user can see. Exported for the routes that
+ * read the column outside the preferences document (chat context, highlight
+ * tools, Learn suggestions) so they degrade the same way.
  */
-function readStoredHighlightLabels(stored: unknown): HighlightLabels {
+export function readStoredHighlightLabels(stored: unknown): HighlightLabels {
 	if (!isPlainObject(stored)) return {};
 	const labels: HighlightLabels = {};
 	for (const id of HIGHLIGHT_COLOR_IDS) {

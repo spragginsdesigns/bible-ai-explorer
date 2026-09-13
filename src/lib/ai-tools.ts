@@ -54,6 +54,7 @@ import {
 	type PlanWithProgress,
 } from "@/lib/reading-plans";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
+import type { HighlightLabels } from "@/lib/preferences-contract";
 import { resolveReference } from "@/lib/bible/books";
 import { findVersesFullText } from "@/lib/bible/verse-fulltext";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
@@ -345,6 +346,12 @@ export interface SureWordToolContext extends ReadingToolContext {
 	translation?: TranslationId;
 	/** Settings → Web Search toggle. When false, the webSearch tool declines to run. */
 	webSearchEnabled?: boolean;
+	/**
+	 * The account's names for the highlight colours (the `highlightLabels`
+	 * preference), so getHighlights can say "Blue: Promises". Omit and only the
+	 * hue is reported.
+	 */
+	highlightLabels?: HighlightLabels;
 }
 
 export function buildSureWordTools(context: SureWordToolContext) {
@@ -1156,7 +1163,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				book: bookNumber,
 				chapter: bookNumber !== undefined ? chapter : undefined,
 				limit,
-			});
+			}, context.highlightLabels);
 			return {
 				...listing,
 				scope,

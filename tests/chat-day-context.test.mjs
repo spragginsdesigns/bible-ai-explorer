@@ -193,6 +193,21 @@ test("loadChatDayContext fails soft, one source at a time", quietly(async () => 
 	assert.deepEqual(context.highlights, [{ reference: "John 3:16", colorName: "Blue" }]);
 }));
 
+test("loadChatDayContext names a colour the way the user does when labels are passed", async () => {
+	const { loadChatDayContext } = loadDayContext({
+		prisma: {
+			readingEvent: { findMany: async () => [] },
+			verseHighlight: {
+				findMany: async () => [{ book: 45, chapter: 8, verse: 28, color: "#4A90D9" }],
+			},
+		},
+	});
+	const context = await loadChatDayContext("user_1", { blue: "Promises" });
+	assert.deepEqual(context.highlights, [
+		{ reference: "Romans 8:28", colorName: "Blue", label: "Promises" },
+	]);
+});
+
 test("first-conversation detection looks for an answer in any OTHER conversation", quietly(async () => {
 	let where;
 	const make = (result) =>
