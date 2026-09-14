@@ -311,6 +311,12 @@ test("the chat route reads the labels column once and hands it to the day contex
 	assert.match(source, /webSearchEnabled: userPrefs\?\.webSearchEnabled \?\? true,\s*highlightLabels,/);
 });
 
+test("the note assistant hands the tools the account's colour names too", () => {
+	const source = read("../src/app/api/note-ai/route.ts");
+	assert.match(source, /select: \{ webSearchEnabled: true, highlightLabels: true \}/);
+	assert.match(source, /highlightLabels: readStoredHighlightLabels\(userPrefs\?\.highlightLabels\),/);
+});
+
 test("the highlights tool lists with the account's colour names", () => {
 	const source = read("../src/lib/ai-tools.ts");
 	assert.match(source, /listUserHighlights\(context\.userId, \{[\s\S]*?\}, context\.highlightLabels\)/);

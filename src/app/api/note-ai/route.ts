@@ -41,6 +41,7 @@ import {
 import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
 import { logChatStepMetric } from "@/lib/ai/chat-metrics";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
+import { readStoredHighlightLabels } from "@/lib/preferences-contract";
 
 // Matches vercel.json for this route. Same guard as ask-question: a slow
 // provider several tool steps into a turn was killed mid-loop by the platform,
@@ -178,13 +179,16 @@ async function handlePost(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true },
+			select: { webSearchEnabled: true, highlightLabels: true },
 		});
 		const readingContext = {
 			...readingRequestContext(requestData, readingReceivedAt),
 			userId,
 			defaultNoteId: note.id,
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
+			// Same lenient read as the chat route, so getHighlights names a colour
+			// the way the user does here too.
+			highlightLabels: readStoredHighlightLabels(userPrefs?.highlightLabels),
 		};
 		const tools = buildSureWordTools(readingContext);
 
