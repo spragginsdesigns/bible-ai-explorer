@@ -167,6 +167,23 @@ try {
   assert.equal(row.status, "active");
   assert.equal(row.cancelAtPeriodEnd, true);
   checks++;
+  current.cancel_at_period_end = false;
+  current.cancel_at = current.items.data[0].current_period_end;
+  assert.equal((await send()).status, 200);
+  row = await prisma.billingSubscription.findUnique({ where: { userId: id } });
+  assert.equal(row.cancelAtPeriodEnd, true);
+  assert.equal(row.periodEnd.getTime(), current.cancel_at * 1000);
+  current.cancel_at -= 86400;
+  await send();
+  row = await prisma.billingSubscription.findUnique({ where: { userId: id } });
+  assert.equal(row.cancelAtPeriodEnd, true);
+  assert.equal(row.periodEnd.getTime(), current.cancel_at * 1000);
+  current.cancel_at = null;
+  await send();
+  row = await prisma.billingSubscription.findUnique({ where: { userId: id } });
+  assert.equal(row.cancelAtPeriodEnd, false);
+  assert.equal(row.periodEnd.getTime(), current.items.data[0].current_period_end * 1000);
+  checks++;
   current.status = "canceled";
   assert.equal(
     (
@@ -335,6 +352,7 @@ try {
         "paid activation",
         "duplicate event",
         "end-of-period cancellation",
+        "portal cancel_at scheduling and reactivation",
         "out-of-order state",
         "unpaid invoice",
         "dispute hold survives updates",

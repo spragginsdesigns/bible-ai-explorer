@@ -170,9 +170,12 @@ export async function POST(req: Request) {
               ? new Date(item.current_period_start * 1000)
               : billing.periodStart,
             periodEnd: item
-              ? new Date(item.current_period_end * 1000)
+              ? new Date(Math.min(item.current_period_end, subscription.cancel_at ?? Infinity) * 1000)
               : billing.periodEnd,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            // The hosted portal can schedule cancel_at without setting the legacy boolean.
+            cancelAtPeriodEnd: subscription.cancel_at_period_end || Boolean(
+              item && subscription.cancel_at && subscription.cancel_at <= item.current_period_end,
+            ),
           },
         });
         await tx.billingEvent.create({ data: { id: event.id } });
