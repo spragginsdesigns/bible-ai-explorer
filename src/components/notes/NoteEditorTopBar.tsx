@@ -5,6 +5,15 @@ import { ArrowLeft, Trash2, Pin, PinOff, FolderOpen, Tag as TagIcon, Brain, Copy
 import TagManager from "./TagManager";
 import type { Note, Folder, Tag } from "@/types/notes";
 
+/** Autosave lifecycle surfaced in the top bar, mirroring Android's 'Saving…'. */
+export type NoteSaveStatus = "idle" | "saving" | "saved" | "error";
+
+const SAVE_STATUS_LABEL: Record<Exclude<NoteSaveStatus, "idle">, string> = {
+	saving: "Saving…",
+	saved: "Saved",
+	error: "Couldn't save — edits will retry on the next change",
+};
+
 interface NoteEditorTopBarProps {
 	note: Note;
 	folders: Folder[];
@@ -18,6 +27,7 @@ interface NoteEditorTopBarProps {
 	onCreateTag: (name: string, color: string) => void;
 	onDeleteTag: (id: string) => void;
 	onCopyMarkdown?: (title: string) => Promise<void>;
+	saveStatus?: NoteSaveStatus;
 	aiPanelOpen?: boolean;
 	onToggleAIPanel?: () => void;
 }
@@ -35,6 +45,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	onCreateTag,
 	onDeleteTag,
 	onCopyMarkdown,
+	saveStatus = "idle",
 	aiPanelOpen,
 	onToggleAIPanel,
 }) => {
@@ -135,6 +146,20 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 					>
 						{note.title || "Untitled Note"}
 					</button>
+				)}
+
+				{saveStatus !== "idle" && (
+					<span
+						role="status"
+						aria-live="polite"
+						className={`hidden sm:block flex-shrink-0 text-metadata ${
+							saveStatus === "error"
+								? "text-red-400"
+								: "text-neutral-500 dark:text-neutral-500"
+						}`}
+					>
+						{SAVE_STATUS_LABEL[saveStatus]}
+					</span>
 				)}
 
 				<div className="flex items-center gap-0">

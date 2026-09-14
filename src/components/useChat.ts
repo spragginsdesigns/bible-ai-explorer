@@ -887,6 +887,20 @@ export const useChat = () => {
 	);
 
 	/**
+	 * Walking away from an answer on purpose: stop the stream, cancel any
+	 * answer-recovery poll so a stopped answer is not resurrected, and drop
+	 * any pending verse-attachment attribution so an abandoned send does not
+	 * tag a later question. Mirrors abandonPendingAnswer in
+	 * mobile/src/features/chat/useSureWordChat.ts; the push-suppression half of
+	 * the Android version has no web counterpart.
+	 */
+	const abandonPendingAnswer = useCallback(() => {
+		setAttachmentState(null);
+		cancelRecovery();
+		stop();
+	}, [cancelRecovery, stop]);
+
+	/**
 	 * Re-fire the last failed send. If the message never left the device
 	 * (conversation creation failed) send the stored text again; otherwise the
 	 * message reached the server and a regenerate replays the last exchange.
@@ -973,6 +987,7 @@ export const useChat = () => {
 		removeFileAttachment,
 		sendMessage,
 		retrySend,
+		abandonPendingAnswer,
 		newConversation,
 		switchConversation,
 		retryHistory,

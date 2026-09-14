@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Loader2, Paperclip, X, RefreshCw } from "lucide-react";
+import { Send, Loader2, Paperclip, X, RefreshCw, Square } from "lucide-react";
 import {
 	matchSlashCommands,
 	parseSlashCommand,
@@ -31,6 +31,8 @@ interface ChatInputProps {
 	error?: ClassifiedChatError | null;
 	/** Retries the failed send; shown as "Try again" when the error is retryable. */
 	onRetry?: () => void;
+	/** Stops the in-flight answer; the send button swaps to Stop while generating. */
+	onStop?: () => void;
 	onFilesSelected?: (files: File[]) => void;
 	onRemoveFileAttachment?: (id: string) => void;
 	/** Controlled mode: when both are provided they replace the internal state. */
@@ -56,6 +58,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	attachmentError = null,
 	error = null,
 	onRetry,
+	onStop,
 	onFilesSelected,
 	onRemoveFileAttachment,
 	value,
@@ -293,19 +296,29 @@ const ChatInput: React.FC<ChatInputProps> = ({
 								{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
 							</button>
 							<div className="flex-1" />
-							<button
-								type="button"
-								aria-label="Send message"
-								onClick={handleSubmit}
-								disabled={disabled || !canSend}
-								className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
-							>
-								{loading || isStreaming ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
+							{loading || isStreaming ? (
+								// Stop, not send, while an answer is in flight (Android
+								// parity). The composer is disabled mid-stream, but this
+								// button is exactly what must stay tappable.
+								<button
+									type="button"
+									aria-label="Stop generating"
+									onClick={onStop}
+									className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-amber-500 dark:text-amber-400 border border-neutral-700 dark:border-white/[0.1] transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+								>
+									<Square className="w-4 h-4" fill="currentColor" />
+								</button>
+							) : (
+								<button
+									type="button"
+									aria-label="Send message"
+									onClick={handleSubmit}
+									disabled={disabled || !canSend}
+									className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+								>
 									<Send className="w-4 h-4" />
-								)}
-							</button>
+								</button>
+							)}
 						</div>
 					</div>
 				</div>

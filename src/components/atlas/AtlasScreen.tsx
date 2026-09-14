@@ -29,6 +29,7 @@ import {
   entitySubtitle,
   eraChipLabel,
   hitKindLabel,
+  relationCertaintyLabel,
   USSHER_NOTE,
 } from "./atlasView";
 import {
@@ -876,6 +877,11 @@ function EventDetail({
   );
 }
 type RelationEntry = AtlasEntityView["relationDetails"][number];
+const FAMILY_RELATION_TYPES = new Set<RelationEntry["relation"]["type"]>([
+  "parent",
+  "spouse",
+  "sibling",
+]);
 function relationEntries(entity: AtlasEntityView): RelationEntry[] {
   return entity.relationDetails;
 }
@@ -898,11 +904,18 @@ function EntityDetail({
     (related) => !typedEntityIds.has(related.id),
   );
   const hasRelationData = relations.length > 0 || legacyConnections.length > 0;
+  const [familyOnly, setFamilyOnly] = useState(false);
+  const visibleRelations = familyOnly
+    ? relations.filter((entry) => FAMILY_RELATION_TYPES.has(entry.relation.type))
+    : relations;
   const [selectedRelationId, setSelectedRelationId] = useState(
     relations[0]?.relation.id ?? null,
   );
   const selectedRelation =
-    relations.find((relation) => relation.relation.id === selectedRelationId) ??
+    visibleRelations.find(
+      (relation) => relation.relation.id === selectedRelationId,
+    ) ??
+    visibleRelations[0] ??
     null;
   const [traceOpen, setTraceOpen] = useState(false);
   const [connectionTarget, setConnectionTarget] = useState("");
@@ -917,6 +930,7 @@ function EntityDetail({
   );
   useEffect(() => {
     setSelectedRelationId(relations[0]?.relation.id ?? null);
+    setFamilyOnly(false);
     setTraceOpen(false);
     setConnectionTarget("");
     setTargetQuery("");
@@ -954,8 +968,33 @@ function EntityDetail({
               ? "Family & relationships"
               : "Connected to"}
           </p>
+          {entity.kind === "person" && relations.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                aria-pressed={!familyOnly}
+                onClick={() => setFamilyOnly(false)}
+                className={`min-h-[40px] rounded-lg px-3 text-[13px] font-bold transition-colors ${!familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
+              >
+                All relationships
+              </button>
+              <button
+                type="button"
+                aria-pressed={familyOnly}
+                onClick={() => setFamilyOnly(true)}
+                className={`min-h-[40px] rounded-lg px-3 text-[13px] font-bold transition-colors ${familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
+              >
+                Immediate family
+              </button>
+            </div>
+          )}
+          {familyOnly && visibleRelations.length === 0 && (
+            <p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+              No immediate family is recorded for {entity.name}.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
-            {relations.map((related) => (
+            {visibleRelations.map((related) => (
               <button
                 type="button"
                 key={related.relation.id}
@@ -981,13 +1020,14 @@ function EntityDetail({
                     )}
                   </span>
                 </span>
-                <span className="ml-3 flex-shrink-0 text-right text-metadata capitalize text-neutral-400 dark:text-neutral-500">
-                  {related.label} · {related.relation.certainty}
+                <span className="ml-3 flex-shrink-0 text-right text-metadata text-neutral-400 dark:text-neutral-500">
+                  {related.label} ·{" "}
+                  {relationCertaintyLabel(related.relation.certainty)}
                 </span>
               </button>
             ))}
           </div>
-          {legacyConnections.length > 0 && (
+          {legacyConnections.length > 0 && !familyOnly && (
             <div className="mt-3">
               <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
                 Other recorded connections
@@ -1006,7 +1046,8 @@ function EntityDetail({
           {selectedRelation && (
             <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
               <p className="text-[13px] font-semibold text-neutral-700 dark:text-neutral-300">
-                {selectedRelation.label} · {selectedRelation.relation.certainty}
+                {selectedRelation.label} ·{" "}
+                {relationCertaintyLabel(selectedRelation.relation.certainty)}
               </p>
               {selectedRelation.relation.refs.length > 0 && (
                 <div className="mt-2">
@@ -1124,12 +1165,14 @@ function EntityDetail({
                           )}
                           {connection.path?.relations[index] && (
                             <div className="mt-1">
-                              <p className="text-metadata capitalize text-neutral-500 dark:text-neutral-400">
+                              <p className="text-metadata text-neutral-500 dark:text-neutral-400">
                                 {relationLabelFor(
                                   connection.path.relations[index],
                                   step.id,
                                 )} ·{" "}
-                                {connection.path.relations[index].certainty}
+                                {relationCertaintyLabel(
+                                  connection.path.relations[index].certainty,
+                                )}
                               </p>
                               <ReferenceChips
                                 refs={connection.path.relations[index].refs}
@@ -1175,16 +1218,18 @@ function EntityDetail({
               </li>
             ))}
           </ul>
-          {entity.kind === "person" && entity.events.length > 5 && (
-            <button
-              type="button"
-              onClick={() => onViewJourney(entity.id)}
-              className="mt-2 min-h-[44px] text-sm font-bold text-amber-600 dark:text-amber-400"
-            >
-              View all {entity.events.length} events →
-            </button>
-          )}
         </>
+      )}
+      {entity.kind === "person" && (
+        <button
+          type="button"
+          onClick={() => onViewJourney(entity.id)}
+          className="mt-2 min-h-[44px] text-sm font-bold text-amber-600 dark:text-amber-400"
+        >
+          {entity.events.length > 5
+            ? `View all ${entity.events.length} events →`
+            : "View journey →"}
+        </button>
       )}
       <AskButton onClick={onAsk} />
     </>

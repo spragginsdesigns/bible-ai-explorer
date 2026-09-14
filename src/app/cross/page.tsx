@@ -45,54 +45,74 @@ export default function DailyCrossPage() {
 	const [entry, setEntry] = useState<DailyCrossEntry | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
+	const [replacing, setReplacing] = useState(false);
 	const [focus, setFocus] = useState("");
 	const requestInFlight = useRef(false);
 	// The day's study path is built out of the reading plan when one is
 	// running; this is how the user sees that it was.
 	const { plan } = useReadingPlan();
 
-	const request = useCallback((init?: RequestInit, clear = true) => {
-		if (requestInFlight.current) return;
-		requestInFlight.current = true;
-		setError(null);
-		if (clear) setEntry(null);
-		fetch("/api/verse-of-day/today", { cache: "no-store", ...init })
-			.then(async (res) => {
-				if (!res.ok) {
-					const data = (await res.json().catch(() => null)) as { error?: string } | null;
-					throw new Error(data?.error ?? "Today's word could not be loaded. Try again.");
-				}
-				return (await res.json()) as DailyCrossEntry;
-			})
-			.then(setEntry)
-			.catch((err: unknown) => {
-				setError(err instanceof Error ? err.message : "Today's word could not be loaded. Try again.");
-			})
-			.finally(() => {
-				requestInFlight.current = false;
-			});
-	}, []);
+	const request = useCallback(
+		(
+			init?: RequestInit,
+			options?: { clear?: boolean; onSuccess?: () => void; onSettled?: () => void }
+		) => {
+			if (requestInFlight.current) return;
+			requestInFlight.current = true;
+			setError(null);
+			if (options?.clear !== false) setEntry(null);
+			fetch("/api/verse-of-day/today", { cache: "no-store", ...init })
+				.then(async (res) => {
+					if (!res.ok) {
+						const data = (await res.json().catch(() => null)) as { error?: string } | null;
+						throw new Error(data?.error ?? "Today's word could not be loaded. Try again.");
+					}
+					return (await res.json()) as DailyCrossEntry;
+				})
+				.then((next) => {
+					setEntry(next);
+					options?.onSuccess?.();
+				})
+				.catch((err: unknown) => {
+					setError(err instanceof Error ? err.message : "Today's word could not be loaded. Try again.");
+				})
+				.finally(() => {
+					requestInFlight.current = false;
+					options?.onSettled?.();
+				});
+		},
+		[]
+	);
 
 	const load = useCallback(() => request(), [request]);
 
 	/** Replace today's word — the same POST the assistant's setDailyCross tool uses. */
 	const replaceToday = useCallback(() => {
+		if (replacing || requestInFlight.current) return;
 		const steer = focus.trim();
 		setConfirmingReplace(false);
 		setFocus("");
-		request({
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(steer ? { focus: steer } : {}),
-		});
-	}, [focus, request]);
+		setReplacing(true);
+		request(
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(steer ? { focus: steer } : {}),
+			},
+			{
+				clear: false,
+				onSuccess: () => window.scrollTo({ top: 0, behavior: "smooth" }),
+				onSettled: () => setReplacing(false),
+			}
+		);
+	}, [focus, replacing, request]);
 
 	useEffect(() => {
 		load();
 	}, [load]);
 
 	useEffect(() => {
-		const refresh = () => request(undefined, false);
+		const refresh = () => request(undefined, { clear: false });
 		const onVisibility = () => {
 			if (document.visibilityState === "visible") refresh();
 		};
@@ -154,7 +174,7 @@ export default function DailyCrossPage() {
 							Preparing your day in the Word…
 						</p>
 					</div>
-				) : error ? (
+				) : !entry && error ? (
 					<div className="glass-card gradient-border flex flex-col items-center gap-4 rounded-2xl p-8">
 						<p className="text-center text-support text-neutral-600 dark:text-neutral-300">{error}</p>
 						<button
@@ -167,6 +187,18 @@ export default function DailyCrossPage() {
 					</div>
 				) : entry ? (
 					<div className="mt-2">
+						{error && (
+							<div className="glass-card gradient-border mb-4 flex flex-col items-center gap-4 rounded-2xl p-6">
+								<p className="text-center text-support text-neutral-600 dark:text-neutral-300">{error}</p>
+								<button
+									type="button"
+									onClick={() => request(undefined, { clear: false })}
+									className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-control font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+								>
+									Refresh today&apos;s word
+								</button>
+							</div>
+						)}
 						<TimelineStop glyph="✝" label="TODAY'S VERSE">
 							<div className="glass-card gradient-border flex flex-col gap-3 rounded-2xl p-5">
 								<p className="text-[15px] font-bold text-amber-600 dark:text-amber-400">
@@ -259,7 +291,17 @@ export default function DailyCrossPage() {
 								✦ Go deeper in chat
 							</button>
 
-							{confirmingReplace ? (
+							{replacing ? (
+								<div className="mt-2 flex items-center gap-3 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 p-4">
+									<span
+										aria-hidden
+										className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-amber-500/30 dark:border-amber-400/30 border-t-amber-500 dark:border-t-amber-400"
+									/>
+									<p className="text-metadata text-neutral-600 dark:text-neutral-300">
+										Preparing a fresh word. You can keep reading this one while SureWord searches.
+									</p>
+								</div>
+							) : confirmingReplace ? (
 								<div className="mt-2 flex flex-col gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] p-4">
 									<p className="text-metadata text-neutral-600 dark:text-neutral-300">
 										Replace today&apos;s word with a new one? {entry.reference} won&apos;t come back.

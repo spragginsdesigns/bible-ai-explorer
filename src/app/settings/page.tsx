@@ -21,6 +21,7 @@ import {
 	ANDROID_VERSION,
 	MACOS_DMG_URL,
 	MACOS_VERSION,
+	WEB_VERSION,
 } from "@/lib/constants";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import {
@@ -518,7 +519,8 @@ export default function SettingsPage() {
 								SureWord
 							</p>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								A Bible study assistant rooted in the King James Version.
+								Version {WEB_VERSION} · A Bible study assistant rooted in the King
+								James Version.
 							</p>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
 								Why it&apos;s different: ask a generic AI if the Bible is really the Word of God

@@ -10,6 +10,8 @@ import FollowUpChips from "./FollowUpChips";
 import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 import ChatFileAttachments from "./ChatFileAttachments";
+import VersePopover from "./VersePopover";
+import { parseVerseReferences } from "@/utils/verseParser";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import WorkActivity from "./WorkActivity";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
@@ -32,7 +34,22 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 							<ChatFileAttachments attachments={message.attachments} />
 						</div>
 					)}
-					{message.content && <p className="text-chat text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">{message.content}</p>}
+					{message.content && (
+						<p className="text-chat text-neutral-800 dark:text-neutral-200 whitespace-pre-wrap">
+							{/* Verse references the user typed get the same popover the
+							    assistant's references do (Android MessageBubble parity);
+							    everything else stays plain text. */}
+							{parseVerseReferences(message.content).map((segment, index) =>
+								segment.type === "verse-ref" ? (
+									<VersePopover key={index} reference={segment.value}>
+										{segment.value}
+									</VersePopover>
+								) : (
+									<React.Fragment key={index}>{segment.value}</React.Fragment>
+								)
+							)}
+						</p>
+					)}
 				</div>
 			</div>
 		);
@@ -96,7 +113,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						{message.noteActions.map((action, index) => (
 							<Link
 								key={`${action.noteId}-${index}`}
-								href="/notes"
+								// The notes page auto-selects the note named by ?note=.
+								href={`/notes?note=${encodeURIComponent(action.noteId)}`}
 								className="flex items-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 transition-colors hover:bg-amber-400/[0.12]"
 							>
 								<NotebookPen className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />

@@ -11,6 +11,7 @@ import { Users, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseForSharing, saveVerseToNote } from "@/lib/bible/verseActions";
+import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import { readParchmentPref, readTranslationPref } from "@/lib/preferences";
 import {
   highlightLabelFor,
@@ -278,9 +279,12 @@ const ChapterReader: React.FC = () => {
     setSaveBusy(true);
     setSaveError(null);
     try {
-      await saveVerseToNote({ reference: actionReference, text: actionVerse.text }, translation);
+      const noteId = await saveVerseToNote(
+        { reference: actionReference, text: actionVerse.text },
+        translation
+      );
       closePanel();
-      router.push("/notes");
+      router.push(`/notes?note=${encodeURIComponent(noteId)}`);
     } catch {
       setSaveError("The note could not be saved. Check your connection and try again.");
     } finally {
@@ -441,7 +445,10 @@ const ChapterReader: React.FC = () => {
                     type="button"
                     id={`bible-verse-${verseNumber}`}
                     data-reading-verse={verseNumber}
-                    onClick={() => openVerse({ number: verseNumber, text })}
+                    // The sheet, insight request, clipboard and Ask AI all
+                    // want the verse without bolls.life markup (NKJV), as on
+                    // Android; display rendering keeps its own parsed segments.
+                    onClick={() => openVerse({ number: verseNumber, text: bibleVersePlainText(text) })}
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
                       highlighted === verseNumber
                         ? parchment
@@ -526,7 +533,7 @@ const ChapterReader: React.FC = () => {
               onClick={() =>
                 askAI({
                   reference,
-                  text: verses.map((t, i) => `${i + 1} ${t}`).join("\n"),
+                  text: verses.map((t, i) => `${i + 1} ${bibleVersePlainText(t)}`).join("\n"),
                 })
               }
               // Opaque, and a compact circle on phones: the old translucent

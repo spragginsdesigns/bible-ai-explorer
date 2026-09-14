@@ -3,16 +3,20 @@
 import React from "react";
 import { ArrowDownUp } from "lucide-react";
 import NoteCard from "./NoteCard";
-import type { Note, Tag } from "@/types/notes";
+import type { Folder, Note, Tag } from "@/types/notes";
 import type { SortOption } from "@/hooks/useNotes";
 
 interface NotesListViewProps {
 	notes: Note[];
 	tags: Tag[];
+	folders: Folder[];
 	activeNoteId: string | null;
 	sortBy: SortOption;
 	onSelectNote: (id: string) => void;
 	onSortChange: (sort: SortOption) => void;
+	onTogglePin: (id: string) => void;
+	onMoveToFolder: (id: string, folderId: string | null) => void;
+	onDeleteNote: (id: string) => void;
 }
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -26,10 +30,14 @@ const SORT_ORDER: SortOption[] = ["updatedAt", "createdAt", "title"];
 const NotesListView: React.FC<NotesListViewProps> = ({
 	notes,
 	tags,
+	folders,
 	activeNoteId,
 	sortBy,
 	onSelectNote,
 	onSortChange,
+	onTogglePin,
+	onMoveToFolder,
+	onDeleteNote,
 }) => {
 	const cycleSortOption = () => {
 		const idx = SORT_ORDER.indexOf(sortBy);
@@ -70,8 +78,12 @@ const NotesListView: React.FC<NotesListViewProps> = ({
 									key={note.id}
 									note={note}
 									tags={tags}
+									folders={folders}
 									isActive={note.id === activeNoteId}
 									onClick={() => onSelectNote(note.id)}
+									onTogglePin={() => onTogglePin(note.id)}
+									onMoveToFolder={(folderId) => onMoveToFolder(note.id, folderId)}
+									onDelete={() => onDeleteNote(note.id)}
 								/>
 							))}
 						</div>

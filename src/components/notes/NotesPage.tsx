@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { Suspense, useState, useRef, useCallback, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import AppSidebar from "@/components/AppSidebar";
 import NotesSidebar from "./NotesSidebar";
@@ -20,7 +21,11 @@ const NotesPage: React.FC = () => {
  const { user, isLoaded } = useUser();
  if (!isLoaded) return <p role="status">Loading your notes...</p>;
  if (!user) return <Link href="/sign-in">Sign in to open your notes</Link>;
- return <NotesSession key={user.id} />;
+ return (
+ 	<Suspense fallback={null}>
+ 		<NotesSession key={user.id} />
+ 	</Suspense>
+ );
 };
 const NotesSession: React.FC = () => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -44,6 +49,7 @@ const NotesSession: React.FC = () => {
 		activeTagId,
 		searchQuery,
 		sortBy,
+		isLoading,
 		setActiveNoteId,
 		setActiveFolderId,
 		setActiveTagId,
@@ -60,6 +66,17 @@ const NotesSession: React.FC = () => {
 		deleteTag,
 		toggleNoteTag,
 	} = useNotes();
+
+	// Deep link: /notes?note=<id> opens that note once the list has loaded.
+	// Unknown or inaccessible ids simply fall back to the normal list.
+	const searchParams = useSearchParams();
+	const noteParam = searchParams.get("note");
+	const handledNoteParam = useRef<string | null>(null);
+	useEffect(() => {
+		if (isLoading || !noteParam || noteParam === handledNoteParam.current) return;
+		handledNoteParam.current = noteParam;
+		if (notes.some((n) => n.id === noteParam)) setActiveNoteId(noteParam);
+	}, [isLoading, noteParam, notes, setActiveNoteId]);
 
 	const handleTouchStart = useCallback(
 		(e: React.TouchEvent) => {
@@ -198,10 +215,14 @@ const NotesSession: React.FC = () => {
 						<NotesListView
 							notes={notes}
 							tags={tags}
+							folders={folders}
 							activeNoteId={activeNoteId}
 							sortBy={sortBy}
 							onSelectNote={setActiveNoteId}
 							onSortChange={setSortBy}
+							onTogglePin={togglePin}
+							onMoveToFolder={(id, folderId) => updateNote(id, { folderId })}
+							onDeleteNote={handleDeleteNote}
 						/>
 					</>
 				)}

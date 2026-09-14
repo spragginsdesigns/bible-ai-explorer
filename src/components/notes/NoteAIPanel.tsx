@@ -1,9 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { X, Send, Sparkles, Trash2, ArrowLeft } from "lucide-react";
+import { X, Send, Sparkles, Trash2, ArrowLeft, RefreshCw } from "lucide-react";
 import NoteAIMessage from "./NoteAIMessage";
 import { useNoteAI, type NoteAppendEvent } from "@/hooks/useNoteAI";
+import {
+	NOTE_SLASH_COMMANDS,
+	matchSlashCommands,
+	parseSlashCommand,
+	type SlashCommand,
+} from "@/lib/chat/slashCommands";
 
 interface NoteAIPanelProps {
 	noteId: string;
@@ -11,33 +17,66 @@ interface NoteAIPanelProps {
 	onNoteAppended?: (event: NoteAppendEvent) => void;
 }
 
+const SUGGEST_VERSES_PROMPT =
+	"Suggest the most relevant KJV Bible verses for this note and explain how each relates to the content.";
+
 const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 	noteId,
 	onClose,
 	onNoteAppended,
 }) => {
-	const { messages, isStreaming, loading, sendMessage, clearHistory } =
+	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry } =
 		useNoteAI(noteId, { onNoteAppended });
 	const [input, setInput] = useState("");
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
+	const busy = loading || isStreaming;
+	const suggestions = matchSlashCommands(input, NOTE_SLASH_COMMANDS);
+
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
 
+	const runCommand = (def: SlashCommand, args: string) => {
+		if (def.localAction === "suggest") {
+			sendMessage(SUGGEST_VERSES_PROMPT);
+		} else if (def.localAction === "clear-note-chat") {
+			void clearHistory();
+		} else {
+			sendMessage(args ? `${def.command} ${args}` : def.command);
+		}
+	};
+
 	const handleSend = () => {
 		const text = input.trim();
-		if (!text || loading || isStreaming) return;
+		if (!text || busy) return;
+
+		const parsed = parseSlashCommand(text, NOTE_SLASH_COMMANDS);
+		if (parsed) {
+			if (parsed.def.requiresArgs && !parsed.args) return; // keep typing the argument
+			setInput("");
+			runCommand(parsed.def, parsed.args);
+			return;
+		}
+
 		setInput("");
 		sendMessage(text);
 	};
 
+	const selectSuggestion = (def: SlashCommand) => {
+		if (def.requiresArgs || def.hint) {
+			setInput(`${def.command} `);
+			inputRef.current?.focus();
+			return;
+		}
+		setInput("");
+		runCommand(def, "");
+	};
+
 	const handleSuggestVerses = () => {
-		if (loading || isStreaming) return;
-		sendMessage(
-			"Suggest the most relevant KJV Bible verses for this note and explain how each relates to the content."
-		);
+		if (busy) return;
+		sendMessage(SUGGEST_VERSES_PROMPT);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -66,7 +105,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 				<div className="flex items-center gap-0">
 					{messages.length > 0 && (
 						<button
-							onClick={clearHistory}
+							onClick={() => void clearHistory()}
 							title="Clear chat"
 							className="text-neutral-600 hover:text-red-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 						>
@@ -106,6 +145,33 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 						{messages.map((msg) => (
 							<NoteAIMessage key={msg.id} message={msg} />
 						))}
+						{error && (
+							<div
+								role="alert"
+								className="mt-2 rounded-xl border border-red-500/20 bg-red-500/[0.06] px-3 py-2.5"
+							>
+								<div className="flex items-start justify-between gap-3">
+									<div className="min-w-0">
+										<p className="text-support font-semibold text-red-700 dark:text-red-400">
+											{error.title}
+										</p>
+										<p className="mt-0.5 text-support text-neutral-600 dark:text-neutral-400">
+											{error.message}
+										</p>
+									</div>
+									{error.retryable && (
+										<button
+											type="button"
+											onClick={retry}
+											className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:text-neutral-300 dark:hover:bg-white/[0.05]"
+										>
+											<RefreshCw className="h-3 w-3" />
+											Try again
+										</button>
+									)}
+								</div>
+							</div>
+						)}
 						<div ref={messagesEndRef} />
 					</>
 				)}
@@ -116,7 +182,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 				<div className="px-3 pb-1">
 					<button
 						onClick={handleSuggestVerses}
-						disabled={loading || isStreaming}
+						disabled={busy}
 						className="flex items-center gap-1 text-metadata text-amber-400/70 hover:text-amber-400 transition-colors disabled:opacity-50"
 					>
 						<Sparkles className="w-3 h-3" />
@@ -126,7 +192,32 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 			)}
 
 			{/* Input */}
-			<div className="p-3 border-t border-white/[0.06] pb-safe">
+			<div className="relative p-3 border-t border-white/[0.06] pb-safe">
+				{suggestions.length > 0 && !busy && (
+					<div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg dark:border-white/[0.08] dark:bg-neutral-900">
+						{suggestions.map((def) => (
+							<button
+								type="button"
+								key={def.command}
+								onClick={() => selectSuggestion(def)}
+								className="block w-full border-b border-black/[0.05] px-3 py-2 text-left transition-colors last:border-b-0 hover:bg-black/[0.03] dark:border-white/[0.05] dark:hover:bg-white/[0.05]"
+							>
+								<span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+									{def.command}
+									{def.hint && (
+										<span className="font-normal text-neutral-400 dark:text-neutral-500">
+											{" "}
+											{def.hint}
+										</span>
+									)}
+								</span>
+								<span className="mt-0.5 block truncate text-metadata text-neutral-500 dark:text-neutral-400">
+									{def.description}
+								</span>
+							</button>
+						))}
+					</div>
+				)}
 				<div className="flex items-end gap-2">
 					<textarea
 						ref={inputRef}
@@ -143,7 +234,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 					/>
 					<button
 						onClick={handleSend}
-						disabled={!input.trim() || loading || isStreaming}
+						disabled={!input.trim() || busy}
 						className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl bg-amber-400/20 text-amber-400 hover:bg-amber-400/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 					>
 						<Send className="w-3.5 h-3.5" />

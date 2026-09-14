@@ -1,3 +1,5 @@
+import { version } from "../../package.json";
+
 // Stable GitHub Releases URL for the SureWord Android APK. Every release
 // attaches its APK under the fixed asset name `SureWord.apk` (see
 // mobile/README.md), so this link always serves the latest build.
@@ -15,3 +17,7 @@ export const MACOS_DMG_URL =
 // `/api/native-releases` and never use a stale release number.
 export const ANDROID_VERSION = "Latest";
 export const MACOS_VERSION = "Latest";
+
+// The web app's own version, from package.json. Shown in Settings → About,
+// the way the Android About card shows its app version.
+export const WEB_VERSION = version;

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import NoteEditorTopBar from "./NoteEditorTopBar";
+import NoteEditorTopBar, { type NoteSaveStatus } from "./NoteEditorTopBar";
 import TiptapEditor, { type TiptapEditorHandle } from "./TiptapEditor";
 import NoteAIPanel from "./NoteAIPanel";
 import NoteInfoPanel from "./NoteInfoPanel";
@@ -14,7 +14,7 @@ interface NoteEditorViewProps {
 	folders: Folder[];
 	tags: Tag[];
 	onBack: () => void;
-	onUpdate: (id: string, changes: Partial<Note>) => void;
+	onUpdate: (id: string, changes: Partial<Note>) => Promise<boolean>;
 	onDelete: (id: string) => void;
 	onTogglePin: (id: string) => void;
 	onToggleTag: (noteId: string, tagId: string) => void;
@@ -41,7 +41,9 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 }) => {
 	const [aiPanelOpen, setAiPanelOpen] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
+	const [saveStatus, setSaveStatus] = useState<NoteSaveStatus>("idle");
 	const editorRef = useRef<TiptapEditorHandle>(null);
+	const saveSeqRef = useRef(0);
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 1023px)");
@@ -51,17 +53,36 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		return () => mq.removeEventListener("change", handler);
 	}, []);
 
+	// A fresh note starts without save history; "Saved" only lingers briefly.
+	useEffect(() => {
+		saveSeqRef.current += 1;
+		setSaveStatus("idle");
+	}, [note.id]);
+
+	useEffect(() => {
+		if (saveStatus !== "saved") return;
+		const timer = setTimeout(() => setSaveStatus("idle"), 3000);
+		return () => clearTimeout(timer);
+	}, [saveStatus]);
+
 	const handleSave = useCallback(
-		(data: {
+		async (data: {
 			content: string;
 			htmlContent: string;
 			plainText: string;
 			wordCount: number;
 		}) => {
-			onUpdate(note.id, data);
+			// Overlapping saves resolve out of order; only the newest save may
+			// stamp the final status.
+			const seq = ++saveSeqRef.current;
+			setSaveStatus("saving");
+			const ok = await onUpdate(note.id, data);
+			if (seq === saveSeqRef.current) setSaveStatus(ok ? "saved" : "error");
 		},
 		[note.id, onUpdate]
 	);
+
+	const handleSavePending = useCallback(() => setSaveStatus("saving"), []);
 
 	// When the AI appends to the open note, insert into the live editor; the
 	// editor's save round-trip then reconciles state and Tiptap JSON.
@@ -100,6 +121,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				onCreateTag={onCreateTag}
 				onDeleteTag={onDeleteTag}
 				onCopyMarkdown={handleCopyMarkdown}
+				saveStatus={saveStatus}
 				aiPanelOpen={aiPanelOpen}
 				onToggleAIPanel={() => setAiPanelOpen(!aiPanelOpen)}
 			/>
@@ -113,6 +135,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 						linkTargets={notes}
 						onOpenNote={onOpenNote}
 						onSave={handleSave}
+						onSavePending={handleSavePending}
 					/>
 					<NoteInfoPanel
 						note={note}

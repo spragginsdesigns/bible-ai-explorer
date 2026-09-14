@@ -13,6 +13,7 @@ import type {
   AtlasEraGroup,
   AtlasEventDate,
   AtlasEventView,
+  AtlasRelation,
   AtlasSearchHit,
 } from "@/lib/bible/atlas-core";
 
@@ -67,6 +68,17 @@ export function atlasDateLabel(
   return date?.provenance === "scripture-explicit"
     ? label
     : `Traditional chronology · ${label}`;
+}
+
+/** How sure the atlas is of a relationship, in plain words. */
+export function relationCertaintyLabel(
+  certainty: AtlasRelation["certainty"],
+): string {
+  return certainty === "explicit"
+    ? "Scripture states"
+    : certainty === "inferred"
+      ? "Inferred"
+      : "Disputed";
 }
 
 /** The line under an entity's name: what it is, and where it sits. */

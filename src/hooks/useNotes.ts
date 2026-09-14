@@ -122,7 +122,7 @@ export function useNotes() {
 		return note;
 	}, [activeFolderId]);
 
-	const updateNote = useCallback(async (id: string, changes: Partial<Note>) => {
+	const updateNote = useCallback(async (id: string, changes: Partial<Note>): Promise<boolean> => {
 		// Optimistic update
 		setNotes((prev) =>
 			prev.map((n) =>
@@ -130,16 +130,20 @@ export function useNotes() {
 			)
 		);
 
-		const res = await fetch(`/api/notes/${id}`, {
-			method: "PATCH",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(changes),
-		});
+		try {
+			const res = await fetch(`/api/notes/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(changes),
+			});
 
-		if (res.ok) {
+			if (!res.ok) return false;
 			const data: NoteApiResponse = await res.json();
 			const updated = toNote(data);
 			setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
+			return true;
+		} catch {
+			return false;
 		}
 	}, []);
 

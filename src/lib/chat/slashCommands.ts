@@ -4,7 +4,12 @@
  * by the app itself; "ai" commands are sent to the model verbatim - the
  * backend system prompt teaches it how to execute each one with its tools.
  */
-export type LocalCommandAction = "new" | "clear" | "history";
+export type LocalCommandAction =
+	| "new"
+	| "clear"
+	| "history"
+	| "suggest"
+	| "clear-note-chat";
 
 export interface SlashCommand {
 	command: string;
@@ -86,6 +91,28 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		description: "Open conversation history",
 		kind: "local",
 		localAction: "history",
+	},
+];
+
+export const NOTE_SLASH_COMMANDS: SlashCommand[] = [
+	{
+		command: "/suggest",
+		description: "Suggest relevant KJV verses for this note",
+		kind: "local",
+		localAction: "suggest",
+	},
+	{
+		command: "/verse",
+		hint: "<reference>",
+		description: "Quote a passage word-for-word",
+		kind: "ai",
+		requiresArgs: true,
+	},
+	{
+		command: "/clear",
+		description: "Clear this note's AI conversation",
+		kind: "local",
+		localAction: "clear-note-chat",
 	},
 ];
 

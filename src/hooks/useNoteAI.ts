@@ -13,6 +13,10 @@ import {
 	toViewMessage,
 	type ChatMessage,
 } from "@/components/useChat";
+import {
+	classifyChatError,
+	type ClassifiedChatError,
+} from "@/lib/chat/chatErrors";
 
 export interface NoteAppendEvent {
 	noteId: string;
@@ -45,6 +49,7 @@ export function useNoteAI(
 	options?: { onNoteAppended?: (event: NoteAppendEvent) => void }
 ) {
 	const [historyLoading, setHistoryLoading] = useState(false);
+	const [clearError, setClearError] = useState<ClassifiedChatError | null>(null);
 	const noteIdRef = useRef(noteId);
 	noteIdRef.current = noteId;
 	const loadedNoteIdRef = useRef<string | null>(null);
@@ -71,8 +76,11 @@ export function useNoteAI(
 		messages: uiMessages,
 		sendMessage: sendUIMessage,
 		setMessages: setUIMessages,
+		regenerate,
+		clearError: clearChatError,
 		stop,
 		status,
+		error: chatError,
 	} = useAIChat<SureWordUIMessage>({ transport, throttle: 50 });
 
 	// Load persisted AI messages when the note changes
@@ -81,6 +89,8 @@ export function useNoteAI(
 		loadedNoteIdRef.current = noteId;
 		stop();
 		setUIMessages([]);
+		setClearError(null);
+		clearChatError();
 		setHistoryLoading(true);
 
 		(async () => {
@@ -103,7 +113,7 @@ export function useNoteAI(
 				if (loadedNoteIdRef.current === noteId) setHistoryLoading(false);
 			}
 		})();
-	}, [noteId, stop, setUIMessages]);
+	}, [noteId, stop, setUIMessages, clearChatError]);
 
 	// Apply live addToNote results to the open editor exactly once each
 	useEffect(() => {
@@ -126,11 +136,44 @@ export function useNoteAI(
 		[sendUIMessage, status]
 	);
 
+	// Clear the server copy first: wiping local state before the DELETE would
+	// leave a failed clear looking like a fresh conversation.
 	const clearHistory = useCallback(async () => {
+		try {
+			const res = await fetch(`/api/notes/${noteIdRef.current}/ai-messages`, { method: "DELETE" });
+			if (!res.ok) {
+				const bodyText = await res.text().catch(() => undefined);
+				const classified = classifyChatError({ status: res.status, bodyText });
+				setClearError({
+					...classified,
+					title: "Couldn't clear the conversation",
+					retryable: true,
+				});
+				return;
+			}
+		} catch {
+			setClearError({
+				...classifyChatError({ isNetworkError: true }),
+				title: "Couldn't clear the conversation",
+				retryable: true,
+			});
+			return;
+		}
+		setClearError(null);
 		stop();
 		setUIMessages([]);
-		await fetch(`/api/notes/${noteIdRef.current}/ai-messages`, { method: "DELETE" });
+		appliedToolCallsRef.current.clear();
 	}, [stop, setUIMessages]);
+
+	// A failed clear re-runs the DELETE; a failed send regenerates the last exchange.
+	const retry = useCallback(() => {
+		if (clearError) {
+			void clearHistory();
+			return;
+		}
+		clearChatError();
+		void regenerate();
+	}, [clearError, clearHistory, clearChatError, regenerate]);
 
 	const isStreaming = status === "streaming";
 	const loading = status === "submitted" || historyLoading;
@@ -161,11 +204,19 @@ export function useNoteAI(
 		return viewMessages;
 	}, [uiMessages, isStreaming, status]);
 
+	// The transport throws pre-stream HTTP failures with the raw response body
+	// as the message and mid-stream chunks as "[code] message" - the classifier
+	// unpacks both shapes.
+	const error: ClassifiedChatError | null =
+		clearError ?? (chatError ? classifyChatError({ message: chatError.message }) : null);
+
 	return {
 		messages,
 		isStreaming,
 		loading,
+		error,
 		sendMessage,
 		clearHistory,
+		retry,
 	};
 }

@@ -28,6 +28,8 @@ interface TiptapEditorProps {
 		plainText: string;
 		wordCount: number;
 	}) => void;
+	/** Fired when edits are queued or flushed, so the top bar can show "Saving…". */
+	onSavePending?: () => void;
 }
 
 export interface TiptapEditorHandle {
@@ -38,7 +40,7 @@ export interface TiptapEditorHandle {
 }
 
 const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
-	{ content, noteId, linkTargets, onOpenNote, onSave },
+	{ content, noteId, linkTargets, onOpenNote, onSave, onSavePending },
 	ref
 ) {
 	const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -108,10 +110,12 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 			},
 		},
 		onUpdate: ({ editor: ed }) => {
+			onSavePending?.();
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 			debounceRef.current = setTimeout(() => doSave(ed), 1500);
 		},
 		onBlur: ({ editor: ed }) => {
+			onSavePending?.();
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 			doSave(ed);
 		},

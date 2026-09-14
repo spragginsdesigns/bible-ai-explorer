@@ -4,6 +4,7 @@
  * using the web app's same-origin /api/notes endpoints (Clerk session cookie).
  */
 import type { TranslationId } from "./translations";
+import { bibleVersePlainText } from "./verseMarkup";
 
 export interface VerseRef {
   reference: string;
@@ -21,12 +22,14 @@ export function sourceTranslation(
   return explicit || verse.translation;
 }
 
-/** "John 3:16 — \"For God so loved...\" (translation)" plain-text form. */
+/** "John 3:16 — \"For God so loved...\" (translation)" plain-text form.
+ * NKJV text arrives with bolls.life's inline markup; actions share the plain
+ * reading text. */
 export function formatVerseForSharing(
   verse: VerseRef,
   translation?: TranslationId | string
 ): string {
-  const body = verse.text?.trim();
+  const body = verse.text ? bibleVersePlainText(verse.text).trim() : "";
   const label = sourceTranslation(verse, translation);
   const suffix = label ? ` (${label})` : "";
   return body
@@ -43,7 +46,7 @@ export async function saveVerseToNote(
   verse: VerseRef,
   translation?: TranslationId | string
 ): Promise<string> {
-  const text = verse.text?.trim() ?? "";
+  const text = verse.text ? bibleVersePlainText(verse.text).trim() : "";
   const label = sourceTranslation(verse, translation);
   const htmlContent =
     `<blockquote><p><strong>${escapeHtml(verse.reference)}</strong></p>` +
