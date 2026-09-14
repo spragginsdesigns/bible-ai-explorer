@@ -208,6 +208,12 @@
 .example {
   padding: 23px;
 }
+.personalContext {
+  color: var(--gold);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0 0 14px;
+}
 .question {
   font-size: 13px;
   padding: 12px 15px;

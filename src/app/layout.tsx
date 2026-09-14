@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 	metadataBase: new URL("https://sureword.app"),
 	title: "SureWord — Come hungry for the Word",
 	description:
-		"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
+		"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
 	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "KJV", "SureWord"],
 	authors: [
 		{ name: "Austin Spraggins", url: "https://sureword.app" }
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "SureWord — Come hungry for the Word",
 		description:
-			"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
+			"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
 		url: "https://sureword.app",
 		siteName: "SureWord",
 		images: [
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
 		card: "summary_large_image",
 		title: "SureWord — Come hungry for the Word",
 		description:
-			"Come hungry for the Word. SureWord is your personal Bible study companion for Scripture, questions, notes, and a deeper daily walk.",
+			"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
 		creator: "@spragginsdesign",
 		images: ["/web-app-manifest-512x512.png"]
 	},

@@ -43,7 +43,7 @@ export default function LandingPage({
         <section className={styles.hero}>
           <div className={styles.intro}>
             <p className={styles.eyebrow}>
-              <span /> A little space for what matters most
+              <span /> Bible study that grows with you
             </p>
             <h1>
               Come hungry
@@ -51,8 +51,9 @@ export default function LandingPage({
               for <em>the Word.</em>
             </h1>
             <p className={styles.dek}>
-              Bring your questions. Open your Bible. Find a little more
-              understanding, one passage at a time.
+              A personal Bible study companion that remembers what you share
+              and builds on what you read. Your questions, goals and daily walk
+              help shape a study experience that becomes more your own over time.
             </p>
             <Link href="/sign-up" className={styles.primary}>
               Start studying free <ArrowRight size={18} />
@@ -73,10 +74,10 @@ export default function LandingPage({
               <span>Or study right here on the web.</span>
             </div>
           </div>
-          <div className={styles.study} aria-label="Example Scripture study">
+          <div className={styles.study} aria-label="Illustrative personalized Scripture study">
             <div className={styles.studyTop}>
               <span>
-                <BookOpen size={16} /> A moment in the Word
+                <BookOpen size={16} /> Building on your study
               </span>
               <span>JOHN 15 · KJV</span>
             </div>
@@ -90,17 +91,22 @@ export default function LandingPage({
               <p>John 15:5</p>
             </div>
             <div className={styles.example}>
+              <p className={styles.personalContext}>
+                Your recent reading: John 15<br />
+                Your remembered goal: a steadier daily reading habit
+              </p>
               <p className={styles.question}>
-                What does it mean to abide in Christ?
+                How can I live this out on a busy day?
               </p>
               <div className={styles.answer}>
                 <span className={styles.smallBrand}>S</span>
                 <div>
                   <p>
-                    Jesus describes a life of dependence on Him. A branch bears
-                    fruit because it remains connected to the vine. In the same
-                    way, we depend on Christ as we receive His words and walk in
-                    His love.
+                    Jesus describes dependence on Him: a branch bears fruit by
+                    remaining in the vine. For the reading habit you’re building,
+                    begin with a few verses from John 15. Carry one question into
+                    your day: where can I depend on Christ and put His words
+                    into practice?
                   </p>
                   <p className={styles.reference}>
                     Read in context: John 15:1–10
@@ -109,7 +115,7 @@ export default function LandingPage({
               </div>
               <div className={styles.sampleFooter}>
                 <span>
-                  Illustrative study · always read the passage in context
+                  Illustrative personal context and answer · John 15:1–10
                 </span>
                 <Bookmark size={15} />
               </div>
@@ -117,46 +123,54 @@ export default function LandingPage({
           </div>
         </section>
         <div className={styles.quietLine}>
-          <span>Scripture at the center.</span>
-          <span>Room for honest questions.</span>
-          <span>A habit you can return to.</span>
+          <span>Grounded in Scripture.</span>
+          <span>Shaped by your own walk.</span>
+          <span>Building on what came before.</span>
         </div>
         <section id="experience" className={styles.experience}>
           <div className={styles.sectionHeading}>
-            <p className={styles.eyebrow}>Made for your daily walk</p>
+            <p className={styles.eyebrow}>More personal with every chapter</p>
             <h2>
-              Go a little deeper.
+              Your walk has a story.
               <br />
-              <em>Keep what you discover.</em>
+              <em>Your study can build on it.</em>
             </h2>
+            <p>
+              As you read, ask questions and reflect, SureWord has more of your
+              own context to draw on. A conversation today can help shape what
+              you explore tomorrow.
+            </p>
           </div>
           <div className={styles.features}>
             <article>
               <BookOpen />
-              <h3>Understand the passage</h3>
+              <h3>It remembers what matters to you</h3>
               <p>
-                Ask about a verse, explore its context, and follow Scripture
-                references back to the text.
+                With memory enabled, SureWord can remember your study goals,
+                preferences and things you share across conversations. Keep
+                building on a question without starting from scratch each time.
               </p>
-              <span>Read. Ask. Reflect.</span>
+              <span>Your context comes with you.</span>
             </article>
             <article>
               <Bookmark />
-              <h3>Make the study your own</h3>
+              <h3>It follows your reading</h3>
               <p>
-                Keep notes and highlights together. Return to the conversations
-                that helped something click.
+                Chapters you read in SureWord become part of your reading
+                history. Your notes, highlights and earlier questions give your
+                study more context, helping you connect what you’re learning.
               </p>
-              <span>Your discoveries, in one place.</span>
+              <span>Each passage adds to your journey.</span>
             </article>
             <article>
               <Heart />
-              <h3>Build a daily rhythm</h3>
+              <h3>It helps you find your next step</h3>
               <p>
-                Follow a reading plan and return to Pick Up Your Cross for a
-                daily invitation to reflect and respond.
+                Explore questions suggested from your own study, create a
+                reading plan around a goal, and return to Pick Up Your Cross
+                for a daily reflection shaped by your reading and personal context.
               </p>
-              <span>A small step, taken faithfully.</span>
+              <span>A reason to return to the Word.</span>
             </article>
           </div>
         </section>
@@ -179,7 +193,7 @@ export default function LandingPage({
               <h3>
                 $0 <span>always</span>
               </h3>
-              <p>A thoughtful place to begin.</p>
+              <p>Your personal study starts here.</p>
               <ul>
                 <li>
                   <Check />
@@ -188,6 +202,10 @@ export default function LandingPage({
                 <li>
                   <Check />
                   Saved study conversations
+                </li>
+                <li>
+                  <Check />
+                  Personal memories and reading history
                 </li>
                 <li>
                   <Check />
@@ -227,7 +245,7 @@ export default function LandingPage({
                 </li>
                 <li>
                   <Check />
-                  Thoughtful, Scripture-grounded AI
+                  More room to build on your personal study
                 </li>
               </ul>
               <Link
@@ -258,14 +276,35 @@ export default function LandingPage({
             <em>Sustainable for the long run.</em>
           </h2>
           <p>
-            We want to help people spend more time in Scripture and grow in
-            understanding. Free access makes it easier to begin. Paid
-            memberships help us keep building and cover the real cost of AI.
+            Each person brings their own questions, history and hopes to
+            Scripture. We’re building SureWord to help you grow in understanding
+            and apply what you read to your own daily walk. Free access makes it
+            easier to begin. Paid memberships help us keep building and cover
+            the real cost of AI.
           </p>
           <span>A Christian Bible study companion by LineCrush Inc.</span>
         </section>
         <section className={styles.faq} aria-label="Common questions">
           <h2>A few honest answers.</h2>
+          <details>
+            <summary>How does SureWord become more personal?</summary>
+            <p>
+              SureWord draws on your saved memories, reading history, questions
+              and notes to give future conversations context. Suggested questions
+              and Pick Up Your Cross can build on what you’ve been studying and
+              what matters to you. You can also choose your Bible translation,
+              appearance and reading goals to make the experience your own.
+            </p>
+          </details>
+          <details>
+            <summary>Can I choose what SureWord remembers?</summary>
+            <p>
+              Yes. Ask it to remember, correct or forget a detail, or manage your
+              saved memories in Settings. You can turn memory off there too.
+              Removing a memory does not delete your notes, conversations or
+              reading history.
+            </p>
+          </details>
           <details>
             <summary>Can I keep using SureWord for free?</summary>
             <p>
@@ -307,11 +346,11 @@ export default function LandingPage({
           </details>
         </section>
         <section className={styles.closing}>
-          <p className={styles.eyebrow}>Your next quiet moment starts here</p>
+          <p className={styles.eyebrow}>A personal place to grow in the Word</p>
           <h2>
-            Open the Word.
+            Start with a question.
             <br />
-            <em>Bring your questions.</em>
+            <em>Build on it tomorrow.</em>
           </h2>
           <Link href="/sign-up" className={styles.primary}>
             Start studying free <ArrowRight size={18} />
