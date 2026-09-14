@@ -9,6 +9,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import PlatformDownloads from "./PlatformDownloads";
+import PersonalStudyExample from "./PersonalStudyExample";
 import type { InstallPlatform } from "@/lib/install-platform";
 import {
   PRO_MONTHLY_PRICE_CENTS,
@@ -69,53 +70,7 @@ export default function LandingPage({
             </p>
             <PlatformDownloads initialPlatform={installPlatform} />
           </div>
-          <div className={styles.study} aria-label="Illustrative personalized Scripture study">
-            <div className={styles.studyTop}>
-              <span>
-                <BookOpen size={16} /> Building on your study
-              </span>
-              <span>JOHN 15 · KJV</span>
-            </div>
-            <div className={styles.passage}>
-              <span className={styles.eyebrow}>Abide in me</span>
-              <blockquote>
-                “I am the vine, ye are the branches: He that abideth in me, and
-                I in him, the same bringeth forth much fruit: for without me ye
-                can do nothing.”
-              </blockquote>
-              <p>John 15:5</p>
-            </div>
-            <div className={styles.example}>
-              <p className={styles.personalContext}>
-                Your recent reading: John 15<br />
-                Your remembered goal: a steadier daily reading habit
-              </p>
-              <p className={styles.question}>
-                How can I live this out on a busy day?
-              </p>
-              <div className={styles.answer}>
-                <span className={styles.smallBrand}>S</span>
-                <div>
-                  <p>
-                    Jesus describes dependence on Him: a branch bears fruit by
-                    remaining in the vine. For the reading habit you’re building,
-                    begin with a few verses from John 15. Carry one question into
-                    your day: where can I depend on Christ and put His words
-                    into practice?
-                  </p>
-                  <p className={styles.reference}>
-                    Read in context: John 15:1–10
-                  </p>
-                </div>
-              </div>
-              <div className={styles.sampleFooter}>
-                <span>
-                  Illustrative personal context and answer · John 15:1–10
-                </span>
-                <Bookmark size={15} />
-              </div>
-            </div>
-          </div>
+          <PersonalStudyExample />
         </section>
         <div className={styles.quietLine}>
           <span>Grounded in Scripture.</span>

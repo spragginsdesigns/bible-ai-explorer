@@ -64,8 +64,14 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 70px;
-  align-items: center;
+  align-items: start;
   padding-block: 105px 100px;
+}
+@media (min-width: 1100px) and (min-height: 850px) {
+  .intro {
+    position: sticky;
+    top: 48px;
+  }
 }
 .eyebrow {
   font-size: 10px;
