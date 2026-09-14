@@ -1,0 +1,16 @@
+.downloads { margin-top: 28px; color: #cbd0c2; font-size: 12px; }
+.downloads a, .downloads button { font: inherit; color: inherit; }
+.downloads button { cursor: pointer; }
+.recommended { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px 15px; border: 1px solid #d9b87870; border-radius: 8px; background: #d9b8780c; color: #d9b878 !important; font-weight: 600 !important; }
+.recommended:hover { background: #d9b8781a; }
+.recommended:disabled { opacity: .6; cursor: wait; }
+.caption { font-size: 11px; line-height: 1.6; color: #b6bcb0; margin: 8px 0 0; }
+.alternatives { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 15px; margin-top: 9px; }
+.alternatives > span { color: #b6bcb0; }
+.alternatives a, .alternatives button { display: inline-flex; gap: 3px; align-items: center; min-height: 36px; padding: 0; border: 0; background: none; text-decoration: underline; text-underline-offset: 4px; }
+.help { margin-top: 14px; padding: 15px; border: 1px solid #d9b87835; border-radius: 8px; max-width: 400px; line-height: 1.7; }
+.help strong { color: #f3efe3; }
+.help p { margin-block: 8px; }
+.help button { border: 0; background: none; padding: 8px 0; text-decoration: underline; text-underline-offset: 4px; }
+.installed { color: #d9b878; }
+.downloads button:focus-visible { outline: 2px solid #d9b878; outline-offset: 4px; }

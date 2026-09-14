@@ -8,7 +8,8 @@ import {
   Check,
   ArrowUpRight,
 } from "lucide-react";
-import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
+import PlatformDownloads from "./PlatformDownloads";
+import type { InstallPlatform } from "@/lib/install-platform";
 import {
   PRO_MONTHLY_PRICE_CENTS,
   FREE_DAILY_MESSAGES,
@@ -20,9 +21,11 @@ import styles from "./landing.module.css";
 export default function LandingPage({
   billingOpen = false,
   limitsEnabled = false,
+  installPlatform = "other",
 }: {
   billingOpen?: boolean;
   limitsEnabled?: boolean;
+  installPlatform?: InstallPlatform;
 }) {
   return (
     <div className={styles.page}>
@@ -64,15 +67,7 @@ export default function LandingPage({
                 : "Start free. "}
               No credit card required.
             </p>
-            <div className={styles.downloads}>
-              <a href={ANDROID_APK_URL}>
-                Get Android <ArrowUpRight size={13} />
-              </a>
-              <a href={MACOS_DMG_URL}>
-                Get macOS <ArrowUpRight size={13} />
-              </a>
-              <span>Or study right here on the web.</span>
-            </div>
+            <PlatformDownloads initialPlatform={installPlatform} />
           </div>
           <div className={styles.study} aria-label="Illustrative personalized Scripture study">
             <div className={styles.studyTop}>
