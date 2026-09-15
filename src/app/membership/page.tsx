@@ -229,11 +229,12 @@ export default function MembershipPage() {
               {data.subscription && (
                 <>
                   <p className="mt-5 text-sm text-[#b6bcb0]">
-                    {data.subscription.cancelAtPeriodEnd
-                      ? "Paid access ends"
-                      : "Current billing period ends"}{" "}
-                    {new Date(data.subscription.periodEnd).toLocaleDateString()}
-                    .
+                    {data.plan !== "pro"
+                      ? data.subscription.status === "past_due" ||
+                        data.subscription.status === "unpaid"
+                        ? "Your last payment did not go through. Update your payment method to restore Pro."
+                        : `Paid access ended ${new Date(data.subscription.periodEnd).toLocaleDateString()}.`
+                      : `${data.subscription.cancelAtPeriodEnd ? "Paid access ends" : "Current billing period ends"} ${new Date(data.subscription.periodEnd).toLocaleDateString()}.`}
                   </p>
                   {data.subscription.provider === "google-play" ? (
                     <a href="https://play.google.com/store/account/subscriptions?sku=sureword_pro&package=com.spragginsdesigns.sureword" className="mt-4 inline-block rounded-lg border border-white/20 px-4 py-3 text-sm">Manage in Google Play</a>

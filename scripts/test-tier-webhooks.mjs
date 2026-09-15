@@ -34,7 +34,11 @@ let current = {
       },
     ],
   },
-  latest_invoice: { id: "in_sureword_test", status: "paid" },
+  latest_invoice: {
+    id: "in_sureword_test",
+    status: "paid",
+    billing_reason: "subscription_create",
+  },
 };
 let retrieved = 0,
   cancellations = 0;
@@ -210,6 +214,25 @@ try {
     "incomplete",
   );
   checks++;
+  current.latest_invoice.billing_reason = "subscription_cycle";
+  current.latest_invoice.status = "draft";
+  await send();
+  assert.equal(
+    (await prisma.billingSubscription.findUnique({ where: { userId: id } }))
+      .status,
+    "active",
+  );
+  current.status = "past_due";
+  current.latest_invoice.status = "open";
+  await send();
+  assert.equal(
+    (await prisma.billingSubscription.findUnique({ where: { userId: id } }))
+      .status,
+    "past_due",
+  );
+  checks++;
+  current.status = "active";
+  current.latest_invoice.billing_reason = "subscription_create";
   current.latest_invoice.status = "paid";
   await send("charge.dispute.created", {
     object: "dispute",
@@ -355,6 +378,7 @@ try {
         "portal cancel_at scheduling and reactivation",
         "out-of-order state",
         "unpaid invoice",
+        "renewal draft keeps membership, failed renewal does not",
         "dispute hold survives updates",
         "resolved dispute",
         "full refund cancellation",

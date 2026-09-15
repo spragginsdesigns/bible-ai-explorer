@@ -120,9 +120,17 @@ export async function POST(req: Request) {
         const invoice = subscription.latest_invoice;
         const paid =
           invoice && typeof invoice !== "string" && invoice.status === "paid";
+        // Only the opening invoice gates activation. A renewal invoice sits in
+        // draft for about an hour before Stripe charges it, and a failed renewal
+        // moves the subscription itself to past_due, so gating on it would drop
+        // every paying member to Free at each renewal.
+        const renewal =
+          invoice &&
+          typeof invoice !== "string" &&
+          invoice.billing_reason !== "subscription_create";
         let status: string = !item
           ? "unrecognized_price"
-          : subscription.status === "active" && !paid
+          : subscription.status === "active" && !paid && !renewal
             ? "incomplete"
             : subscription.status;
         if (

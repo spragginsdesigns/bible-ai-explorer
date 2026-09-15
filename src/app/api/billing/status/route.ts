@@ -28,7 +28,10 @@ export async function GET() {
         owner,
         access,
         hasPersonalKeys: ownKeys > 0,
-        subscription: subscription ? {
+        // Opening checkout creates a customer row before any subscription exists;
+        // an abandoned checkout must not read as a billing period to manage.
+        subscription: subscription &&
+          (subscription.provider !== "stripe" || subscription.stripeSubscriptionId) ? {
           status: subscription.status,
           periodEnd: subscription.periodEnd,
           cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
