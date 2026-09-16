@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { ScrollView, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import type { ChatViewMessage } from "@/lib/chatView";
+import type { SetAnswerFeedback } from "@/lib/answerFeedback";
 import { spacing } from "@/theme";
 import { MessageBubble } from "./MessageBubble";
 
@@ -11,12 +12,14 @@ interface MessageListProps {
 	messages: ChatViewMessage[];
 	onFollowUp: (question: string) => void;
 	bottomInset: number;
-	/** Active conversation title — default title for "Add to notes" → new note. */
+	/** Active conversation title - default title for "Add to notes" → new note. */
 	defaultNoteTitle?: string;
+	/** Thumbs up / down on a settled assistant answer. */
+	onFeedback?: SetAnswerFeedback;
 	children?: React.ReactNode;
 }
 
-export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, children }: MessageListProps) {
+export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, children }: MessageListProps) {
 	const scrollRef = useRef<ScrollView>(null);
 	const nearBottom = useRef(true);
 	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
@@ -66,6 +69,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 					message={message}
 					onFollowUp={message.id === latestAssistantId ? onFollowUp : undefined}
 					defaultNoteTitle={defaultNoteTitle}
+					onFeedback={onFeedback}
 				/>
 			))}
 			{children}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { Alert, AppState } from "react-native";
 import { useChat as useAIChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAuth } from "@clerk/expo";
@@ -15,6 +15,12 @@ import {
 	toViewMessageCached,
 	type ChatViewMessage,
 } from "@/lib/chatView";
+import {
+	parseAnswerFeedback,
+	setMessageFeedback,
+	type AnswerFeedback,
+	type SetAnswerFeedback,
+} from "@/lib/answerFeedback";
 import { getAndroidClipboardImages } from "@/lib/clipboardImages";
 import { markConversationStopped } from "@/features/notifications/chatStopSignals";
 import { signalNotificationPermissionMoment } from "@/features/notifications/permissionPrompt";
@@ -78,6 +84,8 @@ export interface SureWordChat {
 	attachPastedImages: (files: PastedImageFile[], nativeError?: string) => Promise<void>;
 	removeFileAttachment: (id: string) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
+	/** Thumbs up / down on a settled assistant answer; `null` clears it. */
+	setFeedback: SetAnswerFeedback;
 	stop: () => void;
 	retrySend: () => void;
 	retryHistory: () => void;
@@ -375,7 +383,15 @@ export function useSureWordChat(): SureWordChat {
 		statusRef.current = status;
 	}, [status]);
 
+	/**
+	 * The current transcript, readable from a callback without making that
+	 * callback depend on it - a new identity on every stream tick would
+	 * re-render every memoized bubble.
+	 */
+	const uiMessagesRef = useRef(uiMessages);
+
 	useEffect(() => {
+		uiMessagesRef.current = uiMessages;
 		lastStreamActivityRef.current = Date.now();
 	}, [uiMessages]);
 
@@ -706,6 +722,58 @@ export function useSureWordChat(): SureWordChat {
 		void regenerate();
 	}, [abandonPendingAnswer, cancelRecovery, clearError, regenerate, sendMessage]);
 
+	/**
+	 * Carry the thumb on the in-memory message. The rating itself lives in its
+	 * own `Message` columns server-side; this metadata key is only how the one
+	 * conversion path (dbMessageToUIMessage → toViewMessage) renders it, and it
+	 * never reaches the stored blob because the server rebuilds assistant
+	 * metadata on every persist.
+	 */
+	const writeFeedbackLocally = useCallback(
+		(messageId: string, feedback: AnswerFeedback | null) => {
+			setUIMessages((current) =>
+				current.map((message) => {
+					if (message.id !== messageId) return message;
+					const metadata = isRecord(message.metadata) ? message.metadata : {};
+					const { feedback: _replaced, ...rest } = metadata;
+					return { ...message, metadata: { ...rest, ...(feedback ? { feedback } : {}) } };
+				})
+			);
+		},
+		[setUIMessages]
+	);
+
+	/**
+	 * Optimistic: the thumb fills on the tap, and a failed PATCH puts it back
+	 * where it was rather than leaving a rating the server never took.
+	 */
+	const setFeedback = useCallback<SetAnswerFeedback>(
+		(messageId, feedback, reason) => {
+			const conversationId = conversationIdRef.current;
+			if (!conversationId) return;
+			const existingMetadata = uiMessagesRef.current.find(
+				(message) => message.id === messageId
+			)?.metadata;
+			const previous = parseAnswerFeedback(
+				isRecord(existingMetadata) ? existingMetadata.feedback : null
+			);
+
+			writeFeedbackLocally(messageId, feedback);
+			void (async () => {
+				try {
+					await setMessageFeedback(authToken, conversationId, messageId, feedback, reason);
+				} catch {
+					writeFeedbackLocally(messageId, previous);
+					Alert.alert(
+						"Couldn't save that",
+						"Your rating didn't reach the server. Check your connection and try again."
+					);
+				}
+			})();
+		},
+		[authToken, writeFeedbackLocally]
+	);
+
 	const isStreaming = status === "streaming";
 	// Collecting a finished answer from the server reads as "still working" -
 	// the user asked a question and one is on its way, same as a live stream.
@@ -769,6 +837,7 @@ export function useSureWordChat(): SureWordChat {
 		attachPastedImages,
 		removeFileAttachment,
 		sendMessage,
+		setFeedback,
 		stop: abandonPendingAnswer,
 		retrySend,
 		retryHistory,

@@ -17,7 +17,15 @@ struct MessageBubble: View {
     /// A failed undo, reported to the shell's toast.
     var onReceiptError: (String) -> Void
     var onAddToNote: (ChatViewMessage) -> Void
+    /// The thumb the user just chose, or `nil` to clear it, plus the optional
+    /// reason a "Not helpful" collected. The shell owns the write and the toast.
+    var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
     var onFollowUp: (String) -> Void
+
+    /// The optional "What went wrong?" field, raised by a thumbs down. Held here
+    /// rather than in the shell so the control stays self-contained.
+    @State private var isReasonPresented = false
+    @State private var reason = ""
 
     private var isUser: Bool { message.role == .user }
 
@@ -33,6 +41,25 @@ struct MessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .alert(AnswerFeedback.reasonPrompt, isPresented: $isReasonPresented) {
+            TextField(AnswerFeedback.reasonPlaceholder, text: $reason)
+            Button("Send") { onFeedback(message, .down, reason) }
+            // Skip still records the thumb - the user already pressed it, and
+            // the reason was never required. Cancel-role so Escape does the
+            // same thing rather than losing the rating.
+            Button("Skip", role: .cancel) { onFeedback(message, .down, nil) }
+        }
+    }
+
+    /// A thumbs up (or either thumb being cleared) is recorded straight away;
+    /// only "Not helpful" stops to ask why.
+    private func rate(_ choice: AnswerFeedback?) {
+        guard choice == .down else {
+            onFeedback(message, choice, nil)
+            return
+        }
+        reason = ""
+        isReasonPresented = true
     }
 
     @ViewBuilder
@@ -98,20 +125,25 @@ struct MessageBubble: View {
                 TypingDots()
             }
 
-            // Only on a settled answer — mid-stream the markdown is a fragment.
+            // Only on a settled answer - mid-stream the markdown is a fragment,
+            // and a half-written answer is not one there is anything to judge.
             if !message.isStreaming, !message.content.isEmpty {
-                Button {
-                    onAddToNote(message)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.and.pencil")
-                        Text("Add to notes")
+                HStack(spacing: 0) {
+                    Button {
+                        onAddToNote(message)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.pencil")
+                            Text("Add to notes")
+                        }
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
                     }
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
+                    .buttonStyle(SubtleButtonStyle())
+                    .accessibilityLabel("Add this answer to your notes")
+
+                    AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
                 }
-                .buttonStyle(SubtleButtonStyle())
-                .accessibilityLabel("Add this answer to your notes")
             }
 
             if !message.tavilyResults.isEmpty {

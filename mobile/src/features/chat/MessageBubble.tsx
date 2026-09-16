@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import type { ChatViewMessage } from "@/lib/chatView";
@@ -8,7 +9,9 @@ import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
+import { nextFeedback, type AnswerFeedback, type SetAnswerFeedback } from "@/lib/answerFeedback";
 import { AddToNoteSheet } from "./AddToNoteSheet";
+import { FeedbackSheet } from "./FeedbackSheet";
 import { FollowUpChips } from "./FollowUpChips";
 import { MarkdownBody } from "./MarkdownBody";
 import { CrossActionCard } from "./CrossActionCard";
@@ -24,19 +27,26 @@ interface MessageBubbleProps {
 	message: ChatViewMessage;
 	/** Only supplied for the newest assistant message. */
 	onFollowUp?: (question: string) => void;
-	/** Active conversation title — default title when saving to a new note. */
+	/** Active conversation title - default title when saving to a new note. */
 	defaultNoteTitle?: string;
+	/**
+	 * Rate this answer. Absent when nothing can be rated (no conversation is
+	 * loaded yet), which is also what hides the thumbs.
+	 */
+	onFeedback?: SetAnswerFeedback;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
 	message,
 	onFollowUp,
 	defaultNoteTitle,
+	onFeedback,
 }: MessageBubbleProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
+	const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false);
 
 	// Both parses run over the whole message body, so they are hoisted above the
 	// user/assistant split to keep the hook order unconditional, and each one
@@ -88,6 +98,16 @@ export const MessageBubble = React.memo(function MessageBubble({
 	}
 
 	const settled = !message.isStreaming;
+	const chosen = message.feedback ?? null;
+
+	// The thumb is recorded on the tap itself, so dismissing the reason sheet by
+	// the backdrop still leaves the rating saved. Send then adds the reason.
+	const rate = (tapped: AnswerFeedback) => {
+		if (!onFeedback) return;
+		const next = nextFeedback(chosen, tapped);
+		onFeedback(message.id, next);
+		if (next === "down") setFeedbackSheetOpen(true);
+	};
 
 	return (
 		<View style={styles.assistantRow}>
@@ -108,15 +128,50 @@ export const MessageBubble = React.memo(function MessageBubble({
 				)}
 
 				{settled && message.content.length > 0 && (
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Add this answer to your notes"
-						onPress={() => setNoteSheetOpen(true)}
-						style={({ pressed }) => [styles.addToNote, pressed && styles.addToNotePressed]}
-					>
-						<Text style={styles.addToNoteGlyph}>✎</Text>
-						<Text style={styles.addToNoteLabel}>Add to notes</Text>
-					</Pressable>
+					<View style={styles.answerActions}>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Add this answer to your notes"
+							onPress={() => setNoteSheetOpen(true)}
+							style={({ pressed }) => [styles.addToNote, pressed && styles.addToNotePressed]}
+						>
+							<Text style={styles.addToNoteGlyph}>✎</Text>
+							<Text style={styles.addToNoteLabel}>Add to notes</Text>
+						</Pressable>
+
+						{onFeedback && (
+							<>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="This answer was helpful"
+									accessibilityState={{ selected: chosen === "up" }}
+									onPress={() => rate("up")}
+									hitSlop={6}
+									style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+								>
+									<Ionicons
+										name={chosen === "up" ? "thumbs-up" : "thumbs-up-outline"}
+										size={15}
+										color={chosen === "up" ? colors.accent : colors.textFaint}
+									/>
+								</Pressable>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="This answer was not helpful"
+									accessibilityState={{ selected: chosen === "down" }}
+									onPress={() => rate("down")}
+									hitSlop={6}
+									style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+								>
+									<Ionicons
+										name={chosen === "down" ? "thumbs-down" : "thumbs-down-outline"}
+										size={15}
+										color={chosen === "down" ? colors.accent : colors.textFaint}
+									/>
+								</Pressable>
+							</>
+						)}
+					</View>
 				)}
 
 				<AddToNoteSheet
@@ -124,6 +179,15 @@ export const MessageBubble = React.memo(function MessageBubble({
 					markdown={message.content}
 					defaultTitle={defaultNoteTitle}
 					onClose={() => setNoteSheetOpen(false)}
+				/>
+
+				<FeedbackSheet
+					visible={feedbackSheetOpen}
+					onClose={() => setFeedbackSheetOpen(false)}
+					onSubmit={(reason) => {
+						setFeedbackSheetOpen(false);
+						onFeedback?.(message.id, "down", reason);
+					}}
 				/>
 
 				{/*
@@ -191,17 +255,30 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.sm,
 		},
 		activityLabel: { color: c.textMuted, fontSize: 13, fontStyle: "italic" },
-		addToNote: {
+		answerActions: {
 			flexDirection: "row",
 			alignItems: "center",
 			alignSelf: "flex-start",
-			gap: 6,
+			gap: spacing.xs,
 			marginTop: spacing.sm,
-			paddingVertical: spacing.xs,
+		},
+		addToNote: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			minHeight: 44,
 			paddingHorizontal: spacing.sm,
 			borderRadius: radius.md,
 		},
 		addToNotePressed: { backgroundColor: c.surfacePressed },
 		addToNoteGlyph: { color: c.textFaint, fontSize: 12 },
 		addToNoteLabel: { ...typography.meta, color: c.textFaint },
+		thumb: {
+			alignItems: "center",
+			justifyContent: "center",
+			minHeight: 44,
+			minWidth: 40,
+			borderRadius: radius.md,
+		},
+		thumbPressed: { backgroundColor: c.surfacePressed },
 	});

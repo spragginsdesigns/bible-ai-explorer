@@ -51,6 +51,13 @@ export interface ChatViewMessage {
 	 */
 	receipts?: ChatReceipt[];
 	attachments?: ChatAttachmentDescriptor[];
+	/**
+	 * The user's own thumb on this answer, replayed from the `Message` columns
+	 * on load and updated locally after a PATCH. The literal union is written
+	 * out rather than imported from `@/lib/answerFeedback` so this module keeps
+	 * its zero-dependency surface (that module reaches the network).
+	 */
+	feedback?: "up" | "down" | null;
 	activity?: string;
 	progress?: ChatProgress;
 	isStreaming?: boolean;
@@ -303,6 +310,13 @@ export function toViewMessage(
 
 	const receipts = buildReceipts(message.parts);
 
+	// The thumb lives in its own DB columns, never in the persisted metadata
+	// (an ask-question retry rewrites that wholesale). dbMessageToUIMessage
+	// lifts the column into the in-memory metadata so this one conversion path
+	// can read it, and the optimistic update rewrites it in the same place.
+	const rawFeedback: unknown = legacy.feedback;
+	const feedback = rawFeedback === "up" ? "up" : rawFeedback === "down" ? "down" : null;
+
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
@@ -315,6 +329,7 @@ export function toViewMessage(
 		...(crossActions.length > 0 ? { crossActions } : {}),
 		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
+		...(feedback && message.role !== "user" ? { feedback } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(progress ? { progress } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
@@ -391,13 +406,27 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 
 	const { parts: _ignored, ...legacyMetadata } = metadata;
 
+	// `feedback` is a column on the row, not a metadata key. Lifting it here is
+	// what lets history replay the chosen thumb through the single
+	// row → UIMessage → ChatViewMessage path. It is only ever read back out
+	// again: assistant metadata sent to the server is rebuilt there, so this
+	// can never be written into the persisted metadata blob.
+	const rawFeedback: unknown = value.feedback;
+	const feedback = rawFeedback === "up" ? "up" : rawFeedback === "down" ? "down" : null;
+
 	return {
 		id: value.id,
 		role: value.role,
 		parts,
 		...(
-			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0
-				? { metadata: { ...legacyMetadata, ...(attachmentIds.length > 0 ? { attachmentIds } : {}) } }
+			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0 || feedback !== null
+				? {
+					metadata: {
+						...legacyMetadata,
+						...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+						...(feedback ? { feedback } : {}),
+					},
+				}
 				: {}
 		),
 	};

@@ -19,7 +19,15 @@ struct ChatMessageBubble: View {
     /// A failed undo, reported to the shell's toast.
     var onReceiptError: (String) -> Void
     var onAddToNote: (ChatViewMessage) -> Void
+    /// The thumb the user just chose, or `nil` to clear it, plus the optional
+    /// reason a "Not helpful" collected. The shell owns the write and the toast.
+    var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
     var onFollowUp: (String) -> Void
+
+    /// The optional "What went wrong?" field, raised by a thumbs down from
+    /// either the inline row or the context menu, so both share one presentation.
+    @State private var isReasonPresented = false
+    @State private var reason = ""
 
     private var isUser: Bool { message.role == .user }
 
@@ -35,6 +43,36 @@ struct ChatMessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .alert(AnswerFeedback.reasonPrompt, isPresented: $isReasonPresented) {
+            TextField(AnswerFeedback.reasonPlaceholder, text: $reason)
+            Button("Send") { onFeedback(message, .down, reason) }
+            // Skip still records the thumb - the user already pressed it, and
+            // the reason was never required.
+            Button("Skip", role: .cancel) { onFeedback(message, .down, nil) }
+        }
+    }
+
+    /// A thumbs up (or either thumb being cleared) is recorded straight away;
+    /// only "Not helpful" stops to ask why.
+    private func rate(_ choice: AnswerFeedback?) {
+        guard choice == .down else {
+            onFeedback(message, choice, nil)
+            return
+        }
+        reason = ""
+        isReasonPresented = true
+    }
+
+    /// The context-menu entry for one thumb. Choosing the thumb already on the
+    /// answer clears it, exactly as tapping the inline glyph does.
+    @ViewBuilder
+    private func feedbackMenuItem(_ choice: AnswerFeedback) -> some View {
+        let chosen = message.feedback == choice
+        Button {
+            rate(chosen ? nil : choice)
+        } label: {
+            Label(choice.title, systemImage: chosen ? choice.filledSymbol : choice.symbol)
+        }
     }
 
     @ViewBuilder
@@ -111,33 +149,43 @@ struct ChatMessageBubble: View {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
                         // Mid-stream the markdown is a fragment, so the save
-                        // action only appears on a settled answer.
+                        // action only appears on a settled answer - and a
+                        // half-written answer is not one there is anything to
+                        // judge, which is what keeps the thumbs off it too.
                         if !message.isStreaming {
                             Button {
                                 onAddToNote(message)
                             } label: {
                                 Label("Add to notes", systemImage: "square.and.pencil")
                             }
+                            feedbackMenuItem(.up)
+                            feedbackMenuItem(.down)
                         }
                     }
             } else if message.isStreaming, message.activity == nil, message.progress == nil {
                 TypingDots()
             }
 
-            // Only on a settled answer — mid-stream the markdown is a fragment.
+            // Only on a settled answer - mid-stream the markdown is a fragment.
+            // The thumbs repeat the context menu on purpose: a long press is
+            // not discoverable, and a rating nobody finds is no signal at all.
             if !message.isStreaming, !message.content.isEmpty {
-                Button {
-                    onAddToNote(message)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "square.and.pencil")
-                        Text("Add to notes")
+                HStack(spacing: 0) {
+                    Button {
+                        onAddToNote(message)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "square.and.pencil")
+                            Text("Add to notes")
+                        }
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
                     }
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
+                    .buttonStyle(SubtleButtonStyle())
+                    .accessibilityLabel("Add this answer to your notes")
+
+                    AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
                 }
-                .buttonStyle(SubtleButtonStyle())
-                .accessibilityLabel("Add this answer to your notes")
             }
 
             if !message.tavilyResults.isEmpty {

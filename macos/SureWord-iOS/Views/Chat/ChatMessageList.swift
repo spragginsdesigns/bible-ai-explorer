@@ -14,6 +14,9 @@ struct ChatMessageList: View {
     var onReceiptError: (String) -> Void
     var onCrossReplaced: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
+    /// The answer that was rated, the thumb (`nil` clears it), and the optional
+    /// reason a "Not helpful" collected. The tab owns the write and the toast.
+    var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -29,6 +32,7 @@ struct ChatMessageList: View {
                             onOpenReceipt: onOpenReceipt,
                             onReceiptError: onReceiptError,
                             onAddToNote: onAddToNote,
+                            onFeedback: onFeedback,
                             onFollowUp: { question in
                                 chat.input = question
                                 Task { await chat.send() }

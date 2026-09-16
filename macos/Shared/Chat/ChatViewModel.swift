@@ -64,6 +64,9 @@ final class ChatViewModel {
     /// Bumped whenever the draft is abandoned, so an upload that lands afterwards
     /// deletes itself instead of attaching to a conversation the user has left.
     private var attachmentDraftVersion = 0
+    /// Per-message rating version, so a slow PATCH cannot undo the thumb that
+    /// replaced it. Keyed by message id; see `setFeedback`.
+    private var feedbackVersions: [String: Int] = [:]
 
     // MARK: Answer recovery
 
@@ -276,6 +279,59 @@ final class ChatViewModel {
         for id in ids {
             // Keep going so one failure doesn't strand the rest.
             try? await api.data("/api/conversations/\(id)", method: "DELETE")
+        }
+    }
+
+    // MARK: Answer feedback
+
+    /// Rate one settled assistant answer, or clear its rating with `nil`.
+    ///
+    /// Optimistic: the thumb fills the moment it is tapped and is put back if
+    /// the write fails. The failure text is *returned* rather than written to
+    /// `sendError`, because that field renders the retry card whose button
+    /// re-asks the question - the shells already own a toast for an action that
+    /// failed on its own (the receipts line's `onError`), and a rating belongs
+    /// there.
+    ///
+    /// `reason` is carried only with `.down`; the request body drops it
+    /// otherwise.
+    @discardableResult
+    func setFeedback(
+        messageID: String,
+        feedback: AnswerFeedback?,
+        reason: String? = nil
+    ) async -> String? {
+        // A turn whose conversation never got created was never persisted, so
+        // there is no row to rate.
+        guard let conversationID = activeConversationID,
+              let index = uiMessages.firstIndex(where: { $0.id == messageID }),
+              uiMessages[index].role == .assistant
+        else { return nil }
+
+        let previous = uiMessages[index].feedback
+        uiMessages[index].feedback = feedback?.rawValue
+
+        // Same guard shape as `historyLoadVersion` and `recoveryVersion` above:
+        // a PATCH that has been superseded must not revert - or re-assert - the
+        // rating that replaced it.
+        let version = (feedbackVersions[messageID] ?? 0) + 1
+        feedbackVersions[messageID] = version
+
+        do {
+            try await AnswerFeedbackAPI.setAnswerFeedback(
+                api: api,
+                conversationID: conversationID,
+                messageID: messageID,
+                feedback: feedback,
+                reason: reason
+            )
+            return nil
+        } catch {
+            guard feedbackVersions[messageID] == version else { return nil }
+            if let index = uiMessages.firstIndex(where: { $0.id == messageID }) {
+                uiMessages[index].feedback = previous
+            }
+            return (error as? APIError)?.message ?? Self.feedbackError
         }
     }
 
@@ -758,4 +814,7 @@ final class ChatViewModel {
 
     static let emptyStreamError =
         "The answer stream ended before anything arrived. Retry to ask again."
+
+    static let feedbackError =
+        "We couldn't save that rating."
 }

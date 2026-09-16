@@ -311,3 +311,33 @@ SELECT
 FROM "VerseOfDay" v
 GROUP BY 1
 ORDER BY 1;
+
+
+-- ---------------------------------------------------------------------------
+-- 8. Answer feedback by week
+-- One row per week in which any answer was rated. A thumb is one user's
+-- judgment of one answer (docs/FEATURES.md, "Answer feedback, and how it
+-- reaches the doctrinal eval harness"), stored in Message.feedback rather than
+-- metadata so a retry cannot erase it. It is never folded into the mechanical
+-- eval score, and no user ever sees a count: this is here so the audit can
+-- watch the ratio, and so thumbs-down weeks can be pulled into the harness
+-- with scripts/feedback-to-fixtures.mjs.
+--
+-- Weeks are keyed on feedbackAt, not createdAt: the week someone judged the
+-- answer, which is the week the signal arrived. reasons_given counts the
+-- thumbs-down rows that carried an optional "what went wrong" note, which are
+-- the only ones worth reading by hand.
+-- ---------------------------------------------------------------------------
+SELECT
+	date_trunc('week', (m."feedbackAt" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Los_Angeles'))::date AS week,
+	count(*) FILTER (WHERE m.feedback = 'up') AS thumbs_up,
+	count(*) FILTER (WHERE m.feedback = 'down') AS thumbs_down,
+	count(*) FILTER (WHERE m.feedback = 'down' AND m."feedbackReason" IS NOT NULL) AS reasons_given,
+	count(DISTINCT c."userId") AS rating_accounts,
+	round(100.0 * count(*) FILTER (WHERE m.feedback = 'up') / nullif(count(*), 0), 1) AS thumbs_up_pct
+FROM "Message" m
+JOIN "Conversation" c ON c.id = m."conversationId"
+WHERE m.feedback IN ('up', 'down')
+	AND m."feedbackAt" IS NOT NULL
+GROUP BY 1
+ORDER BY 1;

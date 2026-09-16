@@ -521,3 +521,48 @@ describe("dbMessageToUIMessage", () => {
 		expect(() => dbMessageToUIMessage(null)).toThrow();
 	});
 });
+
+describe("answer feedback", () => {
+	const row = (feedback: unknown) => ({
+		id: "rated",
+		role: "assistant" as const,
+		content: "Answer",
+		feedback,
+		feedbackReason: null,
+		feedbackAt: null,
+	});
+
+	it("replays the chosen thumb from the row's own columns", () => {
+		expect(toViewMessage(dbMessageToUIMessage(row("up")), { isStreaming: false }).feedback).toBe("up");
+		expect(toViewMessage(dbMessageToUIMessage(row("down")), { isStreaming: false }).feedback).toBe("down");
+	});
+
+	it("leaves an unrated answer with no thumb", () => {
+		for (const value of [null, undefined, "", "helpful", 1]) {
+			const view = toViewMessage(dbMessageToUIMessage(row(value)), { isStreaming: false });
+			expect(view.feedback).toBeUndefined();
+		}
+	});
+
+	it("keeps the rest of the stored metadata alongside the thumb", () => {
+		const ui = dbMessageToUIMessage({
+			id: "rated-with-metadata",
+			role: "assistant",
+			content: "Answer",
+			feedback: "down",
+			metadata: { followUps: ["What next?"], parts: [{ type: "text", text: "Answer" }] },
+		});
+		expect(ui.metadata).toEqual({ followUps: ["What next?"], feedback: "down" });
+		const view = toViewMessage(ui, { isStreaming: false });
+		expect(view.feedback).toBe("down");
+		expect(view.followUps).toEqual(["What next?"]);
+	});
+
+	it("never rates a user turn", () => {
+		const view = toViewMessage(
+			textMessage("u1", "user", "Why?", { metadata: { feedback: "up" } }),
+			{ isStreaming: false },
+		);
+		expect(view.feedback).toBeUndefined();
+	});
+});

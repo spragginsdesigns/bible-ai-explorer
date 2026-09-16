@@ -136,6 +136,19 @@ struct ChatTabView: View {
                 onCrossReplaced: { app.dailyCross.invalidate() },
                 onAddToNote: { answer in
                     noteTarget = PendingNoteSave(id: answer.id, markdown: answer.content)
+                },
+                onFeedback: { answer, feedback, reason in
+                    Task {
+                        // The thumb has already moved; only a failed write has
+                        // anything to say.
+                        if let failure = await chat.setFeedback(
+                            messageID: answer.id,
+                            feedback: feedback,
+                            reason: reason
+                        ) {
+                            show(toast: failure)
+                        }
+                    }
                 }
             )
         }

@@ -24,6 +24,7 @@ import {
 	type ClassifiedChatError,
 } from "@/lib/chat/chatErrors";
 import { buildReceipts, type ChatReceipt } from "@/lib/chat/receipts";
+import { feedbackByMessageId, type AnswerFeedback } from "@/lib/chat/feedback-client";
 import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
@@ -85,6 +86,19 @@ export interface ChatMessage {
 	 * renders receipts.
 	 */
 	receipts?: ChatReceipt[];
+	/**
+	 * The reader's own thumb on this answer (docs/FEATURES.md, Answer feedback).
+	 * Replayed from the persisted row on history load; the rating control owns
+	 * the value from the moment the reader touches it. Nobody ever sees anyone
+	 * else's rating, and there are no counts.
+	 */
+	feedback?: AnswerFeedback | null;
+	/**
+	 * Conversation that owns this row, so the rating control has a PATCH target
+	 * without threading a prop through MessageList. Absent on the note panel's
+	 * answers, which are not persisted messages and are not rated.
+	 */
+	conversationId?: string;
 	attachments?: ChatAttachmentDescriptor[];
 	/** Human-readable label for the tool currently running, e.g. "Searching the Scriptures". */
 	activity?: string;
@@ -206,7 +220,12 @@ interface LegacyMessageMetadata {
  */
 export function toViewMessage(
 	message: SureWordUIMessage,
-	options: { isStreaming: boolean }
+	options: {
+		isStreaming: boolean;
+		/** Omitted by callers whose answers are not persisted messages. */
+		conversationId?: string | null;
+		feedback?: AnswerFeedback | null;
+	}
 ): ChatMessage {
 	const legacy = isRecord(message.metadata)
 		? (message.metadata as LegacyMessageMetadata)
@@ -340,6 +359,8 @@ export function toViewMessage(
 		...(noteActions.length > 0 ? { noteActions } : {}),
 		...(crossActions.length > 0 ? { crossActions } : {}),
 		...(receipts.length > 0 ? { receipts } : {}),
+		...(options.conversationId ? { conversationId: options.conversationId } : {}),
+		...(options.feedback ? { feedback: options.feedback } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(progress ? { progress } : {}),
@@ -409,6 +430,12 @@ export const useChat = () => {
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [historyError, setHistoryError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<ClassifiedChatError | null>(null);
+	/**
+	 * Ratings as the server last reported them, keyed by message id. Seeded when
+	 * a conversation's history arrives; the control itself owns the value after
+	 * the reader touches it, so this map is only ever the replay source.
+	 */
+	const [messageFeedback, setMessageFeedback] = useState<Record<string, AnswerFeedback>>({});
 	const [input, setInput] = useState("");
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
@@ -613,6 +640,7 @@ export const useChat = () => {
 						if (res.ok) {
 							const restored = completedHistory(await res.json());
 							if (restored) {
+								setMessageFeedback(feedbackByMessageId(restored));
 								setUIMessages(restored.map(dbMessageToUIMessage));
 								pendingAnswerRef.current = null;
 								setSendError(null);
@@ -719,6 +747,7 @@ export const useChat = () => {
 			historyErrorRef.current = false;
 			historyLoadingRef.current = true;
 			setHistoryLoading(true);
+			setMessageFeedback({});
 			setUIMessages([]);
 
 			try {
@@ -731,6 +760,7 @@ export const useChat = () => {
 					throw new Error("Conversation history response was invalid.");
 				}
 
+				setMessageFeedback(feedbackByMessageId(data.messages));
 				setUIMessages(data.messages.map(dbMessageToUIMessage));
 			} catch {
 				if (loadVersion === historyLoadVersionRef.current) {
@@ -770,6 +800,7 @@ export const useChat = () => {
 		setActiveConversationId(null);
 		conversationIdRef.current = null;
 		setSendError(null);
+		setMessageFeedback({});
 		setUIMessages([]);
 	}, [cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]);
 
@@ -932,6 +963,8 @@ export const useChat = () => {
 					busy &&
 					message.role === "assistant" &&
 					message.id === activeAssistantId,
+				conversationId: activeConversationId,
+				feedback: messageFeedback[message.id] ?? null,
 			})
 		).filter(isRenderableChatMessage);
 
@@ -948,7 +981,7 @@ export const useChat = () => {
 		}
 
 		return viewMessages;
-	}, [uiMessages, isStreaming, loading]);
+	}, [uiMessages, isStreaming, loading, activeConversationId, messageFeedback]);
 
 	const activeConversation =
 		conversations.find((c) => c.id === activeConversationId) ?? null;

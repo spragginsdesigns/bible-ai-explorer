@@ -13,6 +13,13 @@ struct UIMessage: Sendable, Equatable, Identifiable {
     var role: Role
     var parts: [UIMessagePart] = []
     var metadata: JSONValue?
+    /// The user's own thumb on this answer, as the raw wire string
+    /// (`"up"` / `"down"`), restored from the row's own column rather than from
+    /// `metadata` - the ask-question persist replaces `metadata` wholesale on a
+    /// retry and would erase a rating kept there. Held as a `String?` so a value
+    /// this build has no case for still round-trips; `ChatViewMessage` is where
+    /// it narrows to `AnswerFeedback`.
+    var feedback: String?
 }
 
 enum UIMessagePart: Sendable, Equatable {

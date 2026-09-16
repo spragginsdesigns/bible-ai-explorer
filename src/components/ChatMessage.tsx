@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2, NotebookPen } from "lucide-react";
+import { Loader2, NotebookPen, ThumbsDown, ThumbsUp } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -15,6 +15,11 @@ import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import WorkActivity from "./WorkActivity";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
 import ReceiptLine from "./chat/ReceiptLine";
+import {
+	FEEDBACK_REASON_MAX_LENGTH,
+	setAnswerFeedback,
+	type AnswerFeedback,
+} from "@/lib/chat/feedback-client";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -23,8 +28,87 @@ interface ChatMessageProps {
 	conversationTitle?: string;
 }
 
+/** Quiet chrome under a settled answer: "Add to notes" and the two thumbs. */
+const ACTION_CLASS =
+	"flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors";
+/** A chosen thumb wears the accent the hover state promises. */
+const ACTION_CHOSEN_CLASS =
+	"flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 transition-colors";
+/** Thumb glyphs are the whole target, so they carry the 44px minimum. */
+const THUMB_TAP_CLASS = "min-h-11 min-w-11 justify-center sm:min-h-0 sm:min-w-0";
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversationTitle }) => {
 	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
+	/**
+	 * `undefined` means "nobody has touched this yet", so the value the server
+	 * replayed still stands. Anything else is this reader's own choice and wins
+	 * until the conversation is reloaded.
+	 */
+	const [chosenFeedback, setChosenFeedback] = useState<AnswerFeedback | null | undefined>(undefined);
+	const [reasonOpen, setReasonOpen] = useState(false);
+	const [reason, setReason] = useState("");
+	const [feedbackPending, setFeedbackPending] = useState(false);
+	const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+	const conversationId = message.conversationId;
+	const feedback = chosenFeedback === undefined ? message.feedback ?? null : chosenFeedback;
+
+	/**
+	 * Write the thumb, optimistically. The chosen glyph fills immediately and
+	 * reverts to whatever it was if the route refuses, which is the same
+	 * pattern the receipt line's Undo uses.
+	 */
+	const saveFeedback = async (next: AnswerFeedback | null, nextReason?: string) => {
+		if (!conversationId || feedbackPending) return;
+		const previous = feedback;
+		setChosenFeedback(next);
+		setFeedbackPending(true);
+		setFeedbackError(null);
+		try {
+			const saved = await setAnswerFeedback(conversationId, message.id, next, nextReason);
+			setChosenFeedback(saved.feedback);
+		} catch (error) {
+			setChosenFeedback(previous);
+			setFeedbackError(
+				error instanceof Error ? error.message : "Could not save that rating."
+			);
+		} finally {
+			setFeedbackPending(false);
+		}
+	};
+
+	// Every entry point checks `feedbackPending` itself: saveFeedback's own guard
+	// would otherwise let a click that lands mid-request move the panel without
+	// writing anything.
+	const rateUp = () => {
+		if (feedbackPending) return;
+		setReasonOpen(false);
+		void saveFeedback(feedback === "up" ? null : "up");
+	};
+
+	/**
+	 * Thumbs down records the judgment straight away and then asks why. The
+	 * reason is genuinely optional, so a reader who walks away from the field
+	 * has still been heard.
+	 */
+	const rateDown = () => {
+		if (feedbackPending) return;
+		if (feedback === "down") {
+			setReasonOpen(false);
+			void saveFeedback(null);
+			return;
+		}
+		setReason("");
+		setReasonOpen(true);
+		void saveFeedback("down");
+	};
+
+	const sendReason = () => {
+		if (feedbackPending || !reason.trim()) return;
+		setReasonOpen(false);
+		void saveFeedback("down", reason);
+	};
+
 	if (message.role === "user") {
 		return (
 			<div className="flex justify-end mb-4 animate-message-in">
@@ -87,14 +171,81 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
 				{doneStreaming && message.content && (
-					<button
-						type="button"
-						onClick={() => setAddToNoteOpen(true)}
-						className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-					>
-						<NotebookPen className="w-3.5 h-3.5" />
-						Add to notes
-					</button>
+					<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+						<button type="button" onClick={() => setAddToNoteOpen(true)} className={ACTION_CLASS}>
+							<NotebookPen className="w-3.5 h-3.5" />
+							Add to notes
+						</button>
+						{/* A rating needs a persisted row to land on, so the note panel's
+						    answers show no thumbs. */}
+						{conversationId && (
+							<div className="flex items-center gap-1">
+								<button
+									type="button"
+									onClick={rateUp}
+									disabled={feedbackPending}
+									aria-pressed={feedback === "up"}
+									aria-label="Helpful"
+									title="Helpful"
+									className={`${feedback === "up" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${THUMB_TAP_CLASS} disabled:opacity-60`}
+								>
+									<ThumbsUp className={`w-3.5 h-3.5 ${feedback === "up" ? "fill-current" : ""}`} />
+								</button>
+								<button
+									type="button"
+									onClick={rateDown}
+									disabled={feedbackPending}
+									aria-pressed={feedback === "down"}
+									aria-label="Not helpful"
+									title="Not helpful"
+									className={`${feedback === "down" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${THUMB_TAP_CLASS} disabled:opacity-60`}
+								>
+									<ThumbsDown
+										className={`w-3.5 h-3.5 ${feedback === "down" ? "fill-current" : ""}`}
+									/>
+								</button>
+							</div>
+						)}
+					</div>
+				)}
+				{reasonOpen && conversationId && (
+					<div className="mt-2 flex flex-wrap items-center gap-2">
+						<input
+							type="text"
+							value={reason}
+							onChange={(event) => setReason(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") {
+									event.preventDefault();
+									sendReason();
+								}
+							}}
+							maxLength={FEEDBACK_REASON_MAX_LENGTH}
+							placeholder="What went wrong? (optional)"
+							aria-label="What went wrong? (optional)"
+							className="min-h-11 sm:min-h-0 flex-1 min-w-0 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-3 py-2 text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:border-amber-500/50"
+						/>
+						<button
+							type="button"
+							onClick={() => setReasonOpen(false)}
+							className={`${ACTION_CLASS} min-h-11 sm:min-h-0`}
+						>
+							Skip
+						</button>
+						<button
+							type="button"
+							onClick={sendReason}
+							disabled={feedbackPending || !reason.trim()}
+							className={`${ACTION_CLASS} min-h-11 sm:min-h-0 disabled:opacity-60`}
+						>
+							Send
+						</button>
+					</div>
+				)}
+				{feedbackError && (
+					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+						{feedbackError}
+					</p>
 				)}
 				{addToNoteOpen && (
 					<AddToNoteDialog

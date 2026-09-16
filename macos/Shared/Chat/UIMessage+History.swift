@@ -54,7 +54,10 @@ extension UIMessage {
             id: id,
             role: role,
             parts: parts,
-            metadata: legacyMetadata.isEmpty ? nil : .object(legacyMetadata)
+            metadata: legacyMetadata.isEmpty ? nil : .object(legacyMetadata),
+            // Its own column on the row, absent on every server older than the
+            // `20260916010000_answer_feedback` migration, so read leniently.
+            feedback: value["feedback"]?.stringValue
         )
     }
 }

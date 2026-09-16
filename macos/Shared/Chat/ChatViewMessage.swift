@@ -131,6 +131,9 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     /// renders receipts.
     var receipts: [ChatReceipt] = []
     var attachments: [ChatAttachment] = []
+    /// This user's own thumb on a settled assistant answer, replayed from
+    /// history. Never a count, and never anyone else's rating.
+    var feedback: AnswerFeedback?
     /// Live "Getting ready / Reading <file> / Thinking" line, or the label of
     /// a tool that is mid-flight. Only ever set while streaming.
     var activity: String?
@@ -364,6 +367,9 @@ extension ChatViewMessage {
             crossActions: crossActions,
             receipts: Self.buildReceipts(message.parts),
             attachments: attachments,
+            // An unrecognised wire value narrows to "no thumb" rather than
+            // failing the message, the same rule the parsers below follow.
+            feedback: message.feedback.flatMap(AnswerFeedback.init(rawValue:)),
             activity: isStreaming ? (progress?.state == "running" ? progress?.label : activity) : nil,
             progress: progress,
             isStreaming: isStreaming

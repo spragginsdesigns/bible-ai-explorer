@@ -277,6 +277,7 @@ export default function ChatScreen() {
 						onFollowUp={send}
 						bottomInset={spacing.lg}
 						defaultNoteTitle={chat.activeConversation?.title}
+						onFeedback={chat.setFeedback}
 					>
 						{error && (
 							<ErrorCard
