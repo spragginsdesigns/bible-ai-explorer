@@ -1,13 +1,5 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import {
-	Animated,
-	Easing,
-	ImageBackground,
-	Pressable,
-	ScrollView,
-	StyleSheet,
-	View,
-} from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
@@ -15,16 +7,16 @@ import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
-import { buildSuggestedQuestionItems } from "./questionPresentation";
+import { buildSuggestedQuestionItems, type SuggestedQuestionItem } from "./questionPresentation";
 
 export const WELCOME_HEADLINE = "Come hungry for the Word.";
-export const WELCOME_SUBHEAD =
-	"SureWord is your personal Bible study companion, shaped by your reading, questions, notes, and daily walk—helping you go deeper in Scripture every day.";
-export const WELCOME_VERSE =
-	"“As newborn babes, desire the sincere milk of the word, that ye may grow thereby:”";
-export const WELCOME_VERSE_CITATION = "— 1 Peter 2:2, KJV";
-export const WELCOME_TRUST =
-	"Scripture comes first. Every answer is grounded in God's inerrant, infallible Word.";
+
+/**
+ * How many opening questions show before the reveal row. Four rows plus the
+ * hero fit above the docked composer on a phone without scrolling; the server
+ * still sends six, and the reveal keeps every one of them reachable.
+ */
+export const VISIBLE_QUESTION_COUNT = 4;
 
 function QuestionSkeleton() {
 	const styles = useThemedStyles(createStyles);
@@ -49,14 +41,12 @@ function QuestionSkeleton() {
 	return (
 		<View accessibilityLabel="Preparing your questions" style={styles.questionsSection}>
 			<SectionHeading />
-			<View style={styles.featuredQuestion}>
-				<Animated.View style={[styles.skeletonReference, { opacity: pulse }]} />
-				<Animated.View style={[styles.skeletonFeaturedLine, { opacity: pulse }]} />
-				<Animated.View style={[styles.skeletonFeaturedLineShort, { opacity: pulse }]} />
-			</View>
-			{(["84%", "71%", "88%"] as const).map((width) => (
-				<View key={width} style={styles.questionRow}>
-					<Animated.View style={[styles.skeletonRowLine, { width, opacity: pulse }]} />
+			{(["16%", "29%", "12%", "24%"] as const).map((trailing) => (
+				<View key={trailing} style={styles.questionRow}>
+					<Animated.View style={[styles.skeletonReference, { opacity: pulse }]} />
+					<Animated.View
+						style={[styles.skeletonRowLine, { marginRight: trailing, opacity: pulse }]}
+					/>
 				</View>
 			))}
 		</View>
@@ -74,20 +64,53 @@ function SectionHeading() {
 	);
 }
 
-export function WelcomeState({
-	onSelectQuestion,
-	bottomInset,
-	composer,
+function QuestionRow({
+	item,
+	onPress,
 }: {
-	onSelectQuestion: (question: string) => void;
-	bottomInset: number;
-	composer: React.ReactNode;
+	item: SuggestedQuestionItem;
+	onPress: () => void;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	return (
+		<Pressable
+			accessibilityRole="button"
+			accessibilityLabel={item.question}
+			onPress={onPress}
+			style={({ pressed }) => [
+				styles.questionRow,
+				pressed && { backgroundColor: colors.accentPressed },
+			]}
+		>
+			{item.label ? <Text style={styles.questionReference}>{item.label}</Text> : null}
+			<Text style={styles.questionLabel}>{item.question}</Text>
+			<Ionicons name="chevron-forward" size={19} color={colors.accentDim} />
+		</Pressable>
+	);
+}
+
+/**
+ * The empty Chat tab. The composer is not rendered here: `index.tsx` docks it
+ * at the bottom in every state, so it never moves when the first answer
+ * arrives. This screen owns what sits above it - the mark and the headline,
+ * centred in whatever room the keyboard leaves, and the opening questions
+ * gathered just above the composer where the thumb already is.
+ */
+export function WelcomeState({
+	onSelectQuestion,
+	bottomInset,
+}: {
+	onSelectQuestion: (question: string) => void;
+	bottomInset: number;
+}) {
+	const styles = useThemedStyles(createStyles);
 	const { questions, loading } = useSuggestedQuestions();
 	const questionItems = useMemo(() => buildSuggestedQuestionItems(questions), [questions]);
-	const [featured, ...remaining] = questionItems;
+	const [showAll, setShowAll] = useState(false);
+	const hiddenCount = Math.max(0, questionItems.length - VISIBLE_QUESTION_COUNT);
+	const visibleItems =
+		showAll || hiddenCount === 0 ? questionItems : questionItems.slice(0, VISIBLE_QUESTION_COUNT);
 
 	return (
 		<ScrollView
@@ -96,77 +119,36 @@ export function WelcomeState({
 			showsVerticalScrollIndicator={false}
 			keyboardShouldPersistTaps="handled"
 		>
-			<ImageBackground
-				source={require("../../../assets/sureword-welcome-stained-glass.webp")}
-				style={styles.art}
-				imageStyle={styles.artImage}
-				resizeMode="cover"
-				accessibilityIgnoresInvertColors
-			>
-				<SureWordGuideAvatar variant="hero" size={154} />
-			</ImageBackground>
-
-			<View style={styles.scriptureBlock}>
+			<View style={styles.hero}>
+				<SureWordGuideAvatar variant="hero" size={96} />
 				<Text style={styles.headline}>{WELCOME_HEADLINE}</Text>
-				<Text style={styles.subhead}>{WELCOME_SUBHEAD}</Text>
-				<View
-					style={styles.verseBlock}
-					accessible
-					accessibilityRole="text"
-					accessibilityLabel={`${WELCOME_VERSE} ${WELCOME_VERSE_CITATION}`}
-				>
-					<Text style={styles.verse}>{WELCOME_VERSE}</Text>
-					<Text style={styles.citation}>{WELCOME_VERSE_CITATION}</Text>
-				</View>
-				<Text style={styles.trust}>{WELCOME_TRUST}</Text>
 			</View>
-
-			<View style={styles.composer}>{composer}</View>
 
 			{loading ? (
 				<QuestionSkeleton />
-			) : featured ? (
+			) : visibleItems.length > 0 ? (
 				<View style={styles.questionsSection}>
 					<SectionHeading />
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel={featured.question}
-						onPress={() => onSelectQuestion(featured.question)}
-						style={({ pressed }) => [
-							styles.featuredQuestion,
-							pressed && {
-								backgroundColor: colors.accentPressed,
-								borderColor: colors.accent,
-							},
-						]}
-					>
-						{featured.label ? (
-							<Text style={styles.featuredReference}>{featured.label}</Text>
-						) : null}
-						<View style={styles.featuredBody}>
-							<Text style={styles.featuredLabel}>{featured.question}</Text>
-							<Ionicons name="chevron-forward" size={23} color={colors.accent} />
-						</View>
-					</Pressable>
-
-					{remaining.map((item) => (
-						<Pressable
+					{visibleItems.map((item) => (
+						<QuestionRow
 							key={item.key}
-							accessibilityRole="button"
-							accessibilityLabel={item.question}
+							item={item}
 							onPress={() => onSelectQuestion(item.question)}
-							style={({ pressed }) => [
-								styles.questionRow,
-								pressed && { backgroundColor: colors.accentPressed },
-							]}
-						>
-							{item.label ? (
-								<Text style={styles.questionReference}>{item.label}</Text>
-							) : null}
-							<Text style={styles.questionLabel}>{item.question}</Text>
-							<Ionicons name="chevron-forward" size={19} color={colors.accentDim} />
-						</Pressable>
+						/>
 					))}
+					{!showAll && hiddenCount > 0 ? (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={`Show ${hiddenCount} more ${hiddenCount === 1 ? "question" : "questions"} from your study`}
+							onPress={() => setShowAll(true)}
+							style={({ pressed }) => [styles.moreRow, pressed && styles.moreRowPressed]}
+						>
+							<Text style={styles.moreLabel}>
+								+{hiddenCount} more from your study
+							</Text>
+							<Ionicons name="chevron-down" size={16} style={styles.moreIcon} />
+						</Pressable>
+					) : null}
 				</View>
 			) : null}
 		</ScrollView>
@@ -177,67 +159,33 @@ const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		fill: { flex: 1 },
 		content: {
+			flexGrow: 1,
 			paddingHorizontal: spacing.lg,
-			paddingTop: spacing.xs,
 		},
-		art: {
-			height: 214,
+		// Grows to take whatever the questions leave, so the mark floats in the
+		// middle of the free space on a tall screen. It keeps its own height
+		// (flexShrink stays 0), so with the keyboard up it scrolls out of the
+		// way rather than squashing the mark. No minHeight on purpose.
+		hero: {
+			flexGrow: 1,
 			alignItems: "center",
 			justifyContent: "center",
-			marginHorizontal: -spacing.xs,
-		},
-		artImage: { borderRadius: radius.sm },
-		scriptureBlock: {
-			marginTop: -spacing.sm,
-			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.xl,
 		},
 		headline: {
 			color: c.accent,
 			fontFamily: fonts.brand,
-			fontSize: 32,
-			lineHeight: 38,
-			textAlign: "center",
-		},
-		subhead: {
-			...typography.chat,
-			color: c.parchmentInk,
-			marginTop: spacing.sm,
-			textAlign: "center",
-		},
-		verseBlock: {
-			borderTopColor: c.accentBorder,
-			borderTopWidth: StyleSheet.hairlineWidth,
-			marginTop: spacing.sm,
-			paddingTop: spacing.sm,
-		},
-		verse: {
-			color: c.parchmentInk,
-			fontFamily: fonts.verse,
-			fontSize: 19,
-			lineHeight: 28,
-			textAlign: "center",
-		},
-		citation: {
-			...typography.meta,
-			color: c.accent,
-			fontWeight: "700",
-			letterSpacing: 1.2,
-			marginTop: spacing.xs,
-			textAlign: "center",
-		},
-		trust: {
-			...typography.support,
-			color: c.textSecondary,
+			fontSize: 28,
+			lineHeight: 34,
 			marginTop: spacing.md,
 			textAlign: "center",
 		},
-		composer: { marginTop: spacing.lg },
-		questionsSection: { marginTop: spacing.xl },
+		questionsSection: { paddingBottom: spacing.md },
 		sectionHeading: {
 			flexDirection: "row",
 			alignItems: "center",
 			gap: spacing.sm,
-			marginBottom: spacing.md,
+			marginBottom: spacing.xs,
 		},
 		sectionHeadingText: {
 			...typography.meta,
@@ -247,35 +195,13 @@ const createStyles = (c: Colors) =>
 		},
 		sectionRule: { flex: 1, height: 1, backgroundColor: c.accentBorder },
 		sectionSpark: { color: c.accentDim },
-		featuredQuestion: {
-			minHeight: 116,
-			justifyContent: "center",
-			padding: spacing.lg,
-			backgroundColor: c.glass,
-			borderColor: c.accentBorder,
-			borderWidth: 1,
-			borderRadius: radius.lg,
-		},
-		featuredReference: {
-			...typography.meta,
-			color: c.accent,
-			fontWeight: "700",
-			letterSpacing: 1.5,
-			marginBottom: spacing.sm,
-		},
-		featuredBody: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-		featuredLabel: {
-			...typography.chat,
-			flex: 1,
-			color: c.parchmentInk,
-		},
 		questionRow: {
-			minHeight: 64,
+			minHeight: 56,
 			flexDirection: "row",
 			alignItems: "center",
 			gap: spacing.md,
 			paddingHorizontal: spacing.sm,
-			paddingVertical: spacing.md,
+			paddingVertical: spacing.sm,
 			borderBottomColor: c.accentBorder,
 			borderBottomWidth: StyleSheet.hairlineWidth,
 		},
@@ -293,27 +219,25 @@ const createStyles = (c: Colors) =>
 			letterSpacing: 0.4,
 		},
 		questionLabel: { flex: 1, color: c.textSecondary, ...typography.body },
+		moreRow: {
+			minHeight: 44,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: spacing.xs,
+			borderRadius: radius.md,
+		},
+		moreRowPressed: { backgroundColor: c.accentPressed },
+		moreLabel: { ...typography.support, color: c.accentDim, fontWeight: "600" },
+		moreIcon: { color: c.accentDim },
 		skeletonReference: {
 			width: 74,
 			height: 10,
 			borderRadius: radius.full,
 			backgroundColor: c.accentSoft,
-			marginBottom: spacing.md,
-		},
-		skeletonFeaturedLine: {
-			width: "88%",
-			height: 18,
-			borderRadius: radius.full,
-			backgroundColor: c.accentSoft,
-		},
-		skeletonFeaturedLineShort: {
-			width: "62%",
-			height: 18,
-			borderRadius: radius.full,
-			backgroundColor: c.accentSoft,
-			marginTop: spacing.sm,
 		},
 		skeletonRowLine: {
+			flex: 1,
 			height: 13,
 			borderRadius: radius.full,
 			backgroundColor: c.accentSoft,

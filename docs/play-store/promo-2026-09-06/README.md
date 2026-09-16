@@ -17,7 +17,7 @@ Open `index.html` for the full gallery or `contact-sheet.png` for the overview. 
 7. **Keep your study. Build on it.** — a real study note saved from a chat response.
 8. **Make room for the Word.** — reading plans with automatic progress from reading.
 
-`alternate-welcome.png` is an optional alternate for slot 1, featuring the app's stained-glass welcome art. Use it in place of an image, since Google Play supports eight phone screenshots per device type. It is outside the main ZIP.
+`alternate-welcome.png` is retired as of Android 1.67.0: it showed the stained-glass welcome art, and the empty chat now opens as a chat (guide mark, headline, opening questions, docked composer). Do not submit it to the listing; a fresh slot-1 alternate needs a new capture of the redesigned screen.
 
 ## How these were made
 

@@ -150,8 +150,10 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	const title = activeConversation?.title ?? "New Chat";
 
-	// The welcome renders the composer inline (Android parity), so the docked
-	// copy is suppressed there. Loading/error states keep the docked composer.
+	// The welcome renders the composer inline because the desktop fold has room
+	// for it under the hero, so the docked copy is suppressed there. (Android
+	// docks its composer in every state instead.) Loading/error states keep the
+	// docked composer.
 	const showWelcome =
 		!historyLoading && !historyError && messages.length === 0;
 

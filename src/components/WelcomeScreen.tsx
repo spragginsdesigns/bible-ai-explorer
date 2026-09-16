@@ -10,8 +10,9 @@ import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
 interface WelcomeScreenProps {
   onSelectQuestion: (question: string) => void;
   /**
-   * The chat composer, rendered inline under the hero so it stays above the
-   * fold on desktop. Android does the same (mobile WelcomeState `composer`).
+   * The chat composer, rendered inline under the hero because the desktop
+   * fold has room for it there. Android docks its composer at the bottom in
+   * every state instead (see `mobile/app/(app)/index.tsx`).
    */
   composer?: React.ReactNode;
 }
@@ -93,30 +94,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               className="w-full h-full object-cover scale-110"
             />
           </div>
-          <p className="mb-2 text-metadata font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
-            SureWord
-          </p>
-          <h1 className="text-4xl sm:text-6xl font-bold text-neutral-900 dark:text-white mb-3 font-[family-name:var(--font-pirata)]">
+          {/* Headline only: the pitch, the verse and the trust line live on
+              the signed-out landing page now. A signed-in user is here to ask. */}
+          <h1 className="text-4xl sm:text-6xl font-bold text-neutral-900 dark:text-white font-[family-name:var(--font-pirata)]">
             Come hungry for the Word.
           </h1>
-          <p className="text-chat text-neutral-700 dark:text-neutral-200 max-w-xl mx-auto">
-            SureWord is your personal Bible study companion, shaped by your
-            reading, questions, notes, and daily walk—helping you go deeper in
-            Scripture every day.
-          </p>
-          <figure className="mt-5 max-w-lg mx-auto text-neutral-700 dark:text-neutral-200">
-            <blockquote className="font-[family-name:var(--font-cormorant)] text-lg italic leading-7">
-              “As newborn babes, desire the sincere milk of the word, that ye
-              may grow thereby:”
-            </blockquote>
-            <figcaption className="mt-1 text-metadata font-medium text-neutral-600 dark:text-neutral-300">
-              — 1 Peter 2:2, KJV
-            </figcaption>
-          </figure>
-          <p className="mt-4 text-support text-neutral-600 dark:text-neutral-300 max-w-lg mx-auto">
-            Scripture comes first. Every answer is grounded in God&apos;s
-            inerrant, infallible Word.
-          </p>
         </div>
 
         {composer ? (

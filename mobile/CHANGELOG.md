@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.67.0 (versionCode 70) - 2026-09-16 - internal
+
+**What's new (Play):**
+
+- Chat opens as a chat now: the SureWord mark, your opening questions, and the message box right where your thumb is. The long welcome text is gone, and the box stays put when your first answer arrives.
+- Your opening questions show four at a time, with a tap to see the rest.
+
+**Dev notes:** `WelcomeState` rewritten around a docked composer: `index.tsx` renders the input bar in every state (the welcome no longer takes a `composer` prop), the hero is the 96px guide mark plus the headline centred in the free space, and the questions are compact rows with a `+N more from your study` reveal (`VISIBLE_QUESTION_COUNT = 4`, server order untouched). The stained-glass welcome asset is deleted. The same commit trims web, macOS and iOS to the headline (`tests/welcome-copy-parity.test.mjs` now asserts the pitch stays off every empty-chat surface); the Swift edits await the next Mac compile.
+
 ## 1.66.0 (versionCode 69) - 2026-09-16 - internal
 
 **What's new (Play):**

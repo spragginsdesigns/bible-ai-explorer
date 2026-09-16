@@ -266,11 +266,7 @@ export default function ChatScreen() {
 						/>
 					</View>
 				) : showWelcome ? (
-					<WelcomeState
-						onSelectQuestion={send}
-						bottomInset={tabBarSpace + spacing.xl}
-						composer={inputBar}
-					/>
+					<WelcomeState onSelectQuestion={send} bottomInset={spacing.lg} />
 				) : (
 					<MessageList
 						messages={messages}
@@ -292,11 +288,11 @@ export default function ChatScreen() {
 					</MessageList>
 				)}
 
-				{!showWelcome && (
-					<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
-						{inputBar}
-					</View>
-				)}
+				{/* Docked in every state, the welcome included, so the composer
+				    never jumps when the first answer replaces the empty screen. */}
+				<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
+					{inputBar}
+				</View>
 			</KeyboardAvoidingView>
 
 			<ModelPickerSheet

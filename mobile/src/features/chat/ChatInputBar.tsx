@@ -389,9 +389,20 @@ const createStyles = (c: Colors) =>
 				},
 			],
 		},
+		// On the empty screen the composer is the one thing to do, so the halo
+		// warms to gold and widens a touch; mid-conversation it settles back.
 		barProminent: {
 			borderColor: c.accentBorder,
 			borderWidth: 1,
+			boxShadow: [
+				{
+					offsetX: 0,
+					offsetY: 0,
+					blurRadius: 18,
+					spreadDistance: 0,
+					color: c.accentSoft,
+				},
+			],
 		},
 		input: {
 			paddingTop: spacing.md,

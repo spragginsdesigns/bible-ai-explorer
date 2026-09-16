@@ -36,7 +36,7 @@ describe("SureWord guide avatar contract", () => {
 	});
 
 	it("uses the shared identity everywhere the mobile AI speaks", () => {
-		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={154} />');
+		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={96} />');
 		expect(chatMessage).toContain(
 			'<SureWordGuideAvatar active={Boolean(message.isStreaming)} />',
 		);
