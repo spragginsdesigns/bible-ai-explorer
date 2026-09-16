@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.62.0 (versionCode 64) - 2026-09-15 - internal
+
+**What's new (Play):**
+
+- Ask SureWord to teach you a verse: say "learn John 3:16" in chat and it joins your Learn queue, with a receipt that opens the Learn screen.
+- Say "quiz me" and the assistant quizzes you on your verses at your level, never revealing the hidden words before you answer.
+- Pro subscriptions stay active through renewals, and abandoned checkouts no longer appear in Membership.
+
+**Dev notes:** learnVerse / getLearnVerses chat tools + learnGuidance are server-side and reach every installed build (c512857); this APK carries the "Learning <reference>" receipt, its Learn-route target, and the streaming activity labels. Billing fixes are server-side (12c61ff, 98ebd12e).
+
 ## 1.61.0 (versionCode 63) - 2026-09-13 - internal
 
 **What's new (Play):**
