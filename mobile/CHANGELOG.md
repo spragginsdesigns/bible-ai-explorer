@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.63.0 (versionCode 66) - 2026-09-15 - internal
+
+**What's new (Play):**
+
+- Tell SureWord how an answer landed: thumbs up or down under any answer, with a line about what went wrong if you like.
+- Share an answer: one tap makes a link anyone can open, with a preview card; manage or revoke your links in Settings → Shared answers.
+
+**Dev notes:** feedback columns + PATCH rules and the SharedAnswer snapshot/public page/card are server-side (8096378, da6577f, b6490e7); this APK carries the thumbs + FeedbackSheet, the Share glyph + shareApi, and the two Settings sections.
+
 ## 1.62.0 (versionCode 65) - 2026-09-15 - internal
 
 **What's new (Play):**
