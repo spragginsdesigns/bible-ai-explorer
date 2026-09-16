@@ -50,6 +50,8 @@ const PREFERENCE_SELECT = {
 	parchment: true,
 	listenRate: true,
 	highlightLabels: true,
+	highlightMeanings: true,
+	aboutMe: true,
 	defaultModelId: true,
 	defaultEffort: true,
 	defaultSpeed: true,

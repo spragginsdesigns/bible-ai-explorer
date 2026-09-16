@@ -65,7 +65,13 @@ import { maybeTitleConversation } from "@/lib/conversation-title";
 import { chatSystemPrompt, firstConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
-import { readStoredHighlightLabels } from "@/lib/preferences-contract";
+import {
+	readStoredAboutMe,
+	readStoredHighlightLabels,
+	readStoredHighlightMeanings,
+} from "@/lib/preferences-contract";
+import { loadHighlightLegend } from "@/lib/highlight-legend";
+import { formatAboutMeBlock, formatHighlightLegendBlock } from "@/lib/highlight-legend-rules";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 import {
@@ -563,11 +569,20 @@ async function handlePost(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true, name: true, email: true, highlightLabels: true },
+			select: {
+				webSearchEnabled: true,
+				name: true,
+				email: true,
+				highlightLabels: true,
+				highlightMeanings: true,
+				aboutMe: true,
+			},
 		});
 		// Read leniently, the way the preferences document does: a label written
 		// by a newer build degrades to the hue name, never to an error.
 		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
+		const highlightMeanings = readStoredHighlightMeanings(userPrefs?.highlightMeanings);
+		const aboutMe = readStoredAboutMe(userPrefs?.aboutMe);
 		// Started now, not when the prompt is built, so a first-time Clerk read
 		// runs alongside validation and persistence instead of in front of the
 		// first token. Once the name is stored this is a resolved promise.
@@ -758,12 +773,13 @@ async function handlePost(req: Request): Promise<Response> {
 						});
 					}
 
-					const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
+					const [memories, church, dayContext, legend, answeredBefore, userName] = await Promise.all([
 						loadUserMemories(userId),
 						loadUserChurch(userId),
 						// Chat is the only surface allowed to reschedule prayer follow-ups:
 						// reading the block here is what "raising it" means.
 						loadChatDayContext(userId, highlightLabels, { raisePrayerFollowUps: true }),
+						loadHighlightLegend(userId, highlightLabels, highlightMeanings),
 						hasAnsweredConversationBefore(userId, conversationId),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 					]);
@@ -872,8 +888,13 @@ async function handlePost(req: Request): Promise<Response> {
 					// to ask only once), and the shape hint goes last, nearest the answer.
 					const volatileSystem = [
 						formatUserNameLine(userName),
+						// Their own words come before what was inferred about them.
+						formatAboutMeBlock(aboutMe),
 						formatMemoryBlock(memories),
 						formatChurchBlock(church),
+						// The legend precedes the day block, which names recent highlights
+						// by these same colours.
+						formatHighlightLegendBlock(legend),
 						formatTodayBlock(dayContext),
 						answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
 						...promptHints.map((hint) => `\n\n${hint}`),

@@ -185,7 +185,8 @@ Shared/         Compiled into BOTH the macOS and iOS targets (same-module
 ├── DailyCross/   "Pick Up Your Cross" model + local reminder scheduling
 ├── Notes/        Store, models, HTML rich-text document/parser/serializer
 ├── Memories/     Memory management (list, add, delete, summary) + view
-├── Settings/     Persisted appearance + translation, memory toggle
+├── Settings/     Persisted appearance + translation, memory toggle,
+│                account preferences sync, Highlight labels, About me
 ├── Resources/    Brand fonts (Pirata One, Cormorant Garamond)
 └── DesignSystem/ Theme tokens and shared views
 
@@ -213,6 +214,23 @@ clients rather than re-derived. **If you change one side, change both.**
 The exception is `Networking/UIMessageStream.swift`: the AI SDK's transport does
 this job in the TS clients, so the SSE decoding and `UIMessage` assembly are
 written from the protocol spec and covered by recorded-chunk tests.
+
+### Settings sections shared by both Apple clients
+
+Each is one file under `Shared/Settings/`, mounted by both `SettingsView`s:
+
+- **Highlight labels** (`HighlightLabelsSection.swift`) names each of the eight
+  highlight colours and says what it means to the user, with a starter set
+  behind "Use suggested labels". Both maps are stored whole by
+  `PATCH /api/preferences`, so the section saves through
+  `PreferencesSyncModel.saveHighlightLabels`, which re-reads the account
+  document and merges only the touched colours over it.
+- **About me** (`AboutMeSection.swift`) is the paragraph the user writes about
+  themselves, capped at 1000 characters and read by the assistant on every
+  conversation. It saves through `PreferencesSyncModel.saveAboutMe`; an empty
+  box clears the column.
+- **Web search** (`WebSearchSection.swift`) is the existing per-account toggle,
+  written straight through like the other preferences.
 
 ## Releasing a DMG
 

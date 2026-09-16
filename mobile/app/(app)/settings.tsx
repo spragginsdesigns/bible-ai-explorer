@@ -41,6 +41,7 @@ import {
 } from "@/features/settings/settingsData";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
 import { HighlightLabelsSection } from "@/features/settings/HighlightLabelsSection";
+import { AboutMeSection } from "@/features/settings/AboutMeSection";
 import { SharedAnswersSection } from "@/features/chat/SharedAnswersSection";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
@@ -325,6 +326,14 @@ export default function SettingsScreen() {
 						<Text style={styles.chevron}>›</Text>
 					</Pressable>
 				</GlassCard>
+
+				{/*
+				 * Sits under Memory because it is the other half of what the
+				 * assistant knows about this user: memory is what it noticed,
+				 * About me is what they told it outright. Keyed like the labels
+				 * card so a new account never inherits the previous draft.
+				 */}
+				<AboutMeSection key={`about-${user?.id ?? "signed-out"}`} />
 
 				<SectionLabel label="WEB SEARCH" />
 				<GlassCard style={styles.card}>

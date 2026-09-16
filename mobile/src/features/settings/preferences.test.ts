@@ -4,10 +4,15 @@ import {
 	PREFERENCES_REFRESH_INTERVAL_MS,
 	DEFAULT_SYNCED_SETTINGS,
 	HIGHLIGHT_LABEL_IDS,
+	HIGHLIGHT_LABEL_PRESETS,
+	MAX_ABOUT_ME_LENGTH,
+	MAX_HIGHLIGHT_MEANING_LENGTH,
 	cacheDiscardFor,
 	highlightLabelFor,
 	mergeHighlightLabelEdits,
+	mergeHighlightMeaningEdits,
 	normalizeHighlightLabels,
+	normalizeHighlightMeanings,
 	overridesToPush,
 	parsePreferencesDocument,
 	settingsFromDocument,
@@ -24,6 +29,8 @@ const FULL_DOCUMENT = {
 	parchment: false,
 	listenRate: 1.5,
 	highlightLabels: { yellow: "Promises", blue: "Prayer" },
+	highlightMeanings: { blue: "Something God said He will do" },
+	aboutMe: "Saved in 2019, studying Romans.",
 	chat: {
 		modelId: "openai/gpt-5.6-luna",
 		effort: "high",
@@ -43,6 +50,8 @@ describe("parsePreferencesDocument", () => {
 			parchment: false,
 			listenRate: 1.5,
 			highlightLabels: { yellow: "Promises", blue: "Prayer" },
+			highlightMeanings: { blue: "Something God said He will do" },
+			aboutMe: "Saved in 2019, studying Romans.",
 			chat: {
 				modelId: "openai/gpt-5.6-luna",
 				effort: "high",
@@ -62,6 +71,8 @@ describe("parsePreferencesDocument", () => {
 			parchment: true,
 			listenRate: 1,
 			highlightLabels: null,
+			highlightMeanings: null,
+			aboutMe: null,
 			chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 		});
 	});
@@ -89,6 +100,23 @@ describe("parsePreferencesDocument", () => {
 	it("does not treat a malformed highlight map as a loaded empty map", () => {
 		expect(parsePreferencesDocument({ highlightLabels: null })?.highlightLabels).toBeNull();
 		expect(parsePreferencesDocument({ highlightLabels: [] })?.highlightLabels).toBeNull();
+		expect(parsePreferencesDocument({ highlightMeanings: null })?.highlightMeanings).toBeNull();
+		expect(parsePreferencesDocument({ highlightMeanings: [] })?.highlightMeanings).toBeNull();
+	});
+
+	it("reads an empty About me as loaded and empty, not as a missing field", () => {
+		expect(parsePreferencesDocument({ aboutMe: "" })?.aboutMe).toBe("");
+		expect(parsePreferencesDocument({ aboutMe: "  Saved in 2019.  " })?.aboutMe).toBe(
+			"Saved in 2019."
+		);
+		expect(parsePreferencesDocument({})?.aboutMe).toBeNull();
+		expect(parsePreferencesDocument({ aboutMe: null })?.aboutMe).toBeNull();
+		expect(parsePreferencesDocument({ aboutMe: 7 })?.aboutMe).toBeNull();
+	});
+
+	it("caps an over-long About me rather than carrying it", () => {
+		const long = "x".repeat(MAX_ABOUT_ME_LENGTH + 40);
+		expect(parsePreferencesDocument({ aboutMe: long })?.aboutMe).toHaveLength(MAX_ABOUT_ME_LENGTH);
 	});
 
 	it("rejects anything that is not an object", () => {
@@ -106,6 +134,8 @@ describe("settingsFromDocument", () => {
 			parchment: false,
 			listenRate: 1.5,
 			highlightLabels: { yellow: "Promises", blue: "Prayer" },
+			highlightMeanings: { blue: "Something God said He will do" },
+			aboutMe: "Saved in 2019, studying Romans.",
 			chatModelId: "openai/gpt-5.6-luna",
 			chatEffort: "high",
 			chatSpeed: "fast",
@@ -153,6 +183,42 @@ describe("highlight label contract", () => {
 				{ yellow: "  Grace  ", blue: "" }
 			)
 		).toEqual({ yellow: "Grace", green: "Growth" });
+	});
+
+	it("gives a meaning five times the room a label gets, and trims it the same way", () => {
+		const overLong = "y".repeat(MAX_HIGHLIGHT_MEANING_LENGTH + 10);
+		expect(
+			normalizeHighlightMeanings({
+				blue: "  Something God said He will do  ",
+				teal: overLong,
+				green: "   ",
+				orange: 7,
+				chartreuse: "Nonsense",
+			})
+		).toEqual({
+			blue: "Something God said He will do",
+			teal: "y".repeat(MAX_HIGHLIGHT_MEANING_LENGTH),
+		});
+		// The label cap must not leak into the meanings map.
+		expect(normalizeHighlightMeanings({ red: "z".repeat(40) }).red).toHaveLength(40);
+	});
+
+	it("merges touched meanings into the latest whole map and clears an emptied one", () => {
+		expect(
+			mergeHighlightMeaningEdits(
+				{ yellow: "Verses I love", blue: "Promises", green: "Counsel" },
+				{ yellow: "  Verses I keep coming back to  ", blue: "" }
+			)
+		).toEqual({ yellow: "Verses I keep coming back to", green: "Counsel" });
+	});
+
+	it("offers a starter set that names all eight colours and fits both caps", () => {
+		expect(HIGHLIGHT_LABEL_PRESETS.map((preset) => preset.id)).toEqual([...HIGHLIGHT_LABEL_IDS]);
+		const labels = Object.fromEntries(HIGHLIGHT_LABEL_PRESETS.map((p) => [p.id, p.label]));
+		const meanings = Object.fromEntries(HIGHLIGHT_LABEL_PRESETS.map((p) => [p.id, p.meaning]));
+		// Nothing in the starter set is trimmed or dropped on its way to the server.
+		expect(normalizeHighlightLabels(labels)).toEqual(labels);
+		expect(normalizeHighlightMeanings(meanings)).toEqual(meanings);
 	});
 
 	it("resolves a custom label case-insensitively and otherwise uses the hue fallback", () => {
@@ -210,6 +276,20 @@ describe("overridesToPush", () => {
 				{ ...defaults, translation: "NKJV", listenRate: 1 }
 			)
 		).toEqual({ listenRate: 1.5 });
+	});
+
+	it("never seeds the three text fields, which are only ever written from Settings", () => {
+		expect(
+			overridesToPush(
+				{
+					...defaults,
+					highlightLabels: { blue: "Promise" },
+					highlightMeanings: { blue: "Something God said He will do" },
+					aboutMe: "Saved in 2019.",
+				},
+				defaults
+			)
+		).toBeNull();
 	});
 
 	it("nests only the unwritten chat columns", () => {

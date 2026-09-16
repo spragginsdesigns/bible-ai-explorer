@@ -51,6 +51,15 @@ model User {
   // What the user calls each highlight colour ("yellow" -> "Promises"), so a
   // marked verse carries the user's own taxonomy into chat and the daily cross.
   highlightLabels       Json?
+  // Why the user reaches for each colour ("blue" -> "something God said He
+  // will do"), one sentence per colour. Read by the assistant only: the legend
+  // it gets up front in the chat prompt (src/lib/highlight-legend.ts), so a
+  // colour means what the user says it means, not what the hue suggests.
+  highlightMeanings     Json?
+  // "About me", in the user's own words (Settings → Memory). Injected verbatim
+  // into the chat prompt beside memories; the one piece of context the user
+  // writes rather than the assistant infers. Null until they write one.
+  aboutMe               String?
   createdAt             DateTime               @default(now())
   conversations         Conversation[]
   notes                 Note[]

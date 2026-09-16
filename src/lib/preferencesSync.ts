@@ -6,9 +6,12 @@ import { DEFAULT_LISTEN_RATE, LISTEN_RATE_PREF_KEY } from "@/components/cross/li
 import type { TranslationId } from "@/lib/bible/translations";
 import type { PreferencesDocument } from "@/lib/preferences-contract";
 import {
+	ABOUT_ME_PREF_KEY,
 	EFFORT_PREF_KEY,
 	EMPTY_HIGHLIGHT_LABELS,
 	HIGHLIGHT_LABELS_PREF_KEY,
+	HIGHLIGHT_MEANINGS_PREF_KEY,
+	MAX_ABOUT_ME_LENGTH,
 	MEMORY_ENABLED_PREF_KEY,
 	MODE_PREF_KEY,
 	MODEL_PREF_KEY,
@@ -19,9 +22,13 @@ import {
 	WEB_SEARCH_ENABLED_PREF_KEY,
 	highlightLabelFor,
 	mergeHighlightLabelEdits,
+	mergeHighlightMeaningEdits,
 	normalizeHighlightLabels,
+	normalizeHighlightMeanings,
+	readAboutMePref,
 	readEffortPref,
 	readHighlightLabelsPref,
+	readHighlightMeaningsPref,
 	readListenRatePref,
 	readModePref,
 	readModelPref,
@@ -30,8 +37,10 @@ import {
 	readTranslationPref,
 	readVerbosityPref,
 	readWebSearchEnabledPref,
+	writeAboutMePref,
 	writeEffortPref,
 	writeHighlightLabelsPref,
+	writeHighlightMeaningsPref,
 	writeListenRatePref,
 	writeModePref,
 	writeModelPref,
@@ -43,6 +52,7 @@ import {
 	writeWebSearchEnabledPref,
 	type HighlightLabelId,
 	type HighlightLabels,
+	type HighlightMeanings,
 } from "@/lib/preferences";
 
 /**
@@ -72,6 +82,8 @@ const SYNCED_KEYS = [
 	PARCHMENT_PREF_KEY,
 	LISTEN_RATE_PREF_KEY,
 	HIGHLIGHT_LABELS_PREF_KEY,
+	HIGHLIGHT_MEANINGS_PREF_KEY,
+	ABOUT_ME_PREF_KEY,
 	MEMORY_ENABLED_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
 	MODEL_PREF_KEY,
@@ -91,26 +103,44 @@ interface PreferencesPatchBody {
 	parchment?: boolean;
 	listenRate?: number;
 	highlightLabels?: HighlightLabels;
+	highlightMeanings?: HighlightMeanings;
+	aboutMe?: string;
 	chat?: Partial<Record<"modelId" | ChatRunOptionKey, string | null>>;
 }
 
-type PreferencesDocumentWithLabels = PreferencesDocument & { highlightLabels?: unknown };
+/**
+ * The three fields an older deployment may not send yet. Each is read as
+ * "absent" rather than "empty" in that case, so a client talking to a server
+ * behind this build shows its loading row instead of erasing what it has.
+ */
+type PreferencesDocumentWithLabels = PreferencesDocument & {
+	highlightLabels?: unknown;
+	highlightMeanings?: unknown;
+	aboutMe?: unknown;
+};
+
+function isColorMap(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function labelsFromDocument(document: PreferencesDocument): HighlightLabels | null {
 	const candidate = document as PreferencesDocumentWithLabels;
 	if (!("highlightLabels" in candidate)) return null;
-	if (
-		typeof candidate.highlightLabels !== "object" ||
-		candidate.highlightLabels === null ||
-		Array.isArray(candidate.highlightLabels)
-	) {
-		return null;
-	}
-	return normalizeDocumentLabels(candidate.highlightLabels);
+	if (!isColorMap(candidate.highlightLabels)) return null;
+	return normalizeHighlightLabels(candidate.highlightLabels);
 }
 
-function normalizeDocumentLabels(value: unknown): HighlightLabels {
-	return normalizeHighlightLabels(value);
+function meaningsFromDocument(document: PreferencesDocument): HighlightMeanings | null {
+	const candidate = document as PreferencesDocumentWithLabels;
+	if (!("highlightMeanings" in candidate)) return null;
+	if (!isColorMap(candidate.highlightMeanings)) return null;
+	return normalizeHighlightMeanings(candidate.highlightMeanings);
+}
+
+function aboutMeFromDocument(document: PreferencesDocument): string | null {
+	const candidate = document as PreferencesDocumentWithLabels;
+	if (typeof candidate.aboutMe !== "string") return null;
+	return candidate.aboutMe.slice(0, MAX_ABOUT_ME_LENGTH);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -158,6 +188,16 @@ export function useHighlightLabels(): HighlightLabels {
 /** Nullable form for Settings, where null means the account is not hydrated yet. */
 export function useHighlightLabelsPreference(): HighlightLabels | null {
 	return usePreference(readHighlightLabelsPref, null);
+}
+
+/** The meanings, in the same nullable form and for the same editor. */
+export function useHighlightMeaningsPreference(): HighlightMeanings | null {
+	return usePreference(readHighlightMeaningsPref, null);
+}
+
+/** The user's "About me". Null until the account document has been read. */
+export function useAboutMePreference(): string | null {
+	return usePreference(readAboutMePref, null);
 }
 
 export { highlightLabelFor };
@@ -255,6 +295,10 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
 	writeWebSearchEnabledPref(document.webSearchEnabled);
 	const highlightLabels = labelsFromDocument(document);
 	if (highlightLabels !== null) writeHighlightLabelsPref(highlightLabels);
+	const highlightMeanings = meaningsFromDocument(document);
+	if (highlightMeanings !== null) writeHighlightMeaningsPref(highlightMeanings);
+	const aboutMe = aboutMeFromDocument(document);
+	if (aboutMe !== null) writeAboutMePref(aboutMe);
 	if (!chatPrefsLocked) {
 		writeModelPref(document.chat.modelId);
 		writeEffortPref(document.chat.effort);
@@ -499,18 +543,26 @@ async function writeThrough(
 	}
 }
 
+/** One editor pass: the label rows it touched, and the meaning rows it touched. */
+export interface HighlightLabelEdits {
+	labels?: Partial<Record<HighlightLabelId, string>>;
+	meanings?: Partial<Record<HighlightLabelId, string>>;
+}
+
 export type HighlightLabelsSaveResult =
-	| { ok: true; labels: HighlightLabels }
+	| { ok: true; labels: HighlightLabels; meanings: HighlightMeanings }
 	| { ok: false; error: string };
 
 let highlightSaveSeq = 0;
 
 /**
- * Save touched rows without erasing labels this editor did not load. The GET
- * is deliberate: highlightLabels is a whole-map replacement in PATCH.
+ * Save touched rows without erasing entries this editor did not load. The GET
+ * is deliberate: both maps are whole-map replacements in PATCH. Labels and
+ * meanings go in one PATCH so a row named and explained in the same pass can
+ * never half-save.
  */
 export async function saveHighlightLabelEdits(
-	edits: Partial<Record<HighlightLabelId, string>>
+	edits: HighlightLabelEdits
 ): Promise<HighlightLabelsSaveResult> {
 	if (typeof window === "undefined") return { ok: false, error: "Labels can only be saved here." };
 	const ownerAtRequest = readCacheOwner();
@@ -526,24 +578,75 @@ export async function saveHighlightLabelEdits(
 			return { ok: false, error: "Your account changed before the labels were saved." };
 		}
 		const latestLabels = labelsFromDocument(latest);
-		if (latestLabels === null) throw new Error("Highlight labels are not available yet.");
-		const next = mergeHighlightLabelEdits(latestLabels, edits);
-		const confirmed = await patchPreferences({ highlightLabels: next });
+		const latestMeanings = meaningsFromDocument(latest);
+		if (latestLabels === null || latestMeanings === null) {
+			throw new Error("Highlight labels are not available yet.");
+		}
+		const patch: PreferencesPatchBody = {
+			highlightLabels: mergeHighlightLabelEdits(latestLabels, edits.labels ?? {}),
+			highlightMeanings: mergeHighlightMeaningEdits(latestMeanings, edits.meanings ?? {}),
+		};
+		const confirmed = await patchPreferences(patch);
 		if (!confirmed) throw new Error("Sign in before saving highlight labels.");
 		if (accountSeq !== accountSeqAtRequest || readCacheOwner() !== ownerAtRequest) {
 			return { ok: false, error: "Your account changed before the labels were saved." };
 		}
 		const confirmedLabels = labelsFromDocument(confirmed);
-		if (confirmedLabels === null) throw new Error("The server did not confirm the highlight labels.");
+		const confirmedMeanings = meaningsFromDocument(confirmed);
+		if (confirmedLabels === null || confirmedMeanings === null) {
+			throw new Error("The server did not confirm the highlight labels.");
+		}
 		if (saveSeq === highlightSaveSeq) {
 			writeHighlightLabelsPref(confirmedLabels);
+			writeHighlightMeaningsPref(confirmedMeanings);
 			notifyPreferencesChanged();
 		}
-		return { ok: true, labels: confirmedLabels };
+		return { ok: true, labels: confirmedLabels, meanings: confirmedMeanings };
 	} catch (error) {
 		return {
 			ok: false,
 			error: error instanceof Error && error.message ? error.message : "Couldn't save highlight labels.",
+		};
+	}
+}
+
+export type AboutMeSaveResult = { ok: true; aboutMe: string } | { ok: false; error: string };
+
+let aboutMeSaveSeq = 0;
+
+/**
+ * Save "About me". A single field rather than a merged map, so it needs no GET
+ * first: the last write wins, which is what a text box the user is looking at
+ * should do. The account guards are the labels editor's, for the same reason:
+ * a sign-out mid-save must not write one account's words into another's cache.
+ */
+export async function saveAboutMe(text: string): Promise<AboutMeSaveResult> {
+	if (typeof window === "undefined") {
+		return { ok: false, error: "About me can only be saved here." };
+	}
+	const ownerAtRequest = readCacheOwner();
+	if (!ownerAtRequest) return { ok: false, error: "Sign in before saving About me." };
+	const accountSeqAtRequest = accountSeq;
+	const saveSeq = ++aboutMeSaveSeq;
+	editSeq += 1;
+
+	try {
+		const confirmed = await patchPreferences({ aboutMe: text.trim() });
+		if (!confirmed) throw new Error("Sign in before saving About me.");
+		if (accountSeq !== accountSeqAtRequest || readCacheOwner() !== ownerAtRequest) {
+			return { ok: false, error: "Your account changed before About me was saved." };
+		}
+		const confirmedAboutMe = aboutMeFromDocument(confirmed);
+		if (confirmedAboutMe === null) throw new Error("The server did not confirm About me.");
+		if (saveSeq === aboutMeSaveSeq) {
+			writeAboutMePref(confirmedAboutMe);
+			notifyPreferencesChanged();
+		}
+		return { ok: true, aboutMe: confirmedAboutMe };
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error && error.message ? error.message : "Couldn't save About me.",
 		};
 	}
 }

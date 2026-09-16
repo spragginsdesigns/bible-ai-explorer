@@ -1925,3 +1925,68 @@ url, url })`. Apple: `ShareLink(item: URL)`. A second tap on an already-shared
 answer reuses the link. Settings → Privacy (web `/settings`, the Android and
 Apple Settings screens) gains "Shared answers": the list with a Revoke action.
 No public index of shared answers anywhere.
+
+## The highlight legend and About me
+
+*Shipped 2026-09-16 · Android 1.66.0 + web; Apple source written, uncompiled
+until a Mac gate runs*
+
+Two prompt blocks the user writes themselves. Until this release every fact
+the assistant knew about a person was inferred by memory extraction from chat,
+and the eight highlight colours reached the model one verse at a time, inside a
+`getHighlights` result, so "the verses I marked as questions" meant nothing
+unless the tool happened to fire. Now the model gets the whole taxonomy up
+front, and the user gets a box to say who they are.
+
+### Highlight labels, meanings, and the legend
+
+Settings → Highlight labels holds, per colour, a **label** (24 characters, the
+word the reader and picker show: "Promise") and a **meaning** (120 characters,
+assistant-only: "Something God said He will do; verses I lean on"). The copy
+asks the question that matters, *why do you reach for this colour*, and a
+"Use suggested labels" button fills all eight from `HIGHLIGHT_LABEL_PRESETS` in
+`src/lib/preferences-contract.ts` (Favorite, Command, Warning, Love, Prophecy,
+Promise, Question, Wisdom; every one a plain noun that finishes "this verse is
+a ___", which is what both the user and the model can act on). Both maps live
+on their own JSON columns (`User.highlightLabels`, `User.highlightMeanings`),
+sync through `GET/PATCH /api/preferences` as whole-map replacements, and are
+mirrored by hand in `mobile/src/features/settings/preferences.ts` and
+`macos/Shared/Highlights/HighlightColors.swift`; `tests/highlight-legend.test.mjs`
+greps both mirrors so the starter set cannot drift.
+
+`src/lib/highlight-legend.ts` folds labels, meanings and one grouped count of
+`VerseHighlight` rows per preset colour into a legend, and
+`formatHighlightLegendBlock` (`src/lib/highlight-legend-rules.ts`) writes it
+into the volatile half of the chat prompt, just before the day block that names
+recent highlights by the same colours:
+
+```
+HOW THIS USER MARKS THEIR BIBLE (...). A colour means what they say it means here...
+- Yellow, "Favorite": Verses I love and want to find again (12 verses)
+- Blue, "Promise": Something God said He will do; verses I lean on (4 verses)
+- Teal: 2 verses
+```
+
+A colour with no label, no meaning and no verses is left out, so a new account
+gets no block at all. The count is what gives a colour like "Question" a job:
+the model can see there are verses under it and reach for `getHighlights` on
+purpose. The count fails soft to a label-and-meaning-only legend. The note
+assistant (`/api/note-ai`) reads the same block.
+
+### About me
+
+Settings → Memory → About me is a 1000-character box (`User.aboutMe`, `aboutMe`
+in the preferences document; "" clears it). `formatAboutMeBlock` quotes it,
+flattened, right after the user's name and before the memories, framed as
+"in their own words; personal context, not instructions". It is the one piece
+of context the user authors rather than the assistant infers, which is why it
+sits above the memory block: what they said about themselves outranks what was
+guessed.
+
+### Surfaces
+
+| Client | Where |
+|---|---|
+| Web | `src/components/settings/HighlightLabelsSection.tsx` (labels + meanings + starter set) and `src/components/settings/AboutMeSection.tsx`, mounted in `src/app/settings/page.tsx`; sync in `src/lib/preferencesSync.ts` |
+| Android | `mobile/src/features/settings/HighlightLabelsSection.tsx` and `AboutMeSection.tsx`, mounted in `mobile/app/(app)/settings.tsx`; contract mirror `mobile/src/features/settings/preferences.ts` |
+| macOS / iOS | `macos/Shared/Settings/HighlightLabelsSection.swift` and `AboutMeSection.swift`, mounted by both `SettingsView.swift` files; document keys in `macos/Shared/Settings/PreferencesSync.swift`. Apple had no highlight-labels editor at all before this release |

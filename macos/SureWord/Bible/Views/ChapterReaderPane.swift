@@ -499,7 +499,10 @@ struct ChapterReaderPane: View {
                                 hex: preset.hex
                             )
                         } label: {
-                            Label(preset.name, systemImage: isCurrent ? "checkmark" : "circle.fill")
+                            Label(
+                                highlightName(preset),
+                                systemImage: isCurrent ? "checkmark" : "circle.fill"
+                            )
                         }
                     }
                     if highlightHex != nil {
@@ -636,8 +639,8 @@ struct ChapterReaderPane: View {
                         .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
-                .help("Highlight \(preset.name)")
-                .accessibilityLabel("Highlight \(preset.name)")
+                .help("Highlight \(highlightName(preset))")
+                .accessibilityLabel("Highlight \(highlightName(preset))")
             }
 
             ColorPicker(
@@ -672,7 +675,29 @@ struct ChapterReaderPane: View {
                 }
                 .buttonStyle(SubtleButtonStyle())
             }
+
+            // The user's own reason for this colour, the way web shows it under
+            // the verse. Only for a colour they named: telling someone a blue
+            // highlight is blue says nothing.
+            if let current, let label = markedAsLabel(current) {
+                Text("Marked as \u{201C}\(label)\u{201D}")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textFaint)
+                    .lineLimit(1)
+            }
         }
+    }
+
+    /// What to call a highlight colour in the reader: the label the user gave it
+    /// in Settings when there is one, the hue name otherwise.
+    private func highlightName(_ preset: HighlightPreset) -> String {
+        HighlightColors.displayName(preset, in: app.settings.highlightLabels)
+    }
+
+    /// The user's label for a stored hex, or nil for an unnamed preset and for
+    /// a custom colour picked out of the colour well.
+    private func markedAsLabel(_ hex: String) -> String? {
+        HighlightColors.label(forHex: hex, in: app.settings.highlightLabels)
     }
 
     private var footer: some View {

@@ -13,39 +13,102 @@ export const HIGHLIGHT_LABEL_IDS = [
 ] as const;
 
 export type HighlightLabelId = (typeof HIGHLIGHT_LABEL_IDS)[number];
-export type HighlightLabels = Partial<Record<HighlightLabelId, string>>;
+
+/** One short string per colour. Labels and meanings share the shape and rules. */
+export type HighlightTextMap = Partial<Record<HighlightLabelId, string>>;
+export type HighlightLabels = HighlightTextMap;
+export type HighlightMeanings = HighlightTextMap;
 
 export const MAX_HIGHLIGHT_LABEL_LENGTH = 24;
+/** A meaning is a sentence the assistant reads, not a chip, so it has more room. */
+export const MAX_HIGHLIGHT_MEANING_LENGTH = 120;
+export const MAX_ABOUT_ME_LENGTH = 1000;
 export const EMPTY_HIGHLIGHT_LABELS: HighlightLabels = Object.freeze({});
+export const EMPTY_HIGHLIGHT_MEANINGS: HighlightMeanings = Object.freeze({});
+
+/**
+ * The starter set behind "Use suggested labels" in Settings. Mirrored verbatim
+ * from `src/lib/preferences-contract.ts`, which a server test greps this file
+ * for: every client has to offer the same eight names and the same reasons, or
+ * the same account reads differently depending on which one filled it in.
+ */
+export const HIGHLIGHT_LABEL_PRESETS: readonly {
+	id: HighlightLabelId;
+	label: string;
+	meaning: string;
+}[] = [
+	{ id: "yellow", label: "Favorite", meaning: "Verses I love and want to find again" },
+	{ id: "orange", label: "Command", meaning: "An instruction to obey" },
+	{ id: "red", label: "Warning", meaning: "Sin, judgment, take heed" },
+	{ id: "pink", label: "Love", meaning: "God's love and the Gospel" },
+	{ id: "purple", label: "Prophecy", meaning: "Messianic and fulfilled prophecy" },
+	{ id: "blue", label: "Promise", meaning: "Something God said He will do; verses I lean on" },
+	{ id: "teal", label: "Question", meaning: "Verses I don't understand yet and want to study" },
+	{ id: "green", label: "Wisdom", meaning: "Counsel for living" },
+];
 
 function isHighlightLabelId(value: string): value is HighlightLabelId {
 	return (HIGHLIGHT_LABEL_IDS as readonly string[]).includes(value);
 }
 
-export function normalizeHighlightLabels(value: unknown): HighlightLabels {
+/**
+ * Shared normaliser for both colour maps. Entries outside the eight ids, or of
+ * the wrong type, are dropped rather than carried: the map is written back
+ * whole, so one unusable entry would otherwise be persisted forever.
+ */
+function normalizeColorMap(
+	value: unknown,
+	maxLength: number,
+	empty: HighlightTextMap
+): HighlightTextMap {
 	const record = asRecord(value);
-	if (!record) return EMPTY_HIGHLIGHT_LABELS;
-	const labels: HighlightLabels = {};
+	if (!record) return empty;
+	const map: HighlightTextMap = {};
 	for (const [id, raw] of Object.entries(record)) {
 		if (!isHighlightLabelId(id) || typeof raw !== "string") continue;
-		const label = raw.trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
-		if (label) labels[id] = label;
+		const text = raw.trim().slice(0, maxLength);
+		if (text) map[id] = text;
 	}
-	return Object.keys(labels).length > 0 ? labels : EMPTY_HIGHLIGHT_LABELS;
+	return Object.keys(map).length > 0 ? map : empty;
+}
+
+/** Applies only the touched rows to the latest map. An empty edit clears a colour. */
+function mergeColorMapEdits(
+	base: HighlightTextMap,
+	edits: HighlightTextMap,
+	maxLength: number,
+	empty: HighlightTextMap
+): HighlightTextMap {
+	const merged: HighlightTextMap = { ...normalizeColorMap(base, maxLength, empty) };
+	for (const id of HIGHLIGHT_LABEL_IDS) {
+		if (!Object.prototype.hasOwnProperty.call(edits, id)) continue;
+		const text = (edits[id] ?? "").trim().slice(0, maxLength);
+		if (text) merged[id] = text;
+		else delete merged[id];
+	}
+	return normalizeColorMap(merged, maxLength, empty);
+}
+
+export function normalizeHighlightLabels(value: unknown): HighlightLabels {
+	return normalizeColorMap(value, MAX_HIGHLIGHT_LABEL_LENGTH, EMPTY_HIGHLIGHT_LABELS);
+}
+
+export function normalizeHighlightMeanings(value: unknown): HighlightMeanings {
+	return normalizeColorMap(value, MAX_HIGHLIGHT_MEANING_LENGTH, EMPTY_HIGHLIGHT_MEANINGS);
 }
 
 export function mergeHighlightLabelEdits(
 	base: HighlightLabels,
-	edits: Partial<Record<HighlightLabelId, string>>
+	edits: HighlightTextMap
 ): HighlightLabels {
-	const merged: HighlightLabels = { ...normalizeHighlightLabels(base) };
-	for (const id of HIGHLIGHT_LABEL_IDS) {
-		if (!Object.prototype.hasOwnProperty.call(edits, id)) continue;
-		const label = (edits[id] ?? "").trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
-		if (label) merged[id] = label;
-		else delete merged[id];
-	}
-	return normalizeHighlightLabels(merged);
+	return mergeColorMapEdits(base, edits, MAX_HIGHLIGHT_LABEL_LENGTH, EMPTY_HIGHLIGHT_LABELS);
+}
+
+export function mergeHighlightMeaningEdits(
+	base: HighlightMeanings,
+	edits: HighlightTextMap
+): HighlightMeanings {
+	return mergeColorMapEdits(base, edits, MAX_HIGHLIGHT_MEANING_LENGTH, EMPTY_HIGHLIGHT_MEANINGS);
 }
 
 export function highlightLabelFor(
@@ -88,6 +151,10 @@ export interface PreferencesDocument {
 	listenRate: number;
 	/** null only when this build is talking to an older response with no field. */
 	highlightLabels: HighlightLabels | null;
+	/** Why the user reaches for each colour. Null like the labels above. */
+	highlightMeanings: HighlightMeanings | null;
+	/** The user's own description of themselves. Null like the labels above. */
+	aboutMe: string | null;
 	chat: PreferencesChat;
 }
 
@@ -99,6 +166,9 @@ export interface PreferencesPatch {
 	parchment?: boolean;
 	listenRate?: number;
 	highlightLabels?: HighlightLabels;
+	highlightMeanings?: HighlightMeanings;
+	/** "" clears the column, which is how the server reads an emptied box. */
+	aboutMe?: string;
 	chat?: Partial<PreferencesChat>;
 }
 
@@ -108,6 +178,8 @@ export interface SyncedSettingsFields {
 	parchment: boolean;
 	listenRate: number;
 	highlightLabels: HighlightLabels | null;
+	highlightMeanings: HighlightMeanings | null;
+	aboutMe: string | null;
 	chatModelId: string | null;
 	chatEffort: string | null;
 	chatSpeed: string | null;
@@ -125,6 +197,8 @@ export const DEFAULT_SYNCED_SETTINGS: SyncedSettingsFields = {
 	parchment: true,
 	listenRate: DEFAULT_LISTEN_RATE,
 	highlightLabels: null,
+	highlightMeanings: null,
+	aboutMe: null,
 	chatModelId: null,
 	chatEffort: null,
 	chatSpeed: null,
@@ -155,6 +229,10 @@ export function overridesToPush(
 		local[field] !== DEFAULT_SYNCED_SETTINGS[field] &&
 		server[field] === DEFAULT_SYNCED_SETTINGS[field];
 
+	// The three text fields (highlight labels, their meanings, About me) are
+	// absent on purpose. Nothing can choose them offline: they are only ever
+	// written through their own Settings sections, which save against the
+	// account document, so a seed could only ever push back what it read.
 	const patch: PreferencesPatch = {};
 	if (pushable("translation")) patch.translation = local.translation;
 	if (pushable("parchment")) patch.parchment = local.parchment;
@@ -215,6 +293,18 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 			Object.prototype.hasOwnProperty.call(doc, "highlightLabels") && asRecord(doc.highlightLabels)
 				? normalizeHighlightLabels(doc.highlightLabels)
 				: null,
+		highlightMeanings:
+			Object.prototype.hasOwnProperty.call(doc, "highlightMeanings") &&
+			asRecord(doc.highlightMeanings)
+				? normalizeHighlightMeanings(doc.highlightMeanings)
+				: null,
+		// "" is a loaded answer, not a missing one: the server always sends the
+		// key and sends "" for an account that has written nothing. Only an
+		// absent or non-string key means this deploy predates the column.
+		aboutMe:
+			Object.prototype.hasOwnProperty.call(doc, "aboutMe") && typeof doc.aboutMe === "string"
+				? doc.aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH)
+				: null,
 		chat: {
 			modelId: asNullableString(chat.modelId),
 			effort: asNullableString(chat.effort),
@@ -232,6 +322,8 @@ export function settingsFromDocument(doc: PreferencesDocument): SyncedSettingsFi
 		parchment: doc.parchment,
 		listenRate: doc.listenRate,
 		highlightLabels: doc.highlightLabels,
+		highlightMeanings: doc.highlightMeanings,
+		aboutMe: doc.aboutMe,
 		chatModelId: doc.chat.modelId,
 		chatEffort: doc.chat.effort,
 		chatSpeed: doc.chat.speed,

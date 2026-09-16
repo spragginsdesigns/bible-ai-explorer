@@ -60,12 +60,54 @@ export const HIGHLIGHT_COLOR_IDS: readonly string[] = [
 export const MAX_HIGHLIGHT_LABEL_LENGTH = 24;
 
 /**
+ * One sentence per colour. Long enough for "Verses I don't understand yet and
+ * want to come back to with a study Bible", short enough that eight of them
+ * ride every chat turn without crowding the prompt.
+ */
+export const MAX_HIGHLIGHT_MEANING_LENGTH = 120;
+
+/**
+ * "About me", in the user's own words. A paragraph or two: where they are in
+ * their walk, their background, what they want from SureWord. Injected
+ * verbatim into every chat turn, so the cap is what keeps that affordable.
+ */
+export const MAX_ABOUT_ME_LENGTH = 1000;
+
+/**
  * What the user calls each highlight colour ("yellow" -> "Promises"), so the
  * reader, the assistant and the daily cross can say "you marked this as a
  * promise". A colour with no entry keeps its hue name, so the default document
  * is an empty map rather than eight copies of the preset names.
  */
 export type HighlightLabels = Record<string, string>;
+
+/**
+ * Why the user reaches for each colour ("blue" -> "something God said He will
+ * do; verses I lean on"). Same shape and same keys as the labels, kept in its
+ * own column so the label stays a short word for the reader and the meaning
+ * can be a sentence for the assistant. Read by the assistant only.
+ */
+export type HighlightMeanings = Record<string, string>;
+
+/**
+ * The starter set Settings offers with one tap ("Use suggested labels"), so
+ * nobody has to invent a taxonomy from a blank form. Every entry is a plain
+ * noun that finishes "this verse is a ___", which is what both the user and
+ * the assistant can act on; a reaction ("Very Important") is not. Ordered like
+ * `HIGHLIGHT_COLOR_IDS`; the test pins that. Mirrored by hand in
+ * `mobile/src/features/settings/preferences.ts` and
+ * `macos/Shared/Highlights/HighlightColors.swift`.
+ */
+export const HIGHLIGHT_LABEL_PRESETS: readonly { id: string; label: string; meaning: string }[] = [
+	{ id: "yellow", label: "Favorite", meaning: "Verses I love and want to find again" },
+	{ id: "orange", label: "Command", meaning: "An instruction to obey" },
+	{ id: "red", label: "Warning", meaning: "Sin, judgment, take heed" },
+	{ id: "pink", label: "Love", meaning: "God's love and the Gospel" },
+	{ id: "purple", label: "Prophecy", meaning: "Messianic and fulfilled prophecy" },
+	{ id: "blue", label: "Promise", meaning: "Something God said He will do; verses I lean on" },
+	{ id: "teal", label: "Question", meaning: "Verses I don't understand yet and want to study" },
+	{ id: "green", label: "Wisdom", meaning: "Counsel for living" },
+];
 
 /**
  * The user's name for a colour, or null to fall back to the hue name. Takes the
@@ -112,6 +154,9 @@ export interface PreferencesDocument {
 	parchment: boolean;
 	listenRate: number;
 	highlightLabels: HighlightLabels;
+	highlightMeanings: HighlightMeanings;
+	/** "" until the user writes one; the column is null then. */
+	aboutMe: string;
 	chat: PreferencesChatDocument;
 }
 
@@ -128,6 +173,10 @@ export interface PreferencesUserRow {
 	 * which is also what every account holds until one is saved.
 	 */
 	highlightLabels?: unknown;
+	/** The `highlightMeanings` JSON column, unread; optional like the labels. */
+	highlightMeanings?: unknown;
+	/** The `aboutMe` column; optional so an older select still builds a document. */
+	aboutMe?: string | null;
 	defaultModelId: string | null;
 	defaultEffort: string | null;
 	defaultSpeed: string | null;
@@ -146,6 +195,9 @@ export interface PreferencesPatchData {
 	parchment?: boolean;
 	listenRate?: number;
 	highlightLabels?: HighlightLabels;
+	highlightMeanings?: HighlightMeanings;
+	/** null clears the column; that is what an empty "About me" saves as. */
+	aboutMe?: string | null;
 	defaultModelId?: string | null;
 	defaultEffort?: string | null;
 	defaultSpeed?: string | null;
@@ -179,15 +231,34 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * tools, Learn suggestions) so they degrade the same way.
  */
 export function readStoredHighlightLabels(stored: unknown): HighlightLabels {
+	return readStoredColourMap(stored, MAX_HIGHLIGHT_LABEL_LENGTH);
+}
+
+/** The stored meanings, read as leniently as the labels. */
+export function readStoredHighlightMeanings(stored: unknown): HighlightMeanings {
+	return readStoredColourMap(stored, MAX_HIGHLIGHT_MEANING_LENGTH);
+}
+
+/**
+ * The stored "About me", trimmed and capped; "" for null and for anything that
+ * is not a string, so the document never carries a null where a client expects
+ * text.
+ */
+export function readStoredAboutMe(stored: unknown): string {
+	if (typeof stored !== "string") return "";
+	return stored.trim().slice(0, MAX_ABOUT_ME_LENGTH);
+}
+
+function readStoredColourMap(stored: unknown, maxLength: number): Record<string, string> {
 	if (!isPlainObject(stored)) return {};
-	const labels: HighlightLabels = {};
+	const map: Record<string, string> = {};
 	for (const id of HIGHLIGHT_COLOR_IDS) {
 		const raw = stored[id];
 		if (typeof raw !== "string") continue;
-		const label = raw.trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
-		if (label) labels[id] = label;
+		const value = raw.trim().slice(0, maxLength);
+		if (value) map[id] = value;
 	}
-	return labels;
+	return map;
 }
 
 /**
@@ -198,29 +269,62 @@ export function readStoredHighlightLabels(stored: unknown): HighlightLabels {
 function readHighlightLabels(
 	value: unknown
 ): { ok: true; labels: HighlightLabels } | { ok: false; error: string } {
-	if (!isPlainObject(value)) return { ok: false, error: "highlightLabels must be a JSON object" };
+	const parsed = readColourMap(value, "highlightLabels", MAX_HIGHLIGHT_LABEL_LENGTH);
+	return parsed.ok ? { ok: true, labels: parsed.map } : parsed;
+}
 
-	const labels: HighlightLabels = {};
+/** Validate a meanings map for writing: whole-map, like the labels. */
+function readHighlightMeanings(
+	value: unknown
+): { ok: true; meanings: HighlightMeanings } | { ok: false; error: string } {
+	const parsed = readColourMap(value, "highlightMeanings", MAX_HIGHLIGHT_MEANING_LENGTH);
+	return parsed.ok ? { ok: true, meanings: parsed.map } : parsed;
+}
+
+function readColourMap(
+	value: unknown,
+	field: string,
+	maxLength: number
+): { ok: true; map: Record<string, string> } | { ok: false; error: string } {
+	if (!isPlainObject(value)) return { ok: false, error: `${field} must be a JSON object` };
+
+	const map: Record<string, string> = {};
 	for (const [id, raw] of Object.entries(value)) {
 		if (!HIGHLIGHT_COLOR_IDS.includes(id)) {
 			return {
 				ok: false,
-				error: `highlightLabels may only name these colours: ${HIGHLIGHT_COLOR_IDS.join(", ")}`,
+				error: `${field} may only name these colours: ${HIGHLIGHT_COLOR_IDS.join(", ")}`,
 			};
 		}
 		if (typeof raw !== "string") {
-			return { ok: false, error: `highlightLabels.${id} must be a string` };
+			return { ok: false, error: `${field}.${id} must be a string` };
 		}
-		const label = raw.trim();
-		if (label.length > MAX_HIGHLIGHT_LABEL_LENGTH) {
+		const entry = raw.trim();
+		if (entry.length > maxLength) {
 			return {
 				ok: false,
-				error: `highlightLabels.${id} must be ${MAX_HIGHLIGHT_LABEL_LENGTH} characters or fewer`,
+				error: `${field}.${id} must be ${maxLength} characters or fewer`,
 			};
 		}
-		if (label) labels[id] = label;
+		if (entry) map[id] = entry;
 	}
-	return { ok: true, labels };
+	return { ok: true, map };
+}
+
+/**
+ * Validate "About me" for writing. A string, trimmed; empty clears the column
+ * (stored as null) so an account that erased it reads exactly like one that
+ * never wrote it. Over the cap is refused rather than cut: the user typed it
+ * and should see it did not fit.
+ */
+function readAboutMe(value: unknown): { ok: true; aboutMe: string | null } | { ok: false; error: string } {
+	if (value === null) return { ok: true, aboutMe: null };
+	if (typeof value !== "string") return { ok: false, error: "aboutMe must be a string" };
+	const text = value.trim();
+	if (text.length > MAX_ABOUT_ME_LENGTH) {
+		return { ok: false, error: `aboutMe must be ${MAX_ABOUT_ME_LENGTH} characters or fewer` };
+	}
+	return { ok: true, aboutMe: text || null };
 }
 
 /**
@@ -259,6 +363,8 @@ export function toPreferencesDocument(
 		parchment: user?.parchment ?? true,
 		listenRate: isListenRate(listenRate) ? listenRate : DEFAULT_LISTEN_RATE,
 		highlightLabels: readStoredHighlightLabels(user?.highlightLabels),
+		highlightMeanings: readStoredHighlightMeanings(user?.highlightMeanings),
+		aboutMe: readStoredAboutMe(user?.aboutMe),
 		chat: {
 			modelId: user?.defaultModelId ?? null,
 			effort: pickFromVocabulary<ReasoningEffort>(user?.defaultEffort, models.efforts),
@@ -330,6 +436,18 @@ export function parsePreferencesPatch(body: unknown, models: ModelVocabulary): P
 				const parsed = readHighlightLabels(value);
 				if (!parsed.ok) return { ok: false, error: parsed.error };
 				data.highlightLabels = parsed.labels;
+				break;
+			}
+			case "highlightMeanings": {
+				const parsed = readHighlightMeanings(value);
+				if (!parsed.ok) return { ok: false, error: parsed.error };
+				data.highlightMeanings = parsed.meanings;
+				break;
+			}
+			case "aboutMe": {
+				const parsed = readAboutMe(value);
+				if (!parsed.ok) return { ok: false, error: parsed.error };
+				data.aboutMe = parsed.aboutMe;
 				break;
 			}
 			case "chat": {

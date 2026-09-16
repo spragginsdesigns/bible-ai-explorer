@@ -8,20 +8,24 @@ import { prefetchSettingsData } from "./settingsData";
 import {
 	overridesToPush,
 	mergeHighlightLabelEdits,
+	mergeHighlightMeaningEdits,
 	parsePreferencesDocument,
 	settingsFromDocument,
 	shouldApplyResponse,
 	shouldFetchNow,
+	MAX_ABOUT_ME_LENGTH,
 	type PreferencesDocument,
-	type HighlightLabelId,
 	type HighlightLabels,
+	type HighlightMeanings,
+	type HighlightTextMap,
 	type PreferencesPatch,
 } from "./preferences";
 import { fetchPreferences, patchPreferences } from "./preferencesApi";
 import {
 	applyServerPreferences,
 	getSettings,
-	setHighlightLabelsFromServer,
+	setAboutMeFromServer,
+	setHighlightLabelsAndMeaningsFromServer,
 	setPreferencesWriter,
 } from "./settingsStore";
 
@@ -255,15 +259,24 @@ export async function updateWebSearchEnabled(enabled: boolean): Promise<void> {
 }
 
 export type HighlightLabelsSaveResult =
-	| { ok: true; labels: HighlightLabels }
+	| { ok: true; labels: HighlightLabels; meanings: HighlightMeanings }
 	| { ok: false; error: string };
 
 let highlightSaveSeq = 0;
 
-/** GET, merge touched rows, then PATCH the full replacement map. */
-export async function saveHighlightLabelEdits(
-	edits: Partial<Record<HighlightLabelId, string>>
-): Promise<HighlightLabelsSaveResult> {
+/**
+ * GET, merge the touched rows of both maps, then PATCH both replacements in one
+ * request.
+ *
+ * Labels and meanings travel together on purpose. They are edited in the same
+ * card and each map is written whole, so two requests would mean a window in
+ * which a colour carries a meaning the account has no label for, and a second
+ * chance to fail halfway through one save.
+ */
+export async function saveHighlightLabelEdits(edits: {
+	labels: HighlightTextMap;
+	meanings: HighlightTextMap;
+}): Promise<HighlightLabelsSaveResult> {
 	const getToken = tokenGetter;
 	const userIdAtRequest = activeUserId;
 	if (!getToken || !userIdAtRequest) {
@@ -275,30 +288,74 @@ export async function saveHighlightLabelEdits(
 
 	try {
 		const latest = parsePreferencesDocument(await fetchPreferences(getToken));
-		if (!latest || latest.highlightLabels === null) {
+		if (!latest || latest.highlightLabels === null || latest.highlightMeanings === null) {
 			throw new Error("Highlight labels are not available yet.");
 		}
 		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
 			return { ok: false, error: "Your account changed before the labels were saved." };
 		}
-		const next = mergeHighlightLabelEdits(latest.highlightLabels, edits);
 		const confirmed = parsePreferencesDocument(
-			await patchPreferences(getToken, { highlightLabels: next })
+			await patchPreferences(getToken, {
+				highlightLabels: mergeHighlightLabelEdits(latest.highlightLabels, edits.labels),
+				highlightMeanings: mergeHighlightMeaningEdits(latest.highlightMeanings, edits.meanings),
+			})
 		);
-		if (!confirmed || confirmed.highlightLabels === null) {
+		if (!confirmed || confirmed.highlightLabels === null || confirmed.highlightMeanings === null) {
 			throw new Error("The server did not confirm the highlight labels.");
 		}
 		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
 			return { ok: false, error: "Your account changed before the labels were saved." };
 		}
 		if (saveSeq === highlightSaveSeq) {
-			setHighlightLabelsFromServer(confirmed.highlightLabels);
+			setHighlightLabelsAndMeaningsFromServer(confirmed.highlightLabels, confirmed.highlightMeanings);
 		}
-		return { ok: true, labels: confirmed.highlightLabels };
+		return { ok: true, labels: confirmed.highlightLabels, meanings: confirmed.highlightMeanings };
 	} catch (error) {
 		return {
 			ok: false,
 			error: error instanceof Error && error.message ? error.message : "Couldn't save highlight labels.",
+		};
+	}
+}
+
+export type AboutMeSaveResult = { ok: true; aboutMe: string } | { ok: false; error: string };
+
+let aboutMeSaveSeq = 0;
+
+/**
+ * Save the About me text. Unlike the colour maps this is one whole field, so
+ * there is nothing to merge: the box holds the only value, and a PATCH replaces
+ * it. Trimmed and capped here as well as on the server, so a paste over the
+ * limit is shortened rather than refused with a 400 the user cannot act on.
+ */
+export async function saveAboutMe(text: string): Promise<AboutMeSaveResult> {
+	const getToken = tokenGetter;
+	const userIdAtRequest = activeUserId;
+	if (!getToken || !userIdAtRequest) {
+		return { ok: false, error: "Sign in before saving About me." };
+	}
+	const accountSeqAtRequest = accountSeq;
+	const saveSeq = ++aboutMeSaveSeq;
+	editSeq += 1;
+
+	try {
+		const confirmed = parsePreferencesDocument(
+			await patchPreferences(getToken, {
+				aboutMe: text.trim().slice(0, MAX_ABOUT_ME_LENGTH),
+			})
+		);
+		if (!confirmed || confirmed.aboutMe === null) {
+			throw new Error("The server did not confirm About me.");
+		}
+		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
+			return { ok: false, error: "Your account changed before About me was saved." };
+		}
+		if (saveSeq === aboutMeSaveSeq) setAboutMeFromServer(confirmed.aboutMe);
+		return { ok: true, aboutMe: confirmed.aboutMe };
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error && error.message ? error.message : "Couldn't save About me.",
 		};
 	}
 }

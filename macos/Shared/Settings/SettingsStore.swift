@@ -38,6 +38,11 @@ final class SettingsStore {
         /// Android keeps in its settings store.
         static let listenRate = "settings.listen.rate"
         static let parchment = "settings.bible.parchment"
+        /// `[String: String]` is a property-list type, so both colour maps go
+        /// into `UserDefaults` whole with no JSON step.
+        static let highlightLabels = "settings.highlight.labels"
+        static let highlightMeanings = "settings.highlight.meanings"
+        static let aboutMe = "settings.aboutMe"
     }
 
     /// Matches `DEFAULT_SETTINGS` in
@@ -76,6 +81,9 @@ final class SettingsStore {
             settings.translation = .kjv
             settings.parchment = true
             settings.listenRate = Listen.defaultRate
+            settings.highlightLabels = [:]
+            settings.highlightMeanings = [:]
+            settings.aboutMe = ""
             settings.chatModelId = nil
             settings.chatEffort = nil
             settings.chatSpeed = nil
@@ -259,6 +267,34 @@ final class SettingsStore {
         }
     }
 
+    /// What the user calls each highlight colour, keyed by colour id
+    /// ("yellow"), and why they reach for it. A colour with no entry keeps its
+    /// hue name, so the default is an empty map rather than the preset names.
+    ///
+    /// **No write-through, unlike every other synced field here.** These two
+    /// maps are stored whole, so a save has to re-read the account document and
+    /// merge the touched colours over it first, which is what
+    /// `PreferencesSyncModel.saveHighlightLabels` does. A `didSet` that PATCHed
+    /// the local map would replace the account's labels with whatever this
+    /// device last cached. What is kept here is the cache that paints the
+    /// Settings rows before the network answers.
+    var highlightLabels: [String: String] {
+        didSet { UserDefaults.standard.set(highlightLabels, forKey: Key.highlightLabels) }
+    }
+
+    /// The longer sentence behind each colour, same keys, same no-write-through
+    /// rule. Read by the assistant rather than shown on a chip.
+    var highlightMeanings: [String: String] {
+        didSet { UserDefaults.standard.set(highlightMeanings, forKey: Key.highlightMeanings) }
+    }
+
+    /// The user's own description of themselves, "" when they have written
+    /// none. Saved through `PreferencesSyncModel.saveAboutMe` for the same
+    /// reason as the maps above: it is a Save button, not a live setting.
+    var aboutMe: String {
+        didSet { UserDefaults.standard.set(aboutMe, forKey: Key.aboutMe) }
+    }
+
     /// The chapter reader's parchment page surface (Android 1.19.0 / web's
     /// `.parchment-page`). On by default, exactly as on the other clients.
     var parchment: Bool {
@@ -290,6 +326,12 @@ final class SettingsStore {
         // `object(forKey:)` so an unwritten key falls to the offered default
         // rather than to 0, which is not a speed.
         listenRate = Listen.normalizeRate(defaults.object(forKey: Key.listenRate))
+        // `dictionary(forKey:)` hands back `[String: Any]`, so the cast is what
+        // rejects anything an older build or a corrupt domain left behind.
+        highlightLabels = defaults.dictionary(forKey: Key.highlightLabels) as? [String: String] ?? [:]
+        highlightMeanings =
+            defaults.dictionary(forKey: Key.highlightMeanings) as? [String: String] ?? [:]
+        aboutMe = defaults.string(forKey: Key.aboutMe) ?? ""
         // Same reason as the reminder toggle: an unset key reads as false, and
         // would silently turn the parchment off for everyone.
         parchment = defaults.object(forKey: Key.parchment) as? Bool ?? true

@@ -304,20 +304,39 @@ test("the today block names the colour the way the user does", () => {
 test("the chat route reads the labels column once and hands it to the day context and the tools", () => {
 	const source = read("../src/app/api/ask-question/route.ts");
 	// The route already fetches the user row for name and web search; the
-	// labels ride that select rather than a second query.
+	// labels, meanings and About me ride that select rather than a second query.
 	assert.match(
 		source,
-		/select: \{ webSearchEnabled: true, name: true, email: true, highlightLabels: true \}/,
+		/select: \{\s*webSearchEnabled: true,\s*name: true,\s*email: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*\}/,
 	);
 	assert.match(source, /readStoredHighlightLabels\(userPrefs\?\.highlightLabels\)/);
 	assert.match(source, /loadChatDayContext\(userId, highlightLabels, \{ raisePrayerFollowUps: true \}\)/);
 	assert.match(source, /webSearchEnabled: userPrefs\?\.webSearchEnabled \?\? true,\s*highlightLabels,/);
 });
 
-test("the note assistant hands the tools the account's colour names too", () => {
+test("the chat route puts the legend and About me in the volatile prompt, in order", () => {
+	const source = read("../src/app/api/ask-question/route.ts");
+	assert.match(source, /loadHighlightLegend\(userId, highlightLabels, highlightMeanings\)/);
+	// Own words first, then what was inferred; the legend before the day block
+	// that names recent highlights by those colours.
+	assert.match(
+		source,
+		/formatUserNameLine\(userName\),[\s\S]*?formatAboutMeBlock\(aboutMe\),[\s\S]*?formatMemoryBlock\(memories\),[\s\S]*?formatChurchBlock\(church\),[\s\S]*?formatHighlightLegendBlock\(legend\),[\s\S]*?formatTodayBlock\(dayContext\),/,
+	);
+});
+
+test("the note assistant hands the tools the account's colour names too, and reads the same blocks", () => {
 	const source = read("../src/app/api/note-ai/route.ts");
-	assert.match(source, /select: \{ webSearchEnabled: true, highlightLabels: true \}/);
-	assert.match(source, /highlightLabels: readStoredHighlightLabels\(userPrefs\?\.highlightLabels\),/);
+	assert.match(
+		source,
+		/select: \{ webSearchEnabled: true, highlightLabels: true, highlightMeanings: true, aboutMe: true \}/,
+	);
+	assert.match(source, /const highlightLabels = readStoredHighlightLabels\(userPrefs\?\.highlightLabels\);/);
+	assert.match(source, /loadHighlightLegend\(userId, highlightLabels, highlightMeanings\)/);
+	assert.match(
+		source,
+		/\$\{formatAboutMeBlock\(aboutMe\)\}\$\{formatMemoryBlock\(memories\)\}\$\{formatChurchBlock\(church\)\}\$\{formatHighlightLegendBlock\(legend\)\}/,
+	);
 });
 
 test("the highlights tool lists with the account's colour names", () => {

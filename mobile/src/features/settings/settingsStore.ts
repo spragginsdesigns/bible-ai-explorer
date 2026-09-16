@@ -10,8 +10,11 @@ import {
 	type PreferencesDocument,
 	type PreferencesPatch,
 	EMPTY_HIGHLIGHT_LABELS,
+	MAX_ABOUT_ME_LENGTH,
 	normalizeHighlightLabels,
+	normalizeHighlightMeanings,
 	type HighlightLabels,
+	type HighlightMeanings,
 } from "./preferences";
 
 /**
@@ -53,6 +56,10 @@ export interface Settings {
 	listenRate: number;
 	/** Account highlight names. Null until this account has hydrated. */
 	highlightLabels: HighlightLabels | null;
+	/** What each colour means to the user. Null until this account has hydrated. */
+	highlightMeanings: HighlightMeanings | null;
+	/** The user's own description of themselves. Null until this account has hydrated. */
+	aboutMe: string | null;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
@@ -106,6 +113,16 @@ export async function hydrateSettings(): Promise<void> {
 			highlightLabels:
 				parsed.highlightLabels && typeof parsed.highlightLabels === "object"
 					? normalizeHighlightLabels(parsed.highlightLabels)
+					: null,
+			highlightMeanings:
+				parsed.highlightMeanings && typeof parsed.highlightMeanings === "object"
+					? normalizeHighlightMeanings(parsed.highlightMeanings)
+					: null,
+			// Capped on the way in as well as out: a cache written by a build
+			// with a larger cap must not be handed back over the current one.
+			aboutMe:
+				typeof parsed.aboutMe === "string"
+					? parsed.aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH)
 					: null,
 		};
 	} catch {
@@ -218,9 +235,25 @@ export function setListenRate(listenRate: number) {
 	writeThrough({ listenRate: next }, revertIfUnchanged("listenRate", next, previous));
 }
 
-/** Adopt labels confirmed by the preferences endpoint without writing them back. */
-export function setHighlightLabelsFromServer(highlightLabels: HighlightLabels) {
-	setSnapshot({ ...snapshot, highlightLabels: normalizeHighlightLabels(highlightLabels) });
+/**
+ * Adopt the colour text confirmed by the preferences endpoint without writing
+ * it back. Both maps land together because they are saved together: the section
+ * sends one PATCH carrying whichever rows the user touched.
+ */
+export function setHighlightLabelsAndMeaningsFromServer(
+	highlightLabels: HighlightLabels,
+	highlightMeanings: HighlightMeanings
+) {
+	setSnapshot({
+		...snapshot,
+		highlightLabels: normalizeHighlightLabels(highlightLabels),
+		highlightMeanings: normalizeHighlightMeanings(highlightMeanings),
+	});
+}
+
+/** Adopt the About me text confirmed by the endpoint, without writing it back. */
+export function setAboutMeFromServer(aboutMe: string) {
+	setSnapshot({ ...snapshot, aboutMe: aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH) });
 }
 
 /*

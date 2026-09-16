@@ -101,6 +101,18 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     var translation: String?
     var parchment: Bool?
     var listenRate: Double?
+    /// What the user calls each highlight colour, keyed by colour id
+    /// ("yellow"), capped at `HighlightColors.maxLabelLength`. A colour with no
+    /// entry keeps its hue name, so a fresh account sends `{}` rather than
+    /// eight copies of the preset names.
+    var highlightLabels: [String: String]?
+    /// Why they reach for each colour, same keys, longer values. Read by the
+    /// assistant rather than shown on a chip, which is why it is a second map
+    /// and not a longer label.
+    var highlightMeanings: [String: String]?
+    /// The user's own description of themselves, "" when they have written
+    /// none. Nil only from a server that predates the column.
+    var aboutMe: String?
     var chat: ChatPreferences?
 
     init(
@@ -110,6 +122,9 @@ struct AccountPreferences: Codable, Sendable, Equatable {
         translation: String? = nil,
         parchment: Bool? = nil,
         listenRate: Double? = nil,
+        highlightLabels: [String: String]? = nil,
+        highlightMeanings: [String: String]? = nil,
+        aboutMe: String? = nil,
         chat: ChatPreferences? = nil
     ) {
         self.plan = plan
@@ -118,6 +133,9 @@ struct AccountPreferences: Codable, Sendable, Equatable {
         self.translation = translation
         self.parchment = parchment
         self.listenRate = listenRate
+        self.highlightLabels = highlightLabels
+        self.highlightMeanings = highlightMeanings
+        self.aboutMe = aboutMe
         self.chat = chat
     }
 }
@@ -131,6 +149,14 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     var translation: String?
     var parchment: Bool?
     var listenRate: Double?
+    /// A **whole-map replacement**, not a delta: what is sent is what the
+    /// account ends up with, so every label to keep has to be in it. An empty
+    /// map is a legitimate patch, and clears every label.
+    var highlightLabels: [String: String]?
+    /// Whole-map too, on exactly the same rule.
+    var highlightMeanings: [String: String]?
+    /// "" clears the column, which is what an emptied box saves as.
+    var aboutMe: String?
     var chat: ChatPreferences?
 
     init(
@@ -139,6 +165,9 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         translation: String? = nil,
         parchment: Bool? = nil,
         listenRate: Double? = nil,
+        highlightLabels: [String: String]? = nil,
+        highlightMeanings: [String: String]? = nil,
+        aboutMe: String? = nil,
         chat: ChatPreferences? = nil
     ) {
         self.webSearchEnabled = webSearchEnabled
@@ -146,11 +175,15 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         self.translation = translation
         self.parchment = parchment
         self.listenRate = listenRate
+        self.highlightLabels = highlightLabels
+        self.highlightMeanings = highlightMeanings
+        self.aboutMe = aboutMe
         self.chat = chat
     }
 
     private enum CodingKeys: String, CodingKey {
-        case webSearchEnabled, memoryEnabled, translation, parchment, listenRate, chat
+        case webSearchEnabled, memoryEnabled, translation, parchment, listenRate
+        case highlightLabels, highlightMeanings, aboutMe, chat
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -160,6 +193,12 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         try container.encodeIfPresent(translation, forKey: .translation)
         try container.encodeIfPresent(parchment, forKey: .parchment)
         try container.encodeIfPresent(listenRate, forKey: .listenRate)
+        // `encodeIfPresent`, so an empty *map* still goes out as `{}` while an
+        // absent one stays absent. The difference is the whole contract here:
+        // `{}` clears every label, and omitting the key leaves them alone.
+        try container.encodeIfPresent(highlightLabels, forKey: .highlightLabels)
+        try container.encodeIfPresent(highlightMeanings, forKey: .highlightMeanings)
+        try container.encodeIfPresent(aboutMe, forKey: .aboutMe)
         // An empty chat block would be a body with no recognised keys, which
         // the server answers with a 400.
         if let chat, !chat.isEmpty {
@@ -173,6 +212,9 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
             && translation == nil
             && parchment == nil
             && listenRate == nil
+            && highlightLabels == nil
+            && highlightMeanings == nil
+            && aboutMe == nil
             && (chat?.isEmpty ?? true)
     }
 }
@@ -228,6 +270,13 @@ enum PreferencesAdoption {
            (server.listenRate ?? defaultListenRate) == defaultListenRate {
             patch.listenRate = local.listenRate
         }
+
+        // The three text fields - highlight labels, their meanings, About me -
+        // are absent here on purpose, as they are in
+        // `mobile/src/features/settings/preferences.ts`. Nothing can choose
+        // them offline: they are written only through their own Settings
+        // sections, which save against the account document, so a seed could
+        // push back nothing but what it had just read.
 
         // A chat column's default is null, and both "absent" and "explicit
         // null" mean the account never chose - `??` flattens them to the same
@@ -337,6 +386,15 @@ final class PreferencesSyncModel {
     /// another client; the toggle itself still writes through `/api/memories`,
     /// never through this pipe.
     private(set) var memoryEnabled: Bool?
+
+    /// True once a server document has landed in this session.
+    ///
+    /// The synced values in `SettingsStore` are a persisted cache, so they
+    /// paint before any network call. The sections that let the user *write*
+    /// text still need to know whether what they are showing has been
+    /// confirmed this launch, so an empty box reads as "nothing saved" rather
+    /// than as "not loaded yet".
+    private(set) var hasLoadedDocument = false
 
     var errorAlert: ErrorAlert?
 
@@ -529,6 +587,102 @@ final class PreferencesSyncModel {
         )
     }
 
+    // MARK: Highlight labels and About me
+
+    /// What a Save button needs back: done, or a sentence to put on screen.
+    ///
+    /// These two sections report inline rather than through `errorAlert`: the
+    /// user is editing text and has to keep it, so the failure belongs next to
+    /// the box that still holds what they typed, not behind an OK button.
+    enum SaveOutcome: Sendable, Equatable {
+        case saved
+        case failed(String)
+    }
+
+    /// Save the colours the user edited, labels and meanings together.
+    ///
+    /// Each map holds **only the colours touched**, and an empty string clears
+    /// one. The fresh document is fetched first and the edits merged over it
+    /// rather than over this device's cache: the cache can be a quarter of an
+    /// hour old, and a label written on the phone would otherwise be erased by
+    /// a Mac save that never meant to touch it. A map with no edits is left out
+    /// of the patch entirely, which narrows that window to the colours the user
+    /// actually changed.
+    func saveHighlightLabels(
+        labels: [String: String],
+        meanings: [String: String]
+    ) async -> SaveOutcome {
+        guard !labels.isEmpty || !meanings.isEmpty else { return .saved }
+        // Bumped before the round trip for the reason `push` spells out: a GET
+        // already in flight predates this save and must not land on top of it.
+        let issued = editSeq.bump()
+        do {
+            let latest = try await transport.loadPreferences()
+            var patch = PreferencesPatch()
+            if !labels.isEmpty {
+                patch.highlightLabels = HighlightColors.merged(
+                    // The cache is the fallback only for a server that predates
+                    // the column; it answers with the key on every deploy that
+                    // has it, empty map included.
+                    latest.highlightLabels ?? settings.highlightLabels,
+                    edits: labels,
+                    maxLength: HighlightColors.maxLabelLength
+                )
+            }
+            if !meanings.isEmpty {
+                patch.highlightMeanings = HighlightColors.merged(
+                    latest.highlightMeanings ?? settings.highlightMeanings,
+                    edits: meanings,
+                    maxLength: HighlightColors.maxMeaningLength
+                )
+            }
+            let document = try await transport.savePreferences(patch)
+            apply(narrowed(document, issued: issued), fromServer: true)
+            return .saved
+        } catch {
+            return .failed(
+                Self.message(error, fallback: "Your labels were not saved. Try again.")
+            )
+        }
+    }
+
+    /// Save "About me". One string, so there is nothing to merge: the box holds
+    /// the whole value and the last save wins, as it does on the other clients.
+    /// An empty string clears the column.
+    func saveAboutMe(_ text: String) async -> SaveOutcome {
+        let issued = editSeq.bump()
+        do {
+            let document = try await transport.savePreferences(PreferencesPatch(aboutMe: text))
+            apply(narrowed(document, issued: issued), fromServer: true)
+            return .saved
+        } catch {
+            return .failed(
+                Self.message(error, fallback: "Your description was not saved. Try again.")
+            )
+        }
+    }
+
+    /// The part of a save's echo that is safe to land.
+    ///
+    /// The whole document while nothing has been edited since the save was
+    /// issued. Once something has, the echo predates that edit and the usual
+    /// rule applies: its PATCH carries the truth for the field it touched, and
+    /// this response must not put the old value back. The three text fields are
+    /// the exception, and keep landing: nothing but these two Save buttons ever
+    /// writes them, so the echo cannot be stale about them.
+    ///
+    /// Without this a save made while, say, the translation picker was busy
+    /// would report success and leave the Settings rows showing the text the
+    /// user had just replaced.
+    private func narrowed(_ document: AccountPreferences, issued: UInt64) -> AccountPreferences {
+        guard !editSeq.isCurrent(issued) else { return document }
+        return AccountPreferences(
+            highlightLabels: document.highlightLabels,
+            highlightMeanings: document.highlightMeanings,
+            aboutMe: document.aboutMe
+        )
+    }
+
     // MARK: Memory
 
     /// The Memory toggle writes through `/api/memories`, not this model; the
@@ -549,6 +703,7 @@ final class PreferencesSyncModel {
     ///
     /// `fromServer` gates one exception, spelled out on `chatEffort` below.
     func apply(_ document: AccountPreferences, fromServer: Bool) {
+        if fromServer { hasLoadedDocument = true }
         if let webSearchEnabled = document.webSearchEnabled {
             self.webSearchEnabled = webSearchEnabled
         }
@@ -565,6 +720,18 @@ final class PreferencesSyncModel {
             }
             if let listenRate = document.listenRate {
                 settings.listenRate = listenRate
+            }
+            // Ahead of the `guard` below, which returns for a document with no
+            // chat block: a rollback names only the fields its patch touched,
+            // and these three are written without one.
+            if let highlightLabels = document.highlightLabels {
+                settings.highlightLabels = highlightLabels
+            }
+            if let highlightMeanings = document.highlightMeanings {
+                settings.highlightMeanings = highlightMeanings
+            }
+            if let aboutMe = document.aboutMe {
+                settings.aboutMe = aboutMe
             }
             guard let chat = document.chat else { return }
             if let modelId = chat.modelId {

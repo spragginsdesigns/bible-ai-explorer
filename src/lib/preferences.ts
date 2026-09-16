@@ -6,9 +6,13 @@ import {
 import type { TranslationId } from "@/lib/bible/translations";
 import {
 	HIGHLIGHT_COLOR_IDS,
+	HIGHLIGHT_LABEL_PRESETS as HIGHLIGHT_LABEL_PRESET_ROWS,
+	MAX_ABOUT_ME_LENGTH,
 	MAX_HIGHLIGHT_LABEL_LENGTH,
+	MAX_HIGHLIGHT_MEANING_LENGTH,
 	highlightLabelFor,
 	type HighlightLabels,
+	type HighlightMeanings,
 } from "@/lib/preferences-contract";
 
 export type HighlightLabelId =
@@ -20,28 +24,79 @@ export type HighlightLabelId =
 	| "blue"
 	| "teal"
 	| "green";
-export type { HighlightLabels };
-export { highlightLabelFor, MAX_HIGHLIGHT_LABEL_LENGTH };
+export type { HighlightLabels, HighlightMeanings };
+export {
+	highlightLabelFor,
+	MAX_ABOUT_ME_LENGTH,
+	MAX_HIGHLIGHT_LABEL_LENGTH,
+	MAX_HIGHLIGHT_MEANING_LENGTH,
+};
 
 export const HIGHLIGHT_LABEL_IDS = HIGHLIGHT_COLOR_IDS as readonly HighlightLabelId[];
 export const EMPTY_HIGHLIGHT_LABELS: HighlightLabels = Object.freeze({});
+export const EMPTY_HIGHLIGHT_MEANINGS: HighlightMeanings = Object.freeze({});
+
+/**
+ * The starter set behind "Use suggested labels", re-exported with the colour id
+ * narrowed: the contract module has no runtime imports and so cannot name
+ * `HighlightLabelId`, but every id in it is one by construction (the contract
+ * test pins the list to `HIGHLIGHT_COLOR_IDS`).
+ */
+export const HIGHLIGHT_LABEL_PRESETS = HIGHLIGHT_LABEL_PRESET_ROWS as readonly {
+	id: HighlightLabelId;
+	label: string;
+	meaning: string;
+}[];
 
 function isHighlightLabelId(value: string): value is HighlightLabelId {
 	return (HIGHLIGHT_LABEL_IDS as readonly string[]).includes(value);
 }
 
-/** Normalize either a server document or the local cache to the public contract. */
-export function normalizeHighlightLabels(value: unknown): HighlightLabels {
+/**
+ * Labels and meanings are the same shape, keyed by the same eight ids, and
+ * differ only in how long an entry may be, so one reader serves both.
+ */
+function normalizeColorMap(
+	value: unknown,
+	maxLength: number,
+	empty: Record<string, string>
+): Record<string, string> {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
-		return EMPTY_HIGHLIGHT_LABELS;
+		return empty;
 	}
-	const labels: HighlightLabels = {};
+	const map: Record<string, string> = {};
 	for (const [id, raw] of Object.entries(value)) {
 		if (!isHighlightLabelId(id) || typeof raw !== "string") continue;
-		const label = raw.trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
-		if (label) labels[id] = label;
+		const entry = raw.trim().slice(0, maxLength);
+		if (entry) map[id] = entry;
 	}
-	return Object.keys(labels).length > 0 ? labels : EMPTY_HIGHLIGHT_LABELS;
+	return Object.keys(map).length > 0 ? map : empty;
+}
+
+function mergeColorMapEdits(
+	base: Record<string, string>,
+	edits: Partial<Record<HighlightLabelId, string>>,
+	maxLength: number,
+	empty: Record<string, string>
+): Record<string, string> {
+	const merged: Record<string, string> = { ...normalizeColorMap(base, maxLength, empty) };
+	for (const id of HIGHLIGHT_LABEL_IDS) {
+		if (!Object.prototype.hasOwnProperty.call(edits, id)) continue;
+		const entry = (edits[id] ?? "").trim().slice(0, maxLength);
+		if (entry) merged[id] = entry;
+		else delete merged[id];
+	}
+	return normalizeColorMap(merged, maxLength, empty);
+}
+
+/** Normalize either a server document or the local cache to the public contract. */
+export function normalizeHighlightLabels(value: unknown): HighlightLabels {
+	return normalizeColorMap(value, MAX_HIGHLIGHT_LABEL_LENGTH, EMPTY_HIGHLIGHT_LABELS);
+}
+
+/** Same read for the meanings map, which only differs in its length cap. */
+export function normalizeHighlightMeanings(value: unknown): HighlightMeanings {
+	return normalizeColorMap(value, MAX_HIGHLIGHT_MEANING_LENGTH, EMPTY_HIGHLIGHT_MEANINGS);
 }
 
 /** Apply only the rows the user edited to the freshest whole map from the server. */
@@ -49,14 +104,14 @@ export function mergeHighlightLabelEdits(
 	base: HighlightLabels,
 	edits: Partial<Record<HighlightLabelId, string>>
 ): HighlightLabels {
-	const merged: HighlightLabels = { ...normalizeHighlightLabels(base) };
-	for (const id of HIGHLIGHT_LABEL_IDS) {
-		if (!Object.prototype.hasOwnProperty.call(edits, id)) continue;
-		const label = (edits[id] ?? "").trim().slice(0, MAX_HIGHLIGHT_LABEL_LENGTH);
-		if (label) merged[id] = label;
-		else delete merged[id];
-	}
-	return normalizeHighlightLabels(merged);
+	return mergeColorMapEdits(base, edits, MAX_HIGHLIGHT_LABEL_LENGTH, EMPTY_HIGHLIGHT_LABELS);
+}
+
+export function mergeHighlightMeaningEdits(
+	base: HighlightMeanings,
+	edits: Partial<Record<HighlightLabelId, string>>
+): HighlightMeanings {
+	return mergeColorMapEdits(base, edits, MAX_HIGHLIGHT_MEANING_LENGTH, EMPTY_HIGHLIGHT_MEANINGS);
 }
 
 /**
@@ -103,6 +158,61 @@ export function writeHighlightLabelsPref(labels: HighlightLabels): void {
 	window.localStorage.setItem(HIGHLIGHT_LABELS_PREF_KEY, raw);
 	cachedHighlightLabelsRaw = raw;
 	cachedHighlightLabels = normalized;
+}
+
+/**
+ * Cached account meanings, alongside the labels. Same absence rule: null means
+ * this account has not hydrated yet, so Settings shows its loading row rather
+ * than eight empty fields it might be about to overwrite.
+ */
+export const HIGHLIGHT_MEANINGS_PREF_KEY = "sureword-highlight-meanings";
+
+let cachedHighlightMeaningsRaw: string | null | undefined;
+let cachedHighlightMeanings: HighlightMeanings | null = null;
+
+export function readHighlightMeaningsPref(): HighlightMeanings | null {
+	if (typeof window === "undefined") return null;
+	const raw = window.localStorage.getItem(HIGHLIGHT_MEANINGS_PREF_KEY);
+	if (raw === cachedHighlightMeaningsRaw) return cachedHighlightMeanings;
+	cachedHighlightMeaningsRaw = raw;
+	if (raw === null) {
+		cachedHighlightMeanings = null;
+		return null;
+	}
+	try {
+		cachedHighlightMeanings = normalizeHighlightMeanings(JSON.parse(raw));
+	} catch {
+		cachedHighlightMeanings = EMPTY_HIGHLIGHT_MEANINGS;
+	}
+	return cachedHighlightMeanings;
+}
+
+export function writeHighlightMeaningsPref(meanings: HighlightMeanings): void {
+	if (typeof window === "undefined") return;
+	const normalized = normalizeHighlightMeanings(meanings);
+	const raw = JSON.stringify(normalized);
+	window.localStorage.setItem(HIGHLIGHT_MEANINGS_PREF_KEY, raw);
+	cachedHighlightMeaningsRaw = raw;
+	cachedHighlightMeanings = normalized;
+}
+
+/**
+ * The user's "About me", cached whole. The stored string may legitimately be
+ * empty (they erased it), which is why absence rather than "" is what stands
+ * for "not hydrated yet".
+ */
+export const ABOUT_ME_PREF_KEY = "sureword-about-me";
+
+export function readAboutMePref(): string | null {
+	if (typeof window === "undefined") return null;
+	const raw = window.localStorage.getItem(ABOUT_ME_PREF_KEY);
+	if (raw === null) return null;
+	return raw.slice(0, MAX_ABOUT_ME_LENGTH);
+}
+
+export function writeAboutMePref(aboutMe: string): void {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(ABOUT_ME_PREF_KEY, aboutMe.slice(0, MAX_ABOUT_ME_LENGTH));
 }
 
 export function readTranslationPref(): TranslationId {

@@ -41,7 +41,13 @@ import {
 import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
 import { logChatStepMetric } from "@/lib/ai/chat-metrics";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
-import { readStoredHighlightLabels } from "@/lib/preferences-contract";
+import {
+	readStoredAboutMe,
+	readStoredHighlightLabels,
+	readStoredHighlightMeanings,
+} from "@/lib/preferences-contract";
+import { loadHighlightLegend } from "@/lib/highlight-legend";
+import { formatAboutMeBlock, formatHighlightLegendBlock } from "@/lib/highlight-legend-rules";
 
 // Matches vercel.json for this route. Same guard as ask-question: a slow
 // provider several tool steps into a turn was killed mid-loop by the platform,
@@ -179,16 +185,19 @@ async function handlePost(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true, highlightLabels: true },
+			select: { webSearchEnabled: true, highlightLabels: true, highlightMeanings: true, aboutMe: true },
 		});
+		// Same lenient read as the chat route, so getHighlights names a colour
+		// the way the user does here too.
+		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
+		const highlightMeanings = readStoredHighlightMeanings(userPrefs?.highlightMeanings);
+		const aboutMe = readStoredAboutMe(userPrefs?.aboutMe);
 		const readingContext = {
 			...readingRequestContext(requestData, readingReceivedAt),
 			userId,
 			defaultNoteId: note.id,
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
-			// Same lenient read as the chat route, so getHighlights names a colour
-			// the way the user does here too.
-			highlightLabels: readStoredHighlightLabels(userPrefs?.highlightLabels),
+			highlightLabels,
 		};
 		const tools = buildSureWordTools(readingContext);
 
@@ -252,9 +261,10 @@ async function handlePost(req: Request): Promise<Response> {
 				const writeStatus = startStatusNarration(writer, responseMessageId);
 				writeStatus("Getting ready");
 
-				const [memories, church, linksSummary] = await Promise.all([
+				const [memories, church, legend, linksSummary] = await Promise.all([
 					loadUserMemories(userId),
 					loadUserChurch(userId),
+					loadHighlightLegend(userId, highlightLabels, highlightMeanings),
 					describeNoteLinks(note.id),
 				]);
 				const fullSystem = `${noteAISystemPrompt(
@@ -264,7 +274,7 @@ async function handlePost(req: Request): Promise<Response> {
 				// The note panel shares the chat tool set, so it must also carry the rule
 				// that governs the one tool that overwrites something: setDailyCross may
 				// not fire until the user has agreed to it.
-				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatMemoryBlock(memories)}${formatChurchBlock(church)}`;
+				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatAboutMeBlock(aboutMe)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${formatHighlightLegendBlock(legend)}`;
 
 				const { model, providerOptions, definition } = await resolveModel({ userId, fallbackEffort: "medium" });
 				const { stableSystem, volatileSystem } = splitStableSystemPrefix(

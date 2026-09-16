@@ -53,9 +53,13 @@ struct SettingsView: View {
                 )
             }
 
+            HighlightLabelsSection(settings: app.settings, preferences: app.preferences)
+
             verseOfDaySection
 
             memorySection
+
+            AboutMeSection(settings: app.settings, preferences: app.preferences)
 
             WebSearchSection(preferences: app.preferences)
 
