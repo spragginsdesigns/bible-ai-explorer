@@ -67,6 +67,7 @@ model User {
   readingLogChapterDays ReadingLogChapterDay[]
   readingLogSessions    ReadingLogSession[]
   readingLogTotals      ReadingLogTotals?
+  sharedAnswers         SharedAnswer[]
   readingLogStreaks     ReadingLogStreak[]
   highlights            VerseHighlight[]
   versesOfDay           VerseOfDay[]
@@ -771,6 +772,25 @@ model ReadingLogChapterDay {
   verseCounts     Int[]
 
   @@id([userId, localDate, book, chapter])
+}
+
+/// Share an answer (docs/FEATURES.md, "Share an answer"): a snapshot of one
+/// assistant answer behind a random slug. The public page reads only this
+/// table, never Message, so revoking or editing the conversation cannot leak.
+model SharedAnswer {
+  id             String    @id // random 16-char slug, the capability
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  messageId      String    @unique
+  question       String    @db.VarChar(500)
+  answer         String    @db.Text
+  references     Json // string[] of "John 3:16"
+  translation    String    @default("KJV")
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+
+  @@index([userId, createdAt])
 }
 
 /// Disjoint active calendar intervals. Long streaks cost one row to query.

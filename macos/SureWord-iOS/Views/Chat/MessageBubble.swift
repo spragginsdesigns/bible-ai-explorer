@@ -22,6 +22,13 @@ struct ChatMessageBubble: View {
     /// The thumb the user just chose, or `nil` to clear it, plus the optional
     /// reason a "Not helpful" collected. The shell owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
+    /// The public link already minted for this answer, if any. Supplied by the
+    /// list from `ChatViewModel.sharedLink(for:)`.
+    var shareURL: URL?
+    /// True while this answer's link is being minted.
+    var isSharing: Bool
+    /// Mint the link. The tab owns the write and the toast.
+    var onShare: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
     /// The optional "What went wrong?" field, raised by a thumbs down from
@@ -44,23 +51,41 @@ struct ChatMessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
         .alert(AnswerFeedback.reasonPrompt, isPresented: $isReasonPresented) {
-            TextField(AnswerFeedback.reasonPlaceholder, text: $reason)
+            TextField(AnswerFeedback.reasonPlaceholder, text: reasonBinding)
             Button("Send") { onFeedback(message, .down, reason) }
-            // Skip still records the thumb - the user already pressed it, and
-            // the reason was never required.
-            Button("Skip", role: .cancel) { onFeedback(message, .down, nil) }
+            // The thumb was recorded before this alert opened, so Skip has
+            // nothing left to do. Cancel-role so a swipe away does the same
+            // thing rather than looking like it undid the rating.
+            Button("Skip", role: .cancel) {}
         }
     }
 
-    /// A thumbs up (or either thumb being cleared) is recorded straight away;
-    /// only "Not helpful" stops to ask why.
+    /// Every thumb is recorded the moment it is tapped; only "Not helpful" then
+    /// stops to ask why.
+    ///
+    /// The rating goes first and the reason follows as a second write, matching
+    /// web and Android. The reason is a bonus, the thumb is the signal, and an
+    /// alert the user dismisses must not swallow both - which is also what makes
+    /// the shells' "the thumb has already moved" true
+    /// (`SureWord-iOS/Views/Chat/ChatTabView.swift:142`).
     private func rate(_ choice: AnswerFeedback?) {
-        guard choice == .down else {
-            onFeedback(message, choice, nil)
-            return
-        }
+        onFeedback(message, choice, nil)
+        guard choice == .down else { return }
         reason = ""
         isReasonPresented = true
+    }
+
+    /// Clamps the reason at the contract's 500 characters *as it is typed*,
+    /// rather than quietly shortening what the user wrote when they press Send.
+    ///
+    /// Done in the binding rather than with an `.onChange` on the field: an
+    /// alert's action builder only takes buttons and text fields, so the fewer
+    /// modifiers wrapping the `TextField` the better.
+    private var reasonBinding: Binding<String> {
+        Binding(
+            get: { reason },
+            set: { reason = String($0.prefix(AnswerFeedback.maxReasonLength)) }
+        )
     }
 
     /// The context-menu entry for one thumb. Choosing the thumb already on the
@@ -73,6 +98,51 @@ struct ChatMessageBubble: View {
         } label: {
             Label(choice.title, systemImage: chosen ? choice.filledSymbol : choice.symbol)
         }
+    }
+
+    /// "Share", beside the thumbs on a settled answer.
+    ///
+    /// **Two steps by necessity.** `ShareLink` needs its item up front, and the
+    /// link does not exist until the server mints it, so the button mints and
+    /// the `ShareLink` takes its place once there is a URL to hand over. There
+    /// is no public API to open a share sheet programmatically; the alternative
+    /// is a `UIActivityViewController` bridge, which is UIKit plumbing this row
+    /// does not otherwise need and the repo has no precedent for.
+    ///
+    /// Inline only, unlike the thumbs. A context-menu entry could mint but not
+    /// present, so it would dismiss the menu and leave the user hunting for the
+    /// second tap - worse than not offering it there at all.
+    @ViewBuilder
+    private var shareControl: some View {
+        if let shareURL {
+            ShareLink(item: shareURL) {
+                shareLabel(tint: theme.accent)
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .accessibilityLabel("Share this answer")
+        } else {
+            Button {
+                onShare(message)
+            } label: {
+                shareLabel(tint: theme.textFaint, busy: isSharing)
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .disabled(isSharing)
+            .accessibilityLabel("Create a link to this answer")
+        }
+    }
+
+    private func shareLabel(tint: Color, busy: Bool = false) -> some View {
+        HStack(spacing: 6) {
+            if busy {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: "square.and.arrow.up")
+            }
+            Text("Share")
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(tint)
     }
 
     @ViewBuilder
@@ -185,6 +255,8 @@ struct ChatMessageBubble: View {
                     .accessibilityLabel("Add this answer to your notes")
 
                     AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
+
+                    shareControl
                 }
             }
 

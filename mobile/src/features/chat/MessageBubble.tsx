@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -10,6 +10,8 @@ import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { nextFeedback, type AnswerFeedback, type SetAnswerFeedback } from "@/lib/answerFeedback";
+import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { presentShareSheet, shareAnswer } from "./shareApi";
 import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FeedbackSheet } from "./FeedbackSheet";
 import { FollowUpChips } from "./FollowUpChips";
@@ -34,6 +36,13 @@ interface MessageBubbleProps {
 	 * loaded yet), which is also what hides the thumbs.
 	 */
 	onFeedback?: SetAnswerFeedback;
+	/**
+	 * The conversation this answer belongs to, which the share route
+	 * owner-checks. Null until a conversation exists (the very first question is
+	 * still in flight), and that is what hides "Share" rather than letting a tap
+	 * fail. Same source the thumbs use: the chat hook's active conversation.
+	 */
+	conversationId?: string | null;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
@@ -41,12 +50,15 @@ export const MessageBubble = React.memo(function MessageBubble({
 	onFollowUp,
 	defaultNoteTitle,
 	onFeedback,
+	conversationId,
 }: MessageBubbleProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
+	const getToken = useStableGetToken();
 	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 	const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false);
+	const [sharing, setSharing] = useState(false);
 
 	// Both parses run over the whole message body, so they are hoisted above the
 	// user/assistant split to keep the hook order unconditional, and each one
@@ -107,6 +119,31 @@ export const MessageBubble = React.memo(function MessageBubble({
 		const next = nextFeedback(chosen, tapped);
 		onFeedback(message.id, next);
 		if (next === "down") setFeedbackSheetOpen(true);
+	};
+
+	/**
+	 * Mint the public link, then open the system share sheet with it. Minting is
+	 * idempotent server-side, so tapping Share again on an answer that has
+	 * already been shared hands over the same link instead of a second one.
+	 */
+	const share = () => {
+		if (sharing || !conversationId) return;
+		setSharing(true);
+		void (async () => {
+			try {
+				const link = await shareAnswer(getToken, conversationId, message.id);
+				await presentShareSheet(link.url);
+			} catch (error) {
+				Alert.alert(
+					"Couldn't share that",
+					error instanceof Error && error.message
+						? error.message
+						: "The link didn't reach the server. Check your connection and try again."
+				);
+			} finally {
+				setSharing(false);
+			}
+		})();
 	};
 
 	return (
@@ -170,6 +207,24 @@ export const MessageBubble = React.memo(function MessageBubble({
 									/>
 								</Pressable>
 							</>
+						)}
+
+						{conversationId && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Share this answer"
+								accessibilityState={{ busy: sharing, disabled: sharing }}
+								disabled={sharing}
+								onPress={share}
+								hitSlop={6}
+								style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+							>
+								{sharing ? (
+									<ActivityIndicator size="small" color={colors.accentDim} />
+								) : (
+									<Ionicons name="share-outline" size={15} color={colors.textFaint} />
+								)}
+							</Pressable>
 						)}
 					</View>
 				)}

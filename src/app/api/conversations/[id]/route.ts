@@ -85,6 +85,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 			message.attachments.map((attachment) => attachment.pathname),
 		);
 		await deleteAttachmentBlobs(pathnames);
+		// A deleted conversation must not keep serving a shared answer that came
+		// out of it: revoke every link first. The snapshot rows stay (owned and
+		// listed under Settings → Shared answers) so nothing public dangles.
+		await prisma.sharedAnswer.updateMany({
+			where: { conversationId: id, userId, revokedAt: null },
+			data: { revokedAt: new Date() },
+		});
 		await prisma.conversation.delete({ where: { id } });
 		return NextResponse.json({ success: true });
 	} catch (err) {

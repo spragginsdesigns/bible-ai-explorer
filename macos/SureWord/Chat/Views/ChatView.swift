@@ -177,6 +177,20 @@ struct ChatView: View {
                                     }
                                 }
                             },
+                            shareURL: chat.sharedLink(for: message.id),
+                            isSharing: chat.isSharing(message.id),
+                            onShare: { answer in
+                                Task {
+                                    // On success the link lands in the model and
+                                    // the button becomes a ShareLink; only a
+                                    // failure has anything to say.
+                                    if let failure = await chat.shareAnswer(
+                                        messageID: answer.id
+                                    ) {
+                                        show(toast: failure)
+                                    }
+                                }
+                            },
                             onFollowUp: { question in
                                 chat.input = question
                                 Task { await chat.send() }

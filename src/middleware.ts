@@ -26,6 +26,16 @@ const isPublicRoute = createRouteMatcher([
 	"/api/bible/original",
 	"/api/bible/crossrefs",
 	"/api/bible/strongs",
+	// A shared answer is a capability link: the 16-char id IS the credential,
+	// and the page reads only the SharedAnswer snapshot (never Message), so the
+	// recipient has to be able to open it with no account. Revoking is what
+	// takes it back. Only the page and its unfurl card are public here; POST
+	// /api/shared, GET /api/shared and DELETE /api/shared/{id} all stay behind
+	// the session, because they mint, list and revoke those capabilities.
+	"/shared/(.*)",
+	// The unfurl card is fetched by iMessage, WhatsApp, X and Discord scrapers,
+	// which carry no session at all. Same snapshot, same revoke.
+	"/api/shared/(.*)/image",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

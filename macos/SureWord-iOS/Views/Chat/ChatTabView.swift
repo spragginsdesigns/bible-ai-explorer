@@ -149,6 +149,16 @@ struct ChatTabView: View {
                             show(toast: failure)
                         }
                     }
+                },
+                onShare: { answer in
+                    Task {
+                        // On success the link lands in the model and the button
+                        // becomes a ShareLink; only a failure has anything to
+                        // say.
+                        if let failure = await chat.shareAnswer(messageID: answer.id) {
+                            show(toast: failure)
+                        }
+                    }
                 }
             )
         }

@@ -16,10 +16,12 @@ interface MessageListProps {
 	defaultNoteTitle?: string;
 	/** Thumbs up / down on a settled assistant answer. */
 	onFeedback?: SetAnswerFeedback;
+	/** Active conversation - the share route owner-checks an answer through it. */
+	conversationId?: string | null;
 	children?: React.ReactNode;
 }
 
-export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, children }: MessageListProps) {
+export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, conversationId, children }: MessageListProps) {
 	const scrollRef = useRef<ScrollView>(null);
 	const nearBottom = useRef(true);
 	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
@@ -70,6 +72,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 					onFollowUp={message.id === latestAssistantId ? onFollowUp : undefined}
 					defaultNoteTitle={defaultNoteTitle}
 					onFeedback={onFeedback}
+					conversationId={conversationId}
 				/>
 			))}
 			{children}

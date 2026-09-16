@@ -21,6 +21,9 @@ struct SettingsView: View {
     /// Same reason again - a redraw mid-save must not restart the round-trip,
     /// and the open key editor has to survive one.
     @State private var providers = AIProviderSettingsModel()
+    /// And again: a revoke in flight must survive a redraw, or the optimistic
+    /// row would snap back while its DELETE is still going.
+    @State private var shares = SharedAnswersModel()
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -63,6 +66,8 @@ struct SettingsView: View {
                 WebSearchSection(preferences: app.preferences)
 
                 churchSection
+
+                sharedAnswersSection
 
                 Section("Account") {
                     if let name = accountName {
@@ -116,6 +121,10 @@ struct SettingsView: View {
         .task {
             providers.configure(app.api)
             await providers.load()
+        }
+        .task {
+            shares.configure(app.api)
+            await shares.load()
         }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)
@@ -230,6 +239,15 @@ struct SettingsView: View {
     /// the server has no Google Places key configured.
     private var churchSection: some View {
         ChurchSectionView(model: church)
+    }
+
+    // MARK: - Shared answers
+
+    /// Mirrors the web `/settings` privacy section and the Android Settings
+    /// screen: every public link this account has minted, and the way to take
+    /// one back. Like My church the view owns its own `Section`.
+    private var sharedAnswersSection: some View {
+        SharedAnswersSectionView(model: shares)
     }
 
     /// Android shows the Clerk full name and falls back to the username

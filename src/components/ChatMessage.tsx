@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Loader2, NotebookPen, ThumbsDown, ThumbsUp } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Loader2, NotebookPen, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -20,6 +20,7 @@ import {
 	setAnswerFeedback,
 	type AnswerFeedback,
 } from "@/lib/chat/feedback-client";
+import { presentShareLink, shareAnswer, shareSheetText } from "@/lib/chat/share-client";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -36,6 +37,10 @@ const ACTION_CHOSEN_CLASS =
 	"flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 transition-colors";
 /** Thumb glyphs are the whole target, so they carry the 44px minimum. */
 const THUMB_TAP_CLASS = "min-h-11 min-w-11 justify-center sm:min-h-0 sm:min-w-0";
+/** The share sheet's heading. The answer itself travels as the descriptive line. */
+const SHARE_TITLE = "An answer from SureWord";
+/** How long "Link copied" stays up before the row goes quiet again. */
+const SHARE_COPIED_MS = 2000;
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversationTitle }) => {
 	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
@@ -49,6 +54,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 	const [reason, setReason] = useState("");
 	const [feedbackPending, setFeedbackPending] = useState(false);
 	const [feedbackError, setFeedbackError] = useState<string | null>(null);
+	const [sharePending, setSharePending] = useState(false);
+	const [shareCopied, setShareCopied] = useState(false);
+	const [shareError, setShareError] = useState<string | null>(null);
 
 	const conversationId = message.conversationId;
 	const feedback = chosenFeedback === undefined ? message.feedback ?? null : chosenFeedback;
@@ -107,6 +115,40 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 		if (feedbackPending || !reason.trim()) return;
 		setReasonOpen(false);
 		void saveFeedback("down", reason);
+	};
+
+	// "Link copied" is a confirmation, not a state: it says its piece and goes.
+	useEffect(() => {
+		if (!shareCopied) return;
+		const timer = setTimeout(() => setShareCopied(false), SHARE_COPIED_MS);
+		return () => clearTimeout(timer);
+	}, [shareCopied]);
+
+	/**
+	 * Mint (or reuse) the public link for this answer, then hand it over. The
+	 * route is idempotent on the message, so a second tap shares the same link
+	 * rather than minting a second capability for text that is already out
+	 * there. A dismissed share sheet leaves the row silent - the reader changed
+	 * their mind, and a copied-link toast for that would be a surprise.
+	 */
+	const share = async () => {
+		if (!conversationId || sharePending) return;
+		setSharePending(true);
+		setShareError(null);
+		setShareCopied(false);
+		try {
+			const link = await shareAnswer(conversationId, message.id);
+			const outcome = await presentShareLink({
+				title: SHARE_TITLE,
+				text: shareSheetText(message.content),
+				url: link.url,
+			});
+			if (outcome === "copied") setShareCopied(true);
+		} catch (error) {
+			setShareError(error instanceof Error ? error.message : "Could not share that answer.");
+		} finally {
+			setSharePending(false);
+		}
 	};
 
 	if (message.role === "user") {
@@ -206,6 +248,27 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 								</button>
 							</div>
 						)}
+						{/* Sharing snapshots a persisted row, so the note panel's answers
+						    have nothing to share either. */}
+						{conversationId && (
+							<>
+								<button
+									type="button"
+									onClick={() => void share()}
+									disabled={sharePending}
+									className={`${ACTION_CLASS} disabled:opacity-60`}
+								>
+									<Share2 className="w-3.5 h-3.5" />
+									{sharePending ? "Sharing…" : "Share"}
+								</button>
+								<span
+									aria-live="polite"
+									className="text-xs text-amber-600 dark:text-amber-400"
+								>
+									{shareCopied ? "Link copied" : ""}
+								</span>
+							</>
+						)}
 					</div>
 				)}
 				{reasonOpen && conversationId && (
@@ -245,6 +308,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 				{feedbackError && (
 					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">
 						{feedbackError}
+					</p>
+				)}
+				{shareError && (
+					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+						{shareError}
 					</p>
 				)}
 				{addToNoteOpen && (

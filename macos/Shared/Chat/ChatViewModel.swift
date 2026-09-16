@@ -67,6 +67,15 @@ final class ChatViewModel {
     /// Per-message rating version, so a slow PATCH cannot undo the thumb that
     /// replaced it. Keyed by message id; see `setFeedback`.
     private var feedbackVersions: [String: Int] = [:]
+    /// Public share links minted this session, keyed by message id.
+    ///
+    /// Kept across a conversation switch on purpose. A message id is unique, so
+    /// an entry can never come to name a different answer, and returning to a
+    /// conversation leaves the link one tap from the share sheet instead of
+    /// re-asking the server for something it already gave us.
+    private(set) var sharedLinks: [String: URL] = [:]
+    /// Message ids with a share POST in flight.
+    private(set) var sharingMessageIDs: Set<String> = []
 
     // MARK: Answer recovery
 
@@ -332,6 +341,59 @@ final class ChatViewModel {
                 uiMessages[index].feedback = previous
             }
             return (error as? APIError)?.message ?? Self.feedbackError
+        }
+    }
+
+    // MARK: Sharing an answer
+
+    /// The public link already minted for this answer, if any.
+    func sharedLink(for messageID: String) -> URL? { sharedLinks[messageID] }
+
+    /// True while this answer's link is being minted, so one bubble's button
+    /// goes quiet without disabling the rest of the thread.
+    func isSharing(_ messageID: String) -> Bool { sharingMessageIDs.contains(messageID) }
+
+    /// Mint the public link for one settled assistant answer, or re-use the one
+    /// the server already holds for it. Returns the failure text, or `nil` once
+    /// the URL is in `sharedLinks` and the share sheet has something to offer.
+    ///
+    /// **Deliberately not optimistic**, unlike `setFeedback` above. A thumb is a
+    /// local judgment that can be put back; a link is a capability that does not
+    /// exist until the server mints it, and handing someone a URL that 404s is
+    /// worse than a moment of spinner. The failure is *returned* rather than
+    /// written to `sendError` for the same reason a rating's is: that field
+    /// renders the retry card, and the shells already own a toast for an action
+    /// that failed on its own.
+    ///
+    /// Sharing is idempotent server-side, so a repeat call is safe; it is short
+    /// -circuited here anyway because the answer to "share this again" is the
+    /// link already on screen.
+    @discardableResult
+    func shareAnswer(messageID: String) async -> String? {
+        // A turn whose conversation never got created was never persisted, so
+        // there is no row to snapshot. Unlike a rating this reports itself: the
+        // user pressed a button and is owed an explanation for the nothing.
+        guard let conversationID = activeConversationID,
+              let index = uiMessages.firstIndex(where: { $0.id == messageID }),
+              uiMessages[index].role == .assistant
+        else { return Self.shareUnavailableError }
+
+        if sharedLinks[messageID] != nil { return nil }
+        guard !sharingMessageIDs.contains(messageID) else { return nil }
+
+        sharingMessageIDs.insert(messageID)
+        defer { sharingMessageIDs.remove(messageID) }
+
+        do {
+            let link = try await api.shareAnswer(
+                conversationID: conversationID,
+                messageID: messageID
+            )
+            guard let url = link.shareURL else { return Self.shareError }
+            sharedLinks[messageID] = url
+            return nil
+        } catch {
+            return (error as? APIError)?.message ?? Self.shareError
         }
     }
 
@@ -817,4 +879,10 @@ final class ChatViewModel {
 
     static let feedbackError =
         "We couldn't save that rating."
+
+    static let shareError =
+        "We couldn't create a link for that answer."
+
+    static let shareUnavailableError =
+        "This answer isn't saved yet, so there's nothing to share."
 }

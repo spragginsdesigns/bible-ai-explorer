@@ -44,6 +44,7 @@ import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
 import ChurchSection from "@/components/settings/ChurchSection";
 import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
+import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -416,6 +417,10 @@ export default function SettingsPage() {
 
 					{/* My church */}
 					<ChurchSection />
+
+					{/* Shared answers: the links this account has handed out, and
+					    the Revoke that takes one back. */}
+					<SharedAnswersSection key={user?.id ?? "signed-out"} />
 
 					</div>
 

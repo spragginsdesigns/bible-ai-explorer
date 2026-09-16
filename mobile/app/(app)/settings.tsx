@@ -41,6 +41,7 @@ import {
 } from "@/features/settings/settingsData";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
 import { HighlightLabelsSection } from "@/features/settings/HighlightLabelsSection";
+import { SharedAnswersSection } from "@/features/chat/SharedAnswersSection";
 
 const THEME_OPTIONS: { id: ThemeMode; label: string; glyph: string }[] = [
 	{ id: "system", label: "System", glyph: "◐" },
@@ -367,6 +368,12 @@ export default function SettingsScreen() {
 						when the answer has landed.
 					</Text>
 				</GlassCard>
+
+				{/*
+				 * Renders its own heading, like the other feature sections, and sits
+				 * with CHAT because a shared answer is a chat answer made public.
+				 */}
+				<SharedAnswersSection getToken={getToken} />
 
 				<SectionLabel label="VERSE OF THE DAY" />
 				<GlassCard style={styles.card}>
