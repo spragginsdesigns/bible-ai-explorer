@@ -1784,3 +1784,93 @@ client can decide whether "Stay with this" applies.
 calls the route with `direction` and reuses the existing replacement flow
 (inline "Preparing a fresh word" panel, scroll to the new verse, inline error
 card). No counters, no streaks.
+
+### Answer feedback, and how it reaches the doctrinal eval harness
+
+A thumb is a human judgment about one answer. It is stored beside the answer,
+never folded into the mechanical eval score (`src/lib/ai/answer-eval.ts`
+already keeps `DOCTRINE_REVIEW_DIMENSIONS` apart from the pass bit for the
+same reason), and it becomes an eval fixture only through a reviewed script.
+
+**Columns** on `Message` (migration `20260916010000_answer_feedback`, all
+nullable, assistant rows only): `feedback` (`"up" | "down"`), `feedbackReason`
+(`Text`, ≤ 500 chars, optional, only meaningful with `"down"`), `feedbackAt`.
+Not in `metadata`: the ask-question persist upserts and replaces `metadata`
+wholesale on a retry, which would silently erase a rating.
+
+**Route.** `PATCH /api/conversations/[id]/messages/[messageId]` (already
+owner-checked) accepts `{ feedback: "up" | "down" | null, feedbackReason?:
+string }`. `null` clears all three. A reason without `"down"` is ignored; a
+reason over 500 chars is 400. Only an assistant message may be rated (400
+otherwise). The response is the updated `{ id, feedback, feedbackReason,
+feedbackAt }`. `GET .../messages` returns the three columns on every message so
+history replays the chosen thumb.
+
+**Clients.** On a settled assistant answer, beside "Add to notes": two quiet
+glyph buttons, thumbs up and thumbs down, with the chosen one filled. Tapping
+the chosen one again clears. Thumbs down opens a small optional "What went
+wrong?" field (one line, 500 chars, Skip / Send). Optimistic, revert on
+failure with the client's existing error pattern. Web: `ChatMessage.tsx`.
+Android: `MessageBubble.tsx`. Apple: the macOS bubble's action row and the
+iOS `.contextMenu` ("Helpful" / "Not helpful"). No counts anywhere; the user
+only ever sees their own thumb.
+
+**Into the harness.** `scripts/feedback-to-fixtures.mjs` (run by hand, never
+in CI) reads assistant messages with `feedback = "down"` since a date, prints
+each as a candidate fixture in the `scripts/fixtures/answer-evals.json` shape
+(`id`, `category: "feedback"`, the user's prompt as `prompt`, `translation`,
+an empty `expectation` to fill in, and the `feedbackReason` as a `note`), and
+never writes the fixture file itself: a person reads the answer against
+`DOCTRINE_REVIEW_DIMENSIONS` and decides what the expectation is. Ratings are
+also exposed read-only in `scripts/sql/product-metrics.sql` (up/down counts by
+week) so the audit can watch them.
+
+### Share an answer: a public page, and a card image
+
+Nothing shares an answer today - every client shares verses as text only, and
+no route serves user content signed-out. This contract adds one snapshot
+table, one public page, and one card image, so a user can hand someone the
+answer they were given without handing them their conversation.
+
+**Table** `SharedAnswer` (migration `20260916020000_shared_answer`): `id` (a
+random 16-char slug, the capability - never the message id), `userId`,
+`conversationId`, `messageId`, `question` (the user's message that produced
+it, ≤ 500 chars), `answer` (a snapshot of the assistant text, ≤ 6,000 chars,
+follow-up markers stripped), `references` (JSON array of `"John 3:16"`
+strings from the retrieved verses / metadata), `translation`, `createdAt`,
+`revokedAt?`. Unique on `[messageId]` (sharing twice returns the same link).
+Index `[userId, createdAt]`. The public page reads only this table, never
+`Message`, so revoking or editing the conversation can never leak.
+
+**Routes.** `POST /api/shared { conversationId, messageId }` (owner-checked
+through the conversation; the message must be an assistant row) → `{ id, url,
+createdAt }` with `url = https://sureword.app/shared/{id}` (idempotent).
+`DELETE /api/shared/{id}` (owner) sets `revokedAt`. `GET /api/shared` lists the
+owner's links (`{ id, url, question, createdAt, revokedAt }`). Public, signed
+out, added to `isPublicRoute` in `src/middleware.ts` with the justifying
+comment the file demands: `/shared/(.*)` (the page) and `/api/shared/(.*)/image`
+(the card). A revoked or unknown id is a plain 404 page/response.
+
+**Page** `/shared/[id]`: the question, the answer rendered with the same
+Markdown/verse styling as chat (read-only, no verse popovers that need auth),
+the references as chips, "Shared from SureWord" with the sign-up link and the
+install links from `src/lib/constants.ts`. `generateMetadata` sets title
+(question, clipped), description (first 160 chars of the answer) and
+`openGraph.images` / `twitter.images` to the card URL below, so a pasted link
+unfurls as an image on iMessage, WhatsApp, X and Discord - that is the "share
+as image" most people actually experience.
+
+**Card** `GET /api/shared/{id}/image`: a 1200×630 PNG rendered with
+`ImageResponse` from `next/og` (the gold day-star mark on `#0a0a0a`, the first
+reference in serif, the answer's first ~200 characters, "sureword.app"), cached
+publicly for a day. This route runs on Vercel; it is not exercised locally on
+Windows (see `vercel-og-windows-broken` in memory), so its proof is the
+production URL.
+
+**Clients.** On a settled assistant answer, beside "Add to notes" and the
+thumbs: "Share". Web: `navigator.share({ title, text, url })` with a
+copy-link fallback that shows "Link copied". Android: `Share.share({ message:
+url, url })`. Apple: `ShareLink(item: URL)`. A second tap on an already-shared
+answer reuses the link. Settings → Privacy (web `/settings`, the Android and
+Apple Settings screens) gains "Shared answers": the list with a Revoke action.
+No public index of shared answers anywhere.

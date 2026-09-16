@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.62.0 (versionCode 65) - 2026-09-15 - internal
+
+**What's new (Play):**
+
+- Prayer requests come back to you: the assistant gently asks how a request went, and Settings → Memory lets you mark one Answered, Close it or Reopen it in a tap.
+- Everything the assistant saves shows as one line of tappable receipts under its answer - notes, memories, highlights, your plan, today's cross, Learn - with Undo on a remembered memory.
+- Pick Up Your Cross: "Stay with this" takes today's theme further; "Take me somewhere fresh" moves to a different area of life.
+
+**Dev notes:** prayer columns + resolvePrayerRequest tool and the follow-up block are server-side (6700adf, 018cfc0); this APK carries the Memories screen status rows, the ReceiptLine + typed receiptRoutes (bbb3e94) and the cross DirectionControls (356c771). The versionCode 64 APK carried the Learn receipt only.
+
 ## 1.61.0 (versionCode 64) - 2026-09-15 - internal
 
 **What's new (Play):**

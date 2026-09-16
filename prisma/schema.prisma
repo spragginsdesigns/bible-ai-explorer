@@ -243,8 +243,15 @@ model Message {
   conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   createdAt      DateTime         @default(now())
   attachments    ChatAttachment[]
+  /// Answer feedback (docs/FEATURES.md, "Answer feedback"): the user's own
+  /// thumb on an assistant row. Own columns, not metadata, because the
+  /// ask-question persist replaces metadata wholesale on a retry.
+  feedback       String? // "up" | "down"
+  feedbackReason String?          @db.Text
+  feedbackAt     DateTime?
 
   @@index([conversationId])
+  @@index([feedback, feedbackAt])
 }
 
 enum ChatAttachmentStatus {
