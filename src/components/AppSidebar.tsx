@@ -16,6 +16,10 @@ import {
 import { useTheme } from "next-themes";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { ANDROID_APK_URL } from "@/lib/constants";
+import { useModalFocus } from "./useModalFocus";
+
+/** Tailwind's `lg` breakpoint, above which the sidebar is static furniture. */
+const DESKTOP_QUERY = "(min-width: 1024px)";
 
 type SectionId = "chat" | "bible" | "notes" | "settings";
 
@@ -68,7 +72,31 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 	const name = user?.fullName ?? user?.username ?? "";
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 
+	// Starts true so the desktop sidebar is never briefly inert before hydration;
+	// a mobile client corrects it in the effect below on its first commit.
+	const [isDesktop, setIsDesktop] = React.useState(true);
+
+	React.useEffect(() => {
+		const query = window.matchMedia(DESKTOP_QUERY);
+		const sync = () => setIsDesktop(query.matches);
+		sync();
+		query.addEventListener("change", sync);
+		return () => query.removeEventListener("change", sync);
+	}, []);
+
 	const drawer = !docked || mobileDrawer;
+	// Below `lg` the drawer is a true overlay, so it owns focus while open and
+	// must leave the focus order entirely while closed: it stays mounted and
+	// merely translated off-screen, which keeps its links tabbable.
+	const overlay = drawer && !isDesktop;
+	const asideRef = useModalFocus<HTMLElement>({
+		open: overlay && open,
+		onClose: onClose ?? (() => {}),
+		// Clerk's UserButton opens its menu in a portal outside the aside.
+		allowPortalFocus: true,
+		inertWhenClosed: overlay,
+	});
+
 	const slide = open ? "translate-x-0" : "-translate-x-full lg:translate-x-0";
 
 	const positioning = docked
@@ -90,7 +118,9 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 			)}
 
 			<aside
-				className={`${positioning} z-50 w-[85vw] max-w-72 lg:w-[268px] flex-col liquid-glass-panel`}
+				ref={asideRef}
+				tabIndex={overlay && open ? -1 : undefined}
+				className={`${positioning} z-50 w-[85vw] max-w-72 lg:w-[268px] flex-col liquid-glass-panel outline-none`}
 			>
 				{/* Brand */}
 				<div className="flex items-center gap-2.5 px-4 pt-4 pb-3.5">

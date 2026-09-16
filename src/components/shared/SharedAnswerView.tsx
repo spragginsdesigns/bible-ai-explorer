@@ -88,9 +88,13 @@ const SharedAnswerView: React.FC<SharedAnswerViewProps> = ({
 					Shared from SureWord, a Bible study companion rooted in Scripture.
 				</p>
 				<div className="mt-4 flex flex-wrap items-center gap-3">
+					{/* Dark ink on amber, and hover brightens rather than darkens: white
+					    on amber-600 was 3.19:1 at 15px semibold, under the 4.5:1 WCAG AA
+					    floor. neutral-950 gives 6.21:1 at rest and 9.22:1 on amber-500
+					    hover, where darkening to amber-700 would have dropped it to 3.94:1. */}
 					<Link
 						href="/sign-up"
-						className="rounded-lg bg-amber-600 px-4 py-2 text-control font-semibold text-white transition-colors hover:bg-amber-700 dark:bg-amber-500 dark:text-[#0a0a0a] dark:hover:bg-amber-400"
+						className="rounded-lg bg-amber-600 px-4 py-2 text-control font-semibold text-neutral-950 transition-colors hover:bg-amber-500 dark:bg-amber-500 dark:text-[#0a0a0a] dark:hover:bg-amber-400"
 					>
 						Ask your own question
 					</Link>

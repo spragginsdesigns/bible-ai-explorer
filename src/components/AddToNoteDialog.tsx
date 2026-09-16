@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, Loader2, NotebookPen, Plus, Search, X } from "lucide-react";
+import { useModalFocus } from "./useModalFocus";
 
 interface AddToNoteDialogProps {
 	/** Cleaned assistant markdown to save (view-model content, follow-ups stripped). */
@@ -52,18 +53,13 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 	const [success, setSuccess] = useState<AppendSuccess | null>(null);
 	const [errorKey, setErrorKey] = useState<string | null>(null);
 	const searchRef = useRef<HTMLInputElement>(null);
-
-	useEffect(() => {
-		searchRef.current?.focus();
-	}, []);
-
-	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") onClose();
-		};
-		document.addEventListener("keydown", handleKeyDown);
-		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [onClose]);
+	const titleId = useId();
+	// Mounted only while open, so the modal lifecycle runs for the whole mount.
+	const panelRef = useModalFocus<HTMLDivElement>({
+		open: true,
+		onClose,
+		initialFocusRef: searchRef,
+	});
 
 	// Load note summaries for the picker when the dialog opens.
 	useEffect(() => {
@@ -194,10 +190,20 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 				onClick={onClose}
 			/>
 
-			<div className="relative w-full max-w-md max-h-[80vh] flex flex-col glass-card border border-black/[0.1] dark:border-white/[0.1] rounded-xl shadow-xl shadow-black/15 dark:shadow-black/60 p-4">
+			<div
+				ref={panelRef}
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby={titleId}
+				tabIndex={-1}
+				className="relative w-full max-w-md max-h-[80vh] flex flex-col glass-card border border-black/[0.1] dark:border-white/[0.1] rounded-xl shadow-xl shadow-black/15 dark:shadow-black/60 p-4 outline-none"
+			>
 				{/* Header */}
 				<div className="flex items-center justify-between mb-3">
-					<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-semibold">
+					<div
+						id={titleId}
+						className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-sm font-semibold"
+					>
 						<NotebookPen className="w-4 h-4" />
 						Add to notes
 					</div>

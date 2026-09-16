@@ -523,6 +523,33 @@
 	animation: pulse-glow 3s ease-in-out infinite;
 }
 
+/* Every loop below is decoration, never status, so it is safe to stop for
+   readers who ask for reduced motion. The pulse keeps the 0% keyframe's
+   resting shadow so the welcome mark still looks lit rather than flat.
+   Loading spinners are deliberately left running: they report in-flight
+   work, and freezing one would read as a hung request. */
+@media (prefers-reduced-motion: reduce) {
+	.animate-pulse-glow {
+		animation: none;
+		box-shadow:
+			0 2px 8px rgba(0, 0, 0, 0.06),
+			0 1px 3px rgba(0, 0, 0, 0.04);
+	}
+
+	.dark .animate-pulse-glow {
+		animation: none;
+		box-shadow:
+			0 0 12px rgba(255, 255, 255, 0.05),
+			0 0 30px rgba(255, 255, 255, 0.02);
+	}
+
+	.animate-shimmer,
+	.animate-page-turn,
+	.animate-page-content {
+		animation: none;
+	}
+}
+
 /* Animation delays */
 .animation-delay-200 {
 	animation-delay: 0.2s;

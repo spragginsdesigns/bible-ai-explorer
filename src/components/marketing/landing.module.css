@@ -5,6 +5,10 @@
   --gold: #d9b878;
   --muted: #b6bcb0;
   font-family: var(--font-body), sans-serif;
+  /* A word that cannot fit its box breaks instead of widening the page.
+     Never fires at normal type sizes; it is the safety net when the
+     reader enlarges text. */
+  overflow-wrap: break-word;
 }
 .page * {
   box-sizing: border-box;
@@ -30,35 +34,47 @@
   margin-inline: auto;
 }
 .header {
-  height: 96px;
+  /* Content-driven height: the bar grows for enlarged text instead of
+     letting the brand and the nav overlap. */
+  min-height: 96px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 8px 24px;
+  padding-block: 12px;
   border-bottom: 1px solid #f3efe314;
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 11px;
+  min-width: 0;
+  min-height: 44px;
+  overflow-wrap: anywhere;
   color: #f5efdf;
-  font-size: 26px;
+  font-size: 1.625rem;
   font-family: var(--font-cormorant), Georgia, serif;
   font-weight: 600;
 }
 .brand img {
+  flex-shrink: 0;
   border-radius: 10px;
 }
 .header nav {
   display: flex;
-  gap: 32px;
+  flex-wrap: wrap;
+  gap: 4px 32px;
   align-items: center;
-  font-size: 14px;
+  justify-content: flex-end;
+  font-size: 0.875rem;
   color: #cdd0c6;
 }
 .header nav a {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-height: 44px;
 }
 .hero {
   display: grid;
@@ -67,6 +83,13 @@
   align-items: start;
   padding-block: 105px 100px;
 }
+/* Grid items default to a min-content floor, so one long word at an
+   enlarged size would widen the track and the page with it. */
+.hero > *,
+.features > *,
+.plans > * {
+  min-width: 0;
+}
 @media (min-width: 1100px) and (min-height: 850px) {
   .intro {
     position: sticky;
@@ -74,7 +97,7 @@
   }
 }
 .eyebrow {
-  font-size: 10px;
+  font-size: 0.625rem;
   letter-spacing: 0.17em;
   text-transform: uppercase;
   font-weight: 700;
@@ -83,6 +106,7 @@
 }
 .intro > .eyebrow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -99,7 +123,7 @@
   letter-spacing: -0.035em;
 }
 .page h1 {
-  font-size: clamp(52px, 5.8vw, 80px);
+  font-size: clamp(3.25rem, 5.8vw, 5rem);
   line-height: 1.02;
   margin: 24px 0;
 }
@@ -109,10 +133,10 @@
   font-weight: 400;
 }
 .dek {
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1.7;
   color: var(--muted);
-  max-width: 370px;
+  max-width: min(370px, 100%);
   margin: 24px 0 30px;
 }
 .primary,
@@ -450,9 +474,20 @@
 }
 .footer > div {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 25px;
   font-size: 12px;
   color: #b2baa9;
+}
+/* 44px hit areas. The negative block margin keeps each link's visual
+   footprint at its old 24px so the footer does not grow. */
+.footer .brand,
+.footer > div a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: -10px;
 }
 @media (max-width: 950px) {
   .header,
@@ -471,7 +506,7 @@
     padding-block: 70px;
   }
   .page h1 {
-    font-size: 59px;
+    font-size: clamp(3rem, 7.7vw, 3.6875rem);
   }
   .study {
     transform: none;
@@ -505,17 +540,17 @@
     width: calc(100% - 40px);
   }
   .header {
-    height: 78px;
+    min-height: 78px;
   }
   .header nav {
-    gap: 18px;
-    font-size: 12px;
+    gap: 4px 18px;
+    font-size: 0.75rem;
   }
   .header nav > a:first-child {
     display: none;
   }
   .brand {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .hero {
     grid-template-columns: 1fr;
@@ -523,13 +558,13 @@
     padding-block: 55px 46px;
   }
   .page h1 {
-    font-size: 64px;
+    font-size: clamp(2.75rem, 20vw, 4rem);
   }
   .dek {
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
   .intro > .eyebrow {
-    font-size: 9px;
+    font-size: 0.5625rem;
     letter-spacing: 0.12em;
   }
   .study {

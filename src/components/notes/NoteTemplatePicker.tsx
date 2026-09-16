@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { BookOpen, Church, HeartHandshake, FileText, X } from "lucide-react";
+import { useModalFocus } from "../useModalFocus";
 import { NOTE_TEMPLATE_OPTIONS, type NoteTemplateId } from "./noteTemplates";
 
 const TEMPLATE_ICONS: Record<NoteTemplateId, React.ReactNode> = {
@@ -24,50 +25,12 @@ interface NoteTemplatePickerProps {
  * Escape and the backdrop close without creating anything.
  */
 const NoteTemplatePicker: React.FC<NoteTemplatePickerProps> = ({ open, onClose, onPick, busy = false, error }) => {
-	const dialogRef = useRef<HTMLDivElement>(null);
-	const closeRef = useRef(onClose);
-	closeRef.current = onClose;
-
-	useEffect(() => {
-		if (!open) return;
-		const dialog = dialogRef.current;
-		if (!dialog) return;
-		const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-		const controls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
-			'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
-		)).filter(element => element.tabIndex >= 0 && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden");
-		(controls()[0] ?? dialog).focus();
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				event.preventDefault();
-				event.stopPropagation();
-				closeRef.current();
-				return;
-			}
-			if (event.key !== "Tab") return;
-			event.preventDefault();
-			const available = controls();
-			if (!available.length) {
-				dialog.focus();
-				return;
-			}
-			const index = available.indexOf(document.activeElement as HTMLElement);
-			const next = index < 0
-				? (event.shiftKey ? available.length - 1 : 0)
-				: (index + (event.shiftKey ? -1 : 1) + available.length) % available.length;
-			available[next].focus();
-		};
-		window.addEventListener("keydown", onKey, true);
-		return () => {
-			window.removeEventListener("keydown", onKey, true);
-			if (trigger?.isConnected) trigger.focus();
-		};
-	}, [open]);
+	const dialogRef = useModalFocus<HTMLDivElement>({ open, onClose });
 
 	useEffect(() => {
 		// A disabled button cannot retain keyboard focus while creation runs.
 		if (open && busy) dialogRef.current?.focus();
-	}, [open, busy]);
+	}, [open, busy, dialogRef]);
 
 	if (!open) return null;
 

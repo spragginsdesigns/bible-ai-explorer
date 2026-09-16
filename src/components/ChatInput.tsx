@@ -281,6 +281,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
 								multiple
 								accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json"
 								className="sr-only"
+								// The labelled 44px button below is the keyboard trigger; the
+								// native control stays a click target only.
+								tabIndex={-1}
+								aria-hidden="true"
 								onChange={(event) => {
 									if (event.target.files) handleFiles(event.target.files);
 									event.target.value = "";
