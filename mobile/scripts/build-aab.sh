@@ -81,7 +81,7 @@ fi
 # `signingConfig signingConfigs.debug` lines; the release one directly follows
 # the template's "Caution!" comment, so anchor on that.
 if ! grep -q 'signingConfig signingConfigs.upload' app/build.gradle; then
-  perl -0pi -e 's/(\/\/ Caution![^\n]*\n[^\n]*\n?\s*)signingConfig signingConfigs\.debug/$1signingConfig project.hasProperty("SUREWORD_UPLOAD_STORE_FILE") ? signingConfigs.upload : signingConfigs.debug/' app/build.gradle
+  perl -0pi -e 's/(\/\/ Caution![^\n]*\n[^\n]*\n?\s*)signingConfig\s*=?\s*signingConfigs\.debug/$1signingConfig = project.hasProperty("SUREWORD_UPLOAD_STORE_FILE") ? signingConfigs.upload : signingConfigs.debug/' app/build.gradle
   grep -q 'signingConfigs.upload' app/build.gradle || { echo "Failed to patch release signingConfig - check app/build.gradle"; exit 1; }
   log "Release build type now signs with the upload key."
 fi
