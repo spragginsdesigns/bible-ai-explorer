@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.66.0 (versionCode 69) - 2026-09-16 - internal
+
+**What's new (Play):**
+
+- Highlight labels now ask why you reach for each color: give every color a name and a one-line meaning, or tap "Use suggested labels" for a ready-made set (Favorite, Promise, Command, Warning, Question and more). The assistant reads your meanings, so a marked verse carries your reasons into Chat.
+- New in Settings under Memory: "About me". Tell SureWord in your own words where you are in your walk and what you want from the app, and every conversation starts from that.
+
+**Dev notes:** `User.highlightMeanings` (JSON) and `User.aboutMe` (text), migration `20260916030000_highlight_meanings_about_me`, applied to production 2026-09-16. Both sync through `GET/PATCH /api/preferences`. Server side, the chat and note-assistant prompts gain a highlight legend (label, meaning, verse count per colour; `src/lib/highlight-legend.ts`) and an About me block, which every installed build benefits from without this release; the APK carries the two Settings sections and the contract mirror in `mobile/src/features/settings/preferences.ts`.
+
 ## 1.65.0 (versionCode 68) - 2026-09-16 - internal
 
 **What's new (Play):**
