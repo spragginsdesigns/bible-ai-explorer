@@ -11,8 +11,8 @@ import type { Colors } from "@/theme";
 import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FollowUpChips } from "./FollowUpChips";
 import { MarkdownBody } from "./MarkdownBody";
-import { NoteActionCard } from "./NoteActionCard";
 import { CrossActionCard } from "./CrossActionCard";
+import { ReceiptLine } from "./ReceiptLine";
 import { RetrievedVersesCard } from "./RetrievedVersesCard";
 import { WorkActivity } from "./WorkActivity";
 import { TypingDots } from "./TypingDots";
@@ -126,18 +126,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 					onClose={() => setNoteSheetOpen(false)}
 				/>
 
-				{message.receipts?.filter((receipt) => receipt.kind === "reading" || receipt.kind === "learn").map((receipt) => (
-					<Pressable key={receipt.id} accessibilityRole="link"
-						accessibilityLabel={`${receipt.label}. ${receipt.kind === "learn" ? "Open Learn" : "Open reading history"}`}
-						onPress={() => router.push(receipt.kind === "learn" ? "/(app)/bible/learn" : "/bible/history")}
-						style={({ pressed }) => [styles.addToNote, { minHeight: 44 }, pressed && styles.addToNotePressed]}>
-						<Text style={[styles.addToNoteLabel, { color: colors.accent }]}>{receipt.label} ›</Text>
-					</Pressable>
-				))}
-
-				{message.noteActions?.map((action, index) => (
-					<NoteActionCard key={`${action.noteId}-${index}`} action={action} />
-				))}
+				{/*
+				  * Every receipt of the turn, one line, each fragment navigating by its
+				  * target. This replaces the old per-kind Pressables and the separate
+				  * "added to note" card: the note receipt is the note affordance now.
+				  */}
+				{message.receipts && message.receipts.length > 0 && (
+					<ReceiptLine receipts={message.receipts} />
+				)}
 
 				{message.crossActions?.map((action, index) => (
 					<CrossActionCard key={`${action.reference}-${index}`} action={action} />

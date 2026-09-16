@@ -76,6 +76,8 @@ export function isRenderableChatViewMessage(message: ChatViewMessage): boolean {
 		message.attachments?.length ||
 		message.noteActions?.length ||
 		message.crossActions?.length ||
+		// A turn whose only visible output is a receipt line still renders.
+		message.receipts?.length ||
 		message.retrievedVerses?.length ||
 		message.tavilyResults?.length ||
 		message.followUps?.length

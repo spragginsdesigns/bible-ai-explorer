@@ -5,12 +5,13 @@ import SwiftUI
 /// `macos/SureWord/Chat/Views/ChatView.swift`.
 struct ChatMessageList: View {
     @Bindable var chat: ChatViewModel
+    /// Handed to each bubble for the receipts line's undo fragment.
+    let api: APIClient
     var onVerseCopy: (RetrievedVerse) -> Void
     var onVerseSaveToNote: (RetrievedVerse) -> Void
     var onVerseReadInBible: (RetrievedVerse) -> Void
-    var onOpenNote: (NoteAction) -> Void
-    var onOpenCross: () -> Void
-    var onOpenLearn: () -> Void
+    var onOpenReceipt: (ChatReceipt) -> Void
+    var onReceiptError: (String) -> Void
     var onCrossReplaced: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
 
@@ -21,12 +22,12 @@ struct ChatMessageList: View {
                     ForEach(chat.messages) { message in
                         ChatMessageBubble(
                             message: message,
+                            api: api,
                             onVerseCopy: onVerseCopy,
                             onVerseSaveToNote: onVerseSaveToNote,
                             onVerseReadInBible: onVerseReadInBible,
-                            onOpenNote: onOpenNote,
-                            onOpenCross: onOpenCross,
-                            onOpenLearn: onOpenLearn,
+                            onOpenReceipt: onOpenReceipt,
+                            onReceiptError: onReceiptError,
                             onAddToNote: onAddToNote,
                             onFollowUp: { question in
                                 chat.input = question

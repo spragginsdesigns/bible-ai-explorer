@@ -18,6 +18,10 @@ struct ChatViewMessageTests {
         #expect(ChatViewMessage(id: "a", role: .assistant, content: "", isStreaming: true).hasRenderableContent)
         #expect(ChatViewMessage(id: "a", role: .assistant, content: "", activity: "Thinking").hasRenderableContent)
         #expect(ChatViewMessage(id: "a", role: .assistant, content: "Answer").hasRenderableContent)
+        // A "Remembered" line with no prose is still an answer the user must see.
+        var remembered = ChatViewMessage(id: "a", role: .assistant, content: "")
+        remembered.receipts = [ChatReceipt(id: "call_1", kind: .memory, label: "Remembered", target: .memories(memoryID: "m1"))]
+        #expect(remembered.hasRenderableContent)
         #expect(ChatViewMessage(id: "u", role: .user, content: "").hasRenderableContent)
     }
 

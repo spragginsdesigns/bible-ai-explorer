@@ -1538,8 +1538,14 @@ parsers (`src/components/useChat.ts`, `mobile/src/lib/chatView.ts`,
 `macos/Shared/Chat/ChatViewMessage.swift`) derive receipts from persisted
 `tool-*` parts, so history replays the same line. Clients render all receipts of
 a turn as **one line** of tappable fragments joined by " · ", in the accent
-colour, under the answer. The existing `noteActions` and `crossActions` stay on
-the view model until every client renders receipts, then they are removed.
+colour, under the answer. Since 2026-09-16 every client renders that line
+(`src/components/chat/ReceiptLine.tsx`, `mobile/src/features/chat/ReceiptLine.tsx`,
+`macos/Shared/Chat/ReceiptLineView.swift`) with the `forgetMemory` undo, the
+legacy note cards are no longer rendered anywhere, and the cross card survives
+only as the verse preview under the line. The `noteActions` / `crossActions`
+view-model fields (and `NoteActionCard`) still exist and are removed in a later
+cycle; the renderable-message guard on every client counts `receipts`, so a turn
+whose only output is a receipt is never dropped.
 
 ```ts
 export type ChatReceiptKind =

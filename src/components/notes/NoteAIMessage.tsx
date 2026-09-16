@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { Loader2, NotebookPen } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import FormattedResponse from "../FormattedResponse";
 import type { ChatMessage } from "../useChat";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import SureWordGuideAvatar from "../SureWordGuideAvatar";
+import ReceiptLine from "../chat/ReceiptLine";
 
 interface NoteAIMessageProps {
 	message: ChatMessage;
@@ -55,27 +55,7 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-1.5 h-3 bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
-				{message.receipts?.filter((receipt) => receipt.kind === "reading" || receipt.kind === "learn").map((receipt) => (
-					<Link key={receipt.id} href={receipt.kind === "learn" ? "/bible/learn" : "/bible/history"} className="mt-2 flex min-h-11 items-center text-sm text-amber-700 dark:text-amber-400 hover:underline">
-						{receipt.label} ›
-					</Link>
-				))}
-				{message.noteActions && message.noteActions.length > 0 && (
-					<div className="mt-2 space-y-1.5">
-						{message.noteActions.map((action, index) => (
-							<div
-								key={`${action.noteId}-${index}`}
-								className="flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-2.5 py-1.5"
-							>
-								<NotebookPen className="w-3 h-3 flex-shrink-0 text-amber-400" />
-								<span className="text-xs text-neutral-300 truncate">
-									{action.created ? "Created note" : "Added to note"}{" "}
-									<span className="font-medium text-amber-400">{action.noteTitle}</span>
-								</span>
-							</div>
-						))}
-					</div>
-				)}
+				{message.receipts && <ReceiptLine receipts={message.receipts} />}
 			</div>
 		</div>
 	);

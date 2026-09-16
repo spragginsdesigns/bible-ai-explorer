@@ -11,6 +11,8 @@ export interface RenderableChatMessage extends MessageIdentity {
 	attachments?: readonly unknown[];
 	noteActions?: readonly unknown[];
 	crossActions?: readonly unknown[];
+	/** A turn whose only visible output is a receipt line still renders. */
+	receipts?: readonly unknown[];
 	retrievedVerses?: readonly unknown[];
 	tavilyResults?: readonly unknown[];
 	followUps?: readonly unknown[];
@@ -40,6 +42,7 @@ export function isRenderableChatMessage(message: RenderableChatMessage): boolean
 		message.attachments?.length ||
 		message.noteActions?.length ||
 		message.crossActions?.length ||
+		message.receipts?.length ||
 		message.retrievedVerses?.length ||
 		message.tavilyResults?.length ||
 		message.followUps?.length

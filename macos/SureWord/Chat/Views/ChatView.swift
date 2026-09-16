@@ -6,6 +6,10 @@ struct ChatView: View {
     /// The picker writes the chosen model and effort straight into the store
     /// `ChatViewModel` reads on every send.
     @Environment(SettingsStore.self) private var settings
+    /// Only for a note receipt's hop to the Notes section. Injected on the
+    /// signed-in shell (`SureWord/App/SureWordApp.swift:134`), which is this
+    /// pane's only parent (`MainWindow.swift:60`).
+    @Environment(AppModel.self) private var app
     @Bindable var chat: ChatViewModel
     let api: APIClient
     /// This user's opening questions, generated once per session.
@@ -145,15 +149,15 @@ struct ChatView: View {
                     ForEach(chat.messages) { message in
                         MessageBubble(
                             message: message,
+                            api: api,
                             onVerseCopy: { verse in
                                 VerseActions.copy(reference: verse.reference, text: verse.text, translation: verse.translation)
                                 show(toast: "Copied \(verse.reference)")
                             },
                             onVerseSaveToNote: { verse in save(verse) },
                             onVerseReadInBible: onReadInBible,
-                            onOpenNote: { _ in show(toast: "Notes arrive in a later phase.") },
-                            onOpenCross: onOpenCross,
-                            onOpenLearn: { show(toast: "Learn arrives in a later phase.") },
+                            onOpenReceipt: { receipt in openReceipt(receipt) },
+                            onReceiptError: { message in show(toast: message) },
                             onAddToNote: { answer in
                                 noteTarget = PendingNoteSave(
                                     id: answer.id,
@@ -219,6 +223,46 @@ struct ChatView: View {
 
     private func centered<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content().frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Where a receipt fragment goes on the Mac. The window's sections are
+    /// `chat`, `bible`, `notes` and `cross` (`AppSection`, `Shared/App/AppModel.swift:9`),
+    /// and the shell also handed this pane two hops of its own: the Daily Cross
+    /// and the reader. Anything a section owns privately - the Memories sheet
+    /// inside Settings, the reading plan and history panes inside Bible - is
+    /// named rather than jumped to, because there is no cross-section hook.
+    private func openReceipt(_ receipt: ChatReceipt) {
+        switch receipt.target {
+        case .note:
+            // Selecting the section is the whole hop: `NotesSection` builds its
+            // own `NotesLibraryModel` on appear (`SureWord/Notes/Views/NotesSection.swift:24`)
+            // and owns `selectedNoteID`, so there is nothing here to preselect
+            // with. `AppModel.pendingNoteID` is the iOS-only route and says so
+            // (`Shared/App/AppModel.swift:78`).
+            app.section = .notes
+        case .memories:
+            show(toast: ReceiptLine.settingsMessage(for: .memory))
+        case .chapter(let book, let chapter, let verse, let translation):
+            guard let reference = ReceiptLine.chapterReference(book: book, chapter: chapter, verse: verse) else {
+                show(toast: "That passage could not be opened.")
+                return
+            }
+            // The only route into the reader from here is the verse-card hop the
+            // shell passed down, which reads the reference and translation only.
+            onReadInBible(
+                RetrievedVerse(reference: reference, similarity: 0, text: nil, translation: translation)
+            )
+        case .plan:
+            show(toast: "Your reading plan is in the Bible section.")
+        case .readingHistory:
+            show(toast: "Reading history is in the Bible section's toolbar.")
+        case .cross:
+            onOpenCross()
+        case .learn:
+            show(toast: "Learn arrives in a later phase.")
+        case .settings(let section):
+            show(toast: ReceiptLine.settingsMessage(for: section))
+        }
     }
 
     private func save(_ verse: RetrievedVerse) {

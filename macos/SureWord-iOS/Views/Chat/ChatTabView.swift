@@ -124,20 +124,15 @@ struct ChatTabView: View {
         } else {
             ChatMessageList(
                 chat: chat,
+                api: app.api,
                 onVerseCopy: { verse in
                     VerseActions.copy(reference: verse.reference, text: verse.text, translation: verse.translation)
                     show(toast: "Copied \(verse.reference)")
                 },
                 onVerseSaveToNote: { verse in save(verse) },
                 onVerseReadInBible: readInBible,
-                onOpenNote: openNote,
-                onOpenCross: {
-                    // The day the assistant just replaced is stale in the cached
-                    // model, so force a reload on the way in.
-                    app.dailyCross.load(force: true)
-                    NotificationCenter.default.post(name: .openDailyCross, object: nil)
-                },
-                onOpenLearn: { show(toast: "Learn arrives in a later phase.") },
+                onOpenReceipt: { receipt in openReceipt(receipt) },
+                onReceiptError: { message in show(toast: message) },
                 onCrossReplaced: { app.dailyCross.invalidate() },
                 onAddToNote: { answer in
                     noteTarget = PendingNoteSave(id: answer.id, markdown: answer.content)
@@ -165,13 +160,57 @@ struct ChatTabView: View {
     }
 
     /// Lane 4's Notes tab owns opening a note; chat only announces the id.
-    private func openNote(_ action: NoteAction) {
+    /// TabShell observes `.openNote`, stages `app.pendingNoteID` and switches
+    /// tabs (`SureWord-iOS/Views/TabShell.swift:95`).
+    private func openNote(_ noteID: String) {
         NotificationCenter.default.post(
             name: .openNote,
             object: nil,
-            userInfo: ["noteId": action.noteID]
+            userInfo: ["noteId": noteID]
         )
-        show(toast: "Opening \(action.noteTitle)…")
+    }
+
+    /// Where a receipt fragment goes on the phone. The tabs are Chat, Bible and
+    /// Notes; the Daily Cross is a sheet, and Settings (with Memories inside it)
+    /// is a pushed route off each tab's gear, which nothing outside the stack can
+    /// drive - so those receipts say where to look instead of jumping.
+    private func openReceipt(_ receipt: ChatReceipt) {
+        switch receipt.target {
+        case .note(let noteID):
+            openNote(noteID)
+            show(toast: "Opening your note…")
+        case .memories:
+            show(toast: ReceiptLine.settingsMessage(for: .memory))
+        case .chapter(let book, let chapter, let verse, let translation):
+            guard let reference = ReceiptLine.chapterReference(book: book, chapter: chapter, verse: verse) else {
+                show(toast: "That passage could not be opened.")
+                return
+            }
+            openChapter(reference: reference, translation: translation)
+        case .plan:
+            show(toast: "Reading plans arrive in a later phase.")
+        case .readingHistory:
+            show(toast: "Reading history is in the Bible tab.")
+        case .cross:
+            // The day the assistant just replaced is stale in the cached model,
+            // so force a reload on the way into the sheet.
+            app.dailyCross.load(force: true)
+            NotificationCenter.default.post(name: .openDailyCross, object: nil)
+        case .learn:
+            show(toast: "Learn arrives in a later phase.")
+        case .settings(let section):
+            show(toast: ReceiptLine.settingsMessage(for: section))
+        }
+    }
+
+    /// Same journey as a verse card, from a reference the receipt's book and
+    /// chapter numbers were turned into.
+    private func openChapter(reference: String, translation: TranslationID?) {
+        var userInfo: [AnyHashable: Any] = ["reference": reference]
+        if let translation {
+            userInfo["translation"] = translation.rawValue
+        }
+        NotificationCenter.default.post(name: .openBibleVerse, object: nil, userInfo: userInfo)
     }
 
     // MARK: - Verse save + toast

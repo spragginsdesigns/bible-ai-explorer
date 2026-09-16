@@ -153,6 +153,8 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
             || !followUps.isEmpty
             || !noteActions.isEmpty
             || !crossActions.isEmpty
+            // A "Remembered" line with no prose is still an answer the user must see.
+            || !receipts.isEmpty
             || !attachments.isEmpty
     }
 }

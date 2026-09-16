@@ -27,6 +27,8 @@ test("an orphaned empty assistant shell is hidden but real states remain", () =>
 	assert.equal(isRenderableChatMessage({ ...base, activity: "Thinking" }), true);
 	assert.equal(isRenderableChatMessage({ ...base, content: "Answer" }), true);
 	assert.equal(isRenderableChatMessage({ ...base, noteActions: [{}] }), true);
+	// A "Remembered" line with no prose is still an answer the user must see.
+	assert.equal(isRenderableChatMessage({ ...base, receipts: [{}] }), true);
 	assert.equal(isRenderableChatMessage({ id: "u", role: "user", content: "" }), true);
 });
 

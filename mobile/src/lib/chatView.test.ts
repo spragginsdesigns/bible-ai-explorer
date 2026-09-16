@@ -34,6 +34,13 @@ describe("assistant turn display", () => {
 		expect(isRenderableChatViewMessage({ ...empty, activity: "Thinking" })).toBe(true);
 		expect(isRenderableChatViewMessage({ ...empty, content: "Answer" })).toBe(true);
 		expect(isRenderableChatViewMessage({ ...empty, retrievedVerses: [{ reference: "John 3:16", similarity: 1 }] })).toBe(true);
+		// A "Remembered" line with no prose is still an answer the user must see.
+		expect(
+			isRenderableChatViewMessage({
+				...empty,
+				receipts: [{ id: "call_1", kind: "memory", label: "Remembered", target: { screen: "memories", memoryId: "m1" } }],
+			}),
+		).toBe(true);
 	});
 });
 

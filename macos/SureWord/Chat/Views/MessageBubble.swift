@@ -6,14 +6,16 @@ struct MessageBubble: View {
     @Environment(\.theme) private var theme
 
     let message: ChatViewMessage
+    /// The receipts line's undo fragment talks to `/api/memories` itself.
+    let api: APIClient
     var onVerseCopy: (RetrievedVerse) -> Void
     var onVerseSaveToNote: (RetrievedVerse) -> Void
     var onVerseReadInBible: (RetrievedVerse) -> Void
-    var onOpenNote: (NoteAction) -> Void
-    var onOpenCross: () -> Void
-    /// Destination for a `.learn` receipt. No Mac screen owns the Learn queue
-    /// yet, so the caller answers with the "later phase" toast.
-    var onOpenLearn: () -> Void
+    /// Every receipt fragment dispatches through here; the shell owns where each
+    /// `ChatReceiptTarget` lands.
+    var onOpenReceipt: (ChatReceipt) -> Void
+    /// A failed undo, reported to the shell's toast.
+    var onReceiptError: (String) -> Void
     var onAddToNote: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
@@ -116,32 +118,19 @@ struct MessageBubble: View {
                 WebResultsCard(results: message.tavilyResults)
             }
 
-            ForEach(message.receipts.filter { $0.kind == .reading }) { receipt in
-                Text(receipt.label)
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
-                    .textSelection(.enabled)
-            }
+            // Everything this turn saved, on one line. It replaces the note
+            // cards and the per-kind receipt rows that came before it.
+            ReceiptLineView(
+                receipts: message.receipts,
+                api: api,
+                onOpen: onOpenReceipt,
+                onError: onReceiptError
+            )
 
-            ForEach(message.receipts.filter { $0.kind == .learn }) { receipt in
-                Button(action: onOpenLearn) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "graduationcap")
-                        Text(receipt.label)
-                    }
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
-                }
-                .buttonStyle(SubtleButtonStyle())
-                .accessibilityLabel(receipt.label)
-            }
-
-            ForEach(message.noteActions) { action in
-                NoteActionCard(action: action) { onOpenNote(action) }
-            }
-
+            // The cross card stays as the verse preview: it is content, and the
+            // receipt fragment above it is the tap.
             ForEach(message.crossActions) { action in
-                CrossActionCard(action: action, onOpen: onOpenCross)
+                CrossActionCard(action: action)
             }
 
             // Chips only once the answer has settled, so they don't flicker in

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { Loader2, NotebookPen } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
@@ -15,6 +14,7 @@ import { parseVerseReferences } from "@/utils/verseParser";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import WorkActivity from "./WorkActivity";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
+import ReceiptLine from "./chat/ReceiptLine";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -103,43 +103,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						onClose={() => setAddToNoteOpen(false)}
 					/>
 				)}
-				{message.receipts?.filter((receipt) => receipt.kind === "reading" || receipt.kind === "learn").map((receipt) => (
-					<Link key={receipt.id} href={receipt.kind === "learn" ? "/bible/learn" : "/bible/history"} className="mt-2 flex min-h-11 items-center text-sm text-amber-700 dark:text-amber-400 hover:underline">
-						{receipt.label} ›
-					</Link>
-				))}
-				{message.noteActions && message.noteActions.length > 0 && (
-					<div className="mt-3 space-y-2">
-						{message.noteActions.map((action, index) => (
-							<Link
-								key={`${action.noteId}-${index}`}
-								// The notes page auto-selects the note named by ?note=.
-								href={`/notes?note=${encodeURIComponent(action.noteId)}`}
-								className="flex items-center gap-2.5 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] px-3.5 py-2.5 transition-colors hover:bg-amber-400/[0.12]"
-							>
-								<NotebookPen className="w-4 h-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-								<span className="text-support text-neutral-700 dark:text-neutral-300 truncate">
-									{action.created ? "Created note" : "Added to note"}{" "}
-									<span className="font-medium text-amber-700 dark:text-amber-400">
-										{action.noteTitle}
-									</span>
-								</span>
-							</Link>
-						))}
-					</div>
-				)}
+				{message.receipts && <ReceiptLine receipts={message.receipts} />}
+				{/* The cross receipt keeps its verse preview below the line, because a
+				    verse is content rather than chrome. The "Pick Up Your Cross
+				    updated" banner and its link are gone: the receipt fragment
+				    already says that and already goes there. */}
 				{message.crossActions && message.crossActions.length > 0 && (
-					<div className="mt-3 space-y-2">
+					<div className="mt-1.5 space-y-2">
 						{message.crossActions.map((action, index) => (
-							<Link
-								key={`${action.reference}-${index}`}
-								href="/cross"
-								className="flex flex-col gap-1 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3.5 py-3 transition-colors hover:bg-amber-400/[0.12]"
-							>
-								<span className="flex items-center gap-2 text-metadata font-semibold tracking-wide text-amber-700 dark:text-amber-400">
-									<span aria-hidden>✝</span>
-									Pick Up Your Cross updated
-								</span>
+							<div key={`${action.reference}-${index}`} className="flex flex-col gap-1">
 								<span className="text-control font-medium text-neutral-800 dark:text-neutral-200">
 									{action.reference}
 									{action.previousReference && (
@@ -152,7 +124,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 								<span className="line-clamp-2 text-support italic text-neutral-600 dark:text-neutral-400">
 									{action.text}
 								</span>
-							</Link>
+							</div>
 						))}
 					</div>
 				)}
