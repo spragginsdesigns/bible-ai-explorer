@@ -69,7 +69,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
  */
 export default function SettingsPage() {
 	const { theme, setTheme } = useTheme();
-	const { user } = useUser();
+	const { user, isLoaded: userLoaded } = useUser();
 	const { signOut } = useClerk();
 	const [mounted, setMounted] = useState(false);
 	// Every synced value is read from the shared cache rather than held here, so
@@ -275,7 +275,12 @@ export default function SettingsPage() {
 						</div>
 					</section>
 
-					<HighlightLabelsSection key={user?.id ?? "signed-out"} />
+					{/* Keyed by account so a new sign-in never inherits the previous
+					    draft, but only once Clerk has loaded: keying on a value that
+					    flips during the first client render remounted the section and
+					    left the first copy in the DOM (two Highlight labels cards, the
+					    first one dead). Same for About me below. */}
+					{userLoaded ? <HighlightLabelsSection key={user?.id ?? "signed-out"} /> : null}
 
 					{/* Memory */}
 					<section id="memory" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
@@ -356,7 +361,7 @@ export default function SettingsPage() {
 
 					{/* About me: sits with Memory because both are what the assistant
 					    knows about this person before a conversation starts. */}
-					<AboutMeSection key={user?.id ?? "signed-out"} />
+					{userLoaded ? <AboutMeSection key={user?.id ?? "signed-out"} /> : null}
 
 					{/* Web search */}
 					<section id="web-search" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
