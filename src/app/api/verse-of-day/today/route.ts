@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { scheduleDailyCrossAudio } from "@/lib/daily-cross-audio";
 import {
+	DailyCrossDirectionError,
 	DailyCrossReferenceError,
 	findTodayCross,
 	generateDailyCross,
@@ -9,6 +10,7 @@ import {
 	storeDailyCross,
 	type DailyCross,
 } from "@/lib/daily-cross";
+import { isDailyCrossDirection } from "@/lib/daily-cross-selection";
 
 /** A steer the user typed ("something on fear") — long enough to be useful, short enough to be a steer. */
 const MAX_FOCUS_LENGTH = 200;
@@ -38,6 +40,11 @@ function toResponse(cross: DailyCross & { id?: string }, sentAt: Date) {
 		application: cross.application,
 		studyPath: cross.studyPath,
 		question: cross.question,
+		// Always present so a client can decide whether "Stay with this" applies
+		// without a second request; null on a pinned day or a row that predates
+		// the theme fields.
+		themeKey: cross.primaryThemeKey ?? null,
+		theme: cross.primaryTheme ?? null,
 		sentAt: sentAt.toISOString(),
 	};
 }
@@ -79,11 +86,13 @@ export async function GET(): Promise<Response> {
 }
 
 /**
- * Replace today's entry with a freshly generated one — the "a different word
+ * Replace today's entry with a freshly generated one - the "a different word
  * for today" control on every client's Daily Cross screen, and the `setDailyCross`
- * chat tool. Body (all optional): `{ focus, book, chapter, verse }`; `focus`
- * steers the choice in the user's own words, and a full book/chapter/verse pins
- * the day to a verse they named.
+ * chat tool. Body (all optional): `{ focus, direction, book, chapter, verse }`;
+ * `focus` steers the choice in the user's own words, `direction` is the "Stay
+ * with this" / "Take me somewhere fresh" pair, and a full book/chapter/verse pins
+ * the day to a verse they named. A pin already says where to go, so it cannot be
+ * combined with a direction.
  */
 export async function POST(req: Request): Promise<Response> {
 	try {
@@ -96,6 +105,14 @@ export async function POST(req: Request): Promise<Response> {
 			typeof data.focus === "string" && data.focus.trim()
 				? data.focus.trim().slice(0, MAX_FOCUS_LENGTH)
 				: undefined;
+
+		if (data.direction !== undefined && !isDailyCrossDirection(data.direction)) {
+			return privateJson(
+				{ error: 'A direction must be either "stay" or "fresh".' },
+				{ status: 400 }
+			);
+		}
+		const direction = isDailyCrossDirection(data.direction) ? data.direction : undefined;
 
 		// A pinned verse needs all three parts; a partial reference is a client
 		// bug, not a request to guess.
@@ -120,8 +137,11 @@ export async function POST(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
+		if (direction && hasReferencePart) {
+			return privateJson({ error: "Choose a direction or pin a verse, not both." }, { status: 400 });
+		}
 
-		const { cross } = await replaceDailyCross(userId, { focus, verse });
+		const { cross } = await replaceDailyCross(userId, { focus, verse, direction });
 		return privateJson(toResponse(cross, cross.sentAt));
 	} catch (error) {
 		return errorResponse(error);
@@ -133,6 +153,11 @@ function errorResponse(error: unknown): Response {
 	// A reference the user typed wrong is their correction to make, not a 500.
 	if (error instanceof DailyCrossReferenceError) {
 		return privateJson({ error: error.message }, { status: 400 });
+	}
+	// "Stay with this" on a day that carries no theme: the request is well formed
+	// but conflicts with the state of today's row.
+	if (error instanceof DailyCrossDirectionError) {
+		return privateJson({ error: error.message }, { status: 409 });
 	}
 	console.error("Error in verse-of-day/today route:", error);
 	return privateJson(

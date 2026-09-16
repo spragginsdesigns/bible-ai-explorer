@@ -107,6 +107,106 @@ struct DailyCrossDecodingTests {
         #expect(Bible.resolveReference("Song of Solomon 2")?.order == 22)
         #expect(Bible.resolveReference("Nowhere 3") == nil)
     }
+
+    /// The theme is what "Stay with this" needs; the route sends both keys on
+    /// every response now, and either may be null.
+    @Test("Decodes today's theme")
+    func decodesTheme() throws {
+        let entry = try decode(
+            """
+            {
+              "reference": "Psalms 27:1",
+              "book": "Psalms",
+              "chapter": 27,
+              "verse": 1,
+              "text": "The LORD is my light and my salvation.",
+              "reason": "A steadying word.",
+              "themeKey": "fear",
+              "theme": "Fear and the fear of the LORD"
+            }
+            """
+        )
+
+        #expect(entry.themeKey == "fear")
+        #expect(entry.theme == "Fear and the fear of the LORD")
+    }
+
+    /// A day with no theme, and a day served by a server that predates the
+    /// controls, must both decode and both leave nothing to stay with.
+    @Test("A null or absent theme decodes as nil")
+    func decodesMissingTheme() throws {
+        let explicitNull = try decode(
+            """
+            {
+              "reference": "John 3:16",
+              "book": "John",
+              "chapter": 3,
+              "verse": 16,
+              "text": "For God so loved the world...",
+              "reason": "The gospel, plainly.",
+              "themeKey": null,
+              "theme": null
+            }
+            """
+        )
+        #expect(explicitNull.themeKey == nil)
+        #expect(explicitNull.theme == nil)
+
+        let olderServer = try decode(
+            """
+            {
+              "reference": "John 3:16",
+              "book": "John",
+              "chapter": 3,
+              "verse": 16,
+              "text": "For God so loved the world...",
+              "reason": "The gospel, plainly."
+            }
+            """
+        )
+        #expect(olderServer.themeKey == nil)
+        #expect(olderServer.theme == nil)
+    }
+}
+
+/// What reaches `POST /api/verse-of-day/today`. The route branches on a key
+/// being *present*, and `JSONEncoder` drops a nil optional, so absence is the
+/// contract: a plain refresh must still post an empty object, exactly as it did
+/// before the direction controls existed.
+@Suite("Daily Cross refresh body")
+struct DailyCrossRefreshBodyTests {
+
+    private func encode(_ body: DailyCrossAPI.RefreshBody) throws -> String {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return String(decoding: try encoder.encode(body), as: UTF8.self)
+    }
+
+    @Test("A plain refresh sends an empty object")
+    func plainRefresh() throws {
+        #expect(try encode(DailyCrossAPI.RefreshBody()) == "{}")
+    }
+
+    @Test("A typed focus goes alone")
+    func focusOnly() throws {
+        #expect(try encode(DailyCrossAPI.RefreshBody(focus: "patience")) == #"{"focus":"patience"}"#)
+    }
+
+    /// The raw values are the wire contract, so they are asserted as strings
+    /// rather than through the enum.
+    @Test("Each direction sends its wire value")
+    func directionOnly() throws {
+        #expect(try encode(DailyCrossAPI.RefreshBody(direction: .stay)) == #"{"direction":"stay"}"#)
+        #expect(try encode(DailyCrossAPI.RefreshBody(direction: .fresh)) == #"{"direction":"fresh"}"#)
+    }
+
+    @Test("A direction combines with a focus")
+    func directionWithFocus() throws {
+        #expect(
+            try encode(DailyCrossAPI.RefreshBody(focus: "my temper", direction: .fresh))
+                == #"{"direction":"fresh","focus":"my temper"}"#
+        )
+    }
 }
 
 /// The reminder-hour formatting is copied from Android's `formatHour`; if one

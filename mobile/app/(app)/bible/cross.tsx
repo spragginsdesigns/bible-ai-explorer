@@ -17,9 +17,11 @@ import { BOOKS } from "@/features/bible/books";
 import {
 	fetchTodayCross,
 	replaceTodayCross,
+	type DailyCrossDirection,
 	type DailyCrossEntry,
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
+import { DirectionControls } from "@/features/cross/DirectionControls";
 import { ListenCard } from "@/features/cross/ListenCard";
 import { isTodaysPlanReading } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
@@ -118,28 +120,42 @@ export default function DailyCrossScreen() {
 			});
 	}, [getToken, showFailure]);
 
-	/** Replace today's word — the same route the assistant's setDailyCross tool uses. */
-	const replaceToday = useCallback(() => {
-		if (replacing) return;
-		const steer = focus.trim();
-		setConfirmingReplace(false);
-		setFocus("");
-		setError(null);
-		setReplacing(true);
-		const version = ++requestVersion.current;
-		replaceTodayCross(getToken, steer || undefined)
-			.then((next) => {
-				if (version !== requestVersion.current) return;
-				setEntry(next);
-				requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
-			})
-			.catch((err: unknown) => {
-				if (version === requestVersion.current) showFailure(err);
-			})
-			.finally(() => {
-				if (version === requestVersion.current) setReplacing(false);
-			});
-	}, [focus, getToken, replacing, showFailure]);
+	/**
+	 * Replace today's word - the same route the assistant's setDailyCross tool
+	 * uses. `direction` is how "Stay with this" and "Take me somewhere fresh"
+	 * steer the selection; everything else about the flow is identical, which is
+	 * why they go through this handler rather than one of their own.
+	 */
+	const replaceToday = useCallback(
+		(options?: { direction?: DailyCrossDirection }) => {
+			if (replacing) return;
+			const steer = focus.trim();
+			setConfirmingReplace(false);
+			setFocus("");
+			setError(null);
+			setReplacing(true);
+			const version = ++requestVersion.current;
+			replaceTodayCross(getToken, steer || undefined, options?.direction)
+				.then((next) => {
+					if (version !== requestVersion.current) return;
+					setEntry(next);
+					requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
+				})
+				.catch((err: unknown) => {
+					if (version === requestVersion.current) showFailure(err);
+				})
+				.finally(() => {
+					if (version === requestVersion.current) setReplacing(false);
+				});
+		},
+		[focus, getToken, replacing, showFailure]
+	);
+
+	/** "Stay with this" / "Take me somewhere fresh" - one replacement, steered. */
+	const steerToday = useCallback(
+		(direction: DailyCrossDirection) => replaceToday({ direction }),
+		[replaceToday]
+	);
 
 
 	useFocusEffect(
@@ -314,13 +330,13 @@ export default function DailyCrossScreen() {
 										placeholderTextColor={colors.textFaint}
 										accessibilityLabel="What today's new word should centre on"
 										returnKeyType="done"
-										onSubmitEditing={replaceToday}
+										onSubmitEditing={() => replaceToday()}
 										style={styles.focusInput}
 									/>
 									<View style={styles.replaceButtons}>
 										<Pressable
 											accessibilityRole="button"
-											onPress={replaceToday}
+											onPress={() => replaceToday()}
 											style={({ pressed }) => [
 												styles.replaceConfirm,
 												pressed && { backgroundColor: colors.accentPressed },
@@ -344,17 +360,20 @@ export default function DailyCrossScreen() {
 									</View>
 								</View>
 							) : (
-								<Pressable
-									accessibilityRole="button"
-									accessibilityLabel="Ask for a different word for today"
-									onPress={() => setConfirmingReplace(true)}
-									style={({ pressed }) => [
-										styles.replaceButton,
-										pressed && { backgroundColor: colors.surfacePressed },
-									]}
-								>
-									<Text style={styles.replaceButtonLabel}>↻ A different word for today</Text>
-								</Pressable>
+								<>
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel="Ask for a different word for today"
+										onPress={() => setConfirmingReplace(true)}
+										style={({ pressed }) => [
+											styles.replaceButton,
+											pressed && { backgroundColor: colors.surfacePressed },
+										]}
+									>
+										<Text style={styles.replaceButtonLabel}>↻ A different word for today</Text>
+									</Pressable>
+									<DirectionControls themeKey={entry.themeKey} onDirection={steerToday} />
+								</>
 							)}
 						</TimelineStop>
 					</View>

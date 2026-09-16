@@ -69,9 +69,15 @@ final class DailyCrossModel {
     }
 
     /// Replace today's word with a newly prepared one, optionally centred on
-    /// what the user typed. The old entry is dropped first so the screen shows
-    /// the preparing state rather than the day being replaced.
-    func replaceToday(focus: String?) {
+    /// what the user typed and optionally steered by `direction` ("stay with
+    /// this" keeps today's theme, "somewhere fresh" widens the window away from
+    /// it). The old entry is dropped first so the screen shows the preparing
+    /// state rather than the day being replaced.
+    ///
+    /// One path for all three: the typed-focus confirmation and the two quiet
+    /// direction buttons share this busy state and this error, so a 409 for a
+    /// day with no theme surfaces exactly where a failed refresh does.
+    func replaceToday(focus: String? = nil, direction: DailyCrossDirection? = nil) {
         task?.cancel()
         entry = nil
         error = nil
@@ -82,7 +88,11 @@ final class DailyCrossModel {
 
         task = Task {
             do {
-                let replacement = try await DailyCrossAPI.replaceToday(api: api, focus: focus)
+                let replacement = try await DailyCrossAPI.replaceToday(
+                    api: api,
+                    focus: focus,
+                    direction: direction
+                )
                 guard !Task.isCancelled else { return }
                 entry = replacement
                 listen.reference = replacement.reference

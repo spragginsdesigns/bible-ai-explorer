@@ -8,9 +8,13 @@ import {
 } from "@/lib/ai/built-in-openai";
 import { loadStudyContext } from "@/lib/study-context";
 import {
+	FRESH_THEME_WINDOW_DAYS,
+	MAX_SELECTION_REASON_LENGTH,
+	NoDailyCrossFallbackAvailableError,
 	primaryThemeKeySchema,
 	selectDailyCrossFallback,
 	validateDailyCrossSelection,
+	type DailyCrossDirection,
 	type DailyCrossSelection,
 	type PrimaryThemeKey,
 	type RecentDailyCross,
@@ -143,11 +147,26 @@ function sanitizeStudyPath(steps: StudyStep[]): StudyStep[] {
  */
 export class DailyCrossReferenceError extends Error {}
 
+/**
+ * "Stay with this" was asked for on a day that carries no theme to stay with -
+ * the row predates the theme fields, or was pinned. Surfaced as 409 rather than
+ * quietly becoming a plain refresh, which would look like the button did
+ * nothing in particular.
+ */
+export class DailyCrossDirectionError extends Error {}
+
 export interface DailyCrossRequest {
 	/** What the user asked today's word to centre on, in their own words. */
 	focus?: string;
 	/** Pin the day to a verse the user named instead of letting the model choose. */
 	verse?: { book: string; chapter: number; verse: number };
+	/**
+	 * How the user steered a replacement: `stay` keeps today's theme and asks for
+	 * a new angle on it, `fresh` widens the theme exclusion to 14 days and asks
+	 * for a different area of life or doctrine. Ignored for a pinned verse - the
+	 * pin already says where to go - and the route rejects that combination.
+	 */
+	direction?: DailyCrossDirection;
 	/** Internal runtime budget used by the batched morning cron. */
 	abortSignal?: AbortSignal;
 }
@@ -258,20 +277,90 @@ async function loadRecentSelections(userId: string, now = new Date()): Promise<R
 	}));
 }
 
+/**
+ * A resolved steer: the deterministic constraints it adds, plus the provenance
+ * prefix that records that the user chose the direction rather than the model.
+ */
+interface DirectionPlan {
+	keepThemeKey?: PrimaryThemeKey;
+	keepTheme?: string;
+	themeWindowDays?: number;
+	reasonPrefix?: string;
+}
+
+function timestampOf(value: Date | string | number): number {
+	if (value instanceof Date) return value.getTime();
+	if (typeof value === "number") return value;
+	return Date.parse(value);
+}
+
+/**
+ * Turn the user's steer into constraints. `stay` needs today's stored theme, so
+ * it reads the newest row inside the reuse window - the same row every client
+ * calls "today" - and refuses when that row carries no theme key.
+ */
+function resolveDirection(
+	direction: DailyCrossDirection | undefined,
+	recent: readonly RecentDailyCross[],
+	now: Date,
+): DirectionPlan {
+	if (!direction) return {};
+	if (direction === "fresh") {
+		return { themeWindowDays: FRESH_THEME_WINDOW_DAYS, reasonPrefix: "Fresh direction: " };
+	}
+	const today = recent[0];
+	const sentAt = today ? timestampOf(today.sentAt) : Number.NaN;
+	const isToday = Number.isFinite(sentAt) && sentAt >= now.getTime() - DAILY_CROSS_REUSE_MS;
+	const themeKey = isToday ? primaryThemeKeySchema.safeParse(today?.primaryThemeKey) : null;
+	if (!themeKey?.success) {
+		throw new DailyCrossDirectionError("Today's verse has no theme to stay with.");
+	}
+	const label = today?.primaryTheme?.trim() || themeKey.data;
+	return {
+		keepThemeKey: themeKey.data,
+		keepTheme: label,
+		reasonPrefix: `Stayed with ${label}: `,
+	};
+}
+
+/**
+ * The one place a steered day is stamped, so the stored provenance says the user
+ * chose the direction and the model prompt never has to carry the wording.
+ */
+function withReasonPrefix(selection: DailyCrossSelection, prefix: string | undefined): DailyCrossSelection {
+	if (!prefix || selection.selectionReason.startsWith(prefix)) return selection;
+	return {
+		...selection,
+		selectionReason: `${prefix}${selection.selectionReason}`.slice(0, MAX_SELECTION_REASON_LENGTH),
+	};
+}
+
+function planValidationOptions(plan: DirectionPlan) {
+	return {
+		...(plan.keepThemeKey ? { keepThemeKey: plan.keepThemeKey } : {}),
+		...(plan.themeWindowDays ? { themeWindowDays: plan.themeWindowDays } : {}),
+	};
+}
+
 async function canonicalSelection(
 	selection: DailyCrossSelection,
 	recent: readonly RecentDailyCross[],
 	now: Date,
+	plan: DirectionPlan = {},
 ): Promise<{ selection: DailyCrossSelection; text: string }> {
 	const bookNumber = getKjvBookNumber(selection.book);
 	if (!bookNumber) throw new Error(`Unknown book "${selection.book}".`);
 	const book = getKjvBookName(bookNumber) ?? selection.book;
 	const canonical = { ...selection, book };
-	const policy = validateDailyCrossSelection(canonical, { recentSelections: recent, now });
+	const policy = validateDailyCrossSelection(canonical, {
+		recentSelections: recent,
+		now,
+		...planValidationOptions(plan),
+	});
 	if (!policy.ok) throw new Error(policy.errors.join(" "));
 	const text = await getKjvVerseText(bookNumber, canonical.chapter, canonical.verse);
 	if (!text) throw new Error(`No KJV text for ${book} ${canonical.chapter}:${canonical.verse}.`);
-	return { selection: canonical, text };
+	return { selection: withReasonPrefix(canonical, plan.reasonPrefix), text };
 }
 
 async function selectWithOneRetry(
@@ -279,6 +368,8 @@ async function selectWithOneRetry(
 	focus: string | undefined,
 	recent: readonly RecentDailyCross[],
 	now: Date,
+	direction: DailyCrossDirection | undefined,
+	plan: DirectionPlan,
 	abortSignal?: AbortSignal,
 ): Promise<{ selection: DailyCrossSelection; text: string }> {
 	let retryFeedback: string | undefined;
@@ -292,16 +383,54 @@ async function selectWithOneRetry(
 				...(focus ? { focus } : {}),
 				recentSelections: recent,
 				now,
+				...(direction ? { direction } : {}),
+				...(plan.keepThemeKey ? { keepThemeKey: plan.keepThemeKey } : {}),
+				...(plan.keepTheme ? { keepTheme: plan.keepTheme } : {}),
+				...(plan.themeWindowDays ? { themeWindowDays: plan.themeWindowDays } : {}),
 				...(abortSignal ? { abortSignal } : {}),
 				...(retryFeedback ? { retryFeedback } : {}),
 			});
-			return canonicalSelection(selection, recent, now);
+			return canonicalSelection(selection, recent, now, plan);
 		} catch (error) {
 			lastError = error;
 			retryFeedback = errorSummary(error);
 		}
 	}
 	throw lastError instanceof Error ? lastError : new Error("Daily Cross selection failed twice.");
+}
+
+/**
+ * The curated day used when model selection fails. A steer is honoured when the
+ * pool can honour it: `stay` narrows the pool to one theme key, and if nothing
+ * there is still outside the 30-day verse window the day falls back to the plain
+ * curated behaviour - and drops the steered provenance prefix with it, rather
+ * than claiming a direction it did not keep.
+ */
+function curatedFallback(
+	userId: string,
+	recent: readonly RecentDailyCross[],
+	now: Date,
+	focus: string | undefined,
+	plan: DirectionPlan,
+): { selection: DailyCrossSelection; plan: DirectionPlan } {
+	const base = {
+		recentSelections: recent,
+		now,
+		mode: focus ? ("focus" as const) : ("theme" as const),
+		...(focus ? { focus } : {}),
+		seed: `${userId}:${now.toISOString().slice(0, 10)}`,
+	};
+	const steered = { ...base, ...planValidationOptions(plan) };
+	try {
+		return { selection: selectDailyCrossFallback(steered), plan };
+	} catch (error) {
+		const wasSteered = Boolean(plan.keepThemeKey || plan.themeWindowDays);
+		if (!wasSteered || !(error instanceof NoDailyCrossFallbackAvailableError)) throw error;
+		console.error(
+			`[daily-cross] No curated candidate honours the requested direction for user ${userId}; using the unsteered pool.`
+		);
+		return { selection: selectDailyCrossFallback(base), plan: {} };
+	}
 }
 
 async function writeGuidedDay(
@@ -412,9 +541,12 @@ export async function generateDailyCross(
 
 	const now = new Date();
 	const recent = await loadRecentSelections(userId, now);
+	// Resolved before any model call: "stay with this" on a themeless day is the
+	// user's to correct, not something to spend a selection discovering.
+	const plan = resolveDirection(request.direction, recent, now);
 	let selected: { selection: DailyCrossSelection; text: string } | null = null;
 	try {
-		selected = await selectWithOneRetry(userId, focus, recent, now, request.abortSignal);
+		selected = await selectWithOneRetry(userId, focus, recent, now, request.direction, plan, request.abortSignal);
 		const verse = { ...selected.selection, text: selected.text };
 		try {
 			return await writeGuidedDay(userId, verse, selected.selection, focus, request.abortSignal);
@@ -424,14 +556,8 @@ export async function generateDailyCross(
 		}
 	} catch (error) {
 		console.error(`[daily-cross] Selection failed for user ${userId}; using exclusion-aware fallback:`, error);
-		const fallback = selectDailyCrossFallback({
-			recentSelections: recent,
-			now,
-			mode: focus ? "focus" : "theme",
-			...(focus ? { focus } : {}),
-			seed: `${userId}:${now.toISOString().slice(0, 10)}`,
-		});
-		const canonical = await canonicalSelection(fallback, recent, now);
+		const fallback = curatedFallback(userId, recent, now, focus, plan);
+		const canonical = await canonicalSelection(fallback.selection, recent, now, fallback.plan);
 		const verse = { ...canonical.selection, text: canonical.text };
 		return staticFallbackCross(verse, canonical.selection, error);
 	}

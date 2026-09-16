@@ -189,8 +189,37 @@ struct CrossView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Ask for a different word for today")
+
+                directionControls(entry)
             }
         }
+    }
+
+    /// The two quiet steers, beside the replacement control. Each is one tap:
+    /// the confirmation exists to collect a typed focus, and these two already
+    /// say what they want, so there is nothing left to ask.
+    @ViewBuilder
+    private func directionControls(_ entry: DailyCrossEntry) -> some View {
+        HStack(spacing: Spacing.sm) {
+            // Nothing to stay with on a day whose row carries no theme, which
+            // is every day served by a server older than this feature.
+            if let themeKey = entry.themeKey, !themeKey.isEmpty {
+                Button("Stay with this") { steerDay(.stay) }
+                    .buttonStyle(SubtleButtonStyle())
+                    .accessibilityLabel("Stay with today's theme")
+                    .accessibilityHint("Another word on the same theme, taken further")
+            }
+
+            Button("Take me somewhere fresh") { steerDay(.fresh) }
+                .buttonStyle(SubtleButtonStyle())
+                .accessibilityLabel("Take me somewhere fresh")
+                .accessibilityHint("A word from a different area of life or doctrine")
+
+            Spacer()
+        }
+        .font(.caption)
+        .foregroundStyle(theme.textFaint)
+        .disabled(model.isLoading)
     }
 
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
@@ -321,6 +350,15 @@ struct CrossView: View {
         focus = ""
         replaceRequested = true
         model.replaceToday(focus: steer.isEmpty ? nil : steer)
+    }
+
+    /// Same replacement flow as the confirmation, carrying a direction instead
+    /// of a typed focus - including the success haptic when the new word lands.
+    private func steerDay(_ direction: DailyCrossDirection) {
+        confirmingReplace = false
+        focus = ""
+        replaceRequested = true
+        model.replaceToday(direction: direction)
     }
 
     /// The study path names books by canonical KJV name. The reader hook is

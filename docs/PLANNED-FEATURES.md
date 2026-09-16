@@ -31,7 +31,13 @@ Non-negotiable: no UI or API response may expose the app-managed credential.
 
 ## Longitudinal daily-walk controls
 
-**Status:** Explore after selection provenance has real usage data
+**Status:** Shipped 2026-09-16 as "Stay with this" / "Take me somewhere fresh"
+(contract in `FEATURES.md` → "Stay with this, or take me somewhere fresh");
+the "helpful / too repetitive" feedback bullet below is still open and belongs
+to the answer-feedback contract. The precondition was met once the stored day
+carried `primaryThemeKey`, `selectionEvidence` and message origin.
+
+**Original status:** Explore after selection provenance has real usage data
 
 Pick Up Your Cross should eventually let a person signal whether they want to
 continue a developing theme or receive a fresh direction. Candidate controls:

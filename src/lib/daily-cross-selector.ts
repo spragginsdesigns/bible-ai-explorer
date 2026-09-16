@@ -7,7 +7,10 @@ import {
 	isDailyCrossSelectionAllowed,
 	MAX_EVIDENCE_ITEMS,
 	MAX_EVIDENCE_SUMMARY_LENGTH,
+	RECENT_THEME_WINDOW_DAYS,
+	recentThemeKeysWithin,
 	validateDailyCrossSelection,
+	type DailyCrossDirection,
 	type DailyCrossMode,
 	type DailyCrossSelection,
 	type PrimaryThemeKey,
@@ -27,6 +30,14 @@ export interface DailyCrossSelectorInput {
 	abortSignal?: AbortSignal;
 	/** Why the previous attempt was rejected, supplied only for the single retry. */
 	retryFeedback?: string;
+	/** How the user steered this replacement: keep today's theme, or leave it. */
+	direction?: DailyCrossDirection;
+	/** The theme key a "stay with this" selection must carry. */
+	keepThemeKey?: PrimaryThemeKey;
+	/** The human-readable label of the kept theme, for the prompt. */
+	keepTheme?: string;
+	/** Rolling theme window for this selection; "fresh" widens it. */
+	themeWindowDays?: number;
 }
 
 export interface DailyCrossContextRequest {
@@ -228,6 +239,35 @@ function recentPrompt(recent: readonly RecentDailyCross[]): string {
 		.join(", ");
 }
 
+/**
+ * The user's steer, stated as a per-call constraint rather than in the shared
+ * instructions: a plain refresh must read exactly as it did before this control
+ * existed.
+ */
+function directionPrompt(input: DailyCrossSelectorInput, themeWindowDays: number): string | null {
+	if (input.direction === "stay") {
+		const label = clip(input.keepTheme ?? input.keepThemeKey ?? "", 120) || "today's theme";
+		return [
+			`Direction: the user asked to stay with today's theme. Give a materially new angle on ${label}: a different passage and a next step, never yesterday's application restated.`,
+			input.keepThemeKey
+				? `primaryThemeKey must be exactly "${input.keepThemeKey}"; a selection under any other key is rejected.`
+				: null,
+		]
+			.filter((part): part is string => Boolean(part))
+			.join(" ");
+	}
+	if (input.direction === "fresh") {
+		const used = recentThemeKeysWithin(input.recentSelections ?? [], themeWindowDays, input.now);
+		return [
+			`Direction: the user asked to be taken somewhere fresh. Move to a different area of life or doctrine, not a neighbouring angle on what they have just had.`,
+			used.length
+				? `These primary themes were used in the last ${themeWindowDays} days and are unavailable: ${used.join(", ")}.`
+				: `No primary theme is recorded in the last ${themeWindowDays} days, so choose plainly away from the recent selections below.`,
+		].join(" ");
+	}
+	return null;
+}
+
 const SELECTOR_INSTRUCTIONS = `You select one Daily Cross KJV verse for SureWord. You are selecting the reference and a concise explanation, not writing the devotional.
 
 Rules:
@@ -299,13 +339,22 @@ export async function selectDailyCross(
 	const normalizedContext = normalizeEvidence(context);
 	const normalizedMemories = normalizeEvidence(memories);
 	const agent = buildAgent(input, dependencies, normalizedContext, normalizedMemories, scripture);
+	const themeWindowDays =
+		typeof input.themeWindowDays === "number" && Number.isFinite(input.themeWindowDays) && input.themeWindowDays > 0
+			? input.themeWindowDays
+			: RECENT_THEME_WINDOW_DAYS;
 	const prompt = [
 		`Selection mode: ${mode}`,
 		input.focus?.trim() ? `User focus: ${clip(input.focus, 240)}` : null,
+		directionPrompt(input, themeWindowDays),
 		input.retryFeedback?.trim()
 			? `The previous selection was rejected by deterministic policy. Correct every issue on this attempt:\n${clip(input.retryFeedback, 600)}`
 			: null,
-		`Recent selections (exact verses are excluded for 30 days; primary themes are excluded for 3 days unless mode is focus): ${recentPrompt(input.recentSelections ?? [])}`,
+		`Recent selections (exact verses are excluded for 30 days; ${
+			input.direction === "stay" && input.keepThemeKey
+				? `primary themes are excluded for ${themeWindowDays} days except the kept theme ${input.keepThemeKey}`
+				: `primary themes are excluded for ${themeWindowDays} days unless mode is focus`
+		}): ${recentPrompt(input.recentSelections ?? [])}`,
 		`Available personal evidence index (use the tool to search it):\n${formatEvidence(boundEvidence([...normalizedContext, ...normalizedMemories]).map((item) => ({ ...item, summary: clip(item.summary, 100) })))}`,
 	].filter((part): part is string => Boolean(part)).join("\n\n");
 	const result = await agent.generate({
@@ -330,15 +379,17 @@ export async function selectDailyCross(
 	if (selection.mode !== mode) {
 		throw new DailyCrossSelectorError(`The model changed the requested selection mode from ${mode} to ${selection.mode}.`);
 	}
-	const validation = isDailyCrossSelectionAllowed(selection, {
+	const validationOptions = {
 		recentSelections: input.recentSelections ?? [],
 		now: input.now,
-	});
+		...(input.keepThemeKey ? { keepThemeKey: input.keepThemeKey } : {}),
+		...(input.themeWindowDays ? { themeWindowDays: input.themeWindowDays } : {}),
+	};
+	const validation = isDailyCrossSelectionAllowed(selection, validationOptions);
 	if (!validation) {
-		throw new DailyCrossSelectionValidationError(validateDailyCrossSelection(selection, {
-			recentSelections: input.recentSelections ?? [],
-			now: input.now,
-		}).errors);
+		throw new DailyCrossSelectionValidationError(
+			validateDailyCrossSelection(selection, validationOptions).errors
+		);
 	}
 	return {
 		...selection,

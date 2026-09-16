@@ -157,8 +157,35 @@ struct DailyCrossView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Ask for a different word for today")
+
+                directionControls(entry)
             }
         }
+    }
+
+    /// The two quiet steers, beside the replacement control. Each is one tap:
+    /// the confirmation exists to collect a typed focus, and these two already
+    /// say what they want, so there is nothing left to ask.
+    @ViewBuilder
+    private func directionControls(_ entry: DailyCrossEntry) -> some View {
+        HStack(spacing: Spacing.sm) {
+            // Nothing to stay with on a day whose row carries no theme, which
+            // is every day served by a server older than this feature.
+            if let themeKey = entry.themeKey, !themeKey.isEmpty {
+                Button("Stay with this") { steerDay(.stay) }
+                    .buttonStyle(SubtleButtonStyle())
+                    .help("Another word on the same theme, taken further")
+            }
+
+            Button("Take me somewhere fresh") { steerDay(.fresh) }
+                .buttonStyle(SubtleButtonStyle())
+                .help("A word from a different area of life or doctrine")
+
+            Spacer()
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(theme.textFaint)
+        .disabled(model.isLoading)
     }
 
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
@@ -286,6 +313,14 @@ struct DailyCrossView: View {
         confirmingReplace = false
         focus = ""
         model.replaceToday(focus: steer.isEmpty ? nil : steer)
+    }
+
+    /// Same replacement flow as the confirmation, carrying a direction instead
+    /// of a typed focus.
+    private func steerDay(_ direction: DailyCrossDirection) {
+        confirmingReplace = false
+        focus = ""
+        model.replaceToday(direction: direction)
     }
 
     private func openStudyStep(_ step: DailyCrossStudyStep) {

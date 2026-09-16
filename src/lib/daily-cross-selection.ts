@@ -5,6 +5,18 @@ export const DAILY_CROSS_MODES = ["theme", "focus"] as const;
 export type DailyCrossMode = (typeof DAILY_CROSS_MODES)[number];
 
 /**
+ * How the user steered a replacement: keep today's theme and advance it, or
+ * leave it behind entirely. Orthogonal to mode - a steer says where to go, not
+ * how the verse was chosen.
+ */
+export const DAILY_CROSS_DIRECTIONS = ["stay", "fresh"] as const;
+export type DailyCrossDirection = (typeof DAILY_CROSS_DIRECTIONS)[number];
+
+export function isDailyCrossDirection(value: unknown): value is DailyCrossDirection {
+	return typeof value === "string" && (DAILY_CROSS_DIRECTIONS as readonly string[]).includes(value);
+}
+
+/**
  * Stable labels used for novelty checks. Keep this list finite: prose labels
  * are useful to people, but a free-form label cannot be compared reliably.
  */
@@ -91,13 +103,24 @@ export interface SelectionValidationOptions {
 	/** Either this array or `recent` may be used by callers integrating older data. */
 	recentSelections?: readonly RecentDailyCross[];
 	recent?: readonly RecentDailyCross[];
+	/**
+	 * "Stay with this": the candidate must carry this primary theme key, and the
+	 * rolling theme window is waived for that one key so the day can advance the
+	 * same theme. Every other key is still subject to the window.
+	 */
+	keepThemeKey?: string;
+	/** Widen the rolling theme window for one selection ("take me somewhere fresh" passes 14). */
+	themeWindowDays?: number;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const RECENT_VERSE_WINDOW_DAYS = 30;
 export const RECENT_THEME_WINDOW_DAYS = 3;
+/** The widened theme window a "take me somewhere fresh" selection is held to. */
+export const FRESH_THEME_WINDOW_DAYS = 14;
 export const MAX_EVIDENCE_ITEMS = 6;
 export const MAX_EVIDENCE_SUMMARY_LENGTH = 280;
+export const MAX_SELECTION_REASON_LENGTH = 600;
 
 /** Structured schema shared with the model selector and callers that validate model output. */
 export const dailyCrossSelectionSchema = z.object({
@@ -108,8 +131,8 @@ export const dailyCrossSelectionSchema = z.object({
 	book: z.string().trim().min(1).max(80),
 	chapter: z.number().int().min(1).max(200),
 	verse: z.number().int().min(1).max(200),
-	selectionReason: z.string().trim().min(1).max(600),
-	noveltyReason: z.string().trim().min(1).max(600),
+	selectionReason: z.string().trim().min(1).max(MAX_SELECTION_REASON_LENGTH),
+	noveltyReason: z.string().trim().min(1).max(MAX_SELECTION_REASON_LENGTH),
 	evidence: z
 		.array(
 			z.object({
@@ -151,24 +174,67 @@ function recentWithin(timestamp: number, now: number, days: number): boolean {
 	return age >= 0 && age < days * DAY_MS;
 }
 
+function normalizeThemeKey(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const trimmed = value.trim().toLowerCase();
+	return trimmed ? trimmed : null;
+}
+
+function normalizeThemeWindowDays(value: number | undefined): number {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : RECENT_THEME_WINDOW_DAYS;
+}
+
+interface NormalizedValidationArgs {
+	recent: readonly RecentDailyCross[];
+	now: number;
+	keepThemeKey: string | null;
+	themeWindowDays: number;
+}
+
 function normalizeValidationArgs(
 	recentOrOptions: readonly RecentDailyCross[] | SelectionValidationOptions | undefined,
 	nowArgument: Date | string | number | undefined,
-): { recent: readonly RecentDailyCross[]; now: number } {
+): NormalizedValidationArgs {
 	if (Array.isArray(recentOrOptions)) {
-		return { recent: recentOrOptions, now: asTimestamp(nowArgument) ?? Date.now() };
+		return {
+			recent: recentOrOptions,
+			now: asTimestamp(nowArgument) ?? Date.now(),
+			keepThemeKey: null,
+			themeWindowDays: RECENT_THEME_WINDOW_DAYS,
+		};
 	}
 	const options = (recentOrOptions ?? {}) as SelectionValidationOptions;
 	return {
 		recent: options.recentSelections ?? options.recent ?? [],
 		now: asTimestamp(nowArgument ?? options.now) ?? Date.now(),
+		keepThemeKey: normalizeThemeKey(options.keepThemeKey),
+		themeWindowDays: normalizeThemeWindowDays(options.themeWindowDays),
 	};
+}
+
+/** The distinct primary theme keys used inside a rolling window, normalized. */
+export function recentThemeKeysWithin(
+	recent: readonly RecentDailyCross[],
+	days: number,
+	nowArgument?: Date | string | number,
+): string[] {
+	const now = asTimestamp(nowArgument) ?? Date.now();
+	const keys = new Set<string>();
+	for (const entry of recent) {
+		const sentAt = asTimestamp(entry.sentAt);
+		if (sentAt === null || !recentWithin(sentAt, now, days)) continue;
+		const key = normalizeThemeKey(entry.primaryThemeKey);
+		if (key) keys.add(key);
+	}
+	return [...keys];
 }
 
 /**
  * Deterministic policy gate. A verse is unavailable for 30 rolling days. A
  * primary theme is unavailable for three rolling days, except when the user
- * explicitly chose `focus`; focus changes the theme constraint only.
+ * explicitly chose `focus`; focus changes the theme constraint only. A "stay
+ * with this" selection widens nothing: it pins the theme key and waives the
+ * theme window for that one key. A "fresh" selection widens the window instead.
  */
 export function validateDailyCrossSelection(
 	selection: unknown,
@@ -182,7 +248,7 @@ export function validateDailyCrossSelection(
 		return { ok: false, errors, blockedByVerse: false, blockedByTheme: false };
 	}
 
-	const { recent, now } = normalizeValidationArgs(recentOrOptions, nowArgument);
+	const { recent, now, keepThemeKey, themeWindowDays } = normalizeValidationArgs(recentOrOptions, nowArgument);
 	const candidateReference = referenceKey(parsed.data);
 	const recentVerse = recent.some((entry) => {
 		const sentAt = asTimestamp(entry.sentAt);
@@ -192,20 +258,31 @@ export function validateDailyCrossSelection(
 		const sentAt = asTimestamp(entry.sentAt);
 		return (
 			sentAt !== null &&
-			recentWithin(sentAt, now, RECENT_THEME_WINDOW_DAYS) &&
-			typeof entry.primaryThemeKey === "string" &&
-			entry.primaryThemeKey.trim().toLowerCase() === parsed.data.primaryThemeKey
+			recentWithin(sentAt, now, themeWindowDays) &&
+			normalizeThemeKey(entry.primaryThemeKey) === parsed.data.primaryThemeKey
 		);
 	});
+	// The kept theme is the one the user asked to stay with, so the rolling theme
+	// window cannot be what stops it; the 30-day verse rule still keeps the day
+	// from handing back the very verse it is replacing.
+	const keptTheme = keepThemeKey !== null && parsed.data.primaryThemeKey === keepThemeKey;
+	// A typed focus waives the everyday 3-day theme rule, never a widened window:
+	// "take me somewhere fresh" plus a focus is still a request to leave the
+	// recent themes behind.
+	const focusWaiver = parsed.data.mode === "focus" && themeWindowDays === RECENT_THEME_WINDOW_DAYS;
+	const blockedByTheme = recentTheme && !focusWaiver && !keptTheme;
 	if (recentVerse) errors.push(`${candidateReference} was selected within the last 30 days.`);
-	if (recentTheme && parsed.data.mode !== "focus") {
-		errors.push(`Theme ${parsed.data.primaryThemeKey} was selected within the last 3 days.`);
+	if (keepThemeKey !== null && !keptTheme) {
+		errors.push(`Selection must stay with theme ${keepThemeKey}.`);
+	}
+	if (blockedByTheme) {
+		errors.push(`Theme ${parsed.data.primaryThemeKey} was selected within the last ${themeWindowDays} days.`);
 	}
 	return {
 		ok: errors.length === 0,
 		errors,
 		blockedByVerse: recentVerse,
-		blockedByTheme: recentTheme && parsed.data.mode !== "focus",
+		blockedByTheme,
 	};
 }
 
@@ -307,7 +384,7 @@ export class NoDailyCrossFallbackAvailableError extends Error {
  * is needed here; the lead can resolve the returned reference text separately.
  */
 export function selectDailyCrossFallback(options: FallbackSelectionOptions = {}): DailyCrossSelection {
-	const { recent, now } = normalizeValidationArgs(options, undefined);
+	const { recent, now, keepThemeKey, themeWindowDays } = normalizeValidationArgs(options, undefined);
 	const mode = options.mode ?? (options.focus?.trim() ? "focus" : "theme");
 	const recentRefs = new Set(
 		recent
@@ -317,18 +394,16 @@ export function selectDailyCrossFallback(options: FallbackSelectionOptions = {})
 			})
 			.map(referenceKey)
 	);
-	const recentThemes = new Set(
-		recent
-			.filter((entry) => {
-				const sentAt = asTimestamp(entry.sentAt);
-				return sentAt !== null && recentWithin(sentAt, now, RECENT_THEME_WINDOW_DAYS);
-			})
-		.map((entry) => (typeof entry.primaryThemeKey === "string" ? entry.primaryThemeKey.trim().toLowerCase() : entry.primaryThemeKey))
-		.filter((theme): theme is string => Boolean(theme))
-	);
-	const eligible = DAILY_CROSS_FALLBACK_CANDIDATES.filter(
-		(candidate) => !recentRefs.has(referenceKey(candidate)) && (mode === "focus" || !recentThemes.has(candidate.primaryThemeKey))
-	);
+	const recentThemes = new Set(recentThemeKeysWithin(recent, themeWindowDays, now));
+	const eligible = DAILY_CROSS_FALLBACK_CANDIDATES.filter((candidate) => {
+		if (recentRefs.has(referenceKey(candidate))) return false;
+		// Staying with a theme is the whole request, so the pool narrows to that
+		// key and the rolling theme window no longer applies to it.
+		if (keepThemeKey !== null) return candidate.primaryThemeKey === keepThemeKey;
+		// Same rule as the validator: a focus waives only the everyday window.
+		const focusWaiver = mode === "focus" && themeWindowDays === RECENT_THEME_WINDOW_DAYS;
+		return focusWaiver || !recentThemes.has(candidate.primaryThemeKey);
+	});
 	if (eligible.length === 0) throw new NoDailyCrossFallbackAvailableError();
 	const seed = String(options.seed ?? Math.floor(now / DAY_MS));
 	const candidate = eligible[stableHash(seed) % eligible.length];
@@ -338,7 +413,10 @@ export function selectDailyCrossFallback(options: FallbackSelectionOptions = {})
 		selectionReason: options.focus?.trim()
 			? `A curated Scripture candidate that can speak to this focus: ${options.focus.trim().slice(0, 120)}`
 			: `A curated Scripture candidate chosen to keep today's word moving beyond recent themes.`,
-		noveltyReason: "The exact verse is outside the rolling 30-day window and its primary theme is outside the rolling 3-day window.",
+		noveltyReason:
+			keepThemeKey !== null
+				? `The exact verse is outside the rolling 30-day window and it carries the theme ${keepThemeKey} the user asked to stay with.`
+				: `The exact verse is outside the rolling 30-day window and its primary theme is outside the rolling ${themeWindowDays}-day window.`,
 		evidence: [{ kind: "fallback", id: null, summary: "Curated KJV reference selected locally after recent-verse and recent-theme exclusions.", origin: "daily-cross-fallback" }],
 		confidence: 0.55,
 	};

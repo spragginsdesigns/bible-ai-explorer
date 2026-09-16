@@ -29,6 +29,12 @@ struct DailyCrossEntry: Decodable, Equatable, Sendable {
     let application: String?
     let studyPath: [DailyCrossStudyStep]
     let question: String?
+    /// Today's primary theme, added with the "stay with this / somewhere fresh"
+    /// controls. Servers older than those controls send neither key, so both
+    /// decode leniently; an absent or empty `themeKey` means there is nothing to
+    /// stay with and the "Stay with this" button does not apply.
+    let themeKey: String?
+    let theme: String?
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -43,11 +49,13 @@ struct DailyCrossEntry: Decodable, Equatable, Sendable {
         application = try container.decodeIfPresent(String.self, forKey: .application)
         studyPath = try container.decodeIfPresent([DailyCrossStudyStep].self, forKey: .studyPath) ?? []
         question = try container.decodeIfPresent(String.self, forKey: .question)
+        themeKey = try container.decodeIfPresent(String.self, forKey: .themeKey)
+        theme = try container.decodeIfPresent(String.self, forKey: .theme)
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, reference, book, chapter, verse, text, reason
-        case whyToday, application, studyPath, question
+        case whyToday, application, studyPath, question, themeKey, theme
     }
 }
 
@@ -65,7 +73,9 @@ extension DailyCrossEntry {
         whyToday: String? = nil,
         application: String? = nil,
         studyPath: [DailyCrossStudyStep] = [],
-        question: String? = nil
+        question: String? = nil,
+        themeKey: String? = nil,
+        theme: String? = nil
     ) {
         self.id = id
         self.reference = reference
@@ -78,7 +88,17 @@ extension DailyCrossEntry {
         self.application = application
         self.studyPath = studyPath
         self.question = question
+        self.themeKey = themeKey
+        self.theme = theme
     }
+}
+
+/// How the user steered the next word: keep working the theme today's verse
+/// already raised, or get away from it. Raw values are the wire contract for
+/// `POST /api/verse-of-day/today`.
+enum DailyCrossDirection: String, Encodable, Sendable {
+    case stay
+    case fresh
 }
 
 enum DailyCrossAPI {
@@ -103,18 +123,35 @@ enum DailyCrossAPI {
     /// something the user typed. The same route the assistant's `setDailyCross`
     /// tool posts to, so a replacement from chat and one from this screen are
     /// the same act.
-    static func replaceToday(api: APIClient, focus: String?) async throws -> DailyCrossEntry {
+    ///
+    /// `direction` is the "stay with this / somewhere fresh" steer. It combines
+    /// with `focus`, and both are omitted from the body when nil, so a plain
+    /// refresh still posts `{}` exactly as it always did.
+    static func replaceToday(
+        api: APIClient,
+        focus: String? = nil,
+        direction: DailyCrossDirection? = nil
+    ) async throws -> DailyCrossEntry {
         try await api.json(
             "/api/verse-of-day/today",
             method: "POST",
-            body: FocusBody(focus: focus),
+            body: RefreshBody(focus: focus, direction: direction),
             timeout: generationTimeout,
             as: DailyCrossEntry.self
         )
     }
 
-    private struct FocusBody: Encodable {
+    /// Internal rather than private so the tests can pin which keys reach the
+    /// route: `JSONEncoder` drops a nil optional, and the route branches on a
+    /// key being present, so absence is the contract.
+    struct RefreshBody: Encodable {
         let focus: String?
+        let direction: DailyCrossDirection?
+
+        init(focus: String? = nil, direction: DailyCrossDirection? = nil) {
+            self.focus = focus
+            self.direction = direction
+        }
     }
 
     /// Record that a chapter was read — the reading history that shapes which

@@ -51,7 +51,21 @@ export interface DailyCrossEntry {
 	studyPath: DailyCrossStudyStep[];
 	question: string | null;
 	sentAt: string;
+	/**
+	 * Today's primary theme and its stable key, when the stored day carries one.
+	 * Optional on the type on purpose: a server that predates the steering
+	 * controls sends neither, and the screen then simply does not offer to stay
+	 * with a theme it cannot name.
+	 */
+	themeKey?: string | null;
+	theme?: string | null;
 }
+
+/**
+ * Which way a replacement should move: keep today's theme and advance it, or
+ * leave it for a different area of life. Absent means an ordinary refresh.
+ */
+export type DailyCrossDirection = "stay" | "fresh";
 
 /**
  * Today's guided day. The server generates one on demand when the morning
@@ -66,14 +80,22 @@ export function fetchTodayCross(getToken: GetToken) {
 
 /**
  * Replace today's guided day with a newly prepared one, optionally centred on
- * something the user typed. Same route the assistant's setDailyCross tool uses,
- * so a replacement from chat and one from this screen are the same act.
+ * something the user typed and optionally steered by `direction`. Same route the
+ * assistant's setDailyCross tool uses, so a replacement from chat and one from
+ * this screen are the same act.
  */
-export function replaceTodayCross(getToken: GetToken, focus?: string) {
+export function replaceTodayCross(
+	getToken: GetToken,
+	focus?: string,
+	direction?: DailyCrossDirection
+) {
+	const body: { focus?: string; direction?: DailyCrossDirection } = {};
+	if (focus) body.focus = focus;
+	if (direction) body.direction = direction;
 	return apiJson<DailyCrossEntry>(
 		getToken,
 		"/api/verse-of-day/today",
-		{ method: "POST", body: focus ? { focus } : {} },
+		{ method: "POST", body },
 		{ timeoutMs: 300_000 }
 	);
 }

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
+import DirectionControls, { type CrossDirection } from "@/components/cross/DirectionControls";
 import ListenCard from "@/components/cross/ListenCard";
 import TimelineStop from "@/components/cross/TimelineStop";
 import { isTodaysPlanReading } from "@/components/plan/planView";
@@ -28,6 +29,10 @@ interface DailyCrossEntry {
 	studyPath: StudyStep[];
 	question: string | null;
 	sentAt: string;
+	// Today's primary theme, carried so the client can decide whether "Stay
+	// with this" applies. Optional because an older deploy omits both.
+	themeKey?: string | null;
+	theme?: string | null;
 }
 
 function studyHref(step: StudyStep): string | null {
@@ -86,26 +91,36 @@ export default function DailyCrossPage() {
 
 	const load = useCallback(() => request(), [request]);
 
-	/** Replace today's word — the same POST the assistant's setDailyCross tool uses. */
-	const replaceToday = useCallback(() => {
-		if (replacing || requestInFlight.current) return;
-		const steer = focus.trim();
-		setConfirmingReplace(false);
-		setFocus("");
-		setReplacing(true);
-		request(
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(steer ? { focus: steer } : {}),
-			},
-			{
-				clear: false,
-				onSuccess: () => window.scrollTo({ top: 0, behavior: "smooth" }),
-				onSettled: () => setReplacing(false),
-			}
-		);
-	}, [focus, replacing, request]);
+	/**
+	 * Replace today's word — the same POST the assistant's setDailyCross tool
+	 * uses. `direction` is how the quiet steers ride the identical path: same
+	 * busy panel, same scroll, same inline error card.
+	 */
+	const replaceToday = useCallback(
+		(options?: { direction?: CrossDirection }) => {
+			if (replacing || requestInFlight.current) return;
+			const steer = focus.trim();
+			const body: { focus?: string; direction?: CrossDirection } = {};
+			if (steer) body.focus = steer;
+			if (options?.direction) body.direction = options.direction;
+			setConfirmingReplace(false);
+			setFocus("");
+			setReplacing(true);
+			request(
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(body),
+				},
+				{
+					clear: false,
+					onSuccess: () => window.scrollTo({ top: 0, behavior: "smooth" }),
+					onSettled: () => setReplacing(false),
+				}
+			);
+		},
+		[focus, replacing, request]
+	);
 
 	useEffect(() => {
 		load();
@@ -318,7 +333,7 @@ export default function DailyCrossPage() {
 									<div className="flex gap-2">
 										<button
 											type="button"
-											onClick={replaceToday}
+											onClick={() => replaceToday()}
 											className="min-h-11 flex-1 rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-support font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 										>
 											Replace
@@ -336,13 +351,19 @@ export default function DailyCrossPage() {
 									</div>
 								</div>
 							) : (
-								<button
-									type="button"
-									onClick={() => setConfirmingReplace(true)}
-									className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-support font-semibold text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
-								>
-									↻ A different word for today
-								</button>
+								<>
+									<button
+										type="button"
+										onClick={() => setConfirmingReplace(true)}
+										className="mt-2 flex min-h-11 w-full items-center justify-center rounded-xl border border-black/[0.08] dark:border-white/[0.08] text-support font-semibold text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+									>
+										↻ A different word for today
+									</button>
+									<DirectionControls
+										canStay={typeof entry.themeKey === "string" && entry.themeKey.trim().length > 0}
+										onDirection={(direction) => replaceToday({ direction })}
+									/>
+								</>
 							)}
 						</TimelineStop>
 					</div>
