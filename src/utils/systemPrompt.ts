@@ -285,11 +285,21 @@ export function chatSystemPrompt(translation: TranslationId): string {
  * SureWord persona plus a task addendum. No tools, memories, or conversation
  * context — just the persona and the tapped verse.
  */
-export function verseInsightSystemPrompt(translation: TranslationId): string {
+export function verseInsightSystemPrompt(
+	translation: TranslationId,
+	options: { passage?: boolean } = {}
+): string {
+	// The single-verse wording is frozen: it is part of what the shared
+	// VerseInsight cache was built against, so changing a character of it
+	// means bumping VERSE_INSIGHT_PROMPT_VERSION. A selected range gets its own
+	// wording under its own cache rows (the reference carries the range).
+	const task = options.passage
+		? `CURRENT TASK: The user selected a short passage of consecutive verses while reading their Bible. Write a brief explanation of that passage as a whole: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verses back - they are already on the user's screen. The exact text is supplied below with its verse numbers; rely on it rather than memory.`
+		: `CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back - it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`;
 	return forTranslation(
 		`${systemPrompt}
 
-CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back — it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`,
+${task}`,
 		translation
 	);
 }

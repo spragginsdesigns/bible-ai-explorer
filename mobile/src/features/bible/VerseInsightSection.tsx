@@ -6,7 +6,7 @@ import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { VerseInsightStatus } from "./useVerseInsight";
 
 /** One softly glowing skeleton line; the shared pulse gives the group a wave. */
-function SkeletonBar({
+export function SkeletonBar({
 	width,
 	pulse,
 	delay,

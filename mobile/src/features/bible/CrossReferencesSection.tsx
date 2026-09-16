@@ -24,6 +24,12 @@ interface CrossReferencesSectionProps {
 	translation: TranslationId;
 	enabled: boolean;
 	onNavigate: (target: CrossReferenceTarget) => void;
+	/**
+	 * Render the list open with no collapsible header. The study view's
+	 * "See also" tab already names the section, so a second caption and a
+	 * chevron would only add a tap.
+	 */
+	alwaysExpanded?: boolean;
 }
 
 export interface CrossReferenceTarget {
@@ -73,9 +79,11 @@ export function CrossReferencesSection({
 	translation,
 	enabled,
 	onNavigate,
+	alwaysExpanded = false,
 }: CrossReferencesSectionProps) {
 	const styles = useThemedStyles(createStyles);
-	const [expanded, setExpanded] = useState(false);
+	const [expandedByTap, setExpanded] = useState(false);
+	const expanded = alwaysExpanded || expandedByTap;
 	const [state, setState] = useState<LoadState>({ status: "loading", items: [] });
 	const requestId = useRef(0);
 	const controllerRef = useRef<AbortController | null>(null);
@@ -117,29 +125,41 @@ export function CrossReferencesSection({
 		};
 	}, [enabled, load]);
 
-	if (!enabled || (state.status === "ready" && state.items.length === 0)) return null;
+	if (!enabled) return null;
+	if (state.status === "ready" && state.items.length === 0) {
+		// The collapsible row hides itself; the tab body is expected to fill,
+		// so it says why it is empty instead.
+		if (!alwaysExpanded) return null;
+		return (
+			<View style={[styles.container, styles.containerPlain]}>
+				<Text style={styles.message}>No related passages are listed for this verse.</Text>
+			</View>
+		);
+	}
 
 	return (
-		<View style={styles.container}>
-			<Pressable
-				accessibilityRole="button"
-				accessibilityState={{ expanded }}
-				onPress={() => setExpanded((current) => !current)}
-				style={({ pressed }) => [styles.header, pressed && styles.pressed]}
-			>
-				<Text style={styles.caption}>SEE ALSO</Text>
-				<Text style={styles.status}>
-					{state.status === "loading"
-						? "Loading"
-						: state.status === "error"
-							? "Unavailable"
-							: `${state.items.length} ${state.items.length === 1 ? "passage" : "passages"}`}
-				</Text>
-				<Text style={styles.chevron}>{expanded ? "▴" : "▾"}</Text>
-			</Pressable>
+		<View style={[styles.container, alwaysExpanded && styles.containerPlain]}>
+			{alwaysExpanded ? null : (
+				<Pressable
+					accessibilityRole="button"
+					accessibilityState={{ expanded }}
+					onPress={() => setExpanded((current) => !current)}
+					style={({ pressed }) => [styles.header, pressed && styles.pressed]}
+				>
+					<Text style={styles.caption}>SEE ALSO</Text>
+					<Text style={styles.status}>
+						{state.status === "loading"
+							? "Loading"
+							: state.status === "error"
+								? "Unavailable"
+								: `${state.items.length} ${state.items.length === 1 ? "passage" : "passages"}`}
+					</Text>
+					<Text style={styles.chevron}>{expanded ? "▴" : "▾"}</Text>
+				</Pressable>
+			)}
 
 			{expanded ? (
-				<View style={styles.body}>
+				<View style={[styles.body, alwaysExpanded && styles.bodyPlain]}>
 					{state.status === "loading" ? (
 						<Text accessibilityRole="text" style={styles.message}>
 							Loading related passages…
@@ -199,6 +219,13 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.md,
 			paddingVertical: spacing.sm,
 		},
+		// Inside a tab the section is the whole body: no card chrome, no gap.
+		containerPlain: {
+			marginBottom: 0,
+			borderWidth: 0,
+			backgroundColor: "transparent",
+		},
+		bodyPlain: { borderTopWidth: 0, paddingHorizontal: 0 },
 		pressed: { backgroundColor: c.surfacePressed },
 		caption: {
 			flex: 1,

@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.64.0 (versionCode 67) - 2026-09-16 - internal
+
+**What's new (Play):**
+
+- A calmer verse sheet: tap a verse and a small card slides up with the explanation, your highlight colors and one row of actions - Ask, Copy, Share, Note, Learn - while the chapter stays readable behind it. Drag up to study: Explain, Words (the Hebrew or Greek) and See also, one at a time.
+- Select a passage: keep tapping verses to grow the selection, then highlight, copy, share, save or learn all of them together.
+- Re-tap your highlight color to remove it.
+
+**Dev notes:** The verse sheet is no longer a Modal; `mobile/src/features/bible/verse-sheet/` holds the gesture-driven two-tier VerseSheet (Reanimated + gesture-handler), VerseActionBar, StudyTabs and InsightTeaser; selection rules live in `verseSelection.ts` (mirrored on web with a parity test). Server: `/api/verse-insight` explains a range reference as one passage under the existing cache (single-verse prompt text unchanged, no version bump). Web restructured to the same tabs + action bar with multi-select.
+
 ## 1.63.0 (versionCode 66) - 2026-09-15 - internal
 
 **What's new (Play):**

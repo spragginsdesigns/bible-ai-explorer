@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
-	AppState,
 	FlatList,
 	Image,
 	Modal,
-	Platform,
 	Pressable,
 	Share,
 	StyleSheet,
@@ -25,8 +23,10 @@ import {
 	readerTranslation,
 	saveVerseToNote,
 } from "@/features/chat/verseActions";
-import { BottomSheet, SheetRow } from "@/features/notes/components/primitives";
+import { BottomSheet } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { apiJson } from "@/lib/api";
+import { parseCard } from "@/features/learn/learn";
 import { useReadingLogStatus } from "@/features/reading/readingLogStore";
 import { useReaderTracking } from "@/features/reading/useReaderTracking";
 import { bookByOrder, type Book } from "@/features/bible/books";
@@ -49,7 +49,22 @@ import {
 	CrossReferencesSection,
 	type CrossReferenceTarget,
 } from "@/features/bible/CrossReferencesSection";
-import { AddLearnButton } from "@/features/learn/AddLearnButton";
+import {
+	MAX_SELECTED_VERSES,
+	selectionColor,
+	selectionCount,
+	selectionIncludes,
+	selectionReference,
+	selectionShareText,
+	selectionText,
+	selectionVerses,
+	toggleVerse,
+	type VerseSelection,
+} from "@/features/bible/verseSelection";
+import { VerseSheet, type VerseSheetTier } from "@/features/bible/verse-sheet/VerseSheet";
+import { VerseActionBar, type VerseAction } from "@/features/bible/verse-sheet/VerseActionBar";
+import { StudyTabs } from "@/features/bible/verse-sheet/StudyTabs";
+import { InsightTeaser } from "@/features/bible/verse-sheet/InsightTeaser";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -69,10 +84,16 @@ const HIGHLIGHT_MS = 2400;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
-interface ActionVerse {
-	number: number;
-	text: string;
-}
+type StudyTabKey = "explain" | "words" | "seealso";
+const STUDY_TABS: { key: StudyTabKey; label: string }[] = [
+	{ key: "explain", label: "Explain" },
+	{ key: "words", label: "Words" },
+	{ key: "seealso", label: "See also" },
+];
+/** A quick second tap grows the range; wait for the reader to settle before asking the model. */
+const SELECTION_SETTLE_MS = 350;
+/** Longer than the sheet's slide-out, so what it shows does not vanish mid-slide. */
+const SHEET_CLOSE_MS = 320;
 
 type ChapterStyles = ReturnType<typeof createStyles>;
 
@@ -88,12 +109,14 @@ interface VerseRowProps {
 	verseColor: string | undefined;
 	/** True only for the verse a ?verse= deep link is briefly flashing. */
 	flashed: boolean;
+	/** Part of the verse sheet's current selection. */
+	selected: boolean;
 	parchment: boolean;
 	fontSize: number;
 	lineHeight: number;
 	styles: ChapterStyles;
 	colors: Colors;
-	onPress: (verseNumber: number, plainText: string) => void;
+	onPress: (verseNumber: number) => void;
 }
 
 /**
@@ -111,6 +134,7 @@ const VerseRow = React.memo(function VerseRow({
 	verseNumber,
 	verseColor,
 	flashed,
+	selected,
 	parchment,
 	fontSize,
 	lineHeight,
@@ -122,13 +146,7 @@ const VerseRow = React.memo(function VerseRow({
 		() => readerVerseSegments(markup, translation, bookOrder, chapterNumber, verseNumber),
 		[markup, translation, bookOrder, chapterNumber, verseNumber],
 	);
-	// The sheet, clipboard and Ask AI all want the verse without markup; joining
-	// the segments avoids parsing the same string a second time.
-	const plainText = useMemo(() => segments.map((segment) => segment.text).join(""), [segments]);
-	const open = useCallback(
-		() => onPress(verseNumber, plainText),
-		[onPress, verseNumber, plainText],
-	);
+	const open = useCallback(() => onPress(verseNumber), [onPress, verseNumber]);
 
 	const formatted =
 		translation === "BSB" ? getBsbChapter(bookOrder, chapterNumber)[verseNumber - 1] : null;
@@ -141,20 +159,28 @@ const VerseRow = React.memo(function VerseRow({
 			))}
 			<Pressable
 				accessibilityRole="button"
+				accessibilityState={{ selected }}
 				delayLongPress={300}
 				onPress={open}
 				onLongPress={open}
 				style={[
 					styles.verseRow,
-					// The deep-link flash comes last so it wins over the wash.
-					flashed &&
+					// The selection wash and the deep-link flash share one look: both
+					// say "this is the verse we mean". The flash comes last so it wins.
+					(selected || flashed) &&
 						(parchment ? styles.verseRowHighlighted : { backgroundColor: colors.accentSoft }),
 				]}
 			>
 				<ScriptureText
 					style={[styles.verseText, !parchment && { color: colors.text }, { fontSize, lineHeight }]}
 				>
-					<ScriptureText style={[styles.verseNumber, !parchment && { color: colors.textMuted }]}>
+					<ScriptureText
+						style={[
+							styles.verseNumber,
+							!parchment && { color: colors.textMuted },
+							selected && { color: colors.accent },
+						]}
+					>
 						{verseNumber}
 						{"\u2002"}
 					</ScriptureText>
@@ -238,10 +264,21 @@ export default function BibleChapterScreen() {
 	const [readerOptionsVisible, setReaderOptionsVisible] = useState(false);
 	const [fontStep, setFontStep] = useState(sessionFontStep);
 	const [highlighted, setHighlighted] = useState<number | null>(null);
-	const [actionVerse, setActionVerse] = useState<ActionVerse | null>(null);
+	// The verse sheet's selection: one verse, or a range grown by tapping more
+	// verses while the sheet is open. Null means the sheet is closed.
+	const [selection, setSelection] = useState<VerseSelection | null>(null);
+	// The last non-null selection keeps the sheet's content stable while it
+	// animates closed; the sheet itself is driven by `selection !== null`.
+	const [shownSelection, setShownSelection] = useState<VerseSelection>({ start: 1, end: 1 });
+	const [sheetTier, setSheetTier] = useState<VerseSheetTier>("peek");
+	const [studyTab, setStudyTab] = useState<StudyTabKey>("explain");
 	const [copied, setCopied] = useState(false);
 	const [saveBusy, setSaveBusy] = useState(false);
-	const [saveError, setSaveError] = useState<string | null>(null);
+	const [learnStatus, setLearnStatus] = useState<"idle" | "adding" | "added">("idle");
+	const [actionMessage, setActionMessage] = useState<{
+		text: string;
+		tone: "muted" | "danger";
+	} | null>(null);
 	const {
 		status: insightStatus,
 		text: insightText,
@@ -253,13 +290,7 @@ export default function BibleChapterScreen() {
 	const listRef = useRef<FlatList<string>>(null);
 	const lastFlashed = useRef<string | null>(null);
 	const requestId = useRef(0);
-	const sheetVisibleRef = useRef(false);
-	const pendingCrossReference = useRef<
-		(CrossReferenceTarget & { translation: TranslationId }) | null
-	>(null);
-	const dismissFocusSubscription = useRef<ReturnType<typeof AppState.addEventListener> | null>(
-		null,
-	);
+	const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
@@ -333,7 +364,10 @@ export default function BibleChapterScreen() {
 		translation,
 		verseCount: verses.length,
 		ready: !loading && !error && loadedKey === chapterKey && !!book,
-		obscured: actionVerse !== null || pickerVisible || readerOptionsVisible,
+		// The peek leaves most of the chapter readable; only the expanded study
+		// view covers the text.
+		obscured:
+			(selection !== null && sheetTier === "expanded") || pickerVisible || readerOptionsVisible,
 	});
 
 	const stepFont = useCallback((delta: number) => {
@@ -384,79 +418,86 @@ export default function BibleChapterScreen() {
 	);
 
 	const reference = book ? `${book.name} ${chapter}` : "";
-	const actionReference = actionVerse ? `${reference}:${actionVerse.number}` : "";
-	sheetVisibleRef.current = actionVerse !== null;
 
+	// Every verse without markup, once per chapter load. The sheet, clipboard,
+	// share, note and Ask AI all read the selection from here, and a range
+	// covers verses that were never tapped themselves.
+	const plainTexts = useMemo(
+		() =>
+			verses.map((markup, index) =>
+				readerVerseSegments(markup, translation, order, chapter, index + 1)
+					.map((segment) => segment.text)
+					.join(""),
+			),
+		[verses, translation, order, chapter],
+	);
+
+	const sheetOpen = selection !== null;
+	const activeSelection = selection ?? shownSelection;
+	const selectionRef = book ? selectionReference(book.name, chapter, activeSelection) : "";
+	const selectionPlain = selectionText(plainTexts, activeSelection);
+	const selectedCount = selectionCount(activeSelection);
+	const selectionHex = selectionColor(highlights, activeSelection);
+	const selectionHasColor = selectionVerses(activeSelection).some((verse) => highlights.has(verse));
+	const selectionPreset = selectionHex
+		? HIGHLIGHT_PRESETS.find(
+				(preset) => preset.color.toLowerCase() === selectionHex.toLowerCase(),
+			)
+		: undefined;
+	const selectionHighlightLabel = highlightLabelFor(highlightLabels, selectionPreset?.name);
+
+	// The insight is not reset here: the teaser must keep its text while the
+	// sheet slides out. The close effect below aborts it once the slide is done.
 	const closeSheet = useCallback(() => {
-		setActionVerse(null);
+		setSelection(null);
 		setCopied(false);
-		setSaveError(null);
-		resetInsight();
-	}, [resetInsight]);
-
-	const cancelCrossReferenceNavigation = useCallback(() => {
-		pendingCrossReference.current = null;
-		dismissFocusSubscription.current?.remove();
-		dismissFocusSubscription.current = null;
+		setActionMessage(null);
 	}, []);
 
-	const finishCrossReferenceDismissal = useCallback(() => {
-		const target = pendingCrossReference.current;
-		if (!target || sheetVisibleRef.current) return;
-		cancelCrossReferenceNavigation();
-		router.push({
-			pathname: "/bible/chapter",
-			params: {
-				book: String(target.order),
-				chapter: String(target.chapter),
-				...(target.verse !== undefined ? { verse: String(target.verse) } : {}),
-				translation: target.translation,
-			},
-		});
-	}, [cancelCrossReferenceNavigation, router]);
-
-	useEffect(() => () => cancelCrossReferenceNavigation(), [cancelCrossReferenceNavigation]);
-	useEffect(() => {
-		if (actionVerse) cancelCrossReferenceNavigation();
-	}, [actionVerse, cancelCrossReferenceNavigation]);
-
+	// The sheet is not a modal, so a cross-reference can navigate straight
+	// away: nothing has to be dismissed first.
 	const openCrossReference = useCallback(
 		(target: CrossReferenceTarget) => {
-			cancelCrossReferenceNavigation();
-			pendingCrossReference.current = { ...target, translation };
-			if (Platform.OS === "android") {
-				dismissFocusSubscription.current = AppState.addEventListener(
-					"focus",
-					finishCrossReferenceDismissal,
-				);
-			}
 			closeSheet();
-		},
-		[cancelCrossReferenceNavigation, closeSheet, finishCrossReferenceDismissal, translation],
-	);
-
-	// Tap-a-verse: opening the sheet immediately starts streaming a short AI
-	// explanation of the tapped verse (cached per verse for the session).
-	const openVerse = useCallback(
-		(verse: ActionVerse) => {
-			setActionVerse(verse);
-			startInsight({
-				reference: `${reference}:${verse.number}`,
-				text: verse.text,
-				translation,
+			router.push({
+				pathname: "/bible/chapter",
+				params: {
+					book: String(target.order),
+					chapter: String(target.chapter),
+					...(target.verse !== undefined ? { verse: String(target.verse) } : {}),
+					translation,
+				},
 			});
 		},
-		[startInsight, reference, translation],
+		[closeSheet, router, translation],
 	);
 
+	// Tap-a-verse: a selection immediately starts streaming a short AI
+	// explanation (cached per reference for the session). The first tap asks
+	// at once; a tap that grows the range waits a beat in case another follows.
+	const previousSelection = useRef<VerseSelection | null>(null);
+	useEffect(() => {
+		const wasOpen = previousSelection.current !== null;
+		previousSelection.current = selection;
+		if (!selection || !book) return;
+		const request = () =>
+			startInsight({
+				reference: selectionReference(book.name, chapter, selection),
+				text: selectionText(plainTexts, selection),
+				translation,
+			});
+		if (!wasOpen) {
+			request();
+			return;
+		}
+		const timer = setTimeout(request, SELECTION_SETTLE_MS);
+		return () => clearTimeout(timer);
+	}, [selection, book, chapter, plainTexts, translation, startInsight]);
+
 	const retryInsight = useCallback(() => {
-		if (!actionVerse) return;
-		startInsight({
-			reference: actionReference,
-			text: actionVerse.text,
-			translation,
-		});
-	}, [actionVerse, actionReference, startInsight, translation]);
+		if (!selection) return;
+		startInsight({ reference: selectionRef, text: selectionPlain, translation });
+	}, [selection, selectionRef, selectionPlain, startInsight, translation]);
 
 	const askAI = useCallback(
 		(verse: { reference: string; text: string }) => {
@@ -473,89 +514,200 @@ export default function BibleChapterScreen() {
 		[router, closeSheet, translation],
 	);
 
+	useEffect(
+		() => () => {
+			if (copiedTimer.current) clearTimeout(copiedTimer.current);
+		},
+		[],
+	);
+
 	const onCopyVerse = useCallback(async () => {
-		if (!actionVerse) return;
-		await Clipboard.setStringAsync(`${actionReference} — "${actionVerse.text}" (${translation})`);
+		if (!selection) return;
+		await Clipboard.setStringAsync(selectionShareText(selectionRef, selectionPlain, translation));
 		setCopied(true);
-		setTimeout(closeSheet, 600);
-	}, [actionVerse, actionReference, translation, closeSheet]);
+		if (copiedTimer.current) clearTimeout(copiedTimer.current);
+		copiedTimer.current = setTimeout(() => setCopied(false), 1400);
+	}, [selection, selectionRef, selectionPlain, translation]);
 
 	const onShareVerse = useCallback(() => {
-		if (!actionVerse) return;
+		if (!selection) return;
 		Share.share({
-			message: `${actionReference} — "${actionVerse.text}" (${translation})`,
+			message: selectionShareText(selectionRef, selectionPlain, translation),
 		}).catch(() => {});
-		closeSheet();
-	}, [actionVerse, actionReference, translation, closeSheet]);
+	}, [selection, selectionRef, selectionPlain, translation]);
 
 	const onSaveVerse = useCallback(async () => {
-		if (!actionVerse || saveBusy) return;
+		if (!selection || saveBusy) return;
 		setSaveBusy(true);
-		setSaveError(null);
+		setActionMessage(null);
 		try {
 			const noteId = await saveVerseToNote(
 				getToken,
-				{
-					reference: actionReference,
-					text: actionVerse.text,
-				},
+				{ reference: selectionRef, text: selectionPlain },
 				translation,
 			);
 			closeSheet();
 			router.push({ pathname: "/notes/[id]", params: { id: noteId } });
 		} catch {
-			setSaveError("The note could not be saved. Check your connection and try again.");
+			setActionMessage({
+				text: "The note could not be saved. Check your connection and try again.",
+				tone: "danger",
+			});
 		} finally {
 			setSaveBusy(false);
 		}
-	}, [actionVerse, actionReference, saveBusy, getToken, translation, router, closeSheet]);
+	}, [selection, saveBusy, selectionRef, selectionPlain, getToken, translation, router, closeSheet]);
 
-	// The color currently stored for the verse the sheet is acting on, if any.
-	const actionVerseColor = actionVerse ? highlights.get(actionVerse.number) : undefined;
-	const actionVersePreset = actionVerseColor
-		? HIGHLIGHT_PRESETS.find(
-				(preset) => preset.color.toLowerCase() === actionVerseColor.toLowerCase(),
-			)
-		: undefined;
-	const actionHighlightLabel = highlightLabelFor(highlightLabels, actionVersePreset?.name);
+	// Learn takes one verse per request, so a range is added verse by verse;
+	// the route is idempotent, so a retry after a mid-way failure is safe.
+	const onLearn = useCallback(async () => {
+		if (!selection) return;
+		if (learnStatus === "added") {
+			router.push("/(app)/bible/learn");
+			return;
+		}
+		if (learnStatus === "adding") return;
+		setLearnStatus("adding");
+		setActionMessage(null);
+		const source = selectionHex ? "highlight" : "sheet";
+		try {
+			for (const verse of selectionVerses(selection)) {
+				const card = parseCard(
+					await apiJson(getToken, "/api/learn", {
+						method: "POST",
+						body: { book: order, chapter, verse, translation, source },
+					}),
+				);
+				if (card.book !== order || card.chapter !== chapter || card.verse !== verse) {
+					throw new Error("Unexpected verse");
+				}
+			}
+			setLearnStatus("added");
+			setActionMessage({
+				text: selectedCount === 1 ? "Added to Learn." : `Added ${selectedCount} verses to Learn.`,
+				tone: "muted",
+			});
+		} catch {
+			setLearnStatus("idle");
+			setActionMessage({
+				text: "Could not add to Learn. Check your connection and try again.",
+				tone: "danger",
+			});
+		}
+	}, [selection, learnStatus, router, selectionHex, getToken, order, chapter, translation, selectedCount]);
 
-	// Highlight writes are optimistic — the verse row recolors immediately and
-	// the store rolls back if the PUT/DELETE fails, so the sheet just fires.
+	// Highlight writes are optimistic - the verse rows recolor immediately and
+	// the store rolls back any verse whose PUT/DELETE fails, so the sheet just
+	// fires one write per selected verse.
 	const applyHighlight = useCallback(
 		(color: string) => {
-			if (!actionVerse) return;
-			setHighlight(getToken, {
-				translation,
-				book: order,
-				chapter,
-				verse: actionVerse.number,
-				color,
-			}).catch(() => {});
+			if (!selection) return;
+			for (const verse of selectionVerses(selection)) {
+				setHighlight(getToken, { translation, book: order, chapter, verse, color }).catch(
+					() => {},
+				);
+			}
 		},
-		[actionVerse, getToken, translation, order, chapter],
+		[selection, getToken, translation, order, chapter],
 	);
 
 	const onRemoveHighlight = useCallback(() => {
-		if (!actionVerse) return;
-		removeHighlight(getToken, {
-			translation,
-			book: order,
-			chapter,
-			verse: actionVerse.number,
-		}).catch(() => {});
-	}, [actionVerse, getToken, translation, order, chapter]);
+		if (!selection) return;
+		for (const verse of selectionVerses(selection)) {
+			removeHighlight(getToken, { translation, book: order, chapter, verse }).catch(() => {});
+		}
+	}, [selection, getToken, translation, order, chapter]);
 
 	const fontSize = FONT_STEPS[fontStep];
 	const lineHeight = Math.round(fontSize * 1.8);
 
-	// Keeps VerseRow's onPress identity stable while the insight sheet streams:
-	// openVerse only changes when the chapter or translation does.
-	const onVersePress = useCallback(
-		(verseNumber: number, plainText: string) => {
-			openVerse({ number: verseNumber, text: plainText });
-		},
-		[openVerse],
+	// Keeps VerseRow's onPress identity stable while the insight streams: the
+	// toggle reads the current selection through a ref, not a closure.
+	const selectionNow = useRef(selection);
+	selectionNow.current = selection;
+	const onVersePress = useCallback((verseNumber: number) => {
+		const current = selectionNow.current;
+		const next = toggleVerse(current, verseNumber);
+		if (next === current) {
+			// The only way the toggle leaves the selection alone is the cap.
+			setActionMessage({ text: `Up to ${MAX_SELECTED_VERSES} verses at a time.`, tone: "muted" });
+			return;
+		}
+		// Written now, not on the next render, so two taps in one frame chain.
+		selectionNow.current = next;
+		if (next) setShownSelection(next);
+		if (!current && next) {
+			// A fresh open starts at the peek on Explain with clean action state.
+			setSheetTier("peek");
+			setStudyTab("explain");
+		}
+		// A grown or re-anchored range is a different thing to copy or learn.
+		setCopied(false);
+		setLearnStatus("idle");
+		setActionMessage(null);
+		setSelection(next);
+	}, []);
+
+	// Chapter or translation change while the sheet is open: the selection no
+	// longer describes what is on screen.
+	useEffect(() => {
+		setSelection(null);
+		resetInsight();
+	}, [chapterKey, resetInsight]);
+
+	// Closing the sheet abandons the insight once the slide-out has finished
+	// (the sheet keeps its content while it leaves); leaving the screen does too.
+	useEffect(() => {
+		if (sheetOpen) return;
+		const timer = setTimeout(resetInsight, SHEET_CLOSE_MS);
+		return () => clearTimeout(timer);
+	}, [sheetOpen, resetInsight]);
+
+	const openStudy = useCallback((tab: StudyTabKey) => {
+		setStudyTab(tab);
+		setSheetTier("expanded");
+	}, []);
+
+	const sheetActions = useMemo<VerseAction[]>(
+		() => [
+			{
+				key: "ask",
+				icon: "sparkles-outline",
+				label: "Ask",
+				onPress: () => askAI({ reference: selectionRef, text: selectionPlain }),
+			},
+			{
+				key: "copy",
+				icon: copied ? "checkmark" : "copy-outline",
+				label: copied ? "Copied" : "Copy",
+				active: copied,
+				onPress: () => void onCopyVerse(),
+			},
+			{ key: "share", icon: "share-outline", label: "Share", onPress: onShareVerse },
+			{
+				key: "note",
+				icon: "create-outline",
+				label: saveBusy ? "Saving…" : "Note",
+				disabled: saveBusy,
+				onPress: () => void onSaveVerse(),
+			},
+			{
+				key: "learn",
+				icon: learnStatus === "added" ? "school" : "school-outline",
+				label: learnStatus === "adding" ? "Adding…" : learnStatus === "added" ? "Added" : "Learn",
+				active: learnStatus === "added",
+				disabled: learnStatus === "adding",
+				onPress: () => void onLearn(),
+			},
+		],
+		[askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
 	);
+
+	const barMessage = actionMessage
+		? actionMessage
+		: selectionHighlightLabel
+			? { text: `Marked as “${selectionHighlightLabel}”`, tone: "muted" as const }
+			: null;
 
 	const renderVerse = useCallback(
 		({ item, index }: ListRenderItemInfo<string>) => (
@@ -568,6 +720,7 @@ export default function BibleChapterScreen() {
 				verseNumber={index + 1}
 				verseColor={highlights.get(index + 1)}
 				flashed={highlighted === index + 1}
+				selected={selectionIncludes(selection, index + 1)}
 				parchment={parchment}
 				fontSize={fontSize}
 				lineHeight={lineHeight}
@@ -579,6 +732,7 @@ export default function BibleChapterScreen() {
 		[
 			highlights,
 			highlighted,
+			selection,
 			parchment,
 			fontSize,
 			lineHeight,
@@ -841,135 +995,95 @@ export default function BibleChapterScreen() {
 							<Text style={styles.dockAILabel}>Ask AI</Text>
 						</Pressable>
 					</View>
+					{/* Tap-a-verse. Non-modal and anchored above the tab bar: the peek
+					    keeps the chapter readable and tappable so a second tap grows the
+					    selection; dragging up opens the study view. */}
+					<VerseSheet
+						open={sheetOpen}
+						tier={sheetTier}
+						onTierChange={setSheetTier}
+						onClose={closeSheet}
+						title={selectionRef}
+						subtitle={selectedCount > 1 ? `${selectedCount} verses` : undefined}
+						bottomOffset={tabBarSpace}
+						peek={
+							<InsightTeaser
+								status={insightStatus}
+								text={insightText}
+								error={insightError}
+								onPress={() => openStudy("explain")}
+								onRetry={retryInsight}
+							/>
+						}
+						footer={
+							<VerseActionBar
+								color={selectionHex}
+								canRemove={selectionHasColor}
+								onHighlight={applyHighlight}
+								onRemoveHighlight={onRemoveHighlight}
+								onCustomColor={() => setPickerVisible(true)}
+								labelForPreset={(name) => highlightLabelFor(highlightLabels, name) ?? name}
+								actions={sheetActions}
+								message={barMessage?.text}
+								messageTone={barMessage?.tone}
+							/>
+						}
+					>
+						<Text numberOfLines={4} style={styles.studyQuote}>
+							{selectionPlain}
+						</Text>
+						<StudyTabs
+							tabs={STUDY_TABS}
+							value={studyTab}
+							onChange={(key) => setStudyTab(key as StudyTabKey)}
+						/>
+						<View style={styles.studyBody}>
+							{studyTab === "explain" ? (
+								<VerseInsightSection
+									status={insightStatus}
+									text={insightText}
+									error={insightError}
+									onRetry={retryInsight}
+								/>
+							) : studyTab === "words" ? (
+								selectionVerses(activeSelection).map((verse) => (
+									<OriginalLanguageSection
+										key={verse}
+										getToken={getToken}
+										book={order}
+										chapter={chapter}
+										verse={sheetOpen ? verse : null}
+										caption={selectedCount > 1 ? `VERSE ${verse}` : undefined}
+									/>
+								))
+							) : (
+								<>
+									{selectedCount > 1 ? (
+										<Text style={styles.studyNote}>For verse {activeSelection.start}</Text>
+									) : null}
+									<CrossReferencesSection
+										key={`${activeSelection.start}:${translation}`}
+										reference={
+											book
+												? selectionReference(book.name, chapter, {
+														start: activeSelection.start,
+														end: activeSelection.start,
+													})
+												: ""
+										}
+										translation={translation}
+										enabled={sheetOpen}
+										onNavigate={openCrossReference}
+										alwaysExpanded
+									/>
+								</>
+							)}
+						</View>
+					</VerseSheet>
 				</View>
 			)}
 
-			<BottomSheet
-				visible={actionVerse !== null}
-				onDismiss={Platform.OS === "ios" ? finishCrossReferenceDismissal : undefined}
-				onClose={closeSheet}
-				title={actionReference}
-				scroll
-			>
-				{actionVerse ? (
-					<View style={styles.sheetVerseCard}>
-						<Text numberOfLines={5} style={styles.sheetVerseText}>
-							{actionVerse.text}
-						</Text>
-					</View>
-				) : null}
-				<VerseInsightSection
-					status={insightStatus}
-					text={insightText}
-					error={insightError}
-					onRetry={retryInsight}
-				/>
-				<OriginalLanguageSection
-					getToken={getToken}
-					book={order}
-					chapter={chapter}
-					verse={actionVerse?.number ?? null}
-				/>
-				<CrossReferencesSection
-					key={`${actionReference}:${translation}`}
-					reference={actionReference}
-					translation={translation}
-					enabled={actionVerse !== null}
-					onNavigate={openCrossReference}
-				/>
-				<Pressable
-					accessibilityRole="button"
-					onPress={() => {
-						if (actionVerse) askAI({ reference: actionReference, text: actionVerse.text });
-					}}
-					style={({ pressed }) => [
-						styles.expandButton,
-						pressed && { backgroundColor: colors.accentPressed },
-					]}
-				>
-					<Text style={styles.expandButtonLabel}>✦ Expand with AI</Text>
-				</Pressable>
-				<View style={styles.highlightSection}>
-					<Text style={styles.highlightLabel}>Highlight</Text>
-					<View style={styles.swatchRow}>
-						{HIGHLIGHT_PRESETS.map((preset) => {
-							const label = highlightLabelFor(highlightLabels, preset.name) ?? preset.name;
-							return (
-								<Pressable
-									key={preset.color}
-									accessibilityRole="button"
-									accessibilityLabel={`Highlight ${label}`}
-									accessibilityState={{
-										selected: actionVerseColor === preset.color,
-									}}
-									onPress={() => applyHighlight(preset.color)}
-									style={[
-										styles.swatch,
-										{ backgroundColor: preset.color },
-										actionVerseColor === preset.color && styles.swatchSelected,
-									]}
-								/>
-							);
-						})}
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Custom highlight color"
-							accessibilityState={{
-								selected:
-									actionVerseColor !== undefined &&
-									!HIGHLIGHT_PRESETS.some((preset) => preset.color === actionVerseColor),
-							}}
-							onPress={() => setPickerVisible(true)}
-							style={[
-								styles.swatch,
-								styles.swatchCustom,
-								actionVerseColor !== undefined && {
-									backgroundColor: actionVerseColor,
-								},
-								actionVerseColor !== undefined &&
-									!HIGHLIGHT_PRESETS.some((preset) => preset.color === actionVerseColor) &&
-									styles.swatchSelected,
-							]}
-						>
-							<Text style={styles.swatchCustomLabel}>+</Text>
-						</Pressable>
-					</View>
-					{actionHighlightLabel ? (
-						<Text style={styles.highlightCaption}>Marked as “{actionHighlightLabel}”</Text>
-					) : null}
-					{actionVerseColor ? (
-						<SheetRow
-							icon="color-fill-outline"
-							label="Remove highlight"
-							danger
-							onPress={onRemoveHighlight}
-						/>
-					) : null}
-				</View>
-				{actionVerse ? (
-					<AddLearnButton
-						book={order}
-						chapter={chapter}
-						verse={actionVerse.number}
-						translation={translation}
-						source={actionVerseColor ? "highlight" : "sheet"}
-						onAdded={closeSheet}
-					/>
-				) : null}
-				<SheetRow
-					icon={copied ? "checkmark" : "copy-outline"}
-					label={copied ? "Copied ✓" : "Copy"}
-					onPress={() => void onCopyVerse()}
-				/>
-				<SheetRow icon="share-outline" label="Share" onPress={onShareVerse} />
-				<SheetRow
-					icon="create-outline"
-					label={saveBusy ? "Saving…" : "Save to note"}
-					onPress={() => void onSaveVerse()}
-				/>
-				{saveError ? <Text style={styles.sheetError}>{saveError}</Text> : null}
-			</BottomSheet>
-
+			{/* The verse sheet lives inside the reader body (see the render above): it is not a modal, so the chapter stays tappable to grow the selection. */}
 			{/* Custom highlight color. Rendered as a sibling Modal so it stacks
 			    above the verse sheet; a gesture completion applies the color. */}
 			<Modal
@@ -989,7 +1103,7 @@ export default function BibleChapterScreen() {
 						<Text style={styles.pickerTitle}>Custom color</Text>
 						{pickerVisible ? (
 							<HighlightColorPicker
-								value={actionVerseColor ?? HIGHLIGHT_PRESETS[0].color}
+								value={selectionHex ?? HIGHLIGHT_PRESETS[0].color}
 								onComplete={(hex) => {
 									applyHighlight(hex);
 									setPickerVisible(false);
@@ -1186,39 +1300,19 @@ const createStyles = (c: Colors) =>
 			textAlign: "center",
 			fontStyle: "italic",
 		},
-		sheetVerseCard: {
-			borderRadius: radius.md,
-			borderWidth: StyleSheet.hairlineWidth,
-			borderColor: c.borderStrong,
-			backgroundColor: c.surface,
-			paddingHorizontal: spacing.md,
-			paddingVertical: spacing.md,
-		},
-		sheetVerseText: {
+		studyQuote: {
 			color: c.textSecondary,
 			fontFamily: fonts.verse,
 			...typography.chat,
+			paddingHorizontal: spacing.lg,
+			paddingBottom: spacing.md,
 		},
-		expandButton: {
-			minHeight: 46,
-			borderRadius: radius.lg,
-			borderWidth: 1,
-			borderColor: c.accentBorder,
-			backgroundColor: c.accentSoft,
-			alignItems: "center",
-			justifyContent: "center",
-			marginBottom: spacing.sm,
-		},
-		expandButtonLabel: {
-			color: c.accent,
-			...typography.support,
-			fontWeight: "700",
-		},
-		sheetError: {
-			color: c.danger,
-			...typography.support,
+		studyBody: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.lg },
+		studyNote: {
+			color: c.textFaint,
+			...typography.meta,
 			paddingHorizontal: spacing.sm,
-			paddingVertical: spacing.md,
+			paddingBottom: spacing.sm,
 		},
 		fontButton: {
 			minWidth: 44,
@@ -1236,48 +1330,6 @@ const createStyles = (c: Colors) =>
 			color: c.textSecondary,
 			...typography.control,
 			fontWeight: "700",
-		},
-		highlightSection: { marginBottom: spacing.sm },
-		highlightLabel: {
-			color: c.textMuted,
-			...typography.support,
-			fontWeight: "700",
-			textTransform: "uppercase",
-			letterSpacing: 0.8,
-			paddingHorizontal: spacing.sm,
-			marginBottom: spacing.sm,
-		},
-		highlightCaption: {
-			color: c.textMuted,
-			...typography.meta,
-			paddingHorizontal: spacing.sm,
-			paddingTop: spacing.xs,
-		},
-		swatchRow: {
-			flexDirection: "row",
-			flexWrap: "wrap",
-			gap: spacing.sm,
-			paddingHorizontal: spacing.sm,
-		},
-		swatch: {
-			width: 32,
-			height: 32,
-			borderRadius: 16,
-			borderWidth: 2,
-			borderColor: "transparent",
-			alignItems: "center",
-			justifyContent: "center",
-		},
-		swatchSelected: { borderColor: c.accent },
-		swatchCustom: {
-			borderColor: c.borderStrong,
-			backgroundColor: c.surface,
-		},
-		swatchCustomLabel: {
-			color: c.textMuted,
-			...typography.chat,
-			fontWeight: "600",
-			marginTop: -2,
 		},
 		pickerBackdrop: {
 			position: "absolute",

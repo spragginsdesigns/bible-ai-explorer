@@ -11,9 +11,12 @@ export const maxDuration = 60;
 
 const MAX_REFERENCE_LENGTH = 120;
 const MAX_TEXT_LENGTH = 2500;
+/** "Genesis 1:1-3": a selected range, explained as one passage. */
+const RANGE_REFERENCE = /:\d+\s*[---]\s*\d+$/;
 
 /**
- * Tap-a-verse: stream a short explanation of a single verse as plain text.
+ * Tap-a-verse: stream a short explanation of a verse, or of a short range of
+ * verses the reader selected together, as plain text.
  * Serves the reader sheet on Android, web and the Apple apps. Unlike
  * ask-question this is a passive touch: it never records the model used as the
  * account default and writes nothing about the user.
@@ -78,7 +81,9 @@ async function handlePost(req: Request): Promise<Response> {
 		const modelUsed = resolved.definition.id;
 		const result = streamText({
 			model: resolved.model,
-			system: verseInsightSystemPrompt(translation),
+			system: verseInsightSystemPrompt(translation, {
+				passage: RANGE_REFERENCE.test(reference),
+			}),
 			prompt: `${reference} (${translation})\n"${text}"`,
 			maxOutputTokens: 2000,
 			providerOptions: resolved.providerOptions,

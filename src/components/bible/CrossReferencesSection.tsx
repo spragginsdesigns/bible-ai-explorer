@@ -20,6 +20,13 @@ interface CrossReferencesSectionProps {
 	reference: string;
 	translation: TranslationId;
 	onNavigate?: () => void;
+	/**
+	 * Renders the list open with no collapsible header row, for a caller that
+	 * already gave cross-references a surface of their own (the reader's "See
+	 * also" tab). Such a caller also needs to be told when there are none,
+	 * rather than being left with a blank panel.
+	 */
+	alwaysExpanded?: boolean;
 }
 
 type LoadState =
@@ -74,6 +81,7 @@ export default function CrossReferencesSection({
 	reference,
 	translation,
 	onNavigate,
+	alwaysExpanded = false,
 }: CrossReferencesSectionProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [state, setState] = useState<LoadState>({ status: "loading", items: [] });
@@ -116,34 +124,48 @@ export default function CrossReferencesSection({
 		};
 	}, [load]);
 
-	if (state.status === "ready" && state.items.length === 0) return null;
+	// A collapsed section with nothing behind it is noise, so it disappears.
+	// An always-open one is the whole panel, so it says so instead.
+	if (state.status === "ready" && state.items.length === 0 && !alwaysExpanded) return null;
+
+	const open = alwaysExpanded || expanded;
 
 	return (
 		<div className="mb-2 overflow-hidden rounded-xl border border-black/[0.08] bg-black/[0.03] dark:border-white/[0.08] dark:bg-white/[0.03]">
-			<button
-				type="button"
-				aria-expanded={expanded}
-				onClick={() => setExpanded((current) => !current)}
-				className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
-			>
-				<span className="flex-1 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-					See also
-				</span>
-				<span className="text-metadata text-neutral-400 dark:text-neutral-500">
-					{state.status === "loading"
-						? "Loading"
-						: state.status === "error"
-							? "Unavailable"
-							: `${state.items.length} ${state.items.length === 1 ? "passage" : "passages"}`}
-				</span>
-				<span aria-hidden className="text-neutral-400 dark:text-neutral-500">
-					{expanded ? "▴" : "▾"}
-				</span>
-			</button>
+			{!alwaysExpanded && (
+				<button
+					type="button"
+					aria-expanded={expanded}
+					onClick={() => setExpanded((current) => !current)}
+					className="flex min-h-11 w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+				>
+					<span className="flex-1 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+						See also
+					</span>
+					<span className="text-metadata text-neutral-400 dark:text-neutral-500">
+						{state.status === "loading"
+							? "Loading"
+							: state.status === "error"
+								? "Unavailable"
+								: `${state.items.length} ${state.items.length === 1 ? "passage" : "passages"}`}
+					</span>
+					<span aria-hidden className="text-neutral-400 dark:text-neutral-500">
+						{expanded ? "▴" : "▾"}
+					</span>
+				</button>
+			)}
 
-			{expanded && (
-				<div className="border-t border-black/[0.06] px-3 py-3 dark:border-white/[0.06]">
-					{state.status === "loading" ? (
+			{open && (
+				<div
+					className={`px-3 py-3 ${
+						alwaysExpanded ? "" : "border-t border-black/[0.06] dark:border-white/[0.06]"
+					}`}
+				>
+					{state.status === "ready" && state.items.length === 0 ? (
+						<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+							No related passages for this verse.
+						</p>
+					) : state.status === "loading" ? (
 						<p role="status" className="text-[13px] text-neutral-500 dark:text-neutral-400">
 							Loading related passages…
 						</p>

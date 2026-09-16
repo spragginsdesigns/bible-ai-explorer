@@ -9,6 +9,12 @@ interface OriginalLanguageSectionProps {
 	book: number;
 	chapter: number;
 	verse: number;
+	/**
+	 * Replaces the "Original language" heading. The verse panel stacks one
+	 * section per verse of a range, where "Verse 2" says more than repeating
+	 * the same heading down the column.
+	 */
+	caption?: string;
 }
 
 /**
@@ -31,6 +37,7 @@ const OriginalLanguageSection: React.FC<OriginalLanguageSectionProps> = ({
 	book,
 	chapter,
 	verse,
+	caption = "Original language",
 }) => {
 	const { data, loading, notFound, fetchStrongs } = useOriginalVerse({
 		book,
@@ -67,7 +74,7 @@ const OriginalLanguageSection: React.FC<OriginalLanguageSectionProps> = ({
 		return (
 			<div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
 				<p className="pb-2 text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-					Original language
+					{caption}
 				</p>
 				<div aria-label="Loading the original language" className="flex flex-wrap gap-2">
 					<div className="h-7 w-24 animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15" />
@@ -88,7 +95,7 @@ const OriginalLanguageSection: React.FC<OriginalLanguageSectionProps> = ({
 	return (
 		<div className="mb-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-2.5">
 			<p className="text-metadata font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-				Original language
+				{caption}
 			</p>
 			<p className="pb-2 text-metadata text-neutral-400 dark:text-neutral-500">
 				{data.language} · {data.textName}

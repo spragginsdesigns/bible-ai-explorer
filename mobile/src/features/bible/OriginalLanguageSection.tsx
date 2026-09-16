@@ -21,6 +21,12 @@ export interface OriginalLanguageSectionProps {
 	chapter: number;
 	/** Null while the sheet is closed, which disables every request. */
 	verse: number | null;
+	/**
+	 * Replaces the "Original language" heading. The study view stacks one
+	 * section per selected verse, so each is captioned by its verse number
+	 * instead of repeating the tab's own name.
+	 */
+	caption?: string;
 }
 
 /**
@@ -39,6 +45,7 @@ export function OriginalLanguageSection({
 	book,
 	chapter,
 	verse,
+	caption = "ORIGINAL LANGUAGE",
 }: OriginalLanguageSectionProps) {
 	const styles = useThemedStyles(createStyles);
 	const enabled = verse !== null;
@@ -107,7 +114,7 @@ export function OriginalLanguageSection({
 
 	return (
 		<View style={styles.container}>
-			<Text style={styles.caption}>ORIGINAL LANGUAGE</Text>
+			<Text style={styles.caption}>{caption}</Text>
 			{data ? (
 				<Text style={styles.subtitle}>{`${data.language} · ${data.textName}`}</Text>
 			) : null}

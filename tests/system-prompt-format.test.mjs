@@ -139,3 +139,19 @@ test("the verse-insight prompt still forbids structure entirely", () => {
 	assert.ok(!insight.includes(markdownOutputRules));
 	assert.ok(insight.includes("No headings, lists, blockquotes"));
 });
+
+test("the verse-insight prompt explains a selected range as one passage", () => {
+	// The single-verse wording is what the shared VerseInsight cache was built
+	// against, so the passage variant must leave it untouched and only swap
+	// the task addendum.
+	const single = verseInsightSystemPrompt("KJV");
+	const passage = verseInsightSystemPrompt("KJV", { passage: true });
+	assert.equal(verseInsightSystemPrompt("KJV", {}), single);
+	assert.ok(single.includes("tapped a single verse"));
+	assert.ok(passage.includes("selected a short passage of consecutive verses"));
+	assert.ok(passage.includes("with its verse numbers"));
+	assert.ok(!passage.includes("tapped a single verse"));
+	assert.ok(passage.includes("No headings, lists, blockquotes"));
+	assert.ok(!passage.includes(markdownOutputRules));
+	assert.equal(single.split("CURRENT TASK")[0], passage.split("CURRENT TASK")[0]);
+});

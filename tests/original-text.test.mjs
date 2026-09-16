@@ -68,12 +68,14 @@ test("selection and definitions reset when the panel moves to another verse", ()
 	assert.match(section, /setSelected\(\(current\) => \(current === index \? null : index\)\)/);
 });
 
-test("the reader mounts the section between the insight text and Expand with AI", () => {
+test("the reader mounts the section in the verse panel's Words tab, one per selected verse", () => {
 	const sectionAt = reader.indexOf("<OriginalLanguageSection");
-	const expandAt = reader.indexOf("Expand with AI");
+	const wordsAt = reader.indexOf('studyTab === "words"');
 	const insightAt = reader.indexOf("insightStatus === \"streaming\"");
 	assert.ok(sectionAt > 0, "the section should be mounted in the reader");
-	assert.ok(insightAt < sectionAt, "it belongs after the streaming insight block");
-	assert.ok(sectionAt < expandAt, "it belongs before the Expand with AI button");
-	assert.match(reader, /verse=\{actionVerse\.number\}/);
+	assert.ok(insightAt < sectionAt, "Explain comes before Words in the panel body");
+	assert.ok(wordsAt > 0 && wordsAt < sectionAt, "it belongs inside the Words tab");
+	// The route is single-verse, so a selected range stacks one section per verse.
+	assert.match(reader, /selectionVerses\(selection\)\.map\(\(verse\) => \(/);
+	assert.match(reader, /verse=\{verse\}/);
 });

@@ -124,11 +124,62 @@ the authenticated Mac published the APK after the GitHub preflight passed.
 *Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS 1.1.0 (2026-08-17)*
 
 Tapping a verse in the Bible reader opens the verse sheet and immediately
-streams a short AI explanation of that verse — what it says in its immediate
-context and why it matters — behind a softly glowing skeleton. The sheet keeps
-Copy / Share / Save to note, and **✦ Expand with AI** hands the verse to chat
-exactly like the old "Ask AI about this verse" action (same `attachRef` /
-`attachText` / `attachTranslation` params).
+streams a short AI explanation of that verse - what it says in its immediate
+context and why it matters - behind a softly glowing skeleton. The sheet's
+**Ask** action hands the selection to chat exactly like the old "Ask AI about
+this verse" action (same `attachRef` / `attachText` / `attachTranslation`
+params).
+
+### The two-tier sheet (2026-09-16, Android 1.64.0 + web)
+
+The sheet was rebuilt after it had grown, block by block, into a page: verse
+card, explanation, Hebrew, See also, Expand, eight swatches, Learn, Copy,
+Share, Save - thirteen blocks in three button styles, with the one-second
+actions at the bottom under the reading. The redesign follows the YouVersion
+model (a compact bar that never hides the text, tap more verses to extend)
+with SureWord's own advantage kept as the hero: the explanation is already
+streaming before anyone asks.
+
+- **Peek.** A non-modal card about a third of the screen tall, anchored above
+  the tab bar: reference (and "N verses" for a range), a two-line teaser of
+  the explanation, then the action bar. The chapter behind it stays readable
+  and tappable. Android: `mobile/src/features/bible/verse-sheet/VerseSheet.tsx`
+  (Reanimated + gesture-handler, two snap points, drag down to dismiss,
+  hardware back collapses then closes). Web: the same fixed bottom panel it
+  always had, minus the full-screen scrim, so the reader stays clickable.
+- **Study.** Drag up, tap the teaser or the grabber: the sheet grows to 90%,
+  quotes the selection once, and a segmented control picks one body at a
+  time - **Explain** (the streamed explanation), **Words** (the original
+  language, one section per selected verse), **See also** (cross-references
+  for the first selected verse, listed open). New depth is a tab, never a
+  block under the last block.
+- **The action bar is pinned in both tiers**, so it never scrolls away and
+  its screen position barely moves between peek and study: a strip of the
+  eight highlight presets plus the custom dot, then one row of icon chips -
+  Ask, Copy, Share, Note, Learn - in the reader dock's own idiom (icon over a
+  micro label). Re-tapping the current color removes the highlight (the dot
+  shows an ×). A new action is a chip, never a new button style.
+- **Ranges.** `verseSelection.ts` (mirrored in `mobile/src/features/bible/`
+  and `src/lib/bible/`, pinned identical by `tests/verse-selection.test.mjs`)
+  holds the tap rule: a tap opens on that verse, a tap outside the range
+  grows it (contiguous, up to `MAX_SELECTED_VERSES` = 10, which keeps the
+  joined text under the insight route's 2,500-char cap), a tap inside a range
+  re-anchors, a tap on the only selected verse closes. Every action applies
+  to the whole range: highlight and remove fan out one write per verse
+  through the existing optimistic store; Copy/Share/Note use "Book c:v-w" and
+  the numbered joined text; Learn posts one `/api/learn` per verse (idempotent
+  route, so a retry is safe). The explanation is requested for the range
+  reference; the server prompt switches to passage wording when the
+  reference carries a range (`verseInsightSystemPrompt(translation,
+  { passage })`) while the single-verse wording, and therefore every cached
+  single-verse row, is byte-for-byte unchanged. A grown range waits 350 ms
+  before asking, so three quick taps are one request.
+- **Deliberately not here yet:** an inline follow-up field under the
+  explanation. When it comes it goes in the Explain tab, streams against
+  `/api/verse-insight` with the prior exchange as context, writes no
+  Conversation rows, and offers a single "Continue in Chat" that creates the
+  conversation only then; the cross-account cache must bypass any request
+  that carries prior turns.
 
 ### Backend — `POST /api/verse-insight`
 
@@ -186,13 +237,10 @@ Deliberate properties, in rough order of importance:
 - **Session cache** keyed `translation:reference` — re-tapping a verse in the
   same session renders without a request. Partial output is never cached. The
   server cache above covers everything else (other sessions, other users).
-- **Android sheet scrolls** (1.45.0): `BottomSheet` gained a `scroll` mode
-  (`mobile/src/features/notes/components/primitives.tsx`) that caps the sheet
-  at 88% of the screen and scrolls the body under a pinned title. The verse
-  sheet uses it because its content grows twice after opening (the streamed
-  explanation, then the original-language words); before, a long verse plus
-  Greek pushed Expand / Highlight / Copy / Share / Save off the bottom with no
-  way to reach them.
+- **Android sheet** (1.45.0 to 1.63.0) used the shared `BottomSheet` Modal in
+  `scroll` mode, capped at 88% of the screen. Since 1.64.0 the verse sheet is
+  its own non-modal two-tier component (see "The two-tier sheet" above); the
+  shared `BottomSheet` still serves Reading settings and the notes sheets.
 - **Run-id guard + AbortController** — only the latest `start()`/`reset()` may
   touch state, so a slow stream for verse A can never bleed into an open sheet
   for verse B; closing the sheet aborts the request.
