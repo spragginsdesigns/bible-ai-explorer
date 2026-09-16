@@ -54,6 +54,7 @@ import { usedMemoryTools } from "@/lib/memory-policy";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
 import {
+	formatPrayerFollowUpBlock,
 	formatTodayBlock,
 	formatUserNameLine,
 	hasAnsweredConversationBefore,
@@ -871,6 +872,8 @@ async function handlePost(req: Request): Promise<Response> {
 						answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
 						...promptHints.map((hint) => `\n\n${hint}`),
 						shapeHint ? `\n\n${shapeHint}` : "",
+						// Last on purpose: an instruction for this reply, nearest the answer.
+						formatPrayerFollowUpBlock(dayContext),
 					].join("");
 					const promptCache = buildPromptCachePlan({
 						provider: definition.provider,

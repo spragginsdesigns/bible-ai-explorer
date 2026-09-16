@@ -215,7 +215,7 @@ const TODAY_BLOCK_HEADER =
  * invented one. Lines are in priority order and a line that would push the
  * block past the cap is dropped whole, never cut mid-fact.
  */
-export function formatTodayBlock(context: ChatDayContext, now: Date = new Date()): string {
+export function formatTodayBlock(context: ChatDayContext): string {
 	const lines: string[] = [];
 	if (context.cross) {
 		lines.push(
@@ -225,17 +225,9 @@ export function formatTodayBlock(context: ChatDayContext, now: Date = new Date()
 					: ""),
 		);
 	}
-	// Second on purpose, right after the cross: of everything here this is the
-	// one line that is about them rather than about the app.
-	if (context.prayers.length > 0) {
-		const requests = context.prayers
-			.map(
-				(prayer) =>
-					`"${clip(prayer.content, PRAYER_MAX_CHARS)}" (asked ${askedAgo(prayer.askedAt, now)}, memory id ${prayer.id})`,
-			)
-			.join("; ");
-		lines.push(`- Prayer requests they asked you to carry, now due a gentle follow-up: ${requests}.`);
-	}
+	// Due prayer requests are deliberately NOT here: as one more fact in this
+	// list the model read past them twice in production. They get their own
+	// instruction block, last in the volatile prompt - formatPrayerFollowUpBlock.
 	if (context.plan) {
 		lines.push(
 			`- Reading plan: ${clip(context.plan.title, PLAN_TITLE_MAX_CHARS)}, day ${context.plan.day} of ${context.plan.dayCount}, today's reading ${context.plan.reference}` +
@@ -265,15 +257,34 @@ export function formatTodayBlock(context: ChatDayContext, now: Date = new Date()
 	const prefix = `\n\n${TODAY_BLOCK_HEADER}`;
 	let block = prefix;
 	for (const line of lines) {
-		// The prayer line is exempt from the cap: loading the context already
-		// spent each listed request's follow-up, so a request that reached this
-		// function must reach the prompt. Its length is bounded by
-		// PRAYER_MAX_CHARS and DUE_PRAYERS instead.
-		const exempt = line.startsWith("- Prayer requests they asked you to carry");
-		if (!exempt && block.length + 1 + line.length > TODAY_BLOCK_MAX_CHARS) continue;
+		if (block.length + 1 + line.length > TODAY_BLOCK_MAX_CHARS) continue;
 		block += `\n${line}`;
 	}
 	return block === prefix ? "" : block;
+}
+
+/**
+ * The prayer follow-up as an instruction for THIS reply, not a fact in a list.
+ * It goes last in the volatile prompt, nearest the answer, because loading the
+ * context already spent each listed request's follow-up (see
+ * loadChatDayContext): a request that reaches this function must reach the
+ * prompt in a form the model acts on. Never capped; its length is bounded by
+ * PRAYER_MAX_CHARS and DUE_PRAYERS. "" when nothing is due.
+ */
+export function formatPrayerFollowUpBlock(context: ChatDayContext, now: Date = new Date()): string {
+	if (context.prayers.length === 0) return "";
+	const requests = context.prayers
+		.map(
+			(prayer) =>
+				`"${clip(prayer.content, PRAYER_MAX_CHARS)}" (asked ${askedAgo(prayer.askedAt, now)}, memory id ${prayer.id})`,
+		)
+		.join("; ");
+	return [
+		"",
+		"",
+		"PRAYER FOLLOW-UP DUE IN THIS REPLY (read from their account). They asked you to pray with them about the request(s) below and a gentle follow-up is due now. In this reply, after you have answered what they asked, add one short paragraph of its own asking how ONE of them went, in their own words (\"You asked me to pray with you about ... How did it go?\"). Skip it only if they are hurting about something else right now, or if the request itself was a loss - then acknowledge, do not ask. If they tell you the outcome, call resolvePrayerRequest with that memory id.",
+		`Requests: ${requests}.`,
+	].join("\n");
 }
 
 /**

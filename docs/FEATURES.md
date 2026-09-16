@@ -1690,20 +1690,22 @@ through one of:
 `GET /api/memories` and `listMemories` return the three columns (ISO strings)
 so every client and the assistant see status without a second call.
 
-**The follow-up** lives in the today block (`src/lib/chat-day-context.ts`,
+**The follow-up** is loaded with the today context (`src/lib/chat-day-context.ts`,
 `ChatDayContext.prayers`): the user's `open` prayer memories whose
 `followUpAfter <= now`, oldest `askedAt` first, at most 3, each clipped to 100
-characters, formatted as
+characters. It is NOT a line in the today block: as one more fact in that list
+the model read past it twice in production (2026-09-16). It is its own
+instruction block, `formatPrayerFollowUpBlock`, placed **last** in the volatile
+prompt, nearest the answer, and never capped (bounded by the clip and the cap
+of 3):
 
 ```
-- Prayer requests they asked you to carry, now due a gentle follow-up: "…" (asked 4 days ago, memory id cm…); "…" (asked 12 days ago, memory id cm…).
+PRAYER FOLLOW-UP DUE IN THIS REPLY (read from their account). They asked you to pray with them about the request(s) below and a gentle follow-up is due now. In this reply, after you have answered what they asked, add one short paragraph of its own asking how ONE of them went, in their own words ("You asked me to pray with you about ... How did it go?"). Skip it only if they are hurting about something else right now, or if the request itself was a loss - then acknowledge, do not ask. If they tell you the outcome, call resolvePrayerRequest with that memory id.
+Requests: "…" (asked 4 days ago, memory id cm…); "…" (asked 12 days ago, memory id cm…).
 ```
 
-placed second in the block, right after today's cross, and **exempt from the
-700-character cap** (its length is bounded by the 100-character clip and the
-cap of 3, so it stays near 500 characters at worst); the lines after it are the
-ones that give way. That exemption is what makes the next sentence honest: a
-request that is listed is always in the prompt. Loading the block for a chat turn also moves each listed
+A request that is listed is always in the prompt, which is what makes the next
+sentence honest. Loading the context for a chat turn also moves each listed
 row's `followUpAfter` to `now + 3 days` (one `updateMany`, fire-and-forget), so
 a request is raised at most once every three days no matter how many turns or
 conversations happen in between; the guidance below tells the assistant to
@@ -1739,3 +1741,40 @@ asked ("asked 12 Sep") and, for a resolved row, a quiet "Answered" or "Closed"
 tag; an open row has two actions, "Answered" and "Close", each one tap on
 `PATCH /api/memories/[id]`, with a resolved row offering "Reopen". The list
 stays one list: no separate prayer screen, no badge counts.
+
+### Stay with this, or take me somewhere fresh (Pick Up Your Cross)
+
+Parked in `PLANNED-FEATURES.md` until the stored day carried a theme, its
+evidence and the origin of each signal; it does now (`VerseOfDay.primaryThemeKey`,
+`selectionEvidence`, `Message.metadata.origin`, and the deterministic 30-day
+verse / 3-day theme novelty gate in `src/lib/daily-cross-selection.ts`). Two
+controls, no feedback thumbs (answer feedback is its own contract).
+
+**Route.** `POST /api/verse-of-day/today` gains `direction?: "stay" | "fresh"`.
+It combines with `focus` and is rejected with 400 alongside a pinned
+`book/chapter/verse` (a pin already says where to go). The response shape is
+unchanged except that it now always carries `themeKey: string | null` and
+`theme: string | null` (today's `primaryThemeKey` / `primaryTheme`), so a
+client can decide whether "Stay with this" applies.
+
+- `stay` needs today's row to have a `primaryThemeKey`; otherwise 409
+  `{ error: "Today's verse has no theme to stay with." }`. The selection keeps
+  that theme and must advance it: the validator accepts a candidate only if its
+  `primaryThemeKey` equals the kept key (the 3-day theme rule is waived for that
+  key alone; the 30-day verse rule stands, so yesterday's verse cannot return),
+  and the selector prompt asks for "a materially new angle on {theme}: a
+  different passage and a next step, never yesterday's application restated".
+- `fresh` widens the theme window for this one selection from 3 to 14 days
+  (any primary theme used in the last 14 days is rejected) and tells the
+  selector which themes those were, asking for a different area of life or
+  doctrine.
+- `selectionReason` is prefixed `Stayed with {theme}: ` or `Fresh direction: `
+  so the provenance record shows the user steered; the replaced row stays as
+  an exclusion exactly as a plain refresh does.
+
+**Screens.** On the Cross screen, under the day's content beside the existing
+"a different word for today" control, two quiet text buttons: "Stay with this"
+(hidden when `themeKey` is null) and "Take me somewhere fresh". Tapping one
+calls the route with `direction` and reuses the existing replacement flow
+(inline "Preparing a fresh word" panel, scroll to the new verse, inline error
+card). No counters, no streaks.

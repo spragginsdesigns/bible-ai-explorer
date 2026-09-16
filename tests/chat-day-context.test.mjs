@@ -50,6 +50,7 @@ function loadDayContext({
 			"EMPTY_CHAT_DAY_CONTEXT",
 			"TODAY_BLOCK_MAX_CHARS",
 			"askedAgo",
+			"formatPrayerFollowUpBlock",
 			"formatTodayBlock",
 			"formatUserNameLine",
 			"hasAnsweredConversationBefore",
@@ -78,6 +79,7 @@ const {
 	EMPTY_CHAT_DAY_CONTEXT,
 	TODAY_BLOCK_MAX_CHARS,
 	askedAgo,
+	formatPrayerFollowUpBlock,
 	formatTodayBlock,
 	formatUserNameLine,
 } = loadDayContext();
@@ -134,12 +136,11 @@ test("the today block never exceeds its cap, and drops whole lines rather than c
 	assert.match(block, /\.\.\."/, "a long question is clipped with an ellipsis");
 });
 
-test("the due prayer line names each request, how long ago it was asked, and its memory id", () => {
+test("the prayer follow-up block names each request, how long ago it was asked, and its memory id", () => {
 	const now = new Date("2026-09-15T12:00:00.000Z");
-	const block = formatTodayBlock(
+	const block = formatPrayerFollowUpBlock(
 		{
 			...EMPTY_CHAT_DAY_CONTEXT,
-			cross: { reference: "Romans 8:28", question: null },
 			prayers: [
 				{ id: "mem_1", content: "Asked for prayer about their dad's surgery", askedAt: "2026-09-03T12:00:00.000Z" },
 				{ id: "mem_2", content: "Asked for prayer about a job interview", askedAt: "2026-09-14T11:00:00.000Z" },
@@ -148,15 +149,18 @@ test("the due prayer line names each request, how long ago it was asked, and its
 		},
 		now,
 	);
-	const prayerLine = block.split("\n").find((line) => line.startsWith("- Prayer"));
+	assert.match(block, /^\n\nPRAYER FOLLOW-UP DUE IN THIS REPLY/);
+	assert.match(block, /after you have answered what they asked, add one short paragraph of its own/);
+	assert.match(block, /call resolvePrayerRequest with that memory id/);
+	const requests = block.split("\n").find((line) => line.startsWith("Requests: "));
 	assert.equal(
-		prayerLine,
-		'- Prayer requests they asked you to carry, now due a gentle follow-up: "Asked for prayer about their dad\'s surgery" (asked 12 days ago, memory id mem_1); "Asked for prayer about a job interview" (asked yesterday, memory id mem_2); "Asked for prayer for their marriage" (asked today, memory id mem_3).',
+		requests,
+		"Requests: \"Asked for prayer about their dad's surgery\" (asked 12 days ago, memory id mem_1); \"Asked for prayer about a job interview\" (asked yesterday, memory id mem_2); \"Asked for prayer for their marriage\" (asked today, memory id mem_3).",
 	);
-	assert.equal(formatTodayBlock(EMPTY_CHAT_DAY_CONTEXT, now), "", "no due request, no line");
+	assert.equal(formatPrayerFollowUpBlock(EMPTY_CHAT_DAY_CONTEXT, now), "", "no due request, no block");
 });
 
-test("the prayer line comes second, right after the cross", () => {
+test("due prayer requests never appear in the today block itself", () => {
 	const block = formatTodayBlock({
 		cross: { reference: "Romans 8:28", question: null },
 		prayers: [{ id: "mem_1", content: "Praying for their dad", askedAt: new Date().toISOString() }],
@@ -164,6 +168,7 @@ test("the prayer line comes second, right after the cross", () => {
 		recentChapters: [{ reference: "Romans 8", count: 1 }],
 		highlights: [{ reference: "Romans 8:28", colorName: "Yellow" }],
 	});
+	assert.doesNotMatch(block, /mem_1|Praying for their dad|PRAYER/);
 	assert.deepEqual(
 		block
 			.split("\n")
@@ -171,7 +176,6 @@ test("the prayer line comes second, right after the cross", () => {
 			.map((line) => line.split(":")[0]),
 		[
 			"- Today's Pick Up Your Cross verse",
-			"- Prayer requests they asked you to carry, now due a gentle follow-up",
 			"- Reading plan",
 			"- Chapters read in the Bible reader in the last 7 days",
 			"- Their most recent highlights",
@@ -180,38 +184,33 @@ test("the prayer line comes second, right after the cross", () => {
 });
 
 test("a long prayer request is clipped to 100 characters", () => {
-	const block = formatTodayBlock({
+	const block = formatPrayerFollowUpBlock({
 		...EMPTY_CHAT_DAY_CONTEXT,
 		prayers: [{ id: "mem_1", content: `Asked about ${"x".repeat(300)}`, askedAt: new Date().toISOString() }],
 	});
-	const [quoted] = block.match(/"[^"]*"/) ?? [];
+	const requests = block.split("\n").find((line) => line.startsWith("Requests: ")) ?? "";
+	const [quoted] = requests.match(/"[^"]*"/) ?? [];
 	assert.equal(quoted.length - 2, 100, `clipped content is ${quoted.length - 2} chars`);
 	assert.match(quoted, /\.\.\."$/);
 });
 
-test("the prayer line is never dropped by the cap: a listed request always reaches the prompt", () => {
-	// Loading the context spends each listed request's follow-up, so the worst
-	// case - three requests at full clip, a long cross question, and every other
-	// line present - must still carry the prayer line, while the lines after it
-	// are the ones that give way.
+test("the prayer follow-up block is never capped: three full requests stay bounded and complete", () => {
+	// Loading the context spends each listed request's follow-up, so a request
+	// that reaches the formatter must reach the prompt whole.
 	const long = "x".repeat(400);
-	const block = formatTodayBlock({
-		cross: { reference: "Romans 8:28", question: long },
-		prayers: Array.from({ length: 3 }, (_, index) => ({
-			id: `mem_${index}`,
-			content: `Asked about ${long}`,
-			askedAt: "2026-09-01T12:00:00.000Z",
-		})),
-		plan: { title: long, day: 1, dayCount: 365, reference: "Genesis 1-3", done: true },
-		recentChapters: Array.from({ length: 5 }, (_, index) => ({ reference: `Psalms ${100 + index}`, count: 9 })),
-		highlights: Array.from({ length: 3 }, (_, index) => ({ reference: `Song of Solomon 2:${index + 1}`, colorName: "Purple" })),
-	}, new Date("2026-09-15T12:00:00.000Z"));
-	const lines = block.split("\n").filter((line) => line.startsWith("- "));
-	assert.match(lines[0], /^- Today's Pick Up Your Cross verse/);
-	assert.match(lines[1], /^- Prayer requests they asked you to carry/);
-	assert.equal((lines[1].match(/memory id mem_/g) ?? []).length, 3, "all three listed requests are in the line");
-	assert.ok(lines[1].length < 560, `prayer line is bounded by construction (${lines[1].length} chars)`);
-	assert.doesNotMatch(block, /Reading plan|Chapters read|highlights/, "the lines after it give way to the cap");
+	const block = formatPrayerFollowUpBlock(
+		{
+			...EMPTY_CHAT_DAY_CONTEXT,
+			prayers: Array.from({ length: 3 }, (_, index) => ({
+				id: `mem_${index}`,
+				content: `Asked about ${long}`,
+				askedAt: "2026-09-01T12:00:00.000Z",
+			})),
+		},
+		new Date("2026-09-15T12:00:00.000Z"),
+	);
+	assert.equal((block.match(/memory id mem_/g) ?? []).length, 3, "all three listed requests are in the block");
+	assert.ok(block.length < 1100, `block is bounded by construction (${block.length} chars)`);
 });
 
 test("askedAgo speaks in whole days, and never in the future", () => {
