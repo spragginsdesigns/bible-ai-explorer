@@ -137,6 +137,7 @@ struct ChatTabView: View {
                     app.dailyCross.load(force: true)
                     NotificationCenter.default.post(name: .openDailyCross, object: nil)
                 },
+                onOpenLearn: { show(toast: "Learn arrives in a later phase.") },
                 onCrossReplaced: { app.dailyCross.invalidate() },
                 onAddToNote: { answer in
                     noteTarget = PendingNoteSave(id: answer.id, markdown: answer.content)

@@ -10,6 +10,7 @@ struct ChatMessageList: View {
     var onVerseReadInBible: (RetrievedVerse) -> Void
     var onOpenNote: (NoteAction) -> Void
     var onOpenCross: () -> Void
+    var onOpenLearn: () -> Void
     var onCrossReplaced: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
 
@@ -25,6 +26,7 @@ struct ChatMessageList: View {
                             onVerseReadInBible: onVerseReadInBible,
                             onOpenNote: onOpenNote,
                             onOpenCross: onOpenCross,
+                            onOpenLearn: onOpenLearn,
                             onAddToNote: onAddToNote,
                             onFollowUp: { question in
                                 chat.input = question

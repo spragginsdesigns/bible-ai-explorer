@@ -554,6 +554,42 @@ struct ChatReceiptTests {
         ])
     }
 
+    /// A verse already queued still earns the receipt - the user asked for it to
+    /// be in Learn, and it is - so `created` never changes the wording.
+    @Test("learnVerse receipts a new and an already-queued verse identically")
+    func learnVerse() {
+        let added = tool("learnVerse", "call_learn_added", output: [
+            "success": .bool(true), "reference": .string("John 3:16"),
+            "book": .number(43), "chapter": .number(3), "verse": .number(16),
+            "created": .bool(true), "stage": .number(0), "known": .bool(false),
+            "formatted": .string("John 3:16 is in your Learn queue."),
+        ])
+        let existing = tool("learnVerse", "call_learn_existing", output: [
+            "success": .bool(true), "reference": .string("John 3:16"),
+            "book": .number(43), "chapter": .number(3), "verse": .number(16),
+            "created": .bool(false), "stage": .number(2), "known": .bool(false),
+            "formatted": .string("John 3:16 is already in your Learn queue."),
+        ])
+        #expect(receipts([added]) == [
+            ChatReceipt(id: "call_learn_added", kind: .learn, label: "Learning John 3:16", target: .learn),
+        ])
+        #expect(receipts([existing]) == [
+            ChatReceipt(id: "call_learn_existing", kind: .learn, label: "Learning John 3:16", target: .learn),
+        ])
+    }
+
+    /// A reference the KJV does not have throws, and reading the queue changes
+    /// nothing - neither leaves a line claiming something was saved.
+    @Test("A failed learnVerse and a getLearnVerses read leave no receipt")
+    func learnVerseFailureAndRead() {
+        let failed = tool("learnVerse", "call_learn_error", state: .outputError)
+        let read = tool("getLearnVerses", "call_learn_read", output: [
+            "cards": .array([]), "knownCount": .number(0), "queueCount": .number(0),
+            "formatted": .string("The Learn queue is empty."),
+        ])
+        #expect(receipts([failed, read]).isEmpty)
+    }
+
     @Test("Read tools, status narration and in-flight writes leave no receipt")
     func readsLeaveNoReceipt() {
         let parts: [UIMessagePart] = [

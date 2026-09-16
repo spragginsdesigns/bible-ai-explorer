@@ -1543,7 +1543,7 @@ the view model until every client renders receipts, then they are removed.
 
 ```ts
 export type ChatReceiptKind =
-	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church";
+	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "learn";
 
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
@@ -1551,6 +1551,7 @@ export type ChatReceiptTarget =
 	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" }
 	| { screen: "plan" }
 	| { screen: "cross" }
+	| { screen: "learn" }
 	| { screen: "settings"; section?: "memory" | "church" | "preferences" };
 
 export interface ChatReceipt {
@@ -1581,6 +1582,7 @@ export interface ChatReceipt {
 | `organizeNote` (new) | `Filed {noteTitle}` | note | none |
 | `updatePreferences` (new) | `{setting} {on/off/value}` | settings + preferences | none |
 | `setChurch` (new) | `Church set to {name}` | settings + church | none |
+| `learnVerse` (new) | `Learning {reference}` | learn | none |
 | `data-memoryExtracted` (new data part, passive extraction) | `Remembered` | memories + memoryId | forgetMemory |
 
 Rules: a failed tool (`success: false` or an error state) leaves no receipt; the
@@ -1646,5 +1648,8 @@ No streaks, hearts, levels or badges; the only number a client shows is
 "verses you know".
 
 **Entry points.** "Learn this verse" on the verse sheet and on a highlight
-(`source: sheet | highlight`); a `learnVerse` chat tool and a chat quiz are the
-backend lane's, added later and counted against the tool budget.
+(`source: sheet | highlight`); `learnVerse` (`source: chat`) and `getLearnVerses`
+now exist too, so the assistant can queue a verse the user asks to memorise and
+quiz them from chat at whatever stage their card is on, while the reviews
+themselves are still recorded only on the Learn screen - the assistant quizzes,
+the screen schedules.

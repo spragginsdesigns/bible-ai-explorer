@@ -301,6 +301,21 @@ describe("toViewMessage", () => {
 		}
 	});
 
+	it("shows distinct activity labels for the Learn tools", () => {
+		const labels = [
+			["tool-learnVerse", "Adding that verse to Learn"],
+			["tool-getLearnVerses", "Opening your Learn verses"],
+		] as const;
+		for (const [type, label] of labels) {
+			const message = {
+				id: `learn-${type}`,
+				role: "assistant",
+				parts: [{ type, state: "input-available" }],
+			} as never;
+			expect(toViewMessage(message, { isStreaming: true }).activity).toBe(label);
+		}
+	});
+
 	it("shows the server status label, and lets a running tool override it", () => {
 		const status = {
 			id: "m4a",

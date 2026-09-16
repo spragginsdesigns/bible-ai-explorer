@@ -53,6 +53,12 @@ import {
 	startPlan,
 	type PlanWithProgress,
 } from "@/lib/reading-plans";
+import {
+	addCard,
+	learnVerseText,
+	todayCards,
+} from "@/lib/learn";
+import type { LearnStage } from "@/lib/learn-schedule";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import type { HighlightLabels } from "@/lib/preferences-contract";
 import { resolveReference } from "@/lib/bible/books";
@@ -160,6 +166,44 @@ export interface ReadingPlanToolOutput {
 	today: ReadingPlanDayOutput | null;
 	next: ReadingPlanDayOutput[];
 	presets: { key: string; title: string; description: string; dayCount: number }[];
+	formatted: string;
+}
+
+/** The card the assistant just put in the user's Learn queue. */
+export interface LearnVerseToolOutput {
+	success: true;
+	/** "John 3:16". */
+	reference: string;
+	/** Canonical book order, 1-66. */
+	book: number;
+	chapter: number;
+	verse: number;
+	/** False when the verse was already queued; its schedule is untouched. */
+	created: boolean;
+	stage: LearnStage;
+	/** True once the user knows the verse; it still comes back for review. */
+	known: boolean;
+	formatted: string;
+}
+
+/** One card of the Learn queue, as the model needs it to quiz. */
+export interface LearnQueueCardOutput {
+	reference: string;
+	/** Exact text of the verse, or "" when the translation has none. */
+	text: string;
+	stage: LearnStage;
+	intervalDays: number;
+	dueAt: string;
+	knownAt: string | null;
+}
+
+/** The user's Learn queue as the model sees it: the verses it can quiz them on. */
+export interface LearnQueueToolOutput {
+	cards: LearnQueueCardOutput[];
+	/** Verses the user knows, the only score the product keeps. */
+	knownCount: number;
+	/** How many cards are waiting today in total; `cards` is the head of it. */
+	queueCount: number;
 	formatted: string;
 }
 
@@ -1356,6 +1400,80 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const learnVerseTool = tool({
+		description:
+			"Add a verse to the user's Learn queue for memorisation. Call it when the user asks to learn, memorise or be quizzed on a verse later, or says they want to keep a verse. It is idempotent: a verse already in the queue is never queued twice, and the schedule they have built on it is untouched. NEVER call it for a verse you merely quoted - the user chooses what they memorise.",
+		inputSchema: z.object({
+			book: z.string().describe('KJV book name, e.g. "John" or "1 John".'),
+			chapter: z.number().int().min(1).describe("Chapter number."),
+			verse: z.number().int().min(1).describe("Verse number."),
+		}),
+		execute: async ({ book, chapter, verse }): Promise<LearnVerseToolOutput> => {
+			const bookNumber = getKjvBookNumber(book);
+			if (!bookNumber) {
+				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
+			}
+			// Same two-step check as POST /api/learn: existence is decided against
+			// the bundled KJV, so a transient NKJV/BSB fetch failure reads as
+			// "unavailable", never as "that verse does not exist".
+			const bookName = getKjvBookName(bookNumber) ?? book;
+			if (!(await learnVerseText("KJV", bookNumber, chapter, verse))) {
+				throw new Error(`There is no ${bookName} ${chapter}:${verse} in the Bible.`);
+			}
+			if (translation !== "KJV" && !(await learnVerseText(translation, bookNumber, chapter, verse))) {
+				throw new Error(
+					`The ${translation} text of ${bookName} ${chapter}:${verse} is temporarily unavailable; try again in a moment.`
+				);
+			}
+			const { card, created } = await addCard(context.userId, {
+				book: bookNumber,
+				chapter,
+				verse,
+				translation,
+				source: "chat",
+			});
+			return {
+				success: true,
+				reference: card.reference,
+				book: bookNumber,
+				chapter,
+				verse,
+				created,
+				stage: card.stage,
+				known: card.knownAt !== null,
+				formatted: created
+					? `${card.reference} is in the user's Learn queue (stage ${card.stage} of 3).`
+					: `${card.reference} was already in the user's Learn queue (stage ${card.stage} of 3).`,
+			};
+		},
+	});
+
+	const getLearnVersesTool = tool({
+		description:
+			"Read the user's Learn queue - the verses they are memorising, with the exact text of each one, the ladder stage that card is on (0 read the verse whole, 1 every fourth word hidden, 2 every second word hidden, 3 all words hidden), how many verses they know and how many are queued. Call it when they ask to be quizzed, ask what they are learning, or ask how their memorising is going. Read-only.",
+		inputSchema: z.object({}),
+		execute: async (): Promise<LearnQueueToolOutput> => {
+			const { cards, knownCount, queueCount } = await todayCards(context.userId);
+			return {
+				cards: cards.map((card) => ({
+					reference: card.reference,
+					text: card.text,
+					stage: card.stage,
+					intervalDays: card.intervalDays,
+					dueAt: card.dueAt,
+					knownAt: card.knownAt,
+				})),
+				knownCount,
+				queueCount,
+				formatted: cards.length
+					? cards
+							.map((card) => `${card.reference} (stage ${card.stage}): ${card.text || "(text unavailable)"}`)
+							.join("\n")
+					: "The Learn queue is empty.",
+			};
+		},
+	});
+
 	return {
 		...buildMemoryTools(context.userId),
 		...buildReadingTools(context),
@@ -1381,6 +1499,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		getReadingPlan: getReadingPlanTool,
 		startReadingPlan: startReadingPlanTool,
 		markReadingPlanDay: markReadingPlanDayTool,
+		learnVerse: learnVerseTool,
+		getLearnVerses: getLearnVersesTool,
 	};
 }
 

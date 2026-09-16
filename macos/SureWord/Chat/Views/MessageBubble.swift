@@ -11,6 +11,9 @@ struct MessageBubble: View {
     var onVerseReadInBible: (RetrievedVerse) -> Void
     var onOpenNote: (NoteAction) -> Void
     var onOpenCross: () -> Void
+    /// Destination for a `.learn` receipt. No Mac screen owns the Learn queue
+    /// yet, so the caller answers with the "later phase" toast.
+    var onOpenLearn: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
@@ -118,6 +121,19 @@ struct MessageBubble: View {
                     .font(.system(size: 12))
                     .foregroundStyle(theme.textFaint)
                     .textSelection(.enabled)
+            }
+
+            ForEach(message.receipts.filter { $0.kind == .learn }) { receipt in
+                Button(action: onOpenLearn) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "graduationcap")
+                        Text(receipt.label)
+                    }
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.textFaint)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .accessibilityLabel(receipt.label)
             }
 
             ForEach(message.noteActions) { action in

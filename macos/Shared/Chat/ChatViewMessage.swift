@@ -45,7 +45,7 @@ struct CrossAction: Sendable, Equatable, Identifiable {
 /// and `src/lib/chat/receipts.ts`. Both TS copies share one fixture; the
 /// receipt cases in `ChatViewMessageTests` mirror it, so change all three together.
 enum ChatReceiptKind: String, Sendable, Equatable {
-    case note, memory, highlight, plan, cross, preference, church, reading
+    case note, memory, highlight, plan, cross, preference, church, reading, learn
 }
 
 enum ChatReceiptSettingsSection: String, Sendable, Equatable {
@@ -60,6 +60,9 @@ enum ChatReceiptTarget: Sendable, Equatable {
     case plan
     case readingHistory
     case cross
+    /// The Learn queue. No Apple screen owns it yet, so the fragment renders and
+    /// the tap says so rather than going nowhere.
+    case learn
     case settings(section: ChatReceiptSettingsSection?)
 }
 
@@ -186,6 +189,8 @@ extension ChatViewMessage {
         "tool-getReadingStats": "Checking your reading progress",
         "tool-correctReadingLog": "Correcting your reading log",
         "tool-removeReadingLog": "Removing the reading entry",
+        "tool-learnVerse": "Adding that verse to Learn",
+        "tool-getLearnVerses": "Opening your Learn verses",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
@@ -517,6 +522,14 @@ extension ChatViewMessage {
                 label: label,
                 target: .chapter(book: book, chapter: chapter, verse: verse, translation: translation)
             )
+
+        case "learnVerse":
+            // A verse already in the queue (created: false) still earns the
+            // receipt: the user asked for it to be there, and it is.
+            guard output["success"]?.boolValue == true,
+                  let reference = nonEmpty(output["reference"])
+            else { return nil }
+            return ChatReceipt(id: id, kind: .learn, label: "Learning \(reference)", target: .learn)
 
         default:
             return nil

@@ -10,7 +10,7 @@
  */
 
 export type ChatReceiptKind =
-	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "reading";
+	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "reading" | "learn";
 
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
@@ -19,6 +19,7 @@ export type ChatReceiptTarget =
 	| { screen: "plan" }
 	| { screen: "readingHistory" }
 	| { screen: "cross" }
+	| { screen: "learn" }
 	| { screen: "settings"; section?: "memory" | "church" | "preferences" };
 
 export interface ChatReceipt {
@@ -158,6 +159,13 @@ function toolReceipt(
 				label,
 				target: { screen: "chapter", book, chapter, verse, ...(translation ? { translation } : {}) },
 			};
+		}
+		case "learnVerse": {
+			// A verse already in the queue (created: false) still earns the
+			// receipt: the user asked for it to be there, and it is.
+			const reference = nonEmptyString(output.reference);
+			if (output.success !== true || !reference) return null;
+			return { id, kind: "learn", label: `Learning ${reference}`, target: { screen: "learn" } };
 		}
 		default:
 			return null;

@@ -116,6 +116,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-getReadingStats": "Checking your reading progress",
 	"tool-correctReadingLog": "Correcting your reading log",
 	"tool-removeReadingLog": "Removing the reading entry",
+	"tool-learnVerse": "Adding that verse to Learn",
+	"tool-getLearnVerses": "Opening your Learn verses",
 };
 
 export function visibleResponseContent(content: string, isStreaming = false): string {

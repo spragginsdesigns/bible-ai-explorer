@@ -153,6 +153,7 @@ struct ChatView: View {
                             onVerseReadInBible: onReadInBible,
                             onOpenNote: { _ in show(toast: "Notes arrive in a later phase.") },
                             onOpenCross: onOpenCross,
+                            onOpenLearn: { show(toast: "Learn arrives in a later phase.") },
                             onAddToNote: { answer in
                                 noteTarget = PendingNoteSave(
                                     id: answer.id,

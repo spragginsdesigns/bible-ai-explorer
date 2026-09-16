@@ -103,9 +103,14 @@ struct ChatStatusTests {
         for name in [
             "tool-lookupBibleEntity", "tool-getBibleTimeline", "tool-getReadingPlan",
             "tool-startReadingPlan", "tool-markReadingPlanDay",
+            "tool-learnVerse", "tool-getLearnVerses",
         ] {
             #expect(ChatViewMessage.toolActivityLabels[name] != nil, "\(name) has no label")
         }
+        // The Learn wording is part of the receipts contract, so it is pinned
+        // rather than merely present.
+        #expect(ChatViewMessage.toolActivityLabels["tool-learnVerse"] == "Adding that verse to Learn")
+        #expect(ChatViewMessage.toolActivityLabels["tool-getLearnVerses"] == "Opening your Learn verses")
     }
 
     // MARK: Stream folding
