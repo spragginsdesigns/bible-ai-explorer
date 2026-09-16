@@ -106,6 +106,19 @@ function toolReceipt(
 				target: { screen: "memories" },
 			};
 		}
+		case "resolvePrayerRequest": {
+			// The outcome is read from the output, not the call: the server decides
+			// what the request settled as, so the line can never claim an outcome
+			// the row does not have.
+			const memoryId = isRecord(output.memory) ? nonEmptyString(output.memory.id) : null;
+			if (output.success !== true || !memoryId) return null;
+			return {
+				id,
+				kind: "memory",
+				label: output.outcome === "answered" ? "Prayer answered" : "Prayer request closed",
+				target: { screen: "memories", memoryId },
+			};
+		}
 		case "setDailyCross": {
 			const reference = nonEmptyString(output.reference);
 			if (!reference) return null;

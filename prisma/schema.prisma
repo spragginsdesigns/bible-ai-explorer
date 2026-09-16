@@ -209,10 +209,17 @@ model UserMemory {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String   @db.Text
   category  String   @default("general") // profile | prayer | study | preference | general
+  /// Prayer requests only (docs/FEATURES.md, "Prayer requests that come back
+  /// to you"); null on every other category. status: open | answered | closed.
+  status        String?
+  askedAt       DateTime?
+  /// Earliest instant the assistant may raise the request again; null once resolved.
+  followUpAfter DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, category, status, followUpAfter])
 }
 
 model Conversation {

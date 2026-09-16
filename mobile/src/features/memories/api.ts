@@ -2,11 +2,21 @@ import { apiJson, type GetToken } from "@/lib/api";
 
 export type MemoryCategory = "profile" | "prayer" | "study" | "preference" | "general";
 
+/** The life of a prayer request: asked, then answered or laid down. */
+export type PrayerStatus = "open" | "answered" | "closed";
+
 export interface MemoryRecord {
 	id: string;
 	content: string;
 	category: string;
 	updatedAt: string;
+	/**
+	 * The three prayer columns. Null on every non-prayer row, and optional
+	 * because an app build can reach a server that predates them.
+	 */
+	status?: PrayerStatus | null;
+	askedAt?: string | null;
+	followUpAfter?: string | null;
 }
 
 export interface MemorySummarySection {
@@ -40,6 +50,17 @@ export function addMemory(getToken: GetToken, content: string) {
 	return apiJson<MemoryRecord>(getToken, "/api/memories", {
 		method: "POST",
 		body: { content },
+	});
+}
+
+/**
+ * Resolves or re-opens a prayer request. The same route also takes `{ content }`
+ * for an edit; the server accepts either or both.
+ */
+export function setMemoryStatus(getToken: GetToken, id: string, status: PrayerStatus) {
+	return apiJson<{ success: boolean }>(getToken, `/api/memories/${id}`, {
+		method: "PATCH",
+		body: { status },
 	});
 }
 

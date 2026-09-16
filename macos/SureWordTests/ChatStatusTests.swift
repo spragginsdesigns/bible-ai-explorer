@@ -104,6 +104,7 @@ struct ChatStatusTests {
             "tool-lookupBibleEntity", "tool-getBibleTimeline", "tool-getReadingPlan",
             "tool-startReadingPlan", "tool-markReadingPlanDay",
             "tool-learnVerse", "tool-getLearnVerses",
+            "tool-resolvePrayerRequest",
         ] {
             #expect(ChatViewMessage.toolActivityLabels[name] != nil, "\(name) has no label")
         }
@@ -111,6 +112,8 @@ struct ChatStatusTests {
         // rather than merely present.
         #expect(ChatViewMessage.toolActivityLabels["tool-learnVerse"] == "Adding that verse to Learn")
         #expect(ChatViewMessage.toolActivityLabels["tool-getLearnVerses"] == "Opening your Learn verses")
+        // Same for the prayer wording: pastoral, and pinned by the contract.
+        #expect(ChatViewMessage.toolActivityLabels["tool-resolvePrayerRequest"] == "Updating that prayer request")
     }
 
     // MARK: Stream folding

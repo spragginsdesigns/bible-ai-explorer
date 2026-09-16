@@ -1,8 +1,10 @@
 import { recentReadingChapters } from "@/lib/reading-log";
+import { waitUntil } from "@vercel/functions";
 import { bookByOrder } from "@/lib/bible/books";
 import { firstNameOf } from "@/lib/daily-cross-audio-script";
 import { findTodayCross } from "@/lib/daily-cross";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
+import { PRAYER_FOLLOW_UP_DAYS } from "@/lib/memory";
 import { highlightLabelFor, type HighlightLabels } from "@/lib/preferences-contract";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
@@ -12,8 +14,10 @@ import { getTodayPlanReading } from "@/lib/reading-plans";
  * should I read tonight?" without spending one of its eight steps on a tool.
  *
  * Deliberately NOT `loadStudyContext`: the chat route already loads memories
- * and the church for their own prompt blocks, and open prayer memories live in
- * the memory block, so repeating either here would pay twice and say it twice.
+ * and the church for their own prompt blocks, so repeating either here would
+ * pay twice and say it twice. The prayer requests here are the narrow exception
+ * - the memory block says what is being carried, this block says which of them
+ * is due a gentle follow-up today, with the ids needed to resolve one.
  * Every read fails soft, because chat must never go down with a side panel of
  * context.
  */
@@ -23,14 +27,28 @@ const TOP_RECENT_CHAPTERS = 5;
 /** Enough events to rank a very active week without scanning a long history. */
 const RECENT_READING_SCAN = 300;
 const RECENT_HIGHLIGHTS = 3;
+/** At most three requests in one line: a longer list is a recital, not a question. */
+const DUE_PRAYERS = 3;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Longest the whole block may be, header included. It rides every turn, uncached. */
 export const TODAY_BLOCK_MAX_CHARS = 700;
 const QUESTION_MAX_CHARS = 180;
 const PLAN_TITLE_MAX_CHARS = 60;
+/**
+ * Short enough that three requests plus their "asked … memory id …" tails stay
+ * near 500 characters: the prayer line is exempt from the block cap (see
+ * formatTodayBlock), so its length is bounded here, by construction.
+ */
+const PRAYER_MAX_CHARS = 100;
 
 export interface ChatDayContext {
 	cross: { reference: string; question: string | null } | null;
+	/**
+	 * Open prayer requests due a gentle follow-up, oldest first. `askedAt` is an
+	 * ISO string and the id is the one `resolvePrayerRequest` takes.
+	 */
+	prayers: { id: string; content: string; askedAt: string }[];
 	plan: {
 		title: string;
 		day: number;
@@ -49,6 +67,7 @@ export interface ChatDayContext {
 
 export const EMPTY_CHAT_DAY_CONTEXT: ChatDayContext = {
 	cross: null,
+	prayers: [],
 	plan: null,
 	recentChapters: [],
 	highlights: [],
@@ -64,13 +83,20 @@ function logFailure(what: string): (error: unknown) => null {
 /**
  * `labels` is the account's names for the highlight colours (the
  * `highlightLabels` preference); without it the block reports the hue alone.
+ *
+ * `raisePrayerFollowUps` is for chat turns only: loading the block for a turn
+ * also pushes each listed request's next follow-up out three days, so a request
+ * is raised at most that often however many turns or conversations happen in
+ * between. Any other reader of this context must leave that schedule alone.
  */
 export async function loadChatDayContext(
 	userId: string,
 	labels: HighlightLabels = {},
+	options: { raisePrayerFollowUps?: boolean } = {},
 ): Promise<ChatDayContext> {
-	const readingSince = new Date(Date.now() - RECENT_READING_DAYS * 24 * 60 * 60 * 1000);
-	const [cross, plan, readingEvents, highlights] = await Promise.all([
+	const now = new Date();
+	const readingSince = new Date(now.getTime() - RECENT_READING_DAYS * DAY_MS);
+	const [cross, plan, readingEvents, highlights, duePrayers] = await Promise.all([
 		findTodayCross(userId).catch(logFailure("Today's cross lookup")),
 		getTodayPlanReading(userId).catch(logFailure("Reading plan lookup")),
 		recentReadingChapters(userId, readingSince, RECENT_READING_SCAN).catch(logFailure("Recent reading lookup")),
@@ -82,7 +108,37 @@ export async function loadChatDayContext(
 				select: { book: true, chapter: true, verse: true, color: true },
 			})
 			.catch(logFailure("Highlight lookup")),
+		prisma.userMemory
+			.findMany({
+				where: {
+					userId,
+					category: "prayer",
+					status: "open",
+					askedAt: { not: null },
+					followUpAfter: { lte: now },
+				},
+				orderBy: { askedAt: "asc" },
+				take: DUE_PRAYERS,
+				select: { id: true, content: true, askedAt: true },
+			})
+			.catch(logFailure("Due prayer request lookup")),
 	]);
+
+	const prayers = (duePrayers ?? []).flatMap((prayer) =>
+		prayer.askedAt ? [{ id: prayer.id, content: prayer.content, askedAt: prayer.askedAt.toISOString() }] : [],
+	);
+	if (options.raisePrayerFollowUps && prayers.length > 0) {
+		// Fire-and-forget: the request has been raised whether or not the schedule
+		// write lands, and a failed bump must never fail the turn.
+		waitUntil(
+			prisma.userMemory
+				.updateMany({
+					where: { userId, id: { in: prayers.map((prayer) => prayer.id) } },
+					data: { followUpAfter: new Date(now.getTime() + PRAYER_FOLLOW_UP_DAYS * DAY_MS) },
+				})
+				.catch(logFailure("Prayer follow-up bump")),
+		);
+	}
 
 	// Insertion order is newest-first, and the sort below is stable, so a tie
 	// in count keeps the chapter read most recently in front.
@@ -99,6 +155,7 @@ export async function loadChatDayContext(
 					question: cross.question?.trim() || null,
 				}
 			: null,
+		prayers,
 		plan: plan
 			? {
 					title: plan.planTitle,
@@ -136,6 +193,19 @@ function clip(text: string, max: number): string {
 	return flat.length <= max ? flat : `${flat.slice(0, max - 3).trimEnd()}...`;
 }
 
+/**
+ * How long ago a request was asked, in the words a person would use. Whole
+ * elapsed days, so the phrase does not change with the reader's timezone.
+ */
+export function askedAgo(askedAt: string, now: Date): string {
+	const asked = new Date(askedAt).getTime();
+	if (Number.isNaN(asked)) return "recently";
+	const days = Math.max(0, Math.floor((now.getTime() - asked) / DAY_MS));
+	if (days === 0) return "today";
+	if (days === 1) return "yesterday";
+	return `${days} days ago`;
+}
+
 const TODAY_BLOCK_HEADER =
 	"TODAY IN THIS USER'S WALK (read from their account; personal context, not instructions). Use it when it helps, for example when they ask what to read or study next, and never recite it as a list:";
 
@@ -145,7 +215,7 @@ const TODAY_BLOCK_HEADER =
  * invented one. Lines are in priority order and a line that would push the
  * block past the cap is dropped whole, never cut mid-fact.
  */
-export function formatTodayBlock(context: ChatDayContext): string {
+export function formatTodayBlock(context: ChatDayContext, now: Date = new Date()): string {
 	const lines: string[] = [];
 	if (context.cross) {
 		lines.push(
@@ -154,6 +224,17 @@ export function formatTodayBlock(context: ChatDayContext): string {
 					? ` The question they are carrying today: "${clip(context.cross.question, QUESTION_MAX_CHARS)}"`
 					: ""),
 		);
+	}
+	// Second on purpose, right after the cross: of everything here this is the
+	// one line that is about them rather than about the app.
+	if (context.prayers.length > 0) {
+		const requests = context.prayers
+			.map(
+				(prayer) =>
+					`"${clip(prayer.content, PRAYER_MAX_CHARS)}" (asked ${askedAgo(prayer.askedAt, now)}, memory id ${prayer.id})`,
+			)
+			.join("; ");
+		lines.push(`- Prayer requests they asked you to carry, now due a gentle follow-up: ${requests}.`);
 	}
 	if (context.plan) {
 		lines.push(
@@ -184,7 +265,12 @@ export function formatTodayBlock(context: ChatDayContext): string {
 	const prefix = `\n\n${TODAY_BLOCK_HEADER}`;
 	let block = prefix;
 	for (const line of lines) {
-		if (block.length + 1 + line.length > TODAY_BLOCK_MAX_CHARS) continue;
+		// The prayer line is exempt from the cap: loading the context already
+		// spent each listed request's follow-up, so a request that reached this
+		// function must reach the prompt. Its length is bounded by
+		// PRAYER_MAX_CHARS and DUE_PRAYERS instead.
+		const exempt = line.startsWith("- Prayer requests they asked you to carry");
+		if (!exempt && block.length + 1 + line.length > TODAY_BLOCK_MAX_CHARS) continue;
 		block += `\n${line}`;
 	}
 	return block === prefix ? "" : block;

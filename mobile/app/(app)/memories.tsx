@@ -21,10 +21,18 @@ import {
 	deleteMemory,
 	fetchMemories,
 	generateMemorySummary,
+	setMemoryStatus,
 	type MemoryRecord,
 	type MemorySummary,
+	type PrayerStatus,
 } from "@/features/memories/api";
-import { groupMemoriesByCategory } from "@/features/memories/utils";
+import {
+	groupMemoriesByCategory,
+	prayerActionsFor,
+	prayerAskedLabel,
+	prayerStatusOf,
+	PRAYER_RESOLVED_TAGS,
+} from "@/features/memories/utils";
 import { noteMemoryCount } from "@/features/settings/settingsData";
 
 type SummaryState =
@@ -64,6 +72,8 @@ export default function MemoriesScreen() {
 	const [summaryState, setSummaryState] = useState<SummaryState>({ status: "idle" });
 	const [addText, setAddText] = useState("");
 	const [isAdding, setIsAdding] = useState(false);
+	// Ids with a status PATCH in flight, so a second tap cannot race the first.
+	const [pendingPrayerIds, setPendingPrayerIds] = useState<readonly string[]>([]);
 
 	const mounted = useRef(true);
 	useEffect(() => {
@@ -159,6 +169,43 @@ export default function MemoriesScreen() {
 			]);
 		},
 		[getToken]
+	);
+
+	/**
+	 * One tap on "Answered", "Close" or "Reopen". The row moves first so the tap
+	 * feels instant, and the whole previous row goes back on failure: status is
+	 * not the only column the server changes. Resolving clears followUpAfter,
+	 * and the fresh one a reopen schedules arrives with the next load; nothing
+	 * on this screen reads it, so the gap is invisible.
+	 */
+	const resolvePrayer = useCallback(
+		(memory: MemoryRecord, status: PrayerStatus) => {
+			if (pendingPrayerIds.includes(memory.id)) return;
+			setPendingPrayerIds((current) => [...current, memory.id]);
+			setMemories((current) =>
+				current.map((item) =>
+					item.id === memory.id
+						? { ...item, status, followUpAfter: status === "open" ? item.followUpAfter : null }
+						: item
+				)
+			);
+			void (async () => {
+				try {
+					await setMemoryStatus(getToken, memory.id, status);
+				} catch (err) {
+					if (!mounted.current) return;
+					setMemories((current) => current.map((item) => (item.id === memory.id ? memory : item)));
+					Alert.alert(
+						"Could not update that prayer request",
+						serverMessage(err, "Try again in a moment.")
+					);
+				} finally {
+					if (!mounted.current) return;
+					setPendingPrayerIds((current) => current.filter((id) => id !== memory.id));
+				}
+			})();
+		},
+		[getToken, pendingPrayerIds]
 	);
 
 	const confirmClearAll = useCallback(() => {
@@ -309,23 +356,55 @@ export default function MemoriesScreen() {
 						groups.map((group, groupIndex) => (
 							<View key={group.category} style={groupIndex > 0 ? styles.groupGap : undefined}>
 								<Text style={styles.groupLabel}>{group.label}</Text>
-								{group.items.map((memory) => (
-									<View key={memory.id} style={styles.memoryRow}>
-										<Text style={styles.memoryText}>{memory.content}</Text>
-										<Pressable
-											accessibilityRole="button"
-											accessibilityLabel={`Delete memory: ${memory.content}`}
-											onPress={() => confirmDelete(memory)}
-											hitSlop={8}
-											style={({ pressed }) => [
-												styles.deleteButton,
-												pressed && { backgroundColor: colors.dangerSoft },
-											]}
-										>
-											<Text style={styles.deleteGlyph}>✕</Text>
-										</Pressable>
-									</View>
-								))}
+								{group.items.map((memory) => {
+									const prayerStatus = prayerStatusOf(memory);
+									const askedLabel = prayerAskedLabel(memory.askedAt);
+									const isPending = pendingPrayerIds.includes(memory.id);
+									return (
+										<View key={memory.id}>
+											<View style={styles.memoryRow}>
+												<Text style={styles.memoryText}>{memory.content}</Text>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel={`Delete memory: ${memory.content}`}
+													onPress={() => confirmDelete(memory)}
+													hitSlop={8}
+													style={({ pressed }) => [
+														styles.deleteButton,
+														pressed && { backgroundColor: colors.dangerSoft },
+													]}
+												>
+													<Text style={styles.deleteGlyph}>✕</Text>
+												</Pressable>
+											</View>
+											{prayerStatus ? (
+												<View style={styles.prayerRow}>
+													{askedLabel ? <Text style={styles.prayerMeta}>{askedLabel}</Text> : null}
+													{prayerStatus === "open" ? null : (
+														<Text style={styles.prayerTag}>{PRAYER_RESOLVED_TAGS[prayerStatus]}</Text>
+													)}
+													{prayerActionsFor(prayerStatus).map((action) => (
+														<Pressable
+															key={action.status}
+															accessibilityRole="button"
+															accessibilityLabel={`${action.spoken}: ${memory.content}`}
+															disabled={isPending}
+															onPress={() => resolvePrayer(memory, action.status)}
+															hitSlop={8}
+															style={({ pressed }) => [
+																styles.prayerAction,
+																pressed && { backgroundColor: colors.accentPressed },
+																isPending && { opacity: 0.4 },
+															]}
+														>
+															<Text style={styles.prayerActionLabel}>{action.label}</Text>
+														</Pressable>
+													))}
+												</View>
+											) : null}
+										</View>
+									);
+								})}
 							</View>
 						))
 					)}
@@ -455,6 +534,28 @@ const createStyles = (c: Colors) =>
 			paddingVertical: spacing.sm,
 		},
 		memoryText: { flex: 1, color: c.text, ...typography.support },
+		// Wraps, because "asked 12 Sep · Answered · Reopen" is wider than a phone
+		// once the status tag is there too.
+		prayerRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			flexWrap: "wrap",
+			gap: spacing.sm,
+			paddingBottom: spacing.sm,
+		},
+		prayerMeta: { color: c.textFaint, ...typography.micro },
+		prayerTag: { color: c.textMuted, ...typography.micro, fontWeight: "700" },
+		prayerAction: {
+			minHeight: 32,
+			borderRadius: radius.full,
+			alignItems: "center",
+			justifyContent: "center",
+			paddingHorizontal: spacing.md,
+			backgroundColor: c.accentSoft,
+			borderColor: c.accentBorder,
+			borderWidth: 1,
+		},
+		prayerActionLabel: { color: c.accent, ...typography.micro, fontWeight: "700" },
 		deleteButton: {
 			width: 32,
 			height: 32,

@@ -290,6 +290,7 @@ describe("toViewMessage", () => {
 			["tool-saveMemory", "Saving your memory"],
 			["tool-updateMemory", "Updating your memory"],
 			["tool-deleteMemories", "Deleting your memories"],
+			["tool-resolvePrayerRequest", "Updating that prayer request"],
 		] as const;
 		for (const [type, label] of labels) {
 			const message = {

@@ -67,4 +67,22 @@ enum MemoryFormat {
         formatter.dateFormat = sameYear ? "MMM d" : "MMM d, yyyy"
         return formatter.string(from: then)
     }
+
+    /// The prayer row's date line - "asked 12 Sep", carrying the year once the
+    /// request is older than the current one. `nil` when the server sent no
+    /// `askedAt`, so the row simply has no date rather than an empty gap.
+    /// The time zone is a parameter only so the tests can pin a calendar day:
+    /// the screen always uses the reader's own, because "12 Sep" has to mean the
+    /// day they asked.
+    static func askedLabel(_ iso: String?, now: Date = Date(), timeZone: TimeZone = .current) -> String? {
+        guard let iso, let asked = date(fromISO: iso) else { return nil }
+        var calendar = Calendar.current
+        calendar.timeZone = timeZone
+        let sameYear = calendar.component(.year, from: asked) == calendar.component(.year, from: now)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = sameYear ? "d MMM" : "d MMM yyyy"
+        return "asked \(formatter.string(from: asked))"
+    }
 }

@@ -15,15 +15,35 @@ const MEMORY_CATEGORIES = ["profile", "prayer", "study", "preference", "general"
 const MAX_MEMORIES_PER_USER = 60;
 const MAX_MEMORY_CONTENT_LENGTH = 500;
 
+/** Imports may span lines, so the whole statement goes, not the first line. */
+const stripImports = (source) =>
+	source.replace(/^import\s[^;]*?;\s*$/gm, "").replace(/^export\s+/gm, "");
+
+/**
+ * The prayer helpers come from the shipped memory.ts rather than a copy here,
+ * so "now + 3 days" cannot drift between the module and its tests. Nothing in
+ * this module's top level touches Prisma or the model, so `z` is enough to
+ * instantiate it.
+ */
+const memoryModule = new Function(
+	"z", "console",
+	`${stripTypeScriptTypes(stripImports(read("../src/lib/memory.ts")))}\nreturn { MEMORY_RECORD_SELECT, NOT_A_PRAYER, PRAYER_FOLLOW_UP_DAYS, asPrayerStatus, formatMemoryBlock, prayerDefaults, prayerStatusUpdate, toUserMemoryRecord };`
+)(z, { error() {} });
+
+const { PRAYER_FOLLOW_UP_DAYS, formatMemoryBlock, prayerDefaults } = memoryModule;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function loadBuilder(prisma) {
-	const source = read("../src/lib/memory-tools.ts")
-		.replace(/^import[^\r\n]*(?:\r?\n|$)/gm, "")
-		.replace(/^export\s+/gm, "");
 	const factory = new Function(
-		"tool", "z", "prisma", "MAX_MEMORIES_PER_USER", "MAX_MEMORY_CONTENT_LENGTH", "MEMORY_CATEGORIES", "console",
-		`${stripTypeScriptTypes(source)}\nreturn buildMemoryTools;`
+		"tool", "z", "prisma", "MAX_MEMORIES_PER_USER", "MAX_MEMORY_CONTENT_LENGTH", "MEMORY_CATEGORIES",
+		"MEMORY_RECORD_SELECT", "NOT_A_PRAYER", "prayerDefaults", "prayerStatusUpdate", "toUserMemoryRecord", "console",
+		`${stripTypeScriptTypes(stripImports(read("../src/lib/memory-tools.ts")))}\nreturn buildMemoryTools;`
 	);
-	const builder = factory(tool, z, prisma, MAX_MEMORIES_PER_USER, MAX_MEMORY_CONTENT_LENGTH, MEMORY_CATEGORIES, { error() {} });
+	const builder = factory(
+		tool, z, prisma, MAX_MEMORIES_PER_USER, MAX_MEMORY_CONTENT_LENGTH, MEMORY_CATEGORIES,
+		memoryModule.MEMORY_RECORD_SELECT, memoryModule.NOT_A_PRAYER, memoryModule.prayerDefaults,
+		memoryModule.prayerStatusUpdate, memoryModule.toUserMemoryRecord, { error() {} }
+	);
 	return builder("alice");
 }
 
@@ -35,6 +55,9 @@ function makePrisma({ enabled = true, users = ["alice", "bob"], memories = [], f
 			userId: memory.userId ?? "alice",
 			content: memory.content ?? `memory ${index + 1}`,
 			category: memory.category ?? "general",
+			status: memory.status ?? null,
+			askedAt: memory.askedAt ?? null,
+			followUpAfter: memory.followUpAfter ?? null,
 			updatedAt: memory.updatedAt ?? index,
 		})),
 		calls: [],
@@ -43,11 +66,20 @@ function makePrisma({ enabled = true, users = ["alice", "bob"], memories = [], f
 	const maybeFail = (operation) => {
 		if (state.fail === operation || state.fail === "all") throw new Error(`${operation} failed`);
 	};
-	const select = (memory) => ({ id: memory.id, content: memory.content, category: memory.category });
+	const select = (memory) => ({
+		id: memory.id,
+		content: memory.content,
+		category: memory.category,
+		status: memory.status,
+		askedAt: memory.askedAt,
+		followUpAfter: memory.followUpAfter,
+	});
 	const matches = (memory, where) => {
 		if (where.userId !== undefined && memory.userId !== where.userId) return false;
 		if (where.id?.in && !where.id.in.includes(memory.id)) return false;
 		if (where.id && typeof where.id === "string" && memory.id !== where.id) return false;
+		if (where.category !== undefined && memory.category !== where.category) return false;
+		if (where.status !== undefined && memory.status !== where.status) return false;
 		if (where.content?.equals !== undefined) {
 			const left = where.content.mode === "insensitive" ? memory.content.toLowerCase() : memory.content;
 			const right = where.content.mode === "insensitive" ? where.content.equals.toLowerCase() : where.content.equals;
@@ -82,7 +114,7 @@ function makePrisma({ enabled = true, users = ["alice", "bob"], memories = [], f
 			},
 			create: async ({ data }) => {
 				maybeFail("create");
-				const memory = { ...data, id: `memory-${state.memories.length + 1}`, updatedAt: Date.now() };
+				const memory = { status: null, askedAt: null, followUpAfter: null, ...data, id: `memory-${state.memories.length + 1}`, updatedAt: Date.now() };
 				state.memories.push(memory);
 				state.calls.push({ operation: "create", data });
 				return select(memory);
@@ -113,12 +145,9 @@ function makePrisma({ enabled = true, users = ["alice", "bob"], memories = [], f
 }
 
 function loadExtractor(prisma, output, onGenerate) {
-	const source = read("../src/lib/memory.ts")
-		.replace(/^import[^\r\n]*(?:\r?\n|$)/gm, "")
-		.replace(/^export\s+/gm, "");
 	const factory = new Function(
 		"generateText", "Output", "z", "resolveModel", "prisma", "allowsMemoryUse", "console",
-		`${stripTypeScriptTypes(source)}\nreturn extractAndStoreMemories;`
+		`${stripTypeScriptTypes(stripImports(read("../src/lib/memory.ts")))}\nreturn extractAndStoreMemories;`
 	);
 	return factory(
 		async () => {
@@ -143,12 +172,15 @@ const execute = (tools, name, input) => {
 test("own-user list, save, update, and delete work through real AI tools", async () => {
 	const prisma = makePrisma({ memories: [{ id: "a1", userId: "alice", content: "Old note", category: "general" }, { id: "b1", userId: "bob", content: "Private Bob note", category: "prayer" }] });
 	const tools = loadBuilder(prisma);
-	assert.deepEqual(await execute(tools, "listMemories", {}), { success: true, memories: [{ id: "a1", content: "Old note", category: "general" }] });
+	assert.deepEqual(await execute(tools, "listMemories", {}), {
+		success: true,
+		memories: [{ id: "a1", content: "Old note", category: "general", status: null, askedAt: null, followUpAfter: null }],
+	});
 	const saved = await execute(tools, "saveMemory", { content: "  Likes tea  ", category: "preference" });
 	assert.equal(saved.success, true);
 	assert.equal(saved.created, true);
 	const updated = await execute(tools, "updateMemory", { id: "a1", content: "Likes coffee", category: "preference" });
-	assert.deepEqual(updated.memory, { id: "a1", content: "Likes coffee", category: "preference" });
+	assert.deepEqual(updated.memory, { id: "a1", content: "Likes coffee", category: "preference", status: null, askedAt: null, followUpAfter: null });
 	assert.deepEqual(await execute(tools, "deleteMemories", { ids: ["a1"] }), { success: true, deleted: 1 });
 	assert.equal(prisma.state.memories.some((memory) => memory.id === "a1"), false);
 });
@@ -191,6 +223,9 @@ test("invalid schemas reject malformed tool input", async () => {
 		["updateMemory", { id: "", content: "ok", category: "general" }],
 		["deleteMemories", { ids: [] }],
 		["deleteMemories", { ids: Array.from({ length: MAX_MEMORIES_PER_USER + 1 }, () => "a") }],
+		["resolvePrayerRequest", { id: "", outcome: "answered" }],
+		["resolvePrayerRequest", { id: "a1", outcome: "open" }],
+		["resolvePrayerRequest", { id: "a1", outcome: "forgotten" }],
 	];
 	for (const [name, input] of cases) assert.equal(tools[name].inputSchema.safeParse(input).success, false, name);
 });
@@ -202,6 +237,147 @@ test("read and mutation errors return failure results, never false success", asy
 		const result = await execute(loadBuilder(prisma), name, input);
 		assert.equal(result.success, false, name);
 	}
+});
+
+/* ------------------------------------------- prayer requests that come back */
+
+/** Whole days from now; `|| 0` because strict equality rejects -0. */
+const daysFromNow = (value) => Math.round((value.getTime() - Date.now()) / DAY_MS) || 0;
+
+test("every path that creates a prayer memory starts it open and due in three days", async () => {
+	const prisma = makePrisma();
+	const tools = loadBuilder(prisma);
+	const saved = await execute(tools, "saveMemory", { content: "Asked for prayer for their dad's surgery", category: "prayer" });
+	assert.equal(saved.memory.status, "open");
+	const [row] = prisma.state.memories;
+	assert.equal(daysFromNow(row.askedAt), 0);
+	assert.equal(daysFromNow(row.followUpAfter), PRAYER_FOLLOW_UP_DAYS);
+	assert.equal(saved.memory.askedAt, row.askedAt.toISOString(), "clients get ISO strings, not Dates");
+
+	const plain = await execute(tools, "saveMemory", { content: "Prefers the KJV", category: "preference" });
+	assert.deepEqual(
+		[plain.memory.status, plain.memory.askedAt, plain.memory.followUpAfter],
+		[null, null, null],
+		"only prayer rows carry the three columns",
+	);
+});
+
+test("a memory becoming a prayer request starts being carried, and leaving stops it", async () => {
+	const prisma = makePrisma({ memories: [{ id: "a1", content: "Their dad is ill", category: "general" }] });
+	const tools = loadBuilder(prisma);
+	const carried = await execute(tools, "updateMemory", { id: "a1", content: "Asked for prayer for their dad", category: "prayer" });
+	assert.equal(carried.memory.status, "open");
+	assert.equal(daysFromNow(prisma.state.memories[0].followUpAfter), PRAYER_FOLLOW_UP_DAYS);
+
+	const rewritten = await execute(tools, "updateMemory", { id: "a1", content: "Asked for prayer for their dad again", category: "prayer" });
+	assert.equal(rewritten.memory.askedAt, carried.memory.askedAt, "editing the wording does not restart the request");
+
+	const laidDown = await execute(tools, "updateMemory", { id: "a1", content: "Their dad recovered", category: "general" });
+	assert.deepEqual([laidDown.memory.status, laidDown.memory.askedAt, laidDown.memory.followUpAfter], [null, null, null]);
+});
+
+test("resolvePrayerRequest answers or closes one open request and stops its follow-up", async () => {
+	for (const outcome of ["answered", "closed"]) {
+		const prisma = makePrisma({ memories: [{ id: "a1", content: "Their dad's surgery", category: "prayer", ...prayerDefaults(new Date()) }] });
+		const tools = loadBuilder(prisma);
+		const result = await execute(tools, "resolvePrayerRequest", { id: "a1", outcome });
+		assert.equal(result.success, true, outcome);
+		assert.equal(result.outcome, outcome);
+		assert.deepEqual(result.memory, {
+			id: "a1",
+			content: "Their dad's surgery",
+			category: "prayer",
+			status: outcome,
+			askedAt: prisma.state.memories[0].askedAt.toISOString(),
+			followUpAfter: null,
+		});
+		assert.equal(prisma.state.memories[0].followUpAfter, null, "a resolved request never comes back");
+	}
+});
+
+test("resolvePrayerRequest refuses anything that is not this user's open prayer request", async () => {
+	const error = "That is not one of the user's open prayer requests. Read your memories again.";
+	const now = new Date();
+	const rows = [
+		{ id: "a1", content: "Not a prayer", category: "study" },
+		{ id: "a2", content: "Already answered", category: "prayer", status: "answered", askedAt: now },
+		{ id: "b1", userId: "bob", content: "Bob's request", category: "prayer", ...prayerDefaults(now) },
+	];
+	for (const id of ["a1", "a2", "b1", "missing"]) {
+		const prisma = makePrisma({ memories: rows });
+		const result = await execute(loadBuilder(prisma), "resolvePrayerRequest", { id, outcome: "answered" });
+		assert.deepEqual(result, { success: false, error }, id);
+		assert.deepEqual(prisma.state.memories.map((memory) => memory.status), [null, "answered", "open"]);
+	}
+});
+
+test("a second resolvePrayerRequest on the same request changes nothing", async () => {
+	const prisma = makePrisma({ memories: [{ id: "a1", content: "Their dad's surgery", category: "prayer", ...prayerDefaults(new Date()) }] });
+	const tools = loadBuilder(prisma);
+	assert.equal((await execute(tools, "resolvePrayerRequest", { id: "a1", outcome: "answered" })).success, true);
+	const again = await execute(tools, "resolvePrayerRequest", { id: "a1", outcome: "closed" });
+	assert.equal(again.success, false);
+	assert.equal(prisma.state.memories[0].status, "answered");
+});
+
+test("a prayer tool failure never reports success", async () => {
+	for (const fail of ["updateMany", "findFirst"]) {
+		const prisma = makePrisma({ memories: [{ id: "a1", content: "Their dad's surgery", category: "prayer", ...prayerDefaults(new Date()) }] });
+		prisma.state.fail = fail;
+		const result = await execute(loadBuilder(prisma), "resolvePrayerRequest", { id: "a1", outcome: "answered" });
+		assert.equal(result.success, false, fail);
+	}
+});
+
+test("the memory block says where each prayer request stands, and says nothing extra about the rest", () => {
+	const block = formatMemoryBlock([
+		{ id: "a1", content: "Asked for prayer for their dad", category: "prayer", status: "open", askedAt: "2026-09-01T00:00:00.000Z", followUpAfter: "2026-09-04T00:00:00.000Z" },
+		{ id: "a2", content: "Asked for prayer about a job", category: "prayer", status: "answered", askedAt: "2026-08-01T00:00:00.000Z", followUpAfter: null },
+		{ id: "a3", content: "Asked for prayer about a move", category: "prayer", status: "closed", askedAt: "2026-08-01T00:00:00.000Z", followUpAfter: null },
+		{ id: "a4", content: "An older prayer row with no status", category: "prayer", status: null, askedAt: null, followUpAfter: null },
+		{ id: "a5", content: "Prefers the KJV", category: "preference", status: null, askedAt: null, followUpAfter: null },
+	]);
+	assert.match(block, /- Asked for prayer for their dad \(a prayer request they asked you to carry\)$/m);
+	assert.match(block, /- Asked for prayer about a job \(an answered prayer\)$/m);
+	assert.match(block, /- Asked for prayer about a move \(a prayer request they have laid down\)$/m);
+	assert.match(block, /- An older prayer row with no status$/m);
+	assert.match(block, /- Prefers the KJV$/m);
+});
+
+test("the extractor opens a prayer it adds and resolves one the user reported in passing", async () => {
+	const prisma = makePrisma({ memories: [{ id: "a1", content: "Asked for prayer for their dad's surgery", category: "prayer", ...prayerDefaults(new Date()) }] });
+	const extract = loadExtractor(prisma, {
+		remove: [],
+		update: [{ id: "a1", content: "Asked for prayer for their dad's surgery", status: "answered" }],
+		add: [{ content: "Asked for prayer about a job interview", category: "prayer" }],
+	});
+	await extract({ userId: "alice", userText: "Dad's surgery went well. Pray about my interview?" });
+	const [resolved, added] = prisma.state.memories;
+	assert.equal(resolved.status, "answered");
+	assert.equal(resolved.followUpAfter, null);
+	assert.equal(added.status, "open");
+	assert.equal(daysFromNow(added.followUpAfter), PRAYER_FOLLOW_UP_DAYS);
+});
+
+test("the extractor never sets a status on a memory that is not a prayer request", async () => {
+	const prisma = makePrisma({ memories: [{ id: "a1", content: "Studying Romans", category: "study" }] });
+	const extract = loadExtractor(prisma, { remove: [], update: [{ id: "a1", content: "Studying Romans 8", status: "closed" }], add: [] });
+	await extract({ userId: "alice", userText: "I finished Romans" });
+	assert.deepEqual(
+		[prisma.state.memories[0].content, prisma.state.memories[0].status],
+		["Studying Romans 8", null],
+	);
+});
+
+test("the extractor loses to a prayer request resolved during the same turn", async () => {
+	const prisma = makePrisma({ memories: [{ id: "a1", content: "Their dad's surgery", category: "prayer", ...prayerDefaults(new Date()) }] });
+	const extract = loadExtractor(
+		prisma,
+		{ remove: [], update: [{ id: "a1", content: "Their dad's surgery", status: "closed" }], add: [] },
+		() => { prisma.state.memories[0].status = "answered"; },
+	);
+	await extract({ userId: "alice", userText: "that one is done" });
+	assert.equal(prisma.state.memories[0].status, "answered", "the tool's outcome stands");
 });
 
 test("explicit memory tool attempts own the turn, including failures", () => {

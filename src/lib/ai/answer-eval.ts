@@ -152,6 +152,12 @@ export const DEFAULT_WRITE_TOOLS = [
 	"logReading",
 	"correctReadingLog",
 	"removeReadingLog",
+	"highlightVerse",
+	"organizeNote",
+	"updatePreferences",
+	"setChurch",
+	"learnVerse",
+	"resolvePrayerRequest",
 ];
 
 /** Human-review dimensions; never collapsed into the mechanical pass bit. */

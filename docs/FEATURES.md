@@ -1543,13 +1543,14 @@ the view model until every client renders receipts, then they are removed.
 
 ```ts
 export type ChatReceiptKind =
-	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "learn";
+	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "reading" | "learn";
 
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
 	| { screen: "memories"; memoryId?: string }
-	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" }
+	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" | "BSB" }
 	| { screen: "plan" }
+	| { screen: "readingHistory" }
 	| { screen: "cross" }
 	| { screen: "learn" }
 	| { screen: "settings"; section?: "memory" | "church" | "preferences" };
@@ -1583,6 +1584,7 @@ export interface ChatReceipt {
 | `updatePreferences` (new) | `{setting} {on/off/value}` | settings + preferences | none |
 | `setChurch` (new) | `Church set to {name}` | settings + church | none |
 | `learnVerse` (new) | `Learning {reference}` | learn | none |
+| `resolvePrayerRequest` (new) | `Prayer answered` or `Prayer request closed` | memories + memoryId | none |
 | `data-memoryExtracted` (new data part, passive extraction) | `Remembered` | memories + memoryId | forgetMemory |
 
 Rules: a failed tool (`success: false` or an error state) leaves no receipt; the
@@ -1653,3 +1655,86 @@ now exist too, so the assistant can queue a verse the user asks to memorise and
 quiz them from chat at whatever stage their card is on, while the reviews
 themselves are still recorded only on the Learn screen - the assistant quizzes,
 the screen schedules.
+
+### Prayer requests that come back to you
+
+A prayer request is a memory with a life: it is asked, it is carried, and one
+day it is answered or laid down. Until 2026-09-16 "prayer" was only a memory
+category with a display string; nothing ever revisited one. This contract
+gives the category three columns and one behaviour: the assistant asks, once
+and gently, how a request went, and the user can close it in a tap or by
+saying so. No push, no streaks, no counts.
+
+**Table** (`UserMemory`, migration `20260916000000_prayer_requests`): three
+nullable columns, meaningful only when `category = "prayer"` and null on every
+other row - `status` (`"open" | "answered" | "closed"`), `askedAt`
+(`DateTime`), `followUpAfter` (`DateTime`, the earliest instant the assistant
+may bring the request back). Index `[userId, category, status, followUpAfter]`.
+The migration backfills existing prayer rows: `status = "open"`,
+`askedAt = createdAt`, `followUpAfter = createdAt + 3 days`.
+
+**Writes.** Every path that creates a prayer memory sets `status = "open"`,
+`askedAt = now`, `followUpAfter = now + 3 days` (`src/lib/memory.ts` exports
+`prayerDefaults(now)` and everything uses it): `saveMemory` in chat, the
+passive extractor (`extractAndStoreMemories`), and `POST /api/memories` from a
+Settings screen. Changing a memory's category *to* `prayer` applies the same
+defaults; changing it *away* nulls all three. A prayer memory is resolved
+through one of:
+
+| Path | Effect |
+|---|---|
+| `resolvePrayerRequest` chat tool, `{ id, outcome: "answered" \| "closed" }` | `status = outcome`, `followUpAfter = null`. Fails with `success: false` when the id is not the user's open prayer memory. |
+| `PATCH /api/memories/[id]` with `{ status: "open" \| "answered" \| "closed" }` (body may carry `content` and/or `status`; at least one) | Same; `status: "open"` re-opens with `followUpAfter = now + 3 days`. 400 on a non-prayer row. |
+| the passive extractor's `update` entries gain an optional `status` | Same, so "my dad's surgery went well" said in passing closes the request without a tool call. |
+
+`GET /api/memories` and `listMemories` return the three columns (ISO strings)
+so every client and the assistant see status without a second call.
+
+**The follow-up** lives in the today block (`src/lib/chat-day-context.ts`,
+`ChatDayContext.prayers`): the user's `open` prayer memories whose
+`followUpAfter <= now`, oldest `askedAt` first, at most 3, each clipped to 100
+characters, formatted as
+
+```
+- Prayer requests they asked you to carry, now due a gentle follow-up: "…" (asked 4 days ago, memory id cm…); "…" (asked 12 days ago, memory id cm…).
+```
+
+placed second in the block, right after today's cross, and **exempt from the
+700-character cap** (its length is bounded by the 100-character clip and the
+cap of 3, so it stays near 500 characters at worst); the lines after it are the
+ones that give way. That exemption is what makes the next sentence honest: a
+request that is listed is always in the prompt. Loading the block for a chat turn also moves each listed
+row's `followUpAfter` to `now + 3 days` (one `updateMany`, fire-and-forget), so
+a request is raised at most once every three days no matter how many turns or
+conversations happen in between; the guidance below tells the assistant to
+raise it at most once per conversation.
+
+**Prompt** (`prayerGuidance` in `src/utils/systemPrompt.ts`, included after
+`learnGuidance`). The pastoral guardrail is the whole point:
+
+- Ask about a due request once, early, in the user's own words ("You asked me
+  to pray with you about your dad's surgery. How did it go?"), only when the
+  conversation has room for it - never as the first line of an answer to
+  something else, never twice in one conversation, never while the user is in
+  distress about something else (`pastoralCareGuidance` wins).
+- If the outcome is loss - a death, a diagnosis, a marriage ending - do not
+  ask "how did it go"; acknowledge it, stay with them, let them lead.
+- When they say it was answered, or that they no longer want it carried, call
+  `resolvePrayerRequest`; thank God with them for an answer, and never argue
+  with a closure. Read ids from the today block or `listMemories`; never
+  invent one.
+- Never list prayer requests unprompted; the Settings → Memory screen does
+  that.
+
+**Receipts** (extends the table above): `resolvePrayerRequest` → `Prayer
+answered` or `Prayer request closed`, kind `memory`, target `memories +
+memoryId`, no undo. `saveMemory` for a prayer keeps its existing `Remembered`
+line. Activity label: "Updating that prayer request".
+
+**Screens.** Settings → Memory on web (`src/app/settings/page.tsx`), Android
+(`mobile/app/(app)/memories.tsx`) and Apple (`macos/Shared/Memories/`) already
+group by category. In the "Prayer requests" group each row shows the date
+asked ("asked 12 Sep") and, for a resolved row, a quiet "Answered" or "Closed"
+tag; an open row has two actions, "Answered" and "Close", each one tap on
+`PATCH /api/memories/[id]`, with a resolved row offering "Reopen". The list
+stays one list: no separate prayer screen, no badge counts.

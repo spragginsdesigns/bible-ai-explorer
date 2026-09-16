@@ -191,6 +191,7 @@ extension ChatViewMessage {
         "tool-removeReadingLog": "Removing the reading entry",
         "tool-learnVerse": "Adding that verse to Learn",
         "tool-getLearnVerses": "Opening your Learn verses",
+        "tool-resolvePrayerRequest": "Updating that prayer request",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
@@ -463,6 +464,20 @@ extension ChatViewMessage {
                 kind: .memory,
                 label: "Forgot \(deleted) \(noun)",
                 target: .memories(memoryID: nil)
+            )
+
+        case "resolvePrayerRequest":
+            // No undo, deliberately: an "Undo" here would offer to un-answer a
+            // prayer. Reopening is the Memory screen's job.
+            guard output["success"]?.boolValue == true,
+                  let memoryID = nonEmpty(output["memory"]?["id"])
+            else { return nil }
+            let answered = output["outcome"]?.stringValue == "answered"
+            return ChatReceipt(
+                id: id,
+                kind: .memory,
+                label: answered ? "Prayer answered" : "Prayer request closed",
+                target: .memories(memoryID: memoryID)
             )
 
         case "setDailyCross":

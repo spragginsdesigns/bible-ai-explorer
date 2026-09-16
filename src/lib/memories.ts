@@ -4,11 +4,56 @@
  * same-origin and carry the Clerk session cookie.
  */
 
+/** Where a prayer request stands. Null on every other memory category. */
+export type PrayerStatus = "open" | "answered" | "closed";
+
 export interface MemoryRecord {
 	id: string;
 	content: string;
 	category: string;
+	/** Prayer requests only; null on every other category. */
+	status: PrayerStatus | null;
+	/** ISO instant the prayer request was asked; null on every other category. */
+	askedAt: string | null;
+	/** ISO instant the assistant may revisit the request; null once resolved. */
+	followUpAfter: string | null;
 	updatedAt: string;
+}
+
+/**
+ * The wire shape. The prayer columns are optional here on purpose: the web
+ * client may deploy ahead of the API that returns them, and a missing column
+ * must read as "not a prayer request" rather than crash the list.
+ */
+interface RawMemoryRecord {
+	id: string;
+	content: string;
+	category: string;
+	status?: string | null;
+	askedAt?: string | null;
+	followUpAfter?: string | null;
+	updatedAt: string;
+}
+
+const PRAYER_STATUSES: readonly PrayerStatus[] = ["open", "answered", "closed"];
+
+function toPrayerStatus(value: string | null | undefined): PrayerStatus | null {
+	for (const status of PRAYER_STATUSES) {
+		if (value === status) return status;
+	}
+	return null;
+}
+
+function normalizeMemory(raw: RawMemoryRecord): MemoryRecord {
+	return {
+		id: raw.id,
+		content: raw.content,
+		category: raw.category,
+		status: toPrayerStatus(raw.status),
+		askedAt: raw.askedAt ?? null,
+		followUpAfter: raw.followUpAfter ?? null,
+		updatedAt: raw.updatedAt,
+	};
 }
 
 export interface MemorySummary {
@@ -29,7 +74,8 @@ async function parseError(res: Response): Promise<never> {
 export async function fetchMemories(): Promise<MemoriesResponse> {
 	const res = await fetch("/api/memories", { credentials: "same-origin" });
 	if (!res.ok) return parseError(res);
-	return (await res.json()) as MemoriesResponse;
+	const data = (await res.json()) as { enabled: boolean; memories?: RawMemoryRecord[] };
+	return { enabled: data.enabled, memories: (data.memories ?? []).map(normalizeMemory) };
 }
 
 export async function setMemoryEnabled(enabled: boolean): Promise<{ enabled: boolean }> {
@@ -51,7 +97,21 @@ export async function addMemory(content: string): Promise<MemoryRecord> {
 		body: JSON.stringify({ content }),
 	});
 	if (!res.ok) return parseError(res);
-	return (await res.json()) as MemoryRecord;
+	return normalizeMemory((await res.json()) as RawMemoryRecord);
+}
+
+/**
+ * Resolves or re-opens a prayer request. One PATCH, no content change: the
+ * route accepts `content` and/or `status`, and this only ever sends `status`.
+ */
+export async function updateMemoryStatus(id: string, status: PrayerStatus): Promise<void> {
+	const res = await fetch(`/api/memories/${encodeURIComponent(id)}`, {
+		method: "PATCH",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ status }),
+	});
+	if (!res.ok) return parseError(res);
 }
 
 export async function deleteMemory(id: string): Promise<void> {

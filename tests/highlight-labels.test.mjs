@@ -276,12 +276,15 @@ test("the today block names the colour the way the user does", () => {
 			findTodayCross: async () => null,
 			HIGHLIGHT_COLORS,
 			highlightLabelFor,
+			PRAYER_FOLLOW_UP_DAYS: 3,
 			prisma: {},
 			getTodayPlanReading: async () => null,
+			waitUntil: () => {},
 		},
 	);
 	const context = {
 		cross: null,
+		prayers: [],
 		plan: null,
 		recentChapters: [],
 		highlights: [
@@ -307,7 +310,7 @@ test("the chat route reads the labels column once and hands it to the day contex
 		/select: \{ webSearchEnabled: true, name: true, email: true, highlightLabels: true \}/,
 	);
 	assert.match(source, /readStoredHighlightLabels\(userPrefs\?\.highlightLabels\)/);
-	assert.match(source, /loadChatDayContext\(userId, highlightLabels\)/);
+	assert.match(source, /loadChatDayContext\(userId, highlightLabels, \{ raisePrayerFollowUps: true \}\)/);
 	assert.match(source, /webSearchEnabled: userPrefs\?\.webSearchEnabled \?\? true,\s*highlightLabels,/);
 });
 

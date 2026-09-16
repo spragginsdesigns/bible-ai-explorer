@@ -9,8 +9,10 @@ import {
 	fetchMemories,
 	generateMemorySummary,
 	groupMemoriesByCategory,
+	updateMemoryStatus,
 	type MemoryRecord,
 	type MemorySummary,
+	type PrayerStatus,
 } from "@/lib/memories";
 
 interface MemoryManagerProps {
@@ -30,6 +32,31 @@ function relativeTime(iso: string): string {
 	if (days < 30) return `${days}d ago`;
 	return new Date(iso).toLocaleDateString();
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * The day a prayer request was asked, as "12 Sep", with the year only when it
+ * is not this one - built by hand, the same way Android and the Apple client
+ * do it, because toLocaleDateString varies by ICU version ("Sept" on some).
+ * Empty for an unusable date.
+ */
+function askedOnLabel(iso: string, now = new Date()): string {
+	const date = new Date(iso);
+	if (Number.isNaN(date.getTime())) return "";
+	const label = `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+	return date.getFullYear() === now.getFullYear() ? label : `${label} ${date.getFullYear()}`;
+}
+
+/** The quiet tag on a resolved prayer request; open rows carry no tag. */
+const RESOLVED_STATUS_LABELS: Partial<Record<PrayerStatus, string>> = {
+	answered: "Answered",
+	closed: "Closed",
+};
+
+/** The quiet inline pill shared by the prayer-request row actions. */
+const PRAYER_ACTION_CLASS =
+	"rounded-lg border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-2 py-1 text-xs font-bold hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors disabled:opacity-50";
 
 /** How long a two-tap confirm stays armed before resetting. */
 const CONFIRM_TIMEOUT_MS = 3000;
@@ -56,6 +83,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 	const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 	const [confirmClearAll, setConfirmClearAll] = useState(false);
 	const [clearingAll, setClearingAll] = useState(false);
+	const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
 	const [listError, setListError] = useState<string | null>(null);
 
 	const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,6 +216,35 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 			setListError(err instanceof Error ? err.message : "Couldn't delete that memory.");
 		} finally {
 			setPendingDeleteId(null);
+		}
+	};
+
+	/**
+	 * Resolve or re-open a prayer request in one tap. Optimistic: the row shows
+	 * its new state immediately and only that row's status is put back if the
+	 * PATCH fails, so a concurrent add or delete survives the revert.
+	 */
+	const handleStatusChange = async (memory: MemoryRecord, status: PrayerStatus) => {
+		if (pendingStatusId) return;
+		const previousStatus = memory.status;
+		setPendingStatusId(memory.id);
+		setListError(null);
+		setMemories((current) =>
+			(current ?? []).map((row) => (row.id === memory.id ? { ...row, status } : row))
+		);
+		try {
+			await updateMemoryStatus(memory.id, status);
+		} catch (err) {
+			setMemories((current) =>
+				(current ?? []).map((row) =>
+					row.id === memory.id ? { ...row, status: previousStatus } : row
+				)
+			);
+			setListError(
+				err instanceof Error ? err.message : "Couldn't update that prayer request."
+			);
+		} finally {
+			setPendingStatusId(null);
 		}
 	};
 
@@ -386,35 +443,95 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 									{group.label.toUpperCase()}
 								</p>
 								<div className="mt-1 flex flex-col">
-									{group.memories.map((memory) => (
-										<div
-											key={memory.id}
-											className="flex items-start gap-2 rounded-xl px-3 py-2.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
-										>
-											<p className="min-w-0 flex-1 text-sm leading-relaxed text-neutral-800 dark:text-neutral-200">
-												{memory.content}
-											</p>
-											<button
-												type="button"
-												onClick={() => void handleDelete(memory.id)}
-												disabled={pendingDeleteId === memory.id}
-												className={`flex min-h-[44px] flex-shrink-0 items-center justify-center gap-1 rounded-lg px-2 transition-colors ${
-													confirmDeleteId === memory.id
-														? "text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-400/10"
-														: "text-neutral-400 dark:text-neutral-600 hover:text-red-600 dark:hover:text-red-400"
-												}`}
-												aria-label={`Delete memory: ${memory.content.slice(0, 40)}`}
+									{group.memories.map((memory) => {
+										// Only the prayer group carries a lifecycle; every other
+										// category keeps the plain content-plus-delete row.
+										const isPrayer = group.category === "prayer";
+										const askedOn = isPrayer && memory.askedAt ? askedOnLabel(memory.askedAt) : "";
+										const resolvedLabel =
+											isPrayer && memory.status ? RESOLVED_STATUS_LABELS[memory.status] : undefined;
+										const statusPending = pendingStatusId === memory.id;
+										const showPrayerMeta = isPrayer && (askedOn !== "" || memory.status !== null);
+										return (
+											<div
+												key={memory.id}
+												className="flex items-start gap-2 rounded-xl px-3 py-2.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
 											>
-												{pendingDeleteId === memory.id ? (
-													<Loader2 className="w-4 h-4 animate-spin" />
-												) : confirmDeleteId === memory.id ? (
-													"Confirm?"
-												) : (
-													<Trash2 className="w-4 h-4" />
-												)}
-											</button>
-										</div>
-									))}
+												<div className="min-w-0 flex-1">
+													<p className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200">
+														{memory.content}
+													</p>
+													{showPrayerMeta && (
+														<div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+															{askedOn && (
+																<span className="text-metadata text-neutral-400 dark:text-neutral-600">
+																	asked {askedOn}
+																</span>
+															)}
+															{resolvedLabel && (
+																<span className="text-metadata font-semibold text-neutral-500 dark:text-neutral-400">
+																	{resolvedLabel}
+																</span>
+															)}
+															{statusPending ? (
+																<Loader2 className="w-3.5 h-3.5 animate-spin text-neutral-400 dark:text-neutral-600" />
+															) : memory.status === "open" ? (
+																<>
+																	<button
+																		type="button"
+																		onClick={() => void handleStatusChange(memory, "answered")}
+																		disabled={pendingStatusId !== null}
+																		className={`${PRAYER_ACTION_CLASS} text-amber-600 dark:text-amber-400`}
+																		aria-label={`Mark answered: ${memory.content.slice(0, 40)}`}
+																	>
+																		Answered
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => void handleStatusChange(memory, "closed")}
+																		disabled={pendingStatusId !== null}
+																		className={`${PRAYER_ACTION_CLASS} text-neutral-500 dark:text-neutral-400`}
+																		aria-label={`Close prayer request: ${memory.content.slice(0, 40)}`}
+																	>
+																		Close
+																	</button>
+																</>
+															) : memory.status !== null ? (
+																<button
+																	type="button"
+																	onClick={() => void handleStatusChange(memory, "open")}
+																	disabled={pendingStatusId !== null}
+																	className={`${PRAYER_ACTION_CLASS} text-amber-600 dark:text-amber-400`}
+																	aria-label={`Reopen prayer request: ${memory.content.slice(0, 40)}`}
+																>
+																	Reopen
+																</button>
+															) : null}
+														</div>
+													)}
+												</div>
+												<button
+													type="button"
+													onClick={() => void handleDelete(memory.id)}
+													disabled={pendingDeleteId === memory.id}
+													className={`flex min-h-[44px] flex-shrink-0 items-center justify-center gap-1 rounded-lg px-2 transition-colors ${
+														confirmDeleteId === memory.id
+															? "text-xs font-bold text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-400/10"
+															: "text-neutral-400 dark:text-neutral-600 hover:text-red-600 dark:hover:text-red-400"
+													}`}
+													aria-label={`Delete memory: ${memory.content.slice(0, 40)}`}
+												>
+													{pendingDeleteId === memory.id ? (
+														<Loader2 className="w-4 h-4 animate-spin" />
+													) : confirmDeleteId === memory.id ? (
+														"Confirm?"
+													) : (
+														<Trash2 className="w-4 h-4" />
+													)}
+												</button>
+											</div>
+										);
+									})}
 								</div>
 							</div>
 						))}

@@ -754,7 +754,9 @@ async function handlePost(req: Request): Promise<Response> {
 					const [memories, church, dayContext, answeredBefore, userName] = await Promise.all([
 						loadUserMemories(userId),
 						loadUserChurch(userId),
-						loadChatDayContext(userId, highlightLabels),
+						// Chat is the only surface allowed to reschedule prayer follow-ups:
+						// reading the block here is what "raising it" means.
+						loadChatDayContext(userId, highlightLabels, { raisePrayerFollowUps: true }),
 						hasAnsweredConversationBefore(userId, conversationId),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 					]);

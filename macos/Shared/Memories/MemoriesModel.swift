@@ -32,6 +32,9 @@ final class MemoriesModel {
     private(set) var isTogglePending = false
     private(set) var isAdding = false
     private(set) var summaryState: SummaryState = .idle
+    /// Prayer rows with a status PATCH in flight, so a row's own buttons go
+    /// quiet without disabling the rest of the list.
+    private(set) var pendingPrayerIDs: Set<String> = []
 
     var draft = ""
     var errorAlert: ErrorAlert?
@@ -128,6 +131,48 @@ final class MemoriesModel {
                 message: Self.message(error, fallback: "Try again in a moment.")
             )
         }
+    }
+
+    func isPrayerPending(_ memory: MemoryRecord) -> Bool {
+        pendingPrayerIDs.contains(memory.id)
+    }
+
+    /// One tap on "Answered", "Close" or "Reopen". Optimistic like the enable
+    /// toggle: the tag and the buttons change immediately and roll back with an
+    /// alert if the PATCH fails.
+    ///
+    /// Only `status` is written locally - `followUpAfter` is the server's to set,
+    /// and nothing on this screen reads it.
+    func setPrayerStatus(_ memory: MemoryRecord, to status: PrayerStatus) async {
+        guard let api, !pendingPrayerIDs.contains(memory.id) else { return }
+        guard let index = memories.firstIndex(where: { $0.id == memory.id }) else { return }
+        let previous = memories[index].status
+        memories[index].status = status.rawValue
+        pendingPrayerIDs.insert(memory.id)
+        defer { pendingPrayerIDs.remove(memory.id) }
+        do {
+            guard try await api.setMemoryStatus(id: memory.id, status: status) else {
+                restore(previous, on: memory.id)
+                errorAlert = ErrorAlert(
+                    title: "Could not update that prayer request",
+                    message: "Nothing was changed. Try again in a moment."
+                )
+                return
+            }
+        } catch {
+            restore(previous, on: memory.id)
+            errorAlert = ErrorAlert(
+                title: "Could not update that prayer request",
+                message: Self.message(error, fallback: "Try again in a moment.")
+            )
+        }
+    }
+
+    /// Re-finds the row by id: a delete or a reload may have moved it while the
+    /// PATCH was in flight, and a stale index would rewrite the wrong memory.
+    private func restore(_ status: String?, on id: String) {
+        guard let index = memories.firstIndex(where: { $0.id == id }) else { return }
+        memories[index].status = status
     }
 
     func clearAll() async {

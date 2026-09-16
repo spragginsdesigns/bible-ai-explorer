@@ -160,6 +160,81 @@ struct MemoryPayloadTests {
         #expect(MemoryLimits.maxPerUser == 60)
         #expect(MemoryLimits.maxContentLength == 500)
     }
+
+    @Test("Decodes the prayer lifecycle columns")
+    func decodesPrayerLifecycle() throws {
+        let json = """
+        {"enabled":true,"memories":[
+          {"id":"m1","content":"Praying for his dad's surgery","category":"prayer",
+           "updatedAt":"2026-09-12T04:05:06.789Z","status":"open",
+           "askedAt":"2026-09-12T04:05:06.789Z","followUpAfter":"2026-09-15T04:05:06.789Z"}
+        ]}
+        """
+        let response = try JSONDecoder().decode(MemoriesResponse.self, from: Data(json.utf8))
+        let memory = try #require(response.memories.first)
+        #expect(memory.status == "open")
+        #expect(memory.askedAt == "2026-09-12T04:05:06.789Z")
+        #expect(memory.followUpAfter == "2026-09-15T04:05:06.789Z")
+        #expect(memory.prayerStatus == .open)
+    }
+
+    /// A build talking to a server from before migration
+    /// `20260916000000_prayer_requests` must still list memories.
+    @Test("Tolerates a server that sends no lifecycle columns")
+    func decodesWithoutPrayerLifecycle() throws {
+        let json = """
+        {"enabled":false,"memories":[
+          {"id":"m1","content":"Prays for his brother","category":"prayer",
+           "updatedAt":"2026-08-11T04:05:06.789Z"}
+        ]}
+        """
+        let response = try JSONDecoder().decode(MemoriesResponse.self, from: Data(json.utf8))
+        let memory = try #require(response.memories.first)
+        #expect(memory.status == nil)
+        #expect(memory.askedAt == nil)
+        #expect(memory.prayerStatus == nil)
+    }
+}
+
+/// The prayer lifecycle as the Memory screen reads it: only prayer rows have
+/// one, and only the three contract values count.
+@Suite("Prayer requests")
+struct PrayerRequestTests {
+
+    private func memory(category: String, status: String?, askedAt: String? = nil) -> MemoryRecord {
+        MemoryRecord(
+            id: "m1",
+            content: "Praying for his dad's surgery",
+            category: category,
+            updatedAt: "2026-09-12T04:05:06.789Z",
+            status: status,
+            askedAt: askedAt
+        )
+    }
+
+    @Test("Reads the three contract statuses")
+    func readsStatuses() {
+        #expect(memory(category: "prayer", status: "open").prayerStatus == .open)
+        #expect(memory(category: "prayer", status: "answered").prayerStatus == .answered)
+        #expect(memory(category: "prayer", status: "closed").prayerStatus == .closed)
+    }
+
+    @Test("No lifecycle on a non-prayer row, a null status or an unknown value")
+    func ignoresEverythingElse() {
+        #expect(memory(category: "profile", status: "open").prayerStatus == nil)
+        #expect(memory(category: "prayer", status: nil).prayerStatus == nil)
+        #expect(memory(category: "prayer", status: "carried").prayerStatus == nil)
+    }
+
+    @Test("Dates the request in the row, and says nothing without an askedAt")
+    func asksWhen() throws {
+        let utc = try #require(TimeZone(identifier: "UTC"))
+        let now = try #require(MemoryFormat.date(fromISO: "2026-09-15T00:00:00Z"))
+        #expect(MemoryFormat.askedLabel("2026-09-12T04:05:06.789Z", now: now, timeZone: utc) == "asked 12 Sep")
+        #expect(MemoryFormat.askedLabel("2025-09-12T04:05:06.789Z", now: now, timeZone: utc) == "asked 12 Sep 2025")
+        #expect(MemoryFormat.askedLabel(nil, now: now, timeZone: utc) == nil)
+        #expect(MemoryFormat.askedLabel("not a date", now: now, timeZone: utc) == nil)
+    }
 }
 
 @Suite("Memories model")
@@ -192,5 +267,23 @@ struct MemoriesModelTests {
         #expect(model.isEnabled == nil)
         #expect(model.summaryState == .idle)
         #expect(!model.hasLoaded)
+    }
+
+    /// Resolving a prayer request is the same no-op before configure, and it
+    /// leaves no row marked pending for the buttons to stay disabled on.
+    @Test("A prayer status tap does nothing before a client is configured")
+    func prayerStatusNeedsAClient() async {
+        let model = MemoriesModel()
+        let memory = MemoryRecord(
+            id: "m1",
+            content: "Praying for his dad's surgery",
+            category: "prayer",
+            updatedAt: "2026-09-12T04:05:06.789Z",
+            status: "open"
+        )
+        await model.setPrayerStatus(memory, to: .answered)
+        #expect(model.pendingPrayerIDs.isEmpty)
+        #expect(model.errorAlert == nil)
+        #expect(!model.isPrayerPending(memory))
     }
 }

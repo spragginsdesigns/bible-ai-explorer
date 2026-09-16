@@ -93,6 +93,18 @@ function toolReceipt(
 			if (output.success !== true || !memoryId) return null;
 			return { id, kind: "memory", label: "Memory updated", target: { screen: "memories", memoryId } };
 		}
+		case "resolvePrayerRequest": {
+			// No undo: a request the user said God answered is not something to
+			// offer to un-answer in a chat line.
+			const memoryId = isRecord(output.memory) ? nonEmptyString(output.memory.id) : null;
+			if (output.success !== true || !memoryId) return null;
+			return {
+				id,
+				kind: "memory",
+				label: output.outcome === "answered" ? "Prayer answered" : "Prayer request closed",
+				target: { screen: "memories", memoryId },
+			};
+		}
 		case "deleteMemories": {
 			// deleteMemories refuses unless every id is owned, so a zero count
 			// means nothing changed and there is nothing to receipt.

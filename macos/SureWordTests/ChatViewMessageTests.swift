@@ -590,6 +590,50 @@ struct ChatReceiptTests {
         #expect(receipts([failed, read]).isEmpty)
     }
 
+    /// The prayer receipt carries no undo on purpose: "Undo" on an answered
+    /// prayer would offer to un-answer it. A request the server would not
+    /// resolve (a wrong id, or one already closed) claims nothing happened.
+    @Test("resolvePrayerRequest receipts an answer and a closure, and nothing on failure")
+    func resolvePrayerRequest() {
+        let answered = tool(
+            "resolvePrayerRequest", "call_prayer_answered",
+            input: ["id": .string("mem_p1"), "outcome": .string("answered")],
+            output: [
+                "success": .bool(true), "outcome": .string("answered"),
+                "memory": .object([
+                    "id": .string("mem_p1"),
+                    "content": .string("Praying for his dad's surgery"),
+                    "category": .string("prayer"),
+                ]),
+                "formatted": .string("That prayer request is marked answered."),
+            ]
+        )
+        let closed = tool(
+            "resolvePrayerRequest", "call_prayer_closed",
+            input: ["id": .string("mem_p2"), "outcome": .string("closed")],
+            output: [
+                "success": .bool(true), "outcome": .string("closed"),
+                "memory": .object([
+                    "id": .string("mem_p2"),
+                    "content": .string("Praying about the move"),
+                    "category": .string("prayer"),
+                ]),
+                "formatted": .string("That prayer request is laid down."),
+            ]
+        )
+        let failed = tool(
+            "resolvePrayerRequest", "call_prayer_failed",
+            input: ["id": .string("mem_gone"), "outcome": .string("answered")],
+            output: ["success": .bool(false), "error": .string("No open prayer request with that id.")]
+        )
+        #expect(receipts([answered, closed, failed]) == [
+            ChatReceipt(id: "call_prayer_answered", kind: .memory, label: "Prayer answered",
+                        target: .memories(memoryID: "mem_p1")),
+            ChatReceipt(id: "call_prayer_closed", kind: .memory, label: "Prayer request closed",
+                        target: .memories(memoryID: "mem_p2")),
+        ])
+    }
+
     @Test("Read tools, status narration and in-flight writes leave no receipt")
     func readsLeaveNoReceipt() {
         let parts: [UIMessagePart] = [

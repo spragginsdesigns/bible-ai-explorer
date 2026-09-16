@@ -101,6 +101,7 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-saveMemory": "Saving your memory",
 	"tool-updateMemory": "Updating your memory",
 	"tool-deleteMemories": "Deleting your memories",
+	"tool-resolvePrayerRequest": "Updating that prayer request",
 	"tool-getCrossReferences": "Tracing cross-references",
 	"tool-getOriginalText": "Opening the original text",
 	"tool-lookupStrongs": "Studying the original word",

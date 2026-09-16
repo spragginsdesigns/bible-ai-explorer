@@ -19,6 +19,7 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	saveMemory: "Saving your memory",
 	updateMemory: "Updating your memory",
 	deleteMemories: "Deleting your memories",
+	resolvePrayerRequest: "Updating that prayer request",
 	getCrossReferences: "Tracing cross-references",
 	getOriginalText: "Opening the original text",
 	lookupStrongs: "Studying the original word",

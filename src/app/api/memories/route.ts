@@ -5,10 +5,26 @@ import {
 	MAX_MEMORIES_PER_USER,
 	MAX_MEMORY_CONTENT_LENGTH,
 	MEMORY_CATEGORIES,
+	MEMORY_RECORD_SELECT,
+	prayerDefaults,
+	toUserMemoryRecord,
 	type MemoryCategory,
 } from "@/lib/memory";
 
-const MEMORY_SELECT = { id: true, content: true, category: true, updatedAt: true } as const;
+const MEMORY_SELECT = { ...MEMORY_RECORD_SELECT, updatedAt: true } as const;
+
+/** One row as every Settings → Memory screen reads it: prayer dates as ISO. */
+function toResponseRow(row: {
+	id: string;
+	content: string;
+	category: string;
+	status: string | null;
+	askedAt: Date | null;
+	followUpAfter: Date | null;
+	updatedAt: Date;
+}) {
+	return { ...toUserMemoryRecord(row), updatedAt: row.updatedAt };
+}
 
 /**
  * Memory management for the Settings → Memory screens on every client.
@@ -28,7 +44,7 @@ export async function GET() {
 				select: MEMORY_SELECT,
 			}),
 		]);
-		return NextResponse.json({ enabled: user?.memoryEnabled ?? true, memories });
+		return NextResponse.json({ enabled: user?.memoryEnabled ?? true, memories: memories.map(toResponseRow) });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		console.error("[api/memories] GET failed", err);
@@ -81,7 +97,7 @@ export async function POST(req: Request) {
 			const count = await tx.userMemory.count({ where: { userId } });
 			if (count >= MAX_MEMORIES_PER_USER) return null;
 			return tx.userMemory.create({
-				data: { userId, content, category },
+				data: { userId, content, category, ...(category === "prayer" ? prayerDefaults(new Date()) : {}) },
 				select: MEMORY_SELECT,
 			});
 		});
@@ -92,7 +108,7 @@ export async function POST(req: Request) {
 			);
 		}
 
-		return NextResponse.json(memory, { status: 201 });
+		return NextResponse.json(toResponseRow(memory), { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		console.error("[api/memories] POST failed", err);

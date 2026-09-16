@@ -193,21 +193,28 @@ struct MemoriesView: View {
                             .kerning(0.8)
                             .foregroundStyle(theme.textGhost)
                         ForEach(group.items) { memory in
-                            HStack(alignment: .top, spacing: Spacing.sm) {
-                                Text(memory.content)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(theme.text)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Button {
-                                    pendingDelete = memory
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(theme.danger)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(alignment: .top, spacing: Spacing.sm) {
+                                    Text(memory.content)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(theme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Button {
+                                        pendingDelete = memory
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(theme.danger)
+                                    }
+                                    .buttonStyle(SubtleButtonStyle())
+                                    .help("Delete this memory")
+                                    .accessibilityLabel("Delete memory: \(memory.content)")
                                 }
-                                .buttonStyle(SubtleButtonStyle())
-                                .help("Delete this memory")
-                                .accessibilityLabel("Delete memory: \(memory.content)")
+                                // Only the prayer group has a lifecycle; every
+                                // other category keeps the plain row.
+                                if let status = memory.prayerStatus {
+                                    prayerFooter(memory, status)
+                                }
                             }
                             .padding(.vertical, 2)
                         }
@@ -215,6 +222,49 @@ struct MemoriesView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Prayer requests
+
+    /// The date asked, a quiet tag once resolved, and the one-tap actions. No
+    /// counts and no separate screen: the list stays one list.
+    @ViewBuilder
+    private func prayerFooter(_ memory: MemoryRecord, _ status: PrayerStatus) -> some View {
+        HStack(spacing: Spacing.sm) {
+            if let asked = MemoryFormat.askedLabel(memory.askedAt) {
+                Text(asked)
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textGhost)
+            }
+            if status != .open {
+                Text(status == .answered ? "Answered" : "Closed")
+                    .font(.system(size: 10, weight: .bold))
+                    .kerning(0.6)
+                    .foregroundStyle(theme.textMuted)
+            }
+            Spacer()
+            if status == .open {
+                prayerAction("Answered", on: memory, to: .answered)
+                prayerAction("Close", on: memory, to: .closed)
+            } else {
+                prayerAction("Reopen", on: memory, to: .open)
+            }
+        }
+    }
+
+    private func prayerAction(
+        _ title: String,
+        on memory: MemoryRecord,
+        to status: PrayerStatus
+    ) -> some View {
+        Button(title) {
+            Task { await model.setPrayerStatus(memory, to: status) }
+        }
+        .buttonStyle(SubtleButtonStyle())
+        .font(.system(size: 11))
+        .foregroundStyle(theme.textMuted)
+        .disabled(model.isPrayerPending(memory))
+        .accessibilityLabel("\(title): \(memory.content)")
     }
 
     private func hint(_ text: String) -> some View {

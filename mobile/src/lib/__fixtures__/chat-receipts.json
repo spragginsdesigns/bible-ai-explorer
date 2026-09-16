@@ -239,6 +239,31 @@
 				{ "type": "tool-getLearnVerses", "toolCallId": "call_learn_read", "state": "output-available", "input": {}, "output": { "cards": [], "knownCount": 0, "queueCount": 0, "formatted": "The Learn queue is empty." } }
 			],
 			"expected": []
+		},
+		{
+			"name": "resolvePrayerRequest answered leaves a Prayer answered receipt",
+			"parts": [
+				{ "type": "tool-resolvePrayerRequest", "toolCallId": "call_prayer_answered", "state": "output-available", "input": { "id": "mem_prayer_1", "outcome": "answered" }, "output": { "success": true, "outcome": "answered", "memory": { "id": "mem_prayer_1", "content": "Asked for prayer about their dad's surgery", "category": "prayer", "status": "answered", "askedAt": "2026-09-10T15:00:00.000Z", "followUpAfter": null } } }
+			],
+			"expected": [
+				{ "id": "call_prayer_answered", "kind": "memory", "label": "Prayer answered", "target": { "screen": "memories", "memoryId": "mem_prayer_1" } }
+			]
+		},
+		{
+			"name": "resolvePrayerRequest closed leaves a Prayer request closed receipt",
+			"parts": [
+				{ "type": "tool-resolvePrayerRequest", "toolCallId": "call_prayer_closed", "state": "output-available", "input": { "id": "mem_prayer_1", "outcome": "closed" }, "output": { "success": true, "outcome": "closed", "memory": { "id": "mem_prayer_1", "content": "Asked for prayer about their dad's surgery", "category": "prayer", "status": "closed", "askedAt": "2026-09-10T15:00:00.000Z", "followUpAfter": null } } }
+			],
+			"expected": [
+				{ "id": "call_prayer_closed", "kind": "memory", "label": "Prayer request closed", "target": { "screen": "memories", "memoryId": "mem_prayer_1" } }
+			]
+		},
+		{
+			"name": "resolvePrayerRequest that failed leaves no receipt",
+			"parts": [
+				{ "type": "tool-resolvePrayerRequest", "toolCallId": "call_prayer_failed", "state": "output-available", "input": { "id": "mem_missing", "outcome": "answered" }, "output": { "success": false, "error": "That is not one of the user's open prayer requests. Read your memories again." } }
+			],
+			"expected": []
 		}
 	]
 }
