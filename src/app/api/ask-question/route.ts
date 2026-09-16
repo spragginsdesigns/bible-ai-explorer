@@ -445,6 +445,8 @@ async function persistAssistantResponse(options: {
 	modelId: string | null;
 	/** Non-default run options this turn ran with. Empty for an ordinary turn. */
 	run: AppliedRunOptions;
+	/** The translation the answer quoted, so a rated answer can be replayed against it. */
+	translation: TranslationId;
 }): Promise<ChatOutcomeExit> {
 	if (!hasPersistableContent(options.responseMessage)) return "empty_response";
 	// Set once the assistant row is written, so a memory-extraction failure
@@ -475,6 +477,9 @@ async function persistAssistantResponse(options: {
 		if (options.run.verbosity) metadata.verbosity = options.run.verbosity;
 		if (options.run.mode) metadata.mode = options.run.mode;
 		if (options.run.turnShape) metadata.turnShape = options.run.turnShape;
+		// The translation the answer quoted. scripts/feedback-to-fixtures.mjs
+		// reads it so a thumbs-down replays against the same Bible.
+		metadata.translation = options.translation;
 		const metadataJson = JSON.parse(JSON.stringify(metadata));
 
 		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
@@ -718,6 +723,7 @@ async function handlePost(req: Request): Promise<Response> {
 						responseMessage,
 						modelId: resolvedModelId,
 						run: resolvedRun,
+						translation,
 					}).then((exit) => {
 						emitOutcome(exit);
 						if (!clientLeft) return;

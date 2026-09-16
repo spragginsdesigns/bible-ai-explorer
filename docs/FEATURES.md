@@ -1803,8 +1803,11 @@ owner-checked) accepts `{ feedback: "up" | "down" | null, feedbackReason?:
 string }`. `null` clears all three. A reason without `"down"` is ignored; a
 reason over 500 chars is 400. Only an assistant message may be rated (400
 otherwise). The response is the updated `{ id, feedback, feedbackReason,
-feedbackAt }`. `GET .../messages` returns the three columns on every message so
-history replays the chosen thumb.
+feedbackAt }`. History loads through `GET /api/conversations/[id]`, which
+spreads whole `Message` rows (pinned by a test that fails if a `select` ever
+narrows it), so every client replays the chosen thumb. The assistant persist
+also stores `metadata.translation` so a rated answer replays against the same
+Bible.
 
 **Clients.** On a settled assistant answer, beside "Add to notes": two quiet
 glyph buttons, thumbs up and thumbs down, with the chosen one filled. Tapping
