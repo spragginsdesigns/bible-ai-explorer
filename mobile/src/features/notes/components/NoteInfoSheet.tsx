@@ -8,7 +8,12 @@ import {
 } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import ArrowRight from "lucide-react-native/icons/arrow-right";
+import CircleQuestionMark from "lucide-react-native/icons/circle-question-mark";
+import PenLine from "lucide-react-native/icons/pen-line";
+import Plus from "lucide-react-native/icons/plus";
+import Trash from "lucide-react-native/icons/trash";
+import X from "lucide-react-native/icons/x";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -32,7 +37,7 @@ import type { Note, NoteLinks, NoteProperties } from "../types";
 import { useStableGetToken } from "../useStableGetToken";
 import { relativeTime } from "../utils";
 import { outgoingLinkLabel } from "../wikilinks";
-import { BottomSheet, Chip } from "./primitives";
+import { BottomSheet, Chip, LUCIDE_STROKE } from "./primitives";
 
 /** Add form state; `originalKey` is null while adding rather than editing. */
 interface PropertyDraft {
@@ -184,7 +189,7 @@ export function NoteInfoSheet({
 								<Text style={styles.aliasLabel} numberOfLines={1}>
 									{alias}
 								</Text>
-								<Ionicons name="close" size={13} color={colors.textMuted} />
+								<X size={13} strokeWidth={LUCIDE_STROKE} color={colors.textMuted} />
 							</Pressable>
 						))}
 					</View>
@@ -245,7 +250,7 @@ export function NoteInfoSheet({
 									})
 								}
 							>
-								<Ionicons name="create-outline" size={17} color={colors.textMuted} />
+								<PenLine size={17} strokeWidth={LUCIDE_STROKE} color={colors.textMuted} />
 							</Pressable>
 							<Pressable
 								accessibilityRole="button"
@@ -253,7 +258,7 @@ export function NoteInfoSheet({
 								hitSlop={6}
 								onPress={() => onSaveProperties(removeNoteProperty(note.properties, key))}
 							>
-								<Ionicons name="trash-outline" size={17} color={colors.danger} />
+								<Trash size={17} strokeWidth={LUCIDE_STROKE} color={colors.danger} />
 							</Pressable>
 						</View>
 					))
@@ -325,7 +330,7 @@ export function NoteInfoSheet({
 						onPress={() => setDraft({ originalKey: null, key: "", type: "text", value: "" })}
 						style={({ pressed }) => [styles.addProperty, pressed && styles.aliasPressed]}
 					>
-						<Ionicons name="add" size={15} color={colors.textFaint} />
+						<Plus size={15} strokeWidth={LUCIDE_STROKE} color={colors.textFaint} />
 						<Text style={styles.addPropertyLabel}>Add property</Text>
 					</Pressable>
 				)}
@@ -367,7 +372,7 @@ export function NoteInfoSheet({
 									onPress={() => openNote(targetId)}
 									style={({ pressed }) => [styles.linkRow, pressed && styles.aliasPressed]}
 								>
-									<Ionicons name="arrow-forward" size={15} color={colors.textMuted} />
+									<ArrowRight size={15} strokeWidth={LUCIDE_STROKE} color={colors.textMuted} />
 									<Text style={styles.linkTitle} numberOfLines={1}>
 										{label}
 									</Text>
@@ -376,7 +381,11 @@ export function NoteInfoSheet({
 						}
 						return (
 							<View key={`unresolved-${link.targetTitle}`} style={styles.linkRow}>
-								<Ionicons name="help-circle-outline" size={15} color={colors.textGhost} />
+								<CircleQuestionMark
+									size={15}
+									strokeWidth={LUCIDE_STROKE}
+									color={colors.textGhost}
+								/>
 								<Text style={[styles.linkTitle, styles.unresolved]} numberOfLines={1}>
 									{label}
 								</Text>

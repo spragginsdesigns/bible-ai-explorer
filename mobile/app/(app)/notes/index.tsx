@@ -12,7 +12,9 @@ import {
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Plus from "lucide-react-native/icons/plus";
+import Search from "lucide-react-native/icons/search";
+import X from "lucide-react-native/icons/x";
 import { Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -20,7 +22,7 @@ import { CreateItemSheet } from "@/features/notes/components/CreateItemSheet";
 import type { NoteTemplateId, NoteTemplateSeed } from "@/features/notes/components/CreateItemSheet";
 import { NoteActionSheet } from "@/features/notes/components/NoteActionSheet";
 import { NoteCard } from "@/features/notes/components/NoteCard";
-import { Chip, GlyphButton } from "@/features/notes/components/primitives";
+import { Chip, GlyphButton, LUCIDE_STROKE } from "@/features/notes/components/primitives";
 import type { Note } from "@/features/notes/types";
 import { SORT_LABELS, nextSort, useNotesLibrary } from "@/features/notes/useNotesLibrary";
 
@@ -73,7 +75,7 @@ function NotesListSession() {
 			<View style={styles.header}>
 				<Text style={styles.heading}>Notes</Text>
 				<GlyphButton
-					icon="add"
+					Icon={Plus}
 					accessibilityLabel="New note"
 					onPress={handleNewNote}
 					disabled={isCreatingNote}
@@ -83,7 +85,7 @@ function NotesListSession() {
 			</View>
 
 			<View style={styles.searchWrap}>
-				<Ionicons name="search" size={15} color={colors.textFaint} />
+				<Search size={15} strokeWidth={LUCIDE_STROKE} color={colors.textFaint} />
 				<TextInput
 					value={library.searchQuery}
 					onChangeText={library.setSearchQuery}
@@ -94,7 +96,7 @@ function NotesListSession() {
 				/>
 				{library.searchQuery ? (
 					<GlyphButton
-						icon="close"
+						Icon={X}
 						accessibilityLabel="Clear search"
 						onPress={() => library.setSearchQuery("")}
 						size={28}

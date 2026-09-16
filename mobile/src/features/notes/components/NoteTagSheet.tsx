@@ -4,8 +4,10 @@ import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
+import Check from "lucide-react-native/icons/check";
+import Plus from "lucide-react-native/icons/plus";
 import { PRESET_TAG_COLORS, type Tag } from "../types";
-import { BottomSheet } from "./primitives";
+import { BottomSheet, LUCIDE_STROKE } from "./primitives";
 
 /** Tag picker for the open note: toggle existing tags or create a new one. */
 export function NoteTagSheet({
@@ -74,7 +76,9 @@ export function NoteTagSheet({
 							<Text style={[styles.rowLabel, selected && { color: colors.text }]}>
 								{tag.name}
 							</Text>
-							{selected ? <Text style={styles.check}>✓</Text> : null}
+							{selected ? (
+								<Check size={16} strokeWidth={LUCIDE_STROKE} color={colors.accent} />
+							) : null}
 						</Pressable>
 					);
 				})}
@@ -126,7 +130,8 @@ export function NoteTagSheet({
 					onPress={() => setIsCreating(true)}
 					style={({ pressed }) => [styles.newTag, pressed && styles.rowPressed]}
 				>
-					<Text style={styles.newTagLabel}>＋  New tag</Text>
+					<Plus size={15} strokeWidth={LUCIDE_STROKE} color={colors.textFaint} />
+					<Text style={styles.newTagLabel}>New tag</Text>
 				</Pressable>
 			)}
 		</BottomSheet>
@@ -147,10 +152,12 @@ const createStyles = (c: Colors) =>
 		rowPressed: { backgroundColor: c.surfacePressed },
 		dot: { width: 13, height: 13, borderRadius: 7, borderWidth: 1.5 },
 		rowLabel: { flex: 1, color: c.textSecondary, fontSize: 14.5 },
-		check: { color: c.accent, fontSize: 14 },
 		empty: { color: c.textGhost, fontSize: 13, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
 
 		newTag: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
 			paddingVertical: 12,
 			paddingHorizontal: spacing.sm,
 			borderRadius: radius.md,

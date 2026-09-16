@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
-import { Ionicons } from "@expo/vector-icons";
+import Link from "lucide-react-native/icons/link";
+import Plus from "lucide-react-native/icons/plus";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { useNotesSnapshot } from "../notesStore";
 import { relativeTime } from "../utils";
 import { filterNotesForLinking, hasExactTarget, sanitizeWikilinkTarget } from "../wikilinks";
-import { BottomSheet } from "./primitives";
+import { BottomSheet, LUCIDE_STROKE } from "./primitives";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -87,7 +88,7 @@ export function InsertWikilinkSheet({
 							pressed && { backgroundColor: colors.accentPressed },
 						]}
 					>
-						<Ionicons name="add" size={15} color={colors.accent} />
+						<Plus size={15} strokeWidth={LUCIDE_STROKE} color={colors.accent} />
 						<Text style={styles.newTargetLabel} numberOfLines={1}>
 							Link to: <Text style={styles.newTargetTitle}>{newTarget}</Text>
 						</Text>
@@ -115,7 +116,7 @@ export function InsertWikilinkSheet({
 								</Text>
 								<Text style={styles.rowMeta}>{relativeTime(note.updatedAt)}</Text>
 							</View>
-							<Ionicons name="link-outline" size={15} color={colors.textGhost} />
+							<Link size={15} strokeWidth={LUCIDE_STROKE} color={colors.textGhost} />
 						</Pressable>
 					))
 				)}

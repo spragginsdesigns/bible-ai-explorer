@@ -6,6 +6,7 @@ import {
 	AppState,
 	BackHandler,
 	KeyboardAvoidingView,
+	Share,
 	StyleSheet,
 	View,
 } from "react-native";
@@ -18,6 +19,7 @@ import { spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { InsertWikilinkSheet } from "@/features/notes/components/InsertWikilinkSheet";
+import { NoteActionSheet } from "@/features/notes/components/NoteActionSheet";
 import { NoteAIPanel } from "@/features/notes/components/NoteAIPanel";
 import { NoteEditorTopBar } from "@/features/notes/components/NoteEditorTopBar";
 import { NoteInfoSheet } from "@/features/notes/components/NoteInfoSheet";
@@ -51,6 +53,7 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 	const [tagsOpen, setTagsOpen] = useState(false);
 	const [infoOpen, setInfoOpen] = useState(false);
 	const [wikilinkOpen, setWikilinkOpen] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	const bottomInset = useTabBarSpace();
  const activeNoteRef = useRef(noteId);
@@ -66,6 +69,34 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
   if (!copied) throw new Error("Could not write to the clipboard.");
  }, [noteId]);
 
+	const shareMarkdown = useCallback(
+		async (title: string) => {
+			const owner = noteId;
+			if (!editorRef.current) throw new Error("The editor is not ready. Please try again.");
+			const markdown = await editorRef.current.getMarkdown(title);
+			if (!mounted.current || activeNoteRef.current !== owner) {
+				throw new Error("The note changed. Please try again.");
+			}
+			await Share.share({ message: markdown, title });
+		},
+		[noteId]
+	);
+
+	// Two native Modals must not swap inside one commit on Android: the incoming
+	// dialog can mount while the menu is still dismissing and never appear.
+	const openFromMenu = useCallback((open: () => void) => {
+		setMenuOpen(false);
+		setTimeout(open, 0);
+	}, []);
+
+	// The editor cannot stay open on a note that no longer exists. A failed
+	// delete leaves the note in the shared store, so it is still listed on the
+	// hub we land on - the user sees it did not go.
+	const deleteNote = useCallback(async () => {
+		await data.removeNote();
+		router.dismissTo("/notes");
+	}, [data.removeNote, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	const goBack = useCallback(async () => {
 		const flushed = await editorRef.current?.flush();
 		if (flushed === false) return;
@@ -78,12 +109,12 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 		useCallback(() => {
 			const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
 				// Native Modal sheets own Back; do not turn it into a screen exit.
-				if (aiOpen || tagsOpen || infoOpen || wikilinkOpen) return false;
+				if (aiOpen || tagsOpen || infoOpen || wikilinkOpen || menuOpen) return false;
 				void goBack();
 				return true;
 			});
 			return () => subscription.remove();
-		}, [aiOpen, tagsOpen, infoOpen, wikilinkOpen, goBack])
+		}, [aiOpen, tagsOpen, infoOpen, wikilinkOpen, menuOpen, goBack])
 	);
 
 	// Flush before the tab changes: popToTopOnBlur otherwise destroys the
@@ -144,21 +175,16 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 				behavior="padding"
 			>
 				<NoteEditorTopBar
-                    key={noteId}
-                    noteId={noteId}
-                    onCopyMarkdown={copyMarkdown}
+					key={noteId}
 					title={note?.title ?? ""}
 					isPinned={note?.isPinned ?? false}
 					isSaving={data.isSaving}
 					saveError={note ? data.error : null}
-					tagCount={note?.tagIds.length ?? 0}
 					aiOpen={aiOpen}
 					onBack={() => void goBack()}
 					onRename={(title) => void data.renameNote(title)}
-					onTogglePin={() => void data.togglePin()}
-					onOpenTags={() => setTagsOpen(true)}
-					onOpenInfo={() => void openInfo()}
 					onToggleAI={() => void openAI()}
+					onOpenMenu={() => setMenuOpen(true)}
 				/>
 
 				{data.isLoading ? (
@@ -207,6 +233,22 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 					onSaveAliases={(aliases) => void data.setAliases(aliases)}
 					onSaveProperties={(properties) => void data.setProperties(properties)}
 					onCreateLinkedNote={data.createLinkedNote}
+				/>
+			) : null}
+
+			{menuOpen && note ? (
+				<NoteActionSheet
+					note={note}
+					folders={data.folders}
+					onClose={() => setMenuOpen(false)}
+					onTogglePin={() => void data.togglePin()}
+					onMoveToFolder={(_id, folderId) => void data.moveToFolder(folderId)}
+					onDelete={() => void deleteNote()}
+					tagCount={note.tagIds.length}
+					onOpenTags={() => openFromMenu(() => setTagsOpen(true))}
+					onOpenInfo={() => openFromMenu(() => void openInfo())}
+					onCopyMarkdown={() => copyMarkdown(note.title || "Untitled Note")}
+					onShareMarkdown={() => shareMarkdown(note.title || "Untitled Note")}
 				/>
 			) : null}
 

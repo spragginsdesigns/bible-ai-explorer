@@ -1,12 +1,13 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
-import { Ionicons } from "@expo/vector-icons";
+import Pin from "lucide-react-native/icons/pin";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { Note, Tag } from "../types";
 import { relativeTime, tagsForNote } from "../utils";
+import { LUCIDE_STROKE } from "./primitives";
 
 export function NoteCard({
 	note,
@@ -41,7 +42,9 @@ export function NoteCard({
 				<Text style={styles.title} numberOfLines={1}>
 					{note.title || "Untitled Note"}
 				</Text>
-				{note.isPinned ? <Ionicons name="pin" size={13} color={colors.accent} /> : null}
+				{note.isPinned ? (
+					<Pin size={13} strokeWidth={LUCIDE_STROKE} color={colors.accent} />
+				) : null}
 			</View>
 
 			<Text style={styles.preview} numberOfLines={2}>

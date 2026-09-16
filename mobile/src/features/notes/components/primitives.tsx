@@ -12,19 +12,29 @@ import {
 import { AppText as Text } from "@/components/AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { LucideIcon } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import X from "lucide-react-native/icons/x";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 
 export type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
+/** Lucide's stroke weight across the Notes feature; matches the web's default feel. */
+export const LUCIDE_STROKE = 1.75;
+
 /**
- * Round icon button. Vector icon (Ionicons) inside a circular pressable -
- * emoji glyphs are gone: Android draws them in its color emoji font, which
- * can't be tinted and clashes with the theme.
+ * Round icon button. Vector icon inside a circular pressable - emoji glyphs
+ * are gone: Android draws them in its color emoji font, which can't be tinted
+ * and clashes with the theme.
+ *
+ * Notes screens pass `Icon` (Lucide, matching the web's icon family); the
+ * Ionicons `icon` prop stays for the chat and verse sheets that still use it.
  */
 export function GlyphButton({
 	icon,
+	Icon,
 	onPress,
 	accessibilityLabel,
 	active = false,
@@ -33,7 +43,8 @@ export function GlyphButton({
 	size = 38,
 	style,
 }: {
-	icon: IoniconName;
+	icon?: IoniconName;
+	Icon?: LucideIcon;
 	onPress: () => void;
 	accessibilityLabel: string;
 	active?: boolean;
@@ -62,7 +73,11 @@ export function GlyphButton({
 				style,
 			]}
 		>
-			<Ionicons name={icon} size={Math.round(size * 0.48)} color={color} />
+			{Icon ? (
+				<Icon size={Math.round(size * 0.5)} strokeWidth={LUCIDE_STROKE} color={color} />
+			) : icon ? (
+				<Ionicons name={icon} size={Math.round(size * 0.48)} color={color} />
+			) : null}
 		</Pressable>
 	);
 }
@@ -163,7 +178,7 @@ export function BottomSheet({
 				{title ? (
 					<View style={styles.sheetHeader}>
 						<Text style={styles.sheetTitle}>{title}</Text>
-						<GlyphButton icon="close" accessibilityLabel="Close" onPress={onClose} size={32} />
+						<GlyphButton Icon={X} accessibilityLabel="Close" onPress={onClose} size={32} />
 					</View>
 				) : null}
 				{scroll ? (
@@ -183,37 +198,76 @@ export function BottomSheet({
 	);
 }
 
-/** Full-width row inside a BottomSheet. */
+/**
+ * Full-width row inside a BottomSheet. `Icon` is the Lucide path used by the
+ * Notes menus; `icon` remains for the chat/verse sheets still on Ionicons.
+ */
 export function SheetRow({
 	label,
 	icon,
+	Icon,
 	onPress,
 	danger = false,
+	accent = false,
 	selected = false,
+	meta,
+	busy = false,
 }: {
 	label: string;
 	icon?: IoniconName;
+	Icon?: LucideIcon;
 	onPress: () => void;
 	danger?: boolean;
+	/** Success tone, e.g. the momentary "Copied" confirmation. */
+	accent?: boolean;
 	selected?: boolean;
+	/** Trailing muted count/label, e.g. the number of tags applied. */
+	meta?: string;
+	/** An async action is in flight: the row is inert and dimmed. */
+	busy?: boolean;
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
+	const iconColor = danger ? colors.danger : accent ? colors.accent : colors.textMuted;
 	return (
 		<Pressable
 			accessibilityRole="button"
+			accessibilityState={{ selected, disabled: busy }}
+			disabled={busy}
 			onPress={onPress}
-			style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]}
+			style={({ pressed }) => [
+				styles.sheetRow,
+				pressed && !busy && styles.sheetRowPressed,
+				busy && styles.sheetRowBusy,
+			]}
 		>
-			{icon ? (
+			{Icon || icon ? (
 				<View style={styles.sheetRowIcon}>
-					<Ionicons name={icon} size={17} color={danger ? colors.danger : colors.textMuted} />
+					{Icon ? (
+						<Icon size={18} strokeWidth={LUCIDE_STROKE} color={iconColor} />
+					) : icon ? (
+						<Ionicons name={icon} size={17} color={iconColor} />
+					) : null}
 				</View>
 			) : null}
-			<Text style={[styles.sheetRowLabel, danger && { color: colors.danger }]} numberOfLines={1}>
+			<Text
+				style={[
+					styles.sheetRowLabel,
+					danger && { color: colors.danger },
+					accent && { color: colors.accent },
+				]}
+				numberOfLines={1}
+			>
 				{label}
 			</Text>
-			{selected ? <Ionicons name="checkmark" size={16} color={colors.accent} /> : null}
+			{meta ? <Text style={styles.sheetRowMeta}>{meta}</Text> : null}
+			{selected ? (
+				Icon ? (
+					<Check size={16} strokeWidth={LUCIDE_STROKE} color={colors.accent} />
+				) : (
+					<Ionicons name="checkmark" size={16} color={colors.accent} />
+				)
+			) : null}
 		</Pressable>
 	);
 }
@@ -290,6 +344,8 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.md,
 		},
 		sheetRowPressed: { backgroundColor: c.surfacePressed },
+		sheetRowBusy: { opacity: 0.6 },
 		sheetRowIcon: { width: 20, alignItems: "center" },
 		sheetRowLabel: { color: c.textSecondary, fontSize: 15, flex: 1 },
+		sheetRowMeta: { ...typography.meta, color: c.textGhost },
 	});

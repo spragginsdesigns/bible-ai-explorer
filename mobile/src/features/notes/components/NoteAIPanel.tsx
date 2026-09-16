@@ -20,7 +20,10 @@ import {
 import { ErrorCard } from "@/features/chat/ErrorCard";
 import { useNoteAI, type NoteAppendEvent } from "../useNoteAI";
 import { NoteAIMessage } from "./NoteAIMessage";
-import { GlyphButton } from "./primitives";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import Trash from "lucide-react-native/icons/trash";
+import { GlyphButton, LUCIDE_STROKE } from "./primitives";
 
 const SUGGEST_VERSES_PROMPT =
 	"Suggest the most relevant KJV Bible verses for this note and explain how each relates to the content.";
@@ -88,14 +91,16 @@ export function NoteAIPanel({
 					style={styles.panel}
 				>
 					<View style={styles.header}>
-						<GlyphButton icon="chevron-down" accessibilityLabel="Close AI panel" onPress={onClose} size={32} />
+						<GlyphButton Icon={ChevronDown} accessibilityLabel="Close AI panel" onPress={onClose} size={32} />
 						<View style={styles.headerTitle}>
-							<Text style={styles.headerGlyph}>✦</Text>
+							{/* Matches the editor bar's AI button, so the panel it opens is
+							    recognisably the same thing. */}
+							<Sparkles size={14} strokeWidth={LUCIDE_STROKE} color={colors.accent} />
 							<Text style={styles.headerLabel}>AI Assistant</Text>
 						</View>
 						{messages.length > 0 ? (
 							<GlyphButton
-								icon="trash-outline"
+								Icon={Trash}
 								accessibilityLabel="Clear conversation"
 								onPress={() => void clearHistory()}
 								size={32}
@@ -251,7 +256,6 @@ const createStyles = (c: Colors) =>
 			borderBottomColor: c.border,
 		},
 		headerTitle: { flexDirection: "row", alignItems: "center", gap: 6 },
-		headerGlyph: { color: c.accent, fontSize: 13 },
 		headerLabel: { color: c.textSecondary, fontSize: 13, fontWeight: "600" },
 		headerSpacer: { width: 32 },
 

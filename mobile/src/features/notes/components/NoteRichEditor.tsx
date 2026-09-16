@@ -24,6 +24,7 @@ import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
 import { createNoteSaveController, type NoteSaveController } from "../noteSaveController";
 import { noteDocumentToMarkdown } from "../noteMarkdownExport";
+import Link from "lucide-react-native/icons/link";
 import { GlyphButton } from "./primitives";
 
 const AUTOSAVE_DELAY = 1500;
@@ -355,7 +356,7 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 				<View style={[styles.toolbarWrap, { paddingBottom: bottomInset }]}>
 					<View style={[styles.toolbarRow, toolbarHidden && styles.toolbarRowHidden]}>
 						<GlyphButton
-							icon="link-outline"
+							Icon={Link}
 							accessibilityLabel="Link to a note"
 							onPress={onRequestWikilink}
 							size={34}

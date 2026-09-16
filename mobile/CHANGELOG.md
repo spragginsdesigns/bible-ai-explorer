@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.65.0 (versionCode 68) - 2026-09-16 - internal
+
+**What's new (Play):**
+
+- Notes got a cleaner look: a calmer editor bar with just the title, the AI assistant and a menu, and new icons throughout Notes.
+- Copy as Markdown and Share as Markdown now live in the note menu, alongside Pin, Tags, Note info, Move to folder and Delete.
+
+**Dev notes:** Notes moves to Lucide icons (`lucide-react-native` + `react-native-svg`, per-icon imports) to match the web's icon family; `GlyphButton`/`SheetRow` accept a Lucide `Icon` alongside the Ionicons name. The editor's "Copy Markdown" text link and its status line are gone; `NoteActionSheet` is the one note menu for the editor and the card long-press. New native module, so this build is a fresh prebuild.
+
 ## 1.64.0 (versionCode 67) - 2026-09-16 - internal
 
 **What's new (Play):**
