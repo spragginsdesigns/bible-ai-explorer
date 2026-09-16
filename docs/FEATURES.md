@@ -1712,11 +1712,12 @@ raise it at most once per conversation.
 **Prompt** (`prayerGuidance` in `src/utils/systemPrompt.ts`, included after
 `learnGuidance`). The pastoral guardrail is the whole point:
 
-- Ask about a due request once, early, in the user's own words ("You asked me
-  to pray with you about your dad's surgery. How did it go?"), only when the
-  conversation has room for it - never as the first line of an answer to
-  something else, never twice in one conversation, never while the user is in
-  distress about something else (`pastoralCareGuidance` wins).
+- When a request is listed, raise it in that conversation: answer what they
+  asked first, then one short paragraph of its own in the user's own words
+  ("You asked me to pray with you about your dad's surgery. How did it go?").
+  A greeting or an open question is exactly the room it needs. One request
+  only, once per conversation, never as the opening line, never while the user
+  is in distress about something else (`pastoralCareGuidance` wins).
 - If the outcome is loss - a death, a diagnosis, a marriage ending - do not
   ask "how did it go"; acknowledge it, stay with them, let them lead.
 - When they say it was answered, or that they no longer want it carried, call
