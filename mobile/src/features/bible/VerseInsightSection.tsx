@@ -5,6 +5,38 @@ import { radius, spacing, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { VerseInsightStatus } from "./useVerseInsight";
 
+/**
+ * The looping 0..1 value behind every skeleton in the verse sheet. Shared so
+ * the Explain and Words tabs glow identically, and so the loop only runs while
+ * something is actually pending.
+ */
+export function useSkeletonPulse(active: boolean): Animated.Value {
+	const pulse = useRef(new Animated.Value(0)).current;
+
+	useEffect(() => {
+		if (!active) return;
+		const loop = Animated.loop(
+			Animated.sequence([
+				Animated.timing(pulse, {
+					toValue: 1,
+					duration: 1100,
+					easing: Easing.inOut(Easing.ease),
+					useNativeDriver: true,
+				}),
+				Animated.timing(pulse, {
+					toValue: 0,
+					duration: 0,
+					useNativeDriver: true,
+				}),
+			])
+		);
+		loop.start();
+		return () => loop.stop();
+	}, [active, pulse]);
+
+	return pulse;
+}
+
 /** One softly glowing skeleton line; the shared pulse gives the group a wave. */
 export function SkeletonBar({
 	width,
@@ -41,28 +73,7 @@ export function VerseInsightSection({
 	onRetry: () => void;
 }) {
 	const styles = useThemedStyles(createStyles);
-	const pulse = useRef(new Animated.Value(0)).current;
-
-	useEffect(() => {
-		if (status !== "loading") return;
-		const loop = Animated.loop(
-			Animated.sequence([
-				Animated.timing(pulse, {
-					toValue: 1,
-					duration: 1100,
-					easing: Easing.inOut(Easing.ease),
-					useNativeDriver: true,
-				}),
-				Animated.timing(pulse, {
-					toValue: 0,
-					duration: 0,
-					useNativeDriver: true,
-				}),
-			])
-		);
-		loop.start();
-		return () => loop.stop();
-	}, [status, pulse]);
+	const pulse = useSkeletonPulse(status === "loading");
 
 	if (status === "idle") return null;
 

@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.70.0 (versionCode 73) - 2026-09-17 - internal
+
+**What's new (Play):**
+
+- The Words tab on a tapped verse is a real word study now. Every Hebrew or Greek word sits next to the King James wording it became, with a plain spelling and one line on what the original carries, followed by a short study of what the original says and one line to carry with you.
+- Tap any word for more: its grammar in plain words, the Strong's definition, other verses that use the same word, and buttons to ask about it in Chat or see every verse where it appears.
+
+**Dev notes:** `POST /api/verse-words` builds the study from the bundled WLC/TR words, Strong's and the KJV, cached per verse for everyone in `VerseWordStudy` (`src/lib/verse-words.ts`, contract in `src/lib/verse-words-contract.ts`). Morphology codes decoded by `src/lib/bible/morphology.ts`; `GET /api/bible/strongs?examples=` adds occurrences. Android renders it in `mobile/src/features/bible/WordStudySection.tsx` + `useVerseWords.ts`, replacing `OriginalLanguageSection`. Web and Apple rebuilt in the same cycle (`docs/PARITY.md`).
+
 ## 1.69.0 (versionCode 72) - 2026-09-17 - internal
 
 **What's new (Play):**

@@ -383,16 +383,27 @@ struct ChapterReaderPane: View {
                     onRetry: { model.insight.retry() }
                 )
 
-                // The Hebrew or Greek behind the verse, word by word. Renders
-                // nothing at all when the route has no text for this verse, so
-                // it costs the panel no height on the half of the canon each
-                // source text does not cover.
+                // The Hebrew or Greek behind the verse, word by word beside the
+                // King James wording it became, and a short study of what the
+                // original carries.
                 if let order = model.selectedBook {
-                    OriginalLanguageView(
+                    WordStudyView(
                         api: app.api,
                         book: order,
                         chapter: model.chapter,
-                        verse: number
+                        verse: number,
+                        modelId: app.settings.chatModelId,
+                        onAsk: { prompt, attach in
+                            // `askAI` is the panel's one door into chat: it
+                            // attaches the passage, closes the panel and
+                            // switches sections. The prompt is set first so the
+                            // composer is already filled when chat appears.
+                            app.chat.input = prompt
+                            askAI(reference, text)
+                            // "Every verse" is a lexicon search, not a question
+                            // about this passage, so it travels without it.
+                            if !attach { app.chat.attachment = nil }
+                        }
                     )
                 }
 

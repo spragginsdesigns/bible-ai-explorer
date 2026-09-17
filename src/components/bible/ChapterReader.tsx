@@ -35,9 +35,9 @@ import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 import { parseCard } from "@/components/learn/learn";
 import CrossReferencesSection from "./CrossReferencesSection";
-import OriginalLanguageSection from "./OriginalLanguageSection";
 import StudyTabs, { STUDY_PANEL_ID } from "./StudyTabs";
 import VerseActionBar, { type VerseAction } from "./VerseActionBar";
+import WordStudySection from "./WordStudySection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
 
@@ -355,6 +355,23 @@ const ChapterReader: React.FC = () => {
       );
     },
     [router, closePanel, translation]
+  );
+
+  // The Words tab's two buttons open chat with a question already written.
+  // "Ask about this word" is about the verse on screen, so it pins the passage
+  // too; "Every verse" is a sweep of the whole Bible and deliberately does not.
+  const askAboutWord = useCallback(
+    (prompt: string, attach: boolean) => {
+      closePanel();
+      const query = new URLSearchParams({ prompt });
+      if (attach && selectionRef) {
+        query.set("attachRef", selectionRef);
+        query.set("attachText", selectionPlain);
+        query.set("attachTranslation", translation);
+      }
+      router.push(`/?${query.toString()}`);
+    },
+    [router, closePanel, selectionRef, selectionPlain, translation]
   );
 
   const flagCopied = useCallback(() => {
@@ -847,19 +864,23 @@ const ChapterReader: React.FC = () => {
                 ) : null}
               </div>
             ) : studyTab === "words" ? (
-              /* Hebrew or Greek behind each selected verse, word by word with
-                 Strong's. /api/bible/original is single-verse, so a range
-                 stacks one section per verse under its own caption. */
+              /* The original behind the verse, word by word beside the KJV
+                 wording, with a short study under it. Each study is a model
+                 generation, so a range studies its first verse only (as See
+                 also does) rather than firing one per selected verse. */
               <div className="pt-1">
-                {selectionVerses(selection).map((verse) => (
-                  <OriginalLanguageSection
-                    key={verse}
-                    book={order}
-                    chapter={chapter}
-                    verse={verse}
-                    caption={isRange ? `Verse ${verse}` : undefined}
-                  />
-                ))}
+                {isRange && (
+                  <p className="pb-2 text-metadata text-neutral-500 dark:text-neutral-400">
+                    For verse {selection.start}
+                  </p>
+                )}
+                <WordStudySection
+                  key={selection.start}
+                  book={order}
+                  chapter={chapter}
+                  verse={selection.start}
+                  onAsk={askAboutWord}
+                />
               </div>
             ) : (
               <div className="pt-1">

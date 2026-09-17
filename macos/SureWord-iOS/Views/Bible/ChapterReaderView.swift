@@ -106,7 +106,14 @@ struct ChapterReaderView: View {
                     onClose: { model.dismissVerseActions() },
                     onExpand: { expandWithAI(reference: reference, text: text) },
                     onCopy: { model.copy(reference: reference, text: text, translation: translation) },
-                    onSave: { model.saveToNote(reference: reference, text: text, translation: translation) }
+                    onSave: { model.saveToNote(reference: reference, text: text, translation: translation) },
+                    onAsk: { prompt, attach in
+                        askWithPrompt(
+                            prompt,
+                            reference: attach ? reference : nil,
+                            text: attach ? text : nil
+                        )
+                    }
                 )
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -429,6 +436,25 @@ struct ChapterReaderView: View {
             text: text,
             translation: translation
         )
+        model.dismissVerseActions()
+        NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
+    }
+
+    /// The same hop to Chat, with the composer already filled in. Used by the
+    /// Words tab, whose two actions are written-out questions rather than a
+    /// bare passage. A nil reference means the question is not about this
+    /// verse (a lexicon search), so nothing is attached.
+    private func askWithPrompt(_ prompt: String, reference: String?, text: String?) {
+        app.chat.input = prompt
+        if let reference, let text {
+            app.chat.attachment = model.attachment(
+                reference: reference,
+                text: text,
+                translation: translation
+            )
+        } else {
+            app.chat.attachment = nil
+        }
         model.dismissVerseActions()
         NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
     }

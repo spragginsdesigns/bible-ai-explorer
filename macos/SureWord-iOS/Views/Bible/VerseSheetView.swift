@@ -18,6 +18,9 @@ struct VerseSheetView: View {
     let onExpand: () -> Void
     let onCopy: () -> Void
     let onSave: () -> Void
+    /// Hands a written-out prompt to chat from the Words tab. `attach` is true
+    /// when the verse should ride with it.
+    let onAsk: (_ prompt: String, _ attach: Bool) -> Void
 
     private var translation: TranslationID { app.settings.translation }
 
@@ -46,16 +49,17 @@ struct VerseSheetView: View {
                     onRetry: { insight.retry() }
                 )
 
-                // The Hebrew or Greek behind the verse, word by word. Renders
-                // nothing at all when the route has no text for this verse, so
-                // it costs the sheet no height on the half of the canon each
-                // source text does not cover.
+                // The Hebrew or Greek behind the verse, word by word beside the
+                // King James wording it became, and a short study of what the
+                // original carries.
                 if let order = app.bible.selectedBook {
-                    OriginalLanguageView(
+                    WordStudyView(
                         api: app.api,
                         book: order,
                         chapter: app.bible.chapter,
-                        verse: verse
+                        verse: verse,
+                        modelId: app.settings.chatModelId,
+                        onAsk: onAsk
                     )
                 }
 

@@ -275,42 +275,77 @@ view keeps re-proposing its width.
   what Expand with AI is for. This endpoint's contract is "fast, cheap,
   stateless".
 
-### Original language (shipped 2026-09-02, Android 1.44.0 + web)
+### Words: the original-language study (rebuilt 2026-09-17; first shipped 2026-09-02)
 
-Under the explanation, the verse sheet shows the words behind the verse in
-their original script: Westminster Leningrad Codex Hebrew for the Old
-Testament, Scrivener 1894 Textus Receptus Greek for the New. Each word is a
-chip; tapping one opens a card with the lemma, transliteration, Strong's
-number and morphology code, the KJV gloss, and the Strong's definition.
+The Words tab of the verse sheet used to be a row of raw Hebrew or Greek
+chips over a Strong's dump ("[idiom] all along... HNcmsc"). Nobody could
+tell which chip was "handful", so nothing could be learned from it. It is
+now a word study, written by the model from the verse's own data and
+cached once per verse for everyone:
 
-- **Data stays on the server.** `src/data/originals/` is 18 MB, four times the
-  KJV the Android app bundles, so two public routes serve it:
-  `GET /api/bible/original?book=<1-66>&chapter=&verse=` (the verse, word by
-  word, from `getOriginalVerse` in `src/lib/bible/originals.ts`) and
-  `GET /api/bible/strongs?number=H430` (`lookupStrongsEntry`). Both validate
-  input (400), answer 404 for a verse the original versification does not
-  carry, and send `Cache-Control: public, max-age=86400, s-maxage=604800`.
-  They are public-domain text with no user state, so `src/middleware.ts`
-  exempts them from Clerk and the CDN can cache them.
-- **Hebrew reads right to left.** The chip row flips direction for Hebrew
-  (`dir="rtl"` on web, `row-reverse` on Android, `layoutDirection` on Apple)
-  and cantillation marks (U+0591 to U+05AF) are stripped for display while
-  vowel points are kept; the pure helpers live in
-  `src/lib/bible/original-text.ts` and `mobile/src/features/bible/originalText.ts`.
-- **System fonts, on purpose.** Atkinson Hyperlegible carries no Hebrew or
-  Greek glyphs, so the original script is rendered with the platform's own
-  fallback (Noto Sans Hebrew and Roboto on Android, system-ui on web) instead
-  of the app font. Android uses React Native's bare `Text` for those glyphs,
-  not `AppText`, which would force the app face.
-- **Quiet failure.** A 404 or any transport error simply removes the section;
-  the sheet is complete without it. 404s are cached per session, transport
-  failures are not, so a reconnect still works. Strong's entries are cached
-  for the sheet's lifetime because the lexicon never changes.
+- **Word by word.** One row per original word or bound phrase, in text
+  order: the KJV wording it became (in the verse face), a plain reader's
+  transliteration ("mimmelo chophnayim", "ure'ut ruach", "egapesen"), the
+  original script on the right (Hebrew right to left, cantillation
+  stripped, vowel points kept), and one line on what the original carries.
+- **What the original says.** One or two short paragraphs on the picture
+  the Hebrew or Greek paints, the two or three words that carry the verse,
+  and how the KJV rendered them faithfully, then a single "Carry this" line.
+  The original explains the KJV; the prompt forbids using it to correct,
+  weaken or replace the text, in line with the mission.
+- **Tap a row for the lexicon.** The row expands in place: lemma and
+  transliteration, the Strong's number with the morphology decoded into
+  plain words ("noun, feminine singular, absolute form", feature chips) by
+  `src/lib/bible/morphology.ts` (OSHB Hebrew/Aramaic codes and Robinson
+  Greek codes, pinned by `tests/morphology.test.mjs`), the Strong's
+  definition, up to three other KJV verses that use the same word, and two
+  ways deeper: "Ask about this word" opens chat with the verse attached and
+  a question about that word prefilled, and "Every verse · N" opens chat
+  with a prefilled request that fires the `searchOriginalLanguage` tool.
 
-Files: `src/components/bible/OriginalLanguageSection.tsx` +
-`useOriginalVerse.ts` (web), `mobile/src/features/bible/OriginalLanguageSection.tsx`
-+ `useOriginalVerse.ts` (Android), `macos/Shared/Bible/OriginalLanguageView.swift`
-+ `OriginalLanguage.swift` (macOS and iOS, shared).
+**Route.** `POST /api/verse-words` `{ book, chapter, verse, modelId? }`
+(Clerk-authenticated, metered like tap-a-verse under the `verse-words`
+surface) answers the `VerseWordStudy` JSON pinned in
+`src/lib/verse-words-contract.ts`: the deterministic `words[]` (display
+text, Strong's, morph, lemma, transliteration, cleaned gloss, decoded
+grammar) plus the model's `rows[]`, `study[]` and `carry`. The generator
+(`src/lib/verse-words.ts`) hands the model the KJV text and every word's
+entry, definition, grammar and how many verses of the book and of the
+whole text carry it (one grouped query over the `OriginalVerse` index), as
+the only permitted source, and asks for a structured object
+(`Output.object`, effort pinned low, the user's chat model pick applies).
+Rows come back as index sets; `repairRows` (`src/lib/verse-words-rows.ts`,
+`tests/verse-words-rows.test.mjs`) rebuilds a valid partition if the model
+skipped or doubled a word, and the KJV wording loses the verse's own
+trailing punctuation. Every text field is run through `stripDashes`.
+Studies are cached in `VerseWordStudy` keyed on the verse and
+`VERSE_WORDS_PROMPT_VERSION` (migration `20260917120000_verse_word_study_cache`,
+applied to production 2026-09-17); a hit answers with
+`X-Verse-Words-Cache: hit`. 404 when the original texts do not carry the
+verse, 403 for a credential problem, 502 `unavailable` when the model
+returns nothing. Measured on the house model: about 7 s for a 9-word Hebrew
+verse and 12 s for the 26 words of John 3:16, once per verse ever.
+
+**Strong's route.** `GET /api/bible/strongs?number=H5183` now returns the
+KJV rendering list with Strong's "[idiom]" markers removed (`cleanGloss` in
+`src/lib/bible/original-text.ts`), and with `&examples=<1-5>&exclude=<book>:<chapter>:<verse>`
+adds `occurrences: { total, examples: [{ reference, text }] }` from the
+`OriginalVerse` index, skipping the reader's own verse and rows without a
+KJV alignment. Both public routes are still exempt from Clerk in
+`src/middleware.ts` and cached a day at the edge; `GET /api/bible/original`
+is unchanged and still serves the chat tool.
+
+**Data stays on the server.** `src/data/originals/` is 18 MB, four times the
+KJV the Android app bundles; the study route sends display-ready text so no
+client strips cantillation any more (`originalText.ts` keeps
+`isRightToLeft`). System fonts render both scripts: Atkinson Hyperlegible
+carries no Hebrew or Greek glyphs, so Android uses React Native's bare
+`Text` for the script and web uses `system-ui`.
+
+Files: `src/components/bible/WordStudySection.tsx` + `useVerseWords.ts`
+(web), `mobile/src/features/bible/WordStudySection.tsx` + `useVerseWords.ts`
+(Android), `macos/Shared/Bible/WordStudyView.swift` + `VerseWords.swift`
+(macOS and iOS, shared).
 
 ---
 

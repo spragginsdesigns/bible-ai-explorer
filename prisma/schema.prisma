@@ -590,6 +590,26 @@ model VerseInsight {
   @@unique([translation, reference, textHash, promptVersion])
 }
 
+/// Tap-a-verse word study cache, shared across every account like
+/// VerseInsight. The study is generated from the verse's own Hebrew or Greek
+/// words and Strong's entries plus the KJV text, nothing user-specific, so one
+/// study serves every reader. `data` is the JSON body the /api/verse-words
+/// route serves (rows, study paragraphs, carry line). The KJV and the
+/// original texts ship with the deploy, so the key is the verse plus the
+/// prompt version; bump `promptVersion` with the prompt wording.
+model VerseWordStudy {
+  id            String   @id @default(cuid())
+  book          Int
+  chapter       Int
+  verse         Int
+  promptVersion Int
+  data          String   @db.Text
+  model         String?
+  createdAt     DateTime @default(now())
+
+  @@unique([book, chapter, verse, promptVersion])
+}
+
 /// A day's personalized welcome-screen questions, generated once (by the
 /// morning cron or the first app open of the day) and served from here so
 /// opening the app never waits on a model call. Newest row inside the reuse

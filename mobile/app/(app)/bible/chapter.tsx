@@ -44,7 +44,7 @@ import { readerVerseSegments, readerSectionHeadings } from "@/features/bible/red
 import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
-import { OriginalLanguageSection } from "@/features/bible/OriginalLanguageSection";
+import { WordStudySection } from "@/features/bible/WordStudySection";
 import {
 	CrossReferencesSection,
 	type CrossReferenceTarget,
@@ -512,6 +512,29 @@ export default function BibleChapterScreen() {
 			});
 		},
 		[router, closeSheet, translation],
+	);
+
+	// The Words tab's two buttons: both prefill the composer, but only a
+	// question about this verse pins the passage. A search across the whole
+	// Bible would be narrowed by an attachment, so it goes without one.
+	const askAboutWord = useCallback(
+		(prompt: string, attach: boolean) => {
+			closeSheet();
+			router.push({
+				pathname: "/",
+				params: {
+					prompt,
+					...(attach
+						? {
+								attachRef: selectionRef,
+								attachText: selectionPlain,
+								attachTranslation: translation,
+							}
+						: {}),
+				},
+			});
+		},
+		[router, closeSheet, selectionRef, selectionPlain, translation],
 	);
 
 	useEffect(
@@ -1046,16 +1069,22 @@ export default function BibleChapterScreen() {
 									onRetry={retryInsight}
 								/>
 							) : studyTab === "words" ? (
-								selectionVerses(activeSelection).map((verse) => (
-									<OriginalLanguageSection
-										key={verse}
+								// Each study is a model generation, so a range studies its
+								// first verse only (as See also does) rather than firing one
+								// per selected verse.
+								<>
+									{selectedCount > 1 ? (
+										<Text style={styles.studyNote}>For verse {activeSelection.start}</Text>
+									) : null}
+									<WordStudySection
+										key={activeSelection.start}
 										getToken={getToken}
 										book={order}
 										chapter={chapter}
-										verse={sheetOpen ? verse : null}
-										caption={selectedCount > 1 ? `VERSE ${verse}` : undefined}
+										verse={sheetOpen ? activeSelection.start : null}
+										onAsk={askAboutWord}
 									/>
-								))
+								</>
 							) : (
 								<>
 									{selectedCount > 1 ? (

@@ -60,9 +60,39 @@ const originalRoute = loadRoute("../src/app/api/bible/original/route.ts", {
 	bookByOrder,
 	getOriginalVerse,
 });
+import { cleanGloss } from "../src/lib/bible/original-text.ts";
+
+// The occurrence lookup rides the OriginalVerse index in Neon; the fake below
+// stands in for it so the route's shaping and its exclude rule can be asserted.
+const fakeIndexRows = [
+	{ kjvBook: 21, kjvChapter: 4, kjvVerse: 6 },
+	{ kjvBook: 23, kjvChapter: 30, kjvVerse: 15 },
+	{ kjvBook: 21, kjvChapter: 9, kjvVerse: 17 },
+	{ kjvBook: 20, kjvChapter: 29, kjvVerse: 9 },
+	{ kjvBook: 19, kjvChapter: 1, kjvVerse: null },
+];
+const searchOriginalVerses = async ({ strongs, limit }) => ({
+	rows: fakeIndexRows.slice(0, limit),
+	total: strongs[0] === "H5183" ? 7 : 0,
+});
+const getKjvChapter = async (book, chapter) => {
+	const verses = [];
+	verses[14] = "In returning and rest shall ye be saved";
+	verses[16] = "The words of wise men are heard in quiet";
+	verses[8] = "there is no rest";
+	verses[5] = "Better is an handful with quietness";
+	return verses;
+};
+const bibleVersePlainText = (markup) => markup;
+
 const strongsRoute = loadRoute("../src/app/api/bible/strongs/route.ts", {
 	NextResponse,
+	bookByOrder,
+	getKjvChapter,
+	searchOriginalVerses,
 	lookupStrongsEntry,
+	cleanGloss,
+	bibleVersePlainText,
 });
 
 const CACHE_CONTROL =
@@ -161,6 +191,33 @@ test("malformed Strong's numbers are rejected with 400", async () => {
 		const response = await callStrongs(query);
 		assert.equal(response.status, 400, `${query} must be rejected`);
 		assert.deepEqual(await response.json(), { error: "invalid_number" });
+	}
+});
+
+test("Strong's glosses lose their [idiom] markers", async () => {
+	const body = await (await callStrongs("?number=H4393")).json();
+	assert.doesNotMatch(body.kjv, /\[idiom\]/);
+	assert.match(body.kjv, /^all along, all that is/);
+});
+
+test("examples= adds occurrences, skipping the excluded verse and unaligned rows", async () => {
+	const response = await callStrongs("?number=H5183&examples=3&exclude=21:4:6");
+	assert.equal(response.status, 200);
+	const body = await response.json();
+	assert.equal(body.occurrences.total, 7);
+	assert.deepEqual(
+		body.occurrences.examples.map((example) => example.reference),
+		["Isaiah 30:15", "Ecclesiastes 9:17", "Proverbs 29:9"]
+	);
+	assert.equal(body.occurrences.examples[0].text, "In returning and rest shall ye be saved");
+
+	const plain = await (await callStrongs("?number=H5183")).json();
+	assert.equal(plain.occurrences, undefined);
+});
+
+test("a bad examples= count is rejected", async () => {
+	for (const query of ["?number=H5183&examples=0", "?number=H5183&examples=9", "?number=H5183&examples=two"]) {
+		assert.equal((await callStrongs(query)).status, 400, `${query} must be rejected`);
 	}
 });
 

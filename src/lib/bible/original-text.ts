@@ -20,3 +20,17 @@ export function stripCantillation(text: string): string {
 export function isRightToLeft(language: string): boolean {
 	return language === "Hebrew";
 }
+
+/**
+ * Strong's marks idiomatic renderings with "[idiom]" in this edition of the
+ * dictionary (the printed one uses a dagger). The marker means nothing to a
+ * reader and reads as broken data, so it is dropped from every gloss shown.
+ */
+export function cleanGloss(gloss: string): string {
+	return gloss
+		.replace(/\[idiom\]\s*/g, "")
+		.replace(/\(\s*\)/g, "")
+		.replace(/\s{2,}/g, " ")
+		.replace(/\s+,/g, ",")
+		.trim();
+}
