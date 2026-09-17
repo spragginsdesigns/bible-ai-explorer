@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.70.1 (versionCode 74) - 2026-09-17 - internal
+
+**What's new (Play):**
+
+- The Bible tab's header is tidy again. The lone clock icon that sat under the "Bible" title is now a labeled Reading log button beside the title, so it is clear what it opens.
+
+**Dev notes:** The reading-log `Pressable` in `mobile/app/(app)/bible/index.tsx` was a bare icon stacked in the column header; it now shares a `titleRow` with the heading as an `accentSoft` pill with a label. Android-only layout fix; web and Apple Bible headers were never affected (`docs/PARITY.md`).
+
 ## 1.70.0 (versionCode 73) - 2026-09-17 - internal
 
 **What's new (Play):**

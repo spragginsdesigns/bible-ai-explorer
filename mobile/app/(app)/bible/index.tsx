@@ -203,8 +203,19 @@ export default function BibleBooksScreen() {
 	return (
 		<Screen>
 			<View style={styles.header}>
-				<Text style={styles.heading}>Bible</Text>
-				<Pressable accessibilityRole="button" accessibilityLabel="Reading log" onPress={() => router.push("/bible/history")} hitSlop={8}><Ionicons name="time-outline" size={22} color={colors.accent} /></Pressable>
+				<View style={styles.titleRow}>
+					<Text style={styles.heading}>Bible</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Reading log"
+						onPress={() => router.push("/bible/history")}
+						hitSlop={8}
+						style={({ pressed }) => [styles.logPill, pressed && styles.bookRowPressed]}
+					>
+						<Ionicons name="time-outline" size={16} color={colors.accent} />
+						<Text style={styles.logText}>Reading log</Text>
+					</Pressable>
+				</View>
 				<Pressable
 					accessibilityRole="button"
 					onPress={openSearch}
@@ -348,7 +359,20 @@ const createStyles = (c: Colors) =>
 			borderBottomWidth: StyleSheet.hairlineWidth,
 			borderBottomColor: c.border,
 		},
+		// Title and the reading-log pill share one row; the pill used to render
+		// as a bare clock icon wrapped underneath the title.
+		titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
 		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
+		logPill: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 6,
+			backgroundColor: c.accentSoft,
+			borderRadius: radius.full,
+			paddingHorizontal: spacing.md,
+			paddingVertical: 6,
+		},
+		logText: { color: c.accent, fontFamily: fonts.bodyBold, ...typography.meta },
 		searchPill: {
 			flexDirection: "row",
 			alignItems: "center",
