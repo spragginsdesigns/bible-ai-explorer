@@ -164,14 +164,15 @@ struct ChatView: View {
                                     markdown: answer.content
                                 )
                             },
-                            onFeedback: { answer, feedback, reason in
+                            onFeedback: { answer, feedback, details in
                                 Task {
                                     // The thumb has already moved; only a failed
                                     // write has anything to say.
                                     if let failure = await chat.setFeedback(
                                         messageID: answer.id,
                                         feedback: feedback,
-                                        reason: reason
+                                        reason: details?.reason,
+                                        tags: details?.tags ?? []
                                     ) {
                                         show(toast: failure)
                                     }

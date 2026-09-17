@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.68.0 (versionCode 71) - 2026-09-17 - internal
+
+**What's new (Play):**
+
+- Copy any answer with one tap. The row under each answer is now a tidy set of icons: Copy, Add to notes, Helpful, Not helpful, Share.
+- When an answer misses the mark, tell us why in a tap: pick from Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, or Too long, and add a note if you like.
+
+**Dev notes:** `copyableAnswerText` in `mobile/src/lib/assistantMarkdown.ts` strips the follow-up marker lines before the clipboard write. The reason chips are `FEEDBACK_TAGS` (mirrored from `src/lib/chat/answer-feedback.ts`, pinned by `tests/answer-feedback.test.mjs`) and travel as `feedbackTags` on the existing feedback PATCH; the `Message.feedbackTags` column landed in production on 2026-09-17 (`20260917000000_answer_feedback_tags`). `scripts/sql/product-metrics.sql` §8b counts thumbs-down per chip.
+
 ## 1.67.0 (versionCode 70) - 2026-09-16 - internal
 
 **What's new (Play):**

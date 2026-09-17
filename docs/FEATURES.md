@@ -1842,39 +1842,62 @@ same reason), and it becomes an eval fixture only through a reviewed script.
 
 **Columns** on `Message` (migration `20260916010000_answer_feedback`, all
 nullable, assistant rows only): `feedback` (`"up" | "down"`), `feedbackReason`
-(`Text`, ≤ 500 chars, optional, only meaningful with `"down"`), `feedbackAt`.
-Not in `metadata`: the ask-question persist upserts and replaces `metadata`
-wholesale on a retry, which would silently erase a rating.
+(`Text`, ≤ 500 chars, optional, only meaningful with `"down"`), `feedbackAt`;
+plus `feedbackTags` (`String[]`, default empty, migration
+`20260917000000_answer_feedback_tags`, applied to production 2026-09-17): the
+reason chips a thumbs down was tagged with. Not in `metadata`: the
+ask-question persist upserts and replaces `metadata` wholesale on a retry,
+which would silently erase a rating.
+
+**The chips.** `FEEDBACK_TAGS` in `src/lib/chat/answer-feedback.ts` is the
+source of truth, five ids with the labels every client shows, in this order:
+`not-kjv` "Not KJV", `doctrine` "Doctrinally off", `missed-question` "Missed
+my question", `wrong-verse` "Wrong or missing verse", `too-long` "Too long".
+Each client keeps a mirror (`mobile/src/lib/answerFeedback.ts`,
+`macos/Shared/Chat/AnswerFeedback.swift`) and `tests/answer-feedback.test.mjs`
+fails if a mirror drifts from the list, id or label. Five and not a taxonomy:
+each names a failure the reviewer can act on when the answer becomes a
+fixture. A chip is never free text and the user never sees a count.
 
 **Route.** `PATCH /api/conversations/[id]/messages/[messageId]` (already
 owner-checked) accepts `{ feedback: "up" | "down" | null, feedbackReason?:
-string }`. `null` clears all three. A reason without `"down"` is ignored; a
-reason over 500 chars is 400. Only an assistant message may be rated (400
-otherwise). The response is the updated `{ id, feedback, feedbackReason,
-feedbackAt }`. History loads through `GET /api/conversations/[id]`, which
-spreads whole `Message` rows (pinned by a test that fails if a `select` ever
-narrows it), so every client replays the chosen thumb. The assistant persist
-also stores `metadata.translation` so a rated answer replays against the same
-Bible.
+string, feedbackTags?: string[] }`. `null` clears all four. A reason or chips
+without `"down"` are ignored; a reason over 500 chars, an unknown chip id or a
+non-array `feedbackTags` is 400 (an unknown id is a client bug, not a value to
+drop). Chips keep tap order and lose duplicates. Only an assistant message may
+be rated (400 otherwise). The response is the updated `{ id, feedback,
+feedbackReason, feedbackTags, feedbackAt }`. History loads through
+`GET /api/conversations/[id]`, which spreads whole `Message` rows (pinned by a
+test that fails if a `select` ever narrows it), so every client replays the
+chosen thumb. The assistant persist also stores `metadata.translation` so a
+rated answer replays against the same Bible.
 
-**Clients.** On a settled assistant answer, beside "Add to notes": two quiet
-glyph buttons, thumbs up and thumbs down, with the chosen one filled. Tapping
-the chosen one again clears. Thumbs down opens a small optional "What went
-wrong?" field (one line, 500 chars, Skip / Send). Optimistic, revert on
-failure with the client's existing error pattern. Web: `ChatMessage.tsx`.
-Android: `MessageBubble.tsx`. Apple: the macOS bubble's action row and the
-iOS `.contextMenu` ("Helpful" / "Not helpful"). No counts anywhere; the user
-only ever sees their own thumb.
+**Clients.** Under a settled assistant answer, one quiet row of icon-only
+glyphs in this order: Copy, Add to notes, thumbs up, thumbs down, Share (the
+ChatGPT row, minus read-aloud). Copy needs no server, so it is the one action
+that also shows on the note panel's answers; it writes the answer with its
+follow-up marker lines stripped (`copyableAnswerText`, mirrored per client)
+and flips to a checkmark for 1.5 s. The chosen thumb is filled; tapping it
+again clears. Thumbs down records the judgment at once, then opens the reason
+panel: the five chips (multi-select), an optional "Anything else?" line
+(500 chars), Skip / Send, with Send enabled once a chip or the line has
+something. Send re-patches `"down"` with `feedbackTags` and `feedbackReason`.
+Optimistic, revert on failure with the client's existing error pattern. Web:
+`ChatMessage.tsx`. Android: `MessageBubble.tsx` + `FeedbackSheet.tsx`. Apple:
+the macOS bubble's action row with a popover, the iOS row plus the
+`.contextMenu` ("Helpful" / "Not helpful") with a sheet. No counts anywhere;
+the user only ever sees their own thumb.
 
 **Into the harness.** `scripts/feedback-to-fixtures.mjs` (run by hand, never
 in CI) reads assistant messages with `feedback = "down"` since a date, prints
 each as a candidate fixture in the `scripts/fixtures/answer-evals.json` shape
 (`id`, `category: "feedback"`, the user's prompt as `prompt`, `translation`,
-an empty `expectation` to fill in, and the `feedbackReason` as a `note`), and
-never writes the fixture file itself: a person reads the answer against
-`DOCTRINE_REVIEW_DIMENSIONS` and decides what the expectation is. Ratings are
-also exposed read-only in `scripts/sql/product-metrics.sql` (up/down counts by
-week) so the audit can watch them.
+an empty `expectation` to fill in, the chips as `tags`, and the
+`feedbackReason` as a `note`), and never writes the fixture file itself: a
+person reads the answer against `DOCTRINE_REVIEW_DIMENSIONS` and decides what
+the expectation is. Ratings are also exposed read-only in
+`scripts/sql/product-metrics.sql` (§8 up/down counts by week, §8b thumbs-down
+counts per chip) so the audit can watch them.
 
 ### Share an answer: a public page, and a card image
 

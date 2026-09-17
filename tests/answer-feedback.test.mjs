@@ -25,12 +25,16 @@ function loadModule(relativePath, exportNames, injected = {}) {
 	return factory(...names.map((name) => injected[name]));
 }
 
-const { parseFeedbackPatch, answerFeedbackResponse, MAX_FEEDBACK_REASON_LENGTH } = loadModule(
-	"../src/lib/chat/answer-feedback.ts",
-	["parseFeedbackPatch", "answerFeedbackResponse", "MAX_FEEDBACK_REASON_LENGTH"]
-);
+const { parseFeedbackPatch, answerFeedbackResponse, MAX_FEEDBACK_REASON_LENGTH, FEEDBACK_TAGS } =
+	loadModule("../src/lib/chat/answer-feedback.ts", [
+		"parseFeedbackPatch",
+		"answerFeedbackResponse",
+		"MAX_FEEDBACK_REASON_LENGTH",
+		"FEEDBACK_TAGS",
+	]);
 
 const NOW = new Date("2026-09-15T17:30:00.000Z");
+const CLEARED = { feedback: null, feedbackReason: null, feedbackTags: [], feedbackAt: null };
 
 // -- the rules ---------------------------------------------------------------
 
@@ -44,11 +48,12 @@ test("a thumb stamps all three columns and only down keeps a reason", () => {
 	assert.deepEqual(parseFeedbackPatch({ feedback: "up" }, NOW).data, {
 		feedback: "up",
 		feedbackReason: null,
+		feedbackTags: [],
 		feedbackAt: NOW,
 	});
 	assert.deepEqual(
 		parseFeedbackPatch({ feedback: "down", feedbackReason: "  Misquoted the verse.  " }, NOW).data,
-		{ feedback: "down", feedbackReason: "Misquoted the verse.", feedbackAt: NOW }
+		{ feedback: "down", feedbackReason: "Misquoted the verse.", feedbackTags: [], feedbackAt: NOW }
 	);
 	// A reason is meaningless beside a thumbs up, so it is dropped, not a 400.
 	assert.equal(
@@ -62,12 +67,57 @@ test("a thumb stamps all three columns and only down keeps a reason", () => {
 	);
 });
 
-test("null clears the thumb, the reason and the stamp together", () => {
-	assert.deepEqual(parseFeedbackPatch({ feedback: null, feedbackReason: "stale" }, NOW).data, {
-		feedback: null,
-		feedbackReason: null,
-		feedbackAt: null,
-	});
+test("null clears the thumb, the reason, the tags and the stamp together", () => {
+	assert.deepEqual(
+		parseFeedbackPatch({ feedback: null, feedbackReason: "stale", feedbackTags: ["too-long"] }, NOW)
+			.data,
+		CLEARED
+	);
+});
+
+test("reason chips ride only with a thumbs down, in tap order, without repeats", () => {
+	assert.deepEqual(
+		parseFeedbackPatch(
+			{ feedback: "down", feedbackTags: ["too-long", "not-kjv", "too-long"], feedbackReason: "" },
+			NOW
+		).data,
+		{ feedback: "down", feedbackReason: null, feedbackTags: ["too-long", "not-kjv"], feedbackAt: NOW }
+	);
+	// Chips beside a thumbs up are as meaningless as a reason there: dropped, not a 400.
+	assert.deepEqual(parseFeedbackPatch({ feedback: "up", feedbackTags: ["doctrine"] }, NOW).data.feedbackTags, []);
+	// An explicit null or a missing field both mean "no chips".
+	assert.deepEqual(parseFeedbackPatch({ feedback: "down", feedbackTags: null }, NOW).data.feedbackTags, []);
+	assert.deepEqual(parseFeedbackPatch({ feedback: "down" }, NOW).data.feedbackTags, []);
+});
+
+test("an unknown chip or a non-array is a 400 whatever the thumb is", () => {
+	for (const feedback of ["down", "up", null]) {
+		for (const feedbackTags of [["helpful"], ["not-kjv", "NOT-KJV"], "too-long", { id: "too-long" }, [1]]) {
+			const parsed = parseFeedbackPatch({ feedback, feedbackTags }, NOW);
+			assert.equal(parsed.ok, false, `accepted ${JSON.stringify(feedbackTags)} with ${feedback}`);
+			assert.match(parsed.error, /feedback tag|feedbackTags must be/);
+		}
+	}
+});
+
+test("the chip list is five distinct ids with user-facing labels, mirrored on every client", () => {
+	assert.equal(FEEDBACK_TAGS.length, 5);
+	const ids = FEEDBACK_TAGS.map((tag) => tag.id);
+	assert.equal(new Set(ids).size, ids.length);
+	for (const tag of FEEDBACK_TAGS) {
+		assert.match(tag.id, /^[a-z-]+$/);
+		assert.ok(tag.label.length > 0 && tag.label.length <= 24, `label too long: ${tag.label}`);
+	}
+	// Each client keeps its own copy of the list (no shared package across the
+	// three trees), so the copies are pinned to this one, id and label alike.
+	const mirrors = ["../mobile/src/lib/answerFeedback.ts", "../macos/Shared/Chat/AnswerFeedback.swift"];
+	for (const mirror of mirrors) {
+		const source = read(mirror);
+		for (const tag of FEEDBACK_TAGS) {
+			assert.ok(source.includes(`"${tag.id}"`), `${mirror} lacks tag id ${tag.id}`);
+			assert.ok(source.includes(`"${tag.label}"`), `${mirror} lacks tag label ${tag.label}`);
+		}
+	}
 });
 
 test("only the three documented values are accepted", () => {
@@ -109,12 +159,18 @@ test("the stamp is a copy, so a later mutation of `now` cannot move it", () => {
 
 test("the response serializes feedbackAt as ISO or null and never leaks a stray value", () => {
 	assert.deepEqual(
-		answerFeedbackResponse({ id: "m1", feedback: "down", feedbackReason: "why", feedbackAt: NOW }),
-		{ id: "m1", feedback: "down", feedbackReason: "why", feedbackAt: NOW.toISOString() }
+		answerFeedbackResponse({
+			id: "m1",
+			feedback: "down",
+			feedbackReason: "why",
+			feedbackTags: ["not-kjv", "sideways"],
+			feedbackAt: NOW,
+		}),
+		{ id: "m1", feedback: "down", feedbackReason: "why", feedbackTags: ["not-kjv"], feedbackAt: NOW.toISOString() }
 	);
 	assert.deepEqual(
 		answerFeedbackResponse({ id: "m2", feedback: null, feedbackReason: null, feedbackAt: null }),
-		{ id: "m2", feedback: null, feedbackReason: null, feedbackAt: null }
+		{ id: "m2", ...CLEARED }
 	);
 	// A value written by some future build degrades to null rather than escaping.
 	assert.equal(
@@ -162,6 +218,7 @@ function patchRoute({ owned = true, role = "assistant", exists = true, auth } = 
 					metadata: args.data.metadata ?? null,
 					feedback: "feedback" in args.data ? args.data.feedback : null,
 					feedbackReason: "feedbackReason" in args.data ? args.data.feedbackReason : null,
+					feedbackTags: "feedbackTags" in args.data ? args.data.feedbackTags : [],
 					feedbackAt: "feedbackAt" in args.data ? args.data.feedbackAt : null,
 				};
 			},
@@ -189,31 +246,32 @@ const dataOf = (calls) => calls.find(([name]) => name === "message.update")[1].d
 
 test("a thumb writes all three columns and answers with just the feedback fields", async () => {
 	const route = patchRoute();
-	const response = await route.send({ feedback: "down", feedbackReason: " wrong verse " });
+	const response = await route.send({
+		feedback: "down",
+		feedbackReason: " wrong verse ",
+		feedbackTags: ["wrong-verse"],
+	});
 	assert.equal(response.status, 200);
 	assert.deepEqual(response.body, {
 		id: "msg-1",
 		feedback: "down",
 		feedbackReason: "wrong verse",
+		feedbackTags: ["wrong-verse"],
 		feedbackAt: NOW.toISOString(),
 	});
 	assert.deepEqual(dataOf(route.calls), {
 		feedback: "down",
 		feedbackReason: "wrong verse",
+		feedbackTags: ["wrong-verse"],
 		feedbackAt: NOW,
 	});
 });
 
-test("clearing writes three nulls rather than leaving a dangling reason", async () => {
+test("clearing writes the empty state rather than leaving a dangling reason or chip", async () => {
 	const route = patchRoute();
 	const response = await route.send({ feedback: null });
-	assert.deepEqual(dataOf(route.calls), { feedback: null, feedbackReason: null, feedbackAt: null });
-	assert.deepEqual(response.body, {
-		id: "msg-1",
-		feedback: null,
-		feedbackReason: null,
-		feedbackAt: null,
-	});
+	assert.deepEqual(dataOf(route.calls), CLEARED);
+	assert.deepEqual(response.body, { id: "msg-1", ...CLEARED });
 });
 
 test("only an assistant message can be rated, and the refusal writes nothing", async () => {
@@ -225,7 +283,11 @@ test("only an assistant message can be rated, and the refusal writes nothing", a
 });
 
 test("a bad thumb or an oversized reason is a 400 that never reaches the row", async () => {
-	for (const body of [{ feedback: "sideways" }, { feedback: "down", feedbackReason: "x".repeat(501) }]) {
+	for (const body of [
+		{ feedback: "sideways" },
+		{ feedback: "down", feedbackReason: "x".repeat(501) },
+		{ feedback: "down", feedbackTags: ["helpful"] },
+	]) {
 		const route = patchRoute();
 		const response = await route.send(body);
 		assert.equal(response.status, 400, JSON.stringify(body));
@@ -307,11 +369,11 @@ test("the conversation GET returns whole Message rows, so the thumb replays", ()
 	assert.match(get, /\.\.\.message\b/);
 });
 
-test("the three feedback columns exist on Message and are indexed for the harness", () => {
+test("the four feedback columns exist on Message and are indexed for the harness", () => {
 	const schema = read("../prisma/schema.prisma");
 	const model = schema.slice(schema.indexOf("model Message {"));
 	const body = model.slice(0, model.indexOf("\n}"));
-	for (const column of ["feedback", "feedbackReason", "feedbackAt"]) {
+	for (const column of ["feedback", "feedbackReason", "feedbackTags", "feedbackAt"]) {
 		assert.match(body, new RegExp(`^\\s+${column}\\s`, "m"), `Message has no ${column}`);
 	}
 	// scripts/feedback-to-fixtures.mjs scans by feedback and date.

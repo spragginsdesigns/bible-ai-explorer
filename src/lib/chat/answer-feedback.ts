@@ -14,10 +14,33 @@
 /** The two thumbs. `null` on the wire means "clear my rating". */
 export type AnswerFeedback = "up" | "down";
 
-/** Exactly the three Message columns this patch writes, always all three. */
+/**
+ * The reason chips under a thumbs down. The id is what goes on the wire and
+ * into `Message.feedbackTags`; the label is what every client shows, in this
+ * order. Adding a chip means adding it here and in each client's mirror
+ * (`mobile/src/lib/answerFeedback.ts`, `macos/Shared/Chat/AnswerFeedback.swift`);
+ * `tests/answer-feedback.test.mjs` pins the mirrors to this list.
+ *
+ * Five, not a taxonomy: each one names a failure a person reviewing
+ * thumbs-down answers against DOCTRINE_REVIEW_DIMENSIONS can act on.
+ */
+export const FEEDBACK_TAGS = [
+	{ id: "not-kjv", label: "Not KJV" },
+	{ id: "doctrine", label: "Doctrinally off" },
+	{ id: "missed-question", label: "Missed my question" },
+	{ id: "wrong-verse", label: "Wrong or missing verse" },
+	{ id: "too-long", label: "Too long" },
+] as const;
+
+export type FeedbackTagId = (typeof FEEDBACK_TAGS)[number]["id"];
+
+const FEEDBACK_TAG_IDS: ReadonlySet<string> = new Set(FEEDBACK_TAGS.map((tag) => tag.id));
+
+/** Exactly the four Message columns this patch writes, always all four. */
 export type AnswerFeedbackPatch = {
 	feedback: AnswerFeedback | null;
 	feedbackReason: string | null;
+	feedbackTags: FeedbackTagId[];
 	feedbackAt: Date | null;
 };
 
@@ -70,28 +93,50 @@ export function parseFeedbackPatch(body: unknown, now: Date = new Date()): Parse
 		reason = trimmed.length > 0 ? trimmed : null;
 	}
 
+	// Tags are validated whatever the thumb is, for the same reason as the
+	// reason's length: an unknown chip is a client bug worth a 400, not a value
+	// to drop on the floor. Order is kept, duplicates are not.
+	const rawTags = record.feedbackTags;
+	const tags: FeedbackTagId[] = [];
+	if (rawTags !== undefined && rawTags !== null) {
+		if (!Array.isArray(rawTags)) {
+			return { ok: false, error: "feedbackTags must be an array of tag ids." };
+		}
+		for (const tag of rawTags) {
+			if (typeof tag !== "string" || !FEEDBACK_TAG_IDS.has(tag)) {
+				return { ok: false, error: `Unknown feedback tag: ${JSON.stringify(tag)}.` };
+			}
+			if (!tags.includes(tag as FeedbackTagId)) tags.push(tag as FeedbackTagId);
+		}
+	}
+
 	if (rawFeedback === null) {
-		// Clearing wipes all three columns, reason included: a reason with no
-		// thumb would outlive the judgment it explains.
-		return { ok: true, data: { feedback: null, feedbackReason: null, feedbackAt: null } };
+		// Clearing wipes every column, reason and tags included: a reason with
+		// no thumb would outlive the judgment it explains.
+		return {
+			ok: true,
+			data: { feedback: null, feedbackReason: null, feedbackTags: [], feedbackAt: null },
+		};
 	}
 
 	return {
 		ok: true,
 		data: {
 			feedback: rawFeedback,
-			// A reason only ever means something next to a thumbs down.
+			// A reason and its chips only ever mean something next to a thumbs down.
 			feedbackReason: rawFeedback === "down" ? reason : null,
+			feedbackTags: rawFeedback === "down" ? tags : [],
 			feedbackAt: new Date(now.getTime()),
 		},
 	};
 }
 
-/** The response shape for a feedback patch: the three columns and the id. */
+/** The response shape for a feedback patch: the four columns and the id. */
 export type AnswerFeedbackResponse = {
 	id: string;
 	feedback: AnswerFeedback | null;
 	feedbackReason: string | null;
+	feedbackTags: FeedbackTagId[];
 	feedbackAt: string | null;
 };
 
@@ -100,12 +145,17 @@ export function answerFeedbackResponse(message: {
 	id: string;
 	feedback: string | null;
 	feedbackReason: string | null;
+	feedbackTags?: string[] | null;
 	feedbackAt: Date | null;
 }): AnswerFeedbackResponse {
 	return {
 		id: message.id,
 		feedback: message.feedback === "up" || message.feedback === "down" ? message.feedback : null,
 		feedbackReason: message.feedbackReason,
+		// A tag written by some future build degrades to nothing rather than escaping.
+		feedbackTags: (message.feedbackTags ?? []).filter((tag): tag is FeedbackTagId =>
+			FEEDBACK_TAG_IDS.has(tag)
+		),
 		feedbackAt: message.feedbackAt ? message.feedbackAt.toISOString() : null,
 	};
 }

@@ -107,6 +107,7 @@ try {
 			id: true,
 			conversationId: true,
 			feedbackReason: true,
+			feedbackTags: true,
 			feedbackAt: true,
 			metadata: true,
 		},
@@ -164,6 +165,9 @@ try {
 			translation: translationOf(row),
 			expectation: {},
 			sideEffects: "read",
+			// The chips the user tapped come first, so a reviewer sees "not-kjv,
+			// wrong-verse" before reading the free text that explains it.
+			tags: row.feedbackTags ?? [],
 			note: row.feedbackReason ?? null,
 		});
 	}

@@ -258,6 +258,9 @@ model Message {
   /// ask-question persist replaces metadata wholesale on a retry.
   feedback       String? // "up" | "down"
   feedbackReason String?          @db.Text
+  /// Reason chips under a thumbs down: ids from FEEDBACK_TAGS in
+  /// src/lib/chat/answer-feedback.ts. Empty for every other state.
+  feedbackTags   String[]         @default([])
   feedbackAt     DateTime?
 
   @@index([conversationId])

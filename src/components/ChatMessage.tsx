@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Loader2, NotebookPen, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Check, Copy, Loader2, NotebookPen, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -15,10 +15,13 @@ import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import WorkActivity from "./WorkActivity";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
 import ReceiptLine from "./chat/ReceiptLine";
+import { FEEDBACK_TAGS, type FeedbackTagId } from "@/lib/chat/answer-feedback";
 import {
 	FEEDBACK_REASON_MAX_LENGTH,
+	copyableAnswerText,
 	setAnswerFeedback,
 	type AnswerFeedback,
+	type AnswerFeedbackDetails,
 } from "@/lib/chat/feedback-client";
 import { presentShareLink, shareAnswer, shareSheetText } from "@/lib/chat/share-client";
 
@@ -29,18 +32,27 @@ interface ChatMessageProps {
 	conversationTitle?: string;
 }
 
-/** Quiet chrome under a settled answer: "Add to notes" and the two thumbs. */
+/**
+ * Quiet chrome under a settled answer. The row is glyphs only - copy, notes,
+ * the two thumbs, share - so the answer keeps the reader's eye and the actions
+ * stay within reach; every glyph carries its own label for anyone who is not
+ * reading by sight.
+ */
 const ACTION_CLASS =
 	"flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors";
-/** A chosen thumb wears the accent the hover state promises. */
+/** A chosen thumb, or a just-copied answer, wears the accent hover promises. */
 const ACTION_CHOSEN_CLASS =
 	"flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 transition-colors";
-/** Thumb glyphs are the whole target, so they carry the 44px minimum. */
-const THUMB_TAP_CLASS = "min-h-11 min-w-11 justify-center sm:min-h-0 sm:min-w-0";
+/** A glyph is the whole target, so every icon button carries the 44px minimum. */
+const ICON_TAP_CLASS = "min-h-11 min-w-11 justify-center sm:min-h-0 sm:min-w-0";
+/** Chips are their own row, and a pill is a smaller target than a bare glyph. */
+const CHIP_CLASS = "min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors";
 /** The share sheet's heading. The answer itself travels as the descriptive line. */
 const SHARE_TITLE = "An answer from SureWord";
 /** How long "Link copied" stays up before the row goes quiet again. */
 const SHARE_COPIED_MS = 2000;
+/** How long the Copy glyph holds its check before returning to the clipboard. */
+const COPIED_MS = 1500;
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversationTitle }) => {
 	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
@@ -52,8 +64,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 	const [chosenFeedback, setChosenFeedback] = useState<AnswerFeedback | null | undefined>(undefined);
 	const [reasonOpen, setReasonOpen] = useState(false);
 	const [reason, setReason] = useState("");
+	const [reasonTags, setReasonTags] = useState<FeedbackTagId[]>([]);
 	const [feedbackPending, setFeedbackPending] = useState(false);
 	const [feedbackError, setFeedbackError] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
+	const [copyError, setCopyError] = useState<string | null>(null);
 	const [sharePending, setSharePending] = useState(false);
 	const [shareCopied, setShareCopied] = useState(false);
 	const [shareError, setShareError] = useState<string | null>(null);
@@ -66,14 +81,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 	 * reverts to whatever it was if the route refuses, which is the same
 	 * pattern the receipt line's Undo uses.
 	 */
-	const saveFeedback = async (next: AnswerFeedback | null, nextReason?: string) => {
+	const saveFeedback = async (next: AnswerFeedback | null, details?: AnswerFeedbackDetails) => {
 		if (!conversationId || feedbackPending) return;
 		const previous = feedback;
 		setChosenFeedback(next);
 		setFeedbackPending(true);
 		setFeedbackError(null);
 		try {
-			const saved = await setAnswerFeedback(conversationId, message.id, next, nextReason);
+			const saved = await setAnswerFeedback(conversationId, message.id, next, details);
 			setChosenFeedback(saved.feedback);
 		} catch (error) {
 			setChosenFeedback(previous);
@@ -96,8 +111,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 
 	/**
 	 * Thumbs down records the judgment straight away and then asks why. The
-	 * reason is genuinely optional, so a reader who walks away from the field
-	 * has still been heard.
+	 * chips and the reason are genuinely optional, so a reader who walks away
+	 * from the panel has still been heard. Both are reset on every open: the
+	 * panel asks about this answer, not the last one.
 	 */
 	const rateDown = () => {
 		if (feedbackPending) return;
@@ -107,15 +123,52 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 			return;
 		}
 		setReason("");
+		setReasonTags([]);
 		setReasonOpen(true);
 		void saveFeedback("down");
 	};
 
-	const sendReason = () => {
-		if (feedbackPending || !reason.trim()) return;
-		setReasonOpen(false);
-		void saveFeedback("down", reason);
+	const toggleReasonTag = (tag: FeedbackTagId) => {
+		setReasonTags((current) =>
+			current.includes(tag) ? current.filter((chosen) => chosen !== tag) : [...current, tag]
+		);
 	};
+
+	// A chip on its own is a complete answer to "what went wrong", so Send needs
+	// either a chip or some typed text, not both.
+	const canSendReason = reasonTags.length > 0 || reason.trim().length > 0;
+
+	const sendReason = () => {
+		if (feedbackPending || !canSendReason) return;
+		setReasonOpen(false);
+		void saveFeedback("down", { reason: reason.trim(), tags: reasonTags });
+	};
+
+	/**
+	 * Hand the answer to the clipboard as the reader would paste it: the
+	 * markdown they can see, with the [FOLLOWUP] chip markers taken out. The
+	 * clipboard is a permission, not a certainty, so a refusal becomes a line
+	 * under the row rather than a glyph that silently did nothing. The browser's
+	 * own wording ("NotAllowedError", "Document is not focused") explains
+	 * nothing to a reader, so the line is ours.
+	 */
+	const copy = async () => {
+		setCopyError(null);
+		try {
+			await navigator.clipboard.writeText(copyableAnswerText(message.content));
+			setCopied(true);
+		} catch {
+			setCopyError("Could not copy that answer.");
+		}
+	};
+
+	// The check is a confirmation, not a state: it says its piece and goes. The
+	// cleanup also covers an unmount mid-countdown.
+	useEffect(() => {
+		if (!copied) return;
+		const timer = setTimeout(() => setCopied(false), COPIED_MS);
+		return () => clearTimeout(timer);
+	}, [copied]);
 
 	// "Link copied" is a confirmation, not a state: it says its piece and goes.
 	useEffect(() => {
@@ -213,10 +266,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
 				{doneStreaming && message.content && (
-					<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-						<button type="button" onClick={() => setAddToNoteOpen(true)} className={ACTION_CLASS}>
-							<NotebookPen className="w-3.5 h-3.5" />
-							Add to notes
+					<div className="mt-2 flex flex-wrap items-center gap-1">
+						{/* Copy asks nothing of the server, so it is offered on the note
+						    panel's answers too, where the rest of the row is not. */}
+						<button
+							type="button"
+							onClick={() => void copy()}
+							aria-label={copied ? "Copied" : "Copy answer"}
+							title={copied ? "Copied" : "Copy"}
+							className={`${copied ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${ICON_TAP_CLASS}`}
+						>
+							{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+						</button>
+						<button
+							type="button"
+							onClick={() => setAddToNoteOpen(true)}
+							aria-label="Add to notes"
+							title="Add to notes"
+							className={`${ACTION_CLASS} ${ICON_TAP_CLASS}`}
+						>
+							<NotebookPen className="w-4 h-4" />
 						</button>
 						{/* A rating needs a persisted row to land on, so the note panel's
 						    answers show no thumbs. */}
@@ -229,9 +298,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 									aria-pressed={feedback === "up"}
 									aria-label="Helpful"
 									title="Helpful"
-									className={`${feedback === "up" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${THUMB_TAP_CLASS} disabled:opacity-60`}
+									className={`${feedback === "up" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${ICON_TAP_CLASS} disabled:opacity-60`}
 								>
-									<ThumbsUp className={`w-3.5 h-3.5 ${feedback === "up" ? "fill-current" : ""}`} />
+									<ThumbsUp className={`w-4 h-4 ${feedback === "up" ? "fill-current" : ""}`} />
 								</button>
 								<button
 									type="button"
@@ -240,10 +309,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 									aria-pressed={feedback === "down"}
 									aria-label="Not helpful"
 									title="Not helpful"
-									className={`${feedback === "down" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${THUMB_TAP_CLASS} disabled:opacity-60`}
+									className={`${feedback === "down" ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${ICON_TAP_CLASS} disabled:opacity-60`}
 								>
 									<ThumbsDown
-										className={`w-3.5 h-3.5 ${feedback === "down" ? "fill-current" : ""}`}
+										className={`w-4 h-4 ${feedback === "down" ? "fill-current" : ""}`}
 									/>
 								</button>
 							</div>
@@ -256,10 +325,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 									type="button"
 									onClick={() => void share()}
 									disabled={sharePending}
-									className={`${ACTION_CLASS} disabled:opacity-60`}
+									aria-label={sharePending ? "Sharing" : "Share answer"}
+									title={sharePending ? "Sharing" : "Share"}
+									className={`${ACTION_CLASS} ${ICON_TAP_CLASS} disabled:opacity-60`}
 								>
-									<Share2 className="w-3.5 h-3.5" />
-									{sharePending ? "Sharing…" : "Share"}
+									{sharePending ? (
+										<Loader2 className="w-4 h-4 animate-spin" />
+									) : (
+										<Share2 className="w-4 h-4" />
+									)}
 								</button>
 								<span
 									aria-live="polite"
@@ -272,38 +346,67 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 					</div>
 				)}
 				{reasonOpen && conversationId && (
-					<div className="mt-2 flex flex-wrap items-center gap-2">
-						<input
-							type="text"
-							value={reason}
-							onChange={(event) => setReason(event.target.value)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter") {
-									event.preventDefault();
-									sendReason();
-								}
-							}}
-							maxLength={FEEDBACK_REASON_MAX_LENGTH}
-							placeholder="What went wrong? (optional)"
-							aria-label="What went wrong? (optional)"
-							className="min-h-11 sm:min-h-0 flex-1 min-w-0 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-3 py-2 text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:border-amber-500/50"
-						/>
-						<button
-							type="button"
-							onClick={() => setReasonOpen(false)}
-							className={`${ACTION_CLASS} min-h-11 sm:min-h-0`}
-						>
-							Skip
-						</button>
-						<button
-							type="button"
-							onClick={sendReason}
-							disabled={feedbackPending || !reason.trim()}
-							className={`${ACTION_CLASS} min-h-11 sm:min-h-0 disabled:opacity-60`}
-						>
-							Send
-						</button>
+					<div className="mt-2 space-y-2">
+						{/* Five named failures, because a tap is a far likelier answer than
+						    a sentence, and each one is something a reviewer can act on. */}
+						<div className="flex flex-wrap gap-1.5">
+							{FEEDBACK_TAGS.map((tag) => {
+								const chosen = reasonTags.includes(tag.id);
+								return (
+									<button
+										key={tag.id}
+										type="button"
+										onClick={() => toggleReasonTag(tag.id)}
+										aria-pressed={chosen}
+										className={`${CHIP_CLASS} ${
+											chosen
+												? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+												: "border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] text-neutral-600 dark:text-neutral-400 hover:text-amber-600 dark:hover:text-amber-400"
+										}`}
+									>
+										{tag.label}
+									</button>
+								);
+							})}
+						</div>
+						<div className="flex flex-wrap items-center gap-2">
+							<input
+								type="text"
+								value={reason}
+								onChange={(event) => setReason(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Enter") {
+										event.preventDefault();
+										sendReason();
+									}
+								}}
+								maxLength={FEEDBACK_REASON_MAX_LENGTH}
+								placeholder="Anything else? (optional)"
+								aria-label="Anything else? (optional)"
+								className="min-h-11 sm:min-h-0 flex-1 min-w-0 rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] px-3 py-2 text-xs text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:border-amber-500/50"
+							/>
+							<button
+								type="button"
+								onClick={() => setReasonOpen(false)}
+								className={`${ACTION_CLASS} min-h-11 sm:min-h-0`}
+							>
+								Skip
+							</button>
+							<button
+								type="button"
+								onClick={sendReason}
+								disabled={feedbackPending || !canSendReason}
+								className={`${ACTION_CLASS} min-h-11 sm:min-h-0 disabled:opacity-60`}
+							>
+								Send
+							</button>
+						</div>
 					</div>
+				)}
+				{copyError && (
+					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+						{copyError}
+					</p>
 				)}
 				{feedbackError && (
 					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">

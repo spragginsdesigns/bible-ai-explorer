@@ -302,13 +302,14 @@ final class ChatViewModel {
     /// failed on its own (the receipts line's `onError`), and a rating belongs
     /// there.
     ///
-    /// `reason` is carried only with `.down`; the request body drops it
-    /// otherwise.
+    /// `reason` and `tags` are carried only with `.down`; the request body drops
+    /// them otherwise.
     @discardableResult
     func setFeedback(
         messageID: String,
         feedback: AnswerFeedback?,
-        reason: String? = nil
+        reason: String? = nil,
+        tags: [FeedbackTag] = []
     ) async -> String? {
         // A turn whose conversation never got created was never persisted, so
         // there is no row to rate.
@@ -332,7 +333,8 @@ final class ChatViewModel {
                 conversationID: conversationID,
                 messageID: messageID,
                 feedback: feedback,
-                reason: reason
+                reason: reason,
+                tags: tags
             )
             return nil
         } catch {

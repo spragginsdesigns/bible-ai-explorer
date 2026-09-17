@@ -8,6 +8,8 @@ vi.mock("@/lib/api", () => ({
 import { apiJson } from "@/lib/api";
 import {
 	FEEDBACK_REASON_MAX_LENGTH,
+	FEEDBACK_TAGS,
+	copyableAnswerText,
 	nextFeedback,
 	parseAnswerFeedback,
 	setMessageFeedback,
@@ -44,6 +46,44 @@ describe("parseAnswerFeedback", () => {
 		for (const value of [null, undefined, "", "UP", "helpful", 1, {}, []]) {
 			expect(parseAnswerFeedback(value)).toBeNull();
 		}
+	});
+});
+
+describe("FEEDBACK_TAGS", () => {
+	it("mirrors the server's five chips, in order", () => {
+		expect(FEEDBACK_TAGS.map((tag) => tag.id)).toEqual([
+			"not-kjv",
+			"doctrine",
+			"missed-question",
+			"wrong-verse",
+			"too-long",
+		]);
+		expect(FEEDBACK_TAGS.map((tag) => tag.label)).toEqual([
+			"Not KJV",
+			"Doctrinally off",
+			"Missed my question",
+			"Wrong or missing verse",
+			"Too long",
+		]);
+	});
+});
+
+describe("copyableAnswerText", () => {
+	it("drops the follow-up marker lines and trims what is left", () => {
+		const answer = [
+			"Romans 8:1 speaks to this.",
+			"",
+			"[FOLLOWUP] What is condemnation?",
+			"[FOLLOWUP] Who walks after the Spirit?",
+			"",
+		].join("\n");
+		expect(copyableAnswerText(answer)).toBe("Romans 8:1 speaks to this.");
+	});
+
+	it("keeps the markdown and trims the leading blank lines a trim alone would miss", () => {
+		expect(copyableAnswerText("\n\n## Heading\n\n- **one**\n- two\n\n")).toBe(
+			"## Heading\n\n- **one**\n- two"
+		);
 	});
 });
 
@@ -87,6 +127,46 @@ describe("setMessageFeedback", () => {
 		expect(apiJson).toHaveBeenNthCalledWith(3, getToken, "/api/conversations/c1/messages/m3", {
 			method: "PATCH",
 			body: { feedback: null },
+		});
+	});
+
+	it("carries the chosen chips alongside a thumbs down", async () => {
+		await setMessageFeedback(getToken, "c1", "m1", "down", "", ["too-long", "not-kjv"]);
+		expect(apiJson).toHaveBeenCalledWith(getToken, "/api/conversations/c1/messages/m1", {
+			method: "PATCH",
+			body: { feedback: "down", feedbackTags: ["too-long", "not-kjv"] },
+		});
+	});
+
+	it("omits an empty chip list, and chips that are not about a thumbs down", async () => {
+		await setMessageFeedback(getToken, "c1", "m1", "down", undefined, []);
+		await setMessageFeedback(getToken, "c1", "m2", "up", undefined, ["not-kjv"]);
+		await setMessageFeedback(getToken, "c1", "m3", null, undefined, ["not-kjv"]);
+		expect(apiJson).toHaveBeenNthCalledWith(1, getToken, "/api/conversations/c1/messages/m1", {
+			method: "PATCH",
+			body: { feedback: "down" },
+		});
+		expect(apiJson).toHaveBeenNthCalledWith(2, getToken, "/api/conversations/c1/messages/m2", {
+			method: "PATCH",
+			body: { feedback: "up" },
+		});
+		expect(apiJson).toHaveBeenNthCalledWith(3, getToken, "/api/conversations/c1/messages/m3", {
+			method: "PATCH",
+			body: { feedback: null },
+		});
+	});
+
+	it("sends a reason and its chips together", async () => {
+		await setMessageFeedback(getToken, "c1", "m1", "down", "  It quoted the NIV  ", [
+			"not-kjv",
+		]);
+		expect(apiJson).toHaveBeenCalledWith(getToken, "/api/conversations/c1/messages/m1", {
+			method: "PATCH",
+			body: {
+				feedback: "down",
+				feedbackReason: "It quoted the NIV",
+				feedbackTags: ["not-kjv"],
+			},
 		});
 	});
 

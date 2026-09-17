@@ -14,9 +14,10 @@ struct ChatMessageList: View {
     var onReceiptError: (String) -> Void
     var onCrossReplaced: () -> Void
     var onAddToNote: (ChatViewMessage) -> Void
-    /// The answer that was rated, the thumb (`nil` clears it), and the optional
-    /// reason a "Not helpful" collected. The tab owns the write and the toast.
-    var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
+    /// The answer that was rated, the thumb (`nil` clears it), and whatever a
+    /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
+    /// The tab owns the write and the toast.
+    var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
     /// Mint the public link for one answer. The tab owns the write and the
     /// toast; the minted URL comes back through the model, which this list
     /// already holds, so it is read here rather than threaded down from the tab.

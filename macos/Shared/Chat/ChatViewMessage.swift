@@ -144,6 +144,19 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
         averageSimilarity.map(MatchStrength.init(average:))
     }
 
+    /// The text a Copy puts on the clipboard: what is on screen, and nothing
+    /// that is not.
+    ///
+    /// `content` has already been through `visibleResponseContent` when the
+    /// message came from a stream or a stored row, so this is normally a trim.
+    /// It runs the stripper again anyway because a `ChatViewMessage` can also be
+    /// built directly (tests, previews), and a pasted `[FOLLOWUP]` marker would
+    /// be the kind of leak nobody notices until it is in someone's notes.
+    var copyableText: String {
+        Self.visibleResponseContent(content)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// A settled assistant shell has no UI except an otherwise duplicate avatar.
     var hasRenderableContent: Bool {
         if role == .user { return true }

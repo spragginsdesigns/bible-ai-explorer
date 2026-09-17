@@ -1,7 +1,15 @@
-import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+	AccessibilityInfo,
+	ActivityIndicator,
+	Alert,
+	Pressable,
+	StyleSheet,
+	View,
+} from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import type { ChatViewMessage } from "@/lib/chatView";
@@ -9,7 +17,12 @@ import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
-import { nextFeedback, type AnswerFeedback, type SetAnswerFeedback } from "@/lib/answerFeedback";
+import {
+	copyableAnswerText,
+	nextFeedback,
+	type AnswerFeedback,
+	type SetAnswerFeedback,
+} from "@/lib/answerFeedback";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { presentShareSheet, shareAnswer } from "./shareApi";
 import { AddToNoteSheet } from "./AddToNoteSheet";
@@ -59,6 +72,18 @@ export const MessageBubble = React.memo(function MessageBubble({
 	const [noteSheetOpen, setNoteSheetOpen] = useState(false);
 	const [feedbackSheetOpen, setFeedbackSheetOpen] = useState(false);
 	const [sharing, setSharing] = useState(false);
+	const [copied, setCopied] = useState(false);
+	const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// The checkmark is the only confirmation a copy gets, so its timer has to
+	// die with the bubble: a virtualized list unmounts these while the timer is
+	// still pending, and firing setState afterwards is a leak and a warning.
+	useEffect(
+		() => () => {
+			if (copiedTimer.current) clearTimeout(copiedTimer.current);
+		},
+		[]
+	);
 
 	// Both parses run over the whole message body, so they are hoisted above the
 	// user/assistant split to keep the hook order unconditional, and each one
@@ -122,6 +147,27 @@ export const MessageBubble = React.memo(function MessageBubble({
 	};
 
 	/**
+	 * The answer on the clipboard, as markdown minus the follow-up markers.
+	 * Nothing here touches the server, so Copy shows on every settled answer
+	 * even before a conversation exists to share or rate.
+	 */
+	const copy = () => {
+		void (async () => {
+			try {
+				await Clipboard.setStringAsync(copyableAnswerText(message.content));
+			} catch {
+				Alert.alert("Couldn't copy that", "The clipboard didn't take the answer.");
+				return;
+			}
+			if (copiedTimer.current) clearTimeout(copiedTimer.current);
+			setCopied(true);
+			// The glyph swap is silent to a screen reader, so say it.
+			AccessibilityInfo.announceForAccessibility("Copied");
+			copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+		})();
+	};
+
+	/**
 	 * Mint the public link, then open the system share sheet with it. Minting is
 	 * idempotent server-side, so tapping Share again on an answer that has
 	 * already been shared hands over the same link instead of a second one.
@@ -168,12 +214,26 @@ export const MessageBubble = React.memo(function MessageBubble({
 					<View style={styles.answerActions}>
 						<Pressable
 							accessibilityRole="button"
+							accessibilityLabel={copied ? "Answer copied" : "Copy this answer"}
+							onPress={copy}
+							hitSlop={6}
+							style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+						>
+							<Ionicons
+								name={copied ? "checkmark" : "copy-outline"}
+								size={16}
+								color={copied ? colors.accent : colors.textFaint}
+							/>
+						</Pressable>
+
+						<Pressable
+							accessibilityRole="button"
 							accessibilityLabel="Add this answer to your notes"
 							onPress={() => setNoteSheetOpen(true)}
-							style={({ pressed }) => [styles.addToNote, pressed && styles.addToNotePressed]}
+							hitSlop={6}
+							style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
 						>
-							<Text style={styles.addToNoteGlyph}>✎</Text>
-							<Text style={styles.addToNoteLabel}>Add to notes</Text>
+							<Ionicons name="create-outline" size={16} color={colors.textFaint} />
 						</Pressable>
 
 						{onFeedback && (
@@ -188,7 +248,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								>
 									<Ionicons
 										name={chosen === "up" ? "thumbs-up" : "thumbs-up-outline"}
-										size={15}
+										size={16}
 										color={chosen === "up" ? colors.accent : colors.textFaint}
 									/>
 								</Pressable>
@@ -202,7 +262,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								>
 									<Ionicons
 										name={chosen === "down" ? "thumbs-down" : "thumbs-down-outline"}
-										size={15}
+										size={16}
 										color={chosen === "down" ? colors.accent : colors.textFaint}
 									/>
 								</Pressable>
@@ -222,7 +282,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 								{sharing ? (
 									<ActivityIndicator size="small" color={colors.accentDim} />
 								) : (
-									<Ionicons name="share-outline" size={15} color={colors.textFaint} />
+									<Ionicons name="share-outline" size={16} color={colors.textFaint} />
 								)}
 							</Pressable>
 						)}
@@ -239,9 +299,9 @@ export const MessageBubble = React.memo(function MessageBubble({
 				<FeedbackSheet
 					visible={feedbackSheetOpen}
 					onClose={() => setFeedbackSheetOpen(false)}
-					onSubmit={(reason) => {
+					onSubmit={({ reason, tags }) => {
 						setFeedbackSheetOpen(false);
-						onFeedback?.(message.id, "down", reason);
+						onFeedback?.(message.id, "down", reason, tags);
 					}}
 				/>
 
@@ -317,22 +377,13 @@ const createStyles = (c: Colors) =>
 			gap: spacing.xs,
 			marginTop: spacing.sm,
 		},
-		addToNote: {
-			flexDirection: "row",
-			alignItems: "center",
-			gap: 6,
-			minHeight: 44,
-			paddingHorizontal: spacing.sm,
-			borderRadius: radius.md,
-		},
-		addToNotePressed: { backgroundColor: c.surfacePressed },
-		addToNoteGlyph: { color: c.textFaint, fontSize: 12 },
-		addToNoteLabel: { ...typography.meta, color: c.textFaint },
+		// One shape for every glyph in the row: icon-only, quiet, and a real 44pt
+		// target whatever the 16pt icon inside it measures.
 		thumb: {
 			alignItems: "center",
 			justifyContent: "center",
 			minHeight: 44,
-			minWidth: 40,
+			minWidth: 44,
 			borderRadius: radius.md,
 		},
 		thumbPressed: { backgroundColor: c.surfacePressed },

@@ -748,7 +748,7 @@ export function useSureWordChat(): SureWordChat {
 	 * where it was rather than leaving a rating the server never took.
 	 */
 	const setFeedback = useCallback<SetAnswerFeedback>(
-		(messageId, feedback, reason) => {
+		(messageId, feedback, reason, tags) => {
 			const conversationId = conversationIdRef.current;
 			if (!conversationId) return;
 			const existingMetadata = uiMessagesRef.current.find(
@@ -761,7 +761,14 @@ export function useSureWordChat(): SureWordChat {
 			writeFeedbackLocally(messageId, feedback);
 			void (async () => {
 				try {
-					await setMessageFeedback(authToken, conversationId, messageId, feedback, reason);
+					await setMessageFeedback(
+						authToken,
+						conversationId,
+						messageId,
+						feedback,
+						reason,
+						tags
+					);
 				} catch {
 					writeFeedbackLocally(messageId, previous);
 					Alert.alert(

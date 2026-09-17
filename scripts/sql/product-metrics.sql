@@ -341,3 +341,22 @@ WHERE m.feedback IN ('up', 'down')
 	AND m."feedbackAt" IS NOT NULL
 GROUP BY 1
 ORDER BY 1;
+
+-- ---------------------------------------------------------------------------
+-- 8b. What thumbs-down answers get blamed for
+-- One row per reason chip (FEEDBACK_TAGS in src/lib/chat/answer-feedback.ts),
+-- most-tapped first. A thumbs down can carry several chips, so the counts do
+-- not sum to thumbs_down above. This is the question the chips exist to
+-- answer: which failure do people report most, and is it moving.
+-- ---------------------------------------------------------------------------
+SELECT
+	tag,
+	count(*) AS thumbs_down,
+	count(*) FILTER (WHERE m."feedbackAt" >= now() - interval '28 days') AS last_28_days,
+	count(DISTINCT c."userId") AS accounts
+FROM "Message" m
+JOIN "Conversation" c ON c.id = m."conversationId"
+CROSS JOIN LATERAL unnest(m."feedbackTags") AS tag
+WHERE m.feedback = 'down'
+GROUP BY tag
+ORDER BY thumbs_down DESC, tag;

@@ -19,9 +19,10 @@ struct ChatMessageBubble: View {
     /// A failed undo, reported to the shell's toast.
     var onReceiptError: (String) -> Void
     var onAddToNote: (ChatViewMessage) -> Void
-    /// The thumb the user just chose, or `nil` to clear it, plus the optional
-    /// reason a "Not helpful" collected. The shell owns the write and the toast.
-    var onFeedback: (ChatViewMessage, AnswerFeedback?, String?) -> Void
+    /// The thumb the user just chose, or `nil` to clear it, plus whatever a
+    /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
+    /// The shell owns the write and the toast.
+    var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
     /// The public link already minted for this answer, if any. Supplied by the
     /// list from `ChatViewModel.sharedLink(for:)`.
     var shareURL: URL?
@@ -31,10 +32,18 @@ struct ChatMessageBubble: View {
     var onShare: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
 
-    /// The optional "What went wrong?" field, raised by a thumbs down from
-    /// either the inline row or the context menu, so both share one presentation.
+    /// The "What went wrong?" panel, raised by a thumbs down from either the
+    /// inline row or the context menu, so both share one presentation. The draft
+    /// it edits lives here so every rating opens on an empty panel.
     @State private var isReasonPresented = false
     @State private var reason = ""
+    @State private var reasonTags: Set<FeedbackTag> = []
+
+    /// True for the moment after a Copy, which swaps the glyph for a checkmark.
+    @State private var didCopy = false
+    /// Which copy owns the current countdown, so a second one does not have its
+    /// checkmark cleared early by the first one's timer.
+    @State private var copyGeneration = 0
 
     private var isUser: Bool { message.role == .user }
 
@@ -50,42 +59,63 @@ struct ChatMessageBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
-        .alert(AnswerFeedback.reasonPrompt, isPresented: $isReasonPresented) {
-            TextField(AnswerFeedback.reasonPlaceholder, text: reasonBinding)
-            Button("Send") { onFeedback(message, .down, reason) }
-            // The thumb was recorded before this alert opened, so Skip has
-            // nothing left to do. Cancel-role so a swipe away does the same
-            // thing rather than looking like it undid the rating.
-            Button("Skip", role: .cancel) {}
+        // A sheet rather than the one-line alert this replaced: the chips need
+        // room an alert cannot give them. Swiping it away is the Skip - the
+        // thumb was recorded before it opened, so there is nothing to undo.
+        .sheet(isPresented: $isReasonPresented) {
+            FeedbackReasonSheet(
+                tags: $reasonTags,
+                reason: $reason,
+                onSkip: { isReasonPresented = false },
+                onSend: { details in
+                    isReasonPresented = false
+                    onFeedback(message, .down, details)
+                }
+            )
         }
     }
 
     /// Every thumb is recorded the moment it is tapped; only "Not helpful" then
     /// stops to ask why.
     ///
-    /// The rating goes first and the reason follows as a second write, matching
-    /// web and Android. The reason is a bonus, the thumb is the signal, and an
-    /// alert the user dismisses must not swallow both - which is also what makes
+    /// The rating goes first and the reasons follow as a second write, matching
+    /// web and Android. The chips are a bonus, the thumb is the signal, and a
+    /// panel the user dismisses must not swallow both - which is also what makes
     /// the shells' "the thumb has already moved" true
     /// (`SureWord-iOS/Views/Chat/ChatTabView.swift:142`).
     private func rate(_ choice: AnswerFeedback?) {
         onFeedback(message, choice, nil)
         guard choice == .down else { return }
         reason = ""
+        reasonTags = []
         isReasonPresented = true
     }
 
-    /// Clamps the reason at the contract's 500 characters *as it is typed*,
-    /// rather than quietly shortening what the user wrote when they press Send.
-    ///
-    /// Done in the binding rather than with an `.onChange` on the field: an
-    /// alert's action builder only takes buttons and text fields, so the fewer
-    /// modifiers wrapping the `TextField` the better.
-    private var reasonBinding: Binding<String> {
-        Binding(
-            get: { reason },
-            set: { reason = String($0.prefix(AnswerFeedback.maxReasonLength)) }
-        )
+    /// Copy the answer as plain text. Icon-only beside the thumbs, and it
+    /// confirms in place because there is no toast this deep in the bubble.
+    private var copyControl: some View {
+        Button {
+            copyAnswer()
+        } label: {
+            Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                .font(.system(size: 12))
+                .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
+        }
+        .buttonStyle(SubtleButtonStyle())
+        .accessibilityLabel(didCopy ? "Copied" : "Copy this answer")
+    }
+
+    private func copyAnswer() {
+        SharedAnswerPasteboard.copy(message.copyableText)
+        copyGeneration += 1
+        let generation = copyGeneration
+        withAnimation(.easeOut(duration: 0.15)) { didCopy = true }
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            // A later copy started its own countdown and owns the glyph now.
+            guard generation == copyGeneration else { return }
+            withAnimation(.easeOut(duration: 0.15)) { didCopy = false }
+        }
     }
 
     /// The context-menu entry for one thumb. Choosing the thumb already on the
@@ -166,7 +196,7 @@ struct ChatMessageBubble: View {
                     }
                     .contextMenu {
                         Button {
-                            UIPasteboard.general.string = message.content
+                            SharedAnswerPasteboard.copy(message.copyableText)
                         } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
@@ -214,7 +244,7 @@ struct ChatMessageBubble: View {
                 ChatMarkdownBody(text: message.content, streaming: message.isStreaming)
                     .contextMenu {
                         Button {
-                            UIPasteboard.general.string = message.content
+                            SharedAnswerPasteboard.copy(message.copyableText)
                         } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
@@ -241,6 +271,8 @@ struct ChatMessageBubble: View {
             // not discoverable, and a rating nobody finds is no signal at all.
             if !message.isStreaming, !message.content.isEmpty {
                 HStack(spacing: 0) {
+                    copyControl
+
                     Button {
                         onAddToNote(message)
                     } label: {
