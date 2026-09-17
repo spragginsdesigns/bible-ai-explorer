@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.70.2 (versionCode 75) - 2026-09-17 - internal
+
+**What's new (Play):**
+
+- In the Words tab, the "Ask about this word" button now sits on one line beside "Every verse".
+- Studies mention how often a word recurs only when it is a true refrain of the book, instead of listing numbers for every word.
+
+**Dev notes:** Android carries only the button-row weights from 7c0c12e (`mobile/src/features/bible/WordStudySection.tsx`, primary 3 : secondary 2). The study wording change is server-side (`VERSE_WORDS_PROMPT_VERSION` 2 in `src/lib/verse-words.ts`, deployed 7c0c12e) and reaches every installed build; it is listed here because 1.70.1 (74) shipped the Words tab before that prompt landed.
+
 ## 1.70.1 (versionCode 74) - 2026-09-17 - internal
 
 **What's new (Play):**
