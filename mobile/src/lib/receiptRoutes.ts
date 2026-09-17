@@ -37,7 +37,9 @@ export type ReceiptHref =
 	| { pathname: "/bible/history" }
 	| { pathname: "/(app)/bible/cross" }
 	| { pathname: "/(app)/bible/learn" }
-	| { pathname: "/(app)/settings" };
+	| { pathname: "/(app)/settings" }
+	| { pathname: "/(app)/settings/memory" }
+	| { pathname: "/(app)/settings/church" };
 
 export interface ReceiptNavigation {
 	href: ReceiptHref;
@@ -55,6 +57,10 @@ export interface ReceiptNavigation {
  * `memories` carries a `memoryId` that this route deliberately drops: the
  * memories screen takes no row param, so the fragment opens the list. The undo
  * affordance, not the route, is what acts on that single memory.
+ *
+ * `settings` lands on the category page its `section` names, the way the web
+ * client lands on that section's anchor. `preferences` has no page of its own
+ * (those live on several pages), so it opens the hub.
  */
 export function receiptNavigation(target: ChatReceiptTarget): ReceiptNavigation {
 	switch (target.screen) {
@@ -83,7 +89,14 @@ export function receiptNavigation(target: ChatReceiptTarget): ReceiptNavigation 
 		case "learn":
 			return { href: { pathname: "/(app)/bible/learn" } };
 		case "settings":
-			return { href: { pathname: "/(app)/settings" } };
+			switch (target.section) {
+				case "memory":
+					return { href: { pathname: "/(app)/settings/memory" } };
+				case "church":
+					return { href: { pathname: "/(app)/settings/church" } };
+				default:
+					return { href: { pathname: "/(app)/settings" } };
+			}
 	}
 }
 

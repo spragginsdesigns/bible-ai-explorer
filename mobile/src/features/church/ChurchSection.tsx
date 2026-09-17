@@ -36,9 +36,16 @@ const DESCRIPTION =
  * The section renders its own heading rather than taking one from the settings
  * screen, because an unconfigured server (`status: "unavailable"`) must leave
  * no trace at all - a bare "MY CHURCH" label above nothing would be worse than
- * the feature being absent.
+ * the feature being absent. `hideHeading` is for the Settings page that already
+ * carries this title in its top bar.
  */
-export function ChurchSection({ getToken }: { getToken: GetToken }) {
+export function ChurchSection({
+	getToken,
+	hideHeading = false,
+}: {
+	getToken: GetToken;
+	hideHeading?: boolean;
+}) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const church = useChurchSection(getToken);
@@ -47,7 +54,7 @@ export function ChurchSection({ getToken }: { getToken: GetToken }) {
 
 	return (
 		<>
-			<Text style={styles.sectionLabel}>MY CHURCH</Text>
+			{hideHeading ? null : <Text style={styles.sectionLabel}>MY CHURCH</Text>}
 			{church.load === "loading" ? (
 				// Cold cache only: the profile is prefetched at sign-in and
 				// persisted, so this shape (a header row) is a height stand-in

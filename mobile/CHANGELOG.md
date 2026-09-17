@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.69.0 (versionCode 72) - 2026-09-17 - internal
+
+**What's new (Play):**
+
+- Settings is a short list now instead of one long scroll. Your account and Check for updates sit at the top, and every area (Appearance & reading, Highlight labels, My church, Memory, AI, Shared answers, Notifications, About) opens on its own page with a Back button.
+- Each row shows where things stand at a glance: your theme and translation, your church, whether memory is on and how many memories are saved, how many AI keys you have added, and when the daily verse arrives.
+
+**Dev notes:** `mobile/app/(app)/settings.tsx` became the nested stack `mobile/app/(app)/settings/` (`_layout.tsx` anchored on `index`, one file per page). Shared top bar, switch row, hub row and group card live in `mobile/src/features/settings/SettingsChrome.tsx`; `HighlightLabelsSection`, `ChurchSection` and `SharedAnswersSection` gained a `hideHeading` prop for their pages. The model picker's "add a key" pushes `/settings/ai`; memory and church receipts push `/settings/memory` / `/settings/church` (`receiptRoutes.ts` + tests). Web and Apple layouts unchanged (capability parity, `docs/PARITY.md`).
+
 ## 1.68.0 (versionCode 71) - 2026-09-17 - internal
 
 **What's new (Play):**

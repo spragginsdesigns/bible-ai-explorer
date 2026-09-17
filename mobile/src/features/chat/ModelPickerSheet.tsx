@@ -156,7 +156,9 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 
 	const openProviderSettings = useCallback(() => {
 		onClose();
-		router.push("/settings");
+		// Straight to the AI page: this is the "add a key" escape hatch, and the
+		// hub would leave the user one tap short of the provider list.
+		router.push("/settings/ai");
 	}, [onClose, router]);
 
 	// Each open lands on the provider of the current model, with a clean search.

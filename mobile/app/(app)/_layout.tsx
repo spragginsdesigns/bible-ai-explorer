@@ -134,8 +134,10 @@ export default function AppLayout() {
 			<Tabs.Screen name="bible" />
 			{/* Reset the nested notes stack when leaving, so the tab always reopens on the hub. */}
 			<Tabs.Screen name="notes" options={{ popToTopOnBlur: true }} />
-			{/* Push-only screen: reachable from the chat header gear, hidden from the tab bar. */}
-			<Tabs.Screen name="settings" options={{ href: null }} />
+			{/* Push-only nested stack: reachable from the chat header gear, hidden from
+			    the tab bar. Reset on blur so the gear always reopens on the hub rather
+			    than on whichever category page was open when the user left. */}
+			<Tabs.Screen name="settings" options={{ href: null, popToTopOnBlur: true }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
 		</Tabs>

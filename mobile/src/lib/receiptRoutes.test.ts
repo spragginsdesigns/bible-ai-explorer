@@ -69,8 +69,18 @@ const CASES: { name: string; target: ChatReceiptTarget; expected: ReceiptNavigat
 		expected: { href: { pathname: "/(app)/settings" } },
 	},
 	{
-		name: "settings with a section still opens Settings (no section route exists)",
+		name: "settings with the memory section opens the Memory page",
+		target: { screen: "settings", section: "memory" },
+		expected: { href: { pathname: "/(app)/settings/memory" } },
+	},
+	{
+		name: "settings with the church section opens the My church page",
 		target: { screen: "settings", section: "church" },
+		expected: { href: { pathname: "/(app)/settings/church" } },
+	},
+	{
+		name: "settings with the preferences section opens the hub (no single page owns it)",
+		target: { screen: "settings", section: "preferences" },
 		expected: { href: { pathname: "/(app)/settings" } },
 	},
 ];

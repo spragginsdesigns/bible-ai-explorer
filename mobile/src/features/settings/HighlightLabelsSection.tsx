@@ -36,7 +36,8 @@ function editsFor(draft: ColorDraft, ids: readonly HighlightLabelId[]): Highligh
 	return edits;
 }
 
-export function HighlightLabelsSection() {
+/** `hideHeading` is for the Settings page that already carries this title in its top bar. */
+export function HighlightLabelsSection({ hideHeading = false }: { hideHeading?: boolean }) {
 	const { highlightLabels: labels, highlightMeanings: meanings } = useSettings();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -190,7 +191,7 @@ export function HighlightLabelsSection() {
 
 	return (
 		<>
-			<Text style={styles.sectionLabel}>HIGHLIGHT LABELS</Text>
+			{hideHeading ? null : <Text style={styles.sectionLabel}>HIGHLIGHT LABELS</Text>}
 			<GlassCard style={styles.card}>
 				<Text style={styles.hint}>
 					Name each colour for why you reach for it, and tell SureWord what it means to you. Yellow

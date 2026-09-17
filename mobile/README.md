@@ -67,7 +67,7 @@ mobile/
 │       ├── bible/          # reader, search, plans, Timeline/People/Places
 │       ├── notes/          # notes library and rich editor
 │       ├── memories.tsx    # memory manager
-│       └── settings.tsx    # appearance, church, notifications, providers
+│       └── settings/       # hub (index) + one page per category: appearance, memory, highlights, ai, church, notifications, shared, account, about
 ├── src/
 │   ├── components/ui.tsx   # Screen, GlassCard, BrandTitle, buttons
 │   ├── theme/              # design tokens

@@ -376,5 +376,5 @@ Standard loop for any task, mirrored from Context-Pro-AI and adapted to this rep
 | Global styles | `src/app/globals.css` |
 | Web settings page | `src/app/settings/page.tsx` |
 | Web client preferences | `src/lib/preferences.ts` |
-| Mobile settings screen | `mobile/app/(app)/settings.tsx` |
+| Mobile settings hub + pages | `mobile/app/(app)/settings/` (nested stack: `index.tsx` hub, one file per category) + shared chrome `mobile/src/features/settings/SettingsChrome.tsx` |
 | Mobile settings store + theme hooks | `mobile/src/features/settings/settingsStore.ts` |

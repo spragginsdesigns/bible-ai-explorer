@@ -2011,5 +2011,5 @@ guessed.
 | Client | Where |
 |---|---|
 | Web | `src/components/settings/HighlightLabelsSection.tsx` (labels + meanings + starter set) and `src/components/settings/AboutMeSection.tsx`, mounted in `src/app/settings/page.tsx`; sync in `src/lib/preferencesSync.ts` |
-| Android | `mobile/src/features/settings/HighlightLabelsSection.tsx` and `AboutMeSection.tsx`, mounted in `mobile/app/(app)/settings.tsx`; contract mirror `mobile/src/features/settings/preferences.ts` |
+| Android | `mobile/src/features/settings/HighlightLabelsSection.tsx` and `AboutMeSection.tsx`, mounted on the `mobile/app/(app)/settings/highlights.tsx` and `memory.tsx` pages; contract mirror `mobile/src/features/settings/preferences.ts` |
 | macOS / iOS | `macos/Shared/Settings/HighlightLabelsSection.swift` and `AboutMeSection.swift`, mounted by both `SettingsView.swift` files; document keys in `macos/Shared/Settings/PreferencesSync.swift`. Apple had no highlight-labels editor at all before this release |

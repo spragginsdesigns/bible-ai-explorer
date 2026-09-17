@@ -30,7 +30,14 @@ const UNTITLED = "An answer you shared";
 /** How long "Copied" stays under the row before it goes back to the link. */
 const COPIED_MS = 2000;
 
-export function SharedAnswersSection({ getToken }: { getToken: GetToken }) {
+/** `hideHeading` is for the Settings page that already carries this title in its top bar. */
+export function SharedAnswersSection({
+	getToken,
+	hideHeading = false,
+}: {
+	getToken: GetToken;
+	hideHeading?: boolean;
+}) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const [shares, setShares] = useState<SharedAnswerSummary[] | null>(null);
@@ -119,7 +126,7 @@ export function SharedAnswersSection({ getToken }: { getToken: GetToken }) {
 
 	return (
 		<>
-			<Text style={styles.sectionLabel}>SHARED ANSWERS</Text>
+			{hideHeading ? null : <Text style={styles.sectionLabel}>SHARED ANSWERS</Text>}
 			<GlassCard style={styles.card}>
 				<Text style={styles.hint}>{DESCRIPTION}</Text>
 
