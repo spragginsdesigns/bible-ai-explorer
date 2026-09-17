@@ -377,13 +377,15 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 				>
 					Ask about this word
 				</button>
-				<button
-					type="button"
-					onClick={() => onAsk(everyPrompt, false)}
-					className="rounded-lg border border-black/[0.1] bg-black/[0.04] px-2 py-2 text-[13px] font-bold text-neutral-700 transition-colors hover:bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-neutral-200 dark:hover:bg-white/[0.1]"
-				>
-					{occurrences ? `Every verse · ${occurrences.total}` : "Every verse"}
-				</button>
+				{head.strongs ? (
+					<button
+						type="button"
+						onClick={() => onAsk(everyPrompt, false)}
+						className="rounded-lg border border-black/[0.1] bg-black/[0.04] px-2 py-2 text-[13px] font-bold text-neutral-700 transition-colors hover:bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-neutral-200 dark:hover:bg-white/[0.1]"
+					>
+						{occurrences ? `Every verse · ${occurrences.total}` : "Every verse"}
+					</button>
+				) : null}
 			</div>
 		</div>
 	);

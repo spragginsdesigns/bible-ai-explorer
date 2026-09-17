@@ -333,14 +333,17 @@ adds `occurrences: { total, examples: [{ reference, text }] }` from the
 `OriginalVerse` index, skipping the reader's own verse and rows without a
 KJV alignment. Both public routes are still exempt from Clerk in
 `src/middleware.ts` and cached a day at the edge; `GET /api/bible/original`
-is unchanged and still serves the chat tool.
+is unchanged and stays for the Android builds before 1.70.0 that still
+call it (the chat tool reads `getOriginalVerse` directly).
 
 **Data stays on the server.** `src/data/originals/` is 18 MB, four times the
-KJV the Android app bundles; the study route sends display-ready text so no
-client strips cantillation any more (`originalText.ts` keeps
-`isRightToLeft`). System fonts render both scripts: Atkinson Hyperlegible
+KJV the Android app bundles; the study route sends display-ready text
+(cantillation already stripped, vowel points kept), so the clients only
+set direction. System fonts render both scripts: Atkinson Hyperlegible
 carries no Hebrew or Greek glyphs, so Android uses React Native's bare
-`Text` for the script and web uses `system-ui`.
+`Text` for the script and web uses `system-ui`. A word the Greek text
+marks `G0` (no lexicon entry) reaches clients with an empty `strongs`, so
+neither the lexicon lookup nor "Every verse" is offered for it.
 
 Files: `src/components/bible/WordStudySection.tsx` + `useVerseWords.ts`
 (web), `mobile/src/features/bible/WordStudySection.tsx` + `useVerseWords.ts`

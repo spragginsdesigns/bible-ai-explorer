@@ -28,9 +28,12 @@ const GENERATION_TIMEOUT_MS = 45_000;
 
 function toDetail(word: OriginalVerse["words"][number], language: OriginalVerse["language"]): VerseWordDetail {
 	const decoded = decodeMorphology(word.morph);
+	// The Greek text carries "G0" where a word has no lexicon entry; to a
+	// client that must read as "no Strong's number", not as a number.
+	const strongs = /^[HG]0+$/.test(word.strongs) ? "" : word.strongs;
 	return {
 		text: language === "Hebrew" ? stripCantillation(word.text) : word.text,
-		strongs: word.strongs,
+		strongs,
 		morph: word.morph,
 		...(word.lemma ? { lemma: language === "Hebrew" ? stripCantillation(word.lemma) : word.lemma } : {}),
 		...(word.translit ? { translit: word.translit } : {}),
