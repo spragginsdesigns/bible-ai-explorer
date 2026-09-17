@@ -349,7 +349,7 @@ export function WordStudySection({
 										/>
 										{strongs ? (
 											<GhostButton
-												style={styles.actionButton}
+												style={[styles.actionButton, styles.actionButtonSecondary]}
 												label={
 													total === undefined
 														? "Every verse"
@@ -500,7 +500,9 @@ const createStyles = (c: Colors) =>
 			flex: 1,
 		},
 		actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-		actionButton: { flex: 1, minHeight: 40, paddingHorizontal: spacing.md },
+		// The question is the longer label; give it the room so neither wraps.
+		actionButton: { flex: 3, minHeight: 40, paddingHorizontal: spacing.sm },
+		actionButtonSecondary: { flex: 2 },
 
 		paragraph: {
 			color: c.textSecondary,

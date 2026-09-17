@@ -17,7 +17,7 @@ import type { VerseWordDetail, VerseWordStudy } from "@/lib/verse-words-contract
  * Bump whenever the study prompt or the row rules change. Cached studies are
  * keyed on it, so the old ones stop matching and the next tap regenerates.
  */
-export const VERSE_WORDS_PROMPT_VERSION = 1;
+export const VERSE_WORDS_PROMPT_VERSION = 2;
 
 /** A study that runs past this has lost the reader; the sheet is a phone screen. */
 const GENERATION_TIMEOUT_MS = 45_000;
@@ -76,7 +76,7 @@ const TASK = `CURRENT TASK: The user tapped a verse while reading their King Jam
 
 ROWS: Group the numbered words into rows in text order. A row is one word, or a bound phrase that the KJV renders as one unit: a preposition or conjunction prefix with its noun, a construct chain ("fulness of palm"), an article with its noun, a verb with its object suffix. Every index from 0 to the last must appear in exactly one row, in ascending order across the rows. For each row give: "translit", a plain reader's spelling of the row's words exactly as they stand in the verse, inflected form and prefixes included, never the dictionary lemma (write "egapesen" for ηγαπησεν, not "agapao"; "mimmelo chophnayim", "ure'ut ruach", "ho theos"), all lowercase except proper names, no diacritics or dictionary marks; "kjv", the exact KJV words this row became, copied character for character from the verse (including "an", "the", "and", "of" where the KJV has them); "sense", one line of at most 18 words on what the original carries: a literal picture, a root, a dual or plural the English cannot show, a word the book keeps repeating. No filler like "this word means".
 
-STUDY: One or two short paragraphs, at most 110 words in all, warm and reverent, addressed to a believer reading alone. Say what the original pictures that the English reader would otherwise miss, name the two or three words that carry the verse, and show how the KJV rendered them faithfully. The original explains the KJV; it never corrects, weakens, or replaces it. Each word carries how many verses of its book and of the whole Hebrew or Greek text contain it; when a word is a refrain of the book, say so with the book count given, and never invent counts or references you were not given. Plain sentences; no headings, lists, quotations of the whole verse, greetings, or follow-up questions.
+STUDY: One or two short paragraphs, at most 110 words in all, warm and reverent, addressed to a believer reading alone. Say what the original pictures that the English reader would otherwise miss, name the two or three words that carry the verse, and show how the KJV rendered them faithfully. The original explains the KJV; it never corrects, weakens, or replaces it. Each word carries how many verses of its book and of the whole Hebrew or Greek text contain it. Those numbers are for your judgement, not for the reader: mention at most one, and only when a word is a true refrain of the book (many verses of that book), in a natural clause such as "a word Ecclesiastes returns to in 21 verses". Never list counts word by word, never mention a whole-text count, and never invent counts or references you were not given. Plain sentences; no headings, lists, quotations of the whole verse, greetings, or follow-up questions.
 
 CARRY: One sentence of at most 22 words the reader can take with them, drawn from the contrast or image the words make.`;
 
