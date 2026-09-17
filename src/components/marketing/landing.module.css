@@ -486,6 +486,7 @@
 .footer > div a {
   display: inline-flex;
   align-items: center;
+  min-width: 44px;
   min-height: 44px;
   margin-block: -10px;
 }
