@@ -19,6 +19,100 @@ import {
 } from "@/lib/billing/plans";
 import styles from "./landing.module.css";
 
+const SITE_URL = "https://sureword.app";
+
+// Kept identical to the root metadata description in src/app/layout.tsx so the
+// rich result and the meta description tell search engines the same thing.
+const APP_DESCRIPTION =
+  "Come hungry for the Word. SureWord is a KJV Bible study app and personal Bible study companion with AI. Ask any Bible question and get answers grounded in Scripture.";
+
+// Single source for the visible FAQ and its FAQPage structured data. Google
+// penalises markup that does not match the page, so they must never drift.
+const LANDING_FAQ: ReadonlyArray<{ question: string; answer: string }> = [
+  {
+    question: "How does SureWord become more personal?",
+    answer:
+      "SureWord draws on your saved memories, reading history, questions and notes to give future conversations context. Suggested questions and Pick Up Your Cross can build on what you’ve been studying and what matters to you. You can also choose your Bible translation, appearance and reading goals to make the experience your own.",
+  },
+  {
+    question: "Can I choose what SureWord remembers?",
+    answer:
+      "Yes. Ask it to remember, correct or forget a detail, or manage your saved memories in Settings. You can turn memory off there too. Removing a memory does not delete your notes, conversations or reading history.",
+  },
+  {
+    question: "Can I keep using SureWord for free?",
+    answer: `Yes. Reading, notes, highlights and saved study remain accessible when your included AI allowance runs out. Free includes ${FREE_DAILY_MESSAGES} messages each day, with no credit card required.`,
+  },
+  {
+    question: "What counts as an AI message?",
+    answer:
+      "A new AI question, regeneration, note-composition request, fresh verse explanation, memory summary or generated reading plan counts as one action. Tools used within an answer do not count separately. Opening saved content does not use a message. Daily allowances reset at midnight UTC, shown in your local time in membership settings.",
+  },
+  {
+    question:
+      "Does the AI replace reading the Bible or being part of a church?",
+    answer:
+      "No. SureWord is a study aid and its AI can make mistakes. Read cited passages in context, examine interpretations carefully, and stay connected to your local church.",
+  },
+  {
+    question: "Can I choose my own model?",
+    answer:
+      "Included AI uses a model selected by SureWord, so you can start immediately. Add a personal provider key in Settings to use supported models and reasoning options. Your provider bills that usage separately.",
+  },
+];
+
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "SureWord",
+      url: SITE_URL,
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#app`,
+      name: "SureWord",
+      applicationCategory: "ReferenceApplication",
+      operatingSystem: "Web, Android, macOS",
+      url: SITE_URL,
+      description: APP_DESCRIPTION,
+      publisher: {
+        "@type": "Organization",
+        name: "LineCrush Inc.",
+        url: SITE_URL,
+      },
+      offers: [
+        {
+          "@type": "Offer",
+          name: "SureWord Free",
+          price: 0,
+          priceCurrency: "USD",
+        },
+        {
+          "@type": "Offer",
+          name: "SureWord Pro",
+          price: PRO_MONTHLY_PRICE_CENTS / 100,
+          priceCurrency: "USD",
+        },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${SITE_URL}/#faq`,
+      mainEntity: LANDING_FAQ.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    },
+  ],
+};
+
 export default function LandingPage({
   billingOpen = false,
   limitsEnabled = false,
@@ -44,6 +138,10 @@ export default function LandingPage({
         </nav>
       </header>
       <main>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+        />
         <section className={styles.hero}>
           <div className={styles.intro}>
             <p className={styles.eyebrow}>
@@ -236,64 +334,12 @@ export default function LandingPage({
         </section>
         <section className={styles.faq} aria-label="Common questions">
           <h2>A few honest answers.</h2>
-          <details>
-            <summary>How does SureWord become more personal?</summary>
-            <p>
-              SureWord draws on your saved memories, reading history, questions
-              and notes to give future conversations context. Suggested questions
-              and Pick Up Your Cross can build on what you’ve been studying and
-              what matters to you. You can also choose your Bible translation,
-              appearance and reading goals to make the experience your own.
-            </p>
-          </details>
-          <details>
-            <summary>Can I choose what SureWord remembers?</summary>
-            <p>
-              Yes. Ask it to remember, correct or forget a detail, or manage your
-              saved memories in Settings. You can turn memory off there too.
-              Removing a memory does not delete your notes, conversations or
-              reading history.
-            </p>
-          </details>
-          <details>
-            <summary>Can I keep using SureWord for free?</summary>
-            <p>
-              Yes. Reading, notes, highlights and saved study remain accessible
-              when your included AI allowance runs out. Free includes{" "}
-              {FREE_DAILY_MESSAGES} messages each day, with no credit card
-              required.
-            </p>
-          </details>
-          <details>
-            <summary>What counts as an AI message?</summary>
-            <p>
-              A new AI question, regeneration, note-composition request, fresh
-              verse explanation, memory summary or generated reading plan counts
-              as one action. Tools used within an answer do not count
-              separately. Opening saved content does not use a message. Daily
-              allowances reset at midnight UTC, shown in your local time in
-              membership settings.
-            </p>
-          </details>
-          <details>
-            <summary>
-              Does the AI replace reading the Bible or being part of a church?
-            </summary>
-            <p>
-              No. SureWord is a study aid and its AI can make mistakes. Read
-              cited passages in context, examine interpretations carefully, and
-              stay connected to your local church.
-            </p>
-          </details>
-          <details>
-            <summary>Can I choose my own model?</summary>
-            <p>
-              Included AI uses a model selected by SureWord, so you can start
-              immediately. Add a personal provider key in Settings to use
-              supported models and reasoning options. Your provider bills that
-              usage separately.
-            </p>
-          </details>
+          {LANDING_FAQ.map((item) => (
+            <details key={item.question}>
+              <summary>{item.question}</summary>
+              <p>{item.answer}</p>
+            </details>
+          ))}
         </section>
         <section className={styles.closing}>
           <p className={styles.eyebrow}>A personal place to grow in the Word</p>

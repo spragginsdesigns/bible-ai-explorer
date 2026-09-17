@@ -188,11 +188,14 @@ const memoryUpdateSchema = z.object({
 			z.object({
 				id: z.string().describe("The id of the existing memory to replace."),
 				content: z.string().describe("The corrected or refined fact."),
+				// `.nullable()`, not `.optional()`: OpenAI's strict structured outputs
+				// require every property to be listed as required, so an optional key
+				// makes the whole schema invalid and every extraction fails with a 400.
 				status: z
 					.enum(["answered", "closed"])
-					.optional()
+					.nullable()
 					.describe(
-						"Only for an existing prayer request whose outcome the user just reported: answered when God answered it, closed when they no longer want it carried."
+						"Only for an existing prayer request whose outcome the user just reported: answered when God answered it, closed when they no longer want it carried. Null otherwise."
 					),
 			})
 		)

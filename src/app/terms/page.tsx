@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+import {
+  FREE_DAILY_MESSAGES,
+  PRO_DAILY_MESSAGES,
+  PRO_MONTHLY_MESSAGES,
+  PRO_MONTHLY_PRICE_CENTS,
+} from "@/lib/billing/plans";
 
-export const metadata = { title: "Membership terms | SureWord" };
+// The root layout's title template appends " | SureWord".
+export const metadata: Metadata = { title: "Membership terms" };
 
 export default function TermsPage() {
   return (
@@ -17,8 +25,10 @@ export default function TermsPage() {
         <p>
           SureWord provides Bible study tools and AI assistance. Reading, notes,
           highlights and saved conversations remain available on the Free plan.
-          Free includes 10 AI actions per day. Pro is $15 USD per month and
-          includes 600 AI actions per billing period, with up to 50 per day.
+          Free includes {FREE_DAILY_MESSAGES} AI actions per day. Pro is $
+          {PRO_MONTHLY_PRICE_CENTS / 100} USD per month and includes{" "}
+          {PRO_MONTHLY_MESSAGES} AI actions per billing period, with up to{" "}
+          {PRO_DAILY_MESSAGES} per day.
           Daily allowances reset at midnight UTC; membership settings show the
           corresponding local time. Unused messages do not roll over.
         </p>

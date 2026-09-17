@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { activeSubscription, quotaDecision, utcDayWindow, calendarMonthWindow, PRO_MONTHLY_PRICE_CENTS } from '../src/lib/billing/plans.ts';
 
-test('Pro is $15 and free permits exactly ten daily messages', () => {
+test('Pro is $15 and free permits exactly twenty daily messages', () => {
 	assert.equal(PRO_MONTHLY_PRICE_CENTS, 1500);
-	assert.equal(quotaDecision({ pro: false, daily: 9, monthly: 900 }).allowed, true);
-	assert.equal(quotaDecision({ pro: false, daily: 10, monthly: 10 }).allowed, false);
+	assert.equal(quotaDecision({ pro: false, daily: 19, monthly: 900 }).allowed, true);
+	assert.equal(quotaDecision({ pro: false, daily: 20, monthly: 20 }).allowed, false);
+	assert.equal(quotaDecision({ pro: false, daily: 20, monthly: 20 }).dailyRemaining, 0);
 });
 test('Pro must satisfy both independent windows', () => {
 	assert.equal(quotaDecision({ pro: true, daily: 49, monthly: 599 }).allowed, true);

@@ -4,6 +4,11 @@ import { NextResponse } from "next/server";
 const isPublicRoute = createRouteMatcher([
 	"/",
 	"/terms",
+	// Crawler files are metadata routes (app/robots.ts, app/sitemap.ts), not
+	// static assets, so the matcher runs on them and they must be listed here
+	// or every crawler is redirected to /sign-in.
+	"/robots.txt",
+	"/sitemap.xml",
 	"/sign-in(.*)",
 	"/sign-up(.*)",
 	// Required to be publicly reachable for the Play Store listing (Google's

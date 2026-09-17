@@ -47,7 +47,7 @@ function readReferences(value: unknown): string[] {
 export async function generateMetadata({ params }: SharedAnswerParams): Promise<Metadata> {
 	const { id } = await params;
 	const share = await loadSharedAnswer(id);
-	if (!share) return { title: "Not found | SureWord", robots: { index: false } };
+	if (!share) return { title: "Not found", robots: { index: false } };
 
 	const title = shareTitle(share.question);
 	const description = shareDescription(share.answer);

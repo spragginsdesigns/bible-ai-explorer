@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-	title: "Privacy Policy - SureWord",
+	// The root layout's title template appends " | SureWord".
+	title: "Privacy Policy",
 	description:
 		"How SureWord handles your account, Bible study, personalization, files, and native-app data.",
 };

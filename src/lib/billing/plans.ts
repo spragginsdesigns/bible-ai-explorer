@@ -1,6 +1,6 @@
 /** Public plan terms. Prices are integer USD cents, never client-supplied. */
 export const PRO_MONTHLY_PRICE_CENTS = 1500;
-export const FREE_DAILY_MESSAGES = 10;
+export const FREE_DAILY_MESSAGES = 20;
 export const PRO_DAILY_MESSAGES = 50;
 export const PRO_MONTHLY_MESSAGES = 600;
 export const INCLUDED_MODEL = "openai/gpt-5.6-luna";

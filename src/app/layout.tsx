@@ -33,29 +33,65 @@ const hack = localFont({
 	variable: "--font-mono",
 });
 
+const SITE_TITLE = "SureWord: KJV Bible Study App with AI";
+// Keep "Come hungry for the Word" and "personal Bible study companion" here:
+// tests/welcome-copy-parity.test.mjs pins every release-facing surface to them.
+const SITE_DESCRIPTION =
+	"Come hungry for the Word. SureWord is a KJV Bible study app and personal Bible study companion with AI. Ask any Bible question and get answers grounded in Scripture.";
+const OG_IMAGE_ALT = "SureWord, a KJV Bible study app with AI";
+
 export const metadata: Metadata = {
 	metadataBase: new URL("https://sureword.app"),
-	title: "SureWord — Come hungry for the Word",
-	description:
-		"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
-	keywords: ["Bible", "AI", "Christian", "Theology", "Scripture", "KJV", "SureWord"],
+	title: {
+		default: SITE_TITLE,
+		template: "%s | SureWord",
+	},
+	description: SITE_DESCRIPTION,
+	keywords: [
+		"KJV Bible app",
+		"Bible study app",
+		"AI Bible study",
+		"AI Bible study assistant",
+		"Bible questions",
+		"Bible chat",
+		"Scripture study",
+		"daily devotional",
+		"Bible reading plan",
+		"Strong's concordance",
+		"KJV",
+		"Christian",
+		"SureWord",
+	],
+	category: "religion",
+	alternates: {
+		canonical: "https://sureword.app",
+	},
+	robots: {
+		index: true,
+		follow: true,
+		googleBot: {
+			index: true,
+			follow: true,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
+	},
 	authors: [
 		{ name: "Austin Spraggins", url: "https://sureword.app" }
 	],
 	creator: "Austin Spraggins",
 	publisher: "Spraggins Designs",
 	openGraph: {
-		title: "SureWord — Come hungry for the Word",
-		description:
-			"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
+		title: SITE_TITLE,
+		description: SITE_DESCRIPTION,
 		url: "https://sureword.app",
 		siteName: "SureWord",
 		images: [
 			{
-				url: "/web-app-manifest-512x512.png",
-				width: 512,
-				height: 512,
-				alt: "SureWord logo"
+				url: "/og-image.png",
+				width: 1200,
+				height: 630,
+				alt: OG_IMAGE_ALT
 			}
 		],
 		locale: "en_US",
@@ -63,11 +99,17 @@ export const metadata: Metadata = {
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SureWord — Come hungry for the Word",
-		description:
-			"Your personal Bible study companion. SureWord remembers what you share and builds on what you read, bringing context to your questions and daily walk.",
+		title: SITE_TITLE,
+		description: SITE_DESCRIPTION,
 		creator: "@spragginsdesign",
-		images: ["/web-app-manifest-512x512.png"]
+		images: [
+			{
+				url: "/og-image.png",
+				width: 1200,
+				height: 630,
+				alt: OG_IMAGE_ALT
+			}
+		]
 	},
 	icons: {
 		icon: [

@@ -9,7 +9,7 @@ Update this file whenever a feature changes on any client.
 
 ## Free, web Pro and BYOK release, 2026-09-14
 
-Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 10/day. Both use Luna medium for ordinary chat and low for short utilities. Production usage enforcement is enabled. Web Stripe checkout is enabled after a real test-mode purchase, renewal, portal cancellation and refund cycle, plus a live signed webhook delivered with HTTP 200. Google Play purchases remain disabled pending merchant setup and a real store purchase. No live card charge was made.
+Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 20/day (raised from 10 on 2026-09-17 after the two most active free accounts hit the cap on consecutive days). Both use Luna medium for ordinary chat and low for short utilities. Production usage enforcement is enabled. Web Stripe checkout is enabled after a real test-mode purchase, renewal, portal cancellation and refund cycle, plus a live signed webhook delivered with HTTP 200. Google Play purchases remain disabled pending merchant setup and a real store purchase. No live card charge was made.
 
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
