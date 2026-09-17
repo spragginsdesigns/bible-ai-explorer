@@ -80,13 +80,19 @@ export function useModalFocus<T extends HTMLElement>(
 			container
 		).focus();
 
+		// Escape bubbles so nested editors and portaled menus get first refusal.
+		// Check the original target, since a menu may restore focus while closing.
+		const onEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape" || event.defaultPrevented) return;
+			if (
+				optionsRef.current.allowPortalFocus &&
+				(!(event.target instanceof Node) || !container.contains(event.target))
+			) return;
+			event.preventDefault();
+			event.stopPropagation();
+			optionsRef.current.onClose();
+		};
 		const onKey = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				event.preventDefault();
-				event.stopPropagation();
-				optionsRef.current.onClose();
-				return;
-			}
 			if (event.key !== "Tab") return;
 			const active =
 				document.activeElement instanceof HTMLElement
@@ -115,8 +121,10 @@ export function useModalFocus<T extends HTMLElement>(
 			available[next].focus();
 		};
 		window.addEventListener("keydown", onKey, true);
+		window.addEventListener("keydown", onEscape);
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
+			window.removeEventListener("keydown", onEscape);
 			if (trigger?.isConnected) trigger.focus();
 		};
 	}, [open]);

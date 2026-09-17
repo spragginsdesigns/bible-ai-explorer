@@ -218,7 +218,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 									onChange={(e) => setEditValue(e.target.value)}
 									onKeyDown={(e) => {
 										if (e.key === "Enter") void commitRename(convo);
-										if (e.key === "Escape") setEditingId(null);
+										if (e.key === "Escape") {
+											e.preventDefault();
+											e.stopPropagation();
+											setEditingId(null);
+										}
 									}}
 									onClick={(e) => e.stopPropagation()}
 									// The route rejects anything longer, and the error would

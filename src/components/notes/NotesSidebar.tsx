@@ -118,7 +118,11 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 								onChange={(e) => setEditFolderName(e.target.value)}
 								onKeyDown={(e) => {
 									if (e.key === "Enter") handleRenameFolder(folder.id);
-									if (e.key === "Escape") setEditingFolderId(null);
+									if (e.key === "Escape") {
+										e.preventDefault();
+										e.stopPropagation();
+										setEditingFolderId(null);
+									}
 								}}
 								className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1"
 							/>
@@ -169,7 +173,11 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 						onChange={(e) => setNewFolderName(e.target.value)}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") handleCreateFolder();
-							if (e.key === "Escape") setIsCreatingFolder(false);
+							if (e.key === "Escape") {
+								e.preventDefault();
+								e.stopPropagation();
+								setIsCreatingFolder(false);
+							}
 						}}
 						placeholder="Folder name"
 						className="flex-1 bg-transparent text-neutral-800 dark:text-neutral-200 text-sm outline-none border-b border-amber-400/40 px-1 placeholder:text-neutral-400 dark:placeholder:text-neutral-600"
