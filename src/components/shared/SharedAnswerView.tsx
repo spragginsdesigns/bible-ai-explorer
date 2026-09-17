@@ -1,12 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { createContext, useContext } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ArrowRight, ArrowUpRight, BookOpen, MessageCircle } from "lucide-react";
 import { createMarkdownComponents, type VerseRefProps } from "../markdownComponents";
 import { parseVerseReferences } from "../../utils/verseParser";
-import { ANDROID_APK_URL, MACOS_DMG_URL } from "../../lib/constants";
+import { sharedPassageLink } from "@/lib/shared-passage";
+import CopyShareLink from "./CopyShareLink";
+import SharedDownloads from "./SharedDownloads";
 
 /**
  * The body of a public `/shared/[id]` page.
@@ -16,21 +19,49 @@ import { ANDROID_APK_URL, MACOS_DMG_URL } from "../../lib/constants";
  * a server component cannot do. Sharing the map is the point: a shared answer
  * has to read exactly like the answer the sender saw.
  *
- * The one substitution is the verse reference. In chat a reference is a
- * popover that fetches the passage from an authenticated route; here the
- * visitor is signed out, so references render as inert emphasis with the same
- * colour and underline. Nothing on this page makes an API call.
+ * References open public passage readers with their source translation,
+ * without using authenticated routes or changing the visitor's preferences.
  */
-const ReadOnlyVerseRef: React.FC<VerseRefProps> = ({ children }) => (
-	<span className="text-amber-600 underline decoration-black/20 underline-offset-2 dark:text-amber-400 dark:decoration-white/20">
-		{children}
-	</span>
-);
+const SharedTranslation = createContext("");
+const InsideSharedAnchor = createContext(false);
+const PublicVerseRef: React.FC<VerseRefProps & { chip?: boolean }> = ({ reference, children, chip = false }) => {
+	const translation = useContext(SharedTranslation);
+	const insideAnchor = useContext(InsideSharedAnchor);
+	const passage = sharedPassageLink(reference, translation);
+	if (!passage || insideAnchor) return <span>{children}</span>;
+	return (
+		<a href={passage.href} target="_blank" rel="noopener noreferrer" title={`Read ${reference} (${passage.version})${passage.startingChapter ? ", starting chapter," : ""} on ${passage.provider} (opens in a new tab)`}
+			className={chip ? "inline-flex min-h-11 items-center gap-1.5 rounded-full border border-amber-600/25 bg-amber-500/10 px-3 py-2 text-metadata font-medium text-amber-800 transition-colors hover:bg-amber-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:border-amber-400/25 dark:text-amber-300 dark:focus-visible:outline-amber-400" : "rounded-sm text-amber-700 underline decoration-amber-700/40 underline-offset-2 hover:decoration-current focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-400 dark:decoration-amber-400/40 dark:focus-visible:outline-amber-400"}>
+			{children}{chip && <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />}
+			<span className="sr-only"> (opens {passage.startingChapter ? "the starting chapter on " : "on "}{passage.provider} in a new tab)</span>
+		</a>
+	);
+};
 
-const markdownComponents = createMarkdownComponents({
-	VerseRef: ReadOnlyVerseRef,
+function visibleText(children: React.ReactNode): string {
+	return React.Children.toArray(children).map((child) => {
+		if (typeof child === "string" || typeof child === "number") return String(child);
+		return React.isValidElement<{ children?: React.ReactNode }>(child) ? visibleText(child.props.children) : "";
+	}).join("");
+}
+
+const baseMarkdownComponents = createMarkdownComponents({
+	VerseRef: PublicVerseRef,
 	parseVerseReferences,
 });
+const markdownComponents: typeof baseMarkdownComponents = {
+	...baseMarkdownComponents,
+	a: function SharedAnchor(props) {
+		const translation = useContext(SharedTranslation);
+		// Markdown citations can already be anchors to an authenticated reader.
+		// Route their visible reference through the same public reading link.
+		const reference = visibleText(props.children);
+		const passage = sharedPassageLink(reference, translation);
+		const href = passage?.href ?? props.href;
+		const external = typeof href === "string" && /^(https?:\/\/|\/\/)/i.test(href);
+		return <a href={href} title={passage ? `Read ${reference} (${passage.version})${passage.startingChapter ? ", starting chapter," : ""} on ${passage.provider} (opens in a new tab)` : props.title} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} className="text-amber-700 underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 dark:text-amber-400"><InsideSharedAnchor.Provider value={true}>{props.children}</InsideSharedAnchor.Provider>{passage && <span className="sr-only"> (opens {passage.startingChapter ? "the starting chapter on " : "on "}{passage.provider} in a new tab)</span>}</a>;
+	},
+};
 
 export interface SharedAnswerViewProps {
 	question: string;
@@ -45,75 +76,68 @@ const SharedAnswerView: React.FC<SharedAnswerViewProps> = ({
 	references,
 	translation,
 }) => (
-	<main className="min-h-screen bg-white text-neutral-900 dark:bg-[#0a0a0a] dark:text-neutral-100">
-		<div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+	<SharedTranslation.Provider value={translation}>
+	<main className="min-h-screen bg-background text-foreground selection:bg-amber-200 selection:text-neutral-950 dark:selection:bg-amber-400/30 dark:selection:text-amber-100">
+		<div className="mx-auto w-full max-w-3xl px-5 py-8 sm:px-6 sm:py-14">
+			<header className="flex items-center justify-between gap-3">
 			<Link
 				href="/"
-				className="inline-flex items-center gap-2 text-metadata font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400"
+				className="inline-flex min-h-11 items-center gap-2.5 rounded-md text-support font-semibold text-neutral-900 transition-colors hover:text-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-600 dark:text-neutral-100 dark:hover:text-amber-300 dark:focus-visible:outline-amber-400"
 			>
+				<BookOpen aria-hidden="true" className="h-5 w-5 text-amber-700 dark:text-amber-400" strokeWidth={1.75} />
 				SureWord
 			</Link>
+				<CopyShareLink />
+			</header>
 
 			{question ? (
-				<h1 className="mt-6 text-screen-title font-semibold leading-snug text-neutral-900 dark:text-white">
+				<h1 className="mt-8 break-words font-[family-name:var(--font-cormorant)] text-4xl font-semibold leading-[1.12] text-neutral-900 [text-wrap:balance] sm:text-5xl dark:text-neutral-100">
 					{question}
 				</h1>
 			) : null}
 
-			<p className="mt-3 text-metadata text-neutral-500 dark:text-neutral-400">
+			<p className="mt-4 text-metadata text-neutral-600 dark:text-neutral-400">
 				Shared answer · {translation}
 			</p>
 
 			{references.length > 0 ? (
 				<ul className="mt-5 flex flex-wrap gap-2" aria-label="Scripture referenced">
 					{references.map((reference) => (
-						<li
-							key={reference}
-							className="rounded-full border border-amber-600/25 bg-amber-500/10 px-3 py-1 text-metadata font-medium text-amber-700 dark:border-amber-400/25 dark:text-amber-300"
-						>
-							{reference}
+						<li key={reference}>
+							<PublicVerseRef reference={reference} chip>{reference}</PublicVerseRef>
 						</li>
 					))}
 				</ul>
 			) : null}
 
-			<article className="mt-8 min-w-0 break-words text-chat">
+			<article className="mt-8 min-w-0 break-words border-t border-border pt-7 text-chat sm:mt-10 sm:pt-8">
 				<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
 					{answer}
 				</ReactMarkdown>
 			</article>
 
-			<footer className="mt-12 border-t border-black/[0.1] pt-8 dark:border-white/[0.08]">
-				<p className="text-support text-neutral-600 dark:text-neutral-400">
-					Shared from SureWord, a Bible study companion rooted in Scripture.
-				</p>
-				<div className="mt-4 flex flex-wrap items-center gap-3">
-					{/* Dark ink on amber, and hover brightens rather than darkens: white
-					    on amber-600 was 3.19:1 at 15px semibold, under the 4.5:1 WCAG AA
-					    floor. neutral-950 gives 6.21:1 at rest and 9.22:1 on amber-500
-					    hover, where darkening to amber-700 would have dropped it to 3.94:1. */}
+			<footer className="mt-12 rounded-2xl border border-amber-900/10 bg-amber-50/70 p-5 sm:mt-16 sm:p-7 dark:border-amber-200/10 dark:bg-amber-200/[0.035]">
+				<div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+					<div>
+						<h2 className="font-[family-name:var(--font-cormorant)] text-3xl font-semibold leading-tight">Keep exploring Scripture.</h2>
+						<p className="mt-2 max-w-xs text-support leading-relaxed text-neutral-600 dark:text-neutral-400">
+							Shared from SureWord, a Bible study companion rooted in Scripture.
+						</p>
+					</div>
 					<Link
 						href="/sign-up"
-						className="rounded-lg bg-amber-600 px-4 py-2 text-control font-semibold text-neutral-950 transition-colors hover:bg-amber-500 dark:bg-amber-500 dark:text-[#0a0a0a] dark:hover:bg-amber-400"
+						className="group inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-amber-400 px-5 py-3 text-control font-semibold text-neutral-950 shadow-sm transition-colors hover:bg-amber-300 active:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-700 sm:w-auto dark:focus-visible:outline-amber-300"
 					>
+						<MessageCircle aria-hidden="true" className="h-4 w-4" />
 						Ask your own question
+						<ArrowRight aria-hidden="true" className="h-4 w-4 motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" />
 					</Link>
-					<a
-						href={ANDROID_APK_URL}
-						className="rounded-lg border border-black/[0.12] px-4 py-2 text-control font-medium text-neutral-700 transition-colors hover:border-black/25 dark:border-white/[0.14] dark:text-neutral-300 dark:hover:border-white/30"
-					>
-						Android app
-					</a>
-					<a
-						href={MACOS_DMG_URL}
-						className="rounded-lg border border-black/[0.12] px-4 py-2 text-control font-medium text-neutral-700 transition-colors hover:border-black/25 dark:border-white/[0.14] dark:text-neutral-300 dark:hover:border-white/30"
-					>
-						macOS app
-					</a>
 				</div>
+				<SharedDownloads />
 			</footer>
 		</div>
 	</main>
+	</SharedTranslation.Provider>
 );
 
 export default SharedAnswerView;
