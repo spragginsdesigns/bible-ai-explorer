@@ -11,6 +11,7 @@ import {
 	validateUIMessages,
 	type UIMessage,
 } from "ai";
+import { plainDashes } from "@/lib/ai/plain-dashes";
 import { waitUntil } from "@vercel/functions";
 import { ChatAttachmentStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -919,6 +920,10 @@ async function handlePost(req: Request): Promise<Response> {
 						// Either limit ends the loop cleanly, so the answer is streamed,
 						// persisted and measured. Only the platform timeout loses a turn.
 						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
+						// Runs on the text deltas before the UI stream and before onEnd
+						// sees the final text, so the client and the persisted Message
+						// row agree and neither carries an em dash.
+						experimental_transform: plainDashes(),
 						providerOptions: progressProviderOptions(definition.provider, definition.providerModelId, promptCache.providerOptions),
 						onChunk: ({ chunk }) => {
 							if (chunk.type === "text-delta") progress.answer();

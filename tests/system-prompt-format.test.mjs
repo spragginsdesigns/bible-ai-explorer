@@ -51,10 +51,10 @@ test("D3b: the rules block ships inside the chat prompt", () => {
 
 test("D3b: the rules follow the user's translation setting", () => {
 	const nkjv = chatSystemPrompt("NKJV");
-	assert.ok(nkjv.includes(`${EM_DASH} Psalm 46:10, NKJV`), "the worked example must swap");
+	assert.ok(nkjv.includes("> Psalm 46:10, NKJV"), "the worked example must swap");
 	assert.ok(!nkjv.includes("Psalm 46:10, KJV"));
 	// The translation setting is a shipped feature: never hard-code KJV.
-	assert.ok(chatSystemPrompt("KJV").includes(`${EM_DASH} Psalm 46:10, KJV`));
+	assert.ok(chatSystemPrompt("KJV").includes("> Psalm 46:10, KJV"));
 });
 
 test("D3b: the blockquote example is itself a single well-formed blockquote", () => {
@@ -66,11 +66,23 @@ test("D3b: the blockquote example is itself a single well-formed blockquote", ()
 		assert.ok(line.startsWith("> "), `no bare '>' line: ${JSON.stringify(line)}`);
 		assert.ok(line.trim() !== ">", "a bare marker line is the bug the rules forbid");
 	}
-	assert.ok(
-		quoteLines[1].includes(EM_DASH),
-		"the attribution must use an em dash - a hyphen makes it a bullet inside the quote"
-	);
+	// The reference stands alone: no em dash (the answer pipeline strips them,
+	// so the example must not teach one) and no hyphen (a bullet inside the
+	// quote).
+	assert.ok(!quoteLines[1].includes(EM_DASH), "the reference line must not open with an em dash");
 	assert.ok(!/^> [-*+] /.test(quoteLines[1]), "the reference line must not read as a list item");
+	assert.equal(quoteLines[1], "> Psalm 46:10, KJV");
+});
+
+test("D3c: the chat prompt never models an em dash, and forbids them outright", () => {
+	// Every answer is dash-stripped on the way out (src/lib/ai/plain-dashes.ts);
+	// a prompt full of em dashes would invite the model to write them anyway
+	// and leave the stripper repairing spacing on every turn.
+	for (const translation of ["KJV", "NKJV"]) {
+		const prompt = chatSystemPrompt(translation);
+		assert.ok(!prompt.includes(EM_DASH), `${translation} prompt carries an em dash`);
+		assert.ok(prompt.includes("Never use an em dash or an en dash"));
+	}
 });
 
 test("D3b: the rules block practises what it preaches", () => {

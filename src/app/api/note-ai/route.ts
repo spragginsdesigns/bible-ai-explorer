@@ -11,6 +11,7 @@ import {
 	validateUIMessages,
 	type UIMessage,
 } from "ai";
+import { plainDashes } from "@/lib/ai/plain-dashes";
 import { waitUntil } from "@vercel/functions";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
@@ -299,6 +300,9 @@ async function handlePost(req: Request): Promise<Response> {
 					// Either limit ends the loop cleanly, so the answer is streamed,
 					// persisted and measured. Only the platform timeout loses a turn.
 					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
+					// Same dash stripping as the chat route; the note panel persists
+					// what it streams too.
+					experimental_transform: plainDashes(),
 					providerOptions: promptCache.providerOptions,
 					onStepEnd: (event) => {
 						logChatStepMetric(

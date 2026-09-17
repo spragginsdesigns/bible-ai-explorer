@@ -1,5 +1,6 @@
 import { waitUntil } from "@vercel/functions";
 import { createTextStreamResponse, streamText, toTextStream } from "ai";
+import { plainDashes } from "@/lib/ai/plain-dashes";
 import { NextResponse } from "next/server";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { getAuthUser } from "@/lib/auth";
@@ -87,6 +88,9 @@ async function handlePost(req: Request): Promise<Response> {
 			prompt: `${reference} (${translation})\n"${text}"`,
 			maxOutputTokens: 2000,
 			providerOptions: resolved.providerOptions,
+			// Applied before the stream and the cache write, so the cached
+			// explanation is as dash-free as the streamed one.
+			experimental_transform: plainDashes(),
 			onEnd: ({ text: full, finishReason }) => {
 				// Only a naturally finished, non-empty answer is worth keeping:
 				// a length cut-off or an error mid-stream must regenerate next tap.
