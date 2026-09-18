@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.70.3 (versionCode 76) - 2026-09-18 - internal
+
+**What's new (Play):**
+
+- The SureWord icon in the status bar and notification shade is now full size, like every other app's, instead of a small mark floating in the middle of its tile.
+
+**Dev notes:** `mobile/assets/notification-icon.png` was a hand-made 96px file whose glyph covered only 52x49px (about half the tile); Android draws the small icon at 24dp with no padding of its own, so it rendered at roughly half the size of neighbouring apps. The icon is now emitted by `scripts/apply-logo.py` from the same master as every other icon (white alpha glyph at 92% fill, proof sheet in `.logo-work/preview-notification.png`), and `push-phone.sh` hashes the icon PNGs into its prebuild stamp so a regenerated icon forces the `expo prebuild` that bakes it into `res/`. Android-only asset; web and Apple have no equivalent small-icon surface.
+
 ## 1.70.2 (versionCode 75) - 2026-09-17 - internal
 
 **What's new (Play):**

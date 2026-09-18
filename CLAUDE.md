@@ -258,8 +258,14 @@ safe-zone circle (~62% of the canvas edge), and a favicon proof sheet is
 rendered at 16-96px on dark and light so small-size legibility is something you
 look at rather than assume.
 
-Changing icons requires a full `expo prebuild` (see below) — Android bakes them
+Changing icons requires a full `expo prebuild` (see below) - Android bakes them
 into `res/`, so a rebuilt APK is the only way they reach the device.
+`push-phone.sh` hashes the three `mobile/assets/*icon*.png` files into its
+prebuild stamp, so a regenerated icon triggers that prebuild on its own. The
+status-bar notification icon is part of the same pipeline: Android draws it at
+24dp with no padding, so `apply-logo.py` fills 92% of the tile with the white
+glyph (the original hand-made file covered about half, which is why SureWord's
+shade icon used to look tiny next to every other app's).
 
 ## Rebuilding the Android app
 

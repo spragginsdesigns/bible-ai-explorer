@@ -77,11 +77,17 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
   # `android/` is generated and gitignored. Expo 57 clears it even for a
   # non-clean prebuild, so stamp the native inputs and regenerate only when a
   # fresh checkout or config/dependency change actually requires it.
+  # The icon PNGs are prebuild inputs too: config plugins bake them into
+  # res/, so a regenerated launcher or notification icon with an unchanged
+  # app.json would otherwise ship the stale copy already sitting in android/.
   prebuild_sha() {
     sha256sum \
       "$MOBILE_DIR/app.json" \
       "$MOBILE_DIR/package.json" \
       "$MOBILE_DIR/package-lock.json" \
+      "$MOBILE_DIR/assets/icon.png" \
+      "$MOBILE_DIR/assets/adaptive-icon.png" \
+      "$MOBILE_DIR/assets/notification-icon.png" \
       | awk '{print $1}' | sha256sum | awk '{print $1}'
   }
   PREBUILD_STAMP="$MOBILE_DIR/android/.sureword-prebuild-sha"

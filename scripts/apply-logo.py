@@ -50,6 +50,14 @@ GOLD_DARK = (188, 136, 52)
 # 0.62 of the canvas edge.
 MASKABLE_SAFE_FRACTION = 0.62
 
+# Android's status-bar / shade icon is a 24dp white-on-transparent glyph that
+# the system tints and draws with no padding of its own, so the glyph has to
+# fill the canvas the way every other app's does: Material's system-icon grid
+# keeps ~1dp clear on each side of a 24dp tile. expo-notifications takes a
+# 96px source (xxxhdpi) and downsamples it per density.
+NOTIFICATION_SIZE = 96
+NOTIFICATION_FRACTION = 0.92
+
 WEB = ROOT / "public"
 MOBILE = ROOT / "mobile" / "assets"
 MACOS_ICONSET = ROOT / "macos" / "SureWord" / "Assets.xcassets" / "AppIcon.appiconset"
@@ -187,6 +195,47 @@ def badge(art: Image.Image) -> Image.Image:
     return canvas
 
 
+def notification_icon(art: Image.Image) -> Image.Image:
+    """Android small notification icon: the mark's coverage as a white glyph
+    on a transparent canvas, filling NOTIFICATION_FRACTION of the edge.
+
+    Only alpha matters - Android throws the colour away and tints the shape
+    itself - so the glyph is composed at 1024 for a clean edge, then
+    downsampled with the alpha curve lifted a little, which keeps the star's
+    thin rays from fading to nothing at the 24px mdpi tile.
+    """
+    work = 1024
+    canvas = Image.new("RGBA", (work, work), (0, 0, 0, 0))
+    paste_fit(canvas, art, int(work * NOTIFICATION_FRACTION))
+    small = canvas.resize((NOTIFICATION_SIZE, NOTIFICATION_SIZE), Image.LANCZOS)
+    alpha = small.getchannel("A").point(lambda v: round(255 * (v / 255) ** 0.7))
+    glyph = Image.new("RGBA", small.size, (255, 255, 255, 0))
+    glyph.putalpha(alpha)
+    return glyph
+
+
+def notification_proof(glyph: Image.Image) -> Image.Image:
+    """The glyph at every Android density on a dark shade and a light one,
+    upscaled 4x with NEAREST, tinted the way the system draws it."""
+    sizes = [24, 36, 48, 72, 96]
+    cell, pad = 4, 12
+    total_w = sum(sz * cell + pad for sz in sizes) + pad
+    row_h = max(sizes) * cell + pad
+    sheet = Image.new("RGB", (total_w, row_h * 2 + pad), BG)
+    ImageDraw.Draw(sheet).rectangle([0, row_h + pad // 2, total_w, row_h * 2 + pad],
+                                    fill=(242, 242, 242))
+    for y0, tint in ((pad // 2, (255, 255, 255)), (row_h + pad, (217, 119, 6))):
+        x = pad
+        for sz in sizes:
+            tiny = glyph.resize((sz, sz), Image.LANCZOS)
+            tinted = Image.new("RGBA", tiny.size, tint + (0,))
+            tinted.putalpha(tiny.getchannel("A"))
+            big = tinted.resize((sz * cell, sz * cell), Image.NEAREST)
+            sheet.paste(big, (x, y0 + (row_h - pad - sz * cell) // 2), big)
+            x += sz * cell + pad
+    return sheet
+
+
 def macos_icon(flat: Image.Image) -> Image.Image:
     """Compose the Apple-grid icon: rounded rect + baked soft shadow, at 1024."""
     size = 1024
@@ -296,6 +345,16 @@ def main() -> int:
         adaptive = MOBILE / "adaptive-icon.png"
         flat_icon(art, 1024, MASKABLE_SAFE_FRACTION).save(adaptive, "PNG", optimize=True)
         written.append((adaptive, f"1024x1024 (safe {int(MASKABLE_SAFE_FRACTION * 100)}%)"))
+
+        glyph = notification_icon(art)
+        notif = MOBILE / "notification-icon.png"
+        glyph.save(notif, "PNG", optimize=True)
+        written.append((notif, f"{NOTIFICATION_SIZE}x{NOTIFICATION_SIZE} white glyph "
+                               f"(fill {int(NOTIFICATION_FRACTION * 100)}%)"))
+        notif_preview = ROOT / ".logo-work" / "preview-notification.png"
+        notif_preview.parent.mkdir(parents=True, exist_ok=True)
+        notification_proof(glyph).save(notif_preview, "PNG")
+        written.append((notif_preview, "24-96px status-bar check on dark/light"))
 
     # --- macos -------------------------------------------------------------
     if only in (None, "macos"):
