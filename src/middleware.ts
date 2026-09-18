@@ -9,6 +9,8 @@ const isPublicRoute = createRouteMatcher([
 	// or every crawler is redirected to /sign-in.
 	"/robots.txt",
 	"/sitemap.xml",
+	// Plain-text site summary for AI assistants (app/llms.txt/route.ts).
+	"/llms.txt",
 	"/sign-in(.*)",
 	"/sign-up(.*)",
 	// Required to be publicly reachable for the Play Store listing (Google's
