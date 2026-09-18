@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import { radius, spacing, typography, type Colors } from "@/theme";
@@ -14,13 +14,15 @@ export interface StudyTabsProps {
 	tabs: StudyTab[];
 	value: string;
 	onChange: (key: string) => void;
+	/** Overrides the container's margins for hosts that pad their own edges. */
+	style?: StyleProp<ViewStyle>;
 }
 
 /** Segmented control across the study panes of the expanded verse sheet. */
-export function StudyTabs({ tabs, value, onChange }: StudyTabsProps): React.JSX.Element {
+export function StudyTabs({ tabs, value, onChange, style }: StudyTabsProps): React.JSX.Element {
 	const styles = useThemedStyles(createStyles);
 	return (
-		<View accessibilityRole="tablist" style={styles.container}>
+		<View accessibilityRole="tablist" style={[styles.container, style]}>
 			{tabs.map((tab) => {
 				const selected = tab.key === value;
 				return (

@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.71.0 (versionCode 77) - 2026-09-18 - internal
+
+**What's new (Play):**
+
+- The AI model picker in Chat is redesigned: it now fills the screen with two tabs, Models and Options. Models gets the whole height for search and the list, and Options lays every Reasoning, Speed, Length and Mode choice out in a tidy grid, so nothing is cut off or hidden behind a sideways scroll.
+- "Add an API key" now sits at the end of the model list as a tappable row.
+
+**Dev notes:** `mobile/src/features/chat/ModelPickerSheet.tsx` moves to a fixed-height sheet (`heightRatio` 0.86 in keys mode; house mode, loading and error still size to content) split by `StudyTabs` (new optional `style` prop) into a MODELS pane (pinned search, scrolling grouped list, single provider renders as a static section header rather than an accordion) and an OPTIONS pane (one card per section, chips in a percent-width wrapping grid sized by `optionGridColumns` in `modelPickerRules.ts`, unit tested). Removes the chrome/options `onLayout` height juggling and the horizontal chip ScrollView. Web keeps its own layout (popover with the same sections); no capability changed on any client.
+
 ## 1.70.3 (versionCode 76) - 2026-09-18 - internal
 
 **What's new (Play):**

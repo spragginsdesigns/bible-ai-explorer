@@ -20,6 +20,7 @@ import {
 	modelPills,
 	modelsForProvider,
 	modesFor,
+	optionGridColumns,
 	optionSections,
 	providerLabel,
 	seedRunOptions,
@@ -448,6 +449,34 @@ describe("optionSections", () => {
 		expect(optionSections(model("gpt-5.6", "openai")).map((section) => section.kind)).toEqual([
 			"effort",
 		]);
+	});
+});
+
+describe("optionGridColumns", () => {
+	it("keeps up to four choices on one row of equal cells", () => {
+		expect(optionGridColumns(2)).toBe(2);
+		expect(optionGridColumns(3)).toBe(3);
+		expect(optionGridColumns(4)).toBe(4);
+	});
+
+	it("splits five or six into two rows of three, and seven or eight into two rows of four", () => {
+		expect(optionGridColumns(5)).toBe(3);
+		expect(optionGridColumns(6)).toBe(3);
+		expect(optionGridColumns(7)).toBe(4);
+		expect(optionGridColumns(8)).toBe(4);
+	});
+
+	it("never answers zero columns", () => {
+		expect(optionGridColumns(0)).toBe(1);
+	});
+
+	it("fits every reasoning section the rules can build", () => {
+		for (const section of optionSections(richModel())) {
+			const columns = optionGridColumns(section.choices.length);
+			expect(columns).toBeGreaterThanOrEqual(1);
+			expect(columns).toBeLessThanOrEqual(4);
+			expect(Math.ceil(section.choices.length / columns)).toBeLessThanOrEqual(2);
+		}
 	});
 });
 

@@ -362,6 +362,18 @@ export function optionSections(model: AiModel | null | undefined): OptionSection
 }
 
 /**
+ * Columns for a section's chip grid, so every chip is the same width and none
+ * is clipped: up to four choices share one row, five or six take two rows of
+ * three, and reasoning's seven or eight take two rows of four.
+ */
+export function optionGridColumns(choiceCount: number): number {
+	if (choiceCount <= 0) return 1;
+	if (choiceCount <= 4) return choiceCount;
+	if (choiceCount <= 6) return 3;
+	return 4;
+}
+
+/**
  * Which chip in a section reads as selected. Nothing stored yet reads as the
  * section's default, and so does a stored value this section does not offer -
  * in both cases without touching the store, so a value the current model
