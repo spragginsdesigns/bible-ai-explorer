@@ -9,7 +9,19 @@ export default function robots(): MetadataRoute.Robots {
 				userAgent: "*",
 				// Only the signed-out routes in src/middleware.ts are crawlable.
 				// Everything else redirects to sign-in, so crawling it wastes budget.
-				allow: ["/", "/privacy", "/terms", "/sign-in", "/sign-up"],
+				// The AI summary and markdown twins are listed explicitly so no
+				// crawler has to infer them from "/".
+				allow: [
+					"/",
+					"/privacy",
+					"/terms",
+					"/sign-in",
+					"/sign-up",
+					"/llms.txt",
+					"/index.md",
+					"/privacy.md",
+					"/terms.md",
+				],
 				disallow: [
 					"/api/",
 					"/settings",

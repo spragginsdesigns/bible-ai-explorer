@@ -8,7 +8,10 @@ import { detectInstallPlatform } from "@/lib/install-platform";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-	alternates: { canonical: "/" },
+	alternates: {
+		canonical: "/",
+		types: { "text/markdown": "/index.md" },
+	},
 };
 
 export default async function Home() {

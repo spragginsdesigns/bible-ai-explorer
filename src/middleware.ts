@@ -11,6 +11,10 @@ const isPublicRoute = createRouteMatcher([
 	"/sitemap.xml",
 	// Plain-text site summary for AI assistants (app/llms.txt/route.ts).
 	"/llms.txt",
+	// Markdown twins of the public pages (app/{index,privacy,terms}.md/route.ts).
+	"/index.md",
+	"/privacy.md",
+	"/terms.md",
 	"/sign-in(.*)",
 	"/sign-up(.*)",
 	// Required to be publicly reachable for the Play Store listing (Google's

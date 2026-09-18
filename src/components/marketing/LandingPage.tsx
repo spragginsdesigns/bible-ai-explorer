@@ -327,6 +327,7 @@ export default function LandingPage({
         <div>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
+          <a href="/llms.txt">llms.txt</a>
           <Link href="/sign-in">Sign in</Link>
         </div>
       </footer>
