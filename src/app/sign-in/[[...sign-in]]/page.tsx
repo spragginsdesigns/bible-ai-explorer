@@ -1,4 +1,12 @@
+import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
+
+// A bare auth form has nothing worth ranking; keep it out of the index but let
+// crawlers follow its links back to the landing page.
+export const metadata: Metadata = {
+	title: "Sign in",
+	robots: { index: false, follow: true },
+};
 
 export default function SignInPage() {
 	return (

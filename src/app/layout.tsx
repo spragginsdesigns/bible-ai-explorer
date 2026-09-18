@@ -63,9 +63,9 @@ export const metadata: Metadata = {
 		"SureWord",
 	],
 	category: "religion",
-	alternates: {
-		canonical: "https://sureword.app",
-	},
+	// No canonical here: every page inherits root metadata, so a canonical set
+	// here told Google that /privacy, /terms and the rest were all duplicates of
+	// the home page. Each indexable page declares its own.
 	robots: {
 		index: true,
 		follow: true,

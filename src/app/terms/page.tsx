@@ -8,7 +8,10 @@ import {
 } from "@/lib/billing/plans";
 
 // The root layout's title template appends " | SureWord".
-export const metadata: Metadata = { title: "Membership terms" };
+export const metadata: Metadata = {
+  title: "Membership terms",
+  alternates: { canonical: "/terms" },
+};
 
 export default function TermsPage() {
   return (

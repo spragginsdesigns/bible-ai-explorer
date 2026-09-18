@@ -6,6 +6,7 @@ export const metadata: Metadata = {
 	title: "Privacy Policy",
 	description:
 		"How SureWord handles your account, Bible study, personalization, files, and native-app data.",
+	alternates: { canonical: "/privacy" },
 };
 
 const LAST_UPDATED = "August 28, 2026";

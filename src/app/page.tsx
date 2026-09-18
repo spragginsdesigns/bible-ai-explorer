@@ -1,10 +1,15 @@
 import BibleAIExplorer from "../components/BibleAIExplorer";
+import type { Metadata } from "next";
 import { auth } from "@clerk/nextjs/server";
 import LandingPage from "@/components/marketing/LandingPage";
 import { headers } from "next/headers";
 import { detectInstallPlatform } from "@/lib/install-platform";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+	alternates: { canonical: "/" },
+};
 
 export default async function Home() {
 	const { userId } = await auth();

@@ -7,6 +7,9 @@ const SITE_URL = "https://sureword.app";
 // tell crawlers every page changed on every deploy.
 const LAST_MODIFIED = new Date("2026-09-17T00:00:00.000Z");
 
+// Only pages that are indexable and canonical to themselves belong here.
+// /sign-in and /sign-up are noindex, so listing them would be a contradiction
+// Search Console reports as an error.
 export default function sitemap(): MetadataRoute.Sitemap {
 	return [
 		{
@@ -14,18 +17,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			lastModified: LAST_MODIFIED,
 			changeFrequency: "weekly",
 			priority: 1,
-		},
-		{
-			url: `${SITE_URL}/sign-up`,
-			lastModified: LAST_MODIFIED,
-			changeFrequency: "monthly",
-			priority: 0.5,
-		},
-		{
-			url: `${SITE_URL}/sign-in`,
-			lastModified: LAST_MODIFIED,
-			changeFrequency: "monthly",
-			priority: 0.5,
 		},
 		{
 			url: `${SITE_URL}/privacy`,
