@@ -218,6 +218,12 @@ export default function SettingsScreen() {
 					onPress={() => router.push("/settings/notifications")}
 				/>
 				<SettingsRow
+					icon="chatbubble-ellipses-outline"
+					title="Send feedback"
+					subtitle="Tell us what is broken or missing"
+					onPress={() => router.push("/settings/feedback")}
+				/>
+				<SettingsRow
 					icon="information-circle-outline"
 					title="About"
 					subtitle={`Version ${version}`}

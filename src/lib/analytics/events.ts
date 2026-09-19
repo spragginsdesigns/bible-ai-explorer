@@ -48,6 +48,12 @@ export const ANALYTICS_EVENTS = {
 	feedbackSubmitted: "feedback_submitted",
 	/** An account was seen for the first time by the server. */
 	accountCreated: "account_created",
+	/**
+	 * A screen was opened in a native client. Web's equivalent is `$pageview`,
+	 * which the browser SDK sends for free; native has no URL to watch, so the
+	 * app says so itself. Mirrored in `mobile/src/lib/analytics.ts`.
+	 */
+	screenViewed: "screen_viewed",
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

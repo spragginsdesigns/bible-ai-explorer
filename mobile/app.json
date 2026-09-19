@@ -1,89 +1,91 @@
 {
-	"expo": {
-		"name": "SureWord",
-		"slug": "sureword",
-		"version": "1.71.0",
-		"orientation": "portrait",
-		"icon": "./assets/icon.png",
-		"scheme": "sureword",
-		"userInterfaceStyle": "automatic",
-		"backgroundColor": "#0a0a0a",
-		"newArchEnabled": true,
-		"runtimeVersion": {
-			"policy": "appVersion"
-		},
-		"updates": {
-			"enabled": true,
-			"checkAutomatically": "ON_LOAD",
-			"fallbackToCacheTimeout": 0
-		},
-		"android": {
-			"package": "com.spragginsdesigns.sureword",
-			"versionCode": 77,
-			"googleServicesFile": "./google-services.json",
-			"adaptiveIcon": {
-				"foregroundImage": "./assets/adaptive-icon.png",
-				"backgroundColor": "#0a0a0a"
-			},
-			"softwareKeyboardLayoutMode": "resize",
-			"permissions": [
-				"android.permission.POST_NOTIFICATIONS"
-			]
-		},
-		"splash": {
-			"image": "./assets/icon.png",
-			"resizeMode": "contain",
-			"backgroundColor": "#0a0a0a"
-		},
-		"plugins": [
-			"expo-router",
-			"expo-iap",
-			"expo-secure-store",
-			"expo-web-browser",
-			[
-				"expo-image-picker",
-				{
-					"photosPermission": "Allow SureWord to attach photos to your AI conversations.",
-					"cameraPermission": "Allow SureWord to take photos for your AI conversations.",
-					"microphonePermission": false
-				}
-			],
-			[
-				"expo-splash-screen",
-				{
-					"image": "./assets/icon.png",
-					"imageWidth": 180,
-					"resizeMode": "contain",
-					"backgroundColor": "#0a0a0a"
-				}
-			],
-			[
-				"expo-notifications",
-				{
-					"icon": "./assets/notification-icon.png",
-					"color": "#d97706"
-				}
-			],
-			"expo-video",
-			[
-				"expo-audio",
-				{
-					"recordAudioAndroid": false,
-					"enableBackgroundPlayback": true
-				}
-			]
-		],
-		"experiments": {
-			"typedRoutes": true
-		},
-		"extra": {
-			"apiUrl": "https://sureword.app",
-			"clerkPublishableKey": "pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA",
-			"router": {},
-			"eas": {
-				"projectId": "2dc61e76-c7c0-4e8b-be89-0c7e0b4ce379"
-			}
-		},
-		"owner": "spragginsdesigns"
-	}
+  "expo": {
+    "name": "SureWord",
+    "slug": "sureword",
+    "version": "1.72.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "sureword",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0a0a0a",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "android": {
+      "package": "com.spragginsdesigns.sureword",
+      "versionCode": 77,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-iap",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SureWord to attach photos to your AI conversations.",
+          "cameraPermission": "Allow SureWord to take photos for your AI conversations.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0a0a0a"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#d97706"
+        }
+      ],
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": true
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "https://sureword.app",
+      "clerkPublishableKey": "pk_live_Y2xlcmsuc3VyZXdvcmQuYXBwJA",
+      "router": {},
+      "eas": {
+        "projectId": "2dc61e76-c7c0-4e8b-be89-0c7e0b4ce379"
+      },
+      "posthogKey": "phc_xLtcCctBYWKDLUGXhErbLF4g6VbcjXYGrE4uPraJ9YC9",
+      "posthogHost": "https://us.i.posthog.com"
+    },
+    "owner": "spragginsdesigns"
+  }
 }

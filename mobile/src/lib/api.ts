@@ -14,6 +14,18 @@ export const API_URL: string =
  * resolves — a key from the wrong instance takes sign-in down outright rather
  * than degrading, so this must be updated in lockstep with the web app's key.
  */
+/**
+ * Names this client to the server on every request.
+ *
+ * The server can otherwise only guess from the user agent, and Expo's Android
+ * fetch says "okhttp" while a WebView-shaped agent says almost nothing. It
+ * decides which platform a metric, a rating or a piece of feedback is filed
+ * under, so it is set here, once, rather than at each call site: a request
+ * that forgets it is not wrong, only anonymous, which is worse.
+ */
+const CLIENT_HEADER = "x-sureword-client";
+const CLIENT_NAME = "android";
+
 export const CLERK_PUBLISHABLE_KEY: string =
 	typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "";
 
@@ -137,6 +149,7 @@ async function fetchWithTimeout(
 async function buildHeaders(token: string | null, init?: RequestInit): Promise<Headers> {
 	const headers = new Headers(init?.headers as HeadersInit | undefined);
 	if (token) headers.set("Authorization", `Bearer ${token}`);
+	headers.set(CLIENT_HEADER, CLIENT_NAME);
 	return headers;
 }
 
@@ -213,6 +226,7 @@ export async function apiJson<T>(
 				method: init?.method ?? "GET",
 				headers: {
 					"Content-Type": "application/json",
+					[CLIENT_HEADER]: CLIENT_NAME,
 					...(token ? { Authorization: `Bearer ${token}` } : {}),
 				},
 				...(init?.body !== undefined ? { body: JSON.stringify(init.body) } : {}),

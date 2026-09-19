@@ -20,7 +20,9 @@ import {
 	CormorantGaramond_500Medium_Italic,
 } from "@expo-google-fonts/cormorant-garamond";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { PostHogProvider } from "posthog-react-native";
 import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
+import { analytics, identify, resetAnalytics } from "@/lib/analytics";
 import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
 import { usePreferencesLifecycle } from "@/features/settings/preferencesSync";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
@@ -63,6 +65,29 @@ function AuthFailureBridge({ children }: { children: React.ReactNode }) {
 	}, [signOut]);
 
 	return <>{children}</>;
+}
+
+/**
+ * Ties this device's events to the signed-in account, and unties them on sign
+ * out so the next person to use the phone does not inherit the trail.
+ *
+ * Sits beside AuthFailureBridge rather than inside the (app) shell for the
+ * same reason that one does: signing out unmounts that shell, and the reset
+ * has to happen from above it.
+ */
+function AnalyticsIdentityBridge(): null {
+	const { isLoaded, isSignedIn, userId } = useAuth();
+
+	useEffect(() => {
+		if (!isLoaded) return;
+		if (isSignedIn && userId) {
+			identify(userId);
+			return;
+		}
+		resetAnalytics();
+	}, [isLoaded, isSignedIn, userId]);
+
+	return null;
 }
 
 /** Chrome that follows the appearance setting: status bar + window background. */
@@ -147,12 +172,22 @@ export default function RootLayout() {
 			__experimental_resourceCache={resourceCache}
 		>
 			<AuthFailureBridge>
-				<View style={{ flex: 1 }}>
-					<ThemedShell />
-					{showAnimatedSplash ? (
-						<AnimatedSplash onFinish={() => setShowAnimatedSplash(false)} />
-					) : null}
-				</View>
+				{/* Screen views and app-open/background, and nothing else: touch
+				    autocapture would record the text of whatever was tapped,
+				    which in this app is a verse or somebody's saved question.
+				    See mobile/src/lib/analytics.ts. */}
+				<PostHogProvider
+					client={analytics ?? undefined}
+					autocapture={{ captureScreens: true, captureTouches: false }}
+				>
+					<AnalyticsIdentityBridge />
+					<View style={{ flex: 1 }}>
+						<ThemedShell />
+						{showAnimatedSplash ? (
+							<AnimatedSplash onFinish={() => setShowAnimatedSplash(false)} />
+						) : null}
+					</View>
+				</PostHogProvider>
 			</AuthFailureBridge>
 		</ClerkProvider>
 	);

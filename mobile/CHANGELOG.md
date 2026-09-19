@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.72.0 (versionCode 78) - 2026-09-19 - internal
+
+**What's new (Play):**
+
+- Send feedback: Settings now has a place to tell us what is broken, what is missing, or what you want SureWord to do. Add your email only if you want a reply. A person reads every one.
+- SureWord now measures how the app is used, so we can fix what gets in the way: screens opened, whether an answer finished, how you rated it. Never the content of your study, and never your screen.
+
+**Dev notes:** PostHog lands in this build via `posthog-react-native`, mounted in `mobile/app/_layout.tsx` (screen views and app lifecycle; `captureTouches: false`, because touch autocapture records the text of whatever was tapped, which here is a verse or a saved question). `mobile/src/lib/analytics.ts` holds the client; the identify/reset bridge sits beside `AuthFailureBridge` so signing out cannot leave one account's trail for the next person on the phone. `x-sureword-client: android` now rides every request from `mobile/src/lib/api.ts`, so the server files metrics, ratings and feedback under the real platform instead of sniffing a user agent that says "okhttp". The feedback screen is `mobile/app/(app)/settings/feedback.tsx` over `POST /api/feedback`, with the rules mirrored in `mobile/src/lib/inAppFeedback.ts` and pinned by `tests/in-app-feedback-mirror.test.mjs`. Server-side analytics shipped earlier the same day and already covers every installed build, so this release adds the screen-level half only.
+
 ## 1.71.0 (versionCode 77) - 2026-09-18 - internal
 
 **What's new (Play):**

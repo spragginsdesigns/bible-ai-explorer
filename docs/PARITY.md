@@ -267,3 +267,33 @@ honestly turn those cells green.
 2. Port it to web, macOS and iOS in the same release cycle — same endpoints, same behavior; adapt only layout idioms.
 3. Update this file's tables; every client's cell must be ✅ before the release is done.
 4. Verify web with `pnpm lint` / `pnpm build`; Android with `cd mobile && npm run typecheck && npm test`; macOS with `cd macos && xcodegen && xcodebuild -scheme SureWord -destination 'platform=macOS' -derivedDataPath build.noindex test`; iOS with `cd macos && xcodebuild -scheme SureWord-iOS -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath build-ios.noindex test`. Apple simulator/build checks do not substitute for device, runtime, or distribution proof.
+
+## Usage analytics and in-app feedback, 2026-09-19
+
+Measurement is server-first: `src/lib/analytics/server.ts` reports chat turn
+outcomes, answer ratings and account creation for whichever client made the
+request, so every installed build is covered the moment the API deploys, with
+no release needed. Each client adds only what the server cannot see. The
+content rule is the same everywhere and is pinned by
+`tests/analytics-event-mirror.test.mjs`: no question, answer, note, highlight,
+church or verse text ever reaches an analytics payload, autocapture is off on
+web and touch autocapture is off on Android, and session replay is off
+outright.
+
+| Capability | Android | Web | macOS | iOS | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Server-side events (turn answered/unanswered by model and platform, ratings, signups) | Covered from the API, no client work needed | Covered from the API | Covered from the API | Covered from the API | Production `$identify` and proxy 200s verified on sureword.app; 1127 web logic tests |
+| Client page/screen views and identity | 1.72.0 (78), `posthog-react-native` in `mobile/app/_layout.tsx` | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session; Android built and released to Play internal |
+| App open / background lifecycle | 1.72.0 (78), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | ❌ | ❌ | Same |
+| Send feedback | 1.72.0 (78), Settings -> Send feedback | Settings -> Send feedback | ❌ not implemented | ❌ not implemented | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
+| `x-sureword-client` request header | 1.72.0 (78), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | ❌ (falls back to user-agent sniffing) | ❌ (same fallback) | `platformFromHeaders` in `src/lib/analytics/events.ts` |
+
+**Apple gap, deliberate and tracked.** macOS and iOS are covered by the
+server-side half and carry neither the client SDK nor the feedback screen yet.
+Both need a Mac to build, so they are not claimed as verified here. The web
+client remains a superset (it also carries `$pageleave`), which the parity rule
+allows; no client lost a capability.
+
+**Google Play Data Safety must be updated to declare app-activity collection
+before this build is promoted beyond internal testing.** The declaration on
+file predates any analytics.
