@@ -8,9 +8,12 @@ import posthog from "posthog-js";
 /**
  * Product analytics, browser half (PostHog).
  *
- * Mounted once in the root layout. It does three things and deliberately
- * nothing else: start the SDK, record a page view when the route changes, and
- * tell PostHog who the reader is once Clerk knows.
+ * Mounted once in the root layout. It does two things and deliberately nothing
+ * else: record a page view when the route changes, and tell PostHog who the
+ * reader is once Clerk knows. The SDK itself is started in
+ * src/instrumentation-client.ts, which Next runs before the React tree, because
+ * a child's effect runs before its parent's and an init in this file's effect
+ * would arrive one page view too late.
  *
  * Three things are turned OFF on purpose, and each one is a promise we made on
  * the privacy page rather than an oversight:
@@ -88,27 +91,7 @@ function AnalyticsIdentity(): null {
 	return null;
 }
 
-let initialized = false;
-
 export default function AnalyticsProvider(): React.ReactElement | null {
-	useEffect(() => {
-		if (!POSTHOG_KEY || initialized) return;
-		initialized = true;
-		posthog.init(POSTHOG_KEY, {
-			// Same-origin so an ad blocker cannot quietly delete half the numbers.
-			// The rewrite lives in next.config.mjs and the path is public in
-			// src/middleware.ts, or signed-out visitors would be redirected to
-			// /sign-in instead of being counted.
-			api_host: "/ingest",
-			ui_host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.posthog.com",
-			capture_pageview: false,
-			capture_pageleave: true,
-			autocapture: false,
-			disable_session_recording: true,
-			person_profiles: "identified_only",
-		});
-	}, []);
-
 	if (!POSTHOG_KEY) return null;
 
 	return (
