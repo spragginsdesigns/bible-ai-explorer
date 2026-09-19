@@ -53,9 +53,12 @@ function getClient(): PostHog | null {
 		// Send immediately: the function may freeze right after the response.
 		flushAt: 1,
 		flushInterval: 0,
-		// A background timer would keep a serverless instance from settling and
-		// buys nothing when every capture already sends.
-		disableGeoip: false,
+		// The only IP a server event carries is the Vercel function's own, so
+		// geolocating it is not merely useless, it is wrong: it stamped every
+		// backend event "Ashburn, Virginia" and would have overwritten each
+		// person's real location with the data centre's. Country belongs to the
+		// client events, which are sent from the actual device.
+		disableGeoip: true,
 	});
 	return client;
 }
