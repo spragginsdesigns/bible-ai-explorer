@@ -46,6 +46,7 @@ import AboutMeSection from "@/components/settings/AboutMeSection";
 import ChurchSection from "@/components/settings/ChurchSection";
 import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
 import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
+import FeedbackSection from "@/components/settings/FeedbackSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -431,6 +432,10 @@ export default function SettingsPage() {
 					{/* Shared answers: the links this account has handed out, and
 					    the Revoke that takes one back. */}
 					<SharedAnswersSection key={user?.id ?? "signed-out"} />
+
+					{/* Send feedback: the one place a person can answer back in
+					    their own words. */}
+					<FeedbackSection />
 
 					</div>
 

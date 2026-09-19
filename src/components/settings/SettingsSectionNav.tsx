@@ -15,6 +15,7 @@ const SECTIONS = [
 	{ id: "web-search", label: "Web search" },
 	{ id: "church", label: "My church" },
 	{ id: "shared", label: "Shared answers" },
+	{ id: "feedback", label: "Send feedback" },
 	{ id: "providers", label: "AI providers" },
 	{ id: "account", label: "Account" },
 	{ id: "get-the-app", label: "Get the app" },

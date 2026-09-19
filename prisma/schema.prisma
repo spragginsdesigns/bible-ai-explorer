@@ -84,7 +84,39 @@ model User {
   readingPlans          ReadingPlan[]
   verseMemories         VerseMemory[]
   learnReviewReceipts    LearnReviewReceipt[]
+  feedback              Feedback[]
   church                UserChurch?
+}
+
+/// Something a person wrote to us from inside the app (Settings -> Send
+/// feedback).
+///
+/// It lives in the database and nowhere else. The analytics event for a
+/// submission carries the category and not a word of the message, because this
+/// is prose a person wrote in confidence: it can name their church, their
+/// family, or what they were studying when the app let them down. It is
+/// deleted with the account like every other row they own.
+///
+/// Answer feedback is a different thing and stays on `Message`: a thumb is a
+/// judgment about one answer, this is a message to a person.
+model Feedback {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "bug" | "idea" | "praise" | "other", validated on the way in.
+  category   String
+  message    String   @db.Text
+  /// Which client it was sent from, and that client's version, so a complaint
+  /// can be read against the build the person actually had.
+  platform   String
+  appVersion String?
+  /// Only when they asked to be replied to; the account's own address is not
+  /// copied here.
+  replyEmail String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 // The user's home church (Settings → My church), picked from Google Places.

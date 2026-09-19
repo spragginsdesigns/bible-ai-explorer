@@ -2088,3 +2088,37 @@ the visitor who never signed in.
 `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` configure it. With no
 key every call is a no-op, so local development and any unconfigured deploy
 stay silent instead of polluting production numbers.
+
+## Send feedback
+
+Settings -> Send feedback: four category chips (something is broken, an idea,
+something I love, something else), a message up to 2000 characters, and an
+email only if the person wants a reply. One POST to `/api/feedback`, one
+`Feedback` row, no thread and no inbox.
+
+It exists because usage numbers answer "what" and never "why". The analytics
+can show that most new accounts ask one question and never return; only a
+person can say that Listen spun forever on their phone, or that the answers
+felt long.
+
+**The message never leaves the database.** The `feedback_submitted` event
+carries the category, a length bucket, whether they want a reply, and the app
+version. Not a word of the prose: it can name a church, a family or a crisis,
+and it belongs to whoever wrote it. It is deleted with the account, like every
+other row they own.
+
+`platform` is resolved from the request's own headers, never from the body, so
+one client cannot file its complaints under another's name.
+
+Answer feedback is a different thing and stays on `Message`: a thumb is a
+judgment about one answer, this is a message to a person.
+
+| Piece | Where |
+|---|---|
+| Rules (pure, mirrored by each client) | `src/lib/feedback/in-app-feedback.ts` |
+| Route | `src/app/api/feedback/route.ts` |
+| Web | `src/components/settings/FeedbackSection.tsx`, mounted in `src/app/settings/page.tsx` |
+| Table | `Feedback` in `prisma/schema.prisma` |
+
+Reading them is a query for now, not a screen:
+`SELECT "createdAt", category, platform, "appVersion", "replyEmail", message FROM "Feedback" ORDER BY "createdAt" DESC;`
