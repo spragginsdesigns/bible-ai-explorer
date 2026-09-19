@@ -3,6 +3,8 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
 import { NextResponse } from "next/server";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import type { TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
@@ -34,6 +36,7 @@ export const POST = withIncludedAiRequest(handlePost, "verse-insight");
 async function handlePost(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
+		const platform = platformFromHeaders(req.headers);
 
 		const body: unknown = await req.json();
 		const data =
@@ -55,9 +58,21 @@ async function handlePost(req: Request): Promise<Response> {
 		const translation: TranslationId = data.translation === "BSB" ? "BSB" : data.translation === "NKJV" ? "NKJV" : "KJV";
 		const modelId = typeof data.modelId === "string" ? data.modelId : null;
 
+		const isPassage = RANGE_REFERENCE.test(reference);
+
 		const cacheKey = { translation, reference, text };
 		const cached = await readVerseInsight(cacheKey);
 		if (cached) {
+			// The reference itself stays out of the event: it is a string the
+			// caller sent, and the shape of the tap is the whole question a chart
+			// can answer. A hit is still a reader opening an insight, so it counts.
+			captureServerEvent({
+				userId,
+				event: ANALYTICS_EVENTS.verseInsightOpened,
+				platform,
+				properties: { translation, passage: isPassage, cacheHit: true },
+			});
+			await flushAnalytics();
 			return new Response(cached, {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
@@ -82,9 +97,7 @@ async function handlePost(req: Request): Promise<Response> {
 		const modelUsed = resolved.definition.id;
 		const result = streamText({
 			model: resolved.model,
-			system: verseInsightSystemPrompt(translation, {
-				passage: RANGE_REFERENCE.test(reference),
-			}),
+			system: verseInsightSystemPrompt(translation, { passage: isPassage }),
 			prompt: `${reference} (${translation})\n"${text}"`,
 			maxOutputTokens: 2000,
 			providerOptions: resolved.providerOptions,
@@ -95,7 +108,22 @@ async function handlePost(req: Request): Promise<Response> {
 				// Only a naturally finished, non-empty answer is worth keeping:
 				// a length cut-off or an error mid-stream must regenerate next tap.
 				if (finishReason !== "stop" || !full.trim()) return;
+				// Counted here rather than at the response, for the same reason the
+				// cache write is: a stream cut off mid-sentence never became an
+				// insight the reader could use.
+				captureServerEvent({
+					userId,
+					event: ANALYTICS_EVENTS.verseInsightOpened,
+					platform,
+					properties: {
+						translation,
+						passage: isPassage,
+						cacheHit: false,
+						model: modelUsed,
+					},
+				});
 				waitUntil(writeVerseInsight(cacheKey, full, modelUsed));
+				waitUntil(flushAnalytics());
 			},
 		});
 		// Run to completion even if the reader closes the sheet, so the

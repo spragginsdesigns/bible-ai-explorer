@@ -131,19 +131,32 @@ class ReviewConflict extends Error {
 }
 function reviewRoute(overrides = {}) {
  const calls = [];
+ const analytics = [];
  const handlers = loadModule("../src/app/api/learn/[id]/review/route.ts", ["POST"], {
   NextResponse, z, getAuthUser: async () => "alice", LearnReviewConflict: ReviewConflict,
   reviewCardById: async (...args) => { calls.push(args); return {id: "card", revision: 1}; },
   reviewCardOperation: async (...args) => { calls.push(args); return {operationId: args[2].operationId, appliedRevision:1, replayed:false, currentCard:{id:"card",revision:1}}; },
+  captureServerEvent: (event) => analytics.push(event),
+  flushAnalytics: async () => {},
+  ANALYTICS_EVENTS: { learnReviewed: "learn_reviewed" },
+  platformFromHeaders: (headers) => headers.get("x-sureword-client") ?? "unknown",
   ...overrides,
  });
- return {calls, send: (body) => handlers.POST({json:async()=>body},{params:Promise.resolve({id:"card"})})};
+ return {calls, analytics, send: (body) => handlers.POST(
+  {json:async()=>body, headers:new Headers({"x-sureword-client":"android"})},
+  {params:Promise.resolve({id:"card"})},
+ )};
 }
 test("review route retains legacy response and uses modern acknowledgement",async()=>{
  const route=reviewRoute();
  assert.deepEqual((await route.send({result:"good"})).body,{id:"card",revision:1});
  const modern=await route.send(validReview);assert.equal(modern.body.appliedRevision,1);
  assert.deepEqual(route.calls[1],["alice","card",validReview]);
+ // Both shapes are one review each, and neither carries the verse.
+ assert.deepEqual(route.analytics,[
+  {userId:"alice",event:"learn_reviewed",platform:"android",properties:{result:"good"}},
+  {userId:"alice",event:"learn_reviewed",platform:"android",properties:{result:"good"}},
+ ]);
 });
 test("partial, impossible, future and invalid-zone modern reviews never reach database",async()=>{
  const route=reviewRoute();
@@ -164,6 +177,9 @@ test("conflicts and deleted receipt acknowledgement preserve exact public shapes
  assert.deepEqual(await conflict.send(validReview),{status:409,body:{error:"revision_conflict",code:"revision_conflict",currentCard}});
  const replay=reviewRoute({reviewCardOperation:async()=>({operationId:validReview.operationId,appliedRevision:1,replayed:true,currentCard:null})});
  assert.equal((await replay.send(validReview)).body.currentCard,null);
+ // A replayed operation is the same review twice, so it must not be counted twice.
+ assert.deepEqual(replay.analytics,[]);
+ assert.deepEqual(conflict.analytics,[]);
 });
 test("add distinguishes invalid coordinates from unavailable requested translation",async()=>{
  let writes=0;

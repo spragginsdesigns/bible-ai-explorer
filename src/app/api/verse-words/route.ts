@@ -1,6 +1,8 @@
 import { waitUntil } from "@vercel/functions";
 import { NextResponse } from "next/server";
 import { AiCredentialError } from "@/lib/ai/provider";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import { withIncludedAiRequest } from "@/lib/billing/usage";
 import {
@@ -41,9 +43,19 @@ async function handlePost(req: Request): Promise<Response> {
 			return NextResponse.json({ error: "invalid_reference" }, { status: 400 });
 		}
 		const modelId = typeof data.modelId === "string" ? data.modelId : null;
+		const platform = platformFromHeaders(req.headers);
 
 		const cached = await readVerseWordStudy({ book, chapter, verse });
 		if (cached) {
+			// Coordinates, not words: which verse is being studied is the shape of
+			// the tap, and the study itself never leaves the response.
+			captureServerEvent({
+				userId,
+				event: ANALYTICS_EVENTS.verseWordStudied,
+				platform,
+				properties: { book, chapter, verse, cacheHit: true },
+			});
+			await flushAnalytics();
 			return NextResponse.json(cached, { headers: { "X-Verse-Words-Cache": "hit" } });
 		}
 
@@ -70,7 +82,14 @@ async function handlePost(req: Request): Promise<Response> {
 			return NextResponse.json({ error: "not_found" }, { status: 404 });
 		}
 
+		captureServerEvent({
+			userId,
+			event: ANALYTICS_EVENTS.verseWordStudied,
+			platform,
+			properties: { book, chapter, verse, cacheHit: false },
+		});
 		waitUntil(writeVerseWordStudy(study));
+		await flushAnalytics();
 		return NextResponse.json(study, { headers: { "X-Verse-Words-Cache": "miss" } });
 	} catch (error) {
 		if (error instanceof Response) return error;

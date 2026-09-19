@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import {
 	getOrCreateDailyCrossAudio,
@@ -56,13 +58,40 @@ function toResponse(audio: DailyCrossAudio) {
  * from. `url` fetches fine but Chrome's media loader will not load it - see
  * `stream/route.ts` for the finding and the fix.
  */
-export async function GET(): Promise<Response> {
+export async function GET(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
-		return toResponse(await readDailyCrossAudio(userId));
+		const audio = await readDailyCrossAudio(userId);
+		// "pending" is the poll itself, every few seconds until the narration
+		// lands, so counting it would drown the event in one user's waiting.
+		// Every other status is where a poll comes to rest, once.
+		if (audio.status !== "pending") {
+			await captureListen(userId, req, audio, false);
+		}
+		return toResponse(audio);
 	} catch (error) {
 		return errorResponse(error);
 	}
+}
+
+/**
+ * One row per devotional a reader actually reached, whichever tier they are on:
+ * "locked" and "unavailable" are the whole point of measuring this, because
+ * they are the taps that got nothing.
+ */
+async function captureListen(
+	userId: string,
+	req: Request,
+	audio: DailyCrossAudio,
+	manual: boolean
+): Promise<void> {
+	captureServerEvent({
+		userId,
+		event: ANALYTICS_EVENTS.listenRequested,
+		platform: platformFromHeaders(req.headers),
+		properties: { status: audio.status, plan: audio.plan, manual },
+	});
+	await flushAnalytics();
 }
 
 /**
@@ -75,10 +104,12 @@ export async function GET(): Promise<Response> {
  * three minutes old, so a retry that races the scheduled attempt buys one
  * narration between them, not two.
  */
-export async function POST(): Promise<Response> {
+export async function POST(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
-		return toResponse(await getOrCreateDailyCrossAudio(userId));
+		const audio = await getOrCreateDailyCrossAudio(userId);
+		await captureListen(userId, req, audio, true);
+		return toResponse(audio);
 	} catch (error) {
 		return errorResponse(error);
 	}

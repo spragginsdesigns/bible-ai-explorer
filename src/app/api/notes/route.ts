@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, platformFromHeaders, sizeBucket } from "@/lib/analytics/events";
 import { syncNoteEmbeddings } from "@/lib/note-embeddings";
 import {
 	resolvePendingLinks,
@@ -108,6 +110,15 @@ export async function POST(req: Request) {
 				})
 			);
 		}
+		// A bucket, never the note. An exact character count of someone's journal
+		// entry says something about what they wrote; "under_500" does not.
+		captureServerEvent({
+			userId,
+			event: ANALYTICS_EVENTS.noteCreated,
+			platform: platformFromHeaders(req.headers),
+			properties: { length: sizeBucket(note.plainText.length) },
+		});
+		await flushAnalytics();
 		return NextResponse.json(note, { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;
