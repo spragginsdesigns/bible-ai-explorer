@@ -2084,6 +2084,8 @@ the visitor who never signed in.
 | Chat turn outcome, reused from the existing metric line | `src/lib/ai/chat-metrics.ts` -> `src/app/api/ask-question/route.ts` |
 | Answer ratings (thumb and chips, never the prose) | `src/app/api/conversations/[id]/messages/[messageId]/route.ts` |
 | First sight of an account | `ensureUserRecord` in `src/lib/auth.ts` |
+| Feature use (verse insight, word study, share, Listen, note, Learn review) | the six routes named in `ANALYTICS_EVENTS`, each capturing on its success path only |
+| Android screens, app open and background | `mobile/src/lib/analytics.ts`, mounted in `mobile/app/_layout.tsx` |
 
 `NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` configure it. With no
 key every call is a no-op, so local development and any unconfigured deploy
