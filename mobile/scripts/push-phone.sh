@@ -95,7 +95,12 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
     || ! -f "$PREBUILD_STAMP" \
     || "$(cat "$PREBUILD_STAMP")" != "$(prebuild_sha)" ]]; then
     log "Syncing the generated Android project..."
-    (cd "$MOBILE_DIR" && npx expo prebuild --platform android --no-install)
+    # Called through node rather than `npx expo`: the npx shim on this Windows
+    # box dies with `'""' is not recognized as an internal or external
+    # command`, and because it runs inside a subshell the script sailed past it
+    # and "succeeded" without ever generating the project. Invoking the local
+    # CLI directly has no shim to break and resolves the same binary npx would.
+    (cd "$MOBILE_DIR" && node "$MOBILE_DIR/node_modules/@expo/cli/build/bin/cli" prebuild --platform android --no-install)
     prebuild_sha > "$PREBUILD_STAMP"
   else
     log "Generated Android project is current."
