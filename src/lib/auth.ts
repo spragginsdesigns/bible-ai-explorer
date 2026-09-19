@@ -1,5 +1,7 @@
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "./prisma";
+import { captureServerEvent, flushAnalytics } from "./analytics/server";
+import { ANALYTICS_EVENTS } from "./analytics/events";
 
 export interface StoredProfile {
 	name: string | null;
@@ -138,10 +140,17 @@ async function ensureUserRecord(userId: string): Promise<void> {
 	// Empty-update upserts can become a read followed by a create. First-run
 	// clients load several routes in parallel, so let Postgres arbitrate the
 	// unique ID atomically without overwriting a row another request created.
-	await prisma.user.createMany({
+	const created = await prisma.user.createMany({
 		data: [{ id: userId, email: null, name: null }],
 		skipDuplicates: true,
 	});
+
+	// `count` is 0 when a parallel first-run request won the race, so this
+	// fires exactly once per account rather than once per cold client.
+	if (created.count > 0) {
+		captureServerEvent({ userId, event: ANALYTICS_EVENTS.accountCreated });
+		await flushAnalytics();
+	}
 }
 
 /**

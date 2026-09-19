@@ -224,18 +224,27 @@ function patchRoute({ owned = true, role = "assistant", exists = true, auth } = 
 			},
 		},
 	};
+	// The analytics half is stubbed rather than skipped: a rating is the one
+	// event whose payload has to be checked, because the reason a reader types
+	// must never leave the database.
+	const analytics = [];
 	const { PATCH } = loadModule(ROUTE, ["PATCH"], {
 		NextResponse,
 		prisma,
 		getAuthUser: auth ?? (async () => "user_alice"),
 		parseFeedbackPatch: (body) => parseFeedbackPatch(body, NOW),
 		answerFeedbackResponse,
+		captureServerEvent: (event) => analytics.push(event),
+		flushAnalytics: async () => {},
+		ANALYTICS_EVENTS: { answerRated: "answer_rated" },
+		platformFromHeaders: (headers) => headers.get("x-sureword-client") ?? "unknown",
 	});
 	return {
 		calls,
+		analytics,
 		send: (body) =>
 			PATCH(
-				{ json: async () => body },
+				{ json: async () => body, headers: new Headers({ "x-sureword-client": "android" }) },
 				{ params: Promise.resolve({ id: "convo-1", messageId: "msg-1" }) }
 			),
 	};
@@ -272,6 +281,27 @@ test("clearing writes the empty state rather than leaving a dangling reason or c
 	const response = await route.send({ feedback: null });
 	assert.deepEqual(dataOf(route.calls), CLEARED);
 	assert.deepEqual(response.body, { id: "msg-1", ...CLEARED });
+	// Clearing a rating is not a rating: nothing to report.
+	assert.deepEqual(route.analytics, []);
+});
+
+test("a rating reports the thumb and its chips to analytics, and never the written reason", async () => {
+	const route = patchRoute();
+	await route.send({
+		feedback: "down",
+		feedbackReason: "It quoted the ESV",
+		feedbackTags: ["not-kjv"],
+	});
+	assert.deepEqual(route.analytics, [
+		{
+			userId: "user_alice",
+			event: "answer_rated",
+			platform: "android",
+			properties: { rating: "down", tags: ["not-kjv"], hasWrittenReason: true },
+		},
+	]);
+	// The prose the reader typed stays in the database, where they can delete it.
+	assert.ok(!JSON.stringify(route.analytics).includes("ESV"));
 });
 
 test("only an assistant message can be rated, and the refusal writes nothing", async () => {

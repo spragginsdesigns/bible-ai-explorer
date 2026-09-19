@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { answerFeedbackResponse, parseFeedbackPatch } from "@/lib/chat/answer-feedback";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 
 /**
  * Edit one message in a conversation the caller owns.
@@ -62,6 +64,23 @@ export async function PATCH(
 		});
 
 		if (feedback.data) {
+			// The thumb and its chips, never the written reason: the reason is
+			// prose a reader typed, and prose belongs in the database where they
+			// can delete it, not in an analytics payload. `feedbackTags` is a
+			// closed set of five ids, which is what makes a chart of it useful.
+			if (feedback.data.feedback) {
+				captureServerEvent({
+					userId,
+					event: ANALYTICS_EVENTS.answerRated,
+					platform: platformFromHeaders(req.headers),
+					properties: {
+						rating: feedback.data.feedback,
+						tags: feedback.data.feedbackTags,
+						hasWrittenReason: Boolean(feedback.data.feedbackReason),
+					},
+				});
+				await flushAnalytics();
+			}
 			return NextResponse.json(answerFeedbackResponse(message));
 		}
 		return NextResponse.json(message);

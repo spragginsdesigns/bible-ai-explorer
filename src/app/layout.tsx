@@ -7,6 +7,7 @@ import { ThemeProvider } from "../components/ThemeProvider";
 import MobileBottomNav from "../components/MobileBottomNav";
 import ReadingLogSync from "../components/bible/readingLogClient";
 import PreferencesSync from "../components/PreferencesSync";
+import AnalyticsProvider from "../components/analytics/AnalyticsProvider";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
 	subsets: ["latin"],
@@ -165,6 +166,9 @@ export default function RootLayout({
 						    preferences and reports a write that did not stick. */}
 						<PreferencesSync />
 						<ReadingLogSync />
+						{/* Inside ClerkProvider: it identifies the reader from the
+						    session, and does nothing at all without a key. */}
+						<AnalyticsProvider />
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>

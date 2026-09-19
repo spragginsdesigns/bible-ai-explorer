@@ -23,6 +23,11 @@ const isPublicRoute = createRouteMatcher([
 	// Download cards render before sign-in and need current public app metadata.
 	"/api/native-releases",
 	"/api/webhooks(.*)",
+	// Analytics ingestion, rewritten to PostHog in next.config.mjs. It has to
+	// be reachable signed out: the whole point is counting the visitor who has
+	// not made an account yet, and a redirect to /sign-in would both lose that
+	// visitor and answer HTML to a beacon.
+	"/ingest(.*)",
 	// Cron routes are protected by their own CRON_SECRET bearer check; letting
 	// them through here keeps Vercel cron (which has no Clerk session) working.
 	"/api/cron(.*)",

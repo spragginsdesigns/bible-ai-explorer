@@ -80,6 +80,8 @@ import {
 	logChatStepMetric,
 	type ChatOutcomeExit,
 } from "@/lib/ai/chat-metrics";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { ANALYTICS_EVENTS, durationBucket, platformFromHeaders } from "@/lib/analytics/events";
 // Matches vercel.json for this route. At 120 a slow BYOK provider taking four
 // tool steps was killed mid-loop by the platform, which runs no callback: the
 // user's question was saved and the answer was lost with nothing logged. See
@@ -533,6 +535,9 @@ async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
+		// Read once, here: `req.headers` is the only honest source for which app
+		// asked, and the answer is wanted on every metric this turn emits.
+		const platform = platformFromHeaders(req.headers);
 
 		const rate = askQuestionRateLimiter.check(rateLimitKey(req, userId));
 		if (!rate.allowed) {
@@ -708,7 +713,7 @@ async function handlePost(req: Request): Promise<Response> {
 				const userTurnSaved = conversationCreatedAt !== null;
 				const emitOutcome = (exit: ChatOutcomeExit): void => {
 					if (!userTurnSaved) return;
-					logChatOutcomeMetric({
+					const metric = logChatOutcomeMetric({
 						surface: "ask-question",
 						provider: metricProvider,
 						modelId: metricModelId,
@@ -721,6 +726,22 @@ async function handlePost(req: Request): Promise<Response> {
 							(part) => part.type === "text" && part.text.trim().length > 0,
 						),
 					});
+					// The same line, reported where it can be counted per client
+					// and per user. `metric` is already content-free by
+					// construction; only the turn's shape is added to it.
+					const { metric: _name, ...outcome } = metric;
+					captureServerEvent({
+						userId,
+						event: ANALYTICS_EVENTS.chatTurnCompleted,
+						platform,
+						properties: {
+							...outcome,
+							duration: durationBucket(Date.now() - turnStartedAtMs),
+							openingQuestion: isOpeningQuestion,
+							hadAttachments: hasAttachments,
+						},
+					});
+					waitUntil(flushAnalytics());
 				};
 				if (isAborted) {
 					emitOutcome("aborted");

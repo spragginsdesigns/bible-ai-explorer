@@ -6,6 +6,24 @@ const nextConfig = {
 		"/api/ask-question": ["./biblical-texts/KJV-Bible.txt"],
 		"/api/note-ai": ["./biblical-texts/KJV-Bible.txt"],
 	},
+	// Analytics ingestion, served from our own origin so an ad blocker cannot
+	// silently delete half the numbers. The two asset rewrites must stay above
+	// the catch-all, and /ingest is listed as a public route in
+	// src/middleware.ts or signed-out visitors get redirected to /sign-in
+	// instead of being counted.
+	async rewrites() {
+		return [
+			{
+				source: "/ingest/static/:path*",
+				destination: "https://us-assets.i.posthog.com/static/:path*",
+			},
+			{
+				source: "/ingest/:path*",
+				destination: "https://us.i.posthog.com/:path*",
+			},
+		];
+	},
+	skipTrailingSlashRedirect: true,
 };
 
 export default withPWA({

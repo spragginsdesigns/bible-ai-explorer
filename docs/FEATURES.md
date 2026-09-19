@@ -2051,3 +2051,40 @@ guessed.
 | Web | `src/components/settings/HighlightLabelsSection.tsx` (labels + meanings + starter set) and `src/components/settings/AboutMeSection.tsx`, mounted in `src/app/settings/page.tsx`; sync in `src/lib/preferencesSync.ts` |
 | Android | `mobile/src/features/settings/HighlightLabelsSection.tsx` and `AboutMeSection.tsx`, mounted on the `mobile/app/(app)/settings/highlights.tsx` and `memory.tsx` pages; contract mirror `mobile/src/features/settings/preferences.ts` |
 | macOS / iOS | `macos/Shared/Settings/HighlightLabelsSection.swift` and `AboutMeSection.swift`, mounted by both `SettingsView.swift` files; document keys in `macos/Shared/Settings/PreferencesSync.swift`. Apple had no highlight-labels editor at all before this release |
+
+## What we measure
+
+Product analytics (PostHog, US cloud, project "SureWord"). It exists to answer
+one question the database cannot: people sign up and most never come back, and
+nothing until now recorded where they stopped.
+
+**The content rule.** No event carries the content of anyone's study. Not a
+question, not an answer, not note text, not a highlight label, not a church
+name, not a verse. The privacy page promises "No analytics profiles built from
+the content of your study", and the whole design follows from keeping it:
+autocapture is off (it would record the text of whatever was clicked, which
+here is a verse or a saved question), session replay is off (a recording of the
+screen is content), and the written half of answer feedback stays in the
+database. Shapes are what gets measured and shapes are enough: which model,
+answered or not, how long, which book, how many characters in a bucket.
+
+**Server first, clients second.** The server sees every client at once,
+including the Android builds already installed that will never carry a client
+SDK, and cannot be blocked by an ad blocker or a dead network. It emits what it
+can see (a turn finished, an answer was rated, an account was created). Each
+client emits only what the server cannot see: screens opened, cards tapped, and
+the visitor who never signed in.
+
+| Piece | Where |
+|---|---|
+| Event catalog, platform sniffing, buckets | `src/lib/analytics/events.ts` |
+| Server capture (posthog-node) | `src/lib/analytics/server.ts` |
+| Web client (posthog-js), page views, identity | `src/components/analytics/AnalyticsProvider.tsx`, mounted in `src/app/layout.tsx` |
+| Same-origin ingest, so ad blockers cannot delete half the numbers | `/ingest` rewrite in `next.config.mjs`, public route in `src/middleware.ts` |
+| Chat turn outcome, reused from the existing metric line | `src/lib/ai/chat-metrics.ts` -> `src/app/api/ask-question/route.ts` |
+| Answer ratings (thumb and chips, never the prose) | `src/app/api/conversations/[id]/messages/[messageId]/route.ts` |
+| First sight of an account | `ensureUserRecord` in `src/lib/auth.ts` |
+
+`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` configure it. With no
+key every call is a no-op, so local development and any unconfigured deploy
+stay silent instead of polluting production numbers.

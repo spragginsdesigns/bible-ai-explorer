@@ -79,6 +79,10 @@ export const PRIVACY_POLICY: LegalDocument = {
 					{ strong: "Native-app notification data." },
 					" Where server push is supported, a device token, platform, timezone, delivery hour, and the enabled state for supported notifications. Android currently offers separate Daily Cross and chat-reply choices; local-only reminders do not create a server push token.",
 				],
+				[
+					{ strong: "Product usage." },
+					" Which features you use and whether they worked: screens opened, an answer finished or failed, which AI model wrote it, how long it took, a thumbs up or down and the reason chips you picked, and which app you used. These records carry the shape of your activity, never its content. They do not contain your questions, answers, notes, highlights, church, or any verse text, and SureWord does not record your screen.",
+				],
 			],
 		},
 		{ type: "h2", text: "How AI processing works" },
@@ -98,7 +102,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 		{
 			type: "p",
 			content: [
-				"Account-linked study data is stored in a managed Postgres database (Neon). File attachments and generated Daily Cross audio are stored in private blob storage (Vercel). Authentication data is held by Clerk. These services are hosted in the United States, and traffic is encrypted in transit.",
+				"Account-linked study data is stored in a managed Postgres database (Neon). File attachments and generated Daily Cross audio are stored in private blob storage (Vercel). Authentication data is held by Clerk. Product usage records are held by PostHog, which receives your account id and email so usage can be tied to an account, and never receives the content of your study. These services are hosted in the United States, and traffic is encrypted in transit.",
 			],
 		},
 		{ type: "h2", text: "What we do not do" },

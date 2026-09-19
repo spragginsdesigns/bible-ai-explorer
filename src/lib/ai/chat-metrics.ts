@@ -207,7 +207,14 @@ export function buildChatOutcomeMetric(
 	};
 }
 
-/** Emit one shape-only line per persisted user turn: answered or unanswered, and why. */
-export function logChatOutcomeMetric(event: ChatOutcomeEvent): void {
-	console.info("[ai.metrics]", JSON.stringify(buildChatOutcomeMetric(event)));
+/**
+ * Emit one shape-only line per persisted user turn: answered or unanswered,
+ * and why. The built metric is returned so a caller that also reports the turn
+ * to product analytics sends exactly the line that was logged, rather than a
+ * second shape that can drift from it.
+ */
+export function logChatOutcomeMetric(event: ChatOutcomeEvent): ChatOutcomeMetric {
+	const metric = buildChatOutcomeMetric(event);
+	console.info("[ai.metrics]", JSON.stringify(metric));
+	return metric;
 }
