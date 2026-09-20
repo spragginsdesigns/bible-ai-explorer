@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.73.1 (versionCode 81) - 2026-09-20 - internal
+
+**What's new (Play):**
+
+- Bug fixes and performance improvements.
+
+**Dev notes:** Two fixes found by proving 1.73.0 (80) on the emulator against the signed release APK, both in the measurement added by that build. First, the four SDK-native lifecycle events (`Application Installed`, `Application Opened`, `Application Backgrounded`, `Application Became Active`) are built inside `posthog-react-native` and never pass through `track()`, so they carried no `is_test_client`, `environment`, `platform` or `source`. That is backwards: those are the events that produced the phantom "new users" on 2026-09-20 and they were the only ones the project's test-account filter could not see. `mobile/src/lib/analytics.ts` now calls `analytics.register(BASE_PROPERTIES)`, whose super properties merge into every event the client sends, the SDK's own included. Second, the new `request_failed` event immediately caught the app calling `GET /api/conversations` from the sign-in screen on a fresh install and taking a 401; the server is correct there, and counting it would have made 401 the loudest and least useful row in the metric, so `apiJson` now tracks whether the attempt carried a session token and skips the report for a signed-out 401 while still reporting a real auth breakage. The underlying call from the signed-out screen is a separate defect and is NOT fixed here. Proof that 80 worked, from production PostHog: one launch produced one distinct_id and one person across `Application Opened`, two `screen_viewed` rows (`/` and `/sign-in`, route patterns) and `Application Installed`, where the same sequence a day earlier produced two people.
+
 ## 1.73.0 (versionCode 80) - 2026-09-20 - internal
 
 **What's new (Play):**

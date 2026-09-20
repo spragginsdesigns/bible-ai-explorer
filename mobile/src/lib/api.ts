@@ -257,8 +257,15 @@ export async function apiJson<T>(
 ): Promise<T> {
 	const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
+	/**
+	 * Whether the last attempt actually carried a session token. A 401 with no
+	 * token is the server answering correctly, not a failure worth counting.
+	 */
+	let hadToken = false;
+
 	const attempt = async (fresh: boolean): Promise<Response> => {
 		const token = await getToken(fresh ? { fresh: true } : undefined);
+		hadToken = Boolean(token);
 		return fetchWithTimeout(
 			`${API_URL}${path}`,
 			{
@@ -282,7 +289,15 @@ export async function apiJson<T>(
 	if (!res.ok) {
 		// After the 401 retry, so an expired cached token that recovered on its
 		// own is not reported as a failure the user ever saw.
-		reportRequestFailure({ path, kind: "http", status: res.status });
+		//
+		// A signed-out 401 is skipped outright. The very first proof run of this
+		// event found the app calling /api/conversations from the sign-in
+		// screen: correct behaviour from the server, and if it were counted,
+		// every signed-out launch would file a failure and 401 would become the
+		// loudest and least useful row in the metric.
+		if (res.status !== 401 || hadToken) {
+			reportRequestFailure({ path, kind: "http", status: res.status });
+		}
 		let message = `Request failed: ${res.status}`;
 		try {
 			const data = (await res.json()) as { error?: string };

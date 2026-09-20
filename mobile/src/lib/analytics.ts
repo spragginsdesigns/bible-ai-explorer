@@ -96,6 +96,27 @@ const BASE_PROPERTIES = {
 	is_test_client: IS_TEST_CLIENT,
 } as const;
 
+/**
+ * Attach the base properties to events this module does not send itself.
+ *
+ * `Application Installed`, `Application Opened`, `Application Backgrounded` and
+ * `Application Became Active` are built by the SDK, so they never pass through
+ * `track()` and carried none of the above. That is exactly backwards: those
+ * four are the events that produced the phantom "new users" on 2026-09-20, and
+ * they were the only ones a test-account filter could not see. Proved on the
+ * emulator against the 1.73.0 release build, where every `screen_viewed`
+ * carried `is_test_client` and every lifecycle event next to it carried
+ * nothing.
+ *
+ * Super properties are merged into every event the client sends, including the
+ * SDK's own. Fire and forget: `register` returns a promise that resolves once
+ * the value is persisted, and an event sent in that window simply misses it,
+ * which is a dropped property and never a crash.
+ */
+if (analytics) {
+	void analytics.register(BASE_PROPERTIES).catch(() => {});
+}
+
 /** PostHog's own internal-traffic flag; the project's test-user cohort is defined on it. */
 const INTERNAL_PERSON_PROPERTY = "$internal_or_test_user";
 
