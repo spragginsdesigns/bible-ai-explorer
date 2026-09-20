@@ -3,6 +3,16 @@ import "server-only";
 import { PostHog } from "posthog-node";
 
 import type { AnalyticsEventName, AnalyticsPlatform } from "./events";
+import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
+import { INTERNAL_PERSON_PROPERTY, deployEnvironment, isInternalUserId } from "./internal";
+
+/**
+ * Clerk ids whose activity is never product signal. Read here rather than in
+ * ./internal.ts so that module can stay import-free and directly testable.
+ */
+function internalUserIds(): string[] {
+	return parseUserIdAllowlist(process.env.INTERNAL_USER_IDS);
+}
 
 /**
  * Product analytics, server half (PostHog).
@@ -83,6 +93,7 @@ export function captureServerEvent({ userId, event, properties, platform }: Serv
 	const posthog = getClient();
 	if (!posthog || !userId) return;
 	try {
+		const internal = isInternalUserId(userId, internalUserIds());
 		posthog.capture({
 			distinctId: userId,
 			event,
@@ -92,6 +103,19 @@ export function captureServerEvent({ userId, event, properties, platform }: Serv
 				// Tells a dashboard which half of the pipeline produced the row,
 				// so a client event and its server twin never get double counted.
 				source: "server",
+				// Preview deploys share this project; without it a branch under
+				// test reads as production traffic.
+				environment: deployEnvironment(),
+				// Re-asserted on every event rather than only at sign-up, because
+				// the allowlist changes (a new reviewer account, a new test
+				// device) and a person flagged only once would keep the old
+				// answer forever.
+				$set: {
+					...(properties?.$set && typeof properties.$set === "object"
+						? (properties.$set as Record<string, unknown>)
+						: {}),
+					[INTERNAL_PERSON_PROPERTY]: internal,
+				},
 			},
 		});
 	} catch (error) {
@@ -115,7 +139,13 @@ export function identifyServerUser(
 	const posthog = getClient();
 	if (!posthog || !userId) return;
 	try {
-		posthog.identify({ distinctId: userId, properties });
+		posthog.identify({
+			distinctId: userId,
+			properties: {
+				...properties,
+				[INTERNAL_PERSON_PROPERTY]: isInternalUserId(userId, internalUserIds()),
+			},
+		});
 	} catch (error) {
 		console.error("[analytics] identify failed:", error);
 	}

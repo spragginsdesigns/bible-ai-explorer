@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.73.0 (versionCode 80) - 2026-09-20 - internal
+
+**What's new (Play):**
+
+- Bug fixes and performance improvements.
+
+**Dev notes:** The first two days of measurement were wrong and this release is why. PostHog reported four new users on the morning of 2026-09-20; there were none. Both clients called `reset()` whenever Clerk reported nobody signed in, which it does for a beat on every cold start, and `reset()` mints a fresh anonymous id: every launch's `Application Installed` and `Application Opened` were stranded on a person the account never merged with, and the wiped persistence made the next launch call itself an install too. Measured on Austin's own phone, the distinct id changed 3.4 seconds after launch with no `$identify` between. Six launches by two people (this machine's emulator, Austin's phone, and four Google Play review devices running the reviewer demo account) were reported as six new users, while Neon showed zero new accounts on both days. A reset now requires a previous user, on Android and on web, pinned by `tests/analytics-event-mirror.test.mjs`. `personProfiles: "identified_only"` matches web so an anonymous launch no longer stores a profile at all. Internal traffic is excluded at the source: `INTERNAL_USER_IDS` (Austin + the Play reviewer) sets PostHog's `$internal_or_test_user` person property server-side, emulators and dev builds self-flag with `is_test_client`, and both feed the project's `test_account_filters`, now default-checked. Screen views existed only on paper before this build: `captureScreens` hooks a React Navigation container and expo-router owns its own below `PostHogProvider`, so 32 screens sent 0 events. `mobile/src/features/analytics/useScreenTracking.ts` sends them from `useSegments()`, which yields route patterns (`/bible/atlas/[id]`), so no id or book name can reach a payload. New drop-off events: `sign_in_started` / `sign_in_completed` / `sign_in_failed` across all three methods (Clerk's error code only, never the identifier), `request_failed` from the two choke points in `mobile/src/lib/api.ts` (throttled to one per route and cause per 30s, path reduced by `routeShape`), and server-side `provider_failed` from `recordTurnError`. `api.ts` reaches analytics through `setRequestFailureReporter` rather than an import, because importing the analytics module into a unit-tested file dragged `expo-device`, `posthog-react-native` and `__DEV__` into five unrelated suites.
+
 ## 1.72.1 (versionCode 79) - 2026-09-20 - internal
 
 **What's new (Play):**

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -21,8 +21,9 @@ import {
 } from "@expo-google-fonts/cormorant-garamond";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PostHogProvider } from "posthog-react-native";
-import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler } from "@/lib/api";
-import { analytics, identify, resetAnalytics } from "@/lib/analytics";
+import { CLERK_PUBLISHABLE_KEY, setAuthFailureHandler, setRequestFailureReporter } from "@/lib/api";
+import { analytics, identify, resetAnalytics, trackRequestFailure } from "@/lib/analytics";
+import { useScreenTracking } from "@/features/analytics/useScreenTracking";
 import { hydrateSettings, useTheme } from "@/features/settings/settingsStore";
 import { usePreferencesLifecycle } from "@/features/settings/preferencesSync";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
@@ -64,6 +65,13 @@ function AuthFailureBridge({ children }: { children: React.ReactNode }) {
 		return () => setAuthFailureHandler(null);
 	}, [signOut]);
 
+	// api.ts cannot import the analytics module without dragging native modules
+	// into its unit tests, so the reporter is handed to it from here.
+	useEffect(() => {
+		setRequestFailureReporter(trackRequestFailure);
+		return () => setRequestFailureReporter(null);
+	}, []);
+
 	return <>{children}</>;
 }
 
@@ -77,16 +85,45 @@ function AuthFailureBridge({ children }: { children: React.ReactNode }) {
  */
 function AnalyticsIdentityBridge(): null {
 	const { isLoaded, isSignedIn, userId } = useAuth();
+	/**
+	 * Who was signed in last time this ran, so a sign-OUT can be told apart
+	 * from merely being signed out.
+	 *
+	 * Clerk reports signed-out for a beat on every cold start before it
+	 * restores the session, and `reset()` mints a new anonymous id and
+	 * abandons the old one. Resetting on the bare signed-out state therefore
+	 * orphaned the launch's own `Application Installed` and `Application
+	 * Opened` on a person nothing ever merged with, and wiped the persisted
+	 * install marker so the next launch called itself an install too. Measured
+	 * on Austin's own phone on 2026-09-20: the id changed 3.4 seconds after
+	 * launch with no identify in between, and six launches had become six new
+	 * users. Same fix, same reasoning, in
+	 * src/components/analytics/AnalyticsProvider.tsx.
+	 */
+	const previousUserId = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (!isLoaded) return;
 		if (isSignedIn && userId) {
+			previousUserId.current = userId;
 			identify(userId);
 			return;
 		}
-		resetAnalytics();
+		// Only a real sign-out resets. A first run keeps its anonymous trail so
+		// that install, first open and first screen merge into the account when
+		// one is created, which is the entire activation funnel.
+		if (previousUserId.current) {
+			resetAnalytics();
+			previousUserId.current = null;
+		}
 	}, [isLoaded, isSignedIn, userId]);
 
+	return null;
+}
+
+/** Reports every route change as `screen_viewed`. See useScreenTracking. */
+function AnalyticsScreenBridge(): null {
+	useScreenTracking();
 	return null;
 }
 
@@ -176,11 +213,16 @@ export default function RootLayout() {
 				    autocapture would record the text of whatever was tapped,
 				    which in this app is a verse or somebody's saved question.
 				    See mobile/src/lib/analytics.ts. */}
+				{/* captureScreens is off because it never worked here: it hooks a
+				    React Navigation container and expo-router owns its own below
+				    this provider, so it produced no screen events at all.
+				    AnalyticsScreenBridge sends them from the router instead. */}
 				<PostHogProvider
 					client={analytics ?? undefined}
-					autocapture={{ captureScreens: true, captureTouches: false }}
+					autocapture={{ captureScreens: false, captureTouches: false }}
 				>
 					<AnalyticsIdentityBridge />
+					<AnalyticsScreenBridge />
 					<View style={{ flex: 1 }}>
 						<ThemedShell />
 						{showAnimatedSplash ? (

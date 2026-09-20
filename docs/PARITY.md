@@ -283,10 +283,26 @@ outright.
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | Server-side events (turn answered/unanswered by model and platform, ratings, signups) | Covered from the API, no client work needed | Covered from the API | Covered from the API | Covered from the API | Production `$identify` and proxy 200s verified on sureword.app; 1127 web logic tests |
-| Client page/screen views and identity | 1.72.1 (79), `posthog-react-native` in `mobile/app/_layout.tsx` | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session; Android reached devices only in 1.72.1 (79), since 1.72.0 (78) crashed before any JavaScript ran and sent nothing |
+| Client page/screen views and identity | 1.73.0 (80), `screen_viewed` from `useScreenTracking` (route patterns, no ids) | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session. Android screen views did not exist before 1.73.0: `captureScreens` hooks a React Navigation container and expo-router owns its own below the provider, so 32 screens sent 0 events across 1.72.x |
 | App open / background lifecycle | 1.72.1 (79), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | ❌ | ❌ | Same |
+| Anonymous trail survives to the account (no reset on the signed-out state) | 1.73.0 (80) | Same fix, same release | n/a (server-side half only) | n/a | `tests/analytics-event-mirror.test.mjs` pins the previous-user ref on both clients |
+| Internal and test traffic excluded | 1.73.0 (80): emulator and dev builds self-flag | Server flags `INTERNAL_USER_IDS` for every client | Covered from the API | Covered from the API | PostHog cohort 581124 on `$internal_or_test_user` plus an `is_test_client` event filter, both in the project's `test_account_filters`, default-checked |
+| Sign-in funnel (started / completed / failed, by method) | 1.73.0 (80), all three methods in `(auth)/sign-in.tsx` | `$pageview` on `/sign-in` into `$identify` (Clerk owns the form) | ❌ not implemented | ❌ not implemented | 7 analytics-internal tests; method and Clerk error code only, never the identifier |
+| Failed requests (offline, timeout, HTTP status) | 1.73.0 (80), reported from `mobile/src/lib/api.ts` | ❌ not implemented (web has no equivalent choke point yet) | ❌ | ❌ | `routeShape` drops ids and query strings; throttled to one event per route and cause per 30s |
+| Provider failures (bad key, exhausted quota, missing model) | Covered from the API | Covered from the API | Covered from the API | Covered from the API | `provider_failed` from `recordTurnError` in `src/app/api/ask-question/route.ts`, classified by `codeForError` |
 | Send feedback | 1.72.1 (79), Settings -> Send feedback | Settings -> Send feedback | ❌ not implemented | ❌ not implemented | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
 | `x-sureword-client` request header | 1.72.1 (79), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | ❌ (falls back to user-agent sniffing) | ❌ (same fallback) | `platformFromHeaders` in `src/lib/analytics/events.ts` |
+
+**What the first two days of measurement actually showed, 2026-09-20.** PostHog
+reported four new users in one morning. There were none. Six app launches had
+become six phantom people because both clients called `reset()` whenever Clerk
+reported nobody signed in, which it does for a beat on every cold start, and
+`reset()` mints a new anonymous id: each launch's `Application Installed` and
+`Application Opened` were stranded on a person the eventual account never
+merged with. The real traffic behind them was this machine's emulator, Austin's
+own phone, and four Google Play review devices signed in as the reviewer demo
+account. Neon confirmed zero new accounts on both days. Everything in the four
+new rows above exists because of that morning.
 
 **Apple gap, deliberate and tracked.** macOS and iOS are covered by the
 server-side half and carry neither the client SDK nor the feedback screen yet.

@@ -99,6 +99,34 @@ export function setAuthFailureHandler(handler: AuthFailureHandler | null): void 
 	authFailureHandler = handler;
 }
 
+/** How a request died, for {@link setRequestFailureReporter}. */
+export type RequestFailure = {
+	/** The URL or path that failed. The reporter reduces it to a route shape. */
+	path: string;
+	kind: "offline" | "timeout" | "http";
+	status?: number;
+};
+export type RequestFailureReporter = (failure: RequestFailure) => void;
+
+let requestFailureReporter: RequestFailureReporter | null = null;
+
+/**
+ * Register where failed requests get reported, the same way
+ * {@link setAuthFailureHandler} registers the sign-out.
+ *
+ * A handler rather than a direct import of the analytics module, because this
+ * file is unit tested and that module reaches for `expo-device`,
+ * `posthog-react-native` and the `__DEV__` global, none of which exist outside
+ * a running app. Importing it here took five unrelated suites down.
+ */
+export function setRequestFailureReporter(reporter: RequestFailureReporter | null): void {
+	requestFailureReporter = reporter;
+}
+
+function reportRequestFailure(failure: RequestFailure): void {
+	requestFailureReporter?.(failure);
+}
+
 function reportAuthFailure(): void {
 	if (!authFailureHandler) return;
 	const now = Date.now();
@@ -128,13 +156,19 @@ async function fetchWithTimeout(
 	try {
 		return await doFetch(url, { ...(init as object), signal: controller.signal } as RequestInit);
 	} catch (error) {
+		// The two failures the server never hears about. Everything else in
+		// this app's measurement is emitted server-side precisely because the
+		// server is the honest half; these are the exception, because a request
+		// that never arrived leaves no trace there at all.
 		if (controller.signal.aborted) {
+			reportRequestFailure({ path: url, kind: "timeout" });
 			throw new ApiError(
 				"The request timed out. Check your connection and try again.",
 				{ isTimeout: true }
 			);
 		}
 		if (isNetworkFailure(error)) {
+			reportRequestFailure({ path: url, kind: "offline" });
 			throw new ApiError(
 				"You appear to be offline. Reconnect and try again.",
 				{ isNetworkError: true }
@@ -189,11 +223,16 @@ export function makeAuthedFetch(getToken: GetToken) {
 				} as Parameters<typeof expoFetch>[1])) as unknown as Response;
 			} catch (error) {
 				if (controller.signal.aborted && !callerSignal?.aborted) {
+					// A stream that never produced headers. The user is looking at
+					// a spinner that will not resolve, and it is the single most
+					// important failure in the app to be able to count.
+					reportRequestFailure({ path: url, kind: "timeout" });
 					throw new ApiError(
 						"The request timed out. Check your connection and try again.",
 						{ isTimeout: true }
 					);
 				}
+				if (isNetworkFailure(error)) reportRequestFailure({ path: url, kind: "offline" });
 				throw error;
 			} finally {
 				clearTimeout(timer);
@@ -241,6 +280,9 @@ export async function apiJson<T>(
 	if (res.status === 401) reportAuthFailure();
 
 	if (!res.ok) {
+		// After the 401 retry, so an expired cached token that recovered on its
+		// own is not reported as a failure the user ever saw.
+		reportRequestFailure({ path, kind: "http", status: res.status });
 		let message = `Request failed: ${res.status}`;
 		try {
 			const data = (await res.json()) as { error?: string };

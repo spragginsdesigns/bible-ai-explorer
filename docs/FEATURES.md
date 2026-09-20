@@ -2086,10 +2086,56 @@ the visitor who never signed in.
 | First sight of an account | `ensureUserRecord` in `src/lib/auth.ts` |
 | Feature use (verse insight, word study, share, Listen, note, Learn review) | the six routes named in `ANALYTICS_EVENTS`, each capturing on its success path only |
 | Android screens, app open and background | `mobile/src/lib/analytics.ts`, mounted in `mobile/app/_layout.tsx` |
+| Android screen views (route patterns, never resolved paths) | `mobile/src/features/analytics/useScreenTracking.ts` |
+| Sign-in funnel, by method, with Clerk's error code and never the identifier | `mobile/app/(auth)/sign-in.tsx` |
+| Failed client requests (offline, timeout, HTTP), throttled per route | `setRequestFailureReporter` in `mobile/src/lib/api.ts` -> `trackRequestFailure` |
+| Provider failures, separate from turns that merely errored | `recordTurnError` in `src/app/api/ask-question/route.ts` |
+| Who does not count as a user | `src/lib/analytics/internal.ts` |
 
-`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` configure it. With no
-key every call is a no-op, so local development and any unconfigured deploy
-stay silent instead of polluting production numbers.
+**Nobody internal counts.** On 2026-09-20 PostHog reported four new users in a
+morning. All of it was this machine's emulator, Austin's own phone, and four
+Google Play review devices running the demo account; Neon showed zero new
+accounts. Three things keep that out now, and the first is what makes the other
+two work:
+
+1. **A reset requires a previous user.** Both clients used to call `reset()`
+   whenever Clerk reported nobody signed in, which it does for a moment on
+   every cold start. `reset()` mints a new anonymous id, so each launch's first
+   events were stranded on a person the account never merged with, and on web
+   every signed-out visitor was reset before they could convert. A reset now
+   needs somebody to have been signed in first.
+2. **`INTERNAL_USER_IDS`** (Austin plus the Play reviewer demo account) sets
+   PostHog's own `$internal_or_test_user` person property on every server
+   event. It is a person property on purpose: it reaches backwards over the
+   anonymous events from before that person signed in, which only works because
+   of (1).
+3. **Emulators and dev builds flag themselves** with `is_test_client`, since
+   they never sign in at all. Google's review devices deliberately are not
+   fingerprinted: they are real hardware, and any rule that caught them would
+   also catch a real OnePlus owner. They sign in with the reviewer account, and
+   (2) has that covered.
+
+The PostHog project's "Internal / Test users" cohort (581124) matches the
+person property, an event filter matches `is_test_client`, and both sit in
+`test_account_filters` with `test_account_filters_default_checked` on, so new
+insights exclude them without anybody remembering to tick a box.
+
+**Failures are measured too, and they are the only events expected to fire when
+the product is not working.** `request_failed` comes from the client because a
+request that never arrived leaves no trace on the server, and it carries a
+route shape rather than a path: `routeShape` drops ids and query strings, and
+always drops the tail of `/api/shared/...`, because that id is the credential
+that opens a shared answer. `provider_failed` separates a refused key or an
+exhausted quota from the product being broken. `sign_in_failed` carries Clerk's
+error code and never the email that was typed.
+
+`NEXT_PUBLIC_POSTHOG_KEY` and `NEXT_PUBLIC_POSTHOG_HOST` configure it, and
+`INTERNAL_USER_IDS` names the accounts that are not product signal. With no
+PostHog key every call is a no-op, so local development and any unconfigured
+deploy stay silent instead of polluting production numbers. Every event also
+carries `environment`, from `VERCEL_ENV` on the server and `__DEV__` on
+Android, because preview deploys share this project and would otherwise read as
+production traffic.
 
 ## Send feedback
 

@@ -28,7 +28,7 @@ import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
-import { UserFacingError, chatErrorPayload, streamErrorText } from "@/lib/ai/errors";
+import { UserFacingError, chatErrorPayload, codeForError, streamErrorText } from "@/lib/ai/errors";
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
 	createNarratedDownload,
@@ -691,7 +691,29 @@ async function handlePost(req: Request): Promise<Response> {
 			// First error wins: a provider error reaches the stream-level onError
 			// again as a plain Error rebuilt from its client text, which would
 			// otherwise overwrite the real class name.
-			if (metricError === null) metricError = error;
+			if (metricError !== null) return;
+			metricError = error;
+
+			// A turn that died because the provider refused is a different
+			// problem from a turn that died in our own code, and only one of
+			// them is fixable by the user (a spent key, the wrong model, a
+			// limit). `chat_turn_completed` counts turns; this counts the
+			// provider, so one exhausted BYOK key cannot read as the product
+			// being broken for everybody.
+			const code = codeForError(error);
+			if (code === "provider_error" || code === "provider_key_missing" || code === "rate_limited") {
+				captureServerEvent({
+					userId,
+					event: ANALYTICS_EVENTS.providerFailed,
+					platform,
+					properties: {
+						code,
+						provider: metricProvider,
+						model: metricModelId,
+						surface: "ask-question",
+					},
+				});
+			}
 		};
 
 		const responseMessageId = generateMessageId();

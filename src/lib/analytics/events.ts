@@ -54,6 +54,33 @@ export const ANALYTICS_EVENTS = {
 	 * app says so itself. Mirrored in `mobile/src/lib/analytics.ts`.
 	 */
 	screenViewed: "screen_viewed",
+
+	/*
+	 * The drop-off and failure half. Everything above measures someone
+	 * succeeding at something; none of it can tell you why a person stopped.
+	 * These five answer that, and they are the only events in the catalog that
+	 * are expected to fire when the product is not working.
+	 */
+
+	/** A sign-in attempt began, named by its method. The top of the only funnel that matters. */
+	signInStarted: "sign_in_started",
+	/** A sign-in attempt produced a session. */
+	signInCompleted: "sign_in_completed",
+	/** A sign-in attempt failed, carrying Clerk's error code and never the identifier. */
+	signInFailed: "sign_in_failed",
+	/**
+	 * A client's request to the API failed: offline, timed out, or answered
+	 * with an error status. Emitted by the client rather than the server
+	 * because the interesting failures are the ones the server never saw.
+	 */
+	requestFailed: "request_failed",
+	/**
+	 * A model provider refused or errored on the server: a rejected BYOK key,
+	 * an exhausted quota, a model that does not exist. Distinct from
+	 * `chat_turn_completed` with an error, which counts turns; this counts the
+	 * provider, so one bad key does not read as the product being broken.
+	 */
+	providerFailed: "provider_failed",
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];
@@ -121,4 +148,65 @@ export function durationBucket(ms: number): string {
 	if (ms < 15000) return "under_15s";
 	if (ms < 45000) return "under_45s";
 	return "45s_plus";
+}
+
+/**
+ * Does this path segment look like somebody's id rather than a route name?
+ *
+ * Deliberately eager. A route name wrongly reduced to `[id]` costs one row of
+ * detail on a chart; a conversation id left in an analytics property is a
+ * content leak that the privacy page says cannot happen. When it is close, the
+ * id wins.
+ */
+function looksLikeIdentifier(segment: string): boolean {
+	if (/^\d+$/.test(segment)) return true;
+	if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(segment)) return true;
+	// cuid, nanoid, Clerk id: long, mixed, and always carrying a digit. Route
+	// names in this app are words and hyphens ("verse-of-day", "ask-question").
+	return segment.length >= 12 && /\d/.test(segment) && /^[A-Za-z0-9_-]+$/.test(segment);
+}
+
+/**
+ * Reduce an API path to its route shape, so "which endpoint fails" is one row
+ * rather than one row per user.
+ *
+ * `/api/shared/<token>` is special and always loses its tail: that id IS the
+ * credential that opens the shared answer (see the `/shared/(.*)` note in
+ * src/middleware.ts), so it must never reach an analytics payload even in the
+ * shape of an id that happened to look like a word.
+ */
+export function routeShape(path: string): string {
+	// Accepts an absolute URL as well as a path: the native client's streaming
+	// fetch only ever sees the full URL, and without this the host became the
+	// first two path segments.
+	const withoutOrigin = path.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*/i, "");
+	const withoutQuery = withoutOrigin.split(/[?#]/)[0] ?? "";
+	const segments = withoutQuery
+		.split("/")
+		.filter(Boolean)
+		.map((segment) => (looksLikeIdentifier(segment) ? "[id]" : segment));
+
+	const sharedAt = segments.indexOf("shared");
+	if (sharedAt !== -1 && segments.length > sharedAt + 1) {
+		segments.splice(sharedAt + 1, segments.length, "[id]");
+	}
+
+	return `/${segments.join("/")}`;
+}
+
+/** How a client request died. Kept coarse on purpose: three causes, three fixes. */
+export type RequestFailureKind = "offline" | "timeout" | "http";
+
+/**
+ * Bucket an HTTP status into something a chart can group. The exact code stays
+ * on the event too; this exists so "are people being logged out" and "is the
+ * server broken" are one click apart rather than a manual range filter.
+ */
+export function statusBucket(status: number | undefined): string {
+	if (typeof status !== "number" || !Number.isFinite(status)) return "none";
+	if (status === 401 || status === 403) return "auth";
+	if (status === 429) return "rate_limited";
+	if (status >= 500) return "server";
+	if (status >= 400) return "client";
+	return "ok";
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import posthog from "posthog-js";
@@ -70,17 +70,38 @@ function AnalyticsPageView(): null {
 function AnalyticsIdentity(): null {
 	const { isLoaded, isSignedIn, user } = useUser();
 	const { userId } = useAuth();
+	/**
+	 * Who was signed in last time this ran, so a sign-OUT can be told apart
+	 * from merely being signed out.
+	 *
+	 * This distinction is the whole reason the ref exists. `posthog.reset()`
+	 * mints a brand new anonymous id and drops the old one on the floor, so
+	 * calling it whenever Clerk reports nobody signed in destroys exactly the
+	 * trail that makes an acquisition funnel possible: the landing page, the
+	 * pricing page and the sign-up click all end up on a person that the
+	 * eventual account never merges with. It also fires on every cold start,
+	 * because Clerk reports signed-out for a beat before it restores the
+	 * session. On 2026-09-20 that turned six app launches into six phantom
+	 * users, and the two real people into four.
+	 */
+	const previousUserId = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (!POSTHOG_KEY || !isLoaded) return;
 
 		if (!isSignedIn || !userId) {
-			// Signing out has to break the link between the account and anything
-			// the next person on this browser does.
-			posthog.reset();
+			// Only a real sign-out resets: somebody was here, and now they are
+			// not. A visitor who has simply never signed in keeps their trail,
+			// which is what lets it merge into the account they are about to
+			// create.
+			if (previousUserId.current) {
+				posthog.reset();
+				previousUserId.current = null;
+			}
 			return;
 		}
 
+		previousUserId.current = userId;
 		posthog.identify(userId, {
 			email: user?.primaryEmailAddress?.emailAddress ?? undefined,
 			name: user?.fullName ?? undefined,

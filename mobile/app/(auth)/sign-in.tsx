@@ -19,6 +19,7 @@ import { useSignIn } from "@clerk/expo/legacy";
 import { AccentButton, BrandTitle, GhostButton, GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { ANALYTICS_EVENTS, track } from "@/lib/analytics";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,6 +29,23 @@ function clerkErrorMessage(err: unknown, fallback: string): string {
 		return first?.longMessage ?? first?.message ?? fallback;
 	}
 	return err instanceof Error ? err.message : fallback;
+}
+
+/**
+ * Clerk's machine-readable reason for a failure, for analytics only.
+ *
+ * The CODE and never the message: a code is `form_password_incorrect`, while a
+ * message can quote what the person typed. Sign-in is also the one screen in
+ * the app where the thing being typed is an email address, so nothing from
+ * this form may reach an event beyond which method was used and why it
+ * stopped.
+ */
+function clerkErrorCode(err: unknown): string {
+	if (err && typeof err === "object" && "errors" in err) {
+		const first = (err as { errors?: { code?: string }[] }).errors?.[0];
+		if (first?.code) return first.code;
+	}
+	return "unknown";
 }
 
 export default function SignInScreen() {
@@ -55,6 +73,7 @@ export default function SignInScreen() {
 	const onGoogle = useCallback(async () => {
 		setError(null);
 		setPending(true);
+		track(ANALYTICS_EVENTS.signInStarted, { method: "google" });
 		try {
 			const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
 				strategy: "oauth_google",
@@ -71,10 +90,23 @@ export default function SignInScreen() {
 				}),
 			});
 			if (createdSessionId && setActiveSSO) {
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "google" });
 				await setActiveSSO({ session: createdSessionId });
 				router.replace("/");
+			} else {
+				// The flow returned without a session: the person closed the
+				// browser tab. Not an error, and the single biggest drop in the
+				// funnel, so it has to be distinguishable from a real failure.
+				track(ANALYTICS_EVENTS.signInFailed, {
+					method: "google",
+					reason: "abandoned",
+				});
 			}
 		} catch (err) {
+			track(ANALYTICS_EVENTS.signInFailed, {
+				method: "google",
+				reason: clerkErrorCode(err),
+			});
 			setError(clerkErrorMessage(err, "Google sign-in failed."));
 		} finally {
 			setPending(false);
@@ -104,6 +136,7 @@ export default function SignInScreen() {
 		if (!isLoaded || !email.trim()) return;
 		setError(null);
 		setPending(true);
+		track(ANALYTICS_EVENTS.signInStarted, { method: "email" });
 		try {
 			const attempt = await signIn.create({ identifier: email.trim() });
 			const hasPassword = attempt.supportedFirstFactors?.some(
@@ -115,6 +148,11 @@ export default function SignInScreen() {
 				setStep("code");
 			}
 		} catch (err) {
+			track(ANALYTICS_EVENTS.signInFailed, {
+				method: "email",
+				reason: clerkErrorCode(err),
+				step: "lookup",
+			});
 			setError(clerkErrorMessage(err, "We couldn't find that account."));
 		} finally {
 			setPending(false);
@@ -131,12 +169,21 @@ export default function SignInScreen() {
 				password,
 			});
 			if (attempt.status === "complete") {
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "password" });
 				await setActive({ session: attempt.createdSessionId });
 				router.replace("/");
 			} else {
+				track(ANALYTICS_EVENTS.signInFailed, {
+					method: "password",
+					reason: `incomplete_${attempt.status ?? "unknown"}`,
+				});
 				setError("That password didn't complete the sign-in. Try again.");
 			}
 		} catch (err) {
+			track(ANALYTICS_EVENTS.signInFailed, {
+				method: "password",
+				reason: clerkErrorCode(err),
+			});
 			setError(clerkErrorMessage(err, "That password is incorrect."));
 		} finally {
 			setPending(false);
@@ -165,12 +212,21 @@ export default function SignInScreen() {
 				code: code.trim(),
 			});
 			if (attempt.status === "complete") {
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "email_code" });
 				await setActive({ session: attempt.createdSessionId });
 				router.replace("/");
 			} else {
+				track(ANALYTICS_EVENTS.signInFailed, {
+					method: "email_code",
+					reason: `incomplete_${attempt.status ?? "unknown"}`,
+				});
 				setError("That code didn't complete the sign-in. Request a new one and try again.");
 			}
 		} catch (err) {
+			track(ANALYTICS_EVENTS.signInFailed, {
+				method: "email_code",
+				reason: clerkErrorCode(err),
+			});
 			setError(clerkErrorMessage(err, "That code is incorrect or has expired."));
 		} finally {
 			setPending(false);
