@@ -10,10 +10,15 @@
 # mandatory rules at its top). No changelog entry for the versionCode being
 # published -> this script refuses to build or upload anything.
 #
+# RELEASES GO TO INTERNAL TESTING, NOT CLOSED TESTING (Austin, 2026-09-20).
+# "internal" is the only Play track that skips review, so a build is on the
+# phone in minutes. Closed testing queues behind Play review and has repeatedly
+# left finished work invisible for hours. Any other track therefore refuses
+# unless SUREWORD_ALLOW_SLOW_TRACK=1 is set; see the guard below.
+#
 # Usage:
 #   push-phone.sh                       bump + build + release to Play + GitHub
 #   push-phone.sh --skip-build          upload the existing AAB as-is (no bump)
-#   push-phone.sh --track closed-beta   release to a different track
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -37,6 +42,36 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+# ── Internal track only ─────────────────────────────────────────────────────
+# Checked before anything is built, so a wrong track costs a message and not a
+# ten-minute build. The escape hatch exists for exactly one reason: Play grants
+# production access only after 12+ opted-in testers sit on a closed track for
+# 14 days. That is an occasional deliberate act, and the right way to do it is
+# to promote a build internal testing already has:
+#
+#   SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code <n>
+#
+# Promoting moves the exact bytes Play already holds. Building a fresh
+# versionCode for the other track instead leaves the two tracks running
+# different binaries, which is how "it works on my phone" starts.
+if [[ "$TRACK" != "internal" && "${SUREWORD_ALLOW_SLOW_TRACK:-0}" != "1" ]]; then
+  cat >&2 <<EOF
+[push-phone] REFUSED: track "$TRACK" is not "internal".
+
+Android releases go to Play INTERNAL testing. It is the only track that skips
+Play review, so the build reaches the phone in minutes; "$TRACK" queues behind
+review and the update does not show up for hours.
+
+Just run: bash mobile/scripts/push-phone.sh
+
+If this really is the 14-day closed-testing run Play requires before production
+access, promote the build internal already has rather than building a new one:
+
+  SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code <versionCode>
+EOF
+  exit 1
+fi
 
 # ── Mandatory Play changelog gate ───────────────────────────────────────────
 # The entry must exist BEFORE anything is built or uploaded: no entry, no

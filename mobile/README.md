@@ -153,6 +153,24 @@ bash mobile/scripts/push-phone.sh --skip-build     # publish one previously boun
 node mobile/scripts/play-promote.mjs --track alpha --code 79   # put a build Play already has on another track
 ```
 
+**Releases go to internal testing. Not closed testing (Austin, 2026-09-20.)**
+`internal` is the only Play track that skips review, so a build is on the phone
+within minutes. Closed testing (`alpha`) queues behind Play review, which has
+repeatedly meant waiting hours or days to see a change that was finished; that
+delay is the whole reason this rule exists. `push-phone.sh` defaults to
+`internal` and now **refuses any other track** unless
+`SUREWORD_ALLOW_SLOW_TRACK=1` is set, so nobody reaches for `--track alpha` out
+of habit and then wonders why the phone is stale.
+
+The escape hatch stays because Play's own rules need it: **production access
+requires 12+ opted-in testers on a closed track for 14 days.** That is a
+deliberate, occasional act, not a release step. When it is time, promote a
+build internal testing already has rather than building a new one:
+
+```bash
+SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code 81
+```
+
 `play-promote.mjs` exists because `push-phone.sh` always *uploads*, and Play
 rejects a versionCode it has already seen - so there was previously no way to
 put the build internal testing already has onto closed testing without

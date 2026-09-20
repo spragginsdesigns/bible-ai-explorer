@@ -45,6 +45,20 @@ if (!track || !code) {
 	process.exit(1);
 }
 
+// Same rule as push-phone.sh: internal testing is where releases go, because
+// it is the only track that skips Play review. This script's whole purpose is
+// the occasional promotion to a slower track, so the opt-in is explicit rather
+// than assumed (Austin, 2026-09-20).
+if (track !== "internal" && process.env.SUREWORD_ALLOW_SLOW_TRACK !== "1") {
+	console.error(
+		`[play-promote] REFUSED: "${track}" goes through Play review, so it is not how a release reaches the phone.\n` +
+			"Releases go to internal testing: bash mobile/scripts/push-phone.sh\n" +
+			"If this is the 14-day closed-testing run Play requires before production access, re-run with:\n" +
+			`  SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track ${track} --code ${code}`
+	);
+	process.exit(1);
+}
+
 const log = (m) => console.log(`[play-promote] ${m}`);
 
 // The version name is whatever app.json says, so the Play release is labelled
