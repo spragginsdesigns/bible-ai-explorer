@@ -150,7 +150,18 @@ Run from the repository root in Git Bash:
 ```bash
 bash mobile/scripts/push-phone.sh                  # bump + build + publish Play and GitHub APK
 bash mobile/scripts/push-phone.sh --skip-build     # publish one previously bound AAB/APK pair, no bump
+node mobile/scripts/play-promote.mjs --track alpha --code 79   # put a build Play already has on another track
 ```
+
+`play-promote.mjs` exists because `push-phone.sh` always *uploads*, and Play
+rejects a versionCode it has already seen - so there was previously no way to
+put the build internal testing already has onto closed testing without
+rebuilding it under a new code, which would mean two tracks running different
+binaries. It moves the exact bytes Play already holds, refuses a versionCode
+Play does not have, and reads its notes from `CHANGELOG.md` like every other
+publish path. Track names are the API's: `internal` is "Internal testing",
+`alpha` is **"Closed testing"**, `beta` is "Open testing". Only `internal`
+skips Play review, so promoting to any other track is not instant.
 
 Since 2026-08-19 this targets the Play Store's internal testing track (normally
 available to testers within minutes, with no review) instead of wireless ADB -
