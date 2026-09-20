@@ -283,10 +283,10 @@ outright.
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | Server-side events (turn answered/unanswered by model and platform, ratings, signups) | Covered from the API, no client work needed | Covered from the API | Covered from the API | Covered from the API | Production `$identify` and proxy 200s verified on sureword.app; 1127 web logic tests |
-| Client page/screen views and identity | 1.72.0 (78), `posthog-react-native` in `mobile/app/_layout.tsx` | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session; Android built and released to Play internal |
-| App open / background lifecycle | 1.72.0 (78), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | ❌ | ❌ | Same |
-| Send feedback | 1.72.0 (78), Settings -> Send feedback | Settings -> Send feedback | ❌ not implemented | ❌ not implemented | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
-| `x-sureword-client` request header | 1.72.0 (78), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | ❌ (falls back to user-agent sniffing) | ❌ (same fallback) | `platformFromHeaders` in `src/lib/analytics/events.ts` |
+| Client page/screen views and identity | 1.72.1 (79), `posthog-react-native` in `mobile/app/_layout.tsx` | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session; Android reached devices only in 1.72.1 (79), since 1.72.0 (78) crashed before any JavaScript ran and sent nothing |
+| App open / background lifecycle | 1.72.1 (79), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | ❌ | ❌ | Same |
+| Send feedback | 1.72.1 (79), Settings -> Send feedback | Settings -> Send feedback | ❌ not implemented | ❌ not implemented | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
+| `x-sureword-client` request header | 1.72.1 (79), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | ❌ (falls back to user-agent sniffing) | ❌ (same fallback) | `platformFromHeaders` in `src/lib/analytics/events.ts` |
 
 **Apple gap, deliberate and tracked.** macOS and iOS are covered by the
 server-side half and carry neither the client SDK nor the feedback screen yet.
