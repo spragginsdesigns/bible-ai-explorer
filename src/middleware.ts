@@ -31,6 +31,13 @@ const isPublicRoute = createRouteMatcher([
 	// Cron routes are protected by their own CRON_SECRET bearer check; letting
 	// them through here keeps Vercel cron (which has no Clerk session) working.
 	"/api/cron(.*)",
+	// Sermon-study ingest, posted by the machine that builds the studies. It
+	// carries no Clerk session by design (the caller is a scheduled script, not
+	// a person) and checks its own SERMON_INGEST_SECRET, exactly like the cron
+	// routes above. Only the ingest endpoint is public here: reading studies
+	// stays behind the session, because that is what scopes a study to the
+	// reader's own church.
+	"/api/sermon-studies/ingest",
 	// Church photo proxy: loaded by a plain <img> / RN Image with no session
 	// header, keyed only by a place id some user already saved (see the route).
 	"/api/church/photo",
