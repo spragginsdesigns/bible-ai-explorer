@@ -72,6 +72,17 @@ export function watchUrl(videoId: string, atMs?: number | null): string {
 	return typeof atMs === "number" ? `${base}&t=${Math.floor(atMs / 1000)}s` : base;
 }
 
+/**
+ * The writer sometimes labels its own teaching inside the prose. Every client
+ * renders that label itself, so leaving it in prints it twice. Stripping here
+ * rather than at ingest also cleans rows that were stored before this existed.
+ */
+function stripTeachingLabel(text: string): string {
+	return String(text ?? "")
+		.replace(/^\s*SureWord['’]?s teaching[:.]?\s*/i, "")
+		.trim();
+}
+
 function sectionsOf(value: unknown): SermonSection[] {
 	return Array.isArray(value) ? (value as SermonSection[]) : [];
 }
@@ -83,6 +94,7 @@ function sectionsOf(value: unknown): SermonSection[] {
  */
 async function withSignedImage(section: SermonSection): Promise<SermonSection> {
 	const { imagePathname, ...rest } = section;
+	rest.explanation = stripTeachingLabel(rest.explanation);
 	if (!imagePathname) return { ...rest, imageUrl: null };
 	try {
 		const { previewUrl } = await createAttachmentPreviewUrl(imagePathname);

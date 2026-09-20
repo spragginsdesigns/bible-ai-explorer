@@ -139,6 +139,9 @@ export default function SermonStudyPage() {
 			<p className="mt-3 text-metadata text-neutral-500 dark:text-neutral-400">
 				{[study.serviceTitle, study.preacher, study.serviceDate].filter(Boolean).join(" · ")}
 			</p>
+			<p className="mt-1 text-sm font-bold text-amber-600 dark:text-amber-400">
+				{study.preachingText}
+			</p>
 
 			<a
 				href={watchUrl(study.videoId, study.sermonStartMs)}
@@ -150,14 +153,6 @@ export default function SermonStudyPage() {
 			</a>
 
 			<p className="mt-6 text-neutral-700 dark:text-neutral-200">{study.summary}</p>
-
-			{study.preachingText && study.sections[0]?.passageText && (
-				<section className="mt-8">
-					<h2 className="mb-2 text-sm font-bold uppercase tracking-[0.1em] text-amber-600 dark:text-amber-400">
-						The text: {study.preachingText}
-					</h2>
-				</section>
-			)}
 
 			{study.sections.map((section, index) => (
 				<section key={`${section.heading}-${index}`} className="mt-10">
