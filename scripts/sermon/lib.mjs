@@ -615,6 +615,37 @@ export async function generateImage(apiKey, prompt, outPath, { size = "1536x1024
 	return outPath;
 }
 
+// ----------------------------------------------------------------- publish
+
+/**
+ * Illustrations go to Blob from here rather than being posted as bytes: this
+ * machine already holds BLOB_READ_WRITE_TOKEN, and four 2.5 MB images inside a
+ * JSON body would be a 13 MB base64 payload for no gain.
+ */
+export async function uploadImage(token, localPath, pathname) {
+	const { put } = await import("@vercel/blob");
+	const blob = await put(pathname, fs.readFileSync(localPath), {
+		access: "public",
+		token,
+		contentType: "image/png",
+		addRandomSuffix: false,
+		allowOverwrite: true,
+	});
+	return blob.url;
+}
+
+/** Hand the finished study to SureWord, which serves it to every client. */
+export async function publishStudy(apiBase, secret, payload) {
+	const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/sermon-studies/ingest`, {
+		method: "POST",
+		headers: { "content-type": "application/json", "x-ingest-secret": secret },
+		body: JSON.stringify(payload),
+	});
+	const text = await res.text();
+	if (!res.ok) throw new Error(`ingest returned ${res.status}: ${text.slice(0, 400)}`);
+	return JSON.parse(text);
+}
+
 // ------------------------------------------------------------------ render
 
 /** The model sometimes labels its own teaching; the renderer owns that label. */

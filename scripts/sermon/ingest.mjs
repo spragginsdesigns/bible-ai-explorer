@@ -12,6 +12,8 @@
 //   --keep-audio       leave the .m4a behind (it is ~70 MB per service)
 //   --out <dir>        output directory (default artifacts/sermons/<videoId>)
 //   --model <id>       override the composing model
+//   --publish          upload illustrations and POST the study to SureWord
+//   --api <url>        target for --publish (default https://sureword.app)
 //
 // Exits 75 (EX_TEMPFAIL) when YouTube has not finished turning the stream into
 // a VOD, which is the normal state for a couple of hours after a service. A
@@ -34,6 +36,8 @@ import {
 	formatTimestamp,
 	transcribe,
 	updateYtDlp,
+	uploadImage,
+	publishStudy,
 	verifyStudy,
 } from "./lib.mjs";
 
@@ -54,6 +58,9 @@ function parseArgs(argv) {
 		model: DEFAULT_MODEL,
 		videoId: null,
 		title: null,
+		publish: false,
+		api: "https://sureword.app",
+		channelId: FMBC_CHANNEL_ID,
 	};
 	for (let i = 0; i < argv.length; i += 1) {
 		const a = argv[i];
@@ -61,6 +68,9 @@ function parseArgs(argv) {
 		else if (a === "--no-images") opts.images = false;
 		else if (a === "--keep-audio") opts.keepAudio = true;
 		else if (a === "--rerender") opts.rerender = true;
+		else if (a === "--publish") opts.publish = true;
+		else if (a === "--api") opts.api = argv[++i];
+		else if (a === "--channel-id") opts.channelId = argv[++i];
 		else if (a === "--from-srt") opts.fromSrt = argv[++i];
 		else if (a === "--out") opts.out = argv[++i];
 		else if (a === "--model") opts.model = argv[++i];
@@ -194,6 +204,59 @@ async function main() {
 				log(`  image failed, continuing without it: ${error.message}`);
 			}
 		}
+	}
+
+	// ---- publish -----------------------------------------------------------
+	if (opts.publish) {
+		const secret = (env.SERMON_INGEST_SECRET || process.env.SERMON_INGEST_SECRET || "").trim();
+		if (!secret) throw new Error("SERMON_INGEST_SECRET is required to publish.");
+		const blobToken = (env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN || "").trim();
+		for (const [i, section] of study.sections.entries()) {
+			// An earlier run's illustrations are still on disk under a stable
+			// name, so re-publishing does not pay to draw them again.
+			const onDisk = `image-${i + 1}.png`;
+			const file =
+				section.imageFile ?? (fs.existsSync(path.join(outDir, onDisk)) ? onDisk : null);
+			if (!file || section.imageUrl) continue;
+			if (!blobToken) {
+				log("  no BLOB_READ_WRITE_TOKEN, publishing without illustrations");
+				break;
+			}
+			section.imageFile = file;
+			section.imageUrl = await uploadImage(
+				blobToken,
+				path.join(outDir, file),
+				`sermons/${meta.videoId}/${i + 1}.png`
+			);
+		}
+		const result = await publishStudy(opts.api, secret, {
+			videoId: meta.videoId,
+			channelId: opts.channelId,
+			serviceTitle: meta.title ?? segment.serviceTitle,
+			serviceDate: meta.serviceDate,
+			preacher: segment.preacher ?? null,
+			preachingText: segment.preachingText ?? null,
+			title: study.title,
+			bigIdea: study.bigIdea,
+			summary: study.summary,
+			application: study.application,
+			prayer: study.prayer,
+			sections: study.sections.map((s) => ({
+				heading: s.heading,
+				startMs: Math.max(0, Math.round(s.startMs)),
+				pastorQuote: s.pastorQuote ?? null,
+				passage: s.passage ?? null,
+				passageText: s.passageText ?? null,
+				explanation: s.explanation,
+				reflection: s.reflection,
+				imageUrl: s.imageUrl ?? null,
+			})),
+			sermonStartMs: Math.max(0, Math.round(segment.sermonStartMs)),
+			sermonEndMs: Math.max(0, Math.round(segment.sermonEndMs)),
+			durationSec: Math.round((cues[cues.length - 1]?.endMs ?? 0) / 1000),
+			writerModel: `openai/${opts.model}`,
+		});
+		log(`published to ${opts.api} as ${result.id} (${result.created ? "new" : "updated"})`);
 	}
 
 	// ---- write -------------------------------------------------------------

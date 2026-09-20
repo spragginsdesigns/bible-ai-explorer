@@ -14,6 +14,13 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.74.0 (versionCode 83) - 2026-09-20 - internal
+
+**What's new (Play):**
+Sermon studies. When your church streams a service, SureWord now turns it into a guided walk through the message: the preacher's own words with a link straight to that moment in the video, the passages in King James, an explanation of each point, a question to carry with you, and artwork along the way. Look for Sermon studies in the Bible tab. Also fixes a fresh install briefly signing itself out before the sign-in screen appeared.
+
+**Dev notes:** New `/bible/sermons` list and `/bible/sermon` detail screens reading `GET /api/sermon-studies` and `/api/sermon-studies/[id]`; the Bible tab row only appears when the account's church has a channel wired up (`UserChurch.youtubeChannelId`), so it stays invisible for everyone else. Studies are built off-device by `scripts/sermon/ingest.mjs` (yt-dlp + local faster-whisper + two model passes) and posted to `POST /api/sermon-studies/ingest`; ingestion cannot run on Vercel because YouTube blocks datacenter IPs and transcription needs a GPU. Quotes are anchored to a transcript timestamp and lifted verbatim rather than written by the model, and scripture is re-rendered from the bundled KJV. This build is also the first to carry `66af619` from a concurrent session: the `(app)` shell only redirects once Clerk has loaded, so `useSureWordChat` mounted during that window, asked `/api/conversations` for nobody's conversations, took a 401 and ran `reportAuthFailure`, signing out an account that was never signed in.
+
 ## 1.73.2 (versionCode 82) - 2026-09-20 - internal
 
 **What's new (Play):**

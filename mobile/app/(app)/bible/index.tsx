@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
@@ -13,6 +13,7 @@ import type { TranslationId } from "@/features/bible/translations";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { apiJson } from "@/lib/api";
+import { fetchSermonStudies } from "@/features/sermons/sermonApi";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -118,6 +119,25 @@ export default function BibleBooksScreen() {
 
 	const getApiToken = useStableGetToken();
 
+	// The sermon-studies row appears only for an account whose church has
+	// ingest wired up, the same way Listen and My church stay invisible when
+	// they are unconfigured. Fail-soft: any error leaves the row hidden.
+	const [hasSermons, setHasSermons] = useState(false);
+	useEffect(() => {
+		if (!isLoaded || !isSignedIn) return;
+		let cancelled = false;
+		fetchSermonStudies(getApiToken)
+			.then((studies) => {
+				if (!cancelled) setHasSermons(studies.length > 0);
+			})
+			.catch(() => {
+				if (!cancelled) setHasSermons(false);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [getApiToken, isLoaded, isSignedIn]);
+
 	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
 	// Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
 	const [lastRead, setLastRead] = useState<LastReadState | null>(null);
@@ -198,6 +218,10 @@ export default function BibleBooksScreen() {
 
 	const openTimeline = () => {
 		router.push("/bible/timeline");
+	};
+
+	const openSermons = () => {
+		router.push("/bible/sermons");
 	};
 
 	return (
@@ -291,6 +315,23 @@ export default function BibleBooksScreen() {
 							</View>
 							<Text style={styles.planChevron}>›</Text>
 						</Pressable>
+						{hasSermons ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Sermon studies from your church"
+								onPress={openSermons}
+								style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+							>
+								<Text style={styles.planGlyph}>❂</Text>
+								<View style={styles.crossCopy}>
+									<Text style={styles.planTitle}>Sermon studies</Text>
+									<Text style={styles.crossSubtitle}>
+										Walk through your church&apos;s latest message
+									</Text>
+								</View>
+								<Text style={styles.planChevron}>›</Text>
+							</Pressable>
+						) : null}
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Pick Up Your Cross - today's word"

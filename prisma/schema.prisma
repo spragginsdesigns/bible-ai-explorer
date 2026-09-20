@@ -9,83 +9,83 @@ datasource db {
 }
 
 model User {
-  id                    String                 @id // Clerk userId used directly
-  email                 String?
-  name                  String?
+  id                     String                  @id // Clerk userId used directly
+  email                  String?
+  name                   String?
   // When false, memories are neither injected into prompts nor extracted from
   // chats (Settings → Memory toggle). Existing UserMemory rows are kept.
-  memoryEnabled         Boolean                @default(true)
+  memoryEnabled          Boolean                 @default(true)
   // When false, the webSearch (Tavily) tool is not offered to the model
   // (Settings → Web Search toggle). Server-enforced in the chat routes.
-  webSearchEnabled      Boolean                @default(true)
+  webSearchEnabled       Boolean                 @default(true)
   // Subscription tier: "free" | "pro". SureWord Pro gates the paid benefits
   // (currently Listen, the spoken devotional). Read through
   // src/lib/entitlements.ts, never directly - the PRO_USER_IDS allowlist
   // grants Pro without a database write.
-  plan                  String                 @default("free")
-  aiPreference          AiPreference?
-  billingSubscription   BillingSubscription?
+  plan                   String                  @default("free")
+  aiPreference           AiPreference?
+  billingSubscription    BillingSubscription?
   googlePlaySubscription GooglePlaySubscription?
-  aiUsageRequests       AiUsageRequest[]
+  aiUsageRequests        AiUsageRequest[]
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
   // falls back to the default rather than erroring.
-  defaultModelId        String?
-  defaultEffort         String?
+  defaultModelId         String?
+  defaultEffort          String?
   // Last run options the user picked beside the model: "standard" | "fast",
   // "low" | "medium" | "high", "standard" | "pro". Nullable and unconstrained
   // like defaultEffort above; validated on read (isSpeed / isVerbosity /
   // isReasoningMode), and clamped again to what the chosen model accepts, so a
   // value left over from another model is ignored rather than sent.
-  defaultSpeed          String?
-  defaultVerbosity      String?
-  defaultMode           String?
+  defaultSpeed           String?
+  defaultVerbosity       String?
+  defaultMode            String?
   // Account preferences the clients sync through /api/preferences. They live
   // on the account rather than on the device because a reader who switched to
   // NKJV on their phone means it on the web too; theme and font size stay
   // device settings. Validated on read (src/lib/preferences-contract.ts), so a
   // value from a newer build degrades to the default instead of erroring.
-  translation           String                 @default("KJV") // "KJV" | "NKJV"
-  parchment             Boolean                @default(true)
-  listenRate            Float                  @default(1) // one of 0.75, 1, 1.25, 1.5, 2
+  translation            String                  @default("KJV") // "KJV" | "NKJV"
+  parchment              Boolean                 @default(true)
+  listenRate             Float                   @default(1) // one of 0.75, 1, 1.25, 1.5, 2
   // What the user calls each highlight colour ("yellow" -> "Promises"), so a
   // marked verse carries the user's own taxonomy into chat and the daily cross.
-  highlightLabels       Json?
+  highlightLabels        Json?
   // Why the user reaches for each colour ("blue" -> "something God said He
   // will do"), one sentence per colour. Read by the assistant only: the legend
   // it gets up front in the chat prompt (src/lib/highlight-legend.ts), so a
   // colour means what the user says it means, not what the hue suggests.
-  highlightMeanings     Json?
+  highlightMeanings      Json?
   // "About me", in the user's own words (Settings → Memory). Injected verbatim
   // into the chat prompt beside memories; the one piece of context the user
   // writes rather than the assistant infers. Null until they write one.
-  aboutMe               String?
-  createdAt             DateTime               @default(now())
-  conversations         Conversation[]
-  notes                 Note[]
-  folders               Folder[]
-  tags                  Tag[]
-  memories              UserMemory[]
-  attachments           ChatAttachment[]
-  providerCredentials   ProviderCredential[]
-  pushTokens            PushToken[]
-  readingEvents         ReadingEvent[]
-  readingLogEntries     ReadingLogEntry[]
-  readingLogChapters    ReadingLogChapter[]
-  readingLogDays        ReadingLogDay[]
-  readingLogChapterDays ReadingLogChapterDay[]
-  readingLogSessions    ReadingLogSession[]
-  readingLogTotals      ReadingLogTotals?
-  sharedAnswers         SharedAnswer[]
-  readingLogStreaks     ReadingLogStreak[]
-  highlights            VerseHighlight[]
-  versesOfDay           VerseOfDay[]
-  suggestedQuestionSets SuggestedQuestionSet[]
-  readingPlans          ReadingPlan[]
-  verseMemories         VerseMemory[]
+  aboutMe                String?
+  createdAt              DateTime                @default(now())
+  conversations          Conversation[]
+  notes                  Note[]
+  folders                Folder[]
+  tags                   Tag[]
+  memories               UserMemory[]
+  attachments            ChatAttachment[]
+  providerCredentials    ProviderCredential[]
+  pushTokens             PushToken[]
+  readingEvents          ReadingEvent[]
+  readingLogEntries      ReadingLogEntry[]
+  readingLogChapters     ReadingLogChapter[]
+  readingLogDays         ReadingLogDay[]
+  readingLogChapterDays  ReadingLogChapterDay[]
+  readingLogSessions     ReadingLogSession[]
+  readingLogTotals       ReadingLogTotals?
+  sharedAnswers          SharedAnswer[]
+  readingLogStreaks      ReadingLogStreak[]
+  highlights             VerseHighlight[]
+  versesOfDay            VerseOfDay[]
+  suggestedQuestionSets  SuggestedQuestionSet[]
+  readingPlans           ReadingPlan[]
+  verseMemories          VerseMemory[]
   learnReviewReceipts    LearnReviewReceipt[]
-  feedback              Feedback[]
-  church                UserChurch?
+  feedback               Feedback[]
+  church                 UserChurch?
 }
 
 /// Something a person wrote to us from inside the app (Settings -> Send
@@ -143,18 +143,18 @@ model BillingSubscription {
 }
 
 model GooglePlaySubscription {
-  userId                 String   @id
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchaseTokenHash      String   @unique
+  userId                  String   @id
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchaseTokenHash       String   @unique
   latestSuccessfulOrderId String?
-  encryptedPurchaseToken String
-  productId              String
-  status                 String
-  periodStart            DateTime
-  periodEnd              DateTime
-  cancelAtPeriodEnd      Boolean  @default(false)
-  lastVerifiedAt         DateTime
-  updatedAt              DateTime @updatedAt
+  encryptedPurchaseToken  String
+  productId               String
+  status                  String
+  periodStart             DateTime
+  periodEnd               DateTime
+  cancelAtPeriodEnd       Boolean  @default(false)
+  lastVerifiedAt          DateTime
+  updatedAt               DateTime @updatedAt
 }
 
 model BillingEvent {
@@ -176,30 +176,35 @@ model AiUsageRequest {
   calls          Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
   @@unique([userId, idempotencyKey])
   @@index([userId, createdAt, status])
 }
 
 model UserChurch {
-  userId        String   @id
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  placeId       String // Google Places (New) place id
-  name          String
-  address       String
-  phone         String?
-  website       String?
-  mapsUrl       String?
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  placeId          String // Google Places (New) place id
+  name             String
+  address          String
+  phone            String?
+  website          String?
+  mapsUrl          String?
   // Logo/photo shown on the card. `photoSource` says where it came from:
   // "website" (favicon/og:image/apple-touch-icon URL, stored directly) or
   // "places" (served through GET /api/church/photo so the key stays server-side).
-  photoUrl      String?
-  photoSource   String?
-  photoName     String? // Places photo resource name when photoSource = "places"
-  mission       String?  @db.Text // ≤ 1500 chars, extracted mission/vision statement
-  about         String?  @db.Text // ≤ 600 chars, one-paragraph description
-  missionSource String? // URL the mission text came from
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  photoUrl         String?
+  photoSource      String?
+  photoName        String? // Places photo resource name when photoSource = "places"
+  mission          String?  @db.Text // ≤ 1500 chars, extracted mission/vision statement
+  about            String?  @db.Text // ≤ 600 chars, one-paragraph description
+  missionSource    String? // URL the mission text came from
+  // Set only for churches whose services SureWord builds sermon studies from.
+  // Null means the church is named but nothing is ingested for it, which is
+  // every church except the ones explicitly wired up.
+  youtubeChannelId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 enum AiProvider {
@@ -246,19 +251,19 @@ model LegacyClerkAccount {
 }
 
 model UserMemory {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String   @db.Text
-  category  String   @default("general") // profile | prayer | study | preference | general
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content       String    @db.Text
+  category      String    @default("general") // profile | prayer | study | preference | general
   /// Prayer requests only (docs/FEATURES.md, "Prayer requests that come back
   /// to you"); null on every other category. status: open | answered | closed.
   status        String?
   askedAt       DateTime?
   /// Earliest instant the assistant may raise the request again; null once resolved.
   followUpAfter DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId])
   @@index([userId, category, status, followUpAfter])
@@ -866,4 +871,40 @@ model ReadingLogStreak {
 
   @@id([userId, startDate])
   @@index([userId, endDate])
+}
+
+/// A guided study built from one of a church's recorded services.
+///
+/// Rows are keyed by the YouTube video, not by a user: the sermon is the same
+/// sermon for everyone in the congregation, so one generation serves the whole
+/// church. Visibility is what makes it personal, `channelId` must match the
+/// channel on the reader's UserChurch, so a study only ever reaches people who
+/// named that church as their own.
+///
+/// `sections` holds the rendered study: heading, the timestamp its YouTube
+/// deep link points at, the verbatim quote, the KJV verses, SureWord's own
+/// teaching, the reflection question and the illustration URL. It is JSON
+/// because the shape is presentational and every client renders it whole.
+model SermonStudy {
+  id            String    @id @default(cuid())
+  videoId       String    @unique
+  channelId     String
+  serviceTitle  String
+  serviceDate   DateTime?
+  preacher      String?
+  preachingText String? // canonical reference of the announced text
+  title         String
+  bigIdea       String    @db.Text
+  summary       String    @db.Text
+  application   String    @db.Text
+  prayer        String    @db.Text
+  sections      Json
+  sermonStartMs Int?
+  sermonEndMs   Int?
+  durationSec   Int?
+  writerModel   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([channelId, serviceDate])
 }

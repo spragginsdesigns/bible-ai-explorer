@@ -104,6 +104,25 @@ const BibleBookPicker: React.FC = () => {
 
   // B8: "Continue reading: Judges 7" from the reading-history route (A6).
   // Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
+  // The sermon-studies row appears only for an account whose church has ingest
+  // wired up, so it stays invisible for everyone else. Fail-soft: any error
+  // leaves the row hidden rather than showing a link to an empty page.
+  const [hasSermons, setHasSermons] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/sermon-studies")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled) setHasSermons((data?.studies?.length ?? 0) > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setHasSermons(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [lastRead, setLastRead] = useState<LastReadState | null>(null);
   const requestId = useRef(0);
 
@@ -248,6 +267,26 @@ const BibleBookPicker: React.FC = () => {
           </span>
           <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
         </Link>
+
+        {/* Sermon studies - only for a church with ingest wired up, so the row
+            stays invisible for everyone else (mirrors the Android Bible tab card) */}
+        {hasSermons && (
+          <Link
+            href="/sermons"
+            className="mb-3 flex items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-4 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+          >
+            <span aria-hidden className="text-lg lg:text-xl text-neutral-500 dark:text-neutral-400">❂</span>
+            <span className="flex-1">
+              <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+                Sermon studies
+              </span>
+              <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+                Walk through your church&apos;s latest message
+              </span>
+            </span>
+            <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+          </Link>
+        )}
 
         {/* Pick Up Your Cross - the guided daily walk (mirrors the Android Bible tab card) */}
         <Link
