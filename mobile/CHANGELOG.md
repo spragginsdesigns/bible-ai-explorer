@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.72.1 (versionCode 79) - 2026-09-20 - internal
+
+**What's new (Play):**
+
+- Fixes a crash that stopped SureWord from opening at all. 1.72.0 closed instantly on launch, before the splash screen even appeared. Everything is back, and nothing you saved was lost: Chat, Bible, Notes, Pick Up Your Cross and your memories are all where you left them.
+
+**Dev notes:** 1.72.0 added `expo-application` and `expo-localization` for `posthog-react-native` and pinned both off the SDK 57 line (`~7.0.0` resolved to 7.0.8, `~17.0.0` to 17.0.9). Those are the packages' legacy standalone version lines, built against an older `expo-modules-core`, so `LocalizationModule.definition()` called a `ReturnType(KClass)` constructor that 57.0.10 no longer has. `java.lang.NoSuchMethodError` was thrown from `ModuleRegistry.register` while `AppContext` assembled the Expo module registry, which happens before any JS runs and therefore before the splash screen: every launch died, on every device, with no recovery from clearing data. Repinned to `expo-application@~57.0.3` / `expo-localization@~57.0.2`, the versions `expo install` resolves, plus the `expo-localization` config plugin the SDK 57 package ships (it only adds `locale|layoutDirection` to the main activity's `configChanges`). `expo-device` and `expo-file-system` landed in the same commit already on the 57 line, which is why localization was the one that fired. Reproduced and verified on the emulator against the signed release APK, not a debug build.
+
 ## 1.72.0 (versionCode 78) - 2026-09-19 - internal
 
 **What's new (Play):**
