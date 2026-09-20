@@ -2084,7 +2084,26 @@ the visitor who never signed in.
 | Chat turn outcome, reused from the existing metric line | `src/lib/ai/chat-metrics.ts` -> `src/app/api/ask-question/route.ts` |
 | Answer ratings (thumb and chips, never the prose) | `src/app/api/conversations/[id]/messages/[messageId]/route.ts` |
 | First sight of an account | `ensureUserRecord` in `src/lib/auth.ts` |
-| Feature use (verse insight, word study, share, Listen, note, Learn review) | six routes, each capturing on its success path only. Nine of the roughly seventy API routes emit anything at all; the catalog also still names `daily_cross_viewed`, `reading_plan_progressed`, `chapter_read` and `billing_checkout_started`, which have no emitter yet |
+| Feature use (verse insight, word study, share, Listen, note, Learn review) | six routes, each capturing on its success path only. Eleven of the roughly seventy API routes emit anything at all; the catalog also still names `daily_cross_viewed`, `reading_plan_progressed` and `chapter_read`, which have no emitter yet |
+| Money: checkout opened, and a subscription starting, failing or churning | `src/app/api/billing/checkout/route.ts` and `src/app/api/webhooks/stripe/route.ts` |
+| Native install from the web app | `trackNativeDownload` in `src/lib/analytics/client.ts`, on all eight download links |
+
+**Revenue was invisible until 2026-09-20.** Stripe went live on 09-14 and
+neither the checkout route nor either webhook emitted anything, so a
+subscription starting, failing a payment or churning left no trace outside
+Stripe's own dashboard, and `billing_checkout_started` sat in the catalog with
+no emitter. `subscription_changed` is deliberately one event rather than
+started/renewed/cancelled: the honest answer always comes from the pair, so it
+carries `status` with `previousStatus` and lets activation, churn and failed
+payment be read off without three names that could drift apart. It carries no
+amount and no customer id, and it is emitted after the transaction commits, so
+a rollback cannot leave behind a report of a change that did not happen.
+
+**Opening a shared answer is already counted** by the `$pageview` on
+`/shared/[id]`, whose path is collapsed in `AnalyticsProvider` because the id
+is the credential. It gets no dedicated event: a server-side one would have to
+be attributed to the owner, which would file a stranger's action under their
+name.
 | Android screens, app open and background | `mobile/src/lib/analytics.ts`, mounted in `mobile/app/_layout.tsx` |
 | Android screen views (route patterns, never resolved paths) | `mobile/src/features/analytics/useScreenTracking.ts` |
 | Sign-in funnel, by method, with Clerk's error code and never the identifier | `mobile/app/(auth)/sign-in.tsx` |

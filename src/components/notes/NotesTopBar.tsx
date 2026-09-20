@@ -1,5 +1,6 @@
 "use client";
 
+import { trackNativeDownload } from "@/lib/analytics/client";
 import React from "react";
 import Link from "next/link";
 import { Menu, FilePlus, Smartphone, Sun, Moon, Settings } from "lucide-react";
@@ -39,6 +40,7 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 				</button>
 				<a
 					href={ANDROID_APK_URL}
+					onClick={() => trackNativeDownload("android", "notes-top-bar")}
 					target="_blank"
 					rel="noopener noreferrer"
 					title="Get the Android app"

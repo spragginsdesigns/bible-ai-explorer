@@ -1,5 +1,6 @@
 "use client";
 
+import { trackNativeDownload } from "@/lib/analytics/client";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, Download } from "lucide-react";
 import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
@@ -51,7 +52,7 @@ export default function PlatformDownloads({ initialPlatform = "other" }: { initi
   return (
     <div className={styles.downloads} aria-label="Get SureWord for your device">
       {installed ? <p className={styles.installed}>SureWord is installed.</p> : native ? (
-        <a className={styles.recommended} href={platform === "android" ? ANDROID_APK_URL : MACOS_DMG_URL}>
+        <a className={styles.recommended} href={platform === "android" ? ANDROID_APK_URL : MACOS_DMG_URL} onClick={() => trackNativeDownload(platform === "android" ? "android" : "macos", "landing-primary")}>
           <Download size={15} /> Get for {platform === "android" ? "Android" : "macOS"}
         </a>
       ) : (
@@ -63,8 +64,8 @@ export default function PlatformDownloads({ initialPlatform = "other" }: { initi
       <div className={styles.alternatives}>
         <span>Other devices:</span>
         {platform !== "windows" && <button type="button" onClick={showWindows} aria-expanded={help === "windows"} aria-controls={helpId}>Windows</button>}
-        {platform !== "android" && <a href={ANDROID_APK_URL}>Android <ArrowUpRight size={12} /></a>}
-        {platform !== "macos" && <a href={MACOS_DMG_URL}>macOS <ArrowUpRight size={12} /></a>}
+        {platform !== "android" && <a href={ANDROID_APK_URL} onClick={() => trackNativeDownload("android", "landing-secondary")}>Android <ArrowUpRight size={12} /></a>}
+        {platform !== "macos" && <a href={MACOS_DMG_URL} onClick={() => trackNativeDownload("macos", "landing-secondary")}>macOS <ArrowUpRight size={12} /></a>}
       </div>
       <p className={styles.caption}>Or study right here on the web.</p>
       <div id={helpId}>

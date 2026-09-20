@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
+import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isServerCredentialUser } from "@/lib/ai/provider";
@@ -11,6 +13,28 @@ import {
   verifiedProPrice,
   billingReturnOrigin,
 } from "@/lib/billing/stripe";
+
+/**
+ * Somebody reached the paywall and asked for a checkout session.
+ *
+ * The top of the only funnel that ends in money, and it had no event at all:
+ * `billing_checkout_started` sat in the catalog with no emitter while Stripe
+ * went live on 2026-09-14, so nothing could answer "how many people try to
+ * subscribe and stop". Fired on both exits because reusing an open session is
+ * still a person trying to pay; `resumed` tells the two apart, and a second
+ * attempt is itself a signal that the first one did not finish.
+ *
+ * No price, no amount, no customer id: the shape of the attempt is the whole
+ * point, and Stripe already holds the rest.
+ */
+function captureCheckoutStarted(userId: string, req: Request, resumed: boolean): void {
+  captureServerEvent({
+    userId,
+    event: ANALYTICS_EVENTS.billingCheckoutStarted,
+    platform: platformFromHeaders(req.headers),
+    properties: { resumed },
+  });
+}
 
 export async function POST(req: Request) {
   const rejected = rejectCrossSiteMutation(req);
@@ -56,7 +80,7 @@ export async function POST(req: Request) {
       });
     }
     const customerId = billing.stripeCustomerId;
-    return await prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
         const subscriptions = await stripe.subscriptions.list({
@@ -100,7 +124,10 @@ export async function POST(req: Request) {
             session.metadata?.surewordPriceId === price.id &&
             session.expires_at > Date.now() / 1000,
         );
-        if (existing?.url) return Response.json({ url: existing.url });
+        if (existing?.url) {
+          captureCheckoutStarted(userId, req, true);
+          return Response.json({ url: existing.url });
+        }
         const attempt = `sureword-checkout-${userId}-${Math.floor(Date.now() / 300000)}`;
         const integrationSuffix = [
           ...createHash("sha256").update(attempt).digest().subarray(0, 8),
@@ -121,10 +148,16 @@ export async function POST(req: Request) {
           },
           { idempotencyKey: attempt },
         );
+        captureCheckoutStarted(userId, req, false);
         return Response.json({ url: session.url });
       },
       { timeout: 45000, maxWait: 15000 },
     );
+    // This route answers with a URL the browser immediately follows, and the
+    // function can freeze the moment it responds, so the event is pushed
+    // before returning rather than left in a queue nothing will drain.
+    await flushAnalytics();
+    return result;
   } catch (error) {
     if (error instanceof Response) return error;
     return Response.json(

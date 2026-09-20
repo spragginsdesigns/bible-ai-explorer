@@ -135,7 +135,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * mapped into the ChatViewMessage render model.
  */
 export function useSureWordChat(): SureWordChat {
-	const { getToken } = useAuth();
+	const { getToken, isSignedIn } = useAuth();
 	const getTokenRef = useRef(getToken);
 	useEffect(() => {
 		getTokenRef.current = getToken;
@@ -508,6 +508,17 @@ export function useSureWordChat(): SureWordChat {
 	}, [abandonPendingAnswer, collectPendingAnswer]);
 
 	useEffect(() => {
+		// Wait for a signed-in session before asking for anybody's history.
+		//
+		// The (app) shell only redirects once Clerk has loaded, so on a cold
+		// start this hook mounts during the window where Clerk has not answered
+		// yet. It used to fire immediately with a null token, and a fresh
+		// install therefore opened by asking the API for the conversations of
+		// nobody and taking a 401 - which also ran the fresh-token retry and
+		// then reportAuthFailure, signing out an account that was never signed
+		// in. Harmless to the user and completely wrong, and it only became
+		// visible when request_failed started counting 401s on 2026-09-20.
+		if (!isSignedIn) return;
 		if (initialized.current) return;
 		initialized.current = true;
 
@@ -528,7 +539,9 @@ export function useSureWordChat(): SureWordChat {
 				setInitialLoading(false);
 			}
 		})();
-	}, [authToken]);
+		// isSignedIn so the load runs as soon as Clerk answers, rather than
+		// being skipped for the life of the screen.
+	}, [authToken, isSignedIn]);
 
 	const switchConversation = useCallback(
 		async (id: string) => {

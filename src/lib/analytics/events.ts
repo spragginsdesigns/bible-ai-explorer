@@ -44,6 +44,25 @@ export const ANALYTICS_EVENTS = {
 	chapterRead: "chapter_read",
 	/** A user opened the paywall or started checkout. */
 	billingCheckoutStarted: "billing_checkout_started",
+	/**
+	 * A subscription's state changed, as reconciled from the billing provider.
+	 *
+	 * One event rather than started/renewed/cancelled, because the honest
+	 * answer always comes from the pair: `status` with `previousStatus` gives
+	 * activation (none or incomplete to active), churn (active to canceled),
+	 * and failed payment (active to past_due) without three names that could
+	 * drift apart. Carries no amount and no customer id; the provider holds
+	 * the money and this holds the shape.
+	 */
+	subscriptionChanged: "subscription_changed",
+	/**
+	 * A download link for a native build was tapped on the web app.
+	 *
+	 * The one conversion the web client exists to drive, and it had no event of
+	 * any kind: nothing could say whether a web visitor ever installed Android.
+	 * Carries the platform asked for, never the release URL.
+	 */
+	nativeDownloadClicked: "native_download_clicked",
 	/** Someone sent feedback through the in-app feedback box. */
 	feedbackSubmitted: "feedback_submitted",
 	/** An account was seen for the first time by the server. */

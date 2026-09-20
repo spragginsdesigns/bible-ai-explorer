@@ -6,6 +6,7 @@ import { Menu, Sun, Moon, SquarePen, Smartphone, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
 import { ANDROID_APK_URL } from "@/lib/constants";
+import { trackNativeDownload } from "@/lib/analytics/client";
 
 interface ChatTopBarProps {
 	title: string;
@@ -41,6 +42,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 				</button>
 				<a
 					href={ANDROID_APK_URL}
+					onClick={() => trackNativeDownload("android", "chat-top-bar")}
 					target="_blank"
 					rel="noopener noreferrer"
 					title="Get the Android app"

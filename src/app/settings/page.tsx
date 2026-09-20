@@ -1,5 +1,6 @@
 "use client";
 
+import { trackNativeDownload } from "@/lib/analytics/client";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -482,6 +483,7 @@ export default function SettingsPage() {
 						<SectionLabel>GET THE APP</SectionLabel>
 						<a
 							href={ANDROID_APK_URL}
+							onClick={() => trackNativeDownload("android", "settings")}
 							target="_blank"
 							rel="noopener noreferrer"
 							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
@@ -506,6 +508,7 @@ export default function SettingsPage() {
 						</a>
 						<a
 							href={MACOS_DMG_URL}
+							onClick={() => trackNativeDownload("macos", "settings")}
 							target="_blank"
 							rel="noopener noreferrer"
 							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
