@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
 import { parseUserIdAllowlist, resolvePlan } from "@/lib/entitlements-rules";
@@ -91,6 +93,20 @@ export async function PATCH(req: Request) {
 			select: PREFERENCE_SELECT,
 		});
 		const plan = await getUserPlan(userId);
+		// Which settings people actually change, by name only.
+		//
+		// Every preference in the app funnels through this one route (theme,
+		// default model, reasoning effort, the web-search toggle, translation,
+		// notification choices) and none of it was measured, so "does anyone
+		// use this setting" had no answer for any of them. The KEYS are the
+		// measurement; the values are not sent, because a preference value is
+		// a statement about how somebody studies.
+		captureServerEvent({
+			userId,
+			event: ANALYTICS_EVENTS.settingChanged,
+			platform: platformFromHeaders(req.headers),
+			properties: { settings: Object.keys(parsed.data).sort() },
+		});
 		return NextResponse.json(toPreferencesDocument(user, plan, MODEL_VOCABULARY));
 	} catch (err) {
 		if (err instanceof Response) return err;

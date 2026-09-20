@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -57,6 +59,15 @@ export async function POST(req: Request) {
 			},
 		});
 
+		// Notification opt-in rate, which nothing could report before: the
+		// daily verse is the app's only reason to come back on its own, and
+		// whether anyone lets it was unmeasured.
+		captureServerEvent({
+			userId,
+			event: ANALYTICS_EVENTS.pushRegistrationChanged,
+			platform: platformFromHeaders(req.headers),
+			properties: { registered: true, enabled: enabled !== false },
+		});
 		return NextResponse.json({ id: pushToken.id });
 	} catch (error) {
 		if (error instanceof Response) return error;
@@ -81,6 +92,12 @@ export async function DELETE(req: Request) {
 
 		await prisma.pushToken.deleteMany({ where: { token: parsed.data.token, userId } });
 
+		captureServerEvent({
+			userId,
+			event: ANALYTICS_EVENTS.pushRegistrationChanged,
+			platform: platformFromHeaders(req.headers),
+			properties: { registered: false },
+		});
 		return NextResponse.json({ ok: true });
 	} catch (error) {
 		if (error instanceof Response) return error;

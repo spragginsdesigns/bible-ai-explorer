@@ -2087,6 +2087,21 @@ the visitor who never signed in.
 | Feature use (verse insight, word study, share, Listen, note, Learn review) | six routes, each capturing on its success path only. Eleven of the roughly seventy API routes emit anything at all; the catalog also still names `daily_cross_viewed`, `reading_plan_progressed` and `chapter_read`, which have no emitter yet |
 | Money: checkout opened, and a subscription starting, failing or churning | `src/app/api/billing/checkout/route.ts` and `src/app/api/webhooks/stripe/route.ts` |
 | Native install from the web app | `trackNativeDownload` in `src/lib/analytics/client.ts`, on all eight download links |
+| Which AI tools actually run, and which error | `onToolExecutionEnd` in `src/app/api/ask-question/route.ts` |
+| Which settings people change, by name | `src/app/api/preferences/route.ts` |
+| Notification opt-in and opt-out | `src/app/api/push-tokens/route.ts` |
+
+**`ai_tool_used` carries the tool's name and nothing else.** Not its arguments
+and not its result: the arguments to `searchScripture` are somebody's question
+and the result is the Scripture they were reading. The 2026-09-12 audit found 9
+of 24 tools had never fired and nothing could say which, because `stepCount` on
+`chat_turn_completed` counts steps without naming a tool. A tool no question
+ever reaches is dead weight in the prompt; one that errors constantly is worse
+than absent.
+
+**`setting_changed` carries the keys, never the values**, for the same reason:
+which settings get used is a product question, and what somebody set them to is
+a statement about how they study.
 
 **Revenue was invisible until 2026-09-20.** Stripe went live on 09-14 and
 neither the checkout route nor either webhook emitted anything, so a

@@ -38,6 +38,20 @@ export const ANALYTICS_EVENTS = {
 	learnReviewed: "learn_reviewed",
 	/** A note was created. Length only, never the note. */
 	noteCreated: "note_created",
+	/**
+	 * One AI tool finished, named, with whether it errored.
+	 *
+	 * The 2026-09-12 audit found 9 of 24 tools had never fired and nothing in
+	 * the app could say which: `stepCount` on `chat_turn_completed` counts
+	 * steps without naming a tool. A tool nobody's questions ever reach is
+	 * dead weight in the prompt, and a tool that errors constantly is worse
+	 * than absent, so both need to be visible.
+	 *
+	 * The tool NAME only. Never its arguments and never its result: the
+	 * arguments to `searchScripture` are somebody's question and the result is
+	 * Scripture they were reading.
+	 */
+	aiToolUsed: "ai_tool_used",
 	/** A reading plan day was completed. */
 	readingPlanProgressed: "reading_plan_progressed",
 	/** A chapter was read long enough to count in the reading log. */
@@ -63,6 +77,17 @@ export const ANALYTICS_EVENTS = {
 	 * Carries the platform asked for, never the release URL.
 	 */
 	nativeDownloadClicked: "native_download_clicked",
+	/**
+	 * A preference was changed, named but never valued.
+	 *
+	 * Every setting in the app funnels through one route, and none of it was
+	 * measured, so "does anyone use this setting" had no answer for any of
+	 * them. Carries the KEYS that changed; a preference value is a statement
+	 * about how somebody studies, so it stays out.
+	 */
+	settingChanged: "setting_changed",
+	/** A device registered or removed a push token: the opt-in rate. */
+	pushRegistrationChanged: "push_registration_changed",
 	/** Someone sent feedback through the in-app feedback box. */
 	feedbackSubmitted: "feedback_submitted",
 	/** An account was seen for the first time by the server. */

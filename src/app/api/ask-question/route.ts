@@ -1015,6 +1015,19 @@ async function handlePost(req: Request): Promise<Response> {
 						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
 							legacyStatus("Thinking");
 							progress.toolEnd(toolCall, toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type === "tool-error");
+							// Name and outcome only. The arguments are somebody's
+							// question and the output is the Scripture they were
+							// reading, so neither may travel with this.
+							captureServerEvent({
+								userId,
+								event: ANALYTICS_EVENTS.aiToolUsed,
+								platform,
+								properties: {
+									tool: toolCall.toolName,
+									ok: toolOutput.type !== "tool-error",
+									surface: "ask-question",
+								},
+							});
 						},
 					});
 
