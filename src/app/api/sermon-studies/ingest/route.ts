@@ -25,7 +25,7 @@ const sectionSchema = z.object({
 		.nullish(),
 	explanation: z.string().min(1),
 	reflection: z.string().min(1),
-	imageUrl: z.url().nullish(),
+	imagePathname: z.string().min(1).max(512).nullish(),
 });
 
 const bodySchema = z.object({
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 			passageText: nullable(section.passageText),
 			explanation: section.explanation,
 			reflection: section.reflection,
-			imageUrl: nullable(section.imageUrl),
+			imagePathname: nullable(section.imagePathname),
 		})),
 		sermonStartMs: nullable(body.sermonStartMs),
 		sermonEndMs: nullable(body.sermonEndMs),

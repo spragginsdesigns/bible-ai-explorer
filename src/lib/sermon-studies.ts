@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 
 /**
  * Guided studies built from a church's recorded services.
@@ -28,6 +29,9 @@ export type SermonSection = {
 	/** SureWord's own teaching, always labelled as such in the UI. */
 	explanation: string;
 	reflection: string;
+	/** Blob pathname as stored. Never sent to a client. */
+	imagePathname?: string | null;
+	/** Short-lived signed URL, produced per read. */
 	imageUrl: string | null;
 };
 
@@ -72,6 +76,29 @@ function sectionsOf(value: unknown): SermonSection[] {
 	return Array.isArray(value) ? (value as SermonSection[]) : [];
 }
 
+/**
+ * The Blob store is private, so an illustration is stored as a pathname and
+ * signed per read, exactly like chat attachments and Listen audio. A signing
+ * failure costs the picture, never the study.
+ */
+async function withSignedImage(section: SermonSection): Promise<SermonSection> {
+	const { imagePathname, ...rest } = section;
+	if (!imagePathname) return { ...rest, imageUrl: null };
+	try {
+		const { previewUrl } = await createAttachmentPreviewUrl(imagePathname);
+		return { ...rest, imageUrl: previewUrl };
+	} catch {
+		return { ...rest, imageUrl: null };
+	}
+}
+
+/** The thumbnail for a list row: the first illustration the study has. */
+async function firstSignedImage(sections: SermonSection[]): Promise<string | null> {
+	const first = sections.find((s) => s.imagePathname);
+	if (!first) return null;
+	return (await withSignedImage(first)).imageUrl;
+}
+
 export async function listSermonStudies(userId: string): Promise<SermonStudySummary[]> {
 	const channelId = await channelIdFor(userId);
 	if (!channelId) return [];
@@ -91,7 +118,8 @@ export async function listSermonStudies(userId: string): Promise<SermonStudySumm
 			sections: true,
 		},
 	});
-	return rows.map((row) => ({
+	return Promise.all(
+		rows.map(async (row) => ({
 		id: row.id,
 		videoId: row.videoId,
 		title: row.title,
@@ -100,8 +128,9 @@ export async function listSermonStudies(userId: string): Promise<SermonStudySumm
 		preacher: row.preacher,
 		preachingText: row.preachingText,
 		bigIdea: row.bigIdea,
-		imageUrl: sectionsOf(row.sections).find((s) => s.imageUrl)?.imageUrl ?? null,
-	}));
+		imageUrl: await firstSignedImage(sectionsOf(row.sections)),
+		}))
+	);
 }
 
 /**
@@ -117,7 +146,7 @@ export async function getSermonStudy(
 	if (!channelId) return null;
 	const row = await prisma.sermonStudy.findFirst({ where: { id, channelId } });
 	if (!row) return null;
-	const sections = sectionsOf(row.sections);
+	const sections = await Promise.all(sectionsOf(row.sections).map(withSignedImage));
 	return {
 		id: row.id,
 		videoId: row.videoId,

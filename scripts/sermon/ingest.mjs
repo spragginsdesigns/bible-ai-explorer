@@ -217,13 +217,13 @@ async function main() {
 			const onDisk = `image-${i + 1}.png`;
 			const file =
 				section.imageFile ?? (fs.existsSync(path.join(outDir, onDisk)) ? onDisk : null);
-			if (!file || section.imageUrl) continue;
+			if (!file || section.imagePathname) continue;
 			if (!blobToken) {
 				log("  no BLOB_READ_WRITE_TOKEN, publishing without illustrations");
 				break;
 			}
 			section.imageFile = file;
-			section.imageUrl = await uploadImage(
+			section.imagePathname = await uploadImage(
 				blobToken,
 				path.join(outDir, file),
 				`sermons/${meta.videoId}/${i + 1}.png`
@@ -249,7 +249,7 @@ async function main() {
 				passageText: s.passageText ?? null,
 				explanation: s.explanation,
 				reflection: s.reflection,
-				imageUrl: s.imageUrl ?? null,
+				imagePathname: s.imagePathname ?? null,
 			})),
 			sermonStartMs: Math.max(0, Math.round(segment.sermonStartMs)),
 			sermonEndMs: Math.max(0, Math.round(segment.sermonEndMs)),

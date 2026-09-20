@@ -620,18 +620,21 @@ export async function generateImage(apiKey, prompt, outPath, { size = "1536x1024
 /**
  * Illustrations go to Blob from here rather than being posted as bytes: this
  * machine already holds BLOB_READ_WRITE_TOKEN, and four 2.5 MB images inside a
- * JSON body would be a 13 MB base64 payload for no gain.
+ * JSON body would be a 13 MB base64 payload for no gain. Returns the pathname,
+ * which is what the study stores.
  */
 export async function uploadImage(token, localPath, pathname) {
 	const { put } = await import("@vercel/blob");
+	// The store is private, like chat attachments and Listen audio. What is
+	// stored is the pathname; the API signs a short-lived URL per read.
 	const blob = await put(pathname, fs.readFileSync(localPath), {
-		access: "public",
+		access: "private",
 		token,
 		contentType: "image/png",
 		addRandomSuffix: false,
 		allowOverwrite: true,
 	});
-	return blob.url;
+	return blob.pathname;
 }
 
 /** Hand the finished study to SureWord, which serves it to every client. */
