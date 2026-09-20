@@ -1,3 +1,4 @@
+import { AppState } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import PostHog from "posthog-react-native";
@@ -46,26 +47,6 @@ export const ANALYTICS_EVENTS = {
 	requestFailed: "request_failed",
 } as const;
 
-export const analytics: PostHog | null = POSTHOG_KEY
-	? new PostHog(POSTHOG_KEY, {
-			host: POSTHOG_HOST,
-			// Application Opened / Backgrounded, which is the spine of any
-			// retention question. Screen views are sent by hand from
-			// features/analytics/useScreenTracking.ts: the SDK's own
-			// `captureScreens` hooks a React Navigation container, and
-			// expo-router owns its container below the provider, so it produced
-			// exactly zero screen events in the first two days of measurement.
-			captureAppLifecycleEvents: true,
-			// Match the web client. Without this the SDK stores a profile for
-			// every anonymous launch, which is how six app opens became six
-			// "new users" on 2026-09-20.
-			personProfiles: "identified_only",
-			// Events queue in AsyncStorage while offline and flush on
-			// reconnect, which matters on a phone in a church parking lot.
-			flushInterval: 30,
-		})
-	: null;
-
 /**
  * Is this build incapable of producing product signal?
  *
@@ -78,7 +59,8 @@ export const analytics: PostHog | null = POSTHOG_KEY
  * real hardware and would need a fingerprint that a real OnePlus owner would
  * also match. They sign in with the reviewer demo account instead, and that
  * account is on `INTERNAL_USER_IDS`, which flags the person rather than
- * guessing at the device.
+ * guessing at the device. Confirmed on 2026-09-20: this machine's emulator
+ * reported `true` and Google's OnePlus 8 Pro reported `false`, which is right.
  */
 const IS_TEST_CLIENT = !Device.isDevice || __DEV__;
 
@@ -96,26 +78,47 @@ const BASE_PROPERTIES = {
 	is_test_client: IS_TEST_CLIENT,
 } as const;
 
-/**
- * Attach the base properties to events this module does not send itself.
- *
- * `Application Installed`, `Application Opened`, `Application Backgrounded` and
- * `Application Became Active` are built by the SDK, so they never pass through
- * `track()` and carried none of the above. That is exactly backwards: those
- * four are the events that produced the phantom "new users" on 2026-09-20, and
- * they were the only ones a test-account filter could not see. Proved on the
- * emulator against the 1.73.0 release build, where every `screen_viewed`
- * carried `is_test_client` and every lifecycle event next to it carried
- * nothing.
- *
- * Super properties are merged into every event the client sends, including the
- * SDK's own. Fire and forget: `register` returns a promise that resolves once
- * the value is persisted, and an event sent in that window simply misses it,
- * which is a dropped property and never a crash.
- */
-if (analytics) {
-	void analytics.register(BASE_PROPERTIES).catch(() => {});
-}
+export const analytics: PostHog | null = POSTHOG_KEY
+	? new PostHog(POSTHOG_KEY, {
+			host: POSTHOG_HOST,
+			/*
+			 * Stamp the base properties on EVERY event, including the four the
+			 * SDK builds itself.
+			 *
+			 * `register()` was tried first and lost a race. The SDK's install
+			 * check runs `capture('Application Installed')` during startup,
+			 * before an async `register` has persisted anything, while
+			 * `Application Opened` happens after an internal `await` and so
+			 * picked the properties up. The result was measurably absurd: on the
+			 * emulator every screen_viewed carried `is_test_client` and the
+			 * install event sitting next to it carried nothing, which is exactly
+			 * the event a test-account filter most needs to see.
+			 *
+			 * `before_send` is synchronous and runs on the way out, so it cannot
+			 * lose that race. It only ever adds these four keys and never drops
+			 * an event: returning null here would silently delete measurement.
+			 */
+			before_send: (event) => {
+				if (!event) return event;
+				event.properties = { ...BASE_PROPERTIES, ...event.properties };
+				return event;
+			},
+			// Application Opened / Backgrounded, which is the spine of any
+			// retention question. Screen views are sent by hand from
+			// features/analytics/useScreenTracking.ts: the SDK's own
+			// `captureScreens` hooks a React Navigation container, and
+			// expo-router owns its container below the provider, so it produced
+			// exactly zero screen events in the first two days of measurement.
+			captureAppLifecycleEvents: true,
+			// Match the web client. Without this the SDK stores a profile for
+			// every anonymous launch, which is how six app opens became six
+			// "new users" on 2026-09-20.
+			personProfiles: "identified_only",
+			// Events queue in AsyncStorage while offline and flush on
+			// reconnect, which matters on a phone in a church parking lot.
+			flushInterval: 30,
+		})
+	: null;
 
 /** PostHog's own internal-traffic flag; the project's test-user cohort is defined on it. */
 const INTERNAL_PERSON_PROPERTY = "$internal_or_test_user";
@@ -224,6 +227,21 @@ export function trackRequestFailure(input: {
 		route,
 		kind: input.kind,
 		status: input.status ?? null,
+		// Whether the app was actually on screen when this died.
+		//
+		// Android suspends a backgrounded app's sockets, so a long answer dies
+		// mid-flight every time someone locks their phone while SureWord is
+		// thinking. That is not a broken product: the server drains its own copy
+		// of the stream and persists the finished answer, and the client
+		// collects it on return (see the consumeSseStream drain in
+		// /api/ask-question and answerRecovery on this side). Counting those as
+		// failures is how the Play reviewer's session showed three failures
+		// against three turns the server answered and saved.
+		//
+		// Reported rather than dropped, because "how often do people lose the
+		// stream by leaving" is a real question with a real answer, and it is
+		// only answerable if the two cases stay distinguishable.
+		app_state: AppState.currentState,
 	});
 }
 

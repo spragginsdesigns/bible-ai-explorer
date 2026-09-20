@@ -14,6 +14,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.73.2 (versionCode 82) - 2026-09-20 - internal
+
+**What's new (Play):**
+
+- Bug fixes and performance improvements.
+
+**Dev notes:** Chases down the three `request_failed` events Google's Play reviewer produced on 1.73.1, all of which were false alarms against turns the server had answered and persisted. Two causes, both ours. First, a caller-initiated abort was being filed as a network failure: `isNetworkFailure()` returns true for `AbortError`, so pressing stop, leaving the chat screen, or the chat hook cancelling a send all counted as `kind: "offline"`. `makeAuthedFetch` now checks the caller's signal first and reports nothing when the caller asked to stop; pinned by two tests in `api.test.ts`, one of which was confirmed to fail against the old code before being kept. Second, Android suspends a backgrounded app's sockets, so a long answer dies mid-flight whenever someone locks their phone while SureWord is thinking. That is not a broken product (the server drains its own stream copy and persists the answer, and `answerRecovery` collects it on return), so `request_failed` now carries `app_state`, which keeps those distinguishable instead of dropping them: how often people lose a stream by leaving is a real question. Also replaces the `register()` added in 81 with a synchronous `before_send` hook. `register` lost a race: the SDK runs `capture('Application Installed')` during startup before an async register has persisted anything, while `Application Opened` happens after an internal `await` and did pick the properties up, so the install event (the one a test-account filter most needs) was the single event still carrying no `is_test_client`. `before_send` runs on the way out and cannot lose that race.
+
 ## 1.73.1 (versionCode 81) - 2026-09-20 - internal
 
 **What's new (Play):**

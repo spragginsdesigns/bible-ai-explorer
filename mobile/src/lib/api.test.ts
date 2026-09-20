@@ -6,7 +6,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 
 import { fetch as expoFetch } from "expo/fetch";
-import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, subscribeApiAvailability, type GetToken } from "./api";
+import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, setRequestFailureReporter, subscribeApiAvailability, type GetToken } from "./api";
 
 const jsonResponse = (status: number, body: unknown) =>
 	new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -75,6 +75,70 @@ describe("makeAuthedFetch", () => {
 			await assertion;
 		} finally {
 			vi.useRealTimers();
+		}
+	});
+
+	it("does not report a failure when the caller aborts on purpose", async () => {
+		/*
+		 * Pressing stop, leaving the chat screen, or the chat hook cancelling a
+		 * send all abort through the caller's signal, and the underlying fetch
+		 * rejects with an AbortError. isNetworkFailure() treats AbortError as a
+		 * network failure, so without an explicit guard every deliberate stop
+		 * was filed as request_failed kind "offline". That is how the first day
+		 * of this event reported failures against turns the server had answered
+		 * and persisted, including during Google's Play review.
+		 */
+		const failures: { kind: string }[] = [];
+		setRequestFailureReporter((failure) => failures.push(failure));
+		try {
+			// Mirrors expo/fetch, which throws straight away when the signal is
+			// already aborted rather than waiting for an event that will never
+			// fire again (see its fetch.ts: `if (signal && signal.aborted) throw`).
+			const abortError = () => {
+				const error = new Error("The operation was aborted.");
+				error.name = "AbortError";
+				return error;
+			};
+			vi.mocked(expoFetch).mockImplementation(
+				((_url: string, init?: { signal?: AbortSignal }) => {
+					if (init?.signal?.aborted) return Promise.reject(abortError());
+					return new Promise((_resolve, reject) => {
+						init?.signal?.addEventListener("abort", () => reject(abortError()));
+					});
+				}) as never
+			);
+			const getToken: GetToken = async () => "tok";
+			const caller = new AbortController();
+			const promise = makeAuthedFetch(getToken)("https://api.test/x", {
+				signal: caller.signal,
+			});
+			const settled = promise.catch((e) => e);
+			caller.abort();
+			const error = await settled;
+
+			// The abort still surfaces to the caller; it is simply not analytics.
+			expect((error as Error).name).toBe("AbortError");
+			expect(failures).toEqual([]);
+		} finally {
+			setRequestFailureReporter(null);
+		}
+	});
+
+	it("still reports a real network failure the caller did not ask for", async () => {
+		const failures: { kind: string; path: string }[] = [];
+		setRequestFailureReporter((failure) => failures.push(failure));
+		try {
+			vi.mocked(expoFetch).mockImplementation((() => {
+				const error = new TypeError("Network request failed");
+				return Promise.reject(error);
+			}) as never);
+			const getToken: GetToken = async () => "tok";
+			await makeAuthedFetch(getToken)("https://api.test/x").catch(() => {});
+
+			expect(failures).toHaveLength(1);
+			expect(failures[0].kind).toBe("offline");
+		} finally {
+			setRequestFailureReporter(null);
 		}
 	});
 

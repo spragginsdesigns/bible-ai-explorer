@@ -222,7 +222,15 @@ export function makeAuthedFetch(getToken: GetToken) {
 					signal: controller.signal,
 				} as Parameters<typeof expoFetch>[1])) as unknown as Response;
 			} catch (error) {
-				if (controller.signal.aborted && !callerSignal?.aborted) {
+				// A caller abort is the user pressing stop, leaving the screen, or
+				// the chat hook cancelling a send. It is not a failure and must
+				// never be counted as one. `isNetworkFailure` returns true for
+				// AbortError, so without this guard every deliberate stop was
+				// filed as "offline" - which is how the first day of this event
+				// reported failures against turns the server had answered fine.
+				const callerStopped = callerSignal?.aborted ?? false;
+
+				if (controller.signal.aborted && !callerStopped) {
 					// A stream that never produced headers. The user is looking at
 					// a spinner that will not resolve, and it is the single most
 					// important failure in the app to be able to count.
@@ -232,7 +240,9 @@ export function makeAuthedFetch(getToken: GetToken) {
 						{ isTimeout: true }
 					);
 				}
-				if (isNetworkFailure(error)) reportRequestFailure({ path: url, kind: "offline" });
+				if (!callerStopped && isNetworkFailure(error)) {
+					reportRequestFailure({ path: url, kind: "offline" });
+				}
 				throw error;
 			} finally {
 				clearTimeout(timer);
