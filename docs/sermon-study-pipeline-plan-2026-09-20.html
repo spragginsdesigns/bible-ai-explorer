@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SureWord sermon study pipeline: plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens (do not change; this is the standard) ---------- */
+:root{
+  color-scheme:dark;
+  --bg:#09090b;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.06);
+  --surface-3:rgba(255,255,255,.10);
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --fg:#fafafa;
+  --fg-2:#d4d4d8;
+  --muted:#a1a1aa;
+  --dim:#8b8b95;
+  --accent:#3b82f6;
+  --accent-2:#22d3ee;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+  --info:#8b5cf6;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
+  --edge:inset 0 1px 0 rgba(255,255,255,.06);
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --max:1040px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 var(--font);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-image:
+    radial-gradient(900px 420px at 50% -120px, rgba(34,211,238,.16), transparent 70%),
+    radial-gradient(700px 360px at 85% -60px, rgba(59,130,246,.12), transparent 70%);
+  background-repeat:no-repeat;
+}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
+.wrap{width:min(100% - 2.5rem, var(--max));margin-inline:auto}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:clamp(1.9rem,4.5vw,2.75rem);font-weight:700;letter-spacing:-.03em}
+h2{font-size:1.35rem}
+h3{font-size:1rem}
+p{margin:.5rem 0}
+code,pre,.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:.1em .4em;border-radius:6px}
+pre{margin:.75rem 0 0;padding:.9rem 1rem;background:#0c0c0f;border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;line-height:1.6;overflow:auto;white-space:pre}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+
+/* ---------- header ---------- */
+header{padding:3.5rem 0 2rem}
+.eyebrow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+.eyebrow .sep{color:var(--dim);letter-spacing:0}
+header h1{margin:.8rem 0 .6rem;max-width:22ch}
+.dek{max-width:60ch;font-size:1.08rem;color:var(--fg-2)}
+.meta{margin-top:1rem;font-family:var(--mono);font-size:.76rem;color:var(--dim)}
+
+/* ---------- sticky nav (use only when 4+ sections) ---------- */
+nav{position:sticky;top:0;z-index:5;padding:.6rem 0;background:rgba(9,9,11,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);padding-right:2.5rem}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;padding:.34rem .8rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--muted);background:var(--surface)}
+nav a:hover{color:var(--fg);border-color:var(--border-strong);text-decoration:none}
+
+/* ---------- layout ---------- */
+main{padding:1.5rem 0 4rem}
+section{margin:2.5rem 0}
+section>h2{margin-bottom:.35rem}
+.lead{color:var(--muted);max-width:64ch;margin:0 0 1rem}
+.grid{display:grid;gap:.9rem}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;box-shadow:var(--shadow),var(--edge)}
+.card h3{margin-bottom:.35rem}
+.card p{color:var(--fg-2)}
+.card p:last-child{margin-bottom:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.4rem}
+.verdict{border-left:3px solid var(--accent-2);background:linear-gradient(90deg,rgba(34,211,238,.08),var(--surface) 40%)}
+.verdict strong{color:var(--fg)}
+
+/* KPI tiles: max 4 per report */
+.kpi{padding:1rem 1.15rem}
+.kpi .label{font-size:.74rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.kpi .value{display:block;margin:.25rem 0 .1rem;font-family:var(--mono);font-size:1.9rem;font-weight:500;letter-spacing:-.03em;line-height:1.1}
+.kpi .delta{font-size:.78rem;color:var(--muted)}
+.kpi .delta.up{color:var(--ok)}
+.kpi .delta.down{color:var(--bad)}
+
+/* badges: tinted flat, never gradient, never shadowed */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.14rem .55rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.badge.ok{--c:var(--ok)}
+.badge.warn{--c:var(--warn)}
+.badge.bad{--c:var(--bad)}
+.badge.info{--c:var(--info)}
+.badge.neutral{--c:var(--muted)}
+.badge.accent{--c:var(--accent-2)}
+
+/* evidence stays folded */
+details{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-top:.8rem}
+summary{cursor:pointer;padding:.65rem .95rem;font-size:.84rem;font-weight:500;color:var(--muted);list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:.4rem;height:.4rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details[open] summary{color:var(--fg);border-bottom:1px solid var(--border)}
+details .body{padding:.75rem .95rem 1rem;font-size:.9rem;color:var(--fg-2)}
+details .body>:first-child{margin-top:0}
+
+/* tables */
+.table{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--edge)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:.6rem .85rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+th{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+td.num,th.num{text-align:right;white-space:nowrap}
+
+/* simple bar chart (no library) */
+.bars{display:grid;gap:.45rem}
+.bar{display:grid;grid-template-columns:minmax(6rem,14rem) 1fr auto;gap:.75rem;align-items:center;font-size:.86rem}
+.bar .track{display:block;height:.55rem;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar .fill{display:block;height:100%;width:var(--v);background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+.bar .n{color:var(--muted)}
+
+/* steps / recommendations */
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:.6rem;counter-reset:s}
+.steps li{position:relative;padding:.85rem 1rem .85rem 3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg-2)}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.9rem;top:.8rem;width:1.5rem;height:1.5rem;display:grid;place-items:center;border-radius:999px;background:var(--surface-3);color:var(--fg);font:600 .74rem var(--mono)}
+.steps strong{color:var(--fg)}
+
+ul.plain{margin:.4rem 0 0;padding-left:1.1rem;color:var(--fg-2)}
+ul.plain li{margin:.25rem 0}
+hr{border:0;border-top:1px solid var(--border);margin:2rem 0}
+footer{border-top:1px solid var(--border);padding:1.25rem 0 2.5rem;font-size:.8rem;color:var(--dim)}
+footer a{color:var(--muted)}
+
+/* ---------- responsive ---------- */
+@media (max-width:820px){
+  .cols-3,.cols-4{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  header{padding:2.4rem 0 1.4rem}
+  .wrap{width:min(100% - 1.5rem, var(--max))}
+  .cols-2,.cols-3{grid-template-columns:1fr}
+  .cols-4{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .card{padding:.95rem 1rem}
+  .kpi .value{font-size:1.6rem}
+  .bar{grid-template-columns:1fr auto;}
+  .bar .track{grid-column:1 / -1;order:3}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}summary::before{transition:none}}
+@media print{
+  body{background:#fff;color:#111}
+  nav{display:none}
+  .card,.table,details{box-shadow:none;border-color:#ddd;background:#fff}
+  details{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="wrap">
+    <div class="eyebrow">SureWord<span class="sep">/</span>Feature plan<span class="sep">/</span>2026-09-20</div>
+    <h1>Build the sermon pipeline on Whisper, not on YouTube captions</h1>
+    <p class="dek">A full 76 minute FMBC service went from URL to a clean, timestamped, KJV accurate transcript in under five minutes on this PC, for free. Captions cannot carry the feature: only half of recent streams have them and a fresh stream never does.</p>
+    <div class="meta">Prepared by Claude Code · Scope: FMBC Fresno live streams to a guided sermon study in SureWord · Verified against 8 real streams</div>
+  </div>
+</header>
+
+<nav aria-label="Sections">
+  <div class="wrap">
+    <a href="#summary">Summary</a>
+    <a href="#findings">Findings</a>
+    <a href="#data">Data</a>
+    <a href="#design">Design</a>
+    <a href="#next">Next steps</a>
+    <a href="#method">Method</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section id="summary">
+    <div class="card verdict">
+      <div class="card-head"><h3>Verdict</h3><span class="badge accent">Proven end to end</span></div>
+      <p><strong>The hard half of this feature already works on hardware you own.</strong> Last Sunday's service, "The Cost of Following", downloaded as audio in 13 seconds and transcribed in 4m29s on the RTX 4060. Whisper recovered the preached passage word for word against the KJV, and the preaching text (Luke 9:57-62) is identifiable straight from the transcript. The only blocker was a stale yt-dlp, now fixed.</p>
+    </div>
+    <div class="grid cols-4" style="margin-top:.9rem">
+      <div class="card kpi"><span class="label">Transcribe</span><span class="value">4m29s</span><span class="delta up">17x realtime, 76.5 min audio</span></div>
+      <div class="card kpi"><span class="label">Download</span><span class="value">13s</span><span class="delta up">71 MB, audio only</span></div>
+      <div class="card kpi"><span class="label">Caption coverage</span><span class="value">4/8</span><span class="delta down">never on a fresh stream</span></div>
+      <div class="card kpi"><span class="label">Cost per service</span><span class="value">$0</span><span class="delta">local GPU, no API</span></div>
+    </div>
+  </section>
+
+  <section id="findings">
+    <h2>Findings</h2>
+    <p class="lead">Everything below was run against real FMBC streams today, not reasoned about.</p>
+    <div class="grid">
+
+      <div class="card">
+        <div class="card-head"><h3>YouTube captions cannot be the source of truth</h3><span class="badge bad">Blocking</span></div>
+        <p>Four of eight recent FMBC streams have auto captions and four have none, including both of today's services and last Sunday's worship. A caption first pipeline would silently produce nothing on roughly half of Sundays, and would fail on <em>every</em> same day run.</p>
+        <details>
+          <summary>Evidence</summary>
+          <div class="body">
+            <p>Availability probed per video id. "The Cost of Following" (7 days old) still reports no captions, so this is not only a processing delay.</p>
+<pre><code>cn_KsMbj7Ec  Sunday Worship 9-20-26     no_captions
+oXBp8nfUSI8  Sunday School 9-20-26      no_captions
+Ld11eaRWpoo  The Living God Who Sees Me auto, 506 cues
+43rbu63MQFY  The Cost of Following      no_captions
+C6Xx2n43kec  The King is Coming!        auto
+ACkG-gd-gSE  The Call to Follow         no_captions
+_dOHx0b6usc  The Woman Seated on Beast  auto
+ekJKTEfxIjs  Disobedience to God's Call auto, 1867 cues</code></pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>A stale yt-dlp was the entire download problem</h3><span class="badge ok">Fixed</span></div>
+        <p>Version 2026.07.04 stalled at 1.5 MB on one stream and returned <code>HTTP Error 403</code> on another. After updating to 2026.08.19 the same file pulled in 13 seconds. Any scheduled job must self update, because YouTube breaks extractors every few weeks.</p>
+        <details>
+          <summary>Evidence</summary>
+          <div class="body">
+<pre><code>// before
+ERROR: unable to download video data: HTTP Error 403: Forbidden
+ERROR: [youtube] The page needs to be reloaded.
+
+// after yt-dlp -U  (stable@2026.08.19)
+[info] Downloading 1 format(s): 140
+[FixupM4a] Correcting container
+real  0m13.146s     71M m4a</code></pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Whisper reproduces the KJV accurately enough to quote</h3><span class="badge ok">Confirmed</span></div>
+        <p>The scripture reading came through effectively verbatim, including archaic forms that a weaker model mangles. This is what makes honest verse linking possible: the spoken text can be matched against <code>KjvVerse</code> rather than trusted on its own.</p>
+        <details>
+          <summary>Evidence</summary>
+          <div class="body">
+            <p>Transcript at 00:31:18, unedited, against Luke 9:57-60 KJV:</p>
+<pre><code>"And it came to pass that as they went in the way, a certain
+man said unto him, Lord, I will follow thee whithersoever
+thou goest. And Jesus said unto him, Foxes have holes, and
+birds of the air have nests, but the Son of Man hath not
+where to lay his head. ... Let the dead bury their dead,
+but go thou and preach the kingdom of God."</code></pre>
+            <p>The domain prompt (church name, KJV book list) was passed to bias decoding, per the transcribe skill.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>A just ended stream cannot be pulled at all</h3><span class="badge warn">Scheduling constraint</span></div>
+        <p>Today's service is still a live DVR manifest, not a finished VOD. The normal clients answer <code>This live event has ended</code> and the fallback client downloads fragment by fragment at near realtime. A cron firing at service end would fail every week.</p>
+        <details>
+          <summary>Evidence</summary>
+          <div class="body">
+            <p>Two hours after the stream ended, <code>cn_KsMbj7Ec</code> reached 1.5 MB in roughly ten minutes before stalling. The job needs to wait, then retry until the VOD is processed, rather than pull on a fixed clock.</p>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>The sermon is a third of the way into the file</h3><span class="badge info">Design input</span></div>
+        <p>The recording opens with five minutes of silence, then announcements about an association meeting and the Harvest Festival. The preaching text is not announced until 31:07. Segmentation is a required step, not a nicety, or the study will be built partly out of a sign up sheet reminder.</p>
+        <details>
+          <summary>Evidence</summary>
+          <div class="body">
+<pre><code>00:05:21  "Good morning. Are you glad to be here..."
+00:05:48  association meeting in Rio Grande
+00:06:14  "The Harvest Festival is coming up very quickly."
+00:31:07  "The Bible says in Luke chapter 9 ... verse number 57"
+00:40:13  "we must be willing to give up anything in order
+           to follow Jesus completely"</code></pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Ingestion cannot run on Vercel</h3><span class="badge warn">Architecture</span></div>
+        <p>Three independent reasons: functions cap at 300 seconds, there is no GPU, and YouTube throttles datacenter IPs. The download and transcription belong on this PC, which then posts finished text to the SureWord API. Everything after transcription is ordinary server work.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="data">
+    <h2>Data</h2>
+    <p class="lead">Measured today against the real channel, <code>UCiTssyWZc2PJ25OAZOaN7Ag</code>.</p>
+    <div class="table">
+      <table>
+        <thead><tr><th>Stage</th><th>Where it runs</th><th>Tool</th><th class="num">Time</th><th class="num">Cost</th></tr></thead>
+        <tbody>
+          <tr><td>Discover the VOD</td><td>PC</td><td>channel RSS feed</td><td class="num">&lt;1s</td><td class="num">$0</td></tr>
+          <tr><td>Download audio</td><td>PC</td><td>yt-dlp, format 140</td><td class="num">13s</td><td class="num">$0</td></tr>
+          <tr><td>Transcribe</td><td>PC, RTX 4060</td><td>faster-whisper large-v3</td><td class="num">4m29s</td><td class="num">$0</td></tr>
+          <tr><td>Segment and compose</td><td>Vercel</td><td>GPT-5.6, structured output</td><td class="num">~60s</td><td class="num">~$0.30</td></tr>
+          <tr><td>Illustrate</td><td>Vercel</td><td>gpt-image-2, 4 images</td><td class="num">~40s</td><td class="num">~$0.30</td></tr>
+          <tr><td>Deliver</td><td>Vercel</td><td>Neon, Blob, push</td><td class="num">&lt;1s</td><td class="num">$0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:.9rem">
+      <h3>Where the 76 minutes goes</h3>
+      <p class="lead" style="margin-bottom:.75rem">Roughly 40 percent of the recording is the sermon. The rest must be identified and set aside.</p>
+      <div class="bars">
+        <div class="bar"><span>Pre service silence</span><span class="track"><span class="fill" style="--v:7%"></span></span><span class="n num">5 min</span></div>
+        <div class="bar"><span>Announcements, worship</span><span class="track"><span class="fill" style="--v:34%"></span></span><span class="n num">26 min</span></div>
+        <div class="bar"><span>Scripture and sermon</span><span class="track"><span class="fill" style="--v:52%"></span></span><span class="n num">40 min</span></div>
+        <div class="bar"><span>Invitation and close</span><span class="track"><span class="fill" style="--v:7%"></span></span><span class="n num">5 min</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="design">
+    <h2>What gets built</h2>
+    <p class="lead">One new record, one new screen, and a local worker. Nearly everything else already exists in the repo.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Reused as is</h3>
+        <ul class="plain">
+          <li><code>src/utils/verseParser.ts</code> for reference parsing</li>
+          <li><code>KjvVerse</code> and <code>findVerses</code> to verify every quote</li>
+          <li><code>crossRefs.ts</code> for the cross reference rail</li>
+          <li>Vercel Blob, already used for Listen audio</li>
+          <li>Pro gating, push, and the cron pattern</li>
+          <li><code>UserChurch</code>, which already stores the church</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>New</h3>
+        <ul class="plain">
+          <li><code>SermonStudy</code> model, one row per service</li>
+          <li><code>scripts/sermon/ingest.mjs</code>, the local worker</li>
+          <li><code>POST /api/sermon-studies</code>, shared secret auth</li>
+          <li>A guided study screen, Android first per the parity rule</li>
+          <li>A segmentation and composition prompt pair</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:.9rem">
+      <div class="card-head"><h3>The honesty rule that has to be enforced in the prompt</h3><span class="badge info">Rule</span></div>
+      <p>Every claim about what the pastor said anchors to a timestamped quote from the transcript, and SureWord's own teaching is rendered in a visually separate block. The study may never put words in his mouth. Quoted scripture is re rendered from <code>KjvVerse</code>, never from the transcript, so a mis heard word cannot become a misquoted verse.</p>
+      <details>
+        <summary>Shape of a section</summary>
+        <div class="body">
+<pre><code>{ heading, startMs, youtubeUrlWithTimestamp,
+  pastorQuote,        // verbatim from transcript
+  passage,            // verified against KjvVerse
+  explanation,        // SureWord's teaching, marked as such
+  crossRefs[], reflectionQuestion, imageUrl }</code></pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2>Next steps</h2>
+    <ol class="steps">
+      <li><strong>Generate one full guided study from the transcript already on disk.</strong> Content quality is now the only unproven risk, and it is the risk that decides whether this ships. No database work required to find out.</li>
+      <li><strong>Wrap the proven commands into <code>scripts/sermon/ingest.mjs</code>.</strong> Discover via RSS, self update yt-dlp, download, transcribe, retry while the VOD is still processing. Output markdown and images to disk for review.</li>
+      <li><strong>Add <code>SermonStudy</code> and the API, then the Android screen.</strong> Android leads per the parity rule, web follows in the same cycle, and <code>docs/PARITY.md</code> gets a row.</li>
+      <li><strong>Schedule it on this PC.</strong> Task Scheduler on Sunday afternoon and Wednesday night, with the wait and retry built in, then a push notification when the study lands.</li>
+      <li><strong>Only then generalize beyond FMBC.</strong> <code>UserChurch</code> already stores the church, so attaching a channel per user is the natural extension once the FMBC case is good.</li>
+    </ol>
+  </section>
+
+  <section id="method">
+    <h2>Method and open questions</h2>
+    <ul class="plain">
+      <li>Caption availability probed for 8 videos on the FMBC Fresno channel.</li>
+      <li>Download and transcription run on <code>43rbu63MQFY</code>, 1:16:28, chosen because it has no captions and is fully processed. Artifacts in <code>C:\Users\Owner\Documents\sermon-pipeline-test\</code>.</li>
+      <li>faster-whisper large-v3, CUDA, language forced to English, domain prompt supplied. Reported: <code>4587.8s audio, lang=en (100%), 541 segments</code>.</li>
+      <li><strong>Not verified:</strong> quality of the generated study, image generation, Wednesday evening services, and whether today's stream becomes pullable on a predictable delay.</li>
+      <li><strong>Worth a decision before phase 3:</strong> downloading audio is outside YouTube's terms, and the sermon is the pastor's work. For personal study of your own church this is a small matter, but publishing generated studies of another church's sermons to other users is not. The clean path is FMBC's blessing, or their audio directly.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">Generated 2026-09-20 · Single-file HTML, no external dependencies beyond fonts · <a href="#top">Back to top</a></div>
+</footer>
+
+</body>
+</html>
