@@ -14,6 +14,12 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.75.0 (versionCode 84) - 2026-09-20 - internal
+
+**What's new (Play):**
+You can talk Sunday's message over with SureWord. Open a sermon study and tap Ask AI at the bottom, or just ask in Chat: "what did we study Sunday?", "explain the second point", "help me live this out this week". It reads the whole study, keeps the preacher's own words separate from its own teaching, and can point you at the moment in the recording. Watch the service now sits in the same bar.
+
+**Dev notes:** The APK half of this is small: `bible/sermon.tsx` gains a dock in the shape of the Bible reader's, Watch the service on the left and Ask AI on the right, where Ask AI prefills an ordinary sentence naming the study and sends nothing hidden with it. The rest is server-side and already reached every installed build on deploy of `224e64a`: two read-only chat tools (`listSermonStudies`, `getSermonStudy`) scoped by the same `UserChurch.youtubeChannelId` rule as the screens, a line in the chat day block naming this week's study so the assistant knows a sermon happened before being asked, and `sermonGuidance` in the system prompt. The lookup answers a date with no service with the service before it, labelled, and tells a reader with no church apart from a church whose studies did not match - a model that conflates those tells a user with studies that they have none. Quotes reach the model labelled verbatim from the recording and explanations labelled as SureWord's, because a congregation member will read anything attributed to their pastor as a report of what he preached; `tests/sermon-studies.test.mjs` reads the output back and checks both labels survive.
 ## 1.74.0 (versionCode 83) - 2026-09-20 - internal
 
 **What's new (Play):**
