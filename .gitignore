@@ -50,3 +50,7 @@ Frontend-Codebase-ContextPro.md
 .claude/worktrees/
 .env*
 /artifacts/tier-launch-20260913/
+
+# clerk configuration (can include secrets)
+/.clerk/
+/artifacts/sermons/
