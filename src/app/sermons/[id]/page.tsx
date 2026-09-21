@@ -64,6 +64,12 @@ function Verses({ verses }: { verses: { verse: number; text: string }[] }) {
  * shown as the preacher's own words and nothing else is attributed to him, and
  * SureWord's teaching carries its own label so no reader can mistake it for
  * something said from the pulpit.
+ *
+ * The bar at the foot is the Android dock (`mobile/app/(app)/bible/sermon.tsx`)
+ * in web form: the recording on the left, chat on the right. Ask carries the
+ * study's title as an ordinary question - the assistant reads the study itself
+ * with its own getSermonStudy tool, so there is no hidden payload here that
+ * could fall out of step with the server.
  */
 export default function SermonStudyPage() {
 	const params = useParams<{ id: string }>();
@@ -112,6 +118,7 @@ export default function SermonStudyPage() {
 	}
 
 	const hero = study.sections.find((s) => s.imageUrl)?.imageUrl ?? null;
+	const askHref = `/?prompt=${encodeURIComponent(`Let's talk about the sermon study "${study.title}".`)}`;
 
 	return (
 		<main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
@@ -218,12 +225,30 @@ export default function SermonStudyPage() {
 				<p className="mt-2 text-neutral-700 dark:text-neutral-200">{study.application}</p>
 			</section>
 
-			<section className="mt-8 mb-16">
+			<section className="mt-8 mb-10">
 				<h2 className="text-sm font-bold uppercase tracking-[0.1em] text-amber-600 dark:text-amber-400">
 					Prayer
 				</h2>
 				<p className="mt-2 text-neutral-700 dark:text-neutral-200">{study.prayer}</p>
 			</section>
+
+			<div className="sticky bottom-0 -mx-5 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
+				<a
+					href={watchUrl(study.videoId, study.sermonStartMs)}
+					target="_blank"
+					rel="noreferrer"
+					className="flex flex-1 items-center justify-center gap-2 rounded-full bg-black/[0.04] px-4 py-3 text-sm font-semibold text-neutral-800 transition-colors hover:bg-black/[0.08] dark:bg-white/[0.06] dark:text-neutral-100 dark:hover:bg-white/[0.1]"
+				>
+					Watch the service
+				</a>
+				<Link
+					href={askHref}
+					aria-label={`Ask AI about ${study.title}`}
+					className="flex items-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50"
+				>
+					<span aria-hidden>✦</span> Ask AI
+				</Link>
+			</div>
 		</main>
 	);
 }

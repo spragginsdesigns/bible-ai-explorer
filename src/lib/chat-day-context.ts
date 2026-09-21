@@ -8,6 +8,7 @@ import { PRAYER_FOLLOW_UP_DAYS } from "@/lib/memory";
 import { highlightLabelFor, type HighlightLabels } from "@/lib/preferences-contract";
 import { prisma } from "@/lib/prisma";
 import { getTodayPlanReading } from "@/lib/reading-plans";
+import { formatServiceDate, latestSermonStudy, type SermonStudyBrief } from "@/lib/sermon-studies";
 
 /**
  * "It knows your day": the few facts about today that let chat answer "what
@@ -29,6 +30,7 @@ const RECENT_READING_SCAN = 300;
 const RECENT_HIGHLIGHTS = 3;
 /** At most three requests in one line: a longer list is a recital, not a question. */
 const DUE_PRAYERS = 3;
+const SERMON_TITLE_MAX_CHARS = 70;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Longest the whole block may be, header included. It rides every turn, uncached. */
@@ -63,6 +65,14 @@ export interface ChatDayContext {
 	 * `label` is the name this user gave that colour, when they gave one.
 	 */
 	highlights: { reference: string; colorName: string | null; label?: string }[];
+	/**
+	 * This week's guided study from their own church's service, when there is
+	 * one. Named here rather than left to a tool call because chat cannot ask
+	 * about a sermon it does not know happened: without this line, "what did
+	 * pastor preach on?" is answered by a model that has no idea a study exists.
+	 * The study itself is read with getSermonStudy, by the id given here.
+	 */
+	sermon: SermonStudyBrief | null;
 }
 
 export const EMPTY_CHAT_DAY_CONTEXT: ChatDayContext = {
@@ -71,6 +81,7 @@ export const EMPTY_CHAT_DAY_CONTEXT: ChatDayContext = {
 	plan: null,
 	recentChapters: [],
 	highlights: [],
+	sermon: null,
 };
 
 function logFailure(what: string): (error: unknown) => null {
@@ -96,7 +107,7 @@ export async function loadChatDayContext(
 ): Promise<ChatDayContext> {
 	const now = new Date();
 	const readingSince = new Date(now.getTime() - RECENT_READING_DAYS * DAY_MS);
-	const [cross, plan, readingEvents, highlights, duePrayers] = await Promise.all([
+	const [cross, plan, readingEvents, highlights, duePrayers, sermon] = await Promise.all([
 		findTodayCross(userId).catch(logFailure("Today's cross lookup")),
 		getTodayPlanReading(userId).catch(logFailure("Reading plan lookup")),
 		recentReadingChapters(userId, readingSince, RECENT_READING_SCAN).catch(logFailure("Recent reading lookup")),
@@ -122,6 +133,7 @@ export async function loadChatDayContext(
 				select: { id: true, content: true, askedAt: true },
 			})
 			.catch(logFailure("Due prayer request lookup")),
+		latestSermonStudy(userId, now).catch(logFailure("Sermon study lookup")),
 	]);
 
 	const prayers = (duePrayers ?? []).flatMap((prayer) =>
@@ -165,6 +177,7 @@ export async function loadChatDayContext(
 					done: plan.done,
 				}
 			: null,
+		sermon: sermon ?? null,
 		recentChapters: Array.from(chapterCounts.entries())
 			.sort((a, b) => b[1] - a[1])
 			.slice(0, TOP_RECENT_CHAPTERS)
@@ -228,6 +241,23 @@ export function formatTodayBlock(context: ChatDayContext): string {
 	// Due prayer requests are deliberately NOT here: as one more fact in this
 	// list the model read past them twice in production. They get their own
 	// instruction block, last in the volatile prompt - formatPrayerFollowUpBlock.
+
+	// The sermon is second on purpose. The block has a fixed budget and drops
+	// whole lines from the bottom, and this week's message is worth more to an
+	// answer than which chapters were opened or which verses were coloured in.
+	// What to DO about it is in the stable prompt (sermonGuidance), not here:
+	// that rule is the same every turn and belongs where it can be cached, while
+	// the study itself changes every week.
+	if (context.sermon) {
+		const when = formatServiceDate(context.sermon.serviceDate);
+		lines.push(
+			`- Sermon study from their church, waiting in getSermonStudy (study id ${context.sermon.id}): "${clip(context.sermon.title, SERMON_TITLE_MAX_CHARS)}"` +
+				(when ? `, preached ${when}` : "") +
+				(context.sermon.preacher ? ` by ${context.sermon.preacher}` : "") +
+				(context.sermon.preachingText ? `, from ${context.sermon.preachingText}` : "") +
+				".",
+		);
+	}
 	if (context.plan) {
 		lines.push(
 			`- Reading plan: ${clip(context.plan.title, PLAN_TITLE_MAX_CHARS)}, day ${context.plan.day} of ${context.plan.dayCount}, today's reading ${context.plan.reference}` +

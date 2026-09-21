@@ -118,6 +118,8 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-getBibleTimeline": "Walking the timeline",
 	"tool-getDailyCross": "Opening today's cross",
 	"tool-setDailyCross": "Preparing your new day",
+	"tool-listSermonStudies": "Looking through your church's studies",
+	"tool-getSermonStudy": "Opening the sermon study",
 	"tool-getReadingPlan": "Opening your reading plan",
 	"tool-startReadingPlan": "Setting up your reading plan",
 	"tool-markReadingPlanDay": "Marking your reading",

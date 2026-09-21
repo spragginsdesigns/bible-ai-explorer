@@ -8,6 +8,7 @@ import {
 	StyleSheet,
 	View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { AppText as Text } from "@/components/AppText";
 import { Screen } from "@/components/ui";
@@ -27,6 +28,12 @@ import { radius, spacing, typography, type Colors } from "@/theme";
  * marked as the preacher's own words, and SureWord's teaching carries its own
  * label so nothing written here can be mistaken for something said from the
  * pulpit.
+ *
+ * The dock at the foot is the Bible reader's dock (`bible/chapter.tsx`) in the
+ * same shape: the recording on the left, chat on the right. Ask AI sends the
+ * study's title as an ordinary question rather than a canned one - the
+ * assistant reads the study itself with its own getSermonStudy tool, so there
+ * is no hidden payload to keep in step with the server.
  */
 export default function SermonStudyScreen() {
 	const router = useRouter();
@@ -57,6 +64,14 @@ export default function SermonStudyScreen() {
 	const credits = study
 		? [study.serviceTitle, study.preacher, study.serviceDate].filter(Boolean).join(" · ")
 		: "";
+
+	const askAI = useCallback(() => {
+		if (!study) return;
+		router.push({
+			pathname: "/",
+			params: { prompt: `Let's talk about the sermon study "${study.title}".` },
+		});
+	}, [router, study]);
 
 	return (
 		<Screen>
@@ -171,6 +186,30 @@ export default function SermonStudyScreen() {
 					</>
 				)}
 			</ScrollView>
+			{study ? (
+				<View style={[styles.dock, { marginBottom: bottom }]}>
+					<Pressable
+						accessibilityRole="link"
+						accessibilityLabel="Watch the service"
+						onPress={() => void Linking.openURL(watchUrl(study.videoId, study.sermonStartMs))}
+						style={styles.dockWatch}
+					>
+						<Ionicons name="play-circle-outline" size={20} color={colors.text} />
+						<Text numberOfLines={1} style={styles.dockWatchLabel}>
+							Watch the service
+						</Text>
+					</Pressable>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel={`Ask AI about ${study.title}`}
+						onPress={askAI}
+						style={styles.dockAI}
+					>
+						<Ionicons name="sparkles-outline" size={21} color={colors.text} />
+						<Text style={styles.dockAILabel}>Ask AI</Text>
+					</Pressable>
+				</View>
+			) : null}
 		</Screen>
 	);
 }
@@ -206,4 +245,36 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			gap: spacing.xs,
 		},
+		// Deliberately the Bible reader's dock metrics (bible/chapter.tsx): the
+		// two screens sit next to each other on the Bible tab and a study should
+		// feel like one more thing you read, not a different app.
+		dock: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: 12,
+			paddingHorizontal: 20,
+			paddingVertical: 12,
+			borderTopWidth: StyleSheet.hairlineWidth,
+			borderTopColor: c.borderStrong,
+		},
+		dockWatch: {
+			flex: 1,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "center",
+			gap: 8,
+			minHeight: 52,
+			borderRadius: radius.full,
+			backgroundColor: c.surfacePressed,
+			paddingHorizontal: spacing.md,
+		},
+		dockWatchLabel: { flexShrink: 1, color: c.text, ...typography.control, fontWeight: "700" },
+		dockAI: {
+			minWidth: 52,
+			minHeight: 52,
+			alignItems: "center",
+			justifyContent: "center",
+			gap: 2,
+		},
+		dockAILabel: { color: c.textMuted, ...typography.micro },
 	});

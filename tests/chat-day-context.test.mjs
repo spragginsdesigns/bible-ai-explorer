@@ -35,6 +35,13 @@ const { bookByOrder } = loadModule("../src/lib/bible/books.ts", ["bookByOrder"],
 	booksJson: JSON.parse(read("../src/data/books.json")),
 });
 
+// The day block prints a service date with the sermon lib's own formatter, so
+// the wording in the block cannot drift from the wording in the study itself.
+const { formatServiceDate } = loadModule("../src/lib/sermon-studies.ts", ["formatServiceDate"], {
+	prisma: {},
+	createAttachmentPreviewUrl: async () => ({ previewUrl: "" }),
+});
+
 /** Mirrors src/lib/memory.ts, which cannot be imported here (Prisma + ai). */
 const PRAYER_FOLLOW_UP_DAYS = 3;
 
@@ -42,6 +49,7 @@ function loadDayContext({
 	prisma = {},
 	findTodayCross = async () => null,
 	getTodayPlanReading = async () => null,
+	latestSermonStudy = async () => null,
 	waitUntil = (promise) => promise,
 } = {}) {
 	return loadModule(
@@ -65,6 +73,8 @@ function loadDayContext({
 			PRAYER_FOLLOW_UP_DAYS,
 			prisma,
 			getTodayPlanReading,
+			latestSermonStudy,
+			formatServiceDate,
 			recentReadingChapters: (userId, since, limit) => prisma.readingEvent.findMany({ where: { userId, readAt: { gte: since } }, take: limit }),
 			waitUntil,
 		},
@@ -118,6 +128,57 @@ test("the today block carries each fact that is present, and only those", () => 
 	const crossOnly = formatTodayBlock({ ...EMPTY_CHAT_DAY_CONTEXT, cross: { reference: "John 3:16", question: null } });
 	assert.match(crossOnly, /Pick Up Your Cross verse: John 3:16\.$/);
 	assert.doesNotMatch(crossOnly, /Reading plan|Chapters read|highlights/);
+});
+
+test("the today block names this week's sermon study, and how to read it", () => {
+	const block = formatTodayBlock({
+		...EMPTY_CHAT_DAY_CONTEXT,
+		sermon: {
+			id: "smn_1",
+			title: "Follow Me",
+			serviceDate: "2026-09-13",
+			preacher: "Pastor Ron Hess",
+			preachingText: "Luke 9:57-62",
+			bigIdea: "Christ calls before He comforts.",
+		},
+	});
+	assert.match(
+		block,
+		/- Sermon study from their church, waiting in getSermonStudy \(study id smn_1\): "Follow Me", preached Sunday, 13 September 2026 by Pastor Ron Hess, from Luke 9:57-62\.$/,
+	);
+	// The block states the fact; what to do about it lives in the cached prompt.
+	assert.doesNotMatch(block, /Christ calls before He comforts|never attribute/i);
+
+	const bare = formatTodayBlock({
+		...EMPTY_CHAT_DAY_CONTEXT,
+		sermon: { id: "smn_0", title: "Untitled", serviceDate: null, preacher: null, preachingText: null, bigIdea: "" },
+	});
+	assert.match(bare, /\(study id smn_0\): "Untitled"\.$/, "an unknown date and preacher leave no gap");
+});
+
+test("the sermon study sits above the reading and highlight lines", () => {
+	const block = formatTodayBlock({
+		cross: { reference: "Romans 8:28", question: null },
+		prayers: [],
+		plan: { title: "The Gospels in 30 days", day: 6, dayCount: 30, reference: "Matthew 15-17", done: false },
+		recentChapters: [{ reference: "Romans 8", count: 3 }],
+		highlights: [{ reference: "Romans 8:28", colorName: "Yellow" }],
+		sermon: { id: "smn_1", title: "Follow Me", serviceDate: "2026-09-13", preacher: "Pastor Ron Hess", preachingText: "Luke 9:57-62", bigIdea: "" },
+	});
+	assert.deepEqual(
+		block
+			.split("\n")
+			.filter((line) => line.startsWith("- "))
+			.map((line) => line.split(":")[0]),
+		[
+			"- Today's Pick Up Your Cross verse",
+			"- Sermon study from their church, waiting in getSermonStudy (study id smn_1)",
+			"- Reading plan",
+			"- Chapters read in the Bible reader in the last 7 days",
+			"- Their most recent highlights",
+		],
+	);
+	assert.ok(block.length <= TODAY_BLOCK_MAX_CHARS, `block is ${block.length} chars`);
 });
 
 test("the today block never exceeds its cap, and drops whole lines rather than cutting one", () => {

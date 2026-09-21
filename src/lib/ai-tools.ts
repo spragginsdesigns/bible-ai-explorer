@@ -42,6 +42,14 @@ import {
 	type StudyStep,
 } from "@/lib/daily-cross";
 import {
+	formatSermonStudyForModel,
+	formatSermonStudyListForModel,
+	listSermonStudies,
+	resolveSermonStudy,
+	watchUrl as sermonWatchUrl,
+	type SermonStudyMatch,
+} from "@/lib/sermon-studies";
+import {
 	MAX_PLAN_DAYS,
 	MIN_PLAN_DAYS,
 	READING_PLAN_PRESETS,
@@ -206,6 +214,38 @@ export interface LearnQueueToolOutput {
 	queueCount: number;
 	formatted: string;
 }
+
+/**
+ * One sermon study as the model reads it. The study itself lives in
+ * `formatted`, not in structured fields: it is prose, and sending it twice
+ * would double the cost of every question about a sermon.
+ */
+export interface SermonStudyToolOutput {
+	found: boolean;
+	/** Null when nothing matched; otherwise the id to pass back for this study. */
+	studyId: string | null;
+	title: string | null;
+	/** "YYYY-MM-DD" of the service, when it is known. */
+	serviceDate: string | null;
+	preacher: string | null;
+	/** Canonical reference of the text announced from the pulpit. */
+	preachingText: string | null;
+	/** Deep link into the recording at the moment the sermon starts. */
+	recordingUrl: string | null;
+	/** How the study was found, so the answer can say which service it is. */
+	matchedBy: SermonStudyMatch | null;
+	formatted: string;
+}
+
+/** The studies a church has, without any of what was preached in them. */
+export interface SermonStudyListToolOutput {
+	count: number;
+	studies: { id: string; title: string; serviceDate: string | null }[];
+	formatted: string;
+}
+
+/** Studies one list call hands back; older ones are found by date or wording. */
+const MAX_SERMON_STUDIES = 12;
 
 /** Days shown after today's - enough to answer "what's coming up?". */
 const PLAN_DAYS_AHEAD = 3;
@@ -1270,6 +1310,83 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const listSermonStudiesTool = tool({
+		description:
+			"List the guided sermon studies SureWord has built from the services at the user's own church, newest first: the title of each, the day it was preached, who preached it, the text he announced and its big idea. Call it when they ask what has been preached lately, which studies they have, or to find which service they mean before reading it. It carries none of what was actually said in the sermon, so read the one you need with getSermonStudy before answering from it. Read-only.",
+		inputSchema: z.object({}),
+		execute: async (): Promise<SermonStudyListToolOutput> => {
+			const studies = await listSermonStudies(context.userId, {
+				images: false,
+				limit: MAX_SERMON_STUDIES,
+			});
+			return {
+				count: studies.length,
+				studies: studies.map((study) => ({
+					id: study.id,
+					title: study.title,
+					serviceDate: study.serviceDate,
+				})),
+				formatted: formatSermonStudyListForModel(studies),
+			};
+		},
+	});
+
+	const getSermonStudyTool = tool({
+		description:
+			"Read one guided sermon study from the user's own church in full: its big idea and overview, then every part of the message with the preacher's own words quoted word for word from the recording, the passage he took there, SureWord's own teaching on it, the question it puts to the reader, and finally the week's application and the closing prayer. Call it whenever they ask about a sermon, the message, what was preached, Sunday, or their church's service, whenever a study is named in the context you were given, and whenever they want to talk one over. Called with no arguments it reads the most recent study, which is what \"the sermon\" nearly always means. Read-only.",
+		inputSchema: z.object({
+			studyId: z
+				.string()
+				.optional()
+				.describe(
+					"The study id, whenever you have been given one - by the context above, by listSermonStudies, or earlier in this conversation. Prefer it over a date or a search; it is the only way to be certain which service you are reading."
+				),
+			date: z
+				.string()
+				.optional()
+				.describe(
+					'The day of the service as "YYYY-MM-DD", when the user named a day rather than a study. If no study exists for that exact day, the most recent one before it comes back and says so.'
+				),
+			query: z
+				.string()
+				.optional()
+				.describe(
+					'Words from the title, the announced text, or what the sermon was about, when the user described the message instead of dating it, e.g. "the one on waiting" or "Luke 9".'
+				),
+		}),
+		execute: async ({ studyId, date, query }): Promise<SermonStudyToolOutput> => {
+			const result = await resolveSermonStudy(context.userId, { studyId, date, query });
+			if (!result.found) {
+				return {
+					found: false,
+					studyId: null,
+					title: null,
+					serviceDate: null,
+					preacher: null,
+					preachingText: null,
+					recordingUrl: null,
+					matchedBy: null,
+					formatted:
+						result.reason === "no-channel"
+							? "This user has no sermon studies. Either they have not chosen a home church in Settings, or their church's services are not being turned into studies - SureWord only builds them for churches that are wired up. Say so plainly and do not invent a sermon."
+							: "Their church has sermon studies, but none matches what was asked for. Call listSermonStudies to see which services there are, and tell them which ones you can actually read rather than guessing.",
+				};
+			}
+			const { study, matchedBy } = result;
+			return {
+				found: true,
+				studyId: study.id,
+				title: study.title,
+				serviceDate: study.serviceDate,
+				preacher: study.preacher,
+				preachingText: study.preachingText,
+				recordingUrl: sermonWatchUrl(study.videoId, study.sermonStartMs),
+				matchedBy,
+				formatted: formatSermonStudyForModel(study, matchedBy),
+			};
+		},
+	});
+
 	const getReadingPlanTool = tool({
 		description:
 			"Read the reading plan this user is following: today's reading, how far through they are, their streak, and the next few days. Also lists the plans they could start if they have none. Call it whenever they ask about their plan or what they are meant to read, and whenever knowing where they are in Scripture would make your answer fit their actual walk. Read-only.",
@@ -1496,6 +1613,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		highlightVerse: highlightVerseTool,
 		getDailyCross: getDailyCrossTool,
 		setDailyCross: setDailyCrossTool,
+		listSermonStudies: listSermonStudiesTool,
+		getSermonStudy: getSermonStudyTool,
 		getReadingPlan: getReadingPlanTool,
 		startReadingPlan: startReadingPlanTool,
 		markReadingPlanDay: markReadingPlanDayTool,

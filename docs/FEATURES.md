@@ -1426,6 +1426,107 @@ Web behavior worth preserving, and mirrored on Android:
   "From <hostname>" link to `missionSource`, so the user can see where the text
   was taken from.
 
+## Sermon studies from your church
+
+*Shipped 2026-09-20 · Android 1.74.0 (83) + web; chat added 2026-09-20. macOS
+and iOS have no screen yet (tracked in `PARITY.md`)*
+
+When a user's home church has its recorded services wired up, SureWord turns
+each service into a guided study: the message walked through in parts, each one
+carrying what the preacher actually said, deep-linked to that moment in the
+video, the passage he took there, SureWord's own teaching on it, and a question
+to sit with. It closes with a week's application and a prayer.
+
+A study belongs to a **channel, not to a person**. One Sunday sermon is the same
+sermon for the whole congregation, so it is generated once and read by everyone
+who named that church in Settings. `channelIdFor` in `src/lib/sermon-studies.ts`
+is the entire access rule: a reader with no church, or a church with nothing
+ingested, sees nothing and the feature is invisible to them, exactly the way My
+church disappears without a Places key.
+
+### The one rule: two voices, never merged
+
+A study is written in two voices and the product never lets them blur. The
+preacher's words are lifted verbatim out of the transcript and shown as a quote
+under "What was preached"; everything else is SureWord's, and carries its own
+label. The user is a member of that congregation, so anything attributed to
+their pastor will be taken as a report of what he preached.
+
+The screens enforce this with typography. Chat cannot, so the same rule is
+enforced in words: `formatSermonStudyForModel` labels each quote as "what the
+preacher said here, word for word from the recording", labels each explanation
+as "written by SureWord, not said from the pulpit", and closes with a line
+saying which is which. `sermonGuidance` in `src/utils/systemPrompt.ts` then
+forbids filling in what he "probably said". `tests/sermon-studies.test.mjs`
+reads the output back and checks both labels survive.
+
+### Talking a study over in chat
+
+Chat has two read-only tools and no dedicated screen of its own:
+
+| Tool | What it does |
+|---|---|
+| `listSermonStudies` | The studies their church has, newest first, with dates, preachers, announced texts and big ideas. Deliberately carries no sermon content |
+| `getSermonStudy` | One study in full. `studyId` when an id is in hand, `date` ("YYYY-MM-DD") when they named a day, `query` when they described the message. With no arguments it reads the most recent study, which is what "the sermon" nearly always means |
+
+`getSermonStudy` says **how** it found what it found (`matchedBy`), so a study
+that is only the nearest one to a date is never reported as the one that was
+asked for: a date with no service answers with the service before it, labelled
+`nearest-date`, and the model is told to name the service before answering from
+it. A miss also says **why**: `no-channel` (this reader has no studies at all)
+reads differently from `no-match` (their church has studies, none of them this
+one), and a model that cannot tell those apart will tell a user with studies
+that they have none.
+
+Neither tool signs an illustration. A signed Blob URL costs a round trip per
+picture and expires long before the conversation does, and nothing reading these
+tools can see an image, so `listSermonStudies({ images: false })` and every
+lookup behind `resolveSermonStudy` skip the signing that the screens need.
+
+Chat also has to know a study **exists** before it can be asked about one, so
+`loadChatDayContext` reads the newest study and `formatTodayBlock` names it,
+second in the block, above the reading and highlight lines:
+
+```
+- Sermon study from their church, waiting in getSermonStudy (study id cmuaf...):
+  "The Cost of Following: Christ Before Everything", preached Sunday, 13
+  September 2026, from Luke 9:57-62.
+```
+
+Only the fact goes there. What to do about it lives in `sermonGuidance`, in the
+stable half of the prompt where it can be cached, because the rule is the same
+every turn and only the study changes. The line is dropped once the study is
+older than `SERMON_RECENT_DAYS` (10), so a church that stops ingesting does not
+have a stale sermon named on every turn for the rest of the year.
+
+### The dock
+
+Every study screen ends in a dock, the same shape as the Bible reader's: the
+recording on the left, **Ask AI** on the right. It is deliberately not a large
+"discuss this with AI" panel. Ask AI opens chat with an ordinary sentence
+prefilled (`Let's talk about the sermon study "…"`), which the user can edit or
+send, and the assistant reads the study itself with `getSermonStudy`. Nothing
+hidden travels with the message, so there is no client payload that can fall out
+of step with the server.
+
+### Surfaces
+
+| Client | Where |
+|---|---|
+| Web | `src/app/sermons/page.tsx` (list) and `src/app/sermons/[id]/page.tsx` (study + dock); the entry card on `/bible` appears only when `GET /api/sermon-studies` returns studies |
+| Android | `mobile/app/(app)/bible/sermons.tsx` and `mobile/app/(app)/bible/sermon.tsx` (study + dock); shapes in `mobile/src/features/sermons/sermonApi.ts` |
+| macOS / iOS | Not built. The backend and the chat tools serve them the day a screen exists |
+
+### The pipeline is off-platform on purpose
+
+Ingestion cannot run on Vercel: YouTube answers datacenter ranges with "Sign in
+to confirm you're not a bot" and transcription needs a GPU. `scripts/sermon/`
+runs on a trusted machine and posts the finished study to
+`POST /api/sermon-studies/ingest` behind `SERMON_INGEST_SECRET`, the one sermon
+route exempted from Clerk in `src/middleware.ts`. `GET /api/cron/sermon-watchdog`
+says when a study has not arrived. The design notes are in
+`docs/sermon-study-pipeline-plan-2026-09-20.html`.
+
 ## Note wikilinks, backlinks, and properties
 
 *Shipped 2026-08-30 · Android 1.41.0 + web; macOS/iOS pending their next Mac
