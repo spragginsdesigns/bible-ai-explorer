@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from "react";
-import { ScrollView, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { FlatList, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import type { ChatViewMessage } from "@/lib/chatView";
 import type { SetAnswerFeedback } from "@/lib/answerFeedback";
 import { spacing } from "@/theme";
@@ -22,7 +22,7 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, conversationId, children }: MessageListProps) {
-	const scrollRef = useRef<ScrollView>(null);
+	const scrollRef = useRef<FlatList<ChatViewMessage>>(null);
 	const nearBottom = useRef(true);
 	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
 	const previousUserId = useRef(latestUserId);
@@ -55,8 +55,20 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 	}, [latestUserId]);
 
 	return (
-		<ScrollView
+		<FlatList
 			ref={scrollRef}
+			data={messages}
+			keyExtractor={(message) => message.id}
+			renderItem={({ item: message }) => (
+				<MessageBubble
+					message={message}
+					onFollowUp={message.id === latestAssistantId ? onFollowUp : undefined}
+					defaultNoteTitle={defaultNoteTitle}
+					onFeedback={onFeedback}
+					conversationId={conversationId}
+				/>
+			)}
+			ListFooterComponent={children ? <>{children}</> : null}
 			style={styles.list}
 			contentContainerStyle={[styles.content, { paddingBottom: bottomInset }]}
 			onScroll={onScroll}
@@ -64,19 +76,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 			scrollEventThrottle={16}
 			keyboardShouldPersistTaps="handled"
 			keyboardDismissMode="on-drag"
-		>
-			{messages.map((message) => (
-				<MessageBubble
-					key={message.id}
-					message={message}
-					onFollowUp={message.id === latestAssistantId ? onFollowUp : undefined}
-					defaultNoteTitle={defaultNoteTitle}
-					onFeedback={onFeedback}
-					conversationId={conversationId}
-				/>
-			))}
-			{children}
-		</ScrollView>
+		/>
 	);
 }
 

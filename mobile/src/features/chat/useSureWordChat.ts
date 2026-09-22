@@ -618,7 +618,9 @@ export function useSureWordChat(): SureWordChat {
 			try {
 				await apiJson<unknown>(authToken, `/api/conversations/${id}`, { method: "DELETE" });
 			} catch {
-				// The row is already gone locally; a failed delete resurfaces on reload.
+				const restored = await apiJson<Conversation[]>(authToken, "/api/conversations").catch(() => null);
+				if (restored) setConversations(restored);
+				Alert.alert("Couldn't delete chat", "It may reappear in your history. Please try again.");
 			}
 		},
 		[authToken, newConversation]
@@ -632,7 +634,10 @@ export function useSureWordChat(): SureWordChat {
 			try {
 				await apiJson<unknown>(authToken, `/api/conversations/${id}`, { method: "DELETE" });
 			} catch {
-				// Keep going so one failure doesn't strand the rest.
+				const restored = await apiJson<Conversation[]>(authToken, "/api/conversations").catch(() => null);
+				if (restored) setConversations(restored);
+				Alert.alert("Some chats weren't deleted", "Please try again.");
+				return;
 			}
 		}
 	}, [authToken, conversations, newConversation]);
