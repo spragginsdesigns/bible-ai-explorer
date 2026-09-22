@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { isPlacesConfigured } from "@/lib/church-rules";
 import { searchChurches } from "@/lib/google-places";
+import { createRateLimiter } from "@/lib/rateLimit";
 
 /**
  * Church name search for the Settings picker, proxied through us so the Google
@@ -13,10 +14,11 @@ import { searchChurches } from "@/lib/google-places";
 
 const MIN_QUERY_LENGTH = 3;
 const MAX_QUERY_LENGTH = 120;
+const searchLimiter = createRateLimiter({ limit: 30, windowMs: 5 * 60_000 });
 
 export async function GET(req: Request) {
 	try {
-		await getAuthUserId();
+		const userId = await getAuthUserId();
 		if (!isPlacesConfigured(process.env.GOOGLE_PLACES_API_KEY)) {
 			return NextResponse.json({ status: "unavailable" });
 		}
@@ -28,6 +30,11 @@ export async function GET(req: Request) {
 				{ status: 400 }
 			);
 		}
+		const rate = searchLimiter.check(userId);
+		if (!rate.allowed) return NextResponse.json(
+			{ error: "Too many church searches. Try again shortly." },
+			{ status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+		);
 
 		return NextResponse.json({ status: "ok", results: await searchChurches(query) });
 	} catch (err) {

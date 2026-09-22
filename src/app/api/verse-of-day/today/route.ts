@@ -11,9 +11,19 @@ import {
 	type DailyCross,
 } from "@/lib/daily-cross";
 import { isDailyCrossDirection } from "@/lib/daily-cross-selection";
+import { createRateLimiter } from "@/lib/rateLimit";
 
 /** A steer the user typed ("something on fear") — long enough to be useful, short enough to be a steer. */
 const MAX_FOCUS_LENGTH = 200;
+const generationLimiter = createRateLimiter({ limit: 6, windowMs: 60 * 60_000 });
+
+function generationLimit(userId: string): Response | null {
+	const rate = generationLimiter.check(userId);
+	return rate.allowed ? null : privateJson(
+		{ error: "You've prepared several daily words. Try again later." },
+		{ status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+	);
+}
 
 // Generating a fresh day is one utility-model call plus context reads.
 export const maxDuration = 300;
@@ -67,6 +77,8 @@ export async function GET(): Promise<Response> {
 			});
 			return privateJson(toResponse(existing, existing.sentAt));
 		}
+		const limited = generationLimit(userId);
+		if (limited) return limited;
 
 		const cross = await generateDailyCross(userId);
 		const { id, sentAt } = await storeDailyCross(userId, cross);
@@ -140,6 +152,8 @@ export async function POST(req: Request): Promise<Response> {
 		if (direction && hasReferencePart) {
 			return privateJson({ error: "Choose a direction or pin a verse, not both." }, { status: 400 });
 		}
+		const limited = generationLimit(userId);
+		if (limited) return limited;
 
 		const { cross } = await replaceDailyCross(userId, { focus, verse, direction });
 		return privateJson(toResponse(cross, cross.sentAt));
@@ -160,13 +174,5 @@ function errorResponse(error: unknown): Response {
 		return privateJson({ error: error.message }, { status: 409 });
 	}
 	console.error("Error in verse-of-day/today route:", error);
-	return privateJson(
-		{
-			error:
-				error instanceof Error
-					? `An error occurred: ${error.message}`
-					: "An unknown error occurred while processing your request.",
-		},
-		{ status: 500 }
-	);
+	return privateJson({ error: "Could not prepare today's word. Please try again." }, { status: 500 });
 }

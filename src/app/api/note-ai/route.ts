@@ -147,12 +147,19 @@ async function persistExchange(options: {
 }
 
 import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
+import { createRateLimiter } from "@/lib/rateLimit";
+const noteAiLimiter = createRateLimiter({ limit: 20, windowMs: 5 * 60_000 });
 export const POST = withIncludedAiRequest(handlePost, "note-ai");
 
 async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
+		const rate = noteAiLimiter.check(userId);
+		if (!rate.allowed) return NextResponse.json(
+			chatErrorPayload("rate_limited", "Too many note AI requests. Try again shortly."),
+			{ status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+		);
 
 		const body: unknown = await req.json();
 		const requestData =
