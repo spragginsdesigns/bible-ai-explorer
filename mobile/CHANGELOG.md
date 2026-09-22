@@ -14,6 +14,13 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.76.0 (versionCode 85) - 2026-09-22 - internal
+
+**What's new (Play):**
+Chat scrolls more smoothly through long conversations, and Bible verse links can open the reader from outside the app. Memories has more time to finish a summary. If deleting a chat fails, SureWord now tells you and restores it in your history.
+
+**Dev notes:** Android chat uses a virtualized message list, memory summary requests allow five minutes, failed deletes refresh history and alert, and `sureword://verse?ref=...` routes through the validated reader reference parser. The shared API and web fixes in this release are deployed separately to Vercel.
+
 ## 1.75.0 (versionCode 84) - 2026-09-20 - internal
 
 **What's new (Play):**

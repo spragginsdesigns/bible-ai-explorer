@@ -7,6 +7,17 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+**2026-09-22 source repair, release candidate:** Android chat now renders
+history through `FlatList`, the memory-summary request uses a five-minute
+timeout, failed chat deletion alerts the reader, and `sureword://verse?ref=...`
+routes into the reader. Web chat keeps the draft editable during a stream,
+shows chat actions on touch layouts, offers a jump-to-latest control, refreshes
+history titles after a turn and on window focus, and displays an error if a
+delete fails. Android 1.76.0 (85) compiled and installed on an emulator; cold
+`sureword://verse?ref=John%203:16` opened John 3 at verse 16 and
+`sureword://cross` opened Pick Up Your Cross. Play internal, production web,
+physical Android push taps, and Apple builds still need release proof.
+
 ## Free, web Pro and BYOK release, 2026-09-14
 
 Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 20/day (raised from 10 on 2026-09-17 after the two most active free accounts hit the cap on consecutive days). Both use Luna medium for ordinary chat and low for short utilities. Production usage enforcement is enabled. Web Stripe checkout is enabled after a real test-mode purchase, renewal, portal cancellation and refund cycle, plus a live signed webhook delivered with HTTP 200. Google Play purchases remain disabled pending merchant setup and a real store purchase. No live card charge was made.
@@ -56,7 +67,7 @@ claimed. See [Android experience evidence](android-experience-2026-09-06.md).
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth (v1.61.0, versionCode 63; Play internal readback and matching GitHub APK verified 2026-09-14) |
+| Android | `mobile/` | Source of truth. Current `app.json`: v1.76.0, versionCode 85. Signed AAB/APK built and emulator launch verified 2026-09-22; Play internal and GitHub release readback pending. |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. Current project: 1.6.0; last installed/released proof: 1.5.0 on 2026-08-27. See `macos/README.md`; `bash macos/install-mac.sh` is mandatory after any macOS change. |
 | iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
