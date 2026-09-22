@@ -95,14 +95,11 @@ bible-ai-explorer/
 │   ├── components/           # React components
 │   │   ├── ui/               # Shadcn/radix primitives (button, card, input)
 │   │   ├── BibleAIExplorer.tsx # Main app component
-│   │   ├── QuestionInput.tsx # User question input
-│   │   ├── FormattedResponse.tsx # AI response display
-│   │   ├── ClientResponse.tsx # Client-side response wrapper
-│   │   ├── ChatHistory.tsx   # Conversation history sidebar
-│   │   ├── SelectedConversation.tsx # Selected chat view
+│   │   ├── ChatInput.tsx     # Chat composer
+│   │   ├── MessageList.tsx  # Conversation messages
+│   │   ├── ChatSidebar.tsx  # Conversation history sidebar
 │   │   ├── TavilyResults.tsx # Web search results display
 │   │   ├── Header.tsx        # App header
-│   │   ├── LoadingAnimation.tsx # Loading spinner
 │   │   ├── ThemeProvider.tsx  # Dark/light theme
 │   │   └── useChat.ts        # Chat state hook
 │   ├── lib/
