@@ -7,7 +7,7 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-**2026-09-22 source repair, release candidate:** Android chat now renders
+**2026-09-22 release verification:** Android chat now renders
 history through `FlatList`, the memory-summary request uses a five-minute
 timeout, failed chat deletion alerts the reader, and `sureword://verse?ref=...`
 routes into the reader. Web chat keeps the draft editable during a stream,
@@ -15,8 +15,15 @@ shows chat actions on touch layouts, offers a jump-to-latest control, refreshes
 history titles after a turn and on window focus, and displays an error if a
 delete fails. Android 1.76.0 (85) compiled and installed on an emulator; cold
 `sureword://verse?ref=John%203:16` opened John 3 at verse 16 and
-`sureword://cross` opened Pick Up Your Cross. Play internal, production web,
-physical Android push taps, and Apple builds still need release proof.
+`sureword://cross` opened Pick Up Your Cross. The Play Publisher API read back
+internal track release 1.76.0 as completed with versionCode 85. GitHub release
+`android-v1.76.0` has `SureWord.apk` SHA-256
+`6f2d70cb393b5fae222611bddfd4a3c688adecdad6f1249f19b3fb5e981121c8`,
+matching the local artifact manifest, and preserves `SureWord.dmg`. Vercel
+Production deployment `dpl_6rPnuLqg1Q4uJFcxD2QxYN7kiShb` reached Ready,
+was assigned to sureword.app, and the public page and native release API
+returned HTTP 200. Physical Android notification taps, authenticated web chat,
+and Apple builds were not exercised in this release pass.
 
 ## Free, web Pro and BYOK release, 2026-09-14
 
@@ -67,7 +74,7 @@ claimed. See [Android experience evidence](android-experience-2026-09-06.md).
 
 | Client | Path | Status |
 |---|---|---|
-| Android | `mobile/` | Source of truth. Current `app.json`: v1.76.0, versionCode 85. Signed AAB/APK built and emulator launch verified 2026-09-22; Play internal and GitHub release readback pending. |
+| Android | `mobile/` | Source of truth. v1.76.0, versionCode 85, Play internal completed by Publisher API readback and matching GitHub APK hash verified 2026-09-22. Emulator launch and cold external links verified; physical notification tap pending. |
 | Web | `src/` | Tracked column-by-column below |
 | macOS | `macos/` | Native SwiftUI client, tracked column-by-column below. Current project: 1.6.0; last installed/released proof: 1.5.0 on 2026-08-27. See `macos/README.md`; `bash macos/install-mac.sh` is mandatory after any macOS change. |
 | iOS | `macos/SureWord-iOS/` | Native SwiftUI client (iOS 26, Liquid Glass); shares `macos/Shared/` with macOS. Tracked column-by-column below |
