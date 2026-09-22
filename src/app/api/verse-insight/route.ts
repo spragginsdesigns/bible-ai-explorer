@@ -138,12 +138,7 @@ async function handlePost(req: Request): Promise<Response> {
 		if (error instanceof Response) return error;
 		console.error("Error in verse-insight route:", error);
 		return NextResponse.json(
-			{
-				error:
-					error instanceof Error
-						? `An error occurred: ${error.message}`
-						: "An unknown error occurred while processing your request.",
-			},
+			{ error: "Could not generate this verse insight. Please try again." },
 			{ status: 500 }
 		);
 	}
