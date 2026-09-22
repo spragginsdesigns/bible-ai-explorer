@@ -24,7 +24,7 @@ import {
 	type RewriteNoteResult,
 } from "@/lib/notes-io";
 import { NOTE_HOUSE_STYLE } from "@/utils/noteHouseStyle";
-import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, getVerseText, type TranslationId } from "@/lib/bible/translations";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
 import {
 	formatHighlightsForModel,
@@ -269,8 +269,9 @@ async function readPassageVerses(
 ): Promise<RetrievedVerse[]> {
 	const end = Math.min(verseEnd ?? verseStart, verseStart + MAX_PASSAGE_VERSES - 1);
 	const verses: RetrievedVerse[] = [];
+	const chapterVerses = await getChapter(translation, bookNumber, chapter);
 	for (let verse = verseStart; verse <= end; verse++) {
-		const text = await getVerseText(translation, bookNumber, chapter, verse);
+		const text = chapterVerses[verse - 1];
 		if (!text) break;
 		verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text, translation });
 	}
