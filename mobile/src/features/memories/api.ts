@@ -77,6 +77,7 @@ export function generateMemorySummary(getToken: GetToken) {
 	return apiJson<{ summary: MemorySummary | null; generatedAt: string | null }>(
 		getToken,
 		"/api/memories/summary",
-		{ method: "POST" }
+		{ method: "POST" },
+		{ timeoutMs: 300_000 }
 	);
 }
