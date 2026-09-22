@@ -53,6 +53,7 @@ const BibleAIExplorerInner: React.FC = () => {
 		loading,
 		historyLoading,
 		historyError,
+		historyActionError,
 		error,
 		input,
 		setInput,
@@ -198,6 +199,7 @@ const BibleAIExplorerInner: React.FC = () => {
 				<ChatSidebar
 					conversations={conversations}
 					activeConversationId={activeConversationId}
+					historyActionError={historyActionError}
 					onNewChat={newConversation}
 					onSelectConversation={switchConversation}
 					onDeleteConversation={deleteConversation}
@@ -212,6 +214,11 @@ const BibleAIExplorerInner: React.FC = () => {
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
 					onNewChat={newConversation}
 				/>
+				{historyActionError && (
+					<p role="alert" className="mx-4 mt-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-sm text-red-700 dark:text-red-400">
+						{historyActionError}
+					</p>
+				)}
 
 				{historyLoading ? (
 					<div

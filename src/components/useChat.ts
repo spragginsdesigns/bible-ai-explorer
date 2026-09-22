@@ -429,6 +429,7 @@ export const useChat = () => {
 	const [initialLoading, setInitialLoading] = useState(true);
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [historyError, setHistoryError] = useState<string | null>(null);
+	const [historyActionError, setHistoryActionError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<ClassifiedChatError | null>(null);
 	/**
 	 * Ratings as the server last reported them, keyed by message id. Seeded when
@@ -702,32 +703,45 @@ export const useChat = () => {
 		return () => document.removeEventListener("visibilitychange", onVisible);
 	}, [collectPendingAnswer, stop]);
 
-	// Load conversation list on mount
+	const conversationListVersionRef = useRef(0);
+	const pendingDeletionCountRef = useRef(0);
+	const refreshConversations = useCallback(async () => {
+		if (pendingDeletionCountRef.current > 0) return;
+		const version = conversationListVersionRef.current;
+		const res = await fetch("/api/conversations", { cache: "no-store" });
+		if (!res.ok) throw new Error("Conversation list request failed.");
+		const data: { id: string; title: string; createdAt: string; updatedAt?: string }[] = await res.json();
+		if (version !== conversationListVersionRef.current || pendingDeletionCountRef.current > 0) return;
+		setConversations(data.map((c) => ({
+			id: c.id,
+			title: c.title,
+			createdAt: c.createdAt,
+			updatedAt: c.updatedAt ?? c.createdAt,
+		})));
+	}, []);
+
 	useEffect(() => {
 		if (initialized.current) return;
 		initialized.current = true;
+		void refreshConversations().catch(() => undefined).finally(() => setInitialLoading(false));
+	}, [refreshConversations]);
 
-		(async () => {
-			try {
-				const res = await fetch("/api/conversations");
-				if (res.ok) {
-					const data = await res.json();
-					setConversations(
-						data.map((c: { id: string; title: string; createdAt: string; updatedAt?: string }) => ({
-							id: c.id,
-							title: c.title,
-							createdAt: c.createdAt,
-							updatedAt: c.updatedAt ?? c.createdAt,
-						}))
-					);
-				}
-			} catch {
-				// Silent fail on initial load
-			} finally {
-				setInitialLoading(false);
-			}
-		})();
-	}, []);
+	// Titles are generated server-side after the first answer. Refresh when a
+	// turn settles and when the browser returns to this tab.
+	const previousStatus = useRef(status);
+	useEffect(() => {
+		if (previousStatus.current !== "ready" && status === "ready") {
+			void refreshConversations().catch(() => undefined);
+		}
+		previousStatus.current = status;
+	}, [status, refreshConversations]);
+	useEffect(() => {
+		const onFocus = () => {
+			if (statusRef.current === "ready") void refreshConversations().catch(() => undefined);
+		};
+		window.addEventListener("focus", onFocus);
+		return () => window.removeEventListener("focus", onFocus);
+	}, [refreshConversations]);
 
 	const switchConversation = useCallback(
 		async (id: string) => {
@@ -806,29 +820,54 @@ export const useChat = () => {
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
+			conversationListVersionRef.current += 1;
+			pendingDeletionCountRef.current += 1;
+			setHistoryActionError(null);
 			setConversations((prev) => prev.filter((c) => c.id !== id));
 			if (conversationIdRef.current === id) {
 				newConversation();
 			}
 			try {
-				await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+				const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+				if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
 			} catch {
-				// Silent fail
+				const restored = await fetch("/api/conversations").then((response) => {
+					if (!response.ok) throw new Error("History refresh failed");
+					return response.json() as Promise<Conversation[]>;
+				}).catch(() => null);
+				if (restored) setConversations(restored);
+				setHistoryActionError("Couldn't delete this chat. It may reappear in your history. Please try again.");
+			} finally {
+				pendingDeletionCountRef.current -= 1;
 			}
 		},
 		[newConversation]
 	);
 
 	const clearAllConversations = useCallback(async () => {
+		conversationListVersionRef.current += 1;
+		pendingDeletionCountRef.current += 1;
+		setHistoryActionError(null);
 		const ids = conversations.map((c) => c.id);
 		setConversations([]);
 		newConversation();
-		for (const id of ids) {
-			try {
-				await fetch(`/api/conversations/${id}`, { method: "DELETE" });
-			} catch {
-				// Continue
+		try {
+			for (const id of ids) {
+				try {
+					const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+					if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
+				} catch {
+					const restored = await fetch("/api/conversations").then((response) => {
+						if (!response.ok) throw new Error("History refresh failed");
+						return response.json() as Promise<Conversation[]>;
+					}).catch(() => null);
+					if (restored) setConversations(restored);
+					setHistoryActionError("Some chats couldn't be deleted. Please try again.");
+					return;
+				}
 			}
+		} finally {
+			pendingDeletionCountRef.current -= 1;
 		}
 	}, [conversations, newConversation]);
 
@@ -1007,6 +1046,7 @@ export const useChat = () => {
 		initialLoading,
 		historyLoading,
 		historyError,
+		historyActionError,
 		error,
 		input,
 		setInput,

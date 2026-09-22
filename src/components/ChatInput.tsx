@@ -79,6 +79,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 		[onChangeText]
 	);
 	const disabled = externallyDisabled || loading || isStreaming || uploadingAttachments;
+	const inputDisabled = externallyDisabled || uploadingAttachments;
 
 	useEffect(() => {
 		if (focusSignal) textareaRef.current?.focus();
@@ -270,7 +271,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							onPaste={handlePaste}
 							placeholder="Ask a question about the Bible..."
 							rows={1}
-							disabled={disabled}
+							disabled={inputDisabled}
 							className="block w-full bg-transparent px-1 py-1.5 text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none max-h-[200px]"
 						/>
 						<div className="mt-0.5 flex items-center gap-1">

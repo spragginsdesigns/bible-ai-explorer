@@ -6,15 +6,14 @@ import type { Conversation } from "./useChat";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 
 /**
- * The server list payload already carries updatedAt (ordered by it), but the
- * hook maps it down to createdAt for now; read it when present so the stamp
- * tracks last activity once the mapping lands.
+ * The list route orders by updatedAt; older rows fall back to createdAt.
  */
 type SidebarConversation = Conversation & { updatedAt?: string };
 
 interface ChatSidebarProps {
 	conversations: SidebarConversation[];
 	activeConversationId: string | null;
+	historyActionError?: string | null;
 	onNewChat: () => void;
 	onSelectConversation: (id: string) => void;
 	onDeleteConversation: (id: string) => void;
@@ -47,6 +46,7 @@ function formatLastActivity(iso: string): string {
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	conversations,
 	activeConversationId,
+	historyActionError,
 	onNewChat,
 	onSelectConversation,
 	onDeleteConversation,
@@ -188,6 +188,11 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 					{renameError}
 				</p>
 			)}
+			{historyActionError && (
+				<p role="alert" className="px-3 pb-1 text-metadata text-red-500 dark:text-red-400">
+					{historyActionError}
+				</p>
+			)}
 
 			{filtered.length === 0 && conversations.length > 0 && (
 				<p className="px-3 py-2 text-metadata text-neutral-400 dark:text-neutral-600">
@@ -269,7 +274,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 										startRename(convo);
 									}}
 									aria-label={`Rename ${titleOf(convo)}`}
-									className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-opacity"
+									className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-300 transition-opacity"
 								>
 									<Pencil className="w-3.5 h-3.5" />
 								</button>
@@ -282,7 +287,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 									className={`transition-opacity ${
 										confirming
 											? "text-red-500 dark:text-red-400 text-metadata font-semibold opacity-100"
-											: "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400"
+											: "opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 text-neutral-400 dark:text-neutral-600 hover:text-red-500 dark:hover:text-red-400"
 									}`}
 								>
 									{confirming ? "Sure?" : <Trash2 className="w-3.5 h-3.5" />}

@@ -40,7 +40,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onSelectQuestion,
   composer,
 }) => {
-  const { questions, loading } = useSuggestedQuestions();
+  const { questions, loading, personalized } = useSuggestedQuestions();
   const questionItems = React.useMemo(
     () => buildSuggestedQuestionItems(questions),
     [questions],
@@ -116,10 +116,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
         <div className="mb-3">
           <h2 className="text-metadata font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
-            CHOSEN FROM YOUR STUDY
+            {personalized ? "CHOSEN FROM YOUR STUDY" : "QUESTIONS TO EXPLORE"}
           </h2>
           <p className="mt-1 text-support text-neutral-600 dark:text-neutral-300">
-            Based on your reading, questions, notes, and daily walk.
+            {personalized
+              ? "Based on your reading, questions, notes, and daily walk."
+              : "Pick a question, or ask your own."}
           </p>
         </div>
         <div

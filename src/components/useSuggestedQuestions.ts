@@ -23,10 +23,12 @@ const DEFAULTS: SuggestedQuestionInput[] = commonQuestionSuggestions.slice(0, 6)
 /** The route allows itself 60s; the screen should not wait that long to fall back. */
 const TIMEOUT_MS = 25_000;
 
-let cached: { userId: string; questions: SuggestedQuestionInput[] } | null = null;
-let inFlight: { userId: string; promise: Promise<SuggestedQuestionInput[]> } | null = null;
+type QuestionSet = { questions: SuggestedQuestionInput[]; personalized: boolean };
 
-function load(userId: string): Promise<SuggestedQuestionInput[]> {
+let cached: { userId: string; result: QuestionSet } | null = null;
+let inFlight: { userId: string; promise: Promise<QuestionSet> } | null = null;
+
+function load(userId: string): Promise<QuestionSet> {
 	if (inFlight?.userId === userId) return inFlight.promise;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -35,14 +37,16 @@ function load(userId: string): Promise<SuggestedQuestionInput[]> {
 			if (!res.ok) throw new Error("Suggested questions request failed.");
 			const data: unknown = await res.json();
 			const questions = parseSuggestedQuestionsResponse(data);
-			return questions.length > 0 ? questions : DEFAULTS;
+			const personalized = typeof data === "object" && data !== null &&
+				"personalized" in data && data.personalized === true;
+			return { questions: questions.length > 0 ? questions : DEFAULTS, personalized: personalized && questions.length > 0 };
 		})
-		.catch(() => DEFAULTS)
-		.then((questions) => {
+		.catch(() => ({ questions: DEFAULTS, personalized: false }))
+		.then((result) => {
 			clearTimeout(timer);
-			cached = { userId, questions };
+			cached = { userId, result };
 			inFlight = null;
-			return questions;
+			return result;
 		});
 	inFlight = { userId, promise };
 	return promise;
@@ -51,22 +55,24 @@ function load(userId: string): Promise<SuggestedQuestionInput[]> {
 export function useSuggestedQuestions(): {
 	questions: SuggestedQuestionInput[];
 	loading: boolean;
+	personalized: boolean;
 } {
 	const { userId } = useAuth();
-	const [questions, setQuestions] = useState<SuggestedQuestionInput[] | null>(
-		cached && cached.userId === userId ? cached.questions : null
+	const [state, setState] = useState<{ userId: string; result: QuestionSet } | null>(
+		cached && cached.userId === userId ? cached : null
 	);
 
 	useEffect(() => {
-		if (!userId || questions) return;
+		if (!userId || state?.userId === userId) return;
 		let active = true;
 		void load(userId).then((loaded) => {
-			if (active) setQuestions(loaded);
+			if (active) setState({ userId, result: loaded });
 		});
 		return () => {
 			active = false;
 		};
-	}, [userId, questions]);
+	}, [userId, state]);
 
-	return { questions: questions ?? [], loading: questions === null };
+	const current = state && state.userId === userId ? state.result : null;
+	return { questions: current?.questions ?? DEFAULTS, loading: false, personalized: current?.personalized ?? false };
 }
