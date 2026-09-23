@@ -858,8 +858,39 @@ model SharedAnswer {
   translation    String    @default("KJV")
   createdAt      DateTime  @default(now())
   revokedAt      DateTime?
+  /// Set when the owner chose "Show in search". Only listed, unrevoked
+  /// answers are indexable and appear in the sitemap; every other share
+  /// stays an unlisted capability link with `noindex`.
+  listedAt       DateTime?
 
   @@index([userId, createdAt])
+  @@index([listedAt])
+}
+
+/// A question asked from the landing page before signing up (docs/FEATURES.md,
+/// "Try before you sign up").
+///
+/// The row is written BEFORE the model runs, so it doubles as the quota
+/// reservation: counting rows is what enforces the per-guest, per-IP and
+/// global daily ceilings, and it holds across serverless instances where the
+/// in-memory limiter does not. `guestId` is the random `sw_guest` cookie;
+/// `ipHash` is an HMAC of the address, never the address itself.
+///
+/// Signing up claims the rows into a real Conversation. Unclaimed rows are
+/// deleted after 30 days by the chat-attachments cron.
+model GuestTurn {
+  id              String    @id @default(cuid())
+  guestId         String
+  ipHash          String
+  question        String    @db.VarChar(2000)
+  answer          String?   @db.Text
+  createdAt       DateTime  @default(now())
+  claimedAt       DateTime?
+  claimedByUserId String?
+
+  @@index([guestId, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
 }
 
 /// Disjoint active calendar intervals. Long streaks cost one row to query.

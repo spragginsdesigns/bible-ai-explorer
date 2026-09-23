@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import PlatformDownloads from "./PlatformDownloads";
 import PersonalStudyExample from "./PersonalStudyExample";
+import GuestAsk from "./GuestAsk";
+import LandingCtaLink from "./LandingCtaLink";
 import type { InstallPlatform } from "@/lib/install-platform";
 import {
   PRO_MONTHLY_PRICE_CENTS,
@@ -98,9 +100,9 @@ export default function LandingPage({
         <nav aria-label="Website">
           <a href="#experience">The experience</a>
           <a href="#pricing">Membership</a>
-          <Link href="/sign-in">
+          <LandingCtaLink href="/sign-in" cta="header_sign_in">
             Sign in <ArrowUpRight size={14} />
-          </Link>
+          </LandingCtaLink>
         </nav>
       </header>
       <main>
@@ -123,9 +125,14 @@ export default function LandingPage({
               and builds on what you read. Your questions, goals and daily walk
               help shape a study experience that becomes more your own over time.
             </p>
-            <Link href="/sign-up" className={styles.primary}>
-              Start studying free <ArrowRight size={18} />
-            </Link>
+            <div className={styles.ctaRow}>
+              <LandingCtaLink href="/sign-up" className={styles.primary} cta="hero_start">
+                Start studying free <ArrowRight size={18} />
+              </LandingCtaLink>
+              <a href="#ask" className={styles.secondary}>
+                Ask a question first
+              </a>
+            </div>
             <p className={styles.fine}>
               {limitsEnabled
                 ? `${FREE_DAILY_MESSAGES} free AI messages every day. `
@@ -136,6 +143,7 @@ export default function LandingPage({
           </div>
           <PersonalStudyExample />
         </section>
+        <GuestAsk />
         <div className={styles.quietLine}>
           <span>Grounded in Scripture.</span>
           <span>Shaped by your own walk.</span>
@@ -232,9 +240,9 @@ export default function LandingPage({
                   No model or API key setup needed
                 </li>
               </ul>
-              <Link className={styles.secondary} href="/sign-up">
+              <LandingCtaLink className={styles.secondary} href="/sign-up" cta="plan_free">
                 Begin your study <ArrowRight size={17} />
-              </Link>
+              </LandingCtaLink>
             </article>
             <article className={`${styles.plan} ${styles.pro}`}>
               <span className={styles.eyebrow}>
@@ -262,13 +270,14 @@ export default function LandingPage({
                   More room to build on your personal study
                 </li>
               </ul>
-              <Link
+              <LandingCtaLink
                 className={styles.primary}
                 href={billingOpen ? "/membership" : "/sign-up"}
+                cta="plan_pro"
               >
                 {billingOpen ? "Explore Pro" : "Start free today"}
                 <ArrowRight size={17} />
-              </Link>
+              </LandingCtaLink>
               <p className={styles.fine}>
                 {billingOpen
                   ? "Renews monthly. Cancel through billing settings."
@@ -314,9 +323,9 @@ export default function LandingPage({
             <br />
             <em>Build on it tomorrow.</em>
           </h2>
-          <Link href="/sign-up" className={styles.primary}>
+          <LandingCtaLink href="/sign-up" className={styles.primary} cta="closing_start">
             Start studying free <ArrowRight size={18} />
-          </Link>
+          </LandingCtaLink>
         </section>
       </main>
       <footer className={styles.footer}>

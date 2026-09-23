@@ -14,6 +14,13 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.77.0 (versionCode 86) - 2026-09-23 - internal
+
+**What's new (Play):**
+Shared answers can now be shown in search. In Settings, Shared answers, turn on Show in search for any answer you have shared and people can find it on Google. Links stay unlisted unless you choose this, SureWord asks before turning it on, and your name is never shown. Revoking a link also takes it out of search.
+
+**Dev notes:** The APK half is the "Show in search" switch in `features/chat/SharedAnswersSection.tsx` plus `setShareListed` / `listed` parsing in `shareApi.ts` (tests in `shareApi.test.ts`). Server-side and already live for every build on deploy: `PATCH /api/shared/{id} { listed }`, `SharedAnswer.listedAt` (migration `20260923180000_guest_turns_and_listed_shares`, applied to production 2026-09-23), listed answers indexable and in the sitemap, and the web landing page's try-before-you-sign-up guest answers (`/api/guest/ask`, `/api/guest/claim`), which are web-only for now.
+
 ## 1.76.0 (versionCode 85) - 2026-09-22 - internal
 
 **What's new (Play):**

@@ -1063,6 +1063,7 @@ export const useChat = () => {
 		abandonPendingAnswer,
 		newConversation,
 		switchConversation,
+		refreshConversations,
 		retryHistory,
 		deleteConversation,
 		clearAllConversations,

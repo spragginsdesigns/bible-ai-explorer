@@ -59,6 +59,17 @@ const isPublicRoute = createRouteMatcher([
 	// The unfurl card is fetched by iMessage, WhatsApp, X and Discord scrapers,
 	// which carry no session at all. Same snapshot, same revoke.
 	"/api/shared/(.*)/image",
+	// Try before you sign up: a signed-out visitor's question from the landing
+	// page. The route enforces its own per-guest, per-IP and global daily
+	// ceilings in the database and runs Vercel BotID, because it spends
+	// SureWord's own AI key on somebody with no account. Claiming those turns
+	// (/api/guest/claim) stays behind the session.
+	"/api/guest/ask",
+	// Vercel BotID's challenge proxy (the rewrites withBotId adds in
+	// next.config.mjs). The script itself ends in .js and skips this
+	// middleware, but its other calls do not, and a redirect to /sign-in
+	// would fail every guest as a bot.
+	"/149e9513-01fa-4fb0-aad4-566afd725d1b/(.*)",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

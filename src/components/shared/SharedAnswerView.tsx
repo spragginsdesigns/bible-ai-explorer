@@ -63,6 +63,22 @@ const markdownComponents: typeof baseMarkdownComponents = {
 	},
 };
 
+/**
+ * An answer rendered for somebody with no session: the real chat renderer,
+ * with every Scripture reference opening a public reader instead of the
+ * authenticated verse popover. Shared by this page and the landing page's
+ * guest answers, which are the two places a signed-out reader sees one.
+ */
+export function PublicAnswerMarkdown({ answer, translation }: { answer: string; translation: string }) {
+	return (
+		<SharedTranslation.Provider value={translation}>
+			<ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+				{answer}
+			</ReactMarkdown>
+		</SharedTranslation.Provider>
+	);
+}
+
 export interface SharedAnswerViewProps {
 	question: string;
 	answer: string;
@@ -125,7 +141,7 @@ const SharedAnswerView: React.FC<SharedAnswerViewProps> = ({
 						</p>
 					</div>
 					<Link
-						href="/sign-up"
+						href="/#ask"
 						className="group inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2.5 rounded-xl bg-amber-400 px-5 py-3 text-control font-semibold text-neutral-950 shadow-sm transition-colors hover:bg-amber-300 active:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-700 sm:w-auto dark:focus-visible:outline-amber-300"
 					>
 						<MessageCircle aria-hidden="true" className="h-4 w-4" />

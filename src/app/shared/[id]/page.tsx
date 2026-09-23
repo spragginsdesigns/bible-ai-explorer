@@ -35,7 +35,7 @@ const loadSharedAnswer = cache(async (id: string) => {
 	if (!isSharedAnswerId(id)) return null;
 	return prisma.sharedAnswer.findFirst({
 		where: { id, revokedAt: null },
-		select: { id: true, question: true, answer: true, references: true, translation: true },
+		select: { id: true, question: true, answer: true, references: true, translation: true, listedAt: true },
 	});
 });
 
@@ -57,11 +57,11 @@ export async function generateMetadata({ params }: SharedAnswerParams): Promise<
 		title,
 		description,
 		alternates: { canonical: sharedAnswerUrl(share.id) },
-		// Shared answers are unlisted, not public: the link is the capability
-		// and a search index would turn every one of them into a public archive.
-		// Noindex only, not nofollow: the sign-up link on the page is the whole
-		// point of sharing and should still carry weight.
-		robots: { index: false },
+		// Unlisted unless the owner turned on "Show in search": the link is the
+		// capability, and indexing every share would publish questions people
+		// only meant to send to a friend. Noindex only, not nofollow: the link
+		// back to SureWord should still carry weight either way.
+		robots: { index: share.listedAt !== null },
 		openGraph: {
 			type: "article",
 			siteName: "SureWord",

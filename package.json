@@ -32,6 +32,7 @@
     "@vercel/blob": "^2.8.0",
     "@vercel/functions": "^3.9.1",
     "ai": "^7.0.58",
+    "botid": "^1.5.11",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "framer-motion": "^11.5.4",

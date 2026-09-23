@@ -5,6 +5,7 @@ import { Link2 } from "lucide-react";
 import {
 	listShares,
 	revokeShare,
+	setShareListed,
 	type SharedAnswerSummary,
 } from "@/lib/chat/share-client";
 
@@ -35,6 +36,38 @@ export default function SharedAnswersSection() {
 	const [actionError, setActionError] = useState<string | null>(null);
 	const [copiedId, setCopiedId] = useState<string | null>(null);
 	const [pendingId, setPendingId] = useState<string | null>(null);
+
+	// The row whose "Show in search" is waiting on its confirmation.
+	const [confirmListId, setConfirmListId] = useState<string | null>(null);
+
+	/**
+	 * Optimistic, like revoke. Only turning it ON asks first: publishing a
+	 * question to search engines is the one step here that is hard to take
+	 * back, because crawlers keep what they saw until they recrawl.
+	 */
+	const applyListed = async (share: SharedAnswerSummary, listed: boolean) => {
+		if (pendingId) return;
+		setConfirmListId(null);
+		setPendingId(share.id);
+		setActionError(null);
+		setShares((current) =>
+			current?.map((row) => (row.id === share.id ? { ...row, listed } : row)) ?? current
+		);
+		try {
+			const settled = await setShareListed(share.id, listed);
+			setShares((current) =>
+				current?.map((row) => (row.id === share.id ? { ...row, listed: settled } : row)) ?? current
+			);
+		} catch (error) {
+			setShares((current) =>
+				current?.map((row) => (row.id === share.id ? { ...row, listed: share.listed } : row)) ??
+				current
+			);
+			setActionError(error instanceof Error ? error.message : "Couldn't update that link.");
+		} finally {
+			setPendingId(null);
+		}
+	};
 
 	const load = async () => {
 		setLoadError(null);
@@ -78,14 +111,18 @@ export default function SharedAnswersSection() {
 		setPendingId(share.id);
 		setActionError(null);
 		setShares((current) =>
-			current?.map((row) => (row.id === share.id ? { ...row, revokedAt: stamp } : row)) ?? current
+			current?.map((row) =>
+				row.id === share.id ? { ...row, revokedAt: stamp, listed: false } : row
+			) ?? current
 		);
 		try {
 			await revokeShare(share.id);
 		} catch (error) {
 			setShares((current) =>
 				current?.map((row) =>
-					row.id === share.id ? { ...row, revokedAt: share.revokedAt } : row
+					row.id === share.id
+						? { ...row, revokedAt: share.revokedAt, listed: share.listed }
+						: row
 				) ?? current
 			);
 			setActionError(error instanceof Error ? error.message : "Couldn't revoke that link.");
@@ -101,8 +138,9 @@ export default function SharedAnswersSection() {
 			</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
-					Anyone with a link can read that one answer, signed out. Revoking takes the page
-					down; the rest of your conversation was never part of it.
+					Anyone with a link can read that one answer, signed out. Links stay unlisted unless
+					you turn on Show in search. Revoking takes the page down; the rest of your
+					conversation was never part of it.
 				</p>
 
 				{shares === null ? (
@@ -153,6 +191,66 @@ export default function SharedAnswersSection() {
 										<Link2 className="w-3.5 h-3.5 flex-shrink-0" aria-hidden />
 										<span className="min-w-0 flex-1 truncate">{share.url}</span>
 									</p>
+									{!revoked && (
+										<div className="flex min-h-11 items-center justify-between gap-3">
+											<span
+												id={`listed-${share.id}`}
+												className="text-xs font-semibold text-neutral-600 dark:text-neutral-300"
+											>
+												Show in search
+											</span>
+											<button
+												type="button"
+												role="switch"
+												aria-checked={share.listed}
+												aria-labelledby={`listed-${share.id}`}
+												disabled={pendingId === share.id}
+												onClick={() =>
+													share.listed
+														? void applyListed(share, false)
+														: setConfirmListId(share.id)
+												}
+												className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 ${
+													share.listed ? "bg-amber-500" : "bg-neutral-300 dark:bg-neutral-700"
+												}`}
+											>
+												<span
+													aria-hidden
+													className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+														share.listed ? "translate-x-5" : "translate-x-0.5"
+													}`}
+												/>
+											</button>
+										</div>
+									)}
+									{confirmListId === share.id && !share.listed && !revoked && (
+										<div
+											role="group"
+											aria-label="Confirm showing this answer in search"
+											className="flex flex-col gap-2 rounded-lg border border-amber-600/25 bg-amber-500/10 p-3"
+										>
+											<p className="text-xs leading-5 text-neutral-700 dark:text-neutral-200">
+												Anyone will be able to find this question and answer on Google and other
+												search engines. Your name is never shown. You can turn this off at any time.
+											</p>
+											<div className="flex items-center gap-3">
+												<button
+													type="button"
+													onClick={() => void applyListed(share, true)}
+													className="min-h-11 text-xs font-bold text-amber-700 dark:text-amber-400"
+												>
+													Show in search
+												</button>
+												<button
+													type="button"
+													onClick={() => setConfirmListId(null)}
+													className="min-h-11 text-xs font-bold text-neutral-500 dark:text-neutral-400"
+												>
+													Cancel
+												</button>
+											</div>
+										</div>
+									)}
 									<div className="flex items-center gap-3">
 										{!revoked && (
 											<button

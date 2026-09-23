@@ -209,7 +209,7 @@ export async function GET() {
 		const shares = await prisma.sharedAnswer.findMany({
 			where: { userId },
 			orderBy: { createdAt: "desc" },
-			select: { id: true, question: true, createdAt: true, revokedAt: true },
+			select: { id: true, question: true, createdAt: true, revokedAt: true, listedAt: true },
 		});
 		return NextResponse.json({
 			shares: shares.map((share) => ({
@@ -218,6 +218,7 @@ export async function GET() {
 				question: share.question,
 				createdAt: share.createdAt,
 				revokedAt: share.revokedAt,
+				listed: share.listedAt !== null && share.revokedAt === null,
 			})),
 		});
 	} catch (err) {

@@ -73,6 +73,11 @@ struct SharedAnswerRow: Sendable, Equatable, Decodable, Identifiable {
     var createdAt: String?
     /// `var` so the optimistic revoke in `SharedAnswersModel` can write one back.
     var revokedAt: String?
+    /// "Show in search": the public page is indexable and in the sitemap. The
+    /// server only reports true for an unrevoked link, and it defaults to false
+    /// when absent so a server that predates the field still decodes. `var` so
+    /// the optimistic toggle in `SharedAnswersModel` can write one back.
+    var listed: Bool
 
     var isRevoked: Bool { revokedAt != nil }
 
@@ -92,17 +97,19 @@ struct SharedAnswerRow: Sendable, Equatable, Decodable, Identifiable {
         url: String,
         question: String,
         createdAt: String? = nil,
-        revokedAt: String? = nil
+        revokedAt: String? = nil,
+        listed: Bool = false
     ) {
         self.id = id
         self.url = url
         self.question = question
         self.createdAt = createdAt
         self.revokedAt = revokedAt
+        self.listed = listed
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, url, question, createdAt, revokedAt
+        case id, url, question, createdAt, revokedAt, listed
     }
 
     init(from decoder: any Decoder) throws {
@@ -112,6 +119,29 @@ struct SharedAnswerRow: Sendable, Equatable, Decodable, Identifiable {
         question = (try? container.decode(String.self, forKey: .question)) ?? ""
         createdAt = try? container.decode(String.self, forKey: .createdAt)
         revokedAt = try? container.decode(String.self, forKey: .revokedAt)
+        listed = (try? container.decode(Bool.self, forKey: .listed)) ?? false
+    }
+}
+
+/// Body of `PATCH /api/shared/{id}`. `listed` is the only key the route reads,
+/// and it 400s on anything but a boolean.
+struct ShareListingRequest: Sendable, Equatable, Encodable {
+    var listed: Bool
+}
+
+/// Response of `PATCH /api/shared/{id}`: the listing state the server settled on.
+struct ShareListingResponse: Sendable, Equatable, Decodable {
+    var listed: Bool
+
+    init(listed: Bool) {
+        self.listed = listed
+    }
+
+    private enum CodingKeys: String, CodingKey { case listed }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        listed = (try? container.decode(Bool.self, forKey: .listed)) ?? false
     }
 }
 
@@ -162,6 +192,20 @@ extension APIClient {
         let escaped = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
         try await data("/api/shared/\(escaped)", method: "DELETE")
     }
+
+    /// Show one link in search engines, or take it back out. Idempotent, and
+    /// the server answers 409 when asked to list a revoked link. Returns the
+    /// state the server settled on. Escaped for the same reason as
+    /// `revokeShare(id:)`.
+    func setShareListed(id: String, listed: Bool) async throws -> Bool {
+        let escaped = id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? id
+        return try await json(
+            "/api/shared/\(escaped)",
+            method: "PATCH",
+            body: ShareListingRequest(listed: listed),
+            as: ShareListingResponse.self
+        ).listed
+    }
 }
 
 // MARK: - Pasteboard
@@ -202,6 +246,8 @@ final class SharedAnswersModel {
     /// Rows with a DELETE in flight, so one row's buttons go quiet without
     /// disabling the rest of the list.
     private(set) var pendingRevokeIDs: Set<String> = []
+    /// Rows with a listing PATCH in flight, for the same reason.
+    private(set) var pendingListingIDs: Set<String> = []
 
     var errorAlert: ErrorAlert?
 
@@ -213,6 +259,10 @@ final class SharedAnswersModel {
 
     func isRevoking(_ share: SharedAnswerRow) -> Bool {
         pendingRevokeIDs.contains(share.id)
+    }
+
+    func isUpdatingListing(_ share: SharedAnswerRow) -> Bool {
+        pendingListingIDs.contains(share.id)
     }
 
     // MARK: Loading
@@ -240,7 +290,10 @@ final class SharedAnswersModel {
         guard let index = shares.firstIndex(where: { $0.id == share.id }) else { return }
 
         let previous = shares[index].revokedAt
+        let previousListed = shares[index].listed
+        // Revoking also unlists on the server, so the row mirrors that locally.
         shares[index].revokedAt = Self.timestamp()
+        shares[index].listed = false
         pendingRevokeIDs.insert(share.id)
         defer { pendingRevokeIDs.remove(share.id) }
 
@@ -248,11 +301,51 @@ final class SharedAnswersModel {
             try await api.revokeShare(id: share.id)
         } catch {
             restore(previous, on: share.id)
+            restoreListed(previousListed, on: share.id)
             errorAlert = ErrorAlert(
                 title: "Could not revoke that link",
                 message: Self.message(error, fallback: "The link is still live. Try again in a moment.")
             )
         }
+    }
+
+    // MARK: Show in search
+
+    /// Optimistic, like revoke: the toggle moves immediately and flips back
+    /// with an alert if the PATCH fails. The confirmation before turning it on
+    /// belongs to the view; this only carries out the decision.
+    func setListed(_ share: SharedAnswerRow, listed: Bool) async {
+        guard let api, !pendingListingIDs.contains(share.id) else { return }
+        guard let index = shares.firstIndex(where: { $0.id == share.id }) else { return }
+        // Only an unrevoked link can be listed; the server 409s otherwise.
+        if listed, shares[index].isRevoked { return }
+        guard shares[index].listed != listed else { return }
+
+        let previous = shares[index].listed
+        shares[index].listed = listed
+        pendingListingIDs.insert(share.id)
+        defer { pendingListingIDs.remove(share.id) }
+
+        do {
+            let settled = try await api.setShareListed(id: share.id, listed: listed)
+            restoreListed(settled, on: share.id)
+        } catch {
+            restoreListed(previous, on: share.id)
+            errorAlert = ErrorAlert(
+                title: listed ? "Could not show that answer in search" : "Could not hide that answer from search",
+                message: Self.message(
+                    error,
+                    fallback: listed
+                        ? "It is still hidden from search. Try again in a moment."
+                        : "It is still shown in search. Try again in a moment."
+                )
+            )
+        }
+    }
+
+    private func restoreListed(_ listed: Bool, on id: String) {
+        guard let index = shares.firstIndex(where: { $0.id == id }) else { return }
+        shares[index].listed = listed
     }
 
     /// Re-finds the row by id: a reload may have moved it while the DELETE was

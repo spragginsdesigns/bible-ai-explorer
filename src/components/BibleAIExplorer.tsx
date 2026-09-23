@@ -12,6 +12,7 @@ import { useChat } from "./useChat";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCommands";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref } from "@/lib/preferences";
+import { claimGuestTurnsOnce, guestClaimOpened, markGuestClaimOpened } from "@/lib/guest-client";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
 const SWIPE_THRESHOLD = 50;
@@ -70,6 +71,7 @@ const BibleAIExplorerInner: React.FC = () => {
 		abandonPendingAnswer,
 		newConversation,
 		switchConversation,
+		refreshConversations,
 		retryHistory,
 		deleteConversation,
 		clearAllConversations,
@@ -123,6 +125,25 @@ const BibleAIExplorerInner: React.FC = () => {
 		});
 		setFocusSignal((signal) => signal + 1);
 	}, [attachRefParam, attachTextParam, attachTranslationParam, setAttachment, verseOfDayIdParam]);
+
+	// Guest turns asked on the landing page before sign-up (docs/FEATURES.md,
+	// "Try before you sign up"). The httpOnly cookie is what the claim route
+	// reads, so it can adopt nothing but this browser's own questions. The
+	// request itself is shared across mounts (see claimGuestTurnsOnce); only
+	// the effect run that is still current opens the conversation.
+	useEffect(() => {
+		let current = true;
+		void claimGuestTurnsOnce().then(async (conversationId) => {
+			if (!conversationId || !current || guestClaimOpened()) return;
+			await refreshConversations().catch(() => undefined);
+			if (!current || guestClaimOpened()) return;
+			markGuestClaimOpened();
+			await switchConversation(conversationId);
+		});
+		return () => {
+			current = false;
+		};
+	}, [refreshConversations, switchConversation]);
 
 	const handleSend = (text: string) => {
 		sendMessage(text);

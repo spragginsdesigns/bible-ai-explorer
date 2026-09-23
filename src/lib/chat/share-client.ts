@@ -23,6 +23,8 @@ export interface SharedAnswerSummary {
 	question: string;
 	createdAt: string;
 	revokedAt: string | null;
+	/** "Show in search": indexable and in the sitemap. Never true once revoked. */
+	listed: boolean;
 }
 
 /**
@@ -103,9 +105,26 @@ export async function listShares(): Promise<SharedAnswerSummary[]> {
 			question: asText(row.question) ?? "",
 			createdAt: asText(row.createdAt) ?? "",
 			revokedAt: asText(row.revokedAt),
+			// An older deployment omits the field; absent means unlisted.
+			listed: row.listed === true,
 		});
 	}
 	return shares;
+}
+
+/** Turn "Show in search" on or off for one link. Answers the state the route settled on. */
+export async function setShareListed(id: string, listed: boolean): Promise<boolean> {
+	const response = await fetch(`/api/shared/${encodeURIComponent(id)}`, {
+		method: "PATCH",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ listed }),
+	});
+	const body = await readBody(response);
+	if (!response.ok) {
+		throw new Error(routeError(body) ?? `Could not update that link (${response.status}).`);
+	}
+	return isRecord(body) && typeof body.listed === "boolean" ? body.listed : listed;
 }
 
 /** Take a link back. The row survives, stamped, so the list can still show it. */

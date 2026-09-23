@@ -13,6 +13,50 @@ import { ANALYTICS_EVENTS } from "./events";
  * the list of what leaves the browser short enough to read.
  */
 
+/** Which landing-page call to action was tapped. Names, never destinations. */
+export type LandingCta =
+	| "hero_start"
+	| "header_sign_in"
+	| "plan_free"
+	| "plan_pro"
+	| "closing_start"
+	| "guest_save"
+	| "guest_limit_sign_up";
+
+/** Never throws: a dropped event must not cost the navigation. */
+export function trackLandingCta(cta: LandingCta): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.landingCtaClicked, { cta, platform: "web", source: "client" });
+	} catch {
+		// Analytics is never worth a broken link.
+	}
+}
+
+/**
+ * Guest answer outcomes. Shapes only, per the content rule in ./events.ts:
+ * the question and the answer never leave the page through this.
+ */
+export function trackGuestAnswer(remaining: number, durationBucket: string): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.guestAnswerCompleted, {
+			remaining,
+			duration: durationBucket,
+			platform: "web",
+			source: "client",
+		});
+	} catch {
+		// Never worth interrupting an answer.
+	}
+}
+
+export function trackGuestLimit(reason: string): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.guestLimitReached, { reason, platform: "web", source: "client" });
+	} catch {
+		// Never worth interrupting the sign-up card.
+	}
+}
+
 /** Which build a download link points at. Not the URL: the release moves. */
 export type NativeDownloadPlatform = "android" | "macos";
 

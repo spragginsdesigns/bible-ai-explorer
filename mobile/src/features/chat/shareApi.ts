@@ -29,6 +29,11 @@ export interface SharedAnswerSummary {
 	question: string;
 	createdAt: string;
 	revokedAt: string | null;
+	/**
+	 * "Show in search": the public page is indexable and in the sitemap. Always
+	 * false for a revoked link, and false when an older server omits the field.
+	 */
+	listed: boolean;
 }
 
 /**
@@ -65,13 +70,40 @@ export function shareAnswer(
 }
 
 /** Every link this account has minted, newest first, revoked ones included. */
-export function listShares(getToken: GetToken): Promise<{ shares: SharedAnswerSummary[] }> {
-	return apiJson<{ shares: SharedAnswerSummary[] }>(getToken, "/api/shared");
+export async function listShares(
+	getToken: GetToken
+): Promise<{ shares: SharedAnswerSummary[] }> {
+	const data = await apiJson<{ shares?: unknown }>(getToken, "/api/shared");
+	const rows = Array.isArray(data.shares) ? (data.shares as SharedAnswerSummary[]) : [];
+	return {
+		// Defensive: a server without the field (or a revoked row) is never
+		// reported as indexable, so the switch can only paint "on" when it is.
+		shares: rows.map((row) => ({
+			...row,
+			listed: row.listed === true && !row.revokedAt,
+		})),
+	};
 }
 
 /** Take a link back. The id stays, so re-sharing that answer revives it. */
 export function revokeShare(getToken: GetToken, id: string): Promise<{ ok: true }> {
 	return apiJson<{ ok: true }>(getToken, `/api/shared/${id}`, { method: "DELETE" });
+}
+
+/**
+ * Turn "Show in search" on or off for one live link. Listing makes the public
+ * page indexable and puts it in the sitemap; the server refuses (409) to list a
+ * revoked link.
+ */
+export function setShareListed(
+	getToken: GetToken,
+	id: string,
+	listed: boolean
+): Promise<{ ok: true; listed: boolean }> {
+	return apiJson<{ ok: true; listed: boolean }>(getToken, `/api/shared/${id}`, {
+		method: "PATCH",
+		body: { listed },
+	});
 }
 
 /** Hand a minted link to the system share sheet. */

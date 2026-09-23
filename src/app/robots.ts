@@ -10,7 +10,9 @@ export default function robots(): MetadataRoute.Robots {
 				// Only the signed-out routes in src/middleware.ts are crawlable.
 				// Everything else redirects to sign-in, so crawling it wastes budget.
 				// The AI summary and markdown twins are listed explicitly so no
-				// crawler has to infer them from "/".
+				// crawler has to infer them from "/". /shared/ is crawlable so the
+				// answers an owner listed can be indexed; every unlisted one still
+				// answers noindex, which a crawler can only see if it may fetch it.
 				allow: [
 					"/",
 					"/privacy",
@@ -29,7 +31,6 @@ export default function robots(): MetadataRoute.Robots {
 					"/bible",
 					"/cross",
 					"/membership",
-					"/shared/",
 				],
 			},
 		],

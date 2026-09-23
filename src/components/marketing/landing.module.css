@@ -634,3 +634,10 @@
     gap: 20px;
   }
 }
+/* Hero calls to action: sign up, or try a guest question first. Wraps to a
+   column on a phone rather than squeezing either label. */
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}

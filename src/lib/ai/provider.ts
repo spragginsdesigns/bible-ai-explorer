@@ -275,6 +275,28 @@ export async function resolveProgressModel(userId: string, provider: ProviderId)
 }
 
 /**
+ * The model for a signed-out guest's answer (docs/FEATURES.md, "Try before
+ * you sign up"): the house model on SureWord's own key, at medium effort.
+ *
+ * Deliberately outside `resolveModel`, which is keyed by an account at every
+ * step (access, stored defaults, included-AI metering all read a User row). A
+ * guest has none of that; the GuestTurn rows are the meter, and the route
+ * enforces their ceilings before this is ever called.
+ */
+export function resolveGuestModel(): Pick<ResolvedModel, "model" | "providerOptions" | "definition"> {
+	const houseKey = houseKeyFor(process.env);
+	if (!houseKey) throw new HouseModelUnavailableError();
+	const definition = resolveDefinition(HOUSE_MODEL_ID);
+	if (!definition) throw new Error("The house AI model is not registered.");
+	const effort = definition.efforts.includes("medium") ? "medium" : null;
+	return {
+		model: buildModel("openai", definition.providerModelId, houseKey),
+		providerOptions: buildProviderOptions("openai", { ...NO_RUN_OPTIONS, effort }, false, definition),
+		definition,
+	};
+}
+
+/**
  * Single place every AI call site gets its model from.
  *
  * An account with no key of its own runs on the house model: SureWord's own

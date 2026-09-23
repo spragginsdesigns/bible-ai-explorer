@@ -17,6 +17,7 @@ import {
 	listShares,
 	presentShareSheet,
 	revokeShare,
+	setShareListed,
 	shareAnswer,
 	SHARE_DIALOG_TITLE,
 	shareSheetPayload,
@@ -109,5 +110,65 @@ describe("request shapes", () => {
 		const [url, init] = fetchMock.mock.calls[0];
 		expect(url).toBe("https://api.test/api/shared/AbCdEfGhIjKlMnOp");
 		expect(init?.method).toBe("DELETE");
+	});
+
+	it("sets Show in search with a PATCH carrying only the listed flag", async () => {
+		fetchMock.mockResolvedValue(jsonResponse({ ok: true, listed: true }));
+
+		const result = await setShareListed(getToken, "AbCdEfGhIjKlMnOp", true);
+
+		expect(result).toEqual({ ok: true, listed: true });
+		const [url, init] = fetchMock.mock.calls[0];
+		expect(url).toBe("https://api.test/api/shared/AbCdEfGhIjKlMnOp");
+		expect(init?.method).toBe("PATCH");
+		expect(JSON.parse(String(init?.body))).toEqual({ listed: true });
+	});
+
+	it("sends listed false to take an answer back out of search", async () => {
+		fetchMock.mockResolvedValue(jsonResponse({ ok: true, listed: false }));
+
+		await setShareListed(getToken, "AbCdEfGhIjKlMnOp", false);
+
+		const [, init] = fetchMock.mock.calls[0];
+		expect(JSON.parse(String(init?.body))).toEqual({ listed: false });
+	});
+});
+
+describe("listShares listed parsing", () => {
+	const base = {
+		url: SHARE_URL,
+		question: "q",
+		createdAt: "2026-09-15T00:00:00.000Z",
+		revokedAt: null,
+	};
+
+	it("keeps listed true only when the server says exactly true on a live link", async () => {
+		fetchMock.mockResolvedValue(
+			jsonResponse({
+				shares: [
+					{ ...base, id: "a", listed: true },
+					{ ...base, id: "b", listed: false },
+					{ ...base, id: "c" },
+					{ ...base, id: "d", listed: "yes" },
+					{ ...base, id: "e", listed: true, revokedAt: "2026-09-16T00:00:00.000Z" },
+				],
+			})
+		);
+
+		const { shares } = await listShares(getToken);
+
+		expect(shares.map((s) => [s.id, s.listed])).toEqual([
+			["a", true],
+			["b", false],
+			["c", false],
+			["d", false],
+			["e", false],
+		]);
+	});
+
+	it("treats a missing shares array as empty", async () => {
+		fetchMock.mockResolvedValue(jsonResponse({}));
+
+		expect(await listShares(getToken)).toEqual({ shares: [] });
 	});
 });

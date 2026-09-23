@@ -37,7 +37,7 @@ const contactLink = {
 
 export const PRIVACY_POLICY: LegalDocument = {
 	title: "SureWord Privacy Policy",
-	byline: "Last updated: August 28, 2026",
+	byline: "Last updated: September 23, 2026",
 	blocks: [
 		{
 			type: "p",
@@ -78,6 +78,14 @@ export const PRIVACY_POLICY: LegalDocument = {
 				[
 					{ strong: "Native-app notification data." },
 					" Where server push is supported, a device token, platform, timezone, delivery hour, and the enabled state for supported notifications. Android currently offers separate Daily Cross and chat-reply choices; local-only reminders do not create a server push token.",
+				],
+				[
+					{ strong: "Questions asked without an account." },
+					" If you try SureWord from the website before signing up, we keep the questions you ask and their answers for up to 30 days so they can be saved to your account if you create one. They are filed under a random browser cookie, not your identity. To enforce the free-question limit we also keep a one-way keyed hash of your IP address, never the address itself.",
+				],
+				[
+					{ strong: "Answers you share." },
+					" When you share an answer, we keep a copy of that question and answer so the link keeps working. Anyone with the link can read it. Shared answers are hidden from search engines unless you turn on Show in search for that answer, which lets search engines list it; your name is never shown. Revoking a link takes the page down and removes it from search listings.",
 				],
 				[
 					{ strong: "Product usage." },

@@ -20,10 +20,20 @@ struct SharedAnswersSectionView: View {
     /// rather than as a screen-wide toast a Form has nowhere to put.
     @State private var copiedID: String?
     @State private var pendingRevoke: SharedAnswerRow?
+    /// The row waiting on the "Show in search" confirmation. Turning it on makes
+    /// the answer findable by strangers, so it asks first; turning it off never
+    /// does.
+    @State private var pendingListing: SharedAnswerRow?
 
     static let description =
         "Links you have created for single answers. Anyone with a link can read that answer, "
-        + "and nothing else from the conversation. Revoking one takes it back."
+        + "and nothing else from the conversation. Links are unlisted, so search engines "
+        + "don't show them, unless you turn on Show in search. Revoking one takes it back."
+
+    static let listConfirmTitle = "Show this answer in search?"
+    static let listConfirmMessage =
+        "Anyone will be able to find this question and answer on Google and other search engines. "
+        + "Your name is never shown. You can turn this off at any time."
 
     static let emptyState = "Answers you share appear here."
 
@@ -123,8 +133,54 @@ struct SharedAnswersSectionView: View {
                         .accessibilityLabel("Revoke the link to: \(share.title)")
                 }
             }
+
+            // Listing a revoked link is a 409 on the server, and revoking
+            // already unlists it, so the switch only exists on a live link.
+            if !share.isRevoked {
+                Toggle(isOn: listedBinding(share)) {
+                    Text("Show in search")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textMuted)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .disabled(model.isUpdatingListing(share) || model.isRevoking(share))
+                .accessibilityLabel("Show this answer in search: \(share.title)")
+                // Hung off the row's own switch, bound to this row only, so it
+                // does not stack a second alert onto the hint that already
+                // carries the error alert and the revoke dialog.
+                .alert(
+                    Self.listConfirmTitle,
+                    isPresented: Binding(
+                        get: { pendingListing?.id == share.id },
+                        set: { if !$0, pendingListing?.id == share.id { pendingListing = nil } }
+                    )
+                ) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Show in search") {
+                        Task { await model.setListed(share, listed: true) }
+                    }
+                } message: {
+                    Text(Self.listConfirmMessage)
+                }
+            }
         }
         .padding(.vertical, 2)
+    }
+
+    /// Off applies at once; on waits for the confirmation. The getter reads the
+    /// model, so a cancelled confirmation leaves the switch where it was.
+    private func listedBinding(_ share: SharedAnswerRow) -> Binding<Bool> {
+        Binding(
+            get: { model.shares.first(where: { $0.id == share.id })?.listed ?? share.listed },
+            set: { next in
+                if next {
+                    pendingListing = share
+                } else {
+                    Task { await model.setListed(share, listed: false) }
+                }
+            }
+        )
     }
 
     private func copy(_ share: SharedAnswerRow) {

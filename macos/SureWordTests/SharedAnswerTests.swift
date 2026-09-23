@@ -105,6 +105,50 @@ struct SharedAnswerTests {
         #expect(row.isRevoked == false)
     }
 
+    @Test("A row shown in search decodes as listed")
+    func listedRowDecodes() throws {
+        let rows = try decodeList(
+            """
+            {"shares":[{"id":"abc123","url":"https://sureword.app/shared/abc123",
+            "question":"Who was Melchisedec?","revokedAt":null,"listed":true}]}
+            """
+        )
+        let row = try #require(rows.first)
+        #expect(row.listed)
+    }
+
+    @Test("A row from a server without the listed field is unlisted")
+    func missingListedIsUnlisted() throws {
+        // Older servers never sent `listed`, and Show in search defaults to off,
+        // so absence has to mean unlisted rather than a failed row.
+        let rows = try decodeList(
+            #"{"shares":[{"id":"abc123","url":"https://sureword.app/shared/abc123","question":"Q"}]}"#
+        )
+        let row = try #require(rows.first)
+        #expect(row.listed == false)
+        #expect(row.id == "abc123")
+    }
+
+    @Test("The listing request carries exactly the listed flag")
+    func listingRequestEncodes() throws {
+        let data = try JSONEncoder().encode(ShareListingRequest(listed: true))
+        let body = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(body.keys.sorted() == ["listed"])
+        #expect(body["listed"] as? Bool == true)
+    }
+
+    @Test("The listing response decodes the state the server settled on")
+    func listingResponseDecodes() throws {
+        let on = try JSONDecoder().decode(
+            ShareListingResponse.self, from: Data(#"{"ok":true,"listed":true}"#.utf8)
+        )
+        #expect(on.listed)
+        let off = try JSONDecoder().decode(
+            ShareListingResponse.self, from: Data(#"{"ok":true,"listed":false}"#.utf8)
+        )
+        #expect(off.listed == false)
+    }
+
     @Test("A response with no shares key is an empty list, not a failure")
     func missingSharesKeyIsEmpty() throws {
         // A server that predates the route answers something else entirely, and

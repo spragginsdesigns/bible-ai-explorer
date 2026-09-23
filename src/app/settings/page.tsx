@@ -432,7 +432,7 @@ export default function SettingsPage() {
 
 					{/* Shared answers: the links this account has handed out, and
 					    the Revoke that takes one back. */}
-					<SharedAnswersSection key={user?.id ?? "signed-out"} />
+					{userLoaded ? <SharedAnswersSection key={user?.id ?? "signed-out"} /> : null}
 
 					{/* Send feedback: the one place a person can answer back in
 					    their own words. */}

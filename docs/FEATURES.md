@@ -2086,7 +2086,58 @@ copy-link fallback that shows "Link copied". Android: `Share.share({ message:
 url, url })`. Apple: `ShareLink(item: URL)`. A second tap on an already-shared
 answer reuses the link. Settings → Privacy (web `/settings`, the Android and
 Apple Settings screens) gains "Shared answers": the list with a Revoke action.
-No public index of shared answers anywhere.
+
+**Show in search (2026-09-23, migration `20260923180000_guest_turns_and_listed_shares`).**
+Every share is still unlisted by default. Each non-revoked row in Settings →
+Shared answers carries a "Show in search" switch on all four clients; turning
+it on asks first ("Anyone will be able to find this question and answer on
+Google and other search engines. Your name is never shown."), turning it off
+does not. `SharedAnswer.listedAt` records the choice. `PATCH /api/shared/{id}
+{ listed }` → `{ ok, listed }` (owner-only, 404 otherwise, 409 when listing a
+revoked row; idempotent, keeps the first `listedAt`). `GET /api/shared` rows
+carry `listed`. Revoking clears `listedAt`. Only a listed, unrevoked page sends
+`robots: index`; every other page stays `noindex`. `src/app/sitemap.ts` lists
+listed answers (hourly revalidate, a database failure drops only those rows),
+and robots.txt no longer disallows `/shared/`, because a crawler that may not
+fetch a page can never see its `noindex`. The page's "Ask your own question"
+button now opens the landing page's guest box (`/#ask`). Pinned by
+`tests/guest-rules.test.mjs`.
+
+### Try before you sign up
+
+A signed-out visitor asks a real question on the landing page (`#ask`,
+`src/components/marketing/GuestAsk.tsx`) and reads a real answer before making
+an account. Web-only today; the route is client-agnostic, so the Android
+sign-in screen can adopt it once the app has a public Play listing.
+
+**Route.** `POST /api/guest/ask { question }` (public in `src/middleware.ts`)
+streams plain text (`X-Guest-Remaining` header). Order: the `GUEST_DAILY_CAP`
+kill switch (`0` turns guests off with no deploy), Vercel BotID
+(`checkBotId`, client init in `src/instrumentation-client.ts`, proxy prefix
+public in the middleware), then a `GuestTurn` row is RESERVED and the
+ceilings counted: 3 answers per guest (`sw_guest` httpOnly cookie, 30 days)
+and 3 per keyed IP hash per rolling 24h, and `GUEST_DAILY_CAP` (default 150)
+across everybody per UTC day. Writing before counting is what makes the
+ceilings hold across serverless instances. The answer runs the chat persona
+(`chatSystemPrompt("KJV")` plus `GUEST_SYSTEM_GUIDANCE`) on the house model
+(`resolveGuestModel`, Luna medium) with only `searchScripture`, `findVerses`,
+`getPassage` and `getCrossReferences`; history is this guest's stored turns,
+never the request body. A finished answer is written to the reserved row; a
+failed or empty one deletes it, so an outage never spends a guest's answers.
+IPs are HMAC'd under `GUEST_HASH_SECRET` (falls back to `CLERK_SECRET_KEY`).
+
+**Claim.** The page sets `sureword.guestPending` in localStorage when an
+answer finishes. After sign-up, `BibleAIExplorer` clears it and calls `POST
+/api/guest/claim` (session required; guest id read only from the cookie),
+which stamps the unclaimed turns in one conditional update, creates a
+Conversation titled by the first question with the turns as messages
+(`metadata.source = "guest"`), clears the cookie and opens it. The
+chat-attachments cron deletes every GuestTurn older than 30 days; the privacy
+page says so.
+
+**Measured** (web client events, shapes only): `landing_cta_clicked { cta }`,
+`guest_answer_completed { remaining, duration }`, `guest_limit_reached {
+reason }`; server `guest_claimed`. Sign-up itself is `account_created`.
 
 ## The highlight legend and About me
 

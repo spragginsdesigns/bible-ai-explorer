@@ -78,6 +78,24 @@ export const ANALYTICS_EVENTS = {
 	 */
 	nativeDownloadClicked: "native_download_clicked",
 	/**
+	 * A call to action on the signed-out landing page was tapped: which one
+	 * (`cta`), never where it led. The top of the acquisition funnel, which
+	 * had no event at all: four real visitors in the first read, zero sign-ups,
+	 * and no way to say whether any of them even reached for the button.
+	 */
+	landingCtaClicked: "landing_cta_clicked",
+	/**
+	 * A signed-out guest's answer finished on the landing page ("Try before
+	 * you sign up"). Web-only and sent by the browser, because the server has
+	 * no person to attach it to until the guest signs up. Carries the answers
+	 * left and the duration bucket, never the question or the answer.
+	 */
+	guestAnswerCompleted: "guest_answer_completed",
+	/** A guest hit a ceiling; `reason` is guest, address or global. */
+	guestLimitReached: "guest_limit_reached",
+	/** A new account adopted its guest turns into a saved conversation. Server-side. */
+	guestClaimed: "guest_claimed",
+	/**
 	 * A preference was changed, named but never valued.
 	 *
 	 * Every setting in the app funnels through one route, and none of it was

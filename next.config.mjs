@@ -1,4 +1,5 @@
 import withPWA from "next-pwa";
+import { withBotId } from "botid/next/config";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -26,7 +27,10 @@ const nextConfig = {
 	skipTrailingSlashRedirect: true,
 };
 
-export default withPWA({
+// withBotId adds the rewrites Vercel BotID's client challenge talks through;
+// its path prefix is public in src/middleware.ts. It guards the signed-out
+// guest answers (src/app/api/guest/ask/route.ts).
+export default withBotId(withPWA({
 	dest: "public",
 	register: true,
 	skipWaiting: true,
@@ -61,4 +65,4 @@ export default withPWA({
 			handler: "NetworkOnly",
 		},
 	],
-})(nextConfig);
+})(nextConfig));

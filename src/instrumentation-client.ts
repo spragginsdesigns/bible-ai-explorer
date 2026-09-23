@@ -1,4 +1,9 @@
 import posthog from "posthog-js";
+import { initBotId } from "botid/client/core";
+
+// Vercel BotID: attaches the challenge headers to the one signed-out route
+// that spends SureWord's own AI key. checkBotId() in that route reads them.
+initBotId({ protect: [{ path: "/api/guest/ask", method: "POST" }] });
 
 /**
  * Start PostHog before the app hydrates.

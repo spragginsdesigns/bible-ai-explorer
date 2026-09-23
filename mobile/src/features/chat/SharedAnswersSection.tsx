@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { AppText as Text } from "@/components/AppText";
 import { GlassCard } from "@/components/ui";
@@ -7,12 +7,17 @@ import { relativeTime } from "@/features/notes/utils";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import type { GetToken } from "@/lib/api";
-import { listShares, revokeShare, type SharedAnswerSummary } from "./shareApi";
+import {
+	listShares,
+	revokeShare,
+	setShareListed,
+	type SharedAnswerSummary,
+} from "./shareApi";
 
 /**
  * Settings -> SHARED ANSWERS (docs/FEATURES.md, "Share an answer: a public
- * page, and a card image"). Every link this account has minted, with the one
- * action that matters: Revoke.
+ * page, and a card image"). Every link this account has minted, with Revoke
+ * and the opt-in "Show in search" switch (unlisted and noindex by default).
  *
  * Revoked rows stay in the list rather than disappearing. A link that was
  * public is a thing that happened, and the user is better served seeing that it
@@ -20,7 +25,11 @@ import { listShares, revokeShare, type SharedAnswerSummary } from "./shareApi";
  */
 
 const DESCRIPTION =
-	"Anyone holding one of these links can read that answer without signing in. Revoking takes a link back.";
+	"Anyone holding one of these links can read that answer without signing in. Links are unlisted, so search engines don't show them, unless you turn on Show in search. Revoking takes a link back.";
+
+const LIST_CONFIRM_TITLE = "Show this answer in search?";
+const LIST_CONFIRM_MESSAGE =
+	"Anyone will be able to find this question and answer on Google and other search engines. Your name is never shown. You can turn this off at any time.";
 
 const EMPTY = "Answers you share appear here.";
 
@@ -44,6 +53,7 @@ export function SharedAnswersSection({
 	const [failed, setFailed] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [revokingId, setRevokingId] = useState<string | null>(null);
+	const [listingId, setListingId] = useState<string | null>(null);
 	const [copiedId, setCopiedId] = useState<string | null>(null);
 	const activeRef = useRef(true);
 	const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,11 +106,14 @@ export function SharedAnswersSection({
 
 	/** Optimistic: the row reads "Revoked" on the tap, and goes back on failure. */
 	const revoke = (share: SharedAnswerSummary) => {
-		if (revokingId) return;
+		if (revokingId || listingId === share.id) return;
 		const revokedAt = new Date().toISOString();
 		setRevokingId(share.id);
+		// The server unlists on revoke, so the local row does too.
 		setShares((current) =>
-			(current ?? []).map((row) => (row.id === share.id ? { ...row, revokedAt } : row))
+			(current ?? []).map((row) =>
+				row.id === share.id ? { ...row, revokedAt, listed: false } : row
+			)
 		);
 		void (async () => {
 			try {
@@ -109,7 +122,9 @@ export function SharedAnswersSection({
 				if (!activeRef.current) return;
 				setShares((current) =>
 					(current ?? []).map((row) =>
-						row.id === share.id ? { ...row, revokedAt: share.revokedAt } : row
+						row.id === share.id
+							? { ...row, revokedAt: share.revokedAt, listed: share.listed }
+							: row
 					)
 				);
 				Alert.alert(
@@ -122,6 +137,48 @@ export function SharedAnswersSection({
 				if (activeRef.current) setRevokingId(null);
 			}
 		})();
+	};
+
+	/** Optimistic, like revoke: the switch moves on the tap and snaps back on failure. */
+	const applyListed = (share: SharedAnswerSummary, listed: boolean) => {
+		if (listingId || revokingId) return;
+		setListingId(share.id);
+		setShares((current) =>
+			(current ?? []).map((row) => (row.id === share.id ? { ...row, listed } : row))
+		);
+		void (async () => {
+			try {
+				await setShareListed(getToken, share.id, listed);
+			} catch (error) {
+				if (!activeRef.current) return;
+				setShares((current) =>
+					(current ?? []).map((row) =>
+						row.id === share.id ? { ...row, listed: share.listed } : row
+					)
+				);
+				Alert.alert(
+					listed ? "Couldn't show that answer in search" : "Couldn't hide that answer from search",
+					error instanceof Error && error.message
+						? error.message
+						: "Nothing changed. Check your connection and try again."
+				);
+			} finally {
+				if (activeRef.current) setListingId(null);
+			}
+		})();
+	};
+
+	/** Turning it on makes the answer findable by strangers, so it asks first; off never does. */
+	const toggleListed = (share: SharedAnswerSummary, next: boolean) => {
+		if (listingId || revokingId || share.revokedAt) return;
+		if (!next) {
+			applyListed(share, false);
+			return;
+		}
+		Alert.alert(LIST_CONFIRM_TITLE, LIST_CONFIRM_MESSAGE, [
+			{ text: "Cancel", style: "cancel" },
+			{ text: "Show in search", onPress: () => applyListed(share, true) },
+		]);
 	};
 
 	return (
@@ -163,6 +220,8 @@ export function SharedAnswersSection({
 				) : (
 					shares.map((share) => {
 						const revoked = Boolean(share.revokedAt);
+						const switchDisabled = listingId !== null || revokingId !== null;
+						const revokeDisabled = revokingId !== null || listingId === share.id;
 						return (
 							<View key={share.id} style={styles.shareRow}>
 								<View style={styles.shareText}>
@@ -182,6 +241,34 @@ export function SharedAnswersSection({
 								</View>
 
 								{!revoked && (
+									<Pressable
+										accessibilityRole="switch"
+										accessibilityLabel="Show this answer in search"
+										accessibilityState={{
+											checked: share.listed,
+											disabled: switchDisabled,
+										}}
+										disabled={switchDisabled}
+										onPress={() => toggleListed(share, !share.listed)}
+										style={({ pressed }) => [
+											styles.searchRow,
+											pressed && { backgroundColor: colors.surfacePressed },
+										]}
+									>
+										<Text style={styles.searchLabel}>Show in search</Text>
+										<Switch
+											importantForAccessibility="no-hide-descendants"
+											accessibilityElementsHidden
+											value={share.listed}
+											disabled={switchDisabled}
+											onValueChange={(next) => toggleListed(share, next)}
+											trackColor={{ false: colors.surfacePressed, true: colors.accentSoft }}
+											thumbColor={share.listed ? colors.accent : colors.textFaint}
+										/>
+									</Pressable>
+								)}
+
+								{!revoked && (
 									<View style={styles.actions}>
 										<Pressable
 											accessibilityRole="button"
@@ -197,11 +284,11 @@ export function SharedAnswersSection({
 										<Pressable
 											accessibilityRole="button"
 											accessibilityLabel="Revoke this share link"
-											disabled={revokingId !== null}
+											disabled={revokeDisabled}
 											onPress={() => revoke(share)}
 											style={({ pressed }) => [
 												styles.actionButton,
-												revokingId !== null && styles.actionDisabled,
+												revokeDisabled && styles.actionDisabled,
 												pressed && { backgroundColor: colors.dangerSoft },
 											]}
 										>
@@ -269,6 +356,16 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.dangerSoft,
 		},
 		revokedLabel: { color: c.danger, ...typography.micro, fontWeight: "700" },
+		searchRow: {
+			minHeight: 44,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			gap: spacing.md,
+			paddingHorizontal: spacing.sm,
+			borderRadius: radius.md,
+		},
+		searchLabel: { flex: 1, color: c.text, ...typography.control, fontWeight: "600" },
 		actions: { flexDirection: "row", gap: spacing.sm },
 		actionButton: {
 			minHeight: 44,
