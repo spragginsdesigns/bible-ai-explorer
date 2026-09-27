@@ -42,7 +42,7 @@ export function loadEnv(root) {
 	return env;
 }
 
-function run(cmd, args, { capture = false } = {}) {
+function run(cmd, args, { capture = false, timeoutMs = 0 } = {}) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(cmd, args, {
 			stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
@@ -50,16 +50,30 @@ function run(cmd, args, { capture = false } = {}) {
 		});
 		let out = "";
 		let err = "";
+		let timedOut = false;
+		const timer = timeoutMs
+			? setTimeout(() => {
+					timedOut = true;
+					// yt-dlp.exe is a onefile bundle that re-launches itself as a
+					// child; killing only the parent would orphan the real worker.
+					if (process.platform === "win32") {
+						spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+					} else {
+						child.kill();
+					}
+				}, timeoutMs)
+			: null;
 		if (capture) {
 			child.stdout.on("data", (d) => (out += d));
 			child.stderr.on("data", (d) => (err += d));
 		}
 		child.on("error", reject);
-		child.on("close", (code) =>
-			code === 0
-				? resolve({ out, err })
-				: reject(new Error(`${cmd} exited ${code}${err ? `: ${err.slice(-400)}` : ""}`))
-		);
+		child.on("close", (code) => {
+			if (timer) clearTimeout(timer);
+			if (timedOut) reject(new Error(`${cmd} timed out after ${Math.round(timeoutMs / 60000)} min`));
+			else if (code === 0) resolve({ out, err });
+			else reject(new Error(`${cmd} exited ${code}${err ? `: ${err.slice(-400)}` : ""}`));
+		});
 	});
 }
 
@@ -87,6 +101,51 @@ export async function discoverUploads(channelId) {
 	return entries;
 }
 
+/** Sunday School streams on the same channel; they are a class, not the service. */
+export function isServiceTitle(title) {
+	return !/sunday\s*school/i.test(title);
+}
+
+/**
+ * What YouTube says about one stream right now. The RSS feed lists a stream
+ * from the moment it is scheduled, so the feed alone cannot tell a finished
+ * service from one still in progress, and downloading a live stream records it
+ * in realtime. `serviceDate` is the local (Fresno) date the stream went live:
+ * a Wednesday 6:50 PM service is already Thursday in UTC.
+ */
+export async function probeStream(videoId) {
+	const { out } = await run(
+		"yt-dlp",
+		[
+			"--skip-download",
+			"--no-warnings",
+			"--print",
+			"%(live_status)s|%(release_timestamp)s|%(timestamp)s|%(duration)s",
+			`https://www.youtube.com/watch?v=${videoId}`,
+		],
+		{ capture: true, timeoutMs: 2 * 60 * 1000 }
+	);
+	const [liveStatus, release, uploaded, duration] = out.trim().split(/\r?\n/).pop().split("|");
+	const num = (s) => (/^\d+(\.\d+)?$/.test(s) ? Number(s) : null);
+	const startedAt = num(release) ?? num(uploaded);
+	return {
+		liveStatus,
+		startedAt: startedAt ? new Date(startedAt * 1000) : null,
+		durationSec: num(duration),
+		serviceDate: startedAt ? localDate(new Date(startedAt * 1000)) : null,
+	};
+}
+
+/** YYYY-MM-DD in the church's time zone. */
+export function localDate(date) {
+	return new Intl.DateTimeFormat("en-CA", {
+		timeZone: "America/Los_Angeles",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).format(date);
+}
+
 function decodeXml(s) {
 	return s
 		.replace(/&amp;/g, "&")
@@ -105,7 +164,7 @@ function decodeXml(s) {
  */
 export async function updateYtDlp() {
 	try {
-		const { out } = await run("yt-dlp", ["-U"], { capture: true });
+		const { out } = await run("yt-dlp", ["-U"], { capture: true, timeoutMs: 2 * 60 * 1000 });
 		return out.trim().split(/\r?\n/).pop() ?? "";
 	} catch (error) {
 		// An update failure is not fatal: the existing binary may still work.
@@ -119,22 +178,51 @@ export async function updateYtDlp() {
  * roughly realtime, so the caller should back off and retry rather than fail.
  */
 export function looksUnprocessed(message) {
-	return /This live event has ended|page needs to be reloaded|Requested format is not available/i.test(
+	return /This live event has ended|page needs to be reloaded|Requested format is not available|timed out|HTTP Error 403/i.test(
 		message
 	);
 }
 
+/**
+ * A processed VOD downloads in well under a minute. The cap is there for the
+ * live-DVR manifest, which crawls at about realtime: better to give up and
+ * retry once YouTube finishes than to hold the run for an hour and a half.
+ */
+const DOWNLOAD_TIMEOUT_MS = 20 * 60 * 1000;
+
+/**
+ * YouTube refuses a format URL with a 403 now and then; the same command
+ * succeeds seconds later (seen 2026-09-27: one 403, then three clean runs). So
+ * a failed attempt is retried in place before the run gives up.
+ */
+const DOWNLOAD_ATTEMPTS = 3;
+
 export async function downloadAudio(videoId, outPath) {
-	await run("yt-dlp", [
-		"-f",
-		"140/139/bestaudio",
-		"--concurrent-fragments",
-		"8",
-		"--no-progress",
-		"-o",
-		outPath,
-		`https://www.youtube.com/watch?v=${videoId}`,
-	]);
+	for (let attempt = 1; ; attempt += 1) {
+		try {
+			await run(
+				"yt-dlp",
+				[
+					"-f",
+					"140/139/bestaudio",
+					"--concurrent-fragments",
+					"8",
+					"--no-progress",
+					"-o",
+					outPath,
+					`https://www.youtube.com/watch?v=${videoId}`,
+				],
+				{ capture: true, timeoutMs: DOWNLOAD_TIMEOUT_MS }
+			);
+			break;
+		} catch (error) {
+			// A stream YouTube is still processing will not fix itself in seconds.
+			const unprocessed = /This live event has ended|Requested format is not available|timed out/i;
+			if (attempt >= DOWNLOAD_ATTEMPTS || unprocessed.test(error.message)) throw error;
+			console.log(`download attempt ${attempt} failed, retrying: ${error.message.split("\n").pop()}`);
+			await new Promise((resolve) => setTimeout(resolve, 20_000));
+		}
+	}
 	if (!fs.existsSync(outPath)) throw new Error(`yt-dlp produced no file at ${outPath}`);
 	return outPath;
 }

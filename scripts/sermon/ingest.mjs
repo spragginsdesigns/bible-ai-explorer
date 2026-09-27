@@ -6,14 +6,16 @@
 //        --video-id 43rbu63MQFY --title "The Cost of Following"
 //
 // Flags:
-//   --latest           newest upload on the channel that is not done yet
+//   --latest           newest service on the channel that is not done yet
+//                      (skips Sunday School, live streams, and anything past 14 days)
+//   --expect-date D    with --latest: exit 75 until the service on date D has a study
 //   --from-srt <path>  skip download and transcription, compose from this SRT
 //   --no-images        skip illustration (the slowest and only billed-by-image step)
 //   --keep-audio       leave the .m4a behind (it is ~70 MB per service)
 //   --out <dir>        output directory (default artifacts/sermons/<videoId>)
 //   --model <id>       override the composing model
-//   --date YYYY-MM-DD  service date; only --latest discovers it, and a study
-//                      published without one sorts above every dated study
+//   --date YYYY-MM-DD  service date; looked up from YouTube when omitted, except
+//                      with --from-srt, where a study without one sorts first
 //   --publish         upload illustrations and POST the study to SureWord
 //   --api <url>        target for --publish (default https://sureword.app)
 //
@@ -28,10 +30,12 @@ import {
 	discoverUploads,
 	downloadAudio,
 	generateImage,
+	isServiceTitle,
 	loadEnv,
 	looksUnprocessed,
 	model,
 	parseSrt,
+	probeStream,
 	renderMarkdown,
 	segmentService,
 	cuesBetween,
@@ -48,6 +52,10 @@ const FMBC_CHANNEL_ID = "UCiTssyWZc2PJ25OAZOaN7Ag";
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const MAX_IMAGES = 4;
 const TEMPFAIL = 75;
+/** --latest ignores services older than this, so a fresh checkout does not backfill the channel. */
+const LOOKBACK_DAYS = 14;
+/** Shorter uploads are clips or announcements, not a service. */
+const MIN_SERVICE_SEC = 15 * 60;
 
 function parseArgs(argv) {
 	const opts = {
@@ -61,6 +69,7 @@ function parseArgs(argv) {
 		videoId: null,
 		title: null,
 		date: null,
+		expectDate: null,
 		publish: false,
 		api: "https://sureword.app",
 		channelId: FMBC_CHANNEL_ID,
@@ -80,6 +89,7 @@ function parseArgs(argv) {
 		else if (a === "--video-id") opts.videoId = argv[++i];
 		else if (a === "--title") opts.title = argv[++i];
 		else if (a === "--date") opts.date = argv[++i];
+		else if (a === "--expect-date") opts.expectDate = argv[++i];
 		else if (!a.startsWith("--")) opts.videoId = extractVideoId(a);
 	}
 	return opts;
@@ -104,17 +114,24 @@ async function main() {
 	let meta = { videoId: opts.videoId, title: opts.title, serviceDate: opts.date };
 
 	if (opts.latest) {
-		const uploads = await discoverUploads(FMBC_CHANNEL_ID);
-		const next = uploads.find((u) => !fs.existsSync(path.join(outDirFor(opts, u.videoId), "study.md")));
-		if (!next) {
+		const pick = await selectNext(opts);
+		if (pick.status === "waiting") {
+			log(pick.reason);
+			process.exitCode = TEMPFAIL;
+			return;
+		}
+		if (pick.status === "none") {
 			log("nothing new on the channel.");
 			return;
 		}
-		meta = { videoId: next.videoId, title: next.title, serviceDate: next.published?.slice(0, 10) ?? null };
-		log(`latest unprocessed: ${meta.title} (${meta.videoId})`);
+		meta = pick.meta;
+		log(`latest unprocessed: ${meta.title} (${meta.videoId}), service of ${meta.serviceDate}`);
 	}
 
 	if (!meta.videoId) throw new Error("No video id. Pass a URL, an id, or --latest.");
+	if (!meta.serviceDate && !opts.fromSrt) {
+		meta.serviceDate = (await probeStream(meta.videoId)).serviceDate;
+	}
 	const outDir = outDirFor(opts, meta.videoId);
 	fs.mkdirSync(outDir, { recursive: true });
 
@@ -282,6 +299,67 @@ async function main() {
 		"utf8"
 	);
 	log(`wrote ${path.relative(root, path.join(outDir, "study.md"))}`);
+}
+
+/**
+ * The newest service on the channel that has no study yet.
+ *
+ * Returns "waiting" rather than "none" while a service is still live or not up
+ * yet, and (with --expect-date) until that day's service has a study, so the
+ * scheduled runner keeps polling after a service instead of quitting because
+ * the stream has not ended or the feed has not caught up.
+ */
+async function selectNext(opts) {
+	const uploads = await discoverUploads(opts.channelId);
+	const oldest = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+	let waiting = null;
+	for (const upload of uploads.slice(0, 8)) {
+		if (!isServiceTitle(upload.title)) continue;
+		if (fs.existsSync(path.join(outDirFor(opts, upload.videoId), "study.md"))) continue;
+		let stream;
+		try {
+			stream = await probeStream(upload.videoId);
+		} catch (error) {
+			// One unreadable video (private, removed) must not block the rest.
+			log(`skipping "${upload.title}": ${error.message.split("\n").pop()}`);
+			continue;
+		}
+		if (stream.liveStatus === "is_live" || stream.liveStatus === "is_upcoming") {
+			// Only a stream due around now counts; next week's scheduled service
+			// must not keep a run polling for days.
+			const soon = stream.startedAt && Math.abs(stream.startedAt - Date.now()) < 6 * 60 * 60 * 1000;
+			if (soon) waiting ??= `"${upload.title}" is ${stream.liveStatus.replace("is_", "")}; retry after it ends.`;
+			continue;
+		}
+		if (!stream.startedAt || stream.startedAt.getTime() < oldest) continue;
+		if (stream.durationSec && stream.durationSec < MIN_SERVICE_SEC) continue;
+		return {
+			status: "next",
+			meta: { videoId: upload.videoId, title: upload.title, serviceDate: stream.serviceDate },
+		};
+	}
+	if (waiting) return { status: "waiting", reason: waiting };
+	if (opts.expectDate && !hasStudyFor(opts.expectDate)) {
+		return {
+			status: "waiting",
+			reason: `no study for the ${opts.expectDate} service yet and the channel has nothing ready; retry shortly.`,
+		};
+	}
+	return { status: "none" };
+}
+
+function hasStudyFor(date) {
+	const dir = path.join(root, "artifacts", "sermons");
+	if (!fs.existsSync(dir)) return false;
+	return fs.readdirSync(dir).some((id) => {
+		const file = path.join(dir, id, "study.json");
+		if (!fs.existsSync(file) || !fs.existsSync(path.join(dir, id, "study.md"))) return false;
+		try {
+			return JSON.parse(fs.readFileSync(file, "utf8")).meta?.serviceDate === date;
+		} catch {
+			return false;
+		}
+	});
 }
 
 function outDirFor(opts, videoId) {
