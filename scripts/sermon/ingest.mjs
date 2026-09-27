@@ -12,7 +12,9 @@
 //   --keep-audio       leave the .m4a behind (it is ~70 MB per service)
 //   --out <dir>        output directory (default artifacts/sermons/<videoId>)
 //   --model <id>       override the composing model
-//   --publish          upload illustrations and POST the study to SureWord
+//   --date YYYY-MM-DD  service date; only --latest discovers it, and a study
+//                      published without one sorts above every dated study
+//   --publish         upload illustrations and POST the study to SureWord
 //   --api <url>        target for --publish (default https://sureword.app)
 //
 // Exits 75 (EX_TEMPFAIL) when YouTube has not finished turning the stream into
@@ -58,6 +60,7 @@ function parseArgs(argv) {
 		model: DEFAULT_MODEL,
 		videoId: null,
 		title: null,
+		date: null,
 		publish: false,
 		api: "https://sureword.app",
 		channelId: FMBC_CHANNEL_ID,
@@ -76,6 +79,7 @@ function parseArgs(argv) {
 		else if (a === "--model") opts.model = argv[++i];
 		else if (a === "--video-id") opts.videoId = argv[++i];
 		else if (a === "--title") opts.title = argv[++i];
+		else if (a === "--date") opts.date = argv[++i];
 		else if (!a.startsWith("--")) opts.videoId = extractVideoId(a);
 	}
 	return opts;
@@ -94,7 +98,10 @@ async function main() {
 	const apiKey = (env.OPENAI_API_KEY || process.env.OPENAI_API_KEY || "").trim();
 	if (!apiKey) throw new Error("OPENAI_API_KEY is required (env or .env.local).");
 
-	let meta = { videoId: opts.videoId, title: opts.title, serviceDate: null };
+	if (opts.date && !/^\d{4}-\d{2}-\d{2}$/.test(opts.date)) {
+		throw new Error(`--date must be YYYY-MM-DD, got "${opts.date}".`);
+	}
+	let meta = { videoId: opts.videoId, title: opts.title, serviceDate: opts.date };
 
 	if (opts.latest) {
 		const uploads = await discoverUploads(FMBC_CHANNEL_ID);

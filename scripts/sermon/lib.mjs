@@ -333,7 +333,9 @@ const sectionSchema = z.object({
 	passage: z
 		.string()
 		.nullable()
-		.describe('Canonical reference this section rests on, e.g. "Luke 9:59". Null if none.'),
+		.describe(
+			'The one canonical reference this section rests on: a single book, chapter and contiguous verse range, e.g. "Luke 9:59" or "Luke 9:57-62". Never list several references. Null if none.'
+		),
 	explanation: z
 		.string()
 		.describe("2-4 sentences of SureWord's own teaching on the passage and the point made."),
@@ -569,7 +571,14 @@ export function verifyStudy(root, rawStudy, cues = []) {
 	const dropped = [];
 	const sections = quoteResult.sections.map((section) => {
 		if (!section.passage) return { ...section, passageText: null };
-		const found = lookupPassage(root, section.passage);
+		// A section renders one passage, but the model still sometimes lists
+		// several ("James 1:2-4; 1 Peter 1:6-9", "Acts 8:1-5, 26"). Keep the first
+		// piece that resolves rather than losing the section's Scripture entirely.
+		const pieces = section.passage.split(";").map((piece) => piece.split(",")[0].trim());
+		const found = [section.passage, ...pieces].reduce(
+			(hit, ref) => hit ?? (ref ? lookupPassage(root, ref) : null),
+			null
+		);
 		if (!found) {
 			dropped.push(section.passage);
 			return { ...section, passage: null, passageText: null };
