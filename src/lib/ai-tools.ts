@@ -1264,18 +1264,10 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		execute: async (): Promise<DailyCrossToolOutput> => {
 			const existing = await findTodayCross(context.userId);
 			if (existing) {
-				const { scheduleDailyCrossAudio } = await import("@/lib/daily-cross-audio");
-				await scheduleDailyCrossAudio(context.userId).catch((error: unknown) => {
-					console.error(`[ai-tools] Could not schedule existing Daily Cross audio for ${context.userId}:`, error);
-				});
 				return toDailyCrossOutput(existing);
 			}
 			const cross = await generateDailyCross(context.userId);
 			await storeDailyCross(context.userId, cross);
-			const { scheduleDailyCrossAudio } = await import("@/lib/daily-cross-audio");
-			await scheduleDailyCrossAudio(context.userId).catch((error: unknown) => {
-				console.error(`[ai-tools] Could not schedule Daily Cross audio for ${context.userId}:`, error);
-			});
 			return toDailyCrossOutput(cross);
 		},
 	});

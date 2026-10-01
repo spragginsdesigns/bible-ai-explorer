@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { scheduleDailyCrossAudio } from "@/lib/daily-cross-audio";
 import {
 	DailyCrossDirectionError,
 	DailyCrossReferenceError,
@@ -72,9 +71,6 @@ export async function GET(): Promise<Response> {
 
 		const existing = await findTodayCross(userId);
 		if (existing) {
-			await scheduleDailyCrossAudio(userId).catch((error: unknown) => {
-				console.error(`[verse-of-day/today] Could not schedule existing audio for ${userId}:`, error);
-			});
 			return privateJson(toResponse(existing, existing.sentAt));
 		}
 		const limited = generationLimit(userId);
@@ -82,14 +78,6 @@ export async function GET(): Promise<Response> {
 
 		const cross = await generateDailyCross(userId);
 		const { id, sentAt } = await storeDailyCross(userId, cross);
-
-		// A day generated on demand earns its spoken devotional the same way the
-		// cron's does: started now, in the background, so the Listen card is
-		// already preparing by the time this response paints. Only the entitlement
-		// check is awaited here - the narration itself runs past the response.
-		await scheduleDailyCrossAudio(userId).catch((error: unknown) => {
-			console.error(`[verse-of-day/today] Could not schedule audio for ${userId}:`, error);
-		});
 
 		return privateJson(toResponse({ ...cross, id }, sentAt));
 	} catch (error) {

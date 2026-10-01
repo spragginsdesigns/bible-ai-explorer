@@ -593,8 +593,8 @@ model VerseOfDay {
   isFallback        Boolean? // null = legacy/unknown; new writes always set true/false
   fallbackReason    String?  @db.Text
 
-  // "Listen" - the spoken devotional for this day, generated with the day for
-  // Pro users so it is waiting when they open Pick Up Your Cross.
+  // "Listen" - the spoken devotional for this day, generated only when a
+  // Pro reader explicitly requests it. Replays reuse the same saved audio.
   audioUrl         String? // canonical Vercel Blob URL; clients get a short-lived signed URL instead
   audioPathname    String? // blob path, the handle used to sign and to delete
   audioScript      String? // the narrated text, shown as "Read along"

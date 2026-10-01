@@ -19,6 +19,8 @@ import {
 	type AudioSource,
 } from "expo-audio";
 import { GlassCard } from "@/components/ui";
+import { NarrationSetup } from "@/features/cross/NarrationSetup";
+import type { NarrationOptions } from "@/features/cross/narrationOptions";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import {
 	fetchTodayCrossAudio,
@@ -139,8 +141,8 @@ function PreparingShimmer() {
 /**
  * "Listen" - today's "Pick Up Your Cross" as a spoken devotional.
  *
- * The narration is made WITH the day, server-side, so this card never asks for
- * one: it shimmers until the scheduled generation lands, then becomes a player
+ * Opening only reads status. A voice choice and explicit request start narration,
+ * then the card becomes a player
  * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
  * SureWord Pro benefit, so a free account gets the locked panel instead, and a
  * server with no ElevenLabs key renders nothing at all, timeline stop included.
@@ -162,6 +164,8 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
 	const [playRequestedAt, setPlayRequestedAt] = useState<number | null>(null);
 	const [failureText, setFailureText] = useState<string | null>(null);
+	const [requesting, setRequesting] = useState(false);
+	const requestRef = useRef(false);
 	const [transcriptOpen, setTranscriptOpen] = useState(false);
 	const [trackWidth, setTrackWidth] = useState(0);
 	const [scrubFraction, setScrubFraction] = useState<number | null>(null);
@@ -178,7 +182,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	// times a second, and a stall timer that re-arms on every tick never fires.
 	const currentTimeRef = useRef(0);
 
-	const phase = failureText ? "failed" : listenPhase(audio);
+	const phase = requesting ? "preparing" : failureText ? "failed" : listenPhase(audio);
 
 	const streamUrl = audio?.streamUrl ?? null;
 	const [source, setSource] = useState<AudioSource | null>(null);
@@ -327,8 +331,8 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	}, [getToken, applyAudio]);
 
 	useEffect(() => {
-		void loadState();
-	}, [loadState]);
+		void fetchTodayCrossAudio(getToken).then(applyAudio).catch(() => setFailureText("Couldn't load audio. Try again."));
+	}, [getToken, applyAudio]);
 
 	// Poll while a devotional is being prepared, and give up rather than
 	// shimmer forever if the server never reports back.
@@ -346,22 +350,23 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	}, [phase, loadState]);
 
 	/**
-	 * The manual retry, and the only thing that ever POSTs. First generations
-	 * are started server-side with the day, so this is reachable from the failed
-	 * card alone.
+	 * The explicit generation action. Replays reuse the saved narration.
 	 */
-	const retry = useCallback(async () => {
+	const retry = useCallback(async (options: NarrationOptions = {}) => {
+		if (requestRef.current) return;
+		requestRef.current = true;
+		setRequesting(true);
 		setFailureText(null);
 		try {
-			const result = await requestTodayCrossAudio(getToken);
+			const result = await requestTodayCrossAudio(getToken, options);
 			applyAudio(result);
 			if (result.status === "failed") setFailureText("Couldn't prepare audio - try again");
 		} catch {
 			// The request itself can time out while the server is still narrating,
 			// so fall back to polling rather than declaring failure here.
-			void loadState();
-		}
-	}, [getToken, loadState, applyAudio]);
+			try { const state = await fetchTodayCrossAudio(getToken); applyAudio(state); if (state.status !== "pending" && state.status !== "ready") setFailureText("Couldn't prepare audio. Try again."); } catch { setFailureText("Couldn't prepare audio. Try again."); }
+		} finally { requestRef.current = false; setRequesting(false); }
+	}, [getToken, applyAudio]);
 
 	/**
 	 * Playback never started. Two things can be stale, so try the cheap one
@@ -496,26 +501,18 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 						<Text style={styles.lockGlyph}>🔒</Text>
 						<Text style={styles.lockTitle}>Listen is part of SureWord Pro</Text>
 						<Text style={styles.lockBody}>
-							A spoken devotional for every day&apos;s word, ready when you wake up.
+							A spoken devotional for today&apos;s word, made when you choose.
 							Self-service SureWord Pro access isn&apos;t available yet.
 						</Text>
 					</>
+				) : phase === "loading" ? (
+					<Text accessibilityLiveRegion="polite" style={styles.preparingText}>Loading audio…</Text>
+				) : phase === "idle" ? (
+					<NarrationSetup onGenerate={(options) => void retry(options)} />
 				) : phase === "preparing" ? (
 					<PreparingShimmer />
 				) : phase === "failed" ? (
-					<>
-						<Text style={styles.failureText}>Couldn&apos;t prepare audio - try again</Text>
-						<Pressable
-							accessibilityRole="button"
-							onPress={() => void retry()}
-							style={({ pressed }) => [
-								styles.primaryButton,
-								pressed && { backgroundColor: colors.accentPressed },
-							]}
-						>
-							<Text style={styles.primaryButtonLabel}>Try again</Text>
-						</Pressable>
-					</>
+					<><Text accessibilityLiveRegion="polite" style={styles.failureText}>{failureText || "Couldn't prepare audio. Try again."}</Text><NarrationSetup onGenerate={(options) => void retry(options)} /></>
 				) : (
 					<>
 						{audio?.title ? <Text style={styles.title}>{audio.title}</Text> : null}

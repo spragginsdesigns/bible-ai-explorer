@@ -1,3 +1,4 @@
+import type { NarrationOptions, NarrationVoices } from "@/features/cross/narrationOptions";
 import { apiJson, type GetToken } from "@/lib/api";
 
 /**
@@ -158,11 +159,11 @@ export function fetchTodayCrossAudio(getToken: GetToken) {
  * row is reused), but it is a model call plus a full narration when it does
  * run, so around 30-60s.
  */
-export function requestTodayCrossAudio(getToken: GetToken) {
+export function requestTodayCrossAudio(getToken: GetToken, options: NarrationOptions = {}) {
 	return apiJson<DailyCrossAudio>(
 		getToken,
 		"/api/verse-of-day/audio",
-		{ method: "POST" },
+		{ method: "POST", body: options },
 		{ timeoutMs: 300_000 }
 	);
 }
@@ -176,4 +177,8 @@ export function recordReadingEvent(
 		method: "POST",
 		body,
 	});
+}
+
+export function fetchNarrationVoices(getToken: GetToken) {
+	return apiJson<NarrationVoices>(getToken, "/api/verse-of-day/audio/voices");
 }

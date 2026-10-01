@@ -29,11 +29,10 @@ function audio(overrides: Partial<DailyCrossAudio>): DailyCrossAudio {
 }
 
 describe("listenPhase", () => {
-	it("waits by default - the devotional is made with the day, not on a tap", () => {
-		// Nothing here is an invitation any more: a card on screen means a day
-		// exists, and a day always schedules its narration.
-		expect(listenPhase(null)).toBe("preparing");
-		expect(listenPhase(audio({ status: "none" }))).toBe("preparing");
+	it("offers generation on demand and polls only an active request", () => {
+		// Opening is idle; only an explicit request can start generation.
+		expect(listenPhase(null)).toBe("loading");
+		expect(listenPhase(audio({ status: "none" }))).toBe("idle");
 		expect(listenPhase(audio({ status: "pending" }))).toBe("preparing");
 	});
 
@@ -43,7 +42,7 @@ describe("listenPhase", () => {
 	});
 
 	it("does not call a ready row playable without a URL", () => {
-		expect(listenPhase(audio({ status: "ready", url: null }))).toBe("preparing");
+		expect(listenPhase(audio({ status: "ready", url: null }))).toBe("failed");
 	});
 
 	it("hides the card outright when the server cannot narrate", () => {

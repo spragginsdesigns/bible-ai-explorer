@@ -65,12 +65,12 @@ test("window edges are inclusive", () => {
 	assert.equal(isActiveWithin(past, "edge", NOW, PUSH_ACTIVITY_WINDOW_MS), false);
 });
 
-test("the cron filters before the per-run cap and gates audio on the 7-day window", async () => {
+test("the cron filters before the per-run cap and never generates narration", async () => {
 	const route = await read("src/app/api/cron/verse-of-day/route.ts");
 	const filter = route.indexOf("splitByActivity(planned");
 	const cap = route.indexOf("active.slice(0, MAX_USERS_PER_RUN)");
 	assert.ok(filter > 0 && cap > filter, "activity filter must run before the MAX_USERS_PER_RUN slice");
-	assert.match(route, /isActiveWithin\(recentActivity, userId, now, AUDIO_ACTIVITY_WINDOW_MS\)/);
+	assert.doesNotMatch(route, /getOrCreateDailyCrossAudio|scheduleDailyCrossAudio/);
 	assert.match(route, /skippedInactiveUsers: inactive\.length/);
 	// Every activity source the plan names is part of the one grouped query.
 	for (const source of ['"Message"', '"ReadingEvent"', '"VerseHighlight"', '"Note"']) {

@@ -65,18 +65,12 @@ export const LISTEN_POLL_TIMEOUT_MS = 4 * 60 * 1000;
  */
 export const LISTEN_URL_STALE_AFTER_MS = 10 * 60 * 1000;
 
-export type ListenPhase = "hidden" | "locked" | "preparing" | "ready" | "failed";
+export type ListenPhase = "hidden" | "locked" | "loading" | "idle" | "preparing" | "ready" | "failed";
 
-/**
- * What the card should show.
- *
- * There is no "idle" phase any more. Nothing is generated on a tap: the day
- * and its narration are made together, so by the time this card is on screen
- * the devotional is ready, being made, or has failed. Both clients mount it
- * only inside a loaded day, which is why "none" - and a null payload before
- * the first poll answers - read as "being made" rather than "nothing here".
- */
+/** Opening reads status; only a real pending generation is polled. */
 export function listenPhase(audio: DailyCrossAudio | null): ListenPhase {
+	if (!audio) return "loading";
+	if (audio.status === "none") return "idle";
 	// A server that cannot narrate must offer nothing at all - not even for a
 	// Pro account. This outranks every other status.
 	if (audio?.status === "unavailable") return "hidden";
@@ -85,9 +79,7 @@ export function listenPhase(audio: DailyCrossAudio | null): ListenPhase {
 	if (audio?.status === "locked") return "locked";
 	if (audio?.status === "ready" && audio.url) return "ready";
 	if (audio?.status === "failed") return "failed";
-	// "pending", "none" before the scheduled generation has claimed the row, a
-	// ready row with no URL, or nothing fetched yet.
-	return "preparing";
+	return audio.status === "pending" ? "preparing" : "failed";
 }
 
 /** Whether the card should keep polling the server in this phase. */

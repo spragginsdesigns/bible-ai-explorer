@@ -3,8 +3,9 @@ import "server-only";
 import { clerkClient } from "@clerk/nextjs/server";
 import { generateText, Output } from "ai";
 import { get, head, put } from "@vercel/blob";
-import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
+import { narrationSettings, type NarrationOptions } from "@/lib/daily-cross-audio-options";
+import { defaultNarrationVoiceId, readNarrationVoices } from "@/lib/daily-cross-voices";
 import { isProUser } from "@/lib/entitlements";
 import type { UserPlan } from "@/lib/entitlements-rules";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
@@ -48,10 +49,8 @@ import {
  * ElevenLabs narrates it, and the MP3 lands in Vercel Blob against the
  * VerseOfDay row it belongs to.
  *
- * Generated once per day, WITH the day rather than on a tap: every place a
- * cross is stored calls `scheduleDailyCrossAudio`, so the devotional is
- * waiting when they open the screen. A SureWord Pro benefit - free accounts
- * get status "locked" before anything is spent.
+ * Generated once per day, only after the reader requests it.
+ * Free accounts get status "locked" before anything is spent.
  */
 
 /** Verses either side of the day's verse, so the script can set the scene. */
@@ -283,7 +282,7 @@ export async function generateDevotionalScript(
  * natural American delivery keeps the devotional personal rather than sounding
  * like a formal audiobook. `ELEVENLABS_VOICE_ID` can override it per environment.
  */
-const DEFAULT_VOICE_ID = "UgBBYS2sOqTuMpoF3BR0";
+
 
 /**
  * ElevenLabs' stability-first model for long-form narration (10,000 characters
@@ -305,16 +304,15 @@ const TTS_TIMEOUT_MS = 90_000;
  *
  * Deliberately plain `fetch` - the feature needs one endpoint, and an SDK
  * dependency for one POST is weight the bundle does not have to carry.
- * Voice settings are left to the voice's own stored settings: the premade
- * narration voices are already tuned, and overriding them here is a knob that
- * only ever drifts out of sync with what the voice sounds like today.
+ * The reader chooses a narrator and a bounded delivery preset.
+ * Neither choice alters the script or the quoted Scripture.
  * Paragraph breaks become `<break>` tags on the way out - see
  * `withSpokenPauses`.
  */
-export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
+export async function synthesizeSpeech(script: string, options: NarrationOptions = {}): Promise<ArrayBuffer> {
 	const apiKey = process.env.ELEVENLABS_API_KEY;
 	if (!isSpeechConfigured(apiKey)) throw new Error("ELEVENLABS_API_KEY is not set");
-	const voiceId = process.env.ELEVENLABS_VOICE_ID?.trim() || DEFAULT_VOICE_ID;
+	const voiceId = options.voiceId || defaultNarrationVoiceId();
 
 	const response = await fetch(
 		`${TTS_ENDPOINT}/${encodeURIComponent(voiceId)}?output_format=${TTS_OUTPUT_FORMAT}`,
@@ -325,7 +323,7 @@ export async function synthesizeSpeech(script: string): Promise<ArrayBuffer> {
 				"Content-Type": "application/json",
 				Accept: "audio/mpeg",
 			},
-			body: JSON.stringify({ text: withSpokenPauses(script), model_id: TTS_MODEL_ID }),
+			body: JSON.stringify({ text: withSpokenPauses(script), model_id: TTS_MODEL_ID, voice_settings: narrationSettings(options.style) }),
 			signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
 		}
 	);
@@ -593,22 +591,8 @@ export async function describeDailyCrossAudioStream(
 	return { status, headers, body: null };
 }
 
-/**
- * Today's devotional audio, generating it if there is none. Normally reached
- * through `scheduleDailyCrossAudio` when the day is stored; the POST route
- * calls it directly as the manual retry behind a failed card.
- *
- * Returns "unavailable" when this deployment has no ElevenLabs key, "locked"
- * for a free account, and "none" when the user has no day yet - the cross
- * itself is the other route's job, and generating one here would hide that the
- * two screens disagree.
- *
- * A "pending" row younger than its TTL is returned as-is, which is what makes
- * the once-per-day guarantee hold: the scheduled generation and a client
- * arriving mid-flight buy exactly one narration between them. The row is keyed
- * to the `VerseOfDay` id, so a replaced day gets one new narration and no more.
- */
-export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyCrossAudio> {
+/** Generate only on explicit request, reusing ready audio and active leases. */
+export async function getOrCreateDailyCrossAudio(userId: string, options: NarrationOptions = {}): Promise<DailyCrossAudio> {
 	// Cheapest possible refusal: no credentials, or no Pro, means no narration
 	// may run - so never touch the database or mark a row pending for work that
 	// must not happen.
@@ -626,6 +610,14 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 
 	const decision = resolveStoredAudio(existing);
 	if (decision !== "generate") return toClientAudio(existing);
+
+	// Validate a supplied voice against our actual account catalog before spending.
+	if (options.voiceId) {
+		const { voices } = await readNarrationVoices();
+		if (!voices.some((voice) => voice.id === options.voiceId)) {
+			throw new Response(JSON.stringify({ error: "Choose an available narration voice." }), { status: 400, headers: { "Content-Type": "application/json" } });
+		}
+	}
 
 	// Claim atomically. Every contender may have read the old row, but only one
 	// update can still match its generate-eligible state after the first writes
@@ -658,7 +650,7 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 	let published = false;
 	try {
 		const { script, title } = await generateDevotionalScript(userId, cross);
-		const mp3 = await synthesizeSpeech(script);
+		const mp3 = await synthesizeSpeech(script, options);
 		// Every lease writes a unique object. A stale worker may finish after a
 		// newer claimant, but it can no longer overwrite the winner's bytes.
 		const pathname = dailyCrossAudioPathname(userId, `${cross.id}-${claimedAt.getTime()}`);
@@ -708,37 +700,4 @@ export async function getOrCreateDailyCrossAudio(userId: string): Promise<DailyC
 		const row = await prisma.verseOfDay.findUnique({ where: { id: cross.id }, select: AUDIO_SELECT });
 		return row ? toClientAudio(row) : NO_AUDIO;
 	}
-}
-
-/**
- * Start today's narration in the background and return immediately.
- *
- * This is how audio is made now: **with the day, not on a tap.** Every place a
- * cross is stored calls this, so someone opening Pick Up Your Cross finds the
- * devotional already there, or watches it finish inside a minute. The old
- * generate-on-first-tap path survives only as the manual retry behind a failed
- * card.
- *
- * Idempotent by construction - it defers to `getOrCreateDailyCrossAudio`,
- * which reuses a ready row and a pending row under three minutes old, so
- * calling it twice for the same day buys one narration. Refusals (no
- * ElevenLabs key, not Pro, no day yet) cost nothing and write nothing.
- *
- * `waitUntil` is what keeps the HTTP response from waiting on a ~30-60s
- * narration: the work outlives the response inside the same function
- * invocation.
- */
-export async function scheduleDailyCrossAudio(userId: string): Promise<void> {
-	// Refuse before scheduling rather than inside the background task, so a free
-	// or unconfigured account never even queues work.
-	if (await refuseAudio(userId)) return;
-
-	waitUntil(
-		getOrCreateDailyCrossAudio(userId).catch((error: unknown) => {
-			// Nothing is waiting on this, so a failure must not reject into the
-			// platform's handler. `getOrCreateDailyCrossAudio` has already marked
-			// the row "failed", which is what the card reads.
-			console.error(`[daily-cross-audio] Scheduled generation failed for ${userId}:`, error);
-		})
-	);
 }

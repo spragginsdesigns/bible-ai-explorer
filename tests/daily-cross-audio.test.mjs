@@ -137,17 +137,15 @@ test("an unconfigured server hides the card outright, plan or no plan", () => {
 	assert.equal(shouldPollListen("hidden"), false);
 });
 
-test("the card waits by default - audio is made with the day, not on a tap", () => {
-	// There is no invitation to tap any more: a card on screen means a day
-	// exists, and a stored day always schedules its own narration.
-	assert.equal(listenPhase(null), "preparing");
-	assert.equal(listenPhase({ status: "none", url: null }), "preparing");
+test("the card offers generation on demand and polls only an active request", () => {
+	// Opening is idle; only an explicit request can start generation.
+	assert.equal(listenPhase(null), "loading");
+	assert.equal(listenPhase({ status: "none", url: null }), "idle");
 	assert.equal(listenPhase({ status: "pending", url: null }), "preparing");
 	assert.equal(listenPhase({ status: "failed", url: null }), "failed");
 	assert.equal(listenPhase({ status: "ready", url: "https://blob/x.mp3" }), "ready");
-	// A ready row with no URL is not playable; keep waiting rather than show a
-	// player with nothing in it.
-	assert.equal(listenPhase({ status: "ready", url: null }), "preparing");
+	// A ready row with no URL needs explicit recovery, not endless polling.
+	assert.equal(listenPhase({ status: "ready", url: null }), "failed");
 
 	assert.equal(shouldPollListen("preparing"), true);
 	assert.equal(shouldPollListen("ready"), false);

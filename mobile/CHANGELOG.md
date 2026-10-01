@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.78.0 (versionCode 87) - 2026-10-01 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Pick Up Your Cross audio is now made when you ask. Choose a narrator, preview their voice, and pick Calm, Natural or Expressive delivery before generating.
+- Your audio is saved for repeat listening. Adjust playback speed and read along with the transcript.
+
+**Dev notes:** Removes automatic narration from the daily cron, day reads and replacements, and chat tools. One atomic generation claim per day, private audio and Pro access remain in place. The same bundle is promoted to closed testing.
+
 ## 1.77.0 (versionCode 86) - 2026-09-23 - internal
 
 **What's new (Play):**

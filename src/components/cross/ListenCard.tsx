@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import NarrationSetup from "@/components/cross/NarrationSetup";
+import type { NarrationOptions } from "@/lib/daily-cross-audio-options";
 import TimelineStop from "@/components/cross/TimelineStop";
 import {
 	DEFAULT_LISTEN_RATE,
@@ -76,8 +78,8 @@ function playbackSrc(audio: DailyCrossAudio | null): string | undefined {
 /**
  * "Listen" - today's "Pick Up Your Cross" as a spoken devotional.
  *
- * The narration is made WITH the day, server-side, so this card never asks for
- * one: it shimmers until the scheduled generation lands, then becomes a player
+ * Opening only reads status. The reader chooses a voice and explicitly requests
+ * narration, then the card becomes a player
  * with a scrubber, a speed chip and a "Read along" transcript. Listen is a
  * SureWord Pro benefit, so a free account gets the locked panel instead, and a
  * server with no ElevenLabs key renders nothing at all, timeline stop included.
@@ -89,6 +91,8 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
 	const [failed, setFailed] = useState(false);
+	const [requesting, setRequesting] = useState(false);
+	const requestRef = useRef(false);
 	const [transcriptOpen, setTranscriptOpen] = useState(false);
 	const [playing, setPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
@@ -104,7 +108,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	const resumePlayingRef = useRef(false);
 	const refreshedRef = useRef(false);
 
-	const phase = failed ? "failed" : listenPhase(audio);
+	const phase = requesting ? "preparing" : failed ? "failed" : listenPhase(audio);
 
 	// The element's real duration once the file is loaded; the server's
 	// word-count estimate before that, so the total never reads 0:00.
@@ -126,8 +130,8 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	}, [applyAudio]);
 
 	useEffect(() => {
-		void loadState();
-	}, [loadState]);
+		void readAudio().then(applyAudio).catch(() => setFailed(true));
+	}, [applyAudio]);
 
 	// The element is recreated whenever the source changes, and a fresh element
 	// starts at 1x - so the rate is applied as an effect rather than once on
@@ -207,22 +211,23 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	}, [phase, loadState]);
 
 	/**
-	 * The manual retry, and the only thing that ever POSTs. First generations
-	 * are started server-side with the day, so this is reachable from the failed
-	 * card alone.
+	 * The explicit generation action. Replays reuse the saved narration.
 	 */
-	const retry = useCallback(async () => {
+	const retry = useCallback(async (options: NarrationOptions = {}) => {
+		if (requestRef.current) return;
+		requestRef.current = true;
+		setRequesting(true);
 		setFailed(false);
 		try {
-			const result = await readAudio({ method: "POST" });
+			const result = await readAudio({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(options) });
 			applyAudio(result);
 			if (result.status === "failed") setFailed(true);
 		} catch {
 			// The request itself can time out while the server is still narrating,
 			// so fall back to polling rather than declaring failure here.
-			void loadState();
-		}
-	}, [applyAudio, loadState]);
+			try { const state = await readAudio(); applyAudio(state); if (state.status !== "pending" && state.status !== "ready") setFailed(true); } catch { setFailed(true); }
+		} finally { requestRef.current = false; setRequesting(false); }
+	}, [applyAudio]);
 
 	/**
 	 * Playback died. The stale-signature retry below is now belt and braces -
@@ -278,7 +283,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 						Listen is part of SureWord Pro
 					</p>
 					<p className="text-center text-[13.5px] leading-5 text-neutral-500 dark:text-neutral-400">
-						A spoken devotional for every day&apos;s word, ready when you wake up.
+						A spoken devotional for today&apos;s word, made when you choose.
 						Self-service SureWord Pro access isn&apos;t available yet.
 					</p>
 				</div>
@@ -286,11 +291,15 @@ export default function ListenCard({ reference }: { reference?: string | null })
 		);
 	}
 
+	if (phase === "loading") return <TimelineStop glyph="♪" label="LISTEN"><p role="status" className="p-5 text-sm">Loading audio…</p></TimelineStop>;
+
+	if (phase === "idle") return <TimelineStop glyph="♪" label="LISTEN"><div className="glass-card gradient-border rounded-2xl p-5"><NarrationSetup onGenerate={(options) => void retry(options)} /></div></TimelineStop>;
+
 	if (phase === "preparing") {
 		return (
 			<TimelineStop glyph="♪" label="LISTEN">
 				<div
-					aria-label="Preparing your devotional"
+					role="status" aria-label="Preparing your devotional"
 					className="glass-card gradient-border flex flex-col gap-2 rounded-2xl p-5"
 				>
 					<div className="h-3 animate-pulse rounded-full border border-amber-500/20 dark:border-amber-400/20 bg-amber-500/15 dark:bg-amber-400/15 glow-amber-sm" />
@@ -306,22 +315,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	}
 
 	if (phase === "failed") {
-		return (
-			<TimelineStop glyph="♪" label="LISTEN">
-				<div className="glass-card gradient-border flex flex-col items-center gap-3 rounded-2xl p-5">
-					<p className="text-center text-sm leading-5 text-neutral-600 dark:text-neutral-300">
-						{FAILURE_TEXT}
-					</p>
-					<button
-						type="button"
-						onClick={() => void retry()}
-						className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-sm font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
-					>
-						Try again
-					</button>
-				</div>
-			</TimelineStop>
-		);
+		return <TimelineStop glyph="♪" label="LISTEN"><div className="glass-card gradient-border flex flex-col gap-4 rounded-2xl p-5"><p role="alert" className="text-sm text-neutral-700 dark:text-neutral-200">{FAILURE_TEXT}</p><NarrationSetup onGenerate={(options) => void retry(options)} /></div></TimelineStop>;
 	}
 
 	return (

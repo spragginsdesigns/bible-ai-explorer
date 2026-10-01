@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
@@ -14,18 +15,7 @@ export const maxDuration = 300;
 
 const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
 
-/**
- * "Listen" - today's spoken devotional.
- *
- * Audio is generated ONCE PER DAY, WITH the day: every place a cross is stored
- * calls `scheduleDailyCrossAudio`, so a user opening Pick Up Your Cross finds
- * it ready or watches it finish within a minute. GET is what the clients poll;
- * POST survives only as the manual retry behind a failed card, and no client
- * calls it to start a first generation any more.
- *
- * Listen is a SureWord Pro benefit. Free accounts get `status: "locked"`
- * before any database write, model call or ElevenLabs request.
- */
+/** GET reads status. POST is the only entry point that can buy narration. */
 
 function toResponse(audio: DailyCrossAudio) {
 	return NextResponse.json(
@@ -45,8 +35,8 @@ function toResponse(audio: DailyCrossAudio) {
 
 /**
  * The state of today's spoken devotional. Cheap and side-effect free: this is
- * the ONLY call a client makes to reach a devotional now, polled every few
- * seconds while the scheduled generation is still running.
+ * read performed on opening the screen, then polled only while a requested
+ * generation is running.
  *
  * `status` is "unavailable" when this deployment has no ElevenLabs key (the
  * clients then render no Listen card at all), "locked" for a free account (the
@@ -94,20 +84,18 @@ async function captureListen(
 	await flushAnalytics();
 }
 
-/**
- * The manual retry, and nothing else. A devotional that failed to generate
- * leaves a "failed" row and a "Try again" button; this is what that button
- * calls. First generations are scheduled with the day, so no client asks for
- * one here any more.
- *
- * Still safe to call twice: it reuses a ready row and a pending row under
- * three minutes old, so a retry that races the scheduled attempt buys one
- * narration between them, not two.
- */
+/** Empty bodies remain valid for older clients requesting the default voice. */
 export async function POST(req: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
-		const audio = await getOrCreateDailyCrossAudio(userId);
+		const raw = await req.text();
+		let body: unknown = {};
+		try { body = raw.trim() ? JSON.parse(raw) : {}; } catch {
+			return NextResponse.json({ error: "Invalid audio options." }, { status: 400, headers: PRIVATE_NO_STORE });
+		}
+		const parsed = z.object({ voiceId: z.string().trim().min(1).max(100).optional(), style: z.enum(["calm", "natural", "expressive"]).optional() }).strict().safeParse(body);
+		if (!parsed.success) return NextResponse.json({ error: "Invalid audio options." }, { status: 400, headers: PRIVATE_NO_STORE });
+		const audio = await getOrCreateDailyCrossAudio(userId, parsed.data);
 		await captureListen(userId, req, audio, true);
 		return toResponse(audio);
 	} catch (error) {
