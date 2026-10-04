@@ -29,8 +29,9 @@ export function receiptHref(target: ChatReceiptTarget): string {
 			// The notes page auto-selects the note named by ?note=.
 			return `/notes?note=${encodeURIComponent(target.noteId)}`;
 		case "memories":
-			// Memory lives in a dialog on Settings, so a single memory is not
-			// separately addressable; the section anchor is as close as web gets.
+			// Memory lives in a dialog on Settings, and arriving on /settings#memory
+			// opens that dialog (Android goes straight to its Memories screen). A
+			// single memory is not separately addressable, so the list is the target.
 			return "/settings#memory";
 		case "chapter": {
 			const params = new URLSearchParams({

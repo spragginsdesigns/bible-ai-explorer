@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -29,6 +29,8 @@ interface SermonStudyDetail {
 	prayer: string;
 	sections: SermonSection[];
 	sermonStartMs: number | null;
+	/** The first section's picture, chosen by the API as the study's hero. */
+	imageUrl: string | null;
 }
 
 const watchUrl = (videoId: string, atMs?: number | null) =>
@@ -76,52 +78,95 @@ export default function SermonStudyPage() {
 	const [study, setStudy] = useState<SermonStudyDetail | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (!params?.id) return;
-		let cancelled = false;
-		fetch(`/api/sermon-studies/${params.id}`)
+	const id = params?.id;
+	const sequence = useRef(0);
+	const loaded = useRef(false);
+
+	// Mirrors Android's useFocusEffect load: on mount, on "Try again", and when
+	// the window regains focus. A refresh that fails after the study is already
+	// on screen leaves it there rather than swapping in the error card.
+	const load = useCallback(() => {
+		if (!id) return;
+		const request = ++sequence.current;
+		setError(null);
+		fetch(`/api/sermon-studies/${id}`)
 			.then((res) =>
 				res.ok ? res.json() : Promise.reject(new Error(res.status === 404 ? "404" : "failed"))
 			)
-			.then((data) => {
-				if (!cancelled) setStudy(data.study);
+			.then((data: { study: SermonStudyDetail }) => {
+				if (request !== sequence.current) return;
+				loaded.current = true;
+				setStudy(data.study);
 			})
 			.catch((err: Error) => {
-				if (!cancelled) setError(err.message === "404" ? "not-found" : "failed");
+				if (request !== sequence.current) return;
+				if (err.message === "404") {
+					setStudy(null);
+					setError("not-found");
+				} else if (!loaded.current) {
+					setError("failed");
+				}
 			});
-		return () => {
-			cancelled = true;
+	}, [id]);
+
+	useEffect(() => {
+		loaded.current = false;
+		setStudy(null);
+		load();
+		const onVisibility = () => {
+			if (document.visibilityState === "visible") load();
 		};
-	}, [params?.id]);
+		window.addEventListener("focus", load);
+		document.addEventListener("visibilitychange", onVisibility);
+		// Unmounting supersedes whatever is still in flight.
+		const requests = sequence;
+		return () => {
+			requests.current++;
+			window.removeEventListener("focus", load);
+			document.removeEventListener("visibilitychange", onVisibility);
+		};
+	}, [load]);
 
 	if (error) {
 		return (
-			<main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
-				<p className="text-neutral-600 dark:text-neutral-300">
-					{error === "not-found"
-						? "That study is not available."
-						: "Something went wrong loading this study."}
-				</p>
-				<Link href="/sermons" className="mt-3 inline-block text-amber-600 dark:text-amber-400">
-					Back to sermon studies
+			<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
+				<Link
+					href="/sermons"
+					className="text-metadata font-bold uppercase tracking-[0.12em] text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+				>
+					‹ Sermon studies
 				</Link>
+				<div className="mt-4 rounded-2xl border border-black/[0.08] bg-black/[0.03] px-5 py-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+					<p role="alert" className="text-neutral-600 dark:text-neutral-300">
+						{error === "not-found" ? "That study is not available." : "Could not load this study."}
+					</p>
+					{error !== "not-found" && (
+						<button
+							type="button"
+							onClick={load}
+							className="mt-1 min-h-[40px] text-sm font-semibold text-amber-600 dark:text-amber-400"
+						>
+							Try again
+						</button>
+					)}
+				</div>
 			</main>
 		);
 	}
 
 	if (!study) {
 		return (
-			<main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
+			<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
 				<div className="h-64 animate-pulse rounded-2xl border border-black/[0.08] bg-black/[0.03] dark:border-white/[0.06] dark:bg-white/[0.03]" />
 			</main>
 		);
 	}
 
-	const hero = study.sections.find((s) => s.imageUrl)?.imageUrl ?? null;
+	const hero = study.imageUrl;
 	const askHref = `/?prompt=${encodeURIComponent(`Let's talk about the sermon study "${study.title}".`)}`;
 
 	return (
-		<main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
+		<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
 			<Link
 				href="/sermons"
 				className="text-metadata font-bold uppercase tracking-[0.12em] text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
@@ -176,7 +221,7 @@ export default function SermonStudyPage() {
 						Watch from {timestamp(section.startMs)}
 					</a>
 
-					{section.imageUrl && index > 0 && (
+					{section.imageUrl && index > 0 && section.imageUrl !== hero && (
 						// eslint-disable-next-line @next/next/no-img-element
 						<img
 							src={section.imageUrl}
@@ -232,7 +277,7 @@ export default function SermonStudyPage() {
 				<p className="mt-2 text-neutral-700 dark:text-neutral-200">{study.prayer}</p>
 			</section>
 
-			<div className="sticky bottom-0 -mx-5 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
+			<div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] -mx-5 lg:bottom-0 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
 				<a
 					href={watchUrl(study.videoId, study.sermonStartMs)}
 					target="_blank"

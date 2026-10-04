@@ -15,6 +15,78 @@ const PRESET_COLORS = [
 	"#f97316", // orange
 ];
 
+interface NewTagFormProps {
+	onCreate: (name: string, color: string) => void;
+	onCancel: () => void;
+}
+
+/** Tag name + swatch form, shared by the note's tag menu, the list chips and the sidebar. */
+export const NewTagForm: React.FC<NewTagFormProps> = ({ onCreate, onCancel }) => {
+	const [name, setName] = useState("");
+	const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
+
+	const handleCreate = () => {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+		onCreate(trimmed, selectedColor);
+		setName("");
+	};
+
+	return (
+		<div className="space-y-2">
+			<input
+				autoFocus
+				value={name}
+				onChange={(e) => setName(e.target.value)}
+				onKeyDown={(e) => {
+					if (e.key === "Enter") handleCreate();
+					if (e.key === "Escape") {
+						e.preventDefault();
+						e.stopPropagation();
+						onCancel();
+					}
+				}}
+				placeholder="Tag name"
+				aria-label="Tag name"
+				className="w-full bg-transparent text-neutral-800 dark:text-neutral-200 text-xs outline-none border-b border-black/[0.1] dark:border-white/[0.1] pb-1 placeholder:text-neutral-400 dark:placeholder:text-neutral-600"
+			/>
+			<div className="flex items-center gap-1.5" role="radiogroup" aria-label="Tag colour">
+				{PRESET_COLORS.map((color) => (
+					<button
+						key={color}
+						type="button"
+						role="radio"
+						aria-checked={selectedColor === color}
+						aria-label={color}
+						onClick={() => setSelectedColor(color)}
+						className={`w-5 h-5 rounded-full transition-transform ${
+							selectedColor === color ? "scale-125 ring-2 ring-offset-1 ring-offset-transparent ring-white/20" : ""
+						}`}
+						style={{ backgroundColor: color }}
+					/>
+				))}
+			</div>
+			<div className="flex items-center gap-2">
+				<button
+					type="button"
+					onClick={handleCreate}
+					disabled={!name.trim()}
+					className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors disabled:opacity-40"
+				>
+					Create tag
+				</button>
+				<button
+					type="button"
+					onClick={onCancel}
+					className="text-xs text-neutral-500 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-400 transition-colors"
+				>
+					Cancel
+				</button>
+			</div>
+		</div>
+	);
+};
+
 interface TagManagerProps {
 	tags: Tag[];
 	noteTagIds: string[];
@@ -33,16 +105,6 @@ const TagManager: React.FC<TagManagerProps> = ({
 	onClose,
 }) => {
 	const [isCreating, setIsCreating] = useState(false);
-	const [newName, setNewName] = useState("");
-	const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0]);
-
-	const handleCreate = () => {
-		const name = newName.trim();
-		if (!name) return;
-		onCreateTag(name, selectedColor);
-		setNewName("");
-		setIsCreating(false);
-	};
 
 	return (
 		<div className="glass-card border border-white/[0.08] rounded-xl shadow-xl p-3 min-w-[200px] animate-message-in">
@@ -88,44 +150,14 @@ const TagManager: React.FC<TagManagerProps> = ({
 
 			{/* Create new tag */}
 			{isCreating ? (
-				<div className="border-t border-white/[0.06] pt-2 space-y-2">
-					<input
-						autoFocus
-						value={newName}
-						onChange={(e) => setNewName(e.target.value)}
-						onKeyDown={(e) => {
-							if (e.key === "Enter") handleCreate();
-							if (e.key === "Escape") setIsCreating(false);
+				<div className="border-t border-white/[0.06] pt-2">
+					<NewTagForm
+						onCreate={(name, color) => {
+							onCreateTag(name, color);
+							setIsCreating(false);
 						}}
-						placeholder="Tag name"
-						className="w-full bg-transparent text-neutral-200 text-xs outline-none border-b border-white/[0.1] pb-1 placeholder:text-neutral-600"
+						onCancel={() => setIsCreating(false)}
 					/>
-					<div className="flex items-center gap-1.5">
-						{PRESET_COLORS.map((color) => (
-							<button
-								key={color}
-								onClick={() => setSelectedColor(color)}
-								className={`w-5 h-5 rounded-full transition-transform ${
-									selectedColor === color ? "scale-125 ring-2 ring-offset-1 ring-offset-transparent ring-white/20" : ""
-								}`}
-								style={{ backgroundColor: color }}
-							/>
-						))}
-					</div>
-					<div className="flex items-center gap-2">
-						<button
-							onClick={handleCreate}
-							className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
-						>
-							Create
-						</button>
-						<button
-							onClick={() => setIsCreating(false)}
-							className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors"
-						>
-							Cancel
-						</button>
-					</div>
 				</div>
 			) : (
 				<button

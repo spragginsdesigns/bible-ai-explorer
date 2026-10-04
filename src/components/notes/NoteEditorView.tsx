@@ -2,11 +2,12 @@
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import NoteEditorTopBar, { type NoteSaveStatus } from "./NoteEditorTopBar";
-import TiptapEditor, { type TiptapEditorHandle } from "./TiptapEditor";
+import TiptapEditor, { type NoteSaveData, type TiptapEditorHandle } from "./TiptapEditor";
 import NoteAIPanel from "./NoteAIPanel";
 import NoteInfoPanel from "./NoteInfoPanel";
 import type { NoteAppendEvent } from "@/hooks/useNoteAI";
-import type { Note, Folder, Tag } from "@/types/notes";
+import type { UpdateNoteOptions } from "@/hooks/useNotes";
+import { editorContentFor, type Note, type Folder, type Tag } from "@/types/notes";
 
 interface NoteEditorViewProps {
 	note: Note;
@@ -14,7 +15,7 @@ interface NoteEditorViewProps {
 	folders: Folder[];
 	tags: Tag[];
 	onBack: () => void;
-	onUpdate: (id: string, changes: Partial<Note>) => Promise<boolean>;
+	onUpdate: (id: string, changes: Partial<Note>, options?: UpdateNoteOptions) => Promise<boolean>;
 	onDelete: (id: string) => void;
 	onTogglePin: (id: string) => void;
 	onToggleTag: (noteId: string, tagId: string) => void;
@@ -44,6 +45,9 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	const [saveStatus, setSaveStatus] = useState<NoteSaveStatus>("idle");
 	const editorRef = useRef<TiptapEditorHandle>(null);
 	const saveSeqRef = useRef(0);
+	const currentNoteRef = useRef(note.id);
+	currentNoteRef.current = note.id;
+	const backBusy = useRef(false);
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 1023px)");
@@ -66,23 +70,54 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	}, [saveStatus]);
 
 	const handleSave = useCallback(
-		async (data: {
-			content: string;
-			htmlContent: string;
-			plainText: string;
-			wordCount: number;
-		}) => {
+		async (data: NoteSaveData, ownerId: string, options?: UpdateNoteOptions) => {
+			// A save flushed while switching notes belongs to the previous note
+			// and must not stamp the status of the one now on screen.
+			const isCurrent = ownerId === currentNoteRef.current;
 			// Overlapping saves resolve out of order; only the newest save may
 			// stamp the final status.
-			const seq = ++saveSeqRef.current;
-			setSaveStatus("saving");
-			const ok = await onUpdate(note.id, data);
-			if (seq === saveSeqRef.current) setSaveStatus(ok ? "saved" : "error");
+			const seq = isCurrent ? ++saveSeqRef.current : -1;
+			if (isCurrent) setSaveStatus("saving");
+			const ok = await onUpdate(ownerId, data, options);
+			if (seq === saveSeqRef.current && ownerId === currentNoteRef.current) {
+				setSaveStatus(ok ? "saved" : "error");
+			}
+			return ok;
 		},
-		[note.id, onUpdate]
+		[onUpdate]
 	);
 
 	const handleSavePending = useCallback(() => setSaveStatus("saving"), []);
+
+	// Back waits for the pending save, as Android's editor does: a failed save
+	// keeps the note open with its error showing instead of dropping the edits.
+	const handleBack = useCallback(async () => {
+		if (backBusy.current) return;
+		backBusy.current = true;
+		try {
+			const flushed = await editorRef.current?.flush();
+			if (flushed === false) {
+				setSaveStatus("error");
+				return;
+			}
+			onBack();
+		} finally {
+			backBusy.current = false;
+		}
+	}, [onBack]);
+
+	// Save first so the assistant reads the current text, not the last autosave.
+	const handleToggleAIPanel = useCallback(async () => {
+		if (aiPanelOpen) {
+			setAiPanelOpen(false);
+			return;
+		}
+		if ((await editorRef.current?.flush()) === false) {
+			setSaveStatus("error");
+			return;
+		}
+		setAiPanelOpen(true);
+	}, [aiPanelOpen]);
 
 	// When the AI appends to the open note, insert into the live editor; the
 	// editor's save round-trip then reconciles state and Tiptap JSON.
@@ -99,12 +134,39 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		[note.id, onUpdate]
 	);
 
-	const handleCopyMarkdown = useCallback(async (title: string) => {
-		if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+	const readMarkdown = useCallback((title: string): string => {
 		const markdown = editorRef.current?.getMarkdown(title);
 		if (markdown === undefined) throw new Error("Editor unavailable");
-		await navigator.clipboard.writeText(markdown);
+		return markdown;
 	}, []);
+
+	const handleCopyMarkdown = useCallback(async (title: string) => {
+		if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+		await navigator.clipboard.writeText(readMarkdown(title));
+	}, [readMarkdown]);
+
+	// Android's "Share as Markdown": the system share sheet where there is
+	// one, the clipboard everywhere else.
+	const handleShareMarkdown = useCallback(
+		async (title: string): Promise<"shared" | "copied" | "cancelled"> => {
+			const markdown = readMarkdown(title);
+			if (typeof navigator.share === "function") {
+				try {
+					await navigator.share({ title, text: markdown });
+					return "shared";
+				} catch (error) {
+					// Dismissing the sheet is a choice, not a failure.
+					if (error instanceof DOMException && error.name === "AbortError") return "cancelled";
+				}
+			}
+			if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+			await navigator.clipboard.writeText(markdown);
+			return "copied";
+		},
+		[readMarkdown]
+	);
+
+	const folderName = folders.find((f) => f.id === note.folderId)?.name ?? null;
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0">
@@ -112,7 +174,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				note={note}
 				folders={folders}
 				tags={tags}
-				onBack={onBack}
+				onBack={() => void handleBack()}
 				onUpdateTitle={(title) => onUpdate(note.id, { title })}
 				onDelete={() => onDelete(note.id)}
 				onTogglePin={() => onTogglePin(note.id)}
@@ -121,16 +183,17 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				onCreateTag={onCreateTag}
 				onDeleteTag={onDeleteTag}
 				onCopyMarkdown={handleCopyMarkdown}
+				onShareMarkdown={handleShareMarkdown}
 				saveStatus={saveStatus}
 				aiPanelOpen={aiPanelOpen}
-				onToggleAIPanel={() => setAiPanelOpen(!aiPanelOpen)}
+				onToggleAIPanel={() => void handleToggleAIPanel()}
 			/>
 			<div className="flex-1 flex min-h-0 relative">
 				{/* Editor - always full width on mobile, 3/5 on desktop when AI open */}
 				<div className={`flex flex-col min-h-0 ${aiPanelOpen && !isMobile ? "w-3/5" : "flex-1"}`}>
 					<TiptapEditor
 						ref={editorRef}
-						content={note.content}
+						content={editorContentFor(note)}
 						noteId={note.id}
 						linkTargets={notes}
 						onOpenNote={onOpenNote}
@@ -139,6 +202,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 					/>
 					<NoteInfoPanel
 						note={note}
+						folderName={folderName}
 						onUpdate={handleInfoUpdate}
 						onOpenNote={onOpenNote}
 						onCreateLinkedNote={onCreateLinkedNote}

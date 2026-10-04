@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AtlasChapterView,
-  AtlasEntityRef,
+  AtlasEntitySummary,
   AtlasEntityView,
   AtlasEraGroup,
   AtlasEventView,
@@ -173,8 +173,8 @@ export function useAtlasSearch(
 }
 
 export interface AtlasEntityListResponse {
-  results?: AtlasEntityRef[];
-  items?: AtlasEntityRef[];
+  results?: AtlasEntitySummary[];
+  items?: AtlasEntitySummary[];
   nextCursor?: string | null;
   cursor?: string | null;
 }
@@ -185,7 +185,7 @@ export function useAtlasEntities(
   era?: string | null,
   limit = 24,
 ): {
-  items: AtlasEntityRef[];
+  items: AtlasEntitySummary[];
   loading: boolean;
   error: string | null;
   nextCursor: string | null;
@@ -193,7 +193,7 @@ export function useAtlasEntities(
   loadMore: () => void;
   loadingMore: boolean;
 } {
-  const [items, setItems] = useState<AtlasEntityRef[]>([]);
+  const [items, setItems] = useState<AtlasEntitySummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);

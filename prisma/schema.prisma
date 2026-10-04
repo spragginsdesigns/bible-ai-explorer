@@ -512,8 +512,12 @@ model PushToken {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token       String   @unique // Expo push token
-  platform    String // "ios" | "android"
+  token       String   @unique // Expo push token, or the Web Push endpoint URL
+  platform    String // "ios" | "android" | "web"
+  /// Web Push subscription keys (platform "web" only). A browser subscription
+  /// is the endpoint (stored in `token`) plus these two; Expo rows leave them null.
+  webP256dh   String?
+  webAuth     String?
   timezone    String // e.g. "America/Chicago"
   notifyHour  Int      @default(8) // local hour, 0-23
   enabled     Boolean  @default(true) // verse-of-the-day pushes for this device

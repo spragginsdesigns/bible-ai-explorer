@@ -1,16 +1,25 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import posthog from "posthog-js";
+
+import { trackRequestFailure } from "@/lib/analytics/client";
+import {
+	classifyFetchRejection,
+	sameOriginApiPath,
+	sanitizeAnalyticsPathname,
+	sanitizeAnalyticsUrl,
+} from "@/lib/analytics/web-signals";
+import { observeFetch } from "./fetchObserver";
 
 /**
  * Product analytics, browser half (PostHog).
  *
- * Mounted once in the root layout. It does two things and deliberately nothing
- * else: record a page view when the route changes, and tell PostHog who the
- * reader is once Clerk knows. The SDK itself is started in
+ * Mounted once in the root layout. It does three things and deliberately
+ * nothing else: record a page view when the route changes, tell PostHog who
+ * the reader is once Clerk knows, and report API requests that failed. The SDK itself is started in
  * src/instrumentation-client.ts, which Next runs before the React tree, because
  * a child's effect runs before its parent's and an init in this file's effect
  * would arrive one page view too late.
@@ -36,33 +45,60 @@ import posthog from "posthog-js";
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
 /**
- * A shared-answer id IS the credential that opens it (see the `/shared/(.*)`
- * note in src/middleware.ts), so it must never travel into an analytics
- * payload. The path is reduced to its shape and the query string goes with it.
+ * One page view per route change, keyed on the pathname alone. The query is
+ * never sent, so a query-only change (a chapter turn, an Atlas search typed
+ * into the URL) would only repeat the same row; Android's screen views are
+ * route patterns for the same reason.
  */
-function sanitizeUrl(pathname: string, search: string): string {
-	if (pathname.startsWith("/shared/")) {
-		return `${window.location.origin}/shared/[id]`;
-	}
-	return `${window.location.origin}${pathname}${search ? `?${search}` : ""}`;
-}
-
 function AnalyticsPageView(): null {
 	const pathname = usePathname();
-	const searchParams = useSearchParams();
 
 	useEffect(() => {
 		if (!POSTHOG_KEY || !pathname) return;
-		const search = searchParams?.toString() ?? "";
 		posthog.capture("$pageview", {
-			$current_url: sanitizeUrl(pathname, search),
+			$current_url: sanitizeAnalyticsUrl(`${window.location.origin}${pathname}`),
 			// The route shape, so "how many people opened a chapter" is one row
 			// rather than one row per chapter.
-			pathname: pathname.startsWith("/shared/") ? "/shared/[id]" : pathname,
+			pathname: sanitizeAnalyticsPathname(pathname),
 			platform: "web",
 			source: "client",
 		});
-	}, [pathname, searchParams]);
+	}, [pathname]);
+
+	return null;
+}
+
+/**
+ * `request_failed` for the browser, the twin of Android's reporter in
+ * mobile/src/lib/api.ts: same-origin /api/ calls that came back with an error
+ * status, timed out, or never reached the server. Observed once through the
+ * shared fetch observer, because the web app has no single API client.
+ *
+ * A signed-out 401 is skipped, as on Android: that is the server correctly
+ * turning away a visitor, and counting it would make 401 the loudest and
+ * least useful row in the metric.
+ */
+function AnalyticsRequestFailures(): null {
+	const { isSignedIn } = useAuth();
+	const signedIn = useRef(false);
+	signedIn.current = Boolean(isSignedIn);
+
+	useEffect(
+		() =>
+			observeFetch(({ url, response, error, signalReason }) => {
+				const path = sameOriginApiPath(url, window.location.origin);
+				if (!path) return;
+				if (response) {
+					if (response.ok) return;
+					if (response.status === 401 && !signedIn.current) return;
+					trackRequestFailure({ path, kind: "http", status: response.status });
+					return;
+				}
+				const kind = classifyFetchRejection(error, signalReason);
+				if (kind) trackRequestFailure({ path, kind });
+			}),
+		[]
+	);
 
 	return null;
 }
@@ -117,12 +153,9 @@ export default function AnalyticsProvider(): React.ReactElement | null {
 
 	return (
 		<>
-			{/* useSearchParams() opts its subtree out of static rendering, and
-			    without a boundary that would take every page down with it. */}
-			<Suspense fallback={null}>
-				<AnalyticsPageView />
-			</Suspense>
+			<AnalyticsPageView />
 			<AnalyticsIdentity />
+			<AnalyticsRequestFailures />
 		</>
 	);
 }

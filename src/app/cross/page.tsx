@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
 import DirectionControls, { type CrossDirection } from "@/components/cross/DirectionControls";
 import ListenCard from "@/components/cross/ListenCard";
+import NotificationAsk from "@/components/cross/NotificationAsk";
 import TimelineStop from "@/components/cross/TimelineStop";
 import { isTodaysPlanReading } from "@/components/plan/planView";
 import { useReadingPlan } from "@/components/plan/useReadingPlan";
@@ -229,6 +230,9 @@ export default function DailyCrossPage() {
 						</TimelineStop>
 
 						<ListenCard key={entry.id} reference={entry.reference} />
+
+						{/* The once-per-browser notification offer, timed like Android's Cross visit. */}
+						<NotificationAsk />
 
 						{entry.whyToday && (
 							<TimelineStop glyph="✦" label="WHY THIS VERSE TODAY">

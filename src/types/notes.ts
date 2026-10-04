@@ -3,8 +3,6 @@ export type NotePropertyValue = string | number | boolean | string[];
 
 export type NoteProperties = Record<string, NotePropertyValue>;
 
-export type NotePropertyKind = "text" | "number" | "checkbox" | "list";
-
 export interface Note {
 	id: string;
 	title: string;
@@ -103,28 +101,12 @@ export function toNote(apiNote: NoteApiResponse): Note {
 	};
 }
 
-/** Build the wikilink text inserted into a note body. */
-export function formatWikilink(title: string): string {
-	return `[[${title.trim()}]]`;
-}
-
-/** Best-effort kind for an existing property value, used to pick an editor. */
-export function propertyKindOf(value: NotePropertyValue): NotePropertyKind {
-	if (typeof value === "boolean") return "checkbox";
-	if (typeof value === "number") return "number";
-	if (Array.isArray(value)) return "list";
-	return "text";
-}
-
-export function emptyPropertyValue(kind: NotePropertyKind): NotePropertyValue {
-	switch (kind) {
-		case "number":
-			return 0;
-		case "checkbox":
-			return false;
-		case "list":
-			return [];
-		default:
-			return "";
-	}
+/**
+ * What the web editor should load for a note. `content` normally holds Tiptap
+ * JSON (web saves) or HTML (Android and server appends), but some writers only
+ * fill `htmlContent` (Save verse to note), so an empty `content` falls back to
+ * it instead of opening a blank editor.
+ */
+export function editorContentFor(note: Pick<Note, "content" | "htmlContent">): string {
+	return note.content.trim() ? note.content : note.htmlContent ?? "";
 }

@@ -26,6 +26,7 @@ import {
   askPromptForEvent,
   emptyTimelineMessage,
   entityCounts,
+  entityRowMeta,
   entitySubtitle,
   eraChipLabel,
   hitKindLabel,
@@ -51,6 +52,10 @@ const chipClass =
   "inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-1.5 text-[13px] font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors";
 const refChipClass =
   "inline-flex min-h-[40px] items-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 py-1.5 text-[13px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors";
+/** A person's action chip: View journey, Immediate family, Trace connection. */
+function actionChipClass(active: boolean): string {
+  return `min-h-[44px] rounded-lg border px-4 text-sm font-semibold transition-colors ${active ? "border-amber-500/60 bg-amber-500/15 text-amber-600 dark:text-amber-400" : "border-amber-500/40 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"}`;
+}
 const sectionLabelClass =
   "pt-5 pb-2 text-[11.5px] font-bold uppercase tracking-[0.1em] text-amber-600/80 dark:text-amber-400/70";
 function validMode(value: string | null): Mode {
@@ -614,23 +619,35 @@ function DirectoryBody({
             <button
               type="button"
               onClick={() => onOpen(item)}
-              className="flex min-h-[68px] w-full items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+              className="flex h-full min-h-[68px] w-full items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
             >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center self-start rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 {kind === "person" ? (
                   <User className="h-4 w-4" aria-hidden />
                 ) : (
                   <MapPin className="h-4 w-4" aria-hidden />
                 )}
               </span>
-              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                {item.name}
-              </span>
-              {item.disambiguator && (
-                <span className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
-                  {item.disambiguator}
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                    {item.name}
+                  </span>
+                  {item.disambiguator && (
+                    <span className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                      {item.disambiguator}
+                    </span>
+                  )}
                 </span>
-              )}
+                {item.description && (
+                  <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-neutral-600 dark:text-neutral-400">
+                    {item.description}
+                  </span>
+                )}
+                <span className="mt-0.5 block text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                  {entityRowMeta(item)}
+                </span>
+              </span>
               <span aria-hidden className="ml-auto text-lg text-neutral-400">
                 ›
               </span>
@@ -925,6 +942,24 @@ function EntityDetail({
     entity.kind === "person" ? entity.id : null,
     connectionTarget || null,
   );
+  const relationsRef = useRef<HTMLParagraphElement>(null);
+  const traceRef = useRef<HTMLDivElement>(null);
+  const showFamily = () => {
+    setFamilyOnly(true);
+    // The section mounts on this same commit when it was hidden (nothing
+    // recorded), so the scroll waits a frame for it to exist.
+    requestAnimationFrame(() =>
+      relationsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  };
+  const toggleTrace = () => {
+    const opening = !traceOpen;
+    setTraceOpen(opening);
+    if (opening)
+      requestAnimationFrame(() =>
+        traceRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+      );
+  };
   const targetPeople = targetSearch.hits.filter(
     (hit) => hit.kind === "person" && hit.id !== entity.id,
   );
@@ -961,9 +996,9 @@ function EntityDetail({
       </p>
       <p className={sectionLabelClass}>In Scripture</p>
       <ReferenceChips refs={entity.refs} />
-      {hasRelationData && (
+      {(hasRelationData || familyOnly) && (
         <>
-          <p className={sectionLabelClass}>
+          <p ref={relationsRef} className={sectionLabelClass}>
             {entity.kind === "person"
               ? "Family & relationships"
               : "Connected to"}
@@ -1063,130 +1098,6 @@ function EntityDetail({
               </button>
             </div>
           )}
-          {entity.kind === "person" && (
-            <>
-              <button
-                type="button"
-                onClick={() => setTraceOpen((value) => !value)}
-                className="mt-3 min-h-[44px] rounded-lg border border-amber-500/40 px-4 text-sm font-semibold text-amber-600 dark:text-amber-400"
-              >
-                {traceOpen ? "Hide connection trace" : "Trace connection"}
-              </button>
-              {traceOpen && (
-                <div className="mt-3 rounded-xl bg-amber-500/10 p-3">
-                  <label
-                    className="block text-metadata font-semibold text-neutral-600 dark:text-neutral-300"
-                    htmlFor="atlas-connection-target"
-                  >
-                    Trace to another person
-                  </label>
-                  <input
-                    id="atlas-connection-target"
-                    value={targetQuery}
-                    onChange={(event) => {
-                      setTargetQuery(event.target.value);
-                      setConnectionTarget("");
-                    }}
-                    placeholder="Search any person"
-                    className="mt-2 min-h-[44px] w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-neutral-800 dark:border-white/10 dark:bg-neutral-950 dark:text-neutral-200"
-                  />
-                  {targetSearch.searching && (
-                    <p className="mt-2 text-metadata text-neutral-500">
-                      Searching people…
-                    </p>
-                  )}
-                  {targetPeople.length > 0 && !connectionTarget && (
-                    <ul className="mt-2 flex max-h-48 flex-col gap-1 overflow-y-auto">
-                      {targetPeople.map((person) => (
-                        <li key={person.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setConnectionTarget(person.id);
-                              setTargetQuery(person.name);
-                            }}
-                            className="flex min-h-[44px] w-full flex-col items-start rounded-lg px-3 py-2 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
-                          >
-                            <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-                              {person.name}
-                            </span>
-                            {person.disambiguator && (
-                              <span className="text-metadata text-neutral-400 dark:text-neutral-500">
-                                {person.disambiguator}
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {connectionTarget && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConnectionTarget("");
-                        setTargetQuery("");
-                      }}
-                      className="mt-2 min-h-[40px] text-metadata font-bold text-amber-600 dark:text-amber-400"
-                    >
-                      Clear target
-                    </button>
-                  )}
-                  {connection.loading && (
-                    <LoadingText text="Tracing the shortest cited path…" />
-                  )}
-                  {connection.error && (
-                    <p className="mt-2 text-[13px] text-red-600 dark:text-red-400">
-                      {connection.error}
-                    </p>
-                  )}
-                  {!connection.loading &&
-                    !connection.error &&
-                    connectionTarget &&
-                    !connection.path && (
-                      <p className="mt-2 text-[13px] text-neutral-600 dark:text-neutral-300">
-                        No cited connection was found.
-                      </p>
-                    )}
-                  {connection.path && (
-                    <ol className="mt-3 flex flex-col gap-2">
-                      {connection.path.entities.map((step, index) => (
-                        <li
-                          key={`${step.id}-${index}`}
-                          className="rounded-lg border border-amber-500/20 bg-white/50 p-2 dark:bg-black/20"
-                        >
-                          <p className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-                            {index + 1}. {step.name}
-                          </p>
-                          {step.disambiguator && (
-                            <p className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
-                              {step.disambiguator}
-                            </p>
-                          )}
-                          {connection.path?.relations[index] && (
-                            <div className="mt-1">
-                              <p className="text-metadata text-neutral-500 dark:text-neutral-400">
-                                {relationLabelFor(
-                                  connection.path.relations[index],
-                                  step.id,
-                                )} ·{" "}
-                                {relationCertaintyLabel(
-                                  connection.path.relations[index].certainty,
-                                )}
-                              </p>
-                              <ReferenceChips
-                                refs={connection.path.relations[index].refs}
-                              />
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </div>
-              )}
-            </>
-          )}
         </>
       )}
       {entity.events.length > 0 && (
@@ -1220,16 +1131,167 @@ function EntityDetail({
           </ul>
         </>
       )}
-      {entity.kind === "person" && (
+      {entity.kind === "person" && entity.events.length > 5 && (
         <button
           type="button"
           onClick={() => onViewJourney(entity.id)}
           className="mt-2 min-h-[44px] text-sm font-bold text-amber-600 dark:text-amber-400"
         >
-          {entity.events.length > 5
-            ? `View all ${entity.events.length} events →`
-            : "View journey →"}
+          View all {entity.events.length} events ›
         </button>
+      )}
+      {entity.kind === "person" && (
+        <>
+          {/* Android's person action row (bible/atlas/[id].tsx): always
+              offered, whether or not any relationship is recorded, because
+              a journey and a trace do not depend on this entry's own links. */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onViewJourney(entity.id)}
+              className={actionChipClass(false)}
+            >
+              View journey
+            </button>
+            <button
+              type="button"
+              aria-pressed={familyOnly}
+              onClick={showFamily}
+              className={actionChipClass(familyOnly)}
+            >
+              Immediate family
+            </button>
+            <button
+              type="button"
+              aria-pressed={traceOpen}
+              onClick={toggleTrace}
+              className={actionChipClass(traceOpen)}
+            >
+              Trace connection
+            </button>
+          </div>
+          {traceOpen && (
+            <div ref={traceRef} className="mt-3 rounded-xl bg-amber-500/10 p-3">
+              <label
+                className="block text-metadata font-semibold text-neutral-600 dark:text-neutral-300"
+                htmlFor="atlas-connection-target"
+              >
+                Trace to another person
+              </label>
+              <input
+                id="atlas-connection-target"
+                value={targetQuery}
+                onChange={(event) => {
+                  setTargetQuery(event.target.value);
+                  setConnectionTarget("");
+                }}
+                placeholder="Search any person"
+                className="mt-2 min-h-[44px] w-full rounded-lg border border-black/10 bg-white px-3 text-sm text-neutral-800 dark:border-white/10 dark:bg-neutral-950 dark:text-neutral-200"
+              />
+              {targetSearch.searching && (
+                <p className="mt-2 text-metadata text-neutral-500">
+                  Searching people…
+                </p>
+              )}
+              {targetPeople.length > 0 && !connectionTarget && (
+                <ul className="mt-2 flex max-h-48 flex-col gap-1 overflow-y-auto">
+                  {targetPeople.map((person) => (
+                    <li key={person.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConnectionTarget(person.id);
+                          setTargetQuery(person.name);
+                        }}
+                        className="flex min-h-[44px] w-full flex-col items-start rounded-lg px-3 py-2 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+                      >
+                        <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                          {person.name}
+                        </span>
+                        {person.disambiguator && (
+                          <span className="text-metadata text-neutral-400 dark:text-neutral-500">
+                            {person.disambiguator}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {connectionTarget && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConnectionTarget("");
+                    setTargetQuery("");
+                  }}
+                  className="mt-2 min-h-[40px] text-metadata font-bold text-amber-600 dark:text-amber-400"
+                >
+                  Clear target
+                </button>
+              )}
+              {connection.loading && (
+                <LoadingText text="Tracing the shortest cited path…" />
+              )}
+              {connection.error && (
+                <p className="mt-2 text-[13px] text-red-600 dark:text-red-400">
+                  {connection.error}
+                </p>
+              )}
+              {!connection.loading &&
+                !connection.error &&
+                connectionTarget &&
+                !connection.path && (
+                  <p className="mt-2 text-[13px] text-neutral-600 dark:text-neutral-300">
+                    No cited connection was found.
+                  </p>
+                )}
+              {connection.path && (
+                <ol className="mt-3 flex flex-col gap-2">
+                  {connection.path.entities.map((step, index) => (
+                    <li
+                      key={`${step.id}-${index}`}
+                      className="rounded-lg border border-amber-500/20 bg-white/50 p-2 dark:bg-black/20"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onOpenEntity(step)}
+                        aria-label={`Open ${step.name}${step.disambiguator ? `, ${step.disambiguator}` : ""}`}
+                        className="flex min-h-[40px] w-full flex-col items-start rounded-md text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                      >
+                        <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+                          {index + 1}. {step.name}{" "}
+                          <span aria-hidden className="text-neutral-400">›</span>
+                        </span>
+                        {step.disambiguator && (
+                          <span className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                            {step.disambiguator}
+                          </span>
+                        )}
+                      </button>
+                      {connection.path?.relations[index] && (
+                        <div className="mt-1">
+                          <p className="text-metadata text-neutral-500 dark:text-neutral-400">
+                            {relationLabelFor(
+                              connection.path.relations[index],
+                              step.id,
+                            )} ·{" "}
+                            {relationCertaintyLabel(
+                              connection.path.relations[index].certainty,
+                            )}
+                          </p>
+                          <ReferenceChips
+                            refs={connection.path.relations[index].refs}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
+        </>
       )}
       <AskButton onClick={onAsk} />
     </>

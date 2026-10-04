@@ -8,6 +8,8 @@ import type { Note } from "@/types/notes";
 
 interface NoteInfoPanelProps {
 	note: Note;
+	/** Name of the note's folder, or null when it is unfiled. */
+	folderName: string | null;
 	onUpdate: (changes: Partial<Note>) => void;
 	onOpenNote: (id: string) => void;
 	onCreateLinkedNote: (title: string) => Promise<void>;
@@ -20,6 +22,7 @@ interface NoteInfoPanelProps {
  */
 const NoteInfoPanel: React.FC<NoteInfoPanelProps> = ({
 	note,
+	folderName,
 	onUpdate,
 	onOpenNote,
 	onCreateLinkedNote,
@@ -46,7 +49,7 @@ const NoteInfoPanel: React.FC<NoteInfoPanelProps> = ({
 
 			{open && (
 				<div className="mx-auto w-full max-w-3xl max-h-[45vh] overflow-y-auto custom-scrollbar border-t border-white/[0.06]">
-					<NotePropertiesSection note={note} onUpdate={onUpdate} />
+					<NotePropertiesSection note={note} folderName={folderName} onUpdate={onUpdate} />
 					<NoteLinksPanel
 						noteId={note.id}
 						refreshToken={note.updatedAt}

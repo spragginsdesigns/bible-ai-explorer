@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 
+import SignInAnalytics from "@/components/analytics/SignInAnalytics";
+
 // A bare auth form has nothing worth ranking; keep it out of the index but let
 // crawlers follow its links back to the landing page.
 export const metadata: Metadata = {
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 export default function SignInPage() {
 	return (
 		<div className="min-h-screen flex items-center justify-center gradient-mesh">
+			<SignInAnalytics />
 			<SignIn
 				appearance={{
 					variables: {

@@ -117,12 +117,12 @@ export default function MembershipPage() {
     }
   };
   return (
-    <main className="min-h-screen bg-[#101410] px-5 py-9 pb-28 text-[#f3efe3]">
+    <main className="min-h-[100dvh] gradient-mesh px-5 py-9 pb-28 text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto max-w-3xl">
         {paymentPending && (
           <p
             role="status"
-            className="mb-5 rounded-lg border border-[#d9b878]/30 p-4 text-sm text-[#d9b878]"
+            className="mb-5 rounded-lg border border-amber-500/30 dark:border-amber-400/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-300"
           >
             Waiting for payment confirmation. Your membership updates after the
             payment provider confirms it.{" "}
@@ -140,12 +140,12 @@ export default function MembershipPage() {
         )}
         <Link
           href="/"
-          className="mb-10 inline-flex items-center gap-2 text-sm text-[#b6bcb0]"
+          className="mb-10 inline-flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400"
         >
           <ArrowLeft size={16} />
           Back to study
         </Link>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#d9b878]">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400">
           Your SureWord membership
         </p>
         <h1
@@ -154,14 +154,14 @@ export default function MembershipPage() {
         >
           Room to keep growing.
         </h1>
-        <p className="mb-8 max-w-xl leading-7 text-[#b6bcb0]">
+        <p className="mb-8 max-w-xl leading-7 text-neutral-500 dark:text-neutral-400">
           Your Bible, notes, highlights and saved conversations stay with you,
           whatever membership you choose.
         </p>
         {error && (
           <div
             role="alert"
-            className="mb-5 rounded-lg border border-red-300/30 p-4 text-sm text-red-200"
+            className="mb-5 rounded-lg border border-red-500/30 dark:border-red-300/30 p-4 text-sm text-red-600 dark:text-red-200"
           >
             {error}
             <button onClick={() => void load()} className="ml-3 underline">
@@ -172,7 +172,7 @@ export default function MembershipPage() {
         {!data && !error && <p role="status">Loading membership…</p>}
         {data && (
           <>
-            <section className="mb-6 rounded-2xl border border-white/15 bg-white/[0.03] p-6">
+            <section className="glass-card gradient-border mb-6 rounded-2xl p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl">
                   {data.owner
@@ -181,7 +181,7 @@ export default function MembershipPage() {
                       ? "SureWord Pro"
                       : "SureWord Free"}
                 </h2>
-                <span className="text-sm text-[#d9b878]">
+                <span className="text-sm text-amber-600 dark:text-amber-400">
                   {data.owner
                     ? "Owner AI access"
                     : data.access === "keys"
@@ -190,7 +190,7 @@ export default function MembershipPage() {
                 </span>
               </div>
               {data.owner ? (
-                <p className="mt-3 text-sm text-[#b6bcb0]">
+                <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
                   All paid benefits and configured models are available to your
                   account without a subscription.
                 </p>
@@ -200,10 +200,10 @@ export default function MembershipPage() {
                     <strong className="text-3xl">
                       {data.usage.dailyRemaining}
                     </strong>
-                    <p className="mt-1 text-sm text-[#b6bcb0]">
+                    <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                       included messages left today
                     </p>
-                    <p className="mt-2 text-xs text-[#b6bcb0]">
+                    <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
                       Resets {new Date(data.usage.day.end).toLocaleString()}
                     </p>
                   </div>
@@ -212,23 +212,23 @@ export default function MembershipPage() {
                       <strong className="text-3xl">
                         {data.usage.monthlyRemaining}
                       </strong>
-                      <p className="mt-1 text-sm text-[#b6bcb0]">
+                      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                         left in this billing period
                       </p>
-                      <p className="mt-2 text-xs text-[#b6bcb0]">
+                      <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
                         Resets {new Date(data.usage.month.end).toLocaleString()}
                       </p>
                     </div>
                   )}
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-[#b6bcb0]">
+                <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
                   Continue studying free. Pro memberships are coming soon.
                 </p>
               )}
               {data.subscription && (
                 <>
-                  <p className="mt-5 text-sm text-[#b6bcb0]">
+                  <p className="mt-5 text-sm text-neutral-500 dark:text-neutral-400">
                     {data.plan !== "pro"
                       ? data.subscription.status === "past_due" ||
                         data.subscription.status === "unpaid"
@@ -237,11 +237,11 @@ export default function MembershipPage() {
                       : `${data.subscription.cancelAtPeriodEnd ? "Paid access ends" : "Current billing period ends"} ${new Date(data.subscription.periodEnd).toLocaleDateString()}.`}
                   </p>
                   {data.subscription.provider === "google-play" ? (
-                    <a href="https://play.google.com/store/account/subscriptions?sku=sureword_pro&package=com.spragginsdesigns.sureword" className="mt-4 inline-block rounded-lg border border-white/20 px-4 py-3 text-sm">Manage in Google Play</a>
+                    <a href="https://play.google.com/store/account/subscriptions?sku=sureword_pro&package=com.spragginsdesigns.sureword" className="mt-4 inline-block rounded-lg border border-black/[0.12] dark:border-white/20 px-4 py-3 text-sm">Manage in Google Play</a>
                   ) : <button
                     disabled={busy}
                     onClick={() => void openBilling("portal")}
-                    className="mt-4 rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50"
+                    className="mt-4 rounded-lg border border-black/[0.12] dark:border-white/20 px-4 py-3 text-sm disabled:opacity-50"
                   >
                     Manage billing
                   </button>}
@@ -249,9 +249,9 @@ export default function MembershipPage() {
               )}
             </section>
             {data.enabled && !data.owner && (
-              <section className="mb-6 rounded-2xl border border-white/15 p-6">
+              <section className="glass-card gradient-border mb-6 rounded-2xl p-6">
                 <h2 className="text-lg">Choose who pays for AI</h2>
-                <p className="mt-2 text-sm leading-6 text-[#b6bcb0]">
+                <p className="mt-2 text-sm leading-6 text-neutral-500 dark:text-neutral-400">
                   Included AI uses your SureWord allowance. A personal API key
                   uses your provider account and keeps your included messages
                   available.
@@ -265,7 +265,7 @@ export default function MembershipPage() {
                       }
                       aria-pressed={data.access === access}
                       onClick={() => void chooseAccess(access)}
-                      className={`rounded-lg border px-4 py-3 text-sm disabled:opacity-40 ${data.access === access ? "border-[#d9b878] bg-[#d9b878]/10 text-[#d9b878]" : "border-white/20"}`}
+                      className={`rounded-lg border px-4 py-3 text-sm disabled:opacity-40 ${data.access === access ? "border-amber-500 dark:border-amber-400 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300" : "border-black/[0.12] dark:border-white/20"}`}
                     >
                       {access === "house" ? "Included AI" : "My API key"}
                     </button>
@@ -273,20 +273,20 @@ export default function MembershipPage() {
                 </div>
                 <Link
                   href="/settings"
-                  className="mt-4 inline-block text-sm text-[#d9b878] underline"
+                  className="mt-4 inline-block text-sm text-amber-600 dark:text-amber-400 underline"
                 >
                   Manage personal keys in Settings
                 </Link>
               </section>
             )}
             {!data.owner && data.plan !== "pro" && (
-              <section className="rounded-2xl border border-[#d9b878]/50 bg-[#20271e] p-7">
-                <p className="text-xs uppercase tracking-widest text-[#d9b878]">
+              <section className="glass-card rounded-2xl border border-amber-500/50 dark:border-amber-400/40 bg-amber-500/[0.06] dark:bg-amber-400/[0.05] p-7">
+                <p className="text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400">
                   SureWord Pro
                 </p>
                 <p className="my-4 text-5xl">
                   ${PRO_MONTHLY_PRICE_CENTS / 100}
-                  <span className="text-base text-[#b6bcb0]"> / month</span>
+                  <span className="text-base text-neutral-500 dark:text-neutral-400"> / month</span>
                 </p>
                 <ul className="mb-7 grid gap-3 text-sm">
                   {[
@@ -296,7 +296,7 @@ export default function MembershipPage() {
                     "Keep using your personal keys whenever you prefer",
                   ].map((text) => (
                     <li key={text} className="flex items-center gap-2">
-                      <Check size={16} className="text-[#d9b878]" />
+                      <Check size={16} className="text-amber-600 dark:text-amber-400" />
                       {text}
                     </li>
                   ))}
@@ -304,7 +304,7 @@ export default function MembershipPage() {
                 <button
                   onClick={() => void openBilling("checkout")}
                   disabled={busy || !data.checkoutAvailable}
-                  className="flex items-center gap-5 rounded-lg bg-[#d9b878] px-5 py-3 font-semibold text-[#172017] disabled:opacity-50"
+                  className="flex items-center gap-5 rounded-lg bg-amber-500 dark:bg-amber-400 px-5 py-3 font-semibold text-neutral-950 disabled:opacity-50"
                 >
                   {busy
                     ? "Opening…"
@@ -313,11 +313,15 @@ export default function MembershipPage() {
                       : "Pro checkout opens soon"}
                   <ArrowRight size={17} />
                 </button>
-                <p className="mt-3 text-xs leading-6 text-[#b6bcb0]">
+                <p className="mt-3 text-xs leading-6 text-neutral-500 dark:text-neutral-400">
                   Renews monthly until canceled. Review the full total and any
                   applicable taxes in checkout.{" "}
                   <Link className="underline" href="/terms">
                     Membership terms
+                  </Link>{" "}
+                  and{" "}
+                  <Link className="underline" href="/privacy">
+                    Privacy policy
                   </Link>
                   .
                 </p>

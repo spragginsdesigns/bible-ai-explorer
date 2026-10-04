@@ -2,7 +2,8 @@
 
 import posthog from "posthog-js";
 
-import { ANALYTICS_EVENTS } from "./events";
+import { ANALYTICS_EVENTS, routeShape } from "./events";
+import { createFailureThrottle, type WebRequestFailureKind } from "./web-signals";
 
 /**
  * Named events the browser sends by hand.
@@ -83,5 +84,58 @@ export function trackNativeDownload(platform: NativeDownloadPlatform, surface: s
 		});
 	} catch {
 		// A dropped event is never worth a broken download link.
+	}
+}
+
+/**
+ * A sign-in attempt began, finished, or stopped. Mirrors the Android events in
+ * mobile/app/(auth)/sign-in.tsx: the method, and on failure Clerk's error
+ * CODE and the step. Never the identifier, never Clerk's message (a message
+ * can quote what the person typed), never the password or code.
+ */
+export function trackSignIn(
+	stage: "started" | "completed" | "failed",
+	properties: { method: string; reason?: string; step?: string }
+): void {
+	const event =
+		stage === "started"
+			? ANALYTICS_EVENTS.signInStarted
+			: stage === "completed"
+				? ANALYTICS_EVENTS.signInCompleted
+				: ANALYTICS_EVENTS.signInFailed;
+	try {
+		posthog.capture(event, { ...properties, platform: "web", source: "client" });
+	} catch {
+		// Never worth interrupting a sign-in.
+	}
+}
+
+/** Same quiet window as Android's `trackRequestFailure`. */
+const FAILURE_QUIET_MS = 30_000;
+const shouldReportFailure = createFailureThrottle(FAILURE_QUIET_MS);
+
+/**
+ * Report a failed API call from the browser, at most once per route and cause
+ * per 30 seconds (see `createFailureThrottle` for why that is correctness and
+ * not politeness). The route is reduced to its shape, so neither an id nor a
+ * query string can travel with it.
+ */
+export function trackRequestFailure(input: { path: string; kind: WebRequestFailureKind; status?: number }): void {
+	const route = routeShape(input.path);
+	if (!shouldReportFailure(`${route}:${input.kind}`, Date.now())) return;
+	try {
+		posthog.capture(ANALYTICS_EVENTS.requestFailed, {
+			route,
+			kind: input.kind,
+			status: input.status ?? null,
+			// Android's `app_state` vocabulary, so one breakdown covers both
+			// clients: a request that died while the tab was hidden is not the
+			// same story as one that died in front of the reader.
+			app_state: typeof document !== "undefined" && document.visibilityState === "hidden" ? "background" : "active",
+			platform: "web",
+			source: "client",
+		});
+	} catch {
+		// Reporting a failure must not become a second one.
 	}
 }

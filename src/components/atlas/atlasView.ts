@@ -8,6 +8,7 @@
  * as types only, so nothing of the atlas itself reaches the browser bundle.
  */
 import type {
+  AtlasEntitySummary,
   AtlasEntityView,
   AtlasEra,
   AtlasEraGroup,
@@ -87,6 +88,17 @@ export function entitySubtitle(entity: AtlasEntityView): string {
   if (entity.era) parts.push(entity.era);
   if (entity.modernRegion) parts.push(entity.modernRegion);
   return parts.join(" · ");
+}
+
+/**
+ * The meta line on a People or Places row: what it is, then its era, or where
+ * it is today when it has no era. Same rule as the Android directory row
+ * (`EntityRow` in mobile/app/(app)/bible/timeline.tsx).
+ */
+export function entityRowMeta(entity: Pick<AtlasEntitySummary, "kind" | "era" | "modernRegion">): string {
+  const kind = entity.kind === "person" ? "Person" : "Place";
+  const where = entity.era ?? entity.modernRegion;
+  return where ? `${kind} · ${where}` : kind;
 }
 
 /** "Also called Abram" - or empty, when Scripture uses one name only. */

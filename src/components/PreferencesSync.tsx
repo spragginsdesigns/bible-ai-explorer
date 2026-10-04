@@ -11,6 +11,7 @@ import {
 	hydratePreferences,
 	usePreferencesSyncError,
 } from "@/lib/preferencesSync";
+import { releaseWebPushSubscription, syncWebPushRegistration } from "@/lib/web-notifications";
 
 /**
  * Keeps this browser's preference cache level with the account.
@@ -29,12 +30,19 @@ function usePreferencesSync(): void {
 			// Signed out: the next person to use this browser must not inherit
 			// this account's translation, model or toggles as their first paint.
 			clearSyncedPreferences();
+			// Nor its notifications: a signed-out browser holds no subscription.
+			void releaseWebPushSubscription();
 			return;
 		}
 		// Claim first: an account switch has to clear the cache before anything
 		// reads it, or this account would adopt the last one's choices.
 		claimPreferencesCache(userId);
 		void adoptOrHydratePreferences(userId);
+		// Refresh this browser's push registration on every signed-in load, not
+		// only on Settings and Cross visits: the morning cron drops browsers
+		// that have not re-registered in 30 days. It does nothing without
+		// granted permission, so it never prompts.
+		void syncWebPushRegistration();
 	}, [isLoaded, isSignedIn, userId]);
 
 	useEffect(() => {

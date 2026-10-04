@@ -3,7 +3,15 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, ChevronDown, ChevronRight, Search, Sparkles } from "lucide-react";
+import {
+	Check,
+	ChevronDown,
+	ChevronRight,
+	KeyRound,
+	Loader2,
+	Search,
+	Sparkles,
+} from "lucide-react";
 import {
 	readEffortPref,
 	readModePref,
@@ -161,6 +169,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	const [expanded, setExpanded] = useState<string | null>(null);
 	const [position, setPosition] = useState<MenuPosition | null>(null);
 	const [query, setQuery] = useState("");
+	const [loadFailed, setLoadFailed] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const triggerRef = useRef<HTMLButtonElement>(null);
 	const menuRef = useRef<HTMLDivElement>(null);
@@ -176,56 +185,67 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		triggerRef.current?.focus();
 	}, []);
 
-	useEffect(() => {
-		let cancelled = false;
-		(async () => {
-			try {
-				const response = await fetch("/api/ai/models");
-				if (!response.ok) return;
-				const body: ModelsResponse = await response.json();
-				if (cancelled) return;
-				setData(body);
-				const houseOnLoad = body.access === "house" ? body.house : null;
-				if (houseOnLoad) {
-					// House mode ignores any earlier pick. useChat reads these prefs
-					// from localStorage on every send, so a stale model id left over
-					// from a key the account no longer has would be what the request
-					// carried while the chip claimed otherwise. Overwrite all of them
-					// so the chip and the request say the same thing. These writes
-					// stay local: house mode is the server's own decision, not a
-					// pick worth storing on the account, and the lock keeps a
-					// later hydrate from putting the stored ids back.
-					setChatPrefsLocked(true);
-					setModelId(houseOnLoad.modelId);
-					setEffort(houseOnLoad.effort);
-					setSpeed(null);
-					setVerbosity(null);
-					setMode(null);
-					writeModelPref(houseOnLoad.modelId);
-					writeEffortPref(houseOnLoad.effort);
-					writeSpeedPref(null);
-					writeVerbosityPref(null);
-					writeModePref(null);
-					return;
-				}
-				setChatPrefsLocked(false);
-				const localModel = readModelPref();
-				const validLocal = body.models.find((model) => model.id === localModel && model.available);
-				setModelId(validLocal?.id ?? body.defaults.modelId);
-				setEffort(seedPref(readEffortPref(), body.defaults.effort, writeEffortPref));
-				setSpeed(seedPref(readSpeedPref(), body.defaults.speed, writeSpeedPref));
-				setVerbosity(
-					seedPref(readVerbosityPref(), body.defaults.verbosity, writeVerbosityPref),
-				);
-				setMode(seedPref(readModePref(), body.defaults.mode, writeModePref));
-			} catch {
-				// Picker is an enhancement; chat still works on the server default.
+	// Bumped on unmount and on every new load, so only the latest response
+	// (and never one for an unmounted picker) is applied.
+	const loadGenRef = useRef(0);
+
+	const load = useCallback(async () => {
+		const gen = ++loadGenRef.current;
+		const cancelled = () => gen !== loadGenRef.current;
+		setLoadFailed(false);
+		try {
+			const response = await fetch("/api/ai/models");
+			if (!response.ok) throw new Error(`models ${response.status}`);
+			const body: ModelsResponse = await response.json();
+			if (cancelled()) return;
+			setData(body);
+			const houseOnLoad = body.access === "house" ? body.house : null;
+			if (houseOnLoad) {
+				// House mode ignores any earlier pick. useChat reads these prefs
+				// from localStorage on every send, so a stale model id left over
+				// from a key the account no longer has would be what the request
+				// carried while the chip claimed otherwise. Overwrite all of them
+				// so the chip and the request say the same thing. These writes
+				// stay local: house mode is the server's own decision, not a
+				// pick worth storing on the account, and the lock keeps a
+				// later hydrate from putting the stored ids back.
+				setChatPrefsLocked(true);
+				setModelId(houseOnLoad.modelId);
+				setEffort(houseOnLoad.effort);
+				setSpeed(null);
+				setVerbosity(null);
+				setMode(null);
+				writeModelPref(houseOnLoad.modelId);
+				writeEffortPref(houseOnLoad.effort);
+				writeSpeedPref(null);
+				writeVerbosityPref(null);
+				writeModePref(null);
+				return;
 			}
-		})();
-		return () => {
-			cancelled = true;
-		};
+			setChatPrefsLocked(false);
+			const localModel = readModelPref();
+			const validLocal = body.models.find((model) => model.id === localModel && model.available);
+			setModelId(validLocal?.id ?? body.defaults.modelId);
+			setEffort(seedPref(readEffortPref(), body.defaults.effort, writeEffortPref));
+			setSpeed(seedPref(readSpeedPref(), body.defaults.speed, writeSpeedPref));
+			setVerbosity(
+				seedPref(readVerbosityPref(), body.defaults.verbosity, writeVerbosityPref),
+			);
+			setMode(seedPref(readModePref(), body.defaults.mode, writeModePref));
+		} catch {
+			// The picker is an enhancement and chat still works on the server
+			// default, but the chip says so and offers a retry rather than
+			// vanishing (Android shows the same failure row in its sheet).
+			if (!cancelled()) setLoadFailed(true);
+		}
 	}, []);
+
+	useEffect(() => {
+		void load();
+		return () => {
+			loadGenRef.current += 1;
+		};
+	}, [load]);
 
 	// A hydrate from the account (a pick made on the phone, or in another tab)
 	// rewrites the stored picks under a picker that is already mounted. Mirror
@@ -385,8 +405,6 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [open]);
 
-	if (!data) return null;
-
 	const pickModel = (model: PickerModel) => {
 		if (!model.available) return;
 		setModelId(model.id);
@@ -421,9 +439,38 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		void setChatRunOptionPreference(key, value);
 	};
 
-	const activeLabel = house
-		? house.label
-		: summaryLabel(selected, storedOptions);
+	const activeLabel = !data
+		? loadFailed
+			? "Model"
+			: "Loading models"
+		: house
+			? house.label
+			: summaryLabel(selected, storedOptions);
+
+	/**
+	 * The way to more models, at the foot of the list for accounts that already
+	 * have a key (mirrors Android's AddKeyRow). House mode keeps its own link
+	 * under the note.
+	 */
+	const addKeyRow = (
+		<Link
+			href="/settings#providers"
+			onClick={() => setOpen(false)}
+			aria-label="Add an API key in Settings"
+			className="mt-1 flex w-full items-center gap-2 border-t border-black/[0.06] px-4 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:border-white/[0.06] dark:hover:bg-white/[0.05]"
+		>
+			<KeyRound className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+			<span className="min-w-0 flex-1">
+				<span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+					Add an API key
+				</span>
+				<span className="block text-xs text-neutral-400 dark:text-neutral-500">
+					Unlock more models in Settings
+				</span>
+			</span>
+			<ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
+		</Link>
+	);
 
 	/**
 	 * One model row. `showProvider` is the flat search view, where a result
@@ -495,7 +542,30 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 			}}
 			className="fixed z-50 flex flex-col overflow-hidden rounded-xl border border-black/[0.08] bg-white shadow-lg outline-none dark:border-white/[0.08] dark:bg-neutral-900"
 		>
-			{house ? (
+			{!data ? (
+				loadFailed ? (
+					<div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+						<p className="text-support text-neutral-500 dark:text-neutral-400">
+							Couldn&apos;t load the model list.
+						</p>
+						<button
+							type="button"
+							onClick={() => void load()}
+							className="text-sm font-semibold text-amber-700 hover:underline dark:text-amber-400"
+						>
+							Retry
+						</button>
+					</div>
+				) : (
+					<div
+						className="flex items-center justify-center px-4 py-6"
+						role="status"
+						aria-label="Loading models"
+					>
+						<Loader2 className="h-4 w-4 animate-spin text-amber-600 dark:text-amber-400" />
+					</div>
+				)
+			) : house ? (
 				<>
 					<div
 						className="min-h-0 flex-1 overflow-y-auto custom-scrollbar py-1"
@@ -520,7 +590,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 							{house.note}
 						</p>
 						<Link
-							href="/settings"
+							href="/settings#providers"
 							onClick={() => setOpen(false)}
 							className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
 						>
@@ -604,6 +674,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 								);
 							})
 						)}
+						{!trimmedQuery ? addKeyRow : null}
 					</div>
 					{/* Natural height, so the model list above is what gives way. The
 					    sections are kept to one chip row each (the seven reasoning
@@ -671,7 +742,11 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 				title={activeLabel}
 				className="flex h-11 max-w-[240px] items-center gap-1 rounded-lg border border-black/[0.08] px-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:border-white/[0.08] dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
 			>
-				<Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+				{!data && !loadFailed ? (
+					<Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+				) : (
+					<Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+				)}
 				<span className="min-w-0 flex-1 truncate text-left">{activeLabel}</span>
 				<ChevronDown className="h-3 w-3 flex-shrink-0" />
 			</button>

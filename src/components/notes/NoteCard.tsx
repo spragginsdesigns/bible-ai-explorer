@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, Pin, PinOff, FolderOpen, Trash2 } from "lucide-react";
 import type { Folder, Note, Tag } from "@/types/notes";
+import { noteMetaLine } from "./noteTime";
 
 interface NoteCardProps {
 	note: Note;
@@ -32,10 +33,8 @@ const NoteCard: React.FC<NoteCardProps> = ({
 }) => {
 	const noteTags = tags.filter((t) => note.tagIds.includes(t.id));
 	const snippet = note.plainText.slice(0, 120) || "Empty note";
-	const dateStr = new Date(note.updatedAt).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-	});
+	// "3h ago · 120 words", the same meta line as Android's NoteCard.
+	const metaLine = noteMetaLine(note.updatedAt, note.wordCount);
 
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [menuMode, setMenuMode] = useState<MenuMode>("actions");
@@ -242,7 +241,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
 						</span>
 					)}
 				</div>
-				<span className="text-neutral-600 text-metadata flex-shrink-0">{dateStr}</span>
+				<span className="text-neutral-600 text-metadata flex-shrink-0">{metaLine}</span>
 			</div>
 		</div>
 	);

@@ -7,13 +7,14 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
-import { Copy, GraduationCap, NotebookPen, Share2, Sparkles, Users, X } from "lucide-react";
+import { ChevronDown, Copy, GraduationCap, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { saveVerseToNote } from "@/lib/bible/verseActions";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import {
+  MAX_SELECTED_VERSES,
   selectionColor,
   selectionCount,
   selectionIncludes,
@@ -35,8 +36,10 @@ import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 import { parseCard } from "@/components/learn/learn";
 import CrossReferencesSection from "./CrossReferencesSection";
+import InsightTeaser from "./InsightTeaser";
 import StudyTabs, { STUDY_PANEL_ID } from "./StudyTabs";
 import VerseActionBar, { type VerseAction } from "./VerseActionBar";
+import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
@@ -48,7 +51,20 @@ const HIGHLIGHT_MS = 2400;
 const INSIGHT_DEBOUNCE_MS = 350;
 /** How long the Copy chip reads "Copied" before returning to its label. */
 const COPIED_MS = 1200;
-const LEARN_ERROR = "That could not be added to Learn. Check your connection and try again.";
+const LEARN_ERROR = "Could not add to Learn. Check your connection and try again.";
+const SAVE_ERROR = "The note could not be saved. Check your connection and try again.";
+
+/** Reader settings' translation note, word for word as on Android. */
+const TRANSLATION_NOTES: Record<TranslationId, string> = {
+  KJV: "KJV words of Jesus · eBible edition. Editorial headings · BSB.",
+  BSB: "Section headings and words of Jesus · Berean Standard Bible",
+  NKJV: "Red letters aren't available from our NKJV text provider yet.",
+};
+
+interface ActionMessage {
+  text: string;
+  tone: "muted" | "danger";
+}
 
 type StudyTabKey = "explain" | "words" | "seealso";
 
@@ -130,11 +146,16 @@ const ChapterReader: React.FC = () => {
   const [fontStep, setFontStep] = useState(readFontStep);
   const [highlighted, setHighlighted] = useState<number | null>(null);
   const [selection, setSelection] = useState<VerseSelection | null>(null);
+  // The sheet opens at the peek (teaser + actions, chapter still readable);
+  // the study view is the expanded tier.
+  const [sheetTier, setSheetTier] = useState<VerseSheetTier>("peek");
   const [studyTab, setStudyTab] = useState<StudyTabKey>("explain");
   const [copied, setCopied] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [learnStatus, setLearnStatus] = useState<"idle" | "adding" | "added" | "error">("idle");
+  const [learnStatus, setLearnStatus] = useState<"idle" | "adding" | "added">("idle");
+  const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
+  // The native colour picker covers the page while it is open.
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { user } = useUser();
   const {
     status: insightStatus,
@@ -152,7 +173,6 @@ const ChapterReader: React.FC = () => {
   const lastFlashed = useRef<string | null>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const learnRequest = useRef<AbortController | null>(null);
-  const panelWasOpen = useRef(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const chapterKey = `${translation}:${order}:${chapter}`;
 
@@ -216,7 +236,9 @@ const ChapterReader: React.FC = () => {
   useBrowserReading({
     book: order, chapter, translation, verseCount: verses.length,
     ready: !loading && !error && loadedKey === chapterKey && !!book,
-    obscured: selection !== null,
+    // The peek leaves most of the chapter readable; only the expanded study
+    // view (or the colour picker) covers the text, as on Android.
+    obscured: (selection !== null && sheetTier === "expanded") || pickerOpen,
   });
 
   // The reader's chips and Settings share one account preference.
@@ -273,30 +295,50 @@ const ChapterReader: React.FC = () => {
       ? selectionReference(book.name, chapter, { start: selection.start, end: selection.start })
       : "";
 
-  const closePanel = useCallback(() => setSelection(null), []);
+  const closePanel = useCallback(() => {
+    setSelection(null);
+    setPickerOpen(false);
+  }, []);
 
   // The whole multi-select rule lives in toggleVerse: first click opens, a
   // further click grows the range, a click inside it re-anchors, and clicking
-  // the only selected verse closes the panel.
+  // the only selected verse closes the panel. The toggle reads the current
+  // selection through a ref, written at once, so two clicks in one frame chain.
+  const selectionNow = useRef(selection);
+  selectionNow.current = selection;
   const onVerseClick = useCallback((verse: number) => {
-    setSelection((current) => toggleVerse(current, verse));
+    const current = selectionNow.current;
+    const next = toggleVerse(current, verse);
+    if (next === current) {
+      // The only way the toggle leaves the selection alone is the cap.
+      setActionMessage({ text: `Up to ${MAX_SELECTED_VERSES} verses at a time.`, tone: "muted" });
+      return;
+    }
+    selectionNow.current = next;
+    if (!current && next) {
+      // A fresh open starts at the peek on Explain; growing the range leaves
+      // the reader on whichever tier and view they were already reading.
+      setSheetTier("peek");
+      setStudyTab("explain");
+    }
+    setActionMessage(null);
+    setSelection(next);
   }, []);
 
-  // A fresh open starts on Explain; growing the range leaves the reader on
-  // whichever view they were already reading.
+  // Paging to another chapter or translation: the selection no longer
+  // describes what is on screen.
   useEffect(() => {
-    const open = selection !== null;
-    if (open && !panelWasOpen.current) setStudyTab("explain");
-    panelWasOpen.current = open;
-  }, [selection]);
+    setSelection(null);
+    setPickerOpen(false);
+  }, [chapterKey]);
 
   // A different passage invalidates every piece of per-selection chip state.
   useEffect(() => {
     learnRequest.current?.abort();
     learnRequest.current = null;
     setCopied(false);
-    setSaveError(null);
     setLearnStatus("idle");
+    setActionMessage(null);
   }, [selectionRef]);
 
   // Tap-a-verse: the panel streams a short AI explanation of whatever is
@@ -329,16 +371,24 @@ const ChapterReader: React.FC = () => {
     []
   );
 
-  // Escape closes the verse panel, matching every other dismissable panel in
-  // the app (and the close X added alongside it).
+  // Escape steps back one tier, like Android's back button on the sheet: the
+  // study view collapses to the peek, and the peek closes.
+  const sheetOpen = selection !== null;
   useEffect(() => {
-    if (!selection) return;
+    if (!sheetOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closePanel();
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (sheetTier === "expanded") setSheetTier("peek");
+      else closePanel();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selection, closePanel]);
+  }, [sheetOpen, sheetTier, closePanel]);
+
+  const openStudy = useCallback((tab: StudyTabKey) => {
+    setStudyTab(tab);
+    setSheetTier("expanded");
+  }, []);
 
   const retryInsight = useCallback(() => {
     if (!selectionRef) return;
@@ -406,7 +456,7 @@ const ChapterReader: React.FC = () => {
   const onSaveSelection = useCallback(async () => {
     if (!selectionRef || saveBusy) return;
     setSaveBusy(true);
-    setSaveError(null);
+    setActionMessage(null);
     try {
       const noteId = await saveVerseToNote(
         { reference: selectionRef, text: selectionPlain },
@@ -415,7 +465,7 @@ const ChapterReader: React.FC = () => {
       closePanel();
       router.push(`/notes?note=${encodeURIComponent(noteId)}`);
     } catch {
-      setSaveError("The note could not be saved. Check your connection and try again.");
+      setActionMessage({ text: SAVE_ERROR, tone: "danger" });
     } finally {
       setSaveBusy(false);
     }
@@ -432,9 +482,11 @@ const ChapterReader: React.FC = () => {
     const controller = new AbortController();
     learnRequest.current = controller;
     setLearnStatus("adding");
+    setActionMessage(null);
     // A selection already carrying a highlight was marked before it was
     // studied, so it enters Learn as a highlight, as the old sheet did.
     const source = selectionHex ? "highlight" : "sheet";
+    const count = selectionCount(selection);
     try {
       for (const verse of selectionVerses(selection)) {
         await addVerseToLearn(
@@ -442,9 +494,18 @@ const ChapterReader: React.FC = () => {
           controller.signal
         );
       }
-      if (!controller.signal.aborted) setLearnStatus("added");
+      if (!controller.signal.aborted) {
+        setLearnStatus("added");
+        setActionMessage({
+          text: count === 1 ? "Added to Learn." : `Added ${count} verses to Learn.`,
+          tone: "muted",
+        });
+      }
     } catch {
-      if (!controller.signal.aborted) setLearnStatus("error");
+      if (!controller.signal.aborted) {
+        setLearnStatus("idle");
+        setActionMessage({ text: LEARN_ERROR, tone: "danger" });
+      }
     } finally {
       if (learnRequest.current === controller) learnRequest.current = null;
     }
@@ -519,15 +580,15 @@ const ChapterReader: React.FC = () => {
     onLearnSelection,
   ]);
 
-  const barMessage =
-    saveError ??
-    (learnStatus === "error" ? LEARN_ERROR : undefined) ??
-    (selectionHighlightLabel ? `Marked as “${selectionHighlightLabel}”` : undefined);
-  const barTone: "muted" | "danger" =
-    saveError || learnStatus === "error" ? "danger" : "muted";
+  const barMessage: ActionMessage | null =
+    actionMessage ??
+    (selectionHighlightLabel
+      ? { text: `Marked as “${selectionHighlightLabel}”`, tone: "muted" }
+      : null);
 
   const fontSize = FONT_STEPS[fontStep];
-  const lineHeight = Math.round(fontSize * 1.55);
+  // Android's reader line height, so a chapter breathes the same on both.
+  const lineHeight = Math.round(fontSize * 1.8);
 
   // A source translation opened from chat must survive paging, as it does on
   // Android and Apple; without it Next silently flips back to the account default.
@@ -562,7 +623,13 @@ const ChapterReader: React.FC = () => {
       {/* Bottom padding reserves the floating Ask AI pill's band (its offset
           plus its height plus a gap) so the pill never lands on verse text or
           the Previous/Next row at the end of a chapter. */}
-      <div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-44 lg:pb-24">
+      {/* While the verse sheet peeks, extra room lets the last verses scroll
+          clear of it, so the chapter stays readable to its final line. */}
+      <div
+        className={`mx-auto w-full max-w-2xl lg:max-w-3xl px-5 ${
+          selection ? "pb-[24rem]" : "pb-44 lg:pb-24"
+        }`}
+      >
         {/* Top bar. A three-track grid with equal 1fr side slots keeps the
             title on the column's centre line however wide the right cluster
             grows; a plain flex row let the wider side push it off-centre. */}
@@ -574,8 +641,16 @@ const ChapterReader: React.FC = () => {
           >
             ‹ Back
           </button>
-          <h1 className="text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-            {reference}
+          {/* The reference is the chapter picker, as on Android's reader dock. */}
+          <h1 className="min-w-0 text-center">
+            <Link
+              href={`/bible/chapters?book=${order}`}
+              aria-label={`Choose chapter, ${reference}`}
+              className="inline-flex min-h-9 max-w-full items-center gap-1 rounded-full px-3 text-[15px] font-semibold text-neutral-900 dark:text-neutral-100 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+            >
+              <span className="truncate">{reference}</span>
+              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-neutral-500 dark:text-neutral-400" aria-hidden />
+            </Link>
           </h1>
           <div className="flex justify-self-end gap-1 sm:gap-2">
             <Link
@@ -626,6 +701,9 @@ const ChapterReader: React.FC = () => {
             </button>
           ))}
         </div>
+        <p className="pb-2 text-center text-metadata text-neutral-500 dark:text-neutral-400">
+          {TRANSLATION_NOTES[translation]}
+        </p>
 
         {readingStatus.error ? (
           <p role="alert" className="mx-auto max-w-3xl px-4 py-2 text-red-600">
@@ -672,6 +750,7 @@ const ChapterReader: React.FC = () => {
                 const verseColor = verseHighlights.get(verseNumber);
                 const formatted = translation === "BSB" ? getBsbChapter(order, chapter)[index] : null;
                 const segments = readerVerseSegments(text, translation, order, chapter, verseNumber);
+                const selected = selectionIncludes(selection, verseNumber);
                 return (
                   <div key={verseNumber}>
                   {readerSectionHeadings(translation, order, chapter, verseNumber).map((heading, i) => <h3 key={i} className="mb-5 mt-8 font-serif text-2xl italic text-neutral-900 dark:text-neutral-100">{heading}</h3>)}
@@ -684,26 +763,18 @@ const ChapterReader: React.FC = () => {
                     // Android; display rendering keeps its own parsed segments,
                     // and the plain text comes from the shared plainTexts list.
                     onClick={() => onVerseClick(verseNumber)}
-                    aria-pressed={selectionIncludes(selection, verseNumber)}
+                    aria-pressed={selected}
+                    // The selection tint and the deep-link flash share one look,
+                    // as on Android: both say "this is the verse we mean". The
+                    // stored highlight washes the words themselves (below), so
+                    // a highlighted verse still shows it is selected.
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
-                      selectionIncludes(selection, verseNumber)
-                        ? "underline decoration-dotted decoration-2 underline-offset-4"
-                        : ""
-                    } ${
-                      highlighted === verseNumber
+                      selected || highlighted === verseNumber
                         ? parchment
                           ? "bg-amber-800/15 dark:bg-amber-400/15"
                           : "bg-amber-500/10 dark:bg-amber-400/10"
                         : ""
                     }`}
-                    // The deep-link flash keeps visual precedence: while it is
-                    // active the stored wash is dropped so the amber flash
-                    // class shows through.
-                    style={
-                      verseColor && highlighted !== verseNumber
-                        ? { backgroundColor: highlightWash(verseColor) }
-                        : undefined
-                    }
                   >
                     <span
                       className={`font-[family-name:var(--font-cormorant)]${
@@ -713,14 +784,27 @@ const ChapterReader: React.FC = () => {
                     >
                       <span
                         className={`mr-1 align-super font-sans text-xs font-bold small-caps ${
-                          parchment
-                            ? "text-amber-900/70 dark:text-amber-400/80"
-                            : "text-amber-700/60 dark:text-amber-500/50"
+                          selected
+                            ? "text-amber-600 dark:text-amber-400"
+                            : parchment
+                              ? "text-amber-900/70 dark:text-amber-400/80"
+                              : "text-amber-700/60 dark:text-amber-500/50"
                         }`}
                       >
                         {verseNumber}
                       </span>
-                      {segments.map((segment, i) => <span key={i} className={segment.jesusSpeech ? "text-[#a12e2a] dark:text-[#ef8a83]" : undefined} style={{ fontStyle: segment.italic ? "italic" : undefined }}>{segment.text}</span>)}
+                      {segments.map((segment, i) => (
+                        <span
+                          key={i}
+                          className={segment.jesusSpeech ? "text-[#a12e2a] dark:text-[#ef8a83]" : undefined}
+                          style={{
+                            fontStyle: segment.italic ? "italic" : undefined,
+                            backgroundColor: verseColor ? highlightWash(verseColor) : undefined,
+                          }}
+                        >
+                          {segment.text}
+                        </span>
+                      ))}
                       {formatted?.omitted ? <span className="text-sm text-neutral-500">Not included in this edition’s main text.</span> : null}
                     </span>
                     <span className="block h-4" aria-hidden />
@@ -789,35 +873,46 @@ const ChapterReader: React.FC = () => {
         )}
       </div>
 
-      {/* Verse panel (web analog of Android's redesigned verse sheet). There
-          is deliberately no scrim: the reader stays clickable so further
-          verses can join the selection while the panel is open. */}
+      {/* Tap-a-verse, the web twin of Android's two-tier verse sheet. The
+          peek (teaser + action bar) has no scrim, so the chapter stays
+          readable and further verses can join the selection; the expanded
+          tier is the full study view. */}
       {selection && (
-        <div
-          role="dialog"
-          aria-label={`${selectionRef} actions`}
-          className="glass fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[72dvh] w-full max-w-lg flex-col rounded-t-2xl border-t border-black/[0.08] dark:border-white/[0.08] animate-message-in"
+        <VerseSheet
+          tier={sheetTier}
+          onTierChange={setSheetTier}
+          onClose={closePanel}
+          title={selectionRef}
+          subtitle={isRange ? `${selectionCount(selection)} verses` : undefined}
+          peek={
+            <InsightTeaser
+              status={insightStatus}
+              text={insightText}
+              error={insightError}
+              onPress={() => openStudy("explain")}
+              onRetry={retryInsight}
+            />
+          }
+          footer={
+            <VerseActionBar
+              color={selectionHex}
+              canRemove={selectionHasColor}
+              onHighlight={highlightSelection}
+              onRemoveHighlight={clearSelectionHighlight}
+              onCustomColor={highlightSelection}
+              onCustomPickerOpenChange={setPickerOpen}
+              labelForPreset={labelForPreset}
+              actions={verseActions}
+              message={barMessage?.text}
+              messageTone={barMessage?.tone}
+            />
+          }
         >
-          <div className="relative flex-shrink-0 px-4 pb-2 pt-4">
-            <div className="flex items-baseline justify-center gap-2 pr-8">
-              <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{selectionRef}</p>
-              {isRange && (
-                <span className="text-metadata text-neutral-500 dark:text-neutral-400">
-                  {selectionCount(selection)} verses
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={closePanel}
-              className="absolute right-3 top-2 flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
-            >
-              <X className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
+          <p className="line-clamp-4 px-4 pb-3 font-[family-name:var(--font-cormorant)] text-[17px] leading-[26px] text-neutral-600 dark:text-neutral-300">
+            {selectionPlain}
+          </p>
 
-          <div className="flex-shrink-0 px-4 pb-2">
+          <div className="px-4 pb-2">
             <StudyTabs
               tabs={STUDY_TABS}
               active={studyTab}
@@ -830,7 +925,7 @@ const ChapterReader: React.FC = () => {
             id={STUDY_PANEL_ID}
             role="tabpanel"
             aria-labelledby={`${STUDY_PANEL_ID}-tab-${studyTab}`}
-            className="min-h-0 flex-1 overflow-y-auto px-4 pb-3"
+            className="px-4 pb-3"
           >
             {studyTab === "explain" ? (
               /* Streaming AI explanation (glowing skeleton until tokens arrive) */
@@ -899,19 +994,7 @@ const ChapterReader: React.FC = () => {
               </div>
             )}
           </div>
-
-          <VerseActionBar
-            color={selectionHex}
-            canRemove={selectionHasColor}
-            onHighlight={highlightSelection}
-            onRemoveHighlight={clearSelectionHighlight}
-            onCustomColor={highlightSelection}
-            labelForPreset={labelForPreset}
-            actions={verseActions}
-            message={barMessage}
-            messageTone={barTone}
-          />
-        </div>
+        </VerseSheet>
       )}
     </div>
   );

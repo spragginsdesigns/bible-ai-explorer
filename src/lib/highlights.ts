@@ -21,6 +21,16 @@ export const HIGHLIGHT_COLORS: readonly HighlightColor[] = [
 ];
 
 /**
+ * "#RRGGBB" in upper case, or null when the input does not start with six
+ * hex digits. Mirrors mobile/src/features/bible/highlights.ts, which the
+ * highlight caches on both platforms use to reject a corrupt stored color.
+ */
+export function normalizeHighlightHex(hex: string): string | null {
+	const match = /^#?([0-9a-f]{6})/i.exec(hex.trim());
+	return match ? `#${match[1].toUpperCase()}` : null;
+}
+
+/**
  * Translucent background wash for a highlighted verse, so the text stays
  * readable over it in light and dark mode. Returns the input unchanged when
  * it is not a "#RRGGBB" hex (callers only store validated colors).

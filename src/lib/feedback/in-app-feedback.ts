@@ -38,6 +38,12 @@ export const MAX_REPLY_EMAIL_LENGTH = 254;
 /** Shape only: the address is for writing back, not for proving anything. */
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** The same shape check, for a client to spare a round trip; the server decides. */
+export function looksLikeEmail(value: string): boolean {
+	const trimmed = value.trim();
+	return trimmed.length > 0 && trimmed.length <= MAX_REPLY_EMAIL_LENGTH && EMAIL_SHAPE.test(trimmed);
+}
+
 export interface FeedbackSubmission {
 	category: FeedbackCategoryId;
 	message: string;

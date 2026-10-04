@@ -13,6 +13,7 @@ import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCo
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref } from "@/lib/preferences";
 import { claimGuestTurnsOnce, guestClaimOpened, markGuestClaimOpened } from "@/lib/guest-client";
+import { OPEN_CONVERSATION_EVENT } from "@/lib/web-notifications";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
 const SWIPE_THRESHOLD = 50;
@@ -52,6 +53,7 @@ const BibleAIExplorerInner: React.FC = () => {
 		activeConversation,
 		isStreaming,
 		loading,
+		initialLoading,
 		historyLoading,
 		historyError,
 		historyActionError,
@@ -85,9 +87,60 @@ const BibleAIExplorerInner: React.FC = () => {
 	const attachTextParam = searchParams.get("attachText") ?? "";
 	const attachTranslationParam = searchParams.get("attachTranslation") ?? "";
 	const verseOfDayIdParam = searchParams.get("verseOfDayId") ?? "";
+	const conversationIdParam = searchParams.get("conversationId") ?? "";
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
+	const lastOpenedConversation = useRef("");
+	/** An id opened from the URL whose switch has not reached state yet. */
+	const pendingUrlConversation = useRef("");
+
+	// ?conversationId= opens that conversation: a shared or bookmarked link, or
+	// a click on an "answer is ready" notification (Android parity,
+	// app/(app)/index.tsx).
+	useEffect(() => {
+		if (!conversationIdParam || conversationIdParam === lastOpenedConversation.current) return;
+		lastOpenedConversation.current = conversationIdParam;
+		pendingUrlConversation.current = conversationIdParam;
+		void switchConversation(conversationIdParam);
+	}, [conversationIdParam, switchConversation]);
+
+	// A click on the in-tab "answer is ready" notification switches here
+	// instead of reloading the page; preventDefault tells the notification
+	// module the click was handled.
+	useEffect(() => {
+		const onOpen = (event: Event) => {
+			const id = (event as CustomEvent<{ conversationId?: unknown }>).detail?.conversationId;
+			if (typeof id !== "string" || !id) return;
+			event.preventDefault();
+			void switchConversation(id);
+		};
+		window.addEventListener(OPEN_CONVERSATION_EVENT, onOpen);
+		return () => window.removeEventListener(OPEN_CONVERSATION_EVENT, onOpen);
+	}, [switchConversation]);
+
+	// Keep the address bar on the open conversation, so reload, back/forward
+	// and copying the URL all return to it. replaceState rather than a router
+	// push: switching chats is not navigation, and every other param (?prompt=,
+	// ?attachRef=, ...) is carried over untouched; their effects dedupe.
+	useEffect(() => {
+		const pending = pendingUrlConversation.current;
+		if (pending) {
+			// The URL already names the conversation being opened; leave it
+			// alone until that switch lands in state.
+			if (activeConversationId !== pending) return;
+			pendingUrlConversation.current = "";
+		}
+		const url = new URL(window.location.href);
+		const current = url.searchParams.get("conversationId") ?? "";
+		const next = activeConversationId ?? "";
+		if (current === next) return;
+		if (next) url.searchParams.set("conversationId", next);
+		else url.searchParams.delete("conversationId");
+		// Recorded first so the param change this causes does not re-open it.
+		lastOpenedConversation.current = next;
+		window.history.replaceState(window.history.state, "", url.toString());
+	}, [activeConversationId]);
 
 	// ?prompt= — prefill the input and focus it, but leave sending to the user.
 	useEffect(() => {
@@ -220,6 +273,7 @@ const BibleAIExplorerInner: React.FC = () => {
 				<ChatSidebar
 					conversations={conversations}
 					activeConversationId={activeConversationId}
+					initialLoading={initialLoading}
 					historyActionError={historyActionError}
 					onNewChat={newConversation}
 					onSelectConversation={switchConversation}
@@ -258,10 +312,13 @@ const BibleAIExplorerInner: React.FC = () => {
 					>
 						<div className="w-full max-w-md rounded-2xl border border-red-500/20 bg-red-500/[0.06] p-5 text-center">
 							<h2 className="text-section-title font-semibold text-neutral-900 dark:text-neutral-100">
-								Couldn&apos;t load this conversation
+								{historyError.title}
 							</h2>
 							<p className="mt-2 text-support text-neutral-600 dark:text-neutral-400">
-								{historyError}
+								{historyError.message}
+							</p>
+							<p className="mt-1 text-xs leading-4 text-neutral-400 dark:text-neutral-600">
+								ref: {historyError.code}
 							</p>
 							<div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
 								<button

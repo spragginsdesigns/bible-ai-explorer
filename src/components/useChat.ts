@@ -13,6 +13,8 @@ import {
 	validateAttachmentBatch,
 } from "@/lib/chat-attachment-types";
 import { completedHistory } from "@/lib/chat/answerRecovery";
+import { prepareFilesForUpload } from "@/lib/chat/imageDownscale";
+import { notifyAnswerReady } from "@/lib/web-notifications";
 import {
 	isRenderableChatMessage,
 	streamingAssistantId,
@@ -22,6 +24,7 @@ import {
 	conversationStartError,
 	recoveryExhaustedError,
 	type ClassifiedChatError,
+	type ClassifyChatErrorInput,
 } from "@/lib/chat/chatErrors";
 import { buildReceipts, type ChatReceipt } from "@/lib/chat/receipts";
 import { feedbackByMessageId, type AnswerFeedback } from "@/lib/chat/feedback-client";
@@ -425,10 +428,16 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 
 export const useChat = () => {
 	const [conversations, setConversations] = useState<Conversation[]>([]);
+	// Read by the answer-ready notification, which fires from effects and the
+	// recovery poll where the list in scope may be stale.
+	const conversationsRef = useRef<Conversation[]>([]);
+	useEffect(() => {
+		conversationsRef.current = conversations;
+	}, [conversations]);
 	const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 	const [initialLoading, setInitialLoading] = useState(true);
 	const [historyLoading, setHistoryLoading] = useState(false);
-	const [historyError, setHistoryError] = useState<string | null>(null);
+	const [historyError, setHistoryError] = useState<ClassifiedChatError | null>(null);
 	const [historyActionError, setHistoryActionError] = useState<string | null>(null);
 	const [sendError, setSendError] = useState<ClassifiedChatError | null>(null);
 	/**
@@ -454,12 +463,17 @@ export const useChat = () => {
 		}
 	}, []);
 
-	const addFileAttachments = useCallback(async (files: File[]) => {
-		if (files.length === 0 || uploadingAttachments) return;
+	const addFileAttachments = useCallback(async (picked: File[]) => {
+		if (picked.length === 0 || uploadingAttachments) return;
 		const draftVersion = attachmentDraftVersionRef.current;
 		setAttachmentError(null);
 		let initializedIds: string[] = [];
 		try {
+			// Downscale first, so the size check below judges what is actually
+			// uploaded: a 14MB camera photo becomes a ~1MB JPEG instead of a
+			// rejection (Android does the same in prepareImageAssets).
+			setUploadingAttachments(true);
+			const files = await prepareFilesForUpload(picked);
 			validateAttachmentBatch([
 				...fileAttachments.map((item) => ({
 					filename: item.filename,
@@ -472,7 +486,6 @@ export const useChat = () => {
 					size: file.size,
 				})),
 			]);
-			setUploadingAttachments(true);
 			const initResponse = await fetch("/api/chat/attachments", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -611,6 +624,18 @@ export const useChat = () => {
 		if (status === "ready" && !recoveringRef.current) pendingAnswerRef.current = null;
 	}, [status]);
 
+	/**
+	 * A finished (or recovered) answer while this tab is in the background gets
+	 * a browser notification, the web's version of Android's "answer is ready"
+	 * push. notifyAnswerReady checks the user's preference and permission
+	 * itself; clicking it opens /?conversationId=<id>.
+	 */
+	const notifyIfHidden = useCallback((conversationId: string | null) => {
+		if (!conversationId || typeof document === "undefined" || !document.hidden) return;
+		const title = conversationsRef.current.find((c) => c.id === conversationId)?.title;
+		notifyAnswerReady({ conversationId, ...(title ? { title } : {}) });
+	}, []);
+
 	const cancelRecovery = useCallback(() => {
 		recoverVersionRef.current += 1;
 		recoveringRef.current = false;
@@ -646,6 +671,7 @@ export const useChat = () => {
 								pendingAnswerRef.current = null;
 								setSendError(null);
 								clearError();
+								notifyIfHidden(conversationId);
 								return;
 							}
 						}
@@ -665,7 +691,7 @@ export const useChat = () => {
 				}
 			}
 		},
-		[clearError, setUIMessages]
+		[clearError, notifyIfHidden, setUIMessages]
 	);
 
 	// Only connection loss is recoverable. A server error has already ended the answer.
@@ -732,9 +758,14 @@ export const useChat = () => {
 	useEffect(() => {
 		if (previousStatus.current !== "ready" && status === "ready") {
 			void refreshConversations().catch(() => undefined);
+			// "ready" straight from a live turn is a finished answer; an error
+			// lands on "error" instead, and a recovered one notifies from the poll.
+			if (previousStatus.current === "streaming" || previousStatus.current === "submitted") {
+				notifyIfHidden(conversationIdRef.current);
+			}
 		}
 		previousStatus.current = status;
-	}, [status, refreshConversations]);
+	}, [status, refreshConversations, notifyIfHidden]);
 	useEffect(() => {
 		const onFocus = () => {
 			if (statusRef.current === "ready") void refreshConversations().catch(() => undefined);
@@ -764,9 +795,18 @@ export const useChat = () => {
 			setMessageFeedback({});
 			setUIMessages([]);
 
+			// What the failed response said, so the error card can name the
+			// cause (offline, not found, signed out) the way Android's does.
+			let failure: ClassifyChatErrorInput | null = null;
 			try {
 				const res = await fetch(`/api/conversations/${id}`);
-				if (!res.ok) throw new Error("Conversation history request failed.");
+				if (!res.ok) {
+					failure = {
+						status: res.status,
+						bodyText: await res.text().catch(() => undefined),
+					};
+					throw new Error("Conversation history request failed.");
+				}
 
 				const data: unknown = await res.json();
 				if (loadVersion !== historyLoadVersionRef.current) return;
@@ -776,10 +816,14 @@ export const useChat = () => {
 
 				setMessageFeedback(feedbackByMessageId(data.messages));
 				setUIMessages(data.messages.map(dbMessageToUIMessage));
-			} catch {
+			} catch (err) {
 				if (loadVersion === historyLoadVersionRef.current) {
 					historyErrorRef.current = true;
-					setHistoryError(HISTORY_LOAD_ERROR);
+					const classified = classifyChatError(
+						failure ?? { message: err instanceof Error ? err.message : undefined },
+					);
+					// Android keeps the code's title and swaps in the history copy.
+					setHistoryError({ ...classified, message: HISTORY_LOAD_ERROR });
 				}
 			} finally {
 				if (loadVersion === historyLoadVersionRef.current) {

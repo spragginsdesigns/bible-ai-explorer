@@ -1,5 +1,6 @@
 import posthog from "posthog-js";
 import { initBotId } from "botid/client/core";
+import { sanitizeOutgoingEvent } from "@/lib/analytics/web-signals";
 
 // Vercel BotID: attaches the challenge headers to the one signed-out route
 // that spends SureWord's own AI key. checkBotId() in that route reads them.
@@ -38,5 +39,9 @@ if (POSTHOG_KEY) {
 		autocapture: false,
 		disable_session_recording: true,
 		person_profiles: "identified_only",
+		// A query string here is study content (a prompt, an attached verse),
+		// and PostHog stamps the URL on every event, so every event is
+		// stripped on its way out. Rules: src/lib/analytics/web-signals.ts.
+		before_send: (event) => (event ? sanitizeOutgoingEvent(event) : event),
 	});
 }

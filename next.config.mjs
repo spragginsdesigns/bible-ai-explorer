@@ -24,6 +24,22 @@ const nextConfig = {
 			},
 		];
 	},
+	// Android's routes put the cross and sermon studies inside the Bible stack
+	// (bible/cross, bible/sermons, bible/sermon?id=), and shared links or push
+	// payloads can carry those paths. The web pages live at the top level.
+	async redirects() {
+		return [
+			{ source: "/bible/cross", destination: "/cross", permanent: false },
+			{ source: "/bible/sermons", destination: "/sermons", permanent: false },
+			{
+				source: "/bible/sermon",
+				has: [{ type: "query", key: "id", value: "(?<id>[A-Za-z0-9_-]+)" }],
+				destination: "/sermons/:id",
+				permanent: false,
+			},
+			{ source: "/bible/sermon", destination: "/sermons", permanent: false },
+		];
+	},
 	skipTrailingSlashRedirect: true,
 };
 
@@ -35,6 +51,14 @@ export default withBotId(withPWA({
 	register: true,
 	skipWaiting: true,
 	disable: process.env.NODE_ENV === "development",
+	// Push + notificationclick handlers for web notifications.
+	importScripts: ["/push-handlers.js"],
+	// One failed precache request aborts the service worker install. Next 15
+	// never serves app-build-manifest.json, and middleware redirects .xml to
+	// sign-in, so precaching either one meant the worker (and with it web push)
+	// never activated.
+	buildExcludes: [/app-build-manifest\.json$/],
+	publicExcludes: ["!noprecache/**/*", "!browserconfig.xml"],
 	runtimeCaching: [
 		{
 			urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,

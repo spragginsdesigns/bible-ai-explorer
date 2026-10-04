@@ -24,6 +24,8 @@ interface AppendSuccess {
 	key: string;
 	created: boolean;
 	noteTitle: string;
+	/** The note the append landed in, so "View in notes" opens it directly. */
+	noteId: string | null;
 }
 
 const NEW_NOTE_KEY = "new";
@@ -128,6 +130,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 				}),
 			});
 			const data = (await res.json().catch(() => null)) as {
+				noteId?: string;
 				noteTitle?: string;
 				created?: boolean;
 			} | null;
@@ -135,6 +138,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 			setSuccess({
 				key,
 				created: data?.created === true,
+				noteId: typeof data?.noteId === "string" && data.noteId ? data.noteId : null,
 				noteTitle:
 					typeof data?.noteTitle === "string" ? data.noteTitle : "note",
 			});
@@ -158,7 +162,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 				</span>
 			</div>
 			<Link
-				href="/notes"
+				href={success.noteId ? `/notes?note=${encodeURIComponent(success.noteId)}` : "/notes"}
 				onClick={onClose}
 				className="flex-shrink-0 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
 			>

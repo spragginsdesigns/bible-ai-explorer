@@ -1,7 +1,18 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Loader2, Paperclip, X, RefreshCw, Square } from "lucide-react";
+import {
+	Camera,
+	ClipboardPaste,
+	FileText,
+	Images,
+	Loader2,
+	Paperclip,
+	RefreshCw,
+	Send,
+	Square,
+	X,
+} from "lucide-react";
 import {
 	matchSlashCommands,
 	parseSlashCommand,
@@ -44,6 +55,51 @@ interface ChatInputProps {
 	pickerPlacement?: "above" | "below";
 }
 
+/** Everything the "Choose files" picker accepts (the uploader's allowlist). */
+const FILE_ACCEPT =
+	".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json";
+const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif";
+
+const CLIPBOARD_EXTENSIONS: Record<string, string> = {
+	"image/png": "png",
+	"image/jpeg": "jpg",
+	"image/webp": "webp",
+	"image/gif": "gif",
+};
+
+/**
+ * The first image on the system clipboard as a File, for the menu's "Paste
+ * screenshot" row. Ctrl+V into the box still works through onPaste; this is
+ * the tap path, mirroring Android's AttachmentSourceSheet. Throws with a
+ * reader-facing message when there is nothing to paste or the browser says no.
+ */
+async function readClipboardImage(): Promise<File> {
+	if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
+		throw new Error("This browser can't read images from the clipboard. Press Ctrl+V in the message box instead.");
+	}
+	let items: ClipboardItems;
+	try {
+		items = await navigator.clipboard.read();
+	} catch {
+		throw new Error("Clipboard access was blocked. Press Ctrl+V in the message box instead.");
+	}
+	for (const item of items) {
+		const type = item.types.find((candidate) => candidate in CLIPBOARD_EXTENSIONS);
+		if (!type) continue;
+		const blob = await item.getType(type);
+		return new File([blob], `clipboard-${Date.now()}.${CLIPBOARD_EXTENSIONS[type]}`, { type });
+	}
+	throw new Error("There isn't an image on the clipboard.");
+}
+
+interface AttachmentOption {
+	key: string;
+	label: string;
+	detail: string;
+	icon: React.ComponentType<{ className?: string }>;
+	run: () => void;
+}
+
 const ChatInput: React.FC<ChatInputProps> = ({
 	onSend,
 	loading,
@@ -69,7 +125,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	const [innerText, setInnerText] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const imageInputRef = useRef<HTMLInputElement>(null);
+	const cameraInputRef = useRef<HTMLInputElement>(null);
+	const attachMenuRef = useRef<HTMLDivElement>(null);
+	const attachButtonRef = useRef<HTMLButtonElement>(null);
 	const [dragging, setDragging] = useState(false);
+	const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+	const [pasteError, setPasteError] = useState<string | null>(null);
 	const text = value ?? innerText;
 	const setText = useCallback(
 		(next: string) => {
@@ -145,8 +207,79 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	};
 
 	const handleFiles = useCallback((files: FileList | File[]) => {
+		setPasteError(null);
 		onFilesSelected?.(Array.from(files));
 	}, [onFilesSelected]);
+
+	const closeAttachMenu = useCallback(() => {
+		setAttachMenuOpen(false);
+		attachButtonRef.current?.focus();
+	}, []);
+
+	useEffect(() => {
+		if (!attachMenuOpen) return;
+		const onPointer = (event: MouseEvent) => {
+			const target = event.target as Node;
+			if (attachMenuRef.current?.contains(target)) return;
+			if (attachButtonRef.current?.contains(target)) return;
+			setAttachMenuOpen(false);
+		};
+		const onKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") closeAttachMenu();
+		};
+		document.addEventListener("mousedown", onPointer);
+		document.addEventListener("keydown", onKeyDown);
+		return () => {
+			document.removeEventListener("mousedown", onPointer);
+			document.removeEventListener("keydown", onKeyDown);
+		};
+	}, [attachMenuOpen, closeAttachMenu]);
+
+	const pasteFromClipboard = useCallback(async () => {
+		setPasteError(null);
+		try {
+			handleFiles([await readClipboardImage()]);
+		} catch (err) {
+			setPasteError(err instanceof Error ? err.message : "Could not paste the clipboard image.");
+		}
+	}, [handleFiles]);
+
+	// Labels mirror Android's AttachmentSourceSheet row for row.
+	const attachmentOptions: AttachmentOption[] = [
+		{
+			key: "camera",
+			label: "Take a photo",
+			detail: "Use your camera",
+			icon: Camera,
+			run: () => cameraInputRef.current?.click(),
+		},
+		{
+			key: "library",
+			label: "Photo library",
+			detail: "Choose one or more images",
+			icon: Images,
+			run: () => imageInputRef.current?.click(),
+		},
+		{
+			key: "files",
+			label: "Choose files",
+			detail: "PDF, text, Markdown, CSV, or JSON",
+			icon: FileText,
+			run: () => fileInputRef.current?.click(),
+		},
+		{
+			key: "paste",
+			label: "Paste screenshot",
+			detail: "Use the image on your clipboard",
+			icon: ClipboardPaste,
+			run: () => void pasteFromClipboard(),
+		},
+	];
+
+	const onFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		if (event.target.files) handleFiles(event.target.files);
+		event.target.value = "";
+	};
 
 	const handlePaste = useCallback((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
 		const files = Array.from(event.clipboardData.files).filter((file) => file.type.startsWith("image/"));
@@ -160,8 +293,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 	// Attachment failures keep their string shape; they get the same card
 	// treatment as send errors, minus the retry (re-pick the file instead).
-	const shownError: ClassifiedChatError | null = attachmentError
-		? { code: "invalid_input", title: "Couldn't attach that file", message: attachmentError, retryable: false }
+	const attachFailure = attachmentError ?? pasteError;
+	const shownError: ClassifiedChatError | null = attachFailure
+		? { code: "invalid_input", title: "Couldn't attach that file", message: attachFailure, retryable: false }
 		: error;
 
 	return (
@@ -276,30 +410,90 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						/>
 						<div className="mt-0.5 flex items-center gap-1">
 							<ModelPicker placement={pickerPlacement} />
+							{/* The labelled 44px button below is the keyboard trigger; the
+							    native controls stay click targets only. */}
 							<input
 								ref={fileInputRef}
 								type="file"
 								multiple
-								accept=".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json"
+								accept={FILE_ACCEPT}
 								className="sr-only"
-								// The labelled 44px button below is the keyboard trigger; the
-								// native control stays a click target only.
 								tabIndex={-1}
 								aria-hidden="true"
-								onChange={(event) => {
-									if (event.target.files) handleFiles(event.target.files);
-									event.target.value = "";
-								}}
+								onChange={onFileInputChange}
 							/>
-							<button
-								type="button"
-								onClick={() => fileInputRef.current?.click()}
-								disabled={disabled}
-								aria-label="Attach files"
-								className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
-							>
-								{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-							</button>
+							<input
+								ref={imageInputRef}
+								type="file"
+								multiple
+								accept={IMAGE_ACCEPT}
+								className="sr-only"
+								tabIndex={-1}
+								aria-hidden="true"
+								onChange={onFileInputChange}
+							/>
+							{/* capture opens the rear camera on phones; desktop browsers
+							    ignore it and show an image picker instead. */}
+							<input
+								ref={cameraInputRef}
+								type="file"
+								accept="image/*"
+								capture="environment"
+								className="sr-only"
+								tabIndex={-1}
+								aria-hidden="true"
+								onChange={onFileInputChange}
+							/>
+							<div className="relative flex-shrink-0">
+								<button
+									ref={attachButtonRef}
+									type="button"
+									onClick={() => {
+										setPasteError(null);
+										setAttachMenuOpen((current) => !current);
+									}}
+									disabled={disabled}
+									aria-label="Attach files"
+									aria-haspopup="menu"
+									aria-expanded={attachMenuOpen}
+									className="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
+								>
+									{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+								</button>
+								{attachMenuOpen && !disabled && (
+									<div
+										ref={attachMenuRef}
+										role="menu"
+										aria-label="Choose an attachment"
+										className={`absolute left-0 z-50 w-64 overflow-hidden rounded-xl border border-black/[0.08] bg-white py-1 shadow-lg dark:border-white/[0.08] dark:bg-neutral-900 ${
+											pickerPlacement === "below" ? "top-full mt-2" : "bottom-full mb-2"
+										}`}
+									>
+										{attachmentOptions.map(({ key, label, detail, icon: Icon, run }) => (
+											<button
+												type="button"
+												role="menuitem"
+												key={key}
+												onClick={() => {
+													setAttachMenuOpen(false);
+													run();
+												}}
+												className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+											>
+												<Icon className="h-4 w-4 flex-shrink-0 text-neutral-500 dark:text-neutral-400" />
+												<span className="min-w-0 flex-1">
+													<span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+														{label}
+													</span>
+													<span className="block truncate text-xs text-neutral-400 dark:text-neutral-500">
+														{detail}
+													</span>
+												</span>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 							<div className="flex-1" />
 							{loading || isStreaming ? (
 								// Stop, not send, while an answer is in flight (Android

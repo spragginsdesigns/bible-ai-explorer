@@ -48,6 +48,8 @@ import ChurchSection from "@/components/settings/ChurchSection";
 import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
 import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
 import FeedbackSection from "@/components/settings/FeedbackSection";
+import MembershipSummary from "@/components/settings/MembershipSummary";
+import NotificationsSection from "@/components/settings/NotificationsSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -74,6 +76,7 @@ export default function SettingsPage() {
 	const { user, isLoaded: userLoaded } = useUser();
 	const { signOut } = useClerk();
 	const [mounted, setMounted] = useState(false);
+	const [confirmSignOut, setConfirmSignOut] = useState(false);
 	// Every synced value is read from the shared cache rather than held here, so
 	// a change made on another device (or in the reader) lands on this page as
 	// soon as the account document is hydrated.
@@ -117,6 +120,10 @@ export default function SettingsPage() {
 		setMounted(true);
 		void loadMemories();
 		void loadPreferences();
+		// A memory receipt (or any deep link) to /settings#memory lands on the
+		// list itself, the way Android goes straight to its Memories screen.
+		// Only on arrival: the section nav's in-page #memory jump just scrolls.
+		if (window.location.hash === "#memory") setMemoryManagerOpen(true);
 	}, []);
 
 	const pickTranslation = (id: TranslationId) => {
@@ -427,6 +434,10 @@ export default function SettingsPage() {
 						</div>
 					</section>
 
+					{/* Notifications: the morning verse and "your answer is ready",
+					    delivered to this browser by Web Push. */}
+					<NotificationsSection />
+
 					{/* My church */}
 					<ChurchSection />
 
@@ -444,7 +455,7 @@ export default function SettingsPage() {
 					{/* AI providers */}
 					<section id="providers" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>AI PROVIDERS</SectionLabel>
-						<Link href="/membership" className="mb-4 flex items-center justify-between rounded-xl border border-amber-500/20 p-4 text-amber-700 dark:text-amber-300"><span>Membership &amp; included AI</span><ChevronRight size={18} /></Link>
+						<MembershipSummary />
 						<ProviderSettings />
 					</section>
 
@@ -467,14 +478,39 @@ export default function SettingsPage() {
 									</p>
 								</div>
 							</div>
-							<button
-								type="button"
-								onClick={() => void signOut({ redirectUrl: "/sign-in" })}
-								className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
-							>
-								<LogOut className="w-4 h-4" />
-								Sign out
-							</button>
+							{confirmSignOut ? (
+								<div className="flex flex-col gap-3">
+									<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+										Sign out? You can sign back in at any time.
+									</p>
+									<div className="flex gap-2">
+										<button
+											type="button"
+											onClick={() => setConfirmSignOut(false)}
+											className="flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-black/[0.1] dark:border-white/[0.08] text-sm font-bold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+										>
+											Cancel
+										</button>
+										<button
+											type="button"
+											onClick={() => void signOut({ redirectUrl: "/sign-in" })}
+											className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
+										>
+											<LogOut className="w-4 h-4" />
+											Sign out
+										</button>
+									</div>
+								</div>
+							) : (
+								<button
+									type="button"
+									onClick={() => setConfirmSignOut(true)}
+									className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
+								>
+									<LogOut className="w-4 h-4" />
+									Sign out
+								</button>
+							)}
 						</div>
 					</section>
 

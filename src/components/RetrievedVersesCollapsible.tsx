@@ -161,7 +161,7 @@ function VerseActions({ verse }: { verse: RetrievedVerse }) {
 			{readHref && <ActionChip label="Read" icon={BookOpen} href={readHref} />}
 			{savedNoteId && (
 				<Link
-					href="/notes"
+					href={`/notes?note=${encodeURIComponent(savedNoteId)}`}
 					className="inline-flex items-center gap-1 text-xs text-amber-700 transition-colors hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
 				>
 					<ExternalLink className="h-3 w-3" />

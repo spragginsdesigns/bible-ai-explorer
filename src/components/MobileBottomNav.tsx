@@ -15,7 +15,9 @@ import { useAuth } from "@clerk/nextjs";
  */
 const TABS = [
 	{ href: "/", label: "Chat", glyph: "✦", isActive: (pathname: string) => pathname === "/" },
-	{ href: "/bible", label: "Bible", glyph: "✝", isActive: (pathname: string) => pathname.startsWith("/bible") },
+	// Pick Up Your Cross and sermon studies live inside the Bible stack on
+	// Android (bible/cross, bible/sermons), so the Bible tab stays lit there.
+	{ href: "/bible", label: "Bible", glyph: "✝", isActive: (pathname: string) => ["/bible", "/cross", "/sermons"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) },
 	{ href: "/notes", label: "Notes", glyph: "✎", isActive: (pathname: string) => pathname.startsWith("/notes") },
 ] as const;
 

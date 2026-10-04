@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily-cross";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
-import { sendExpoPushMessages, type PendingPush } from "@/lib/push";
+import { sendPushMessages, type PendingPush } from "@/lib/push";
+import { recipientFromRow } from "@/lib/push-routing";
 import { planMorningAudience } from "@/lib/push-audience";
 import {
 	PUSH_ACTIVITY_WINDOW_MS,
@@ -118,8 +119,21 @@ export async function GET(request: Request) {
 	const now = new Date();
 	const enabledTokens = await prisma.pushToken.findMany({
 		where: { enabled: true },
-		select: { id: true, userId: true, token: true, timezone: true, notifyHour: true, updatedAt: true },
+		select: {
+			id: true,
+			userId: true,
+			token: true,
+			timezone: true,
+			notifyHour: true,
+			updatedAt: true,
+			platform: true,
+			webP256dh: true,
+			webAuth: true,
+		},
 	});
+	// Planning works on token strings; a browser recipient also needs its
+	// subscription keys, so they are re-attached by row id when sending.
+	const tokenRows = new Map(enabledTokens.map((row) => [row.id, row]));
 	// Due-ness is decided once per user (their newest device's timezone and
 	// hour), never per token: per-token due checks are how one account with a
 	// pile of stale install tokens received dozens of identical mornings.
@@ -162,7 +176,10 @@ export async function GET(request: Request) {
 
 			const reference = `${cross.book} ${cross.chapter}:${cross.verse}`;
 			const push: PendingPush = {
-				recipients,
+				recipients: recipients.map((recipient) => {
+					const row = tokenRows.get(recipient.tokenId);
+					return row ? recipientFromRow(row) : recipient;
+				}),
 				title: "✝ Pick up your cross",
 				// subtitle renders on iOS only; Android carries the reference
 				// inside the body instead.
@@ -185,7 +202,7 @@ export async function GET(request: Request) {
 	const sent = prepared.filter((result) => result.ok).length;
 	const failed = prepared.length - sent;
 
-	const deactivatedTokens = await sendExpoPushMessages(pending, "cron/verse-of-day");
+	const deactivatedTokens = await sendPushMessages(pending, "cron/verse-of-day");
 
 	// Narration is requested explicitly by the reader, never by the cron.
 	return NextResponse.json({

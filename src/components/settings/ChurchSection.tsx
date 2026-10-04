@@ -63,6 +63,7 @@ const ChurchSection: React.FC = () => {
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [removePending, setRemovePending] = useState(false);
 	const [removeError, setRemoveError] = useState<string | null>(null);
+	const [confirmRemove, setConfirmRemove] = useState(false);
 
 	const [missionExpanded, setMissionExpanded] = useState(false);
 	const [failedPhotoUrl, setFailedPhotoUrl] = useState<string | null>(null);
@@ -151,6 +152,7 @@ const ChurchSection: React.FC = () => {
 
 	const remove = async () => {
 		if (removePending) return;
+		setConfirmRemove(false);
 		setRemovePending(true);
 		setRemoveError(null);
 		try {
@@ -346,10 +348,29 @@ const ChurchSection: React.FC = () => {
 									>
 										{searchOpen ? "Cancel" : "Change church"}
 									</button>
+									{confirmRemove ? (
+										<span className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+											Remove your church? SureWord will forget {church.name}.
+											<button
+												type="button"
+												onClick={() => setConfirmRemove(false)}
+												className="rounded-lg px-2 py-1.5 font-bold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+											>
+												Cancel
+											</button>
+											<button
+												type="button"
+												onClick={() => void remove()}
+												className="rounded-lg px-2 py-1.5 font-bold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+											>
+												Remove
+											</button>
+										</span>
+									) : (
 									<button
 										type="button"
 										disabled={removePending || saving}
-										onClick={() => void remove()}
+										onClick={() => setConfirmRemove(true)}
 										className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-neutral-500 hover:text-red-500 dark:text-neutral-400 disabled:opacity-40 transition-colors"
 									>
 										{removePending ? (
@@ -359,6 +380,7 @@ const ChurchSection: React.FC = () => {
 										)}
 										Remove
 									</button>
+									)}
 								</div>
 								{removeError && (
 									<p className="text-xs text-red-600 dark:text-red-400">{removeError}</p>

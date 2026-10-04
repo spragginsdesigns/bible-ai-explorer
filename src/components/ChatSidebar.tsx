@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, MessageSquare, Search, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, MessageSquare, Search, Pencil, Check, X, Loader2 } from "lucide-react";
 import type { Conversation } from "./useChat";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 
@@ -13,6 +13,8 @@ type SidebarConversation = Conversation & { updatedAt?: string };
 interface ChatSidebarProps {
 	conversations: SidebarConversation[];
 	activeConversationId: string | null;
+	/** True until the first conversation list request settles. */
+	initialLoading?: boolean;
 	historyActionError?: string | null;
 	onNewChat: () => void;
 	onSelectConversation: (id: string) => void;
@@ -46,6 +48,7 @@ function formatLastActivity(iso: string): string {
 const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	conversations,
 	activeConversationId,
+	initialLoading = false,
 	historyActionError,
 	onNewChat,
 	onSelectConversation,
@@ -192,6 +195,24 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 				<p role="alert" className="px-3 pb-1 text-metadata text-red-500 dark:text-red-400">
 					{historyActionError}
 				</p>
+			)}
+
+			{/* Copy mirrors Android's HistoryModal. */}
+			{conversations.length === 0 && (
+				initialLoading ? (
+					<p
+						role="status"
+						aria-live="polite"
+						className="flex items-center gap-2 px-3 pt-4 text-metadata text-neutral-400 dark:text-neutral-600"
+					>
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+						Loading your conversations...
+					</p>
+				) : (
+					<p className="px-3 pt-4 text-metadata text-neutral-400 dark:text-neutral-600">
+						No conversations yet. Ask your first question to start one.
+					</p>
+				)
 			)}
 
 			{filtered.length === 0 && conversations.length > 0 && (

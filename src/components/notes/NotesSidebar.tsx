@@ -8,8 +8,10 @@ import {
 	Inbox,
 	Check,
 	Trash2,
+	Tag as TagIcon,
 } from "lucide-react";
 import type { Folder, Tag } from "@/types/notes";
+import { NewTagForm } from "./TagManager";
 
 interface NotesSidebarProps {
 	folders: Folder[];
@@ -24,6 +26,8 @@ interface NotesSidebarProps {
 	onCreateNote: () => void;
 	/** Called after any navigation-like action so the mobile drawer can close. */
 	onNavigate?: () => void;
+	/** Create a tag from the sidebar (Android's "+ Tag" chip on the notes hub). */
+	onCreateTag?: (name: string, color: string) => Promise<unknown>;
 }
 
 /**
@@ -43,11 +47,25 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 	onDeleteFolder,
 	onCreateNote,
 	onNavigate,
+	onCreateTag,
 }) => {
 	const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 	const [newFolderName, setNewFolderName] = useState("");
 	const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
 	const [editFolderName, setEditFolderName] = useState("");
+	const [isCreatingTag, setIsCreatingTag] = useState(false);
+	const [tagError, setTagError] = useState(false);
+
+	const handleCreateTag = async (name: string, color: string) => {
+		if (!onCreateTag) return;
+		setTagError(false);
+		try {
+			await onCreateTag(name, color);
+			setIsCreatingTag(false);
+		} catch {
+			setTagError(true);
+		}
+	};
 
 	const handleCreateFolder = () => {
 		const name = newFolderName.trim();
@@ -200,7 +218,7 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 			)}
 
 			{/* Tags section */}
-			{tags.length > 0 && (
+			{(tags.length > 0 || onCreateTag) && (
 				<div className="mt-4 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
 					<p className="text-neutral-400 dark:text-neutral-600 text-metadata font-bold uppercase tracking-[0.12em] px-3 mb-2">
 						Tags
@@ -231,6 +249,34 @@ const NotesSidebar: React.FC<NotesSidebarProps> = ({
 							</button>
 						))}
 					</div>
+					{onCreateTag && (
+						<div className="px-3 mt-2">
+							{isCreatingTag ? (
+								<>
+									<NewTagForm
+										onCreate={(name, color) => void handleCreateTag(name, color)}
+										onCancel={() => {
+											setIsCreatingTag(false);
+											setTagError(false);
+										}}
+									/>
+									{tagError && (
+										<p role="alert" className="mt-1.5 text-metadata text-red-500 dark:text-red-400">
+											The tag could not be created.
+										</p>
+									)}
+								</>
+							) : (
+								<button
+									onClick={() => setIsCreatingTag(true)}
+									className="flex items-center gap-2 py-1 text-neutral-400 dark:text-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-400 transition-colors text-xs"
+								>
+									<TagIcon className="w-3.5 h-3.5" />
+									New Tag
+								</button>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

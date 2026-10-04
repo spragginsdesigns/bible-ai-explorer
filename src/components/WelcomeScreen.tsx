@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
+import SureWordGuideAvatar from "./SureWordGuideAvatar";
 import { AndroidLogo, AppleLogo } from "./icons/BrandIcons";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import { buildSuggestedQuestionItems } from "@/utils/questionPresentation";
@@ -84,15 +84,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           column jumped 64px narrower the moment the first message was sent. */}
       <div className="max-w-3xl mx-auto px-4 pt-8 pb-10 text-center">
         <div className="mb-6">
-          <div className="w-20 h-20 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/[0.08] flex items-center justify-center mx-auto mb-5 animate-pulse-glow overflow-hidden">
-            <Image
-              src="/web-app-manifest-512x512.png"
-              alt="SureWord"
-              width={80}
-              height={80}
-              priority
-              className="w-full h-full object-cover scale-110"
-            />
+          <div className="mb-5 flex justify-center">
+            <SureWordGuideAvatar variant="hero" size={96} />
           </div>
           {/* Headline only: the pitch, the verse and the trust line live on
               the signed-out landing page now. A signed-in user is here to ask. */}

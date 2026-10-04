@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { LucideIcon } from "lucide-react";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
 
@@ -24,8 +24,14 @@ interface VerseActionBarProps {
   canRemove?: boolean;
   onHighlight: (hex: string) => void;
   onRemoveHighlight: () => void;
-  /** From the custom swatch's colour input, already normalised to upper case. */
+  /**
+   * From the custom swatch's colour input, already normalised to upper case.
+   * Fires once when the picker commits (closes), never per drag step, so one
+   * choice is one write per verse, as on Android's gesture-completion picker.
+   */
   onCustomColor: (hex: string) => void;
+  /** The native colour picker opened or closed (it covers the reader). */
+  onCustomPickerOpenChange?: (open: boolean) => void;
   /** The reader's own name for a preset ("Yellow" unless renamed in Settings). */
   labelForPreset: (name: string) => string;
   actions: readonly VerseAction[];
@@ -47,6 +53,56 @@ function isPreset(color: string): boolean {
 }
 
 /**
+ * The custom swatch's hidden colour input. React's onChange is the DOM
+ * `input` event, which fires on every step of a drag across the picker; the
+ * native `change` event fires once, when the picker commits. Listening to
+ * that alone keeps a drag from firing a PUT per step (and from those PUTs
+ * racing each other back to the server). Uncontrolled for the same reason:
+ * the preview stays inside the native picker until the reader commits.
+ */
+function CustomColorInput({
+  initial,
+  onCommit,
+  onOpenChange,
+}: {
+  initial: string;
+  onCommit: (hex: string) => void;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const latest = useRef({ onCommit, onOpenChange });
+  latest.current = { onCommit, onOpenChange };
+
+  useEffect(() => {
+    const input = ref.current;
+    if (!input) return;
+    const commit = () => {
+      latest.current.onOpenChange?.(false);
+      latest.current.onCommit(input.value.toUpperCase());
+    };
+    const close = () => latest.current.onOpenChange?.(false);
+    input.addEventListener("change", commit);
+    input.addEventListener("blur", close);
+    return () => {
+      input.removeEventListener("change", commit);
+      input.removeEventListener("blur", close);
+      // Unmounted by its own commit (the swatch becomes the remove dot).
+      latest.current.onOpenChange?.(false);
+    };
+  }, []);
+
+  return (
+    <input
+      ref={ref}
+      type="color"
+      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      defaultValue={initial}
+      onClick={() => onOpenChange?.(true)}
+    />
+  );
+}
+
+/**
  * The verse panel's pinned action bar: the highlight strip over a row of icon
  * chips. Every control acts on whatever the panel currently has selected, so
  * this component knows nothing about verses or ranges - the panel hands it a
@@ -58,6 +114,7 @@ export default function VerseActionBar({
   onHighlight,
   onRemoveHighlight,
   onCustomColor,
+  onCustomPickerOpenChange,
   labelForPreset,
   actions,
   message,
@@ -122,11 +179,13 @@ export default function VerseActionBar({
             <span aria-hidden className={DOT_GLYPH}>
               +
             </span>
-            <input
-              type="color"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              value={color ?? "#F5D76E"}
-              onChange={(event) => onCustomColor(event.target.value.toUpperCase())}
+            <CustomColorInput
+              // Remounted per starting colour: the input is uncontrolled, so a
+              // new selection would otherwise open on the previous one's colour.
+              key={color ?? "none"}
+              initial={color ?? "#F5D76E"}
+              onCommit={onCustomColor}
+              onOpenChange={onCustomPickerOpenChange}
             />
           </label>
         )}

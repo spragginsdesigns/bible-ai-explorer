@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Trash2, Pin, PinOff, FolderOpen, Tag as TagIcon, Brain, Copy } from "lucide-react";
+import { ArrowLeft, Trash2, Pin, PinOff, FolderOpen, Tag as TagIcon, Brain, Copy, Share2 } from "lucide-react";
 import TagManager from "./TagManager";
 import type { Note, Folder, Tag } from "@/types/notes";
 
@@ -13,6 +13,9 @@ const SAVE_STATUS_LABEL: Record<Exclude<NoteSaveStatus, "idle">, string> = {
 	saved: "Saved",
 	error: "Couldn't save — edits will retry on the next change",
 };
+
+const menuItemClass =
+	"w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs transition-colors text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.03]";
 
 interface NoteEditorTopBarProps {
 	note: Note;
@@ -27,6 +30,8 @@ interface NoteEditorTopBarProps {
 	onCreateTag: (name: string, color: string) => void;
 	onDeleteTag: (id: string) => void;
 	onCopyMarkdown?: (title: string) => Promise<void>;
+	/** Opens the native share sheet; resolves "copied" when it fell back to the clipboard. */
+	onShareMarkdown?: (title: string) => Promise<"shared" | "copied" | "cancelled">;
 	saveStatus?: NoteSaveStatus;
 	aiPanelOpen?: boolean;
 	onToggleAIPanel?: () => void;
@@ -45,6 +50,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	onCreateTag,
 	onDeleteTag,
 	onCopyMarkdown,
+	onShareMarkdown,
 	saveStatus = "idle",
 	aiPanelOpen,
 	onToggleAIPanel,
@@ -53,7 +59,9 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const [titleValue, setTitleValue] = useState(note.title);
 	const [showFolderMenu, setShowFolderMenu] = useState(false);
 	const [showTagMenu, setShowTagMenu] = useState(false);
-	const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">("idle");
+	const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error" | "shareError">("idle");
+	const [confirmingDelete, setConfirmingDelete] = useState(false);
+	const deleteMenuRef = useRef<HTMLDivElement>(null);
 	const titleRef = useRef<HTMLInputElement>(null);
  const currentNote = useRef(note.id);
  currentNote.current = note.id;
@@ -65,6 +73,10 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 		setTitleValue(note.title);
 		setCopyStatus("idle");
 	}, [note.title, note.id]);
+
+	useEffect(() => {
+		setConfirmingDelete(false);
+	}, [note.id]);
 
 	useEffect(() => {
 		if (isEditingTitle && titleRef.current) {
@@ -81,6 +93,9 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 			}
 			if (tagMenuRef.current && !tagMenuRef.current.contains(e.target as Node)) {
 				setShowTagMenu(false);
+			}
+			if (deleteMenuRef.current && !deleteMenuRef.current.contains(e.target as Node)) {
+				setConfirmingDelete(false);
 			}
 		};
 		document.addEventListener("mousedown", handleClick);
@@ -107,6 +122,21 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 			if (currentNote.current === owner) setCopyStatus("error");
         } finally {
             copyBusy.current = false;
+		}
+	};
+
+	const shareMarkdown = async () => {
+		if (!onShareMarkdown || copyBusy.current) return;
+		copyBusy.current = true;
+		const owner = note.id;
+		setCopyStatus("idle");
+		try {
+			const result = await onShareMarkdown(titleValue.trim() || "Untitled Note");
+			if (currentNote.current === owner && result === "copied") setCopyStatus("success");
+		} catch {
+			if (currentNote.current === owner) setCopyStatus("shareError");
+		} finally {
+			copyBusy.current = false;
 		}
 	};
 
@@ -148,11 +178,14 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 					</button>
 				)}
 
+				{/* Visible at every width: Android always shows "Saving…" under
+				    the title, and phones are where an unsaved edit is likeliest. */}
 				{saveStatus !== "idle" && (
 					<span
 						role="status"
 						aria-live="polite"
-						className={`hidden sm:block flex-shrink-0 text-metadata ${
+						title={SAVE_STATUS_LABEL[saveStatus]}
+						className={`flex-shrink min-w-0 max-w-[40%] sm:max-w-none truncate text-metadata ${
 							saveStatus === "error"
 								? "text-red-400"
 								: "text-neutral-500 dark:text-neutral-500"
@@ -171,6 +204,16 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 							className="text-neutral-500 hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 						>
 							<Copy className="w-4 h-4" />
+						</button>
+					)}
+					{onShareMarkdown && (
+						<button
+							onClick={shareMarkdown}
+							title="Share as Markdown"
+							aria-label="Share as Markdown"
+							className="text-neutral-500 hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+						>
+							<Share2 className="w-4 h-4" />
 						</button>
 					)}
 					{onToggleAIPanel && (
@@ -197,13 +240,49 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 							<Pin className="w-4 h-4" />
 						)}
 					</button>
-					<button
-						onClick={onDelete}
-						title="Delete note"
-						className="text-neutral-500 hover:text-red-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-					>
-						<Trash2 className="w-4 h-4" />
-					</button>
+					{/* Same confirm step as the list card and Android's action sheet. */}
+					<div className="relative" ref={deleteMenuRef}>
+						<button
+							onClick={() => setConfirmingDelete((open) => !open)}
+							title="Delete note"
+							aria-label="Delete note"
+							aria-haspopup="menu"
+							aria-expanded={confirmingDelete}
+							className="text-neutral-500 hover:text-red-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+						>
+							<Trash2 className="w-4 h-4" />
+						</button>
+						{confirmingDelete && (
+							<div
+								role="menu"
+								className="absolute top-full right-0 mt-1 z-50 w-[220px] glass-card border border-white/[0.08] rounded-xl py-1 shadow-xl"
+							>
+								<p className="px-3 py-1.5 text-xs text-neutral-500 dark:text-neutral-400 break-words">
+									Delete “{note.title || "Untitled Note"}”? This cannot be undone.
+								</p>
+								<button
+									type="button"
+									role="menuitem"
+									className={`${menuItemClass} text-red-400 hover:text-red-300`}
+									onClick={() => {
+										setConfirmingDelete(false);
+										onDelete();
+									}}
+								>
+									<Trash2 className="w-3.5 h-3.5" />
+									Yes, delete it
+								</button>
+								<button
+									type="button"
+									role="menuitem"
+									className={menuItemClass}
+									onClick={() => setConfirmingDelete(false)}
+								>
+									Keep note
+								</button>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -211,7 +290,11 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 			<div className="mx-auto w-full max-w-3xl flex items-center gap-2 px-3 md:px-4 pb-2.5 overflow-x-auto scrollbar-hide">
 				{copyStatus !== "idle" && (
 					<span role="status" aria-live="polite" className={copyStatus === "success" ? "text-xs text-emerald-400" : "text-xs text-red-400"}>
-						{copyStatus === "success" ? "Markdown copied" : "Copy failed. Check clipboard permissions."}
+						{copyStatus === "success"
+						? "Markdown copied"
+						: copyStatus === "shareError"
+							? "Share failed. Please try again."
+							: "Copy failed. Check clipboard permissions."}
 					</span>
 				)}
 				{/* Folder selector */}

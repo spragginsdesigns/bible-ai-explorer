@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { fetchNoteLinks } from "@/hooks/useNotes";
 import type { NoteLinks } from "@/types/notes";
+import { relativeTime } from "./noteTime";
+import { outgoingLinkLabel } from "./wikilinks";
 
 interface NoteLinksPanelProps {
 	noteId: string;
@@ -130,7 +132,7 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 														onClick={() => onOpenNote(targetId)}
 														className="w-full text-left px-2 py-1 rounded-lg text-xs text-amber-400/90 hover:text-amber-300 hover:bg-white/[0.03] transition-colors truncate"
 													>
-														{link.title ?? link.targetTitle}
+														{outgoingLinkLabel(link)}
 													</button>
 												</li>
 											) : (
@@ -182,6 +184,9 @@ const NoteLinksPanel: React.FC<NoteLinksPanelProps> = ({
 															{link.snippet}
 														</span>
 													)}
+													<span className="block text-metadata text-neutral-600 mt-0.5">
+														{relativeTime(link.updatedAt)}
+													</span>
 												</button>
 											</li>
 										))}

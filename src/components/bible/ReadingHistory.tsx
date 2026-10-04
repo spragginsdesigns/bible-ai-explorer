@@ -217,7 +217,23 @@ export default function ReadingHistory() {
 					})}
 				</div>
 				{busy ? <p role="status">Loading readings…</p> : null}
-				{error ? <p role="alert">{error}</p> : null}
+				{error ? (
+					<div>
+						<p role="alert">{error}</p>
+						{/* Retries the page that failed: the first page when nothing has
+						    loaded yet, otherwise the older page from the cursor it was
+						    asked for. A failed load leaves `cursor` pointing at it. */}
+						<button
+							disabled={busy}
+							className="mt-2 text-amber-700 underline dark:text-amber-400"
+							onClick={() =>
+								void load(entries.length ? (cursor ?? undefined) : undefined)
+							}
+						>
+							Try again
+						</button>
+					</div>
+				) : null}
 				{!busy && !error && userId && !entries.length ? (
 					<p>
 						No readings yet. Start with a chapter, or tell SureWord what you

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
 	FEEDBACK_CATEGORIES,
 	MAX_FEEDBACK_MESSAGE_LENGTH,
+	looksLikeEmail,
 	type FeedbackCategoryId,
 } from "@/lib/feedback/in-app-feedback";
 import { WEB_VERSION } from "@/lib/constants";
@@ -32,6 +33,11 @@ export default function FeedbackSection() {
 	const send = async () => {
 		const trimmed = message.trim();
 		if (sending || trimmed.length === 0) return;
+		const email = replyEmail.trim();
+		if (email.length > 0 && !looksLikeEmail(email)) {
+			setError("That email address does not look right.");
+			return;
+		}
 		setSending(true);
 		setError(null);
 		try {

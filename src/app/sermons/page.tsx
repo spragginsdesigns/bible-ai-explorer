@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 interface SermonStudySummary {
@@ -34,25 +34,59 @@ function formatDate(date: string | null): string | null {
 export default function SermonsPage() {
 	const [studies, setStudies] = useState<SermonStudySummary[] | null>(null);
 	const [failed, setFailed] = useState(false);
+	const [busy, setBusy] = useState(true);
+	const sequence = useRef(0);
 
-	useEffect(() => {
-		let cancelled = false;
+	// Mirrors Android's useFocusEffect load: runs on mount, on "Try again", and
+	// whenever the window regains focus, so a study processed while the tab sat
+	// in the background shows up without a manual refresh. A newer request
+	// supersedes an older one so a slow response cannot overwrite a fresh list.
+	const load = useCallback(() => {
+		const request = ++sequence.current;
+		setBusy(true);
+		setFailed(false);
 		fetch("/api/sermon-studies")
 			.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-			.then((data) => {
-				if (!cancelled) setStudies(data.studies ?? []);
+			.then((data: { studies?: SermonStudySummary[] }) => {
+				if (request === sequence.current) setStudies(data.studies ?? []);
 			})
 			.catch(() => {
-				if (!cancelled) setFailed(true);
+				if (request === sequence.current) setFailed(true);
+			})
+			.finally(() => {
+				if (request === sequence.current) setBusy(false);
 			});
-		return () => {
-			cancelled = true;
-		};
 	}, []);
 
+	useEffect(() => {
+		load();
+		const onVisibility = () => {
+			if (document.visibilityState === "visible") load();
+		};
+		window.addEventListener("focus", load);
+		document.addEventListener("visibilitychange", onVisibility);
+		// Unmounting supersedes whatever is still in flight.
+		const requests = sequence;
+		return () => {
+			requests.current++;
+			window.removeEventListener("focus", load);
+			document.removeEventListener("visibilitychange", onVisibility);
+		};
+	}, [load]);
+
+	// A failed background refresh keeps the list the reader already has; the
+	// error card only replaces the page when there is nothing to show.
+	const showError = failed && !studies?.length;
+
 	return (
-		<main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
-			<header className="mb-8">
+		<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
+			<Link
+				href="/bible"
+				className="inline-block min-h-[40px] pt-2 text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+			>
+				‹ Bible
+			</Link>
+			<header className="mt-2 mb-8">
 				<p className="text-metadata font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">
 					From your church
 				</p>
@@ -65,13 +99,23 @@ export default function SermonsPage() {
 				</p>
 			</header>
 
-			{failed && (
-				<p className="rounded-xl border border-black/[0.08] px-4 py-3 text-neutral-600 dark:border-white/[0.06] dark:text-neutral-300">
-					Something went wrong loading your studies. Try again in a moment.
-				</p>
+			{showError && (
+				<div className="rounded-2xl border border-black/[0.08] bg-black/[0.03] px-5 py-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
+					<p role="alert" className="text-neutral-600 dark:text-neutral-300">
+						Could not load your sermon studies.
+					</p>
+					<button
+						type="button"
+						onClick={load}
+						disabled={busy}
+						className="mt-1 min-h-[40px] text-sm font-semibold text-amber-600 disabled:opacity-60 dark:text-amber-400"
+					>
+						Try again
+					</button>
+				</div>
 			)}
 
-			{!failed && studies === null && (
+			{!showError && studies === null && (
 				<div className="space-y-3" aria-hidden>
 					{[0, 1, 2].map((i) => (
 						<div
@@ -101,14 +145,14 @@ export default function SermonsPage() {
 						<li key={study.id}>
 							<Link
 								href={`/sermons/${study.id}`}
-								className="flex gap-4 rounded-2xl border border-black/[0.08] bg-black/[0.03] p-4 transition-colors hover:bg-black/[0.06] dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
+								className="flex flex-col gap-3 rounded-2xl sm:flex-row sm:gap-4 border border-black/[0.08] bg-black/[0.03] p-4 transition-colors hover:bg-black/[0.06] dark:border-white/[0.06] dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
 							>
 								{study.imageUrl && (
 									// eslint-disable-next-line @next/next/no-img-element
 									<img
 										src={study.imageUrl}
 										alt=""
-										className="hidden h-20 w-28 shrink-0 rounded-xl object-cover sm:block"
+										className="aspect-[3/2] w-full rounded-xl object-cover sm:aspect-auto sm:h-20 sm:w-28 sm:shrink-0"
 										loading="lazy"
 									/>
 								)}
