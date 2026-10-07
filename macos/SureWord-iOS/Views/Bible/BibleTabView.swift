@@ -49,6 +49,7 @@ struct BibleTabView: View {
                 if let lastRead = continueReading?.lastRead {
                     continueCard(lastRead)
                 }
+                BibleHomeStudyCards()
                 crossCard
                 atlasCard
                 Button { showingHistory = true } label: {

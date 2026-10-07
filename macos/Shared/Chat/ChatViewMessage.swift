@@ -60,8 +60,8 @@ enum ChatReceiptTarget: Sendable, Equatable {
     case plan
     case readingHistory
     case cross
-    /// The Learn queue. No Apple screen owns it yet, so the fragment renders and
-    /// the tap says so rather than going nowhere.
+    /// The Learn queue. iOS pushes `LearnView`; the Mac has no Learn screen
+    /// yet, so there the tap says so rather than going nowhere.
     case learn
     case settings(section: ChatReceiptSettingsSection?)
 }

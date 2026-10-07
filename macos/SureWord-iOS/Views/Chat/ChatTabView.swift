@@ -18,6 +18,14 @@ struct ChatTabView: View {
     /// The answer whose "Add to notes" picker is open, if any.
     @State private var noteTarget: PendingNoteSave?
     @State private var isModelPickerPresented = false
+    /// A plan or Learn receipt tapped in chat pushes that screen onto this
+    /// stack - the same screens the Bible home's cards push.
+    @State private var studyRoute: StudyRoute?
+
+    private enum StudyRoute: Hashable, Identifiable {
+        case plan, learn
+        var id: Self { self }
+    }
 
     private var chat: ChatViewModel { app.chat }
 
@@ -83,6 +91,15 @@ struct ChatTabView: View {
         .sheet(isPresented: $chat.isHistoryPresented) {
             ChatHistorySheet(chat: chat)
         }
+        .navigationDestination(item: $studyRoute) { route in
+            switch route {
+            case .plan: ReadingPlanView()
+            case .learn: LearnView()
+            }
+        }
+        // A delete that failed after the sheet closed (Clear all dismisses at
+        // once); while the sheet is up it presents the alert itself.
+        .historyAlert(chat, isActive: !chat.isHistoryPresented)
         .sheet(isPresented: $isModelPickerPresented) {
             ModelPickerSheet(api: app.api, settings: app.settings)
         }
@@ -212,7 +229,7 @@ struct ChatTabView: View {
             }
             openChapter(reference: reference, translation: translation)
         case .plan:
-            show(toast: "Reading plans arrive in a later phase.")
+            studyRoute = .plan
         case .readingHistory:
             show(toast: "Reading history is in the Bible tab.")
         case .cross:
@@ -221,7 +238,7 @@ struct ChatTabView: View {
             app.dailyCross.load(force: true)
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
         case .learn:
-            show(toast: "Learn arrives in a later phase.")
+            studyRoute = .learn
         case .settings(let section):
             show(toast: ReceiptLine.settingsMessage(for: section))
         }
