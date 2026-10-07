@@ -72,7 +72,7 @@ Android bar 1.79.0 (88).
 | G7 widgets | stretch | todo | |
 | G8 iPad keyboard shortcuts | stretch | todo | |
 | H1 App ID, certs, ASC record | store-prep | wip: App ID `com.spragginsdesigns.sureword` registered 2026-10-07 (ASC id `K8YQ7UKAL7`, UNIVERSAL, team `389LLKGY3Y`) with Sign in with Apple, Push, App Groups, In-App Purchase. Apple Distribution certificate `QQZKYAB86N` (LineCrush Inc, expires 2027-10-07) created via API and imported into this Mac's login keychain; key+cert also in `~/.appstoreconnect/sureword-dist/` (mode 700, never in the repo). App Store Connect app record: API cannot create apps, Austin creates it in the web UI. App Store profile: created by `release-ios.sh` (H2). | |
-| H2 `release-ios.sh` | store-prep | todo | |
+| H2 `release-ios.sh` | store-prep | verified (local export) 2026-10-07: `bash macos/release-ios.sh --no-upload` created/installed the App Store profile via the API, archived Release and exported `SureWord.ipa` signed `Apple Distribution: LineCrush Inc (389LLKGY3Y)`, `get-task-allow` false, `beta-reports-active` true, PrivacyInfo + embedded profile present. Upload path waits on the ASC app record (Austin). Share-extension profile is wired in once that target lands. No `SureWord.ipa` on GitHub Releases: an App Store-signed IPA cannot be installed from a link | `macos/release-ios.sh`, `macos/scripts/asc.py` |
 | H3 listing copy | store-prep | wip: drafted, lengths measured; in-flight feature lines kept as HTML comments by PRD row; 13+ override and the UGC answer need Austin | `docs/ios/app-store-listing.md` |
 | H4 screenshots | store-prep | todo | |
 | H5 App Privacy answers | store-prep | wip: drafted with the PrivacyInfo.xcprivacy mapping for A5; assumes B3, B4, B6, D7 and A1 ship | `docs/ios/app-privacy.md` |
