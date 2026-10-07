@@ -75,6 +75,9 @@ targets:
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.reference
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        # HTTPS (URLSession/TLS) is the only encryption, which is exempt: no
+        # export-compliance documentation needed in App Store Connect (PRD A6).
+        ITSAppUsesNonExemptEncryption: false
         # Clerk's OAuth flow returns to the app through this scheme. It must stay
         # in sync with the Clerk dashboard's redirect allowlist — `sureword://`
         # entries are already registered there for the Android client.
@@ -137,6 +140,9 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.reference
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        # HTTPS (URLSession/TLS) is the only encryption, which is exempt: no
+        # export-compliance documentation needed in App Store Connect (PRD A6).
+        ITSAppUsesNonExemptEncryption: false
         # Listen (the spoken devotional) keeps playing with the screen locked;
         # without this iOS suspends the audio session on lock and the Now
         # Playing / remote-command work in ListenModel is inert.
