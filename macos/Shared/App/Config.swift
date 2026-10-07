@@ -19,6 +19,11 @@ enum Config {
     static let redirectScheme = "sureword"
     static let ssoCallbackURL = "sureword://sso-callback"
 
+    /// The EAS project the Android app already registers its Expo push tokens
+    /// under (`mobile/app.json` → `extra.eas.projectId`). iOS exchanges its
+    /// APNs device token for an Expo token in the same project, so the server's
+    /// one Expo sender reaches both phones. See `docs/ios/push-design.md`.
+    static let expoProjectID = "2dc61e76-c7c0-4e8b-be89-0c7e0b4ce379"
 
     static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"

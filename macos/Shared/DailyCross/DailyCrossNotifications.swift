@@ -27,13 +27,29 @@ enum DailyCrossNotifications {
 
     /// Bring the scheduled reminder in line with the user's settings. Safe to
     /// call on every launch and on every settings change.
-    static func sync(enabled: Bool, hour: Int) async {
+    ///
+    /// `mayRequestAuthorization: false` is the iOS path (PRD B6a): the phone
+    /// never opens the permission dialog from here, because this runs at
+    /// launch. It schedules only once permission was granted at one of the
+    /// moments `NotificationPermissionMoments` reports. The Mac keeps asking
+    /// on the first sync, as it always has.
+    static func sync(enabled: Bool, hour: Int, mayRequestAuthorization: Bool = true) async {
         guard enabled else {
             cancel()
             return
         }
-        guard await requestAuthorization() else { return }
+        let authorized = mayRequestAuthorization ? await requestAuthorization() : await isAuthorized()
+        guard authorized else { return }
         await schedule(hour: hour)
+    }
+
+    /// Read-only: whether notifications may be shown, without ever prompting.
+    static func isAuthorized() async -> Bool {
+        let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+        #if os(iOS)
+        if status == .ephemeral { return true }
+        #endif
+        return status == .authorized || status == .provisional
     }
 
     static func cancel() {
@@ -63,6 +79,9 @@ enum DailyCrossNotifications {
         content.title = "✝ Pick up your cross"
         content.body = "Your word for today is ready."
         content.sound = .default
+        // Android's local fallback carries the same data, and the tap handler
+        // routes on it (see `NotificationTapTarget`).
+        content.userInfo = ["screen": "cross"]
 
         var components = DateComponents()
         components.hour = min(max(hour, 0), 23)

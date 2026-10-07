@@ -850,7 +850,13 @@ final class ChatViewModel {
             return
         }
         // A stream that finished on its own owes nothing.
-        if !Task.isCancelled { pendingAnswerConversationID = nil }
+        if !Task.isCancelled {
+            pendingAnswerConversationID = nil
+            // A settled answer is the moment "your answer is ready" makes
+            // sense, so iOS may ask for notification permission now (PRD
+            // B6a). Nothing listens on the Mac.
+            NotificationPermissionMoments.shared.signal(.firstAnswer)
+        }
     }
 
     // MARK: Answer recovery

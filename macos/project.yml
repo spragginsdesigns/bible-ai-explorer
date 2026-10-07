@@ -133,6 +133,11 @@ targets:
     # the extension. Simulator builds honour it as is; device and App Store
     # signing need `group.com.spragginsdesigns.sureword` registered in the
     # developer portal and on both App IDs' provisioning profiles.
+    #
+    # `aps-environment` is remote push (PRD B6, `PushRegistration.swift`). The
+    # value follows the configuration: Debug talks to the APNs sandbox,
+    # Release (TestFlight and the App Store, whose profile carries
+    # `production`) to production. `PushRegistration` tells Expo the same.
     entitlements:
       path: SureWord-iOS/SureWord-iOS.entitlements
       properties:
@@ -144,7 +149,13 @@ targets:
         # connection; the App ID has the capability (ASC, 2026-10-07).
         com.apple.developer.applesignin:
           - Default
+        aps-environment: $(SUREWORD_APS_ENVIRONMENT)
     settings:
+      configs:
+        Debug:
+          SUREWORD_APS_ENVIRONMENT: development
+        Release:
+          SUREWORD_APS_ENVIRONMENT: production
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword
         PRODUCT_NAME: SureWord

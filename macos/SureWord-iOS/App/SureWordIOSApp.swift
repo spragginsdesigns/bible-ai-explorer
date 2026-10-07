@@ -98,10 +98,28 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        // Where the tap lands, Android's `notificationTapTarget`: the guided
+        // day, the conversation whose answer finished while away, or (older
+        // verse-only payloads) the reader. A remote payload with nothing to
+        // route on navigates nowhere, as on Android; a local reminder with no
+        // payload was scheduled by an older build, and it opened the Cross.
+        let request = response.notification.request
+        let link: DeepLink
+        switch NotificationTapTarget(userInfo: request.content.userInfo) {
+        case .chat(let conversationID): link = .chat(conversationID)
+        case .reference(let reference): link = .verse(reference)
+        case .cross: link = .cross
+        case nil:
+            guard request.trigger is UNCalendarNotificationTrigger else {
+                completionHandler()
+                return
+            }
+            link = .cross
+        }
         // Route through PendingDeepLinks rather than posting the notification
         // bare: on a cold start TabShell doesn't exist yet, and the buffer is
         // what carries the tap across Clerk's session restore.
-        Task { @MainActor in PendingDeepLinks.shared.post(.cross) }
+        Task { @MainActor in PendingDeepLinks.shared.post(link) }
         // Called from here, not inside the Task: capturing the task-isolated
         // handler in a main-actor closure is a data race (and a build error
         // under complete strict concurrency). The post is fire-and-forget, so
@@ -109,15 +127,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         completionHandler()
     }
 
-    // MARK: - Remote notifications (verse-of-the-day cron)
+    // MARK: - Remote notifications (morning verse, answer ready)
 
-    /// Best-effort APNs registration for POST /api/push-tokens. Without the
-    /// `aps-environment` entitlement — which needs a paid-program provisioning
-    /// profile this project doesn't carry — iOS never delivers a token and the
-    /// failure callback fires instead; that is the normal path today, on
-    /// device and simulator alike, and the locally scheduled reminder in
-    /// `DailyCrossNotifications` keeps the feature working (the same fallback
-    /// Android runs while it has no EAS projectId).
+    /// APNs registration for POST /api/push-tokens (see `PushRegistration`).
+    /// Requested only once notifications are authorized; the token is
+    /// exchanged for an Expo token before it ever reaches the server.
     nonisolated func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
@@ -129,8 +143,8 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: any Error
     ) {
-        // Expected without the entitlement; the local daily reminder is the
-        // delivery path and nothing needs to surface.
+        // Best-effort: the local daily reminder covers the morning verse, and
+        // nothing needs to surface.
     }
 }
 

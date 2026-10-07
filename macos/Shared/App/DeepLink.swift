@@ -6,6 +6,10 @@ extension Notification.Name {
     /// and hands the reference to the Bible model; on Android the same journey
     /// is the `/bible/chapter?verse=` link.
     static let openVerseReference = Notification.Name("sureword.openVerseReference")
+
+    /// Posted (object: the conversation id) when a "your answer is ready" push
+    /// is tapped. Android's equivalent is `router.push("/", { conversationId })`.
+    static let openConversation = Notification.Name("sureword.openConversation")
 }
 
 /// A `sureword://` deep link that belongs to the app itself rather than to
@@ -21,6 +25,9 @@ enum DeepLink: Equatable, Sendable {
     /// The string is deliberately kept raw; resolution through
     /// `Bible.resolveReference` happens where the reader lives.
     case verse(String)
+    /// A tapped "your answer is ready" push: open that conversation. Comes only
+    /// from a notification payload, never from a URL.
+    case chat(String)
 
     static func parse(_ url: URL) -> DeepLink? {
         guard url.scheme == Config.redirectScheme,
@@ -71,6 +78,8 @@ final class PendingDeepLinks {
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
         case .verse(let reference):
             NotificationCenter.default.post(name: .openVerseReference, object: reference)
+        case .chat(let conversationID):
+            NotificationCenter.default.post(name: .openConversation, object: conversationID)
         }
     }
 

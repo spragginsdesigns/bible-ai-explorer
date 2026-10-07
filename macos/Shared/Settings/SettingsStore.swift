@@ -44,6 +44,7 @@ final class SettingsStore {
         static let translation = "settings.translation"
         static let verseOfDayEnabled = "settings.verseOfDay.enabled"
         static let verseOfDayHour = "settings.verseOfDay.hour"
+        static let chatReplies = "settings.notifications.chatReplies"
         static let chatModelId = "settings.chat.modelId"
         static let chatEffort = "settings.chat.effort"
         static let chatSpeed = "settings.chat.speed"
@@ -150,6 +151,14 @@ final class SettingsStore {
 
     var verseOfDayEnabled: Bool {
         didSet { UserDefaults.standard.set(verseOfDayEnabled, forKey: Key.verseOfDayEnabled) }
+    }
+
+    /// Notify when a chat answer finishes after this device dropped off the
+    /// stream - Android's `chatReplies`. Device-local like the reminder, and
+    /// independent of it: the push token stays registered for either stream.
+    /// Only remote push can deliver it (see `PushRegistration`).
+    var notifyChatReplies: Bool {
+        didSet { UserDefaults.standard.set(notifyChatReplies, forKey: Key.chatReplies) }
     }
 
     /// Local hour the morning reminder should arrive, 0-23.
@@ -340,6 +349,7 @@ final class SettingsStore {
         // false, which would silently turn the reminder off for everyone who
         // has never opened Settings.
         verseOfDayEnabled = defaults.object(forKey: Key.verseOfDayEnabled) as? Bool ?? true
+        notifyChatReplies = defaults.object(forKey: Key.chatReplies) as? Bool ?? true
         let storedHour = defaults.object(forKey: Key.verseOfDayHour) as? Int
         verseOfDayHour = min(max(storedHour ?? Self.defaultVerseOfDayHour, 0), 23)
         chatModelId = defaults.string(forKey: Key.chatModelId)
