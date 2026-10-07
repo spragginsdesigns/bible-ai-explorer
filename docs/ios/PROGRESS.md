@@ -14,7 +14,9 @@ Android bar 1.79.0 (88).
 | (a) Paid Apple Developer Program | **Confirmed and verified 2026-10-07.** Team account is LineCrush Inc. The only active Team API key is `7DQ48J77LB` (name "LineCrush", Admin), Issuer ID `cba57450-1b28-47ea-9be9-98c9125afeab` (an identifier, not a secret; the `.p8` stays in `~/.appstoreconnect/private_keys`). Read-only API calls returned 200. The account holds one app (`LineCrush: Sports Research`, `com.linecrush.ios`), three Development certificates and **no Distribution certificate and no SureWord bundle ID yet** (H1 creates both). `AuthKey_TYXHYTQZ5T` is not on the team's active list. Austin confirmed 2026-10-07: SureWord lives in the LineCrush Inc account (developer Austin Spraggins, publisher LineCrush Inc). |
 | (b) Billing | Austin: "whatever Apple docs say; StoreKit if simpler". Decision: v1.0 ships with no purchase UI (compliant under 3.1.1, simplest); StoreKit 2 is F2 right after approval. |
 | (c) AI consent form | Austin: one-time sheet before first AI request. |
-| (d) Review demo account | Austin: none exists, we create one. Plan: dedicated password Clerk account on production, Pro-granted via `PRO_USER_IDS` only if Austin approves, credentials stored in 1Password by Austin, never in the repo. |
+| (d) Review demo account | Austin: none exists, we create one. Plan: dedicated password Clerk account on production, credentials stored in 1Password by Austin, never in the repo. **Austin 2026-10-07: grant it Pro via `PRO_USER_IDS`.** |
+| (e) Scope before submission | **Austin 2026-10-07: full PRD first** (offered a compliant-v1.0-now option and declined). Nothing is deferred to 1.x without his written approval. |
+| (f) Billing risk found 2026-10-07 | Guideline 3.1.3(b) (multiplatform services) lets an app unlock web/Play purchases only if the same items are also offered as in-app purchases. F1 (Pro unlocks on iOS with no StoreKit) is therefore a likely rejection. Recommendation: pull F2 StoreKit into v1.0. **Awaiting Austin.** |
 
 ## Requirements
 
@@ -59,7 +61,7 @@ Android bar 1.79.0 (88).
 | E2 editor menu + Markdown export | ports | todo | |
 | E3 wikilinks, backlinks, properties | notes | todo | |
 | E4 editor deferrals | notes | todo | |
-| F1 no purchase UI | store-prep | todo (audit Pro locked panels) | |
+| F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Open: Listen lock copy "Self-service SureWord Pro access isn't available yet" (Apple `ListenCard.swift:60`, Android `ListenCard.tsx:505`, web `ListenCard.tsx:287`) is stale since Stripe went live; neutral wording on all clients in one cycle. In-app privacy link missing on iOS (link `/privacy`, not `/terms`, which states the price). See (f) for the 3.1.3(b) risk. | |
 | F2 StoreKit | post-1.0 | deferred to after approval (PRD) | |
 | G1 design audit | design | todo | |
 | G2 design fixes | design | todo | |
@@ -69,7 +71,7 @@ Android bar 1.79.0 (88).
 | G6 icon and launch | design | todo | |
 | G7 widgets | stretch | todo | |
 | G8 iPad keyboard shortcuts | stretch | todo | |
-| H1 App ID, certs, ASC record | store-prep | blocked on (a) | |
+| H1 App ID, certs, ASC record | store-prep | wip: App ID `com.spragginsdesigns.sureword` registered 2026-10-07 (ASC id `K8YQ7UKAL7`, UNIVERSAL, team `389LLKGY3Y`) with Sign in with Apple, Push, App Groups, In-App Purchase. Apple Distribution certificate `QQZKYAB86N` (LineCrush Inc, expires 2027-10-07) created via API and imported into this Mac's login keychain; key+cert also in `~/.appstoreconnect/sureword-dist/` (mode 700, never in the repo). App Store Connect app record: API cannot create apps, Austin creates it in the web UI. App Store profile: created by `release-ios.sh` (H2). | |
 | H2 `release-ios.sh` | store-prep | todo | |
 | H3 listing copy | store-prep | todo | |
 | H4 screenshots | store-prep | todo | |
