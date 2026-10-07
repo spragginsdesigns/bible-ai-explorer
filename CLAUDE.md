@@ -300,6 +300,12 @@ Also required in `.env.local`:
   Optional - with neither set, every account is free and the Pro benefits
   (currently Listen, the spoken devotional) render their locked panel for
   everyone. See `docs/FEATURES.md` → "Made with the day, and gated behind Pro".
+- `ADMIN_USER_IDS` - comma-separated Clerk ids allowed to open the owner's
+  review queue at `/admin/feedback` (thumbs-down answers and Send feedback
+  messages, with a persisted "Mark reviewed"). Same shared parser as
+  `PRO_USER_IDS`. Unset means nobody: the page and `/api/admin/feedback`
+  answer 404 to everyone else, signed in or out. See `docs/FEATURES.md` →
+  "Reviewing reports".
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
   it the audio routes answer `status: "unavailable"` and every client hides the

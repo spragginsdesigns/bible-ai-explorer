@@ -53,7 +53,7 @@ YOUR OWN AI KEY (OPTIONAL)
 Settings > AI Provider lets a user paste their own API key from OpenAI, Anthropic, Moonshot or OpenRouter to use that provider's models. The key is validated, encrypted at rest on our server and never shown again; that provider bills the user directly. It is optional and not needed to review the app. SureWord does not sell keys or credits.
 
 REPORTING A BAD ANSWER
-Under every answer, the thumbs-down button lets the user report it and pick a reason (Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, Too long). Settings > Send feedback sends a message to the developer.
+Under every answer, the thumbs-down button lets the user report it and pick a reason (Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, Too long). Settings > Send feedback sends a message to the developer. Every reported answer and every feedback message is reviewed by the developer in a private review queue, where each one is read and marked reviewed; reported answers can also become test cases in the assistant's answer evaluations.
 
 ACCOUNT DELETION
 Settings > Account > Delete account, then confirm. This permanently deletes the account and all of its data on our servers and signs the user out. Please do not delete the demo account during review.

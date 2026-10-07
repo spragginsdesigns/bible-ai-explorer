@@ -128,8 +128,19 @@ their next AI action after the update.
 
 ## 3. Thumbs-down reports: do they reach a human?
 
-Finding (code read 2026-10-07): **stored and reviewable by hand, but there is
-no queue, no admin view and no notification.**
+Update (2026-10-07, later): **the review queue now exists.** `/admin/feedback`
+lists every thumbs-down answer (chips, comment, question, answer, model) and
+every Send feedback message, newest first, with 7/30/90-day, type and
+unreviewed-only filters and a persisted "Mark reviewed"
+(`Message.feedbackReviewedAt`, `Feedback.reviewedAt`, migration
+`20261007140000_feedback_review_queue`). Only the Clerk ids in
+`ADMIN_USER_IDS` can open it; everyone else gets 404. See docs/FEATURES.md,
+"Reviewing reports". Recommendation 2 below is done; there is still no
+notification (recommendation 1), so "timely" depends on the owner opening the
+queue.
+
+Original finding (code read 2026-10-07): **stored and reviewable by hand, but
+there is no queue, no admin view and no notification.**
 
 | Path | Where it lands | How a person sees it today |
 |---|---|---|

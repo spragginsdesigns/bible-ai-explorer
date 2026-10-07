@@ -2367,8 +2367,57 @@ judgment about one answer, this is a message to a person.
 | Web | `src/components/settings/FeedbackSection.tsx`, mounted in `src/app/settings/page.tsx` |
 | Table | `Feedback` in `prisma/schema.prisma` |
 
-Reading them is a query for now, not a screen:
-`SELECT "createdAt", category, platform, "appVersion", "replyEmail", message FROM "Feedback" ORDER BY "createdAt" DESC;`
+They are read on the owner's review queue, below.
+
+## Reviewing reports (/admin/feedback)
+
+The answer thumbs down and Send feedback both store a report; this is where a
+person reads it. Apple guidelines 1.2 and 5.1.2 ask for a way to report
+objectionable AI output **and** for someone to act on it
+(`docs/ios/ai-consent.md`, section 3), and a table only a script could read
+was not that.
+
+**Who.** Only the Clerk ids in `ADMIN_USER_IDS` (comma-separated, parsed by
+`parseUserIdAllowlist` in `src/lib/entitlements-rules.ts`, the same parser as
+`PRO_USER_IDS`). Everyone else, signed in or signed out, gets a plain 404 from
+both the page and its API, never a 401 or 403 that would admit the path
+exists. That is why `/admin(.*)` and `/api/admin(.*)` are in the middleware's
+signed-out list: the routes do their own check, and a sign-in redirect would
+give the game away. Unset means nobody. Not linked from any client, not in
+the sitemap, `noindex`, `Cache-Control: private, no-store`.
+
+**What.** Newest first, 50 per page, two kinds merged into one list:
+
+- *Answer rating*: `Message` rows with `feedback = 'down'`, keyed on
+  `feedbackAt`. Shows the date, the reason chips and comment, the question
+  (the nearest user turn before the answer, walked in order as
+  `scripts/feedback-to-fixtures.mjs` does), the answer text, the conversation
+  and message ids and the model (`metadata.modelId`). The client platform is
+  not stored on a rating, so the page says so.
+- *Feedback message*: `Feedback` rows. Shows the date, category, message,
+  platform and app version, and whether the person asked for a reply.
+
+User ids only: no account email and not the optional reply address.
+
+**Filters** (URL query, so a filtered view is a link): type
+(`type=rating|message`), window (`days=7|30|90`, default 30), and unreviewed
+only (on by default; `unreviewed=0` includes reviewed rows). Unknown values
+fall back to the defaults.
+
+**Mark reviewed** persists: `Message.feedbackReviewedAt` and
+`Feedback.reviewedAt` (nullable, migration
+`20261007140000_feedback_review_queue`). It can be undone ("Mark
+unreviewed"). When a user rates an answer again, the PATCH route clears
+`feedbackReviewedAt`, so a changed report comes back into the queue.
+
+| Piece | Where |
+|---|---|
+| Rules (pure: access, filters, query shapes, page merge) | `src/lib/admin/feedback-review-rules.ts` |
+| Database half + admin gate | `src/lib/admin/feedback-review.ts` |
+| Page (server component) | `src/app/admin/feedback/page.tsx` + `MarkReviewedButton.tsx` |
+| API (`GET` a page, `POST { kind, id, reviewed }`) | `src/app/api/admin/feedback/route.ts` |
+| Tests | `tests/admin-feedback-review.test.mjs` |
+| Environment | `ADMIN_USER_IDS` (required for anyone to see the page; unset = nobody) |
 
 ## When Scripture is challenged: /check, /reply, and skeptics
 
