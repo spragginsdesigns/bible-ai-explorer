@@ -20,7 +20,7 @@ Android bar 1.79.0 (88).
 
 | ID | Lane | Status | Evidence |
 |---|---|---|---|
-| A1 account deletion (server + 4 clients) | store-blockers | todo | |
+| A1 account deletion (server + 4 clients) | store-blockers | wip: server route merged 2026-10-07 (lint, tsc, 1261 logic tests; NOT yet exercised against a real account or deployed-and-called); clients todo | `docs/FEATURES.md` "Account deletion" |
 | A2 Sign in with Apple | store-blockers | todo | |
 | A3 password sign-in | store-blockers | todo | |
 | A4 AI disclosure and consent | store-prep | todo | |
@@ -28,7 +28,7 @@ Android bar 1.79.0 (88).
 | A6 ITSAppUsesNonExemptEncryption | store-blockers | todo | |
 | A7 privacy/terms/support pages | store-prep | todo | |
 | B1 four sign-in paths on device | store-blockers | todo | |
-| B2 `x-sureword-client` header | ports | todo | |
+| B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
 | B3 analytics parity | ports | todo | |
 | B4 Send feedback | ports | todo | |
 | B5 settings hub + testimony | breadth | source (sections present, nested hub missing) | |
@@ -54,7 +54,7 @@ Android bar 1.79.0 (88).
 | D6 `/check`, `/reply` | share-voice | source | |
 | D7 voice messages | share-voice | source (MIME types only) | |
 | D8 Share Extension | share-voice | todo | |
-| D9 image downscale | ports | todo | |
+| D9 image downscale | ports | wip: unit-tested with synthetic images; real picker/camera run pending; clipboard-paste path not covered | `ImageDownscaleTests` |
 | E1 template picker | ports | todo | |
 | E2 editor menu + Markdown export | ports | todo | |
 | E3 wikilinks, backlinks, properties | notes | todo | |
