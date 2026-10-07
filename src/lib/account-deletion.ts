@@ -42,6 +42,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "AiPreference", via: "cascade" },
 	{ model: "BillingSubscription", via: "cascade" },
 	{ model: "GooglePlaySubscription", via: "cascade" },
+	{ model: "AppStoreSubscription", via: "cascade" },
 	{ model: "AiUsageRequest", via: "cascade" },
 	{ model: "UserChurch", via: "cascade" },
 	{ model: "ProviderCredential", via: "cascade" },

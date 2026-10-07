@@ -26,6 +26,11 @@ const isPublicRoute = createRouteMatcher([
 	// Download cards render before sign-in and need current public app metadata.
 	"/api/native-releases",
 	"/api/webhooks(.*)",
+	// App Store Server Notifications V2 (SureWord's bundle only). Apple carries
+	// no session; the route verifies Apple's signature on the payload itself.
+	// Only this endpoint: the device's /api/billing/app-store/verify stays
+	// behind the session, because it binds a purchase to the caller.
+	"/api/billing/app-store/notifications",
 	// Analytics ingestion, rewritten to PostHog in next.config.mjs. It has to
 	// be reachable signed out: the whole point is counting the visitor who has
 	// not made an account yet, and a redirect to /sign-in would both lose that

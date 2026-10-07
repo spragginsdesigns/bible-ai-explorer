@@ -16,6 +16,7 @@ new Function('require','module','exports',code)(id => {
   if(id==='server-only')return {};
   if(id==='@/lib/prisma')return {prisma};
   if(id==='./plans')return {activeSubscription:s=>['active','trialing'].includes(s.status)&&s.periodEnd>new Date()};
+  if(id==='./app-store-rules')return {appStoreConfig:()=>({available:false}),asAccountSubscription:()=>null,pickAppStoreRow:()=>null};
   throw new Error('Unexpected import '+id);
 },mod,mod.exports);
 const { accountSubscription }=mod.exports;

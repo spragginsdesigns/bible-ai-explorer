@@ -57,6 +57,8 @@ export async function POST(req: Request) {
     const membership = await accountSubscription(userId);
     if (membership?.provider === "google-play" && activeSubscription(membership))
       return Response.json({ error: "Your Pro subscription is managed by Google Play." }, { status: 409 });
+    if (membership?.provider === "app_store" && activeSubscription(membership))
+      return Response.json({ error: "Your Pro subscription is managed by the App Store." }, { status: 409 });
     const stripe = stripeClient();
     const price = await verifiedProPrice(stripe);
     const returnOrigin = billingReturnOrigin();

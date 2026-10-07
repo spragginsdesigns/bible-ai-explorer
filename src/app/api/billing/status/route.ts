@@ -6,7 +6,7 @@ import { usageEnabled, usageSnapshot } from "@/lib/billing/usage";
 import { PRO_MONTHLY_PRICE_CENTS } from "@/lib/billing/plans";
 import { billingAvailable } from "@/lib/billing/stripe";
 import { rejectCrossSiteMutation } from "@/lib/billing/request";
-import { accountSubscription, playBillingAvailable } from "@/lib/billing/subscription";
+import { accountSubscription, appStoreBillingAvailable, playBillingAvailable } from "@/lib/billing/subscription";
 
 export async function GET() {
   try {
@@ -42,6 +42,9 @@ export async function GET() {
         priceCents: PRO_MONTHLY_PRICE_CENTS,
         checkoutAvailable: billingAvailable(),
         playCheckoutAvailable: playBillingAvailable(),
+        // StoreKit purchases verify and count toward Pro (iOS only shows the
+        // purchase UI when this is true).
+        appStoreCheckoutAvailable: appStoreBillingAvailable(),
       },
       { headers: { "Cache-Control": "private, no-store" } },
     );

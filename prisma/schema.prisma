@@ -26,6 +26,7 @@ model User {
   aiPreference           AiPreference?
   billingSubscription    BillingSubscription?
   googlePlaySubscription GooglePlaySubscription?
+  appStoreSubscriptions  AppStoreSubscription[]
   aiUsageRequests        AiUsageRequest[]
   // Last model/effort the user picked in the chat picker; validated against
   // the registry in src/lib/ai/models.ts on every use, so a stale id here
@@ -162,6 +163,45 @@ model GooglePlaySubscription {
   cancelAtPeriodEnd       Boolean  @default(false)
   lastVerifiedAt          DateTime
   updatedAt               DateTime @updatedAt
+}
+
+// SureWord Pro bought through StoreKit 2 on iOS. One row per App Store
+// subscription (originalTransactionId), bound to the SureWord account whose
+// derived appAccountToken the purchase carried (src/lib/billing/app-store-rules.ts).
+// Written by POST /api/billing/app-store/verify (the device's signed
+// transaction) and by App Store Server Notifications V2; both verify Apple's
+// signature against the bundled Apple Root CA G3 for bundle
+// com.spragginsdesigns.sureword only. Notification idempotency uses
+// BillingEvent ("app-store:<notificationUUID>").
+model AppStoreSubscription {
+  id                      String    @id @default(cuid())
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalTransactionId   String    @unique
+  latestTransactionId     String
+  productId               String
+  // "active" (includes Apple's billing grace period) | "billing_retry" |
+  // "expired" | "revoked". Only "active" with expiresAt in the future is Pro.
+  status                  String
+  periodStart             DateTime
+  // Entitlement end: the transaction's expiresDate, or the grace period's end
+  // while Apple is retrying a failed renewal inside grace.
+  expiresAt               DateTime
+  cancelAtPeriodEnd       Boolean   @default(false)
+  gracePeriodExpiresAt    DateTime?
+  // "Production" | "Sandbox" (TestFlight and App Review purchase in Sandbox).
+  environment             String
+  appAccountToken         String?
+  // signedDate of the latest App Store Server Notification applied (epoch
+  // until one is), used to ignore out-of-order deliveries. A device-sent
+  // transaction never moves it. The JWS itself is never stored.
+  lastSignedAt            DateTime
+  lastNotificationType    String?
+  lastNotificationSubtype String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model BillingEvent {
