@@ -90,6 +90,7 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: Config.appVersion)
+                    AboutLinkRows()
                     hint("A Bible study assistant rooted in the King James Version.")
                     hint(
                         "Why it's different: ask a generic AI if the Bible is really the Word of God "
