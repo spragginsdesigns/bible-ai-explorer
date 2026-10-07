@@ -1,0 +1,74 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : "https:\/\/sureword.app\/privacy"
+      }
+    ]
+  },
+  "identifier" : "5E1D7A42",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "8C3F21B6",
+      "localizations" : [
+        {
+          "description" : "SureWord Pro",
+          "displayName" : "SureWord Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "SureWord Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "14.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A47D90E3",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Listen to the daily devotional and get more AI messages each day.",
+              "displayName" : "SureWord Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.spragginsdesigns.sureword.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "SureWord Pro Monthly",
+          "subscriptionGroupID" : "8C3F21B6",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

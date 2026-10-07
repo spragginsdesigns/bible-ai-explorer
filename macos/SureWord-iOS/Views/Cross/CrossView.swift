@@ -35,6 +35,9 @@ struct CrossView: View {
     /// Set while a replacement is in flight so its arrival — and only its —
     /// lands a success haptic.
     @State private var replaceRequested = false
+    /// The locked Listen panel's "See SureWord Pro" opens the in-app purchase
+    /// screen over the cross (StoreKit only, never a web link).
+    @State private var showingPro = false
 
     var body: some View {
         ScrollView {
@@ -113,7 +116,18 @@ struct CrossView: View {
         // not even the rail node - so the whole stop is conditional.
         if model.listen.phase != .hidden {
             TimelineStop(systemImage: "waveform", label: "LISTEN") {
-                ListenCard(model: model.listen, settings: app.settings)
+                ListenCard(model: model.listen, settings: app.settings, onSeePro: { showingPro = true })
+                    .sheet(isPresented: $showingPro) {
+                        NavigationStack {
+                            ProMembershipView()
+                                .toolbar {
+                                    ToolbarItem(placement: .confirmationAction) {
+                                        Button("Done") { showingPro = false }
+                                    }
+                                }
+                        }
+                        .environment(app)
+                    }
             }
         }
 

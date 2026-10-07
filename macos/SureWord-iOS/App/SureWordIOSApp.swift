@@ -29,6 +29,10 @@ struct SureWordIOSApp: App {
         // Install/update, then Application Opened (Android's
         // `captureAppLifecycleEvents`).
         Analytics.shared.start()
+        // StoreKit 2: renewals, Ask to Buy approvals and refunds arrive on
+        // Transaction.updates from launch. Anything that lands before an
+        // account signs in stays unfinished and is verified on attach.
+        ProPurchaseStore.shared.startListening()
     }
 
     var body: some Scene {
@@ -167,6 +171,7 @@ struct RootView: View {
             app?.bible.reading.teardown()
             guard let userID else {
                 app = nil
+                ProPurchaseStore.shared.detach()
                 // Only a *real* sign-out clears the per-account caches.
                 // `initial: true` also fires with nil at launch, before Clerk
                 // has restored the session, and clearing there would throw away
@@ -177,7 +182,11 @@ struct RootView: View {
                 }
                 return
             }
-            app = AppModel(settings: settings, userID: userID)
+            let model = AppModel(settings: settings, userID: userID)
+            app = model
+            // Binds StoreKit purchases to this account (appAccountToken) and
+            // re-verifies anything StoreKit is still holding for it.
+            ProPurchaseStore.shared.attach(api: model.api, userID: userID)
         }
     }
 }

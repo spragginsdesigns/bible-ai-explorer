@@ -13,9 +13,22 @@ struct MembershipResponse: Decodable, Sendable {
     let access: String
     let hasPersonalKeys: Bool
     let usage: Usage?
+    /// Absent on servers older than StoreKit billing; read as nil/false.
+    let subscription: Subscription?
+    let appStoreCheckoutAvailable: Bool?
+
+    struct Subscription: Decodable, Sendable {
+        let status: String
+        let periodEnd: String?
+        let cancelAtPeriodEnd: Bool?
+        /// "stripe" | "google-play" | "app_store".
+        let provider: String
+    }
 }
 
-/// Shared account balances and payer choice. Purchases require the separate store integration.
+/// Shared account balances and payer choice. On iOS it links to
+/// `ProMembershipView`, where Pro is bought through StoreKit; macOS has no
+/// purchase UI.
 struct MembershipSection: View {
     let api: APIClient?
     @State private var membership: MembershipResponse?
@@ -26,6 +39,11 @@ struct MembershipSection: View {
         Section("Membership & included AI") {
             if let membership {
                 LabeledContent("Membership", value: membership.owner ? "Owner access" : membership.plan == "pro" ? "SureWord Pro" : "SureWord Free")
+                #if os(iOS)
+                // iOS only: Pro is sold in-app through StoreKit (App Review
+                // 3.1.3(b)). The Mac shows no purchase UI.
+                NavigationLink("SureWord Pro") { ProMembershipView() }
+                #endif
                 if membership.owner {
                     Text("All paid benefits and configured models are available without a subscription.")
                         .font(.caption).foregroundStyle(.secondary)

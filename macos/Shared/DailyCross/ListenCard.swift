@@ -21,6 +21,9 @@ struct ListenCard: View {
     /// The speed chip's home. Persisted, so a listener who prefers 1.25x gets
     /// it on every device this account signs into a Mac from.
     @Bindable var settings: SettingsStore
+    /// iOS only: opens the in-app SureWord Pro screen (StoreKit) from the
+    /// locked panel. nil (macOS) keeps the panel button-free. Never a web link.
+    var onSeePro: (() -> Void)? = nil
 
     var body: some View {
         GlassCard {
@@ -46,8 +49,8 @@ struct ListenCard: View {
 
     // MARK: - States
 
-    /// A locked benefit is shown, not hidden - but with NO button, because
-    /// there is nowhere for one to go until billing exists.
+    /// A locked benefit is shown, not hidden. The only button it may carry is
+    /// `onSeePro` (iOS: the in-app purchase screen); macOS passes none.
     private var lockedPanel: some View {
         VStack(spacing: Spacing.sm) {
             Text("🔒")
@@ -62,6 +65,11 @@ struct ListenCard: View {
                 .foregroundStyle(theme.textFaint)
                 .lineSpacing(4)
                 .multilineTextAlignment(.center)
+            if let onSeePro {
+                Button("See SureWord Pro", action: onSeePro)
+                    .buttonStyle(.bordered)
+                    .padding(.top, Spacing.xs)
+            }
         }
         .frame(maxWidth: .infinity)
     }

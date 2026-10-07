@@ -196,6 +196,9 @@ schemes:
         SureWord-iOS: all
     run:
       config: Debug
+      # Local StoreKit testing in the simulator (SureWord Pro, $14.99/month).
+      # Xcode-signed transactions; production servers reject them by design.
+      storeKitConfiguration: StoreKit/SureWord.storekit
     test:
       config: Debug
       targets:
