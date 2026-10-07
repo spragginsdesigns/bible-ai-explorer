@@ -62,7 +62,7 @@ Android bar 1.79.0 (88).
 | E3 wikilinks, backlinks, properties | notes | source: merged `d9d881a` (picker, info sheet with links/aliases/properties; parsing pinned by ports of `wikilinks.test.ts` and `noteProperties.test.ts`); iOS 129+128 and macOS 663 tests green on main. Not yet run signed in. macOS has the model but no screens | |
 | E4 editor deferrals | notes | source: all three closed on iOS `f951def` (undo/redo history incl. Cmd-Z/shake, hardware Tab indent, live Dynamic Type); not yet run on a device | |
 | F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Fixed: Listen lock copy neutral on all four clients (`1f03066`); in-app Privacy/Support links (`74b1925`). See (f) for the 3.1.3(b) risk. | |
-| F2 StoreKit | post-1.0 | deferred to after approval (PRD) | |
+| F2 StoreKit | storekit (pulled into v1.0, Austin 2026-10-07) | source: server verify + Notifications V2 + plan merge (`5cb44d0`), iOS StoreKit 2 purchase/restore/manage + Membership screen + Listen "See SureWord Pro" (`d230dcf`); migration `20261007150000_app_store_subscription` applied to production neondb 2026-10-07. Inert until `APP_STORE_APP_ID` is set (needs the ASC app record). ASC still to do (SureWord record only): group "SureWord Pro", product `com.spragginsdesigns.sureword.pro.monthly` $14.99/1 month, Notifications V2 URL `https://sureword.app/api/billing/app-store/notifications`. Not purchased end to end yet | `docs/FEATURES.md` "App Store subscription", `docs/ios/evidence/storekit/` |
 | G1 design audit | design | todo | |
 | G2 design fixes | design | todo | |
 | G3 iPad layout | design | todo | |
