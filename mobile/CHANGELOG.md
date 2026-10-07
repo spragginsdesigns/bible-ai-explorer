@@ -14,6 +14,18 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.80.0 (versionCode 89) - 2026-10-07 - internal
+
+**What's new (Play):**
+
+NEW
+- Delete account: in Settings, Account, you can now permanently delete your SureWord account and everything in it. SureWord lists what goes and asks you to type DELETE before anything is removed.
+
+IMPROVED
+- Pick Up Your Cross: the Listen card now says plainly that Listen is included with SureWord Pro.
+
+**Dev notes:** Account deletion calls the existing `DELETE /api/account` (body `{"confirm":"DELETE"}`) through `apiJson`; status handling lives in `features/settings/accountDeletion.ts` (`reduceDeletion`, mirrored from the Apple `AccountDeletionModel`, tests in `accountDeletion.test.ts`): 500 means nothing was removed, 502 or a lost response offers Try again, and a 401 after one of those counts as done. On success it runs `clearUserCaches()` then signs out of Clerk. The route was already live server-side for every build.
+
 ## 1.79.0 (versionCode 88) - 2026-10-07 - internal
 
 **What's new (Play):**
