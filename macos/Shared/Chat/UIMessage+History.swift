@@ -94,6 +94,16 @@ extension UIMessagePart {
                 )
             )
 
+        case "data-progress":
+            // The finished work snapshot is the one data part the server
+            // persists (`persistableParts`, `src/lib/ai/status-narration.ts`), and
+            // the one Android keeps on restore (`dbMessageToUIMessage`), so a
+            // reopened answer still shows "Worked for". Every other `data-*`
+            // part is per-turn narration and stays dropped. A snapshot this
+            // build cannot read is dropped too rather than kept as noise.
+            guard let data = json["data"], ChatProgress(data) != nil else { return nil }
+            self = .data(DataPart(name: "progress", id: json["id"]?.stringValue ?? "progress", value: data))
+
         default:
             guard type.hasPrefix("tool-") else { return nil }
             self = .tool(
