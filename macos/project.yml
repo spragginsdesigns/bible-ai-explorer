@@ -183,6 +183,18 @@ targets:
           - CormorantGaramond-MediumItalic.ttf
         # No launch storyboard — SwiftUI builds the launch screen from this.
         UILaunchScreen: {}
+        # App Store validation rejects an iPad-capable bundle without these
+        # (iPad multitasking needs all four). iPhone skips upside-down, as
+        # Apple's own apps do.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
 
   # "Share into SureWord" (PRD D8): an iOS Share Extension for text, links,
   # photos, PDFs and audio (voice messages from Voice Memos, Messages,
