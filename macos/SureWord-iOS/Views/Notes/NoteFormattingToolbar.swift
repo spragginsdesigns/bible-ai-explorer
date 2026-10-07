@@ -6,20 +6,29 @@ import SwiftUI
 /// other two clients can parse, and there is no control for anything they
 /// cannot.
 ///
-/// Undo/redo buttons from the Mac bar are deliberately absent: the system
-/// undo gesture covers typing, and structural edits do not register with the
-/// UITextView undo stack (see `NoteRichTextController.render`).
-///
-/// Deferred (Lane 4, confirmed by Lane 6): hardware-keyboard Tab/⇧Tab does
-/// not indent/outdent — list nesting is toolbar-only for now.
+/// Undo/redo run the controller's snapshot history (`NoteEditHistory`), the
+/// same one Cmd-Z, three-finger swipe and shake reach through the text view's
+/// undo manager, so structural edits undo as reliably as typing. Hardware
+/// Tab / Shift-Tab nest and lift list items (`NoteTextView.keyCommands`).
 struct NoteFormattingToolbar: View {
     @Environment(\.theme) private var theme
     @Bindable var controller: NoteRichTextController
     var onEditLink: () -> Void
+    /// Opens the note picker; the editor inserts the chosen `[[wikilink]]`.
+    var onInsertWikilink: () -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
+                button("arrow.uturn.backward", help: "Undo") { controller.undo() }
+                    .disabled(!controller.canUndo)
+                    .opacity(controller.canUndo ? 1 : 0.35)
+                button("arrow.uturn.forward", help: "Redo") { controller.redo() }
+                    .disabled(!controller.canRedo)
+                    .opacity(controller.canRedo ? 1 : 0.35)
+                separator
+                button("link.badge.plus", help: "Link to a note") { onInsertWikilink() }
+                separator
                 markButton("bold", .bold, help: "Bold")
                 markButton("italic", .italic, help: "Italic")
                 markButton("underline", .underline, help: "Underline")

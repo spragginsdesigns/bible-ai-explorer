@@ -27,6 +27,11 @@ struct NoteEditorView: View {
     @State private var isDeleteConfirming = false
     @State private var isLinkAlertPresented = false
     @State private var linkTarget = ""
+    @State private var isInfoPresented = false
+    @State private var isWikilinkPickerPresented = false
+    /// A note opened from the info sheet's links, pushed on top of this one
+    /// the way Android's `router.push` stacks editors.
+    @State private var linkedNoteID: String?
     @State private var pinHapticTick = 0
     @FocusState private var isTitleFocused: Bool
 
@@ -55,10 +60,14 @@ struct NoteEditorView: View {
         .toolbar { toolbarItems }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
-                NoteFormattingToolbar(controller: model.controller) {
-                    linkTarget = ""
-                    isLinkAlertPresented = true
-                }
+                NoteFormattingToolbar(
+                    controller: model.controller,
+                    onEditLink: {
+                        linkTarget = ""
+                        isLinkAlertPresented = true
+                    },
+                    onInsertWikilink: { isWikilinkPickerPresented = true }
+                )
             }
         }
         .alert("Link", isPresented: $isLinkAlertPresented) {
@@ -75,6 +84,23 @@ struct NoteEditorView: View {
         }
         .sheet(isPresented: $isAIPresented) {
             NoteAISheet(ai: ai)
+        }
+        .sheet(isPresented: $isWikilinkPickerPresented) {
+            InsertWikilinkSheet(currentNoteID: noteID) { title in
+                model.controller.insertText(NoteWikilinks.format(title))
+            }
+        }
+        .sheet(isPresented: $isInfoPresented) {
+            NoteInfoSheet(
+                model: model,
+                folderName: NotesStore.shared.folders
+                    .first { $0.id == model.note?.folderId }?.name
+            ) { id in
+                linkedNoteID = id
+            }
+        }
+        .navigationDestination(item: $linkedNoteID) { id in
+            NoteEditorView(noteID: id, api: api)
         }
         .confirmationDialog(
             "Delete this note? This cannot be undone.",
@@ -180,6 +206,9 @@ struct NoteEditorView: View {
                                 Task { await model.move(toFolder: folder.id) }
                             }
                         }
+                    }
+                    Button("Info, Properties & Links", systemImage: "info.circle") {
+                        isInfoPresented = true
                     }
                     Divider()
                     Button("Delete Note", role: .destructive) { isDeleteConfirming = true }
