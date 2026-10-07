@@ -77,6 +77,7 @@ final class APIClient: Sendable {
         }
 
         guard (200..<300).contains(result.status) else {
+            Self.reportHTTPFailure(path: path, status: result.status, hadToken: result.hadToken)
             throw APIError.server(status: result.status, message: Self.errorMessage(in: result.data))
         }
         return result.data
@@ -99,7 +100,7 @@ final class APIClient: Sendable {
         if result.status == 401 {
             await authFailure.report()
         }
-        return result
+        return (result.status, result.data)
     }
 
     private func attempt(
@@ -108,15 +109,16 @@ final class APIClient: Sendable {
         body: (any Encodable)?,
         timeout: TimeInterval,
         fresh: Bool
-    ) async throws -> (status: Int, data: Data) {
+    ) async throws -> (status: Int, data: Data, hadToken: Bool) {
         var request = try await makeRequest(path, method: method, body: body, fresh: fresh)
         request.timeoutInterval = timeout
+        let hadToken = request.value(forHTTPHeaderField: "Authorization") != nil
 
         do {
             let (data, response) = try await session.data(for: request)
-            return ((response as? HTTPURLResponse)?.statusCode ?? 0, data)
+            return ((response as? HTTPURLResponse)?.statusCode ?? 0, data, hadToken)
         } catch {
-            throw Self.translate(error)
+            throw Self.translate(error, reportingFor: path)
         }
     }
 
@@ -141,7 +143,7 @@ final class APIClient: Sendable {
                 let (bytes, response) = try await session.bytes(for: request)
                 return (bytes, (response as? HTTPURLResponse) ?? HTTPURLResponse())
             } catch {
-                throw Self.translate(error)
+                throw Self.translate(error, reportingFor: path)
             }
         }
 
@@ -154,6 +156,7 @@ final class APIClient: Sendable {
         }
 
         guard (200..<300).contains(response.statusCode) else {
+            Self.reportHTTPFailure(path: path, status: response.statusCode, hadToken: true)
             // Drain the short error body so the message survives into the UI.
             var payload = Data()
             for try await byte in bytes { payload.append(byte) }
@@ -234,6 +237,28 @@ final class APIClient: Sendable {
     private static func errorMessage(in data: Data) -> String? {
         struct Payload: Decodable { let error: String? }
         return try? JSONDecoder().decode(Payload.self, from: data).error
+    }
+
+    /// `request_failed` for a non-2xx answer, as `apiJson` reports it on
+    /// Android. A 401 sent with no token is the expected answer to a signed-out
+    /// call, not a failure, and is the loudest and least useful row in the
+    /// metric, so it is left out.
+    private static func reportHTTPFailure(path: String, status: Int, hadToken: Bool) {
+        guard status != 401 || hadToken else { return }
+        AnalyticsReporter.requestFailed(path: path, kind: "http", status: status)
+    }
+
+    /// `translate`, plus `request_failed` for a timeout or a lost connection.
+    /// A cancellation is somebody leaving the screen, which is the product
+    /// working, so it is not reported.
+    private static func translate(_ error: any Error, reportingFor path: String) -> APIError {
+        let translated = translate(error)
+        if translated.isTimeout {
+            AnalyticsReporter.requestFailed(path: path, kind: "timeout")
+        } else if translated.isNetworkError {
+            AnalyticsReporter.requestFailed(path: path, kind: "offline")
+        }
+        return translated
     }
 
     private static func translate(_ error: any Error) -> APIError {

@@ -7,13 +7,18 @@
 
   Collected data = what the app sends to the SureWord API (sureword.app), all
   tied to the signed-in Clerk account, none used for tracking, all for App
-  Functionality. There is no analytics or crash SDK in the Apple client and no
-  location access, so Analytics, Crash/Performance and Location are absent on
-  purpose. Keep this in step with the App Store Connect privacy answers and the
-  privacy policy (PRD A5/A7).
+  Functionality. Plus first-party product analytics (PRD B3,
+  Shared/Analytics/Analytics.swift, PostHog capture API, no SDK): screens
+  opened, app opened/backgrounded, the sign-in funnel (method and error code)
+  and failed requests (route shape and status), linked to the Clerk user id
+  once signed in, never used for tracking and never carrying user content.
+  Hence Product Interaction and Other Diagnostic Data for Analytics, and the
+  Analytics purpose on User ID. There is no crash SDK and no location access,
+  so Crash/Performance and Location are absent on purpose. Keep this in step
+  with the App Store Connect privacy answers and the privacy policy (PRD A5/A7).
 
   Required-reason APIs are the ones the app's own code calls:
-    - UserDefaults (SettingsStore, PreferencesSync, BibleModel, PushRegistration): CA92.1
+    - UserDefaults (SettingsStore, PreferencesSync, BibleModel, PushRegistration, Analytics): CA92.1
     - ProcessInfo.systemUptime (ReadingJournal verse dwell timing): 35F9.1
   No file-timestamp or disk-space APIs are used. ClerkKit, ClerkKitUI and
   PhoneNumberKit ship their own manifests.
@@ -39,7 +44,8 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- Clerk user id, the key for every account row on the server. -->
+		<!-- Clerk user id, the key for every account row on the server, and the
+		     analytics identity once signed in. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
@@ -50,6 +56,33 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<!-- Analytics: screens opened, app opened/backgrounded, sign-in funnel. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<!-- Analytics: failed API requests (route shape, cause, status), app version. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 		<!-- Chat questions, notes, highlights, memories, About me, reading history. -->

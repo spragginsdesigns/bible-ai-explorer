@@ -97,6 +97,7 @@ struct BibleTabView: View {
                 verse: request.verse,
                 translation: request.translation
             )
+            .analyticsScreen(AnalyticsScreen.chapter)
         }
         // A verse reference tapped in chat lands here. Consume it once: the
         // tab root is long-lived, so leaving the value set would re-push the
@@ -122,6 +123,7 @@ struct BibleTabView: View {
     private var searchPill: some View {
         NavigationLink {
             BibleSearchView()
+                .analyticsScreen(AnalyticsScreen.search)
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
@@ -236,6 +238,7 @@ struct BibleTabView: View {
     private var atlasCard: some View {
         NavigationLink {
             AtlasExplorerView(model: app.atlas)
+                .analyticsScreen(AnalyticsScreen.atlas)
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "clock.arrow.circlepath")
@@ -317,6 +320,7 @@ struct BibleTabView: View {
     private func bookRow(_ book: Book) -> some View {
         NavigationLink {
             ChapterGridView(book: book)
+                .analyticsScreen(AnalyticsScreen.chapters)
         } label: {
             HStack {
                 Text(book.name)

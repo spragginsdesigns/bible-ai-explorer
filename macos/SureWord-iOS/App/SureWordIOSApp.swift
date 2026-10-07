@@ -20,9 +20,15 @@ struct SureWordIOSApp: App {
                 redirectConfig: .init(
                     redirectUrl: Config.ssoCallbackURL,
                     callbackUrlScheme: Config.redirectScheme
-                )
+                ),
+                // The sign-in funnel reads Clerk's responses (see
+                // `SignInAnalytics`); it never alters or throws on one.
+                middleware: .init(response: [SignInAnalyticsMiddleware()])
             )
         )
+        // Install/update, then Application Opened (Android's
+        // `captureAppLifecycleEvents`).
+        Analytics.shared.start()
     }
 
     var body: some Scene {
@@ -121,6 +127,7 @@ struct RootView: View {
     @Environment(Clerk.self) private var clerk
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var systemScheme
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var app: AppModel?
 
@@ -147,6 +154,15 @@ struct RootView: View {
         // The API client's token provider needs a live Clerk session, so the
         // model is built on sign-in and torn down on sign-out — that teardown
         // is also what clears the previous user's conversations from memory.
+        // Analytics identity, lifecycle and sign-in completions. Identify on a
+        // session; reset only when somebody who WAS signed in signs out.
+        .onChange(of: clerk.user?.id, initial: true) { _, userID in
+            Analytics.shared.sessionChanged(userID: userID)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            Analytics.shared.phaseChanged(to: AnalyticsScenePhase.name(phase))
+        }
+        .task { await Analytics.shared.observeSignIns() }
         .onChange(of: clerk.user?.id, initial: true) { previousID, userID in
             app?.bible.reading.teardown()
             guard let userID else {

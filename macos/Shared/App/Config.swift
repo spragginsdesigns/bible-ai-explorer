@@ -23,4 +23,9 @@ enum Config {
     static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
     }
+
+    /// `CFBundleVersion`, the build number analytics reports beside the version.
+    static var appBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
 }

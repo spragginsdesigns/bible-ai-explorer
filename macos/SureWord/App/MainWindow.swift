@@ -51,6 +51,14 @@ struct MainWindow: View {
         .sheet(isPresented: $app.isSettingsPresented) {
             SettingsView()
         }
+        // `screen_viewed` for the section in front, and again when Settings
+        // closes over it. Android reports the same tab routes.
+        .onChange(of: app.section, initial: true) { _, section in
+            Analytics.shared.screen(AnalyticsScreen.pattern(for: section))
+        }
+        .onChange(of: app.isSettingsPresented) { _, presented in
+            if !presented { Analytics.shared.screen(AnalyticsScreen.pattern(for: app.section)) }
+        }
     }
 
     @ViewBuilder

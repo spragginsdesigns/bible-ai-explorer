@@ -36,6 +36,7 @@ struct SignInView: View {
         #if os(macOS)
         .frame(minWidth: 520, minHeight: 420)
         #endif
+        .analyticsScreen(AnalyticsScreen.signIn)
         .sheet(isPresented: $authIsPresented) {
             AuthView()
         }

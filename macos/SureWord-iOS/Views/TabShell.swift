@@ -23,16 +23,19 @@ struct TabShell: View {
             Tab(AppSection.chat.title, systemImage: "bubble.left.and.bubble.right", value: .chat) {
                 NavigationStack {
                     ChatTabView()
+                        .analyticsScreen(AnalyticsScreen.chat)
                 }
             }
             Tab(AppSection.bible.title, systemImage: AppSection.bible.symbol, value: .bible) {
                 NavigationStack {
                     BibleTabView()
+                        .analyticsScreen(AnalyticsScreen.bible)
                 }
             }
             Tab(AppSection.notes.title, systemImage: AppSection.notes.symbol, value: .notes) {
                 NavigationStack {
                     NotesTabView()
+                        .analyticsScreen(AnalyticsScreen.notes)
                 }
             }
         }
@@ -42,6 +45,11 @@ struct TabShell: View {
         .task { app.preferences.refresh(force: true) }
         .onChange(of: selectedTab) { _, tab in if tab != .bible { app.bible.reading.setReaderVisible(false) } }
         .onChange(of: isCrossPresented) { _, visible in app.bible.reading.setObscured(visible, reason: "cross") }
+        // The tab root under the Cross sheet does not reappear when it closes,
+        // so its screen is reported from here.
+        .onChange(of: isCrossPresented) { _, visible in
+            if !visible { Analytics.shared.screen(AnalyticsScreen.pattern(for: selectedTab)) }
+        }
         // Keep the morning reminder in step with the settings, on every launch
         // and on every change to either half of the preference. Enabling the
         // toggle in Settings re-runs this, and `sync` is what requests
@@ -125,6 +133,7 @@ struct TabShell: View {
                         selectedTab = .chat
                     }
                 )
+                .analyticsScreen(AnalyticsScreen.cross)
             }
             .presentationDragIndicator(.visible)
         }

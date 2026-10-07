@@ -25,7 +25,7 @@ struct BibleHomeStudyCards: View {
                 subtitle: "Practice today's verses",
                 accessibility: "Learn a verse"
             ) {
-                LearnView()
+                LearnView().analyticsScreen(AnalyticsScreen.learn)
             }
             row(
                 symbol: "calendar",
@@ -33,7 +33,7 @@ struct BibleHomeStudyCards: View {
                 subtitle: PlanView.planCardSubtitle(plan.plan),
                 accessibility: plan.plan != nil ? "Reading plan - today's reading" : "Start a reading plan"
             ) {
-                ReadingPlanView()
+                ReadingPlanView().analyticsScreen(AnalyticsScreen.plan)
             }
             if hasSermons {
                 row(
@@ -42,7 +42,7 @@ struct BibleHomeStudyCards: View {
                     subtitle: "Walk through your church's latest message",
                     accessibility: "Sermon studies from your church"
                 ) {
-                    SermonStudiesView()
+                    SermonStudiesView().analyticsScreen(AnalyticsScreen.sermons)
                 }
             }
         }

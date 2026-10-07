@@ -93,8 +93,8 @@ struct ChatTabView: View {
         }
         .navigationDestination(item: $studyRoute) { route in
             switch route {
-            case .plan: ReadingPlanView()
-            case .learn: LearnView()
+            case .plan: ReadingPlanView().analyticsScreen(AnalyticsScreen.plan)
+            case .learn: LearnView().analyticsScreen(AnalyticsScreen.learn)
             }
         }
         // A delete that failed after the sheet closed (Clear all dismisses at

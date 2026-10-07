@@ -30,6 +30,7 @@ struct NotesTabView: View {
         .settingsGearToolbar()
         .navigationDestination(item: $openedNoteID) { noteID in
             NoteEditorView(noteID: noteID, api: app.api)
+                .analyticsScreen(AnalyticsScreen.note)
         }
         .task {
             guard library == nil else { return }

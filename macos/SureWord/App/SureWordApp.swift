@@ -35,9 +35,15 @@ struct SureWordApp: App {
                 redirectConfig: .init(
                     redirectUrl: Config.ssoCallbackURL,
                     callbackUrlScheme: Config.redirectScheme
-                )
+                ),
+                // The sign-in funnel reads Clerk's responses (see
+                // `SignInAnalytics`); it never alters or throws on one.
+                middleware: .init(response: [SignInAnalyticsMiddleware()])
             )
         )
+        // Install/update, then Application Opened (Android's
+        // `captureAppLifecycleEvents`).
+        Analytics.shared.start()
     }
 
     var body: some Scene {
@@ -137,6 +143,15 @@ struct RootView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in root.app?.bible.reading.setForeground(phase == .active) }
+        // Analytics identity, lifecycle and sign-in completions. Identify on a
+        // session; reset only when somebody who WAS signed in signs out.
+        .onChange(of: scenePhase) { _, phase in
+            Analytics.shared.phaseChanged(to: AnalyticsScenePhase.name(phase))
+        }
+        .onChange(of: clerk.user?.id, initial: true) { _, userID in
+            Analytics.shared.sessionChanged(userID: userID)
+        }
+        .task { await Analytics.shared.observeSignIns() }
         .sureWordTheme(for: scheme)
         .preferredColorScheme(settings.appearance.colorScheme)
         .environment(\.clerkTheme, .sureWord(scheme: scheme))
