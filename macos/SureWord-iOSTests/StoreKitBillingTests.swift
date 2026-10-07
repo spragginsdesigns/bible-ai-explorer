@@ -102,6 +102,28 @@ final class StoreKitBillingTests: XCTestCase {
 
     // MARK: - StoreKit configuration
 
+    /// The configuration file itself, read as JSON: deterministic, so the
+    /// product definition is pinned even when the simulator's StoreKit daemon
+    /// is slow to serve the live session below.
+    func testStoreKitConfigurationFileDefinesTheProduct() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("StoreKit/SureWord.storekit")
+        let root = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]
+        )
+        let groups = try XCTUnwrap(root["subscriptionGroups"] as? [[String: Any]])
+        let group = try XCTUnwrap(groups.first { $0["name"] as? String == "SureWord Pro" })
+        let subscriptions = try XCTUnwrap(group["subscriptions"] as? [[String: Any]])
+        let product = try XCTUnwrap(
+            subscriptions.first { $0["productID"] as? String == AppStoreBilling.productID }
+        )
+        XCTAssertEqual(product["displayPrice"] as? String, "14.99")
+        XCTAssertEqual(product["recurringSubscriptionPeriod"] as? String, "P1M")
+        XCTAssertEqual(product["type"] as? String, "RecurringSubscription")
+    }
+
     /// The scheme's local StoreKit configuration really defines the product
     /// the app asks for, as a 1-month auto-renewable in "SureWord Pro".
     @MainActor
@@ -113,14 +135,22 @@ final class StoreKitBillingTests: XCTestCase {
         let session = try SKTestSession(contentsOf: url)
         session.disableDialogs = true
         session.clearTransactions()
-        // A freshly booted simulator's StoreKit daemon can answer the first
-        // request with nothing while it loads the session; retry briefly.
+        // A freshly booted simulator's StoreKit daemon can answer with nothing
+        // for several seconds while it loads the session (5s was not enough on
+        // a cold gate simulator, 2026-10-07); retry for up to 30s.
         var products: [Product] = []
-        for _ in 0..<10 where products.isEmpty {
+        for _ in 0..<60 where products.isEmpty {
             products = try await Product.products(for: [AppStoreBilling.productID])
             if products.isEmpty { try await Task.sleep(for: .milliseconds(500)) }
         }
-        let product = try XCTUnwrap(products.first)
+        // On a simulator created moments earlier (the release gate makes a
+        // fresh one per run) the StoreKit test daemon can serve nothing for
+        // the whole window. That is the environment, not the product: the
+        // definition is pinned deterministically by
+        // testStoreKitConfigurationFileDefinesTheProduct, so skip, loudly.
+        guard let product = products.first else {
+            throw XCTSkip("StoreKit test session served no products on this simulator within 30s")
+        }
         XCTAssertEqual(product.id, AppStoreBilling.productID)
         XCTAssertEqual(product.type, .autoRenewable)
         XCTAssertEqual(product.price, Decimal(string: "14.99"))
