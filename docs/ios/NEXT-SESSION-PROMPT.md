@@ -15,6 +15,7 @@ Austin-only gates listed in PRD section 7 and at the check-ins below.
 
 ## Operating rules
 
+- Android moved while this was written: git pull first, and treat the newest Android release as the bar. Other sessions (a Windows machine) ship to `main` in parallel; `git pull --rebase` before each push and never force-push.
 - Android is the source of truth. For every requirement, read the Android code
   and its `docs/FEATURES.md` contract first and port the behavior, not your
   idea of it. Same endpoints, same payloads, same rules.
@@ -44,7 +45,7 @@ Austin-only gates listed in PRD section 7 and at the check-ins below.
    purchase UI (PRD F1, the default) or build StoreKit first; (c) the AI
    consent copy approach (A4); (d) which 1Password item holds the review demo
    account. Proceed on the defaults if he does not object within the turn.
-2. Audit Android `mobile/CHANGELOG.md` entries 1.50.0 to 1.78.0 and the
+2. Audit Android `mobile/CHANGELOG.md` entries 1.50.0 to the latest (1.79.0 at time of writing; Android may have moved again, re-check `mobile/app.json`) and the
    `mobile/app` + `mobile/src/features` tree against `macos/SureWord-iOS` and
    `macos/Shared`. Extend the PRD gap table with anything missing and commit
    that edit. This is the definitive scope.
@@ -68,6 +69,7 @@ Suggested lanes (adjust after the Step 0 audit):
 | breadth-1 | C7, C8, C11, D1 | Sonnet 5.5 |
 | ports | B2, B3, B4, D1 (if not above), E1, E2 markdown export | GLM 5.3 Flash via opencode |
 | notes | E3, E4 | Sonnet 5.5 |
+| share-voice | D6, D7, D8 (share extension + audio attachments), My testimony in B5 | Sonnet 5.5 |
 | verify | C9, C10, D2, D3, D5 smoke and fixes | Sonnet 5.5 |
 | design | G1 to G6 | Sonnet 5.5, after reader screens exist |
 | store-prep | A7, A4 copy, H1 to H6 | Sonnet 5.5, with Austin gates |

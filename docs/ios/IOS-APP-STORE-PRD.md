@@ -21,7 +21,8 @@ the build is in TestFlight and submitted for App Review, and
 - iOS target `SureWord-iOS` (`macos/`, SwiftUI, iOS 26, XcodeGen) builds clean
   on Xcode 27 for the iPhone 18 Pro simulator; 67 simulator tests pass.
   It shares `macos/Shared/` with macOS. Version 1.9.0 (10).
-- Android is 1.78.0 (versionCode 87). iOS is roughly 70 minor versions behind.
+- Android is 1.79.0 (versionCode 88, Play internal + GitHub, 2026-10-07). iOS is roughly 70 minor versions behind.
+- Commits 9457b35 and 5c400cc added `/check` and `/reply`, voice messages, My testimony and Share-into-SureWord. The Windows session wrote Apple source for the first three but never compiled it; it compiles on the Mac (iOS build succeeds 2026-10-07) but is unexercised. Apple has no share-into-SureWord at all. Android needed two `expo-share-intent` patches (empty cursor crash, `content://` read grants) after emulator proof; the iOS equivalent must be proven the same way.
 - Signing: only an Apple Development certificate exists on this Mac. No
   Distribution certificate or provisioning profile. App Store Connect API keys
   are in `~/.appstoreconnect/private_keys` (provenance unknown). Whether the
@@ -53,11 +54,11 @@ not a paraphrase.
 
 | ID | Requirement | Notes |
 |---|---|---|
-| A1 | In-app **account deletion**: Settings → Account → Delete account, two-step confirm, calls a new `DELETE /api/account` that removes all user data (Prisma cascade audit across `User`, conversations, notes, memories, highlights, learn, plans, church, shared answers, push tokens, feedback, blob attachments, Clerk user) and signs out. | Required by Apple 5.1.1(v) AND Google Play. Does not exist on any client today. Server work once, then Android, web, iOS, macOS clients. |
+| A1 | In-app **account deletion**: Settings → Account → Delete account, two-step confirm, calls a new `DELETE /api/account` that removes all user data (Prisma cascade audit across `User`, conversations, notes, testimony, voice-message transcripts and audio blobs, memories, highlights, learn, plans, church, shared answers, push tokens, feedback, blob attachments, Clerk user) and signs out. | Required by Apple 5.1.1(v) AND Google Play. Does not exist on any client today. Server work once, then Android, web, iOS, macOS clients. |
 | A2 | **Sign in with Apple** (Clerk Apple provider) on iOS, plus equivalent on web/Android per Clerk support. | Apple 4.8 applies because Google SSO is offered. Needs Apple Services ID/key in Clerk. Verify Clerk's current native Apple flow in ClerkKit. |
 | A3 | **Password sign-in** for password-bearing accounts on iOS (Android 1.19.1 behavior: Continue detects the password factor, code fallback). | The App Review and Play demo accounts are password accounts. |
-| A4 | **AI disclosure and consent**: before first AI use, disclose that prompts, notes and context are sent to third-party AI providers (OpenAI, optionally the user's BYOK provider, Tavily, ElevenLabs) and obtain consent. Add a report/flag path for objectionable AI output (thumbs down already exists; confirm it reaches a human-reviewable queue). | Apple 5.1.2(i) and 1.2. Same copy on all clients. Decide with Austin if consent is a one-time sheet or part of onboarding. |
-| A5 | `PrivacyInfo.xcprivacy` for the iOS app (and macOS) declaring collected data types, tracking = none, required-reason APIs actually used (UserDefaults, file timestamps, etc.). Audit every SPM dependency's manifest (Clerk, PhoneNumberKit). | Build must produce no privacy-manifest warnings. |
+| A4 | **AI disclosure and consent**: before first AI use, disclose that prompts, notes, personal testimony, voice recordings and context are sent to third-party AI providers (OpenAI incl. audio transcription, optionally the user's BYOK provider, Tavily, ElevenLabs) and obtain consent. Add a report/flag path for objectionable AI output (thumbs down already exists; confirm it reaches a human-reviewable queue). | Apple 5.1.2(i) and 1.2. Same copy on all clients. Decide with Austin if consent is a one-time sheet or part of onboarding. |
+| A5 | `PrivacyInfo.xcprivacy` (collected types must include audio data, user content, and the testimony as sensitive personal/religious belief data) for the iOS app (and macOS) declaring collected data types, tracking = none, required-reason APIs actually used (UserDefaults, file timestamps, etc.). Audit every SPM dependency's manifest (Clerk, PhoneNumberKit). | Build must produce no privacy-manifest warnings. |
 | A6 | `ITSAppUsesNonExemptEncryption = NO` (HTTPS only) in Info.plist; export compliance answers recorded. | |
 | A7 | Privacy policy and terms on `sureword.app` updated for analytics, AI providers, account deletion, push, audio. Support URL page. | Policy must match the App Privacy answers exactly. |
 
@@ -69,7 +70,7 @@ not a paraphrase.
 | B2 | `x-sureword-client: ios` header on every API call (Android sets it once in `mobile/src/lib/api.ts`; mirror in the shared Swift networking layer; macOS sends `macos`). Server `platformFromHeaders` must accept both. |
 | B3 | Client analytics parity (Android 1.72.1 to 1.73.0): screen views, app lifecycle, sign-in funnel (started/completed/failed by method, error code only), failed requests (route shape only), anonymous-trail-survives-to-account, internal/test traffic flag. Content rule from `docs/PARITY.md` "Usage analytics": no question, answer, note, highlight, church or verse text ever in a payload. Pin with a Swift test that mirrors `tests/analytics-event-mirror.test.mjs`. |
 | B4 | Send feedback screen (Settings → Send feedback), same endpoint and rules as Android `settings/feedback.tsx`. |
-| B5 | Settings hub parity with Android's nested pages (profile, Check for updates is Android-only and exempt, Appearance & reading, Highlight labels, My church, Memory + About me, AI, Shared answers, Notifications, About, Send feedback, Account incl. delete). |
+| B5 | Settings hub parity (add **My testimony**, a private 2000-character box under About me in Settings → Memory, read by the assistant only when a question touches grace, salvation or doubt; the Apple README needs a note for it) with Android's nested pages (profile, Check for updates is Android-only and exempt, Appearance & reading, Highlight labels, My church, Memory + About me, AI, Shared answers, Notifications, About, Send feedback, Account incl. delete). |
 | B6 | Notifications: local daily-verse reminder stays. If the paid program is active, enable APNs (`aps-environment`), register tokens through `POST /api/push-tokens`, and implement the "answer is ready" push and the morning verse-text push on the server for `platform: "ios"` (APNs key via Expo or direct; decide in the design gate). If not active, keep local-only and document it. |
 
 ### C. Reader and Bible (iOS)
@@ -95,8 +96,11 @@ not a paraphrase.
 | D1 | History search, rename, confirmed delete (Android 1.55.1). |
 | D2 | Run-options picker parity (REASONING / SPEED / LENGTH / MODE, Models/Options tabs, summary label, search past 8 models) verified live. |
 | D3 | Receipt line, copy answer, feedback chips sheet, share an answer + Show in search toggle: exercise each in the simulator against production as the reviewer account; fix whatever the 1.5.0-era code gets wrong. |
-| D4 | Daily Cross: stay / fresh directions, and **on-demand Listen** per Android 1.78.0 (narrator choice with voice preview, Calm / Natural / Expressive delivery, saved audio, speed, read-along, Pro lock panel). Background audio + Now Playing verified on a device. |
-| D5 | Slash commands, attachments (camera, library, files, paste), stop generating, answer recovery: smoke each. |
+| D4 | Daily Cross: stay / fresh directions, and **on-demand Listen** per Android 1.78.0 (generation moved from the cron to an explicit user action) (narrator choice with voice preview, Calm / Natural / Expressive delivery, saved audio, speed, read-along, Pro lock panel). Background audio + Now Playing verified on a device. |
+| D5 | Slash commands (now including `/check` and `/reply`), attachments (camera, library, files, paste), stop generating, answer recovery: smoke each. |
+| D6 | **`/check` and `/reply`** (Android 1.79.0): weigh a claim, screenshot or voice message against Scripture; draft a short gentle reply. Exercise the shared Swift code against production and fix it. |
+| D7 | **Voice messages**: attach or share an audio file (Files, Voice Memos, Messages, Discord); server transcribes once (free cap `AUDIO_TRANSCRIPTION_FREE_DAILY_MINUTES`, default 10 per rolling 24h, Pro uncapped); chip opens the transcript inline. Audio is an attachment type on iOS in addition to image/PDF/text. Contract: `docs/FEATURES.md` "Voice messages and sharing into SureWord". |
+| D8 | **Share into SureWord**: an iOS Share Extension target (App Group hand-off to the app, text, URLs, images, PDFs, audio), opens a new chat pre-filled with the two actions "Check against Scripture" and "Help me reply"; the share survives sign-in (Android proved this signed-out). Prove with a real share from Files, Voice Memos and Safari, not only a synthetic intent. This was a stretch item in the first draft; it is now required. |
 
 ### E. Notes (iOS)
 
@@ -129,7 +133,7 @@ content first.
 | G4 | Reader typography: best-in-class reading (Cormorant for scripture, adjustable size/line spacing/margins, verse numbers, red-letter if sourced, speech spans), parchment texture performance (no frame drops while scrolling). |
 | G5 | Accessibility: VoiceOver labels and traits on every control, Dynamic Type to AX5 without clipping, Reduce Transparency fallbacks for glass, contrast AA on gold-on-dark and parchment, Voice Control names, Increase Contrast, Reduce Motion. Run the Accessibility Inspector audit and record results. |
 | G6 | App icon and launch: icon from the existing master through `scripts/apply-logo.py` (never hand-edit), tinted/dark icon variants for iOS 26, launch screen without a flash. |
-| G7 | Widgets (Verse of the Day) and a share extension are **stretch**, only if everything else is done; do not let them delay submission. |
+| G7 | Widgets (Verse of the Day) are **stretch**, only if everything else is done; do not let them delay submission. (The share extension is now required: D8.) |
 
 ### H. App Store launch
 
@@ -169,7 +173,7 @@ and the relevant route tests.
 - **M0 Foundations (day 1):** audit Android 1.50 to 1.78 changelog against iOS and extend this PRD's gap table; A1 server half; B2; A5/A6; lane worktrees.
 - **M1 Auth and store blockers:** A2, A3, A4, A1 clients, B1.
 - **M2 Reader core:** C1 to C6, then D4.
-- **M3 Breadth:** C7 to C11, D1 to D3, D5, E1 to E4, B3 to B5.
+- **M3 Breadth:** C7 to C11, D1 to D3, D5 to D8, E1 to E4, B3 to B5.
 - **M4 Design pass:** G1 to G6 (can begin on finished screens during M2 and M3).
 - **M5 Store prep:** A7, H1 to H6, TestFlight build.
 - **M6 Beta and submit:** H7, H8. Then F2 and the stretch items.
@@ -219,4 +223,4 @@ deliberate act per `CLAUDE.md` (internal only by default).
 | Weak-model code fails strict concurrency | Compile+test gate before review; two failures escalate the lane to a stronger model. |
 | Liquid Glass hurts reading legibility | Glass on chrome only; Reduce Transparency fallback; review screenshots in parchment and dark. |
 | Review team can't reach AI features | Demo account with a working Pro/Free path and written notes (H6). |
-| Scope creep | Widgets and share extension are stretch (G7); StoreKit is post-1.0 (F2). |
+| Scope creep | Widgets are stretch (G7); StoreKit is post-1.0 (F2). |
