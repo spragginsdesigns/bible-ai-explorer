@@ -40,12 +40,27 @@ final class MemoriesModel {
     var errorAlert: ErrorAlert?
 
     private var api: APIClient?
+    /// Where the Settings hub reads "On · N saved" from (PRD B7). Every change
+    /// this model learns about is reported, so the count is exact on the way
+    /// back from the manage screen.
+    private var cache: SettingsDataStore?
 
     /// Views hand over the session's client the first time they appear; the
     /// model is `@State`-owned by `SettingsView`, which cannot read the
     /// environment at init time.
-    func configure(_ api: APIClient) {
-        if self.api == nil { self.api = api }
+    ///
+    /// The cached switch seeds `isEnabled`: it is the server's own last answer,
+    /// so the toggle is usable on the first frame instead of after the GET.
+    func configure(_ api: APIClient, cache: SettingsDataStore = .shared) {
+        guard self.api == nil else { return }
+        self.api = api
+        self.cache = cache
+        cache.hydrate()
+        if isEnabled == nil, let enabled = cache.memories.data?.enabled { isEnabled = enabled }
+    }
+
+    private func reportCount() {
+        cache?.noteMemoryCount(memories.count)
     }
 
     var groups: [MemoryGroup] { MemoryCategory.group(memories) }
@@ -62,6 +77,8 @@ final class MemoriesModel {
             let response = try await api.fetchMemories()
             memories = response.memories
             isEnabled = response.enabled
+            reportCount()
+            cache?.noteMemoryEnabled(response.enabled)
             loadError = nil
         } catch {
             loadError = Self.message(error, fallback: "Could not load your memories.")
@@ -81,6 +98,7 @@ final class MemoriesModel {
         defer { isTogglePending = false }
         do {
             _ = try await api.setMemoryEnabled(enabled)
+            cache?.noteMemoryEnabled(enabled)
         } catch {
             isEnabled = previous
             errorAlert = ErrorAlert(
@@ -98,6 +116,7 @@ final class MemoriesModel {
     func applyRemote(enabled: Bool) {
         guard !isTogglePending else { return }
         isEnabled = enabled
+        cache?.noteMemoryEnabled(enabled)
     }
 
     func add() async {
@@ -109,6 +128,7 @@ final class MemoriesModel {
             let memory = try await api.addMemory(content: content)
             draft = ""
             memories.insert(memory, at: 0)
+            reportCount()
             // The stored set changed, so any summary on screen is now stale.
             summaryState = .idle
         } catch {
@@ -124,6 +144,7 @@ final class MemoriesModel {
         do {
             try await api.deleteMemory(id: memory.id)
             memories.removeAll { $0.id == memory.id }
+            reportCount()
             summaryState = .idle
         } catch {
             errorAlert = ErrorAlert(
@@ -180,6 +201,7 @@ final class MemoriesModel {
         do {
             try await api.clearMemories()
             memories = []
+            reportCount()
             summaryState = .idle
         } catch {
             errorAlert = ErrorAlert(

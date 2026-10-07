@@ -26,6 +26,9 @@ struct MainWindow: View {
         // First hydrate of the session: the server document replaces whatever
         // this Mac had cached for the synced preferences.
         .task { app.preferences.refresh(force: true) }
+        // Providers, church and the memory count, warmed for this account so
+        // Settings opens on its real content (PRD B7, Android 1.54.0).
+        .task { await SettingsDataStore.shared.prefetch(.live(app.api)) }
         // Keep the morning reminder in step with the settings, on every launch
         // and on every change to either half of the preference.
         .task(id: "\(app.settings.verseOfDayEnabled)-\(app.settings.verseOfDayHour)") {

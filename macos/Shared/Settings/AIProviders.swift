@@ -183,7 +183,7 @@ enum AIModelsAPI {
 /// Port of `ProviderStatus` in `mobile/src/features/settings/aiApi.ts`. The key
 /// itself never comes back from the server — only its last four characters,
 /// which is all the UI is allowed to show.
-struct AIProviderStatus: Decodable, Equatable, Sendable, Identifiable {
+struct AIProviderStatus: Codable, Equatable, Sendable, Identifiable {
     let id: String
     let label: String
     /// Where the user can mint a key, opened in Safari ("Get a key").
@@ -205,7 +205,8 @@ struct AIProviderStatus: Decodable, Equatable, Sendable, Identifiable {
     }
 }
 
-struct AIProvidersResponse: Decodable, Equatable, Sendable {
+/// Codable rather than Decodable so `SettingsDataStore` can persist it.
+struct AIProvidersResponse: Codable, Equatable, Sendable {
     /// True when the account can also use SureWord's built-in keys; adding a
     /// personal key then overrides them per provider.
     let serverCredentials: Bool
@@ -260,18 +261,45 @@ final class AIProviderSettingsModel {
     private(set) var error: String?
 
     private var api: APIClient?
+    /// The persisted per-account list (PRD B7): painted on the first frame,
+    /// revalidated in place, and never replaced by a spinner once present.
+    private var cache: SettingsDataStore?
 
-    func configure(_ api: APIClient) {
+    func configure(_ api: APIClient, cache: SettingsDataStore = .shared) {
         self.api = api
+        self.cache = cache
+        cache.hydrate()
+        if response == nil, let cached = cache.providers.data { response = cached }
     }
 
     func load() async {
         guard let api else { return }
         loadFailed = false
+        guard let cache else {
+            do { response = try await AIProviderAPI.fetch(api: api) } catch { loadFailed = true }
+            return
+        }
         do {
-            response = try await AIProviderAPI.fetch(api: api)
+            try await cache.refreshProviders(.live(api))
+            if let fresh = cache.providers.data { response = fresh }
         } catch {
-            loadFailed = true
+            // A failed revalidation keeps the cached list; the Retry row is
+            // only for a section that has nothing to show.
+            loadFailed = response == nil
+        }
+    }
+
+    /// A direct read rather than `load()`: a revalidation already in flight was
+    /// issued before this save or removal, and joining it would bring back the
+    /// list as it was.
+    private func reloadAfterMutation(_ api: APIClient) async {
+        do {
+            let fresh = try await AIProviderAPI.fetch(api: api)
+            response = fresh
+            loadFailed = false
+            cache?.noteProviders(fresh)
+        } catch {
+            loadFailed = response == nil
         }
     }
 
@@ -301,7 +329,7 @@ final class AIProviderSettingsModel {
             try await AIProviderAPI.save(api: api, provider: providerID, apiKey: key)
             editingProviderID = nil
             keyInput = ""
-            await load()
+            await reloadAfterMutation(api)
         } catch {
             self.error = (error as? APIError)?.message ?? "Could not save the key."
         }
@@ -314,7 +342,7 @@ final class AIProviderSettingsModel {
         defer { isPending = false }
         do {
             try await AIProviderAPI.remove(api: api, provider: providerID)
-            await load()
+            await reloadAfterMutation(api)
         } catch {
             self.error = (error as? APIError)?.message ?? "Could not remove the key."
         }

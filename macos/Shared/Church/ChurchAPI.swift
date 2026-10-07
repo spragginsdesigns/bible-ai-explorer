@@ -11,7 +11,7 @@ import Foundation
 /// "not configured" and "no church saved" are different answers and must not
 /// collapse into one.
 
-struct ChurchProfile: Decodable, Sendable, Equatable, Identifiable {
+struct ChurchProfile: Codable, Sendable, Equatable, Identifiable {
     var id: String { placeId }
 
     let placeId: String
@@ -38,7 +38,9 @@ struct ChurchSearchResult: Decodable, Sendable, Equatable, Identifiable {
     let hasPhoto: Bool
 }
 
-enum ChurchResponse: Decodable, Sendable, Equatable {
+/// Codable rather than Decodable so `SettingsDataStore` can persist it in the
+/// server's own shape.
+enum ChurchResponse: Codable, Sendable, Equatable {
     case unavailable
     case ok(church: ChurchProfile?)
 
@@ -51,6 +53,17 @@ enum ChurchResponse: Decodable, Sendable, Equatable {
             return
         }
         self = .ok(church: try container.decodeIfPresent(ChurchProfile.self, forKey: .church))
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .unavailable:
+            try container.encode("unavailable", forKey: .status)
+        case .ok(let church):
+            try container.encode("ok", forKey: .status)
+            try container.encodeIfPresent(church, forKey: .church)
+        }
     }
 }
 

@@ -35,6 +35,9 @@ final class ChurchModel {
     var errorAlert: ErrorAlert?
 
     private var api: APIClient?
+    /// The persisted per-account answer (PRD B7), so the section paints its
+    /// saved church on the first frame and revalidates in place.
+    private var cache: SettingsDataStore?
     private var searchTask: Task<Void, Never>?
     /// Monotonic id of the newest search; older responses are dropped.
     private var searchRequestId = 0
@@ -42,8 +45,15 @@ final class ChurchModel {
     /// Views hand over the session's client the first time they appear; the
     /// model is `@State`-owned by `SettingsView`, which cannot read the
     /// environment at init time.
-    func configure(_ api: APIClient) {
-        if self.api == nil { self.api = api }
+    ///
+    /// The cached answer is applied right here, before any request, which is
+    /// what keeps the page from opening on a spinner.
+    func configure(_ api: APIClient, cache: SettingsDataStore = .shared) {
+        guard self.api == nil else { return }
+        self.api = api
+        self.cache = cache
+        cache.hydrate()
+        if let cached = cache.church.data { apply(cached) }
     }
 
     var isSaving: Bool { savingPlaceId != nil }
@@ -64,20 +74,35 @@ final class ChurchModel {
 
     // MARK: - Loading
 
+    /// Stale-while-revalidate: with a cached answer on screen the section
+    /// never drops back to a spinner, and a failed refresh keeps it.
     func load() async {
         guard let api else { return }
-        state = .loading
+        guard let cache else {
+            state = .loading
+            do { apply(try await api.fetchChurch()) } catch { state = .failed }
+            return
+        }
+        if cache.church.data == nil { state = .loading }
         do {
-            switch try await api.fetchChurch() {
-            case .unavailable:
-                state = .unavailable
-            case .ok(let church):
-                self.church = church
-                isPicking = church == nil
-                state = .ready
-            }
+            try await cache.refreshChurch(.live(api))
+            if let fresh = cache.church.data { apply(fresh) }
         } catch {
-            state = .failed
+            if cache.church.data == nil { state = .failed }
+        }
+    }
+
+    /// A refresh that brings back the same church leaves an open picker alone;
+    /// only a real change (or the first answer) decides whether it shows.
+    private func apply(_ response: ChurchResponse) {
+        switch response {
+        case .unavailable:
+            state = .unavailable
+        case .ok(let church):
+            let changed = state != .ready || church != self.church
+            self.church = church
+            if changed { isPicking = church == nil }
+            state = .ready
         }
     }
 
@@ -144,7 +169,9 @@ final class ChurchModel {
         savingPlaceId = placeId
         defer { savingPlaceId = nil }
         do {
-            switch try await api.saveChurch(placeId: placeId) {
+            let response = try await api.saveChurch(placeId: placeId)
+            cache?.noteChurch(response)
+            switch response {
             case .unavailable:
                 state = .unavailable
             case .ok(let church):
@@ -181,6 +208,7 @@ final class ChurchModel {
         defer { isRemoving = false }
         do {
             try await api.removeChurch()
+            cache?.noteChurch(.ok(church: nil))
             church = nil
             isPicking = true
             resetSearch()

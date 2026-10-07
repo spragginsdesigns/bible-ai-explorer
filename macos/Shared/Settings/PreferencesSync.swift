@@ -454,6 +454,9 @@ final class PreferencesSyncModel {
         // match, the first run of this build included: they were never keyed by
         // user before it, so they may be the last account's.
         clearCaches()
+        // Providers, church and the memory count are account data like the
+        // notes, so they go whenever the owner is not known to be this user.
+        SettingsDataStore.shared.clear()
         // The synced settings are reset only for a *known different* account.
         // An absent id means this build has simply never recorded one, and the
         // local values may be this user's own pre-sync choices - the
@@ -466,6 +469,7 @@ final class PreferencesSyncModel {
     static func clearAccountCaches(settings: SettingsStore, highlights: HighlightsStore?) {
         settings.resetSyncedPreferences()
         NotesStore.shared.clearCache()
+        SettingsDataStore.shared.clear()
         if let highlights {
             highlights.clearCache()
         } else if let url = HighlightsStore.defaultCacheURL {
