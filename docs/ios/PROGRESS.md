@@ -25,10 +25,10 @@ Android bar 1.79.0 (88).
 | A1 account deletion (server + 4 clients) | store-blockers | wip: server route merged 2026-10-07 (lint, tsc, 1261 logic tests; NOT yet exercised against a real account or deployed-and-called); clients todo | `docs/FEATURES.md` "Account deletion" |
 | A2 Sign in with Apple | store-blockers | todo | |
 | A3 password sign-in | store-blockers | todo | |
-| A4 AI disclosure and consent | store-prep | todo | |
+| A4 AI disclosure and consent | store-prep | wip: sheet copy (99 words) and server contract proposed, no code; thumbs-down audit found no human-review queue (script and SQL only). Needs Austin: server enforcement phase, review digest | `docs/ios/ai-consent.md` |
 | A5 PrivacyInfo.xcprivacy | store-blockers | todo | |
 | A6 ITSAppUsesNonExemptEncryption | store-blockers | todo | |
-| A7 privacy/terms/support pages | store-prep | todo | |
+| A7 privacy/terms/support pages | store-prep | wip: policy, terms and public `/support` (+ `/support.md`) committed on the store-prep branch; lint, tsc and 1281 logic tests green; not deployed. The policy and /support describe in-app account deletion on every client, which so far exists only server-side (A1): ship A1 clients first, or accept that the email fallback both pages also state is the only working path until then | `src/lib/marketing/legal-content.ts`, `tests/llms-txt.test.mjs` |
 | B1 four sign-in paths on device | store-blockers | todo | |
 | B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
 | B3 analytics parity | ports | todo | |
@@ -73,10 +73,10 @@ Android bar 1.79.0 (88).
 | G8 iPad keyboard shortcuts | stretch | todo | |
 | H1 App ID, certs, ASC record | store-prep | wip: App ID `com.spragginsdesigns.sureword` registered 2026-10-07 (ASC id `K8YQ7UKAL7`, UNIVERSAL, team `389LLKGY3Y`) with Sign in with Apple, Push, App Groups, In-App Purchase. Apple Distribution certificate `QQZKYAB86N` (LineCrush Inc, expires 2027-10-07) created via API and imported into this Mac's login keychain; key+cert also in `~/.appstoreconnect/sureword-dist/` (mode 700, never in the repo). App Store Connect app record: API cannot create apps, Austin creates it in the web UI. App Store profile: created by `release-ios.sh` (H2). | |
 | H2 `release-ios.sh` | store-prep | todo | |
-| H3 listing copy | store-prep | todo | |
+| H3 listing copy | store-prep | wip: drafted, lengths measured; in-flight feature lines kept as HTML comments by PRD row; 13+ override and the UGC answer need Austin | `docs/ios/app-store-listing.md` |
 | H4 screenshots | store-prep | todo | |
-| H5 App Privacy answers | store-prep | todo | |
-| H6 review notes | store-prep | todo | |
+| H5 App Privacy answers | store-prep | wip: drafted with the PrivacyInfo.xcprivacy mapping for A5; assumes B3, B4, B6, D7 and A1 ship | `docs/ios/app-privacy.md` |
+| H6 review notes | store-prep | wip: template with a claim-by-claim verification gate; contact phone TODO | `docs/ios/review-notes.md` |
 | H7 TestFlight | store-prep | blocked on (a) | |
 | H8 submit | Austin | Austin-only gate | |
 
