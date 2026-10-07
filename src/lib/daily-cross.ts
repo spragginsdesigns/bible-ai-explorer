@@ -20,7 +20,7 @@ import {
 	type RecentDailyCross,
 	type SelectionEvidence,
 } from "@/lib/daily-cross-selection";
-import { selectDailyCross } from "@/lib/daily-cross-selector";
+import { selectDailyCross, type DailyCrossSelectorDependencies } from "@/lib/daily-cross-selector";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 
 /**
@@ -169,7 +169,28 @@ export interface DailyCrossRequest {
 	direction?: DailyCrossDirection;
 	/** Internal runtime budget used by the batched morning cron. */
 	abortSignal?: AbortSignal;
+	/**
+	 * False writes the day the way a brand-new account gets it: the selector and
+	 * the writer see no messages, notes, memories, reading, plan or church. The
+	 * morning cron passes false for anyone who has not agreed to the AI
+	 * data-sharing sheet (docs/ios/ai-consent.md), because nobody tapped
+	 * anything that time. Defaults to true; a person opening the day has.
+	 */
+	personalContext?: boolean;
 }
+
+/**
+ * The selector's loaders when personal context is off: nothing about the
+ * person reaches the model, so it chooses exactly as it does for a brand-new
+ * account ("No personal context was available.").
+ */
+const NO_PERSONAL_CONTEXT: DailyCrossSelectorDependencies = {
+	loadPersonalContext: async () => [],
+	loadUserMemories: async () => [],
+};
+
+/** The writer's plan line when personal context is off: the same "(none)" an empty account reads. */
+const NO_PLAN_BLOCK = "(none)";
 
 interface PinnedVerse {
 	book: string;
@@ -371,6 +392,7 @@ async function selectWithOneRetry(
 	direction: DailyCrossDirection | undefined,
 	plan: DirectionPlan,
 	abortSignal?: AbortSignal,
+	personalContext = true,
 ): Promise<{ selection: DailyCrossSelection; text: string }> {
 	let retryFeedback: string | undefined;
 	let lastError: unknown;
@@ -389,7 +411,7 @@ async function selectWithOneRetry(
 				...(plan.themeWindowDays ? { themeWindowDays: plan.themeWindowDays } : {}),
 				...(abortSignal ? { abortSignal } : {}),
 				...(retryFeedback ? { retryFeedback } : {}),
-			});
+			}, personalContext ? {} : NO_PERSONAL_CONTEXT);
 			return canonicalSelection(selection, recent, now, plan);
 		} catch (error) {
 			lastError = error;
@@ -439,8 +461,9 @@ async function writeGuidedDay(
 	selection: DailyCrossSelection | null,
 	focus: string | undefined,
 	abortSignal?: AbortSignal,
+	personalContext = true,
 ): Promise<DailyCross> {
-	const context = await loadStudyContext(userId);
+	const planBlock = personalContext ? (await loadStudyContext(userId)).planBlock : NO_PLAN_BLOCK;
 	const reference = `${verse.book} ${verse.chapter}:${verse.verse}`;
 	const evidence = selection?.evidence ?? [
 		{ kind: "explicit-verse", id: null, summary: reference, origin: "user-pinned" },
@@ -449,7 +472,7 @@ async function writeGuidedDay(
 		selection ? `Why the selector chose this direction:\n${selection.selectionReason}` : null,
 		selection ? `Why it is fresh enough for today:\n${selection.noveltyReason}` : null,
 		`Evidence the selector actually used:\n${evidence.map((item) => `- [${item.origin ?? item.kind}] ${item.summary}`).join("\n")}`,
-		`Today's reading in the user's active plan:\n${context.planBlock}`,
+		`Today's reading in the user's active plan:\n${planBlock}`,
 		focus ? `The user's explicit focus:\n${focus}` : null,
 	]
 		.filter((part): part is string => Boolean(part))
@@ -530,9 +553,10 @@ export async function generateDailyCross(
 ): Promise<DailyCross> {
 	const pinned = request.verse ? await resolvePinnedVerse(request.verse) : null;
 	const focus = request.focus?.trim();
+	const personalContext = request.personalContext ?? true;
 	if (pinned) {
 		try {
-			return await writeGuidedDay(userId, pinned, null, focus, request.abortSignal);
+			return await writeGuidedDay(userId, pinned, null, focus, request.abortSignal, personalContext);
 		} catch (error) {
 			console.error(`[daily-cross] Pinned-day writing failed for user ${userId}; using pinned fallback:`, error);
 			return pinnedFallbackCross(pinned, error);
@@ -546,10 +570,19 @@ export async function generateDailyCross(
 	const plan = resolveDirection(request.direction, recent, now);
 	let selected: { selection: DailyCrossSelection; text: string } | null = null;
 	try {
-		selected = await selectWithOneRetry(userId, focus, recent, now, request.direction, plan, request.abortSignal);
+		selected = await selectWithOneRetry(
+			userId,
+			focus,
+			recent,
+			now,
+			request.direction,
+			plan,
+			request.abortSignal,
+			personalContext,
+		);
 		const verse = { ...selected.selection, text: selected.text };
 		try {
-			return await writeGuidedDay(userId, verse, selected.selection, focus, request.abortSignal);
+			return await writeGuidedDay(userId, verse, selected.selection, focus, request.abortSignal, personalContext);
 		} catch (error) {
 			console.error(`[daily-cross] Guided-day writing failed for user ${userId}; preserving the validated selection:`, error);
 			return staticFallbackCross(verse, selected.selection, error);

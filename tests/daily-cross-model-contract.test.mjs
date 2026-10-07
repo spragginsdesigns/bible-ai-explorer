@@ -62,6 +62,6 @@ test("the hourly cron bounds the whole cohort with a shared abort deadline", asy
 	const cron = await read("src/app/api/cron/verse-of-day/route.ts");
 	assert.match(cron, /DAILY_CROSS_CONCURRENCY = MAX_USERS_PER_RUN/);
 	assert.match(cron, /AbortSignal\.timeout\(DAILY_CROSS_GENERATION_BUDGET_MS\)/);
-	assert.match(cron, /generateDailyCross\(userId, \{ abortSignal: generationSignal \}\)/);
+	assert.match(cron, /generateDailyCross\(userId, \{ abortSignal: generationSignal, personalContext \}\)/);
 	assert.match(cron, /refreshSuggestedQuestions\(userId, \{ abortSignal: generationSignal \}\)/);
 });

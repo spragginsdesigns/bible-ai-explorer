@@ -5,6 +5,7 @@ import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 import { sendPushMessages, type PendingPush } from "@/lib/push";
 import { recipientFromRow } from "@/lib/push-routing";
 import { planMorningAudience } from "@/lib/push-audience";
+import { aiConsentedUserIds } from "@/lib/preferences-contract";
 import {
 	PUSH_ACTIVITY_WINDOW_MS,
 	lastActivityByUser,
@@ -83,6 +84,26 @@ async function loadRecentActivity(userIds: readonly string[], now: Date): Promis
 	}
 }
 
+/**
+ * The due users who agreed to the AI data-sharing sheet (docs/ios/ai-consent.md).
+ * Nobody taps anything for the morning day, so only these get one written
+ * from their reading, notes, chat and memories; everyone else gets the day a
+ * brand-new account gets. A failed read narrows to nobody, never to everybody.
+ */
+async function loadAiConsented(userIds: readonly string[]): Promise<Set<string>> {
+	if (userIds.length === 0) return new Set();
+	try {
+		const rows = await prisma.user.findMany({
+			where: { id: { in: [...userIds] } },
+			select: { id: true, aiConsentVersion: true, aiConsentAt: true },
+		});
+		return aiConsentedUserIds(rows);
+	} catch (error) {
+		console.error("[cron/verse-of-day] Consent lookup failed; writing every day without personal context:", error);
+		return new Set();
+	}
+}
+
 async function mapWithConcurrency<T, R>(
 	items: readonly T[],
 	limit: number,
@@ -151,6 +172,7 @@ export async function GET(request: Request) {
 		? splitByActivity(planned, recentActivity, now, PUSH_ACTIVITY_WINDOW_MS)
 		: { active: planned, inactive: [] };
 	const dueUsers = active.slice(0, MAX_USERS_PER_RUN);
+	const consented = await loadAiConsented(dueUsers.map((user) => user.userId));
 	const generationSignal = AbortSignal.timeout(DAILY_CROSS_GENERATION_BUDGET_MS);
 	// Sol/xhigh selection plus Sol/high writing is intentionally more expensive
 	// than the old single utility call. Start the capped due cohort together and
@@ -162,13 +184,19 @@ export async function GET(request: Request) {
 			// screen before their notify hour) is reused, not regenerated — one
 			// guided day per user per day, whoever asks first.
 			const existing = await findTodayCross(userId);
-			const cross = existing ?? (await generateDailyCross(userId, { abortSignal: generationSignal }));
+			// Personal context only with consent on record; otherwise the day
+			// is chosen and written from Scripture alone.
+			const personalContext = consented.has(userId);
+			const cross =
+				existing ?? (await generateDailyCross(userId, { abortSignal: generationSignal, personalContext }));
 			if (!existing) await storeDailyCross(userId, cross);
 
 			// Pre-warm the day's welcome-screen questions now that the new cross
 			// exists for them to build on, so the first app open never waits on a
 			// model call. Best-effort: the morning push must not depend on it.
-			if (!existing && !generationSignal.aborted) {
+			// The questions are built from the same study context, so they wait
+			// for consent too; the welcome screen asks for them on open.
+			if (!existing && personalContext && !generationSignal.aborted) {
 				await refreshSuggestedQuestions(userId, { abortSignal: generationSignal }).catch((error) => {
 					console.error(`[cron/verse-of-day] Suggested-questions refresh failed for ${userId}:`, error);
 				});

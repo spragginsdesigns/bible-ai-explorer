@@ -82,6 +82,23 @@ export const MAX_ABOUT_ME_LENGTH = 1000;
 export const MAX_TESTIMONY_LENGTH = 2000;
 
 /**
+ * The AI data-sharing copy version (docs/ios/ai-consent.md). Bump when the
+ * provider list or what is sent changes materially: every account then sees
+ * the "How SureWord answers you" sheet once more on its next AI action, and a
+ * PATCH from a build still showing the old copy is refused, because a stale
+ * build must not record agreement to copy it never showed. The sheet's text
+ * lives in `src/lib/ai-consent.ts` and its mirrors on every client.
+ */
+export const AI_CONSENT_VERSION = 1;
+
+/** What the document says about AI consent: the version agreed to, and when. */
+export interface AiConsentDocument {
+	version: number;
+	/** ISO 8601, stamped by the server; a client never sends a time. */
+	acceptedAt: string;
+}
+
+/**
  * What the user calls each highlight colour ("yellow" -> "Promises"), so the
  * reader, the assistant and the daily cross can say "you marked this as a
  * promise". A colour with no entry keeps its hue name, so the default document
@@ -168,6 +185,13 @@ export interface PreferencesDocument {
 	/** "" until the user writes one, like `aboutMe`. */
 	testimony: string;
 	chat: PreferencesChatDocument;
+	/** The consent on record, or null when the person has not agreed (or withdrew). */
+	aiConsent: AiConsentDocument | null;
+	/**
+	 * The copy version this server requires, `AI_CONSENT_VERSION`. A client
+	 * shows the sheet when `aiConsent?.version !== aiConsentRequired`.
+	 */
+	aiConsentRequired: number;
 }
 
 /** The `User` columns the document is built from. */
@@ -189,6 +213,10 @@ export interface PreferencesUserRow {
 	aboutMe?: string | null;
 	/** The `testimony` column; optional like `aboutMe`. */
 	testimony?: string | null;
+	/** The `aiConsentVersion` column; optional so an older select still builds a document. */
+	aiConsentVersion?: number | null;
+	/** The `aiConsentAt` column; optional like the version. */
+	aiConsentAt?: Date | null;
 	defaultModelId: string | null;
 	defaultEffort: string | null;
 	defaultSpeed: string | null;
@@ -212,6 +240,10 @@ export interface PreferencesPatchData {
 	aboutMe?: string | null;
 	/** null clears the column, like `aboutMe`. */
 	testimony?: string | null;
+	/** Agreement records the current version; withdraw clears both columns. */
+	aiConsentVersion?: number | null;
+	/** Stamped by the parser from its `now`; null on withdraw. */
+	aiConsentAt?: Date | null;
 	defaultModelId?: string | null;
 	defaultEffort?: string | null;
 	defaultSpeed?: string | null;
@@ -265,6 +297,68 @@ export function readStoredAboutMe(stored: unknown): string {
 /** The stored testimony, read exactly like About me. */
 export function readStoredTestimony(stored: unknown): string {
 	return readStoredText(stored, MAX_TESTIMONY_LENGTH);
+}
+
+/**
+ * The stored consent, or null when there is none to honour. Both columns must
+ * be present and sane; a version without a time (or the reverse) is a half
+ * write that never happened through this contract, and reads as "not agreed"
+ * so the sheet asks again rather than trusting it.
+ */
+export function readStoredAiConsent(
+	version: unknown,
+	acceptedAt: unknown
+): AiConsentDocument | null {
+	if (typeof version !== "number" || !Number.isInteger(version) || version < 1) return null;
+	if (!(acceptedAt instanceof Date) || Number.isNaN(acceptedAt.getTime())) return null;
+	return { version, acceptedAt: acceptedAt.toISOString() };
+}
+
+/**
+ * True when the account agreed to the copy this server requires. The test
+ * every server path that sends personal context without a tap asks first (the
+ * morning Daily Cross cron today), and the same comparison every client's gate
+ * makes against the document.
+ */
+export function hasCurrentAiConsent(
+	user: { aiConsentVersion?: number | null; aiConsentAt?: Date | null } | null | undefined,
+	required: number = AI_CONSENT_VERSION
+): boolean {
+	return readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt)?.version === required;
+}
+
+/**
+ * The ids, out of `rows`, whose stored consent is to the required version.
+ * The morning cron reads every due user's two columns at once and asks this.
+ */
+export function aiConsentedUserIds(
+	rows: readonly { id: string; aiConsentVersion?: number | null; aiConsentAt?: Date | null }[],
+	required: number = AI_CONSENT_VERSION
+): Set<string> {
+	return new Set(rows.filter((row) => hasCurrentAiConsent(row, required)).map((row) => row.id));
+}
+
+/**
+ * Validate an `aiConsent` write. `{ version }` must name the current copy
+ * version; `null` withdraws. The server stamps the time, so a body carrying
+ * `acceptedAt` (or anything else) is refused rather than half-honoured.
+ */
+function readAiConsentPatch(
+	value: unknown,
+	now: Date
+): { ok: true; version: number | null; at: Date | null } | { ok: false; error: string } {
+	if (value === null) return { ok: true, version: null, at: null };
+	if (!isPlainObject(value)) return { ok: false, error: "aiConsent must be null or { version }" };
+	for (const key of Object.keys(value)) {
+		if (key !== "version") return { ok: false, error: `Unknown preference: aiConsent.${key}` };
+	}
+	if (value.version !== AI_CONSENT_VERSION) {
+		return {
+			ok: false,
+			error: `aiConsent.version must be ${AI_CONSENT_VERSION}, the current consent copy`,
+		};
+	}
+	return { ok: true, version: AI_CONSENT_VERSION, at: now };
 }
 
 function readStoredText(stored: unknown, maxLength: number): string {
@@ -400,6 +494,8 @@ export function toPreferencesDocument(
 			verbosity: pickFromVocabulary<Verbosity>(user?.defaultVerbosity, models.verbosities),
 			mode: pickFromVocabulary<ReasoningMode>(user?.defaultMode, models.modes),
 		},
+		aiConsent: readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt),
+		aiConsentRequired: AI_CONSENT_VERSION,
 	};
 }
 
@@ -422,7 +518,11 @@ function readNullableChoice(
  * dropping it would leave a setting that appears to save and never does; a
  * rejected body writes nothing at all, so a mixed patch can never half-apply.
  */
-export function parsePreferencesPatch(body: unknown, models: ModelVocabulary): PreferencesPatchResult {
+export function parsePreferencesPatch(
+	body: unknown,
+	models: ModelVocabulary,
+	now: Date = new Date()
+): PreferencesPatchResult {
 	if (!isPlainObject(body)) {
 		return { ok: false, error: "Body must be a JSON object" };
 	}
@@ -482,6 +582,13 @@ export function parsePreferencesPatch(body: unknown, models: ModelVocabulary): P
 				const parsed = readPersonalText(value, "testimony", MAX_TESTIMONY_LENGTH);
 				if (!parsed.ok) return { ok: false, error: parsed.error };
 				data.testimony = parsed.text;
+				break;
+			}
+			case "aiConsent": {
+				const parsed = readAiConsentPatch(value, now);
+				if (!parsed.ok) return { ok: false, error: parsed.error };
+				data.aiConsentVersion = parsed.version;
+				data.aiConsentAt = parsed.at;
 				break;
 			}
 			case "chat": {

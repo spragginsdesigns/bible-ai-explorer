@@ -55,6 +55,8 @@ const PREFERENCE_SELECT = {
 	highlightMeanings: true,
 	aboutMe: true,
 	testimony: true,
+	aiConsentVersion: true,
+	aiConsentAt: true,
 	defaultModelId: true,
 	defaultEffort: true,
 	defaultSpeed: true,
@@ -106,7 +108,14 @@ export async function PATCH(req: Request) {
 			userId,
 			event: ANALYTICS_EVENTS.settingChanged,
 			platform: platformFromHeaders(req.headers),
-			properties: { settings: Object.keys(parsed.data).sort() },
+			// The consent write fills two columns; it is one setting, `aiConsent`.
+			properties: {
+				settings: [
+					...new Set(
+						Object.keys(parsed.data).map((key) => (key.startsWith("aiConsent") ? "aiConsent" : key))
+					),
+				].sort(),
+			},
 		});
 		return NextResponse.json(toPreferencesDocument(user, plan, MODEL_VOCABULARY));
 	} catch (err) {

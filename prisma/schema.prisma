@@ -65,6 +65,11 @@ model User {
   // words. Private: injected into the chat prompt beside About me, never shown
   // to or shared with anyone. Null until they write one.
   testimony              String?
+  // AI data-sharing consent (docs/ios/ai-consent.md): the copy version the
+  // person agreed to on the one-time sheet, and when the server recorded it.
+  // Null until they agree; both cleared on withdraw.
+  aiConsentVersion       Int?
+  aiConsentAt            DateTime?
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]

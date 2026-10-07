@@ -250,6 +250,8 @@ test("the document mirrors a stored row, with the tier passed in", () => {
 			verbosity: "high",
 			mode: "standard",
 		},
+		aiConsent: null,
+		aiConsentRequired: 1,
 	});
 });
 
@@ -266,6 +268,8 @@ test("an account with no row yet reads as every default", () => {
 		aboutMe: "",
 		testimony: "",
 		chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
+		aiConsent: null,
+		aiConsentRequired: 1,
 	});
 	assert.deepEqual(document(undefined, "free"), document(null, "free"));
 });
