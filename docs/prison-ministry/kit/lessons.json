@@ -1,0 +1,454 @@
+{
+	"lessons": {
+		"1": {
+			"day": 1,
+			"reference": "Matthew 1-2",
+			"title": "Jesus, God With Us",
+			"lesson": "Matthew begins with Jesus Christ’s family line. He is “the son of David, the son of Abraham” (Matthew 1:1), the promised King from Israel. Yet His birth was unlike any other. Mary’s child was “of the Holy Ghost” (Matthew 1:20). Jesus is not merely a good teacher or a man who later became important. He is Emmanuel, meaning “God with us” (Matthew 1:23).\n\nThe angel gave Joseph the reason for His name: “thou shalt call his name JESUS: for he shall save his people from their sins” (Matthew 1:21). Sin is our rebellion against God. We cannot wash it away by good behavior, religious effort, or any work we do. Jesus came to save sinners. He died for our sins, was buried, and rose again the third day. Salvation is God’s gift, received by grace through faith in Jesus Christ alone.\n\nThe wise men recognized that this young child was worthy of worship. “And when they were come into the house, they saw the young child with Mary his mother, and fell down, and worshipped him” (Matthew 2:11). They did not worship Mary. They worshipped Jesus. The right response to the Lord Jesus is to believe Him, honor Him, and come to Him as the Saviour God has given.",
+			"question": "Who do you believe Jesus is, and what does His name, Jesus, mean to you?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 2,
+			"usage": {
+				"inputTokens": 4465,
+				"outputTokens": 706
+			},
+			"generatedAt": "2026-10-07T14:00:42.080Z"
+		},
+		"2": {
+			"day": 2,
+			"reference": "Matthew 3-5",
+			"title": "Follow Me",
+			"lesson": "Jesus gave a clear call to Simon Peter and Andrew: “Follow me, and I will make you fishers of men” (Matthew 4:19). They left their nets and followed Him. To follow Jesus is more than knowing facts about Him. It means turning from our own way to trust and obey the King.\n\nJesus began His preaching with, “Repent: for the kingdom of heaven is at hand” (Matthew 4:17). Repent means a change of mind that turns us toward God. It is not earning salvation by doing better. In Matthew 5, Jesus shows God’s holy standard reaches even to the heart. None of us can make ourselves righteous enough for heaven. That is why we need the Saviour.\n\nJesus is the beloved Son of God, of whom the Father said, “This is my beloved Son, in whom I am well pleased” (Matthew 3:17). He alone fulfilled all righteousness. He died for our sins, was buried, and rose again the third day. Salvation is God’s gift, received by faith in Jesus Christ alone, not by works. Those who trust Him are then called to follow Him day by day.\n\nOne thing Jesus asks of those who would follow Him is simple and direct: “Follow me” (Matthew 4:19). Today, hear His call. Trust Him, listen to His Word, and take the next obedient step He shows you.",
+			"question": "What might it look like for you to follow Jesus in one specific way today?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3344,
+				"outputTokens": 400
+			},
+			"generatedAt": "2026-10-07T14:00:50.481Z"
+		},
+		"3": {
+			"day": 3,
+			"reference": "Matthew 6-8",
+			"title": "Come to Jesus",
+			"lesson": "Great multitudes followed Jesus, but Matthew 8 also shows individuals coming to Him. A leper came and worshipped Him. He did not claim worthiness or demand anything. He said, \"Lord, if thou wilt, thou canst make me clean\" (Matthew 8:2). Jesus answered with both compassion and power: \"I will; be thou clean\" (Matthew 8:3).\n\nA centurion came for his sick servant. He understood that Jesus needed only to speak. He said, \"speak the word only, and my servant shall be healed\" (Matthew 8:8). Jesus praised this faith and answered him. Later, frightened disciples cried, \"Lord, save us: we perish\" (Matthew 8:25). Jesus spoke, and there was \"a great calm\" (Matthew 8:26). Even the winds and sea obeyed Him.\n\nJesus Christ is not merely a teacher with good advice. He has authority over sickness, nature, and every power of darkness. He is the Son of God. He came to save sinners. He died for our sins, was buried, and rose again the third day. No one earns salvation by good works, religious words, or trying to appear righteous. The narrow way is faith in Christ alone. Come to Him honestly, as these people did. Ask Him to save you, and trust His word. Those saved by grace then learn to obey Him, building their lives on the solid rock of His sayings.",
+			"question": "What need, fear, or burden can you bring honestly to Jesus in prayer today?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3586,
+				"outputTokens": 455
+			},
+			"generatedAt": "2026-10-07T14:00:58.679Z"
+		},
+		"4": {
+			"day": 4,
+			"reference": "Matthew 9-11",
+			"title": "Come Unto Jesus",
+			"lesson": "Jesus did not come looking for people who believed they had no need. He said, \"I am not come to call the righteous, but sinners to repentance\" (Matthew 9:13). Repentance means turning from our own way to God. Jesus received sinners, showed mercy, and called Matthew to follow Him. His words search every heart: Do I see my need for Him, or do I trust myself?\n\nThe greatest need is forgiveness. Jesus proved that He has \"power on earth to forgive sins\" (Matthew 9:6). He is the Son of God, the promised Christ, and the only Saviour. He died for our sins, was buried, and rose again the third day. Salvation cannot be earned by works, good behavior, or religious effort. It is received by grace through faith in Jesus Christ alone.\n\nJesus also speaks to those carrying heavy burdens: \"Come unto me, all ye that labour and are heavy laden, and I will give you rest\" (Matthew 11:28). This is rest for the soul, found in Him. He says, \"learn of me; for I am meek and lowly in heart\" (Matthew 11:29). Meek means gentle and humble. Bring your sin, fear, questions, and burden honestly to Christ. Listen slowly to His invitation, and believe His word.",
+			"question": "What burden do you need to bring honestly to Jesus as you hear His invitation to come unto Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3869,
+				"outputTokens": 319
+			},
+			"generatedAt": "2026-10-07T14:01:09.464Z"
+		},
+		"5": {
+			"day": 5,
+			"reference": "Matthew 12-14",
+			"title": "The Road to the Cross",
+			"lesson": "Jesus showed mercy and power in these chapters. He healed, fed a great multitude, ruled over the sea, and received worship as “the Son of God” (Matthew 14:33). He is greater than the temple, greater than Jonas, and greater than Solomon. He is the promised King and the Son of God.\n\nYet opposition was already growing. After Jesus did good on the sabbath, “the Pharisees went out, and held a council against him, how they might destroy him” (Matthew 12:14). Jesus knew the road before Him. He did not turn from the Father’s will. He spoke of “the sign of the prophet Jonas,” saying, “so shall the Son of man be three days and three nights in the heart of the earth” (Matthew 12:40). This points ahead to His death, burial, and resurrection.\n\nThe cross was not an accident. Jesus Christ came to save sinners. He “died for our sins according to the scriptures; And that he was buried, and that he rose again the third day” (1 Corinthians 15:3-4). No one earns this salvation by works or good behavior. It is God’s gift, received by faith in Christ alone. Like Peter, we may cry, “Lord, save me” (Matthew 14:30). Jesus is able to save all who come to Him in faith.\n\nReflection question: What do these chapters show you about who Jesus is, and why His death and resurrection matter to you?",
+			"question": "What do these chapters show you about who Jesus is, and why His death and resurrection matter to you?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4914,
+				"outputTokens": 485
+			},
+			"generatedAt": "2026-10-07T14:01:17.883Z"
+		},
+		"6": {
+			"day": 6,
+			"reference": "Matthew 15-17",
+			"title": "Jesus Only",
+			"lesson": "Jesus asked the question every person must face: \"But whom say ye that I am?\" (Matthew 16:15). Peter answered, \"Thou art the Christ, the Son of the living God\" (Matthew 16:16). Jesus is not merely a teacher or prophet. He is the promised Christ, God’s beloved Son.\n\nOn the mountain, the Father spoke from heaven: \"This is my beloved Son, in whom I am well pleased; hear ye him\" (Matthew 17:5). When the disciples looked up, \"they saw no man, save Jesus only\" (Matthew 17:8). Moses and Elias were servants of God, but Jesus alone is the Son to be heard, trusted, and followed.\n\nJesus also told His disciples why He came. He said He would be killed, \"and be raised again the third day\" (Matthew 16:21). This was God’s plan for our salvation. Christ died for our sins, was buried, and rose again. We cannot save ourselves by religious traditions, good conduct, or our own effort. Salvation is God’s gift, received by faith in the Lord Jesus Christ alone.\n\nTo follow Him is not a way to earn salvation. It is the response of one who believes Him. Hear Him today. Look to Jesus only, the Christ, the Son of the living God.",
+			"question": "Who do you personally believe Jesus Christ is, and what does His resurrection mean to you?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3442,
+				"outputTokens": 319
+			},
+			"generatedAt": "2026-10-07T14:01:23.507Z"
+		},
+		"7": {
+			"day": 7,
+			"reference": "Matthew 18-20",
+			"title": "Greatness Through Serving",
+			"lesson": "The disciples asked who would be greatest. Jesus did not point them toward status, being noticed, or getting their own way. He pointed them toward humility. A child knows he must receive help. In the same way, we cannot earn our way into God’s kingdom. Jesus said, \"Except ye be converted, and become as little children, ye shall not enter into the kingdom of heaven\" (Matthew 18:3). To be converted means to be turned to God.\n\nOne clear thing Jesus asks of those who follow Him is this: \"whosoever will be great among you, let him be your minister\" (Matthew 20:26). A minister here means a servant. Jesus Himself is our perfect example. Though He is the Son of God, \"the Son of man came not to be ministered unto, but to minister, and to give his life a ransom for many\" (Matthew 20:28). A ransom is the price paid to set someone free.\n\nJesus gave His life for sinners. He was buried, and He rose again the third day. Salvation is not earned by serving, keeping rules, or trying to improve ourselves. It is God’s gift, received by faith in Christ alone. Then, because we belong to Him, we learn to serve others with the humility He showed. Ask the Lord to show you one simple way to put another person’s good before your own today.",
+			"question": "What would it look like for you to follow Jesus by serving someone with humility today?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3716,
+				"outputTokens": 397
+			},
+			"generatedAt": "2026-10-07T14:01:31.270Z"
+		},
+		"8": {
+			"day": 8,
+			"reference": "Matthew 21-23",
+			"title": "The King Who Receives",
+			"lesson": "Jesus entered Jerusalem as the promised King, yet He came \"meek\" (Matthew 21:5). Meek means humble and gentle, not weak. The crowd asked, \"Who is this?\" (Matthew 21:10). That remains the most important question any person can face. Jesus is more than a prophet or teacher. He is Christ, the Son of David and David's Lord. Jesus asked, \"What think ye of Christ?\" (Matthew 22:42).\n\nNotice who came to Him in the temple: \"the blind and the lame came to him in the temple; and he healed them\" (Matthew 21:14). They came with needs they could not fix themselves, and Jesus received them. He also welcomed the praise of children. Yet religious leaders came trying to challenge and trap Him. Jesus saw beyond outward religion. He said, \"cleanse first that which is within\" (Matthew 23:26). God sees the heart.\n\nWe cannot make ourselves clean by good works, religious words, or outward changes. We need the mercy of the King. Jesus Christ gave Himself for our sins, was buried, and rose again the third day. Salvation is God's gift, received by faith in Christ alone. Those who trust Him are not pretending to be righteous. They come to the One who can truly save and change the heart.",
+			"question": "When you consider Jesus as the humble King who receives needy people, what do you believe He wants you to bring honestly before Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4413,
+				"outputTokens": 461
+			},
+			"generatedAt": "2026-10-07T14:01:39.876Z"
+		},
+		"9": {
+			"day": 9,
+			"reference": "Matthew 24-26",
+			"title": "Ready Before the King",
+			"lesson": "Jesus tells us to watch, because His return will be certain, public, and at an hour no person knows. He says, \"Heaven and earth shall pass away, but my words shall not pass away\" (Matthew 24:35). His words are not meant merely to satisfy curiosity about future events. They search our hearts now. Are we listening to Christ, trusting Him, and living as those who will answer to Him?\n\nMatthew 25 shows that being ready is not pretending to know the Lord or borrowing another person’s faith. The Bridegroom said to the unready, \"I know you not\" (Matthew 25:12). Each person must come to Jesus personally. We cannot earn acceptance by good works, religious activity, or changed habits. Salvation is God’s gift, received by faith in Christ alone.\n\nIn Matthew 26, Jesus willingly went forward according to the Scriptures. At the supper He said, \"For this is my blood of the new testament, which is shed for many for the remission of sins\" (Matthew 26:28). Remission means forgiveness. Jesus Christ died for our sins, was buried, and rose again the third day. His blood is enough to forgive every sinner who trusts Him. Those who belong to Him will serve Him, not to earn salvation, but because they know the King and love Him.\n\nRead His warnings slowly. Let His Word show you where your confidence rests. Then come honestly to the Lord Jesus Christ.",
+			"question": "As you read Jesus’ words today, what do they reveal about where you are placing your trust?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 5405,
+				"outputTokens": 419
+			},
+			"generatedAt": "2026-10-07T14:01:48.012Z"
+		},
+		"10": {
+			"day": 10,
+			"reference": "Matthew 27-28, Mark 1",
+			"title": "The Risen King",
+			"lesson": "The road Jesus walked led to the cross, but it did not end there. He stood silent before false accusations, though He was innocent. The centurion finally confessed, \"Truly this was the Son of God\" (Matthew 27:54). Jesus is not merely a teacher or example. He is the sinless Son of God, the King who willingly gave Himself for sinners.\n\nThe stone, seal, and watch could not keep Him in the grave. The angel announced, \"He is not here: for he is risen, as he said\" (Matthew 28:6). Jesus died for our sins, was buried, and rose again. His resurrection proves that He has victory over sin and death. Because He lives, the gospel is good news for every person who will come to Him.\n\nMark begins, \"The beginning of the gospel of Jesus Christ, the Son of God\" (Mark 1:1). Jesus preached, \"repent ye, and believe the gospel\" (Mark 1:15). To repent means to turn from trusting yourself and turn to God. Salvation is not earned by good works or religious acts. It is received by faith in Jesus Christ alone. Those who believe Him are then called to follow Him, as the first disciples did. The risen King has \"All power... in heaven and in earth\" (Matthew 28:18), and He is worthy of your trust.",
+			"question": "What does the resurrection of Jesus Christ show you about who He is and why you can trust Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4252,
+				"outputTokens": 389
+			},
+			"generatedAt": "2026-10-07T14:01:54.967Z"
+		},
+		"11": {
+			"day": 11,
+			"reference": "Mark 2-4",
+			"title": "Jesus Has All Power",
+			"lesson": "Mark 2 through 4 shows the authority of the Lord Jesus Christ. He forgave the sick man’s sins, knowing that only God can forgive sins. Then He proved His authority before the people: “But that ye may know that the Son of man hath power on earth to forgive sins” (Mark 2:10). Jesus is not merely a teacher or a good example. He is the Son of God, able to forgive, heal, command, and save.\n\nJesus also said, “I came not to call the righteous, but sinners to repentance” (Mark 2:17). Repentance means a change of mind that turns to God. We do not come to Christ by cleaning up our lives first. We come as sinners who need Him. Jesus Christ died for our sins, was buried, and rose again the third day. Salvation is God’s gift, received by faith in Christ alone, never earned by good works.\n\nIn the storm, Jesus spoke: “Peace, be still. And the wind ceased, and there was a great calm” (Mark 4:39). The disciples asked, “What manner of man is this, that even the wind and the sea obey him?” (Mark 4:41). This is the right question. Jesus is the Lord over creation, over sin, and over every fear. Hear His Word, receive it, and trust Him.",
+			"question": "What does Jesus’ power to forgive sins and command the wind teach you about who He is?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3743,
+				"outputTokens": 327
+			},
+			"generatedAt": "2026-10-07T14:02:00.440Z"
+		},
+		"12": {
+			"day": 12,
+			"reference": "Mark 5-7",
+			"title": "Repent and Believe",
+			"lesson": "Jesus showed His authority in these chapters. He brought peace and a sound mind to a troubled man, healed the sick, fed a great multitude, walked upon the sea, and taught the truth of God. He is not merely a teacher. He is the Son of God, worthy of faith and obedience.\n\nOne thing Jesus asks of those who follow Him is repentance. When He sent the twelve, “they went out, and preached that men should repent” (Mark 6:12). To repent means to turn from sin and turn to God, agreeing with Him about our need. Jesus also says, “Hearken unto me every one of you, and understand” (Mark 7:14). He wants more than words from our lips. He sees the heart.\n\nRepentance does not earn salvation. No one can clean his own heart by rules, traditions, or good works. Jesus said, “That which cometh out of the man, that defileth the man” (Mark 7:20). We need the Saviour. Christ died for our sins, was buried, and rose again the third day. God saves by grace through faith in Jesus Christ alone. His words still call us: “Be not afraid, only believe” (Mark 5:36). Trust Him, and let a changed life follow the grace He gives.",
+			"question": "What is one area where you need to turn from your own way and trust the Lord Jesus Christ?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4706,
+				"outputTokens": 534
+			},
+			"generatedAt": "2026-10-07T14:02:09.898Z"
+		},
+		"13": {
+			"day": 13,
+			"reference": "Mark 8-10",
+			"title": "Jesus Stands Still",
+			"lesson": "Throughout these chapters, many people come to Jesus. Hungry crowds come, and He feeds them. A blind man is brought, and Jesus restores his sight. A father comes with weak, struggling faith and cries, \"Lord, I believe; help thou mine unbelief\" (Mark 9:24). Jesus does not turn away the man who honestly brings his need to Him.\n\nChildren are brought to Christ, and He receives and blesses them. Bartimaeus cries, \"Jesus, thou son of David, have mercy on me\" (Mark 10:47). Others try to silence him, \"But he cried the more a great deal\" (Mark 10:48). Then \"Jesus stood still\" (Mark 10:49). The Lord heard him, called him, and gave him sight. Christ is not too busy for those who come to Him in faith.\n\nThe greatest need is not bread, sight, or possessions. It is salvation. Jesus asked, \"For what shall it profit a man, if he shall gain the whole world, and lose his own soul?\" (Mark 8:36). He came \"to give his life a ransom for many\" (Mark 10:45). He died for our sins, was buried, and rose again the third day. Eternal life cannot be earned by good works. Jesus said, \"With men it is impossible, but not with God: for with God all things are possible\" (Mark 10:27). Come to Him, trusting Christ alone.",
+			"question": "What need would you honestly bring to Jesus today, and how can you ask Him in faith?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4855,
+				"outputTokens": 425
+			},
+			"generatedAt": "2026-10-07T14:02:17.140Z"
+		},
+		"14": {
+			"day": 14,
+			"reference": "Mark 11-13",
+			"title": "Watch and Pray",
+			"lesson": "Jesus spoke plainly about a future day when He will return in power and glory. Yet He also said, \"But of that day and that hour knoweth no man\" (Mark 13:32). Since we do not know the time, His command is clear: \"Take ye heed, watch and pray\" (Mark 13:33). To watch means to stay spiritually awake, paying attention to God’s Word and refusing deception.\n\nJesus warned that many would come claiming to be Christ. The safeguard is not human opinion, fear, or signs. It is the unchanging Word of the Lord: \"Heaven and earth shall pass away: but my words shall not pass away\" (Mark 13:31). Read His words slowly. Let them search your heart before you try to explain them.\n\nThe One who will come again is Jesus Christ, the rejected Stone who \"is become the head of the corner\" (Mark 12:10). He died for our sins, was buried, and rose again the third day. Salvation is not earned by religious acts, giving, or trying harder. It is God’s gift, received by faith in Christ alone. If you have trusted Him, keep watching and praying. If you have not, come to Him today in believing faith. His final word in this reading is for all: \"Watch\" (Mark 13:37).",
+			"question": "How can you make time today to watch, pray, and listen carefully to the words of Jesus?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4091,
+				"outputTokens": 323
+			},
+			"generatedAt": "2026-10-07T14:02:22.977Z"
+		},
+		"15": {
+			"day": 15,
+			"reference": "Mark 14-16",
+			"title": "The Cross and Empty Tomb",
+			"lesson": "Jesus knew the road before Him led to the cross. He was not trapped by events or surprised by betrayal. In Gethsemane He prayed, \"nevertheless not what I will, but what thou wilt\" (Mark 14:36). The sinless Son of God willingly obeyed the Father’s will.\n\nAt the cross, Jesus took the place of sinners. Though He had done no evil, He was delivered to be crucified. Mark says, \"the scripture was fulfilled, which saith, And he was numbered with the transgressors\" (Mark 15:28). He died, was buried, and His body was laid in a sepulchre, meaning a tomb. This was God’s loving plan to provide salvation through His Son.\n\nBut the cross was not the end. On the first day of the week, the message at the empty tomb was clear: \"Ye seek Jesus of Nazareth, which was crucified: he is risen; he is not here\" (Mark 16:6). Jesus Christ is alive. He conquered death and is now seated \"on the right hand of God\" (Mark 16:19).\n\nThe gospel is good news for every sinner. Jesus Christ died for our sins, was buried, and rose again. Salvation is not earned by works. It is received by faith in the risen Lord Jesus Christ. The risen Christ calls for belief, and His grace is sufficient for those who come to Him.",
+			"question": "What does the risen Jesus Christ mean to you as you consider His willing journey to the cross?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4579,
+				"outputTokens": 343
+			},
+			"generatedAt": "2026-10-07T14:02:28.938Z"
+		},
+		"16": {
+			"day": 16,
+			"reference": "Luke 1-3",
+			"title": "The Saviour Has Come",
+			"lesson": "Luke carefully gives certainty about Jesus Christ. He was not merely a good teacher who appeared without warning. The angel declared, \"For unto you is born this day in the city of David a Saviour, which is Christ the Lord\" (Luke 2:11). Jesus is the Saviour, the promised Christ, and the Lord. He is also the eternal Son of God: \"therefore also that holy thing which shall be born of thee shall be called the Son of God\" (Luke 1:35).\n\nJesus came in humility, yet heaven identified Him clearly. When He was baptized and praying, the Father spoke from heaven: \"Thou art my beloved Son; in thee I am well pleased\" (Luke 3:22). At twelve years old, Jesus said, \"I must be about my Father's business\" (Luke 2:49). His Father’s business was to bring salvation to sinners. John came before Him \"To give knowledge of salvation unto his people by the remission of their sins\" (Luke 1:77). Remission means forgiveness.\n\nWe cannot save ourselves by good works, religious acts, or trying harder. Jesus Christ died for our sins, was buried, and rose again the third day (1 Corinthians 15:3-4). Salvation is God’s gift, received by faith in Christ alone. The Saviour who came for all people is worthy of your trust today.",
+			"question": "What do these chapters teach you personally about who Jesus is and why He came?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 5410,
+				"outputTokens": 401
+			},
+			"generatedAt": "2026-10-07T14:02:36.076Z"
+		},
+		"17": {
+			"day": 17,
+			"reference": "Luke 4-6",
+			"title": "Hear and Do",
+			"lesson": "Jesus calls people to Himself, and He also teaches those who follow Him how to live. Levi received a simple command: \"Follow me\" (Luke 5:27). Jesus later gives a searching question: \"And why call ye me, Lord, Lord, and do not the things which I say?\" (Luke 6:46). One clear thing He asks of His followers is this: hear His words and do them.\n\nThis obedience does not save us. We cannot earn forgiveness by doing good, attending church, or changing ourselves. Jesus has authority to forgive sins, for He is the Son of God. He came for sinners: \"I came not to call the righteous, but sinners to repentance\" (Luke 5:32). Christ died for our sins, was buried, and rose again the third day. Salvation is God’s gift, received by faith in Jesus Christ alone.\n\nAfter we come to Christ, His words become our foundation. He commands hard but holy things, including, \"Love your enemies, do good to them which hate you\" (Luke 6:27), and, \"Be ye therefore merciful, as your Father also is merciful\" (Luke 6:36). We need His help to obey. The person who comes to Jesus, hears Him, and obeys is like one whose house \"was founded upon a rock\" (Luke 6:48).",
+			"question": "What is one command of Jesus in today’s reading that you need to hear carefully and put into practice?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4785,
+				"outputTokens": 390
+			},
+			"generatedAt": "2026-10-07T14:02:43.294Z"
+		},
+		"18": {
+			"day": 18,
+			"reference": "Luke 7-9",
+			"title": "Jesus Receives Sinners",
+			"lesson": "Throughout these chapters, many different people come to Jesus: a centurion who knows he is unworthy, a grieving mother, John’s messengers with a question, a woman known as a sinner, troubled people, hungry crowds, and fearful disciples. Jesus does not turn away those who truly come to Him. He shows compassion, teaches God’s Word, heals, forgives sins, and calls people to faith.\n\nThe woman in Luke 7 had no payment to offer for her sin. Jesus used the picture of two debtors who “had nothing to pay” (Luke 7:42). Then He told her, “Thy sins are forgiven” (Luke 7:48), and, “Thy faith hath saved thee; go in peace” (Luke 7:50). This is God’s grace. We cannot earn forgiveness by our works, our past, or religious effort. Jesus Christ alone saves. He died for our sins, was buried, and rose again the third day.\n\nJesus is not merely a teacher or prophet. Peter confessed, “The Christ of God” (Luke 9:20). The Father said, “This is my beloved Son: hear him” (Luke 9:35). Christ came to save, not to destroy: “For the Son of man is not come to destroy men’s lives, but to save them” (Luke 9:56). Come to Him in faith, hear His Word, and trust Him alone.",
+			"question": "As you read about the people who came to Jesus, what does His response teach you about His grace and power?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 2,
+			"usage": {
+				"inputTokens": 12008,
+				"outputTokens": 751
+			},
+			"generatedAt": "2026-10-07T14:03:05.151Z"
+		},
+		"19": {
+			"day": 19,
+			"reference": "Luke 10-12",
+			"title": "The One Thing Needful",
+			"lesson": "Martha welcomed Jesus, but she became “cumbered about much serving.” Cumbered means distracted and weighed down. Mary “sat at Jesus’ feet, and heard his word” (Luke 10:39). Jesus did not say serving was worthless. He said, “one thing is needful: and Mary hath chosen that good part” (Luke 10:42). Before we explain Christ’s words, defend ourselves, or rush into activity, we need to sit before Him and hear Him.\n\nHis words search the heart. Jesus warns against hypocrisy, which is pretending to be clean while the inside is not. He says, “there is nothing covered, that shall not be revealed; neither hid, that shall not be known” (Luke 12:2). We cannot hide from God, but we do not need to. He knows us fully and still calls us to come to Him.\n\nJesus is greater than Solomon and greater than Jonas (Luke 11:31-32). He is the Son sent by the Father. He died for our sins, was buried, and rose again the third day. Eternal life is not earned by good works, religious effort, or outward appearance. It is God’s gift, received by faith in Jesus Christ alone. If you belong to Him, let His Word lead you today. “But rather seek ye the kingdom of God” (Luke 12:31).",
+			"question": "What distraction, fear, or self-justifying thought do you need to set aside so you can listen carefully to Jesus’ words today?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 5487,
+				"outputTokens": 340
+			},
+			"generatedAt": "2026-10-07T14:03:11.017Z"
+		},
+		"20": {
+			"day": 20,
+			"reference": "Luke 13-15",
+			"title": "Toward Jerusalem’s Cross",
+			"lesson": "Jesus was “journeying toward Jerusalem” (Luke 13:22). He knew the road before Him led to the cross. He did not turn aside when opposition came. He said, “Nevertheless I must walk to day, and to morrow, and the day following” (Luke 13:33). The Lord Jesus came on purpose. He would die for our sins, be buried, and rise again the third day. His cross shows both the seriousness of sin and the greatness of God’s love.\n\nJesus warned, “except ye repent, ye shall all likewise perish” (Luke 13:3). To repent is to turn from your own way to God, agreeing with Him about sin. Yet repentance is not working to earn salvation. Jesus receives needy sinners who come to Him. The religious leaders complained, “This man receiveth sinners” (Luke 15:2). That is good news. The lost sheep was sought “until he find it” (Luke 15:4), and heaven rejoices “over one sinner that repenteth” (Luke 15:7).\n\nJesus also said, “whosoever doth not bear his cross, and come after me, cannot be my disciple” (Luke 14:27). Following Christ costs us our old self-rule. But it never pays for salvation. We are saved only by God’s grace through faith in the crucified and risen Lord Jesus Christ. Those He saves, He teaches to follow Him.",
+			"question": "What does Jesus’ journey toward the cross teach you about His love for sinners and your need to trust Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3828,
+				"outputTokens": 484
+			},
+			"generatedAt": "2026-10-07T14:03:19.100Z"
+		},
+		"21": {
+			"day": 21,
+			"reference": "Luke 16-18",
+			"title": "Mercy From the Son",
+			"lesson": "In these chapters, watch the Lord Jesus speak with authority, receive the needy, and reveal His mission. He knows the heart. He warns that outward respectability cannot make a person right with God: “God knoweth your hearts” (Luke 16:15). He also says that no one can earn eternal life by human effort, for “The things which are impossible with men are possible with God” (Luke 18:27).\n\nJesus shows the right response to God in the publican’s prayer: “God be merciful to me a sinner” (Luke 18:13). Jesus declared that this man went home “justified,” meaning counted righteous before God (Luke 18:14). He did not trust his own good works. He came humbly, needing mercy.\n\nThe mercy Jesus gives rests on who He is and what He came to do. He calls Himself “the Son of man,” and plainly foretells that He would be put to death and that “the third day he shall rise again” (Luke 18:33). Jesus Christ died for our sins, was buried, and rose again. Salvation is not earned by good behavior, religious acts, or any work. It is God’s gift, received by faith in Jesus Christ alone.\n\nThe blind man cried, “Jesus, thou son of David, have mercy on me” (Luke 18:38). Jesus stopped for him. Bring your need honestly to the Lord. Trust Him, thank Him, and follow Him.",
+			"question": "What does the publican’s prayer teach you about coming honestly to God?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3878,
+				"outputTokens": 426
+			},
+			"generatedAt": "2026-10-07T14:03:26.860Z"
+		},
+		"22": {
+			"day": 22,
+			"reference": "Luke 19-21",
+			"title": "Watch and Pray",
+			"lesson": "Jesus gives a clear command to those who would follow Him: “Watch ye therefore, and pray always” (Luke 21:36). To watch means to stay awake and alert in heart. It means not drifting through the day without thought of God, His Word, or the coming of Christ. Prayer is not fancy speech. It is coming honestly to the Lord, trusting Him, asking for help, and giving thanks.\n\nJesus warned that His day will come unexpectedly, but He also gave His people a steady place to stand: “Heaven and earth shall pass away: but my words shall not pass away” (Luke 21:33). Everything around us can change. The words of Jesus will never fail. He is the Son of man who “is come to seek and to save that which was lost” (Luke 19:10).\n\nZacchaeus received Jesus joyfully, and his changed life showed the reality of that meeting. His giving did not buy salvation. Salvation came through the Lord Jesus. The same is true for every sinner. Christ died for our sins, was buried, and rose again the third day. We are saved by grace through faith in Him, not by works. Those who belong to Him are then called to watch and pray, looking to their faithful King.",
+			"question": "What could it look like for you to watch and pray today, with your mind fixed on the words of Jesus?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4297,
+				"outputTokens": 484
+			},
+			"generatedAt": "2026-10-07T14:03:36.884Z"
+		},
+		"23": {
+			"day": 23,
+			"reference": "Luke 22-24",
+			"title": "The Risen Lord Receives",
+			"lesson": "In these chapters, many people come near Jesus. Judas comes in betrayal. Peter comes with confidence, then fails. The rulers come with accusations. One condemned man comes with faith. Grieving women come to the sepulchre. Two discouraged disciples walk the road to Emmaus. The risen Lord knows every heart, and He is not confused by our weakness.\n\nJesus told Peter, \"But I have prayed for thee, that thy faith fail not\" (Luke 22:32). Peter failed badly, yet the Lord had not cast him away. On the cross, the man who turned to Jesus said, \"Lord, remember me when thou comest into thy kingdom\" (Luke 23:42). Jesus answered, \"To day shalt thou be with me in paradise\" (Luke 23:43). That man had no works to offer. He simply believed on the Lord Jesus.\n\nThe good news is certain: Jesus died for our sins, was buried, and rose again the third day. The angels declared, \"He is not here, but is risen\" (Luke 24:6). Christ alone gives remission, meaning forgiveness, of sins. It is not earned by good behavior, religious effort, or time. Come to Him in faith. The risen Saviour still speaks peace: \"Peace be unto you\" (Luke 24:36).",
+			"question": "Which person in today’s reading helps you see your own need to come honestly to the Lord Jesus?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 5368,
+				"outputTokens": 396
+			},
+			"generatedAt": "2026-10-07T14:03:44.096Z"
+		},
+		"24": {
+			"day": 24,
+			"reference": "John 1-3",
+			"title": "Come to the Light",
+			"lesson": "John begins with Jesus Christ, the eternal Word: \"In the beginning was the Word, and the Word was with God, and the Word was God\" (John 1:1). Jesus is not merely a teacher. He is the Son of God, the Maker of all things, who came in flesh, \"full of grace and truth\" (John 1:14).\n\nThe words of Jesus search every heart. He says, \"Except a man be born again, he cannot see the kingdom of God\" (John 3:3). Being born again is not earned by good works, religious effort, or turning over a new leaf. It is the work of God's Spirit in a person who believes on Christ. Jesus gave the reason He came: \"For God so loved the world, that he gave his only begotten Son\" (John 3:16). Christ was lifted up, died for our sins, was buried, and rose again. Whoever believes in Him receives everlasting life.\n\nLight reveals what darkness hides. Jesus says, \"he that doeth truth cometh to the light\" (John 3:21). Let His words show you who He is and what is in your heart. Do not begin by explaining yourself. Come honestly to Jesus. John the Baptist gave the right response: \"He must increase, but I must decrease\" (John 3:30).",
+			"question": "As you read Jesus’ words, what do they show you about who He is and your need for Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3718,
+				"outputTokens": 329
+			},
+			"generatedAt": "2026-10-07T14:03:49.814Z"
+		},
+		"25": {
+			"day": 25,
+			"reference": "John 4-6",
+			"title": "The Bread of Life",
+			"lesson": "Jesus did not come merely to meet a temporary need. He fed the crowd, healed the sick, and showed His power over the sea. Yet He directed people beyond what perishes. “Labour not for the meat which perisheth, but for that meat which endureth unto everlasting life” (John 6:27). The people asked what work they must do. Jesus gave the plain answer: “This is the work of God, that ye believe on him whom he hath sent” (John 6:29).\n\nJesus is more than a teacher or miracle-worker. He said, “I am the bread of life” (John 6:35). Bread keeps the body alive for a time, but Christ gives everlasting life to those who come to Him by faith. He promises, “him that cometh to me I will in no wise cast out” (John 6:37). This is not earned by good works or religious effort. It is received by believing on the Son.\n\nThe cross stands at the end of the road Jesus is walking. He said, “the bread that I will give is my flesh, which I will give for the life of the world” (John 6:51). Jesus gave Himself for sinners. He died for our sins, was buried, and rose again the third day. When His words seemed hard, Peter answered, “thou hast the words of eternal life” (John 6:68). There is no one else who can save. Believe on Christ, the Son of the living God.",
+			"question": "What does it mean to you that Jesus promises never to cast out the one who comes to Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 5339,
+				"outputTokens": 439
+			},
+			"generatedAt": "2026-10-07T14:03:57.302Z"
+		},
+		"26": {
+			"day": 26,
+			"reference": "John 7-9",
+			"title": "Jesus, the Light",
+			"lesson": "Jesus does not leave us guessing about who He is. He says, \"I am the light of the world: he that followeth me shall not walk in darkness, but shall have the light of life\" (John 8:12). Darkness speaks of sin, error, and life apart from God. Jesus is the true Light who shows us God, exposes our need, and gives eternal life.\n\nThe Lord also plainly warns, \"for if ye believe not that I am he, ye shall die in your sins\" (John 8:24). Sin is not removed by good behavior, religious activity, or our own efforts. We need the Saviour. Jesus came from the Father, lived without sin, died for our sins, was buried, and rose again the third day. He alone can make a sinner free: \"If the Son therefore shall make you free, ye shall be free indeed\" (John 8:36).\n\nIn John 9, the man who had been blind came to know more than a miracle. When Jesus asked, \"Dost thou believe on the Son of God?\" the man answered, \"Lord, I believe. And he worshipped him\" (John 9:35, 38). Jesus is the Son of God, worthy of faith and worship. Come to Him in faith. Trust Him alone, and receive the light of life.",
+			"question": "What do Jesus’ words, \"I am the light of the world,\" show you about your need for Him?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4838,
+				"outputTokens": 328
+			},
+			"generatedAt": "2026-10-07T14:04:03.785Z"
+		},
+		"27": {
+			"day": 27,
+			"reference": "John 10-12",
+			"title": "Follow the Good Shepherd",
+			"lesson": "Jesus calls Himself \"the good shepherd\" (John 10:11). He is not merely a wise teacher. He is the Son of God, one with the Father: \"I and my Father are one\" (John 10:30). He knows His sheep personally, leads them, and gave His life for them. He also has power to take His life again. Jesus died for our sins, was buried, and rose again the third day. He alone is the Door into salvation, not our works or efforts: \"by me if any man enter in, he shall be saved\" (John 10:9).\n\nOne clear thing Jesus asks of those who would serve Him is this: \"If any man serve me, let him follow me\" (John 12:26). To follow Him means to hear His words, believe Him, and obey Him day by day. It is not a way to earn eternal life. Eternal life is His gift to those who believe on Him. Jesus said, \"My sheep hear my voice, and I know them, and they follow me\" (John 10:27).\n\nJesus is also \"the resurrection, and the life\" (John 11:25). He calls us out of darkness into His light. If you have not trusted Him, believe on Him today. If you know Him, ask Him to help you follow His voice instead of the praise or opinions of people. His hand is strong, and His promise is sure: \"neither shall any man pluck them out of my hand\" (John 10:28).",
+			"question": "What is one word of Jesus from today’s reading that you need to hear and follow?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 4675,
+				"outputTokens": 423
+			},
+			"generatedAt": "2026-10-07T14:04:10.349Z"
+		},
+		"28": {
+			"day": 28,
+			"reference": "John 13-15",
+			"title": "Jesus Receives and Cleanses",
+			"lesson": "In these chapters, the disciples come to Jesus with fear, questions, weakness, and need. Peter first resists the Lord’s washing, then asks for more. Thomas does not know the way. Philip asks to see the Father. Jesus does not turn away from them. He teaches them the truth about Himself.\n\nJesus is not merely a teacher or example. He said, \"I am the way, the truth, and the life: no man cometh unto the Father, but by me\" (John 14:6). There is no other way to God. Christ came from the Father, died for our sins, was buried, and rose again the third day. Whoever comes to Him by faith is saved by grace, not by works.\n\nJesus also served His disciples, washing their feet and saying, \"For I have given you an example, that ye should do as I have done to you\" (John 13:15). Those who belong to Christ are called to love one another. But love and obedience are fruit, not the price of salvation. Apart from Him we cannot produce lasting spiritual fruit: \"for without me ye can do nothing\" (John 15:5).\n\nCome honestly to Jesus with your questions and your need. Trust Him as the only Saviour. Then abide, or remain, in His words, depending on Him each day.",
+			"question": "What question, fear, or need do you want to bring honestly to Jesus today?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3508,
+				"outputTokens": 322
+			},
+			"generatedAt": "2026-10-07T14:04:18.888Z"
+		},
+		"29": {
+			"day": 29,
+			"reference": "John 16-18",
+			"title": "Kept by His Truth",
+			"lesson": "Jesus spoke plainly before He went to the cross. He knew what was ahead, yet He went forward in willing obedience to the Father. He is no helpless victim. He is the Son who came from the Father, the King whose kingdom “is not of this world” (John 18:36).\n\nIn John 17, Jesus prayed for His disciples and also “for them also which shall believe on me through their word” (John 17:20). His prayer reaches everyone who will believe the apostles’ witness about Him. He asked the Father, “Sanctify them through thy truth: thy word is truth” (John 17:17). Sanctify means to set apart for God and to make holy. God’s Word does not only give information. It searches our hearts, shows us our sin, and points us to Christ.\n\nJesus said the Spirit would reprove, or convict, the world of sin, “because they believe not on me” (John 16:9). The answer is not trying harder to fix ourselves. Jesus Christ died for our sins, was buried, and rose again the third day. Salvation is God’s gift, received by faith in Christ alone. His people are then changed by His truth. Read His words slowly today. Let the King speak before you rush to explain what He says.",
+			"question": "As you read Jesus’ words, what truth is He showing you about Himself and about your own heart?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3748,
+				"outputTokens": 417
+			},
+			"generatedAt": "2026-10-07T14:04:26.794Z"
+		},
+		"30": {
+			"day": 30,
+			"reference": "John 19-21",
+			"title": "It Is Finished",
+			"lesson": "At the end of the road Jesus walked stood the cross. He was not forced there by powers outside God’s rule. Jesus told Pilate, \"Thou couldest have no power at all against me, except it were given thee from above\" (John 19:11). The sinless Son of God willingly gave Himself for sinners. When His saving work was complete, He said, \"It is finished\" (John 19:30). Nothing can be added to what Christ accomplished.\n\nJesus was buried, yet the grave could not hold Him. The disciples found it empty, for \"he must rise again from the dead\" (John 20:9). Mary saw the risen Lord. Thomas confessed the truth when he said, \"My LORD and my God\" (John 20:28). Jesus is not merely a teacher or a good man. He is the Christ, the Son of God, risen and alive.\n\nJohn explains why these things were written: \"that ye might believe that Jesus is the Christ, the Son of God; and that believing ye might have life through his name\" (John 20:31). Salvation is God’s gift by grace through faith in Jesus Christ alone. We do not earn it by works, good behavior, or religious effort. Christ died for our sins, was buried, and rose again. Trust Him. Then, as Jesus told Peter, follow Him: \"Follow me\" (John 21:19).",
+			"question": "What does Jesus’ cry, \"It is finished,\" mean to you personally?",
+			"model": "gpt-5.6-terra",
+			"effort": "medium",
+			"attempts": 1,
+			"usage": {
+				"inputTokens": 3977,
+				"outputTokens": 413
+			},
+			"generatedAt": "2026-10-07T14:04:33.664Z"
+		}
+	}
+}
