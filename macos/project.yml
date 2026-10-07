@@ -243,6 +243,22 @@ targets:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/SureWord.app/SureWord"
         BUNDLE_LOADER: "$(TEST_HOST)"
 
+  # Drives the real system share sheet in Safari, Photos and Files into the
+  # extension (PRD D8 evidence). Its own scheme, outside the SureWord-iOS test
+  # gate, because it needs media staged on the simulator first; see the file.
+  SureWord-iOSUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: SureWord-iOSUITests
+    dependencies:
+      - target: SureWord-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.ios-uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: SureWord-iOS
+
 schemes:
   SureWord:
     build:
@@ -267,3 +283,12 @@ schemes:
       config: Debug
       targets:
         - SureWord-iOSTests
+  SureWord-iOS-ShareUITests:
+    build:
+      targets:
+        SureWord-iOS: all
+        SureWord-iOSUITests: [test]
+    test:
+      config: Debug
+      targets:
+        - SureWord-iOSUITests

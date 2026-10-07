@@ -13,6 +13,8 @@ import SwiftUI
 ///     -evidence.parchment 1 -evidence.appearance dark|light
 ///     -evidence.query "living water"
 ///     -evidence.lastRead "Judges|7|BSB"
+///     -evidence.screen shell   (the signed-in tab shell, so a share waiting
+///                               in the App Group inbox opens as a chat)
 ///
 /// Nothing authenticated works here (no Clerk session): offline text, search,
 /// and the public routes (See also) are live; AI and account routes show their
@@ -34,7 +36,10 @@ struct UIEvidenceHarness: View {
 
     var body: some View {
         Group {
-            if let app {
+            if let app, Self.string("screen") == "shell" {
+                // The real shell owns its own navigation stacks.
+                TabShell().environment(app)
+            } else if let app {
                 NavigationStack { screen }
                     .environment(app)
                     .task { await drive(app) }
