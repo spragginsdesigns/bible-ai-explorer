@@ -2616,6 +2616,116 @@ history load; `/share` at 390 px.
 | Web | `src/components/ChatFileAttachments.tsx`, `src/app/share/page.tsx`, `src/lib/share-target.ts`, `public/site.webmanifest` |
 | Tests | `tests/voice-messages.test.mjs`, `tests/share-target.test.mjs` |
 
+## App Store subscription
+
+SureWord Pro bought in the iOS app with StoreKit 2 (PRD F2, pulled into v1.0
+on 2026-10-07). App Review guideline 3.1.3(b) lets an iOS app unlock what a
+web or Play purchase bought only if the same thing is also for sale in-app,
+so the iOS Membership screen sells Pro itself. It mirrors the Google Play
+implementation's shape: the device buys, the server verifies what the store
+signed and binds it to the SureWord account, store notifications keep the row
+current, and `accountSubscription` merges it into the one Pro allowance.
+
+**Product.** `com.spragginsdesigns.sureword.pro.monthly`, an auto-renewable
+1-month subscription in the group "SureWord Pro", US price $14.99 (App Store
+price tiers end in .99; web is $15.00). The iOS client always shows
+`Product.displayPrice`, never a hard-coded price.
+
+**Account binding.** Every purchase carries `appAccountToken` =
+UUIDv5(namespace `2f58cff8-d92f-43e2-93d6-d21633bffbe5`, Clerk user id),
+derived in `appAccountToken` (`src/lib/billing/app-store-rules.ts`) and in
+`AppAccountToken.forUser` (`macos/Shared/Billing/AppAccountToken.swift`); a
+fixed vector (`user_2abcDEFghiJKLmnoPQRstu` →
+`b6ef9ddb-a89c-561d-9a09-9e5fbddc845c`) is asserted on both sides. The server
+binds a new `originalTransactionId` only when the token matches the caller; a
+row already bound to another account answers 403. Never change the namespace:
+existing purchases are bound under it.
+
+**Verification.** `@apple/app-store-server-library`'s `SignedDataVerifier`
+against the bundled Apple Root CA G3 (`src/lib/billing/apple-root-ca.ts`,
+fingerprint checked by a test), OCSP online checks on, bundle id
+`com.spragginsdesigns.sureword` only, Production first then Sandbox. No App
+Store Server API call and no In-App Purchase key: signed-data verification
+needs only Apple's root. SureWord shares its Apple team with another company
+app; `appStoreConfig` refuses any bundle id outside SureWord's, and nothing in
+this lane may name the other app's resources (a test enforces it).
+
+**Routes.**
+
+| Route | Auth | What |
+|---|---|---|
+| `POST /api/billing/app-store/verify` | Clerk session | `{ signedTransaction }` = StoreKit `jwsRepresentation`. 200 `{ verified, active, status, expiresAt }` (recorded, active or not); 403 bound to another account; 400 unverifiable; 503 unavailable or Apple's revocation check unreachable |
+| `POST /api/billing/app-store/notifications` | public (middleware), Apple's signature | App Store Server Notifications V2 `{ signedPayload }`. 200 for every verified notification (applied, duplicate, ignored type, not-yet-bound subscription); 400 unverifiable; 503 transient, so Apple retries |
+| `GET /api/billing/status` | Clerk session | adds `appStoreCheckoutAvailable` and `subscription.provider: "app_store"` |
+
+**State** (`AppStoreSubscription`, one row per `originalTransactionId`,
+cascades with the user). `status` is `active` (includes Apple's billing grace
+period, with `expiresAt` moved to the grace end), `billing_retry`, `expired`
+or `revoked`; only `active` with `expiresAt` in the future is Pro.
+Notifications: SUBSCRIBED and DID_RENEW take the new period;
+DID_FAIL_TO_RENEW keeps access through GRACE_PERIOD and loses it otherwise;
+EXPIRED and GRACE_PERIOD_EXPIRED end it; REFUND and REVOKE revoke it;
+DID_CHANGE_RENEWAL_STATUS only flips `cancelAtPeriodEnd`; every other type is
+a 200 no-op. Idempotent by `notificationUUID` (`BillingEvent` id
+`app-store:<uuid>`, written in the same transaction as the row change), and an
+older `signedDate` than the last applied notification is ignored. A device
+can never un-revoke a refunded transaction or roll a period back
+(`shouldApplyDeviceTransaction`). A notification for a subscription no
+device has verified yet is a no-op: the device's verify call creates the row,
+because only it carries the account binding.
+
+**Merge.** `accountSubscription` (`src/lib/billing/subscription.ts`) reads the
+App Store rows only while App Store billing is configured, picks an active
+row, and maps `expiresAt` to `periodEnd` so the Pro usage window and
+`getUserPlan` treat it exactly like Stripe and Google Play (precedence:
+active Stripe, active Play, active App Store, then whichever lapsed history
+ends last). Web checkout answers 409 "managed by the App Store" while an App
+Store subscription is active.
+
+**iOS client.** `ProPurchaseStore` (`macos/Shared/Billing/ProPurchaseStore.swift`)
+loads the product, purchases with the derived `appAccountToken`, posts each
+verified transaction's `jwsRepresentation` to the verify route and calls
+`finish()` only on a definitive answer (200 or 403; anything else stays
+unfinished and StoreKit redelivers it). A `Transaction.updates` listener
+starts at app launch; on sign-in the store attaches the account's API client,
+drains unfinished transactions and re-verifies current entitlements (which
+also recovers a renewal whose notification was missed). Restore Purchases is
+`AppStore.sync()` then the same re-verification. Settings → Membership →
+SureWord Pro (`macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`)
+shows the price from the product, Subscribe, Restore Purchases, the
+auto-renewal disclosure with Privacy Policy and Apple's standard EULA links,
+and Manage subscription (`manageSubscriptionsSheet`). Pro from Stripe, Play,
+the allowlist or owner access reads "Pro is active on your account" with no
+purchase button. The locked Listen panel on iOS offers "See SureWord Pro",
+which opens that screen (in-app purchase only, never a web link). macOS
+compiles the shared code but shows no purchase UI (the Mac App Store is not a
+distribution channel).
+
+**Local testing.** `macos/StoreKit/SureWord.storekit` holds the product for
+the simulator and is the SureWord-iOS scheme's run-action StoreKit
+configuration. Those transactions are signed by Xcode, not Apple, so a
+production or Sandbox server rejects them (400, left unfinished); point a
+local server at them with `APP_STORE_ENVIRONMENT=Xcode`.
+
+**Environment.** `APP_STORE_APP_ID` (required; SureWord's numeric Apple ID),
+`APP_STORE_BUNDLE_ID` (optional), `APP_STORE_ENVIRONMENT` (optional), plus
+the existing `SUREWORD_USAGE_ENABLED=true`. See `CLAUDE.md`.
+
+**App Store Connect setup (SureWord's app record only).** Subscription group
+"SureWord Pro" with the product above (1 month, $14.99, localized display name
+and description, review screenshot); App Store Server Notifications V2 URL
+`https://sureword.app/api/billing/app-store/notifications` for both
+Production and Sandbox; the Paid Applications agreement active.
+
+| Piece | Where |
+|---|---|
+| Rules (token, config, transitions, merge helpers) | `src/lib/billing/app-store-rules.ts` |
+| Verification and persistence | `src/lib/billing/app-store.ts`, `src/lib/billing/apple-root-ca.ts` |
+| Routes | `src/app/api/billing/app-store/verify/route.ts`, `src/app/api/billing/app-store/notifications/route.ts` |
+| Schema | `AppStoreSubscription` in `prisma/schema.prisma`, migration `20261007140000_app_store_subscription` |
+| Apple | `macos/Shared/Billing/`, `macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`, `macos/StoreKit/SureWord.storekit` |
+| Tests | `tests/app-store-billing.test.mjs`, `macos/SureWord-iOSTests/StoreKitBillingTests.swift`, `macos/SureWordTests/AppAccountTokenTests.swift` |
+
 ## Account deletion
 
 `DELETE /api/account` permanently deletes the signed-in user's data and their
@@ -2664,7 +2774,7 @@ if Clerk fails after the commit).
 | Model | Keyed by | On User delete |
 |---|---|---|
 | User | id = Clerk id | deleted explicitly (last statement of the transaction) |
-| AiPreference, BillingSubscription, GooglePlaySubscription, AiUsageRequest, UserChurch, ProviderCredential (BYO keys), UserMemory | userId | cascade |
+| AiPreference, BillingSubscription, GooglePlaySubscription, AppStoreSubscription, AiUsageRequest, UserChurch, ProviderCredential (BYO keys), UserMemory | userId | cascade |
 | Conversation | userId | cascade |
 | Message (answer feedback lives here) | conversation | cascade via Conversation |
 | ChatAttachment (incl. voice transcripts) | userId | cascade; blobs deleted by pathname |
@@ -2683,6 +2793,8 @@ if Clerk fails after the commit).
 
 Not covered by the database transaction: Stripe subscription (cancelled
 first), Google Play subscriptions (cannot be cancelled server-side; the user
-cancels in Play, and the client UI should say so), and PostHog person
+cancels in Play, and the client UI should say so), App Store subscriptions
+(likewise: the user cancels in iOS Settings, Apple Account, Subscriptions; the
+row cascades, so a later renewal notification finds nothing and is a no-op), and PostHog person
 profiles (not deleted by this route). A test keeps
 `ACCOUNT_DATA_MODELS` in step with `prisma/schema.prisma`.

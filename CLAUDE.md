@@ -327,6 +327,22 @@ Also required in `.env.local`:
   Vercel scopes on 2026-08-27. Without it every `/api/church*` route answers
   `status: "unavailable"` and every client hides the section entirely. See
   `docs/FEATURES.md` → "My church".
+- `APP_STORE_APP_ID` - SureWord's numeric Apple ID from App Store Connect
+  (App Information → Apple ID). Turns on StoreKit 2 purchase verification
+  (`POST /api/billing/app-store/verify`) and App Store Server Notifications V2
+  (`POST /api/billing/app-store/notifications`), and makes an active App Store
+  subscription count as Pro. Without it (or without `SUREWORD_USAGE_ENABLED`)
+  `appStoreCheckoutAvailable` is false and iOS shows no Subscribe button. No
+  In-App Purchase key is needed: only Apple's signed-data verification against
+  the bundled Apple Root CA G3. SureWord's Apple team also holds another
+  company app - never point any of these at it.
+- `APP_STORE_BUNDLE_ID` - optional, defaults to `com.spragginsdesigns.sureword`;
+  any bundle outside SureWord's is refused.
+- `APP_STORE_ENVIRONMENT` - optional. Unset = Production with Sandbox fallback
+  (App Review and TestFlight buy in Sandbox against production). `Production`
+  or `Sandbox` pins one; `Xcode` accepts unsigned local StoreKit-configuration
+  transactions for development and is refused on any production deployment.
+  See `docs/FEATURES.md` → "App Store subscription".
 
 **AstraDB is retired (2026-08-19).** Its free tier hibernated the vector DB on
 2026-08-13 and silently broke Scripture retrieval for six days (hibernated DBs
