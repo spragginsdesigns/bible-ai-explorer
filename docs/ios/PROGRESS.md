@@ -11,10 +11,10 @@ Android bar 1.79.0 (88).
 
 | Question | Status |
 |---|---|
-| (a) Paid Apple Developer Program for team `389LLKGY3Y`; which ASC key | **Unconfirmed, asked 2026-10-07.** Candidates `AuthKey_7DQ48J77LB`, `AuthKey_TYXHYTQZ5T`; the two `SubscriptionKey_*` files are IAP keys. M5/M6 wait on this. |
-| (b) v1.0 has no purchase UI | Default accepted: no purchase UI (F1). |
-| (c) AI consent form | Default: one-time sheet before first AI request. |
-| (d) Review demo account | Default: find the 1Password item by searching "review"; never write credentials to the repo. |
+| (a) Paid Apple Developer Program | **Austin confirmed 2026-10-07: active, enrolled under LineCrush Inc.** Still needed: which `AuthKey_*` (candidates `7DQ48J77LB`, `TYXHYTQZ5T`) and the **Issuer ID** (App Store Connect → Users and Access → Integrations). Windows PC unreachable over SSH (no route to host) and the 1Password CLI is not connected to the desktop app, so neither could be searched. Open: confirm who is Account Holder and that SureWord belongs in the LineCrush account. |
+| (b) Billing | Austin: "whatever Apple docs say; StoreKit if simpler". Decision: v1.0 ships with no purchase UI (compliant under 3.1.1, simplest); StoreKit 2 is F2 right after approval. |
+| (c) AI consent form | Austin: one-time sheet before first AI request. |
+| (d) Review demo account | Austin: none exists, we create one. Plan: dedicated password Clerk account on production, Pro-granted via `PRO_USER_IDS` only if Austin approves, credentials stored in 1Password by Austin, never in the repo. |
 
 ## Requirements
 
