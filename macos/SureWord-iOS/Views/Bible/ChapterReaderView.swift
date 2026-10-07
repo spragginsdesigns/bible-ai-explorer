@@ -110,7 +110,7 @@ struct ChapterReaderView: View {
         // The peek leaves most of the chapter readable; only the expanded
         // study view covers the text.
         .onChange(of: sheet.obscuresReader) { _, obscured in model.reading.setObscured(obscured) }
-        .navigationDestination(isPresented: $showingLearn) { LearnEntryPoint() }
+        .navigationDestination(isPresented: $showingLearn) { LearnView() }
         .sheet(isPresented: $showingCustomColor) {
             CustomHighlightSheet(color: Color(hex: selectionHex ?? HighlightColors.presets[0].hex) ?? .yellow) { hex in
                 applyHighlight(hex)
