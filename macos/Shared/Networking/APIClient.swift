@@ -82,6 +82,26 @@ final class APIClient: Sendable {
         return result.data
     }
 
+    /// The same request path again, but answering the status and body whatever
+    /// the status was - for routes whose error bodies carry data the caller
+    /// acts on (Learn's 409 receipt names the newer card). Transport failures
+    /// still throw, translated the same way.
+    func response(
+        _ path: String,
+        method: String = "GET",
+        body: (any Encodable)? = nil,
+        timeout: TimeInterval = defaultTimeout
+    ) async throws -> (status: Int, data: Data) {
+        var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false)
+        if result.status == 401 {
+            result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true)
+        }
+        if result.status == 401 {
+            await authFailure.report()
+        }
+        return result
+    }
+
     private func attempt(
         _ path: String,
         method: String,

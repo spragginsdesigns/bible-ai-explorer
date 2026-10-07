@@ -60,6 +60,10 @@ final class AppModel {
     /// every change back. Owned here so one pipe serves the Settings screens,
     /// the model picker and the reader alike.
     let preferences: PreferencesSyncModel
+    /// Learn a verse for this account: the offline practice session, its
+    /// review outbox, and `add(...)`, the entry point every screen that shows a
+    /// verse calls. Keyed by `userID`, so the outbox never crosses accounts.
+    let learn: LearnModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false {
@@ -104,6 +108,16 @@ final class AppModel {
         suggestedQuestions = SuggestedQuestionsModel(api: api)
         atlas = AtlasModel(api: api)
         preferences = PreferencesSyncModel(transport: api, settings: settings)
+        // Account-guarded like the reading journal's client: a queued review
+        // must never go out under a newly signed-in account's token.
+        let learnAPI = APIClient(
+            token: { fresh in
+                guard let userID else { return nil }
+                return try await ClerkAuth.token(for: userID, fresh: fresh)
+            },
+            onAuthFailure: { }
+        )
+        learn = LearnModel(account: userID, api: learnAPI)
         // Runs before anything has read the caches: the notes and highlights
         // stores hydrate lazily, so clearing them here is what stops a second
         // account seeing the first one's notes.
