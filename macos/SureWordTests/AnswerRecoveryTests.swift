@@ -63,12 +63,13 @@ struct AnswerRecoveryTests {
     // MARK: Constants
 
     /// These are the Android client's numbers and must not drift: the interval
-    /// paces the poll, and the budget deliberately outlasts the route's own 120s
-    /// `maxDuration` plus the time it takes to persist the answer.
+    /// paces the poll, and the budget (Android's `RECOVERY_MAX_MS = 330_000`)
+    /// deliberately outlasts the route's own 300s `maxDuration` plus the time
+    /// it takes to persist the answer.
     @Test("Keeps the Android client's backoff and budget")
     func constantsMatchAndroid() {
         #expect(AnswerRecovery.pollInterval == .seconds(3))
-        #expect(AnswerRecovery.maxDuration == .seconds(150))
+        #expect(AnswerRecovery.maxDuration == .seconds(330))
         #expect(AnswerRecovery.resumeGrace == .seconds(4))
         // Not an Android number: the settle delay is all Android needs, because
         // its AppState "active" event only fires after a real background. The
@@ -202,8 +203,8 @@ struct AnswerRecoveryTests {
     func givesUpAfterBudget() {
         let started = Date(timeIntervalSince1970: 1_000)
         let policy = AnswerRecoveryPolicy(startedAt: started)
-        #expect(policy.step(at: started.addingTimeInterval(150), payload: nil) == .giveUp)
-        #expect(policy.step(at: started.addingTimeInterval(151), payload: nil) == .giveUp)
+        #expect(policy.step(at: started.addingTimeInterval(330), payload: nil) == .giveUp)
+        #expect(policy.step(at: started.addingTimeInterval(331), payload: nil) == .giveUp)
     }
 
     /// Sleeping a full interval past the deadline would delay the give-up by up
@@ -212,7 +213,7 @@ struct AnswerRecoveryTests {
     func clampsFinalWait() {
         let started = Date(timeIntervalSince1970: 1_000)
         let policy = AnswerRecoveryPolicy(startedAt: started)
-        #expect(policy.step(at: started.addingTimeInterval(149), payload: nil) == .wait(.seconds(1)))
+        #expect(policy.step(at: started.addingTimeInterval(329), payload: nil) == .wait(.seconds(1)))
     }
 
     // MARK: Resuming after the app comes back

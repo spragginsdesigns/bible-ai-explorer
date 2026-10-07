@@ -171,11 +171,14 @@ struct NoteAICallTests {
     func encodesRequest() throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
+        // `timezone` feeds the route's `readingRequestContext` (reading-session
+        // day boundaries). It defaults to the device zone, so pin it here.
         let request = NoteAIRequest(
+            timezone: "America/Los_Angeles",
             messages: [.object(["role": .string("user")])],
             noteId: "n1"
         )
         let json = String(decoding: try encoder.encode(request), as: UTF8.self)
-        #expect(json == #"{"messages":[{"role":"user"}],"noteId":"n1"}"#)
+        #expect(json == #"{"messages":[{"role":"user"}],"noteId":"n1","timezone":"America\/Los_Angeles"}"#)
     }
 }

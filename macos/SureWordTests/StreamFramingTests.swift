@@ -186,10 +186,11 @@ struct EmptyStreamGuardTests {
 
         #expect(chat.sendError == nil)
         #expect(chat.status == .idle)
-        // The assistant turn was still appended, carrying the server's id.
-        #expect(chat.messages.count == 1)
-        #expect(chat.messages.first?.id == "msg_1")
-        #expect(chat.messages.first?.role == .assistant)
+        #expect(!chat.isRecovering)
+        // The settled assistant shell has nothing to show, so the rendered list
+        // drops it (`ChatViewMessage.hasRenderableContent`) rather than drawing
+        // a lone avatar - it is a quiet empty turn, not an error card.
+        #expect(chat.messages.isEmpty)
     }
 
     @Test("A normal answer raises nothing")
