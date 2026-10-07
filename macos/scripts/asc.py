@@ -108,27 +108,23 @@ def profiles(identifiers):
     for identifier in identifiers:
         name = f"SureWord {identifier} App Store"
         bid = bundle_id_resource(identifier)
-        existing = get("/v1/profiles", **{"filter[name]": name, "include": "certificates", "limit": 10})
-        usable = [
-            p for p in existing["data"]
-            if p["attributes"]["profileState"] == "ACTIVE"
-            and any(c["id"] == cert for c in p["relationships"]["certificates"]["data"])
-        ]
-        if usable:
-            profile = usable[0]
-        else:
-            # A stale profile with the same name (expired, or for an old cert)
-            # would make the name ambiguous; Apple rejects duplicates anyway.
-            for p in existing["data"]:
+        existing = get("/v1/profiles", **{"filter[name]": name, "limit": 10})
+        # Always regenerate: a profile freezes the App ID's capabilities and app
+        # groups at creation, so one made before the App Group was assigned
+        # (or before Sign in with Apple was enabled) would sign an archive that
+        # App Store Connect rejects. Only profiles carrying this exact
+        # SureWord name are ever deleted.
+        for p in existing["data"]:
+            if p["attributes"]["name"] == name:
                 requests.delete(f"{BASE}/v1/profiles/{p['id']}", headers=headers(), timeout=60)
-            profile = post("/v1/profiles", {"data": {
-                "type": "profiles",
-                "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
-                "relationships": {
-                    "bundleId": {"data": {"type": "bundleIds", "id": bid}},
-                    "certificates": {"data": [{"type": "certificates", "id": cert}]},
-                },
-            }})["data"]
+        profile = post("/v1/profiles", {"data": {
+            "type": "profiles",
+            "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
+            "relationships": {
+                "bundleId": {"data": {"type": "bundleIds", "id": bid}},
+                "certificates": {"data": [{"type": "certificates", "id": cert}]},
+            },
+        }})["data"]
         install(profile)
         print(f"{identifier}\t{name}")
 
