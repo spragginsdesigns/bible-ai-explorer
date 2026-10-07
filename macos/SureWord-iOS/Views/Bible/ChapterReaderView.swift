@@ -1,21 +1,20 @@
 import SwiftUI
 import UIKit
 
-/// Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), tap-a-
-/// verse bottom sheet, adjustable type size, and prev/next navigation that
-/// rolls into adjacent books like YouVersion.
+/// Chapter reading screen: bundled KJV and BSB (offline) or NKJV (bolls.life),
+/// the two-tier verse sheet, the parchment page, adjustable type size, and
+/// prev/next navigation that rolls into adjacent books like YouVersion.
 ///
-/// Port of `mobile/app/(app)/bible/chapter.tsx` and the logic of the Mac's
-/// `ChapterReaderPane`; where the Mac pins the verse panel under the reader,
-/// iOS presents it as a native sheet — which satisfies the same hard layout
-/// requirement (see `macos/README.md`, "The reader is a layout minefield"):
-/// streaming text never lives inside the chapter's `LazyVStack`, so arriving
-/// tokens never re-measure the verse list.
+/// Port of `mobile/app/(app)/bible/chapter.tsx`. The verse sheet is an overlay,
+/// not a presented sheet: it is non-modal so a second tap on the chapter grows
+/// the selection (see `VerseSheetPanel`), and streaming text never lives inside
+/// the chapter's `LazyVStack`, so arriving tokens never re-measure the verse
+/// list (`macos/README.md`, "The reader is a layout minefield").
 ///
 /// The pushed-in `order`/`chapter`/`verse` only seed the shared `BibleModel`
-/// once; after that the model is the source of truth (prev/next paging changes
-/// the model, never the stack), so reading position survives a trip to another
-/// tab — the same reason `AppModel` owns the model.
+/// once; after that the model is the source of truth (prev/next paging and
+/// See-also jumps change the model, never the stack), so reading position
+/// survives a trip to another tab.
 struct ChapterReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
@@ -26,8 +25,19 @@ struct ChapterReaderView: View {
     var verse: Int? = nil
 
     private var model: BibleModel { app.bible }
+    private var sheet: VerseSheetModel { app.bible.sheet }
     @State private var localTranslationOverride: TranslationID?
     private var translation: TranslationID { localTranslationOverride ?? app.settings.translation }
+    /// Set once this screen has pushed its location into the shared model.
+    /// Re-appearing (back from Atlas or Learn) must not re-seed it, or the
+    /// reader would jump back to the chapter it was first opened on.
+    @State private var seeded = false
+    @State private var crossReferences = CrossReferencesModel()
+    @State private var showingLearn = false
+    @State private var showingCustomColor = false
+
+    /// The parchment page surface, per the shared account preference.
+    private var parchment: Bool { app.settings.parchment }
 
     init(order: Int, chapter: Int, verse: Int? = nil, translation: TranslationID? = nil) {
         self.order = order
@@ -36,13 +46,26 @@ struct ChapterReaderView: View {
         _localTranslationOverride = State(initialValue: translation)
     }
 
-    /// "John 3". The model answers once it has caught up with this screen's
-    /// location; until then (the first render after a push) fall back to the
-    /// pushed-in values so the title never flashes the previous chapter.
+    /// "John 3". Until the model has caught up with this screen (the first
+    /// render after a push) fall back to the pushed-in values so the title
+    /// never flashes the previous chapter.
     private var title: String {
-        if model.selectedBook == order { return model.reference }
+        if seeded { return model.reference }
         guard let book = Bible.book(order: order) else { return "" }
         return "\(book.name) \(chapter)"
+    }
+
+    /// The chapter on screen, as the sheet sees it. Nil until the text for
+    /// this exact translation and chapter has arrived.
+    private var context: VerseSheetContext? {
+        guard let book = model.book, model.loadedKey == model.chapterKey(translation) else { return nil }
+        return VerseSheetContext(
+            order: book.order,
+            bookName: book.name,
+            chapter: model.chapter,
+            plainTexts: model.readerVerses.map(\.plainText),
+            translation: translation
+        )
     }
 
     var body: some View {
@@ -62,11 +85,10 @@ struct ChapterReaderView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { fontControls }
-        // Align the shared reader state with the location this screen was
-        // pushed for. Idempotent, and superseded loads are cancelled by the
-        // `chapterKey` task below rather than raced.
         .task {
+            guard !seeded else { return }
             model.open(order: order, chapter: chapter, verse: verse)
+            seeded = true
         }
         // The chapter *and* the translation are part of the identity of what is
         // on screen, so a translation change reloads through the same path a
@@ -74,6 +96,9 @@ struct ChapterReaderView: View {
         .task(id: model.chapterKey(translation)) {
             await model.load(translation: translation)
         }
+        // A new chapter or translation under an open sheet: the selection no
+        // longer describes what is on screen.
+        .onChange(of: model.chapterKey(translation)) { _, _ in sheet.chapterChanged() }
         .onAppear {
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
@@ -82,41 +107,13 @@ struct ChapterReaderView: View {
         .onDisappear { model.reading.setReaderVisible(false) }
         .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
-        .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
-
-        // Tap-a-verse. Swiping the sheet down dismisses it through the same
-        // path as the close button, so the stream is cancelled either way.
-        .sheet(isPresented: Binding(
-            get: { model.actionVerse != nil },
-            set: { if !$0 { model.dismissVerseActions() } }
-        )) {
-            if let number = model.actionVerse {
-                let reference = model.verseReference(number)
-                let text = model.verseText(number)
-                VerseSheetView(
-                    reference: reference,
-                    text: text,
-                    verse: number,
-                    insight: model.insight,
-                    shareText: VerseAttachment.formatForSharing(
-                        reference: reference,
-                        text: text,
-                        translation: translation
-                    ),
-                    onClose: { model.dismissVerseActions() },
-                    onExpand: { expandWithAI(reference: reference, text: text) },
-                    onCopy: { model.copy(reference: reference, text: text, translation: translation) },
-                    onSave: { model.saveToNote(reference: reference, text: text, translation: translation) },
-                    onAsk: { prompt, attach in
-                        askWithPrompt(
-                            prompt,
-                            reference: attach ? reference : nil,
-                            text: attach ? text : nil
-                        )
-                    }
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+        // The peek leaves most of the chapter readable; only the expanded
+        // study view covers the text.
+        .onChange(of: sheet.obscuresReader) { _, obscured in model.reading.setObscured(obscured) }
+        .navigationDestination(isPresented: $showingLearn) { LearnEntryPoint() }
+        .sheet(isPresented: $showingCustomColor) {
+            CustomHighlightSheet(color: Color(hex: selectionHex ?? HighlightColors.presets[0].hex) ?? .yellow) { hex in
+                applyHighlight(hex)
             }
         }
     }
@@ -130,6 +127,8 @@ struct ChapterReaderView: View {
             ForEach(TranslationID.allCases, id: \.self) { id in
                 let isActive = translation == id
                 Button {
+                    // A chip is an explicit preference choice: it clears a
+                    // chat source's one-hop override and persists.
                     localTranslationOverride = nil
                     settings.translation = id
                 } label: {
@@ -149,14 +148,16 @@ struct ChapterReaderView: View {
                                     lineWidth: 1
                                 )
                         }
+                        .frame(minHeight: 32)
                         .contentShape(.capsule)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Read in the \(id.label)")
+                .accessibilityLabel("Read in the \(id.name)")
+                .accessibilityAddTraits(isActive ? .isSelected : [])
             }
         }
         .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
     }
 
     @ToolbarContentBuilder
@@ -235,78 +236,141 @@ struct ChapterReaderView: View {
 
     // MARK: - Reader
 
-    private var reader: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                    ForEach(Array(model.verses.enumerated()), id: \.offset) { index, markup in
-                        verseRow(number: index + 1, markup: markup)
-                            .id(index + 1)
-                            .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation)
-                            }
-                    }
+    /// Ink colours: the parchment tones on the page, the shell's own text off it.
+    private var ink: Color { parchment ? theme.parchmentInk : theme.text }
+    private var numberInk: Color { parchment ? theme.parchmentNumber : theme.textMuted }
+    /// Sourced words of Jesus. The same two reds Android uses.
+    private var redLetter: Color { theme.isDark ? Color(hex: 0xEF8A83) : Color(hex: 0xA12E2A) }
+    private var selectionWash: Color { parchment ? theme.parchmentHighlight : theme.accentSoft }
 
-                    footer
+    private var reader: some View {
+        GeometryReader { geometry in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        if model.readerVerses.first?.headings.isEmpty ?? true {
+                            Text(model.reference)
+                                .font(.custom(FontFamily.verseItalic, size: 28))
+                                .foregroundStyle(ink)
+                                .padding(.bottom, 24)
+                                .accessibilityAddTraits(.isHeader)
+                        }
+                        ForEach(model.readerVerses, id: \.number) { verse in
+                            verseRow(verse)
+                                .id(verse.number)
+                                .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                    model.readingVisibility(verse: verse.number, visible: visible, translation: translation)
+                                }
+                        }
+
+                        footer
+                    }
+                    .id(model.loadedKey)
+                    .padding(.horizontal, 28)
+                    .frame(maxWidth: 720, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
-                .id(model.loadedKey)
-                .padding(.horizontal, Spacing.xl)
-            }
-            // The reader's breathing room is a content margin rather than
-            // padding inside the stack, so that scrolling verse 1 to the top
-            // keeps it instead of scrolling it away.
-            .contentMargins(.vertical, Spacing.lg, for: .scrollContent)
-            // A deep link only lands once the chapter it names is the one on
-            // screen — `loadedKey` is what proves that, since the selection
-            // changes a render before the text does.
-            .onChange(of: model.loadedKey, initial: true) { _, _ in
-                if model.pendingVerse == nil {
-                    // A newly opened chapter starts at the top. SwiftUI reuses
-                    // the row identities `1...n` across chapters and keeps the
-                    // old offset, so paging out of the middle of John 3 would
-                    // otherwise land in the middle of John 4.
-                    proxy.scrollTo(1, anchor: .top)
-                } else {
+                // Breathing room as a content margin rather than padding inside
+                // the stack, so scrolling verse 1 to the top keeps it.
+                .contentMargins(.vertical, Spacing.xl, for: .scrollContent)
+                // A deep link only lands once the chapter it names is the one on
+                // screen - `loadedKey` is what proves that.
+                .onChange(of: model.loadedKey, initial: true) { _, _ in
+                    if model.pendingVerse == nil {
+                        // A newly opened chapter starts at the top; SwiftUI
+                        // reuses the row identities across chapters and would
+                        // otherwise keep the old offset.
+                        proxy.scrollTo(1, anchor: .top)
+                    } else {
+                        scrollToPendingVerse(proxy)
+                    }
+                }
+                // A jump into the chapter already on screen changes nothing but
+                // the pending verse, so `loadedKey` never moves.
+                .onChange(of: model.pendingVerse) { _, verse in
+                    guard verse != nil else { return }
                     scrollToPendingVerse(proxy)
                 }
             }
-            // A jump into the chapter already on screen changes nothing but the
-            // pending verse — no reload, so `loadedKey` never moves and the
-            // effect above never re-fires.
-            .onChange(of: model.pendingVerse) { _, verse in
-                guard verse != nil else { return }
-                scrollToPendingVerse(proxy)
+            // The page: a fixed sheet the verses scroll over, like text moving
+            // across an unrolled scroll - Android's absolutely positioned image
+            // behind its list. A background does not scroll.
+            .background {
+                if parchment { parchmentPage }
             }
-        }
-        // Attach the whole chapter to the next question — Android's floating
-        // "✦ Ask AI" button.
-        .overlay(alignment: .bottomTrailing) {
-            Button {
-                expandWithAI(reference: model.reference, text: model.chapterText)
-            } label: {
-                Label("Ask AI", systemImage: "sparkles")
-                    .font(.system(size: 14, weight: .bold))
+            .overlay(alignment: .bottomTrailing) {
+                if !sheet.isOpen { askAIButton }
             }
-            .buttonStyle(AccentButtonStyle())
-            .padding(Spacing.xl)
-            .accessibilityLabel("Ask AI about \(model.reference)")
-        }
-        .overlay(alignment: .bottom) {
-            if let toast = model.toast {
-                Text(toast)
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textSecondary)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.vertical, Spacing.sm)
-                    .background(theme.bgElevated, in: .rect(cornerRadius: Radius.full))
-                    .overlay {
-                        Capsule().strokeBorder(theme.border, lineWidth: 1)
-                    }
-                    .padding(.bottom, Spacing.xl)
-                    .transition(.opacity)
+            .overlay {
+                // The study view dims the chapter; a tap there collapses it.
+                if sheet.obscuresReader {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea(edges: .bottom)
+                        .onTapGesture { withAnimation(.snappy) { sheet.tier = .peek } }
+                        .accessibilityLabel("Collapse details")
+                        .accessibilityAddTraits(.isButton)
+                        .transition(.opacity)
+                }
             }
+            .overlay(alignment: .bottom) {
+                if sheet.isOpen, let context {
+                    verseSheet(context: context, availableHeight: geometry.size.height)
+                        .transition(.move(edge: .bottom))
+                }
+            }
+            .overlay(alignment: .top) { toastView }
+            .animation(.snappy, value: sheet.isOpen)
+            .animation(.snappy, value: sheet.obscuresReader)
+            .animation(.snappy, value: model.toast)
         }
-        .animation(.snappy, value: model.toast)
+    }
+
+    private var parchmentPage: some View {
+        // `Color.clear` pins the texture to the reader's bounds: the image is
+        // aspect-filled, so it reports more than it was offered, and clipping
+        // the image itself would clip to that oversized rect.
+        Color.clear
+            .overlay {
+                Image(theme.isDark ? "ParchmentDark" : "ParchmentLight")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            }
+            .clipped()
+            .ignoresSafeArea(edges: .bottom)
+            .accessibilityHidden(true)
+            .allowsHitTesting(false)
+    }
+
+    /// Attach the whole chapter to the next question - Android's dock "Ask AI".
+    private var askAIButton: some View {
+        Button {
+            expandWithAI(reference: model.reference, text: model.chapterText)
+        } label: {
+            Label("Ask AI", systemImage: "sparkles")
+                .font(.system(size: 14, weight: .bold))
+        }
+        .buttonStyle(AccentButtonStyle())
+        // An opaque plate under the translucent accent, so gold never sits on
+        // gold over the parchment or on verse text.
+        .background(theme.bgElevated, in: .capsule)
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 3)
+        .padding(Spacing.xl)
+        .accessibilityLabel("Ask AI about \(model.reference)")
+    }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast = model.toast {
+            Text(toast)
+                .font(.system(size: 12))
+                .foregroundStyle(theme.textSecondary)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+                .background(theme.bgElevated, in: .rect(cornerRadius: Radius.full))
+                .overlay { Capsule().strokeBorder(theme.border, lineWidth: 1) }
+                .padding(.top, Spacing.md)
+                .transition(.opacity)
+        }
     }
 
     private func scrollToPendingVerse(_ proxy: ScrollViewProxy) {
@@ -319,68 +383,80 @@ struct ChapterReaderView: View {
     }
 
     @ViewBuilder
-    private func verseRow(number: Int, markup: String) -> some View {
-        let isHighlighted = model.highlightedVerse == number
-        let isOpen = model.actionVerse == number
-        let reference = model.verseReference(number)
+    private func verseRow(_ verse: ReaderVerse) -> some View {
+        let number = verse.number
+        let selected = sheet.selection?.includes(number) ?? false
+        let flashed = model.highlightedVerse == number
         let highlightHex = model.selectedBook.flatMap {
             app.highlights.hex(translation: translation, book: $0, chapter: model.chapter, verse: number)
         }
 
-        // A real Button, not a tap gesture — it earns the pressed state and an
-        // accessibility action, and on iOS it coexists cleanly with the sheet.
-        // No `.textSelection(.enabled)`: copy lives one tap away in the sheet,
-        // and a selectable region would fight the row's own tap handling.
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            model.toggleVerse(number, translation: translation)
-        } label: {
-            verseText(number: number, markup: markup)
-                .lineSpacing(model.lineHeight - model.fontSize)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(.rect)
+        VStack(alignment: .leading, spacing: 0) {
+            // Publisher headings: never part of the verse, never copied.
+            ForEach(Array(verse.headings.enumerated()), id: \.offset) { _, heading in
+                Text(heading)
+                    .font(.custom(FontFamily.verseItalic, size: 24))
+                    .foregroundStyle(ink)
+                    .padding(.top, 16)
+                    .padding(.bottom, 20)
+                    .accessibilityAddTraits(.isHeader)
+            }
+
+            // A real Button, not a tap gesture: it earns the pressed state and
+            // an accessibility action, and it coexists with the sheet overlay.
+            Button {
+                tap(number)
+            } label: {
+                Text(attributedVerse(verse, selected: selected, highlightHex: highlightHex))
+                    .lineSpacing(model.fontSize * 0.6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                    .background(
+                        selected || flashed ? selectionWash : .clear,
+                        in: .rect(cornerRadius: 4)
+                    )
+                    .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 16)
+            .accessibilityLabel("\(model.verseReference(number)). \(verse.omitted ? "Not included in this edition's main text." : verse.plainText)")
+            .accessibilityHint(selected ? "Selected. Tap to change the selection." : "Opens the verse sheet")
+            .accessibilityAddTraits(selected ? .isSelected : [])
         }
-        .buttonStyle(.plain)
-        .padding(.horizontal, Spacing.sm)
-        .padding(.vertical, Spacing.xs)
-        .background(
-            // Deep-link flash and the open-sheet state keep precedence over
-            // the persistent highlight wash, exactly as before.
-            isHighlighted ? theme.accentSoft
-                : (isOpen ? theme.surface : (highlightHex.map(HighlightColors.wash) ?? .clear)),
-            in: .rect(cornerRadius: Radius.md)
-        )
-        .contentShape(.rect(cornerRadius: Radius.md))
-        .accessibilityLabel("\(reference). Explain this verse")
     }
 
-    /// Verse number then the emphasis-aware segments, concatenated into one
-    /// `Text` so the number stays inline with the wrapped body.
-    private func verseText(number: Int, markup: String) -> Text {
-        var result = Text("\(number) ")
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(theme.accentDim)
-        for segment in VerseMarkup.segments(markup) {
-            result = result
-                + Text(segment.text)
-                .font(
-                    .custom(
-                        segment.italic ? FontFamily.verseItalic : FontFamily.verse,
-                        size: model.fontSize
-                    )
-                )
-                .italic(segment.italic)
-                .foregroundStyle(theme.textSecondary)
+    /// Verse number then the formatted segments in one attributed run, so the
+    /// number stays inline with the wrapped body and a user highlight washes
+    /// the words themselves, as Android draws it.
+    private func attributedVerse(_ verse: ReaderVerse, selected: Bool, highlightHex: String?) -> AttributedString {
+        var result = AttributedString("\(verse.number)\u{2002}")
+        result.font = .system(size: 12)
+        result.foregroundColor = selected ? theme.accent : numberInk
+
+        if verse.omitted {
+            var note = AttributedString("Not included in this edition\u{2019}s main text.")
+            note.font = .system(size: 14).italic()
+            note.foregroundColor = theme.textMuted
+            result += note
+        }
+
+        let wash = highlightHex.map(HighlightColors.wash)
+        for segment in verse.segments {
+            var run = AttributedString(segment.text)
+            run.font = .custom(segment.italic ? FontFamily.verseItalic : FontFamily.verse, size: model.fontSize)
+            run.foregroundColor = segment.jesusSpeech ? redLetter : ink
+            if let wash { run.backgroundColor = wash }
+            result += run
         }
         return result
     }
 
     private var footer: some View {
         VStack(spacing: Spacing.xl) {
-            Text("\(translation.label) — \(translation.copyright)")
+            Text("\(translation.name) - \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
-                .foregroundStyle(theme.textGhost)
+                .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: Spacing.md) {
@@ -389,8 +465,9 @@ struct ChapterReaderView: View {
             }
         }
         .padding(.top, Spacing.lg)
-        // Room for the floating Ask AI button above the tab bar.
-        .padding(.bottom, 80)
+        // Room for the floating Ask AI button, or for the peek when it is up,
+        // so the last verses can always scroll clear of it.
+        .padding(.bottom, sheet.isOpen ? 280 : 80)
     }
 
     private func navButton(
@@ -410,6 +487,9 @@ struct ChapterReaderView: View {
                     accent ? theme.accentSoft : theme.surface,
                     in: .rect(cornerRadius: Radius.lg)
                 )
+                // An opaque plate under the translucent fill, so the buttons
+                // read the same over the parchment as over the shell.
+                .background(theme.bgElevated, in: .rect(cornerRadius: Radius.lg))
                 .overlay {
                     RoundedRectangle(cornerRadius: Radius.lg)
                         .strokeBorder(accent ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
@@ -424,38 +504,222 @@ struct ChapterReaderView: View {
         } ?? "")
     }
 
-    // MARK: - Ask AI
+    // MARK: - Verse sheet
+
+    private func tap(_ number: Int) {
+        guard let context else { return }
+        let applied = sheet.tap(number, context: context)
+        UIImpactFeedbackGenerator(style: applied ? .light : .rigid).impactOccurred()
+    }
+
+    /// Stored colours for the selection, verse → hex.
+    private var selectionHighlights: [Int: String] {
+        guard let book = model.selectedBook else { return [:] }
+        var map: [Int: String] = [:]
+        for verse in sheet.activeSelection.verses {
+            if let hex = app.highlights.hex(translation: translation, book: book, chapter: model.chapter, verse: verse) {
+                map[verse] = hex
+            }
+        }
+        return map
+    }
+
+    private var selectionHex: String? { sheet.activeSelection.sharedColor(in: selectionHighlights) }
+
+    private func verseSheet(context: VerseSheetContext, availableHeight: CGFloat) -> some View {
+        @Bindable var sheet = sheet
+        let reference = sheet.reference(context)
+        let text = sheet.text(context)
+        let highlights = selectionHighlights
+        let shared = sheet.activeSelection.sharedColor(in: highlights)
+        let markedAs = shared.flatMap { HighlightColors.label(forHex: $0, in: app.settings.highlightLabels) }
+        let message = sheet.actionMessage
+            ?? markedAs.map { VerseSheetModel.Message(text: "Marked as \u{201C}\($0)\u{201D}", tone: .muted) }
+
+        return VerseSheetPanel(
+            model: sheet,
+            title: reference,
+            subtitle: sheet.subtitle,
+            availableHeight: availableHeight,
+            onClose: { sheet.close() },
+            peek: {
+                InsightTeaserView(
+                    insight: sheet.insight,
+                    onExpand: { withAnimation(.snappy) { sheet.openStudy(.explain) } },
+                    onRetry: { sheet.retryInsight(context) }
+                )
+            },
+            study: {
+                studyView(context: context, reference: reference, text: text)
+            },
+            footer: {
+                VerseActionBarView(
+                    color: shared,
+                    canRemove: !highlights.isEmpty,
+                    labelForPreset: { HighlightColors.displayName($0, in: app.settings.highlightLabels) },
+                    onHighlight: { applyHighlight($0) },
+                    onRemoveHighlight: removeHighlight,
+                    onCustomColor: { showingCustomColor = true },
+                    actions: actions(context: context, reference: reference, text: text, highlighted: shared != nil),
+                    message: message
+                )
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func studyView(context: VerseSheetContext, reference: String, text: String) -> some View {
+        @Bindable var sheet = sheet
+        let selection = sheet.activeSelection
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(text)
+                .font(.custom(FontFamily.verse, size: 17))
+                .foregroundStyle(theme.textSecondary)
+                .lineLimit(4)
+                .padding(.horizontal, Spacing.lg)
+
+            StudyTabsView(selection: $sheet.studyTab)
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Each study is a model generation, so a range studies its
+                // first verse only rather than firing one per selected verse.
+                if sheet.studyTab != .explain, selection.count > 1 {
+                    Text("For verse \(selection.start)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                }
+                switch sheet.studyTab {
+                case .explain:
+                    VerseInsightView(
+                        status: sheet.insight.status,
+                        text: sheet.insight.text,
+                        error: sheet.insight.error,
+                        skeletonWidths: [300, 268, 184],
+                        onRetry: { sheet.retryInsight(context) }
+                    )
+                case .words:
+                    WordStudyView(
+                        api: app.api,
+                        book: context.order,
+                        chapter: context.chapter,
+                        verse: selection.start,
+                        modelId: app.settings.chatModelId,
+                        onAsk: { prompt, attach in
+                            askWithPrompt(prompt, reference: attach ? reference : nil, text: attach ? text : nil)
+                        }
+                    )
+                case .seeAlso:
+                    CrossReferencesView(
+                        model: crossReferences,
+                        reference: VerseSelection(start: selection.start, end: selection.start)
+                            .reference(bookName: context.bookName, chapter: context.chapter),
+                        translation: context.translation,
+                        onNavigate: openCrossReference
+                    )
+                }
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.xs)
+        }
+    }
+
+    private func actions(context: VerseSheetContext, reference: String, text: String, highlighted: Bool) -> [VerseSheetAction] {
+        let share = sheet.shareText(context)
+        return [
+            VerseSheetAction(id: "ask", systemImage: "sparkles", label: "Ask") {
+                expandWithAI(reference: reference, text: text)
+            },
+            VerseSheetAction(
+                id: "copy",
+                systemImage: sheet.copied ? "checkmark" : "doc.on.doc",
+                label: sheet.copied ? "Copied" : "Copy",
+                active: sheet.copied
+            ) {
+                UIPasteboard.general.string = share
+                sheet.markCopied()
+            },
+            VerseSheetAction(id: "share", systemImage: "square.and.arrow.up", label: "Share", shareText: share) {},
+            VerseSheetAction(
+                id: "note",
+                systemImage: "square.and.pencil",
+                label: sheet.saveBusy ? "Saving…" : "Note",
+                disabled: sheet.saveBusy
+            ) {
+                Task { await saveToNote(context) }
+            },
+            VerseSheetAction(
+                id: "learn",
+                systemImage: sheet.learnStatus == .added ? "graduationcap.fill" : "graduationcap",
+                label: sheet.learnStatus == .adding ? "Adding…" : sheet.learnStatus == .added ? "Added" : "Learn",
+                disabled: sheet.learnStatus == .adding,
+                active: sheet.learnStatus == .added
+            ) {
+                if sheet.learnStatus == .added {
+                    showingLearn = true
+                } else {
+                    Task { await addToLearn(context, highlighted: highlighted) }
+                }
+            },
+        ]
+    }
+
+    // MARK: - Actions
+
+    /// Highlight writes are optimistic - the store recolours at once and rolls
+    /// back any verse whose write fails - so this fires one per verse.
+    private func applyHighlight(_ hex: String) {
+        guard let book = model.selectedBook else { return }
+        for verse in sheet.activeSelection.verses {
+            app.highlights.setColor(translation: translation, book: book, chapter: model.chapter, verse: verse, hex: hex)
+        }
+    }
+
+    private func removeHighlight() {
+        guard let book = model.selectedBook else { return }
+        for verse in sheet.activeSelection.verses {
+            app.highlights.remove(translation: translation, book: book, chapter: model.chapter, verse: verse)
+        }
+    }
+
+    private func saveToNote(_ context: VerseSheetContext) async {
+        guard let noteID = await sheet.saveToNote(api: app.api, context: context) else { return }
+        sheet.close()
+        NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["noteId": noteID])
+    }
+
+    private func addToLearn(_ context: VerseSheetContext, highlighted: Bool) async {
+        let api = app.api
+        await sheet.addToLearn(context: context, highlighted: highlighted) { body in
+            try await api.json("/api/learn", method: "POST", body: body, as: VerseLearnCard.self)
+        }
+    }
+
+    /// The sheet is not modal, so a See-also jump can land straight away: the
+    /// reader opens the passage in place and flashes the verse.
+    private func openCrossReference(_ target: Reference) {
+        sheet.close()
+        model.open(target, translationOverride: localTranslationOverride)
+    }
 
     /// Attach the passage to the next question and ask the shell to switch to
-    /// Chat — the iOS equivalent of Android pushing "/" with
-    /// `?attachRef&attachText`. TabShell observes `.openChatWithAttachment`
-    /// and selects the Chat tab; the input bar renders the attachment pill.
+    /// Chat - the iOS equivalent of Android pushing "/" with
+    /// `?attachRef&attachText`.
     private func expandWithAI(reference: String, text: String) {
-        app.chat.attachment = model.attachment(
-            reference: reference,
-            text: text,
-            translation: translation
-        )
-        model.dismissVerseActions()
+        app.chat.attachment = model.attachment(reference: reference, text: text, translation: translation)
+        sheet.close()
         NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
     }
 
-    /// The same hop to Chat, with the composer already filled in. Used by the
-    /// Words tab, whose two actions are written-out questions rather than a
-    /// bare passage. A nil reference means the question is not about this
-    /// verse (a lexicon search), so nothing is attached.
+    /// The same hop to Chat with the composer filled in - the Words tab's two
+    /// actions. A nil reference (a lexicon search) attaches nothing.
     private func askWithPrompt(_ prompt: String, reference: String?, text: String?) {
         app.chat.input = prompt
         if let reference, let text {
-            app.chat.attachment = model.attachment(
-                reference: reference,
-                text: text,
-                translation: translation
-            )
+            app.chat.attachment = model.attachment(reference: reference, text: text, translation: translation)
         } else {
             app.chat.attachment = nil
         }
-        model.dismissVerseActions()
+        sheet.close()
         NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
     }
 }

@@ -1,39 +1,56 @@
 import SwiftUI
 
-/// Offline verse search over the bundled KJV plus a "John 3:16"-style
-/// reference quick-jump — port of `mobile/app/(app)/bible/search.tsx` and the
-/// search half of the Mac's `BibleSidebar`. The 300 ms debounce lives in the
-/// task itself: a superseded run is cancelled during the sleep, so the first
-/// search — which parses every book's JSON — only happens once typing stops.
+/// Translation-aware verse search plus a "John 3:16"-style reference
+/// quick-jump - port of `mobile/app/(app)/bible/search.tsx`. BSB and KJV search
+/// the bundle offline; NKJV goes to bolls.life; a miss checks the other
+/// wording, and the status line says which translation answered. The debounce
+/// lives in the task, so a superseded search is cancelled during the sleep.
 struct BibleSearchView: View {
     @Environment(\.theme) private var theme
-    @Bindable var model: BibleModel
+    @Environment(AppModel.self) private var app
 
+    @State private var search = BibleSearchModel()
     /// Non-nil pushes the reader with the chosen hit or reference.
     @State private var readerRequest: BibleReaderRequest?
+
+    /// Android lists the search chips in this order.
+    private static let chips: [TranslationID] = [.kjv, .nkjv, .bsb]
+
+    private var account: TranslationID { app.settings.translation }
+    private var translation: TranslationID { search.translation(account: account) }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.sm) {
-                if let jump = model.referenceJump {
+                translationChips
+
+                if let jump = search.referenceJump {
                     jumpRow(jump)
                 }
 
-                if let summary = model.searchSummary {
-                    Text(summary)
-                        .font(.system(size: 11))
+                if let error = search.error {
+                    Text(error)
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textMuted)
+                        .padding(.vertical, Spacing.xs)
+                    Button("Retry search") { search.retry() }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                        .buttonStyle(.plain)
+                } else if let status = search.status(account: account) {
+                    Text(status)
+                        .font(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.xs)
-                } else if model.searchedQuery.isEmpty {
-                    // Shown whenever no search has run yet, reference or not —
-                    // `search.tsx` renders the hint on the same condition.
-                    Text("Search the King James text by word or phrase.")
+                        .accessibilityAddTraits(.updatesFrequently)
+                } else if search.searched.isEmpty, !search.loading {
+                    Text(search.hint(account: account))
                         .font(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.md)
                 }
 
-                ForEach(model.searchHits) { hit in
+                ForEach(search.hits) { hit in
                     hitRow(hit)
                 }
             }
@@ -44,23 +61,62 @@ struct BibleSearchView: View {
         .navigationTitle("Search")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
-            text: $model.query,
+            text: $search.query,
             placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search verses or \"John 3:16\""
+            prompt: "Search verses or try \"John 3:16\""
         )
-        .task(id: model.query) {
-            try? await Task.sleep(for: BibleModel.searchDebounce)
-            guard !Task.isCancelled else { return }
-            await model.runSearch()
+        .autocorrectionDisabled()
+        .textInputAutocapitalization(.never)
+        #if DEBUG
+        .onAppear {
+            if UIEvidenceHarness.isEnabled, let query = UserDefaults.standard.string(forKey: "evidence.query") {
+                search.query = query
+            }
+        }
+        #endif
+        .task(id: search.taskKey(account: account)) {
+            await search.run(account: account)
         }
         .navigationDestination(item: $readerRequest) { request in
-            ChapterReaderView(order: request.order, chapter: request.chapter, verse: request.verse)
+            ChapterReaderView(
+                order: request.order,
+                chapter: request.chapter,
+                verse: request.verse,
+                translation: request.translation
+            )
         }
+    }
+
+    private var translationChips: some View {
+        HStack(spacing: Spacing.sm) {
+            ForEach(Self.chips, id: \.self) { id in
+                let active = translation == id
+                Button {
+                    search.selectedTranslation = id
+                } label: {
+                    Text(id.label)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(active ? theme.accent : theme.textMuted)
+                        .padding(.horizontal, Spacing.md)
+                        .frame(minHeight: 32)
+                        .background(active ? theme.accentSoft : theme.surface, in: .capsule)
+                        .overlay {
+                            Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
+                        }
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Search \(id.label)")
+                .accessibilityAddTraits(active ? .isSelected : [])
+            }
+            Spacer()
+        }
+        .padding(.top, Spacing.sm)
     }
 
     private func jumpRow(_ reference: Reference) -> some View {
         Button {
-            open(reference)
+            open(reference, translation: translation)
         } label: {
             HStack(spacing: Spacing.sm) {
                 Text("Go to \(label(for: reference))")
@@ -83,16 +139,16 @@ struct BibleSearchView: View {
         .buttonStyle(.plain)
     }
 
-    private func hitRow(_ hit: KJVSearchHit) -> some View {
+    private func hitRow(_ hit: BibleSearchHit) -> some View {
         Button {
-            open(Reference(order: hit.order, chapter: hit.chapter, verse: hit.verse))
+            open(Reference(order: hit.order, chapter: hit.chapter, verse: hit.verse), translation: hit.translation)
         } label: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse)")
+                Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse) \(hit.translation.label)")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(theme.accent)
                 Text(hit.text)
-                    .font(.custom(FontFamily.verse, size: 14))
+                    .font(.custom(FontFamily.verse, size: 15))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
@@ -109,12 +165,15 @@ struct BibleSearchView: View {
         .buttonStyle(.plain)
     }
 
-    private func open(_ reference: Reference) {
-        model.open(reference)
+    /// The hit opens in the translation whose wording matched - a one-hop
+    /// override that never changes the account translation.
+    private func open(_ reference: Reference, translation: TranslationID) {
+        app.bible.open(reference)
         readerRequest = BibleReaderRequest(
             order: reference.order,
             chapter: reference.chapter,
-            verse: reference.verse
+            verse: reference.verse,
+            translation: translation == account ? nil : translation
         )
     }
 

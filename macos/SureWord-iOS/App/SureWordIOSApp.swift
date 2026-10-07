@@ -130,7 +130,10 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if clerk.user == nil {
+            if UIEvidenceHarness.isEnabled {
+                // Debug-only screenshot harness; see `UIEvidenceHarness`.
+                UIEvidenceHarness()
+            } else if clerk.user == nil {
                 SignInView()
             } else if let app {
                 TabShell().environment(app)

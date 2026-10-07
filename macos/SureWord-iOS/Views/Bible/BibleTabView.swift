@@ -27,6 +27,7 @@ extension Notification.Name {
 /// exactly as on Android.
 struct BibleTabView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(AppModel.self) private var app
 
     /// Collapsed testaments, remembered for the session — Android's
@@ -36,6 +37,8 @@ struct BibleTabView: View {
     /// Non-nil pushes the reader — the chat verse-card deep-link path.
     @State private var readerRequest: BibleReaderRequest?
     @State private var showingHistory = false
+    /// "Continue reading" - built on first appearance, once `app` exists.
+    @State private var continueReading: ContinueReadingModel?
 
     private var model: BibleModel { app.bible }
 
@@ -43,6 +46,9 @@ struct BibleTabView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 searchPill
+                if let lastRead = continueReading?.lastRead {
+                    continueCard(lastRead)
+                }
                 crossCard
                 atlasCard
                 Button { showingHistory = true } label: {
@@ -73,6 +79,16 @@ struct BibleTabView: View {
             }
         }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
+        // Fail-soft and refreshed on every return to the home, like Android's
+        // focus effect: a chapter just read is the one offered next.
+        .task {
+            if continueReading == nil { continueReading = ContinueReadingModel(api: app.api) }
+            await continueReading?.refresh()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await continueReading?.refresh() }
+        }
         .navigationDestination(item: $readerRequest) { request in
             ChapterReaderView(
                 order: request.order,
@@ -104,7 +120,7 @@ struct BibleTabView: View {
 
     private var searchPill: some View {
         NavigationLink {
-            BibleSearchView(model: model)
+            BibleSearchView()
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
@@ -127,6 +143,50 @@ struct BibleTabView: View {
         .padding(.top, Spacing.sm)
         .padding(.bottom, Spacing.md)
         .accessibilityLabel("Search the Bible")
+    }
+
+    /// Android's B8 row: resume the last chapter read, in the translation it
+    /// was read in (a one-hop override, never a preference change).
+    private func continueCard(_ lastRead: LastRead) -> some View {
+        Button {
+            model.open(order: lastRead.order, chapter: lastRead.chapter)
+            readerRequest = BibleReaderRequest(
+                order: lastRead.order,
+                chapter: lastRead.chapter,
+                verse: nil,
+                translation: lastRead.translation == app.settings.translation ? nil : lastRead.translation
+            )
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 18))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Continue reading")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text(lastRead.label)
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textMuted)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, Spacing.sm)
+        .accessibilityLabel("Continue reading \(lastRead.label)")
     }
 
     /// The way in to today's guided walk, sitting above the books exactly as it
