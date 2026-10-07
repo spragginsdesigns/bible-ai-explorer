@@ -19,30 +19,33 @@ struct PickedPhoto: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(importedContentType: .image) { data in
-            let isPNG = data.starts(with: [0x89, 0x50, 0x4E, 0x47])
-            // A PNG inside the 2048px budget ships untouched; an oversized one
-            // falls through to the JPEG downscale like Android's.
-            if isPNG, let image = UIImage(data: data),
-               ImageDownscale.resized(image) == nil {
-                return PickedPhoto(attachment: LocalAttachment(
-                    filename: Self.filename(extension: "png"),
-                    mediaType: "image/png",
-                    data: data
-                ))
-            }
-            guard let image = UIImage(data: data),
-                  let jpeg = ImageDownscale.jpegForUpload(image)
-            else {
+            guard let upload = uploadReady(data) else {
                 throw AttachmentError(
                     message: AttachmentValidator.unsupported("that photo")
                 )
             }
             return PickedPhoto(attachment: LocalAttachment(
-                filename: Self.filename(extension: "jpg"),
-                mediaType: "image/jpeg",
-                data: jpeg
+                filename: Self.filename(extension: upload.fileExtension),
+                mediaType: upload.mediaType,
+                data: upload.data
             ))
         }
+    }
+
+    /// Any image's bytes as what the server accepts: a PNG inside the 2048px
+    /// budget ships untouched; everything else (HEIC, an oversized PNG) is
+    /// downscaled to JPEG like Android's. Shared with "Share into SureWord",
+    /// where Photos hands over HEIC just as the picker does. Nil when the
+    /// bytes are not an image UIKit can decode.
+    static func uploadReady(_ data: Data) -> (data: Data, mediaType: String, fileExtension: String)? {
+        let isPNG = data.starts(with: [0x89, 0x50, 0x4E, 0x47])
+        if isPNG, let image = UIImage(data: data), ImageDownscale.resized(image) == nil {
+            return (data, "image/png", "png")
+        }
+        guard let image = UIImage(data: data), let jpeg = ImageDownscale.jpegForUpload(image) else {
+            return nil
+        }
+        return (jpeg, "image/jpeg", "jpg")
     }
 
     private static func filename(extension ext: String) -> String {

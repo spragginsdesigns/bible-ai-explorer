@@ -3,6 +3,9 @@
 *.xcodeproj/
 SureWord/Info.plist
 SureWord-iOS/Info.plist
+SureWord-iOS/SureWord-iOS.entitlements
+SureWord-iOS-Share/Info.plist
+SureWord-iOS-Share/SureWord-iOS-Share.entitlements
 
 # Xcode build products & user state
 build/

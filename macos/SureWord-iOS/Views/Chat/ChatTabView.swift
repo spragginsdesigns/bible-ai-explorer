@@ -41,9 +41,20 @@ struct ChatTabView: View {
 
         VStack(spacing: 0) {
             content
-            ChatInputBar(chat: chat)
-                .padding(.horizontal, Spacing.md)
-                .padding(.vertical, Spacing.sm)
+            VStack(spacing: Spacing.sm) {
+                // "Share into SureWord": the two one-tap actions, until the
+                // shared chat has its first message.
+                if let notices = chat.shareNotices {
+                    ShareActionsRow(chat: chat, notices: notices)
+                }
+                ChatInputBar(chat: chat)
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+        }
+        // A share opens over whatever was up; the picker would hide it.
+        .onChange(of: chat.shareNotices != nil) { _, opened in
+            if opened { isModelPickerPresented = false }
         }
         .background(MeshBackground())
         .navigationTitle(chat.activeConversation?.title ?? "SureWord")

@@ -60,6 +60,10 @@ final class ChatViewModel {
     /// "Uploading" on screen for half a minute.
     private(set) var transcribingVoiceMessage = false
     private(set) var attachmentError: String?
+    /// Set while a chat opened from "Share into SureWord" has not been sent
+    /// yet: the notices about anything left out, shown with the two share
+    /// actions above the composer. Nil hides the row.
+    var shareNotices: [String]?
     /// Raised by `/history` and by ⌘K; the shell presents the picker.
     var isHistoryPresented = false
     /// A history action that failed after the row had already moved (a delete
@@ -246,6 +250,7 @@ final class ChatViewModel {
     func newConversation() {
         historyLoadVersion += 1
         discardStagedAttachments()
+        shareNotices = nil
         stop()
         historyLoading = false
         historyError = nil
@@ -258,6 +263,7 @@ final class ChatViewModel {
         guard id != activeConversationID else { return }
         historyLoadVersion += 1
         discardStagedAttachments()
+        shareNotices = nil
         let version = historyLoadVersion
 
         stop()
@@ -536,6 +542,28 @@ final class ChatViewModel {
         await addAttachments(files)
     }
 
+    // MARK: Share into SureWord
+
+    /// Open a share as a new chat: text in the composer, files uploaded through
+    /// the same path as the picker (audio is transcribed on completion), and
+    /// the share actions shown. Port of Android's `startSharedChat`. The caller
+    /// waits for any upload already running, which would make this one bail.
+    func startSharedChat(_ draft: SharedChatDraft) async {
+        newConversation()
+        input = draft.text
+        shareNotices = draft.notices
+        guard !draft.files.isEmpty else { return }
+        await addAttachments(draft.files)
+    }
+
+    /// "Check against Scripture" / "Help me reply": send the command with
+    /// whatever is in the composer, plus the attached files.
+    func sendShareAction(_ action: ShareAction) async {
+        input = action.message(composerText: input)
+        shareNotices = nil
+        await send()
+    }
+
     func removeAttachment(_ id: String) async {
         do {
             try await uploader.delete(id)
@@ -594,6 +622,8 @@ final class ChatViewModel {
 
         sendError = nil
         input = ""
+        // Once the shared chat has a message, the share actions are done.
+        shareNotices = nil
         let origin = attachment?.origin
         attachment = nil
 

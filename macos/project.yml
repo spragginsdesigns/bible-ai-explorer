@@ -118,11 +118,26 @@ targets:
     sources:
       - path: Shared
       - path: SureWord-iOS
+      # The share-extension inbox, compiled into both sides of the hand-off.
+      - path: ShareInbox
     dependencies:
       - package: Clerk
         product: ClerkKit
       - package: Clerk
         product: ClerkKitUI
+      # "Share into SureWord" (PRD D8), embedded in PlugIns/.
+      - target: SureWord-iOS-Share
+    # The App Group is the share extension's only channel to the app: it
+    # writes the share into the group container and the app reads it back
+    # (`ShareInbox/PendingShareStore.swift`). The same group is declared by
+    # the extension. Simulator builds honour it as is; device and App Store
+    # signing need `group.com.spragginsdesigns.sureword` registered in the
+    # developer portal and on both App IDs' provisioning profiles.
+    entitlements:
+      path: SureWord-iOS/SureWord-iOS.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.spragginsdesigns.sureword
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword
@@ -162,6 +177,55 @@ targets:
           - CormorantGaramond-MediumItalic.ttf
         # No launch storyboard — SwiftUI builds the launch screen from this.
         UILaunchScreen: {}
+
+  # "Share into SureWord" (PRD D8): an iOS Share Extension for text, links,
+  # photos, PDFs and audio (voice messages from Voice Memos, Messages,
+  # Discord, Files). It only copies what was shared into the App Group inbox
+  # and hands off; no Clerk, no network, no validation - the app decides what
+  # can be attached, with the same rules as the + button. See
+  # `SureWord-iOS-Share/ShareViewController.swift` for the hand-off.
+  SureWord-iOS-Share:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SureWord-iOS-Share
+      - path: ShareInbox
+    settings:
+      base:
+        # Must stay a child of the app's id; not yet registered as an App ID,
+        # which only blocks device/App Store signing, not the simulator.
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.share
+        PRODUCT_NAME: SureWordShare
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    entitlements:
+      path: SureWord-iOS-Share/SureWord-iOS-Share.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.spragginsdesigns.sureword
+    info:
+      path: SureWord-iOS-Share/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # The dictionary form, not a predicate: a Discord or WhatsApp
+            # voice note is often an .ogg/.opus with only a dynamic type, which
+            # no UTI predicate on public.audio would match, but which is still
+            # a file. Counts mirror the 5-files-per-message limit; anything the
+            # server would refuse is explained in the chat, as on Android.
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 5
+              NSExtensionActivationSupportsFileWithMaxCount: 5
+              NSExtensionActivationSupportsAttachmentsWithMaxCount: 5
 
   SureWord-iOSTests:
     type: bundle.unit-test

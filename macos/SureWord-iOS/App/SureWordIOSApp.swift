@@ -46,7 +46,16 @@ struct SureWordIOSApp: App {
                 .onOpenURL { url in
                     Task { @MainActor in
                         let handledByClerk = (try? await Clerk.shared.handle(url)) ?? false
-                        guard !handledByClerk, let link = DeepLink.parse(url) else { return }
+                        guard !handledByClerk else { return }
+                        // The share extension saved something to the inbox.
+                        // The share itself is on disk, so a signed-out app
+                        // loses nothing by ignoring this; the shell looks
+                        // again when it appears.
+                        if url.scheme == PendingShare.openURL.scheme, url.host == PendingShare.openURL.host {
+                            NotificationCenter.default.post(name: .pendingShareArrived, object: nil)
+                            return
+                        }
+                        guard let link = DeepLink.parse(url) else { return }
                         PendingDeepLinks.shared.post(link)
                     }
                 }

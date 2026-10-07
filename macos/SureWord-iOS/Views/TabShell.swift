@@ -17,6 +17,8 @@ struct TabShell: View {
     /// as the pushed `/cross` route); here it is a sheet over whichever tab is
     /// frontmost, so the morning notification can open it from anywhere.
     @State private var isCrossPresented = false
+    /// A share is being read off disk; guards against a second read racing it.
+    @State private var isOpeningShare = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -75,6 +77,19 @@ struct TabShell: View {
             app.bible.reading.setForeground(phase == .active)
             guard phase == .active else { return }
             app.preferences.refresh()
+            openPendingShare()
+        }
+        // "Share into SureWord". This shell only exists signed in, so a share
+        // made signed out waits in the inbox and opens on first appearance,
+        // right after sign-in - the journey Android proved signed out.
+        .task { openPendingShare() }
+        .onReceive(NotificationCenter.default.publisher(for: .pendingShareArrived)) { _ in
+            openPendingShare()
+        }
+        // An upload already running would make the share's upload bail out,
+        // so a share that arrived mid-upload opens once it finishes.
+        .onChange(of: app.chat.uploadingAttachments) { _, uploading in
+            if !uploading { openPendingShare() }
         }
         // Settings is pushed inside this shell rather than presented over it,
         // so one alert here covers a failed PATCH from Settings and from the
@@ -136,6 +151,27 @@ struct TabShell: View {
                 .analyticsScreen(AnalyticsScreen.cross)
             }
             .presentationDragIndicator(.visible)
+        }
+    }
+
+    /// Open the waiting share, if any, as a new chat on the Chat tab. The read
+    /// (up to five files, photos re-encoded) runs off the main actor; taking it
+    /// empties the inbox, so it is applied once.
+    private func openPendingShare() {
+        guard !isOpeningShare, !app.chat.uploadingAttachments,
+              let store = PendingShareStore.appGroup(), store.hasPending
+        else { return }
+        isOpeningShare = true
+        Task {
+            let draft = await Task.detached(priority: .userInitiated) {
+                ShareInboxIntake.takeDraft(from: store)
+            }.value
+            isOpeningShare = false
+            guard let draft else { return }
+            isCrossPresented = false
+            app.chat.isHistoryPresented = false
+            selectedTab = .chat
+            await app.chat.startSharedChat(draft)
         }
     }
 
