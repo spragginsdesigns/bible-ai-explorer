@@ -79,6 +79,18 @@ test("the whole message has to fit the free allowance; Pro is never capped", () 
 	assert.equal(audioQuotaDecision({ plan: "free", usedSeconds: 0, newSeconds: 5, capSeconds: 0 }).ok, false);
 });
 
+test("the iOS copy never mentions SureWord Pro (App Review 3.1.1)", () => {
+	const cap = 600;
+	const over = audioQuotaDecision({ plan: "free", usedSeconds: 332.5, newSeconds: 375.3, capSeconds: cap, mentionPro: false });
+	assert.equal(over.ok, false);
+	assert.match(over.message, /refresh over the next 24 hours\.$/);
+	assert.doesNotMatch(over.message, /Pro/);
+	const off = audioQuotaDecision({ plan: "free", usedSeconds: 0, newSeconds: 5, capSeconds: 0, mentionPro: false });
+	assert.doesNotMatch(off.message, /Pro/);
+	const complete = read("src/app/api/chat/attachments/[id]/complete/route.ts");
+	assert.match(complete, /platformFromHeaders\(request\.headers\) !== "ios"/);
+});
+
 test("durations print as m:ss", () => {
 	assert.equal(formatAudioDuration(332.5), "5:33");
 	assert.equal(formatAudioDuration(59.4), "0:59");

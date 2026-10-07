@@ -28,16 +28,27 @@ export type AudioQuotaDecision = { ok: true } | { ok: false; message: string };
 /**
  * Whether one more voice message of `newSeconds` fits. Pro is never capped. The
  * whole file has to fit: transcribing half a message would answer half a claim.
+ *
+ * `mentionPro: false` drops every reference to SureWord Pro. The iOS app sells
+ * nothing, and App Review (3.1.1/3.1.3) rejects copy that points at a tier the
+ * app cannot sell, so the route passes it for `x-sureword-client: ios`.
  */
 export function audioQuotaDecision(input: {
 	plan: UserPlan;
 	usedSeconds: number;
 	newSeconds: number;
 	capSeconds: number;
+	mentionPro?: boolean;
 }): AudioQuotaDecision {
 	if (input.plan === "pro") return { ok: true };
+	const mentionPro = input.mentionPro ?? true;
 	if (input.capSeconds <= 0) {
-		return { ok: false, message: "Voice messages are part of SureWord Pro right now." };
+		return {
+			ok: false,
+			message: mentionPro
+				? "Voice messages are part of SureWord Pro right now."
+				: "Voice messages aren't available on this account right now.",
+		};
 	}
 	if (input.usedSeconds + input.newSeconds <= input.capSeconds) return { ok: true };
 	const capMinutes = Math.round(input.capSeconds / 60);
@@ -47,7 +58,8 @@ export function audioQuotaDecision(input: {
 		ok: false,
 		message:
 			`This voice message is ${formatAudioDuration(input.newSeconds)} and you have ${left} left of ` +
-			`today's ${capMinutes} free minutes. They refresh over the next 24 hours, and SureWord Pro has no limit.`,
+			`today's ${capMinutes} free minutes. They refresh over the next 24 hours` +
+			(mentionPro ? ", and SureWord Pro has no limit." : "."),
 	};
 }
 

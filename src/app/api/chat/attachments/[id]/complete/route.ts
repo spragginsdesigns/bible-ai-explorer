@@ -11,6 +11,7 @@ import {
 } from "@/lib/chat-attachments.server";
 import { audioQuotaDecision, freeDailyAudioSeconds } from "@/lib/audio-transcription-rules";
 import { AudioTranscriptionUnavailableError, transcribeAudio } from "@/lib/audio-transcription";
+import { platformFromHeaders } from "@/lib/analytics/events";
 import { getUserPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
@@ -51,6 +52,7 @@ async function transcribeVoiceMessage(
   userId: string,
   bytes: Uint8Array,
   mediaType: string,
+  mentionPro: boolean,
 ): Promise<{ transcript: string; durationSeconds: number }> {
   const durationSeconds = await readAudioDurationSeconds(bytes, mediaType);
   const [plan, usedSeconds] = await Promise.all([getUserPlan(userId), audioSecondsUsedToday(userId)]);
@@ -59,6 +61,7 @@ async function transcribeVoiceMessage(
     usedSeconds,
     newSeconds: durationSeconds,
     capSeconds: freeDailyAudioSeconds(process.env),
+    mentionPro,
   });
   if (!decision.ok) throw new AudioNotAllowedError(decision.message, 429, "audio_quota");
   try {
@@ -73,7 +76,7 @@ async function transcribeVoiceMessage(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -91,7 +94,7 @@ export async function POST(
     try {
       const { etag, bytes } = await verifyUploadedAttachment(attachment);
       const audio = isAudioMediaType(attachment.mediaType)
-        ? await transcribeVoiceMessage(userId, bytes, attachment.mediaType)
+        ? await transcribeVoiceMessage(userId, bytes, attachment.mediaType, platformFromHeaders(request.headers) !== "ios")
         : null;
       const ready = await prisma.chatAttachment.update({
         where: { id: attachment.id },
