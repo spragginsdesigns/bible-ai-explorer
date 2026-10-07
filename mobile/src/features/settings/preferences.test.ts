@@ -7,12 +7,14 @@ import {
 	HIGHLIGHT_LABEL_PRESETS,
 	MAX_ABOUT_ME_LENGTH,
 	MAX_HIGHLIGHT_MEANING_LENGTH,
+	MAX_TESTIMONY_LENGTH,
 	cacheDiscardFor,
 	highlightLabelFor,
 	mergeHighlightLabelEdits,
 	mergeHighlightMeaningEdits,
 	normalizeHighlightLabels,
 	normalizeHighlightMeanings,
+	normalizePersonalText,
 	overridesToPush,
 	parsePreferencesDocument,
 	settingsFromDocument,
@@ -31,6 +33,7 @@ const FULL_DOCUMENT = {
 	highlightLabels: { yellow: "Promises", blue: "Prayer" },
 	highlightMeanings: { blue: "Something God said He will do" },
 	aboutMe: "Saved in 2019, studying Romans.",
+	testimony: "Raised in church, but the Lord saved me at 30.",
 	chat: {
 		modelId: "openai/gpt-5.6-luna",
 		effort: "high",
@@ -52,6 +55,7 @@ describe("parsePreferencesDocument", () => {
 			highlightLabels: { yellow: "Promises", blue: "Prayer" },
 			highlightMeanings: { blue: "Something God said He will do" },
 			aboutMe: "Saved in 2019, studying Romans.",
+			testimony: "Raised in church, but the Lord saved me at 30.",
 			chat: {
 				modelId: "openai/gpt-5.6-luna",
 				effort: "high",
@@ -73,6 +77,7 @@ describe("parsePreferencesDocument", () => {
 			highlightLabels: null,
 			highlightMeanings: null,
 			aboutMe: null,
+			testimony: null,
 			chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 		});
 	});
@@ -119,6 +124,31 @@ describe("parsePreferencesDocument", () => {
 		expect(parsePreferencesDocument({ aboutMe: long })?.aboutMe).toHaveLength(MAX_ABOUT_ME_LENGTH);
 	});
 
+	it("reads an empty testimony as loaded and empty, and a missing one as an older deploy", () => {
+		expect(parsePreferencesDocument({ testimony: "" })?.testimony).toBe("");
+		expect(parsePreferencesDocument({ testimony: "  Saved at 30.  " })?.testimony).toBe(
+			"Saved at 30."
+		);
+		// A deploy that predates the column sends About me but no testimony.
+		const older = parsePreferencesDocument({ aboutMe: "Saved in 2019." });
+		expect(older?.aboutMe).toBe("Saved in 2019.");
+		expect(older?.testimony).toBeNull();
+		expect(parsePreferencesDocument({ testimony: null })?.testimony).toBeNull();
+		expect(parsePreferencesDocument({ testimony: 7 })?.testimony).toBeNull();
+	});
+
+	it("caps a testimony at its own limit, not About me's", () => {
+		expect(MAX_TESTIMONY_LENGTH).toBe(2000);
+		const story = "x".repeat(MAX_ABOUT_ME_LENGTH + 40);
+		expect(parsePreferencesDocument({ testimony: story })?.testimony).toHaveLength(
+			MAX_ABOUT_ME_LENGTH + 40
+		);
+		const long = "x".repeat(MAX_TESTIMONY_LENGTH + 40);
+		expect(parsePreferencesDocument({ testimony: long })?.testimony).toHaveLength(
+			MAX_TESTIMONY_LENGTH
+		);
+	});
+
 	it("rejects anything that is not an object", () => {
 		expect(parsePreferencesDocument(null)).toBeNull();
 		expect(parsePreferencesDocument("<html>error</html>")).toBeNull();
@@ -136,6 +166,7 @@ describe("settingsFromDocument", () => {
 			highlightLabels: { yellow: "Promises", blue: "Prayer" },
 			highlightMeanings: { blue: "Something God said He will do" },
 			aboutMe: "Saved in 2019, studying Romans.",
+			testimony: "Raised in church, but the Lord saved me at 30.",
 			chatModelId: "openai/gpt-5.6-luna",
 			chatEffort: "high",
 			chatSpeed: "fast",
@@ -228,6 +259,15 @@ describe("highlight label contract", () => {
 	});
 });
 
+describe("normalizePersonalText", () => {
+	it("trims each field and caps it at that field's own limit", () => {
+		const long = "z".repeat(MAX_TESTIMONY_LENGTH + 5);
+		expect(normalizePersonalText("aboutMe", `  ${long}  `)).toHaveLength(MAX_ABOUT_ME_LENGTH);
+		expect(normalizePersonalText("testimony", `  ${long}  `)).toHaveLength(MAX_TESTIMONY_LENGTH);
+		expect(normalizePersonalText("testimony", "   ")).toBe("");
+	});
+});
+
 describe("shouldApplyResponse", () => {
 	it("applies a response when no edit happened while it was in flight", () => {
 		expect(shouldApplyResponse(4, 4)).toBe(true);
@@ -278,7 +318,7 @@ describe("overridesToPush", () => {
 		).toEqual({ listenRate: 1.5 });
 	});
 
-	it("never seeds the three text fields, which are only ever written from Settings", () => {
+	it("never seeds the text fields, which are only ever written from Settings", () => {
 		expect(
 			overridesToPush(
 				{
@@ -286,6 +326,7 @@ describe("overridesToPush", () => {
 					highlightLabels: { blue: "Promise" },
 					highlightMeanings: { blue: "Something God said He will do" },
 					aboutMe: "Saved in 2019.",
+					testimony: "The Lord saved me at 30.",
 				},
 				defaults
 			)

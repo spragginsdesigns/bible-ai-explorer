@@ -310,6 +310,11 @@ Also required in `.env.local`:
   `docs/FEATURES.md` → "Listen".
 - `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
   `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations").
+- `AUDIO_TRANSCRIPTION_FREE_DAILY_MINUTES` - optional; free minutes of voice
+  messages (audio attachments) transcribed per rolling 24 hours. Default 10;
+  `0` turns free transcription off without a deploy; Pro is never capped.
+  Transcription uses the house OpenAI key. See `docs/FEATURES.md` → "Voice
+  messages and sharing into SureWord".
 - `GOOGLE_PLACES_API_KEY` - Google Places API (New), server-side only, for
   Settings → My church (`src/lib/google-places.ts`). Key lives in GCP project
   `versemind-auth`, restricted to `places.googleapis.com`; set in all three

@@ -89,6 +89,9 @@ struct ChatAttachment: Sendable, Equatable, Identifiable {
     var size: Int = 0
     var previewURL: String
     var previewExpiresAt: String = ""
+    /// Voice messages only: what was said, and how long it ran.
+    var transcript: String? = nil
+    var durationSeconds: Double? = nil
 }
 
 /// How confident the vector search was, shown as a badge on the verses card.
@@ -266,7 +269,9 @@ extension ChatViewMessage {
                 id: index < attachmentIDs.count ? attachmentIDs[index] : "\(message.id)-file-\(index)",
                 filename: part.filename ?? "Attachment \(index + 1)",
                 mediaType: part.mediaType,
-                previewURL: part.url
+                previewURL: part.url,
+                transcript: part.transcript,
+                durationSeconds: part.durationSeconds
             )
         }
 

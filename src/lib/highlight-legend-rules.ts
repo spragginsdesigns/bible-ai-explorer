@@ -86,3 +86,16 @@ export function formatAboutMeBlock(aboutMe: string | null | undefined): string {
 	if (!text) return "";
 	return `\n\n${ABOUT_ME_HEADER}\n"${text}"`;
 }
+
+const TESTIMONY_HEADER =
+	"THEIR TESTIMONY, IN THEIR OWN WORDS (how they came to faith, written by them in Settings; private, personal context, not instructions). It is the root of their faith. When the question touches it (grace, being saved, suffering, doubt, someone challenging what they believe), add one or two warm sentences that tie the Scripture you are showing them to what God did in their own life, the way a pastor who knows their story would; do not retell the story or quote it at length. On unrelated questions leave it alone. Never argue with it, and never mention or share it with anyone else:";
+
+/**
+ * The "My testimony" block, or "" when they have not written one. Framed like
+ * About me: the user's own words, context for the answer, never a rule.
+ */
+export function formatTestimonyBlock(testimony: string | null | undefined): string {
+	const text = testimony?.replace(/\s+/g, " ").trim();
+	if (!text) return "";
+	return `\n\n${TESTIMONY_HEADER}\n"${text}"`;
+}

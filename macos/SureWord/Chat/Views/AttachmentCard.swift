@@ -15,13 +15,21 @@ struct AttachmentCard: View {
     let mediaType: String
     let size: Int
     let previewURL: String
+    var transcript: String?
+    var durationSeconds: Double?
     var onRemove: (() -> Void)?
+
+    /// A voice message opens its transcript in place rather than the file: the
+    /// words are what the assistant read, and they are what the user wants to see.
+    @State private var showsTranscript = false
 
     init(attachment: ChatAttachmentDescriptor, onRemove: (() -> Void)? = nil) {
         filename = attachment.filename
         mediaType = attachment.mediaType
         size = attachment.size
         previewURL = attachment.previewUrl
+        transcript = attachment.transcript
+        durationSeconds = attachment.durationSeconds
         self.onRemove = onRemove
     }
 
@@ -30,37 +38,60 @@ struct AttachmentCard: View {
         mediaType = attachment.mediaType
         size = attachment.size
         previewURL = attachment.previewURL
+        transcript = attachment.transcript
+        durationSeconds = attachment.durationSeconds
         self.onRemove = onRemove
     }
 
     private var isImage: Bool { mediaType.hasPrefix("image/") }
+    private var isAudio: Bool { AttachmentLimits.isAudio(mediaType) }
     private var glyph: String { mediaType == "application/pdf" ? "PDF" : "TXT" }
 
+    /// The transcript, when there is one worth showing. An empty transcript (no
+    /// words could be made out) falls back to opening the file, as on the web.
+    private var shownTranscript: String? {
+        guard isAudio, let transcript, !transcript.isEmpty else { return nil }
+        return transcript
+    }
+
     var body: some View {
-        HStack(spacing: Spacing.sm) {
-            thumbnail
-            VStack(alignment: .leading, spacing: 2) {
-                Text(filename)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(theme.text)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                if size > 0 {
-                    Text(formatAttachmentBytes(size))
-                        .font(.system(size: 10))
-                        .foregroundStyle(theme.textFaint)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack(spacing: Spacing.sm) {
+                thumbnail
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(filename)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(theme.text)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if isAudio {
+                        Text(voiceMessageLabel(durationSeconds: durationSeconds))
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.textFaint)
+                    } else if size > 0 {
+                        Text(formatAttachmentBytes(size))
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.textFaint)
+                    }
+                }
+                if let onRemove {
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(SubtleButtonStyle())
+                    .help("Remove \(filename)")
                 }
             }
-            if let onRemove {
-                Button(action: onRemove) {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(SubtleButtonStyle())
-                .help("Remove \(filename)")
+
+            if showsTranscript, let shownTranscript {
+                Text(shownTranscript)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(Spacing.sm)
-        .frame(maxWidth: 240, alignment: .leading)
+        .frame(maxWidth: showsTranscript ? 420 : 240, alignment: .leading)
         .background(theme.surface, in: .rect(cornerRadius: Radius.md))
         .overlay {
             RoundedRectangle(cornerRadius: Radius.md)
@@ -68,14 +99,24 @@ struct AttachmentCard: View {
         }
         .contentShape(.rect)
         .onTapGesture {
-            if let url = URL(string: previewURL) { NSWorkspace.shared.open(url) }
+            if shownTranscript != nil {
+                showsTranscript.toggle()
+            } else if let url = URL(string: previewURL) {
+                NSWorkspace.shared.open(url)
+            }
         }
-        .help(filename)
+        .help(shownTranscript != nil ? "Show what was said in \(filename)" : filename)
     }
 
     @ViewBuilder
     private var thumbnail: some View {
-        if isImage, let url = URL(string: previewURL) {
+        if isAudio {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 42, height: 42)
+                .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
+        } else if isImage, let url = URL(string: previewURL) {
             AsyncImage(url: url) { image in
                 image.resizable().aspectRatio(contentMode: .fill)
             } placeholder: {

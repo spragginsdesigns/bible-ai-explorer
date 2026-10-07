@@ -19,11 +19,13 @@ import { getAuthUser, syncProfileFromClerk } from "@/lib/auth";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
+	isAudioMediaType,
 	isDailyCrossMessageOrigin,
 	sanitizeDailyCrossMessageOrigin,
 	type DailyCrossMessageOrigin,
 } from "@/lib/chat-attachment-types";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
+import { audioTranscriptText } from "@/lib/audio-transcription-rules";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
@@ -70,9 +72,14 @@ import {
 	readStoredAboutMe,
 	readStoredHighlightLabels,
 	readStoredHighlightMeanings,
+	readStoredTestimony,
 } from "@/lib/preferences-contract";
 import { loadHighlightLegend } from "@/lib/highlight-legend";
-import { formatAboutMeBlock, formatHighlightLegendBlock } from "@/lib/highlight-legend-rules";
+import {
+	formatAboutMeBlock,
+	formatHighlightLegendBlock,
+	formatTestimonyBlock,
+} from "@/lib/highlight-legend-rules";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
 import {
@@ -263,17 +270,32 @@ async function hydrateTrustedAttachments(
 	}
 
 	const hydrated = await Promise.all(messages.map(async (message) => {
+		const selected = selectedByMessage.get(message.id) ?? [];
+		// A voice message reaches the model as its stored transcript, never as
+		// audio: every provider can read text, and it was paid for once already.
+		const transcripts = selected
+			.filter((record) => isAudioMediaType(record.mediaType))
+			.map((record) => ({
+				type: "text" as const,
+				text: audioTranscriptText({
+					filename: record.filename,
+					durationSeconds: record.durationSeconds,
+					transcript: record.transcript,
+				}),
+			}));
 		const trustedFiles = await Promise.all(
-			(selectedByMessage.get(message.id) ?? []).map(async (record) => ({
-				type: "file" as const,
-				mediaType: record.mediaType,
-				filename: record.filename,
-				url: (await createAttachmentPreviewUrl(record.pathname)).previewUrl,
-			})),
+			selected
+				.filter((record) => !isAudioMediaType(record.mediaType))
+				.map(async (record) => ({
+					type: "file" as const,
+					mediaType: record.mediaType,
+					filename: record.filename,
+					url: (await createAttachmentPreviewUrl(record.pathname)).previewUrl,
+				})),
 		);
 		return {
 			...message,
-			parts: [...trustedFiles, ...message.parts.filter((part) => part.type !== "file")],
+			parts: [...trustedFiles, ...transcripts, ...message.parts.filter((part) => part.type !== "file")],
 		};
 	}));
 
@@ -582,6 +604,7 @@ async function handlePost(req: Request): Promise<Response> {
 				highlightLabels: true,
 				highlightMeanings: true,
 				aboutMe: true,
+				testimony: true,
 			},
 		});
 		// Read leniently, the way the preferences document does: a label written
@@ -589,6 +612,7 @@ async function handlePost(req: Request): Promise<Response> {
 		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
 		const highlightMeanings = readStoredHighlightMeanings(userPrefs?.highlightMeanings);
 		const aboutMe = readStoredAboutMe(userPrefs?.aboutMe);
+		const testimony = readStoredTestimony(userPrefs?.testimony);
 		// Started now, not when the prompt is built, so a first-time Clerk read
 		// runs alongside validation and persistence instead of in front of the
 		// first token. Once the name is stored this is a resolved promise.
@@ -638,12 +662,6 @@ async function handlePost(req: Request): Promise<Response> {
 		// path unchanged.
 		const dailyCrossOrigin = await validateDailyCrossOrigin(userId, lastMessage);
 		const hasAttachments = attachmentIds(lastMessage).length > 0;
-		// Older turns' files are re-hydrated into this request too, so the model
-		// has to be able to read attachments for the whole thread, not just the
-		// message that carried them.
-		const threadHasAttachments = validatedMessages.some(
-			(message) => attachmentIds(message).length > 0,
-		);
 		if (hasAttachments && !conversationId) {
 			return NextResponse.json(
 				chatErrorPayload("invalid_input", "Create a conversation before sending an attachment."),
@@ -805,6 +823,12 @@ async function handlePost(req: Request): Promise<Response> {
 
 					if (hasAttachments) writeStatus("Opening your attachments");
 					const messages = await hydrateTrustedAttachments(validatedMessages, userId);
+					// Older turns' files are re-hydrated into this request too, so the
+					// model has to be able to read files for the whole thread. Voice
+					// messages arrive as transcript text, so they never require it.
+					const threadHasFiles = messages.some((message) =>
+						message.parts.some((part) => part.type === "file"),
+					);
 
 					if (conversationId) {
 						conversationCreatedAt = await persistUserMessage({
@@ -845,7 +869,7 @@ async function handlePost(req: Request): Promise<Response> {
 						ignoreStoredEffort: explicitAutoEffort,
 						fallbackEffort: isOpeningQuestion ? "high" : "medium",
 						attachments: true,
-						requireAttachments: threadHasAttachments,
+						requireAttachments: threadHasFiles,
 						// Chat is the only surface with a picker, so it is the only caller
 						// that opts into speed/verbosity/mode and their stored defaults.
 						run: {
@@ -934,6 +958,7 @@ async function handlePost(req: Request): Promise<Response> {
 						formatUserNameLine(userName),
 						// Their own words come before what was inferred about them.
 						formatAboutMeBlock(aboutMe),
+						formatTestimonyBlock(testimony),
 						formatMemoryBlock(memories),
 						formatChurchBlock(church),
 						// The legend precedes the day block, which names recent highlights

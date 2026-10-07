@@ -67,6 +67,8 @@ struct SettingsView: View {
 
                 AboutMeSection(settings: app.settings, preferences: app.preferences)
 
+                TestimonySection(settings: app.settings, preferences: app.preferences)
+
                 WebSearchSection(preferences: app.preferences)
 
                 churchSection

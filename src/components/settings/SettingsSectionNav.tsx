@@ -13,6 +13,7 @@ const SECTIONS = [
 	{ id: "highlight-labels", label: "Highlight labels" },
 	{ id: "memory", label: "Memory" },
 	{ id: "about-me", label: "About me" },
+	{ id: "testimony", label: "My testimony" },
 	{ id: "web-search", label: "Web search" },
 	{ id: "notifications", label: "Notifications" },
 	{ id: "church", label: "My church" },

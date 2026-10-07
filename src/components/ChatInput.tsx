@@ -57,7 +57,7 @@ interface ChatInputProps {
 
 /** Everything the "Choose files" picker accepts (the uploader's allowlist). */
 const FILE_ACCEPT =
-	".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json";
+	".png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.md,.markdown,.csv,.json,.ogg,.oga,.opus,.mp3,.m4a,.wav,.webm,image/png,image/jpeg,image/webp,image/gif,application/pdf,text/plain,text/markdown,text/csv,application/json,audio/*";
 const IMAGE_ACCEPT = ".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif";
 
 const CLIPBOARD_EXTENSIONS: Record<string, string> = {

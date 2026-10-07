@@ -2,11 +2,12 @@ import "server-only";
 
 import { del, get, issueSignedToken, presignUrl } from "@vercel/blob";
 import type { ChatAttachment } from "@prisma/client";
+import { parseBuffer } from "music-metadata";
 import {
   type AttachmentMediaType,
   type ChatAttachmentDescriptor,
-  MAX_IMAGE_OR_PDF_BYTES,
-  MAX_TEXT_ATTACHMENT_BYTES,
+  MAX_AUDIO_SECONDS,
+  maxBytesFor,
 } from "@/lib/chat-attachment-types";
 
 const UPLOAD_URL_LIFETIME_MS = 15 * 60 * 1000;
@@ -71,7 +72,8 @@ export async function createAttachmentPreviewUrl(
 }
 
 export async function toAttachmentDescriptor(
-  attachment: Pick<ChatAttachment, "id" | "filename" | "mediaType" | "size" | "pathname">,
+  attachment: Pick<ChatAttachment, "id" | "filename" | "mediaType" | "size" | "pathname"> &
+    Partial<Pick<ChatAttachment, "transcript" | "durationSeconds">>,
 ): Promise<ChatAttachmentDescriptor> {
   const preview = await createAttachmentPreviewUrl(attachment.pathname);
   return {
@@ -80,6 +82,8 @@ export async function toAttachmentDescriptor(
     mediaType: attachment.mediaType as AttachmentMediaType,
     size: attachment.size,
     ...preview,
+    ...(attachment.transcript != null ? { transcript: attachment.transcript } : {}),
+    ...(attachment.durationSeconds != null ? { durationSeconds: attachment.durationSeconds } : {}),
   };
 }
 
@@ -149,6 +153,22 @@ function validateFileSignature(bytes: Uint8Array, mediaType: AttachmentMediaType
     case "application/pdf":
       if (!asciiIncludes(bytes.slice(0, 5), "%PDF-")) invalid();
       break;
+    case "audio/ogg":
+      if (!asciiIncludes(bytes.slice(0, 4), "OggS")) invalid();
+      break;
+    case "audio/mpeg":
+      // An ID3 tag, or straight into an MPEG audio frame (11 sync bits).
+      if (!(asciiIncludes(bytes.slice(0, 3), "ID3") || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0))) invalid();
+      break;
+    case "audio/mp4":
+      if (!asciiIncludes(bytes.slice(4, 8), "ftyp")) invalid();
+      break;
+    case "audio/wav":
+      if (!(asciiIncludes(bytes.slice(0, 4), "RIFF") && asciiIncludes(bytes.slice(8, 12), "WAVE"))) invalid();
+      break;
+    case "audio/webm":
+      if (!startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])) invalid();
+      break;
     case "text/plain":
     case "text/markdown":
     case "text/csv":
@@ -172,9 +192,38 @@ function validateFileSignature(bytes: Uint8Array, mediaType: AttachmentMediaType
   }
 }
 
+/**
+ * The length of an audio file in seconds, read from its container before any
+ * transcription is paid for. Refuses a file whose length cannot be read or that
+ * runs past MAX_AUDIO_SECONDS.
+ */
+export async function readAudioDurationSeconds(bytes: Uint8Array, mediaType: string): Promise<number> {
+  let duration: number | undefined;
+  try {
+    const metadata = await parseBuffer(bytes, { mimeType: mediaType, size: bytes.byteLength }, { duration: true });
+    duration = metadata.format.duration;
+  } catch {
+    duration = undefined;
+  }
+  if (!duration || !Number.isFinite(duration) || duration <= 0) {
+    throw new UploadedAttachmentValidationError("Couldn't read the length of this audio file.");
+  }
+  if (duration > MAX_AUDIO_SECONDS) {
+    throw new UploadedAttachmentValidationError(
+      `Voice messages can be up to ${MAX_AUDIO_SECONDS / 60} minutes long.`,
+    );
+  }
+  return Math.round(duration * 10) / 10;
+}
+
+/**
+ * Check an uploaded blob against what was requested (size, type, signature).
+ * Returns the bytes too, so an audio upload can be measured and transcribed
+ * without a second download.
+ */
 export async function verifyUploadedAttachment(
   attachment: Pick<ChatAttachment, "pathname" | "mediaType" | "size">,
-): Promise<{ etag: string }> {
+): Promise<{ etag: string; bytes: Uint8Array }> {
   const result = await get(attachment.pathname, { access: "private", useCache: false });
   if (!result || result.statusCode !== 200) throw new UploadedAttachmentValidationError("The uploaded file could not be found.");
   if (result.blob.size !== attachment.size) throw new UploadedAttachmentValidationError("The uploaded file size does not match the request.");
@@ -182,10 +231,8 @@ export async function verifyUploadedAttachment(
     throw new UploadedAttachmentValidationError("The uploaded file content type does not match the request.");
   }
 
-  const maximumBytes = attachment.mediaType.startsWith("text/") || attachment.mediaType === "application/json"
-    ? MAX_TEXT_ATTACHMENT_BYTES
-    : MAX_IMAGE_OR_PDF_BYTES;
-  const bytes = await readStream(result.stream, maximumBytes);
+  const bytes = await readStream(result.stream, maxBytesFor(attachment.mediaType as AttachmentMediaType));
   validateFileSignature(bytes, attachment.mediaType as AttachmentMediaType);
-  return { etag: result.blob.etag };
+  return { etag: result.blob.etag, bytes };
 }
+

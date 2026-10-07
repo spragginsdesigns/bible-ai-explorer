@@ -22,7 +22,7 @@ struct ChatInputBar: View {
 
     /// The allowlist as UTTypes, so the picker greys out what the server rejects.
     private var allowedTypes: [UTType] {
-        AttachmentLimits.mediaTypes.compactMap { UTType(mimeType: $0) }
+        AttachmentLimits.contentTypes
     }
 
     var body: some View {
@@ -52,7 +52,7 @@ struct ChatInputBar: View {
                 }
                 .buttonStyle(SubtleButtonStyle())
                 .disabled(chat.uploadingAttachments)
-                .help("Attach files (images, PDF, text)")
+                .help("Attach files (images, PDF, text, voice messages)")
 
                 TextField("Ask anything…", text: $chat.input, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -212,7 +212,7 @@ struct ChatInputBar: View {
             if chat.uploadingAttachments {
                 HStack(spacing: Spacing.sm) {
                     ProgressView().controlSize(.small)
-                    Text("Uploading…")
+                    Text(chat.transcribingVoiceMessage ? "Transcribing voice message…" : "Uploading…")
                         .font(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                 }

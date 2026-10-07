@@ -47,6 +47,10 @@ final class ChatViewModel {
     /// Files uploaded and waiting to ride on the next message.
     private(set) var fileAttachments: [ChatAttachmentDescriptor] = []
     private(set) var uploadingAttachments = false
+    /// The upload in flight includes a voice message, which the server
+    /// transcribes before answering; the composer says so rather than leaving
+    /// "Uploading" on screen for half a minute.
+    private(set) var transcribingVoiceMessage = false
     private(set) var attachmentError: String?
     /// Raised by `/history` and by ⌘K; the shell presents the picker.
     var isHistoryPresented = false
@@ -411,7 +415,11 @@ final class ChatViewModel {
         do {
             try AttachmentValidator.validateBatch(files, existing: fileAttachments)
             uploadingAttachments = true
-            defer { uploadingAttachments = false }
+            transcribingVoiceMessage = files.contains { AttachmentLimits.isAudio($0.mediaType) }
+            defer {
+                uploadingAttachments = false
+                transcribingVoiceMessage = false
+            }
 
             let completed = try await uploader.upload(files)
             if draftVersion != attachmentDraftVersion {
@@ -543,7 +551,13 @@ final class ChatViewModel {
         fileAttachments = []
 
         var parts: [UIMessagePart] = sending.map {
-            .file(FilePart(url: $0.previewUrl, mediaType: $0.mediaType, filename: $0.filename))
+            .file(FilePart(
+                url: $0.previewUrl,
+                mediaType: $0.mediaType,
+                filename: $0.filename,
+                transcript: $0.transcript,
+                durationSeconds: $0.durationSeconds
+            ))
         }
         if !composed.isEmpty { parts.append(.text(id: "0", text: composed)) }
 

@@ -106,7 +106,7 @@ export function AttachmentSourceSheet({
 				<SourceOption
 					icon="document-attach-outline"
 					label="Choose files"
-					detail="PDF, text, Markdown, CSV, or JSON"
+					detail="PDF, text, CSV, JSON, or a voice message"
 					action={onChooseFiles}
 					onSelect={choose}
 				/>

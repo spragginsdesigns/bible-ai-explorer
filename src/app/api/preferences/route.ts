@@ -54,6 +54,7 @@ const PREFERENCE_SELECT = {
 	highlightLabels: true,
 	highlightMeanings: true,
 	aboutMe: true,
+	testimony: true,
 	defaultModelId: true,
 	defaultEffort: true,
 	defaultSpeed: true,

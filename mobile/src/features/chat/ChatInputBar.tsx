@@ -49,6 +49,8 @@ interface ChatInputBarProps {
 	onClearAttachment?: () => void;
 	fileAttachments?: ChatAttachmentDescriptor[];
 	uploadingAttachments?: boolean;
+	/** Said above the composer while an upload runs; a voice message takes a while. */
+	uploadingLabel?: string;
 	attachmentError?: string | null;
 	onTakePhoto?: () => void;
 	onChooseImages?: () => void;
@@ -78,6 +80,7 @@ export function ChatInputBar({
 	onClearAttachment,
 	fileAttachments = [],
 	uploadingAttachments = false,
+	uploadingLabel,
 	attachmentError = null,
 	onTakePhoto,
 	onChooseImages,
@@ -215,6 +218,12 @@ export function ChatInputBar({
 					/>
 				</View>
 			)}
+			{uploadingAttachments && uploadingLabel ? (
+				<View style={styles.uploading} accessibilityLiveRegion="polite">
+					<ActivityIndicator size="small" color={colors.accentDim} />
+					<Text style={styles.uploadingLabel}>{uploadingLabel}</Text>
+				</View>
+			) : null}
 			{attachmentError && (
 				<ErrorCard message={attachmentError} />
 			)}
@@ -345,6 +354,13 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: 2,
 		},
 		files: { marginBottom: spacing.sm },
+		uploading: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginBottom: spacing.sm,
+		},
+		uploadingLabel: { ...typography.support, color: c.textMuted, flexShrink: 1 },
 		palette: {
 			position: "absolute",
 			bottom: "100%",

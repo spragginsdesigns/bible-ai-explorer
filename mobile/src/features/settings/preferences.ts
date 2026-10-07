@@ -23,6 +23,26 @@ export const MAX_HIGHLIGHT_LABEL_LENGTH = 24;
 /** A meaning is a sentence the assistant reads, not a chip, so it has more room. */
 export const MAX_HIGHLIGHT_MEANING_LENGTH = 120;
 export const MAX_ABOUT_ME_LENGTH = 1000;
+/** Longer than About me because a story needs room. Mirrors the server cap. */
+export const MAX_TESTIMONY_LENGTH = 2000;
+
+/**
+ * The free-text fields the user writes about themselves. Each is one whole
+ * string the assistant reads, saved from its own Settings section, so they share
+ * one parse, one save path and one section component.
+ */
+export type PersonalTextField = "aboutMe" | "testimony";
+
+export const PERSONAL_TEXT_MAX_LENGTH: Readonly<Record<PersonalTextField, number>> = {
+	aboutMe: MAX_ABOUT_ME_LENGTH,
+	testimony: MAX_TESTIMONY_LENGTH,
+};
+
+/** Trim and cap one personal text field, the same way the server does. */
+export function normalizePersonalText(field: PersonalTextField, text: string): string {
+	return text.trim().slice(0, PERSONAL_TEXT_MAX_LENGTH[field]);
+}
+
 export const EMPTY_HIGHLIGHT_LABELS: HighlightLabels = Object.freeze({});
 export const EMPTY_HIGHLIGHT_MEANINGS: HighlightMeanings = Object.freeze({});
 
@@ -155,6 +175,8 @@ export interface PreferencesDocument {
 	highlightMeanings: HighlightMeanings | null;
 	/** The user's own description of themselves. Null like the labels above. */
 	aboutMe: string | null;
+	/** How the user came to faith. Private to the assistant. Null like About me. */
+	testimony: string | null;
 	chat: PreferencesChat;
 }
 
@@ -169,6 +191,8 @@ export interface PreferencesPatch {
 	highlightMeanings?: HighlightMeanings;
 	/** "" clears the column, which is how the server reads an emptied box. */
 	aboutMe?: string;
+	/** Same as About me: "" clears it. */
+	testimony?: string;
 	chat?: Partial<PreferencesChat>;
 }
 
@@ -180,6 +204,7 @@ export interface SyncedSettingsFields {
 	highlightLabels: HighlightLabels | null;
 	highlightMeanings: HighlightMeanings | null;
 	aboutMe: string | null;
+	testimony: string | null;
 	chatModelId: string | null;
 	chatEffort: string | null;
 	chatSpeed: string | null;
@@ -199,6 +224,7 @@ export const DEFAULT_SYNCED_SETTINGS: SyncedSettingsFields = {
 	highlightLabels: null,
 	highlightMeanings: null,
 	aboutMe: null,
+	testimony: null,
 	chatModelId: null,
 	chatEffort: null,
 	chatSpeed: null,
@@ -229,8 +255,8 @@ export function overridesToPush(
 		local[field] !== DEFAULT_SYNCED_SETTINGS[field] &&
 		server[field] === DEFAULT_SYNCED_SETTINGS[field];
 
-	// The three text fields (highlight labels, their meanings, About me) are
-	// absent on purpose. Nothing can choose them offline: they are only ever
+	// The text fields (highlight labels, their meanings, About me, testimony)
+	// are absent on purpose. Nothing can choose them offline: they are only ever
 	// written through their own Settings sections, which save against the
 	// account document, so a seed could only ever push back what it read.
 	const patch: PreferencesPatch = {};
@@ -269,6 +295,18 @@ function asNullableString(value: unknown): string | null {
 }
 
 /**
+ * "" is a loaded answer, not a missing one: the server always sends the key and
+ * sends "" for an account that has written nothing. Only an absent or
+ * non-string key means this deploy predates the column.
+ */
+function readPersonalText(doc: Record<string, unknown>, field: PersonalTextField): string | null {
+	const value = doc[field];
+	return Object.prototype.hasOwnProperty.call(doc, field) && typeof value === "string"
+		? normalizePersonalText(field, value)
+		: null;
+}
+
+/**
  * Read a server document defensively. A field the server omits or sends in a
  * shape this build does not understand falls back to the documented default
  * rather than poisoning the local cache: a preferences response is applied
@@ -298,13 +336,8 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 			asRecord(doc.highlightMeanings)
 				? normalizeHighlightMeanings(doc.highlightMeanings)
 				: null,
-		// "" is a loaded answer, not a missing one: the server always sends the
-		// key and sends "" for an account that has written nothing. Only an
-		// absent or non-string key means this deploy predates the column.
-		aboutMe:
-			Object.prototype.hasOwnProperty.call(doc, "aboutMe") && typeof doc.aboutMe === "string"
-				? doc.aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH)
-				: null,
+		aboutMe: readPersonalText(doc, "aboutMe"),
+		testimony: readPersonalText(doc, "testimony"),
 		chat: {
 			modelId: asNullableString(chat.modelId),
 			effort: asNullableString(chat.effort),
@@ -324,6 +357,7 @@ export function settingsFromDocument(doc: PreferencesDocument): SyncedSettingsFi
 		highlightLabels: doc.highlightLabels,
 		highlightMeanings: doc.highlightMeanings,
 		aboutMe: doc.aboutMe,
+		testimony: doc.testimony,
 		chatModelId: doc.chat.modelId,
 		chatEffort: doc.chat.effort,
 		chatSpeed: doc.chat.speed,

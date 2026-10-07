@@ -95,6 +95,57 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
 }
 
+/**
+ * Client-only message metadata: a voice message's transcript and length, keyed
+ * by attachment id. A UIMessage file part has nowhere to carry them, and the
+ * server already holds both on the attachment row, so this key is stripped
+ * from every outgoing request (withoutClientOnlyMetadata) and rebuilt from
+ * `attachments` on history restore.
+ */
+export const ATTACHMENT_DETAILS_KEY = "attachmentDetails";
+
+export interface AttachmentDetails {
+	transcript?: string;
+	durationSeconds?: number;
+}
+
+/** The details worth keeping for each attachment that has any, by id. */
+export function attachmentDetailsById(
+	attachments: readonly Partial<ChatAttachmentDescriptor>[],
+): Record<string, AttachmentDetails> {
+	const details: Record<string, AttachmentDetails> = {};
+	for (const attachment of attachments) {
+		if (typeof attachment.id !== "string") continue;
+		const transcript = typeof attachment.transcript === "string" ? attachment.transcript : undefined;
+		const durationSeconds =
+			typeof attachment.durationSeconds === "number" && Number.isFinite(attachment.durationSeconds)
+				? attachment.durationSeconds
+				: undefined;
+		if (transcript === undefined && durationSeconds === undefined) continue;
+		details[attachment.id] = {
+			...(transcript !== undefined ? { transcript } : {}),
+			...(durationSeconds !== undefined ? { durationSeconds } : {}),
+		};
+	}
+	return details;
+}
+
+function readAttachmentDetails(value: unknown): Record<string, AttachmentDetails> {
+	if (!isRecord(value)) return {};
+	return attachmentDetailsById(
+		Object.entries(value).flatMap(([id, detail]) => (isRecord(detail) ? [{ ...detail, id }] : [])),
+	);
+}
+
+/** The messages as the server should see them: no client-only metadata. */
+export function withoutClientOnlyMetadata<T extends UIMessage>(messages: T[]): T[] {
+	return messages.map((message) => {
+		if (!isRecord(message.metadata) || !(ATTACHMENT_DETAILS_KEY in message.metadata)) return message;
+		const { [ATTACHMENT_DETAILS_KEY]: _clientOnly, ...metadata } = message.metadata;
+		return { ...message, metadata };
+	});
+}
+
 const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-searchScripture": "Searching the Scriptures",
 	"tool-findVerses": "Searching the Bible for those words",
@@ -210,14 +261,19 @@ export function toViewMessage(
 	const fileIds = Array.isArray(legacy.attachmentIds)
 		? legacy.attachmentIds.filter((id): id is string => typeof id === "string")
 		: [];
-	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) => ({
-		id: fileIds[index] ?? `${message.id}-file-${index}`,
-		filename: part.filename ?? `Attachment ${index + 1}`,
-		mediaType: part.mediaType,
-		size: 0,
-		previewUrl: part.url,
-		previewExpiresAt: "",
-	}));
+	const details = readAttachmentDetails(legacy[ATTACHMENT_DETAILS_KEY]);
+	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) => {
+		const id = fileIds[index] ?? `${message.id}-file-${index}`;
+		return {
+			id,
+			filename: part.filename ?? `Attachment ${index + 1}`,
+			mediaType: part.mediaType,
+			size: 0,
+			previewUrl: part.url,
+			previewExpiresAt: "",
+			...details[id],
+		};
+	});
 	let statusActivity: string | undefined;
 	let toolActivity: string | undefined;
 
@@ -405,8 +461,10 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 	const attachmentIds = storedAttachments.flatMap((attachment) =>
 		typeof attachment.id === "string" ? [attachment.id] : [],
 	);
+	const details = attachmentDetailsById(storedAttachments as Partial<ChatAttachmentDescriptor>[]);
+	const hasDetails = Object.keys(details).length > 0;
 
-	const { parts: _ignored, ...legacyMetadata } = metadata;
+	const { parts: _ignored, [ATTACHMENT_DETAILS_KEY]: _stale, ...legacyMetadata } = metadata;
 
 	// `feedback` is a column on the row, not a metadata key. Lifting it here is
 	// what lets history replay the chosen thumb through the single
@@ -421,11 +479,12 @@ export function dbMessageToUIMessage(value: unknown): UIMessage {
 		role: value.role,
 		parts,
 		...(
-			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0 || feedback !== null
+			Object.keys(legacyMetadata).length > 0 || attachmentIds.length > 0 || hasDetails || feedback !== null
 				? {
 					metadata: {
 						...legacyMetadata,
 						...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+						...(hasDetails ? { [ATTACHMENT_DETAILS_KEY]: details } : {}),
 						...(feedback ? { feedback } : {}),
 					},
 				}

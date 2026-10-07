@@ -12,11 +12,13 @@ import {
 	HIGHLIGHT_LABELS_PREF_KEY,
 	HIGHLIGHT_MEANINGS_PREF_KEY,
 	MAX_ABOUT_ME_LENGTH,
+	MAX_TESTIMONY_LENGTH,
 	MEMORY_ENABLED_PREF_KEY,
 	MODE_PREF_KEY,
 	MODEL_PREF_KEY,
 	PARCHMENT_PREF_KEY,
 	SPEED_PREF_KEY,
+	TESTIMONY_PREF_KEY,
 	TRANSLATION_PREF_KEY,
 	VERBOSITY_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
@@ -34,6 +36,7 @@ import {
 	readModelPref,
 	readParchmentPref,
 	readSpeedPref,
+	readTestimonyPref,
 	readTranslationPref,
 	readVerbosityPref,
 	readWebSearchEnabledPref,
@@ -47,6 +50,7 @@ import {
 	writeMemoryEnabledPref,
 	writeParchmentPref,
 	writeSpeedPref,
+	writeTestimonyPref,
 	writeTranslationPref,
 	writeVerbosityPref,
 	writeWebSearchEnabledPref,
@@ -84,6 +88,7 @@ const SYNCED_KEYS = [
 	HIGHLIGHT_LABELS_PREF_KEY,
 	HIGHLIGHT_MEANINGS_PREF_KEY,
 	ABOUT_ME_PREF_KEY,
+	TESTIMONY_PREF_KEY,
 	MEMORY_ENABLED_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
 	MODEL_PREF_KEY,
@@ -105,6 +110,7 @@ interface PreferencesPatchBody {
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
 	aboutMe?: string;
+	testimony?: string;
 	chat?: Partial<Record<"modelId" | ChatRunOptionKey, string | null>>;
 }
 
@@ -117,6 +123,7 @@ type PreferencesDocumentWithLabels = PreferencesDocument & {
 	highlightLabels?: unknown;
 	highlightMeanings?: unknown;
 	aboutMe?: unknown;
+	testimony?: unknown;
 };
 
 function isColorMap(value: unknown): value is Record<string, unknown> {
@@ -141,6 +148,12 @@ function aboutMeFromDocument(document: PreferencesDocument): string | null {
 	const candidate = document as PreferencesDocumentWithLabels;
 	if (typeof candidate.aboutMe !== "string") return null;
 	return candidate.aboutMe.slice(0, MAX_ABOUT_ME_LENGTH);
+}
+
+function testimonyFromDocument(document: PreferencesDocument): string | null {
+	const candidate = document as PreferencesDocumentWithLabels;
+	if (typeof candidate.testimony !== "string") return null;
+	return candidate.testimony.slice(0, MAX_TESTIMONY_LENGTH);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -198,6 +211,11 @@ export function useHighlightMeaningsPreference(): HighlightMeanings | null {
 /** The user's "About me". Null until the account document has been read. */
 export function useAboutMePreference(): string | null {
 	return usePreference(readAboutMePref, null);
+}
+
+/** The user's testimony. Null until the account document has been read. */
+export function useTestimonyPreference(): string | null {
+	return usePreference(readTestimonyPref, null);
 }
 
 export { highlightLabelFor };
@@ -299,6 +317,8 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
 	if (highlightMeanings !== null) writeHighlightMeaningsPref(highlightMeanings);
 	const aboutMe = aboutMeFromDocument(document);
 	if (aboutMe !== null) writeAboutMePref(aboutMe);
+	const testimony = testimonyFromDocument(document);
+	if (testimony !== null) writeTestimonyPref(testimony);
 	if (!chatPrefsLocked) {
 		writeModelPref(document.chat.modelId);
 		writeEffortPref(document.chat.effort);
@@ -610,43 +630,59 @@ export async function saveHighlightLabelEdits(
 	}
 }
 
-export type AboutMeSaveResult = { ok: true; aboutMe: string } | { ok: false; error: string };
+/** The free-text fields the user writes in their own words. */
+export type PersonalTextField = "aboutMe" | "testimony";
 
-let aboutMeSaveSeq = 0;
+export type PersonalTextSaveResult = { ok: true; text: string } | { ok: false; error: string };
+
+const PERSONAL_TEXT = {
+	aboutMe: { name: "About me", fromDocument: aboutMeFromDocument, write: writeAboutMePref },
+	testimony: { name: "your testimony", fromDocument: testimonyFromDocument, write: writeTestimonyPref },
+} satisfies Record<
+	PersonalTextField,
+	{ name: string; fromDocument: (document: PreferencesDocument) => string | null; write: (text: string) => void }
+>;
+
+const personalTextSaveSeq: Record<PersonalTextField, number> = { aboutMe: 0, testimony: 0 };
 
 /**
- * Save "About me". A single field rather than a merged map, so it needs no GET
- * first: the last write wins, which is what a text box the user is looking at
- * should do. The account guards are the labels editor's, for the same reason:
- * a sign-out mid-save must not write one account's words into another's cache.
+ * Save "About me" or "My testimony". A single field rather than a merged map,
+ * so it needs no GET first: the last write wins, which is what a text box the
+ * user is looking at should do. The account guards are the labels editor's,
+ * for the same reason: a sign-out mid-save must not write one account's words
+ * into another's cache.
  */
-export async function saveAboutMe(text: string): Promise<AboutMeSaveResult> {
+export async function savePersonalText(
+	field: PersonalTextField,
+	text: string
+): Promise<PersonalTextSaveResult> {
+	const { name, fromDocument, write } = PERSONAL_TEXT[field];
 	if (typeof window === "undefined") {
-		return { ok: false, error: "About me can only be saved here." };
+		return { ok: false, error: `Save ${name} from the app.` };
 	}
 	const ownerAtRequest = readCacheOwner();
-	if (!ownerAtRequest) return { ok: false, error: "Sign in before saving About me." };
+	if (!ownerAtRequest) return { ok: false, error: `Sign in before saving ${name}.` };
 	const accountSeqAtRequest = accountSeq;
-	const saveSeq = ++aboutMeSaveSeq;
+	const saveSeq = ++personalTextSaveSeq[field];
 	editSeq += 1;
 
 	try {
-		const confirmed = await patchPreferences({ aboutMe: text.trim() });
-		if (!confirmed) throw new Error("Sign in before saving About me.");
+		const confirmed = await patchPreferences({ [field]: text.trim() });
+		if (!confirmed) throw new Error(`Sign in before saving ${name}.`);
 		if (accountSeq !== accountSeqAtRequest || readCacheOwner() !== ownerAtRequest) {
-			return { ok: false, error: "Your account changed before About me was saved." };
+			return { ok: false, error: `Your account changed before ${name} was saved.` };
 		}
-		const confirmedAboutMe = aboutMeFromDocument(confirmed);
-		if (confirmedAboutMe === null) throw new Error("The server did not confirm About me.");
-		if (saveSeq === aboutMeSaveSeq) {
-			writeAboutMePref(confirmedAboutMe);
+		const confirmedText = fromDocument(confirmed);
+		if (confirmedText === null) throw new Error(`The server did not confirm ${name}.`);
+		if (saveSeq === personalTextSaveSeq[field]) {
+			write(confirmedText);
 			notifyPreferencesChanged();
 		}
-		return { ok: true, aboutMe: confirmedAboutMe };
+		return { ok: true, text: confirmedText };
 	} catch (error) {
 		return {
 			ok: false,
-			error: error instanceof Error && error.message ? error.message : "Couldn't save About me.",
+			error: error instanceof Error && error.message ? error.message : `Couldn't save ${name}.`,
 		};
 	}
 }

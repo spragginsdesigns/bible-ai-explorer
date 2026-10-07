@@ -73,6 +73,10 @@ struct FilePart: Sendable, Equatable {
     var url: String
     var mediaType: String
     var filename: String?
+    /// Voice messages only, for display. Never encoded into the outgoing part:
+    /// the server reads its own stored transcript, not the client's copy.
+    var transcript: String? = nil
+    var durationSeconds: Double? = nil
 }
 
 /// Lifecycle of a tool call, matching the AI SDK's `state` field.

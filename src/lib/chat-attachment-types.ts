@@ -2,6 +2,21 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 export const MAX_ATTACHMENT_MESSAGE_BYTES = 25 * 1024 * 1024;
 export const MAX_IMAGE_OR_PDF_BYTES = 10 * 1024 * 1024;
 export const MAX_TEXT_ATTACHMENT_BYTES = 1024 * 1024;
+/** Under OpenAI's 25 MB transcription ceiling, with room for the request. */
+export const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+/**
+ * The longest single voice message transcribed. Opus packs an hour into a few
+ * megabytes, so the byte cap alone would not bound the cost.
+ */
+export const MAX_AUDIO_SECONDS = 15 * 60;
+
+export const AUDIO_MEDIA_TYPES = [
+  "audio/ogg",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/wav",
+  "audio/webm",
+] as const;
 
 export const ATTACHMENT_MEDIA_TYPES = [
   "image/png",
@@ -13,9 +28,34 @@ export const ATTACHMENT_MEDIA_TYPES = [
   "text/markdown",
   "text/csv",
   "application/json",
+  ...AUDIO_MEDIA_TYPES,
 ] as const;
 
 export type AttachmentMediaType = (typeof ATTACHMENT_MEDIA_TYPES)[number];
+export type AudioMediaType = (typeof AUDIO_MEDIA_TYPES)[number];
+
+/**
+ * Other names platforms give the same audio formats. Android reports m4a as
+ * audio/x-m4a, browsers say audio/x-wav or audio/mp3, and a Discord voice
+ * message can arrive as audio/opus. Each is read as its canonical type, which is
+ * what the upload URL is locked to.
+ */
+const MEDIA_TYPE_ALIASES: Record<string, AttachmentMediaType> = {
+  "audio/opus": "audio/ogg",
+  "audio/x-opus+ogg": "audio/ogg",
+  "application/ogg": "audio/ogg",
+  "audio/mp3": "audio/mpeg",
+  "audio/x-m4a": "audio/mp4",
+  "audio/m4a": "audio/mp4",
+  "audio/aac-mp4": "audio/mp4",
+  "audio/x-wav": "audio/wav",
+  "audio/wave": "audio/wav",
+  "audio/vnd.wave": "audio/wav",
+};
+
+export function isAudioMediaType(value: string): value is AudioMediaType {
+  return (AUDIO_MEDIA_TYPES as readonly string[]).includes(value);
+}
 
 export interface AttachmentInput {
   filename: string;
@@ -36,6 +76,10 @@ export interface ChatAttachmentDescriptor {
   size: number;
   previewUrl: string;
   previewExpiresAt: string;
+  /** Audio only: what was said, transcribed once when the upload completed. */
+  transcript?: string;
+  /** Audio only: length in seconds. */
+  durationSeconds?: number;
 }
 
 /** The trusted source of a user message that follows Daily Cross. */
@@ -94,6 +138,11 @@ const EXTENSIONS_BY_MEDIA_TYPE: Record<AttachmentMediaType, Set<string>> = {
   "text/markdown": new Set(["md", "markdown"]),
   "text/csv": new Set(["csv"]),
   "application/json": new Set(["json"]),
+  "audio/ogg": new Set(["ogg", "oga", "opus"]),
+  "audio/mpeg": new Set(["mp3"]),
+  "audio/mp4": new Set(["m4a"]),
+  "audio/wav": new Set(["wav"]),
+  "audio/webm": new Set(["webm"]),
 };
 
 const MEDIA_TYPE_BY_EXTENSION = new Map<string, AttachmentMediaType>(
@@ -124,7 +173,8 @@ export function validateAttachmentInput(input: AttachmentInput): ValidatedAttach
   }
 
   const extensionMediaType = mediaTypeFromFilename(filename);
-  const declaredMediaType = input.mediaType.toLowerCase().split(";", 1)[0].trim();
+  const declaredRaw = input.mediaType.toLowerCase().split(";", 1)[0].trim();
+  const declaredMediaType = MEDIA_TYPE_ALIASES[declaredRaw] ?? declaredRaw;
   const mediaType = isAttachmentMediaType(declaredMediaType)
     ? declaredMediaType
     : declaredMediaType === "" || declaredMediaType === "application/octet-stream"
@@ -133,19 +183,23 @@ export function validateAttachmentInput(input: AttachmentInput): ValidatedAttach
 
   if (!mediaType || !extensionMediaType || mediaType !== extensionMediaType) {
     throw new AttachmentValidationError(
-      `${filename} is not a supported PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, or JSON file.`,
+      `${filename} is not a supported image (PNG, JPEG, WebP, GIF), PDF, text (TXT, Markdown, CSV, JSON), or audio (OGG, MP3, M4A, WAV, WebM) file.`,
     );
   }
 
-  const limit = mediaType.startsWith("text/") || mediaType === "application/json"
-    ? MAX_TEXT_ATTACHMENT_BYTES
-    : MAX_IMAGE_OR_PDF_BYTES;
+  const limit = maxBytesFor(mediaType);
   if (input.size > limit) {
-    const limitLabel = limit === MAX_TEXT_ATTACHMENT_BYTES ? "1 MB" : "10 MB";
-    throw new AttachmentValidationError(`${filename} exceeds the ${limitLabel} file limit.`);
+    throw new AttachmentValidationError(`${filename} exceeds the ${limit / (1024 * 1024)} MB file limit.`);
   }
 
   return { filename, mediaType, size: input.size };
+}
+
+/** The per-file byte cap for a type: text 1 MB, audio 20 MB, images and PDFs 10 MB. */
+export function maxBytesFor(mediaType: AttachmentMediaType): number {
+  if (mediaType.startsWith("text/") || mediaType === "application/json") return MAX_TEXT_ATTACHMENT_BYTES;
+  if (isAudioMediaType(mediaType)) return MAX_AUDIO_BYTES;
+  return MAX_IMAGE_OR_PDF_BYTES;
 }
 
 export function validateAttachmentBatch(inputs: AttachmentInput[]): ValidatedAttachmentInput[] {

@@ -1,14 +1,16 @@
 import React, { useCallback, useState } from "react";
 import { Image, Linking, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
-import { useThemedStyles } from "@/features/settings/settingsStore";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import type { GetToken } from "@/lib/api";
 import {
 	type ChatAttachmentDescriptor,
 	refreshChatAttachment,
 } from "./fileAttachments";
+import { isAudioMediaType, voiceMessageLabel } from "./attachmentRules";
 
 interface FileAttachmentCardsProps {
 	attachments: ChatAttachmentDescriptor[];
@@ -23,8 +25,13 @@ function formatBytes(bytes: number): string {
 
 export function FileAttachmentCards({ attachments, onRemove }: FileAttachmentCardsProps) {
 	const styles = useThemedStyles(createStyles);
+	const { colors } = useTheme();
 	const { getToken } = useAuth();
 	const [urls, setUrls] = useState<Record<string, string>>({});
+	// A voice message opens its transcript in place rather than the audio file:
+	// the words are what the assistant read, and what the user wants to see.
+	const [transcriptId, setTranscriptId] = useState<string | null>(null);
+	const openTranscript = attachments.find((attachment) => attachment.id === transcriptId)?.transcript;
 	const authToken = useCallback<GetToken>(
 		(options) => getToken(options?.fresh ? { skipCache: true } : undefined),
 		[getToken],
@@ -47,53 +54,89 @@ export function FileAttachmentCards({ attachments, onRemove }: FileAttachmentCar
 	}, [refresh, urls]);
 
 	return (
-		<View style={styles.list}>
-			{attachments.map((attachment) => {
-				const isImage = attachment.mediaType.startsWith("image/");
-				return (
-					<View key={attachment.id} style={styles.card}>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel={`Open ${attachment.filename}`}
-							onPress={() => void open(attachment)}
-							style={({ pressed }) => [styles.open, pressed && styles.pressed]}
-						>
-							{isImage ? (
-								<Image
-									source={{ uri: urls[attachment.id] ?? attachment.previewUrl }}
-									onError={() => void refresh(attachment)}
-									style={styles.preview}
-								/>
-							) : (
-								<View style={styles.fileIcon}>
-									<Text style={styles.fileGlyph}>{attachment.mediaType === "application/pdf" ? "PDF" : "TXT"}</Text>
-								</View>
-							)}
-							<View style={styles.labelWrap}>
-								<Text numberOfLines={1} style={styles.filename}>{attachment.filename}</Text>
-								{attachment.size > 0 && <Text style={styles.size}>{formatBytes(attachment.size)}</Text>}
-							</View>
-						</Pressable>
-						{onRemove && (
+		<View style={styles.wrap}>
+			<View style={styles.list}>
+				{attachments.map((attachment) => {
+					const isImage = attachment.mediaType.startsWith("image/");
+					const isAudio = isAudioMediaType(attachment.mediaType);
+					const hasTranscript = isAudio && Boolean(attachment.transcript);
+					const transcriptOpen = hasTranscript && transcriptId === attachment.id;
+					return (
+						<View key={attachment.id} style={styles.card}>
 							<Pressable
 								accessibilityRole="button"
-								accessibilityLabel={`Remove ${attachment.filename}`}
-								onPress={() => onRemove(attachment.id)}
-								hitSlop={8}
-								style={styles.remove}
+								accessibilityLabel={
+									hasTranscript
+										? `${transcriptOpen ? "Hide" : "Show"} what was said in ${attachment.filename}`
+										: `Open ${attachment.filename}`
+								}
+								accessibilityState={hasTranscript ? { expanded: transcriptOpen } : undefined}
+								onPress={() =>
+									hasTranscript
+										? setTranscriptId((current) => (current === attachment.id ? null : attachment.id))
+										: void open(attachment)
+								}
+								style={({ pressed }) => [styles.open, pressed && styles.pressed]}
 							>
-								<Text style={styles.removeGlyph}>×</Text>
+								{isAudio ? (
+									<View style={styles.fileIcon}>
+										<Ionicons name="mic" size={20} color={colors.accent} />
+									</View>
+								) : isImage ? (
+									<Image
+										source={{ uri: urls[attachment.id] ?? attachment.previewUrl }}
+										onError={() => void refresh(attachment)}
+										style={styles.preview}
+									/>
+								) : (
+									<View style={styles.fileIcon}>
+										<Text style={styles.fileGlyph}>{attachment.mediaType === "application/pdf" ? "PDF" : "TXT"}</Text>
+									</View>
+								)}
+								<View style={styles.labelWrap}>
+									<Text numberOfLines={1} style={styles.filename}>{attachment.filename}</Text>
+									{isAudio ? (
+										<Text style={styles.size}>{voiceMessageLabel(attachment.durationSeconds)}</Text>
+									) : (
+										attachment.size > 0 && <Text style={styles.size}>{formatBytes(attachment.size)}</Text>
+									)}
+								</View>
 							</Pressable>
-						)}
-					</View>
-				);
-			})}
+							{onRemove && (
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel={`Remove ${attachment.filename}`}
+									onPress={() => onRemove(attachment.id)}
+									hitSlop={8}
+									style={styles.remove}
+								>
+									<Text style={styles.removeGlyph}>×</Text>
+								</Pressable>
+							)}
+						</View>
+					);
+				})}
+			</View>
+			{openTranscript ? (
+				<View style={styles.transcript}>
+					<Text selectable style={styles.transcriptText}>{openTranscript}</Text>
+				</View>
+			) : null}
 		</View>
 	);
 }
 
 const createStyles = (c: Colors) => StyleSheet.create({
+	wrap: { gap: spacing.sm },
 	list: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+	transcript: {
+		backgroundColor: c.surface,
+		borderColor: c.borderStrong,
+		borderWidth: StyleSheet.hairlineWidth,
+		borderRadius: radius.md,
+		padding: spacing.md,
+	},
+	transcriptText: { ...typography.support, color: c.textMuted },
 	card: {
 		position: "relative",
 		maxWidth: 240,

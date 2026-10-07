@@ -43,6 +43,7 @@ final class SettingsStore {
         static let highlightLabels = "settings.highlight.labels"
         static let highlightMeanings = "settings.highlight.meanings"
         static let aboutMe = "settings.aboutMe"
+        static let testimony = "settings.testimony"
     }
 
     /// Matches `DEFAULT_SETTINGS` in
@@ -84,6 +85,7 @@ final class SettingsStore {
             settings.highlightLabels = [:]
             settings.highlightMeanings = [:]
             settings.aboutMe = ""
+            settings.testimony = ""
             settings.chatModelId = nil
             settings.chatEffort = nil
             settings.chatSpeed = nil
@@ -295,6 +297,13 @@ final class SettingsStore {
         didSet { UserDefaults.standard.set(aboutMe, forKey: Key.aboutMe) }
     }
 
+    /// How the user came to faith, "" when they have written none. Saved
+    /// through `PreferencesSyncModel.saveTestimony`, on the same no
+    /// write-through rule as `aboutMe`.
+    var testimony: String {
+        didSet { UserDefaults.standard.set(testimony, forKey: Key.testimony) }
+    }
+
     /// The chapter reader's parchment page surface (Android 1.19.0 / web's
     /// `.parchment-page`). On by default, exactly as on the other clients.
     var parchment: Bool {
@@ -332,6 +341,7 @@ final class SettingsStore {
         highlightMeanings =
             defaults.dictionary(forKey: Key.highlightMeanings) as? [String: String] ?? [:]
         aboutMe = defaults.string(forKey: Key.aboutMe) ?? ""
+        testimony = defaults.string(forKey: Key.testimony) ?? ""
         // Same reason as the reminder toggle: an unset key reads as false, and
         // would silently turn the parchment off for everyone.
         parchment = defaults.object(forKey: Key.parchment) as? Bool ?? true

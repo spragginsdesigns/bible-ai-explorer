@@ -46,9 +46,14 @@ import {
 	readStoredAboutMe,
 	readStoredHighlightLabels,
 	readStoredHighlightMeanings,
+	readStoredTestimony,
 } from "@/lib/preferences-contract";
 import { loadHighlightLegend } from "@/lib/highlight-legend";
-import { formatAboutMeBlock, formatHighlightLegendBlock } from "@/lib/highlight-legend-rules";
+import {
+	formatAboutMeBlock,
+	formatHighlightLegendBlock,
+	formatTestimonyBlock,
+} from "@/lib/highlight-legend-rules";
 
 // Matches vercel.json for this route. Same guard as ask-question: a slow
 // provider several tool steps into a turn was killed mid-loop by the platform,
@@ -193,13 +198,20 @@ async function handlePost(req: Request): Promise<Response> {
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { webSearchEnabled: true, highlightLabels: true, highlightMeanings: true, aboutMe: true },
+			select: {
+				webSearchEnabled: true,
+				highlightLabels: true,
+				highlightMeanings: true,
+				aboutMe: true,
+				testimony: true,
+			},
 		});
 		// Same lenient read as the chat route, so getHighlights names a colour
 		// the way the user does here too.
 		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
 		const highlightMeanings = readStoredHighlightMeanings(userPrefs?.highlightMeanings);
 		const aboutMe = readStoredAboutMe(userPrefs?.aboutMe);
+		const testimony = readStoredTestimony(userPrefs?.testimony);
 		const readingContext = {
 			...readingRequestContext(requestData, readingReceivedAt),
 			userId,
@@ -282,7 +294,7 @@ async function handlePost(req: Request): Promise<Response> {
 				// The note panel shares the chat tool set, so it must also carry the rule
 				// that governs the one tool that overwrites something: setDailyCross may
 				// not fire until the user has agreed to it.
-				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatAboutMeBlock(aboutMe)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${formatHighlightLegendBlock(legend)}`;
+				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatAboutMeBlock(aboutMe)}${formatTestimonyBlock(testimony)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${formatHighlightLegendBlock(legend)}`;
 
 				const { model, providerOptions, definition } = await resolveModel({ userId, fallbackEffort: "medium" });
 				const { stableSystem, volatileSystem } = splitStableSystemPrefix(

@@ -10,6 +10,7 @@ import {
 	MAX_ABOUT_ME_LENGTH,
 	MAX_HIGHLIGHT_LABEL_LENGTH,
 	MAX_HIGHLIGHT_MEANING_LENGTH,
+	MAX_TESTIMONY_LENGTH,
 	highlightLabelFor,
 	type HighlightLabels,
 	type HighlightMeanings,
@@ -30,6 +31,7 @@ export {
 	MAX_ABOUT_ME_LENGTH,
 	MAX_HIGHLIGHT_LABEL_LENGTH,
 	MAX_HIGHLIGHT_MEANING_LENGTH,
+	MAX_TESTIMONY_LENGTH,
 };
 
 export const HIGHLIGHT_LABEL_IDS = HIGHLIGHT_COLOR_IDS as readonly HighlightLabelId[];
@@ -213,6 +215,21 @@ export function readAboutMePref(): string | null {
 export function writeAboutMePref(aboutMe: string): void {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(ABOUT_ME_PREF_KEY, aboutMe.slice(0, MAX_ABOUT_ME_LENGTH));
+}
+
+/** "My testimony", cached exactly like About me (absence = not hydrated yet). */
+export const TESTIMONY_PREF_KEY = "sureword-testimony";
+
+export function readTestimonyPref(): string | null {
+	if (typeof window === "undefined") return null;
+	const raw = window.localStorage.getItem(TESTIMONY_PREF_KEY);
+	if (raw === null) return null;
+	return raw.slice(0, MAX_TESTIMONY_LENGTH);
+}
+
+export function writeTestimonyPref(testimony: string): void {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(TESTIMONY_PREF_KEY, testimony.slice(0, MAX_TESTIMONY_LENGTH));
 }
 
 export function readTranslationPref(): TranslationId {

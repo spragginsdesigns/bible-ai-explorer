@@ -242,6 +242,7 @@ test("the document mirrors a stored row, with the tier passed in", () => {
 		highlightLabels: {},
 		highlightMeanings: {},
 		aboutMe: "",
+		testimony: "",
 		chat: {
 			modelId: DEFAULT_MODEL_ID,
 			effort: "medium",
@@ -263,6 +264,7 @@ test("an account with no row yet reads as every default", () => {
 		highlightLabels: {},
 		highlightMeanings: {},
 		aboutMe: "",
+		testimony: "",
 		chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 	});
 	assert.deepEqual(document(undefined, "free"), document(null, "free"));

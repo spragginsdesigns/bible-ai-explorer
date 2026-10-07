@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// Chat file attachments — a port of `mobile/src/features/chat/fileAttachments.ts`.
 ///
@@ -11,6 +12,8 @@ enum AttachmentLimits {
     static let maxMessageBytes = 25 * 1024 * 1024
     static let maxImageOrPDFBytes = 10 * 1024 * 1024
     static let maxTextBytes = 1024 * 1024
+    /// Voice messages: under OpenAI's 25 MB transcription ceiling, as on the server.
+    static let maxAudioBytes = 20 * 1024 * 1024
 
     /// The allowlist, keyed by lowercased file extension. Mirrors
     /// `EXTENSIONS_BY_MEDIA_TYPE` on the server — the server rejects any file
@@ -27,6 +30,28 @@ enum AttachmentLimits {
         "markdown": "text/markdown",
         "csv": "text/csv",
         "json": "application/json",
+        "ogg": "audio/ogg",
+        "oga": "audio/ogg",
+        "opus": "audio/ogg",
+        "mp3": "audio/mpeg",
+        "m4a": "audio/mp4",
+        "wav": "audio/wav",
+        "webm": "audio/webm",
+    ]
+
+    /// Other names platforms give the same audio formats, read as the canonical
+    /// type the upload URL is locked to. Mirrors `MEDIA_TYPE_ALIASES` on the server.
+    static let mediaTypeAliases: [String: String] = [
+        "audio/opus": "audio/ogg",
+        "audio/x-opus+ogg": "audio/ogg",
+        "application/ogg": "audio/ogg",
+        "audio/mp3": "audio/mpeg",
+        "audio/x-m4a": "audio/mp4",
+        "audio/m4a": "audio/mp4",
+        "audio/aac-mp4": "audio/mp4",
+        "audio/x-wav": "audio/wav",
+        "audio/wave": "audio/wav",
+        "audio/vnd.wave": "audio/wav",
     ]
 
     /// Every media type the picker and drop target accept.
@@ -34,10 +59,26 @@ enum AttachmentLimits {
         Array(Set(mediaTypeByExtension.values)).sorted()
     }
 
+    /// The allowlist as UTTypes, for the file importers. Built from the
+    /// extensions as well as the media types because the system knows no MIME
+    /// type for Ogg or WebM audio, and an `.opus` file only has a dynamic type
+    /// derived from its extension; deriving that same type here is what lets the
+    /// picker offer it.
+    static var contentTypes: [UTType] {
+        var seen = Set<String>()
+        let byMediaType = mediaTypes.compactMap { UTType(mimeType: $0) }
+        let byExtension = mediaTypeByExtension.keys.sorted().compactMap { UTType(filenameExtension: $0) }
+        return (byMediaType + byExtension).filter { seen.insert($0.identifier).inserted }
+    }
+
+    static func isAudio(_ mediaType: String) -> Bool {
+        mediaType.hasPrefix("audio/")
+    }
+
     static func byteLimit(for mediaType: String) -> Int {
-        mediaType.hasPrefix("text/") || mediaType == "application/json"
-            ? maxTextBytes
-            : maxImageOrPDFBytes
+        if mediaType.hasPrefix("text/") || mediaType == "application/json" { return maxTextBytes }
+        if isAudio(mediaType) { return maxAudioBytes }
+        return maxImageOrPDFBytes
     }
 }
 
@@ -61,6 +102,10 @@ struct ChatAttachmentDescriptor: Sendable, Equatable, Identifiable, Decodable {
     var size: Int
     var previewUrl: String
     var previewExpiresAt: String
+    /// Audio only: what was said, transcribed once when the upload completed.
+    var transcript: String? = nil
+    /// Audio only: length in seconds.
+    var durationSeconds: Double? = nil
 }
 
 /// Raised for anything the user can fix by picking a different file. Its
@@ -81,11 +126,12 @@ enum AttachmentValidator {
         let ext = (filename as NSString).pathExtension.lowercased()
         let extensionType = AttachmentLimits.mediaTypeByExtension[ext]
 
-        let declared = declaredMediaType
+        let declaredRaw = declaredMediaType
             .lowercased()
             .split(separator: ";", maxSplits: 1)
             .first
             .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        let declared = AttachmentLimits.mediaTypeAliases[declaredRaw] ?? declaredRaw
 
         let mediaType = !declared.isEmpty && declared != "application/octet-stream"
             ? declared
@@ -101,8 +147,9 @@ enum AttachmentValidator {
 
         let limit = AttachmentLimits.byteLimit(for: mediaType)
         guard data.count <= limit else {
-            let label = limit == AttachmentLimits.maxTextBytes ? "1 MB" : "10 MB"
-            throw AttachmentError(message: "\(filename) exceeds the \(label) file limit.")
+            throw AttachmentError(
+                message: "\(filename) exceeds the \(limit / (1024 * 1024)) MB file limit."
+            )
         }
 
         return LocalAttachment(filename: filename, mediaType: mediaType, data: data)
@@ -125,7 +172,7 @@ enum AttachmentValidator {
     }
 
     static func unsupported(_ filename: String) -> String {
-        "\(filename) is not a supported PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, or JSON file."
+        "\(filename) is not a supported image (PNG, JPEG, WebP, GIF), PDF, text (TXT, Markdown, CSV, JSON), or audio (OGG, MP3, M4A, WAV, WebM) file."
     }
 }
 
@@ -133,6 +180,7 @@ enum AttachmentValidator {
 
 extension ChatAttachmentDescriptor {
     var isImage: Bool { mediaType.hasPrefix("image/") }
+    var isAudio: Bool { AttachmentLimits.isAudio(mediaType) }
 
     /// Short glyph for the non-image card, matching `FileAttachmentCards.tsx`.
     var glyph: String { mediaType == "application/pdf" ? "PDF" : "TXT" }
@@ -143,4 +191,17 @@ func formatAttachmentBytes(_ bytes: Int) -> String {
     guard bytes > 0 else { return "" }
     if bytes < 1024 * 1024 { return "\(max(1, Int((Double(bytes) / 1024).rounded()))) KB" }
     return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
+}
+
+/// `formatAudioDuration` from `src/lib/audio-transcription-rules.ts`: "5:32" for
+/// 332.4 seconds. Hours never occur, since a voice message is capped at 15 minutes.
+func formatAudioDuration(_ seconds: Double) -> String {
+    let total = max(0, Int(seconds.rounded()))
+    return "\(total / 60):" + String(format: "%02d", total % 60)
+}
+
+/// The subtitle on a voice message chip, in place of its byte size.
+func voiceMessageLabel(durationSeconds: Double?) -> String {
+    guard let durationSeconds else { return "Voice message" }
+    return "Voice message \u{00B7} \(formatAudioDuration(durationSeconds))"
 }

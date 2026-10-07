@@ -9,10 +9,13 @@ import { File, Paths } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { API_URL, apiJson, makeAuthedFetch, type GetToken } from "@/lib/api";
 import {
+	ATTACHMENT_DETAILS_KEY,
+	attachmentDetailsById,
 	dbMessageToUIMessage,
 	isRenderableChatViewMessage,
 	streamingAssistantId,
 	toViewMessageCached,
+	withoutClientOnlyMetadata,
 	type ChatViewMessage,
 } from "@/lib/chatView";
 import {
@@ -45,8 +48,10 @@ import {
 	uploadChatAttachments,
 	validateLocalAttachmentBatch,
 } from "./fileAttachments";
+import { PICKER_MEDIA_TYPES, isAudioMediaType } from "./attachmentRules";
 import { downscaleImageForUpload } from "./imageDownscale";
 import { pastedImageMetadata, type PastedImageFile } from "./pastedImages";
+import type { SharedChatDraft } from "@/features/share/shareIntake";
 
 export interface Conversation {
 	id: string;
@@ -76,6 +81,8 @@ export interface SureWordChat {
 	clearAttachment: () => void;
 	fileAttachments: ChatAttachmentDescriptor[];
 	uploadingAttachments: boolean;
+	/** The upload in flight includes a voice message, which is transcribed before it finishes. */
+	uploadingAudio: boolean;
 	attachmentError: string | null;
 	takePhoto: () => Promise<void>;
 	chooseImages: () => Promise<void>;
@@ -83,6 +90,8 @@ export interface SureWordChat {
 	pasteImage: () => Promise<void>;
 	attachPastedImages: (files: PastedImageFile[], nativeError?: string) => Promise<void>;
 	removeFileAttachment: (id: string) => Promise<void>;
+	/** Open a share from another app as a new chat: files attached, text in the composer. */
+	startSharedChat: (draft: SharedChatDraft) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
 	/** Thumbs up / down on a settled assistant answer; `null` clears it. */
 	setFeedback: SetAnswerFeedback;
@@ -157,17 +166,26 @@ export function useSureWordChat(): SureWordChat {
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
 	const [uploadingAttachments, setUploadingAttachments] = useState(false);
+	const [uploadingAudio, setUploadingAudio] = useState(false);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
 	const attachmentDraftVersionRef = useRef(0);
 	const setAttachment = useCallback((next: VerseAttachment) => setAttachmentState(next), []);
 	const clearAttachment = useCallback(() => setAttachmentState(null), []);
 
-	const addLocalAttachments = useCallback(async (files: LocalChatAttachment[]) => {
+	/**
+	 * `existing` overrides the draft's current files for the batch limits, for
+	 * a caller that has just cleared the draft in the same tick.
+	 */
+	const addLocalAttachments = useCallback(async (
+		files: LocalChatAttachment[],
+		existing: ChatAttachmentDescriptor[] = fileAttachments,
+	) => {
 		if (files.length === 0 || uploadingAttachments) return;
 		const draftVersion = attachmentDraftVersionRef.current;
 		setAttachmentError(null);
 		try {
-			validateLocalAttachmentBatch(files, fileAttachments);
+			validateLocalAttachmentBatch(files, existing);
+			setUploadingAudio(files.some((file) => isAudioMediaType(file.mediaType)));
 			setUploadingAttachments(true);
 			const completed = await uploadChatAttachments(authToken, files);
 			if (draftVersion !== attachmentDraftVersionRef.current) {
@@ -179,6 +197,7 @@ export function useSureWordChat(): SureWordChat {
 			setAttachmentError(error instanceof Error ? error.message : "Could not upload the selected files.");
 		} finally {
 			setUploadingAttachments(false);
+			setUploadingAudio(false);
 		}
 	}, [authToken, fileAttachments, uploadingAttachments]);
 
@@ -236,10 +255,7 @@ export function useSureWordChat(): SureWordChat {
 	const chooseFiles = useCallback(async () => {
 		try {
 			const result = await DocumentPicker.getDocumentAsync({
-				type: [
-					"image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf",
-					"text/plain", "text/markdown", "text/csv", "application/json",
-				],
+				type: PICKER_MEDIA_TYPES,
 				copyToCacheDirectory: true,
 				multiple: true,
 			});
@@ -334,7 +350,7 @@ export function useSureWordChat(): SureWordChat {
 					return {
 						body: {
 						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-							messages,
+							messages: withoutClientOnlyMetadata(messages),
 							conversationId: conversationIdRef.current,
 							translation: settings.translation,
 							modelId: settings.chatModelId,
@@ -611,6 +627,28 @@ export function useSureWordChat(): SureWordChat {
 		setUIMessages([]);
 	}, [abandonPendingAnswer, cancelRecovery, discardFileAttachments, fileAttachments, setUIMessages]);
 
+	const startSharedChat = useCallback(async (draft: SharedChatDraft) => {
+		newConversation();
+		setInput(draft.text);
+		setAttachmentError(null);
+		if (draft.files.length === 0) return;
+		// One unreadable file should not cost the user the rest of the share.
+		const ready: LocalChatAttachment[] = [];
+		const problems: string[] = [];
+		for (const file of draft.files) {
+			try {
+				ready.push(normalizeLocalAttachment(file));
+			} catch (error) {
+				problems.push(error instanceof Error ? error.message : `${file.filename} could not be read.`);
+			}
+		}
+		// The draft was just cleared, so the batch limits count from nothing.
+		await addLocalAttachments(ready, []);
+		if (problems.length > 0) {
+			setAttachmentError((current) => [current, ...problems].filter(Boolean).join(" "));
+		}
+	}, [addLocalAttachments, newConversation]);
+
 	const deleteConversation = useCallback(
 		async (id: string) => {
 			setConversations((prev) => prev.filter((c) => c.id !== id));
@@ -693,6 +731,7 @@ export function useSureWordChat(): SureWordChat {
 
 			setAttachmentState(null);
 			const sendingAttachments = fileAttachments;
+			const sendingDetails = attachmentDetailsById(sendingAttachments);
 			setFileAttachments([]);
 			// From here the server owns the answer: if this device's stream dies
 			// (backgrounded, screen locked, network changed) the answer is still
@@ -704,6 +743,10 @@ export function useSureWordChat(): SureWordChat {
 				metadata: {
 					...(sendingAttachments.length > 0
 						? { attachmentIds: sendingAttachments.map((item) => item.id) }
+						: {}),
+					// Client-only: lets the sent voice message show its transcript.
+					...(Object.keys(sendingDetails).length > 0
+						? { [ATTACHMENT_DETAILS_KEY]: sendingDetails }
 						: {}),
 					...(sendingAttachment?.origin ? { origin: sendingAttachment.origin } : {}),
 				},
@@ -852,6 +895,7 @@ export function useSureWordChat(): SureWordChat {
 		attachment,
 		fileAttachments,
 		uploadingAttachments,
+		uploadingAudio,
 		attachmentError,
 		setAttachment,
 		clearAttachment,
@@ -861,6 +905,7 @@ export function useSureWordChat(): SureWordChat {
 		pasteImage,
 		attachPastedImages,
 		removeFileAttachment,
+		startSharedChat,
 		sendMessage,
 		setFeedback,
 		stop: abandonPendingAnswer,

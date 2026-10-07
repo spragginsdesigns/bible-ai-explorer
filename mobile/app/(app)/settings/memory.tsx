@@ -24,13 +24,14 @@ import {
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import * as memoriesApi from "@/features/memories/api";
 import { AboutMeSection } from "@/features/settings/AboutMeSection";
+import { TestimonySection } from "@/features/settings/TestimonySection";
 
 /** The first card carries no label, so it needs the label's own top offset. */
 const contentStyle = { paddingTop: spacing.xl };
 
 /**
  * Settings -> Memory: the master switch, the way through to the saved
- * memories, and About me.
+ * memories, About me, and My testimony.
  */
 export default function MemorySettingsScreen() {
 	const router = useRouter();
@@ -125,6 +126,8 @@ export default function MemorySettingsScreen() {
 			 * never inherits the previous draft.
 			 */}
 			<AboutMeSection key={`about-${user?.id ?? "signed-out"}`} />
+			{/* The same kind of card: the user's own story, private to the assistant. */}
+			<TestimonySection key={`testimony-${user?.id ?? "signed-out"}`} />
 		</SettingsSubScreen>
 	);
 }

@@ -304,10 +304,11 @@ test("the today block names the colour the way the user does", () => {
 test("the chat route reads the labels column once and hands it to the day context and the tools", () => {
 	const source = read("../src/app/api/ask-question/route.ts");
 	// The route already fetches the user row for name and web search; the
-	// labels, meanings and About me ride that select rather than a second query.
+	// labels, meanings, About me and the testimony ride that select rather than
+	// a second query.
 	assert.match(
 		source,
-		/select: \{\s*webSearchEnabled: true,\s*name: true,\s*email: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*\}/,
+		/select: \{\s*webSearchEnabled: true,\s*name: true,\s*email: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*testimony: true,\s*\}/,
 	);
 	assert.match(source, /readStoredHighlightLabels\(userPrefs\?\.highlightLabels\)/);
 	assert.match(source, /loadChatDayContext\(userId, highlightLabels, \{ raisePrayerFollowUps: true \}\)/);
@@ -321,7 +322,7 @@ test("the chat route puts the legend and About me in the volatile prompt, in ord
 	// that names recent highlights by those colours.
 	assert.match(
 		source,
-		/formatUserNameLine\(userName\),[\s\S]*?formatAboutMeBlock\(aboutMe\),[\s\S]*?formatMemoryBlock\(memories\),[\s\S]*?formatChurchBlock\(church\),[\s\S]*?formatHighlightLegendBlock\(legend\),[\s\S]*?formatTodayBlock\(dayContext\),/,
+		/formatUserNameLine\(userName\),[\s\S]*?formatAboutMeBlock\(aboutMe\),\s*formatTestimonyBlock\(testimony\),[\s\S]*?formatMemoryBlock\(memories\),[\s\S]*?formatChurchBlock\(church\),[\s\S]*?formatHighlightLegendBlock\(legend\),[\s\S]*?formatTodayBlock\(dayContext\),/,
 	);
 });
 
@@ -329,13 +330,13 @@ test("the note assistant hands the tools the account's colour names too, and rea
 	const source = read("../src/app/api/note-ai/route.ts");
 	assert.match(
 		source,
-		/select: \{ webSearchEnabled: true, highlightLabels: true, highlightMeanings: true, aboutMe: true \}/,
+		/select: \{\s*webSearchEnabled: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*testimony: true,\s*\}/,
 	);
 	assert.match(source, /const highlightLabels = readStoredHighlightLabels\(userPrefs\?\.highlightLabels\);/);
 	assert.match(source, /loadHighlightLegend\(userId, highlightLabels, highlightMeanings\)/);
 	assert.match(
 		source,
-		/\$\{formatAboutMeBlock\(aboutMe\)\}\$\{formatMemoryBlock\(memories\)\}\$\{formatChurchBlock\(church\)\}\$\{formatHighlightLegendBlock\(legend\)\}/,
+		/\$\{formatAboutMeBlock\(aboutMe\)\}\$\{formatTestimonyBlock\(testimony\)\}\$\{formatMemoryBlock\(memories\)\}\$\{formatChurchBlock\(church\)\}\$\{formatHighlightLegendBlock\(legend\)\}/,
 	);
 });
 

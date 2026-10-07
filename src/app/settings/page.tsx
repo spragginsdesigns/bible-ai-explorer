@@ -44,6 +44,7 @@ import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
 import ProviderSettings from "@/components/ProviderSettings";
 import AboutMeSection from "@/components/settings/AboutMeSection";
+import TestimonySection from "@/components/settings/TestimonySection";
 import ChurchSection from "@/components/settings/ChurchSection";
 import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
 import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
@@ -371,6 +372,7 @@ export default function SettingsPage() {
 					{/* About me: sits with Memory because both are what the assistant
 					    knows about this person before a conversation starts. */}
 					{userLoaded ? <AboutMeSection key={user?.id ?? "signed-out"} /> : null}
+					{userLoaded ? <TestimonySection key={user?.id ?? "signed-out"} /> : null}
 
 					{/* Web search */}
 					<section id="web-search" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">

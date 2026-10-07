@@ -33,6 +33,11 @@
       "purpose": "maskable"
     }
   ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "theme_color": "#0a0a0a",
   "background_color": "#0a0a0a",
   "display": "standalone"

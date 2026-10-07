@@ -1,10 +1,20 @@
 import { File } from "expo-file-system";
 import { apiJson, type GetToken } from "@/lib/api";
+import {
+	MAX_ATTACHMENTS_PER_MESSAGE,
+	MAX_ATTACHMENT_MESSAGE_BYTES,
+	attachmentSizeError,
+	isAudioMediaType,
+	resolveAttachmentType,
+} from "./attachmentRules";
 
-export const MAX_ATTACHMENTS_PER_MESSAGE = 5;
-export const MAX_ATTACHMENT_MESSAGE_BYTES = 25 * 1024 * 1024;
-const MAX_IMAGE_OR_PDF_BYTES = 10 * 1024 * 1024;
-const MAX_TEXT_BYTES = 1024 * 1024;
+export { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_MESSAGE_BYTES };
+
+/**
+ * A voice message is transcribed before /complete answers, which the server
+ * allows two minutes for; the default 30 s request timeout would abandon it.
+ */
+const AUDIO_COMPLETE_TIMEOUT_MS = 125_000;
 
 export interface ChatAttachmentDescriptor {
 	id: string;
@@ -13,6 +23,10 @@ export interface ChatAttachmentDescriptor {
 	size: number;
 	previewUrl: string;
 	previewExpiresAt: string;
+	/** Audio only: what was said, transcribed once when the upload completed. */
+	transcript?: string;
+	/** Audio only: length in seconds. */
+	durationSeconds?: number;
 }
 
 export interface LocalChatAttachment {
@@ -22,39 +36,13 @@ export interface LocalChatAttachment {
 	size: number;
 }
 
-const MEDIA_TYPE_BY_EXTENSION: Record<string, string> = {
-	png: "image/png",
-	jpg: "image/jpeg",
-	jpeg: "image/jpeg",
-	webp: "image/webp",
-	gif: "image/gif",
-	pdf: "application/pdf",
-	txt: "text/plain",
-	md: "text/markdown",
-	markdown: "text/markdown",
-	csv: "text/csv",
-	json: "application/json",
-};
-
-export function normalizeLocalAttachment(input: Omit<LocalChatAttachment, "size"> & { size?: number }): LocalChatAttachment {
-	const extension = input.filename.split(".").pop()?.toLowerCase() ?? "";
-	const extensionType = MEDIA_TYPE_BY_EXTENSION[extension];
-	const declaredType = input.mediaType.toLowerCase().split(";", 1)[0].trim();
-	const mediaType = declaredType && declaredType !== "application/octet-stream"
-		? declaredType
-		: extensionType;
-	if (!extensionType || mediaType !== extensionType) {
-		throw new Error(`${input.filename} is not a supported PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, or JSON file.`);
-	}
+export function normalizeLocalAttachment(input: Omit<LocalChatAttachment, "size"> & { size?: number | null }): LocalChatAttachment {
+	const resolved = resolveAttachmentType(input.filename, input.mediaType);
+	if (!resolved.ok) throw new Error(resolved.message);
 	const size = input.size ?? new File(input.uri).size;
-	if (!Number.isSafeInteger(size) || size <= 0) throw new Error(`${input.filename} is empty or unreadable.`);
-	const limit = mediaType.startsWith("text/") || mediaType === "application/json"
-		? MAX_TEXT_BYTES
-		: MAX_IMAGE_OR_PDF_BYTES;
-	if (size > limit) {
-		throw new Error(`${input.filename} exceeds the ${limit === MAX_TEXT_BYTES ? "1 MB" : "10 MB"} file limit.`);
-	}
-	return { ...input, size, mediaType };
+	const sizeError = attachmentSizeError(input.filename, resolved.mediaType, size);
+	if (sizeError) throw new Error(sizeError);
+	return { ...input, size, mediaType: resolved.mediaType };
 }
 
 export function validateLocalAttachmentBatch(
@@ -103,6 +91,7 @@ export async function uploadChatAttachments(
 				getToken,
 				`/api/chat/attachments/${upload.id}/complete`,
 				{ method: "POST" },
+				isAudioMediaType(upload.mediaType) ? { timeoutMs: AUDIO_COMPLETE_TIMEOUT_MS } : undefined,
 			);
 			return completed.attachment;
 		}));

@@ -89,7 +89,11 @@ const askQuestion = loadFunctions(askQuestionSource, [
 ]);
 const noteAi = loadFunctions(noteAiSource, ["extractText", "extractAssistantText"]);
 const webHistory = loadFunctions(useChatSource, ["isRecord", "dbMessageToUIMessage"]);
-const mobileHistory = loadFunctions(chatViewSource, ["isRecord", "dbMessageToUIMessage"]);
+const mobileHistory = loadFunctions(
+	chatViewSource,
+	["isRecord", "attachmentDetailsById", "dbMessageToUIMessage"],
+	{ ATTACHMENT_DETAILS_KEY: "attachmentDetails" },
+);
 
 const textPart = (text) => ({ type: "text", text });
 const toolPart = () => ({

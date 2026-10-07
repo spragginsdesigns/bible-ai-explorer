@@ -34,7 +34,13 @@ extension UIMessage {
                 let mediaType = attachment["mediaType"]?.stringValue,
                 let previewURL = attachment["previewUrl"]?.stringValue
             else { return nil }
-            return .file(FilePart(url: previewURL, mediaType: mediaType, filename: filename))
+            return .file(FilePart(
+                url: previewURL,
+                mediaType: mediaType,
+                filename: filename,
+                transcript: attachment["transcript"]?.stringValue,
+                durationSeconds: attachment["durationSeconds"]?.doubleValue
+            ))
         }
 
         let parts: [UIMessagePart] =

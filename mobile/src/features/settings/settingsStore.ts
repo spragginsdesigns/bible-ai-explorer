@@ -10,11 +10,12 @@ import {
 	type PreferencesDocument,
 	type PreferencesPatch,
 	EMPTY_HIGHLIGHT_LABELS,
-	MAX_ABOUT_ME_LENGTH,
 	normalizeHighlightLabels,
 	normalizeHighlightMeanings,
+	normalizePersonalText,
 	type HighlightLabels,
 	type HighlightMeanings,
+	type PersonalTextField,
 } from "./preferences";
 
 /**
@@ -60,6 +61,8 @@ export interface Settings {
 	highlightMeanings: HighlightMeanings | null;
 	/** The user's own description of themselves. Null until this account has hydrated. */
 	aboutMe: string | null;
+	/** How the user came to faith, private to the assistant. Null until hydrated. */
+	testimony: string | null;
 }
 
 const STORAGE_KEY = "sureword.settings.v1";
@@ -121,8 +124,10 @@ export async function hydrateSettings(): Promise<void> {
 			// Capped on the way in as well as out: a cache written by a build
 			// with a larger cap must not be handed back over the current one.
 			aboutMe:
-				typeof parsed.aboutMe === "string"
-					? parsed.aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH)
+				typeof parsed.aboutMe === "string" ? normalizePersonalText("aboutMe", parsed.aboutMe) : null,
+			testimony:
+				typeof parsed.testimony === "string"
+					? normalizePersonalText("testimony", parsed.testimony)
 					: null,
 		};
 	} catch {
@@ -251,9 +256,12 @@ export function setHighlightLabelsAndMeaningsFromServer(
 	});
 }
 
-/** Adopt the About me text confirmed by the endpoint, without writing it back. */
-export function setAboutMeFromServer(aboutMe: string) {
-	setSnapshot({ ...snapshot, aboutMe: aboutMe.trim().slice(0, MAX_ABOUT_ME_LENGTH) });
+/**
+ * Adopt a personal text field (About me, testimony) confirmed by the endpoint,
+ * without writing it back.
+ */
+export function setPersonalTextFromServer(field: PersonalTextField, text: string) {
+	setSnapshot({ ...snapshot, [field]: normalizePersonalText(field, text) });
 }
 
 /*

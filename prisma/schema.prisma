@@ -60,6 +60,10 @@ model User {
   // into the chat prompt beside memories; the one piece of context the user
   // writes rather than the assistant infers. Null until they write one.
   aboutMe                String?
+  // "My testimony" (Settings → Memory): how they came to faith, in their own
+  // words. Private: injected into the chat prompt beside About me, never shown
+  // to or shared with anyone. Null until they write one.
+  testimony              String?
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]
@@ -323,6 +327,12 @@ model ChatAttachment {
   status    ChatAttachmentStatus @default(PENDING)
   createdAt DateTime             @default(now())
   readyAt   DateTime?
+  /// Audio only: transcribed once when the upload completes, and what the model
+  /// reads in place of the audio. Null for every other type.
+  transcript      String?        @db.Text
+  /// Audio only: length in seconds, read from the file before transcribing.
+  /// Summed per user over 24 hours for the free daily voice-message cap.
+  durationSeconds Float?
 
   @@index([userId])
   @@index([messageId])

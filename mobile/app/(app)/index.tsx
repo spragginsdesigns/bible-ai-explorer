@@ -10,6 +10,7 @@ import {
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAuth } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { BrandTitle, Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
@@ -22,6 +23,9 @@ import { WelcomeState } from "@/features/chat/WelcomeState";
 import { useKeyboardVisible, useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useSureWordChat } from "@/features/chat/useSureWordChat";
+import { ShareActions } from "@/features/share/ShareActions";
+import { takePendingShare, usePendingShare } from "@/features/share/shareInbox";
+import { shareActionMessage, type ShareAction } from "@/features/share/shareIntake";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { radius, spacing, type Colors } from "@/theme";
 import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
@@ -57,6 +61,29 @@ export default function ChatScreen() {
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
 	const lastOpenedConversation = useRef("");
+	const { isSignedIn } = useAuth();
+	const pendingShare = usePendingShare();
+	/** Set while a chat opened from "Share into SureWord" has not been sent yet. */
+	const [shareNotices, setShareNotices] = useState<string[] | null>(null);
+
+	// "Share into SureWord": open what was shared as a new chat. Waits for a
+	// signed-in session (uploads need one) and for any upload already running,
+	// which would otherwise make the new one bail out.
+	useEffect(() => {
+		if (!pendingShare || !isSignedIn || chat.uploadingAttachments) return;
+		const draft = takePendingShare();
+		if (!draft) return;
+		setHistoryOpen(false);
+		setModelPickerOpen(false);
+		setShareNotices(draft.notices);
+		setFocusSignal((signal) => signal + 1);
+		void chat.startSharedChat(draft);
+	}, [pendingShare, isSignedIn, chat.uploadingAttachments, chat.startSharedChat]);
+
+	// Once the shared chat has a message, the share actions have done their job.
+	useEffect(() => {
+		if (chat.messages.length > 0) setShareNotices(null);
+	}, [chat.messages.length]);
 
 	// Tapping an "answer is ready" notification lands here with the
 	// conversation it belongs to - open it rather than whatever was last on
@@ -139,8 +166,19 @@ export default function ChatScreen() {
 
 	const onNewChat = useCallback(() => {
 		newConversation();
+		setShareNotices(null);
 		setHistoryOpen(false);
 	}, [newConversation]);
+
+	const onShareAction = useCallback(
+		(action: ShareAction) => {
+			const message = shareActionMessage(action, chat.input);
+			chat.setInput("");
+			setShareNotices(null);
+			void sendMessage(message);
+		},
+		[chat.input, chat.setInput, sendMessage]
+	);
 
 	const onLocalCommand = useCallback(
 		(action: LocalCommandAction) => {
@@ -187,6 +225,11 @@ export default function ChatScreen() {
 			onClearAttachment={chat.clearAttachment}
 			fileAttachments={chat.fileAttachments}
 			uploadingAttachments={chat.uploadingAttachments}
+			uploadingLabel={
+				chat.uploadingAudio
+					? "Uploading and transcribing the voice message..."
+					: "Uploading..."
+			}
 			attachmentError={chat.attachmentError}
 			onTakePhoto={() => void chat.takePhoto()}
 			onChooseImages={() => void chat.chooseImages()}
@@ -291,6 +334,19 @@ export default function ChatScreen() {
 				{/* Docked in every state, the welcome included, so the composer
 				    never jumps when the first answer replaces the empty screen. */}
 				<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
+					{shareNotices !== null && (
+						<ShareActions
+							notices={shareNotices}
+							actionable={
+								Boolean(chat.input.trim()) ||
+								chat.fileAttachments.length > 0 ||
+								chat.uploadingAttachments
+							}
+							disabled={chat.uploadingAttachments || loading || isStreaming}
+							onAction={onShareAction}
+							onDismiss={() => setShareNotices(null)}
+						/>
+					)}
 					{inputBar}
 				</View>
 			</KeyboardAvoidingView>
@@ -307,7 +363,10 @@ export default function ChatScreen() {
 				activeConversationId={chat.activeConversationId}
 				loading={chat.initialLoading}
 				onClose={closeHistory}
-				onSelect={(id) => void chat.switchConversation(id)}
+				onSelect={(id) => {
+					setShareNotices(null);
+					void chat.switchConversation(id);
+				}}
 				onDelete={(id) => void chat.deleteConversation(id)}
 				onNewChat={onNewChat}
 				onClearAll={() => void chat.clearAllConversations()}

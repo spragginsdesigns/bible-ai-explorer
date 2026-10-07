@@ -113,6 +113,10 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     /// The user's own description of themselves, "" when they have written
     /// none. Nil only from a server that predates the column.
     var aboutMe: String?
+    /// How the user came to faith, in their own words, on exactly the same
+    /// rules as `aboutMe`: "" when unset, nil only from an older server, so a
+    /// deploy that predates the column leaves the local text alone.
+    var testimony: String?
     var chat: ChatPreferences?
 
     init(
@@ -125,6 +129,7 @@ struct AccountPreferences: Codable, Sendable, Equatable {
         highlightLabels: [String: String]? = nil,
         highlightMeanings: [String: String]? = nil,
         aboutMe: String? = nil,
+        testimony: String? = nil,
         chat: ChatPreferences? = nil
     ) {
         self.plan = plan
@@ -136,6 +141,7 @@ struct AccountPreferences: Codable, Sendable, Equatable {
         self.highlightLabels = highlightLabels
         self.highlightMeanings = highlightMeanings
         self.aboutMe = aboutMe
+        self.testimony = testimony
         self.chat = chat
     }
 }
@@ -157,6 +163,8 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     var highlightMeanings: [String: String]?
     /// "" clears the column, which is what an emptied box saves as.
     var aboutMe: String?
+    /// Same rule as `aboutMe`, capped at 2000 characters server-side.
+    var testimony: String?
     var chat: ChatPreferences?
 
     init(
@@ -168,6 +176,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         highlightLabels: [String: String]? = nil,
         highlightMeanings: [String: String]? = nil,
         aboutMe: String? = nil,
+        testimony: String? = nil,
         chat: ChatPreferences? = nil
     ) {
         self.webSearchEnabled = webSearchEnabled
@@ -178,12 +187,13 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         self.highlightLabels = highlightLabels
         self.highlightMeanings = highlightMeanings
         self.aboutMe = aboutMe
+        self.testimony = testimony
         self.chat = chat
     }
 
     private enum CodingKeys: String, CodingKey {
         case webSearchEnabled, memoryEnabled, translation, parchment, listenRate
-        case highlightLabels, highlightMeanings, aboutMe, chat
+        case highlightLabels, highlightMeanings, aboutMe, testimony, chat
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -199,6 +209,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         try container.encodeIfPresent(highlightLabels, forKey: .highlightLabels)
         try container.encodeIfPresent(highlightMeanings, forKey: .highlightMeanings)
         try container.encodeIfPresent(aboutMe, forKey: .aboutMe)
+        try container.encodeIfPresent(testimony, forKey: .testimony)
         // An empty chat block would be a body with no recognised keys, which
         // the server answers with a 400.
         if let chat, !chat.isEmpty {
@@ -215,6 +226,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
             && highlightLabels == nil
             && highlightMeanings == nil
             && aboutMe == nil
+            && testimony == nil
             && (chat?.isEmpty ?? true)
     }
 }
@@ -271,8 +283,8 @@ enum PreferencesAdoption {
             patch.listenRate = local.listenRate
         }
 
-        // The three text fields - highlight labels, their meanings, About me -
-        // are absent here on purpose, as they are in
+        // The text fields - highlight labels, their meanings, About me, the
+        // testimony - are absent here on purpose, as they are in
         // `mobile/src/features/settings/preferences.ts`. Nothing can choose
         // them offline: they are written only through their own Settings
         // sections, which save against the account document, so a seed could
@@ -662,13 +674,28 @@ final class PreferencesSyncModel {
         }
     }
 
+    /// Save "My testimony", on exactly the rules of `saveAboutMe`: the box
+    /// holds the whole value, the last save wins, and "" clears the column.
+    func saveTestimony(_ text: String) async -> SaveOutcome {
+        let issued = editSeq.bump()
+        do {
+            let document = try await transport.savePreferences(PreferencesPatch(testimony: text))
+            apply(narrowed(document, issued: issued), fromServer: true)
+            return .saved
+        } catch {
+            return .failed(
+                Self.message(error, fallback: "Your testimony was not saved. Try again.")
+            )
+        }
+    }
+
     /// The part of a save's echo that is safe to land.
     ///
     /// The whole document while nothing has been edited since the save was
     /// issued. Once something has, the echo predates that edit and the usual
     /// rule applies: its PATCH carries the truth for the field it touched, and
-    /// this response must not put the old value back. The three text fields are
-    /// the exception, and keep landing: nothing but these two Save buttons ever
+    /// this response must not put the old value back. The text fields are the
+    /// exception, and keep landing: nothing but their own Save buttons ever
     /// writes them, so the echo cannot be stale about them.
     ///
     /// Without this a save made while, say, the translation picker was busy
@@ -679,7 +706,8 @@ final class PreferencesSyncModel {
         return AccountPreferences(
             highlightLabels: document.highlightLabels,
             highlightMeanings: document.highlightMeanings,
-            aboutMe: document.aboutMe
+            aboutMe: document.aboutMe,
+            testimony: document.testimony
         )
     }
 
@@ -723,7 +751,7 @@ final class PreferencesSyncModel {
             }
             // Ahead of the `guard` below, which returns for a document with no
             // chat block: a rollback names only the fields its patch touched,
-            // and these three are written without one.
+            // and the text fields are written without one.
             if let highlightLabels = document.highlightLabels {
                 settings.highlightLabels = highlightLabels
             }
@@ -732,6 +760,9 @@ final class PreferencesSyncModel {
             }
             if let aboutMe = document.aboutMe {
                 settings.aboutMe = aboutMe
+            }
+            if let testimony = document.testimony {
+                settings.testimony = testimony
             }
             guard let chat = document.chat else { return }
             if let modelId = chat.modelId {

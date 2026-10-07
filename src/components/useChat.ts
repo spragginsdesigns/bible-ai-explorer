@@ -12,6 +12,7 @@ import {
 	type ChatAttachmentDescriptor,
 	validateAttachmentBatch,
 } from "@/lib/chat-attachment-types";
+import { rememberAttachmentDetails, withAttachmentDetails } from "@/lib/chat/attachmentDetails";
 import { completedHistory } from "@/lib/chat/answerRecovery";
 import { prepareFilesForUpload } from "@/lib/chat/imageDownscale";
 import { notifyAnswerReady } from "@/lib/web-notifications";
@@ -244,14 +245,16 @@ export function toViewMessage(
 	const fileIds = Array.isArray(message.metadata?.attachmentIds)
 		? message.metadata.attachmentIds
 		: [];
-	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) => ({
-		id: fileIds[index] ?? `${message.id}-file-${index}`,
-		filename: part.filename ?? `Attachment ${index + 1}`,
-		mediaType: part.mediaType as ChatAttachmentDescriptor["mediaType"],
-		size: 0,
-		previewUrl: part.url,
-		previewExpiresAt: "",
-	}));
+	const attachments: ChatAttachmentDescriptor[] = fileParts.map((part, index) =>
+		withAttachmentDetails({
+			id: fileIds[index] ?? `${message.id}-file-${index}`,
+			filename: part.filename ?? `Attachment ${index + 1}`,
+			mediaType: part.mediaType as ChatAttachmentDescriptor["mediaType"],
+			size: 0,
+			previewUrl: part.url,
+			previewExpiresAt: "",
+		}),
+	);
 	let statusActivity: string | undefined;
 	let toolActivity: string | undefined;
 
@@ -392,6 +395,7 @@ export function dbMessageToUIMessage(value: unknown): SureWordUIMessage {
 	const storedAttachments = Array.isArray(value.attachments)
 		? value.attachments.filter(isRecord)
 		: [];
+	for (const attachment of storedAttachments) rememberAttachmentDetails(attachment);
 	const attachmentParts = storedAttachments.flatMap((attachment) =>
 		typeof attachment.id === "string" &&
 		typeof attachment.filename === "string" &&
@@ -520,6 +524,7 @@ export const useChat = () => {
 				if (!completeResponse.ok || !result.attachment) {
 					throw new Error(result.error ?? `Could not verify ${files[index].name}.`);
 				}
+				rememberAttachmentDetails(result.attachment);
 				return result.attachment as ChatAttachmentDescriptor;
 			}));
 			if (draftVersion !== attachmentDraftVersionRef.current) {

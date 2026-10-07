@@ -16,6 +16,11 @@ import Foundation
 struct AttachmentUploader: Sendable {
     let api: APIClient
 
+    /// Completing a voice message transcribes it before the response comes back
+    /// (15 to 30 seconds is typical) and the route may run for 120, so the REST
+    /// budget would cut it off mid-transcription.
+    static let transcriptionTimeout: TimeInterval = 150
+
     private struct InitResponse: Decodable {
         struct Upload: Decodable {
             let id: String
@@ -81,6 +86,9 @@ struct AttachmentUploader: Sendable {
                 let response = try await api.json(
                     "/api/chat/attachments/\(upload.id)/complete",
                     method: "POST",
+                    timeout: AttachmentLimits.isAudio(upload.mediaType)
+                        ? Self.transcriptionTimeout
+                        : APIClient.defaultTimeout,
                     as: CompleteResponse.self
                 )
                 completed.append(response.attachment)

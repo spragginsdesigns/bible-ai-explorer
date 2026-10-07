@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.79.0 (versionCode 88) - 2026-10-07 - internal
+
+**What's new (Play):**
+
+NEW
+- /check weighs a claim, a screenshot or a voice message against Scripture.
+- /reply helps you answer someone gently from Scripture.
+- Voice messages: attach or share an audio clip and SureWord reads what was said.
+- Share into SureWord from Discord, Messages and other apps.
+- My testimony: tell SureWord privately how you came to faith (Settings, Memory).
+
+**Dev notes:** Server answers "the KJV mistranslates", borrowed beliefs (karma, self-salvation) and skeptics from the guidance shipped in 9457b35, live for every build. Audio is transcribed once at upload (free 10 min/day, Pro uncapped) and the model reads the transcript. Native share target via expo-share-intent 8.0.1 (prebuild --clean). New columns User.testimony and ChatAttachment.transcript/durationSeconds were applied to production before release.
+
 ## 1.78.0 (versionCode 87) - 2026-10-01 - internal and closed testing
 
 **What's new (Play):**

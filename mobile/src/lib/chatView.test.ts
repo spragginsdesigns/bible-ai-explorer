@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	ATTACHMENT_DETAILS_KEY,
 	dbMessageToUIMessage,
 	isRenderableChatViewMessage,
 	parseFollowUps,
@@ -7,6 +8,7 @@ import {
 	toViewMessage,
 	toViewMessageCached,
 	visibleResponseContent,
+	withoutClientOnlyMetadata,
 } from "@/lib/chatView";
 
 vi.mock("ai", () => ({})); // type-only import; keep vitest from resolving the package
@@ -468,6 +470,47 @@ describe("dbMessageToUIMessage", () => {
 			url: "https://example.test/private-signed",
 		});
 		expect(ui.metadata).toMatchObject({ attachmentIds: ["att-1"] });
+	});
+
+	it("restores a voice message's transcript and length onto its attachment", () => {
+		const ui = dbMessageToUIMessage({
+			id: "with-voice",
+			role: "user",
+			content: "/check",
+			attachments: [
+				{
+					id: "att-voice",
+					filename: "voice-message.ogg",
+					mediaType: "audio/ogg",
+					size: 48_000,
+					previewUrl: "https://example.test/voice",
+					previewExpiresAt: "2030-01-01T00:00:00.000Z",
+					transcript: "Karma is in the Bible.",
+					durationSeconds: 12.4,
+				},
+				{
+					id: "att-image",
+					filename: "screenshot.png",
+					mediaType: "image/png",
+					size: 1200,
+					previewUrl: "https://example.test/image",
+					previewExpiresAt: "2030-01-01T00:00:00.000Z",
+				},
+			],
+		});
+		const view = toViewMessage(ui, { isStreaming: false });
+		expect(view.attachments?.[0]).toMatchObject({
+			id: "att-voice",
+			mediaType: "audio/ogg",
+			transcript: "Karma is in the Bible.",
+			durationSeconds: 12.4,
+		});
+		expect(view.attachments?.[1]).not.toHaveProperty("transcript");
+
+		// Client-only: never sent back to the server, which already has it.
+		const [outgoing] = withoutClientOnlyMetadata([ui]);
+		expect(outgoing.metadata).toEqual({ attachmentIds: ["att-voice", "att-image"] });
+		expect(ui.metadata).toHaveProperty(ATTACHMENT_DETAILS_KEY);
 	});
 
 	it("preserves stored parts and strips them from metadata", () => {

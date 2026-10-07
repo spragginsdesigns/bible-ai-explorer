@@ -13,7 +13,8 @@ import {
 	settingsFromDocument,
 	shouldApplyResponse,
 	shouldFetchNow,
-	MAX_ABOUT_ME_LENGTH,
+	normalizePersonalText,
+	type PersonalTextField,
 	type PreferencesDocument,
 	type HighlightLabels,
 	type HighlightMeanings,
@@ -24,8 +25,8 @@ import { fetchPreferences, patchPreferences } from "./preferencesApi";
 import {
 	applyServerPreferences,
 	getSettings,
-	setAboutMeFromServer,
 	setHighlightLabelsAndMeaningsFromServer,
+	setPersonalTextFromServer,
 	setPreferencesWriter,
 } from "./settingsStore";
 
@@ -318,46 +319,66 @@ export async function saveHighlightLabelEdits(edits: {
 	}
 }
 
-export type AboutMeSaveResult = { ok: true; aboutMe: string } | { ok: false; error: string };
+export type PersonalTextSaveResult = { ok: true; text: string } | { ok: false; error: string };
 
-let aboutMeSaveSeq = 0;
+/** How each field is named inside the save path's error messages. */
+const PERSONAL_TEXT_NOUN: Record<PersonalTextField, string> = {
+	aboutMe: "About me",
+	testimony: "your testimony",
+};
+
+/** Per field, so saving one card never discards the other's confirmation. */
+const personalTextSaveSeq: Record<PersonalTextField, number> = { aboutMe: 0, testimony: 0 };
 
 /**
- * Save the About me text. Unlike the colour maps this is one whole field, so
- * there is nothing to merge: the box holds the only value, and a PATCH replaces
- * it. Trimmed and capped here as well as on the server, so a paste over the
- * limit is shortened rather than refused with a 400 the user cannot act on.
+ * Save one personal text field (About me, testimony). Unlike the colour maps
+ * each is one whole field, so there is nothing to merge: the box holds the only
+ * value, and a PATCH replaces it. Trimmed and capped here as well as on the
+ * server, so a paste over the limit is shortened rather than refused with a 400
+ * the user cannot act on.
  */
-export async function saveAboutMe(text: string): Promise<AboutMeSaveResult> {
+async function savePersonalText(
+	field: PersonalTextField,
+	text: string
+): Promise<PersonalTextSaveResult> {
+	const noun = PERSONAL_TEXT_NOUN[field];
 	const getToken = tokenGetter;
 	const userIdAtRequest = activeUserId;
 	if (!getToken || !userIdAtRequest) {
-		return { ok: false, error: "Sign in before saving About me." };
+		return { ok: false, error: `Sign in before saving ${noun}.` };
 	}
 	const accountSeqAtRequest = accountSeq;
-	const saveSeq = ++aboutMeSaveSeq;
+	const saveSeq = ++personalTextSaveSeq[field];
 	editSeq += 1;
 
+	const patch: PreferencesPatch = {};
+	patch[field] = normalizePersonalText(field, text);
+
 	try {
-		const confirmed = parsePreferencesDocument(
-			await patchPreferences(getToken, {
-				aboutMe: text.trim().slice(0, MAX_ABOUT_ME_LENGTH),
-			})
-		);
-		if (!confirmed || confirmed.aboutMe === null) {
-			throw new Error("The server did not confirm About me.");
+		const confirmed = parsePreferencesDocument(await patchPreferences(getToken, patch));
+		const confirmedText = confirmed?.[field] ?? null;
+		if (confirmedText === null) {
+			throw new Error(`The server did not confirm ${noun}.`);
 		}
 		if (accountSeqAtRequest !== accountSeq || activeUserId !== userIdAtRequest) {
-			return { ok: false, error: "Your account changed before About me was saved." };
+			return { ok: false, error: `Your account changed before ${noun} was saved.` };
 		}
-		if (saveSeq === aboutMeSaveSeq) setAboutMeFromServer(confirmed.aboutMe);
-		return { ok: true, aboutMe: confirmed.aboutMe };
+		if (saveSeq === personalTextSaveSeq[field]) setPersonalTextFromServer(field, confirmedText);
+		return { ok: true, text: confirmedText };
 	} catch (error) {
 		return {
 			ok: false,
-			error: error instanceof Error && error.message ? error.message : "Couldn't save About me.",
+			error: error instanceof Error && error.message ? error.message : `Couldn't save ${noun}.`,
 		};
 	}
+}
+
+export function saveAboutMe(text: string): Promise<PersonalTextSaveResult> {
+	return savePersonalText("aboutMe", text);
+}
+
+export function saveTestimony(text: string): Promise<PersonalTextSaveResult> {
+	return savePersonalText("testimony", text);
 }
 
 /**

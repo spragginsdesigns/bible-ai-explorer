@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 @testable import SureWord
 
 /// Pinned to `mobile/src/features/chat/fileAttachments.ts` and to the server's
@@ -40,10 +41,30 @@ struct FileAttachmentTests {
             "notes.markdown": "text/markdown",
             "rows.csv": "text/csv",
             "data.json": "application/json",
+            "voice.ogg": "audio/ogg",
+            "voice.oga": "audio/ogg",
+            "voice.opus": "audio/ogg",
+            "voice.mp3": "audio/mpeg",
+            "voice.m4a": "audio/mp4",
+            "voice.wav": "audio/wav",
+            "voice.webm": "audio/webm",
         ]
         for (filename, mediaType) in expected {
             #expect(try normalize(filename).mediaType == mediaType)
         }
+    }
+
+    /// Android reports m4a as audio/x-m4a, browsers say audio/mp3, and a Discord
+    /// voice message can arrive as audio/opus. Each must resolve to the canonical
+    /// type the server locks the upload URL to.
+    @Test("Platform aliases for audio types resolve to the canonical type")
+    func audioAliases() throws {
+        #expect(try normalize("voice.m4a", "audio/x-m4a").mediaType == "audio/mp4")
+        #expect(try normalize("voice.mp3", "audio/mp3").mediaType == "audio/mpeg")
+        #expect(try normalize("voice.opus", "audio/opus").mediaType == "audio/ogg")
+        #expect(try normalize("voice.ogg", "application/ogg").mediaType == "audio/ogg")
+        #expect(try normalize("voice.wav", "audio/x-wav").mediaType == "audio/wav")
+        #expect(try normalize("voice.wav", "audio/wave").mediaType == "audio/wav")
     }
 
     @Test("Extensions are matched case-insensitively")
@@ -51,10 +72,10 @@ struct FileAttachmentTests {
         #expect(try normalize("SHOT.PNG").mediaType == "image/png")
     }
 
-    @Test("An unsupported type is rejected with Android's wording")
+    @Test("An unsupported type is rejected with the server's wording")
     func unsupportedType() {
         #expect(throws: AttachmentError(
-            message: "clip.mov is not a supported PNG, JPEG, WebP, GIF, PDF, TXT, Markdown, CSV, or JSON file."
+            message: "clip.mov is not a supported image (PNG, JPEG, WebP, GIF), PDF, text (TXT, Markdown, CSV, JSON), or audio (OGG, MP3, M4A, WAV, WebM) file."
         )) {
             try normalize("clip.mov")
         }
@@ -119,12 +140,25 @@ struct FileAttachmentTests {
         }
     }
 
+    @Test("Voice messages are capped at 20 MB")
+    func audioCap() throws {
+        let limit = AttachmentLimits.maxAudioBytes
+        #expect(try normalize("voice.ogg", size: limit).size == limit)
+        // Larger than an image may be, still inside the audio cap.
+        #expect(try normalize("voice.m4a", size: 15 * 1024 * 1024).mediaType == "audio/mp4")
+        #expect(throws: AttachmentError(message: "voice.mp3 exceeds the 20 MB file limit.")) {
+            try normalize("voice.mp3", size: limit + 1)
+        }
+    }
+
     @Test("The cap follows the media type, not the extension family")
     func capSelection() {
         #expect(AttachmentLimits.byteLimit(for: "image/png") == 10 * 1024 * 1024)
         #expect(AttachmentLimits.byteLimit(for: "application/pdf") == 10 * 1024 * 1024)
         #expect(AttachmentLimits.byteLimit(for: "text/csv") == 1024 * 1024)
         #expect(AttachmentLimits.byteLimit(for: "application/json") == 1024 * 1024)
+        #expect(AttachmentLimits.byteLimit(for: "audio/ogg") == 20 * 1024 * 1024)
+        #expect(AttachmentLimits.byteLimit(for: "audio/webm") == 20 * 1024 * 1024)
     }
 
     // MARK: Batch caps
@@ -178,10 +212,67 @@ struct FileAttachmentTests {
         #expect(AttachmentLimits.maxMessageBytes == 25 * 1024 * 1024)
         #expect(AttachmentLimits.maxImageOrPDFBytes == 10 * 1024 * 1024)
         #expect(AttachmentLimits.maxTextBytes == 1024 * 1024)
+        #expect(AttachmentLimits.maxAudioBytes == 20 * 1024 * 1024)
         #expect(AttachmentLimits.mediaTypes == [
-            "application/json", "application/pdf", "image/gif", "image/jpeg",
+            "application/json", "application/pdf",
+            "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm",
+            "image/gif", "image/jpeg",
             "image/png", "image/webp", "text/csv", "text/markdown", "text/plain",
         ])
+    }
+
+    /// The picker greys out anything not in this list, so an audio extension
+    /// missing from it would make that format impossible to choose.
+    @Test("The file importer offers every audio extension")
+    func importerOffersAudio() {
+        let types = AttachmentLimits.contentTypes
+        for ext in ["ogg", "oga", "opus", "mp3", "m4a", "wav", "webm"] {
+            let fileType = UTType(filenameExtension: ext)
+            #expect(fileType != nil)
+            if let fileType {
+                #expect(types.contains { fileType.conforms(to: $0) }, "\(ext) is not offered")
+            }
+        }
+    }
+
+    // MARK: Voice messages
+
+    @Test("Durations read the way the web renders them")
+    func audioDurationFormatting() {
+        #expect(formatAudioDuration(0) == "0:00")
+        #expect(formatAudioDuration(4.4) == "0:04")
+        #expect(formatAudioDuration(59.6) == "1:00")
+        #expect(formatAudioDuration(332.5) == "5:33")
+        #expect(formatAudioDuration(900) == "15:00")
+        #expect(formatAudioDuration(-3) == "0:00")
+    }
+
+    @Test("A voice message chip says what it is and how long it runs")
+    func voiceMessageLabels() {
+        #expect(voiceMessageLabel(durationSeconds: 75.2) == "Voice message \u{00B7} 1:15")
+        #expect(voiceMessageLabel(durationSeconds: nil) == "Voice message")
+    }
+
+    @Test("The completion response decodes the transcript and duration when present")
+    func descriptorDecodesTranscript() throws {
+        let audio = Data("""
+        {"id":"a1","filename":"voice.ogg","mediaType":"audio/ogg","size":5000,\
+        "previewUrl":"https://blob.example/a1","previewExpiresAt":"",\
+        "transcript":"Is the KJV mistranslated here?","durationSeconds":12.5}
+        """.utf8)
+        let decoded = try JSONDecoder().decode(ChatAttachmentDescriptor.self, from: audio)
+        #expect(decoded.isAudio)
+        #expect(decoded.transcript == "Is the KJV mistranslated here?")
+        #expect(decoded.durationSeconds == 12.5)
+
+        let image = Data("""
+        {"id":"i1","filename":"shot.png","mediaType":"image/png","size":42,\
+        "previewUrl":"https://blob.example/i1","previewExpiresAt":""}
+        """.utf8)
+        let plain = try JSONDecoder().decode(ChatAttachmentDescriptor.self, from: image)
+        #expect(!plain.isAudio)
+        #expect(plain.transcript == nil)
+        #expect(plain.durationSeconds == nil)
     }
 
     // MARK: Byte formatting
@@ -307,5 +398,59 @@ struct AttachmentRequestShapeTests {
         #expect(view.attachments[0].mediaType == "image/png")
         #expect(view.attachments[0].previewURL == "https://blob.example/a1")
         #expect(view.content == "What does this say?")
+    }
+
+    /// Reopening a conversation must still let the user tap a voice message to
+    /// read what was said, so the transcript rides from the stored row to the chip.
+    @Test("A stored voice message restores its transcript and duration")
+    func voiceMessageHistoryRestore() throws {
+        let row = JSONValue.object([
+            "id": .string("msg-2"),
+            "role": .string("user"),
+            "content": .string("/check"),
+            "metadata": .object([:]),
+            "attachments": .array([
+                .object([
+                    "id": .string("v1"),
+                    "filename": .string("voice.ogg"),
+                    "mediaType": .string("audio/ogg"),
+                    "size": .number(5000),
+                    "previewUrl": .string("https://blob.example/v1"),
+                    "transcript": .string("Karma is in the Bible."),
+                    "durationSeconds": .number(8.4),
+                ]),
+            ]),
+        ])
+        let restored = try #require(UIMessage(storedRow: row))
+        let view = ChatViewMessage(message: restored, isStreaming: false)
+
+        #expect(view.attachments.count == 1)
+        #expect(view.attachments[0].transcript == "Karma is in the Bible.")
+        #expect(view.attachments[0].durationSeconds == 8.4)
+    }
+
+    /// The server reads its own stored transcript; the client's display copy must
+    /// never ride along in the outgoing part.
+    @Test("An outgoing voice message part carries no transcript")
+    func outgoingPartOmitsTranscript() throws {
+        let message = UIMessage(
+            id: "user-2",
+            role: .user,
+            parts: [
+                .file(FilePart(
+                    url: "https://blob.example/v1",
+                    mediaType: "audio/ogg",
+                    filename: "voice.ogg",
+                    transcript: "Karma is in the Bible.",
+                    durationSeconds: 8.4
+                )),
+                .text(id: "0", text: "/check"),
+            ]
+        )
+        let parts = try #require(message.json["parts"]?.arrayValue)
+        #expect(parts[0]["mediaType"]?.stringValue == "audio/ogg")
+        #expect(parts[0]["transcript"] == nil)
+        #expect(parts[0]["durationSeconds"] == nil)
+        #expect(parts[1]["text"]?.stringValue == "/check")
     }
 }

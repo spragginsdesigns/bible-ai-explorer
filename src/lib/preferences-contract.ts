@@ -74,6 +74,14 @@ export const MAX_HIGHLIGHT_MEANING_LENGTH = 120;
 export const MAX_ABOUT_ME_LENGTH = 1000;
 
 /**
+ * "My testimony": how the user came to faith, in their own words. Private:
+ * read by the assistant only, never shown or shared. Longer than About me
+ * because a story needs room, but still injected into every chat turn, so the
+ * cap is what keeps that affordable.
+ */
+export const MAX_TESTIMONY_LENGTH = 2000;
+
+/**
  * What the user calls each highlight colour ("yellow" -> "Promises"), so the
  * reader, the assistant and the daily cross can say "you marked this as a
  * promise". A colour with no entry keeps its hue name, so the default document
@@ -157,6 +165,8 @@ export interface PreferencesDocument {
 	highlightMeanings: HighlightMeanings;
 	/** "" until the user writes one; the column is null then. */
 	aboutMe: string;
+	/** "" until the user writes one, like `aboutMe`. */
+	testimony: string;
 	chat: PreferencesChatDocument;
 }
 
@@ -177,6 +187,8 @@ export interface PreferencesUserRow {
 	highlightMeanings?: unknown;
 	/** The `aboutMe` column; optional so an older select still builds a document. */
 	aboutMe?: string | null;
+	/** The `testimony` column; optional like `aboutMe`. */
+	testimony?: string | null;
 	defaultModelId: string | null;
 	defaultEffort: string | null;
 	defaultSpeed: string | null;
@@ -198,6 +210,8 @@ export interface PreferencesPatchData {
 	highlightMeanings?: HighlightMeanings;
 	/** null clears the column; that is what an empty "About me" saves as. */
 	aboutMe?: string | null;
+	/** null clears the column, like `aboutMe`. */
+	testimony?: string | null;
 	defaultModelId?: string | null;
 	defaultEffort?: string | null;
 	defaultSpeed?: string | null;
@@ -245,8 +259,17 @@ export function readStoredHighlightMeanings(stored: unknown): HighlightMeanings 
  * text.
  */
 export function readStoredAboutMe(stored: unknown): string {
+	return readStoredText(stored, MAX_ABOUT_ME_LENGTH);
+}
+
+/** The stored testimony, read exactly like About me. */
+export function readStoredTestimony(stored: unknown): string {
+	return readStoredText(stored, MAX_TESTIMONY_LENGTH);
+}
+
+function readStoredText(stored: unknown, maxLength: number): string {
 	if (typeof stored !== "string") return "";
-	return stored.trim().slice(0, MAX_ABOUT_ME_LENGTH);
+	return stored.trim().slice(0, maxLength);
 }
 
 function readStoredColourMap(stored: unknown, maxLength: number): Record<string, string> {
@@ -317,14 +340,18 @@ function readColourMap(
  * never wrote it. Over the cap is refused rather than cut: the user typed it
  * and should see it did not fit.
  */
-function readAboutMe(value: unknown): { ok: true; aboutMe: string | null } | { ok: false; error: string } {
-	if (value === null) return { ok: true, aboutMe: null };
-	if (typeof value !== "string") return { ok: false, error: "aboutMe must be a string" };
+function readPersonalText(
+	value: unknown,
+	field: string,
+	maxLength: number
+): { ok: true; text: string | null } | { ok: false; error: string } {
+	if (value === null) return { ok: true, text: null };
+	if (typeof value !== "string") return { ok: false, error: `${field} must be a string` };
 	const text = value.trim();
-	if (text.length > MAX_ABOUT_ME_LENGTH) {
-		return { ok: false, error: `aboutMe must be ${MAX_ABOUT_ME_LENGTH} characters or fewer` };
+	if (text.length > maxLength) {
+		return { ok: false, error: `${field} must be ${maxLength} characters or fewer` };
 	}
-	return { ok: true, aboutMe: text || null };
+	return { ok: true, text: text || null };
 }
 
 /**
@@ -365,6 +392,7 @@ export function toPreferencesDocument(
 		highlightLabels: readStoredHighlightLabels(user?.highlightLabels),
 		highlightMeanings: readStoredHighlightMeanings(user?.highlightMeanings),
 		aboutMe: readStoredAboutMe(user?.aboutMe),
+		testimony: readStoredTestimony(user?.testimony),
 		chat: {
 			modelId: user?.defaultModelId ?? null,
 			effort: pickFromVocabulary<ReasoningEffort>(user?.defaultEffort, models.efforts),
@@ -445,9 +473,15 @@ export function parsePreferencesPatch(body: unknown, models: ModelVocabulary): P
 				break;
 			}
 			case "aboutMe": {
-				const parsed = readAboutMe(value);
+				const parsed = readPersonalText(value, "aboutMe", MAX_ABOUT_ME_LENGTH);
 				if (!parsed.ok) return { ok: false, error: parsed.error };
-				data.aboutMe = parsed.aboutMe;
+				data.aboutMe = parsed.text;
+				break;
+			}
+			case "testimony": {
+				const parsed = readPersonalText(value, "testimony", MAX_TESTIMONY_LENGTH);
+				if (!parsed.ok) return { ok: false, error: parsed.error };
+				data.testimony = parsed.text;
 				break;
 			}
 			case "chat": {

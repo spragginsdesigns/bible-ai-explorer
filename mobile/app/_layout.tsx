@@ -29,6 +29,7 @@ import { usePreferencesLifecycle } from "@/features/settings/preferencesSync";
 import { hydrateHighlights } from "@/features/bible/highlightsStore";
 import { hydrateNotificationSettings } from "@/features/notifications/notificationSettings";
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import { ShareIntentBridge } from "@/features/share/ShareIntentBridge";
 import {
 	markLaunchAnimationStartedThisSession,
 	shouldShowLaunchAnimationThisSession,
@@ -223,6 +224,9 @@ export default function RootLayout() {
 				>
 					<AnalyticsIdentityBridge />
 					<AnalyticsScreenBridge />
+					{/* "Share into SureWord" from other apps; parks the share
+					    until the chat can open it (after sign-in if need be). */}
+					<ShareIntentBridge />
 					<View style={{ flex: 1 }}>
 						<ThemedShell />
 						{showAnimatedSplash ? (
