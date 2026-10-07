@@ -148,6 +148,38 @@ content first.
 | H7 | TestFlight: internal group, then external beta with at least Austin's family/church testers; collect crash and feedback; fix blockers. |
 | H8 | Submit for review; respond to rejections; release manually after approval. |
 
+### I. Gaps added by the 2026-10-07 Android 1.50.0 to 1.79.0 audit
+
+Source-level audit (grep of the Swift against the Android tree, not built or
+run). Everything below is additive to sections A to H.
+
+| ID | Requirement | Android source |
+|---|---|---|
+| B7 | **Offline cold start and per-account cache hygiene**: launching offline restores the signed-in identity from a cached Clerk resource; per-account Settings data (providers, church, memory count) is persisted, revalidated on focus and cleared on sign-out or account switch. | 1.54.0, 1.57.0/1.57.1; `settings/settingsData.ts`, `cacheOwner.ts` |
+| B6a | Notification permission is never asked at launch; ask on the first settled answer or first Daily Cross visit. | 1.55.0/1.55.1; `notifications/permissionPrompt.ts` |
+| D9 | **Photo downscale before upload**: picks over 2048px are resized and re-encoded as JPEG (iOS today only sets JPEG quality 0.9 in `ChatAttachmentSources.swift`). | 1.51.0; `chat/imageDownscale.ts` |
+| G8 | iPad hardware-keyboard shortcuts and composer clearance (stretch). | 1.59.0; PARITY keyboard-shortcuts row |
+
+Acceptance additions to existing IDs:
+
+- **D1**: chat **rename** is missing on iOS (search and swipe-delete exist in `HistorySheet.swift`); a failed delete alerts and restores the history row (Android 1.76.0).
+- **D3**: also exercise the "worked for" activity card restored from history (1.59.0, `WorkActivityView.swift`).
+- **C9**: Atlas includes the Family and Trace screens (`atlas/family/[id]`, `atlas/trace/[id]`).
+- **G2**: Cross opens nested in the Bible stack so Back returns to the devotional, then Bible home (1.50.0).
+- **C4** is the parchment **reader surface** only: the `parchment` preference and Appearance toggle already exist on iOS.
+- **B5** shrinks to: My testimony and About me are already in Settings; what remains is the nested hub (Android 1.69.0) versus iOS's single `List`, plus the README note.
+
+Source present on iOS, so these lanes **verify and fix**, they do not rebuild:
+B5 sections, D4 Stay/Fresh, D6 `/check` and `/reply`, D7 audio MIME types, C10
+reading log, C9 Atlas modes, shared-answers Show in search, prayer status,
+`PushRegistration.swift` (needs the `aps-environment` entitlement and server
+wiring only). Confirmed absent: C3 cross-references, C8 Learn (chat quick
+action is a "later phase" toast), C11 sermons, B2 header, A1.
+
+Android-only by design (exempt): in-app updates and Check for updates, Google
+Play billing, the notification small icon, Android back-stack and edge-to-edge
+idioms, `expo-share-intent` patches (iOS uses D8), web-only guest answers.
+
 ## 5. Shared backend changes (summary)
 
 - `DELETE /api/account` (A1) with a tested cascade and Blob cleanup.
