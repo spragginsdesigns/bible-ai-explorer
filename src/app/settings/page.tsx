@@ -51,6 +51,7 @@ import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
 import FeedbackSection from "@/components/settings/FeedbackSection";
 import MembershipSummary from "@/components/settings/MembershipSummary";
 import NotificationsSection from "@/components/settings/NotificationsSection";
+import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
@@ -70,7 +71,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
  * Settings: appearance (system/dark/light via next-themes), the default Bible
  * translation for the reader and verse attachments (mirrors the Android
  * settings screen), memory (enable toggle + manage dialog), and account
- * (profile + sign out).
+ * (profile, sign out and delete account).
  */
 export default function SettingsPage() {
 	const { theme, setTheme } = useTheme();
@@ -513,6 +514,7 @@ export default function SettingsPage() {
 									Sign out
 								</button>
 							)}
+							<DeleteAccountSection />
 						</div>
 					</section>
 
