@@ -89,12 +89,8 @@ final class APIClient: Sendable {
         timeout: TimeInterval,
         fresh: Bool
     ) async throws -> (status: Int, data: Data) {
-        var request = try await makeRequest(path, method: method, fresh: fresh)
+        var request = try await makeRequest(path, method: method, body: body, fresh: fresh)
         request.timeoutInterval = timeout
-        if let body {
-            request.httpBody = try JSONEncoder().encode(body)
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
 
         do {
             let (data, response) = try await session.data(for: request)
@@ -193,6 +189,23 @@ final class APIClient: Sendable {
         request.setValue(Self.clientHeaderValue, forHTTPHeaderField: Self.clientHeaderName)
         if let jwt = try? await token(fresh) {
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    /// `makeRequest` plus the JSON body, exactly as `data`/`json` send it.
+    /// Internal so tests can pin a route's method, path and body without a
+    /// network round trip.
+    func makeRequest(
+        _ path: String,
+        method: String,
+        body: (any Encodable)?,
+        fresh: Bool
+    ) async throws -> URLRequest {
+        var request = try await makeRequest(path, method: method, fresh: fresh)
+        if let body {
+            request.httpBody = try JSONEncoder().encode(body)
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
         return request
     }

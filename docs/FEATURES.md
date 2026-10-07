@@ -2558,8 +2558,16 @@ history load; `/share` at 390 px.
 
 `DELETE /api/account` permanently deletes the signed-in user's data and their
 Clerk user (App Store 5.1.1(v), Play account-deletion policy). Body must be
-exactly `{ "confirm": "DELETE" }`, else 400. Unauthenticated is 401. No client
-UI yet.
+exactly `{ "confirm": "DELETE" }`, else 400. Unauthenticated is 401.
+
+**Apple clients (iOS + macOS).** Settings -> Account -> Delete account, below
+Sign out (`macos/Shared/Settings/AccountDeletion.swift`, shared by both
+targets). Two steps: a destructive dialog listing what goes, then an alert that
+only enables its button once the user types `DELETE`. On 200 it runs the
+sign-out cache wipe (`PreferencesSyncModel.clearAccountCaches`) and signs out of
+Clerk. A 401 after an attempt that may already have gone through (a 502 or a
+lost response) counts as done; 500 says nothing was removed; 502 offers a retry.
+Android and web UI are not built yet.
 
 **Auth.** Clerk `auth()` directly, which accepts the Android bearer token and
 the web session cookie alike. It deliberately does not use `getAuthUser()`,

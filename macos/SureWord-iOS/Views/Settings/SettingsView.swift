@@ -83,6 +83,7 @@ struct SettingsView: View {
                     LabeledContent("Signed in as", value: email)
                 }
                 Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
+                DeleteAccountRow(app: app)
             }
 
             Section("About") {

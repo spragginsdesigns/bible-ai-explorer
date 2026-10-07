@@ -30,4 +30,15 @@ enum ClerkAuth {
     static func signOut() async {
         try? await Clerk.shared.auth.signOut()
     }
+
+    /// Sign-out once `DELETE /api/account` has removed the Clerk user. The
+    /// server already ended every session with the user, so the sign-out call
+    /// itself can fail; re-reading the client from Clerk then drops the dead
+    /// session locally, which is what flips both app roots to sign-in.
+    static func signOutAfterAccountDeletion() async {
+        await signOut()
+        if Clerk.shared.user != nil {
+            _ = try? await Clerk.shared.refreshClient()
+        }
+    }
 }
