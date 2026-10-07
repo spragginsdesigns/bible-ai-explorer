@@ -31,8 +31,8 @@ Android bar 1.79.0 (88).
 | A7 privacy/terms/support pages | store-prep | verified live 2026-10-07: `/privacy`, `/terms`, `/support` (200, public) deployed with `3456561`; tests forbid price/Pro/purchase text on /privacy and /support. Apple Settings → About links Privacy Policy and Support only (`74b1925`) | `src/lib/marketing/legal-content.ts` |
 | B1 four sign-in paths on device | store-blockers | todo | |
 | B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
-| B3 analytics parity | ports | todo | |
-| B4 Send feedback | ports | todo | |
+| B3 analytics parity | ports | source: `e3b37d9` direct PostHog batch client on iOS + macOS, Android event names, property allowlist (no content keys), debug/simulator flagged as test traffic; mirror test reads server + Android sources. Queue flushed on a simulator launch (200 from PostHog not proven). Privacy manifest gained Product Interaction + Other Diagnostic Data (Analytics) | `macos/Shared/Analytics/` |
+| B4 Send feedback | ports | source: `0cdfb97` same `POST /api/feedback`, categories and 2000-char limit as Android; simulator screenshot via harness; not sent signed in | `macos/Shared/Settings/Feedback.swift` |
 | B5 settings hub + testimony | breadth | source (sections present, nested hub missing) | |
 | B6 notifications / APNs | store-prep | source (`PushRegistration.swift`, no entitlement) | |
 | B6a deferred permission prompt | breadth | todo | |
@@ -57,8 +57,8 @@ Android bar 1.79.0 (88).
 | D7 voice messages | share-voice | source (MIME types only) | |
 | D8 Share Extension | share-voice | todo | |
 | D9 image downscale | ports | wip: unit-tested with synthetic images; real picker/camera run pending; clipboard-paste path not covered | `ImageDownscaleTests` |
-| E1 template picker | ports | todo | |
-| E2 editor menu + Markdown export | ports | todo | |
+| E1 template picker | ports | source: `54c332d` byte-for-byte port of `noteTemplates.ts` (fixtures); not run signed in | |
+| E2 editor menu + Markdown export | ports | source: `54c332d` chrome + More menu; `NoteMarkdownExport` equals the TS on 34 fixtures; not run signed in | |
 | E3 wikilinks, backlinks, properties | notes | source: merged `d9d881a` (picker, info sheet with links/aliases/properties; parsing pinned by ports of `wikilinks.test.ts` and `noteProperties.test.ts`); iOS 129+128 and macOS 663 tests green on main. Not yet run signed in. macOS has the model but no screens | |
 | E4 editor deferrals | notes | source: all three closed on iOS `f951def` (undo/redo history incl. Cmd-Z/shake, hardware Tab indent, live Dynamic Type); not yet run on a device | |
 | F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Fixed: Listen lock copy neutral on all four clients (`1f03066`); in-app Privacy/Support links (`74b1925`). See (f) for the 3.1.3(b) risk. | |
