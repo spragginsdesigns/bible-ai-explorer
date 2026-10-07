@@ -59,8 +59,8 @@ Android bar 1.79.0 (88).
 | D9 image downscale | ports | wip: unit-tested with synthetic images; real picker/camera run pending; clipboard-paste path not covered | `ImageDownscaleTests` |
 | E1 template picker | ports | todo | |
 | E2 editor menu + Markdown export | ports | todo | |
-| E3 wikilinks, backlinks, properties | notes | todo | |
-| E4 editor deferrals | notes | todo | |
+| E3 wikilinks, backlinks, properties | notes | source: merged `d9d881a` (picker, info sheet with links/aliases/properties; parsing pinned by ports of `wikilinks.test.ts` and `noteProperties.test.ts`); iOS 129+128 and macOS 663 tests green on main. Not yet run signed in. macOS has the model but no screens | |
+| E4 editor deferrals | notes | source: all three closed on iOS `f951def` (undo/redo history incl. Cmd-Z/shake, hardware Tab indent, live Dynamic Type); not yet run on a device | |
 | F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Fixed: Listen lock copy neutral on all four clients (`1f03066`); in-app Privacy/Support links (`74b1925`). See (f) for the 3.1.3(b) risk. | |
 | F2 StoreKit | post-1.0 | deferred to after approval (PRD) | |
 | G1 design audit | design | todo | |
