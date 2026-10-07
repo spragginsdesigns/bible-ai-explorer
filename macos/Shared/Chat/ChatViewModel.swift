@@ -5,6 +5,14 @@ import AppKit
 import UIKit
 #endif
 
+/// One alert about the history list - Android's `Alert.alert` after a failed
+/// delete.
+struct HistoryAlert: Identifiable, Equatable, Sendable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
+
 struct Conversation: Sendable, Equatable, Identifiable, Codable {
     var id: String
     var title: String
@@ -54,6 +62,9 @@ final class ChatViewModel {
     private(set) var attachmentError: String?
     /// Raised by `/history` and by ⌘K; the shell presents the picker.
     var isHistoryPresented = false
+    /// A history action that failed after the row had already moved (a delete
+    /// the server refused). The shells present it as an alert and clear it.
+    var historyAlert: HistoryAlert?
 
     private var uiMessages: [UIMessage] = []
 
@@ -278,20 +289,77 @@ final class ChatViewModel {
         await switchConversation(to: id)
     }
 
+    /// Optimistic: the row leaves at once. A failed DELETE puts the server's
+    /// list back and raises `historyAlert`, so a chat that was never deleted
+    /// does not silently vanish until the next launch (Android 1.76.0,
+    /// `deleteConversation` in `useSureWordChat.ts`).
     func deleteConversation(_ id: String) async {
         conversations.removeAll { $0.id == id }
         if activeConversationID == id { newConversation() }
-        // The row is already gone locally; a failed delete resurfaces on reload.
-        try? await api.data("/api/conversations/\(id)", method: "DELETE")
+        do {
+            try await api.data("/api/conversations/\(id)", method: "DELETE")
+        } catch {
+            await restoreConversations()
+            historyAlert = HistoryAlert(
+                title: "Couldn't delete chat",
+                message: "It may reappear in your history. Please try again."
+            )
+        }
     }
 
+    /// Stops at the first failure, restores the server's list and says so -
+    /// Android's `clearAllConversations`.
     func clearAllConversations() async {
         let ids = conversations.map(\.id)
         conversations = []
         newConversation()
         for id in ids {
-            // Keep going so one failure doesn't strand the rest.
-            try? await api.data("/api/conversations/\(id)", method: "DELETE")
+            do {
+                try await api.data("/api/conversations/\(id)", method: "DELETE")
+            } catch {
+                await restoreConversations()
+                historyAlert = HistoryAlert(title: "Some chats weren't deleted", message: "Please try again.")
+                return
+            }
+        }
+    }
+
+    /// The server's list, after a failed delete. Left alone if that fails too.
+    private func restoreConversations() async {
+        if let restored = try? await api.json("/api/conversations", as: [Conversation].self) {
+            conversations = restored
+        }
+    }
+
+    /// `MAX_CONVERSATION_TITLE_LENGTH` in `src/lib/conversation-title-rules.ts`;
+    /// the PATCH route answers 400 past it.
+    static let maxConversationTitleLength = 60
+
+    /// The title the route will store: runs of whitespace collapsed, trimmed.
+    static func normalizedConversationTitle(_ raw: String) -> String {
+        raw.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    }
+
+    /// Rename a conversation (`PATCH /api/conversations/:id`), as the Android
+    /// history list does. Returns an error line for the sheet, or nil when the
+    /// rename landed or there was nothing to change.
+    @discardableResult
+    func renameConversation(_ id: String, to raw: String) async -> String? {
+        let title = Self.normalizedConversationTitle(raw)
+        guard let index = conversations.firstIndex(where: { $0.id == id }) else { return nil }
+        guard !title.isEmpty, title != conversations[index].title else { return nil }
+        guard title.count <= Self.maxConversationTitleLength else {
+            return "Titles can be up to \(Self.maxConversationTitleLength) characters."
+        }
+        struct Body: Encodable { let title: String }
+        do {
+            try await api.data("/api/conversations/\(id)", method: "PATCH", body: Body(title: title))
+            if let current = conversations.firstIndex(where: { $0.id == id }) {
+                conversations[current].title = title
+            }
+            return nil
+        } catch {
+            return "Couldn't rename. Try again."
         }
     }
 
