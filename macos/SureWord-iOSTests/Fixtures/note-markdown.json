@@ -1,0 +1,1154 @@
+[
+	{
+		"name": "simple",
+		"title": "My Study",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "In the beginning God created the heaven and the earth."
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# My Study\n\nIn the beginning God created the heaven and the earth.\n"
+	},
+	{
+		"name": "empty doc",
+		"title": "Empty",
+		"document": {
+			"type": "doc",
+			"content": []
+		},
+		"markdown": "# Empty\n"
+	},
+	{
+		"name": "empty title",
+		"title": "   ",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Body"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Untitled Note\n\nBody\n"
+	},
+	{
+		"name": "duplicate h1 title is dropped",
+		"title": "Romans Road",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 1
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "romans road "
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Body"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Romans Road\n\nBody\n"
+	},
+	{
+		"name": "h1 that differs is kept",
+		"title": "Romans Road",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 1
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Another"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "Body"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Romans Road\n\n# Another\n\nBody\n"
+	},
+	{
+		"name": "h2 matching title is kept",
+		"title": "Same",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 2
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Same"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Same\n\n## Same\n"
+	},
+	{
+		"name": "heading levels",
+		"title": "H",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 2
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Two"
+						}
+					]
+				},
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 6
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Six"
+						}
+					]
+				},
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 9
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Nine"
+						}
+					]
+				},
+				{
+					"type": "heading",
+					"content": [
+						{
+							"type": "text",
+							"text": "None"
+						}
+					]
+				},
+				{
+					"type": "heading",
+					"attrs": {
+						"level": "3"
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "String three"
+						}
+					]
+				},
+				{
+					"type": "heading",
+					"attrs": {
+						"level": 0
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "Zero"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# H\n\n## Two\n\n###### Six\n\n###### Nine\n\n# None\n\n### String three\n\n# Zero\n"
+	},
+	{
+		"name": "marks",
+		"title": "Marks",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "bold",
+							"marks": [
+								{
+									"type": "bold"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "italic",
+							"marks": [
+								{
+									"type": "italic"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "strike",
+							"marks": [
+								{
+									"type": "strike"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "under",
+							"marks": [
+								{
+									"type": "underline"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "lit",
+							"marks": [
+								{
+									"type": "highlight"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "both",
+							"marks": [
+								{
+									"type": "bold"
+								},
+								{
+									"type": "italic"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Marks\n\n**bold** *italic* ~~strike~~ <u>under</u> ==lit== ***both***\n"
+	},
+	{
+		"name": "code marks",
+		"title": "Code",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "plain *x*"
+						},
+						{
+							"type": "text",
+							"text": "a `tick` and `` two",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": "no ticks",
+							"marks": [
+								{
+									"type": "code"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Code\n\nplain \\*x\\*``` a `tick` and `` two ```` no ticks `\n"
+	},
+	{
+		"name": "links",
+		"title": "Links",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "site",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "https://sureword.app/a b(c)\\d"
+									}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "bare",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {}
+								}
+							]
+						},
+						{
+							"type": "text",
+							"text": " "
+						},
+						{
+							"type": "text",
+							"text": "bold link",
+							"marks": [
+								{
+									"type": "link",
+									"attrs": {
+										"href": "https://x.test"
+									}
+								},
+								{
+									"type": "bold"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Links\n\n[site](https://sureword.app/a%20b%28c%29%5Cd) [bare]() **[bold link](https://x.test)**\n"
+	},
+	{
+		"name": "escaping",
+		"title": "Esc",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "a*b_c`d[e]f<g>h\\i"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "# not a heading"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "- not a list"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "  + plus"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "1. not ordered"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "2) paren"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "3.no space"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "= equals ~ tilde"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Esc\n\na\\*b\\_c\\`d\\[e\\]f\\<g\\>h\\\\i\n\n\\# not a heading\n\n\\- not a list\n\n  \\+ plus\n\n1\\. not ordered\n\n2\\) paren\n\n3.no space\n\n\\= equals ~ tilde\n"
+	},
+	{
+		"name": "multiline escaping",
+		"title": "Lines",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "line one\n- dash\n12. twelve"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Lines\n\nline one\n\\- dash\n12\\. twelve\n"
+	},
+	{
+		"name": "wikilinks kept",
+		"title": "Wiki",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "See [[Romans 8]] and [[Grace_notes*]] but not [single] or [[broken"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Wiki\n\nSee [[Romans 8]] and [[Grace_notes*]] but not \\[single\\] or \\[\\[broken\n"
+	},
+	{
+		"name": "hard break",
+		"title": "Break",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "first"
+						},
+						{
+							"type": "hardBreak"
+						},
+						{
+							"type": "text",
+							"text": "second"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Break\n\nfirst  \nsecond\n"
+	},
+	{
+		"name": "blockquote",
+		"title": "Quote",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "blockquote",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Verse line"
+								}
+							]
+						},
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "Second para"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Quote\n\n> Verse line\n> \n> Second para\n"
+	},
+	{
+		"name": "bullet list",
+		"title": "List",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "bulletList",
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "two"
+										}
+									]
+								},
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "two b"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# List\n\n- one\n- two\n    \n    two b\n"
+	},
+	{
+		"name": "ordered list start",
+		"title": "Ordered",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "orderedList",
+					"attrs": {
+						"start": 3
+					},
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "three"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "four"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Ordered\n\n3. three\n4. four\n"
+	},
+	{
+		"name": "ordered list no start",
+		"title": "Ordered",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "orderedList",
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Ordered\n\n1. one\n"
+	},
+	{
+		"name": "ordered list null start",
+		"title": "Ordered",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "orderedList",
+					"attrs": {
+						"start": null
+					},
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "one"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Ordered\n\n1. one\n"
+	},
+	{
+		"name": "task list",
+		"title": "Tasks",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "taskList",
+					"content": [
+						{
+							"type": "taskItem",
+							"attrs": {
+								"checked": true
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "done"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "taskItem",
+							"attrs": {
+								"checked": false
+							},
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "todo"
+										}
+									]
+								}
+							]
+						},
+						{
+							"type": "taskItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "no attrs"
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Tasks\n\n- [x] done\n- [ ] todo\n- [ ] no attrs\n"
+	},
+	{
+		"name": "nested list",
+		"title": "Nested",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "bulletList",
+					"content": [
+						{
+							"type": "listItem",
+							"content": [
+								{
+									"type": "paragraph",
+									"content": [
+										{
+											"type": "text",
+											"text": "outer"
+										}
+									]
+								},
+								{
+									"type": "orderedList",
+									"attrs": {
+										"start": 1
+									},
+									"content": [
+										{
+											"type": "listItem",
+											"content": [
+												{
+													"type": "paragraph",
+													"content": [
+														{
+															"type": "text",
+															"text": "inner"
+														}
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Nested\n\n- outer\n    \n    1. inner\n"
+	},
+	{
+		"name": "list in quote",
+		"title": "QL",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "blockquote",
+					"content": [
+						{
+							"type": "bulletList",
+							"content": [
+								{
+									"type": "listItem",
+									"content": [
+										{
+											"type": "paragraph",
+											"content": [
+												{
+													"type": "text",
+													"text": "a"
+												}
+											]
+										}
+									]
+								},
+								{
+									"type": "listItem",
+									"content": [
+										{
+											"type": "paragraph",
+											"content": [
+												{
+													"type": "text",
+													"text": "b"
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# QL\n\n> - a\n> - b\n"
+	},
+	{
+		"name": "code block",
+		"title": "Block",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "codeBlock",
+					"attrs": {
+						"language": "swift"
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "let x = 1\nprint(x)"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Block\n\n```swift\nlet x = 1\nprint(x)\n```\n"
+	},
+	{
+		"name": "code block ticks",
+		"title": "Block",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "codeBlock",
+					"attrs": {
+						"language": "js;rm -rf"
+					},
+					"content": [
+						{
+							"type": "text",
+							"text": "a ```` b"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Block\n\n`````jsrm-rf\na ```` b\n`````\n"
+	},
+	{
+		"name": "code block empty",
+		"title": "Block",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "codeBlock",
+					"attrs": {
+						"language": null
+					}
+				}
+			]
+		},
+		"markdown": "# Block\n\n```\n\n```\n"
+	},
+	{
+		"name": "rule",
+		"title": "Rule",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "above"
+						}
+					]
+				},
+				{
+					"type": "horizontalRule"
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "below"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Rule\n\nabove\n\n---\n\nbelow\n"
+	},
+	{
+		"name": "empty paragraphs",
+		"title": "Gaps",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "a"
+						}
+					]
+				},
+				{
+					"type": "paragraph",
+					"content": []
+				},
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "b"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Gaps\n\na\n\n\n\nb\n"
+	},
+	{
+		"name": "unicode",
+		"title": "Grâce ✝",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "“Jesus wept.” - John 11:35 ✝ 🙏"
+						}
+					]
+				}
+			]
+		},
+		"markdown": "# Grâce ✝\n\n“Jesus wept.” - John 11:35 ✝ 🙏\n"
+	},
+	{
+		"name": "unknown node",
+		"title": "Bad",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "ok"
+						}
+					]
+				},
+				{
+					"type": "image",
+					"attrs": {
+						"src": "x"
+					}
+				}
+			]
+		},
+		"error": "This note contains content that cannot be exported yet."
+	},
+	{
+		"name": "unknown mark",
+		"title": "Bad",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "text",
+							"text": "sup",
+							"marks": [
+								{
+									"type": "superscript"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"error": "This note contains formatting that cannot be exported yet."
+	},
+	{
+		"name": "invalid list item",
+		"title": "Bad",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "bulletList",
+					"content": [
+						{
+							"type": "paragraph",
+							"content": [
+								{
+									"type": "text",
+									"text": "not an item"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		"error": "Invalid list item."
+	},
+	{
+		"name": "inline non-text",
+		"title": "Bad",
+		"document": {
+			"type": "doc",
+			"content": [
+				{
+					"type": "paragraph",
+					"content": [
+						{
+							"type": "mention",
+							"attrs": {
+								"id": "x"
+							}
+						}
+					]
+				}
+			]
+		},
+		"error": "This note contains content that cannot be exported yet."
+	},
+	{
+		"name": "not a doc",
+		"title": "Bad",
+		"document": {
+			"type": "paragraph",
+			"content": []
+		},
+		"error": "The editor is not ready. Please try again."
+	},
+	{
+		"name": "missing content",
+		"title": "Bad",
+		"document": {
+			"type": "doc"
+		},
+		"error": "The editor is not ready. Please try again."
+	}
+]

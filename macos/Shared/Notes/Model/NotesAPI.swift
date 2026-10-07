@@ -56,6 +56,35 @@ struct NotesAPI: Sendable {
         )
     }
 
+    /// A note started from a template (PRD E1): the same body Android sends,
+    /// `title` plus the seed's `content`, `htmlContent`, `plainText` and
+    /// `wordCount` (`createNote` in `mobile/src/features/notes/api.ts`).
+    func createNote(folderId: String?, seed: NoteTemplates.Seed) async throws -> Note {
+        struct Body: Encodable {
+            let title: String
+            let folderId: String?
+            let content: String
+            let htmlContent: String
+            let plainText: String
+            let wordCount: Int
+        }
+        return .loaded(
+            from: try await api.json(
+                "/api/notes",
+                method: "POST",
+                body: Body(
+                    title: seed.title,
+                    folderId: folderId,
+                    content: seed.content,
+                    htmlContent: seed.html,
+                    plainText: seed.plainText,
+                    wordCount: seed.wordCount
+                ),
+                as: NoteAPIResponse.self
+            )
+        )
+    }
+
     func patchNote(id: String, _ patch: NotePatch) async throws -> Note {
         .loaded(
             from: try await api.json(

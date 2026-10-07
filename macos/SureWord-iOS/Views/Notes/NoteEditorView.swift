@@ -33,6 +33,11 @@ struct NoteEditorView: View {
     /// the way Android's `router.push` stacks editors.
     @State private var linkedNoteID: String?
     @State private var pinHapticTick = 0
+    // Editor menu (PRD E2).
+    @State private var shareText: NoteShareText?
+    @State private var exportError: String?
+    @State private var copiedTick = 0
+    @State private var isCopiedVisible = false
     @FocusState private var isTitleFocused: Bool
 
     init(noteID: String, api: APIClient) {
@@ -102,8 +107,34 @@ struct NoteEditorView: View {
         .navigationDestination(item: $linkedNoteID) { id in
             NoteEditorView(noteID: id, api: api)
         }
+        .sheet(item: $shareText) { share in
+            NoteMarkdownShareSheet(text: share.text)
+                .presentationDetents([.medium, .large])
+        }
+        .alert(
+            "Couldn't export this note",
+            isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
+        .overlay(alignment: .top) {
+            if isCopiedVisible {
+                Label("Copied as Markdown", systemImage: "checkmark")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.sm)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.top, Spacing.sm)
+                    .transition(.opacity)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .sensoryFeedback(.success, trigger: copiedTick)
         .confirmationDialog(
-            "Delete this note? This cannot be undone.",
+            "Delete \u{201C}\(noteTitle)\u{201D}? This cannot be undone.",
             isPresented: $isDeleteConfirming,
             titleVisibility: .visible
         ) {
@@ -150,12 +181,22 @@ struct NoteEditorView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TextField("Untitled Note", text: $draftTitle)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(theme.text)
-                .focused($isTitleFocused)
-                .onSubmit(commitTitle)
-                .onAppear { draftTitle = model.note?.title ?? "" }
+            HStack(spacing: 5) {
+                // Pinning lives in the More menu (Android's top bar), so the
+                // state stays readable at a glance without costing a button.
+                if model.note?.isPinned == true {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.accent)
+                        .accessibilityLabel("Pinned")
+                }
+                TextField("Untitled Note", text: $draftTitle)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(theme.text)
+                    .focused($isTitleFocused)
+                    .onSubmit(commitTitle)
+                    .onAppear { draftTitle = model.note?.title ?? "" }
+            }
 
             if model.isSaving {
                 Text("Saving…")
@@ -175,57 +216,127 @@ struct NoteEditorView: View {
 
     // MARK: Toolbar
 
+    /// Android's editor bar (`NoteEditorTopBar`): back (the navigation bar's
+    /// own), the title with its pin mark, the AI toggle and the note menu.
+    /// Everything else about the note lives in that menu, in Android's order.
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 4) {
                 Button {
-                    pinHapticTick += 1
-                    Task { await model.togglePin() }
+                    openAI()
                 } label: {
-                    Image(systemName: model.note?.isPinned == true ? "pin.fill" : "pin")
-                        .foregroundStyle(model.note?.isPinned == true ? theme.accent : theme.textMuted)
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(isAIPresented ? theme.accent : theme.textMuted)
                 }
-                .accessibilityLabel(model.note?.isPinned == true ? "Unpin note" : "Pin note")
-
-                Button {
-                    isTagSheetPresented = true
-                } label: {
-                    Image(systemName: "tag")
-                        .foregroundStyle(
-                            (model.note?.tagIds.isEmpty == false) ? theme.accent : theme.textMuted
-                        )
-                }
-                .accessibilityLabel("Tags")
+                .accessibilityLabel("AI assistant")
 
                 Menu {
-                    Menu("Move to Folder") {
-                        Button("No Folder") { Task { await model.move(toFolder: nil) } }
-                        ForEach(NotesStore.shared.folders) { folder in
-                            Button(folder.name) {
-                                Task { await model.move(toFolder: folder.id) }
-                            }
-                        }
-                    }
-                    Button("Info, Properties & Links", systemImage: "info.circle") {
-                        isInfoPresented = true
-                    }
-                    Divider()
-                    Button("Delete Note", role: .destructive) { isDeleteConfirming = true }
+                    noteMenu
                 } label: {
                     Image(systemName: "ellipsis.circle")
                         .foregroundStyle(theme.textMuted)
                 }
-                .accessibilityLabel("Note actions")
-
-                Button {
-                    openAI()
-                } label: {
-                    Image(systemName: "sparkles")
-                        .foregroundStyle(theme.textMuted)
-                }
-                .accessibilityLabel("AI assistant")
+                .accessibilityLabel("Note menu")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var noteMenu: some View {
+        let isPinned = model.note?.isPinned == true
+        let tagCount = model.note?.tagIds.count ?? 0
+
+        Button {
+            pinHapticTick += 1
+            Task { await model.togglePin() }
+        } label: {
+            Label(isPinned ? "Unpin note" : "Pin note", systemImage: isPinned ? "pin.slash" : "pin")
+        }
+
+        Button {
+            isTagSheetPresented = true
+        } label: {
+            Label(tagCount > 0 ? "Tags (\(tagCount))" : "Tags", systemImage: "tag")
+        }
+
+        Button {
+            openInfo()
+        } label: {
+            Label("Note info", systemImage: "info.circle")
+        }
+
+        Button {
+            copyMarkdown()
+        } label: {
+            Label("Copy as Markdown", systemImage: "doc.on.doc")
+        }
+
+        Button {
+            shareMarkdown()
+        } label: {
+            Label("Share as Markdown", systemImage: "square.and.arrow.up")
+        }
+
+        Menu {
+            Button {
+                Task { await model.move(toFolder: nil) }
+            } label: {
+                Label("No folder", systemImage: model.note?.folderId == nil ? "checkmark" : "folder.badge.minus")
+            }
+            ForEach(NotesStore.shared.folders) { folder in
+                Button {
+                    Task { await model.move(toFolder: folder.id) }
+                } label: {
+                    Label(folder.name, systemImage: model.note?.folderId == folder.id ? "checkmark" : "folder")
+                }
+            }
+        } label: {
+            Label("Move to folder", systemImage: "folder")
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            isDeleteConfirming = true
+        } label: {
+            Label("Delete note", systemImage: "trash")
+        }
+    }
+
+    private var noteTitle: String {
+        let title = model.note?.title ?? ""
+        return title.isEmpty ? "Untitled Note" : title
+    }
+
+    /// Flush first, as Android does before its info sheet, so the word count
+    /// is the one on screen.
+    private func openInfo() {
+        Task {
+            await model.flush()
+            isInfoPresented = true
+        }
+    }
+
+    private func copyMarkdown() {
+        do {
+            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller)
+            copiedTick += 1
+            withAnimation { isCopiedVisible = true }
+            Task {
+                try? await Task.sleep(for: .milliseconds(1200))
+                withAnimation { isCopiedVisible = false }
+            }
+        } catch {
+            exportError = error.localizedDescription
+        }
+    }
+
+    private func shareMarkdown() {
+        do {
+            shareText = NoteShareText(text: try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+        } catch {
+            exportError = error.localizedDescription
         }
     }
 

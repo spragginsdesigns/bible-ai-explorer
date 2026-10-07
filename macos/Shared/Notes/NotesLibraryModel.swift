@@ -144,6 +144,28 @@ final class NotesLibraryModel {
         }
     }
 
+    /// "Start a note" with a template (PRD E1), Android's
+    /// `CreateItemSheet.pickTemplate`: the sermon template asks `/api/church`
+    /// for the saved church's name first (an unavailable Places key just
+    /// leaves it out), Blank creates the ordinary Untitled Note. Throws so the
+    /// sheet can show Android's "could not finish" message and stay open.
+    func createNote(template: NoteTemplates.ID, church: (() async throws -> String?)? = nil) async throws -> Note {
+        var churchName: String?
+        if template == .sermon, let church {
+            churchName = try await church()
+        }
+        let note: Note
+        if let seed = NoteTemplates.build(template, churchName: churchName) {
+            note = try await api.createNote(folderId: activeFolderID, seed: seed)
+        } else {
+            note = try await api.createNote(title: "Untitled Note", folderId: activeFolderID)
+        }
+        store.upsert(note)
+        selectedNoteID = note.id
+        error = nil
+        return note
+    }
+
     func deleteNote(id: String) async {
         store.removeNote(id: id)
         if selectedNoteID == id { selectedNoteID = nil }

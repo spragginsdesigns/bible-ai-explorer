@@ -1,0 +1,134 @@
+[
+	{
+		"id": "verse-study",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Verse study",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with God's words\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the full verse here and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I attend to what the verse says\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I describe what the verse says in its context.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I let Scripture explain Scripture\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record related passages and what they teach me.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I receive what God teaches me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name what I learn about God and what I must change.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I choose one concrete act of obedience today.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with God&#39;s words</h2><blockquote><p>I copy the full verse here and record its reference (KJV).</p></blockquote><h2>I attend to what the verse says</h2><p><em>I describe what the verse says in its context.</em></p><h2>I let Scripture explain Scripture</h2><p><em>I record related passages and what they teach me.</em></p><h2>I receive what God teaches me</h2><p><em>I name what I learn about God and what I must change.</em></p><h2>What I do next</h2><p><em>I choose one concrete act of obedience today.</em></p>",
+			"plainText": "I begin with God's words\n\nI copy the full verse here and record its reference (KJV).\n\nI attend to what the verse says\n\nI describe what the verse says in its context.\n\nI let Scripture explain Scripture\n\nI record related passages and what they teach me.\n\nI receive what God teaches me\n\nI name what I learn about God and what I must change.\n\nWhat I do next\n\nI choose one concrete act of obedience today.",
+			"wordCount": 76
+		}
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "I begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 66
+		}
+	},
+	{
+		"id": "prayer",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Prayer journal: Wednesday, October 7, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I thank God for His mercies\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name the mercies I have received.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I bring my requests to God\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state what I ask and entrust the outcome to Him.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I pray for these people\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name each person and what I ask for them.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will remain faithful while I wait.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I thank God for His mercies</h2><p><em>I name the mercies I have received.</em></p><h2>I bring my requests to God</h2><p><em>I state what I ask and entrust the outcome to Him.</em></p><h2>I pray for these people</h2><p><em>I name each person and what I ask for them.</em></p><h2>What I do next</h2><p><em>I name how I will remain faithful while I wait.</em></p>",
+			"plainText": "I thank God for His mercies\n\nI name the mercies I have received.\n\nI bring my requests to God\n\nI state what I ask and entrust the outcome to Him.\n\nI pray for these people\n\nI name each person and what I ask for them.\n\nWhat I do next\n\nI name how I will remain faithful while I wait.",
+			"wordCount": 59
+		}
+	},
+	{
+		"id": "blank",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": null,
+		"seed": null
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": "  Grace & Truth \"Bible\" Church  ",
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"My church: Grace & Truth \\\"Bible\\\" Church\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<p><em>My church: Grace &amp; Truth &quot;Bible&quot; Church</em></p><h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "My church: Grace & Truth \"Bible\" Church\n\nI begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 73
+		}
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-07T15:30:00.000Z",
+		"churchName": "   ",
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "I begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 66
+		}
+	},
+	{
+		"id": "verse-study",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Verse study",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with God's words\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the full verse here and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I attend to what the verse says\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I describe what the verse says in its context.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I let Scripture explain Scripture\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record related passages and what they teach me.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I receive what God teaches me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name what I learn about God and what I must change.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I choose one concrete act of obedience today.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with God&#39;s words</h2><blockquote><p>I copy the full verse here and record its reference (KJV).</p></blockquote><h2>I attend to what the verse says</h2><p><em>I describe what the verse says in its context.</em></p><h2>I let Scripture explain Scripture</h2><p><em>I record related passages and what they teach me.</em></p><h2>I receive what God teaches me</h2><p><em>I name what I learn about God and what I must change.</em></p><h2>What I do next</h2><p><em>I choose one concrete act of obedience today.</em></p>",
+			"plainText": "I begin with God's words\n\nI copy the full verse here and record its reference (KJV).\n\nI attend to what the verse says\n\nI describe what the verse says in its context.\n\nI let Scripture explain Scripture\n\nI record related passages and what they teach me.\n\nI receive what God teaches me\n\nI name what I learn about God and what I must change.\n\nWhat I do next\n\nI choose one concrete act of obedience today.",
+			"wordCount": 76
+		}
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "I begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 66
+		}
+	},
+	{
+		"id": "prayer",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": null,
+		"seed": {
+			"title": "Prayer journal: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I thank God for His mercies\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name the mercies I have received.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I bring my requests to God\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state what I ask and entrust the outcome to Him.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I pray for these people\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name each person and what I ask for them.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will remain faithful while I wait.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I thank God for His mercies</h2><p><em>I name the mercies I have received.</em></p><h2>I bring my requests to God</h2><p><em>I state what I ask and entrust the outcome to Him.</em></p><h2>I pray for these people</h2><p><em>I name each person and what I ask for them.</em></p><h2>What I do next</h2><p><em>I name how I will remain faithful while I wait.</em></p>",
+			"plainText": "I thank God for His mercies\n\nI name the mercies I have received.\n\nI bring my requests to God\n\nI state what I ask and entrust the outcome to Him.\n\nI pray for these people\n\nI name each person and what I ask for them.\n\nWhat I do next\n\nI name how I will remain faithful while I wait.",
+			"wordCount": 59
+		}
+	},
+	{
+		"id": "blank",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": null,
+		"seed": null
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": "  Grace & Truth \"Bible\" Church  ",
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"My church: Grace & Truth \\\"Bible\\\" Church\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<p><em>My church: Grace &amp; Truth &quot;Bible&quot; Church</em></p><h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "My church: Grace & Truth \"Bible\" Church\n\nI begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 73
+		}
+	},
+	{
+		"id": "sermon",
+		"now": "2026-10-04T00:00:00.000Z",
+		"churchName": "   ",
+		"seed": {
+			"title": "Sermon notes: Sunday, October 4, 2026",
+			"content": "{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I begin with the preached passage\"}]},{\"type\":\"blockquote\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I copy the sermon passage and record its reference (KJV).\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I keep the truth the preacher explained\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I state the sermon's central claim in my own words.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"I remember what Scripture showed me\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I record the supporting passages and the truth I need to remember.\",\"marks\":[{\"type\":\"italic\"}]}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"What I do next\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"I name how I will obey what I heard this week.\",\"marks\":[{\"type\":\"italic\"}]}]}]}",
+			"html": "<h2>I begin with the preached passage</h2><blockquote><p>I copy the sermon passage and record its reference (KJV).</p></blockquote><h2>I keep the truth the preacher explained</h2><p><em>I state the sermon&#39;s central claim in my own words.</em></p><h2>I remember what Scripture showed me</h2><p><em>I record the supporting passages and the truth I need to remember.</em></p><h2>What I do next</h2><p><em>I name how I will obey what I heard this week.</em></p>",
+			"plainText": "I begin with the preached passage\n\nI copy the sermon passage and record its reference (KJV).\n\nI keep the truth the preacher explained\n\nI state the sermon's central claim in my own words.\n\nI remember what Scripture showed me\n\nI record the supporting passages and the truth I need to remember.\n\nWhat I do next\n\nI name how I will obey what I heard this week.",
+			"wordCount": 66
+		}
+	}
+]

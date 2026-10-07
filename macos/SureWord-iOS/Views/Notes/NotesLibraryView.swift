@@ -10,6 +10,7 @@ import UIKit
 /// is a silent revalidation behind it.
 struct NotesLibraryView: View {
     @Environment(\.theme) private var theme
+    @Environment(AppModel.self) private var app
     @Bindable var library: NotesLibraryModel
     /// Hands a note id back to the tab root, which pushes the editor.
     var onOpenNote: (String) -> Void
@@ -17,7 +18,11 @@ struct NotesLibraryView: View {
     @State private var createKind: CreateKind?
     @State private var renamingFolder: Folder?
     @State private var renameText = ""
-    @State private var isCreatingNote = false
+    /// "+" opens Android's "Start a note" template sheet (PRD E1).
+    @State private var isTemplatePickerPresented = false
+    /// The note the template sheet created, opened once the sheet is gone so
+    /// the push does not race the dismissal (Android waits the same way).
+    @State private var noteToOpenAfterPicker: String?
     /// Drives the pin haptic; the trigger value itself carries no meaning.
     @State private var pinHapticTick = 0
 
@@ -55,12 +60,28 @@ struct NotesLibraryView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    createNote()
+                    isTemplatePickerPresented = true
                 } label: {
                     Image(systemName: "square.and.pencil")
                 }
-                .disabled(isCreatingNote)
                 .accessibilityLabel("New note")
+            }
+        }
+        .sheet(isPresented: $isTemplatePickerPresented, onDismiss: {
+            if let id = noteToOpenAfterPicker {
+                noteToOpenAfterPicker = nil
+                onOpenNote(id)
+            }
+        }) {
+            NoteTemplatePickerSheet { template in
+                let api = app.api
+                let note = try await library.createNote(template: template) {
+                    switch try await api.fetchChurch() {
+                    case .unavailable: return nil
+                    case .ok(let church): return church?.name
+                    }
+                }
+                noteToOpenAfterPicker = note.id
             }
         }
         .sheet(item: $createKind) { kind in
@@ -285,15 +306,88 @@ struct NotesLibraryView: View {
         .padding(.top, 60)
         .padding(.horizontal, Spacing.lg)
     }
+}
 
-    private func createNote() {
-        guard !isCreatingNote else { return }
-        isCreatingNote = true
-        Task {
-            if let note = await library.createNote() {
-                onOpenNote(note.id)
+// MARK: - Template picker
+
+/// "Start a note" - Android's `CreateItemSheet` in its note mode (PRD E1):
+/// the four templates with their descriptions, one tap creates the note.
+/// While the create runs every row is disabled; a failure keeps the sheet
+/// open with Android's message, since the note may or may not exist.
+private struct NoteTemplatePickerSheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    /// Creates the note; the sheet dismisses itself when this returns.
+    var onPick: (NoteTemplates.ID) async throws -> Void
+
+    @State private var isBusy = false
+    @State private var error: String?
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if let error {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(theme.danger)
+                        .accessibilityAddTraits(.isStaticText)
+                }
+                if isBusy {
+                    Text("Creating your note...")
+                        .font(.footnote)
+                        .foregroundStyle(theme.textMuted)
+                }
+                ForEach(NoteTemplates.options) { option in
+                    Button {
+                        pick(option.id)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(option.label)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(theme.text)
+                            Text(option.description)
+                                .font(.footnote)
+                                .foregroundStyle(theme.textMuted)
+                        }
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isBusy)
+                    .accessibilityLabel(option.label)
+                    .accessibilityHint(option.description)
+                }
             }
-            isCreatingNote = false
+            .scrollContentBackground(.hidden)
+            .background(theme.bg)
+            .navigationTitle("Start a note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(isBusy)
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+        .interactiveDismissDisabled(isBusy)
+    }
+
+    private func pick(_ id: NoteTemplates.ID) {
+        guard !isBusy else { return }
+        isBusy = true
+        error = nil
+        Task {
+            do {
+                try await onPick(id)
+                isBusy = false
+                dismiss()
+            } catch {
+                isBusy = false
+                self.error = "Could not finish creating the note. Check your notes before trying again."
+            }
         }
     }
 }
