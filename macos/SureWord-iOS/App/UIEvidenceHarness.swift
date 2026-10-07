@@ -8,7 +8,7 @@ import SwiftUI
 ///
 ///     -evidence.screen home|reader|search|feedback
 ///     -evidence.book 43 -evidence.chapter 3 -evidence.translation BSB
-///     -evidence.select 16 -evidence.selectEnd 18
+///     -evidence.select 16 -evidence.selectEnd 18 -evidence.scrollVerse 9
 ///     -evidence.tier peek|expanded -evidence.tab explain|words|seeAlso
 ///     -evidence.parchment 1 -evidence.appearance dark|light
 ///     -evidence.query "living water"
@@ -153,9 +153,11 @@ struct UIEvidenceHarness: View {
                     plainTexts: model.readerVerses.map(\.plainText),
                     translation: app.settings.translation
                 )
-                // Bring the selection into view the way a deep link does, so
-                // the capture shows the selected verse above the sheet.
-                model.pendingVerse = first
+                // Bring the selection into view the way a deep link does.
+                // `-evidence.scrollVerse N` scrolls to another verse first, so
+                // a selection low on screen proves the reader lifts it clear
+                // of the sheet (`ReaderReveal`).
+                model.pendingVerse = Self.int("scrollVerse") ?? first
                 try? await Task.sleep(for: .milliseconds(600))
                 model.sheet.tap(first, context: context)
                 if let last = Self.int("selectEnd") { model.sheet.tap(last, context: context) }

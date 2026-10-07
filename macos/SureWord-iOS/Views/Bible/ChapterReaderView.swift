@@ -18,6 +18,7 @@ import UIKit
 struct ChapterReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var app
 
     let order: Int
@@ -35,6 +36,14 @@ struct ChapterReaderView: View {
     @State private var crossReferences = CrossReferencesModel()
     @State private var showingLearn = false
     @State private var showingCustomColor = false
+    /// Drives the reveal scroll (`ReaderReveal`); deep links keep using the
+    /// `ScrollViewReader` proxy.
+    @State private var scrollPosition = ScrollPosition(idType: Int.self)
+    /// Live geometry for the reveal, kept out of SwiftUI state so scrolling
+    /// and lazy row layout never re-render the reader.
+    @State private var revealGeometry = RevealGeometry()
+    /// The verse sheet's height, for the footer's clearance.
+    @State private var sheetHeight: CGFloat = 0
 
     /// The parchment page surface, per the shared account preference.
     private var parchment: Bool { app.settings.parchment }
@@ -258,6 +267,11 @@ struct ChapterReaderView: View {
                         ForEach(model.readerVerses, id: \.number) { verse in
                             verseRow(verse)
                                 .id(verse.number)
+                                .onGeometryChange(for: CGRect.self) { proxy in
+                                    proxy.frame(in: .named(Self.contentSpace))
+                                } action: { [key = model.loadedKey] frame in
+                                    revealGeometry.record(frame, verse: verse.number, chapter: key)
+                                }
                                 .onScrollVisibilityChange(threshold: 0.5) { visible in
                                     model.readingVisibility(verse: verse.number, visible: visible, translation: translation)
                                 }
@@ -266,6 +280,7 @@ struct ChapterReaderView: View {
                         footer
                     }
                     .id(model.loadedKey)
+                    .coordinateSpace(.named(Self.contentSpace))
                     .padding(.horizontal, 28)
                     .frame(maxWidth: 720, alignment: .leading)
                     .frame(maxWidth: .infinity)
@@ -273,6 +288,15 @@ struct ChapterReaderView: View {
                 // Breathing room as a content margin rather than padding inside
                 // the stack, so scrolling verse 1 to the top keeps it.
                 .contentMargins(.vertical, Spacing.xl, for: .scrollContent)
+                .scrollPosition($scrollPosition)
+                .onScrollGeometryChange(for: ScrollGeometry.self) { $0 } action: { _, geometry in
+                    revealGeometry.scroll = geometry
+                }
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.frame(in: .named(Self.readerSpace)).minY
+                } action: { minY in
+                    revealGeometry.scrollMinY = minY
+                }
                 // A deep link only lands once the chapter it names is the one on
                 // screen - `loadedKey` is what proves that.
                 .onChange(of: model.loadedKey, initial: true) { _, _ in
@@ -315,13 +339,67 @@ struct ChapterReaderView: View {
             .overlay(alignment: .bottom) {
                 if sheet.isOpen, let context {
                     verseSheet(context: context, availableHeight: geometry.size.height)
+                        // Height, not frame: the slide-in and a drag move the
+                        // panel without changing where it settles.
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            revealGeometry.sheetHeight = height
+                            sheetHeight = height
+                            revealSelection(readerHeight: geometry.size.height)
+                        }
                         .transition(.move(edge: .bottom))
                 }
             }
             .overlay(alignment: .top) { toastView }
+            .coordinateSpace(.named(Self.readerSpace))
             .animation(.snappy, value: sheet.isOpen)
             .animation(.snappy, value: sheet.obscuresReader)
             .animation(.snappy, value: model.toast)
+            // A tap, a grown range or a tier change: keep the selection above
+            // the sheet it opened.
+            .onChange(of: sheet.selection) { _, selection in
+                if selection == nil { revealGeometry.sheetHeight = nil }
+                revealSelection(readerHeight: geometry.size.height)
+            }
+            .onChange(of: sheet.tier) { _, _ in revealSelection(readerHeight: geometry.size.height) }
+        }
+    }
+
+    private static let contentSpace = "reader.content"
+    private static let readerSpace = "reader.viewport"
+
+    /// Scroll just enough that the selected verse (the top of a range) sits
+    /// above the verse sheet. Runs on selection and tier changes and whenever
+    /// the sheet's measured frame moves (it slides up, the teaser fills in),
+    /// so the target follows the sheet's real height rather than a guess.
+    private func revealSelection(readerHeight: CGFloat) {
+        guard let selection = sheet.selection,
+              let sheetHeight = revealGeometry.sheetHeight,
+              let scroll = revealGeometry.scroll
+        else { return }
+        let frames = revealGeometry.frames(chapter: model.loadedKey)
+        guard let first = frames[selection.start],
+              let last = frames[selection.end] ?? frames[selection.start]
+        else {
+            // Not laid out (a selection made off screen): put it at the top.
+            scrollPosition.scrollTo(id: selection.start, anchor: .top)
+            return
+        }
+        let offset = scroll.contentOffset.y
+        guard let target = ReaderReveal.targetOffset(
+            rangeTop: first.minY,
+            rangeBottom: last.maxY,
+            offset: offset,
+            windowTop: scroll.contentInsets.top,
+            // The sheet is bottom-aligned in the reader.
+            windowBottom: readerHeight - sheetHeight - revealGeometry.scrollMinY,
+            minOffset: -scroll.contentInsets.top,
+            // `containerSize` excludes the insets; the visible rect does not.
+            maxOffset: scroll.contentSize.height + scroll.contentInsets.bottom - scroll.visibleRect.height
+        ) else { return }
+        if reduceMotion {
+            scrollPosition.scrollTo(y: target)
+        } else {
+            withAnimation(.snappy) { scrollPosition.scrollTo(y: target) }
         }
     }
 
@@ -467,7 +545,7 @@ struct ChapterReaderView: View {
         .padding(.top, Spacing.lg)
         // Room for the floating Ask AI button, or for the peek when it is up,
         // so the last verses can always scroll clear of it.
-        .padding(.bottom, sheet.isOpen ? 280 : 80)
+        .padding(.bottom, sheet.isOpen ? max(280, sheetHeight + Spacing.xl) : 80)
     }
 
     private func navButton(
@@ -721,5 +799,31 @@ struct ChapterReaderView: View {
         }
         sheet.close()
         NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
+    }
+}
+
+/// Geometry the reveal reads at decision time. A plain class held in `@State`
+/// so writes from scroll and layout callbacks are not view updates.
+private final class RevealGeometry {
+    /// Verse frames in the chapter's content space (fixed while scrolling),
+    /// for the chapter they were measured in.
+    private var verseFrames: [Int: CGRect] = [:]
+    private var framesChapter: String?
+    var scroll: ScrollGeometry?
+    /// The scroll view's top edge in the reader's space.
+    var scrollMinY: CGFloat = 0
+    /// The open sheet's settled height; nil while it is closed.
+    var sheetHeight: CGFloat?
+
+    func record(_ frame: CGRect, verse: Int, chapter: String?) {
+        if chapter != framesChapter {
+            verseFrames = [:]
+            framesChapter = chapter
+        }
+        verseFrames[verse] = frame
+    }
+
+    func frames(chapter: String?) -> [Int: CGRect] {
+        chapter == framesChapter ? verseFrames : [:]
     }
 }
