@@ -89,6 +89,29 @@ enum ReceiptLine {
 
     /// Settings is a sheet on the Mac and a pushed route on iOS, neither of
     /// which takes a section, so a settings receipt says where to look.
+    /// The spoken half of a fragment's label: the receipt says what happened,
+    /// this says where the tap goes. Android's `receiptDestinationLabel`
+    /// (`mobile/src/lib/receiptRoutes.ts`), so VoiceOver reads
+    /// "Saved to Romans study. Opens the note."
+    static func destinationLabel(for target: ChatReceiptTarget) -> String {
+        switch target {
+        case .note: "Opens the note."
+        case .memories: "Opens your memories."
+        case .chapter: "Opens the chapter in the Bible reader."
+        case .plan: "Opens your reading plan."
+        case .readingHistory: "Opens your reading history."
+        case .cross: "Opens Pick Up Your Cross."
+        case .learn: "Opens Learn."
+        case .settings: "Opens Settings."
+        }
+    }
+
+    /// Android's undo label (`ReceiptLine.tsx`).
+    static let undoAccessibilityLabel = "Undo. Forgets what was just remembered."
+
+    /// Android's alert body for a failed undo, used when the server says nothing.
+    static let forgetError = "Could not forget that memory. Try again in a moment."
+
     static func settingsMessage(for section: ChatReceiptSettingsSection?) -> String {
         switch section {
         case .memory: "Open Settings \u{2192} Memory"
@@ -146,7 +169,7 @@ struct ReceiptLineView: View {
                     label(fragment.label, color: theme.accent)
                 }
                 .buttonStyle(SubtleButtonStyle())
-                .accessibilityLabel(fragment.label)
+                .accessibilityLabel("\(fragment.label). \(ReceiptLine.destinationLabel(for: receipt.target))")
 
             case .undo(let receiptID, let memoryID):
                 Button { forget(receiptID: receiptID, memoryID: memoryID) } label: {
@@ -154,25 +177,33 @@ struct ReceiptLineView: View {
                 }
                 .buttonStyle(SubtleButtonStyle())
                 .disabled(forgetting.contains(receiptID))
-                .accessibilityLabel(fragment.label)
+                .accessibilityLabel(ReceiptLine.undoAccessibilityLabel)
 
             case .forgotten:
                 label(fragment.label, color: theme.textFaint)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
+                    .accessibilityLabel("\(fragment.label).")
             }
 
             if !fragment.isLast {
                 Text(ReceiptFragment.separator)
                     .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
+                    .foregroundStyle(theme.accentDim)
                     .accessibilityHidden(true)
             }
         }
     }
 
     private func label(_ text: String, color: Color) -> some View {
-        Text(text).font(.system(size: 12)).foregroundStyle(color)
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(color)
+            #if os(iOS)
+            // Android's 44pt minimum touch height for each fragment.
+            .frame(minHeight: 44)
+            .contentShape(.rect)
+            #endif
     }
 
     private func forget(receiptID: String, memoryID: String) {
@@ -189,7 +220,7 @@ struct ReceiptLineView: View {
                 // `APIError.status` (`Shared/Networking/APIError.swift:10`).
                 forgotten.insert(receiptID)
             } catch {
-                onError((error as? APIError)?.message ?? "That memory could not be forgotten.")
+                onError((error as? APIError)?.message ?? ReceiptLine.forgetError)
             }
             forgetting.remove(receiptID)
         }

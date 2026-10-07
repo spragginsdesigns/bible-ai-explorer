@@ -24,8 +24,13 @@ struct ChatTabView: View {
 
     private enum StudyRoute: Hashable, Identifiable {
         case plan, learn
+        /// Android's receipt routes (`mobile/src/lib/receiptRoutes.ts`): a
+        /// memory or settings receipt opens that screen, not a hint.
+        case memories, settings
         var id: Self { self }
     }
+    /// A reading-log receipt opens the log as the Bible home does, as a sheet.
+    @State private var isReadingHistoryPresented = false
 
     private var chat: ChatViewModel { app.chat }
 
@@ -106,6 +111,15 @@ struct ChatTabView: View {
             switch route {
             case .plan: ReadingPlanView().analyticsScreen(AnalyticsScreen.plan)
             case .learn: LearnView().analyticsScreen(AnalyticsScreen.learn)
+            case .memories: ReceiptMemoriesScreen(api: app.api).analyticsScreen(AnalyticsScreen.memories)
+            case .settings: SettingsView()
+            }
+        }
+        .sheet(isPresented: $isReadingHistoryPresented) {
+            ReadingHistoryView(model: app.bible.reading) { entry in
+                isReadingHistoryPresented = false
+                guard let reference = ReceiptLine.chapterReference(book: entry.book, chapter: entry.chapter, verse: entry.verseRanges.first?.start) else { return }
+                openChapter(reference: reference, translation: TranslationID(rawValue: entry.translation))
             }
         }
         // A delete that failed after the sheet closed (Clear all dismisses at
@@ -180,14 +194,13 @@ struct ChatTabView: View {
                     }
                 },
                 onShare: { answer in
-                    Task {
-                        // On success the link lands in the model and the button
-                        // becomes a ShareLink; only a failure has anything to
-                        // say.
-                        if let failure = await chat.shareAnswer(messageID: answer.id) {
-                            show(toast: failure)
-                        }
+                    // Every tap POSTs, as Android does, so a link revoked in
+                    // Settings is re-activated before it is handed out again.
+                    if let failure = await chat.shareAnswer(messageID: answer.id) {
+                        show(toast: failure)
+                        return nil
                     }
+                    return chat.sharedLink(for: answer.id)
                 }
             )
         }
@@ -222,17 +235,15 @@ struct ChatTabView: View {
         )
     }
 
-    /// Where a receipt fragment goes on the phone. The tabs are Chat, Bible and
-    /// Notes; the Daily Cross is a sheet, and Settings (with Memories inside it)
-    /// is a pushed route off each tab's gear, which nothing outside the stack can
-    /// drive - so those receipts say where to look instead of jumping.
+    /// Where a receipt fragment goes on the phone, matching Android's
+    /// `receiptRoutes.ts`: memories, settings and the reading log open their
+    /// screens on this stack rather than saying where to look.
     private func openReceipt(_ receipt: ChatReceipt) {
         switch receipt.target {
         case .note(let noteID):
             openNote(noteID)
-            show(toast: "Opening your note…")
         case .memories:
-            show(toast: ReceiptLine.settingsMessage(for: .memory))
+            studyRoute = .memories
         case .chapter(let book, let chapter, let verse, let translation):
             guard let reference = ReceiptLine.chapterReference(book: book, chapter: chapter, verse: verse) else {
                 show(toast: "That passage could not be opened.")
@@ -242,7 +253,7 @@ struct ChatTabView: View {
         case .plan:
             studyRoute = .plan
         case .readingHistory:
-            show(toast: "Reading history is in the Bible tab.")
+            isReadingHistoryPresented = true
         case .cross:
             // The day the assistant just replaced is stale in the cached model,
             // so force a reload on the way into the sheet.
@@ -251,7 +262,9 @@ struct ChatTabView: View {
         case .learn:
             studyRoute = .learn
         case .settings(let section):
-            show(toast: ReceiptLine.settingsMessage(for: section))
+            // Android opens settings/memory for a memory change and the hub
+            // otherwise (church lives inside the hub on iOS).
+            studyRoute = section == .memory ? .memories : .settings
         }
     }
 
@@ -290,5 +303,20 @@ struct ChatTabView: View {
             try? await Task.sleep(for: .seconds(2.5))
             withAnimation(.snappy) { toast = nil }
         }
+    }
+}
+
+/// Settings → Memory, opened from a "Remembered" receipt. It owns its model,
+/// as `SettingsView` does, because nothing else on the chat stack holds one.
+private struct ReceiptMemoriesScreen: View {
+    let api: APIClient
+    @State private var model = MemoriesModel()
+
+    var body: some View {
+        MemoriesView(model: model)
+            .task {
+                model.configure(api)
+                await model.load()
+            }
     }
 }

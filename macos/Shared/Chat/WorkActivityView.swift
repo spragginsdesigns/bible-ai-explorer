@@ -19,6 +19,8 @@ struct WorkActivityView: View {
             }
         }
         .onChange(of: progress.sequence) { receivedAt = .now }
+        // A new run restarts the clock too, as Android's effect keys on runId.
+        .onChange(of: progress.runId) { receivedAt = .now }
     }
 
     private func title(_ elapsed: Double) -> String {
@@ -56,6 +58,9 @@ struct WorkActivityView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                // Android's polite live region: VoiceOver hears the new step.
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.updatesFrequently)
                 .background(theme.surface, in: RoundedRectangle(cornerRadius: 16))
                 .overlay { RoundedRectangle(cornerRadius: 16).stroke(theme.accentBorder, lineWidth: 1) }
             }
@@ -63,22 +68,10 @@ struct WorkActivityView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if progress.entries.isEmpty { Text("No additional activity to show yet.") }
                     ForEach(progress.entries) { entry in
-                        DisclosureGroup {
-                            if let detail = entry.detail {
-                                Text(detail.replacingOccurrences(of: "**", with: ""))
-                                    .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                            }
-                            ForEach(entry.sources) { source in
-                                Link(source.title, destination: source.url).frame(minHeight: 44)
-                            }
-                        } label: {
-                            Label(entry.label, systemImage: entry.state == "error" ? "exclamationmark.circle" : entry.kind == "summary" ? "sparkles" : entry.state == "running" ? "ellipsis" : entry.kind == "status" || entry.state == "interrupted" ? "minus" : "checkmark")
-                                .frame(minHeight: 44).fixedSize(horizontal: false, vertical: true)
-                        }
-                        .tint(theme.textMuted)
-                        .padding(.horizontal, entry.kind == "summary" ? 12 : 0)
-                        .padding(.vertical, entry.kind == "summary" ? 5 : 0)
-                        .background(entry.kind == "summary" ? theme.surface : .clear, in: RoundedRectangle(cornerRadius: 12))
+                        WorkActivityEntryRow(
+                            entry: entry,
+                            current: live && progress.entries.last?.id == entry.id
+                        )
                     }
                 }
                 .foregroundStyle(theme.textMuted)
@@ -88,5 +81,70 @@ struct WorkActivityView: View {
         }
         .font(.system(size: 14))
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// One step in the expanded history. Port of Android's `ActivityEntry`
+/// (`WorkActivity.tsx`): a step with nothing behind it is not a button and has
+/// no chevron, and the step running right now shows the first three lines of
+/// its detail without being opened.
+struct WorkActivityEntryRow: View {
+    @Environment(\.theme) private var theme
+    let entry: ChatProgress.Entry
+    let current: Bool
+    @State private var expanded = false
+
+    private var hasDetails: Bool { entry.detail != nil || !entry.sources.isEmpty }
+
+    /// Kind before state, in Android's order: a status line is an outline
+    /// circle even while it runs, and only an interrupted step gets the minus.
+    static func symbol(kind: String, state: String) -> String {
+        if state == "error" { return "exclamationmark.circle" }
+        if kind == "summary" { return "sparkles" }
+        if kind == "status" { return "circle" }
+        if state == "running" { return "ellipsis" }
+        if state == "interrupted" { return "minus" }
+        return "checkmark"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Button {
+                expanded.toggle()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: Self.symbol(kind: entry.kind, state: entry.state))
+                        .font(.system(size: 13))
+                    Text(entry.label)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if hasDetails {
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11))
+                    }
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasDetails)
+            .accessibilityLabel(entry.label)
+            .accessibilityValue(hasDetails ? (expanded ? "Expanded" : "Collapsed") : "")
+
+            if let detail = entry.detail, expanded || current {
+                Text(detail.replacingOccurrences(of: "**", with: ""))
+                    .lineLimit(expanded ? nil : 3)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if expanded {
+                ForEach(entry.sources) { source in
+                    Link(source.title, destination: source.url).frame(minHeight: 44)
+                }
+            }
+        }
+        .tint(theme.textMuted)
+        .padding(.horizontal, entry.kind == "summary" ? 12 : 0)
+        .padding(.vertical, entry.kind == "summary" ? 5 : 0)
+        .background(entry.kind == "summary" ? theme.surface : .clear, in: RoundedRectangle(cornerRadius: 12))
     }
 }

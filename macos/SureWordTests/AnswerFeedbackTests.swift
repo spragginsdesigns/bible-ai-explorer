@@ -71,7 +71,7 @@ struct AnswerFeedbackTests {
         #expect(FeedbackTag.ordered == FeedbackTag.allCases)
     }
 
-    @Test("A thumbs down carries its chips in draw order, once each")
+    @Test("A thumbs down carries its chips in tap order, once each")
     func downCarriesTags() throws {
         let body = try encode(
             AnswerFeedbackRequest(

@@ -116,9 +116,9 @@ struct AnswerFeedbackRequest: Sendable, Equatable, Encodable {
             (feedback == .down && !trimmed.isEmpty)
                 ? String(trimmed.prefix(AnswerFeedback.maxReasonLength))
                 : nil
-        // De-duplicated in draw order rather than sent twice: the route accepts
-        // a repeat and stores it once, but the body should say what the user
-        // chose, not how the chips were tapped.
+        // De-duplicated in the order given (the order the chips were tapped,
+        // as Android sends them; the route keeps that order) rather than sent
+        // twice.
         var seen = Set<FeedbackTag>()
         let unique = tags.filter { seen.insert($0).inserted }
         self.feedbackTags = (feedback == .down && !unique.isEmpty) ? unique : nil
@@ -244,9 +244,16 @@ struct AnswerFeedbackButtons: View {
             Image(systemName: chosen ? choice.filledSymbol : choice.symbol)
                 .font(.system(size: 12))
                 .foregroundStyle(chosen ? theme.accent : theme.textFaint)
+                #if os(iOS)
+                // Android's 44pt touch target.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+                #endif
         }
         .buttonStyle(SubtleButtonStyle())
-        .accessibilityLabel(choice.title)
+        // Android's labels (`MessageBubble.tsx`); `title` stays for the menu.
+        .accessibilityLabel(choice == .up ? "This answer was helpful" : "This answer was not helpful")
+        .accessibilityAddTraits(chosen ? .isSelected : [])
     }
 }
 
@@ -264,9 +271,9 @@ struct AnswerFeedbackButtons: View {
 struct FeedbackReasonSheet: View {
     @Environment(\.theme) private var theme
 
-    /// The chips currently ticked. A set because the chips are a toggle each;
-    /// `details` puts them back in draw order on the way out.
-    @Binding var tags: Set<FeedbackTag>
+    /// The chips currently ticked, in the order they were tapped - the order
+    /// Android sends them in and the route stores.
+    @Binding var tags: [FeedbackTag]
     @Binding var reason: String
     /// Dismiss without saying more. The thumb is already recorded, so this has
     /// nothing to write.
@@ -282,7 +289,7 @@ struct FeedbackReasonSheet: View {
     private var details: AnswerFeedbackDetails {
         AnswerFeedbackDetails(
             reason: reason,
-            tags: FeedbackTag.ordered.filter(tags.contains)
+            tags: tags
         )
     }
 
@@ -327,12 +334,14 @@ struct FeedbackReasonSheet: View {
                     .buttonStyle(SubtleButtonStyle())
                     .foregroundStyle(theme.textMuted)
                     .font(.system(size: 13))
+                    .accessibilityLabel("Skip the reason")
 
                 Spacer(minLength: 0)
 
                 Button("Send") { onSend(details) }
                     .buttonStyle(AccentButtonStyle())
                     .disabled(!canSend)
+                    .accessibilityLabel("Send the reason")
             }
         }
         .padding(Spacing.lg)
@@ -360,9 +369,9 @@ struct FeedbackReasonSheet: View {
         let chosen = tags.contains(tag)
         Button {
             if chosen {
-                tags.remove(tag)
+                tags.removeAll { $0 == tag }
             } else {
-                tags.insert(tag)
+                tags.append(tag)
             }
         } label: {
             Text(tag.label)

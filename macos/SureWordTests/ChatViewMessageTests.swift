@@ -41,6 +41,20 @@ struct ChatViewMessageTests {
         )
     }
 
+    @Test("Only marker lines go: a code sample or mid-line marker stays, as on Android")
+    func stripsMarkerLinesOnly() {
+        #expect(
+            ChatViewMessage.visibleResponseContent("Body\n[FOLLOWUP] One?\nClosing line.")
+                == "Body\nClosing line."
+        )
+        #expect(
+            ChatViewMessage.visibleResponseContent("Write it as `[FOLLOWUP]` text.\n[FOLLOWUP] Next?")
+                == "Write it as `[FOLLOWUP]` text."
+        )
+        let fenced = "Example:\n```\n[FOLLOWUP] sample\n```"
+        #expect(ChatViewMessage.visibleResponseContent(fenced) == fenced)
+    }
+
     @Test("Leaves ordinary text untouched")
     func leavesPlainText() {
         #expect(ChatViewMessage.visibleResponseContent("Plain answer.") == "Plain answer.")

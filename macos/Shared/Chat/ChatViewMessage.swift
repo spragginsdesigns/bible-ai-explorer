@@ -218,12 +218,12 @@ extension ChatViewMessage {
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the
     /// suggestion chips and must never render as answer text.
     static func visibleResponseContent(_ content: String) -> String {
-        let body: Substring
-        if let range = content.firstRange(of: /\r?\n?\[FOLLOWUP\]/) {
-            body = content[..<range.lowerBound]
-        } else {
-            body = content[...]
-        }
+        // Line by line and code-block aware, like Android's
+        // `copyableAnswerText` (`stripFollowUpMarkers`, assistantMarkdown.ts):
+        // only a line that starts with the marker goes, text after the block
+        // is kept, and a marker inside a code sample stays. Cutting at the
+        // first marker anywhere dropped the rest of an answer that quoted one.
+        let body = AssistantMarkdown.stripFollowUpMarkers(content, streaming: false)
         return String(body.reversed().drop { $0.isWhitespace }.reversed())
     }
 

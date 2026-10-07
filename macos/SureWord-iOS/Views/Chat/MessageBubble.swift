@@ -23,13 +23,13 @@ struct ChatMessageBubble: View {
     /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
     /// The shell owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
-    /// The public link already minted for this answer, if any. Supplied by the
-    /// list from `ChatViewModel.sharedLink(for:)`.
-    var shareURL: URL?
+    /// False until the conversation exists: an unsaved turn has nothing to
+    /// share, so Android hides the button rather than explaining.
+    var canShare: Bool
     /// True while this answer's link is being minted.
     var isSharing: Bool
-    /// Mint the link. The tab owns the write and the toast.
-    var onShare: (ChatViewMessage) -> Void
+    /// Mint (or re-activate) the link; nil after a failure the tab toasted.
+    var onShare: (ChatViewMessage) async -> URL?
     var onFollowUp: (String) -> Void
 
     /// The "What went wrong?" panel, raised by a thumbs down from either the
@@ -37,7 +37,9 @@ struct ChatMessageBubble: View {
     /// it edits lives here so every rating opens on an empty panel.
     @State private var isReasonPresented = false
     @State private var reason = ""
-    @State private var reasonTags: Set<FeedbackTag> = []
+    @State private var reasonTags: [FeedbackTag] = []
+    /// The link the share sheet is presenting, once minted.
+    @State private var sharing: AnswerShareLink?
 
     /// True for the moment after a Copy, which swaps the glyph for a checkmark.
     @State private var didCopy = false
@@ -100,13 +102,16 @@ struct ChatMessageBubble: View {
             Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
                 .font(.system(size: 12))
                 .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(SubtleButtonStyle())
-        .accessibilityLabel(didCopy ? "Copied" : "Copy this answer")
+        .accessibilityLabel(didCopy ? "Answer copied" : "Copy this answer")
     }
 
     private func copyAnswer() {
         SharedAnswerPasteboard.copy(message.copyableText)
+        UIAccessibility.post(notification: .announcement, argument: "Copied")
         copyGeneration += 1
         let generation = copyGeneration
         withAnimation(.easeOut(duration: 0.15)) { didCopy = true }
@@ -130,49 +135,41 @@ struct ChatMessageBubble: View {
         }
     }
 
-    /// "Share", beside the thumbs on a settled answer.
+    /// "Share", beside the thumbs on a settled answer: one tap mints the link
+    /// (or re-activates a revoked one) and opens the share sheet, as Android's
+    /// `Share.share` does. `ShareLink` needs its URL up front, so this presents
+    /// a `UIActivityViewController` once the POST returns.
     ///
-    /// **Two steps by necessity.** `ShareLink` needs its item up front, and the
-    /// link does not exist until the server mints it, so the button mints and
-    /// the `ShareLink` takes its place once there is a URL to hand over. There
-    /// is no public API to open a share sheet programmatically; the alternative
-    /// is a `UIActivityViewController` bridge, which is UIKit plumbing this row
-    /// does not otherwise need and the repo has no precedent for.
-    ///
-    /// Inline only, unlike the thumbs. A context-menu entry could mint but not
-    /// present, so it would dismiss the menu and leave the user hunting for the
-    /// second tap - worse than not offering it there at all.
-    @ViewBuilder
+    /// Inline only, unlike the thumbs: a context-menu entry would have to
+    /// dismiss the menu before the sheet could rise.
     private var shareControl: some View {
-        if let shareURL {
-            ShareLink(item: shareURL) {
-                shareLabel(tint: theme.accent)
+        Button {
+            Task {
+                if let url = await onShare(message) {
+                    sharing = AnswerShareLink(url: url)
+                }
             }
-            .buttonStyle(SubtleButtonStyle())
-            .accessibilityLabel("Share this answer")
-        } else {
-            Button {
-                onShare(message)
-            } label: {
-                shareLabel(tint: theme.textFaint, busy: isSharing)
+        } label: {
+            Group {
+                if isSharing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "square.and.arrow.up")
+                }
             }
-            .buttonStyle(SubtleButtonStyle())
-            .disabled(isSharing)
-            .accessibilityLabel("Create a link to this answer")
+            .font(.system(size: 12))
+            .foregroundStyle(theme.textFaint)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(.rect)
         }
-    }
-
-    private func shareLabel(tint: Color, busy: Bool = false) -> some View {
-        HStack(spacing: 6) {
-            if busy {
-                ProgressView().controlSize(.small)
-            } else {
-                Image(systemName: "square.and.arrow.up")
-            }
-            Text("Share")
+        .buttonStyle(SubtleButtonStyle())
+        .disabled(isSharing)
+        .accessibilityLabel("Share this answer")
+        .accessibilityValue(isSharing ? "Creating the link" : "")
+        .sheet(item: $sharing) { link in
+            AnswerShareSheet(url: link.url)
+                .presentationDetents([.medium, .large])
         }
-        .font(.system(size: 12))
-        .foregroundStyle(tint)
     }
 
     @ViewBuilder
@@ -230,16 +227,6 @@ struct ChatMessageBubble: View {
                 .font(.system(size: 12))
             }
 
-            if !message.retrievedVerses.isEmpty {
-                RetrievedVersesCard(
-                    verses: message.retrievedVerses,
-                    strength: message.matchStrength,
-                    onCopy: onVerseCopy,
-                    onSaveToNote: onVerseSaveToNote,
-                    onReadInBible: onVerseReadInBible
-                )
-            }
-
             if !message.content.isEmpty {
                 ChatMarkdownBody(text: message.content, streaming: message.isStreaming)
                     .contextMenu {
@@ -288,12 +275,8 @@ struct ChatMessageBubble: View {
 
                     AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
 
-                    shareControl
+                    if canShare { shareControl }
                 }
-            }
-
-            if !message.tavilyResults.isEmpty {
-                WebResultsCard(results: message.tavilyResults)
             }
 
             // Everything this turn saved, on one line. It replaces the note
@@ -311,6 +294,22 @@ struct ChatMessageBubble: View {
                 CrossActionCard(action: action)
             }
 
+            // Sources only once the answer has settled, below its receipts and
+            // cross cards, in Android's order (`MessageBubble.tsx`).
+            if !message.isStreaming, !message.retrievedVerses.isEmpty {
+                RetrievedVersesCard(
+                    verses: message.retrievedVerses,
+                    strength: message.matchStrength,
+                    onCopy: onVerseCopy,
+                    onSaveToNote: onVerseSaveToNote,
+                    onReadInBible: onVerseReadInBible
+                )
+            }
+
+            if !message.isStreaming, !message.tavilyResults.isEmpty {
+                WebResultsCard(results: message.tavilyResults)
+            }
+
             // Chips only once the answer has settled, so they don't flicker in
             // and out as the `[FOLLOWUP]` block streams in.
             if !message.followUps.isEmpty, !message.isStreaming {
@@ -319,4 +318,32 @@ struct ChatMessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
+
+/// The link a share sheet is presenting; identifiable for `.sheet(item:)`.
+private struct AnswerShareLink: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
+
+/// The system share sheet for one answer link, with the subject Android puts
+/// on its `Share.share` call ("An answer from SureWord").
+private struct AnswerShareSheet: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [AnswerShareItem(url: url)], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
+}
+
+private final class AnswerShareItem: NSObject, UIActivityItemSource {
+    static let subject = "An answer from SureWord"
+    let url: URL
+    init(url: URL) { self.url = url }
+
+    func activityViewControllerPlaceholderItem(_ controller: UIActivityViewController) -> Any { url }
+    func activityViewController(_ controller: UIActivityViewController, itemForActivityType type: UIActivity.ActivityType?) -> Any? { url }
+    func activityViewController(_ controller: UIActivityViewController, subjectForActivityType type: UIActivity.ActivityType?) -> String { Self.subject }
 }

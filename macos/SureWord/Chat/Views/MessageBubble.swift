@@ -35,7 +35,7 @@ struct MessageBubble: View {
     /// edits lives here too so every rating opens on an empty panel.
     @State private var isReasonPresented = false
     @State private var reason = ""
-    @State private var reasonTags: Set<FeedbackTag> = []
+    @State private var reasonTags: [FeedbackTag] = []
 
     /// True for the moment after a Copy, which swaps the glyph for a checkmark.
     @State private var didCopy = false

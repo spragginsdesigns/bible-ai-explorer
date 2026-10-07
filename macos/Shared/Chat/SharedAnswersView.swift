@@ -26,9 +26,9 @@ struct SharedAnswersSectionView: View {
     @State private var pendingListing: SharedAnswerRow?
 
     static let description =
-        "Links you have created for single answers. Anyone with a link can read that answer, "
-        + "and nothing else from the conversation. Links are unlisted, so search engines "
-        + "don't show them, unless you turn on Show in search. Revoking one takes it back."
+        "Anyone holding one of these links can read that answer without signing in. "
+        + "Links are unlisted, so search engines don't show them, unless you turn on "
+        + "Show in search. Revoking takes a link back."
 
     static let listConfirmTitle = "Show this answer in search?"
     static let listConfirmMessage =
@@ -75,10 +75,14 @@ struct SharedAnswersSectionView: View {
                     .foregroundStyle(theme.danger)
                 Spacer()
                 Button("Retry") { Task { await model.load() } }
+                    .accessibilityLabel("Retry loading your shared answers")
             }
         } else if !model.hasLoaded {
-            HStack {
+            HStack(spacing: Spacing.sm) {
                 ProgressView().controlSize(.small)
+                Text("Loading your shared answers\u{2026}")
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.textMuted)
                 Spacer()
             }
         } else if model.shares.isEmpty {
@@ -123,14 +127,15 @@ struct SharedAnswersSectionView: View {
                     .buttonStyle(SubtleButtonStyle())
                     .font(.system(size: 11))
                     .foregroundStyle(theme.textMuted)
-                    .accessibilityLabel("Copy the link to: \(share.title)")
+                    .accessibilityLabel("Copy this share link")
 
                     Button("Revoke") { pendingRevoke = share }
                         .buttonStyle(SubtleButtonStyle())
                         .font(.system(size: 11))
                         .foregroundStyle(theme.danger)
-                        .disabled(model.isRevoking(share))
-                        .accessibilityLabel("Revoke the link to: \(share.title)")
+                        // Not mid-way through a search change on the same row.
+                        .disabled(model.isRevoking(share) || model.isUpdatingListing(share))
+                        .accessibilityLabel("Revoke this share link")
                 }
             }
 
@@ -145,7 +150,7 @@ struct SharedAnswersSectionView: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .disabled(model.isUpdatingListing(share) || model.isRevoking(share))
-                .accessibilityLabel("Show this answer in search: \(share.title)")
+                .accessibilityLabel("Show this answer in search")
                 // Hung off the row's own switch, bound to this row only, so it
                 // does not stack a second alert onto the hint that already
                 // carries the error alert and the revoke dialog.

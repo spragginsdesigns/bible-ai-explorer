@@ -90,7 +90,7 @@ struct SharedAnswerRow: Sendable, Equatable, Decodable, Identifiable {
         return trimmed.isEmpty ? Self.untitled : trimmed
     }
 
-    static let untitled = "Shared answer"
+    static let untitled = "An answer you shared"
 
     init(
         id: String,
@@ -119,7 +119,9 @@ struct SharedAnswerRow: Sendable, Equatable, Decodable, Identifiable {
         question = (try? container.decode(String.self, forKey: .question)) ?? ""
         createdAt = try? container.decode(String.self, forKey: .createdAt)
         revokedAt = try? container.decode(String.self, forKey: .revokedAt)
-        listed = (try? container.decode(Bool.self, forKey: .listed)) ?? false
+        // A revoked link is out of search whatever an older row says, as
+        // Android's `parseShares` reads it.
+        listed = ((try? container.decode(Bool.self, forKey: .listed)) ?? false) && revokedAt == nil
     }
 }
 
@@ -273,7 +275,7 @@ final class SharedAnswersModel {
             shares = try await api.listShares()
             loadError = nil
         } catch {
-            loadError = Self.message(error, fallback: "Could not load your shared answers.")
+            loadError = Self.message(error, fallback: "Couldn't load your shared answers.")
         }
         hasLoaded = true
     }
@@ -303,8 +305,8 @@ final class SharedAnswersModel {
             restore(previous, on: share.id)
             restoreListed(previousListed, on: share.id)
             errorAlert = ErrorAlert(
-                title: "Could not revoke that link",
-                message: Self.message(error, fallback: "The link is still live. Try again in a moment.")
+                title: "Couldn't revoke that link",
+                message: Self.message(error, fallback: "The link is still public. Check your connection and try again.")
             )
         }
     }
@@ -332,13 +334,8 @@ final class SharedAnswersModel {
         } catch {
             restoreListed(previous, on: share.id)
             errorAlert = ErrorAlert(
-                title: listed ? "Could not show that answer in search" : "Could not hide that answer from search",
-                message: Self.message(
-                    error,
-                    fallback: listed
-                        ? "It is still hidden from search. Try again in a moment."
-                        : "It is still shown in search. Try again in a moment."
-                )
+                title: listed ? "Couldn't show that answer in search" : "Couldn't hide that answer from search",
+                message: Self.message(error, fallback: "Nothing changed. Check your connection and try again.")
             )
         }
     }
@@ -361,11 +358,11 @@ final class SharedAnswersModel {
         return formatter.string(from: date)
     }
 
-    /// Surfaces the server's own `{ "error": ... }` text when there is one, the
-    /// way every other model on this screen does.
+    /// Surfaces the server's own `{ "error": ... }` text when there is one;
+    /// anything else gets Android's fixed sentence rather than a system
+    /// error description.
     private static func message(_ error: any Error, fallback: String) -> String {
         if let apiError = error as? APIError, !apiError.message.isEmpty { return apiError.message }
-        let described = error.localizedDescription
-        return described.isEmpty ? fallback : described
+        return fallback
     }
 }

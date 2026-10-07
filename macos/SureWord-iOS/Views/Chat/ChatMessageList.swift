@@ -18,10 +18,9 @@ struct ChatMessageList: View {
     /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
     /// The tab owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
-    /// Mint the public link for one answer. The tab owns the write and the
-    /// toast; the minted URL comes back through the model, which this list
-    /// already holds, so it is read here rather than threaded down from the tab.
-    var onShare: (ChatViewMessage) -> Void
+    /// Mint (or re-activate) the public link for one answer and hand it back
+    /// for the share sheet; `nil` after a failure, which the tab has toasted.
+    var onShare: (ChatViewMessage) async -> URL?
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -38,7 +37,8 @@ struct ChatMessageList: View {
                             onReceiptError: onReceiptError,
                             onAddToNote: onAddToNote,
                             onFeedback: onFeedback,
-                            shareURL: chat.sharedLink(for: message.id),
+                            // Android hides Share until the conversation exists.
+                            canShare: chat.activeConversationID != nil,
                             isSharing: chat.isSharing(message.id),
                             onShare: onShare,
                             onFollowUp: { question in

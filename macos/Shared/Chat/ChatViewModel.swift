@@ -445,9 +445,9 @@ final class ChatViewModel {
     /// renders the retry card, and the shells already own a toast for an action
     /// that failed on its own.
     ///
-    /// Sharing is idempotent server-side, so a repeat call is safe; it is short
-    /// -circuited here anyway because the answer to "share this again" is the
-    /// link already on screen.
+    /// Sharing is idempotent server-side, and a repeat call is *not* skipped:
+    /// the POST is also what re-activates a link revoked in Settings, so a
+    /// cached URL could be a dead one (Android POSTs on every tap too).
     @discardableResult
     func shareAnswer(messageID: String) async -> String? {
         // A turn whose conversation never got created was never persisted, so
@@ -458,7 +458,6 @@ final class ChatViewModel {
               uiMessages[index].role == .assistant
         else { return Self.shareUnavailableError }
 
-        if sharedLinks[messageID] != nil { return nil }
         guard !sharingMessageIDs.contains(messageID) else { return nil }
 
         sharingMessageIDs.insert(messageID)
@@ -997,11 +996,12 @@ final class ChatViewModel {
     static let emptyStreamError =
         "The answer stream ended before anything arrived. Retry to ask again."
 
+    /// Android's alert bodies (`useSureWordChat.ts`, `MessageBubble.tsx`).
     static let feedbackError =
-        "We couldn't save that rating."
+        "Your rating didn't reach the server. Check your connection and try again."
 
     static let shareError =
-        "We couldn't create a link for that answer."
+        "The link didn't reach the server. Check your connection and try again."
 
     static let shareUnavailableError =
         "This answer isn't saved yet, so there's nothing to share."
