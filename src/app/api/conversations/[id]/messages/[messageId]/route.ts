@@ -60,6 +60,9 @@ export async function PATCH(
 				...(typeof patch.content === "string" && { content: patch.content }),
 				...(patch.metadata !== undefined && { metadata: patch.metadata }),
 				...(feedback.data ?? {}),
+				// A new or changed rating is a new report: it goes back into the
+				// owner's review queue (/admin/feedback) even if the old one was read.
+				...(feedback.data && { feedbackReviewedAt: null }),
 			},
 		});
 

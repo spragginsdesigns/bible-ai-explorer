@@ -104,12 +104,12 @@ model User {
 /// Answer feedback is a different thing and stays on `Message`: a thumb is a
 /// judgment about one answer, this is a message to a person.
 model Feedback {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// "bug" | "idea" | "praise" | "other", validated on the way in.
   category   String
-  message    String   @db.Text
+  message    String    @db.Text
   /// Which client it was sent from, and that client's version, so a complaint
   /// can be read against the build the person actually had.
   platform   String
@@ -117,7 +117,10 @@ model Feedback {
   /// Only when they asked to be replied to; the account's own address is not
   /// copied here.
   replyEmail String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
+  /// When the owner marked it read on /admin/feedback (ADMIN_USER_IDS only).
+  /// Null means it is still in the review queue.
+  reviewedAt DateTime?
 
   @@index([createdAt])
   @@index([userId, createdAt])
@@ -286,23 +289,27 @@ model Conversation {
 }
 
 model Message {
-  id             String           @id @default(cuid())
-  role           String // "user" | "assistant"
-  content        String           @db.Text
-  metadata       Json? // { tavilyResults, retrievedVerses, averageSimilarity, followUps }
-  conversationId String
-  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime         @default(now())
-  attachments    ChatAttachment[]
+  id                 String           @id @default(cuid())
+  role               String // "user" | "assistant"
+  content            String           @db.Text
+  metadata           Json? // { tavilyResults, retrievedVerses, averageSimilarity, followUps }
+  conversationId     String
+  conversation       Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+  attachments        ChatAttachment[]
   /// Answer feedback (docs/FEATURES.md, "Answer feedback"): the user's own
   /// thumb on an assistant row. Own columns, not metadata, because the
   /// ask-question persist replaces metadata wholesale on a retry.
-  feedback       String? // "up" | "down"
-  feedbackReason String?          @db.Text
+  feedback           String? // "up" | "down"
+  feedbackReason     String?          @db.Text
   /// Reason chips under a thumbs down: ids from FEEDBACK_TAGS in
   /// src/lib/chat/answer-feedback.ts. Empty for every other state.
-  feedbackTags   String[]         @default([])
-  feedbackAt     DateTime?
+  feedbackTags       String[]         @default([])
+  feedbackAt         DateTime?
+  /// When the owner reviewed this thumbs down on /admin/feedback. Cleared
+  /// whenever the user rates the answer again, so a changed rating returns to
+  /// the queue. Null means unreviewed.
+  feedbackReviewedAt DateTime?
 
   @@index([conversationId])
   @@index([feedback, feedbackAt])
@@ -314,22 +321,22 @@ enum ChatAttachmentStatus {
 }
 
 model ChatAttachment {
-  id        String               @id @default(cuid())
-  userId    String
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  messageId String?
-  message   Message?             @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  pathname  String               @unique
-  filename  String
-  mediaType String
-  size      Int
-  etag      String?
-  status    ChatAttachmentStatus @default(PENDING)
-  createdAt DateTime             @default(now())
-  readyAt   DateTime?
+  id              String               @id @default(cuid())
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  messageId       String?
+  message         Message?             @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pathname        String               @unique
+  filename        String
+  mediaType       String
+  size            Int
+  etag            String?
+  status          ChatAttachmentStatus @default(PENDING)
+  createdAt       DateTime             @default(now())
+  readyAt         DateTime?
   /// Audio only: transcribed once when the upload completes, and what the model
   /// reads in place of the audio. Null for every other type.
-  transcript      String?        @db.Text
+  transcript      String?              @db.Text
   /// Audio only: length in seconds, read from the file before transcribing.
   /// Summed per user over 24 hours for the free daily voice-message cap.
   durationSeconds Float?

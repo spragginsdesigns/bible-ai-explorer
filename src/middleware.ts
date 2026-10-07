@@ -73,6 +73,12 @@ const isPublicRoute = createRouteMatcher([
 	// middleware, but its other calls do not, and a redirect to /sign-in
 	// would fail every guest as a bot.
 	"/149e9513-01fa-4fb0-aad4-566afd725d1b/(.*)",
+	// The owner's review queue (/admin/feedback) and its API. NOT open: each
+	// checks ADMIN_USER_IDS itself and answers a plain 404 to everyone else.
+	// They are listed here only so a signed-out visitor gets that same 404
+	// instead of a sign-in redirect or a 401, which would admit the path exists.
+	"/admin(.*)",
+	"/api/admin(.*)",
 ]);
 
 const isApiRoute = createRouteMatcher(["/api(.*)", "/trpc(.*)"]);

@@ -273,13 +273,15 @@ test("a thumb writes all three columns and answers with just the feedback fields
 		feedbackReason: "wrong verse",
 		feedbackTags: ["wrong-verse"],
 		feedbackAt: NOW,
+		// A new rating is a new report, so it re-enters the /admin/feedback queue.
+		feedbackReviewedAt: null,
 	});
 });
 
 test("clearing writes the empty state rather than leaving a dangling reason or chip", async () => {
 	const route = patchRoute();
 	const response = await route.send({ feedback: null });
-	assert.deepEqual(dataOf(route.calls), CLEARED);
+	assert.deepEqual(dataOf(route.calls), { ...CLEARED, feedbackReviewedAt: null });
 	assert.deepEqual(response.body, { id: "msg-1", ...CLEARED });
 	// Clearing a rating is not a rating: nothing to report.
 	assert.deepEqual(route.analytics, []);
