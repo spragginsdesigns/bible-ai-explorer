@@ -8,13 +8,28 @@ import Foundation
 enum TranslationID: String, CaseIterable, Sendable, Codable {
     case kjv = "KJV"
     case nkjv = "NKJV"
+    /// Berean Standard Bible, bundled for offline reading (Android 1.60.0).
+    /// The server accepts it on every route that takes a translation.
+    case bsb = "BSB"
 
+    /// The short id the chips, attachment pills and share text show.
     var label: String { rawValue }
+
+    /// The edition's name on the reader's copyright line - Android's
+    /// `TRANSLATIONS[id].label`, which spells BSB out and keeps the other two
+    /// as their abbreviations.
+    var name: String {
+        switch self {
+        case .bsb: "Berean Standard Bible"
+        case .kjv, .nkjv: rawValue
+        }
+    }
 
     var copyright: String {
         switch self {
         case .kjv: "Public domain"
-        case .nkjv: "© Thomas Nelson — text via bolls.life"
+        case .nkjv: "© Thomas Nelson - text via bolls.life"
+        case .bsb: "Public domain · BSB Publishing"
         }
     }
 }

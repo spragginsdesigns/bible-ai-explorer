@@ -1,6 +1,6 @@
 import Foundation
 
-/// Chapter loading for the Bible reader. KJV is bundled with the app; NKJV is
+/// Chapter loading for the Bible reader. KJV and BSB are bundled; NKJV is
 /// fetched from bolls.life per chapter with a timeout and cached in memory for
 /// the session.
 ///
@@ -28,6 +28,14 @@ enum BibleTranslations {
             }
         case .nkjv:
             return try await nkjv.chapter(order: order, chapter: chapter)
+        case .bsb:
+            // Bundled, like KJV. The plain text carries the poetry line
+            // breaks; the reader takes its formatting from `ReaderAnnotations`.
+            do {
+                return try await BSBLibrary.shared.chapter(order: order, chapter: chapter).map(\.text)
+            } catch {
+                throw BibleError(message: chapterLoadError)
+            }
         }
     }
 }
