@@ -2553,3 +2553,53 @@ history load; `/share` at 390 px.
 | Transcription | `src/lib/audio-transcription.ts`, `src/app/api/chat/attachments/[id]/complete/route.ts` |
 | Web | `src/components/ChatFileAttachments.tsx`, `src/app/share/page.tsx`, `src/lib/share-target.ts`, `public/site.webmanifest` |
 | Tests | `tests/voice-messages.test.mjs`, `tests/share-target.test.mjs` |
+
+## Account deletion
+
+`DELETE /api/account` permanently deletes the signed-in user's data and their
+Clerk user (App Store 5.1.1(v), Play account-deletion policy). Body must be
+exactly `{ "confirm": "DELETE" }`, else 400. Unauthenticated is 401. No client
+UI yet.
+
+**Auth.** Clerk `auth()` directly, which accepts the Android bearer token and
+the web session cookie alike. It deliberately does not use `getAuthUser()`,
+which re-creates a missing `User` row and would resurrect an account on a
+repeated call. A repeat inside the token's lifetime returns 200 (the Clerk 404
+is treated as success); after the Clerk user is gone the token fails and the
+caller sees 401.
+
+**Order** (`src/lib/account-deletion.ts`, `runAccountDeletion`): cancel the
+Stripe subscription (abort with 500 on failure, nothing deleted) -> collect blob
+pathnames -> one Prisma transaction -> best-effort blob delete (logged without
+ids or paths, never blocks) -> delete the Clerk user last (502 and retryable
+if Clerk fails after the commit).
+
+**Blobs.** `chat-attachments/<userId>/...` (images, documents, voice audio) and
+`daily-cross-audio/<userId>/...` (Listen). Deleted by the pathnames on
+`ChatAttachment` and `VerseOfDay.audioPathname`, plus a prefix sweep for orphans.
+
+| Model | Keyed by | On User delete |
+|---|---|---|
+| User | id = Clerk id | deleted explicitly (last statement of the transaction) |
+| AiPreference, BillingSubscription, GooglePlaySubscription, AiUsageRequest, UserChurch, ProviderCredential (BYO keys), UserMemory | userId | cascade |
+| Conversation | userId | cascade |
+| Message (answer feedback lives here) | conversation | cascade via Conversation |
+| ChatAttachment (incl. voice transcripts) | userId | cascade; blobs deleted by pathname |
+| Folder, Tag, Note | userId | cascade |
+| NoteTag, NoteAIMessage | note | cascade via Note |
+| NoteEmbedding (pgvector) | noteId + plain userId | cascade via Note, and deleted by userId explicitly |
+| NoteLink | sourceNoteId + plain userId | cascade via Note, and deleted by userId explicitly |
+| PushToken, ReadingEvent, VerseHighlight, SuggestedQuestionSet, VerseMemory, LearnReviewReceipt, Feedback | userId | cascade |
+| VerseOfDay (daily cross + Listen audio) | userId | cascade; blobs deleted by pathname |
+| ReadingPlan, ReadingPlanCompletion | userId / plan | cascade |
+| ReadingLogEntry, Chapter, Day, Session, Totals, ChapterDay, Streak | userId | cascade |
+| SharedAnswer | userId | cascade (public share link stops resolving) |
+| GuestTurn | plain `claimedByUserId`, no FK | deleted explicitly |
+| LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
+| BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |
+
+Not covered by the database transaction: Stripe subscription (cancelled
+first), Google Play subscriptions (cannot be cancelled server-side; the user
+cancels in Play, and the client UI should say so), and PostHog person
+profiles (not deleted by this route). A test keeps
+`ACCOUNT_DATA_MODELS` in step with `prisma/schema.prisma`.
