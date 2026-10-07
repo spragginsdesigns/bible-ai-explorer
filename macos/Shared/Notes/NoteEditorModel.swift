@@ -213,6 +213,72 @@ final class NoteEditorModel {
         }
     }
 
+    // MARK: - Aliases, properties, links
+
+    /// Port of `setAliases` in `useNoteEditorData.ts`: optimistic, rolled back
+    /// on a rejected PATCH. The caller normalizes (`NotePropertyEditing.normalizeAliases`).
+    func setAliases(_ aliases: [String]) async {
+        let previous = note
+        note?.aliases = aliases
+        store.patch(id: noteID) { $0.aliases = aliases }
+        do {
+            _ = try await api.patchNote(id: noteID, .aliases(aliases))
+        } catch {
+            note = previous
+            if let previous { store.upsert(previous) }
+            self.error = (error as? APIError)?.message ?? "The aliases could not be saved."
+        }
+    }
+
+    /// Writes the whole object, as Android does, so removing a key is just a
+    /// write without it.
+    func setProperties(_ properties: NoteProperties) async {
+        let previous = note
+        note?.properties = properties
+        store.patch(id: noteID) { $0.properties = properties }
+        do {
+            _ = try await api.patchNote(id: noteID, .properties(properties))
+        } catch {
+            note = previous
+            if let previous { store.upsert(previous) }
+            self.error = (error as? APIError)?.message ?? "The properties could not be saved."
+        }
+    }
+
+    private(set) var links: NoteLinks?
+    private(set) var isLoadingLinks = false
+    private(set) var linksError: String?
+
+    /// The graph is rebuilt server-side from the *saved* text, so flush first:
+    /// an unsaved `[[link]]` would otherwise be missing from the panel that is
+    /// meant to show it (Android's `openInfo` does the same).
+    func loadLinks() async {
+        await flush()
+        isLoadingLinks = true
+        linksError = nil
+        defer { isLoadingLinks = false }
+        do {
+            links = try await api.links(noteId: noteID)
+        } catch {
+            linksError = (error as? APIError)?.message ?? "Could not load links."
+        }
+    }
+
+    /// Fill in an unresolved `[[wikilink]]`: the new note lands in this note's
+    /// folder so a linked pair stays filed together, and the server resolves
+    /// the pending link the moment the title exists (`resolvePendingLinks`).
+    /// Returns the new note's id, or nil when the create failed.
+    func createLinkedNote(title: String) async -> String? {
+        do {
+            let created = try await api.createNote(title: title, folderId: note?.folderId)
+            store.upsert(created)
+            return created.id
+        } catch {
+            self.error = (error as? APIError)?.message ?? "The note could not be created."
+            return nil
+        }
+    }
+
     func createTag(name: String, color: String) async {
         do {
             store.addTag(try await api.createTag(name: name, color: color))

@@ -18,6 +18,7 @@ import Foundation
 /// | `createTag` | `POST /api/tags` | colour defaults to `#6b7280` |
 /// | `deleteTag` | `DELETE /api/tags/{id}` | cascades the join rows |
 /// | `toggleTag` | `POST /api/notes/{id}/tags/{tagId}` | `{ action: "added"｜"removed" }` |
+/// | `links(noteId:)` | `GET /api/notes/{id}/links` | `{ outgoing, backlinks }`, server-resolved |
 /// | `aiMessages` | `GET /api/notes/{id}/ai-messages` | ascending by `createdAt` |
 /// | `clearAIMessages` | `DELETE /api/notes/{id}/ai-messages` | `{ success: true }` |
 struct NotesAPI: Sendable {
@@ -79,6 +80,12 @@ struct NotesAPI: Sendable {
 
     func deleteNote(id: String) async throws {
         try await api.data("/api/notes/\(id)", method: "DELETE")
+    }
+
+    /// The note's wikilink graph, both directions. The server rebuilds it from
+    /// the *saved* plainText, so callers flush the editor first.
+    func links(noteId: String) async throws -> NoteLinks {
+        try await api.json("/api/notes/\(noteId)/links", as: NoteLinks.self)
     }
 
     // MARK: Folders

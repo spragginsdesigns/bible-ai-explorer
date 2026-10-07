@@ -99,6 +99,9 @@ final class NotesStore {
             var merged = note
             merged.content = prior.content
             merged.htmlContent = prior.htmlContent
+            // Properties ride only on full rows, like the body: an unchanged
+            // note keeps the copy a single-note fetch already brought in.
+            merged.properties = prior.properties
             merged.hasBody = true
             return merged
         }
