@@ -77,7 +77,7 @@ Android bar 1.79.0 (88).
 | H4 screenshots | store-prep | todo | |
 | H5 App Privacy answers | store-prep | wip: drafted with the PrivacyInfo.xcprivacy mapping for A5; assumes B3, B4, B6, D7 and A1 ship | `docs/ios/app-privacy.md` |
 | H6 review notes | store-prep | wip: template with a claim-by-claim verification gate; contact phone TODO | `docs/ios/review-notes.md` |
-| H7 TestFlight | store-prep | blocked 2026-10-07: first `release-ios.sh` run reached archive and failed only on the App Group: `group.com.spragginsdesigns.sureword` is not registered in the developer portal (Austin). Everything else (app record, build number, profiles, Distribution cert) worked | |
+| H7 TestFlight | store-prep | wip: SureWord 1.10.0 (1) uploaded by `release-ios.sh` and VALID in App Store Connect 2026-10-07 (build `d0fa317b-944a-46f8-a731-ea100ce8ac03`). Second attempt; the first was rejected for missing UISupportedInterfaceOrientations (fixed). Next: internal group with Austin, install on his iPhone, run the section 6.3 device gates | |
 | H8 submit | Austin | Austin-only gate | |
 
 Statuses marked `source` come from a grep audit, not from running the app.
