@@ -33,10 +33,10 @@ Android bar 1.79.0 (88).
 | B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
 | B3 analytics parity | ports | source: `e3b37d9` direct PostHog batch client on iOS + macOS, Android event names, property allowlist (no content keys), debug/simulator flagged as test traffic; mirror test reads server + Android sources. Queue flushed on a simulator launch (200 from PostHog not proven). Privacy manifest gained Product Interaction + Other Diagnostic Data (Analytics) | `macos/Shared/Analytics/` |
 | B4 Send feedback | ports | source: `0cdfb97` same `POST /api/feedback`, categories and 2000-char limit as Android; simulator screenshot via harness; not sent signed in | `macos/Shared/Settings/Feedback.swift` |
-| B5 settings hub + testimony | breadth | source (sections present, nested hub missing) | |
-| B6 notifications / APNs | store-prep | source (`PushRegistration.swift`, no entitlement) | |
-| B6a deferred permission prompt | breadth | todo | |
-| B7 offline cold start, cache hygiene | store-blockers | todo | |
+| B5 settings hub + testimony | breadth | simulator (nested hub, one page per category as on Android; iOS 241+129 tests green) | `8d73a0d`, evidence `docs/ios/evidence/settings/01-hub.png` |
+| B6 notifications / APNs | store-prep | source (Expo push registration + `aps-environment` entitlement; server delivery off until an APNs key is uploaded to Expo, see `docs/ios/push-design.md`) | `5012602` |
+| B6a deferred permission prompt | breadth | simulator (prompt only when the user turns a reminder on) | `5012602` |
+| B7 offline cold start, cache hygiene | store-blockers | simulator (per-account persisted Settings data, cleared on sign-out) | `aa626a3` |
 | C1 two-tier verse sheet | reader | device: signed-in simulator run 2026-10-07 against production: peek with AI teaser, Study → Explain full answer (1 Timothy 2:5). Selection rules mirror `verse-selection.test.mjs`. Found: the reader does not scroll the selected verse above the peek sheet (G2 fix) | `docs/ios/evidence/signed-in-2026-10-07/04-peek.png`, `05-study.png` |
 | C2 Words tab | reader | device: signed-in simulator 2026-10-07, Greek TR word-by-word for 1 Timothy 2:5 loaded from production | `docs/ios/evidence/signed-in-2026-10-07/06-words2.png` |
 | C3 See also | reader | device: live `/api/bible/crossrefs` data in simulator (lane run) | `docs/ios/evidence/reader/04-study-see-also-kjv-dark.png` |
