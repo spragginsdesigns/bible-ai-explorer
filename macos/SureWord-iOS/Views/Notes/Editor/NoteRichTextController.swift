@@ -32,6 +32,14 @@ final class NoteRichTextController {
     /// level out — drives the toolbar buttons.
     private(set) var canIndentList = false
     private(set) var canOutdentList = false
+    /// Drive the toolbar's undo/redo buttons - see `NoteEditHistory`.
+    private(set) var canUndo = false
+    private(set) var canRedo = false
+
+    /// Dynamic Type multiplier for every editor font (1 at the default text
+    /// size). Follows the attached text view's content size category and
+    /// re-renders when it changes, so the canvas rescales mid-edit.
+    private(set) var textScale: CGFloat = 1
 
     var theme: SureWordColors = .dark {
         didSet {
@@ -47,11 +55,28 @@ final class NoteRichTextController {
     /// existed — see `pendingHTML`.
     @ObservationIgnored weak var textView: NoteTextView? {
         didSet {
-            guard textView != nil, let html = pendingHTML else { return }
+            guard let textView else { return }
+            textScale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection)
+            textView.textScale = textScale
+            wire(textView)
+            guard let html = pendingHTML else { return }
             pendingHTML = nil
             load(html: html)
         }
     }
+
+    /// One restorable editor state: the document and where the caret was.
+    struct EditSnapshot {
+        var document: NoteDocument
+        var selection: NSRange
+    }
+
+    @ObservationIgnored private var history = NoteEditHistory<EditSnapshot>()
+    /// Where typing left the caret, so a selection change elsewhere can end
+    /// the typing burst (a caret move starts a new undo entry).
+    @ObservationIgnored private var expectedCaretAfterTyping: Int?
+    /// Test seam for the typing-burst pause.
+    @ObservationIgnored var now: () -> ContinuousClock.Instant = { .now }
 
     /// Suppresses `onChange` while the document is being replaced by code.
     @ObservationIgnored private var isRendering = false
@@ -76,6 +101,9 @@ final class NoteRichTextController {
         let document = NoteHTMLParser.parse(html)
         ids = NoteContainerIDGenerator(after: document)
         render(document, selection: NSRange(location: 0, length: 0))
+        history.reset()
+        expectedCaretAfterTyping = nil
+        syncUndoState()
     }
 
     /// True once a document has actually reached the text view. The editor
@@ -113,6 +141,7 @@ final class NoteRichTextController {
         }
 
         let shouldRemove = marksCoverSelection(kind, in: storage, range: selection)
+        recordEdit()
 
         storage.beginEditing()
         storage.enumerateAttribute(NoteAttributedText.marksKey, in: selection) { value, subrange, _ in
@@ -124,7 +153,12 @@ final class NoteRichTextController {
             }
             let block = self.block(in: storage, at: subrange.location) ?? NoteBlock()
             storage.setAttributes(
-                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme),
+                NoteAttributedText.runAttributes(
+                    block: block,
+                    marks: marks,
+                    theme: theme,
+                    scale: textScale
+                ),
                 range: subrange
             )
         }
@@ -140,6 +174,7 @@ final class NoteRichTextController {
         let storage = textView.textStorage
         let selection = textView.selectedRange
         guard selection.length > 0 else { return }
+        recordEdit()
 
         storage.beginEditing()
         storage.enumerateAttribute(NoteAttributedText.marksKey, in: selection) { value, subrange, _ in
@@ -150,7 +185,12 @@ final class NoteRichTextController {
             }
             let block = self.block(in: storage, at: subrange.location) ?? NoteBlock()
             storage.setAttributes(
-                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme),
+                NoteAttributedText.runAttributes(
+                    block: block,
+                    marks: marks,
+                    theme: theme,
+                    scale: textScale
+                ),
                 range: subrange
             )
         }
@@ -173,7 +213,8 @@ final class NoteRichTextController {
         textView.typingAttributes = NoteAttributedText.runAttributes(
             block: block,
             marks: marks,
-            theme: theme
+            theme: theme,
+            scale: textScale
         )
         refreshState()
     }
@@ -370,6 +411,7 @@ final class NoteRichTextController {
         else { return }
 
         let checked = !item.isChecked
+        recordEdit()
         for blockIndex in document.blocks.indices {
             guard
                 let position = document.blocks[blockIndex].containers
@@ -398,6 +440,7 @@ final class NoteRichTextController {
               document.blocks[index].isEmpty
         else { return false }
 
+        recordEdit(EditSnapshot(document: document, selection: selection))
         var updated = document
         updated.blocks[index].containers.removeAll { $0.isList || $0.kind == .listItem }
         render(updated, selection: selection)
@@ -421,20 +464,129 @@ final class NoteRichTextController {
             document: document
         ) ?? lower
 
+        let before = EditSnapshot(document: document, selection: selection)
         transform(&document.blocks, lower..<(max(upper, lower) + 1))
+        // A command that changed nothing (outdent at the top level, say) must
+        // not leave an undo step that does nothing.
+        guard document != before.document else { return }
+        recordEdit(before)
         render(document, selection: selection)
         notifyChange()
+    }
+
+    // MARK: - Text insertion
+
+    /// Insert plain text at the caret (replacing any selection) the way typing
+    /// does - with the caret's typing attributes, through the normal change
+    /// path, so it autosaves. Android's wikilink insert does the same through
+    /// `execCommand('insertText')` in the editor webview.
+    func insertText(_ text: String) {
+        guard let textView, !text.isEmpty else { return }
+        restoreTypingAttributes()
+        recordEdit()
+        let storage = textView.textStorage
+        let selection = textView.selectedRange
+        let location = min(selection.location, storage.length)
+        let range = NSRange(location: location, length: min(selection.length, storage.length - location))
+        let inserted = NSAttributedString(string: text, attributes: textView.typingAttributes)
+        storage.beginEditing()
+        storage.replaceCharacters(in: range, with: inserted)
+        storage.endEditing()
+        textView.selectedRange = NSRange(location: location + inserted.length, length: 0)
+        textDidChange()
+    }
+
+    // MARK: - Undo / redo
+
+    func undo() {
+        guard let textView,
+              let previous = history.undo(current: snapshot(of: textView))
+        else { return }
+        restore(previous)
+    }
+
+    func redo() {
+        guard let textView,
+              let next = history.redo(current: snapshot(of: textView))
+        else { return }
+        restore(next)
+    }
+
+    /// Called by the coordinator before UIKit applies a keystroke, paste or
+    /// dictation result - the only point where the pre-edit text still exists.
+    func willChangeText(in range: NSRange, replacement: String) {
+        guard !isRendering, let textView else { return }
+        history.recordTyping(
+            before: snapshot(of: textView),
+            replacement: replacement,
+            at: now()
+        )
+        expectedCaretAfterTyping = range.location + (replacement as NSString).length
+        syncUndoState()
+    }
+
+    private func restore(_ snapshot: EditSnapshot) {
+        expectedCaretAfterTyping = nil
+        render(snapshot.document, selection: snapshot.selection)
+        syncUndoState()
+        notifyChange()
+    }
+
+    private func snapshot(of textView: NoteTextView) -> EditSnapshot {
+        EditSnapshot(document: currentDocument(), selection: textView.selectedRange)
+    }
+
+    private func recordEdit(_ before: EditSnapshot? = nil) {
+        guard let textView else { return }
+        history.recordEdit(before: before ?? snapshot(of: textView))
+        expectedCaretAfterTyping = nil
+        syncUndoState()
+    }
+
+    private func syncUndoState() {
+        if canUndo != history.canUndo { canUndo = history.canUndo }
+        if canRedo != history.canRedo { canRedo = history.canRedo }
+    }
+
+    /// Hands the view everything that routes back here - undo from any system
+    /// affordance, hardware Tab, and Dynamic Type changes. Done on attach
+    /// rather than in `makeUIView` so a test harness that only sets
+    /// `textView` gets the same wiring as the app.
+    private func wire(_ textView: NoteTextView) {
+        let undoManager = textView.noteUndoManager
+        undoManager.undoHandler = { [weak self] in self?.undo() }
+        undoManager.redoHandler = { [weak self] in self?.redo() }
+        undoManager.canUndoProvider = { [weak self] in self?.canUndo ?? false }
+        undoManager.canRedoProvider = { [weak self] in self?.canRedo ?? false }
+        textView.onIndent = { [weak self] in _ = self?.indentListIfPossible() }
+        textView.onOutdent = { [weak self] in _ = self?.outdentListIfPossible() }
+        textView.onContentSizeCategoryChange = { [weak self] in self?.contentSizeCategoryDidChange() }
+    }
+
+    // MARK: - Dynamic Type
+
+    /// The text view's content size category changed: rebuild every font at
+    /// the new scale. A pure restyle - it neither autosaves nor adds an undo
+    /// step, because the document did not change.
+    func contentSizeCategoryDidChange() {
+        guard let textView else { return }
+        let scale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection)
+        guard abs(scale - textScale) > 0.001 else { return }
+        textScale = scale
+        textView.textScale = scale
+        restyleAll()
     }
 
     /// Replaces the whole text storage with the re-rendered document.
     ///
     /// Unlike the macOS original this does not consult the delegate or register
-    /// with the undo manager: these are programmatic structural edits, and
-    /// UIKit's typing undo does not track storage replacement anyway.
+    /// with UIKit's undo manager, which does not track storage replacement:
+    /// every edit is recorded in `history` instead, by the caller, before it
+    /// gets here.
     private func render(_ document: NoteDocument, selection: NSRange) {
         guard let textView else { return }
         let storage = textView.textStorage
-        let attributed = NoteAttributedText.attributedString(for: document, theme: theme)
+        let attributed = NoteAttributedText.attributedString(for: document, theme: theme, scale: textScale)
 
         isRendering = true
         defer { isRendering = false }
@@ -458,7 +610,8 @@ final class NoteRichTextController {
            document.blocks.indices.contains(index) {
             textView.typingAttributes = NoteAttributedText.attributes(
                 for: document.blocks[index],
-                theme: theme
+                theme: theme,
+                scale: textScale
             )
         }
 
@@ -490,6 +643,11 @@ final class NoteRichTextController {
 
     func selectionDidChange() {
         guard !isRendering else { return }
+        if let textView,
+           textView.selectedRange != NSRange(location: expectedCaretAfterTyping ?? -1, length: 0) {
+            history.endTypingBurst()
+            expectedCaretAfterTyping = nil
+        }
         restoreTypingAttributes()
         refreshState()
     }

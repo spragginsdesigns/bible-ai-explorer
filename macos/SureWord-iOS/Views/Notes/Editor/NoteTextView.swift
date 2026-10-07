@@ -32,9 +32,33 @@ final class NoteTextView: UITextView {
     /// Fired when the user taps a task checkbox in the gutter.
     var onToggleTask: ((Int) -> Void)?
 
+    /// Hardware Tab / Shift-Tab. Both are always swallowed, even outside a
+    /// list, for the reason the Mac gives: the alternative is a literal tab
+    /// character in HTML the web and Android also read.
+    var onIndent: (() -> Void)?
+    var onOutdent: (() -> Void)?
+    /// The content size category changed (Dynamic Type), so the fonts need
+    /// rebuilding at the new scale.
+    var onContentSizeCategoryChange: (() -> Void)?
+
+    /// The editor font scale, for the gutter markers drawn here.
+    var textScale: CGFloat = 1 {
+        didSet { if oldValue != textScale { setNeedsDisplay() } }
+    }
+
+    /// Routes every undo path - the toolbar buttons, Cmd-Z on a hardware
+    /// keyboard, three-finger swipe, shake - into the controller's snapshot
+    /// history (see `NoteUndoManager`).
+    let noteUndoManager = NoteUndoManager()
+
+    override var undoManager: UndoManager? { noteUndoManager }
+
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
         observeKeyboard()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (view: NoteTextView, _) in
+            view.onContentSizeCategoryChange?()
+        }
     }
 
     @available(*, unavailable)
@@ -93,7 +117,7 @@ final class NoteTextView: UITextView {
             if let marker = decorations.markers[offset] {
                 let indent = decorations.listIndent[offset] ?? NoteAttributedText.Metrics.listIndent
                 let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: NoteAttributedText.Metrics.bodySize - 1),
+                    .font: UIFont.systemFont(ofSize: NoteAttributedText.Metrics.bodySize(textScale) - 1),
                     .foregroundColor: UIColor(marker == "☑" ? theme.accent : theme.textFaint),
                 ]
                 let string = NSAttributedString(string: marker, attributes: attributes)
@@ -157,6 +181,27 @@ final class NoteTextView: UITextView {
         return hit
     }
 
+    // MARK: - Hardware keyboard
+
+    /// Priority over the system so Tab nests a list item instead of moving
+    /// focus (Full Keyboard Access) or typing a tab; Cmd-Z / Shift-Cmd-Z go to
+    /// the same history as the toolbar.
+    override var keyCommands: [UIKeyCommand]? {
+        let commands = [
+            UIKeyCommand(input: "\t", modifierFlags: [], action: #selector(indentFromKeyboard)),
+            UIKeyCommand(input: "\t", modifierFlags: .shift, action: #selector(outdentFromKeyboard)),
+            UIKeyCommand(input: "z", modifierFlags: .command, action: #selector(undoFromKeyboard)),
+            UIKeyCommand(input: "z", modifierFlags: [.command, .shift], action: #selector(redoFromKeyboard)),
+        ]
+        for command in commands { command.wantsPriorityOverSystemBehavior = true }
+        return (super.keyCommands ?? []) + commands
+    }
+
+    @objc func indentFromKeyboard() { onIndent?() }
+    @objc func outdentFromKeyboard() { onOutdent?() }
+    @objc func undoFromKeyboard() { noteUndoManager.undo() }
+    @objc func redoFromKeyboard() { noteUndoManager.redo() }
+
     // MARK: - Paste
 
     /// Rich text pasted from another app carries fonts, colours and paragraph
@@ -207,4 +252,31 @@ final class NoteTextView: UITextView {
             scrollRangeToVisible(selectedRange)
         }
     }
+}
+
+/// The text view's undo manager, answering from the controller's snapshot
+/// history instead of its own stack.
+///
+/// UIKit's typing undo records character ranges and knows nothing about the
+/// editor re-rendering the whole storage for a structural command, so its
+/// stack and the document drift apart the first time both are used. Every
+/// system undo affordance asks the first responder's `undoManager` - this one
+/// - whether it can undo and tells it to, so overriding those four members is
+/// enough to put them all on one consistent history. Whatever UIKit still
+/// registers here is never performed; `levelsOfUndo` keeps it from growing.
+final class NoteUndoManager: UndoManager {
+    var undoHandler: (() -> Void)?
+    var redoHandler: (() -> Void)?
+    var canUndoProvider: (() -> Bool)?
+    var canRedoProvider: (() -> Bool)?
+
+    override init() {
+        super.init()
+        levelsOfUndo = 1
+    }
+
+    override var canUndo: Bool { canUndoProvider?() ?? false }
+    override var canRedo: Bool { canRedoProvider?() ?? false }
+    override func undo() { undoHandler?() }
+    override func redo() { redoHandler?() }
 }

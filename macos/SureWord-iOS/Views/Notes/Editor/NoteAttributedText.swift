@@ -60,21 +60,34 @@ enum NoteAttributedText {
     // MARK: - Metrics
 
     enum Metrics {
-        /// Anchored to Dynamic Type's `.body` (17pt at the default category);
-        /// the macOS editor pins 15pt instead, which on a phone reads small.
-        /// Deferred (Lane 4, confirmed by Lane 6): the canvas does not
-        /// live-rescale when the user changes text size — the new metrics
-        /// apply on the next render, not mid-edit.
+        /// Dynamic Type's `.body` at the default category; the macOS editor
+        /// pins 15pt instead, which on a phone reads small. Every size below is
+        /// this times the controller's `textScale`, which tracks the text
+        /// view's content size category and re-renders live when it changes.
         static let bodySize: CGFloat = 17
+
+        static func bodySize(_ scale: CGFloat) -> CGFloat { bodySize * scale }
+
         /// Mirrors the editor CSS in `NoteRichEditor.tsx` (1.6em / 1.35em / 1.15em).
-        static func headingSize(_ level: Int) -> CGFloat {
-            switch level {
-            case 1: bodySize * 1.6
-            case 2: bodySize * 1.35
-            case 3: bodySize * 1.15
-            default: bodySize * 1.05
+        static func headingSize(_ level: Int, scale: CGFloat = 1) -> CGFloat {
+            let body = bodySize(scale)
+            return switch level {
+            case 1: body * 1.6
+            case 2: body * 1.35
+            case 3: body * 1.15
+            default: body * 1.05
             }
         }
+
+        /// The `.body` scale for a trait collection: 1 at the default
+        /// category, larger for the accessibility sizes. Fonts are built from
+        /// it rather than through `UIFontMetrics.scaledFont`, because the
+        /// headings and the verse serif are derived sizes a text style alone
+        /// cannot express.
+        static func textScale(for traits: UITraitCollection) -> CGFloat {
+            UIFontMetrics(forTextStyle: .body).scaledValue(for: bodySize, compatibleWith: traits) / bodySize
+        }
+
         static let listIndent: CGFloat = 28
         static let quoteIndent: CGFloat = 18
         static let paragraphSpacing: CGFloat = 9
@@ -83,12 +96,16 @@ enum NoteAttributedText {
 
     // MARK: - Document → attributed string
 
-    static func attributedString(for document: NoteDocument, theme: SureWordColors) -> NSAttributedString {
+    static func attributedString(
+        for document: NoteDocument,
+        theme: SureWordColors,
+        scale: CGFloat = 1
+    ) -> NSAttributedString {
         let result = NSMutableAttributedString()
         let blocks = document.blocks.isEmpty ? [NoteBlock()] : document.blocks
 
         for (index, block) in blocks.enumerated() {
-            let blockAttributes = attributes(for: block, theme: theme)
+            let blockAttributes = attributes(for: block, theme: theme, scale: scale)
 
             if block.kind == .horizontalRule {
                 result.append(
@@ -97,7 +114,7 @@ enum NoteAttributedText {
             } else {
                 for inline in block.inlines {
                     var attributes = blockAttributes
-                    apply(marks: inline.marks, to: &attributes, block: block, theme: theme)
+                    apply(marks: inline.marks, to: &attributes, block: block, theme: theme, scale: scale)
                     attributes[marksKey] = MarksBox(inline.marks)
                     result.append(NSAttributedString(string: inline.text, attributes: attributes))
                 }
@@ -182,7 +199,12 @@ enum NoteAttributedText {
 
     // MARK: - Styling
 
-    static func attributes(for block: NoteBlock, theme: SureWordColors) -> [NSAttributedString.Key: Any] {
+    static func attributes(
+        for block: NoteBlock,
+        theme: SureWordColors,
+        scale: CGFloat = 1
+    ) -> [NSAttributedString.Key: Any] {
+        let body = Metrics.bodySize(scale)
         var attributes: [NSAttributedString.Key: Any] = [
             blockKey: BlockBox(block),
             .foregroundColor: UIColor(theme.text),
@@ -192,24 +214,24 @@ enum NoteAttributedText {
         switch block.kind {
         case .heading(let level):
             attributes[.font] = UIFont.systemFont(
-                ofSize: Metrics.headingSize(level),
+                ofSize: Metrics.headingSize(level, scale: scale),
                 weight: .bold
             )
         case .codeLine:
-            attributes[.font] = UIFont.monospacedSystemFont(ofSize: Metrics.bodySize - 1, weight: .regular)
+            attributes[.font] = UIFont.monospacedSystemFont(ofSize: body - 1, weight: .regular)
             attributes[.foregroundColor] = UIColor(theme.textSecondary)
         case .horizontalRule:
-            attributes[.font] = UIFont.systemFont(ofSize: Metrics.bodySize)
+            attributes[.font] = UIFont.systemFont(ofSize: body)
             attributes[.foregroundColor] = UIColor(theme.borderStrong)
         case .paragraph:
             if block.isInBlockquote {
                 // Quoted Scripture is set in Cormorant Garamond on every client;
                 // fall back to the system serif if the font failed to load.
-                attributes[.font] = UIFont(name: FontFamily.verse, size: Metrics.bodySize + 2)
-                    ?? UIFont.systemFont(ofSize: Metrics.bodySize + 1)
+                attributes[.font] = UIFont(name: FontFamily.verse, size: body + 2)
+                    ?? UIFont.systemFont(ofSize: body + 1)
                 attributes[.foregroundColor] = UIColor(theme.textSecondary)
             } else {
-                attributes[.font] = UIFont.systemFont(ofSize: Metrics.bodySize)
+                attributes[.font] = UIFont.systemFont(ofSize: body)
             }
         }
         return attributes
@@ -246,10 +268,11 @@ enum NoteAttributedText {
     static func runAttributes(
         block: NoteBlock,
         marks: [NoteMark],
-        theme: SureWordColors
+        theme: SureWordColors,
+        scale: CGFloat = 1
     ) -> [NSAttributedString.Key: Any] {
-        var attributes = self.attributes(for: block, theme: theme)
-        apply(marks: marks, to: &attributes, block: block, theme: theme)
+        var attributes = self.attributes(for: block, theme: theme, scale: scale)
+        apply(marks: marks, to: &attributes, block: block, theme: theme, scale: scale)
         attributes[marksKey] = MarksBox(marks)
         return attributes
     }
@@ -258,7 +281,8 @@ enum NoteAttributedText {
         marks: [NoteMark],
         to attributes: inout [NSAttributedString.Key: Any],
         block: NoteBlock,
-        theme: SureWordColors
+        theme: SureWordColors,
+        scale: CGFloat
     ) {
         var traits: UIFontDescriptor.SymbolicTraits = []
         var isCode = false
@@ -287,7 +311,7 @@ enum NoteAttributedText {
             }
         }
 
-        let base = (attributes[.font] as? UIFont) ?? UIFont.systemFont(ofSize: Metrics.bodySize)
+        let base = (attributes[.font] as? UIFont) ?? UIFont.systemFont(ofSize: Metrics.bodySize(scale))
         if isCode {
             attributes[.font] = UIFont.monospacedSystemFont(
                 ofSize: base.pointSize - 1,

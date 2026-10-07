@@ -88,6 +88,15 @@ struct NoteEditorTextView: UIViewRepresentable {
             if text == "\n", controller.handleReturnOutOfEmptyListItem() {
                 return false
             }
+            // A Tab that reached text input (the key command normally takes it
+            // first) nests the list item rather than writing a literal tab
+            // into HTML the other clients read.
+            if text == "\t" {
+                _ = controller.indentListIfPossible()
+                return false
+            }
+            // Last point where the pre-edit text exists: snapshot it for undo.
+            controller.willChangeText(in: range, replacement: text)
             return true
         }
 
