@@ -229,6 +229,11 @@ Each is one file under `Shared/Settings/`, mounted by both `SettingsView`s:
   themselves, capped at 1000 characters and read by the assistant on every
   conversation. It saves through `PreferencesSyncModel.saveAboutMe`; an empty
   box clears the column.
+- **My testimony** (`TestimonySection.swift`) is how the user came to faith,
+  private and read by the assistant only, capped at 2000 characters. It saves
+  through `PreferencesSyncModel.saveTestimony`. Both boxes are thin wrappers
+  over `PersonalTextSection.swift`, which holds the editor, draft guard, Save
+  button and status line.
 - **Web search** (`WebSearchSection.swift`) is the existing per-account toggle,
   written straight through like the other preferences.
 

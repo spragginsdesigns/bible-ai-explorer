@@ -43,6 +43,7 @@ import { effortForRequest } from "./modelPickerRules";
 import {
 	type ChatAttachmentDescriptor,
 	type LocalChatAttachment,
+	copySharedFileToCache,
 	deleteChatAttachment,
 	normalizeLocalAttachment,
 	uploadChatAttachments,
@@ -637,7 +638,8 @@ export function useSureWordChat(): SureWordChat {
 		const problems: string[] = [];
 		for (const file of draft.files) {
 			try {
-				ready.push(normalizeLocalAttachment(file));
+				const uri = await copySharedFileToCache(file.uri, file.filename);
+				ready.push(normalizeLocalAttachment({ ...file, uri }));
 			} catch (error) {
 				problems.push(error instanceof Error ? error.message : `${file.filename} could not be read.`);
 			}

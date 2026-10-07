@@ -25,7 +25,7 @@ NEW
 - Share into SureWord from Discord, Messages and other apps.
 - My testimony: tell SureWord privately how you came to faith (Settings, Memory).
 
-**Dev notes:** Server answers "the KJV mistranslates", borrowed beliefs (karma, self-salvation) and skeptics from the guidance shipped in 9457b35, live for every build. Audio is transcribed once at upload (free 10 min/day, Pro uncapped) and the model reads the transcript. Native share target via expo-share-intent 8.0.1 (prebuild --clean). New columns User.testimony and ChatAttachment.transcript/durationSeconds were applied to production before release.
+**Dev notes:** Server answers "the KJV mistranslates", borrowed beliefs (karma, self-salvation) and skeptics from the guidance shipped in 9457b35, live for every build. Audio is transcribed once at upload (free 10 min/day, Pro uncapped) and the model reads the transcript. Native share target via expo-share-intent 8.0.1 (prebuild --clean), patched so an unreadable share no longer blanks the app and files are read through the granted content:// URI, then copied to the cache before upload. New columns User.testimony and ChatAttachment.transcript/durationSeconds were applied to production before release.
 
 ## 1.78.0 (versionCode 87) - 2026-10-01 - internal and closed testing
 

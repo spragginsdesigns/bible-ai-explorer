@@ -1,4 +1,4 @@
-import { File } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
 import { apiJson, type GetToken } from "@/lib/api";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
@@ -43,6 +43,19 @@ export function normalizeLocalAttachment(input: Omit<LocalChatAttachment, "size"
 	const sizeError = attachmentSizeError(input.filename, resolved.mediaType, size);
 	if (sizeError) throw new Error(sizeError);
 	return { ...input, size, mediaType: resolved.mediaType };
+}
+
+/**
+ * A file shared from another app arrives as a content:// URI whose read grant
+ * belongs to the share and can lapse before the upload runs. Copy it into the
+ * app's own cache at once and upload the copy. Anything else is returned as is.
+ */
+export async function copySharedFileToCache(uri: string, filename: string): Promise<string> {
+	if (!uri.startsWith("content://")) return uri;
+	const safeName = filename.replace(/[^A-Za-z0-9._-]+/g, "-").slice(-80) || "shared";
+	const target = new File(Paths.cache, `shared-${Date.now()}-${safeName}`);
+	await new File(uri).copy(target);
+	return target.uri;
 }
 
 export function validateLocalAttachmentBatch(

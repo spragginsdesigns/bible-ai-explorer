@@ -24,10 +24,30 @@ case "$HOST_OS" in
   MINGW*|MSYS*|CYGWIN*)
     SDK_ROOT="${ANDROID_HOME:-${LOCALAPPDATA:-C:/Users/Owner/AppData/Local}/Android/Sdk}"
     SDK_ROOT="${SDK_ROOT//\\//}"
-    if [[ -x "C:/Program Files/Android/Android Studio/jbr/bin/java.exe" ]]; then
-      JAVA_HOME_DEFAULT="C:/Program Files/Android/Android Studio/jbr"
+    # The release build needs JDK 21: JDK 25 kills react-native-worklets'
+    # CMake configure with "A restricted method in java.lang.System has been
+    # called". Android Studio's bundled JBR moved to 25 in 2026-10 and the
+    # shell's JAVA_HOME is 25 too, so take the JBR only while it is still 21
+    # and otherwise the JDK 21 Gradle has already provisioned for itself.
+    # SUREWORD_JAVA_HOME overrides the search.
+    java_major() { "$1/bin/java.exe" -version 2>&1 | sed -n 's/.*version "\([0-9]*\).*/\1/p' | head -1; }
+    JBR="C:/Program Files/Android/Android Studio/jbr"
+    if [[ -n "${SUREWORD_JAVA_HOME:-}" ]]; then
+      JAVA_HOME_DEFAULT="$SUREWORD_JAVA_HOME"
+    elif [[ -x "$JBR/bin/java.exe" && "$(java_major "$JBR")" == "21" ]]; then
+      JAVA_HOME_DEFAULT="$JBR"
     else
-      JAVA_HOME_DEFAULT="${JAVA_HOME:-C:/Program Files/Android/Android Studio/jbr}"
+      JAVA_HOME_DEFAULT=""
+      for candidate in "$HOME"/.gradle/jdks/*21*; do
+        if [[ -x "$candidate/bin/java.exe" && "$(java_major "$candidate")" == "21" ]]; then
+          JAVA_HOME_DEFAULT="$candidate"
+          break
+        fi
+      done
+      [[ -n "$JAVA_HOME_DEFAULT" ]] || {
+        echo "[build-aab] No JDK 21 found (Android Studio's JBR is $(java_major "$JBR")). Set SUREWORD_JAVA_HOME to a JDK 21." >&2
+        exit 1
+      }
     fi
     ;;
   *)

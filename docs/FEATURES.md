@@ -2520,7 +2520,16 @@ rebuilt from file parts, which have no room for them.
 - **Android** registers as a share target for text, images, PDFs and audio: a
   shared Discord voice message opens a new chat with it attached, plus two
   one-tap actions, Check against Scripture (`/check`) and Help me reply
-  (`/reply`).
+  (`/reply`). A share made while signed out waits through sign-in. Two
+  emulator findings shaped it: `expo-share-intent` 8.0.1 is patched
+  (`mobile/patches/expo-share-intent+8.0.1.patch`) because its Android
+  `getFileInfo` read an empty cursor without checking and the exception tore
+  down the React host, leaving a blank app, and because it mapped each file to
+  its resolved `/storage/emulated/0/...` path, which scoped storage refuses
+  (EACCES); it now prefers the granted `content://` URI. The chat then copies
+  each shared `content://` file into the app cache at once
+  (`copySharedFileToCache`), since the sender's read grant can lapse before the
+  upload runs.
 - **Web** (installed PWA) declares `share_target` (GET title/text/url) at
   `/share`, which shows what was shared and the same two actions; each opens
   chat prefilled so the user can add to it before sending. Files still come in

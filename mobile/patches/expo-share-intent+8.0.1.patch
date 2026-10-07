@@ -1,0 +1,74 @@
+diff --git a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+--- a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
++++ b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+@@ -66,24 +66,41 @@ class ExpoShareIntentModule : Module() {
+                     "filePath" to instance?.getAbsolutePath(uri),
+                 )
+             }
+-            val queryResult: Cursor = resolver.query(uri, null, null, null, null)!!
+-            queryResult.moveToFirst()
+-            val fileName = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+-            val fileSize = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.SIZE))
+-            queryResult.close()
++            // SureWord patch: a provider may return no cursor, an empty one, or
++            // one without these columns (MediaStore without a read grant does).
++            // The original `!!` and unchecked moveToFirst threw into the React
++            // host and blanked the app; read what is there and let JS cope.
++            var fileName: String? = null
++            var fileSize: String? = null
++            try {
++                resolver.query(uri, null, null, null, null)?.use { queryResult: Cursor ->
++                    if (queryResult.moveToFirst()) {
++                        val nameIndex = queryResult.getColumnIndex(OpenableColumns.DISPLAY_NAME)
++                        val sizeIndex = queryResult.getColumnIndex(OpenableColumns.SIZE)
++                        if (nameIndex >= 0) fileName = queryResult.getString(nameIndex)
++                        if (sizeIndex >= 0) fileSize = queryResult.getString(sizeIndex)
++                    }
++                }
++            } catch (e: Exception) {
++                notifyError("Cannot read shared file details: ${e.message}")
++            }
+ 
+-            val mimeType = resolver.getType(uri)!!
++            val mimeType = resolver.getType(uri) ?: "application/octet-stream"
+ 
+             var mediaWidth: String? = null;
+             var mediaHeight: String? = null;
+             var mediaDuration: String? = null;
+             if (mimeType.startsWith("image/")) {
+-                val options = BitmapFactory.Options().apply {
+-                    inJustDecodeBounds = true
++                try {
++                    val options = BitmapFactory.Options().apply {
++                        inJustDecodeBounds = true
++                    }
++                    BitmapFactory.decodeStream(resolver.openInputStream(uri), null, options)
++                    mediaHeight = options.outHeight.toString()
++                    mediaWidth = options.outWidth.toString()
++                } catch (e: Exception) {
++                    notifyError("Cannot read shared image size: ${e.message}")
+                 }
+-                BitmapFactory.decodeStream(resolver.openInputStream(uri), null, options)
+-                mediaHeight = options.outHeight.toString()
+-                mediaWidth = options.outWidth.toString()
+             }
+             if (mimeType.startsWith("video/")) {
+                 val retriever = MediaMetadataRetriever()
+diff --git a/node_modules/expo-share-intent/build/utils.js b/node_modules/expo-share-intent/build/utils.js
+--- a/node_modules/expo-share-intent/build/utils.js
++++ b/node_modules/expo-share-intent/build/utils.js
+@@ -97,9 +97,13 @@ export const parseShareIntent = (value, options) => {
+                     return [
+                         ...acc,
+                         {
++                            // SureWord patch: on Android prefer the content URI
++                            // the sender granted. The resolved filePath is under
++                            // scoped storage (/storage/emulated/0/...), which the
++                            // app cannot open, so reading it fails with EACCES.
+                             path: file.path ||
+-                                (file.filePath ? `file://${file.filePath}` : null) ||
+                                 file.contentUri ||
++                                (file.filePath ? `file://${file.filePath}` : null) ||
+                                 null,
+                             mimeType: file.mimeType || null,
+                             fileName: file.fileName || null,
