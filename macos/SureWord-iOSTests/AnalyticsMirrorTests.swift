@@ -118,6 +118,10 @@ final class AnalyticsMirrorTests: XCTestCase {
             AnalyticsScreen.chapters, AnalyticsScreen.search, AnalyticsScreen.atlas, AnalyticsScreen.learn,
             AnalyticsScreen.plan, AnalyticsScreen.sermons, AnalyticsScreen.cross, AnalyticsScreen.notes,
             AnalyticsScreen.note, AnalyticsScreen.memories, AnalyticsScreen.settings, AnalyticsScreen.feedback,
+            AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance,
+            AnalyticsScreen.settingsHighlights, AnalyticsScreen.settingsChurch, AnalyticsScreen.settingsMemory,
+            AnalyticsScreen.settingsAI, AnalyticsScreen.settingsShared, AnalyticsScreen.settingsNotifications,
+            AnalyticsScreen.settingsAbout,
         ]
         let routes = Self.androidRoutes()
         for pattern in patterns {

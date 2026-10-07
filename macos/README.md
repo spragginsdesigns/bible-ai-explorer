@@ -219,7 +219,15 @@ written from the protocol spec and covered by recorded-chunk tests.
 
 ### Settings sections shared by both Apple clients
 
-Each is one file under `Shared/Settings/`, mounted by both `SettingsView`s:
+Each is one file under `Shared/Settings/`, mounted by the Mac `SettingsView`
+(one form) and by the iOS Settings pages. iOS Settings is a hub with one
+pushed page per category, in Android 1.69.0's order
+(`SureWord-iOS/Views/Settings/SettingsView.swift` + `SettingsPages.swift`):
+the profile row opens Account (sign out, delete account); then Appearance &
+reading, Highlight labels, My church, Memory (with About me and My
+testimony), AI (membership including the SureWord Pro StoreKit screen,
+provider keys, web search), Shared answers, Notifications, Send feedback and
+About. Android's Check for updates is a Play Store row and has no iOS page.
 
 - **Highlight labels** (`HighlightLabelsSection.swift`) names each of the eight
   highlight colours and says what it means to the user, with a starter set
@@ -238,6 +246,15 @@ Each is one file under `Shared/Settings/`, mounted by both `SettingsView`s:
   button and status line.
 - **Web search** (`WebSearchSection.swift`) is the existing per-account toggle,
   written straight through like the other preferences.
+- **Settings data cache** (`SettingsData.swift`, PRD B7) is the port of
+  Android's `settingsData.ts`: the last AI Providers, My church and memory
+  count answers, persisted per account, prefetched at sign-in, revalidated
+  in place (one request per section, 35 s ceiling) and cleared with the
+  other per-account caches on an account switch or sign-out. The church,
+  memory and provider models paint from it on the first frame, so Settings
+  works offline after one online launch. The signed-in identity itself
+  survives an offline cold start through ClerkKit's own keychain-cached
+  client (Android needed `__experimental_resourceCache` for the same thing).
 
 ## Releasing a DMG
 

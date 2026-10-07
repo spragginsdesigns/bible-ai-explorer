@@ -15,6 +15,11 @@ import SwiftUI
 ///     -evidence.lastRead "Judges|7|BSB"
 ///     -evidence.screen shell   (the signed-in tab shell, so a share waiting
 ///                               in the App Group inbox opens as a chat)
+///     -evidence.screen settings | settings-<page>   (the Settings hub, or one
+///         of its pages: account, appearance, highlights, church, memory, ai,
+///         shared, notifications, feedback, about). The hub's per-account
+///         cache is seeded with a sample church, key and memory count, so the
+///         rows and pages show the cached, offline-first state (PRD B7).
 ///
 /// Nothing authenticated works here (no Clerk session): offline text, search,
 /// and the public routes (See also) are live; AI and account routes show their
@@ -59,6 +64,28 @@ struct UIEvidenceHarness: View {
             BibleSearchView()
         case "feedback":
             if let app { FeedbackView(api: app.api) }
+        case "settings":
+            SettingsView()
+        case "settings-account":
+            AccountSettingsPage()
+        case "settings-appearance":
+            AppearanceSettingsPage()
+        case "settings-highlights":
+            HighlightLabelsPage()
+        case "settings-church":
+            ChurchSettingsPage()
+        case "settings-memory":
+            MemorySettingsPage()
+        case "settings-ai":
+            AISettingsPage()
+        case "settings-shared":
+            SharedAnswersSettingsPage()
+        case "settings-notifications":
+            NotificationSettingsPage()
+        case "settings-feedback":
+            if let app { FeedbackView(api: app.api) }
+        case "settings-about":
+            AboutSettingsPage()
         default:
             ChapterReaderView(order: Self.int("book") ?? 43, chapter: Self.int("chapter") ?? 3)
         }
@@ -81,6 +108,35 @@ struct UIEvidenceHarness: View {
             }
         }
         app = AppModel(settings: settings, userID: nil)
+        if Self.string("screen")?.hasPrefix("settings") == true { Self.seedSettingsData() }
+    }
+
+    /// Sample per-account Settings data, written the way a real session's
+    /// prefetch would have left it.
+    private static func seedSettingsData() {
+        let store = SettingsDataStore.shared
+        store.noteChurch(.ok(church: ChurchProfile(
+            placeId: "evidence",
+            name: "Grace Bible Church",
+            address: "1200 Olive Ave, Fresno, CA",
+            phone: nil,
+            website: nil,
+            mapsUrl: nil,
+            photoUrl: nil,
+            mission: "To know Christ and to make Him known.",
+            about: nil,
+            missionSource: nil,
+            updatedAt: "2026-10-07T08:00:00.000Z"
+        )))
+        store.noteProviders(AIProvidersResponse(
+            serverCredentials: false,
+            providers: [
+                AIProviderStatus(id: "openai", label: "OpenAI", keyURL: nil, connected: true, last4: "9f2c", validatedAt: nil),
+                AIProviderStatus(id: "anthropic", label: "Anthropic", keyURL: nil, connected: false, last4: nil, validatedAt: nil),
+            ]
+        ))
+        store.noteMemoryCount(12)
+        store.noteMemoryEnabled(true)
     }
 
     /// Put the reader into the requested sheet state once the chapter is on

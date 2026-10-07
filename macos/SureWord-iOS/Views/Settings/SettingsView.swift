@@ -1,9 +1,17 @@
 import ClerkKit
 import SwiftUI
 
-/// Settings screen — the iOS form of `macos/SureWord/Settings/SettingsView.swift`
-/// (itself a port of `mobile/app/(app)/settings.tsx`), section for section:
-/// Appearance, Bible translation, Verse of the Day, Memory, Account and About.
+/// Settings hub - the iOS form of Android 1.69.0's nested Settings
+/// (`mobile/app/(app)/settings/index.tsx`): a profile row, then STUDY,
+/// ASSISTANT and APP groups with one row per category, each pushing its own
+/// page (`SettingsPages.swift`). Same categories in the same order; Android's
+/// "Check for updates" row is a Play Store feature and has no iOS counterpart.
+///
+/// The rows show the current value so the common question ("is memory on?")
+/// is answered here rather than a tap away. Their subtitles read the
+/// persisted per-account `SettingsDataStore` (PRD B7), so they are final on
+/// the first frame and revalidate in place every time the hub appears.
+///
 /// Pushed from the tab toolbar gear, so it sits inside the tab's
 /// NavigationStack and needs no Done button of its own.
 struct SettingsView: View {
@@ -11,251 +19,238 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(Clerk.self) private var clerk
 
-    @State private var isConfirmingSignOut = false
-    /// True while the pushed Memories route is frontmost, so only one of the
-    /// two views observing the same model owns the error alert at a time (the
-    /// Mac uses the sheet's presentation flag for this).
-    @State private var isMemoriesFrontmost = false
-    /// Owned here rather than in the pushed view so the saved count stays
-    /// truthful after the route adds or deletes something.
-    @State private var memory = MemoriesModel()
-    /// Owned here for the same reason as `memory`: the section is drawn inline,
-    /// but the model must outlive a redraw so a save or removal is not re-run.
-    @State private var church = ChurchModel()
-    /// And again: a revoke in flight must survive a redraw, or the optimistic
-    /// row would snap back while its DELETE is still going.
-    @State private var shares = SharedAnswersModel()
+    /// Every return from a category page reappears the hub, and the store only
+    /// dedupes requests already in flight, so without a floor a walk through
+    /// four categories would refetch providers, church and memories five times
+    /// over. The pages that change those values write the store directly.
+    static let prefetchMinInterval: TimeInterval = 15
+    @MainActor private static var lastPrefetchAt: Date?
+
+    private var data: SettingsDataStore { .shared }
 
     var body: some View {
-        @Bindable var settings = app.settings
-
-        Form {
-            Section("Appearance") {
-                Picker("Theme", selection: $settings.appearance) {
-                    ForEach(AppearanceSetting.allCases, id: \.self) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                hint("System follows your iPhone's dark or light mode.")
-            }
-
-            Section("Bible") {
-                Picker("Default translation", selection: $settings.translation) {
-                    ForEach(TranslationID.allCases, id: \.self) { option in
-                        Text(option.label).tag(option)
-                    }
-                }
-                .pickerStyle(.segmented)
-                hint(
-                    "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
-                        + "SureWord's AI answers use the translation you select."
-                )
-            }
-
-            HighlightLabelsSection(settings: app.settings, preferences: app.preferences)
-
-            verseOfDaySection
-
-            memorySection
-
-            AboutMeSection(settings: app.settings, preferences: app.preferences)
-
-            TestimonySection(settings: app.settings, preferences: app.preferences)
-
-            WebSearchSection(preferences: app.preferences)
-
-            churchSection
-
-            sharedAnswersSection
-
-            ProviderSettingsSection()
-
-            MembershipSection(api: app.api)
-
-            Section("Account") {
-                if let name = accountName {
-                    LabeledContent("Signed in as", value: name)
-                    if let email = clerk.user?.primaryEmailAddress?.emailAddress, email != name {
-                        LabeledContent("Email", value: email)
-                    }
-                } else if let email = clerk.user?.primaryEmailAddress?.emailAddress {
-                    LabeledContent("Signed in as", value: email)
-                }
-                Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
-                DeleteAccountRow(app: app)
-            }
-
-            // Android's Settings -> APP -> Send feedback row.
+        List {
             Section {
                 NavigationLink {
-                    FeedbackView(api: app.api)
+                    AccountSettingsPage()
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Send feedback")
-                        Text("Tell us what is broken or missing")
-                            .font(.system(size: 11))
-                            .foregroundStyle(theme.textGhost)
+                    HStack(spacing: Spacing.md) {
+                        avatar
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(SettingsProfile.name(clerk.user) ?? "Signed in")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(theme.text)
+                            if let email = SettingsProfile.email(clerk.user) {
+                                Text(email)
+                                    .font(.footnote)
+                                    .foregroundStyle(theme.textFaint)
+                            }
+                        }
+                    }
+                    .padding(.vertical, Spacing.xs)
+                }
+            }
+
+            Section("Study") {
+                row("Appearance & reading", symbol: "paintpalette", subtitle: appearanceSubtitle) {
+                    AppearanceSettingsPage()
+                }
+                row("Highlight labels", symbol: "paintbrush", subtitle: "Names and meanings for your colours") {
+                    HighlightLabelsPage()
+                }
+                // The whole row disappears when the server has no Places key,
+                // matching the section it opens: there is nothing behind it.
+                if data.church.data != .unavailable {
+                    row("My church", symbol: "building.columns", subtitle: churchSubtitle) {
+                        ChurchSettingsPage()
                     }
                 }
             }
 
-            Section("About") {
-                LabeledContent("Version", value: Config.appVersion)
-                AboutLinkRows()
-                hint("A Bible study assistant rooted in the King James Version.")
-                hint(
-                    "Why it's different: ask a generic AI if the Bible is really the Word of God "
-                        + "and you'll hear \u{201C}it depends on your viewpoint.\u{201D} SureWord never "
-                        + "hedges — it answers as a Bible-believing Christian, standing on Scripture "
-                        + "as the inerrant, infallible, final authority for every answer. "
-                        + "\u{201C}All scripture is given by inspiration of God\u{201D} — 2 Timothy 3:16."
-                )
+            Section("Assistant") {
+                row("Memory", symbol: "sparkles", subtitle: memorySubtitle) {
+                    MemorySettingsPage()
+                }
+                row("AI", symbol: "cpu", subtitle: aiSubtitle) {
+                    AISettingsPage()
+                }
+                row("Shared answers", symbol: "square.and.arrow.up", subtitle: "Links you have shared") {
+                    SharedAnswersSettingsPage()
+                }
+            }
+
+            Section("App") {
+                row("Notifications", symbol: "bell", subtitle: notificationsSubtitle) {
+                    NotificationSettingsPage()
+                }
+                row(
+                    "Send feedback",
+                    symbol: "bubble.left.and.text.bubble.right",
+                    subtitle: "Tell us what is broken or missing"
+                ) {
+                    FeedbackView(api: app.api)
+                        .analyticsScreen(AnalyticsScreen.feedback)
+                }
+                row("About", symbol: "info.circle", subtitle: "Version \(Config.appVersion)") {
+                    AboutSettingsPage()
+                }
             }
         }
         .navigationTitle("Settings")
         .analyticsScreen(AnalyticsScreen.settings)
-        .task {
-            memory.configure(app.api)
-            await memory.load()
-        }
-        .onChange(of: app.preferences.memoryEnabled) { _, enabled in
-            // A hydrate on sign-in or foreground can bring back a Memory change
-            // made on another client while this screen is already open.
-            if let enabled { memory.applyRemote(enabled: enabled) }
-        }
-        .task {
-            church.configure(app.api)
-            await church.load()
-        }
-        .task {
-            shares.configure(app.api)
-            await shares.load()
-        }
-        .memoryErrorAlert(memory, isActive: !isMemoriesFrontmost)
-        .confirmationDialog(
-            "Sign out of SureWord?",
-            isPresented: $isConfirmingSignOut,
-            titleVisibility: .visible
-        ) {
-            Button("Sign out", role: .destructive) {
-                Task { await ClerkAuth.signOut() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("You can sign back in at any time.")
-        }
+        .onAppear(perform: revalidate)
     }
 
-    // MARK: - Verse of the Day
+    // MARK: - Revalidation
 
-    /// Mirrors Android's "Verse of the Day" card: the reminder toggle and the
-    /// hour it arrives. Like the Mac there is no push token to register — the
-    /// phone schedules a local daily reminder and pulls the day when opened
-    /// (see `DailyCrossNotifications`, which also requests authorization the
-    /// moment the toggle turns on, via TabShell's sync task).
-    @ViewBuilder
-    private var verseOfDaySection: some View {
-        @Bindable var settings = app.settings
+    /// Opening Settings is also the retry for a preferences hydrate that
+    /// failed at launch (throttled inside the sync model), and the moment the
+    /// row subtitles are refreshed.
+    private func revalidate() {
+        app.preferences.refresh()
+        let now = Date()
+        if let last = Self.lastPrefetchAt, now.timeIntervalSince(last) < Self.prefetchMinInterval { return }
+        Self.lastPrefetchAt = now
+        let api = app.api
+        Task { await SettingsDataStore.shared.prefetch(.live(api)) }
+    }
 
-        Section("Verse of the Day") {
-            Toggle("Daily verse notification", isOn: $settings.verseOfDayEnabled)
-            hint(
-                "An AI-picked verse each morning, shaped by what you've been reading and "
-                    + "asking about."
-            )
+    // MARK: - Subtitles
 
-            if settings.verseOfDayEnabled {
-                LabeledContent("Arrives at") {
-                    Stepper(
-                        value: $settings.verseOfDayHour,
-                        in: 0...23,
-                        step: 1
-                    ) {
-                        Text(SettingsStore.formatHour(settings.verseOfDayHour))
-                            .font(.system(size: 13, weight: .semibold))
-                            .monospacedDigit()
-                    }
-                    .accessibilityLabel("Reminder hour")
+    private var appearanceSubtitle: String {
+        SettingsHubSubtitles.appearance(
+            theme: app.settings.appearance,
+            parchment: app.settings.parchment,
+            translation: app.settings.translation
+        )
+    }
+
+    private var churchSubtitle: String {
+        SettingsHubSubtitles.church(data.church.data)
+    }
+
+    private var memorySubtitle: String {
+        SettingsHubSubtitles.memory(
+            enabled: app.preferences.memoryEnabled ?? data.memories.data?.enabled,
+            count: data.memories.data?.count
+        )
+    }
+
+    private var aiSubtitle: String {
+        SettingsHubSubtitles.ai(connectedKeys: data.providers.data?.providers.filter(\.connected).count ?? 0)
+    }
+
+    private var notificationsSubtitle: String {
+        SettingsHubSubtitles.notifications(
+            enabled: app.settings.verseOfDayEnabled,
+            hour: app.settings.verseOfDayHour
+        )
+    }
+
+    // MARK: - Rows
+
+    private var avatar: some View {
+        Text(SettingsProfile.initial(clerk.user))
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(theme.accent)
+            .frame(width: 44, height: 44)
+            .background(theme.accentSoft, in: .circle)
+            .overlay { Circle().strokeBorder(theme.accentBorder, lineWidth: 1) }
+            .accessibilityHidden(true)
+    }
+
+    private func row<Destination: View>(
+        _ title: String,
+        symbol: String,
+        subtitle: String,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: symbol)
+                    .font(.body)
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .foregroundStyle(theme.text)
+                    Text(subtitle)
+                        .font(.footnote)
+                        .foregroundStyle(theme.textFaint)
+                        .lineLimit(2)
                 }
             }
+            .padding(.vertical, 2)
+        }
+        .accessibilityIdentifier("settings.row.\(title)")
+    }
+}
+
+/// The hub's row subtitles, word for word Android's (`settings/index.tsx`), as
+/// pure functions so the copy is pinned by `SettingsHubTests`.
+@MainActor
+enum SettingsHubSubtitles {
+    static func appearance(theme: AppearanceSetting, parchment: Bool, translation: TranslationID) -> String {
+        [theme.label, parchment ? "Parchment" : "Plain reader", translation.rawValue].joined(separator: " · ")
+    }
+
+    /// Unknown → an ellipsis rather than a guess; a saved church by name.
+    static func church(_ response: ChurchResponse?) -> String {
+        switch response {
+        case nil: "…"
+        case .ok(let church?): church.name
+        case .ok(nil), .unavailable: "Not set"
         }
     }
 
-    // MARK: - Memory
-
-    /// Mirrors Android's Memory card: the server-side enable flag plus a way in
-    /// to the manage screen, labelled with how many memories are stored.
-    @ViewBuilder
-    private var memorySection: some View {
-        Section("Memory") {
-            Toggle(
-                "Enable memory",
-                isOn: Binding(
-                    get: { memory.isEnabled ?? false },
-                    set: { enabled in
-                        Task {
-                            await memory.setEnabled(enabled)
-                            app.preferences.recordMemoryEnabled(memory.isEnabled)
-                        }
-                    }
-                )
-            )
-            .disabled(memory.isEnabled == nil || memory.isTogglePending)
-            hint("When off, SureWord won't use or save memories. Your saved memories are kept.")
-
-            NavigationLink {
-                MemoriesView(model: memory)
-                    .analyticsScreen(AnalyticsScreen.memories)
-                    .onAppear { isMemoriesFrontmost = true }
-                    .onDisappear { isMemoriesFrontmost = false }
-            } label: {
-                LabeledContent(
-                    "Manage memories",
-                    value: memory.hasLoaded && memory.loadError == nil ? "\(memory.memories.count) saved" : "…"
-                )
-            }
-        }
+    static func memory(enabled: Bool?, count: Int?) -> String {
+        guard let enabled else { return "…" }
+        guard enabled else { return "Off" }
+        guard let count else { return "On" }
+        return "On · \(count) saved"
     }
 
-    // MARK: - My church
-
-    /// Mirrors Android's MY CHURCH card and the web settings section. The view
-    /// owns its own `Section` so it can vanish entirely, heading and all, when
-    /// the server has no Google Places key configured. Unlike Memories there is
-    /// nothing to push: the picker and the saved card fit in the form.
-    private var churchSection: some View {
-        ChurchSectionView(model: church)
+    static func ai(connectedKeys: Int) -> String {
+        let base = "Membership, provider keys, web search"
+        guard connectedKeys > 0 else { return base }
+        return "\(base) · \(connectedKeys) \(connectedKeys == 1 ? "key" : "keys")"
     }
 
-    // MARK: - Shared answers
-
-    /// Mirrors the web `/settings` privacy section and the Android Settings
-    /// screen: every public link this account has minted, and the way to take
-    /// one back. Like My church the view owns its own `Section`, and there is
-    /// nothing to push - a link is one line of text.
-    private var sharedAnswersSection: some View {
-        SharedAnswersSectionView(model: shares)
+    static func notifications(enabled: Bool, hour: Int) -> String {
+        enabled ? "Daily verse \(SettingsStore.formatHour(hour))" : "Daily verse off"
     }
+}
 
+/// The signed-in person as the hub and the Account page show them.
+@MainActor
+enum SettingsProfile {
     /// Android shows the Clerk full name and falls back to the username
     /// (`user?.fullName ?? user?.username`). ClerkKit keeps `fullName`
     /// internal, so it is composed from the two public parts here.
-    private var accountName: String? {
-        let parts = [clerk.user?.firstName, clerk.user?.lastName]
+    static func name(_ user: User?) -> String? {
+        let parts = [user?.firstName, user?.lastName]
             .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         let name = parts.joined(separator: " ")
         if !name.isEmpty { return name }
-        let username = clerk.user?.username?.trimmingCharacters(in: .whitespaces)
+        let username = user?.username?.trimmingCharacters(in: .whitespaces)
         if let username, !username.isEmpty { return username }
         return nil
     }
 
-    private func hint(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 11))
-            .foregroundStyle(theme.textGhost)
-            .frame(maxWidth: .infinity, alignment: .leading)
+    static func email(_ user: User?) -> String? {
+        user?.primaryEmailAddress?.emailAddress
+    }
+
+    /// Android's avatar: the first letter of the name, else the email, else ✝.
+    static func initial(_ user: User?) -> String {
+        // U+FE0E asks for the text glyph; without it iOS draws the cross as
+        // a purple emoji tile.
+        let cross = "\u{271D}\u{FE0E}"
+        let source = (name(user) ?? email(user) ?? "").trimmingCharacters(in: .whitespaces)
+        return source.first.map { String($0).uppercased() } ?? cross
     }
 }

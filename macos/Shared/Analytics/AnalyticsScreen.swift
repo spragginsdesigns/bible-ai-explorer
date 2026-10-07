@@ -25,6 +25,16 @@ enum AnalyticsScreen {
     static let memories = "/memories"
     static let settings = "/settings"
     static let feedback = "/settings/feedback"
+    // The Settings hub's category pages (Android 1.69.0 nested stack).
+    static let settingsAccount = "/settings/account"
+    static let settingsAppearance = "/settings/appearance"
+    static let settingsHighlights = "/settings/highlights"
+    static let settingsChurch = "/settings/church"
+    static let settingsMemory = "/settings/memory"
+    static let settingsAI = "/settings/ai"
+    static let settingsShared = "/settings/shared"
+    static let settingsNotifications = "/settings/notifications"
+    static let settingsAbout = "/settings/about"
 
     /// A primary section's route. The Daily Cross is `/bible/cross` on
     /// Android, where it is pushed from the Bible home.
