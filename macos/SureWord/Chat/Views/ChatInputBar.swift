@@ -238,8 +238,11 @@ struct ChatInputBar: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(matches) { command in
                 Button {
-                    chat.input = command.requiresArgs ? "\(command.command) " : command.command
-                    if !command.requiresArgs { Task { await chat.send() } }
+                    // Same rule as web and Android: a command with an argument
+                    // hint fills the input so the user can add to it (or attach).
+                    let fills = command.requiresArgs || command.hint != nil
+                    chat.input = fills ? "\(command.command) " : command.command
+                    if !fills { Task { await chat.send() } }
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Text(command.command)

@@ -60,6 +60,19 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		requiresArgs: true,
 	},
 	{
+		command: "/check",
+		hint: "[claim, or attach it]",
+		description: "Check a claim or message against Scripture",
+		kind: "ai",
+	},
+	{
+		command: "/reply",
+		aliases: ["/answer"],
+		hint: "[what they said]",
+		description: "Help me answer someone gently, from Scripture",
+		kind: "ai",
+	},
+	{
 		command: "/cross",
 		description: "Today's Pick Up Your Cross",
 		kind: "ai",

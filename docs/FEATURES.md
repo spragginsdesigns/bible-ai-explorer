@@ -2356,3 +2356,69 @@ judgment about one answer, this is a message to a person.
 
 Reading them is a query for now, not a screen:
 `SELECT "createdAt", category, platform, "appVersion", "replyEmail", message FROM "Feedback" ORDER BY "createdAt" DESC;`
+
+## When Scripture is challenged: /check, /reply, and skeptics
+
+*Shipped 2026-10-07 · server (all clients) + palette on web and Android; Apple
+palette source written, uncompiled until a Mac gate runs*
+
+This came out of a real exchange. A friend sent a long voice message arguing
+that "karma is biblical", that the KJV uses "the wrong words" and the Greek says
+to help only the desperate, and that "even God doesn't save people unless they
+save themselves". Answering him well took a whole manual pipeline: transcribe
+the message, split it into claims, check each against the KJV, look up the
+Greek (thelo, G2309, behind both "Wilt thou be made whole?" in John 5:6 and
+"whosoever will" in Revelation 22:17; baros, G922, and phortion, G5413, behind
+the two "burden"s of Galatians 6:2 and 6:5), then write a short, gentle reply.
+The user's pastor separately asked that SureWord serve skeptics too. This
+section is that pipeline turned into behavior.
+
+### The guidance (`discernmentGuidance`)
+
+One block in `src/utils/systemPrompt.ts`, in the stable cached half of the chat
+prompt, run through `forTranslation`. It covers five situations:
+
+- **"The KJV mistranslates this."** The model never concedes the point. It
+  looks at the actual word first (`getOriginalText`, `lookupStrongs`,
+  `searchOriginalLanguage`), shows where else the word is used, and asks which
+  word is meant when none is named. Original languages may deepen the KJV,
+  never overturn it.
+- **Ideas borrowed from other beliefs** (karma, manifesting, "the universe",
+  reincarnation, self-salvation, all paths to God). Name the source without
+  contempt, set Scripture beside it, credit what is true (reaping and sowing is
+  real; idleness is warned against), and bring it back to grace.
+- **Skeptics.** Answer the objection actually raised, respectfully; reasons,
+  history and eyewitness testimony are welcome beside Scripture, which stays the
+  final authority; never water it down; end with an invitation to read John.
+- **Checking a claim.** Numbered claims; for each, what they said, what
+  Scripture says (quoted via tools), and what they get right; then the core issue.
+- **Helping the user reply.** Their voice, one to three short paragraphs, no
+  headings, at most two verses, quoted inline (a reply is pasted into a chat
+  app, so this is the one exception to the blockquote rule), and never a claim
+  that anything was sent.
+
+### The commands
+
+`/check` and `/reply` (alias `/answer`) are `ai` commands, so the client sends
+them as typed and the prompt does the work. Neither requires arguments,
+because a screenshot or a voice message can be the whole input, but both carry
+a hint so the palette fills the composer instead of sending. Apple's palette
+was changed to fill on a hint the way web and Android already did.
+
+### Proof
+
+Local dev server against the production database, throwaway TEST-instance
+user, real claims from the original exchange: the mistranslation question
+called `getOriginalText` and `searchOriginalLanguage` unprompted and reported
+thelo across 201 verses; karma was named as rebirth-cycle teaching with
+Galatians 6:7-8 and the 6:2/6:5 distinction; `/check` credited personal
+responsibility and corrected self-salvation with Ephesians 2; the skeptic got
+eyewitness testimony (Luke 1:1-4, 1 Corinthians 15:3-8) and an invitation to
+read John; `/reply` came back as two short paragraphs with inline quotes. No
+em dashes in any answer.
+
+| Piece | Where |
+|---|---|
+| Guidance + command bullets | `src/utils/systemPrompt.ts` (`discernmentGuidance`, `slashCommandGuidance`, `appKnowledge`) |
+| Palettes | `src/lib/chat/slashCommands.ts`, `mobile/src/features/chat/slashCommands.ts`, `macos/Shared/Chat/SlashCommands.swift` |
+| Tests | `tests/discernment-prompt.test.mjs`, `macos/SureWordTests/SlashCommandTests.swift` |

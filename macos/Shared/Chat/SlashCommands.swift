@@ -64,6 +64,22 @@ extension SlashCommand {
             kind: .ai,
             requiresArgs: true
         ),
+        // Both work with nothing typed when a screenshot or voice message is
+        // attached, so neither requires arguments; the hint still makes the
+        // palette fill the input rather than send a bare command.
+        .init(
+            command: "/check",
+            hint: "[claim, or attach it]",
+            description: "Check a claim or message against Scripture",
+            kind: .ai
+        ),
+        .init(
+            command: "/reply",
+            aliases: ["/answer"],
+            hint: "[what they said]",
+            description: "Help me answer someone gently, from Scripture",
+            kind: .ai
+        ),
         .init(
             command: "/cross",
             description: "Today's Pick Up Your Cross",
