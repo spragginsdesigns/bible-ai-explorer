@@ -138,6 +138,12 @@ targets:
       properties:
         com.apple.security.application-groups:
           - group.com.spragginsdesigns.sureword
+        # Sign in with Apple (PRD A2, App Review 4.8 because Google is
+        # offered). ClerkKitUI's AuthView shows "Continue with Apple" on its
+        # own once the Clerk production instance enables the Apple
+        # connection; the App ID has the capability (ASC, 2026-10-07).
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword
