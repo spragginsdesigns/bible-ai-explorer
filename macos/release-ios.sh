@@ -90,8 +90,8 @@ xcconfig="$work_dir/distribution.xcconfig"
 	echo "CURRENT_PROJECT_VERSION = $build"
 	echo "SUREWORD_PROFILE_SureWord_iOS = $(profile_for "$bundle_id")"
 	if [ "${#bundle_ids[@]}" -gt 1 ]; then
-		# TARGET_NAME of the extension, as c99 identifier, set by project.yml.
-		echo "SUREWORD_PROFILE_SureWordShare = $(profile_for "$share_bundle_id")"
+		# TARGET_NAME "SureWord-iOS-Share" as a c99 identifier (project.yml).
+		echo "SUREWORD_PROFILE_SureWord_iOS_Share = $(profile_for "$share_bundle_id")"
 	fi
 	echo 'PROVISIONING_PROFILE_SPECIFIER = $(SUREWORD_PROFILE_$(TARGET_NAME:c99extidentifier))'
 } >"$xcconfig"
