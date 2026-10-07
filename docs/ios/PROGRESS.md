@@ -55,7 +55,7 @@ Android bar 1.79.0 (88).
 | D5 slash commands, attachments | verify | source | |
 | D6 `/check`, `/reply` | share-voice | source | |
 | D7 voice messages | share-voice | source (MIME types only) | |
-| D8 Share Extension | share-voice | todo | |
+| D8 Share Extension | share-voice | device (signed-out, simulator): `a29b4d6`..`70db4f7` real share sheet driven by UI test from Safari, Files (M4A, JPEG, PDF) into SureWord; Safari share opens a new chat with the page and both actions. Files stop at upload without a session. Hand-off: App Group inbox + "Open SureWord" card (no responder-chain openURL; iOS refuses extension openURL). Merged build installed on Austin's signed-in simulator keeps the Clerk session (entitlements file is safe). Open: signed-in share with chip/transcription/send; device run from Voice Memos/Files/Safari; App Group `group.com.spragginsdesigns.sureword` must be registered (Austin) before device/App Store signing. Share bundle id registered via API (`W4NUP6BCAV`) | `docs/ios/evidence/share/` |
 | D9 image downscale | ports | wip: unit-tested with synthetic images; real picker/camera run pending; clipboard-paste path not covered | `ImageDownscaleTests` |
 | E1 template picker | ports | source: `54c332d` byte-for-byte port of `noteTemplates.ts` (fixtures); not run signed in | |
 | E2 editor menu + Markdown export | ports | source: `54c332d` chrome + More menu; `NoteMarkdownExport` equals the TS on 34 fixtures; not run signed in | |
