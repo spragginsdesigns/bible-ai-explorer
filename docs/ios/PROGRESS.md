@@ -16,7 +16,7 @@ Android bar 1.79.0 (88).
 | (c) AI consent form | Austin: one-time sheet before first AI request. |
 | (d) Review demo account | Austin: none exists, we create one. Plan: dedicated password Clerk account on production, credentials stored in 1Password by Austin, never in the repo. **Austin 2026-10-07: grant it Pro via `PRO_USER_IDS`.** |
 | (e) Scope before submission | **Austin 2026-10-07: full PRD first** (offered a compliant-v1.0-now option and declined). Nothing is deferred to 1.x without his written approval. |
-| (f) Billing risk found 2026-10-07 | Guideline 3.1.3(b) (multiplatform services) lets an app unlock web/Play purchases only if the same items are also offered as in-app purchases. F1 (Pro unlocks on iOS with no StoreKit) is therefore a likely rejection. Recommendation: pull F2 StoreKit into v1.0. **Awaiting Austin.** |
+| (f) Billing risk found 2026-10-07 (**Austin 2026-10-07: build StoreKit into v1.0**) | Guideline 3.1.3(b) (multiplatform services) lets an app unlock web/Play purchases only if the same items are also offered as in-app purchases. F1 (Pro unlocks on iOS with no StoreKit) is therefore a likely rejection. Recommendation: pull F2 StoreKit into v1.0. **Awaiting Austin.** |
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Android bar 1.79.0 (88).
 | A1 account deletion (server + 4 clients) | store-blockers | source on all four clients 2026-10-07: Apple `87e1411`, Android `58261cd` (1.80.0, release running), web `6df23f4` (deployed). Same copy and 500/502/401 handling everywhere; Apple 6 + Android 13 + web 9 tests. Not yet run against a real account (needs a throwaway account) | `macos/Shared/Settings/AccountDeletion.swift`, `mobile/src/features/settings/accountDeletion.ts`, `src/lib/account-deletion-client.ts` |
 | A2 Sign in with Apple | store-blockers | todo | |
 | A3 password sign-in | store-blockers | todo | |
-| A4 AI disclosure and consent | store-prep | wip: sheet copy (99 words) and server contract proposed, no code; thumbs-down audit found no human-review queue (script and SQL only). Needs Austin: server enforcement phase, review digest | `docs/ios/ai-consent.md` |
+| A4 AI disclosure and consent | store-prep | wip: copy approved by Austin 2026-10-07 (as drafted in `docs/ios/ai-consent.md`); client sheet + server consent field not built yet. Review path for reported AI output is live: `/admin/feedback` (owner-only via `ADMIN_USER_IDS`, migration `20261007140000_feedback_review_queue` applied to production neondb 2026-10-07, signed-out 404 verified on sureword.app) | `docs/ios/ai-consent.md`, `src/app/admin/feedback/` |
 | A5 PrivacyInfo.xcprivacy | store-blockers | source: `39c8dda` adds `Shared/Resources/PrivacyInfo.xcprivacy` to both apps (email, user ID, other user content, sensitive info for testimony, audio, photos; UserDefaults CA92.1, system boot time 35F9.1); no manifest warnings in either build. Clerk/PhoneNumberKit ship their own; Nuke (via ClerkKitUI) has none, Clerk never calls its DataCache. Confirm at first ASC upload | `macos/Shared/Resources/PrivacyInfo.xcprivacy` |
 | A6 ITSAppUsesNonExemptEncryption | store-blockers | source: `39c8dda`, key false on both app targets, present in built Info.plists | `macos/project.yml` |
 | A7 privacy/terms/support pages | store-prep | verified live 2026-10-07: `/privacy`, `/terms`, `/support` (200, public) deployed with `3456561`; tests forbid price/Pro/purchase text on /privacy and /support. Apple Settings → About links Privacy Policy and Support only (`74b1925`) | `src/lib/marketing/legal-content.ts` |
