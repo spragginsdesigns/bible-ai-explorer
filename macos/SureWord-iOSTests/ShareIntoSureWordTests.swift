@@ -306,7 +306,20 @@ final class ShareIntoSureWordTests: XCTestCase {
         let incoming = ShareInboxIntake.incomingFile(.init(
             name: "Sermon.pdf", typeIdentifier: UTType.pdf.identifier, mediaType: "application/pdf", size: pdf.count, data: pdf
         ))
-        XCTAssertEqual(incoming, IncomingSharedFile(filename: "Sermon.pdf", mediaType: "application/pdf", data: pdf, size: pdf.count))
+        XCTAssertEqual(incoming, IncomingSharedFile(filename: "Sermon.pdf", mediaType: nil, data: pdf, size: pdf.count))
+    }
+
+    /// The system's MIME type for .webm is video/webm; a shared WebM voice
+    /// note must still attach as audio/webm, as it does from the Files picker.
+    func testSharedWebMVoiceNoteGoesByItsExtension() {
+        let audio = Data([0x1A, 0x45, 0xDF, 0xA3])
+        let draft = ShareInboxIntake.draft(for: ReceivedShare(text: nil, webURL: nil, files: [
+            .init(name: "voice.webm", typeIdentifier: "org.webmproject.webm", mediaType: "video/webm", size: 4, data: audio),
+            .init(name: "PTT-1", typeIdentifier: nil, mediaType: "audio/opus", size: 4, data: audio),
+        ]))
+        XCTAssertEqual(draft.files.map(\.filename), ["voice.webm", "PTT-1.ogg"])
+        XCTAssertEqual(draft.files.map(\.mediaType), ["audio/webm", "audio/ogg"])
+        XCTAssertEqual(draft.notices, [])
     }
 
     func testTakeDraftEndToEndFromTheInbox() throws {

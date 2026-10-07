@@ -30,9 +30,16 @@ enum ShareInboxIntake {
     }
 
     static func incomingFile(_ file: ReceivedShare.File) -> IncomingSharedFile {
+        // The media type here is the extension's guess from a UTType, not
+        // something the sender declared, and the system calls a .webm voice
+        // note "video/webm". When the name already has an allowlisted
+        // extension, go by the extension alone - exactly what the Files
+        // picker does - and keep the type only to name an extensionless file.
+        let ext = ((file.name ?? "") as NSString).pathExtension.lowercased()
+        let byExtension = AttachmentLimits.mediaTypeByExtension[ext] != nil
         let incoming = IncomingSharedFile(
             filename: file.name,
-            mediaType: file.mediaType,
+            mediaType: byExtension ? nil : file.mediaType,
             data: file.data,
             size: file.size
         )
