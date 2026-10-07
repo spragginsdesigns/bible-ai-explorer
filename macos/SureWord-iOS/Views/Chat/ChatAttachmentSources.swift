@@ -20,7 +20,10 @@ struct PickedPhoto: Transferable {
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(importedContentType: .image) { data in
             let isPNG = data.starts(with: [0x89, 0x50, 0x4E, 0x47])
-            if isPNG {
+            // A PNG inside the 2048px budget ships untouched; an oversized one
+            // falls through to the JPEG downscale like Android's.
+            if isPNG, let image = UIImage(data: data),
+               ImageDownscale.resized(image) == nil {
                 return PickedPhoto(attachment: LocalAttachment(
                     filename: Self.filename(extension: "png"),
                     mediaType: "image/png",
@@ -28,7 +31,7 @@ struct PickedPhoto: Transferable {
                 ))
             }
             guard let image = UIImage(data: data),
-                  let jpeg = image.jpegData(compressionQuality: 0.9)
+                  let jpeg = ImageDownscale.jpegForUpload(image)
             else {
                 throw AttachmentError(
                     message: AttachmentValidator.unsupported("that photo")
@@ -78,7 +81,7 @@ struct CameraPicker: UIViewControllerRepresentable {
         ) {
             let image = info[.originalImage] as? UIImage
             let attachment = image
-                .flatMap { $0.jpegData(compressionQuality: 0.9) }
+                .flatMap { ImageDownscale.jpegForUpload($0) }
                 .map {
                     LocalAttachment(
                         filename: "camera-\(Int(Date().timeIntervalSince1970)).jpg",

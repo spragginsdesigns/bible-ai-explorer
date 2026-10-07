@@ -173,12 +173,24 @@ final class APIClient: Sendable {
 
     // MARK: - Plumbing
 
-    private func makeRequest(_ path: String, method: String, fresh: Bool) async throws -> URLRequest {
+    /// Names the platform on every API call, like Android's `x-sureword-client`
+    /// in `mobile/src/lib/api.ts`; the server's `platformFromHeaders` reads it
+    /// for analytics and push. Set only in `makeRequest`, so third-party hosts
+    /// (bolls.life, the Blob upload URL) never see it.
+    static let clientHeaderName = "x-sureword-client"
+    #if os(iOS)
+    static let clientHeaderValue = "ios"
+    #elseif os(macOS)
+    static let clientHeaderValue = "macos"
+    #endif
+
+    func makeRequest(_ path: String, method: String, fresh: Bool) async throws -> URLRequest {
         guard let url = URL(string: path, relativeTo: baseURL) else {
             throw APIError(message: "Invalid request path: \(path)")
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.setValue(Self.clientHeaderValue, forHTTPHeaderField: Self.clientHeaderName)
         if let jwt = try? await token(fresh) {
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
         }
