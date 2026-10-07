@@ -22,13 +22,13 @@ Android bar 1.79.0 (88).
 
 | ID | Lane | Status | Evidence |
 |---|---|---|---|
-| A1 account deletion (server + 4 clients) | store-blockers | wip: server live (unauth DELETE returns 401 in production 2026-10-07). iOS + macOS UI merged `87e1411` (two-step confirm, typed DELETE, 500/502/401 handling; 6 macOS + iOS request tests; macOS 630 and iOS 75+51 tests green on main). Not yet run against a real account. Android + web UI in progress | `macos/Shared/Settings/AccountDeletion.swift` |
+| A1 account deletion (server + 4 clients) | store-blockers | source on all four clients 2026-10-07: Apple `87e1411`, Android `58261cd` (1.80.0, release running), web `6df23f4` (deployed). Same copy and 500/502/401 handling everywhere; Apple 6 + Android 13 + web 9 tests. Not yet run against a real account (needs a throwaway account) | `macos/Shared/Settings/AccountDeletion.swift`, `mobile/src/features/settings/accountDeletion.ts`, `src/lib/account-deletion-client.ts` |
 | A2 Sign in with Apple | store-blockers | todo | |
 | A3 password sign-in | store-blockers | todo | |
 | A4 AI disclosure and consent | store-prep | wip: sheet copy (99 words) and server contract proposed, no code; thumbs-down audit found no human-review queue (script and SQL only). Needs Austin: server enforcement phase, review digest | `docs/ios/ai-consent.md` |
 | A5 PrivacyInfo.xcprivacy | store-blockers | source: `39c8dda` adds `Shared/Resources/PrivacyInfo.xcprivacy` to both apps (email, user ID, other user content, sensitive info for testimony, audio, photos; UserDefaults CA92.1, system boot time 35F9.1); no manifest warnings in either build. Clerk/PhoneNumberKit ship their own; Nuke (via ClerkKitUI) has none, Clerk never calls its DataCache. Confirm at first ASC upload | `macos/Shared/Resources/PrivacyInfo.xcprivacy` |
 | A6 ITSAppUsesNonExemptEncryption | store-blockers | source: `39c8dda`, key false on both app targets, present in built Info.plists | `macos/project.yml` |
-| A7 privacy/terms/support pages | store-prep | wip: policy, terms and public `/support` (+ `/support.md`) committed on the store-prep branch; lint, tsc and 1281 logic tests green; not deployed. The policy and /support describe in-app account deletion on every client, which so far exists only server-side (A1): ship A1 clients first, or accept that the email fallback both pages also state is the only working path until then | `src/lib/marketing/legal-content.ts`, `tests/llms-txt.test.mjs` |
+| A7 privacy/terms/support pages | store-prep | verified live 2026-10-07: `/privacy`, `/terms`, `/support` (200, public) deployed with `3456561`; tests forbid price/Pro/purchase text on /privacy and /support. Apple Settings → About links Privacy Policy and Support only (`74b1925`) | `src/lib/marketing/legal-content.ts` |
 | B1 four sign-in paths on device | store-blockers | todo | |
 | B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
 | B3 analytics parity | ports | todo | |
@@ -37,18 +37,18 @@ Android bar 1.79.0 (88).
 | B6 notifications / APNs | store-prep | source (`PushRegistration.swift`, no entitlement) | |
 | B6a deferred permission prompt | breadth | todo | |
 | B7 offline cold start, cache hygiene | store-blockers | todo | |
-| C1 two-tier verse sheet | reader | todo | |
-| C2 Words tab | reader | source | |
-| C3 See also | reader | todo | |
-| C4 parchment reader surface | reader | todo | |
-| C5 BSB + translation-aware search | reader | todo | |
-| C6 Continue reading | reader | todo | |
-| C7 Reading plans | breadth-1 | todo (`Shared/Plan` model only) | |
-| C8 Learn a verse | breadth-1 | todo | |
+| C1 two-tier verse sheet | reader | device: signed-in simulator run 2026-10-07 against production: peek with AI teaser, Study → Explain full answer (1 Timothy 2:5). Selection rules mirror `verse-selection.test.mjs`. Found: the reader does not scroll the selected verse above the peek sheet (G2 fix) | `docs/ios/evidence/signed-in-2026-10-07/04-peek.png`, `05-study.png` |
+| C2 Words tab | reader | device: signed-in simulator 2026-10-07, Greek TR word-by-word for 1 Timothy 2:5 loaded from production | `docs/ios/evidence/signed-in-2026-10-07/06-words2.png` |
+| C3 See also | reader | device: live `/api/bible/crossrefs` data in simulator (lane run) | `docs/ios/evidence/reader/04-study-see-also-kjv-dark.png` |
+| C4 parchment reader surface | reader | device: light/dark parchment rendered in simulator (lane run) | `docs/ios/evidence/reader/01-*.png`, `02-*.png` |
+| C5 BSB + translation-aware search | reader | device: BSB 66 books bundled (5.3 MB compact, 31,102 verses test), search fallback shown in simulator. macOS now lists BSB but renders it plain and searches KJV only (parity follow-up) | `docs/ios/evidence/reader/06-*.png` |
+| C6 Continue reading | reader | device: signed-in simulator 2026-10-07 shows the account's real last chapter (1 Timothy 2) and opens it | `docs/ios/evidence/signed-in-2026-10-07/01-s1.png`, `03-reader.png` |
+| C7 Reading plans | breadth-1 | source: screens + Bible home card merged `81e5a6d`; card visible signed in; plan flows not yet exercised | `docs/ios/evidence/signed-in-2026-10-07/01-s1.png` |
+| C8 Learn a verse | breadth-1 | device (partial): signed-in simulator shows the account's queue (John 3:3 NKJV), four practice modes, live Suggested for you; verse sheet Learn opens it. Review/offline/conflict paths covered by ported tests, not yet driven by hand | `docs/ios/evidence/signed-in-2026-10-07/02-learn.png` |
 | C9 Atlas incl. Family/Trace | verify | source | |
 | C10 Reading log | verify | source | |
-| C11 Sermon studies | breadth-1 | todo | |
-| D1 history search/rename/delete | breadth-1 | wip (rename missing; search/delete source) | |
+| C11 Sermon studies | breadth-1 | source: merged `1a37aa7`; Bible home row visible signed in (church has studies); study view not yet opened | `docs/ios/evidence/signed-in-2026-10-07/01-s1.png` |
+| D1 history search/rename/delete | breadth-1 | source: rename (60-char server limit; Android allows 120, which the server rejects) and failed-delete restore merged `92d5359`; not yet driven by hand | |
 | D2 run-options picker | verify | source | |
 | D3 receipt/copy/feedback/share + activity card | verify | source | |
 | D4 Daily Cross + on-demand Listen | reader | source (Stay/Fresh); narrator/delivery todo | |
@@ -61,7 +61,7 @@ Android bar 1.79.0 (88).
 | E2 editor menu + Markdown export | ports | todo | |
 | E3 wikilinks, backlinks, properties | notes | todo | |
 | E4 editor deferrals | notes | todo | |
-| F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Open: Listen lock copy "Self-service SureWord Pro access isn't available yet" (Apple `ListenCard.swift:60`, Android `ListenCard.tsx:505`, web `ListenCard.tsx:287`) is stale since Stripe went live; neutral wording on all clients in one cycle. In-app privacy link missing on iOS (link `/privacy`, not `/terms`, which states the price). See (f) for the 3.1.3(b) risk. | |
+| F1 no purchase UI | store-prep | wip: audit 2026-10-07 found no purchase button, price or web link in Apple sources. Fixed: server voice-quota copy drops Pro for `ios` (`12667a0`). Fixed: Listen lock copy neutral on all four clients (`1f03066`); in-app Privacy/Support links (`74b1925`). See (f) for the 3.1.3(b) risk. | |
 | F2 StoreKit | post-1.0 | deferred to after approval (PRD) | |
 | G1 design audit | design | todo | |
 | G2 design fixes | design | todo | |
