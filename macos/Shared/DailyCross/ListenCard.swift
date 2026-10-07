@@ -57,7 +57,7 @@ struct ListenCard: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .multilineTextAlignment(.center)
-            Text("A spoken devotional for every day's word, ready when you wake up. Self-service SureWord Pro access isn't available yet.")
+            Text("A spoken devotional for today's word, made when you choose. Listen is included with SureWord Pro.")
                 .font(.system(size: 13.5))
                 .foregroundStyle(theme.textFaint)
                 .lineSpacing(4)

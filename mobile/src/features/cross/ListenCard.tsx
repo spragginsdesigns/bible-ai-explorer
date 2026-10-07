@@ -502,7 +502,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 						<Text style={styles.lockTitle}>Listen is part of SureWord Pro</Text>
 						<Text style={styles.lockBody}>
 							A spoken devotional for today&apos;s word, made when you choose.
-							Self-service SureWord Pro access isn&apos;t available yet.
+							Listen is included with SureWord Pro.
 						</Text>
 					</>
 				) : phase === "loading" ? (
