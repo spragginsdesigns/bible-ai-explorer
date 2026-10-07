@@ -22,12 +22,12 @@ Android bar 1.79.0 (88).
 
 | ID | Lane | Status | Evidence |
 |---|---|---|---|
-| A1 account deletion (server + 4 clients) | store-blockers | wip: server route merged 2026-10-07 (lint, tsc, 1261 logic tests; NOT yet exercised against a real account or deployed-and-called); clients todo | `docs/FEATURES.md` "Account deletion" |
+| A1 account deletion (server + 4 clients) | store-blockers | wip: server live (unauth DELETE returns 401 in production 2026-10-07). iOS + macOS UI merged `87e1411` (two-step confirm, typed DELETE, 500/502/401 handling; 6 macOS + iOS request tests; macOS 630 and iOS 75+51 tests green on main). Not yet run against a real account. Android + web UI in progress | `macos/Shared/Settings/AccountDeletion.swift` |
 | A2 Sign in with Apple | store-blockers | todo | |
 | A3 password sign-in | store-blockers | todo | |
 | A4 AI disclosure and consent | store-prep | wip: sheet copy (99 words) and server contract proposed, no code; thumbs-down audit found no human-review queue (script and SQL only). Needs Austin: server enforcement phase, review digest | `docs/ios/ai-consent.md` |
-| A5 PrivacyInfo.xcprivacy | store-blockers | todo | |
-| A6 ITSAppUsesNonExemptEncryption | store-blockers | todo | |
+| A5 PrivacyInfo.xcprivacy | store-blockers | source: `39c8dda` adds `Shared/Resources/PrivacyInfo.xcprivacy` to both apps (email, user ID, other user content, sensitive info for testimony, audio, photos; UserDefaults CA92.1, system boot time 35F9.1); no manifest warnings in either build. Clerk/PhoneNumberKit ship their own; Nuke (via ClerkKitUI) has none, Clerk never calls its DataCache. Confirm at first ASC upload | `macos/Shared/Resources/PrivacyInfo.xcprivacy` |
+| A6 ITSAppUsesNonExemptEncryption | store-blockers | source: `39c8dda`, key false on both app targets, present in built Info.plists | `macos/project.yml` |
 | A7 privacy/terms/support pages | store-prep | wip: policy, terms and public `/support` (+ `/support.md`) committed on the store-prep branch; lint, tsc and 1281 logic tests green; not deployed. The policy and /support describe in-app account deletion on every client, which so far exists only server-side (A1): ship A1 clients first, or accept that the email fallback both pages also state is the only working path until then | `src/lib/marketing/legal-content.ts`, `tests/llms-txt.test.mjs` |
 | B1 four sign-in paths on device | store-blockers | todo | |
 | B2 `x-sureword-client` header | ports | verified in code and tests (iOS suite + macOS build green on merged main 2026-10-07); header on the wire not yet observed | `ClientHeaderTests` |
