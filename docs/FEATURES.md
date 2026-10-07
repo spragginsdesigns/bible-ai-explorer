@@ -2722,7 +2722,7 @@ Production and Sandbox; the Paid Applications agreement active.
 | Rules (token, config, transitions, merge helpers) | `src/lib/billing/app-store-rules.ts` |
 | Verification and persistence | `src/lib/billing/app-store.ts`, `src/lib/billing/apple-root-ca.ts` |
 | Routes | `src/app/api/billing/app-store/verify/route.ts`, `src/app/api/billing/app-store/notifications/route.ts` |
-| Schema | `AppStoreSubscription` in `prisma/schema.prisma`, migration `20261007140000_app_store_subscription` |
+| Schema | `AppStoreSubscription` in `prisma/schema.prisma`, migration `20261007150000_app_store_subscription` |
 | Apple | `macos/Shared/Billing/`, `macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`, `macos/StoreKit/SureWord.storekit` |
 | Tests | `tests/app-store-billing.test.mjs`, `macos/SureWord-iOSTests/StoreKitBillingTests.swift`, `macos/SureWordTests/AppAccountTokenTests.swift` |
 
