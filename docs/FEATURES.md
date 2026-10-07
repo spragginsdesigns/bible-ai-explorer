@@ -2560,14 +2560,27 @@ history load; `/share` at 390 px.
 Clerk user (App Store 5.1.1(v), Play account-deletion policy). Body must be
 exactly `{ "confirm": "DELETE" }`, else 400. Unauthenticated is 401.
 
-**Apple clients (iOS + macOS).** Settings -> Account -> Delete account, below
-Sign out (`macos/Shared/Settings/AccountDeletion.swift`, shared by both
-targets). Two steps: a destructive dialog listing what goes, then an alert that
-only enables its button once the user types `DELETE`. On 200 it runs the
-sign-out cache wipe (`PreferencesSyncModel.clearAccountCaches`) and signs out of
-Clerk. A 401 after an attempt that may already have gone through (a 502 or a
-lost response) counts as done; 500 says nothing was removed; 502 offers a retry.
-Android and web UI are not built yet.
+**Clients.** Every client has the UI: Settings -> Account -> Delete account,
+below Sign out, with the same copy and status handling everywhere. Two steps: a
+destructive dialog listing what goes, then a step that only enables its button
+once the user types `DELETE`. A 401 after an attempt that may already have gone
+through (a 502 or a lost response) counts as done; 500 says nothing was
+removed; 502 or a lost response offers Try again; offline says SureWord could
+not be reached. On success each client runs its sign-out cache wipe, then signs
+out of Clerk.
+
+- Apple (iOS + macOS): `macos/Shared/Settings/AccountDeletion.swift`, shared by
+  both targets; wipe is `PreferencesSyncModel.clearAccountCaches`.
+- Android: `mobile/app/(app)/settings/account.tsx` (Alert, then a Modal with
+  the DELETE field), status reducer in
+  `mobile/src/features/settings/accountDeletion.ts`; wipe is
+  `clearUserCaches()`. Bearer token through `apiJson`.
+- Web: `src/components/settings/DeleteAccountSection.tsx`, reducer in
+  `src/lib/account-deletion-client.ts`; cookie session; wipe is
+  `clearSyncedPreferences()`, then `signOut({ redirectUrl: "/" })`.
+
+As of 2026-10-07 the Android and web UIs are source + tests only; none of the
+four clients has yet deleted a real account end to end.
 
 **Auth.** Clerk `auth()` directly, which accepts the Android bearer token and
 the web session cookie alike. It deliberately does not use `getAuthUser()`,
