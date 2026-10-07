@@ -39,6 +39,10 @@ final class BibleModel {
     // MARK: Reading
 
     private(set) var verses: [String] = []
+    /// `verses` formatted for drawing: headings, italics, the words of Jesus
+    /// and omitted-verse notes (`ReaderAnnotations`). Always the same length
+    /// as `verses` and written in the same step, so the two never disagree.
+    private(set) var readerVerses: [ReaderVerse] = []
     /// Which `translation:book:chapter` `verses` actually holds. The selection
     /// changes a render before the new text arrives, so without this the scroll
     /// and flash below would fire against the previous chapter's verses.
@@ -72,6 +76,12 @@ final class BibleModel {
     /// running a second one.
     let insight: VerseInsightModel
 
+    /// The iOS two-tier verse sheet (selection, tier, study tab, action
+    /// states). It shares `insight` above, so the Mac's single-verse panel and
+    /// the phone's sheet never stream two explanations at once. The Mac does
+    /// not use it.
+    let sheet: VerseSheetModel
+
     /// The reading plan the user is following, and every action the plan pane
     /// takes on it. It hangs off the reader rather than off `AppModel` because
     /// the plan *is* Bible-section state - the sidebar card and the plan pane
@@ -98,7 +108,9 @@ final class BibleModel {
         self.reading = reading ?? ReadingJournal(account: nil, api: nil)
         self.api = api
         self.defaults = defaults
-        insight = VerseInsightModel(api: api)
+        let insight = VerseInsightModel(api: api)
+        self.insight = insight
+        sheet = VerseSheetModel(insight: insight)
         plan = ReadingPlanModel(api: api)
         let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
@@ -238,12 +250,20 @@ final class BibleModel {
                 order: order,
                 chapter: chapter
             )
+            let formatted = await ReaderAnnotations.shared.chapter(
+                translation,
+                order: order,
+                chapter: chapter,
+                markups: next
+            )
             guard !Task.isCancelled else { return }
             verses = next
+            readerVerses = formatted
             loadedKey = key
         } catch {
             guard !Task.isCancelled else { return }
             verses = []
+            readerVerses = []
             loadedKey = nil
             self.error = (error as? BibleError)?.message ?? BibleTranslations.chapterLoadError
         }
