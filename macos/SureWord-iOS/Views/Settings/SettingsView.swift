@@ -86,6 +86,20 @@ struct SettingsView: View {
                 DeleteAccountRow(app: app)
             }
 
+            // Android's Settings -> APP -> Send feedback row.
+            Section {
+                NavigationLink {
+                    FeedbackView(api: app.api)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Send feedback")
+                        Text("Tell us what is broken or missing")
+                            .font(.system(size: 11))
+                            .foregroundStyle(theme.textGhost)
+                    }
+                }
+            }
+
             Section("About") {
                 LabeledContent("Version", value: Config.appVersion)
                 AboutLinkRows()
@@ -100,6 +114,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .analyticsScreen(AnalyticsScreen.settings)
         .task {
             memory.configure(app.api)
             await memory.load()
@@ -191,6 +206,7 @@ struct SettingsView: View {
 
             NavigationLink {
                 MemoriesView(model: memory)
+                    .analyticsScreen(AnalyticsScreen.memories)
                     .onAppear { isMemoriesFrontmost = true }
                     .onDisappear { isMemoriesFrontmost = false }
             } label: {

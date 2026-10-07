@@ -6,7 +6,7 @@ import SwiftUI
 /// `AppModel` - in a state chosen by launch arguments, so `simctl io
 /// screenshot` can capture it without driving taps:
 ///
-///     -evidence.screen home|reader|search
+///     -evidence.screen home|reader|search|feedback
 ///     -evidence.book 43 -evidence.chapter 3 -evidence.translation BSB
 ///     -evidence.select 16 -evidence.selectEnd 18
 ///     -evidence.tier peek|expanded -evidence.tab explain|words|seeAlso
@@ -52,6 +52,8 @@ struct UIEvidenceHarness: View {
             BibleTabView()
         case "search":
             BibleSearchView()
+        case "feedback":
+            if let app { FeedbackView(api: app.api) }
         default:
             ChapterReaderView(order: Self.int("book") ?? 43, chapter: Self.int("chapter") ?? 3)
         }

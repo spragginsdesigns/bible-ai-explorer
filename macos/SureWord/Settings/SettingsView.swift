@@ -12,6 +12,7 @@ struct SettingsView: View {
 
     @State private var isConfirmingSignOut = false
     @State private var isMemoriesPresented = false
+    @State private var isFeedbackPresented = false
     /// Owned here rather than in the sheet so the saved count stays truthful
     /// after the sheet adds or deletes something.
     @State private var memory = MemoriesModel()
@@ -88,6 +89,15 @@ struct SettingsView: View {
                     DeleteAccountRow(app: app) { dismiss() }
                 }
 
+                // Android's Settings -> APP -> Send feedback row; a sheet here,
+                // like Memories, because Settings is itself a sheet on the Mac.
+                Section {
+                    LabeledContent("Send feedback") {
+                        Button("Send feedback…") { isFeedbackPresented = true }
+                    }
+                    hint("Tell us what is broken or missing. A person reads every one of these.")
+                }
+
                 Section("About") {
                     LabeledContent("Version", value: Config.appVersion)
                     AboutLinkRows()
@@ -136,7 +146,24 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)
+                .analyticsScreen(AnalyticsScreen.memories)
+                .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
         }
+        .sheet(isPresented: $isFeedbackPresented) {
+            VStack(spacing: 0) {
+                FeedbackView(api: app.api)
+                Divider().overlay(theme.border)
+                HStack {
+                    Spacer()
+                    Button("Done") { isFeedbackPresented = false }
+                        .keyboardShortcut(.cancelAction)
+                }
+                .padding(Spacing.md)
+            }
+            .frame(width: 460, height: 600)
+            .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
+        }
+        .analyticsScreen(AnalyticsScreen.settings)
         .memoryErrorAlert(memory, isActive: !isMemoriesPresented)
         .preferencesErrorAlert(app.preferences, isActive: !isMemoriesPresented)
         .confirmationDialog(
