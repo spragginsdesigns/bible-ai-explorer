@@ -1580,6 +1580,19 @@ How it works, and the decisions that shaped it:
 - **Web**: same capabilities, web-native layout - a toolbar button with a
   popover picker, and a collapsible "Properties & links" drawer under the
   editor.
+- **iOS** (native, 2026-10-07): a "Link to a note" button in the keyboard
+  formatting bar opens `InsertWikilinkSheet` (cached-library search over
+  titles and aliases, 300ms debounce, "Link to:" row for new titles) and
+  inserts `[[Title]]` at the caret through the editor's normal change path,
+  so it autosaves and is undoable. The More menu's "Info, Properties & Links"
+  opens `NoteInfoSheet` - stats, aliases, typed custom properties, outgoing
+  links (unresolved ones dimmed with Create) and Linked mentions; links load
+  after a flush, and tapping one pushes that note's editor. Client rules live
+  in `macos/Shared/Notes/Model/NoteWikilinks.swift` and `NoteProperties.swift`,
+  pinned by Swift ports of `wikilinks.test.ts` and `noteProperties.test.ts`;
+  the persisted Apple notes cache decodes pre-alias rows with defaults
+  instead of a cache-key bump. macOS shares that model layer but has no UI
+  for it yet.
 - **The AI knows the graph.** `toolGuidance` (chat + note panel) instructs the
   assistant to write cross-references in note content as `[[Exact Note Title]]`
   (pending links to not-yet-written notes included), and the note panel's

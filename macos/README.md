@@ -69,9 +69,11 @@ AppKit-coupled notes editor (`NoteRichTextController`, `NoteTextView`, `NoteEdit
 `NoteAttributedText`) stays macOS-only in `SureWord/Notes/RichText/`; the iOS
 target has its own `UITextView`-backed editor under
 `SureWord-iOS/Views/Notes/Editor/`, sharing the same document model and lossless
-HTML contract. The remaining editor differences are intentional and documented
-in `docs/PARITY.md` (toolbar undo/redo, hardware-Tab indent, and Dynamic Type
-live-rescaling).
+HTML contract. The three editor deferrals it shipped with are closed: toolbar
+undo/redo runs one snapshot history (`Shared/Notes/RichText/NoteEditHistory.swift`)
+that Cmd-Z, three-finger swipe and shake also reach through the text view's
+`NoteUndoManager`; hardware Tab / Shift-Tab nest and lift list items; and the
+canvas rescales live on a Dynamic Type change.
 
 ```bash
 cd macos && xcodegen
