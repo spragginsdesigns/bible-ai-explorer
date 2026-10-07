@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import * as plans from "../src/lib/billing/plans.ts";
+import { MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS } from "../src/lib/chat-attachment-types.ts";
+import { DEFAULT_FREE_DAILY_AUDIO_MINUTES } from "../src/lib/audio-transcription-rules.ts";
 
 const read = (relativePath) =>
 	readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
@@ -35,13 +37,13 @@ const { LANDING_FAQ } = loadModule(
 );
 const legal = loadModule(
 	"../src/lib/marketing/legal-content.ts",
-	{ ...plans },
-	"{ PRIVACY_POLICY, MEMBERSHIP_TERMS, PRIVACY_CONTACT_EMAIL }",
+	{ ...plans, MAX_AUDIO_BYTES, MAX_AUDIO_SECONDS, DEFAULT_FREE_DAILY_AUDIO_MINUTES },
+	"{ PRIVACY_POLICY, MEMBERSHIP_TERMS, SUPPORT_PAGE, PRIVACY_CONTACT_EMAIL }",
 );
 const pages = loadModule(
 	"../src/lib/marketing/markdown-pages.ts",
 	{ ...constants, LANDING_FAQ, ...legal },
-	"{ buildIndexMarkdown, buildPrivacyMarkdown, buildTermsMarkdown, getTheAppSection, KJV_STANCE, SITE_URL }",
+	"{ buildIndexMarkdown, buildPrivacyMarkdown, buildTermsMarkdown, buildSupportMarkdown, getTheAppSection, KJV_STANCE, SITE_URL }",
 );
 const llms = loadModule("../src/app/llms.txt/route.ts", { ...plans, LANDING_FAQ, getTheAppSection: pages.getTheAppSection, KJV_STANCE: pages.KJV_STANCE, SITE_URL: pages.SITE_URL }, "{ GET, revalidate }");
 
@@ -126,6 +128,7 @@ const MARKDOWN_ROUTES = [
 	["/index.md", "../src/app/index.md/route.ts", { buildIndexMarkdown: pages.buildIndexMarkdown }],
 	["/privacy.md", "../src/app/privacy.md/route.ts", { buildPrivacyMarkdown: pages.buildPrivacyMarkdown }],
 	["/terms.md", "../src/app/terms.md/route.ts", { buildTermsMarkdown: pages.buildTermsMarkdown }],
+	["/support.md", "../src/app/support.md/route.ts", { buildSupportMarkdown: pages.buildSupportMarkdown }],
 ];
 
 for (const [path, file, dependencies] of MARKDOWN_ROUTES) {
@@ -149,13 +152,16 @@ for (const [path, file, dependencies] of MARKDOWN_ROUTES) {
 test("markdown twins carry the same text the HTML pages render", () => {
 	const privacy = pages.buildPrivacyMarkdown();
 	const terms = pages.buildTermsMarkdown();
-	for (const [doc, markdown] of [[legal.PRIVACY_POLICY, privacy], [legal.MEMBERSHIP_TERMS, terms]]) {
+	const support = pages.buildSupportMarkdown();
+	for (const [doc, markdown] of [[legal.PRIVACY_POLICY, privacy], [legal.MEMBERSHIP_TERMS, terms], [legal.SUPPORT_PAGE, support]]) {
 		assert.ok(markdown.includes(doc.byline));
 		for (const block of doc.blocks) {
 			if (block.type === "h2") assert.ok(markdown.includes(`## ${block.text}`), block.text);
+			if (block.type === "h3") assert.ok(markdown.includes(`### ${block.text}`), block.text);
 		}
 	}
 	assert.ok(privacy.includes(legal.PRIVACY_CONTACT_EMAIL));
+	assert.ok(support.includes(legal.PRIVACY_CONTACT_EMAIL));
 	assert.ok(terms.includes(`Free includes ${plans.FREE_DAILY_MESSAGES} AI actions per day.`));
 	assert.ok(terms.includes(`Pro is $${plans.PRO_MONTHLY_PRICE_CENTS / 100} USD per month`));
 	const index = pages.buildIndexMarkdown();
@@ -165,8 +171,31 @@ test("markdown twins carry the same text the HTML pages render", () => {
 test("every markdown twin and llms.txt is public in middleware and allowed in robots", () => {
 	const middleware = read("../src/middleware.ts");
 	const robots = read("../src/app/robots.ts");
-	for (const path of ["/llms.txt", "/index.md", "/privacy.md", "/terms.md"]) {
+	for (const path of ["/llms.txt", "/index.md", "/privacy.md", "/terms.md", "/support.md", "/support"]) {
 		assert.ok(middleware.includes(`"${path}"`), `${path} missing from the middleware public routes`);
 		assert.ok(robots.includes(`"${path}"`), `${path} missing from robots allow`);
 	}
+});
+
+// The iPhone and iPad app links /privacy and /support and nothing else on the
+// site (docs/ios/IOS-APP-STORE-PRD.md F1). App Store guidelines 3.1.1 and
+// 3.1.3 read a price or a purchase link on a page the app links to as
+// steering, so neither page may carry one; prices live on /terms.
+test("the pages the Apple apps link to carry no price, plan pitch or purchase link", () => {
+	for (const markdown of [pages.buildPrivacyMarkdown(), pages.buildSupportMarkdown()]) {
+		assert.doesNotMatch(markdown, /\$\d|USD|per month|\bPro\b|upgrade|subscribe now/i);
+		for (const path of siteLinks(markdown)) {
+			assert.ok(!/^\/(terms|membership|sign-up)/.test(path), `links ${path}`);
+		}
+	}
+});
+
+// The support FAQ quotes the voice-message limits; they come from the same
+// constants the upload route enforces, so the page cannot promise a limit the
+// server does not keep.
+test("support page voice limits come from the enforced constants", () => {
+	const support = pages.buildSupportMarkdown();
+	assert.ok(support.includes(`${Math.round(MAX_AUDIO_BYTES / (1024 * 1024))} MB`));
+	assert.ok(support.includes(`${Math.round(MAX_AUDIO_SECONDS / 60)} minutes each`));
+	assert.ok(support.includes(`${DEFAULT_FREE_DAILY_AUDIO_MINUTES} minutes of voice messages`));
 });

@@ -8,6 +8,9 @@ const SITE_URL = "https://sureword.app";
 // the public marketing copy actually changes; a build-time `new Date()` would
 // tell crawlers every page changed on every deploy.
 const LAST_MODIFIED = new Date("2026-09-17T00:00:00.000Z");
+// The legal and support pages (src/lib/marketing/legal-content.ts) change on
+// their own schedule; keep this equal to their newest byline date.
+const LEGAL_LAST_MODIFIED = new Date("2026-10-07T00:00:00.000Z");
 
 // Regenerated at most hourly: a newly listed answer does not need to reach
 // crawlers faster than that, and the query should not run per crawler hit.
@@ -55,13 +58,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 		{
 			url: `${SITE_URL}/privacy`,
-			lastModified: LAST_MODIFIED,
+			lastModified: LEGAL_LAST_MODIFIED,
 			changeFrequency: "monthly",
 			priority: 0.3,
 		},
 		{
 			url: `${SITE_URL}/terms`,
-			lastModified: LAST_MODIFIED,
+			lastModified: LEGAL_LAST_MODIFIED,
+			changeFrequency: "monthly",
+			priority: 0.3,
+		},
+		{
+			url: `${SITE_URL}/support`,
+			lastModified: LEGAL_LAST_MODIFIED,
 			changeFrequency: "monthly",
 			priority: 0.3,
 		},

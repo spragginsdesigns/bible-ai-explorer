@@ -5,7 +5,7 @@ import type { LegalBlock, LegalInline } from "@/lib/marketing/legal-content";
 interface LegalBlocksProps {
 	blocks: LegalBlock[];
 	/** Per-page styling; the text itself comes only from legal-content.ts. */
-	classNames: { h2: string; link: string; list?: string };
+	classNames: { h2: string; h3?: string; link: string; list?: string };
 }
 
 function renderInline(
@@ -30,7 +30,7 @@ function renderInline(
 	});
 }
 
-/** Renders a legal document's blocks as the /privacy and /terms pages show them. */
+/** Renders a legal document's blocks as the /privacy, /terms and /support pages show them. */
 export default function LegalBlocks({ blocks, classNames }: LegalBlocksProps) {
 	return blocks.map((block, index) => {
 		if (block.type === "h2") {
@@ -38,6 +38,13 @@ export default function LegalBlocks({ blocks, classNames }: LegalBlocksProps) {
 				<h2 key={index} className={classNames.h2}>
 					{block.text}
 				</h2>
+			);
+		}
+		if (block.type === "h3") {
+			return (
+				<h3 key={index} className={classNames.h3}>
+					{block.text}
+				</h3>
 			);
 		}
 		if (block.type === "ul") {

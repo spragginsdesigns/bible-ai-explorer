@@ -3,13 +3,14 @@ import { LANDING_FAQ } from "@/lib/marketing/faq";
 import {
 	MEMBERSHIP_TERMS,
 	PRIVACY_POLICY,
+	SUPPORT_PAGE,
 	type LegalDocument,
 	type LegalInline,
 } from "@/lib/marketing/legal-content";
 
 /**
  * Markdown twins of the public pages (llmstxt.org: "<page>.md", root is
- * /index.md), served by src/app/{index,privacy,terms}.md/route.ts. Each one is
+ * /index.md), served by src/app/{index,privacy,terms,support}.md/route.ts. Each one is
  * built from the same source the HTML page renders, so the two cannot drift.
  */
 
@@ -53,6 +54,7 @@ function legalMarkdown(doc: LegalDocument, htmlPath: string): string {
 	const body = doc.blocks
 		.map((block) => {
 			if (block.type === "h2") return `## ${block.text}`;
+			if (block.type === "h3") return `### ${block.text}`;
 			if (block.type === "ul") {
 				return block.items.map((item) => `- ${inlineMarkdown(item)}`).join("\n");
 			}
@@ -68,6 +70,10 @@ export function buildPrivacyMarkdown(): string {
 
 export function buildTermsMarkdown(): string {
 	return legalMarkdown(MEMBERSHIP_TERMS, "/terms");
+}
+
+export function buildSupportMarkdown(): string {
+	return legalMarkdown(SUPPORT_PAGE, "/support");
 }
 
 export function buildIndexMarkdown(): string {
@@ -89,6 +95,7 @@ ${getTheAppSection()}
 - [Sign up](${SITE_URL}/sign-up)
 - [Privacy policy](${SITE_URL}/privacy.md)
 - [Terms of service](${SITE_URL}/terms.md)
+- [Support](${SITE_URL}/support.md)
 
 ## FAQ
 
