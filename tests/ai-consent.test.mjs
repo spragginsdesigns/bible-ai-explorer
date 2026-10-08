@@ -220,7 +220,7 @@ test("the columns live on User, so account deletion removes them with the row", 
 	const user = schema.slice(schema.indexOf("model User {"), schema.indexOf("\n}", schema.indexOf("model User {")));
 	assert.match(user, /aiConsentVersion\s+Int\?/);
 	assert.match(user, /aiConsentAt\s+DateTime\?/);
-	const migration = read("../prisma/migrations/20261007150000_ai_consent/migration.sql");
+	const migration = read("../prisma/migrations/20261007160000_ai_consent/migration.sql");
 	assert.match(migration, /ADD COLUMN "aiConsentVersion" INTEGER/);
 	assert.match(migration, /ADD COLUMN "aiConsentAt" TIMESTAMP\(3\)/);
 });
@@ -244,7 +244,9 @@ test("only accounts with current consent are personalised by the morning cron", 
 test("the cron writes a no-context day and skips the questions refresh without consent", () => {
 	const cron = read("../src/app/api/cron/verse-of-day/route.ts");
 	assert.match(cron, /aiConsentedUserIds\(rows\)/);
-	assert.match(cron, /const personalContext = consented\.has\(userId\);/);
+	assert.match(cron, /const personalContext = !enforceMorningConsent \|\| consented\.has\(userId\);/);
+	// Off until Android and the web can ask for consent (docs/ios/ai-consent.md).
+	assert.match(cron, /process\.env\.AI_CONSENT_ENFORCE_MORNING === "1"/);
 	assert.match(cron, /generateDailyCross\(userId, \{ abortSignal: generationSignal, personalContext \}\)/);
 	assert.match(cron, /if \(!existing && personalContext && !generationSignal\.aborted\)/);
 	// A failed consent read narrows to nobody, never to everybody.

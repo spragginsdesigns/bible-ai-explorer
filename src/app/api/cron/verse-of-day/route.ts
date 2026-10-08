@@ -172,7 +172,10 @@ export async function GET(request: Request) {
 		? splitByActivity(planned, recentActivity, now, PUSH_ACTIVITY_WINDOW_MS)
 		: { active: planned, inactive: [] };
 	const dueUsers = active.slice(0, MAX_USERS_PER_RUN);
-	const consented = await loadAiConsented(dueUsers.map((user) => user.userId));
+	const enforceMorningConsent = process.env.AI_CONSENT_ENFORCE_MORNING === "1";
+	const consented = enforceMorningConsent
+		? await loadAiConsented(dueUsers.map((user) => user.userId))
+		: new Set<string>();
 	const generationSignal = AbortSignal.timeout(DAILY_CROSS_GENERATION_BUDGET_MS);
 	// Sol/xhigh selection plus Sol/high writing is intentionally more expensive
 	// than the old single utility call. Start the capped due cohort together and
@@ -186,7 +189,11 @@ export async function GET(request: Request) {
 			const existing = await findTodayCross(userId);
 			// Personal context only with consent on record; otherwise the day
 			// is chosen and written from Scripture alone.
-			const personalContext = consented.has(userId);
+			// Enforced only once every client can ask for consent: until Android
+			// and the web ship the sheet, nobody on them could agree, and gating
+			// now would strip every existing account's morning day of its
+			// personal context. Set AI_CONSENT_ENFORCE_MORNING=1 to enforce.
+			const personalContext = !enforceMorningConsent || consented.has(userId);
 			const cross =
 				existing ?? (await generateDailyCross(userId, { abortSignal: generationSignal, personalContext }));
 			if (!existing) await storeDailyCross(userId, cross);

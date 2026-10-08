@@ -173,6 +173,12 @@ export const PRIVACY_POLICY: LegalDocument = {
 				"These providers process the content to deliver the feature you asked for. SureWord does not send your content to anyone for advertising and does not use it to train AI models.",
 			],
 		},
+		{
+			type: "p",
+			content: [
+				"Before your first AI request, the app shows a one-time notice, \"How SureWord answers you\", that names these providers and asks your permission. Nothing is sent to them until you tap Agree and continue, and the rest of the app (the Bible, search, highlights and notes) works without it. Your choice is saved with your account, so you are asked once rather than on every device. You can withdraw it at any time in Settings → AI → AI data sharing, and the app asks again before the next AI request.",
+			],
+		},
 		{ type: "h2", text: "Notifications" },
 		{
 			type: "p",
