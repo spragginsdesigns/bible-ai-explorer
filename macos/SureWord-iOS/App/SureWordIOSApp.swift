@@ -90,6 +90,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // "Your answer is ready" for an answer this device stopped or walked
+        // away from is noise, as on Android (`chatStopSignals.ts`).
+        if ChatStopSignals.shared.isUnwantedChatPush(notification.request.content.userInfo) {
+            completionHandler([])
+            return
+        }
         completionHandler([.banner, .sound])
     }
 

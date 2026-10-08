@@ -102,6 +102,9 @@ struct TabShell: View {
             app.bible.reading.setForeground(phase == .active)
             guard phase == .active else { return }
             app.preferences.refresh()
+            // Android reloads the open day on resume, so a Cross left up
+            // overnight shows today rather than yesterday.
+            if isCrossPresented { app.dailyCross.load(force: true) }
             openPendingShare()
         }
         // "Share into SureWord". This shell only exists signed in, so a share
