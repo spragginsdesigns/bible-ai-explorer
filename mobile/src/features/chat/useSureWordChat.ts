@@ -752,7 +752,8 @@ export function useSureWordChat(): SureWordChat {
 						uri: file.uri,
 						filename,
 						mediaType: "text/plain",
-						size: new TextEncoder().encode(contents).length,
+						// What is on disk is what gets uploaded and size-checked.
+						size: file.size,
 					}]);
 					if (draftVersion !== attachmentDraftVersionRef.current) {
 						void deleteChatAttachment(authToken, videoAttachment.id).catch(() => undefined);

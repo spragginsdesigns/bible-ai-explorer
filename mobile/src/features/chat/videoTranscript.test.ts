@@ -8,6 +8,7 @@ import {
 	parseYouTubeVideoId,
 	transcriptFileText,
 	transcriptFilename,
+	utf8ByteLength,
 	verifyVideoRequest,
 	videoSendingStatus,
 	type VideoTranscript,
@@ -138,6 +139,14 @@ describe("transcriptFileText", () => {
 		const text = transcriptFileText({ ...base, paragraphs: Array.from({ length: 200 }, () => paragraph) });
 		expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(MAX_TRANSCRIPT_BYTES);
 		expect(text).toContain("[Transcript cut off after 1:00:00 to fit.");
+	});
+});
+
+describe("utf8ByteLength", () => {
+	it("counts what a caption file holds on disk, music notes and curly quotes included", () => {
+		for (const text of ["plain", "♪ music ♪", "“quoted” - and ’", "emoji 🙏", ""]) {
+			expect(utf8ByteLength(text)).toBe(Buffer.byteLength(text, "utf8"));
+		}
 	});
 });
 

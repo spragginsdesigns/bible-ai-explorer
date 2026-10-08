@@ -195,6 +195,16 @@ export function validateAttachmentInput(input: AttachmentInput): ValidatedAttach
   return { filename, mediaType, size: input.size };
 }
 
+/**
+ * Whether a stored blob's reported size fits the request. A reported size of 0
+ * or none means "not stated", not "empty": Blob serves larger text compressed
+ * with no length, so its metadata reads 0 for a 160 KB .txt. The caller always
+ * compares the bytes it actually read as well.
+ */
+export function sizeMatches(reported: number | null | undefined, expected: number): boolean {
+  return !reported || reported === expected;
+}
+
 /** The per-file byte cap for a type: text 1 MB, audio 20 MB, images and PDFs 10 MB. */
 export function maxBytesFor(mediaType: AttachmentMediaType): number {
   if (mediaType.startsWith("text/") || mediaType === "application/json") return MAX_TEXT_ATTACHMENT_BYTES;

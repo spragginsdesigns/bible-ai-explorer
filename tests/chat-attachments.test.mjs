@@ -4,6 +4,7 @@ import test from "node:test";
 import {
 	AttachmentValidationError,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
+	sizeMatches,
 	validateAttachmentBatch,
 	validateAttachmentInput,
 } from "../src/lib/chat-attachment-types.ts";
@@ -70,4 +71,13 @@ test("web chat submits a file-only draft", async () => {
 		/!trimmed && !attachment && fileAttachments\.length === 0/,
 		"the submit guard must not reject a draft that contains only file attachments",
 	);
+});
+
+// Found on the Android emulator 2026-10-07: a 156 KB YouTube transcript was
+// refused because Blob reported size 0 for compressed text.
+test("a blob size of 0 or none is unstated, never a mismatch on its own", () => {
+	assert.equal(sizeMatches(0, 156_000), true);
+	assert.equal(sizeMatches(undefined, 156_000), true);
+	assert.equal(sizeMatches(156_000, 156_000), true);
+	assert.equal(sizeMatches(155_999, 156_000), false);
 });

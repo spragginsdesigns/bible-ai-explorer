@@ -163,12 +163,11 @@ export function transcriptFileText(transcript: VideoTranscript): string {
 		"",
 		"",
 	].join("\n");
-	const encoder = new TextEncoder();
 	let body = "";
-	let bytes = encoder.encode(header).length;
+	let bytes = utf8ByteLength(header);
 	let kept = 0;
 	for (const paragraph of transcript.paragraphs) {
-		const size = encoder.encode(`${paragraph}\n\n`).length;
+		const size = utf8ByteLength(`${paragraph}\n\n`);
 		if (bytes + size > MAX_TRANSCRIPT_BYTES - 200) break;
 		body += `${paragraph}\n\n`;
 		bytes += size;
@@ -179,6 +178,20 @@ export function transcriptFileText(transcript: VideoTranscript): string {
 		body += `[Transcript cut off after ${last} to fit. Only the part above was read.]\n`;
 	}
 	return header + body.trimEnd() + "\n";
+}
+
+/**
+ * Bytes the text takes as UTF-8 (captions carry ♪ and curly quotes), counted
+ * by code point so the cap needs nothing from the JS engine. The upload itself
+ * declares the file's on-disk size.
+ */
+export function utf8ByteLength(text: string): number {
+	let bytes = 0;
+	for (const char of text) {
+		const code = char.codePointAt(0) ?? 0;
+		bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+	}
+	return bytes;
 }
 
 /** The composer's last step before the answer's own progress takes over. */

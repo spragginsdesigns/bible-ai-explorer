@@ -8,6 +8,7 @@ import {
   type ChatAttachmentDescriptor,
   MAX_AUDIO_SECONDS,
   maxBytesFor,
+  sizeMatches,
 } from "@/lib/chat-attachment-types";
 
 const UPLOAD_URL_LIFETIME_MS = 15 * 60 * 1000;
@@ -226,12 +227,21 @@ export async function verifyUploadedAttachment(
 ): Promise<{ etag: string; bytes: Uint8Array }> {
   const result = await get(attachment.pathname, { access: "private", useCache: false });
   if (!result || result.statusCode !== 200) throw new UploadedAttachmentValidationError("The uploaded file could not be found.");
-  if (result.blob.size !== attachment.size) throw new UploadedAttachmentValidationError("The uploaded file size does not match the request.");
+  // Blob serves larger text compressed with no length, so `get` reports size 0
+  // for a 160 KB .txt (measured 2026-10-07: every text upload past a few KB was
+  // refused, and production held no text attachment at all). The header is
+  // trusted only when it states a size; the bytes read below always decide.
+  if (!sizeMatches(result.blob.size, attachment.size)) {
+    throw new UploadedAttachmentValidationError("The uploaded file size does not match the request.");
+  }
   if (result.blob.contentType.toLowerCase().split(";", 1)[0] !== attachment.mediaType) {
     throw new UploadedAttachmentValidationError("The uploaded file content type does not match the request.");
   }
 
   const bytes = await readStream(result.stream, maxBytesFor(attachment.mediaType as AttachmentMediaType));
+  if (bytes.byteLength !== attachment.size) {
+    throw new UploadedAttachmentValidationError("The uploaded file size does not match the request.");
+  }
   validateFileSignature(bytes, attachment.mediaType as AttachmentMediaType);
   return { etag: result.blob.etag, bytes };
 }
