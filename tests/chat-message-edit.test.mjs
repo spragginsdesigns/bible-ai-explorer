@@ -3,10 +3,37 @@ import test from "node:test";
 
 import {
 	editedUserMessage,
+	idsAfter,
+	idsAfterLastUser,
 	messageHasFiles,
 	retryableAnswerId,
 	userMessageText,
 } from "../src/lib/chat/message-edit.ts";
+import { completedHistory } from "../src/lib/chat/answerRecovery.ts";
+
+test("an edit or Try again names exactly the rows it drops", () => {
+	const thread = [
+		{ id: "u1", role: "user" },
+		{ id: "a1", role: "assistant" },
+		{ id: "u2", role: "user" },
+		{ id: "a2", role: "assistant" },
+	];
+	assert.deepEqual(idsAfter(thread, "u1"), ["a1", "u2", "a2"]);
+	assert.deepEqual(idsAfter(thread, "missing"), []);
+	assert.deepEqual(idsAfterLastUser(thread), ["a2"]);
+	assert.deepEqual(idsAfterLastUser(thread.slice(0, 3)), []);
+});
+
+test("answer recovery never collects the answer being replaced", () => {
+	const payload = {
+		messages: [
+			{ id: "u1", role: "user", content: "Who is Melchizedek?" },
+			{ id: "old", role: "assistant", content: "The king of Salem." },
+		],
+	};
+	assert.equal(completedHistory(payload, ["old"]), null);
+	assert.equal(completedHistory(payload).length, 2);
+});
 
 const filePart = {
 	type: "file",

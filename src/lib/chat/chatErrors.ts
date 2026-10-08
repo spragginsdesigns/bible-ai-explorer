@@ -14,6 +14,9 @@ export const CHAT_ERROR_CODES = [
 	"unauthorized",
 	"invalid_input",
 	"conversation_not_found",
+	// An edit or "Try again" refused because another device added turns this
+	// client never saw. Clients answer it by reloading the thread.
+	"stale_thread",
 	"provider_key_missing",
 	"provider_error",
 	"rate_limited",
@@ -104,6 +107,16 @@ function copyFor(code: ChatErrorCode, serverMessage: string | null): ClassifiedC
 				title: "Conversation not found",
 				message: serverMessage ?? "This conversation is no longer available. Start a new chat.",
 				retryable: false,
+			};
+		case "stale_thread":
+			return {
+				code,
+				title: "This chat changed",
+				message:
+					serverMessage ??
+					"This conversation changed on another device. Reload it and try again.",
+				// Retrying reloads the thread instead of resending (retrySend).
+				retryable: true,
 			};
 		case "provider_key_missing":
 			return {

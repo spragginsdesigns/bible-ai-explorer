@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { decideAccess, houseEffortFor } from "../src/lib/ai/access.ts";
+import { decideAccess, houseEffortFor, houseEffortsFor } from "../src/lib/ai/access.ts";
 import {
 	HOUSE_CHAT_MODEL_IDS,
 	HOUSE_EFFORT,
@@ -69,10 +69,22 @@ test("house effort is a medium ceiling: low passes through, nothing above medium
 	assert.equal(houseEffortFor("max"), "medium");
 });
 
-test("included quality is independent of subscription and callers cannot request a higher bill", () => {
-	assert.equal(houseEffortFor(null), "medium");
+test("Pro picks low, medium or high on included chat; Free has no choice", () => {
+	assert.deepEqual([...houseEffortsFor("pro")], ["low", "medium", "high"]);
+	assert.deepEqual([...houseEffortsFor("free")], []);
+	assert.equal(houseEffortFor("high", "pro"), "high");
+	assert.equal(houseEffortFor("low", "pro"), "low");
+	assert.equal(houseEffortFor(null, "pro"), "medium");
+	// Past high is clamped, so a hand-crafted request cannot buy a long answer.
+	assert.equal(houseEffortFor("xhigh", "pro"), "medium");
+	assert.equal(houseEffortFor("max", "pro"), "medium");
+	// Free stays capped at medium whatever it sends.
+	assert.equal(houseEffortFor("high", "free"), "medium");
 	assert.equal(houseEffortFor("max"), "medium");
 	assert.equal(houseEffortFor("low"), "low");
+	// Every Pro choice is one the included model actually takes.
+	const luna = getModel(HOUSE_CHAT_MODEL_IDS.pro);
+	for (const effort of houseEffortsFor("pro")) assert.ok(luna.efforts.includes(effort));
 });
 
 test("adding or deleting a key does not silently change the selected payer", () => {

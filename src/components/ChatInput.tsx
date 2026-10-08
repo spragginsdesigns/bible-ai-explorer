@@ -8,6 +8,7 @@ import {
 	Images,
 	Loader2,
 	Paperclip,
+	Pencil,
 	RefreshCw,
 	Send,
 	Square,
@@ -53,6 +54,15 @@ interface ChatInputProps {
 	focusSignal?: number;
 	/** Passed to ModelPicker; "below" when this composer sits in a scroller. */
 	pickerPlacement?: "above" | "below";
+	/**
+	 * The composer is rewriting one of the user's earlier messages. Sending
+	 * hands the raw text to `onSend` (no slash commands) and leaves the field
+	 * to the parent, which puts back whatever was being typed before.
+	 */
+	editing?: boolean;
+	/** The message being edited has files, so it may be sent with no text. */
+	editingHasFiles?: boolean;
+	onCancelEdit?: () => void;
 }
 
 /** Everything the "Choose files" picker accepts (the uploader's allowlist). */
@@ -121,6 +131,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	onChangeText,
 	focusSignal,
 	pickerPlacement = "above",
+	editing = false,
+	editingHasFiles = false,
+	onCancelEdit,
 }) => {
 	const [innerText, setInnerText] = useState("");
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -185,6 +198,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 	const handleSubmit = () => {
 		const trimmed = text.trim();
+		if (editing) {
+			if ((!trimmed && !editingHasFiles) || disabled) return;
+			onSend(trimmed);
+			return;
+		}
 		if ((!trimmed && !attachment && fileAttachments.length === 0) || disabled) return;
 
 		const parsed = commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
@@ -200,6 +218,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === "Escape" && editing) {
+			e.preventDefault();
+			onCancelEdit?.();
+			return;
+		}
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
 			handleSubmit();
@@ -289,7 +312,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 		}
 	}, [handleFiles]);
 
-	const canSend = Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
+	const canSend = editing
+		? Boolean(text.trim()) || editingHasFiles
+		: Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
 
 	// Attachment failures keep their string shape; they get the same card
 	// treatment as send errors, minus the retry (re-pick the file instead).
@@ -311,7 +336,24 @@ const ChatInput: React.FC<ChatInputProps> = ({
 			}}
 		>
 			<div className="max-w-3xl mx-auto px-4 py-2 sm:py-3">
-				{attachment && (
+				{editing && (
+					<div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] py-1 pl-3 pr-1">
+						<Pencil aria-hidden className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+						<span role="status" className="min-w-0 flex-1 text-metadata text-amber-700 dark:text-amber-400">
+							Editing. Sending replaces this message and every reply after it.
+						</span>
+						<button
+							type="button"
+							onClick={onCancelEdit}
+							className="min-h-11 flex-shrink-0 rounded-md px-2 text-metadata font-semibold text-neutral-600 transition-colors hover:text-neutral-900 sm:min-h-0 sm:py-1 dark:text-neutral-400 dark:hover:text-neutral-100"
+						>
+							Cancel
+						</button>
+					</div>
+				)}
+				{/* An edit changes only the words: the draft's own pins and files
+				    step aside until it ends, the way they do on Android. */}
+				{attachment && !editing && (
 					<div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-full border border-amber-500/25 bg-amber-500/[0.07] py-1 pl-3 pr-2">
 						<span className="text-metadata text-amber-600 dark:text-amber-400">✦</span>
 						<span className="truncate text-metadata font-semibold text-amber-700 dark:text-amber-400">
@@ -327,7 +369,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</button>
 					</div>
 				)}
-				{fileAttachments.length > 0 && (
+				{fileAttachments.length > 0 && !editing && (
 					<div className="mb-2">
 						<ChatFileAttachments attachments={fileAttachments} onRemove={onRemoveFileAttachment} />
 					</div>
@@ -452,7 +494,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 										setPasteError(null);
 										setAttachMenuOpen((current) => !current);
 									}}
-									disabled={disabled}
+									disabled={disabled || editing}
 									aria-label="Attach files"
 									aria-haspopup="menu"
 									aria-expanded={attachMenuOpen}

@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, Copy, Loader2, NotebookPen, Share2, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+	Check,
+	Copy,
+	Loader2,
+	NotebookPen,
+	Pencil,
+	RotateCcw,
+	Share2,
+	ThumbsDown,
+	ThumbsUp,
+} from "lucide-react";
 import FormattedResponse from "./FormattedResponse";
 import TavilyCollapsible from "./TavilyCollapsible";
 import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
@@ -30,6 +40,15 @@ interface ChatMessageProps {
 	onFollowUp?: (question: string) => void;
 	/** Active conversation title, used as the default title for new notes. */
 	conversationTitle?: string;
+	/** A user message: put it back in the composer. Absent while an answer is on its way. */
+	onEdit?: () => void;
+	/** The newest settled answer: ask again. Absent on every other message. */
+	onRetry?: () => void;
+	/**
+	 * A user message's Copy/Edit row shows on hover elsewhere; the newest user
+	 * message keeps it on screen so the actions are findable.
+	 */
+	userActionsVisible?: boolean;
 }
 
 /**
@@ -54,7 +73,14 @@ const SHARE_COPIED_MS = 2000;
 /** How long the Copy glyph holds its check before returning to the clipboard. */
 const COPIED_MS = 1500;
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversationTitle }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({
+	message,
+	onFollowUp,
+	conversationTitle,
+	onEdit,
+	onRetry,
+	userActionsVisible = false,
+}) => {
 	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
 	/**
 	 * `undefined` means "nobody has touched this yet", so the value the server
@@ -155,10 +181,16 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 	const copy = async () => {
 		setCopyError(null);
 		try {
-			await navigator.clipboard.writeText(copyableAnswerText(message.content));
+			// A user message is copied exactly as typed; an answer loses its
+			// follow-up chip markers.
+			await navigator.clipboard.writeText(
+				message.role === "user" ? message.content : copyableAnswerText(message.content)
+			);
 			setCopied(true);
 		} catch {
-			setCopyError("Could not copy that answer.");
+			setCopyError(
+				message.role === "user" ? "Could not copy that message." : "Could not copy that answer."
+			);
 		}
 	};
 
@@ -206,7 +238,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 
 	if (message.role === "user") {
 		return (
-			<div className="flex justify-end mb-4 animate-message-in">
+			<div className="group flex flex-col items-end mb-4 animate-message-in">
 				<div className="max-w-[80%] sm:max-w-[70%] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.08] rounded-2xl rounded-br-sm px-4 py-3">
 					{message.attachments && message.attachments.length > 0 && (
 						<div className={message.content ? "mb-2" : ""}>
@@ -230,6 +262,43 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						</p>
 					)}
 				</div>
+				{/* Copy and Edit, hover-revealed except on the newest message and on
+				    touch screens, where there is no hover to reveal them. */}
+				<div
+					className={`mt-1 flex items-center gap-1 transition-opacity ${
+						userActionsVisible
+							? "opacity-100"
+							: "opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
+					}`}
+				>
+					{message.content && (
+						<button
+							type="button"
+							onClick={() => void copy()}
+							aria-label={copied ? "Copied" : "Copy message"}
+							title={copied ? "Copied" : "Copy"}
+							className={`${copied ? ACTION_CHOSEN_CLASS : ACTION_CLASS} ${ICON_TAP_CLASS}`}
+						>
+							{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+						</button>
+					)}
+					{onEdit && (
+						<button
+							type="button"
+							onClick={onEdit}
+							aria-label="Edit message"
+							title="Edit"
+							className={`${ACTION_CLASS} ${ICON_TAP_CLASS}`}
+						>
+							<Pencil className="w-4 h-4" />
+						</button>
+					)}
+				</div>
+				{copyError && (
+					<p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+						{copyError}
+					</p>
+				)}
 			</div>
 		);
 	}
@@ -278,6 +347,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onFollowUp, conversa
 						>
 							{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
 						</button>
+						{onRetry && (
+							<button
+								type="button"
+								onClick={onRetry}
+								aria-label="Try again"
+								title="Try again"
+								className={`${ACTION_CLASS} ${ICON_TAP_CLASS}`}
+							>
+								<RotateCcw className="w-4 h-4" />
+							</button>
+						)}
 						<button
 							type="button"
 							onClick={() => setAddToNoteOpen(true)}

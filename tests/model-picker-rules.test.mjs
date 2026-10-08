@@ -10,6 +10,10 @@ import {
 	effortsFor,
 	formatContextWindow,
 	formatPrice,
+	houseEffort,
+	houseEffortChoices,
+	houseReasoningSection,
+	houseSummaryLabel,
 	modeLabel,
 	modelMeta,
 	modesFor,
@@ -379,4 +383,47 @@ test("options the selected model cannot do never reach the trigger", () => {
 test("the trigger falls back to a placeholder before a model is known", () => {
 	assert.equal(summaryLabel(null, NO_OPTIONS), "Model");
 	assert.equal(summaryLabel(null, NO_OPTIONS, "Choose"), "Choose");
+});
+
+/* House mode: Pro picks a reasoning effort, Free sees only "SureWord AI". */
+
+const proHouse = {
+	modelId: "openai/gpt-5.6-luna",
+	label: "GPT-5.6 Luna",
+	effort: "medium",
+	note: "Included with SureWord.",
+	efforts: ["high", "low", "medium"],
+};
+const freeHouse = { ...proHouse, label: "SureWord AI", efforts: [] };
+
+test("a Pro house account gets one REASONING row, low to high, with no Auto chip", () => {
+	assert.deepEqual(houseEffortChoices(proHouse), ["low", "medium", "high"]);
+	const section = houseReasoningSection(proHouse);
+	assert.equal(section.key, "reasoning");
+	assert.deepEqual(
+		section.chips.map((chip) => [chip.id, chip.label]),
+		[["low", "Low"], ["medium", "Medium"], ["high", "High"]],
+	);
+});
+
+test("Free, an older server without efforts, and unknown values get no reasoning row", () => {
+	assert.equal(houseReasoningSection(freeHouse), null);
+	const { efforts: _omitted, ...older } = proHouse;
+	assert.equal(houseReasoningSection(older), null);
+	assert.equal(houseReasoningSection({ ...proHouse, efforts: ["turbo"] }), null);
+	assert.equal(houseReasoningSection(null), null);
+});
+
+test("a Pro pick it may make stands; anything else falls back to the server's effort", () => {
+	assert.equal(houseEffort(proHouse, "high"), "high");
+	assert.equal(houseEffort(proHouse, "xhigh"), "medium");
+	assert.equal(houseEffort(proHouse, null), "medium");
+	assert.equal(houseEffort(freeHouse, "high"), "medium");
+	assert.equal(houseEffort(null, "high"), null);
+});
+
+test("the trigger reads 'GPT-5.6 Luna · High' for Pro and just 'SureWord AI' for Free", () => {
+	assert.equal(houseSummaryLabel(proHouse, "high"), "GPT-5.6 Luna · High");
+	assert.equal(houseSummaryLabel(proHouse, null), "GPT-5.6 Luna · Medium");
+	assert.equal(houseSummaryLabel(freeHouse, "high"), "SureWord AI");
 });

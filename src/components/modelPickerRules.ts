@@ -479,3 +479,68 @@ export function summaryLabel(
 
 	return parts.length > 0 ? [label, ...parts].join(SUMMARY_SEPARATOR) : label;
 }
+
+/* -------------------------------------------------------------------------- */
+/* House mode (included AI)                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** The house block of `GET /api/ai/models`, for an account with no key of its own. */
+export interface PickerHouse {
+	modelId: string;
+	label: string;
+	effort: string | null;
+	note: string;
+	/**
+	 * The efforts this account may choose: low/medium/high for Pro, empty for
+	 * Free. Absent from a server before 2026-10-08, which reads as no choice.
+	 */
+	efforts?: string[] | null;
+}
+
+/**
+ * The efforts a house account can pick, in canonical order. No Auto chip: the
+ * server always runs the house model at a concrete effort, so "Auto" would
+ * only be a second name for Medium.
+ */
+export function houseEffortChoices(house: PickerHouse | null | undefined): string[] {
+	return inVocabulary(house?.efforts, REASONING_EFFORTS);
+}
+
+/** The single REASONING row a Pro house account gets, or null for Free. */
+export function houseReasoningSection(house: PickerHouse | null | undefined): OptionSection | null {
+	const choices = houseEffortChoices(house);
+	if (choices.length === 0) return null;
+	return {
+		key: "reasoning",
+		title: "REASONING",
+		ariaLabel: "Reasoning effort",
+		chips: choices.map((effort) => ({ id: effort, label: effortLabel(effort) })),
+		note: null,
+	};
+}
+
+/**
+ * The effort a house account runs at, as the chips should show it and the
+ * request should carry it. A stored pick the account may choose stands (so a
+ * Pro "High" survives a reload); anything else, and every Free account, takes
+ * the effort the server pinned.
+ */
+export function houseEffort(
+	house: PickerHouse | null | undefined,
+	stored: string | null | undefined,
+): string | null {
+	if (!house) return null;
+	const choices = houseEffortChoices(house);
+	if (stored && choices.includes(stored)) return stored;
+	return house.effort ?? null;
+}
+
+/** Trigger chip text in house mode: "GPT-5.6 Luna · High" for Pro, the bare label for Free. */
+export function houseSummaryLabel(
+	house: PickerHouse,
+	stored: string | null | undefined,
+): string {
+	if (houseEffortChoices(house).length === 0) return house.label;
+	const effort = houseEffort(house, stored);
+	return effort ? [house.label, effortLabel(effort)].join(SUMMARY_SEPARATOR) : house.label;
+}

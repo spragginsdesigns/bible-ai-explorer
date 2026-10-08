@@ -19,10 +19,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * persisted when the stream opens, the assistant message only at the end - so
  * a trailing user message means "not done yet").
  */
-export function completedHistory(payload: unknown): unknown[] | null {
+export function completedHistory(
+	payload: unknown,
+	/**
+	 * Answers an edit or "Try again" is replacing. Until the server deletes
+	 * them they still end the thread, and collecting one would hand back the
+	 * old answer as if it were the new one.
+	 */
+	staleAnswerIds: readonly string[] = []
+): unknown[] | null {
 	if (!isRecord(payload) || !Array.isArray(payload.messages)) return null;
 	const last = payload.messages.at(-1);
 	if (!isRecord(last) || last.role !== "assistant") return null;
+	if (typeof last.id === "string" && staleAnswerIds.includes(last.id)) return null;
 	// An assistant row with no content is a persistence artifact, not an answer.
 	if (typeof last.content === "string" && last.content.trim().length === 0) return null;
 	return payload.messages;

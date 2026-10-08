@@ -59,6 +59,21 @@ export function editedUserMessage<Part extends MessagePart, Metadata>(
 }
 
 /**
+ * The ids an edit of `messageId` drops: every message after it. Sent as the
+ * request's `replaces`, the only rows the server may then delete.
+ */
+export function idsAfter(messages: readonly { id: string }[], messageId: string): string[] {
+	const index = messages.findIndex((message) => message.id === messageId);
+	return index < 0 ? [] : messages.slice(index + 1).map((message) => message.id);
+}
+
+/** The ids "Try again" drops: everything after the newest user message. */
+export function idsAfterLastUser(messages: readonly { id: string; role: string }[]): string[] {
+	const index = messages.findLastIndex((message) => message.role === "user");
+	return index < 0 ? [] : messages.slice(index + 1).map((message) => message.id);
+}
+
+/**
  * The answer "Try again" may replace: the newest message, when it is a settled
  * answer. A thread that ends on the user's own message has a failed answer,
  * which the error card's retry already owns.

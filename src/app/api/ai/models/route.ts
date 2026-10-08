@@ -14,9 +14,12 @@ import {
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
 import { aiAccessFor, apiKeyOrNull, availableProviders, houseChatModel } from "@/lib/ai/provider";
-import { houseEffortFor } from "@/lib/ai/access";
+import { houseEffortFor, houseEffortsFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
+
+/** What a Free account's included AI is called in every picker. */
+const HOUSE_FREE_LABEL = "SureWord AI";
 
 const HOUSE_NOTE =
 	process.env.SUREWORD_USAGE_ENABLED === "true"
@@ -55,17 +58,23 @@ export async function GET(): Promise<Response> {
 		]);
 
 		if (access === "house") {
-			const { definition: house } = await houseChatModel(userId);
-			// The effort the answer actually runs at: a head that lists no medium
-			// (GLM takes low/high/max) runs at the provider's own default.
-			const houseEffort = house.efforts.includes(houseEffortFor(null)) ? houseEffortFor(null) : null;
-			// The house entry carries the same capability fields as any other, but
-			// a house client renders no option rows at all: the server picks both
-			// the model and how hard it works.
+			const { definition: house, plan } = await houseChatModel(userId);
+			// Pro chooses how hard Luna thinks; Free has no choice. Only efforts the
+			// head actually takes are offered, and the stored pick is clamped the
+			// same way the chat route clamps it.
+			const efforts = houseEffortsFor(plan).filter((effort) => house.efforts.includes(effort));
+			const preferred = houseEffortFor(plan === "pro" ? user?.defaultEffort : null, plan);
+			const houseEffort = house.efforts.includes(preferred) ? preferred : null;
+			// Free never sees a model name: it is SureWord's included AI, and naming
+			// the head only invites comparisons with the Pro picker.
+			const label = plan === "pro" ? house.label : HOUSE_FREE_LABEL;
+			// The house entry carries the same capability fields as any other. A
+			// client renders the Reasoning chips from `house.efforts` (empty for
+			// Free, and absent on servers before 2026-10-08) and no other options.
 			return NextResponse.json({
 				access,
 				providers: [],
-				models: [toModelPayload(house)],
+				models: [{ ...toModelPayload(house), label }],
 				defaults: {
 					modelId: house.id,
 					effort: houseEffort,
@@ -75,8 +84,9 @@ export async function GET(): Promise<Response> {
 				},
 				house: {
 					modelId: house.id,
-					label: house.label,
+					label,
 					effort: houseEffort,
+					efforts,
 					note: HOUSE_NOTE,
 				},
 			});

@@ -141,14 +141,16 @@ export async function aiAccessFor(userId: string): Promise<AiAccess> {
  * key is reserved for the Luna paths, so every other head runs on the
  * provider's own server key.
  */
-export async function houseChatModel(userId: string): Promise<{ definition: ModelDefinition; apiKey: string }> {
+export async function houseChatModel(
+	userId: string,
+): Promise<{ definition: ModelDefinition; apiKey: string; plan: "pro" | "free" }> {
 	const plan = await getUserPlan(userId);
 	const modelId = houseChatModelId(plan, { openrouter: Boolean(serverKeyFor("openrouter")?.trim()) });
 	const definition = resolveDefinition(modelId);
 	if (!definition) throw new Error(`The house AI model ${modelId} is not registered.`);
 	const apiKey = modelId === HOUSE_MODEL_ID ? houseKeyFor(process.env) : serverKeyFor(definition.provider)?.trim();
 	if (!apiKey) throw new HouseModelUnavailableError();
-	return { definition, apiKey };
+	return { definition, apiKey, plan };
 }
 
 /** Non-throwing variant for callers that degrade gracefully (model listing). */
@@ -397,9 +399,15 @@ export async function resolveModel(options: {
 			};
 		}
 
-		const { definition: houseDefinition, apiKey: houseChatKey } = await houseChatModel(options.userId);
+		const { definition: houseDefinition, apiKey: houseChatKey, plan } = await houseChatModel(options.userId);
 		await reserveIncludedRequest(options.userId);
-		const preferredHouseEffort = houseEffortFor(options.effort);
+		// A Pro request with no effort of its own runs the account's stored pick,
+		// the same one GET /api/ai/models reports; an explicit Auto does not.
+		const storedHouseEffort =
+			plan === "pro" && !options.effort && !options.ignoreStoredEffort
+				? (await prisma.user.findUnique({ where: { id: options.userId }, select: { defaultEffort: true } }))?.defaultEffort
+				: null;
+		const preferredHouseEffort = houseEffortFor(options.effort ?? storedHouseEffort, plan);
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
 			? preferredHouseEffort
 			: null;

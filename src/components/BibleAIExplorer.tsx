@@ -70,6 +70,12 @@ const BibleAIExplorerInner: React.FC = () => {
 		removeFileAttachment,
 		sendMessage,
 		retrySend,
+		editingMessageId,
+		editingHasFiles,
+		startEditing,
+		cancelEditing,
+		submitEdit,
+		retryAnswer,
 		abandonPendingAnswer,
 		newConversation,
 		switchConversation,
@@ -198,8 +204,22 @@ const BibleAIExplorerInner: React.FC = () => {
 		};
 	}, [refreshConversations, switchConversation]);
 
+	// Follow-up chips and suggested questions always start a new message, so an
+	// edit in progress is set aside first (its earlier draft comes back).
 	const handleSend = (text: string) => {
+		cancelEditing();
 		sendMessage(text);
+	};
+
+	// The composer's own send: while editing, it replaces the edited message.
+	const handleComposerSend = (text: string) => {
+		if (editingMessageId) submitEdit(text);
+		else sendMessage(text);
+	};
+
+	const handleEditMessage = (messageId: string) => {
+		startEditing(messageId);
+		setFocusSignal((signal) => signal + 1);
 	};
 
 	const onLocalCommand = useCallback(
@@ -237,7 +257,7 @@ const BibleAIExplorerInner: React.FC = () => {
 	const renderChatInput = (pickerPlacement: "above" | "below") => (
 		<ChatInput
 			pickerPlacement={pickerPlacement}
-			onSend={handleSend}
+			onSend={handleComposerSend}
 			loading={loading}
 			isStreaming={isStreaming}
 			disabled={historyLoading || Boolean(historyError)}
@@ -256,6 +276,9 @@ const BibleAIExplorerInner: React.FC = () => {
 			onFilesSelected={addFileAttachments}
 			onRemoveFileAttachment={(id) => void removeFileAttachment(id)}
 			focusSignal={focusSignal}
+			editing={Boolean(editingMessageId)}
+			editingHasFiles={editingHasFiles}
+			onCancelEdit={cancelEditing}
 		/>
 	);
 
@@ -350,6 +373,9 @@ const BibleAIExplorerInner: React.FC = () => {
 						messages={messages}
 						onFollowUp={handleSend}
 						conversationTitle={activeConversation?.title}
+						busy={isStreaming || loading}
+						onEditMessage={handleEditMessage}
+						onRetryAnswer={retryAnswer}
 					/>
 				)}
 

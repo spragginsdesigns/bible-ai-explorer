@@ -370,6 +370,19 @@ function stripFollowUps(text: string): {
 	};
 }
 
+const STALE_THREAD_MESSAGE =
+	"This conversation changed on another device. Reload it and try again.";
+
+/**
+ * The `replaces` body field: ids of the messages an edit or "Try again"
+ * dropped. Null when absent or malformed, which makes a re-sent message delete
+ * nothing (see persistUserMessage). Capped, since a thread holds far fewer.
+ */
+function replacedMessageIds(value: unknown): string[] | null {
+	if (!Array.isArray(value)) return null;
+	return value.filter((id): id is string => typeof id === "string" && id.length > 0).slice(0, 500);
+}
+
 async function persistUserMessage(options: {
 	userId: string;
 	conversationId: string;
@@ -377,6 +390,8 @@ async function persistUserMessage(options: {
 	origin: DailyCrossMessageOrigin | null;
 	readingReceivedAt: Date;
 	readingContext: ReadingToolContext;
+	/** Ids the client dropped after this message for an edit or "Try again"; null when it named none. */
+	replaces: string[] | null;
 }): Promise<Date> {
 	const userText = extractText(options.userMessage);
 	const ids = attachmentIds(options.userMessage);
@@ -429,6 +444,28 @@ async function persistUserMessage(options: {
 
 		// Preserve the original server receipt time on regenerate, including midnight retries.
 		options.readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
+
+		// A message sent again under its own id is an edit or a "Try again", and
+		// the client names the rows it dropped after it. Those rows belonged to
+		// the old version of the thread; left in place, the next history load
+		// would show two answers, or an answer to the text before the edit.
+		// Ratings on them go too. A row the client never saw (another device
+		// kept talking) refuses the whole turn instead of deleting it, and a
+		// client that names nothing (installed builds before 2026-10-08, which
+		// only re-send after a failure) deletes nothing.
+		if (existing && options.replaces) {
+			const later = await tx.message.findMany({
+				where: { conversationId: conversation.id, createdAt: { gt: savedUserMessage.createdAt } },
+				select: { id: true },
+			});
+			const known = new Set(options.replaces);
+			if (later.some((row) => !known.has(row.id))) {
+				throw new UserFacingError(STALE_THREAD_MESSAGE, "stale_thread");
+			}
+			if (later.length > 0) {
+				await tx.message.deleteMany({ where: { id: { in: later.map((row) => row.id) } } });
+			}
+		}
 
 		for (const id of ids) {
 			const linked = await tx.chatAttachment.updateMany({
@@ -588,6 +625,7 @@ async function handlePost(req: Request): Promise<Response> {
 			typeof requestData.conversationId === "string" && requestData.conversationId
 				? requestData.conversationId
 				: null;
+		const replaces = replacedMessageIds(requestData.replaces);
 
 		// The client sends the Bible translation chosen in settings; the system
 		// prompt and Scripture tools quote that translation instead of the KJV.
@@ -853,6 +891,7 @@ async function handlePost(req: Request): Promise<Response> {
 							origin: dailyCrossOrigin,
 							readingReceivedAt,
 							readingContext,
+							replaces,
 						});
 					}
 

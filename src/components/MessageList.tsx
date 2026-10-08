@@ -4,17 +4,31 @@ import React, { useRef, useEffect, useCallback, useState } from "react";
 import { ArrowDown } from "lucide-react";
 import ChatMessage from "./ChatMessage";
 import type { ChatMessage as ChatMessageType } from "./useChat";
+import { retryableAnswerId } from "@/lib/chat/message-edit";
 
 interface MessageListProps {
 	messages: ChatMessageType[];
 	onFollowUp?: (question: string) => void;
 	/** Active conversation title, used as the default title for new notes. */
 	conversationTitle?: string;
+	/** An answer is being written or collected: no edits or retries until it lands. */
+	busy?: boolean;
+	/** Rewrite one of the user's messages in the composer. */
+	onEditMessage?: (messageId: string) => void;
+	/** Replace the newest answer with a fresh one. */
+	onRetryAnswer?: () => void;
 }
 
 const SCROLL_THRESHOLD = 100; // px from bottom to count as "at bottom"
 
-const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp, conversationTitle }) => {
+const MessageList: React.FC<MessageListProps> = ({
+	messages,
+	onFollowUp,
+	conversationTitle,
+	busy = false,
+	onEditMessage,
+	onRetryAnswer,
+}) => {
 	const bottomRef = useRef<HTMLDivElement>(null);
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const isNearBottomRef = useRef(true);
@@ -22,6 +36,10 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp, convers
 	const latestAssistantId = [...messages]
 		.reverse()
 		.find((message) => message.role === "assistant")?.id;
+	const latestUserId = [...messages]
+		.reverse()
+		.find((message) => message.role === "user")?.id;
+	const retryId = onRetryAnswer ? retryableAnswerId(messages, busy) : null;
 
 	const checkIfNearBottom = useCallback(() => {
 		const el = scrollContainerRef.current;
@@ -66,6 +84,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, onFollowUp, convers
 						message={msg}
 						onFollowUp={msg.id === latestAssistantId ? onFollowUp : undefined}
 						conversationTitle={conversationTitle}
+						onEdit={
+							msg.role === "user" && !busy && onEditMessage
+								? () => onEditMessage(msg.id)
+								: undefined
+						}
+						onRetry={msg.id === retryId ? onRetryAnswer : undefined}
+						userActionsVisible={msg.id === latestUserId}
 					/>
 				))}
 				<div ref={bottomRef} />

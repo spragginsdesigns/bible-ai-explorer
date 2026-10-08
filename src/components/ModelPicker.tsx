@@ -35,6 +35,9 @@ import {
 	activeChipId,
 	AUTO_EFFORT_SENTINEL,
 	capabilityPills,
+	houseEffort,
+	houseReasoningSection,
+	houseSummaryLabel,
 	modelMeta,
 	optionSections,
 	searchModels,
@@ -42,6 +45,7 @@ import {
 	summaryLabel,
 	SUMMARY_SEPARATOR,
 	type OptionSectionKey,
+	type PickerHouse,
 	type PickerModel,
 	type StoredRunOptions,
 } from "./modelPickerRules";
@@ -53,12 +57,7 @@ interface PickerProvider {
 }
 
 /** The single model an account without its own API key is served on. */
-interface HouseMode {
-	modelId: string;
-	label: string;
-	effort: string;
-	note: string;
-}
+type HouseMode = PickerHouse;
 
 interface ModelsResponse {
 	access: "house" | "keys";
@@ -107,8 +106,9 @@ interface MenuPosition {
  * Two shapes, decided by the server:
  *
  * - "house": the account has no API key of its own and runs on SureWord's
- *   included model at a pinned reasoning effort. There is nothing to choose,
- *   so the popover shows that one model, says so, and links to Settings.
+ *   included model. Free has nothing to choose, so the popover shows that one
+ *   model ("SureWord AI"), says so, and links to Settings; Pro also gets a
+ *   REASONING row with the efforts the server lists in `house.efforts`.
  *   Locked providers are never listed - an account that cannot use a provider
  *   has no reason to see its name.
  * - "keys": grouped by provider, tap a provider to see every model its API key
@@ -208,7 +208,9 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 				// so the chip and the request say the same thing. These writes
 				// stay local: house mode is the server's own decision, not a
 				// pick worth storing on the account, and the lock keeps a
-				// later hydrate from putting the stored ids back.
+				// later hydrate from putting the stored ids back. For Pro,
+				// house.effort is the account's own reasoning pick (clamped to
+				// house.efforts), so a choice made on the phone lands here too.
 				setChatPrefsLocked(true);
 				setModelId(houseOnLoad.modelId);
 				setEffort(houseOnLoad.effort);
@@ -392,6 +394,10 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		[house, selected],
 	);
 
+	// Pro's included AI offers a reasoning choice; Free's offers none (null).
+	const houseReasoning = useMemo(() => houseReasoningSection(house), [house]);
+	const houseActiveEffort = house ? houseEffort(house, effort) : null;
+
 	const searchable = !house && shouldShowSearch(data?.models);
 	const trimmedQuery = query.trim();
 	const searchResults = useMemo(
@@ -444,7 +450,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 			? "Model"
 			: "Loading models"
 		: house
-			? house.label
+			? houseSummaryLabel(house, effort)
 			: summaryLabel(selected, storedOptions);
 
 	/**
@@ -585,6 +591,33 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 							<Check className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
 						</div>
 					</div>
+					{houseReasoning && (
+						<div
+							role="group"
+							aria-label={houseReasoning.ariaLabel}
+							className="flex-shrink-0 border-t border-black/[0.06] px-4 py-2.5 dark:border-white/[0.06]"
+						>
+							<p className="mb-1.5 text-metadata font-bold tracking-[0.12em] text-neutral-400 dark:text-neutral-500">
+								{houseReasoning.title}
+							</p>
+							<div className="flex flex-wrap gap-0.5">
+								{houseReasoning.chips.map((chip) => {
+									const isActive = houseActiveEffort === chip.id;
+									return (
+										<button
+											type="button"
+											key={chip.label}
+											aria-pressed={isActive}
+											onClick={() => pickOption("reasoning", chip.id)}
+											className={`${CHIP_BASE} ${isActive ? CHIP_ACTIVE : CHIP_IDLE}`}
+										>
+											{chip.label}
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					)}
 					<div className="flex-shrink-0 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.06]">
 						<p className="text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
 							{house.note}

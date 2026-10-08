@@ -119,6 +119,55 @@ has the matching APK and carries the new 1.9.0 DMG; both GitHub asset hashes
 match the local release artifacts. Windows built and published the Play bundle;
 the authenticated Mac published the APK after the GitHub preflight passed.
 
+## Copy, edit and try again
+
+*Added 2026-10-08 from a tester's request ("copy my message and edit it and try
+again like gpt"). Server + Android + web + Apple source.*
+
+- **Copy** any of your own messages. The newest question shows Copy and Edit
+  glyphs under it; every question also answers a long press (Android, iOS) or
+  hover (web, macOS) with the same actions.
+- **Edit** puts a question's words back in the composer under the bar
+  "Editing. Sending replaces this message and every reply after it." with
+  Cancel. The draft that was there comes back after send or cancel, the draft's
+  own attachments step aside meanwhile, and the edited message keeps its own
+  attachments: only the words change (`editedUserMessage` in
+  `mobile/src/features/chat/editMessage.ts`, mirrored per client). A follow-up
+  chip tapped while editing is still a new question.
+- **Try again** is a refresh glyph in the newest settled answer's action row.
+
+There is no new endpoint. Both JS clients use the AI SDK: an edit is
+`sendMessage({ messageId, parts, metadata }, { body: { replaces } })`, which
+replaces that message and drops everything after it locally; Try again (and
+the error card's retry) is `regenerate({ body: { replaces } })`. `replaces` is
+the ids the client dropped (`idsAfter` / `idsAfterLastUser` in
+`src/lib/chat/message-edit.ts`, mirrored in `editMessage.ts` and Swift). The
+last user message reaches `POST /api/ask-question` under an id the server has
+already stored, and `persistUserMessage`, in the same transaction as the
+upsert, deletes exactly the later rows the request named. Without that, the
+next history load showed both answers, or an answer to the text from before
+the edit.
+
+Three guards, all proven against production data on 2026-10-08:
+
+- **A stale device is refused, not trusted.** If any later row is missing
+  from `replaces` (another device kept talking), the turn fails with chat
+  error code `stale_thread`, "This conversation changed on another device.
+  Reload it and try again.", the transaction rolls back (the question's text
+  is untouched), and every client's retry for that code reloads the thread
+  instead of resending.
+- **No `replaces`, no deletes.** Installed builds from before this release only
+  re-send an id after a failure, and still delete nothing.
+- **Recovery never collects the answer being replaced.** `completedHistory`
+  takes the replaced ids, so a dropped stream cannot bring the old answer back
+  as if it were the new one.
+
+Thumbs on replaced answers go with them; there is no version history (no
+"‹ 1/2 ›" branches); editing the first question does not retitle the
+conversation, and memories already drawn from deleted turns stay. A late
+answer persisted after Stop can still race a Try again: caught by the
+`stale_thread` check if it lands first, a duplicate if it lands after.
+
 ## Tap-a-verse
 
 *Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS 1.1.0 (2026-08-17)*
@@ -439,6 +488,23 @@ OpenRouter-key fallback in `houseChatModelId()` stay, so a future split is a
 one-line change. Before moving a plan off Luna again, time a real tool-using
 answer on the candidate (the `[ai.metrics]` log line carries
 `timeToFirstOutputMs`, `stepTimeMs` and `outputTokensPerSecond`).
+
+**Pro chooses how hard Luna thinks; Free just says "SureWord AI" (2026-10-08).**
+Austin: "all these models are going to confuse people." `GET /api/ai/models`
+now labels a Free account's house model **"SureWord AI"** (both the `house`
+block and the single `models` entry), so no Free surface names a model. A Pro
+house account sees "GPT-5.6 Luna" and gets `house.efforts:
+["low","medium","high"]` (`HOUSE_PRO_EFFORTS` / `houseEffortsFor(plan)` in
+`src/lib/ai/access.ts`); Free gets `[]`, and servers before this release send
+no `efforts` at all, which every client reads as empty. `houseEffortFor(requested,
+plan)` honours low and medium for everyone and high for Pro only; xhigh and max
+stay clamped to medium, because on Luna they bring back the multi-minute
+answers. The pick is stored like any other effort (`User.defaultEffort` through
+`PATCH /api/preferences`), returned clamped as `house.effort`/`defaults.effort`,
+and rides each chat request as `effort`. Every picker draws the house row and,
+when `house.efforts` is non-empty, a Reasoning chip group (Low / Medium / High,
+no Auto) under it; the house pin keeps a pick the server offers instead of
+snapping it to `house.effort`.
 
 ---
 

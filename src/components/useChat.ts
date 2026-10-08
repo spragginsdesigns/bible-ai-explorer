@@ -36,7 +36,13 @@ import {
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
 import { effortForRequest } from "@/components/modelPickerRules";
-import { editedUserMessage, messageHasFiles, userMessageText } from "@/lib/chat/message-edit";
+import {
+	editedUserMessage,
+	idsAfter,
+	idsAfterLastUser,
+	messageHasFiles,
+	userMessageText,
+} from "@/lib/chat/message-edit";
 import {
 	readEffortPref,
 	readModePref,
@@ -583,8 +589,11 @@ export const useChat = () => {
 			new DefaultChatTransport<SureWordUIMessage>({
 				api: "/api/ask-question",
                 fetch: consentFetch,
-				prepareSendMessagesRequest: ({ messages }) => ({
+				prepareSendMessagesRequest: ({ messages, body }) => ({
 					body: {
+						// An edit or "Try again" names the rows it drops, the only ones
+						// the server may delete (persistUserMessage in /api/ask-question).
+						...(Array.isArray(body?.replaces) ? { replaces: body.replaces } : {}),
 						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 						messages,
 						conversationId: conversationIdRef.current,
@@ -625,6 +634,8 @@ export const useChat = () => {
 	// the answer is waiting in the conversation - collect it instead of
 	// reporting a failure. Mirrors the Android client's recovery.
 	const pendingAnswerRef = useRef<string | null>(null);
+	/** Answers the turn in flight replaces; recovery must not collect them. */
+	const staleAnswerIdsRef = useRef<string[]>([]);
 	const [recovering, setRecovering] = useState(false);
 	const recoveringRef = useRef(false);
 	const recoverVersionRef = useRef(0);
@@ -685,7 +696,7 @@ export const useChat = () => {
 						const res = await consentFetch(`/api/conversations/${conversationId}`);
 						if (version !== recoverVersionRef.current) return;
 						if (res.ok) {
-							const restored = completedHistory(await res.json());
+							const restored = completedHistory(await res.json(), staleAnswerIdsRef.current);
 							if (restored) {
 								setMessageFeedback(feedbackByMessageId(restored));
 								setUIMessages(restored.map(dbMessageToUIMessage));
@@ -1002,6 +1013,7 @@ export const useChat = () => {
 			// collects it. Without a conversation there is nothing to collect.
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
+			staleAnswerIdsRef.current = [];
 			void sendUIMessage({
 				metadata: {
 					...(sendingAttachments.length > 0
@@ -1043,6 +1055,14 @@ export const useChat = () => {
 	 * message reached the server and a regenerate replays the last exchange.
 	 */
 	const retrySend = useCallback(() => {
+		// A refused edit or Try again: the screen no longer matches the server,
+		// and resending would be refused again. Reloading the thread is the retry.
+		if (sendError?.code === "stale_thread") {
+			setSendError(null);
+			clearError();
+			retryHistory();
+			return;
+		}
 		const failedText = lastFailedSendRef.current;
 		lastFailedSendRef.current = null;
 		if (failedText) {
@@ -1051,8 +1071,10 @@ export const useChat = () => {
 		}
 		setSendError(null);
 		clearError();
-		void regenerate();
-	}, [sendMessage, clearError, regenerate]);
+		const replaces = idsAfterLastUser(uiMessages);
+		staleAnswerIdsRef.current = replaces;
+		void regenerate({ body: { replaces } });
+	}, [sendMessage, sendError, clearError, retryHistory, regenerate, uiMessages]);
 
 	/**
 	 * Put one of the user's own messages back in the composer to rewrite it.
@@ -1095,13 +1117,15 @@ export const useChat = () => {
 				text
 			);
 			if (!payload) return;
+			const replaces = idsAfter(uiMessages, messageId);
 			cancelEditing();
 			setSendError(null);
 			clearError();
 			lastFailedSendRef.current = null;
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
-			void sendUIMessage(payload);
+			staleAnswerIdsRef.current = replaces;
+			void sendUIMessage(payload, { body: { replaces } });
 		},
 		[cancelEditing, clearError, sendUIMessage, status, uiMessages]
 	);
@@ -1122,8 +1146,10 @@ export const useChat = () => {
 		lastFailedSendRef.current = null;
 		pendingAnswerRef.current = conversationIdRef.current;
 		lastStreamActivityRef.current = Date.now();
-		void regenerate();
-	}, [cancelEditing, clearError, regenerate, status]);
+		const replaces = idsAfterLastUser(uiMessages);
+		staleAnswerIdsRef.current = replaces;
+		void regenerate({ body: { replaces } });
+	}, [cancelEditing, clearError, regenerate, status, uiMessages]);
 
 	const editingHasFiles = useMemo(
 		() => messageHasFiles(uiMessages.find((message) => message.id === editingMessageId)),

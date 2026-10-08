@@ -13,14 +13,32 @@
 export type AiAccess = "house" | "keys";
 
 /**
- * The effort an included call runs at. Both plans use the same tested setting.
- * Medium is the ceiling, not a floor: a call
- * site that asks for low (tap-a-verse pins it for latency) keeps low, and
- * nothing above medium is honoured, so a hand-crafted request cannot raise the
- * server's bill. Pure so the money rule has a test.
+ * The reasoning efforts an included (house) account may choose, by plan
+ * (Austin, 2026-10-08): Pro picks how hard Luna thinks, Free has no choice.
+ * Stops at high: xhigh and max on Luna run long enough to bring back the
+ * multi-minute answers that made a tester think chat had frozen.
  */
-export function houseEffortFor(requested: string | null | undefined): "low" | "medium" {
-	return requested === "low" ? "low" : "medium";
+export const HOUSE_PRO_EFFORTS = ["low", "medium", "high"] as const;
+export type HouseEffort = (typeof HOUSE_PRO_EFFORTS)[number];
+
+export function houseEffortsFor(plan: "pro" | "free"): readonly HouseEffort[] {
+	return plan === "pro" ? HOUSE_PRO_EFFORTS : [];
+}
+
+/**
+ * The effort an included call runs at. Medium is the default and, for Free,
+ * the ceiling: a call site that asks for low (tap-a-verse pins it for latency)
+ * keeps low, and nothing above medium is honoured, so a hand-crafted request
+ * cannot raise the server's bill. Pro may also ask for high, and nothing past
+ * it. Pure so the money rule has a test.
+ */
+export function houseEffortFor(
+	requested: string | null | undefined,
+	plan: "pro" | "free" = "free",
+): HouseEffort {
+	if (requested === "low") return "low";
+	if (plan === "pro" && requested === "high") return "high";
+	return "medium";
 }
 
 export function decideAccess(options: {
