@@ -22,6 +22,7 @@ import {
 } from "@/lib/daily-cross-selection";
 import { selectDailyCross, type DailyCrossSelectorDependencies } from "@/lib/daily-cross-selector";
 import { getKjvBookName, getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
+import { doctrinalFoundation, interpretationGuidance, trustedContextGuidance } from "@/utils/systemPrompt";
 
 /**
  * "Pick Up Your Cross" (Luke 9:23) — the personalized daily walk. One shared
@@ -74,7 +75,7 @@ const guidedDaySchema = z.object({
  * voice a user reads and the voice they hear are the same believer, not two
  * personas that happen to quote the same verse.
  */
-export const PERSONA = `You prepare "Pick Up Your Cross" (Luke 9:23 — "take up his cross daily") for SureWord, a KJV Bible study assistant. You speak as a saved, born-again believer who holds the King James Version Bible to be the inerrant, infallible Word of God. You are a companion who keeps putting the right Scripture in front of this person — you never claim to be God, the Holy Spirit, or to speak for Him beyond what Scripture says. The Spirit works through the Word; your job is to hand them the Word.`;
+export const PERSONA = `${doctrinalFoundation}\n\n${interpretationGuidance}\n\n${trustedContextGuidance}\n\nYou prepare "Pick Up Your Cross" (Luke 9:23) for one person. The Spirit works through the Word; your job is to hand them the Word. Use only the supplied verified passage and personal context. Do not invent their history or claim to speak God's undisclosed will.`;
 
 const SHARED_RULES = `Honesty rule, non-negotiable: whyToday may only reference activity that is actually present in the context you are given. Fabricated intimacy ("you've been wrestling with...") when the context shows nothing is worse than a plain word of encouragement. When the context is thin, say less.
 
@@ -156,6 +157,8 @@ export class DailyCrossReferenceError extends Error {}
 export class DailyCrossDirectionError extends Error {}
 
 export interface DailyCrossRequest {
+	/** Internal approved target, rechecked atomically after generation. */
+	expectedPreviousId?: string | null;
 	/** What the user asked today's word to centre on, in their own words. */
 	focus?: string;
 	/** Pin the day to a verse the user named instead of letting the model choose. */
@@ -599,9 +602,16 @@ export async function generateDailyCross(
 /** Persist a generated day; returns the stored row's id and sentAt. */
 export async function storeDailyCross(
 	userId: string,
-	cross: DailyCross
+	cross: DailyCross,
+	expectedPreviousId?: string | null
 ): Promise<{ id: string; sentAt: Date }> {
-	const row = await prisma.verseOfDay.create({
+	return prisma.$transaction(async tx => {
+	await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8202)`;
+	if (expectedPreviousId !== undefined) {
+		const current = await tx.verseOfDay.findFirst({ where: { userId, sentAt: { gte: new Date(Date.now() - DAILY_CROSS_REUSE_MS) } }, orderBy: { sentAt: "desc" }, select: { id: true } });
+		if ((current?.id ?? null) !== expectedPreviousId) throw new Error("Today's cross changed while its replacement was being prepared. Read it and confirm again.");
+	}
+	const row = await tx.verseOfDay.create({
 		data: {
 			userId,
 			book: cross.book,
@@ -629,6 +639,7 @@ export async function storeDailyCross(
 		select: { id: true, sentAt: true },
 	});
 	return row;
+	});
 }
 
 export interface StoredDailyCross extends DailyCross {
@@ -742,7 +753,7 @@ export async function replaceDailyCross(
 ): Promise<{ cross: StoredDailyCross; previousReference: string | null }> {
 	const previous = await findTodayCross(userId);
 	const cross = await generateDailyCross(userId, request);
-	const { id, sentAt } = await storeDailyCross(userId, cross);
+	const { id, sentAt } = await storeDailyCross(userId, cross, request.expectedPreviousId);
 
 	// The new row carries no audio, so the replaced day's spoken devotional is
 	// unreachable from here on. Delete the blob rather than leave it paid for.

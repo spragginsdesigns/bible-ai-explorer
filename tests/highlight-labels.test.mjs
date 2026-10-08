@@ -308,10 +308,10 @@ test("the chat route reads the labels column once and hands it to the day contex
 	// a second query.
 	assert.match(
 		source,
-		/select: \{\s*webSearchEnabled: true,\s*name: true,\s*email: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*testimony: true,\s*onboardedAt: true,\s*\}/,
+		/select: \{\s*webSearchEnabled: true,\s*memoryEnabled: true,\s*name: true,\s*email: true,\s*highlightLabels: true,\s*highlightMeanings: true,\s*aboutMe: true,\s*testimony: true,\s*onboardedAt: true,\s*\}/,
 	);
 	assert.match(source, /readStoredHighlightLabels\(userPrefs\?\.highlightLabels\)/);
-	assert.match(source, /loadChatDayContext\(userId, highlightLabels, \{ raisePrayerFollowUps: true \}\)/);
+	assert.match(source, /loadChatDayContext\(userId, highlightLabels, \{ memoryEnabled: userPrefs\?\.memoryEnabled === true \}\)/);
 	assert.match(source, /webSearchEnabled: userPrefs\?\.webSearchEnabled \?\? true,\s*highlightLabels,/);
 });
 

@@ -4,7 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getVerseText, type TranslationId } from "@/lib/bible/translations";
 import { getKjvBookName } from "@/utils/kjvBible";
-import { keywordSearchKjv } from "@/lib/bible/kjv";
+import { findVersesFullText } from "@/lib/bible/verse-fulltext";
+import { searchWords } from "@/lib/bible/search-words";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -115,12 +116,13 @@ async function similarityFor(
 
 /**
  * Semantic search over the KJV verse embeddings in Neon (pgvector), blended
- * with IDF-weighted keyword matches from the bundled KJV so half-remembered
+ * with indexed keyword matches from Postgres so half-remembered
  * exact wording is found even when embeddings miss it. Exact verse text is
  * looked up from the bundled corpus (or bolls.life for NKJV) so quotations
  * are never reconstructed from embeddings; `translation` only controls the
  * wording returned. If the vector store is unreachable, keyword matching
- * alone answers (degraded: true) rather than failing the tool.
+ * alone answers (degraded: true) rather than failing the tool. Only bounded
+ * matches are loaded; the AI path never scans the bundled whole Bible.
  */
 export async function searchScripture(
 	query: string,
@@ -144,7 +146,7 @@ export async function searchScripture(
 			console.error("Scripture vector search failed; falling back to keywords:", error);
 			return null;
 		}),
-		keywordSearchKjv(query, Math.max(limit, KEYWORD_MERGE_HITS)).catch(() => []),
+		findVersesFullText(searchWords(query), Math.max(limit, KEYWORD_MERGE_HITS)).catch(() => []),
 	]);
 
 	let coordinates: VerseCoordinates[];
@@ -154,7 +156,7 @@ export async function searchScripture(
 		// Vector store down: serve keyword matches alone rather than nothing.
 		degraded = true;
 		coordinates = keywordHits.slice(0, limit).map((hit) => ({
-			book: hit.order,
+			book: hit.book,
 			chapter: hit.chapter,
 			verse: hit.verse,
 			similarity: 0,
@@ -163,9 +165,9 @@ export async function searchScripture(
 		coordinates = [...vectorOutcome.hits];
 		const seen = new Set(coordinates.map((c) => `${c.book}:${c.chapter}:${c.verse}`));
 		const extras = keywordHits
-			.filter((hit) => !seen.has(`${hit.order}:${hit.chapter}:${hit.verse}`))
+			.filter((hit) => !seen.has(`${hit.book}:${hit.chapter}:${hit.verse}`))
 			.slice(0, KEYWORD_MERGE_HITS)
-			.map((hit) => ({ book: hit.order, chapter: hit.chapter, verse: hit.verse }));
+			.map((hit) => ({ book: hit.book, chapter: hit.chapter, verse: hit.verse }));
 		if (extras.length > 0) {
 			// Score merged keyword hits honestly with their real cosine similarity.
 			const scores = await similarityFor(vectorOutcome.embedding, extras).catch(

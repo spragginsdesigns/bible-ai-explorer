@@ -158,6 +158,11 @@ export const DEFAULT_WRITE_TOOLS = [
 	"setChurch",
 	"learnVerse",
 	"resolvePrayerRequest",
+	"saveTestimony",
+	"saveAboutMe",
+	"finishOnboarding",
+	"saveStudy",
+	"requestActionApproval",
 ];
 
 /** Human-review dimensions; never collapsed into the mechanical pass bit. */
@@ -195,7 +200,7 @@ function refKey(reference: string): string {
 	const parsed = parseReference(reference);
 	return parsed
 		? `${parsed.book}:${parsed.chapter}:${parsed.verse}-${parsed.endChapter}:${parsed.endVerse}`
-		: normalizeAnswerText(reference).replace(/\s*,\s*(?:kjv|nkjv)\b/g, "").replace(/\s+/g, " ").trim();
+		: normalizeAnswerText(reference).replace(/\s*,?\s*(?:kjv|nkjv|bsb)\b$/g, "").replace(/\s+/g, " ").trim();
 }
 
 interface ParsedReference {
@@ -215,7 +220,7 @@ function canonicalBook(book: string): string {
 }
 
 function parseReference(reference: string): ParsedReference | null {
-	const withoutTranslation = normalizeAnswerText(reference).replace(/\s*,\s*(?:kjv|nkjv)\b/g, "").trim();
+	const withoutTranslation = normalizeAnswerText(reference).replace(/\s*,?\s*(?:kjv|nkjv|bsb)\b$/g, "").trim();
 	const match = withoutTranslation.match(/^(.+?)\s+(\d{1,3}):(\d{1,3})(?:\s*[-–—]\s*(?:(\d{1,3}):)?(\d{1,3}))?$/);
 	if (!match) return null;
 	return {
@@ -323,6 +328,7 @@ export function evidenceTextFor(evidence: RetrievedEvidence[], citation: string)
 	const end = cited.endChapter * 1000 + cited.endVerse;
 	if (end <= start) return null;
 	const pieces = evidence
+		.filter((item, index, all) => all.findIndex(candidate => refKey(candidate.reference) === refKey(item.reference)) === index)
 		.map((item) => ({ item, parsed: parseReference(item.reference) }))
 		.filter(({ parsed }) => {
 			if (!parsed || parsed.book !== cited.book) return false;
@@ -537,14 +543,23 @@ function scoreQuotes(
 		const block: string[] = [];
 		while (index < lines.length && /^>\s?/.test(lines[index])) block.push(lines[index++].replace(/^>\s?/, ""));
 		index -= 1;
-		const refs = extractBibleReferences(block.join(" "));
-		if (refs.length === 0) continue;
-		const citation = refs.at(-1)!;
-		const sourceText = evidenceTextFor(evidence, citation);
-		const body = normalizeAnswerText(block.filter((line) => !extractBibleReferences(line).length).join(" "))
-			.replace(/^["']|["']$/g, "");
-		if (!sourceText || body.length < 8 || !sourceText.includes(body)) {
-			failures.push(`blockquote ${citation} was not supported by exact tool text`);
+		let quotation: string[] = [];
+		let hasCitation = false;
+		for (const line of block) {
+			const refs = extractBibleReferences(line);
+			if (refs.length === 0) { quotation.push(line); continue; }
+			hasCitation = true;
+			const citation = refs.at(-1)!;
+			const sourceText = evidenceTextFor(evidence, citation);
+			const body = normalizeAnswerText(quotation.map(part => part.trim().replace(/^["“‘']|["”’']$/g, "")).join(" ")).replace(/^["']|["']$/g, "");
+			if (!sourceText || body.length < 8 || !sourceText.includes(body)) {
+				failures.push(`blockquote ${citation} was not supported by exact tool text`);
+				pass = false;
+			}
+			quotation = [];
+		}
+		if (hasCitation && quotation.some(line => line.trim())) {
+			failures.push("Scripture blockquote contained uncited trailing text");
 			pass = false;
 		}
 	}

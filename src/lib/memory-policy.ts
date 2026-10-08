@@ -11,5 +11,5 @@ export function allowsMemoryUse(memoryEnabled: boolean | null | undefined): bool
  * Background extraction must not duplicate, undo, or silently retry that action.
  */
 export function usedMemoryTools(parts: readonly { type: string }[]): boolean {
-	return parts.some((part) => ["tool-listMemories", "tool-saveMemory", "tool-updateMemory", "tool-deleteMemories"].includes(part.type));
+	return parts.some((part) => ["tool-listMemories", "tool-saveMemory", "tool-updateMemory", "tool-deleteMemories", "tool-resolvePrayerRequest"].includes(part.type));
 }

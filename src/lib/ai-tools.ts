@@ -4,6 +4,8 @@ import { z } from "zod";
 import { buildReadingTools, type ReadingToolContext } from "@/lib/reading-tools";
 import { buildMemoryTools } from "@/lib/memory-tools";
 import { buildOnboardingTools } from "@/lib/onboarding-tools";
+import { buildStudyTools } from "@/lib/study-tools";
+import { buildActionTools, executeApprovedAction, type AgentActionContext } from "@/lib/agent-actions";
 import {
 	formatVersesForModel,
 	searchScripture,
@@ -73,10 +75,11 @@ import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import type { HighlightLabels } from "@/lib/preferences-contract";
 import { resolveReference } from "@/lib/bible/books";
 import { findVersesFullText } from "@/lib/bible/verse-fulltext";
+import { indexedOccurrences } from "@/lib/bible/indexed-occurrences";
+import { canonicalPassage } from "@/lib/bible/passage-context";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
 import {
 	ATLAS_ERAS,
-	findOccurrences,
 	getEntity,
 	getTimeline,
 	searchAtlas,
@@ -112,6 +115,8 @@ export interface ScriptureSearchToolOutput {
 export interface PassageToolOutput {
 	reference: string;
 	verses: RetrievedVerse[];
+	contextVerses?: RetrievedVerse[];
+	truncated?: boolean;
 	formatted: string;
 }
 
@@ -433,7 +438,11 @@ export interface HighlightsToolOutput {
 	formatted: string;
 }
 
-export interface SureWordToolContext extends ReadingToolContext {
+export interface SureWordToolContext extends ReadingToolContext, AgentActionContext {
+	/** Discovered server-owned study IDs; never supplied by the client. */
+	knownStudyIds?: Set<string>;
+	/** Full checkpoints successfully read during this server request. */
+	readStudyIds?: Set<string>;
 	userId: string;
 	/** When set (note chat), addToNote defaults to this note. */
 	defaultNoteId?: string;
@@ -472,7 +481,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			const result = await searchScripture(query, limit ?? 5, translation);
 			let formatted = formatVersesForModel(result.verses, translation);
 			if (result.degraded) {
-				formatted = `NOTE: semantic search is temporarily unavailable, so these are exact-keyword matches only. Prefer getPassage for references you already know, and tell the user nothing about this mechanism.\n${formatted}`;
+				formatted = `NOTE: These are bounded keyword matches; broader topical coverage may be incomplete. Prefer getPassage for known references, and state a coverage limitation when it matters without technical jargon.\n${formatted}`;
 			}
 			return { ...result, formatted };
 		},
@@ -480,7 +489,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const findVersesTool = tool({
 		description:
-			`Exact-word and phrase search across the whole Bible, instant and free. Use it when the user quotes or half-remembers wording ("be still and know"), asks for every verse containing a word ("loveth", "adder"), or wants a fast lookup. Quote a phrase in double quotes to require those words in that order; bare words match by prefix, so "lov" also finds loveth and loved. Pass book to search one book only ("every verse in Proverbs with loveth"); never put the book name in the query. Prefer searchScripture for questions about meaning or topic, and getPassage when a reference is already named. Returns the exact ${translation} text.`,
+			`Exact-word and phrase search of the KJV index, instant and free, returning bounded matches with the exact ${translation} quotation text. The index's wording is always KJV; never report its word matches as an exhaustive count in another translation. Use it for quoted or half-remembered wording ("be still and know") or terms ("loveth", "adder"). Quote a phrase in double quotes for exact ordered words; bare words match by prefix, so "lov" finds loveth and loved. Pass book to narrow the index; never put a book name in the query. Prefer searchScripture for meaning or topics, and getPassage for a named reference. A limited result page is not the whole count.`,
 		inputSchema: z.object({
 			query: z
 				.string()
@@ -581,27 +590,10 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
 			}
 			const bookName = getKjvBookName(bookNumber) ?? book;
-			const verses = await readPassageVerses(
-				bookNumber,
-				bookName,
-				chapter,
-				verseStart,
-				verseEnd,
-				translation
-			);
-
-			if (verses.length === 0) {
-				throw new Error(
-					`${bookName} ${chapter}:${verseStart} was not found. Check the chapter and verse numbers.`
-				);
-			}
-
-			const reference =
-				verses.length > 1
-					? `${bookName} ${chapter}:${verseStart}-${verseStart + verses.length - 1}`
-					: verses[0].reference;
-
-			return { reference, verses, formatted: formatVersesForModel(verses, translation) };
+			const passage = await canonicalPassage(`${bookName} ${chapter}:${verseStart}${verseEnd === undefined ? "" : `-${verseEnd}`}`, translation);
+			const verses = passage.verses.map(row => ({ ...row, similarity: 1 }));
+			const contextVerses = passage.contextVerses.map(row => ({ ...row, similarity: 1 }));
+			return { ...passage, verses, contextVerses, formatted: `${formatVersesForModel(verses, translation)}\n\nSurrounding context (not part of the requested quotation):\n${formatVersesForModel(contextVerses, translation)}${passage.truncated ? "\nThe requested range was bounded to 30 verses; explain this limit instead of claiming to have read the whole range." : ""}` };
 		},
 	});
 
@@ -966,7 +958,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				// Counting is a scan of the whole KJV, so only the best match pays for it.
 				const occurrences =
 					matches.length === 0 && entity
-						? (await findOccurrences(entity.name, 0)).total
+						? (await indexedOccurrences(entity.name, 1)).total
 						: null;
 				matches.push({
 					id: hit.id,
@@ -1361,7 +1353,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				book && chapter !== undefined && verse !== undefined
 					? { book, chapter, verse }
 					: undefined;
-			const result = await replaceDailyCross(context.userId, { focus, verse: pinned });
+			const result = await executeApprovedAction(context, "setDailyCross", { focus, book, chapter, verse }, target => replaceDailyCross(context.userId, { focus, verse: pinned, expectedPreviousId: (target as { id: string } | null)?.id ?? null }));
 			return { ...toDailyCrossOutput(result.cross), previousReference: result.previousReference };
 		},
 	});
@@ -1491,9 +1483,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			if (!key && !described) {
 				throw new Error("Pass either presetKey, or goal (with days) to have a plan written.");
 			}
-			const plan = key
-				? await startPlan(context.userId, { presetKey: key })
-				: await startPlan(context.userId, { goal: described ?? "", days: days ?? 30 });
+			const plan = await executeApprovedAction(context, "startReadingPlan", { presetKey, goal, days }, target => startPlan(context.userId, key ? { presetKey: key } : { goal: described ?? "", days: days ?? 30 }, { expectedActiveId: (target as { id: string } | null)?.id ?? null }));
 			return toReadingPlanOutput(plan);
 		},
 	});
@@ -1649,7 +1639,9 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	return {
 		...buildMemoryTools(context.userId),
-		...buildOnboardingTools(context.userId),
+		...buildOnboardingTools(context.userId, context),
+		...buildStudyTools(context),
+		...buildActionTools(context),
 		...buildReadingTools(context),
 		searchScripture: searchScriptureTool,
 		findVerses: findVersesTool,

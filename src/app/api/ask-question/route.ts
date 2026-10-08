@@ -43,6 +43,9 @@ import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progr
 import { createProgressSummarizer } from "@/lib/ai/progress-summary";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
+import { actionDecisionBlock, recordDeliveredActionProposal } from "@/lib/agent-actions";
+import { finishAgentWork, incompleteAgentNotice, mustReadStudy } from "@/lib/ai/agent-loop";
+import { isStudyWorkRequest } from "@/lib/agent-intent";
 import {
 	isReasoningEffort,
 	isReasoningMode,
@@ -61,10 +64,12 @@ import {
 	formatTodayBlock,
 	formatUserNameLine,
 	loadChatDayContext,
+	recordDeliveredPrayerFollowUps,
+	type ChatDayContext,
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, isOnboardCommand, onboardingGuidance } from "@/utils/systemPrompt";
+import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import {
@@ -514,6 +519,7 @@ async function persistAssistantResponse(options: {
 	run: AppliedRunOptions;
 	/** The translation the answer quoted, so a rated answer can be replayed against it. */
 	translation: TranslationId;
+	prayers?: ChatDayContext["prayers"];
 }): Promise<ChatOutcomeExit> {
 	if (!hasPersistableContent(options.responseMessage)) return "empty_response";
 	// Set once the assistant row is written, so a memory-extraction failure
@@ -566,6 +572,8 @@ async function persistAssistantResponse(options: {
 			},
 		});
 		persisted = true;
+		await recordDeliveredActionProposal(options.userId, `chat:${options.conversationId}`, options.userMessage.id, cleanText, options.responseMessage.parts);
+		await recordDeliveredPrayerFollowUps(options.userId, cleanText, options.prayers ?? []);
 		// Replaces the "first 60 characters you typed" title once, after the
 		// first answer; it never throws and never overwrites a user's rename.
 		waitUntil(
@@ -636,6 +644,7 @@ async function handlePost(req: Request): Promise<Response> {
 			where: { id: userId },
 			select: {
 				webSearchEnabled: true,
+				memoryEnabled: true,
 				name: true,
 				email: true,
 				highlightLabels: true,
@@ -670,7 +679,12 @@ async function handlePost(req: Request): Promise<Response> {
 		};
 		// Filled once the messages are validated below; readLink opens only these.
 		let userLinks: string[] = [];
-		const tools = buildSureWordTools({ ...readingContext, userLinks: () => userLinks });
+		let currentUserText = "";
+		let currentMessageId = "";
+		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt };
+		const knownStudyIds = new Set<string>();
+		const readStudyIds = new Set<string>();
+		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -778,6 +792,9 @@ async function handlePost(req: Request): Promise<Response> {
 		};
 
 		const responseMessageId = generateMessageId();
+		currentUserText = extractText(lastMessage);
+		currentMessageId = lastMessage.id;
+		let duePrayers: ChatDayContext["prayers"] = [];
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
 			await reserveIncludedRequest(userId);
 		}
@@ -844,6 +861,7 @@ async function handlePost(req: Request): Promise<Response> {
 						modelId: resolvedModelId,
 						run: resolvedRun,
 						translation,
+						prayers: duePrayers,
 					}).then((exit) => {
 						emitOutcome(exit);
 						if (!clientLeft) return;
@@ -900,10 +918,11 @@ async function handlePost(req: Request): Promise<Response> {
 						loadUserChurch(userId),
 						// Chat is the only surface allowed to reschedule prayer follow-ups:
 						// reading the block here is what "raising it" means.
-						loadChatDayContext(userId, highlightLabels, { raisePrayerFollowUps: true }),
+						loadChatDayContext(userId, highlightLabels, { memoryEnabled: userPrefs?.memoryEnabled === true }),
 						loadHighlightLegend(userId, highlightLabels, highlightMeanings),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 					]);
+					duePrayers = dayContext.prayers;
 					const {
 						model,
 						providerOptions,
@@ -1003,7 +1022,7 @@ async function handlePost(req: Request): Promise<Response> {
 					};
 
 					writeStatus("Thinking");
-					const stableSystem = chatSystemPrompt(translation);
+					const stableSystem = chatSystemPrompt(translation, { userText: currentUserText, previousUserText: validatedMessages.filter(message => message.role === "user").at(-2) ? extractText(validatedMessages.filter(message => message.role === "user").at(-2)!) : "", hasAttachment: threadHasFiles });
 					// The getting-to-know-you interview runs until it is finished or
 					// skipped (finishOnboarding), and again on demand with /onboard.
 					const onboarding = !userPrefs?.onboardedAt || isOnboardCommand(extractText(lastMessage));
@@ -1026,6 +1045,8 @@ async function handlePost(req: Request): Promise<Response> {
 						shapeHint ? `\n\n${shapeHint}` : "",
 						// Last on purpose: an instruction for this reply, nearest the answer.
 						formatPrayerFollowUpBlock(dayContext),
+						await actionDecisionBlock(actionContext),
+						`\n\n${nextStepGuidance}`,
 					].join("");
 					const promptCache = buildPromptCachePlan({
 						provider: definition.provider,
@@ -1041,6 +1062,11 @@ async function handlePost(req: Request): Promise<Response> {
 						system: promptCache.system,
 						messages: withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages)),
 						tools,
+						prepareStep: ({ stepNumber }) => {
+							if (finishAgentWork(stepNumber, turnStartedAtMs)) return { toolChoice: "none" as const, activeTools: [], system: `${stableSystem}${volatileSystem}\n\nFinish now from the successful evidence already gathered. Verify the requested outcome, give the useful result, and state any remaining gap. No further tool calls.` };
+							if (mustReadStudy(isStudyWorkRequest(currentUserText), knownStudyIds, readStudyIds)) return { activeTools: ["readStudy"], toolChoice: { type: "tool" as const, toolName: "readStudy" as const } };
+							return { activeTools: Object.keys(tools).filter(name => name !== "readStudy" || knownStudyIds.size > 0) as (keyof SureWordTools)[] };
+						},
 						// Either limit ends the loop cleanly, so the answer is streamed,
 						// persisted and measured. Only the platform timeout loses a turn.
 						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
@@ -1121,10 +1147,18 @@ async function handlePost(req: Request): Promise<Response> {
 							stream: result.stream,
 							tools,
 							sendStart: false,
+							sendFinish: false,
 							sendReasoning: false,
 						})
 					);
 					await consumption;
+					const notice = incompleteAgentNotice(metricLastStepFinishReason, Date.now() - turnStartedAtMs);
+					if (notice) {
+						const textId = `${responseMessageId}-limit`;
+						writer.write({ type: "text-start", id: textId });
+						writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
+						writer.write({ type: "text-end", id: textId });
+					}
 					progress.finish(metricError !== null);
 				} catch (error) {
 					progress.finish(true);

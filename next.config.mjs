@@ -3,9 +3,10 @@ import { withBotId } from "botid/next/config";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+	// An isolated QA build can coexist with the normal local server.
+	distDir: process.env.SUREWORD_BUILD_DIR || ".next",
 	outputFileTracingIncludes: {
-		"/api/ask-question": ["./biblical-texts/kjv.json"],
-		"/api/note-ai": ["./biblical-texts/kjv.json"],
+		"/api/**": ["./src/data/kjv/*.json"],
 	},
 	// Analytics ingestion, served from our own origin so an ad blocker cannot
 	// silently delete half the numbers. The two asset rewrites must stay above

@@ -38,6 +38,8 @@ export interface AccountDataModel {
 }
 
 export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
+	{ model: "AgentStudy", via: "cascade" },
+	{ model: "AgentAction", via: "cascade" },
 	{ model: "User", via: "explicit" },
 	{ model: "AiPreference", via: "cascade" },
 	{ model: "BillingSubscription", via: "cascade" },

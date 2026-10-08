@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { setUserChurch } from "@/lib/church";
 import { PlaceNotFoundError, PlacesNotConfiguredError, searchChurches } from "@/lib/google-places";
 import { MAX_ABOUT_ME_LENGTH, MAX_TESTIMONY_LENGTH } from "@/lib/preferences-contract";
+import { AgentActionError, executeApprovedAction, type AgentActionContext } from "@/lib/agent-actions";
+import { isInitialProfileSaveRequest } from "@/lib/agent-intent";
 
 /**
  * The tools behind "Getting to know you", the in-chat onboarding interview
@@ -13,7 +15,7 @@ import { MAX_ABOUT_ME_LENGTH, MAX_TESTIMONY_LENGTH } from "@/lib/preferences-con
  *
  * The owner comes only from authenticated server context, never model input.
  */
-export function buildOnboardingTools(userId: string) {
+export function buildOnboardingTools(userId: string, context: AgentActionContext = { userId }) {
 	/** About me and testimony are the person's own words: never overwrite silently. */
 	async function savePersonalText(
 		field: "aboutMe" | "testimony",
@@ -30,9 +32,17 @@ export function buildOnboardingTools(userId: string) {
 					existing,
 				};
 			}
-			await prisma.user.update({ where: { id: userId }, data: { [field]: text } });
-			return { success: true as const };
+			if (existing === text.trim()) return { success: true as const };
+			const save = async () => {
+				const result = await prisma.user.updateMany({ where: { id: userId, [field]: existing || null }, data: { [field]: text } });
+				if (result.count !== 1) return { success: false as const, error: "Your profile changed. Read it and prepare the replacement again." };
+				return { success: true as const };
+			};
+			const userText = context.userText?.() ?? "";
+			const explicitInitialSave = !existing && isInitialProfileSaveRequest(userText, field);
+			return await (explicitInitialSave ? save() : executeApprovedAction(context, field === "testimony" ? "saveTestimony" : "saveAboutMe", { text }, save));
 		} catch (error) {
+			if (error instanceof AgentActionError) return { success: false as const, error: error.message };
 			console.error(`[onboarding] saving ${field} failed:`, error);
 			return { success: false as const, error: "Saving failed. Nothing was changed. Try again." };
 		}
@@ -51,6 +61,7 @@ export function buildOnboardingTools(userId: string) {
 						churches: churches.map(({ placeId, name, address }) => ({ placeId, name, address })),
 					};
 				} catch (error) {
+					if (error instanceof AgentActionError) return { success: false as const, error: error.message };
 					if (error instanceof PlacesNotConfiguredError) {
 						return { success: false as const, error: "Church lookup is unavailable right now. Save the church they named as a profile memory instead." };
 					}
@@ -65,9 +76,10 @@ export function buildOnboardingTools(userId: string) {
 			inputSchema: z.object({ placeId: z.string().trim().min(1).max(300) }),
 			execute: async ({ placeId }) => {
 				try {
-					const church = await setUserChurch(userId, placeId);
+					const church = await executeApprovedAction(context, "setChurch", { placeId }, target => setUserChurch(userId, placeId, { expectedPlaceId: (target as { placeId: string } | null)?.placeId ?? null }));
 					return { success: true as const, church: { name: church.name, address: church.address } };
 				} catch (error) {
+					if (error instanceof AgentActionError) return { success: false as const, error: error.message };
 					if (error instanceof PlaceNotFoundError) {
 						return { success: false as const, error: "That church id is not valid. Search again with findChurch." };
 					}
@@ -81,7 +93,7 @@ export function buildOnboardingTools(userId: string) {
 		}),
 		saveTestimony: tool({
 			description:
-				"Save the user's testimony (Settings → My testimony): how they came to faith in Jesus Christ, written in the first person from what they told you, keeping their own words. Only after they agree to it being saved. Set replaceExisting only when they asked to replace the one already there.",
+				"Save the user's testimony (Settings → My testimony) in their own first-person words. An explicit direct request to save their first testimony authorizes that initial save. Otherwise prepare requestActionApproval with this exact text and wait for a clear yes in a later turn. For an EXISTING testimony, always use that exact proposal before replacement and then set replaceExisting: true. Never save a disclosure silently or invent spiritual experiences.",
 			inputSchema: z.object({
 				text: z.string().trim().min(1).max(MAX_TESTIMONY_LENGTH),
 				replaceExisting: z.boolean(),
@@ -90,7 +102,7 @@ export function buildOnboardingTools(userId: string) {
 		}),
 		saveAboutMe: tool({
 			description:
-				"Save the user's About me (Settings → About me): a short first-person portrait built from what they told you, which they can edit later. Only after they agree to it. Set replaceExisting only when they asked to replace the one already there.",
+				"Save the user's About me (Settings → About me) in their own first-person words. A direct request to save their first About me authorizes that initial save. For an EXISTING profile, or when agreement is missing, prepare requestActionApproval with the exact text and wait for a clear yes in a later turn. Only then set replaceExisting: true. A how-to question or a wish is not permission to save.",
 			inputSchema: z.object({
 				text: z.string().trim().min(1).max(MAX_ABOUT_ME_LENGTH),
 				replaceExisting: z.boolean(),

@@ -99,6 +99,47 @@ model User {
   learnReviewReceipts    LearnReviewReceipt[]
   feedback               Feedback[]
   church                 UserChurch?
+  agentStudies           AgentStudy[]
+  agentActions           AgentAction[]
+}
+
+/// Private, resumable study work. Separate from personal memories and chat history.
+model AgentStudy {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  goal            String
+  state           Json
+  revision        Int      @default(1)
+  sourceMessageId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, sourceMessageId])
+  @@index([userId, updatedAt])
+}
+
+/// An exact proposed action and its server-recorded user decision.
+model AgentAction {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scope             String
+  action            String
+  fingerprint       String
+  payload           Json
+  targetFingerprint String
+  proposalMessageId String
+  deliveredAt       DateTime?
+  approvedMessageId String?
+  status            String   @default("pending")
+  result            Json?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, scope])
 }
 
 /// Something a person wrote to us from inside the app (Settings -> Send

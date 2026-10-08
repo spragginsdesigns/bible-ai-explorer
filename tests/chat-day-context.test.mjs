@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { firstNameOf } from "../src/lib/daily-cross-audio-script.ts";
 import { HIGHLIGHT_COLORS } from "../src/lib/highlights.ts";
 import { highlightLabelFor } from "../src/lib/preferences-contract.ts";
+import { deliveredPrayerFollowUps } from "../src/lib/prayer-follow-up-rules.ts";
 import { isMeaningfulNote } from "../src/lib/study-context-format.ts";
 import { chatSystemPrompt, isOnboardCommand, onboardingGuidance } from "../src/utils/systemPrompt.ts";
 
@@ -63,8 +64,10 @@ function loadDayContext({
 			"formatUserNameLine",
 			"hasAnsweredConversationBefore",
 			"loadChatDayContext",
+			"recordDeliveredPrayerFollowUps",
 		],
 		{
+			deliveredPrayerFollowUps,
 			bookByOrder,
 			firstNameOf,
 			findTodayCross,
@@ -210,9 +213,10 @@ test("the prayer follow-up block names each request, how long ago it was asked, 
 		},
 		now,
 	);
-	assert.match(block, /^\n\nPRAYER FOLLOW-UP DUE IN THIS REPLY/);
-	assert.match(block, /after you have answered what they asked, add one short paragraph of its own/);
-	assert.match(block, /call resolvePrayerRequest with that memory id/);
+	assert.match(block, /^\n\nA PRAYER FOLLOW-UP IS DUE/);
+	assert.match(block, /After answering the present request/);
+	assert.match(block, /An omitted question stays due/);
+	assert.match(block, /use resolvePrayerRequest with the actual memory id/);
 	const requests = block.split("\n").find((line) => line.startsWith("Requests: "));
 	assert.equal(
 		requests,
@@ -302,7 +306,7 @@ test("due prayer requests are the oldest three still open, and only when the fol
 			},
 		},
 	});
-	const context = await loadChatDayContext("user_1");
+	const context = await loadChatDayContext("user_1", {}, { memoryEnabled: true });
 	assert.equal(where.userId, "user_1");
 	assert.equal(where.category, "prayer");
 	assert.equal(where.status, "open");
@@ -315,47 +319,20 @@ test("due prayer requests are the oldest three still open, and only when the fol
 	]);
 });
 
-test("only a chat turn pushes the next follow-up out, and a failed push never fails the turn", quietly(async () => {
-	const make = (updateMany) => {
-		const scheduled = [];
-		const { loadChatDayContext } = loadDayContext({
-			prisma: {
-				readingEvent: { findMany: async () => [] },
-				verseHighlight: { findMany: async () => [] },
-				userMemory: {
-					findMany: async () => [{ id: "mem_1", content: "Their dad's surgery", askedAt: new Date("2026-09-01T00:00:00.000Z") }],
-					updateMany,
-				},
-			},
-			waitUntil: (promise) => scheduled.push(promise),
-		});
-		return { loadChatDayContext, scheduled };
-	};
-
-	const writes = [];
-	const record = async (args) => { writes.push(args); return { count: 1 }; };
-
-	const quiet = make(record);
-	await quiet.loadChatDayContext("user_1");
-	assert.deepEqual(writes, [], "a non-chat read leaves the schedule alone");
-
-	const chat = make(record);
-	const before = Date.now();
-	const context = await chat.loadChatDayContext("user_1", {}, { raisePrayerFollowUps: true });
-	await Promise.all(chat.scheduled);
-	assert.equal(context.prayers.length, 1, "the request is still raised this turn");
-	assert.equal(writes.length, 1);
-	assert.deepEqual(writes[0].where, { userId: "user_1", id: { in: ["mem_1"] } });
-	const pushedTo = writes[0].data.followUpAfter.getTime();
-	assert.ok(
-		pushedTo >= before + PRAYER_FOLLOW_UP_DAYS * DAY_MS && pushedTo <= Date.now() + PRAYER_FOLLOW_UP_DAYS * DAY_MS,
-		"the next follow-up is three days out",
-	);
-
-	const broken = make(async () => { throw new Error("db down"); });
-	const stillAnswered = await broken.loadChatDayContext("user_1", {}, { raisePrayerFollowUps: true });
-	await Promise.all(broken.scheduled);
-	assert.equal(stillAnswered.prayers.length, 1);
+test("only a delivered follow-up advances one request, and memory-off reads stay private", quietly(async () => {
+  const writes=[];
+  const {loadChatDayContext,recordDeliveredPrayerFollowUps}=loadDayContext({prisma:{readingEvent:{findMany:async()=>[]},verseHighlight:{findMany:async()=>[]},userMemory:{findMany:async()=>[{id:"mem_1",content:"Dad's surgery",askedAt:new Date("2026-09-01T00:00:00Z")}],updateMany:async(args)=>{writes.push(args);return {count:1};}}}});
+  assert.deepEqual((await loadChatDayContext("user_1")).prayers,[]);
+  const context=await loadChatDayContext("user_1",{}, {memoryEnabled:true});
+  assert.equal(context.prayers.length,1);
+  assert.deepEqual(writes,[]);
+  await recordDeliveredPrayerFollowUps("user_1","Here is the passage you requested.",context.prayers);
+  assert.deepEqual(writes,[]);
+  const before=Date.now();
+  await recordDeliveredPrayerFollowUps("user_1","How did your dad's surgery go?",context.prayers);
+  assert.equal(writes.length,1);
+  assert.deepEqual(writes[0].where,{userId:"user_1",id:{in:["mem_1"]},status:"open"});
+  assert.ok(writes[0].data.followUpAfter.getTime()>=before+PRAYER_FOLLOW_UP_DAYS*DAY_MS);
 }));
 
 test("the name line uses the first name only, and only when it is plainly a name", () => {
@@ -415,7 +392,7 @@ test("loadChatDayContext ranks chapters, names colours and books, and never re-r
 		findTodayCross: async () => ({ book: "Romans", chapter: 8, verse: 28, question: "  Carry this?  " }),
 		getTodayPlanReading: async () => ({ planTitle: "Psalms & Proverbs", day: 2, dayCount: 31, reference: "Psalms 2", done: true }),
 	});
-	const context = await loadChatDayContext("user_1");
+	const context = await loadChatDayContext("user_1", {}, { memoryEnabled: true });
 	assert.deepEqual(context.cross, { reference: "Romans 8:28", question: "Carry this?" });
 	assert.deepEqual(context.plan, { title: "Psalms & Proverbs", day: 2, dayCount: 31, reference: "Psalms 2", done: true });
 	assert.deepEqual(context.recentChapters, [
@@ -440,7 +417,7 @@ test("loadChatDayContext fails soft, one source at a time", quietly(async () => 
 		},
 		findTodayCross: async () => { throw new Error("cross down"); },
 	});
-	const context = await loadChatDayContext("user_1");
+	const context = await loadChatDayContext("user_1", {}, { memoryEnabled: true });
 	assert.equal(context.cross, null);
 	assert.deepEqual(context.recentChapters, []);
 	assert.deepEqual(context.prayers, []);

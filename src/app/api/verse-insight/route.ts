@@ -9,6 +9,8 @@ import { getAuthUser } from "@/lib/auth";
 import type { TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { verseInsightSystemPrompt } from "@/utils/systemPrompt";
+import { canonicalPassage } from "@/lib/bible/passage-context";
+import { formatVersesForModel } from "@/lib/scripture-search";
 
 export const maxDuration = 60;
 
@@ -60,7 +62,15 @@ async function handlePost(req: Request): Promise<Response> {
 
 		const isPassage = RANGE_REFERENCE.test(reference);
 
-		const cacheKey = { translation, reference, text };
+		let passage;
+		try {
+			passage = await canonicalPassage(reference, translation);
+		} catch {
+			return NextResponse.json({ error: "The requested Bible passage could not be verified. Check the reference or try again." }, { status: 400 });
+		}
+		if (passage.truncated) return NextResponse.json({ error: "Select no more than 30 verses for a passage insight." }, { status: 400 });
+		const canonicalText = passage.verses.map(verse => verse.text).join("\n");
+		const cacheKey = { translation, reference: passage.reference, text: canonicalText };
 		const cached = await readVerseInsight(cacheKey);
 		if (cached) {
 			// The reference itself stays out of the event: it is a string the
@@ -98,7 +108,7 @@ async function handlePost(req: Request): Promise<Response> {
 		const result = streamText({
 			model: resolved.model,
 			system: verseInsightSystemPrompt(translation, { passage: isPassage }),
-			prompt: `${reference} (${translation})\n"${text}"`,
+			prompt: `Selected text (explain only this):\n${formatVersesForModel(passage.verses.map(verse => ({ ...verse, similarity: 1 })), translation)}\n\nImmediate surrounding context:\n${formatVersesForModel(passage.contextVerses.map(verse => ({ ...verse, similarity: 1 })), translation)}`,
 			maxOutputTokens: 2000,
 			providerOptions: resolved.providerOptions,
 			// Applied before the stream and the cache write, so the cached

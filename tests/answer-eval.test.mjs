@@ -23,8 +23,8 @@ const observation = (overrides = {}) => ({
 
 test("the fixture set is unique and covers the answer evaluation categories", () => {
 	assert.deepEqual(validateAnswerFixtures(fixtures), []);
-	assert.ok(fixtures.length >= 40 && fixtures.length <= 50, `${fixtures.length} fixtures`);
-	for (const category of ["reference", "phrase", "topic", "doctrine", "narrative", "translation", "memory", "errors", "injection", "history"]) {
+	assert.ok(fixtures.length >= 56, `${fixtures.length} fixtures`);
+	for (const category of ["reference", "phrase", "topic", "doctrine", "narrative", "translation", "memory", "errors", "injection", "history", "persona", "context", "agent-authorization", "agent-study"]) {
 		assert.ok(fixtures.some((fixture) => fixture.category === category), `missing ${category}`);
 	}
 });
@@ -32,6 +32,28 @@ test("the fixture set is unique and covers the answer evaluation categories", ()
 test("normalization removes display noise but preserves substantive quote words", () => {
 	assert.equal(normalizeAnswerText("  “Be still,”\n and know—"), '"be still," and know-');
 	assert.deepEqual(extractBibleReferences("See Psalm 46:10, KJV and John 3:16 NKJV."), ["Psalm 46:10, KJV", "John 3:16 NKJV"]);
+});
+
+test("range quotations tolerate per-verse quote delimiters and duplicate retrieval without tolerating changed words", () => {
+	const fixture = { id: "range-delimiters", category: "context", prompt: "Quote John 3:16-17", expectation: {} };
+	const verses = [verse("John 3:16", "For God so loved the world."), verse("John 3:17", "For God sent not his Son.")];
+	const actual = observation({ text: '> "For God so loved the world."\n>\n> "For God sent not his Son."\n> John 3:16-17, KJV', toolCalls: [{ name: "getPassage", output: { verses, contextVerses: [verses[1]] }, state: "output-available" }] });
+	assert.equal(scoreAnswer(fixture, actual).checks.quotes, true);
+	assert.equal(scoreAnswer(fixture, { ...actual, text: actual.text.replace("loved", "ignored") }).checks.quotes, false);
+});
+
+test("adjacent quotations with their own references are scored separately", () => {
+	const fixture = { id: "adjacent-quotes", category: "context", prompt: "Quote both verses", expectation: {} };
+	const actual = observation({ text: '> "For God so loved the world."\n> John 3:16, BSB\n>\n> "For God sent not his Son."\n> John 3:17, BSB', translation: "BSB", toolCalls: [{ name: "getPassage", output: { verses: [verse("John 3:16", "For God so loved the world."), verse("John 3:17", "For God sent not his Son.")] }, state: "output-available" }] });
+	assert.equal(scoreAnswer(fixture, actual).checks.quotes, true);
+	assert.equal(scoreAnswer(fixture, { ...actual, text: actual.text.replace("sent", "rejected") }).checks.quotes, false);
+});
+
+test("Scripture blockquotes reject uncited trailing text but permit trailing blank lines", () => {
+	const fixture = { id: "quote-tail", category: "context", prompt: "Quote John 3:16", expectation: {} };
+	const actual = observation({ text: '> For God so loved the world.\n> John 3:16, KJV', toolCalls: [{ name: "getPassage", output: { verses: [verse("John 3:16", "For God so loved the world.")] }, state: "output-available" }] });
+	assert.equal(scoreAnswer(fixture, { ...actual, text: `${actual.text}\n>\n>` }).checks.quotes, true);
+	assert.equal(scoreAnswer(fixture, { ...actual, text: `${actual.text}\n> For God ignored the world.` }).checks.quotes, false);
 });
 
 test("a correct exact quote requires both answer text and successful tool evidence", () => {

@@ -57,3 +57,6 @@ Frontend-Codebase-ContextPro.md
 
 # App Store screenshot work dir: raw captures, generated art, fixtures (scripts/app-store-screenshots.py)
 .app-store-work/
+
+# Local prompt-agent proofs and temporary QA session handles
+/artifacts/prompt-agent-qa/

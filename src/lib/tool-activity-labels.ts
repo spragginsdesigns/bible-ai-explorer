@@ -46,6 +46,10 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	removeReadingLog: "Removing the reading entry",
 	learnVerse: "Adding that verse to Learn",
 	getLearnVerses: "Opening your Learn verses",
+	findStudies: "Finding your ongoing studies",
+	readStudy: "Picking up your study",
+	saveStudy: "Saving your study progress",
+	requestActionApproval: "Preparing the proposed change",
 };
 
 export function toolActivityLabel(toolName: string): string {

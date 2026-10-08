@@ -25,6 +25,9 @@ import {
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
+import { actionDecisionBlock, recordDeliveredActionProposal } from "@/lib/agent-actions";
+import { finishAgentWork, incompleteAgentNotice, mustReadStudy } from "@/lib/ai/agent-loop";
+import { isStudyWorkRequest } from "@/lib/agent-intent";
 import { joinAssistantTextParts } from "@/utils/assistantMarkdown";
 import { extractAndStoreMemories, formatMemoryBlock, loadUserMemories } from "@/lib/memory";
 import { usedMemoryTools } from "@/lib/memory-policy";
@@ -32,12 +35,9 @@ import { describeNoteLinks } from "@/lib/note-links";
 import { loadUserChurch } from "@/lib/church";
 import { formatChurchBlock } from "@/lib/church-rules";
 import {
-	dailyCrossGuidance,
 	noteAISystemPrompt,
-	slashCommandGuidance,
-	appKnowledge,
-	systemPrompt,
-	toolGuidance,
+	noteAIStablePrompt,
+	nextStepGuidance,
 } from "@/utils/systemPrompt";
 import { buildPromptCachePlan, splitStableSystemPrefix } from "@/lib/ai/prompt-cache";
 import { logChatStepMetric } from "@/lib/ai/chat-metrics";
@@ -142,6 +142,7 @@ async function persistExchange(options: {
 				metadata: metadataJson,
 			},
 		});
+		await recordDeliveredActionProposal(options.userId, `note:${options.noteId}`, options.userMessage.id, assistantText, options.responseMessage.parts);
 
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			await extractAndStoreMemories({ userId: options.userId, userText });
@@ -219,7 +220,12 @@ async function handlePost(req: Request): Promise<Response> {
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
 			highlightLabels,
 		};
-		const tools = buildSureWordTools(readingContext);
+		let currentUserText = "";
+		let currentMessageId = "";
+		const actionContext = { userId, actionScope: `note:${note.id}`, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt };
+		const knownStudyIds = new Set<string>();
+		const readStudyIds = new Set<string>();
+		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -235,6 +241,8 @@ async function handlePost(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
+		currentUserText = extractText(lastMessage);
+		currentMessageId = lastMessage.id;
 
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
 			await reserveIncludedRequest(userId);
@@ -294,12 +302,12 @@ async function handlePost(req: Request): Promise<Response> {
 				// The note panel shares the chat tool set, so it must also carry the rule
 				// that governs the one tool that overwrites something: setDailyCross may
 				// not fire until the user has agreed to it.
-				)}\n\n${toolGuidance}\n\n${dailyCrossGuidance}\n\n${slashCommandGuidance}${formatAboutMeBlock(aboutMe)}${formatTestimonyBlock(testimony)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${formatHighlightLegendBlock(legend)}`;
+				, { userText: currentUserText, surface: "note" })}${formatAboutMeBlock(aboutMe)}${formatTestimonyBlock(testimony)}${formatMemoryBlock(memories)}${formatChurchBlock(church)}${formatHighlightLegendBlock(legend)}${await actionDecisionBlock(actionContext)}\n\n${nextStepGuidance}`;
 
 				const { model, providerOptions, definition } = await resolveModel({ userId, fallbackEffort: "medium" });
 				const { stableSystem, volatileSystem } = splitStableSystemPrefix(
 					fullSystem,
-					`${systemPrompt}\n\n${appKnowledge}`,
+					noteAIStablePrompt,
 				);
 				const promptCache = buildPromptCachePlan({
 					provider: definition.provider,
@@ -311,11 +319,17 @@ async function handlePost(req: Request): Promise<Response> {
 				});
 
 				writeStatus("Thinking");
+				let lastStepFinishReason: string | null = null;
 				const result = streamText({
 					model,
 					system: promptCache.system,
 					messages: await convertToModelMessages(messages),
 					tools,
+					prepareStep: ({ stepNumber }) => {
+						if (finishAgentWork(stepNumber, turnStartedAtMs)) return { toolChoice: "none" as const, activeTools: [], system: `${fullSystem}\n\nFinish from successful evidence now. State the useful result and any incomplete work; make no further tool calls.` };
+						if (mustReadStudy(isStudyWorkRequest(currentUserText), knownStudyIds, readStudyIds)) return { activeTools: ["readStudy"], toolChoice: { type: "tool" as const, toolName: "readStudy" as const } };
+						return { activeTools: Object.keys(tools).filter(name => name !== "readStudy" || knownStudyIds.size > 0) as (keyof SureWordTools)[] };
+					},
 					// Either limit ends the loop cleanly, so the answer is streamed,
 					// persisted and measured. Only the platform timeout loses a turn.
 					stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
@@ -324,6 +338,7 @@ async function handlePost(req: Request): Promise<Response> {
 					experimental_transform: plainDashes(),
 					providerOptions: promptCache.providerOptions,
 					onStepEnd: (event) => {
+						lastStepFinishReason = event.finishReason;
 						logChatStepMetric(
 							{
 								surface: "note-ai",
@@ -349,15 +364,24 @@ async function handlePost(req: Request): Promise<Response> {
 					},
 				});
 
-				result.consumeStream();
+				const consumption = result.consumeStream();
 
 				writer.merge(
 					toUIMessageStream<SureWordTools, SureWordUIMessage>({
 						stream: result.stream,
 						tools,
 						sendStart: false,
+						sendFinish: false,
 					})
 				);
+				await consumption;
+				const notice = incompleteAgentNotice(lastStepFinishReason, Date.now() - turnStartedAtMs);
+				if (notice) {
+					const textId = `${responseMessageId}-limit`;
+					writer.write({ type: "text-start", id: textId });
+					writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
+					writer.write({ type: "text-end", id: textId });
+				}
 			},
 		});
 

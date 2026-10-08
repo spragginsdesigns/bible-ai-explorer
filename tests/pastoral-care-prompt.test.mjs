@@ -10,11 +10,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-	appKnowledge,
 	chatSystemPrompt,
 	noteAISystemPrompt,
 	pastoralCareGuidance,
-	systemPrompt,
+	noteAIStablePrompt,
 } from "../src/utils/systemPrompt.ts";
 import { DOCTRINE_REVIEW_DIMENSIONS } from "../src/lib/ai/answer-eval.ts";
 import { splitStableSystemPrefix } from "../src/lib/ai/prompt-cache.ts";
@@ -35,8 +34,8 @@ test("chat and note prompts both carry the pastoral guidance in every translatio
 
 test("note panel keeps its cached stable prefix after the guidance was added", () => {
 	const full = noteAISystemPrompt("Title", "Body", null);
-	const { stableSystem } = splitStableSystemPrefix(full, `${systemPrompt}\n\n${appKnowledge}`);
-	assert.equal(stableSystem, `${systemPrompt}\n\n${appKnowledge}`);
+	const { stableSystem } = splitStableSystemPrefix(full, noteAIStablePrompt);
+	assert.equal(stableSystem, noteAIStablePrompt);
 });
 
 test("doctrine review includes a pastoral-safety dimension", () => {

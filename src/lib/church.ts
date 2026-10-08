@@ -285,7 +285,7 @@ function resolveChurchImage(details: PlaceDetails, homepage: FetchedPage | null)
  * Google does not have (`PlaceNotFoundError`) and a database failure. Website
  * and model work is best effort throughout.
  */
-export async function setUserChurch(userId: string, placeId: string): Promise<ChurchProfile> {
+export async function setUserChurch(userId: string, placeId: string, options: { expectedPlaceId?: string | null } = {}): Promise<ChurchProfile> {
 	const details = await getPlaceDetails(placeId);
 	const website = normalizeChurchWebsite(details.website);
 
@@ -317,11 +317,16 @@ export async function setUserChurch(userId: string, placeId: string): Promise<Ch
 		missionSource: extracted.missionSource,
 	};
 
-	const row = await prisma.userChurch.upsert({
+	const row = await prisma.$transaction(async tx => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8203)`;
+		const current = await tx.userChurch.findUnique({ where: { userId }, select: { placeId: true } });
+		if (options.expectedPlaceId !== undefined && (current?.placeId ?? null) !== options.expectedPlaceId) throw new Error("Your church changed while this profile was being prepared. Confirm the new choice again.");
+		return tx.userChurch.upsert({
 		where: { userId },
 		create: { userId, ...data },
 		update: data,
 		select: PROFILE_SELECT,
+	});
 	});
 
 	return toChurchProfile(row);
@@ -329,7 +334,10 @@ export async function setUserChurch(userId: string, placeId: string): Promise<Ch
 
 /** Forget the user's church. Idempotent: clearing when none is set is a no-op. */
 export async function clearUserChurch(userId: string): Promise<void> {
-	await prisma.userChurch.deleteMany({ where: { userId } });
+	await prisma.$transaction(async tx => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8203)`;
+		await tx.userChurch.deleteMany({ where: { userId } });
+	});
 }
 
 /**
@@ -344,4 +352,3 @@ export async function findChurchPhotoName(placeId: string): Promise<string | nul
 	});
 	return row?.photoName ?? null;
 }
-

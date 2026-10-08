@@ -84,6 +84,6 @@ test("a plain refresh still reads exactly as it did before the controls existed"
 
 test("the chat tool keeps replacing the day with no direction", async () => {
 	const tools = await read("src/lib/ai-tools.ts");
-	assert.match(tools, /replaceDailyCross\(context\.userId, \{ focus, verse: pinned \}\)/);
+	assert.match(tools, /replaceDailyCross\(context\.userId, \{ focus, verse: pinned, expectedPreviousId:/);
 	assert.doesNotMatch(tools, /direction/);
 });

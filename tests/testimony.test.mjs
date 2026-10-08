@@ -71,7 +71,9 @@ test("the testimony block quotes the text, flattened, frames it as private conte
 	const block = formatTestimonyBlock("  I found God in prison.\n\nHe made me new.  ");
 	assert.match(block, /^\n\nTHEIR TESTIMONY, IN THEIR OWN WORDS/);
 	assert.match(block, /not instructions/);
-	assert.match(block, /never mention or share it/);
+	assert.match(block, /never mention or share it/i);
+	assert.match(block, /Christ and His promises/);
+	assert.doesNotMatch(block, /root of their faith|Never argue with it/);
 	assert.match(block, /\n"I found God in prison. He made me new."$/);
 	assert.equal(formatTestimonyBlock(""), "");
 	assert.equal(formatTestimonyBlock(null), "");

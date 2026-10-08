@@ -3102,3 +3102,63 @@ cancels in Play, and the client UI should say so), App Store subscriptions
 row cascades, so a later renewal notification finds nothing and is a no-op), and PostHog person
 profiles (not deleted by this route). A test keeps
 `ACCOUNT_DATA_MODELS` in step with `prisma/schema.prisma`.
+
+
+## Scripture-grounded study agent and prompt policy
+
+Added 2026-10-08. The shared API serves web, Android, macOS and iOS; no new
+native binary or request-body field is required for these capabilities.
+
+SureWord's pastor-written foundation now explicitly instructs it that it is
+an AI Bible study assistant saved by Jesus Christ. Its doctrine stays fixed
+when the user selects KJV, NKJV or BSB quotation text. Interpretation guidance
+requires context and distinguishes Scripture, human study aids, interpretation
+and application. Testimony is private context used only when it helps the
+present question, with Christ and His promises grounding assurance.
+
+Chat assembles a common policy plus relevant workflow blocks instead of loading
+every feature's instructions on every turn. The routine system prompt is 2,699
+words versus the previous 7,826, before personal context and tool schemas.
+The note panel, verse insights and Daily Cross writer share the foundation.
+
+Scripture retrieval uses the existing Postgres vector/full-text indexes,
+returning bounded matches and exact quotation text. AI entity counts use
+bounded indexed queries. The legacy runtime verse helper opens only the
+requested book; it no longer loads biblical-texts/kjv.json. getPassage returns
+the selected text and a three-verse context window on either side, bounded to
+30 selected verses. Verse insight reconstructs canonical text rather than
+trusting the caller's quotation; its cache version is 2.
+
+Ongoing studies have private AgentStudy checkpoints, separate from personal
+memories: goal, audience, verified passages, conclusions, open questions,
+next step and related owned notes. findStudies/readStudy/saveStudy work across
+conversations. IDs come from server discovery, never a title or guess.
+Updates use revisions and new records are idempotent per source message.
+All returned timestamps are ISO strings so model tool results remain JSON.
+
+Protected replacements use AgentAction proposals bound to the signed-in user,
+conversation or note scope, exact arguments and target state. A proposal must
+reach a persisted confirmation question before a later clear decision can
+release it. Intervening requests invalidate a pending proposal; old message
+retries cannot approve newer proposals. Claims serialize under a transaction,
+receipts prevent duplicate execution, and targets are checked again after
+preparation. Daily Cross, plan and church writers share locks with removal or
+archive. A failed receipt explicitly reports uncertainty rather than claiming
+nothing changed. Both tables cascade when the account is deleted.
+
+The assistant answers the present request before selecting at most one useful
+invitation. Merely loading a prayer request does not advance its follow-up.
+Only a matching question in a completed persisted reply does, and memory-off
+suppresses prayer context. The last tool-loop step is reserved for an answer;
+a time-boundary tool-only exit gets a persisted incomplete-work notice.
+
+Regression evidence is reproducible through pnpm test:logic, pnpm lint and
+pnpm build. The opt-in scripts/verify-agent-tools.mjs --live checks real
+Postgres ownership, revisions, references, approval concurrency and indexed
+retrieval using only uniquely named QA users. scripts/verify-agent-route.mjs
+--live exercises authenticated HTTP streams through a temporary Clerk
+DEVELOPMENT account whose handles are in ignored local QA artifacts. It tests
+identity, grace, context, study creation/resume, proposals/decisions, private
+reply drafting and canonical verse insight. Neither script prints credentials.
+The answer fixture catalog contains 56 cases; doctrinal and application
+quality remain a human review alongside mechanical checks.

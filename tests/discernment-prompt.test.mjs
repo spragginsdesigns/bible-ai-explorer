@@ -21,10 +21,12 @@ import { CHAT_SLASH_COMMANDS } from "../src/lib/chat/slashCommands.ts";
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("chat prompt carries the discernment guidance in every translation", () => {
-	assert.ok(chatSystemPrompt("KJV").includes(discernmentGuidance));
-	const nkjv = chatSystemPrompt("NKJV");
-	assert.match(nkjv, /never concede that the NKJV is wrong/);
-	assert.doesNotMatch(nkjv, /\bKJV is wrong/);
+	for (const translation of ["KJV", "NKJV", "BSB"]) {
+		const prompt = chatSystemPrompt(translation, { userText: "Does the KJV mistranslate this?" });
+		assert.ok(prompt.includes(discernmentGuidance));
+		assert.match(prompt, /never concede that the KJV is wrong/);
+		assert.doesNotMatch(prompt, /never concede that the (?:NKJV|BSB) is wrong/);
+	}
 });
 
 test("guidance covers mistranslation claims, borrowed beliefs, skeptics, checking and replying", () => {

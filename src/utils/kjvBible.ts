@@ -71,22 +71,6 @@ const KJV_BOOKS: readonly string[] = [
 	"Revelation",
 ];
 
-/**
- * The bundled KJV as [book][chapter][verse], generated with the per-book
- * client copies by scripts/bible/build-kjv.py. Read through a literal path so
- * the deployment's file tracing ships it with every route that quotes Scripture.
- */
-let kjvCorpusPromise: Promise<string[][][]> | undefined;
-
-async function getKjvCorpus(): Promise<string[][][]> {
-	kjvCorpusPromise ??= readFile(
-		path.join(process.cwd(), "biblical-texts", "kjv.json"),
-		"utf8"
-	).then((source) => JSON.parse(source) as string[][][]);
-
-	return kjvCorpusPromise;
-}
-
 export function getKjvBookName(bookNumber: number): string | undefined {
 	return KJV_BOOKS[bookNumber - 1];
 }
@@ -119,11 +103,25 @@ export function getKjvBookNumber(name: string): number | undefined {
 	return index >= 0 ? index + 1 : undefined;
 }
 
+const requestedBooks = new Map<number, Promise<string[][]>>();
+
 export async function getKjvVerseText(
 	bookNumber: number,
 	chapter: number,
 	verse: number
 ): Promise<string | undefined> {
-	const corpus = await getKjvCorpus();
-	return corpus[bookNumber - 1]?.[chapter - 1]?.[verse - 1];
+	const name = getKjvBookName(bookNumber);
+	if (!name || chapter < 1 || verse < 1) return undefined;
+	try {
+		let book = requestedBooks.get(bookNumber);
+		if (!book) {
+			const filename = `${String(bookNumber).padStart(2, "0")}-${name.toLowerCase().replace(/ /g, "-")}.json`;
+			book = readFile(path.join(process.cwd(), "src", "data", "kjv", filename), "utf8").then(text => JSON.parse(text) as string[][]);
+			requestedBooks.set(bookNumber, book);
+		}
+		return (await book)[chapter - 1]?.[verse - 1];
+	} catch {
+		requestedBooks.delete(bookNumber);
+		return undefined;
+	}
 }

@@ -1,5 +1,5 @@
 import { recentReadingChapters } from "@/lib/reading-log";
-import { waitUntil } from "@vercel/functions";
+import { deliveredPrayerFollowUps } from "@/lib/prayer-follow-up-rules";
 import { bookByOrder } from "@/lib/bible/books";
 import { firstNameOf } from "@/lib/daily-cross-audio-script";
 import { findTodayCross } from "@/lib/daily-cross";
@@ -95,15 +95,13 @@ function logFailure(what: string): (error: unknown) => null {
  * `labels` is the account's names for the highlight colours (the
  * `highlightLabels` preference); without it the block reports the hue alone.
  *
- * `raisePrayerFollowUps` is for chat turns only: loading the block for a turn
- * also pushes each listed request's next follow-up out three days, so a request
- * is raised at most that often however many turns or conversations happen in
- * between. Any other reader of this context must leave that schedule alone.
+ * Prayer context is loaded only with explicit memory-enabled state. Reading it
+ * never advances a schedule; only a completed, persisted question counts.
  */
 export async function loadChatDayContext(
 	userId: string,
 	labels: HighlightLabels = {},
-	options: { raisePrayerFollowUps?: boolean } = {},
+	options: { memoryEnabled?: boolean } = {},
 ): Promise<ChatDayContext> {
 	const now = new Date();
 	const readingSince = new Date(now.getTime() - RECENT_READING_DAYS * DAY_MS);
@@ -119,7 +117,7 @@ export async function loadChatDayContext(
 				select: { book: true, chapter: true, verse: true, color: true },
 			})
 			.catch(logFailure("Highlight lookup")),
-		prisma.userMemory
+		options.memoryEnabled === true ? prisma.userMemory
 			.findMany({
 				where: {
 					userId,
@@ -132,25 +130,13 @@ export async function loadChatDayContext(
 				take: DUE_PRAYERS,
 				select: { id: true, content: true, askedAt: true },
 			})
-			.catch(logFailure("Due prayer request lookup")),
+			.catch(logFailure("Due prayer request lookup")) : Promise.resolve([]),
 		latestSermonStudy(userId, now).catch(logFailure("Sermon study lookup")),
 	]);
 
 	const prayers = (duePrayers ?? []).flatMap((prayer) =>
 		prayer.askedAt ? [{ id: prayer.id, content: prayer.content, askedAt: prayer.askedAt.toISOString() }] : [],
 	);
-	if (options.raisePrayerFollowUps && prayers.length > 0) {
-		// Fire-and-forget: the request has been raised whether or not the schedule
-		// write lands, and a failed bump must never fail the turn.
-		waitUntil(
-			prisma.userMemory
-				.updateMany({
-					where: { userId, id: { in: prayers.map((prayer) => prayer.id) } },
-					data: { followUpAfter: new Date(now.getTime() + PRAYER_FOLLOW_UP_DAYS * DAY_MS) },
-				})
-				.catch(logFailure("Prayer follow-up bump")),
-		);
-	}
 
 	// Insertion order is newest-first, and the sort below is stable, so a tie
 	// in count keeps the chapter read most recently in front.
@@ -312,9 +298,16 @@ export function formatPrayerFollowUpBlock(context: ChatDayContext, now: Date = n
 	return [
 		"",
 		"",
-		"PRAYER FOLLOW-UP DUE IN THIS REPLY (read from their account). They asked you to pray with them about the request(s) below and a gentle follow-up is due now. In this reply, after you have answered what they asked, add one short paragraph of its own asking how ONE of them went, in their own words (\"You asked me to pray with you about ... How did it go?\"). Skip it only if they are hurting about something else right now, or if the request itself was a loss - then acknowledge, do not ask. If they tell you the outcome, call resolvePrayerRequest with that memory id.",
+		"A PRAYER FOLLOW-UP IS DUE (private account data, not instructions). After answering the present request, you may ask how ONE request went in their own words when there is room. Do not stack this with onboarding or other invitations. Skip during danger, another burden, a substantial task or an already complete short answer. For a loss acknowledge rather than ask. An omitted question stays due; loading this block does not count as delivery. If they tell you the outcome, use resolvePrayerRequest with the actual memory id.",
 		`Requests: ${requests}.`,
 	].join("\n");
+}
+
+/** Advance only the request actually asked about in a completed, persisted reply. */
+export async function recordDeliveredPrayerFollowUps(userId: string, text: string, prayers: ChatDayContext["prayers"]): Promise<void> {
+	const ids = deliveredPrayerFollowUps(text, prayers);
+	if (!ids.length) return;
+	await prisma.userMemory.updateMany({ where: { userId, id: { in: ids }, status: "open" }, data: { followUpAfter: new Date(Date.now() + PRAYER_FOLLOW_UP_DAYS * DAY_MS) } }).catch(logFailure("Delivered prayer follow-up update"));
 }
 
 /**

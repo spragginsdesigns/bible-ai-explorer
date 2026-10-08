@@ -148,8 +148,8 @@ async function withProgress(userId: string, row: PlanRow): Promise<PlanWithProgr
 	// Finishing the last day retires the plan without the user having to say so.
 	let status = asStatus(row.status);
 	if (status === "active" && progress.dayCount > 0 && progress.completedCount === progress.dayCount) {
-		await prisma.readingPlan.update({ where: { id: row.id }, data: { status: "completed" } });
-		status = "completed";
+		const changed = await prisma.readingPlan.updateMany({ where: { id: row.id, userId, status: "active" }, data: { status: "completed" } });
+		status = changed.count ? "completed" : asStatus((await prisma.readingPlan.findFirst({ where: { id: row.id, userId }, select: { status: true } }))?.status ?? "archived");
 	}
 
 	return {
@@ -206,7 +206,7 @@ async function requireOwnPlan(userId: string, planId: string): Promise<PlanRow> 
  * product decision, not a schema one - it is enforced here, in the one place
  * plans are created.
  */
-export async function startPlan(userId: string, request: StartPlanRequest): Promise<PlanWithProgress> {
+export async function startPlan(userId: string, request: StartPlanRequest, options: { expectedActiveId?: string | null } = {}): Promise<PlanWithProgress> {
 	const built =
 		"presetKey" in request
 			? buildPreset(request.presetKey)
@@ -216,12 +216,16 @@ export async function startPlan(userId: string, request: StartPlanRequest): Prom
 		throw new ReadingPlanError("That plan came back empty. Try a different goal or a preset.");
 	}
 
-	await prisma.readingPlan.updateMany({
+	const row = await prisma.$transaction(async tx => {
+	await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8201)`;
+	const current = await tx.readingPlan.findFirst({ where: { userId, status: { in: ["active", "completed"] } }, orderBy: { createdAt: "desc" }, select: { id: true } });
+	if (options.expectedActiveId !== undefined && (current?.id ?? null) !== options.expectedActiveId) throw new ReadingPlanError("Your reading plan changed while this one was being prepared. Read it and confirm the replacement again.");
+	await tx.readingPlan.updateMany({
 		where: { userId, status: { in: ["active", "completed"] } },
 		data: { status: "archived" },
 	});
 
-	const row = await prisma.readingPlan.create({
+	return tx.readingPlan.create({
 		data: {
 			userId,
 			title: built.title,
@@ -233,6 +237,7 @@ export async function startPlan(userId: string, request: StartPlanRequest): Prom
 			status: "active",
 		},
 		select: PLAN_SELECT,
+	});
 	});
 
 	return withProgress(userId, row);
@@ -283,10 +288,10 @@ export async function setDayDone(
 
 	// Un-ticking the last day of a finished plan puts the user back on it.
 	if (!done && asStatus(row.status) === "completed") {
-		await prisma.readingPlan.update({ where: { id: planId }, data: { status: "active" } });
+		await prisma.readingPlan.updateMany({ where: { id: planId, userId, status: "completed" }, data: { status: "active" } });
 	}
 
-	return withProgress(userId, { ...row, status: done ? row.status : "active" });
+	return withProgress(userId, await requireOwnPlan(userId, planId));
 }
 
 export function markDay(userId: string, planId: string, day: number): Promise<PlanWithProgress> {
@@ -304,7 +309,10 @@ export function unmarkDay(userId: string, planId: string, day: number): Promise<
  */
 export async function archivePlan(userId: string, planId: string): Promise<void> {
 	await requireOwnPlan(userId, planId);
-	await prisma.readingPlan.update({ where: { id: planId }, data: { status: "archived" } });
+	await prisma.$transaction(async tx => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8201)`;
+		await tx.readingPlan.updateMany({ where: { id: planId, userId }, data: { status: "archived" } });
+	});
 }
 
 /** Today's reading in one line, for prompts. `null` when nothing is running. */

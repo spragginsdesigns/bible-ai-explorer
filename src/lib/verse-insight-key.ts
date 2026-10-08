@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
  * next tap regenerates under the new prompt. (Rows written under older
  * versions stay behind as history; nothing reads them.)
  */
-export const VERSE_INSIGHT_PROMPT_VERSION = 1;
+export const VERSE_INSIGHT_PROMPT_VERSION = 2;
 
 /**
  * Stable digest of the verse text with whitespace collapsed, so the same
