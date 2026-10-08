@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.83.0 (versionCode 93) - 2026-10-08 - internal
+
+**What's new (Play):**
+
+NEW
+- Listen to the narrated KJV New Testament in the Bible reader, follow each verse, skip verses, change speed and keep listening with the screen off.
+- Review how SureWord uses AI before your first AI request, and withdraw permission in Settings > AI.
+
+**Dev notes:** Native chapter narration and versioned AI consent now match the Apple clients. Reading, history and existing audio stay available without AI consent. Consent waits cancel on Stop and cannot cross accounts.
+
 ## 1.82.0 (versionCode 92) - 2026-10-08 - internal
 
 **What's new (Play):**

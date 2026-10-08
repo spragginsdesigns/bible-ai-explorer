@@ -94,3 +94,17 @@ content rights = third-party content, review notes and the demo account (on
 `PRO_USER_IDS`). Release after approval is App Store Connect's default.
 Still owed after approval: on-device signed-in pass on TestFlight, push
 delivery (APNs key to Expo), and a dedicated iPad layout (G3).
+
+## Parity completion pass (2026-10-08)
+
+Austin authorized finishing parity and shipping, and reported that his iPhone test works. That is user-reported evidence for the pre-parity build, with no exact version or path list supplied. The newer chapter audio, copy-v2 consent and iPad changes have separate proof.
+
+- Native Audio Bible: Android and both Apple readers now play the public narrated KJV chapters, follow the verse, skip/seek, share Listen speed, publish media controls, and stop after an idle hour. Other translations and non-narrated books keep their ordinary reader. Android item identity prevents stale completion events skipping a chapter.
+- Consent: all clients show copy version 2 including the included OpenRouter route. Custom reading goals, personal opening suggestions and on-demand Daily Cross join chat, note AI, voice attachments, verse studies, summaries and devotional narration. Preset plans and stored reading/history/audio remain available. Account changes and canceled requests cannot release a waiting action. Apple request tokens are bound to the session owner.
+- iPad: adaptable tabs/sidebar, a regular-width Notes library/detail split, and a bounded chat column. Rejected deletion keeps the detail and error visible.
+- Current support checks: 976 Android tests; 1,399 web logic tests with 16 existing skips; iOS 236 Swift Testing cases plus the XCTest suites, and two signed real-reader narration UI tests. Exact final counts and artifact states are in the release ledger.
+- iOS 1.12.0 (1) was uploaded and became VALID, but it predates the deletion and final consent corrections. A replacement build is being prepared; do not attach build 1 to App Review.
+- APNs delivery is still disabled. A live Expo account query returned zero Apple push keys. Apple Developer sign-in is requested in the open Chrome tab. No key was created, revoked or uploaded.
+- Mac signing reached an errSecInternalComponent error. The existing /Applications app is preserved. iOS signing succeeded with the existing Distribution certificate in a temporary keychain; the original search list was restored and temporary material removed.
+
+Final verification update: a clean HEAD-plus-parity source copy passes 1,401 web logic tests (16 existing skips), lint and production build. The shared checkout has another agent's unfinished API, prompt and schema work, which is excluded from the release. iOS 1.12.0 (2) is VALID in App Store Connect; the earlier review is being replaced with it. Final iOS support checks passed 236 Swift Testing cases and 322 XCTest cases with one existing skip.
