@@ -6,7 +6,7 @@ import SwiftUI
 /// `AppModel` - in a state chosen by launch arguments, so `simctl io
 /// screenshot` can capture it without driving taps:
 ///
-///     -evidence.screen home|reader|search|feedback
+///     -evidence.screen home|reader|search|feedback|readingLog|atlas|picker|cross
 ///     -evidence.book 43 -evidence.chapter 3 -evidence.translation BSB
 ///     -evidence.select 16 -evidence.selectEnd 18 -evidence.scrollVerse 9
 ///     -evidence.tier peek|expanded -evidence.tab explain|words|seeAlso
@@ -86,6 +86,16 @@ struct UIEvidenceHarness: View {
             if let app { FeedbackView(api: app.api) }
         case "settings-about":
             AboutSettingsPage()
+        // PRD verify lane (docs/ios/evidence/verify/): the screens as a
+        // signed-out session draws them; their account routes answer 401.
+        case "readingLog":
+            if let app { ReadingHistoryView(model: app.bible.reading, onOpen: { _ in }, onTalk: {}) }
+        case "atlas":
+            if let app { AtlasExplorerView(model: app.atlas, book: Self.int("book"), chapter: Self.int("chapter")) }
+        case "picker":
+            if let app { ModelPickerSheet(api: app.api, settings: app.settings) }
+        case "cross":
+            CrossView(onOpenReader: {}, onOpenChat: {})
         default:
             ChapterReaderView(order: Self.int("book") ?? 43, chapter: Self.int("chapter") ?? 3)
         }
