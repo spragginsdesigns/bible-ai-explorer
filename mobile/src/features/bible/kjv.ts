@@ -151,7 +151,7 @@ export interface KjvSearchHit {
  * whitespace-only queries return []. First call parses all book JSONs.
  */
 export function searchKjv(query: string, limit = 100): KjvSearchHit[] {
-	const needle = query.trim().toLowerCase();
+	const needle = foldForSearch(query.trim());
 	if (!needle) return [];
 	const hits: KjvSearchHit[] = [];
 	for (const book of BOOKS) {
@@ -159,7 +159,7 @@ export function searchKjv(query: string, limit = 100): KjvSearchHit[] {
 		for (let chapterIndex = 0; chapterIndex < chapters.length; chapterIndex++) {
 			const verses = chapters[chapterIndex];
 			for (let verseIndex = 0; verseIndex < verses.length; verseIndex++) {
-				if (verses[verseIndex].toLowerCase().includes(needle)) {
+				if (foldForSearch(verses[verseIndex]).includes(needle)) {
 					hits.push({
 						order: book.order,
 						chapter: chapterIndex + 1,
@@ -172,4 +172,13 @@ export function searchKjv(query: string, limit = 100): KjvSearchHit[] {
 		}
 	}
 	return hits;
+}
+
+/**
+ * Lowercase, with a hyphen between two letters dropped: the KJV prints
+ * "Beth-el" and "Beer-sheba", and a reader types "Bethel". Matches
+ * foldForSearch in the Android/web twin and KJVLibrary.swift.
+ */
+export function foldForSearch(text: string): string {
+	return text.toLowerCase().replace(/(\p{L})-(?=\p{L})/gu, "$1");
 }

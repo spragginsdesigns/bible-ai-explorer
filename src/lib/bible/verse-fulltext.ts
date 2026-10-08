@@ -50,6 +50,9 @@ function quoteLexeme(word: string): string {
  */
 function tokenizeWords(fragment: string): string[] {
 	return fragment
+		// "Beth-el" is indexed as "bethel" (see migration
+		// 20261008120000_kjv_search_joins_hyphens), so join it here too.
+		.replace(/([a-z0-9])-(?=[a-z0-9])/g, "$1")
 		.replace(/[^a-z0-9' ]+/g, " ")
 		.split(/\s+/)
 		.map((token) => token.replace(/^'+|'+$/g, ""))

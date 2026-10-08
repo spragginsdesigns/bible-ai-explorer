@@ -1,0 +1,12 @@
+{
+  "edition": "King James Version, standardized text of 1769 (eBible.org eng-kjv)",
+  "usfm": {
+    "url": "https://ebible.org/Scriptures/eng-kjv_usfm.zip",
+    "sha256": "80bb0add46d3a648e6f68239d2721c259df23e3f247065bb12f2819c8c23728d"
+  },
+  "validatedAgainst": {
+    "url": "https://ebible.org/Scriptures/eng-kjv_vpl.zip",
+    "sha256": "970b0564b6816737928ebfb2fec910b96586e242c6311927f3b6c507b76418f3"
+  },
+  "rights": "https://ebible.org/eng-kjv/copyright.htm"
+}

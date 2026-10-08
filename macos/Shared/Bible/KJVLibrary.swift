@@ -46,7 +46,7 @@ actor KJVLibrary {
     /// canonical book/chapter/verse order, capped at `limit` hits. Empty or
     /// whitespace-only queries return []. The first call parses all 66 books.
     func search(_ query: String, limit: Int = KJVLibrary.defaultSearchLimit) -> [KJVSearchHit] {
-        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let needle = KJVLibrary.foldForSearch(query.trimmingCharacters(in: .whitespacesAndNewlines))
         guard !needle.isEmpty, limit > 0 else { return [] }
 
         var hits: [KJVSearchHit] = []
@@ -72,11 +72,20 @@ actor KJVLibrary {
         return hits
     }
 
+    /// Lowercase, with a hyphen between two letters dropped: the KJV prints
+    /// "Beth-el" and "Beer-sheba", and a reader types "Bethel". Mirrors
+    /// foldForSearch in src/lib/bible/kjv.ts and mobile/src/features/bible/kjv.ts.
+    static func foldForSearch(_ text: String) -> String {
+        text.lowercased().replacingOccurrences(
+            of: "(\\p{L})-(?=\\p{L})", with: "$1", options: .regularExpression
+        )
+    }
+
     // MARK: - Loading
 
     private func foldedBook(_ order: Int) throws -> [[String]] {
         if let cached = folded[order] { return cached }
-        let lowered = try book(order).map { $0.map { $0.lowercased() } }
+        let lowered = try book(order).map { $0.map(KJVLibrary.foldForSearch) }
         folded[order] = lowered
         return lowered
     }

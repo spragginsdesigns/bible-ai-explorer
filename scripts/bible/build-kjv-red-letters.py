@@ -14,25 +14,12 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "mobile/src/features/bible/data"
-# Reviewed spelling/text variants between these two KJV editions. These are
-# alignment aliases only: neither the displayed text nor the speech tags change.
-VARIANTS = {
-    "40:5:40": ("cloke", "cloak"),
-    "40:16:3": ("lowring", "lowering"),
-    "40:26:39": ("further", "farther"),
-    "41:15:2": ("unto him,", "unto them,"),
-    "42:6:29": ("cloke", "cloak"),
-    "43:15:22": ("cloke", "cloak"),
-    "43:21:18": ("girdedst", "girdest"),
-    "66:2:6": ("Nicolaitans", "Nicolaitanes"),
-    "66:2:15": ("Nicolaitans", "Nicolaitanes"),
-}
 CODES = "MAT MRK LUK JHN ACT ROM 1CO 2CO GAL EPH PHP COL 1TH 2TH 1TI 2TI TIT PHM HEB JAS 1PE 2PE 1JN 2JN 3JN JUD REV".split()
 
 
 def letters(text):
     # Ignore editorial whitespace/punctuation/capitalization only. Every letter
-    # and digit must match after the explicit edition aliases below.
+    # and digit must match: the bundled KJV is built from this same edition.
     return "".join(c.lower() for c in text if c.isalnum())
 
 
@@ -72,8 +59,6 @@ def build(archive):
                             continue
                         part = re.sub(r"\\\+?[a-z]+\d*\*?\s*", "", part)
                         part = part.replace("æ", "ae").replace("Æ", "AE")
-                        if key in VARIANTS:
-                            part = part.replace(*VARIANTS[key])
                         start = len(letters(plain))
                         plain += part
                         end = len(letters(plain))
@@ -112,7 +97,7 @@ def build(archive):
         "sourceSha256": hashlib.sha256(Path(archive).read_bytes()).hexdigest(),
         "verses": len(result),
         "byBook": counts,
-        "method": "USFM wj markers; alphanumeric alignment with explicit reviewed edition aliases; stored exact text guards offsets at runtime.",
+        "method": "USFM wj markers; alphanumeric alignment against the bundled KJV, built from the same edition; stored exact text guards offsets at runtime.",
     }
     (DATA / "kjv-red-letters.source.json").write_text(
         json.dumps(manifest, indent=2) + "\n"

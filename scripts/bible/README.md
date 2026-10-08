@@ -6,7 +6,8 @@ Bible API call for KJV or BSB. Normal app hosting and bandwidth still apply.
 
 - `GET /api/bible/versions` lists the editions and their formatting capabilities.
 - `GET /api/bible/chapter?translation=BSB&book=43&chapter=3` returns John 3.
-- `translation=KJV` uses our existing KJV text plus the eBible speech sidecar
+- `translation=KJV` uses the bundled KJV (built from eBible.org's standard
+  1769 text by `scripts/bible/build-kjv.py`) plus the eBible speech sidecar
   and separately attributed BSB editorial section headings.
 
 The chapter response contains numbered verses, plain Scripture text, separate

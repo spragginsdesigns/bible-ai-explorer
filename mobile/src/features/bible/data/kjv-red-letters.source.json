@@ -1,7 +1,7 @@
 {
   "source": "https://ebible.org/Scriptures/eng-kjv_usfm.zip",
   "copyright": "https://ebible.org/eng-kjv/copyright.htm",
-  "sourceSha256": "1165788907a8bbe93c3299d89eb5134d942038e5dca2c0832beb13e8f72441d0",
+  "sourceSha256": "80bb0add46d3a648e6f68239d2721c259df23e3f247065bb12f2819c8c23728d",
   "verses": 2028,
   "byBook": {
     "MAT": 644,
@@ -13,5 +13,5 @@
     "2CO": 1,
     "REV": 62
   },
-  "method": "USFM wj markers; alphanumeric alignment with explicit reviewed edition aliases; stored exact text guards offsets at runtime."
+  "method": "USFM wj markers; alphanumeric alignment against the bundled KJV, built from the same edition; stored exact text guards offsets at runtime."
 }

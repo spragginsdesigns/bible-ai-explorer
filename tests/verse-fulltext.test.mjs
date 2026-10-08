@@ -73,3 +73,13 @@ test("an unterminated quote degrades to bare words instead of breaking", () => {
 test("case is folded to match the simple dictionary's lexemes", () => {
 	assert.equal(buildVerseTsQuery("LOVETH"), "'loveth':*");
 });
+
+// The KJV hyphenates names ("Beth-el"); the index joins them (migration
+// 20261008120000_kjv_search_joins_hyphens), so a query must fold the same way
+// whether the reader types "Bethel" or "Beth-el".
+test("a hyphen inside a word is folded away, in bare words and phrases", () => {
+	assert.equal(buildVerseTsQuery("Beth-el"), "'bethel':*");
+	assert.equal(buildVerseTsQuery("Bethel"), "'bethel':*");
+	assert.equal(buildVerseTsQuery('"at Beer-sheba"'), "'at' <-> 'beersheba'");
+	assert.equal(buildVerseTsQuery("rich - poor"), "'rich':* & 'poor':*");
+});

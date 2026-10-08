@@ -67,3 +67,21 @@ for (const client of ["web", "android"]) {
     assert.ok(result.hits.some((hit) => hit.order === 18 && hit.chapter === 1 && hit.verse === 8 && hit.translation === "NKJV"));
   });
 }
+
+// The KJV prints "Beth-el"; a reader types "Bethel". Both clients' real
+// searchKjv loops run here against bundled Genesis.
+const genesis = JSON.parse(read("../src/data/kjv/01-genesis.json"));
+for (const client of ["web", "android"]) {
+  test(`${client}: KJV search finds hyphenated names typed either way`, async () => {
+    const path = client === "web" ? "../src/lib/bible/" : "../mobile/src/features/bible/";
+    const kjv = read(`${path}kjv.ts`);
+    const source = kjv.slice(kjv.indexOf("export " + (client === "web" ? "async " : "") + "function searchKjv("));
+    const searchKjv = new Function("BOOKS", "getKjvBook", `${stripTypeScriptTypes(source.replace(/^export /gm, ""))}; return searchKjv;`)([{ order: 1 }], () => genesis);
+    for (const query of ["Bethel", "beth-el", "BETH-EL"]) {
+      const hits = await searchKjv(query, 500);
+      assert.ok(hits.some((hit) => hit.chapter === 12 && hit.verse === 8), `${client} ${query}`);
+      assert.ok(hits.every((hit) => /beth-?el/i.test(hit.text)), `${client} ${query}`);
+    }
+    assert.equal((await searchKjv("Bethel", 500))[0].text.includes("Beth-el"), true);
+  });
+}

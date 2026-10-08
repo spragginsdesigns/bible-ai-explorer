@@ -4,8 +4,8 @@ import { withBotId } from "botid/next/config";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	outputFileTracingIncludes: {
-		"/api/ask-question": ["./biblical-texts/KJV-Bible.txt"],
-		"/api/note-ai": ["./biblical-texts/KJV-Bible.txt"],
+		"/api/ask-question": ["./biblical-texts/kjv.json"],
+		"/api/note-ai": ["./biblical-texts/kjv.json"],
 	},
 	// Analytics ingestion, served from our own origin so an ad blocker cannot
 	// silently delete half the numbers. The two asset rewrites must stay above

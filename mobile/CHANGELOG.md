@@ -14,6 +14,17 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.82.0 (versionCode 92) - 2026-10-08 - internal
+
+**What's new (Play):**
+
+IMPROVED
+- The King James Bible in SureWord is now the standard 1769 text, checked word for word. Missing and misprinted words are restored (Mark 15:2 "said unto him", 1 Samuel 15:33 "As thy sword", and more), along with the KJV's own spellings and punctuation.
+- Psalm titles are no longer counted as verse 1.
+- Bible search finds names written either way, like Bethel or Beth-el.
+
+**Dev notes:** `scripts/bible/build-kjv.py` builds the KJV from eBible.org `eng-kjv` USFM, validated letter for letter against eBible's VPL export, replacing the Project Gutenberg #10 text and `mobile/scripts/build-kjv-data.py`. 1,223 verses changed (131 with word or spelling differences, the rest punctuation and hyphenated names). Red-letter sidecar regenerated with no edition aliases. Search folds intra-word hyphens on every client and in `KjvVerse` (migration `20261008120000_kjv_search_joins_hyphens`). Production `KjvVerse` and `VerseEmbedding` resynced.
+
 ## 1.81.1 (versionCode 91) - 2026-10-08 - internal
 
 **What's new (Play):**
