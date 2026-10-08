@@ -298,6 +298,17 @@ export default function BibleChapterScreen() {
 	const chapterKey = `${translation}:${order}:${chapter}`;
 	const visibleChapter = useRef({ key: chapterKey, loadedKey, count: verses.length });
 	visibleChapter.current = { key: chapterKey, loadedKey, count: verses.length };
+	const scrollToVerse = useCallback((index: number, position: number, animated: boolean, expectedKey: string) => {
+		const current = visibleChapter.current;
+		const list = listRef.current;
+		if (!list || current.key !== expectedKey || current.loadedKey !== expectedKey || index < 0 || index >= current.count || index >= (list.props.data?.length ?? 0)) return;
+		try { list.scrollToIndex({ index, viewPosition: position, animated }); }
+		catch (error) {
+			// FlatList can replace its inner VirtualizedList during a keyed
+			// chapter commit. Abandon only that stale-index race.
+			if (!(error instanceof Error) || !error.message.includes("scrollToIndex out of range")) throw error;
+		}
+	}, []);
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
 	// Backed by the shared store (AsyncStorage cache + per-chapter server GET).
 	const highlights = useChapterHighlights(translation, order, chapter);
@@ -349,11 +360,7 @@ export default function BibleChapterScreen() {
 		if (lastFlashed.current === flashKey) return;
 		lastFlashed.current = flashKey;
 		const scrollTimer = setTimeout(() => {
-			listRef.current?.scrollToIndex({
-				index: verseParam - 1,
-				viewPosition: 0.15,
-				animated: false,
-			});
+			scrollToVerse(verseParam - 1, 0.15, false, chapterKey);
 			setHighlighted(verseParam);
 		}, 250);
 		const clearTimer = setTimeout(() => setHighlighted(null), 250 + HIGHLIGHT_MS);
@@ -361,7 +368,7 @@ export default function BibleChapterScreen() {
 			clearTimeout(scrollTimer);
 			clearTimeout(clearTimer);
 		};
-	}, [loading, error, loadedKey, chapterKey, verses, verseParam]);
+	}, [loading, error, loadedKey, chapterKey, verses, verseParam, scrollToVerse]);
 
 	const readingTracking = useReaderTracking({
 		book: order,
@@ -434,8 +441,8 @@ export default function BibleChapterScreen() {
 		if (!chapterAudio.playing || !chapterAudio.verse || loadedKey !== chapterKey || (selection !== null && sheetTier === "expanded")) return;
 		if (chapterAudio.audio?.book !== order || chapterAudio.audio.chapter !== chapter || chapterAudio.verse > verses.length) return;
 		if (Date.now() - lastManualScroll.current < 5000) return;
-		listRef.current?.scrollToIndex({ index: chapterAudio.verse - 1, viewPosition: 0.2, animated: true });
-	}, [chapterAudio.verse, chapterAudio.playing, chapterAudio.audio, order, chapter, verses.length, loadedKey, chapterKey, selection, sheetTier]);
+		scrollToVerse(chapterAudio.verse - 1, 0.2, true, chapterKey);
+	}, [chapterAudio.verse, chapterAudio.playing, chapterAudio.audio, order, chapter, verses.length, loadedKey, chapterKey, selection, sheetTier, scrollToVerse]);
 
 	// Every verse without markup, once per chapter load. The sheet, clipboard,
 	// share, note and Ask AI all read the selection from here, and a range
@@ -977,11 +984,7 @@ export default function BibleChapterScreen() {
 								() => {
 									const latest = visibleChapter.current;
 									if (latest.key !== failedKey || latest.loadedKey !== failedKey || index >= latest.count) return;
-									listRef.current?.scrollToIndex({
-										index,
-										viewPosition: 0.15,
-										animated: false,
-									});
+									scrollToVerse(index, 0.15, false, failedKey);
 								},
 								250,
 							);

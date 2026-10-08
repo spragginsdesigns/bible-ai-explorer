@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.84.1 (versionCode 95) - 2026-10-08 - internal
+
+**What's new (Play):**
+
+FIXED
+- Returning to the reader after narration advances keeps the correct verse in view, including when the next chapter is shorter.
+- Stale reader scrolls no longer interrupt playback or close the app.
+
+**Dev notes:** Preserve the 1.84.0 Copy/Edit/Try again and reasoning controls. Validate the live chapter, inner list bounds and queued callbacks during a chapter replacement.
+
 ## 1.84.0 (versionCode 94) - 2026-10-08 - internal
 
 **What's new (Play):**
