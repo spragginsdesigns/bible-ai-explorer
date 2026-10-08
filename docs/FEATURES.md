@@ -428,6 +428,18 @@ tier are offered (probed against the live API), and `gpt-6.1-sol` /
 Luna, so a Pro account using all 600 monthly actions can cost more than its
 $15; watch `AiUsageRequest.costMicros` for Pro accounts.
 
+**Reverted the same day: both plans chat on Luna at medium again.** The first
+real free answer on GLM 5.3 Flash (a tester's question plus a pasted
+screenshot) took 2m 52s: 54 s for the tool step, then 116 s for the answer
+step at ~8 output tokens/s after a 12.8 s first token. The phone showed
+"Working for 1m 44s" long enough that the tester reported it as frozen, and
+testers also found Sol weaker at writing. `HOUSE_CHAT_MODEL_IDS` now maps both
+plans to `HOUSE_MODEL_ID` on the free-tier key; the per-plan table and the
+OpenRouter-key fallback in `houseChatModelId()` stay, so a future split is a
+one-line change. Before moving a plan off Luna again, time a real tool-using
+answer on the candidate (the `[ai.metrics]` log line carries
+`timeToFirstOutputMs`, `stepTimeMs` and `outputTokensPerSecond`).
+
 ---
 
 ## Getting to know you (onboarding in chat)

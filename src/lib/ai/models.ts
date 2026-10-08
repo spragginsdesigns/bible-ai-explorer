@@ -452,28 +452,30 @@ export const HOUSE_MODEL_ID = "openai/gpt-5.6-luna";
 export const HOUSE_EFFORT: ReasoningEffort = "medium";
 
 /**
- * The chat model each plan's included AI answers on (Austin, 2026-10-08): Pro
- * gets the flagship at medium effort, Free gets GLM 5.3 Flash. Those accounts
- * have no picker, so this is the whole of their configuration and nothing about
- * it is written back to the user row.
+ * The chat model each plan's included AI answers on. Those accounts have no
+ * picker, so this is the whole of their configuration and nothing about it is
+ * written back to the user row. Both plans are back on Luna at medium (Austin,
+ * 2026-10-08): the same morning's split (GPT-6.1 Sol for Pro, GLM 5.3 Flash for
+ * Free) made a free answer take ~3 minutes (GLM streamed at ~8 tokens/s after a
+ * 13 s first token) and testers found Sol's prose weaker.
  */
-export const HOUSE_CHAT_MODEL_IDS = {
-	pro: "openai/gpt-6.1-sol",
-	free: "openrouter/z-ai/glm-5.3-flash",
-} as const;
+export const HOUSE_CHAT_MODEL_IDS: Record<"pro" | "free", string> = {
+	pro: HOUSE_MODEL_ID,
+	free: HOUSE_MODEL_ID,
+};
 
 /**
  * The included chat model for a plan, given which server credentials exist.
- * A deploy missing the OpenRouter key would otherwise turn every free answer
- * into a configuration error, so free falls back to the background model.
- * Pure so the rule has a test.
+ * A deploy missing the OpenRouter key would otherwise turn every answer on an
+ * OpenRouter head into a configuration error, so that falls back to the
+ * background model. Pure so the rule has a test.
  */
 export function houseChatModelId(
 	plan: "pro" | "free",
 	serverKeys: { openrouter: boolean },
 ): string {
-	if (plan === "pro") return HOUSE_CHAT_MODEL_IDS.pro;
-	return serverKeys.openrouter ? HOUSE_CHAT_MODEL_IDS.free : HOUSE_MODEL_ID;
+	const modelId = HOUSE_CHAT_MODEL_IDS[plan];
+	return modelId.startsWith("openrouter/") && !serverKeys.openrouter ? HOUSE_MODEL_ID : modelId;
 }
 
 /**

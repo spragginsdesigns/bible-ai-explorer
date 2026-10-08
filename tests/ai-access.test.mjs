@@ -47,25 +47,17 @@ test("the registry default is the house model, so both worlds open on the same h
 	assert.equal(DEFAULT_MODEL_ID, HOUSE_MODEL_ID);
 });
 
-test("included chat runs on GPT-6.1 Sol for Pro and GLM 5.3 Flash for Free", () => {
-	const keys = { openrouter: true };
-	assert.equal(houseChatModelId("pro", keys), "openai/gpt-6.1-sol");
-	assert.equal(houseChatModelId("free", keys), "openrouter/z-ai/glm-5.3-flash");
-	// A deploy with no OpenRouter key keeps answering free accounts on Luna.
-	assert.equal(houseChatModelId("free", { openrouter: false }), HOUSE_MODEL_ID);
-	assert.equal(houseChatModelId("pro", { openrouter: false }), HOUSE_CHAT_MODEL_IDS.pro);
-
-	const sol = getModel(HOUSE_CHAT_MODEL_IDS.pro);
-	assert.ok(sol, "the Pro house model must be curated");
-	// Pro answers at medium; the API rejects `none` on this head.
-	assert.ok(sol.efforts.includes(HOUSE_EFFORT));
-	assert.ok(!sol.efforts.includes("none"));
-	assert.equal(sol.supportsAttachments, true);
-
-	const glm = getModel(HOUSE_CHAT_MODEL_IDS.free);
-	assert.ok(glm, "the Free house model must be curated");
-	assert.equal(glm.supportsAttachments, true);
-	assert.ok(glm.pricing, "metering needs the Free model's price");
+test("included chat runs on GPT-5.6 Luna at medium for both plans", () => {
+	for (const plan of ["pro", "free"]) {
+		for (const openrouter of [true, false]) {
+			assert.equal(houseChatModelId(plan, { openrouter }), "openai/gpt-5.6-luna");
+		}
+		const model = getModel(HOUSE_CHAT_MODEL_IDS[plan]);
+		assert.ok(model, `the ${plan} house model must be curated`);
+		assert.ok(model.efforts.includes(HOUSE_EFFORT));
+		assert.equal(model.supportsAttachments, true);
+		assert.ok(model.pricing, "metering needs the house model's price");
+	}
 });
 
 test("house effort is a medium ceiling: low passes through, nothing above medium is honoured", () => {
