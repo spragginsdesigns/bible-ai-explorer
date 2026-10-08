@@ -54,3 +54,6 @@ Frontend-Codebase-ContextPro.md
 # clerk configuration (can include secrets)
 /.clerk/
 /artifacts/sermons/
+
+# App Store screenshot work dir: raw captures, generated art, fixtures (scripts/app-store-screenshots.py)
+.app-store-work/
