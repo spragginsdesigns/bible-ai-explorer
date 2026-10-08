@@ -1,4 +1,5 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
 
 import { useCallback, useEffect, useState } from "react";
 import type { ReadingPlan, ReadingPlanPreset, ReadingPlansView } from "./types";
@@ -14,7 +15,7 @@ import type { ReadingPlan, ReadingPlanPreset, ReadingPlansView } from "./types";
 const GENERIC_FAILURE = "Your reading plan could not be loaded. Try again.";
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-	const res = await fetch(path, init);
+	const res = await consentFetch(path, init);
 	if (!res.ok) {
 		const data = (await res.json().catch(() => null)) as { error?: string } | null;
 		throw new Error(data?.error ?? GENERIC_FAILURE);

@@ -112,7 +112,8 @@ enum DailyCrossAPI {
     /// otherwise generated on demand and stored. Since the Mac client registers
     /// no push token, this is normally the call that creates the user's day.
     static func today(api: APIClient) async throws -> DailyCrossEntry {
-        try await api.json(
+        guard await AIConsentGate.ensure() else { throw APIError(message: AIConsent.declinedNotice) }
+        return try await api.json(
             "/api/verse-of-day/today",
             timeout: generationTimeout,
             as: DailyCrossEntry.self
@@ -132,7 +133,8 @@ enum DailyCrossAPI {
         focus: String? = nil,
         direction: DailyCrossDirection? = nil
     ) async throws -> DailyCrossEntry {
-        try await api.json(
+        guard await AIConsentGate.ensure() else { throw APIError(message: AIConsent.declinedNotice) }
+        return try await api.json(
             "/api/verse-of-day/today",
             method: "POST",
             body: RefreshBody(focus: focus, direction: direction),

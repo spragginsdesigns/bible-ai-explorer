@@ -32,7 +32,8 @@ enum PlanAPI {
 
     /// Have a plan written for a goal they typed. Archives their current plan.
     static func startGoal(api: APIClient, goal: String, days: Int) async throws -> ReadingPlan {
-        try await api.json(
+        guard await AIConsentGate.ensure() else { throw APIError(message: AIConsent.declinedNotice) }
+        return try await api.json(
             "/api/reading-plans",
             method: "POST",
             body: GoalBody(goal: goal, days: days),

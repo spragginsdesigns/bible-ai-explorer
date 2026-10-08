@@ -50,6 +50,7 @@ import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection
 import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
 import FeedbackSection from "@/components/settings/FeedbackSection";
 import MembershipSummary from "@/components/settings/MembershipSummary";
+import { AIConsentSettingsSection } from "@/components/AIConsentPresenter";
 import NotificationsSection from "@/components/settings/NotificationsSection";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 
@@ -459,6 +460,7 @@ export default function SettingsPage() {
 					<section id="providers" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 						<SectionLabel>AI PROVIDERS</SectionLabel>
 						<MembershipSummary />
+						<AIConsentSettingsSection />
 						<ProviderSettings />
 					</section>
 

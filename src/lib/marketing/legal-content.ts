@@ -59,7 +59,7 @@ const DELETE_ACCOUNT_PATH = "Settings → Account → Delete account";
 
 export const PRIVACY_POLICY: LegalDocument = {
 	title: "SureWord Privacy Policy",
-	byline: "Last updated: October 7, 2026",
+	byline: "Last updated: October 8, 2026",
 	blocks: [
 		{
 			type: "p",
@@ -147,7 +147,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 			items: [
 				[
 					{ strong: "OpenAI" },
-					" runs SureWord's built-in models. It also turns voice messages into text, and it creates the search vectors that let SureWord find Scripture and your notes by meaning, so the text of your notes and questions is sent to OpenAI for that purpose.",
+					" runs some of SureWord's built-in chat models. Other chat and utility requests go through OpenRouter to the selected model's provider, currently Z.ai for GLM. OpenAI also turns voice messages into text, and it creates the search vectors that let SureWord find Scripture and your notes by meaning, so the text of your notes and questions is sent to OpenAI for that purpose.",
 				],
 				[
 					{ strong: "Your own AI provider." },

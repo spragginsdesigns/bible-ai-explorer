@@ -31,6 +31,13 @@ enum ClerkAuth {
         try? await Clerk.shared.auth.signOut()
     }
 
+    /// An old request must not sign out a different account that signed in
+    /// while its response was in flight.
+    static func signOut(ifAccount account: String?) async {
+        guard let account, Clerk.shared.user?.id == account else { return }
+        await signOut()
+    }
+
     /// Sign-out once `DELETE /api/account` has removed the Clerk user. The
     /// server already ended every session with the user, so the sign-out call
     /// itself can fail; re-reading the client from Clerk then drops the dead

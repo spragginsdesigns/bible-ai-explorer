@@ -45,7 +45,7 @@ export function useVerseInsight(getToken: GetToken) {
 	}, []);
 
 	const start = useCallback(
-		(target: VerseInsightTarget) => {
+		(target: VerseInsightTarget, ask = false) => {
 			const id = ++runIdRef.current;
 			abortRef.current?.abort();
 
@@ -69,7 +69,7 @@ export function useVerseInsight(getToken: GetToken) {
 					const authedFetch = makeAuthedFetch(getToken);
 					const res = await authedFetch(`${API_URL}/api/verse-insight`, {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
+						headers: { "Content-Type": "application/json", ...(ask ? { "x-sureword-ai-consent": "ask" } : {}) },
 						body: JSON.stringify({
 							reference: target.reference,
 							text: target.text,

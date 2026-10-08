@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -67,7 +69,7 @@ export default function DailyCrossPage() {
 			requestInFlight.current = true;
 			setError(null);
 			if (options?.clear !== false) setEntry(null);
-			fetch("/api/verse-of-day/today", { cache: "no-store", ...init })
+			consentFetch("/api/verse-of-day/today", { cache: "no-store", ...init })
 				.then(async (res) => {
 					if (!res.ok) {
 						const data = (await res.json().catch(() => null)) as { error?: string } | null;

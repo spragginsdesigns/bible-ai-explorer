@@ -12,11 +12,11 @@ enum AIConsent {
     /// The copy version this build shows. The server refuses agreement to any
     /// other version, so a stale build can never record consent to text it did
     /// not display.
-    static let version = 1
+    static let version = 2
 
     static let title = "How SureWord answers you"
 
-    static let body = "SureWord's answers are written by AI. To answer you, SureWord sends your question, the conversation, your attachments, and the study context you have shared (About me, your testimony, memories, notes, highlights and reading) to OpenAI, or to the provider of your own API key when you choose one of its models. OpenAI also transcribes voice messages. Web searches go to Tavily, and spoken devotionals are voiced by ElevenLabs. They use it only to answer you; it is never sold or used for ads. The AI can be wrong, so search the Scriptures to see whether these things are so."
+    static let body = "SureWord's answers are written by AI. To answer you, SureWord sends your question, the conversation, your attachments, and the study context you have shared (About me, your testimony, memories, notes, highlights and reading) to OpenAI, or through OpenRouter to the provider of the selected model, or to the provider of your own API key when you choose one of its models. OpenAI also transcribes voice messages. Web searches go to Tavily, and spoken devotionals are voiced by ElevenLabs. They use it only to answer you; it is never sold or used for ads. The AI can be wrong, so search the Scriptures to see whether these things are so."
 
     static let privacyLabel = "Privacy Policy"
 
@@ -188,7 +188,7 @@ final class AIConsentStore {
            let data = defaults.data(forKey: Self.cacheKey(account)),
            let cached = try? JSONDecoder().decode(Cached.self, from: data) {
             record = cached.record
-            required = cached.required
+            required = max(AIConsent.version, cached.required)
         }
     }
 
@@ -227,7 +227,7 @@ final class AIConsentStore {
     @discardableResult
     func absorb(_ document: AccountPreferences) -> Bool {
         guard let required = document.aiConsentRequired else { return false }
-        self.required = required
+        self.required = max(AIConsent.version, required)
         record = document.aiConsent
         hasServerState = true
         persist()

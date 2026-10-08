@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import NarrationSetup from "@/components/cross/NarrationSetup";
@@ -55,7 +57,7 @@ function describeToMediaSession(title: string, reference?: string | null) {
 }
 
 async function readAudio(init?: RequestInit): Promise<DailyCrossAudio> {
-	const res = await fetch("/api/verse-of-day/audio", init);
+	const res = await consentFetch("/api/verse-of-day/audio", init);
 	if (!res.ok) throw new Error(FAILURE_TEXT);
 	return (await res.json()) as DailyCrossAudio;
 }

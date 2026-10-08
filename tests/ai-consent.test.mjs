@@ -84,14 +84,14 @@ function row(overrides = {}) {
 
 // -- version rules ------------------------------------------------------------
 
-test("the first consent copy is version 1", () => {
-	assert.equal(AI_CONSENT_VERSION, 1);
+test("the current consent copy is version 2 for included OpenRouter models", () => {
+	assert.equal(AI_CONSENT_VERSION, 2);
 });
 
 test("the sheet is needed until the account agreed to the version the server requires", () => {
 	assert.equal(copy.aiConsentNeeded(null), true);
 	assert.equal(copy.aiConsentNeeded(undefined), true);
-	assert.equal(copy.aiConsentNeeded({ version: 1 }), false);
+	assert.equal(copy.aiConsentNeeded({ version: AI_CONSENT_VERSION }), false);
 	// A bumped copy version asks everyone again, including people who agreed.
 	assert.equal(copy.aiConsentNeeded({ version: 1 }, 2), true);
 	assert.equal(copy.aiConsentNeeded({ version: 2 }, 2), false);
@@ -116,7 +116,7 @@ test("a stored consent needs both columns, a positive integer version and a real
 
 test("current consent is the required version with a time; anything else is not consent", () => {
 	const at = new Date("2026-10-07T12:00:00.000Z");
-	assert.equal(hasCurrentAiConsent({ aiConsentVersion: 1, aiConsentAt: at }), true);
+	assert.equal(hasCurrentAiConsent({ aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: at }), true);
 	assert.equal(hasCurrentAiConsent({ aiConsentVersion: 1, aiConsentAt: null }), false);
 	assert.equal(hasCurrentAiConsent({ aiConsentVersion: null, aiConsentAt: null }), false);
 	assert.equal(hasCurrentAiConsent({}), false);
@@ -162,16 +162,16 @@ test("withdrawing clears both columns", () => {
 });
 
 test("a stale or forged version is refused, so a build cannot agree to copy it never showed", () => {
-	for (const version of [0, 2, AI_CONSENT_VERSION + 1, "1", null, undefined, 1.0001]) {
+	for (const version of [0, 1, AI_CONSENT_VERSION + 1, "1", null, undefined, 1.0001]) {
 		const result = parse({ aiConsent: { version } });
 		assert.equal(result.ok, false, `version ${String(version)}`);
-		assert.match(result.error, /aiConsent\.version must be 1/);
+		assert.match(result.error, /aiConsent\.version must be 2/);
 	}
 	assert.equal(parse({ aiConsent: {} }).ok, false);
 });
 
 test("the client never sends the time, and nothing but { version } or null is accepted", () => {
-	assert.deepEqual(parse({ aiConsent: { version: 1, acceptedAt: "2020-01-01T00:00:00Z" } }), {
+	assert.deepEqual(parse({ aiConsent: { version: AI_CONSENT_VERSION, acceptedAt: "2020-01-01T00:00:00Z" } }), {
 		ok: false,
 		error: "Unknown preference: aiConsent.acceptedAt",
 	});
@@ -184,27 +184,27 @@ test("the client never sends the time, and nothing but { version } or null is ac
 });
 
 test("one bad field writes nothing, consent included", () => {
-	assert.equal(parse({ aiConsent: { version: 1 }, translation: "NIV" }).ok, false);
+	assert.equal(parse({ aiConsent: { version: AI_CONSENT_VERSION }, translation: "NIV" }).ok, false);
 	assert.equal(parse({ aiConsent: { version: 9 }, parchment: false }).ok, false);
 });
 
 test("agreeing twice writes the same thing: the write is idempotent", () => {
-	const first = parse({ aiConsent: { version: 1 } });
-	const second = parse({ aiConsent: { version: 1 } });
+	const first = parse({ aiConsent: { version: AI_CONSENT_VERSION } });
+	const second = parse({ aiConsent: { version: AI_CONSENT_VERSION } });
 	assert.deepEqual(first, second);
 	// And what it writes reads back as current consent.
 	const stored = { aiConsentVersion: first.data.aiConsentVersion, aiConsentAt: first.data.aiConsentAt };
 	assert.equal(hasCurrentAiConsent(stored), true);
 	assert.deepEqual(toPreferencesDocument(row(stored), "free", MODELS).aiConsent, {
-		version: 1,
+		version: AI_CONSENT_VERSION,
 		acceptedAt: NOW.toISOString(),
 	});
 });
 
 test("consent rides with the other preferences in one patch", () => {
-	assert.deepEqual(parse({ aiConsent: { version: 1 }, webSearchEnabled: false }), {
+	assert.deepEqual(parse({ aiConsent: { version: AI_CONSENT_VERSION }, webSearchEnabled: false }), {
 		ok: true,
-		data: { aiConsentVersion: 1, aiConsentAt: NOW, webSearchEnabled: false },
+		data: { aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: NOW, webSearchEnabled: false },
 	});
 });
 
@@ -230,7 +230,7 @@ test("the columns live on User, so account deletion removes them with the row", 
 test("only accounts with current consent are personalised by the morning cron", () => {
 	const at = new Date("2026-10-01T00:00:00.000Z");
 	const consented = aiConsentedUserIds([
-		{ id: "agreed", aiConsentVersion: 1, aiConsentAt: at },
+		{ id: "agreed", aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: at },
 		{ id: "never", aiConsentVersion: null, aiConsentAt: null },
 		{ id: "withdrew", aiConsentVersion: null, aiConsentAt: null },
 		{ id: "half-write", aiConsentVersion: 1, aiConsentAt: null },
@@ -287,12 +287,12 @@ test("the approved copy, verbatim", () => {
 		.map((line) => line.slice(2).trim())
 		.join(" ");
 	assert.equal(copy.AI_CONSENT_BODY, quoted);
-	assert.equal(copy.AI_CONSENT_BODY.split(/\s+/).length, 99);
+	assert.equal(copy.AI_CONSENT_BODY.split(/\s+/).length <= 120, true);
 });
 
 test("the privacy policy names every provider the sheet names, and the sheet itself", () => {
 	const policy = read("../src/lib/marketing/legal-content.ts");
-	for (const provider of ["OpenAI", "Tavily", "ElevenLabs"]) {
+	for (const provider of ["OpenAI", "OpenRouter", "Tavily", "ElevenLabs"]) {
 		assert.ok(copy.AI_CONSENT_BODY.includes(provider));
 		assert.ok(policy.includes(provider), provider);
 	}

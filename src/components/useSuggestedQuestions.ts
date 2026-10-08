@@ -1,4 +1,5 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
@@ -32,7 +33,7 @@ function load(userId: string): Promise<QuestionSet> {
 	if (inFlight?.userId === userId) return inFlight.promise;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-	const promise = fetch("/api/suggested-questions", { signal: controller.signal })
+	const promise = consentFetch("/api/suggested-questions", { signal: controller.signal })
 		.then(async (res) => {
 			if (!res.ok) throw new Error("Suggested questions request failed.");
 			const data: unknown = await res.json();

@@ -1,4 +1,5 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -66,7 +67,7 @@ export default function GuestAsk() {
 		const dropLastTurn = () => setTurns((current) => current.slice(0, -1));
 
 		try {
-			const response = await fetch("/api/guest/ask", {
+			const response = await consentFetch("/api/guest/ask", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ question }),

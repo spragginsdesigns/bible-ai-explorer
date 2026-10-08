@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import { progressFromParts, type ChatProgress } from "@/lib/chat/progress";
 import { shouldRecoverChatStream } from "@/lib/chat/streamRecovery";
@@ -34,6 +36,7 @@ import {
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
 import { effortForRequest } from "@/components/modelPickerRules";
+import { editedUserMessage, messageHasFiles, userMessageText } from "@/lib/chat/message-edit";
 import {
 	readEffortPref,
 	readModePref,
@@ -451,6 +454,18 @@ export const useChat = () => {
 	 */
 	const [messageFeedback, setMessageFeedback] = useState<Record<string, AnswerFeedback>>({});
 	const [input, setInput] = useState("");
+	/** The user message the composer is rewriting, or null for a new message. */
+	const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+	const editingMessageIdRef = useRef<string | null>(null);
+	/** What the composer held before Edit replaced it, so leaving edit mode puts it back. */
+	const draftBeforeEditRef = useRef<string | null>(null);
+	const cancelEditing = useCallback(() => {
+		if (editingMessageIdRef.current === null) return;
+		editingMessageIdRef.current = null;
+		setEditingMessageId(null);
+		setInput(draftBeforeEditRef.current ?? "");
+		draftBeforeEditRef.current = null;
+	}, []);
 	const [attachment, setAttachmentState] = useState<VerseAttachment | null>(null);
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
 	const [uploadingAttachments, setUploadingAttachments] = useState(false);
@@ -463,7 +478,7 @@ export const useChat = () => {
 	const clearAttachment = useCallback(() => setAttachmentState(null), []);
 	const discardFileAttachments = useCallback((attachments: ChatAttachmentDescriptor[]) => {
 		for (const item of attachments) {
-			void fetch(`/api/chat/attachments/${item.id}`, { method: "DELETE" });
+			void consentFetch(`/api/chat/attachments/${item.id}`, { method: "DELETE" });
 		}
 	}, []);
 
@@ -490,7 +505,7 @@ export const useChat = () => {
 					size: file.size,
 				})),
 			]);
-			const initResponse = await fetch("/api/chat/attachments", {
+			const initResponse = await consentFetch("/api/chat/attachments", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -511,13 +526,13 @@ export const useChat = () => {
 				upload: { id: string; uploadUrl: string; mediaType: string },
 				index: number,
 			) => {
-				const putResponse = await fetch(upload.uploadUrl, {
+				const putResponse = await consentFetch(upload.uploadUrl, {
 					method: "PUT",
 					headers: { "Content-Type": upload.mediaType },
 					body: files[index],
 				});
 				if (!putResponse.ok) throw new Error(`Could not upload ${files[index].name}.`);
-				const completeResponse = await fetch(`/api/chat/attachments/${upload.id}/complete`, {
+				const completeResponse = await consentFetch(`/api/chat/attachments/${upload.id}/complete`, {
 					method: "POST",
 				});
 				const result = await completeResponse.json();
@@ -534,7 +549,7 @@ export const useChat = () => {
 			}
 		} catch (error) {
 			for (const id of initializedIds) {
-				void fetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
+				void consentFetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
 			}
 			setAttachmentError(
 				error instanceof AttachmentValidationError || error instanceof Error
@@ -547,7 +562,7 @@ export const useChat = () => {
 	}, [discardFileAttachments, fileAttachments, uploadingAttachments]);
 
 	const removeFileAttachment = useCallback(async (id: string) => {
-		const response = await fetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
+		const response = await consentFetch(`/api/chat/attachments/${id}`, { method: "DELETE" });
 		if (!response.ok) {
 			const body = await response.json().catch(() => ({}));
 			setAttachmentError(body.error ?? "Could not remove the attachment.");
@@ -567,6 +582,7 @@ export const useChat = () => {
 		() =>
 			new DefaultChatTransport<SureWordUIMessage>({
 				api: "/api/ask-question",
+                fetch: consentFetch,
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
 						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -666,7 +682,7 @@ export const useChat = () => {
 					if (version !== recoverVersionRef.current) return;
 					if (conversationIdRef.current !== conversationId) return;
 					try {
-						const res = await fetch(`/api/conversations/${conversationId}`);
+						const res = await consentFetch(`/api/conversations/${conversationId}`);
 						if (version !== recoverVersionRef.current) return;
 						if (res.ok) {
 							const restored = completedHistory(await res.json());
@@ -739,7 +755,7 @@ export const useChat = () => {
 	const refreshConversations = useCallback(async () => {
 		if (pendingDeletionCountRef.current > 0) return;
 		const version = conversationListVersionRef.current;
-		const res = await fetch("/api/conversations", { cache: "no-store" });
+		const res = await consentFetch("/api/conversations", { cache: "no-store" });
 		if (!res.ok) throw new Error("Conversation list request failed.");
 		const data: { id: string; title: string; createdAt: string; updatedAt?: string }[] = await res.json();
 		if (version !== conversationListVersionRef.current || pendingDeletionCountRef.current > 0) return;
@@ -799,12 +815,13 @@ export const useChat = () => {
 			setHistoryLoading(true);
 			setMessageFeedback({});
 			setUIMessages([]);
+			cancelEditing();
 
 			// What the failed response said, so the error card can name the
 			// cause (offline, not found, signed out) the way Android's does.
 			let failure: ClassifyChatErrorInput | null = null;
 			try {
-				const res = await fetch(`/api/conversations/${id}`);
+				const res = await consentFetch(`/api/conversations/${id}`);
 				if (!res.ok) {
 					failure = {
 						status: res.status,
@@ -837,7 +854,7 @@ export const useChat = () => {
 				}
 			}
 		},
-		[cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]
+		[cancelEditing, cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]
 	);
 
 	const retryHistory = useCallback(() => {
@@ -865,7 +882,8 @@ export const useChat = () => {
 		setSendError(null);
 		setMessageFeedback({});
 		setUIMessages([]);
-	}, [cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]);
+		cancelEditing();
+	}, [cancelEditing, cancelRecovery, discardFileAttachments, fileAttachments, stop, setUIMessages]);
 
 	const deleteConversation = useCallback(
 		async (id: string) => {
@@ -877,10 +895,10 @@ export const useChat = () => {
 				newConversation();
 			}
 			try {
-				const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+				const response = await consentFetch(`/api/conversations/${id}`, { method: "DELETE" });
 				if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
 			} catch {
-				const restored = await fetch("/api/conversations").then((response) => {
+				const restored = await consentFetch("/api/conversations").then((response) => {
 					if (!response.ok) throw new Error("History refresh failed");
 					return response.json() as Promise<Conversation[]>;
 				}).catch(() => null);
@@ -903,10 +921,10 @@ export const useChat = () => {
 		try {
 			for (const id of ids) {
 				try {
-					const response = await fetch(`/api/conversations/${id}`, { method: "DELETE" });
+					const response = await consentFetch(`/api/conversations/${id}`, { method: "DELETE" });
 					if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
 				} catch {
-					const restored = await fetch("/api/conversations").then((response) => {
+					const restored = await consentFetch("/api/conversations").then((response) => {
 						if (!response.ok) throw new Error("History refresh failed");
 						return response.json() as Promise<Conversation[]>;
 					}).catch(() => null);
@@ -947,7 +965,7 @@ export const useChat = () => {
 				};
 				try {
 					const title = composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`;
-					const res = await fetch("/api/conversations", {
+					const res = await consentFetch("/api/conversations", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
 						body: JSON.stringify({ title: title.slice(0, 60) }),
@@ -1036,6 +1054,82 @@ export const useChat = () => {
 		void regenerate();
 	}, [sendMessage, clearError, regenerate]);
 
+	/**
+	 * Put one of the user's own messages back in the composer to rewrite it.
+	 * Whatever was being typed is set aside and comes back when the edit ends.
+	 */
+	const startEditing = useCallback(
+		(messageId: string) => {
+			if (status === "submitted" || status === "streaming" || recoveringRef.current) return;
+			const original = uiMessages.find((message) => message.id === messageId);
+			if (!original || original.role !== "user") return;
+			if (editingMessageIdRef.current === null) draftBeforeEditRef.current = input;
+			editingMessageIdRef.current = messageId;
+			setEditingMessageId(messageId);
+			setInput(userMessageText(original));
+		},
+		[input, status, uiMessages]
+	);
+
+	/**
+	 * Send the rewritten message in place of the original. The AI SDK drops
+	 * every message after it and resends under the same id; the server deletes
+	 * the stored rows after it, so reload shows the same thread. Files and
+	 * metadata ride along, so only the words change.
+	 */
+	const submitEdit = useCallback(
+		(text: string) => {
+			const messageId = editingMessageIdRef.current;
+			if (
+				!messageId ||
+				!conversationIdRef.current ||
+				historyLoadingRef.current ||
+				historyErrorRef.current ||
+				status === "submitted" ||
+				status === "streaming"
+			) {
+				return;
+			}
+			const payload = editedUserMessage(
+				uiMessages.find((message) => message.id === messageId),
+				text
+			);
+			if (!payload) return;
+			cancelEditing();
+			setSendError(null);
+			clearError();
+			lastFailedSendRef.current = null;
+			pendingAnswerRef.current = conversationIdRef.current;
+			lastStreamActivityRef.current = Date.now();
+			void sendUIMessage(payload);
+		},
+		[cancelEditing, clearError, sendUIMessage, status, uiMessages]
+	);
+
+	/** "Try again" on the newest answer: the AI SDK replaces it, the server deletes the old row. */
+	const retryAnswer = useCallback(() => {
+		if (
+			status === "submitted" ||
+			status === "streaming" ||
+			recoveringRef.current ||
+			!conversationIdRef.current
+		) {
+			return;
+		}
+		cancelEditing();
+		setSendError(null);
+		clearError();
+		lastFailedSendRef.current = null;
+		pendingAnswerRef.current = conversationIdRef.current;
+		lastStreamActivityRef.current = Date.now();
+		void regenerate();
+	}, [cancelEditing, clearError, regenerate, status]);
+
+	const editingHasFiles = useMemo(
+		() => messageHasFiles(uiMessages.find((message) => message.id === editingMessageId)),
+		[editingMessageId, uiMessages]
+	);
+
 	const isStreaming = status === "streaming";
 	// Collecting a finished answer from the server reads as "still working" -
 	// the user asked a question and one is on its way, same as a live stream.
@@ -1109,6 +1203,12 @@ export const useChat = () => {
 		removeFileAttachment,
 		sendMessage,
 		retrySend,
+		editingMessageId,
+		editingHasFiles,
+		startEditing,
+		cancelEditing,
+		submitEdit,
+		retryAnswer,
 		abandonPendingAnswer,
 		newConversation,
 		switchConversation,

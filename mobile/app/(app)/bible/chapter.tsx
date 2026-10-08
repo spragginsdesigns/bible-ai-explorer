@@ -496,7 +496,7 @@ export default function BibleChapterScreen() {
 
 	const retryInsight = useCallback(() => {
 		if (!selection) return;
-		startInsight({ reference: selectionRef, text: selectionPlain, translation });
+		startInsight({ reference: selectionRef, text: selectionPlain, translation }, true);
 	}, [selection, selectionRef, selectionPlain, startInsight, translation]);
 
 	const askAI = useCallback(

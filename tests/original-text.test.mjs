@@ -47,7 +47,7 @@ test("isRightToLeft is true for Hebrew only", () => {
 test("the section reads the study route and the public Strong's route", () => {
 	// The study is per-account work behind Clerk, so it is a POST that must
 	// carry the session cookie; the dictionary is public-domain data.
-	assert.match(hook, /await fetch\("\/api\/verse-words", \{/);
+	assert.match(hook, /await consentFetch\("\/api\/verse-words", \{/);
 	assert.match(hook, /credentials: "same-origin"/);
 	assert.match(
 		hook,

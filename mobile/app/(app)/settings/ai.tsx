@@ -14,6 +14,7 @@ import {
 	usePreferencesToggles,
 } from "@/features/settings/preferencesSync";
 import { MembershipSection } from "@/features/settings/MembershipSection";
+import { AIConsentSettingsRow } from "@/features/settings/AIConsentPresenter";
 import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 
@@ -62,6 +63,7 @@ export default function AiSettingsScreen() {
 
 	return (
 		<SettingsSubScreen title="AI">
+			<GlassCard style={styles.card}><AIConsentSettingsRow /></GlassCard>
 			<SectionLabel label="MEMBERSHIP" />
 			<MembershipSection getToken={getToken} />
 

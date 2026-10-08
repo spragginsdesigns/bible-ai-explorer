@@ -146,6 +146,7 @@ export function useVerseWords(getToken: GetToken, target: VerseWordsTarget) {
 
 	useEffect(() => {
 		const id = ++runIdRef.current;
+		const controller = new AbortController();
 
 		const valid =
 			Number.isInteger(book) &&
@@ -190,7 +191,7 @@ export function useVerseWords(getToken: GetToken, target: VerseWordsTarget) {
 							modelId: getSettings().chatModelId,
 						},
 					},
-					{ timeoutMs: STUDY_TIMEOUT_MS }
+					{ timeoutMs: STUDY_TIMEOUT_MS, consentAsk: attempt > 0, signal: controller.signal }
 				);
 				if (runIdRef.current !== id) return;
 				if (!isUsable(result)) {
@@ -223,6 +224,7 @@ export function useVerseWords(getToken: GetToken, target: VerseWordsTarget) {
 		})();
 
 		return () => {
+			controller.abort();
 			// Invalidates this run, which also covers unmount.
 			runIdRef.current += 1;
 		};

@@ -20,7 +20,8 @@ enum SuggestedQuestionsAPI {
     static let timeout: TimeInterval = 25
 
     static func load(api: APIClient) async throws -> [SuggestedQuestionInput] {
-        try await api.json("/api/suggested-questions", timeout: timeout, as: Response.self).inputs
+        guard await AIConsentGate.ensure(.automatic) else { throw APIError(message: AIConsent.declinedNotice) }
+        return try await api.json("/api/suggested-questions", timeout: timeout, as: Response.self).inputs
     }
 
     /// `GET /api/suggested-questions` answers

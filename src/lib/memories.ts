@@ -134,7 +134,8 @@ export async function generateMemorySummary(): Promise<{
 	summary: MemorySummary | null;
 	generatedAt: string | null;
 }> {
-	const res = await fetch("/api/memories/summary", {
+	const { consentFetch } = await import("./ai-consent-gate");
+	const res = await consentFetch("/api/memories/summary", {
 		method: "POST",
 		credentials: "same-origin",
 	});

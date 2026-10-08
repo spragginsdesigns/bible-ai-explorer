@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { readModelPref } from "@/lib/preferences";
@@ -111,9 +113,9 @@ export function useVerseWords({ book, chapter, verse }: UseVerseWordsArgs) {
 
 		void (async () => {
 			try {
-				const res = await fetch("/api/verse-words", {
+				const res = await consentFetch("/api/verse-words", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", ...(attempt > 0 ? { "x-sureword-ai-consent": "ask" } : {}) },
 					credentials: "same-origin",
 					body: JSON.stringify({ book, chapter, verse, modelId: readModelPref() }),
 					signal: controller.signal,
@@ -178,7 +180,7 @@ export function useVerseWords({ book, chapter, verse }: UseVerseWordsArgs) {
 			const cached = strongsCache.get(key);
 			if (cached !== undefined) return cached;
 			try {
-				const res = await fetch(
+				const res = await consentFetch(
 					`/api/bible/strongs?number=${encodeURIComponent(number)}&examples=3&exclude=${exclude}`
 				);
 				if (!res.ok) {

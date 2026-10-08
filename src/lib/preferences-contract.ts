@@ -89,7 +89,7 @@ export const MAX_TESTIMONY_LENGTH = 2000;
  * build must not record agreement to copy it never showed. The sheet's text
  * lives in `src/lib/ai-consent.ts` and its mirrors on every client.
  */
-export const AI_CONSENT_VERSION = 1;
+export const AI_CONSENT_VERSION = 2;
 
 /** What the document says about AI consent: the version agreed to, and when. */
 export interface AiConsentDocument {

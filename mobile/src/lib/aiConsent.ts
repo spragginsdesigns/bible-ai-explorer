@@ -14,8 +14,8 @@
  * who receives what is a material change: bump `AI_CONSENT_VERSION` in
  * `preferences-contract.ts` so everyone is asked again.
  */
-import { AI_CONSENT_VERSION } from "./preferences-contract";
-import type { AiConsentDocument } from "./preferences-contract";
+const AI_CONSENT_VERSION = 2;
+interface AiConsentDocument { version: number; acceptedAt: string }
 
 export { AI_CONSENT_VERSION };
 

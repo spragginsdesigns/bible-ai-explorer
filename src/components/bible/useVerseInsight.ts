@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -44,7 +46,7 @@ export function useVerseInsight() {
 		setError(null);
 	}, []);
 
-	const start = useCallback((target: VerseInsightTarget) => {
+	const start = useCallback((target: VerseInsightTarget, ask = false) => {
 		const id = ++runIdRef.current;
 		abortRef.current?.abort();
 
@@ -65,9 +67,9 @@ export function useVerseInsight() {
 
 		void (async () => {
 			try {
-				const res = await fetch("/api/verse-insight", {
+				const res = await consentFetch("/api/verse-insight", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { "Content-Type": "application/json", ...(ask ? { "x-sureword-ai-consent": "ask" } : {}) },
 					body: JSON.stringify({
 						reference: target.reference,
 						text: target.text,

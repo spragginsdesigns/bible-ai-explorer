@@ -10,6 +10,7 @@ import { radius, spacing, typography, type Colors } from "@/theme";
 import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
+import { AIConsentPresenter } from "@/features/settings/AIConsentPresenter";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useReadingLogSync } from "@/features/reading/readingLogStore";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
@@ -120,7 +121,7 @@ export default function AppLayout() {
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 
 	return (
-		<Tabs
+		<><Tabs
 			tabBar={(props) => <SolidTabBar {...props} />}
 			// Back returns to the previously focused screen instead of always
 			// falling out to the first tab (chat).
@@ -140,7 +141,7 @@ export default function AppLayout() {
 			<Tabs.Screen name="settings" options={{ href: null, popToTopOnBlur: true }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
-		</Tabs>
+		</Tabs><AIConsentPresenter /></>
 	);
 }
 

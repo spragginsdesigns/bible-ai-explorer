@@ -1,4 +1,6 @@
 "use client";
+import { consentFetch } from "@/lib/ai-consent-gate";
+
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
@@ -61,6 +63,7 @@ export function useNoteAI(
 		() =>
 			new DefaultChatTransport<SureWordUIMessage>({
 				api: "/api/note-ai",
+                fetch: consentFetch,
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: {
 						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -95,7 +98,7 @@ export function useNoteAI(
 
 		(async () => {
 			try {
-				const res = await fetch(`/api/notes/${noteId}/ai-messages`);
+				const res = await consentFetch(`/api/notes/${noteId}/ai-messages`);
 				if (!res.ok) return;
 				const data: unknown = await res.json();
 				if (!Array.isArray(data) || loadedNoteIdRef.current !== noteId) return;
@@ -140,7 +143,7 @@ export function useNoteAI(
 	// leave a failed clear looking like a fresh conversation.
 	const clearHistory = useCallback(async () => {
 		try {
-			const res = await fetch(`/api/notes/${noteIdRef.current}/ai-messages`, { method: "DELETE" });
+			const res = await consentFetch(`/api/notes/${noteIdRef.current}/ai-messages`, { method: "DELETE" });
 			if (!res.ok) {
 				const bodyText = await res.text().catch(() => undefined);
 				const classified = classifyChatError({ status: res.status, bodyText });

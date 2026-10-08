@@ -417,7 +417,7 @@ const ChapterReader: React.FC = () => {
 
   const retryInsight = useCallback(() => {
     if (!selectionRef) return;
-    startInsight({ reference: selectionRef, text: selectionPlain, translation });
+    startInsight({ reference: selectionRef, text: selectionPlain, translation }, true);
   }, [selectionRef, selectionPlain, startInsight, translation]);
 
   const askAI = useCallback(

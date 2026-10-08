@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { fetch as expoFetch } from "expo/fetch";
+import { aiConsentGate, consentPolicy, CONSENT_DECLINED_NOTICE } from "./aiConsentGate";
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
 
@@ -39,6 +40,8 @@ export type GetToken = (opts?: { fresh?: boolean }) => Promise<string | null>;
 export interface ApiRequestOptions {
 	/** Abort the request after this many ms. Default 30s (chat streams excluded). */
 	timeoutMs?: number;
+	consentAsk?: boolean;
+	signal?: AbortSignal;
 }
 
 /** Successful foreground requests let durable outboxes resume after connectivity returns. */
@@ -152,10 +155,14 @@ async function fetchWithTimeout(
 	doFetch: (url: string, init?: RequestInit) => Promise<Response>
 ): Promise<Response> {
 	const controller = new AbortController();
+	const onAbort = () => controller.abort();
+	if (init?.signal?.aborted) controller.abort();
+	else init?.signal?.addEventListener("abort", onAbort);
 	const timer = setTimeout(() => controller.abort(), timeoutMs);
 	try {
 		return await doFetch(url, { ...(init as object), signal: controller.signal } as RequestInit);
 	} catch (error) {
+		if (init?.signal?.aborted) throw error;
 		// The two failures the server never hears about. Everything else in
 		// this app's measurement is emitted server-side precisely because the
 		// server is the honest half; these are the exception, because a request
@@ -177,6 +184,7 @@ async function fetchWithTimeout(
 		throw error;
 	} finally {
 		clearTimeout(timer);
+		init?.signal?.removeEventListener("abort", onAbort);
 	}
 }
 
@@ -199,9 +207,20 @@ export function makeAuthedFetch(getToken: GetToken) {
 	return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
 		const url =
 			typeof input === "string" || input instanceof URL ? input.toString() : input.url;
+		const request = input instanceof Request ? input : null;
+		const policy = consentPolicy(new URL(url, API_URL).pathname, init?.method ?? request?.method ?? "GET", init?.body);
+		const session = aiConsentGate.sessionId;
+		if (init?.signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+		if (policy && !(await aiConsentGate.ensure(policy === "tap" || new Headers(init?.headers ?? request?.headers).get("x-sureword-ai-consent") === "ask", init?.signal))) {
+			if (init?.signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
+			return new Response(JSON.stringify({ error: CONSENT_DECLINED_NOTICE, code: "AI_CONSENT_REQUIRED" }), { status: 403 });
+		}
+		if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
+		if (init?.signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
 
 		const attempt = async (fresh: boolean): Promise<Response> => {
 			const token = await getToken(fresh ? { fresh: true } : undefined);
+			if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
 			const headers = await buildHeaders(token, init);
 
 			// Bound the time to first headers; the timer clears once expoFetch
@@ -266,6 +285,12 @@ export async function apiJson<T>(
 	options?: ApiRequestOptions
 ): Promise<T> {
 	const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+	const policy = consentPolicy(path, init?.method ?? "GET", init?.body);
+	const session = aiConsentGate.sessionId;
+	if (policy && !(await aiConsentGate.ensure(policy === "tap" || options?.consentAsk === true, options?.signal))) {
+		throw new ApiError(CONSENT_DECLINED_NOTICE, { status: 403 });
+	}
+	if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
 
 	/**
 	 * Whether the last attempt actually carried a session token. A 401 with no
@@ -275,11 +300,13 @@ export async function apiJson<T>(
 
 	const attempt = async (fresh: boolean): Promise<Response> => {
 		const token = await getToken(fresh ? { fresh: true } : undefined);
+		if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
 		hadToken = Boolean(token);
 		return fetchWithTimeout(
 			`${API_URL}${path}`,
 			{
 				method: init?.method ?? "GET",
+				signal: options?.signal,
 				headers: {
 					"Content-Type": "application/json",
 					[CLIENT_HEADER]: CLIENT_NAME,

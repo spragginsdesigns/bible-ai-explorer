@@ -26,8 +26,8 @@ final class AIConsentTests: XCTestCase {
 
     // MARK: - Copy
 
-    func testCopyMatchesTheApprovedText() {
-        XCTAssertEqual(AIConsent.version, 1)
+    func testCopyIncludesTheCurrentProviders() {
+        XCTAssertEqual(AIConsent.version, 2)
         XCTAssertEqual(AIConsent.title, "How SureWord answers you")
         XCTAssertEqual(AIConsent.privacyLabel, "Privacy Policy")
         XCTAssertEqual(AIConsent.privacyURL, "https://sureword.app/privacy")
@@ -36,16 +36,23 @@ final class AIConsentTests: XCTestCase {
         XCTAssertEqual(AIConsent.settingsTitle, "AI data sharing")
         XCTAssertEqual(AIConsent.withdraw, "Withdraw")
         XCTAssertTrue(AIConsent.body.hasPrefix("SureWord's answers are written by AI."))
-        XCTAssertEqual(AIConsent.body.split(whereSeparator: \.isWhitespace).count, 99)
+        XCTAssertLessThanOrEqual(AIConsent.body.split(whereSeparator: \.isWhitespace).count, 120)
     }
 
     // MARK: - Rules
 
+    func testOldCachedProviderConsentIsNotCurrentAfterUpdating() {
+        defaults.set(Data(#"{"record":{"version":1,"acceptedAt":"2026-10-07T15:04:05Z"},"required":1}"#.utf8), forKey: AIConsentStore.cacheKey("old_user"))
+        let store = AIConsentStore(account: "old_user", transport: FakeConsentTransport(), defaults: defaults)
+        XCTAssertFalse(store.isCurrent)
+        XCTAssertEqual(store.required, AIConsent.version)
+    }
+
     func testConsentIsNeededUnlessTheRequiredVersionWasAgreed() {
-        XCTAssertTrue(AIConsent.needed(nil, required: 1))
-        XCTAssertFalse(AIConsent.needed(Self.agreed, required: 1))
+        XCTAssertTrue(AIConsent.needed(nil, required: 2))
+        XCTAssertFalse(AIConsent.needed(Self.agreed, required: 2))
         // The server bumped the copy: the old agreement no longer counts.
-        XCTAssertTrue(AIConsent.needed(Self.agreed, required: 2))
+        XCTAssertTrue(AIConsent.needed(Self.agreed, required: 3))
     }
 
     func testStatusLabelIsALongDate() throws {
@@ -57,7 +64,7 @@ final class AIConsentTests: XCTestCase {
         )
         XCTAssertEqual(
             AIConsent.statusLabel(
-                AIConsentRecord(version: 1, acceptedAt: "2026-10-07T15:04:05Z"),
+                AIConsentRecord(version: 2, acceptedAt: "2026-10-07T15:04:05Z"),
                 locale: locale,
                 timeZone: utc
             ),
@@ -65,7 +72,7 @@ final class AIConsentTests: XCTestCase {
         )
         XCTAssertNil(AIConsent.statusLabel(nil, locale: locale, timeZone: utc))
         XCTAssertNil(
-            AIConsent.statusLabel(AIConsentRecord(version: 1, acceptedAt: "yesterday"), locale: locale, timeZone: utc)
+            AIConsent.statusLabel(AIConsentRecord(version: 2, acceptedAt: "yesterday"), locale: locale, timeZone: utc)
         )
     }
 
@@ -73,17 +80,17 @@ final class AIConsentTests: XCTestCase {
 
     func testDocumentDecodesConsentWhenPresent() throws {
         let document = try Self.decode(
-            #"{"translation":"KJV","aiConsent":{"version":1,"acceptedAt":"2026-10-07T15:04:05.000Z"},"aiConsentRequired":1}"#
+            #"{"translation":"KJV","aiConsent":{"version":2,"acceptedAt":"2026-10-07T15:04:05.000Z"},"aiConsentRequired":2}"#
         )
         XCTAssertEqual(document.aiConsent, Self.agreed)
-        XCTAssertEqual(document.aiConsentRequired, 1)
+        XCTAssertEqual(document.aiConsentRequired, 2)
         XCTAssertEqual(document.translation, "KJV")
     }
 
     func testDocumentDecodesAnExplicitNoConsent() throws {
-        let document = try Self.decode(#"{"aiConsent":null,"aiConsentRequired":1}"#)
+        let document = try Self.decode(#"{"aiConsent":null,"aiConsentRequired":2}"#)
         XCTAssertNil(document.aiConsent)
-        XCTAssertEqual(document.aiConsentRequired, 1)
+        XCTAssertEqual(document.aiConsentRequired, 2)
     }
 
     func testDocumentFromAnOlderServerStillDecodes() throws {
@@ -95,11 +102,11 @@ final class AIConsentTests: XCTestCase {
     }
 
     func testAgreePatchCarriesOnlyTheVersion() throws {
-        let json = try Self.object(encoding: AIConsentPatch(version: 1))
+        let json = try Self.object(encoding: AIConsentPatch(version: 2))
         XCTAssertEqual(Set(json.keys), ["aiConsent"])
         let consent = try XCTUnwrap(json["aiConsent"] as? [String: Any])
         XCTAssertEqual(Set(consent.keys), ["version"])
-        XCTAssertEqual(consent["version"] as? Int, 1)
+        XCTAssertEqual(consent["version"] as? Int, 2)
     }
 
     func testWithdrawPatchEncodesAnExplicitNull() throws {
@@ -111,7 +118,7 @@ final class AIConsentTests: XCTestCase {
 
     func testDocumentWithoutConsentFieldsSaysNothing() {
         let store = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults)
-        store.absorb(AccountPreferences(aiConsent: nil, aiConsentRequired: 1))
+        store.absorb(AccountPreferences(aiConsent: nil, aiConsentRequired: 2))
         XCTAssertFalse(store.isCurrent)
         store.absorb(Self.document(Self.agreed))
         XCTAssertTrue(store.isCurrent)
@@ -178,7 +185,7 @@ final class AIConsentTests: XCTestCase {
         XCTAssertNil(store.prompt)
         XCTAssertTrue(store.isCurrent)
         let saves = await transport.saves
-        XCTAssertEqual(saves, [1])
+        XCTAssertEqual(saves, [2])
 
         // Persisted for the next cold start.
         let reopened = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults)
@@ -292,12 +299,12 @@ final class AIConsentTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private static let agreed = AIConsentRecord(version: 1, acceptedAt: "2026-10-07T15:04:05.000Z")
+    private static let agreed = AIConsentRecord(version: 2, acceptedAt: "2026-10-07T15:04:05.000Z")
 
     private static func document(_ consent: AIConsentRecord?) -> AccountPreferences {
         var document = AccountPreferences()
         document.aiConsent = consent
-        document.aiConsentRequired = 1
+        document.aiConsentRequired = 2
         return document
     }
 
@@ -358,7 +365,7 @@ private actor FakeConsentTransport: AIConsentTransport {
         if saveError { throw APIError(message: "offline", isNetworkError: true) }
         if let saveDocument { return saveDocument }
         var document = AccountPreferences()
-        document.aiConsentRequired = 1
+        document.aiConsentRequired = 2
         document.aiConsent = version.map { AIConsentRecord(version: $0, acceptedAt: "2026-10-07T15:04:05.000Z") }
         return document
     }

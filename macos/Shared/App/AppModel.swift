@@ -93,8 +93,11 @@ final class AppModel {
         // invalid, so sign out locally rather than leaving the app looking
         // signed in while every request fails.
         api = APIClient(
-            token: ClerkAuth.tokenProvider,
-            onAuthFailure: { await ClerkAuth.signOut() }
+            token: { fresh in
+                guard let userID else { return nil }
+                return try await ClerkAuth.token(for: userID, fresh: fresh)
+            },
+            onAuthFailure: { await ClerkAuth.signOut(ifAccount: userID) }
         )
         chat = ChatViewModel(api: api, settings: settings)
         highlights = HighlightsStore(api: api, cacheURL: HighlightsStore.defaultCacheURL)
