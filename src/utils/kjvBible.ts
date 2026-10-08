@@ -94,6 +94,9 @@ function buildKjvIndex(source: string): Map<string, string> {
 
 	const body = normalizedSource.slice(bodyStart);
 	const bookStarts: number[] = [];
+	// Where each heading begins, so a book's last verse stops before the next
+	// book's title instead of absorbing it.
+	const headingStarts: number[] = [];
 	let searchFrom = 0;
 
 	for (const book of KJV_BOOKS) {
@@ -102,6 +105,7 @@ function buildKjvIndex(source: string): Map<string, string> {
 		if (headingStart < 0) {
 			throw new Error(`KJV corpus heading was not found for ${book.name}.`);
 		}
+		headingStarts.push(headingStart);
 		bookStarts.push(headingStart + heading.length);
 		searchFrom = headingStart + heading.length;
 	}
@@ -111,7 +115,7 @@ function buildKjvIndex(source: string): Map<string, string> {
 	for (let bookIndex = 0; bookIndex < KJV_BOOKS.length; bookIndex++) {
 		const sectionStart = bookStarts[bookIndex];
 		const sectionEnd =
-			bookStarts[bookIndex + 1] ?? body.indexOf(BODY_END_MARKER, sectionStart);
+			headingStarts[bookIndex + 1] ?? body.indexOf(BODY_END_MARKER, sectionStart);
 		const section = body.slice(sectionStart, sectionEnd < 0 ? undefined : sectionEnd);
 		const markers = Array.from(section.matchAll(VERSE_MARKER_PATTERN));
 

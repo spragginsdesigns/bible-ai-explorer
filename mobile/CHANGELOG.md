@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.81.1 (versionCode 91) - 2026-10-08 - internal
+
+**What's new (Play):**
+
+FIXED
+- Corrected misspellings in the Bible text, including Galatians 2:20 ("nevertheless"), Jonah 1:15 ("took up Jonah") and Genesis 47:4 ("moreover"). Malachi 4:6 no longer ends with a stray "The New Testament" heading.
+
+**Dev notes:** The bundled KJV came from Project Gutenberg #10, which carries these typos. Fixed in `biblical-texts/KJV-Bible.txt` and regenerated with `mobile/scripts/build-kjv-data.py`; 11 verses: Gen 14:5, 47:4, Josh 18:23, 2 Sam 14:10, Prov 6:26, Ezek 22:21, Jonah 1:15, Mal 4:6, John 21:18, Gal 2:20, 1 Tim 6:14. Found by a word-level diff against eBible's Cambridge KJV (eng-kjv2006). Pinned by `tests/kjv-text.test.mjs`.
+
 ## 1.81.0 (versionCode 90) - 2026-10-07 - internal
 
 **What's new (Play):**
