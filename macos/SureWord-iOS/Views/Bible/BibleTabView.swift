@@ -53,9 +53,10 @@ struct BibleTabView: View {
                 crossCard
                 atlasCard
                 Button { showingHistory = true } label: {
-                    Label("Reading history", systemImage: "clock.arrow.circlepath")
+                    Label("Reading log", systemImage: "clock.arrow.circlepath")
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, Spacing.md)
                 }
+                .accessibilityLabel("Reading log")
 
                 ForEach(BibleBookList.rows(collapsed: collapsed)) { row in
                     switch row {
@@ -75,9 +76,18 @@ struct BibleTabView: View {
         .navigationTitle("Bible")
         .settingsGearToolbar()
         .sheet(isPresented: $showingHistory) {
-            ReadingHistoryView(model: model.reading) { entry in
-                readerRequest = BibleReaderRequest(order: entry.book, chapter: entry.chapter, verse: nil, translation: nil)
-            }
+            // Android opens the chapter at the reading's first verse, in the
+            // translation it was read in.
+            ReadingHistoryView(model: model.reading, onOpen: { entry in
+                readerRequest = BibleReaderRequest(
+                    order: entry.book, chapter: entry.chapter,
+                    verse: entry.verseRanges.first?.start ?? 1,
+                    translation: TranslationID(rawValue: entry.translation)
+                )
+            }, onTalk: {
+                // The shell switches to Chat (Android pushes the chat home).
+                NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
+            })
         }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         // Fail-soft and refreshed on every return to the home, like Android's

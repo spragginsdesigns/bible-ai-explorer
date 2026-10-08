@@ -120,6 +120,7 @@ struct ReadingJournalTests {
         let now = Date(), clock = ProcessInfo.processInfo.systemUptime
         model.visibility(verse: 1, isVisible: true, now: now, uptime: clock)
         model.checkpoint(now: now.addingTimeInterval(8), uptime: clock + 8)
+        model.flush() // checkpoints debounce sends by 15 s (Android); send now
         for _ in 0..<100 where first == nil { await Task.yield() }
         let sent = try #require(first)
         model.visibility(verse: 2, isVisible: true, now: now.addingTimeInterval(10), uptime: clock + 10)
@@ -135,27 +136,50 @@ struct ReadingJournalTests {
         #expect(model.pendingCount == 1)
     }
 
-    @Test("a server tombstone acknowledges stale offline work without restoring it")
+    /// Android parity: a tombstone acknowledges only the revision that was sent
+    /// (`max(synced, sent)`), exactly like any other acknowledgement. The old
+    /// iOS rule marked the row's *current* revision synced, which silently
+    /// dropped coverage recorded while the request was in flight.
+    @Test("a server tombstone acknowledges only the revision that was sent")
     func deletedOfflineEntry() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("reading-deleted-\(UUID()).json")
         var sends = 0
+        var continuation: CheckedContinuation<ReadingJournalSave, any Error>?
         let model = ReadingJournal(account: "owner", api: nil, fileURL: url, send: { entry in
             sends += 1
             var deleted = entry; deleted.deletedAt = "2026-09-12T12:00:00Z"
-            return ReadingJournalSave(recorded: false, entry: deleted)
+            let response = ReadingJournalSave(recorded: false, entry: deleted)
+            if sends == 1 { return try await withCheckedThrowingContinuation { continuation = $0 } }
+            return response
         })
-        defer { model.teardown(); try? FileManager.default.removeItem(at: url) }
+        defer {
+            model.teardown()
+            continuation?.resume(throwing: CancellationError())
+            try? FileManager.default.removeItem(at: url)
+        }
         model.setForeground(true); model.setReaderVisible(true)
         model.enter(book: 43, chapter: 3, translation: "KJV", verseCount: 36)
         let now = Date(), clock = ProcessInfo.processInfo.systemUptime
         model.visibility(verse: 1, isVisible: true, now: now, uptime: clock)
         model.checkpoint(now: now.addingTimeInterval(8), uptime: clock + 8)
-        for _ in 0..<100 where model.pendingCount > 0 { await Task.yield() }
-        #expect(model.pendingCount == 0)
         model.flush()
-        await Task.yield()
+        for _ in 0..<100 where continuation == nil { await Task.yield() }
+        let pending = try #require(continuation)
+        // Newer coverage arrives while revision 1 is in flight.
+        model.visibility(verse: 2, isVisible: true, now: now.addingTimeInterval(10), uptime: clock + 10)
+        model.checkpoint(now: now.addingTimeInterval(18), uptime: clock + 18)
+        var tombstone = try #require(read(url).rows.values.first).entry
+        tombstone.revision = 1; tombstone.deletedAt = "2026-09-12T12:00:00Z"
+        pending.resume(returning: ReadingJournalSave(recorded: false, entry: tombstone)); continuation = nil
+        for _ in 0..<100 {
+            if try read(url).rows.values.first?.syncedRevision == 1 { break }
+            await Task.yield()
+        }
+        let stored = try #require(read(url).rows.values.first)
+        #expect(stored.entry.revision == 2)
+        #expect(stored.syncedRevision == 1)
+        #expect(model.pendingCount == 1)
         #expect(sends == 1)
-        #expect(try read(url).rows.values.first?.syncedRevision == 1)
     }
 
     @Test("a sealed canonical lower revision acknowledges the attempted offline snapshot")
@@ -220,8 +244,11 @@ struct ReadingJournalTests {
         }, requestTimeout: 0.01)
         defer { model.teardown(); hanging?.resume(throwing: CancellationError()) }
         model.setForeground(true)
-        for _ in 0..<100 where model.error == nil { try await Task.sleep(for: .milliseconds(2)) }
-        #expect(model.error != nil)
+        // A timeout is a transient failure: Android shows the waiting-to-sync
+        // count rather than an error string, so wait for the failed attempt.
+        for _ in 0..<100 where model.attempts == 0 { try await Task.sleep(for: .milliseconds(2)) }
+        #expect(model.attempts == 1)
+        #expect(model.error == nil)
         #expect(model.pendingCount == 1)
         #expect(try read(url).rows[entry.eventId]?.syncedRevision == 0)
         hanging?.resume(returning: ReadingJournalSave(recorded: true, entry: entry)); hanging = nil
