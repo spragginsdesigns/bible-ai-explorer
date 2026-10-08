@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.84.0 (versionCode 94) - 2026-10-08 - internal
+
+**What's new (Play):**
+
+NEW
+- Copy, edit and resend your own questions. Long-press any question, or use the buttons under your newest one. An edit keeps its attachments and replaces the replies after it.
+- Try again on the newest answer to get a fresh one.
+- SureWord Pro can choose how hard SureWord thinks: Low, Medium or High.
+
+IMPROVED
+- Answers are fast again. Free accounts now see "SureWord AI" instead of a model name.
+
+**Dev notes:** Edit = AI SDK `sendMessage({ messageId })` via `editedUserMessage` (`features/chat/editMessage.ts`), Try again = `regenerate()`; `/api/ask-question` deletes the stored rows after a re-sent user message id. The included-model speed fix (back to Luna medium) and the "SureWord AI" label are server-side and reached every installed build at deploy. Pro reasoning chips render from `house.efforts` on `GET /api/ai/models`.
+
 ## 1.83.0 (versionCode 93) - 2026-10-08 - internal
 
 **What's new (Play):**

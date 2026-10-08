@@ -24,6 +24,7 @@ import { useKeyboardVisible, useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useSureWordChat } from "@/features/chat/useSureWordChat";
 import { ShareActions } from "@/features/share/ShareActions";
+import type { ChatViewMessage } from "@/lib/chatView";
 import { takePendingShare, usePendingShare } from "@/features/share/shareInbox";
 import { shareActionMessage, shareActionsFor, type ShareAction } from "@/features/share/shareIntake";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
@@ -66,6 +67,41 @@ export default function ChatScreen() {
 	/** Set while a chat opened from "Share into SureWord" has not been sent yet. */
 	const [shareNotices, setShareNotices] = useState<string[] | null>(null);
 
+	/**
+	 * The message being edited, and the draft it pushed aside: the composer
+	 * holds the message's words until it is sent or cancelled, and then the
+	 * draft comes back. Anything else that takes the composer (a follow-up
+	 * chip, an Ask from the Bible tab, a pinned verse, a share) ends the edit
+	 * first, so a later Send can never turn into an edit by surprise.
+	 */
+	const [editing, setEditing] = useState<{
+		messageId: string;
+		draft: string;
+		allowEmpty: boolean;
+	} | null>(null);
+	const editingRef = useRef(editing);
+	useEffect(() => {
+		editingRef.current = editing;
+	}, [editing]);
+	// Read through a ref so Edit's callback, and with it every memoized
+	// bubble, does not change identity on each keystroke.
+	const inputRef = useRef(chat.input);
+	useEffect(() => {
+		inputRef.current = chat.input;
+	}, [chat.input]);
+
+	/** Leave edit mode; the pushed-aside draft returns unless the composer is being taken. */
+	const leaveEdit = useCallback(
+		(restoreDraft: boolean) => {
+			const current = editingRef.current;
+			if (!current) return;
+			editingRef.current = null;
+			if (restoreDraft) chat.setInput(current.draft);
+			setEditing(null);
+		},
+		[chat.setInput]
+	);
+
 	// "Share into SureWord": open what was shared as a new chat. Waits for a
 	// signed-in session (uploads need one) and for any upload already running,
 	// which would otherwise make the new one bail out.
@@ -77,8 +113,10 @@ export default function ChatScreen() {
 		setModelPickerOpen(false);
 		setShareNotices(draft.notices);
 		setFocusSignal((signal) => signal + 1);
+		// The share takes the composer, so the old draft must not come back over it.
+		leaveEdit(false);
 		void chat.startSharedChat(draft);
-	}, [pendingShare, isSignedIn, chat.uploadingAttachments, chat.startSharedChat]);
+	}, [pendingShare, isSignedIn, chat.uploadingAttachments, chat.startSharedChat, leaveEdit]);
 
 	// Once the shared chat has a message, the share actions have done their job.
 	useEffect(() => {
@@ -99,9 +137,10 @@ export default function ChatScreen() {
 	useEffect(() => {
 		if (!promptParam || promptParam === lastSeededPrompt.current) return;
 		lastSeededPrompt.current = promptParam;
+		leaveEdit(false);
 		chat.setInput(promptParam);
 		setFocusSignal((signal) => signal + 1);
-	}, [promptParam, chat.setInput]);
+	}, [promptParam, chat.setInput, leaveEdit]);
 
 	// Verse/chapter attachments (?attachRef= etc.): pin the passage above the
 	// input and focus so the user can type their own question — the draft text
@@ -111,6 +150,7 @@ export default function ChatScreen() {
 		const key = `${attachRefParam}${attachTranslationParam}${attachTextParam}${verseOfDayIdParam}`;
 		if (key === lastSeededAttachment.current) return;
 		lastSeededAttachment.current = key;
+		leaveEdit(true);
 		const translation: TranslationId =
 			attachTranslationParam in TRANSLATIONS
 				? (attachTranslationParam as TranslationId)
@@ -138,6 +178,7 @@ export default function ChatScreen() {
 		verseOfDayIdParam,
 		defaultTranslation,
 		chat.setAttachment,
+		leaveEdit,
 	]);
 
 	const {
@@ -148,17 +189,65 @@ export default function ChatScreen() {
 		isStreaming,
 		loading,
 		sendMessage,
+		editMessage,
+		retryAnswer,
 		stop,
 		retrySend,
 		retryHistory,
 		newConversation,
 	} = chat;
+	const busy = loading || isStreaming;
 
+	const startEdit = useCallback(
+		(message: ChatViewMessage) => {
+			const next = {
+				messageId: message.id,
+				// Editing a second message keeps the draft from before the first.
+				draft: editingRef.current ? editingRef.current.draft : inputRef.current,
+				allowEmpty: (message.attachments?.length ?? 0) > 0,
+			};
+			editingRef.current = next;
+			setEditing(next);
+			chat.setInput(message.content);
+			setFocusSignal((signal) => signal + 1);
+		},
+		[chat.setInput]
+	);
+
+	const cancelEdit = useCallback(() => leaveEdit(true), [leaveEdit]);
+
+	// The edited message can vanish under the editor (new chat, another
+	// conversation, a history reload); the edit goes with it.
+	useEffect(() => {
+		if (editing && !messages.some((message) => message.id === editing.messageId)) {
+			leaveEdit(true);
+		}
+	}, [editing, messages, leaveEdit]);
+
+	// A follow-up chip or opening question is always a new question.
 	const send = useCallback(
 		(text: string) => {
+			leaveEdit(true);
 			void sendMessage(text);
 		},
-		[sendMessage]
+		[leaveEdit, sendMessage]
+	);
+
+	// Only the composer sends an edit. One that could not go out (an answer
+	// still running) keeps its words and stays open.
+	const submitComposer = useCallback(
+		(text: string) => {
+			const current = editingRef.current;
+			if (!current) {
+				void sendMessage(text);
+				return;
+			}
+			void editMessage(current.messageId, text).then((sent) => {
+				if (sent) leaveEdit(true);
+				else chat.setInput(text);
+			});
+		},
+		[editMessage, leaveEdit, sendMessage, chat.setInput]
 	);
 
 	const openHistory = useCallback(() => setHistoryOpen(true), []);
@@ -173,11 +262,12 @@ export default function ChatScreen() {
 	const onShareAction = useCallback(
 		(action: ShareAction) => {
 			const message = shareActionMessage(action, chat.input);
+			leaveEdit(false);
 			chat.setInput("");
 			setShareNotices(null);
 			void sendMessage(message);
 		},
-		[chat.input, chat.setInput, sendMessage]
+		[chat.input, chat.setInput, leaveEdit, sendMessage]
 	);
 
 	const onLocalCommand = useCallback(
@@ -212,7 +302,7 @@ export default function ChatScreen() {
 	const showWelcome = messages.length === 0 && !historyLoading && !historyError && !error;
 	const inputBar = (
 		<ChatInputBar
-			onSend={send}
+			onSend={submitComposer}
 			onStop={stop}
 			loading={loading}
 			isStreaming={isStreaming}
@@ -242,6 +332,7 @@ export default function ChatScreen() {
 			onRemoveFileAttachment={(id) => void chat.removeFileAttachment(id)}
 			focusSignal={focusSignal}
 			prominent={showWelcome}
+			editing={editing ? { allowEmpty: editing.allowEmpty, onCancel: cancelEdit } : null}
 		/>
 	);
 
@@ -319,6 +410,8 @@ export default function ChatScreen() {
 						defaultNoteTitle={chat.activeConversation?.title}
 						onFeedback={chat.setFeedback}
 						conversationId={chat.activeConversationId}
+						onEdit={busy ? undefined : startEdit}
+						onRetry={busy || error ? undefined : retryAnswer}
 					>
 						{error && (
 							<ErrorCard

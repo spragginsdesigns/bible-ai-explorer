@@ -56,6 +56,15 @@ interface MessageBubbleProps {
 	 * fail. Same source the thumbs use: the chat hook's active conversation.
 	 */
 	conversationId?: string | null;
+	/**
+	 * Edit this user message: its words go back into the composer. Absent while
+	 * an answer is in flight, which is also what hides Edit.
+	 */
+	onEdit?: (message: ChatViewMessage) => void;
+	/** Draw Copy and Edit under this user message (the newest one). */
+	showUserActions?: boolean;
+	/** "Try again" on this answer. Only the newest settled answer gets it. */
+	onRetry?: () => void;
 }
 
 export const MessageBubble = React.memo(function MessageBubble({
@@ -64,6 +73,9 @@ export const MessageBubble = React.memo(function MessageBubble({
 	defaultNoteTitle,
 	onFeedback,
 	conversationId,
+	onEdit,
+	showUserActions = false,
+	onRetry,
 }: MessageBubbleProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -104,10 +116,44 @@ export const MessageBubble = React.memo(function MessageBubble({
 		[message.role, message.content, message.isStreaming],
 	);
 
+	/** Put `text` on the clipboard and flash the checkmark on the Copy glyph. */
+	const copyText = (text: string) => {
+		void (async () => {
+			try {
+				await Clipboard.setStringAsync(text);
+			} catch {
+				Alert.alert("Couldn't copy that", "The clipboard didn't take it.");
+				return;
+			}
+			if (copiedTimer.current) clearTimeout(copiedTimer.current);
+			setCopied(true);
+			// The glyph swap is silent to a screen reader, so say it.
+			AccessibilityInfo.announceForAccessibility("Copied");
+			copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+		})();
+	};
+
 	if (message.role === "user") {
+		const canCopy = message.content.length > 0;
+		// Long-press works on every question, so older ones can be copied or
+		// edited too; the newest also shows the glyphs, which is how people
+		// find out the menu exists.
+		const openMenu = () => {
+			const actions: { text: string; onPress?: () => void; style?: "cancel" }[] = [];
+			if (canCopy) actions.push({ text: "Copy", onPress: () => copyText(message.content) });
+			if (onEdit) actions.push({ text: "Edit", onPress: () => onEdit(message) });
+			if (actions.length === 0) return;
+			actions.push({ text: "Cancel", style: "cancel" });
+			Alert.alert("Your message", undefined, actions);
+		};
 		return (
 			<View style={styles.userRow}>
-				<View style={styles.userBubble}>
+				<Pressable
+					accessibilityHint="Long press to copy or edit"
+					onLongPress={openMenu}
+					delayLongPress={350}
+					style={styles.userBubble}
+				>
 					{message.attachments && message.attachments.length > 0 && (
 						<View style={message.content ? styles.userFiles : undefined}>
 							<FileAttachmentCards attachments={message.attachments} />
@@ -129,7 +175,37 @@ export const MessageBubble = React.memo(function MessageBubble({
 							)
 						)}
 					</Text>}
-				</View>
+				</Pressable>
+				{showUserActions && (canCopy || onEdit) && (
+					<View style={styles.userActions}>
+						{canCopy && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={copied ? "Message copied" : "Copy your message"}
+								onPress={() => copyText(message.content)}
+								hitSlop={6}
+								style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+							>
+								<Ionicons
+									name={copied ? "checkmark" : "copy-outline"}
+									size={16}
+									color={copied ? colors.accent : colors.textFaint}
+								/>
+							</Pressable>
+						)}
+						{onEdit && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Edit your message"
+								onPress={() => onEdit(message)}
+								hitSlop={6}
+								style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+							>
+								<Ionicons name="pencil-outline" size={16} color={colors.textFaint} />
+							</Pressable>
+						)}
+					</View>
+				)}
 			</View>
 		);
 	}
@@ -151,21 +227,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 	 * Nothing here touches the server, so Copy shows on every settled answer
 	 * even before a conversation exists to share or rate.
 	 */
-	const copy = () => {
-		void (async () => {
-			try {
-				await Clipboard.setStringAsync(copyableAnswerText(message.content));
-			} catch {
-				Alert.alert("Couldn't copy that", "The clipboard didn't take the answer.");
-				return;
-			}
-			if (copiedTimer.current) clearTimeout(copiedTimer.current);
-			setCopied(true);
-			// The glyph swap is silent to a screen reader, so say it.
-			AccessibilityInfo.announceForAccessibility("Copied");
-			copiedTimer.current = setTimeout(() => setCopied(false), 1500);
-		})();
-	};
+	const copy = () => copyText(copyableAnswerText(message.content));
 
 	/**
 	 * Mint the public link, then open the system share sheet with it. Minting is
@@ -269,6 +331,18 @@ export const MessageBubble = React.memo(function MessageBubble({
 							</>
 						)}
 
+						{onRetry && (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Try again"
+								onPress={onRetry}
+								hitSlop={6}
+								style={({ pressed }) => [styles.thumb, pressed && styles.thumbPressed]}
+							>
+								<Ionicons name="refresh-outline" size={16} color={colors.textFaint} />
+							</Pressable>
+						)}
+
 						{conversationId && (
 							<Pressable
 								accessibilityRole="button"
@@ -339,10 +413,15 @@ export const MessageBubble = React.memo(function MessageBubble({
 
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
+		// A column, so the newest question's Copy / Edit glyphs sit under it.
 		userRow: {
-			flexDirection: "row",
-			justifyContent: "flex-end",
+			alignItems: "flex-end",
 			marginBottom: spacing.xl,
+		},
+		userActions: {
+			flexDirection: "row",
+			gap: spacing.xs,
+			marginTop: spacing.xs,
 		},
 		userBubble: {
 			maxWidth: "85%",

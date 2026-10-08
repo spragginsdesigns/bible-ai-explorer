@@ -25,6 +25,8 @@ import { fetchAiModels, type AiModel, type AiModelsResponse } from "@/features/s
 import {
 	activeOptionId,
 	filterModels,
+	houseEffortSection,
+	houseEffortToPin,
 	houseMode,
 	modelMeta,
 	modelPills,
@@ -103,6 +105,8 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 	const model = useMemo(() => selectedModel(data, chatModelId), [data, chatModelId]);
 	const providers = useMemo(() => visibleProviders(data), [data]);
 	const sections = useMemo(() => (house ? [] : optionSections(model)), [house, model]);
+	// Pro's included model takes a reasoning choice; Free gets none.
+	const houseSection = useMemo(() => houseEffortSection(house), [house]);
 
 	const searchable = showSearch(data);
 	const trimmedQuery = query.trim();
@@ -130,10 +134,12 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 	// Local-only: this is the client agreeing with the server, not a choice.
 	// PATCHing it would overwrite the model this account picked while it still
 	// had a key, and lose it the moment the key comes back.
+	// A Pro reasoning pick the server offers is a choice, so it stays.
 	useEffect(() => {
 		if (!house) return;
 		if (chatModelId !== house.modelId) setChatModelLocal(house.modelId);
-		if (chatEffort !== house.effort) setChatEffortLocal(house.effort);
+		const pinnedEffort = houseEffortToPin(house, chatEffort);
+		if (chatEffort !== pinnedEffort) setChatEffortLocal(pinnedEffort);
 		if (chatSpeed !== null) setChatSpeedLocal(null);
 		if (chatVerbosity !== null) setChatVerbosityLocal(null);
 		if (chatMode !== null) setChatModeLocal(null);
@@ -263,6 +269,13 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 						</Text>
 						<Ionicons name="checkmark" size={16} color={colors.accent} />
 					</View>
+					{houseSection ? (
+						<OptionCard
+							section={houseSection}
+							stored={chatEffort}
+							onSelect={(id) => setChatEffort(id)}
+						/>
+					) : null}
 					<Text style={[styles.subtitle, styles.houseNote]}>{house.note}</Text>
 					<AddKeyRow onPress={openProviderSettings} />
 				</View>

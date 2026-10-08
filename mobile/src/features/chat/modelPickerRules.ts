@@ -118,6 +118,39 @@ export function houseMode(data: AiModelsResponse | null): AiHouseMode | null {
 	return data.house ?? null;
 }
 
+/** Efforts an included account may pick, in server order; [] when it has no choice. */
+function houseEfforts(house: AiHouseMode): ReasoningEffort[] {
+	return REASONING_EFFORTS.filter((effort) => house.efforts?.includes(effort));
+}
+
+/**
+ * The Reasoning chips an included Pro account gets under its one model, or
+ * null for Free (and for servers that send no `efforts`). No Auto chip: the
+ * server runs medium unless told otherwise, so Medium is the default.
+ */
+export function houseEffortSection(house: AiHouseMode | null): OptionSection | null {
+	if (!house) return null;
+	const efforts = houseEfforts(house);
+	if (efforts.length === 0) return null;
+	return {
+		kind: "effort",
+		title: "REASONING",
+		name: "Reasoning",
+		choices: efforts.map((effort) => ({ id: effort, label: EFFORT_LABELS[effort] })),
+		defaultId: efforts.includes("medium") ? "medium" : efforts[0],
+		note: "Higher thinks longer before answering.",
+	};
+}
+
+/**
+ * The effort a house account's requests should carry: a stored pick the server
+ * lets it choose stays, anything else snaps to what the server runs.
+ */
+export function houseEffortToPin(house: AiHouseMode, stored: string | null): string {
+	const efforts = houseEfforts(house);
+	return stored !== null && efforts.some((effort) => effort === stored) ? stored : house.effort;
+}
+
 /**
  * The model to render as picked: the stored pick while the server still offers
  * it, otherwise the server default. House mode always answers the house model,

@@ -27,6 +27,17 @@ describe("completedHistory", () => {
 		expect(completedHistory(payload)).toBeNull();
 	});
 
+	it("never collects the answer an edit or Try again is replacing", () => {
+		const payload = {
+			messages: [
+				{ id: "1", role: "user", content: "Who is Melchizedek?" },
+				{ id: "old", role: "assistant", content: "He is the king of Salem." },
+			],
+		};
+		expect(completedHistory(payload, ["old"])).toBeNull();
+		expect(completedHistory(payload, ["other"])).toHaveLength(2);
+	});
+
 	it("rejects malformed payloads", () => {
 		expect(completedHistory(null)).toBeNull();
 		expect(completedHistory({})).toBeNull();

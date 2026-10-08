@@ -55,6 +55,11 @@ export interface AiHouseMode {
 	label: string;
 	/** Pinned by the server; the client stores it so requests agree. */
 	effort: string;
+	/**
+	 * Efforts this included account may choose: low/medium/high for Pro, empty
+	 * for Free, absent on servers before 2026-10-08 (read as empty).
+	 */
+	efforts?: string[];
 	note: string;
 }
 

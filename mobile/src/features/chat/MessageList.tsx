@@ -18,10 +18,14 @@ interface MessageListProps {
 	onFeedback?: SetAnswerFeedback;
 	/** Active conversation - the share route owner-checks an answer through it. */
 	conversationId?: string | null;
+	/** Edit one of the user's messages. Omitted while an answer is in flight. */
+	onEdit?: (message: ChatViewMessage) => void;
+	/** "Try again" on the newest answer. Omitted while an answer is in flight. */
+	onRetry?: () => void;
 	children?: React.ReactNode;
 }
 
-export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, conversationId, children }: MessageListProps) {
+export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, conversationId, onEdit, onRetry, children }: MessageListProps) {
 	const scrollRef = useRef<FlatList<ChatViewMessage>>(null);
 	const nearBottom = useRef(true);
 	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
@@ -66,6 +70,9 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 					defaultNoteTitle={defaultNoteTitle}
 					onFeedback={onFeedback}
 					conversationId={conversationId}
+					onEdit={onEdit}
+					showUserActions={message.id === latestUserId}
+					onRetry={message.id === latestAssistantId && !message.isStreaming ? onRetry : undefined}
 				/>
 			)}
 			ListFooterComponent={children ? <>{children}</> : null}

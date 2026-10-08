@@ -2,7 +2,7 @@
 	"expo": {
 		"name": "SureWord",
 		"slug": "sureword",
-		"version": "1.83.0",
+		"version": "1.84.0",
 		"orientation": "portrait",
 		"icon": "./assets/icon.png",
 		"scheme": "sureword",
@@ -19,7 +19,7 @@
 		},
 		"android": {
 			"package": "com.spragginsdesigns.sureword",
-			"versionCode": 93,
+			"versionCode": 94,
 			"googleServicesFile": "./google-services.json",
 			"adaptiveIcon": {
 				"foregroundImage": "./assets/adaptive-icon.png",

@@ -65,6 +65,13 @@ interface ChatInputBarProps {
 	focusSignal?: number;
 	/** Art-forward treatment used on the empty welcome screen. */
 	prominent?: boolean;
+	/**
+	 * Set while the composer holds one of the user's earlier messages for
+	 * editing. The draft's own attachments step aside (an edit changes only the
+	 * words, and they come back after), and an emptied text still sends when the
+	 * message being edited carries files of its own.
+	 */
+	editing?: { allowEmpty: boolean; onCancel: () => void } | null;
 }
 
 export function ChatInputBar({
@@ -92,6 +99,7 @@ export function ChatInputBar({
 	onChangeText,
 	focusSignal,
 	prominent = false,
+	editing = null,
 }: ChatInputBarProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -143,11 +151,13 @@ export function ChatInputBar({
 
 	const submit = useCallback(() => {
 		const trimmed = text.trim();
-		if ((!trimmed && !attachment && fileAttachments.length === 0) || locked)
+		const hasDraftFiles = editing ? editing.allowEmpty : Boolean(attachment) || fileAttachments.length > 0;
+		if ((!trimmed && !hasDraftFiles) || locked)
 			return;
 
+		// An edit is the user's own words going back out, never a command.
 		const parsed =
-			commands.length > 0 ? parseSlashCommand(trimmed, commands) : null;
+			commands.length > 0 && !editing ? parseSlashCommand(trimmed, commands) : null;
 		if (parsed) {
 			if (parsed.def.requiresArgs && !parsed.args) return; // keep typing the argument
 			setText("");
@@ -160,6 +170,7 @@ export function ChatInputBar({
 	}, [
 		attachment,
 		commands,
+		editing,
 		fileAttachments.length,
 		locked,
 		onSend,
@@ -167,8 +178,9 @@ export function ChatInputBar({
 		text,
 	]);
 
-	const canSend =
-		Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
+	const canSend = editing
+		? Boolean(text.trim()) || editing.allowEmpty
+		: Boolean(text.trim()) || Boolean(attachment) || fileAttachments.length > 0;
 
 	const showAttachmentMenu = useCallback(() => {
 		Keyboard.dismiss();
@@ -193,7 +205,24 @@ export function ChatInputBar({
 				onChooseFiles={onChooseFiles}
 				onPasteImage={onPasteImage}
 			/>
-			{attachment && (
+			{editing && (
+				<View style={styles.editingBar} accessibilityLiveRegion="polite">
+					<Ionicons name="pencil-outline" size={14} color={colors.accentDim} />
+					<Text style={styles.editingLabel}>
+						Editing. Sending replaces this message and every reply after it.
+					</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Cancel editing"
+						onPress={editing.onCancel}
+						hitSlop={8}
+						style={({ pressed }) => pressed && { opacity: 0.6 }}
+					>
+						<Text style={styles.editingCancel}>Cancel</Text>
+					</Pressable>
+				</View>
+			)}
+			{attachment && !editing && (
 				<View style={styles.pill}>
 					<Text style={styles.pillGlyph}>✦</Text>
 					<Text style={styles.pillLabel} numberOfLines={1}>
@@ -210,7 +239,7 @@ export function ChatInputBar({
 					</Pressable>
 				</View>
 			)}
-			{fileAttachments.length > 0 && (
+			{fileAttachments.length > 0 && !editing && (
 				<View style={styles.files}>
 					<FileAttachmentCards
 						attachments={fileAttachments}
@@ -262,12 +291,12 @@ export function ChatInputBar({
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel="Add an attachment"
-					disabled={locked}
+					disabled={locked || Boolean(editing)}
 					onPress={showAttachmentMenu}
 					style={({ pressed }) => [
 						styles.action,
 						pressed && { backgroundColor: colors.surfacePressed },
-						locked && styles.sendDisabled,
+						(locked || editing) && styles.sendDisabled,
 					]}
 				>
 					{uploadingAttachments ? (
@@ -340,6 +369,20 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.full,
 		},
 		pillGlyph: { color: c.accent, fontSize: 11 },
+		editingBar: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginBottom: spacing.sm,
+			paddingHorizontal: spacing.md,
+			paddingVertical: spacing.sm,
+			backgroundColor: c.surface,
+			borderColor: c.accentBorder,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: radius.md,
+		},
+		editingLabel: { ...typography.support, color: c.textMuted, flex: 1 },
+		editingCancel: { ...typography.meta, color: c.accent, fontWeight: "700" },
 		pillLabel: {
 			...typography.meta,
 			flexShrink: 1,

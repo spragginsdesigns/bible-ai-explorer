@@ -21,6 +21,7 @@ export type ChatErrorCode =
 	| "unauthorized"
 	| "invalid_input"
 	| "conversation_not_found"
+	| "stale_thread"
 	| "provider_key_missing"
 	| "provider_error"
 	| "rate_limited"
@@ -39,6 +40,7 @@ const SERVER_CODES: readonly ChatErrorCode[] = [
 	"unauthorized",
 	"invalid_input",
 	"conversation_not_found",
+	"stale_thread",
 	"provider_key_missing",
 	"provider_error",
 	"rate_limited",
@@ -74,6 +76,13 @@ const COPY: Record<ChatErrorCode, { title: string; message: string; retryable: b
 		title: "Conversation not found",
 		message: "This conversation is no longer available. Start a new chat to continue.",
 		retryable: false,
+	},
+	// An edit or "Try again" refused because another device added turns this
+	// phone never saw. "Try again" reloads the thread instead (retrySend).
+	stale_thread: {
+		title: "This chat changed",
+		message: "This conversation changed on another device. Reload it and try again.",
+		retryable: true,
 	},
 	provider_key_missing: {
 		title: "The AI provider is not configured",

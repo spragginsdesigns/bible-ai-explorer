@@ -15,6 +15,8 @@ import {
 	filterModels,
 	formatContextWindow,
 	formatPricing,
+	houseEffortSection,
+	houseEffortToPin,
 	houseMode,
 	modelMeta,
 	modelPills,
@@ -96,6 +98,32 @@ describe("houseMode", () => {
 
 	it("stays null when the server claims house mode but sends no block", () => {
 		expect(houseMode({ ...housePayload(), house: null })).toBeNull();
+	});
+});
+
+describe("house reasoning for Pro", () => {
+	const proHouse = { ...housePayload().house!, efforts: ["low", "medium", "high"] };
+
+	it("gives Pro Low / Medium / High chips, defaulting to Medium, and no Auto", () => {
+		const section = houseEffortSection(proHouse);
+		expect(section?.kind).toBe("effort");
+		expect(section?.choices.map((choice) => choice.label)).toEqual(["Low", "Medium", "High"]);
+		expect(section?.defaultId).toBe("medium");
+	});
+
+	it("gives Free (empty or absent efforts) no chips at all", () => {
+		expect(houseEffortSection({ ...proHouse, label: "SureWord AI", efforts: [] })).toBeNull();
+		expect(houseEffortSection(housePayload().house!)).toBeNull();
+		expect(houseEffortSection(null)).toBeNull();
+	});
+
+	it("keeps a Pro pick the server offers and snaps anything else to the server's effort", () => {
+		expect(houseEffortToPin(proHouse, "high")).toBe("high");
+		expect(houseEffortToPin(proHouse, "max")).toBe("medium");
+		expect(houseEffortToPin(proHouse, null)).toBe("medium");
+		expect(houseEffortToPin(proHouse, AUTO_EFFORT_SENTINEL)).toBe("medium");
+		// Free keeps today's behaviour: always pinned to the server's effort.
+		expect(houseEffortToPin(housePayload().house!, "high")).toBe("medium");
 	});
 });
 

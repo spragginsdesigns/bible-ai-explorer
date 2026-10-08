@@ -60,6 +60,7 @@ import {
 	videoSendingStatus,
 } from "./videoTranscript";
 import { pastedImageMetadata, type PastedImageFile } from "./pastedImages";
+import { editedUserMessage, idsAfter, idsAfterLastUser } from "./editMessage";
 import type { SharedChatDraft } from "@/features/share/shareIntake";
 
 export interface Conversation {
@@ -107,6 +108,10 @@ export interface SureWordChat {
 	/** Open a share from another app as a new chat: files attached, text in the composer. */
 	startSharedChat: (draft: SharedChatDraft) => Promise<void>;
 	sendMessage: (text: string) => Promise<void>;
+	/** Replace one of the user's messages with new text and answer it again; false when nothing was sent. */
+	editMessage: (messageId: string, text: string) => Promise<boolean>;
+	/** Answer the newest question again, replacing the newest answer. */
+	retryAnswer: () => void;
 	/** Thumbs up / down on a settled assistant answer; `null` clears it. */
 	setFeedback: SetAnswerFeedback;
 	stop: () => void;
@@ -357,7 +362,7 @@ export function useSureWordChat(): SureWordChat {
 			new DefaultChatTransport<UIMessage>({
 				api: `${API_URL}/api/ask-question`,
 				fetch: makeAuthedFetch(authToken) as unknown as TransportFetch,
-				prepareSendMessagesRequest: ({ messages }) => {
+				prepareSendMessagesRequest: ({ messages, body }) => {
 					const settings = getSettings();
 					// Auto stores a sentinel that becomes an explicit null, while a
 					// device that has never opened the picker omits `effort` entirely:
@@ -366,6 +371,9 @@ export function useSureWordChat(): SureWordChat {
 					const effort = effortForRequest(settings.chatEffort);
 					return {
 						body: {
+							// An edit or "Try again" names the rows it drops, the only ones
+							// the server may delete (persistUserMessage in /api/ask-question).
+							...(Array.isArray(body?.replaces) ? { replaces: body.replaces } : {}),
 						timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 							messages: withoutClientOnlyMetadata(messages),
 							conversationId: conversationIdRef.current,
@@ -405,6 +413,8 @@ export function useSureWordChat(): SureWordChat {
 	//
 	// `pendingAnswerRef` holds the conversation whose answer is still owed.
 	const pendingAnswerRef = useRef<string | null>(null);
+	/** Answers the turn in flight replaces; recovery must not collect them. */
+	const staleAnswerIdsRef = useRef<string[]>([]);
 	const [recovering, setRecovering] = useState(false);
 	const recoveringRef = useRef(false);
 	const recoverVersionRef = useRef(0);
@@ -480,7 +490,7 @@ export function useSureWordChat(): SureWordChat {
 							`/api/conversations/${conversationId}`
 						);
 						if (version !== recoverVersionRef.current) return;
-						const restored = completedHistory(data);
+						const restored = completedHistory(data, staleAnswerIdsRef.current);
 						if (restored) {
 							setUIMessages(restored.map(dbMessageToUIMessage));
 							pendingAnswerRef.current = null;
@@ -823,6 +833,7 @@ export function useSureWordChat(): SureWordChat {
 			// conversation there is nothing to collect from.
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
+			staleAnswerIdsRef.current = [];
 			void sendUIMessage({
 				metadata: {
 					...(sendingAttachments.length > 0
@@ -849,6 +860,15 @@ export function useSureWordChat(): SureWordChat {
 	);
 
 	const retrySend = useCallback(() => {
+		// A refused edit or Try again: the screen no longer matches the server,
+		// and resending would be refused again. Reloading the thread is the retry.
+		const shown = sendError ?? (chatError ? classifyChatError(chatError) : null);
+		if (shown?.code === "stale_thread") {
+			setSendError(null);
+			clearError();
+			retryHistory();
+			return;
+		}
 		// The send never happened (the conversation could not be created), so
 		// there is no stream to regenerate - resend the original question.
 		const failedSend = lastFailedSendRef.current;
@@ -864,8 +884,63 @@ export function useSureWordChat(): SureWordChat {
 		clearError();
 		pendingAnswerRef.current = conversationIdRef.current;
 		lastStreamActivityRef.current = Date.now();
-		void regenerate();
-	}, [abandonPendingAnswer, cancelRecovery, clearError, regenerate, sendMessage]);
+		const replaces = idsAfterLastUser(uiMessagesRef.current);
+		staleAnswerIdsRef.current = replaces;
+		void regenerate({ body: { replaces } });
+	}, [abandonPendingAnswer, cancelRecovery, chatError, clearError, regenerate, retryHistory, sendError, sendMessage]);
+
+	/** Whether a new turn may start: nothing in flight, the thread loaded. */
+	const canStartTurn = useCallback(
+		() =>
+			!historyLoadingRef.current &&
+			!historyErrorRef.current &&
+			status !== "submitted" &&
+			status !== "streaming",
+		[status]
+	);
+
+	/**
+	 * Replace one of the user's own messages with new text and answer it again.
+	 * The AI SDK drops everything after it locally and the request names those
+	 * ids, so the server deletes exactly them (or refuses, when another device
+	 * added turns this one never saw) and a reload shows the edited thread. The
+	 * message's attachments ride along unchanged: only the words are edited.
+	 * False when nothing was sent, so the caller can keep the edit open.
+	 */
+	const editMessage = useCallback(
+		async (messageId: string, text: string): Promise<boolean> => {
+			if (!canStartTurn() || !conversationIdRef.current) return false;
+			const original = uiMessagesRef.current.find(
+				(message) => message.id === messageId && message.role === "user"
+			);
+			const edited = original ? editedUserMessage(original, text) : null;
+			if (!edited) return false;
+			const replaces = idsAfter(uiMessagesRef.current, messageId);
+			setSendError(null);
+			clearError();
+			cancelRecovery();
+			lastFailedSendRef.current = null;
+			pendingAnswerRef.current = conversationIdRef.current;
+			lastStreamActivityRef.current = Date.now();
+			staleAnswerIdsRef.current = replaces;
+			void sendUIMessage({ messageId, ...edited }, { body: { replaces } });
+			return true;
+		},
+		[canStartTurn, cancelRecovery, clearError, sendUIMessage]
+	);
+
+	/** "Try again" on the newest answer: the same question, a fresh answer. */
+	const retryAnswer = useCallback(() => {
+		if (!canStartTurn() || !conversationIdRef.current) return;
+		const replaces = idsAfterLastUser(uiMessagesRef.current);
+		cancelRecovery();
+		setSendError(null);
+		clearError();
+		pendingAnswerRef.current = conversationIdRef.current;
+		lastStreamActivityRef.current = Date.now();
+		staleAnswerIdsRef.current = replaces;
+		void regenerate({ body: { replaces } });
+	}, [canStartTurn, cancelRecovery, clearError, regenerate]);
 
 	/**
 	 * Carry the thumb on the in-memory message. The rating itself lives in its
@@ -992,6 +1067,8 @@ export function useSureWordChat(): SureWordChat {
 		removeFileAttachment,
 		startSharedChat,
 		sendMessage,
+		editMessage,
+		retryAnswer,
 		setFeedback,
 		stop: abandonPendingAnswer,
 		retrySend,
