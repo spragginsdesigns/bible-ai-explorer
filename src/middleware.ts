@@ -57,6 +57,9 @@ const isPublicRoute = createRouteMatcher([
 	"/api/bible/original",
 	"/api/bible/crossrefs",
 	"/api/bible/strongs",
+	// The narrated KJV's chapter MP3 location and verse timings: the same
+	// public-domain, user-free class, so the reader's Listen works signed out.
+	"/api/bible/audio",
 	// A shared answer is a capability link: the 16-char id IS the credential,
 	// and the page reads only the SharedAnswer snapshot (never Message), so the
 	// recipient has to be able to open it with no account. Revoking is what

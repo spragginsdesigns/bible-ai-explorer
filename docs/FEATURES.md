@@ -809,6 +809,49 @@ are what keep playback going on each platform.
 
 ---
 
+## Audio Bible - the narrated KJV
+
+*First shipped 2026-10-07 · web (LC-15116); Android (LC-15134) and macOS/iOS
+(LC-15135) players not built yet*
+
+The reader can read the Bible aloud. On any narrated chapter in the KJV, a
+headphones button sits in the reader's top bar. Tapping it plays the chapter
+from verse 1 and opens a floating player: the reference and verse being read
+(`Matthew 6:9`), previous/next verse, play/pause, the shared Listen speed chip
+(0.75x to 2x, the same account preference as the spoken devotional), close,
+and a scrubber. The verse being read takes the selection tint and stays in
+view unless the reader has scrolled away in the last few seconds. Tapping a
+verse adds a **Listen** chip to the verse sheet that plays from that verse; the
+player hides while the sheet is open and the audio carries on. When a chapter
+ends, the reader pages to the next one and keeps playing on the same audio
+element, so it continues with the screen off. The OS media card names the
+chapter, and its previous/next buttons step a verse.
+
+**Still listening?** After an hour of playback with no tap, key press or
+media-key press, the player pauses and asks "Still listening?" with Keep
+listening / Stop, so a phone left playing overnight stops streaming
+(`STILL_LISTENING_AFTER_MS` in `src/lib/bible/audioBible.ts`).
+
+**Where the audio comes from.** Nothing is generated when someone presses play.
+Every chapter was narrated once by LineCrush's Fish Audio pipeline
+(`backend/scripts/fish_audio_bible.py` in Context-Pro-AI) on Fish's free
+`s2.1-pro-free` model in the "Unknown Dark" audiobook voice, from the same
+bundled KJV text the reader shows. Each verse is its own request, so
+`<book>/<chapter>.json` carries exact verse start/end offsets with no alignment
+pass. A chapter opens with a quiet cue reused from the shared sound library (one
+low church bell before a book's first chapter, a soft swell before the others),
+14 LU under the narration, which is leveled to -19 LUFS. Files live in our S3
+media bucket under `Audio/sureword-bible/kjv/v1/`; `GET /api/bible/audio?book=&chapter=`
+(public, cached a day) returns the MP3 URL and the verse timings, or
+`status: "unavailable"` for a chapter with no narration, and the clients then
+show no Listen control. Listening is free for every account: one shared asset,
+paid for in storage, not per play.
+
+**Scope.** The New Testament (books 40-66, 260 chapters, about 15 hours) is
+narrated. `NARRATED_BOOKS` grows when more books are rendered and uploaded;
+re-renders go to a new `v2/` prefix because the bucket serves a day-long cache.
+NKJV and BSB show no Listen control, since the audio is the KJV.
+
 ## An app-aware assistant, and changing today's cross from chat
 
 *Shipped 2026-08-17 · Android 1.15.0 + web + macOS 1.2.0*
