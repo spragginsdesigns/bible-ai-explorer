@@ -3,6 +3,7 @@ import type { SureWordMessageMetadata } from "@/lib/chat-attachment-types";
 import { z } from "zod";
 import { buildReadingTools, type ReadingToolContext } from "@/lib/reading-tools";
 import { buildMemoryTools } from "@/lib/memory-tools";
+import { buildOnboardingTools } from "@/lib/onboarding-tools";
 import {
 	formatVersesForModel,
 	searchScripture,
@@ -1648,6 +1649,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	return {
 		...buildMemoryTools(context.userId),
+		...buildOnboardingTools(context.userId),
 		...buildReadingTools(context),
 		searchScripture: searchScriptureTool,
 		findVerses: findVersesTool,

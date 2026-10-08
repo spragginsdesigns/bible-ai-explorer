@@ -14,7 +14,7 @@ import { firstNameOf } from "../src/lib/daily-cross-audio-script.ts";
 import { HIGHLIGHT_COLORS } from "../src/lib/highlights.ts";
 import { highlightLabelFor } from "../src/lib/preferences-contract.ts";
 import { isMeaningfulNote } from "../src/lib/study-context-format.ts";
-import { chatSystemPrompt, firstConversationGuidance } from "../src/utils/systemPrompt.ts";
+import { chatSystemPrompt, isOnboardCommand, onboardingGuidance } from "../src/utils/systemPrompt.ts";
 
 const read = (relativePath) =>
 	readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
@@ -489,27 +489,38 @@ test("first-conversation detection looks for an answer in any OTHER conversation
 	assert.equal(await make(new Error("db down"))("user_1", "conv_now"), true, "a failed read never re-introduces a returning user");
 }));
 
-test("the first-conversation block is short, answers first, and never enters the cached prompt", () => {
-	assert.ok(firstConversationGuidance.length <= 900, `${firstConversationGuidance.length} chars`);
-	assert.match(firstConversationGuidance, /answer it first/);
-	assert.match(firstConversationGuidance, /at most two short questions/);
-	assert.match(firstConversationGuidance, /saveMemory/);
-	assert.match(firstConversationGuidance, /Pick Up Your Cross/);
+test("onboarding answers first, asks who they are, saves as it goes, and never enters the cached prompt", () => {
+	assert.ok(onboardingGuidance.length <= 6000, `${onboardingGuidance.length} chars`);
+	assert.match(onboardingGuidance, /answer it first/);
+	assert.match(onboardingGuidance, /A pastor, elder or preacher/);
+	assert.match(onboardingGuidance, /A saved believer growing in the Word/);
+	assert.match(onboardingGuidance, /Still seeking/);
+	for (const name of ["saveMemory", "findChurch", "setChurch", "saveTestimony", "saveAboutMe", "finishOnboarding"]) {
+		assert.match(onboardingGuidance, new RegExp(name), name);
+	}
+	assert.match(onboardingGuidance, /"skipped"/);
+	assert.match(onboardingGuidance, /Pick Up Your Cross/);
+	assert.ok(!/[\u2013\u2014]/.test(onboardingGuidance), "no dashes in agent-written prompt text");
 	for (const translation of ["KJV", "NKJV"]) {
-		assert.ok(!chatSystemPrompt(translation).includes("FIRST CONVERSATION"), translation);
+		assert.ok(!chatSystemPrompt(translation).includes("GETTING TO KNOW YOU"), translation);
 	}
 });
 
-test("the worst-case volatile additions stay inside the budget", () => {
+test("/onboard restarts the interview only as a leading command", () => {
+	assert.equal(isOnboardCommand("/onboard"), true);
+	assert.equal(isOnboardCommand("  /ONBOARD please"), true);
+	assert.equal(isOnboardCommand("/onboarding"), false);
+	assert.equal(isOnboardCommand("how do I /onboard"), false);
+});
+
+test("the worst-case volatile additions outside onboarding stay inside the budget", () => {
 	const hint = loadModule("../src/lib/turn-shape.ts", ["SHORT_FOLLOW_UP_HINT"], {
 		questionReference: () => null,
 		parseVerseReferences: () => [],
 	}).SHORT_FOLLOW_UP_HINT;
-	const worst =
-		formatUserNameLine("Bartholomew") +
-		"x".repeat(TODAY_BLOCK_MAX_CHARS) +
-		`\n\n${firstConversationGuidance}` +
-		`\n\n${hint}`;
+	const worst = formatUserNameLine("Bartholomew") + "x".repeat(TODAY_BLOCK_MAX_CHARS) + `
+
+${hint}`;
 	assert.ok(worst.length <= 1800, `worst case is ${worst.length} chars`);
 });
 

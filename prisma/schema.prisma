@@ -70,6 +70,9 @@ model User {
   // Null until they agree; both cleared on withdraw.
   aiConsentVersion       Int?
   aiConsentAt            DateTime?
+  // When the in-chat "getting to know you" interview finished or was skipped
+  // (src/lib/onboarding-tools.ts). Null means chat still runs it.
+  onboardedAt            DateTime?
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]

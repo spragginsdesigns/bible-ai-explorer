@@ -60,12 +60,11 @@ import {
 	formatPrayerFollowUpBlock,
 	formatTodayBlock,
 	formatUserNameLine,
-	hasAnsweredConversationBefore,
 	loadChatDayContext,
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, firstConversationGuidance } from "@/utils/systemPrompt";
+import { chatSystemPrompt, isOnboardCommand, onboardingGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import {
@@ -605,6 +604,7 @@ async function handlePost(req: Request): Promise<Response> {
 				highlightMeanings: true,
 				aboutMe: true,
 				testimony: true,
+				onboardedAt: true,
 			},
 		});
 		// Read leniently, the way the preferences document does: a label written
@@ -856,14 +856,13 @@ async function handlePost(req: Request): Promise<Response> {
 						});
 					}
 
-					const [memories, church, dayContext, legend, answeredBefore, userName] = await Promise.all([
+					const [memories, church, dayContext, legend, userName] = await Promise.all([
 						loadUserMemories(userId),
 						loadUserChurch(userId),
 						// Chat is the only surface allowed to reschedule prayer follow-ups:
 						// reading the block here is what "raising it" means.
 						loadChatDayContext(userId, highlightLabels, { raisePrayerFollowUps: true }),
 						loadHighlightLegend(userId, highlightLabels, highlightMeanings),
-						hasAnsweredConversationBefore(userId, conversationId),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
 					]);
 					const {
@@ -966,9 +965,12 @@ async function handlePost(req: Request): Promise<Response> {
 
 					writeStatus("Thinking");
 					const stableSystem = chatSystemPrompt(translation);
-					// Per-user context only, all of it uncached. The first-conversation
-					// block holds for every turn of that conversation (its own text says
-					// to ask only once), and the shape hint goes last, nearest the answer.
+					// The getting-to-know-you interview runs until it is finished or
+					// skipped (finishOnboarding), and again on demand with /onboard.
+					const onboarding = !userPrefs?.onboardedAt || isOnboardCommand(extractText(lastMessage));
+					// Per-user context only, all of it uncached. The onboarding block
+					// follows the profile blocks it reads from, and the shape hint goes
+					// last, nearest the answer.
 					const volatileSystem = [
 						formatUserNameLine(userName),
 						// Their own words come before what was inferred about them.
@@ -980,7 +982,7 @@ async function handlePost(req: Request): Promise<Response> {
 						// by these same colours.
 						formatHighlightLegendBlock(legend),
 						formatTodayBlock(dayContext),
-						answeredBefore ? "" : `\n\n${firstConversationGuidance}`,
+						onboarding ? `\n\n${onboardingGuidance}` : "",
 						...promptHints.map((hint) => `\n\n${hint}`),
 						shapeHint ? `\n\n${shapeHint}` : "",
 						// Last on purpose: an instruction for this reply, nearest the answer.

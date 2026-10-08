@@ -430,6 +430,46 @@ $15; watch `AiUsageRequest.costMicros` for Pro accounts.
 
 ---
 
+## Getting to know you (onboarding in chat)
+
+*Shipped 2026-10-08 · server only, so web, Android, macOS and iOS all get it at once*
+
+SureWord onboards a new member inside the chat itself rather than with a
+slide deck, in the spirit of an agent bootstrapping its own USER file. While
+`User.onboardedAt` is null, `ask-question` adds `onboardingGuidance`
+(`src/utils/systemPrompt.ts`) to the uncached half of the prompt. It replaced
+the old two-question `firstConversationGuidance`.
+
+The assistant answers any real question first, then interviews the person one
+question at a time: name; "Which of these sounds most like you?" (pastor,
+elder or preacher / in ministry / teacher or small group leader / saved
+believer / newly saved / still seeking), with a branch per answer (pastors are
+asked about their congregation, what they are preaching through and how they
+prepare; seekers get the Gospel before anything else); testimony; church;
+season of life; Bible habits; what they want from SureWord; prayer requests;
+and how they like to be answered. It saves as it goes, only to places every
+client already shows and edits in Settings:
+
+- `saveMemory` (profile, study, preference, prayer categories)
+- `findChurch` + `setChurch` (Google Places, the same path as Settings → My
+  church; only a result the person confirmed is saved)
+- `saveTestimony` and `saveAboutMe` (their own words, only with their consent,
+  never silently replacing one they wrote)
+- `finishOnboarding` (`completed` or `skipped`) sets `onboardedAt`
+
+The tools live in `src/lib/onboarding-tools.ts`. The interview spans
+conversations: the profile blocks above it say what is already known, so a
+later chat picks up where the last one stopped. `/onboard` runs it again for
+anyone. Migration `20261008200000_user_onboarded_at` backfilled every account
+that already had an answer as onboarded (32 of 50 on 2026-10-08), so existing
+members are never interviewed unasked.
+
+Follow-ups: `/onboard` is typed, not yet in the slash menus; Android's
+`mobile/src/lib/chatView.ts` label copy lacks the five new tool labels (it
+falls back to a generic label) until the next Android release.
+
+---
+
 ## Pick Up Your Cross
 
 *Shipped 2026-08-17 · Android 1.14.0 + web + macOS 1.1.0*
