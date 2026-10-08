@@ -73,14 +73,21 @@ struct ChapterReaderPane: View {
         // page turn does — and a superseded load is cancelled, not raced.
         .task(id: model.chapterKey(translation)) {
             await model.load(translation: translation)
+            let reader = model
+            let next = reader.nextLocation
+            await app.chapterAudio.load(book: reader.selectedBook ?? 0, chapter: reader.chapter, reference: reader.reference, enabled: translation == .kjv, next: next.flatMap { location in
+                guard ChapterAudio.hasNarration(location.order) else { return nil }
+                return { @MainActor [weak reader] in reader?.open(order: location.order, chapter: location.chapter) }
+            })
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { ChapterAudioBar() }
         .onAppear {
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
             model.reading.setReaderFocused(appearsActive)
             model.prepareReading(translation: translation)
         }
-        .onDisappear { model.reading.setReaderVisible(false) }
+        .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
         .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
         .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
@@ -108,6 +115,13 @@ struct ChapterReaderPane: View {
                 .lineLimit(1)
 
             Spacer()
+
+            if app.chapterAudio.available {
+                Button("Listen", systemImage: "headphones") {
+                    app.dailyCross.listen.pause()
+                    app.chapterAudio.start()
+                }.buttonStyle(SubtleButtonStyle())
+            }
 
             if let book = model.selectedBook {
                 Button {
@@ -457,7 +471,7 @@ struct ChapterReaderPane: View {
 
     @ViewBuilder
     private func verseRow(number: Int, markup: String) -> some View {
-        let isHighlighted = model.highlightedVerse == number
+        let isHighlighted = model.highlightedVerse == number || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
         let isOpen = model.actionVerse == number
         let reference = model.verseReference(number)
         let text = VerseMarkup.plainText(markup)

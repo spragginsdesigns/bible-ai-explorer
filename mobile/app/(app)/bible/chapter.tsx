@@ -13,7 +13,10 @@ import {
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useChapterAudio } from "@/features/bible/useChapterAudio";
+import { ChapterAudioBar } from "@/features/bible/ChapterAudioBar";
+import { hasNarration } from "@/features/bible/audioBible";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
@@ -293,6 +296,8 @@ export default function BibleChapterScreen() {
 	const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const chapterKey = `${translation}:${order}:${chapter}`;
+	const visibleChapter = useRef({ key: chapterKey, loadedKey, count: verses.length });
+	visibleChapter.current = { key: chapterKey, loadedKey, count: verses.length };
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
 	// Backed by the shared store (AsyncStorage cache + per-chapter server GET).
 	const highlights = useChapterHighlights(translation, order, chapter);
@@ -418,6 +423,19 @@ export default function BibleChapterScreen() {
 	);
 
 	const reference = book ? `${book.name} ${chapter}` : "";
+	const chapterAudio = useChapterAudio({
+		book: order, chapter, reference, enabled: translation === "KJV" && !!book,
+		nextNarrated: !!neighbors.next && hasNarration(neighbors.next.order),
+		onChapterEnd: () => goTo(neighbors.next),
+	});
+	useFocusEffect(useCallback(() => () => chapterAudio.stop(), [chapterAudio.stop]));
+	const lastManualScroll = useRef(0);
+	useEffect(() => {
+		if (!chapterAudio.playing || !chapterAudio.verse || loadedKey !== chapterKey || (selection !== null && sheetTier === "expanded")) return;
+		if (chapterAudio.audio?.book !== order || chapterAudio.audio.chapter !== chapter || chapterAudio.verse > verses.length) return;
+		if (Date.now() - lastManualScroll.current < 5000) return;
+		listRef.current?.scrollToIndex({ index: chapterAudio.verse - 1, viewPosition: 0.2, animated: true });
+	}, [chapterAudio.verse, chapterAudio.playing, chapterAudio.audio, order, chapter, verses.length, loadedKey, chapterKey, selection, sheetTier]);
 
 	// Every verse without markup, once per chapter load. The sheet, clipboard,
 	// share, note and Ask AI all read the selection from here, and a range
@@ -693,6 +711,7 @@ export default function BibleChapterScreen() {
 
 	const sheetActions = useMemo<VerseAction[]>(
 		() => [
+			...(chapterAudio.available ? [{ key: "listen", icon: "headset-outline" as const, label: "Listen", onPress: () => void chapterAudio.play(activeSelection.start) }] : []),
 			{
 				key: "ask",
 				icon: "sparkles-outline",
@@ -723,7 +742,7 @@ export default function BibleChapterScreen() {
 				onPress: () => void onLearn(),
 			},
 		],
-		[askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
+		[chapterAudio.available, chapterAudio.play, activeSelection.start, askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
 	);
 
 	const barMessage = actionMessage
@@ -742,7 +761,7 @@ export default function BibleChapterScreen() {
 				redLetterColor={isDark ? "#EF8A83" : "#A12E2A"}
 				verseNumber={index + 1}
 				verseColor={highlights.get(index + 1)}
-				flashed={highlighted === index + 1}
+				flashed={highlighted === index + 1 || (chapterAudio.playing && chapterAudio.verse === index + 1)}
 				selected={selectionIncludes(selection, index + 1)}
 				parchment={parchment}
 				fontSize={fontSize}
@@ -753,6 +772,8 @@ export default function BibleChapterScreen() {
 			/>
 		),
 		[
+			chapterAudio.playing,
+			chapterAudio.verse,
 			highlights,
 			highlighted,
 			selection,
@@ -801,6 +822,7 @@ export default function BibleChapterScreen() {
 					<Ionicons name="chevron-back" size={24} color={colors.text} />
 				</Pressable>
 				<View style={styles.headerSpacer} />
+				{chapterAudio.available ? <Pressable accessibilityRole="button" accessibilityLabel="Listen to this chapter" onPress={() => void chapterAudio.play()} style={styles.fontButton}><Ionicons name="headset-outline" size={22} color={colors.accent} /></Pressable> : chapterAudio.error ? <Pressable accessibilityRole="button" accessibilityLabel="Retry chapter narration" onPress={chapterAudio.retryLoad} style={styles.fontButton}><Ionicons name="refresh" size={22} color={colors.accent} /></Pressable> : null}
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel={`Translation and reading settings, ${translation}`}
@@ -820,6 +842,7 @@ export default function BibleChapterScreen() {
 					<Ionicons name="text-outline" size={22} color={colors.text} />
 				</Pressable>
 			</View>
+			{chapterAudio.error && !chapterAudio.open ? <Text accessibilityRole="alert" style={{ color: colors.danger, paddingHorizontal: spacing.lg }}>{chapterAudio.error}</Text> : null}
 			<BottomSheet
 				visible={readerOptionsVisible}
 				onClose={() => setReaderOptionsVisible(false)}
@@ -929,6 +952,7 @@ export default function BibleChapterScreen() {
 						key={chapterKey}
 						{...readingTracking}
 						ref={listRef}
+						onScrollBeginDrag={() => { lastManualScroll.current = Date.now(); chapterAudio.markAction(); }}
 						style={styles.readerList}
 						data={verses}
 						keyExtractor={(_, index) => String(index + 1)}
@@ -941,18 +965,24 @@ export default function BibleChapterScreen() {
 						}
 						contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl }]}
 						onScrollToIndexFailed={({ index }) => {
+							const failedKey = chapterKey;
+							const current = visibleChapter.current;
+							if (current.key !== failedKey || current.loadedKey !== failedKey || index >= current.count) return;
 							// Rows have variable height; approximate, then retry once laid out.
 							listRef.current?.scrollToOffset({
 								offset: index * 48,
 								animated: false,
 							});
 							setTimeout(
-								() =>
+								() => {
+									const latest = visibleChapter.current;
+									if (latest.key !== failedKey || latest.loadedKey !== failedKey || index >= latest.count) return;
 									listRef.current?.scrollToIndex({
 										index,
 										viewPosition: 0.15,
 										animated: false,
-									}),
+									});
+								},
 								250,
 							);
 						}}
@@ -967,7 +997,7 @@ export default function BibleChapterScreen() {
 						}
 						renderItem={renderVerse}
 					/>
-					<View style={[styles.readerDock, { marginBottom: tabBarSpace }]}>
+					<View style={[styles.readerDock, { marginBottom: chapterAudio.open ? 0 : tabBarSpace }]}>
 						<View style={styles.chapterNavigator}>
 							<Pressable
 								accessibilityRole="button"
@@ -1018,6 +1048,7 @@ export default function BibleChapterScreen() {
 							<Text style={styles.dockAILabel}>Ask AI</Text>
 						</Pressable>
 					</View>
+					{chapterAudio.open ? <View style={{ marginBottom: tabBarSpace }}><ChapterAudioBar audio={chapterAudio} reference={reference} /></View> : null}
 					{/* Tap-a-verse. Non-modal and anchored above the tab bar: the peek
 					    keeps the chapter readable and tappable so a second tap grows the
 					    selection; dragging up opens the study view. */}

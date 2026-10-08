@@ -94,6 +94,7 @@ struct ChapterReaderView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { fontControls }
+        .safeAreaInset(edge: .bottom, spacing: 0) { ChapterAudioBar() }
         .task {
             guard !seeded else { return }
             model.open(order: order, chapter: chapter, verse: verse)
@@ -104,6 +105,7 @@ struct ChapterReaderView: View {
         // page turn does.
         .task(id: model.chapterKey(translation)) {
             await model.load(translation: translation)
+            await loadAudio()
         }
         // A new chapter or translation under an open sheet: the selection no
         // longer describes what is on screen.
@@ -113,7 +115,7 @@ struct ChapterReaderView: View {
             model.reading.setForeground(scenePhase == .active)
             model.prepareReading(translation: translation)
         }
-        .onDisappear { model.reading.setReaderVisible(false) }
+        .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
         .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
         // The peek leaves most of the chapter readable; only the expanded
@@ -125,6 +127,19 @@ struct ChapterReaderView: View {
                 applyHighlight(hex)
             }
         }
+    }
+
+    private func loadAudio() async {
+        let reader = model
+        let next = reader.nextLocation
+        await app.chapterAudio.load(
+            book: reader.selectedBook ?? order, chapter: reader.chapter,
+            reference: reader.reference, enabled: translation == .kjv,
+            next: next.flatMap { location in
+                guard ChapterAudio.hasNarration(location.order) else { return nil }
+                return { @MainActor [weak reader] in reader?.open(order: location.order, chapter: location.chapter) }
+            }
+        )
     }
 
     // MARK: - Chrome
@@ -184,6 +199,12 @@ struct ChapterReaderView: View {
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Who's in this chapter")
+                if app.chapterAudio.available {
+                    Button("Listen to this chapter", systemImage: "headphones") {
+                        app.dailyCross.listen.pause()
+                        app.chapterAudio.start()
+                    }.labelStyle(.iconOnly)
+                }
                 fontButton("A−", size: 12, enabled: model.canShrinkFont) { model.stepFont(-1) }
                 fontButton("A+", size: 15, enabled: model.canGrowFont) { model.stepFont(1) }
             }
@@ -314,6 +335,11 @@ struct ChapterReaderView: View {
                 .onChange(of: model.pendingVerse) { _, verse in
                     guard verse != nil else { return }
                     scrollToPendingVerse(proxy)
+                }
+                .onChange(of: app.chapterAudio.verse) { _, verse in
+                    guard app.chapterAudio.isPlaying, let verse, !sheet.obscuresReader else { return }
+                    if reduceMotion { proxy.scrollTo(verse, anchor: .center) }
+                    else { withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(verse, anchor: .center) } }
                 }
             }
             // The page: a fixed sheet the verses scroll over, like text moving
@@ -463,7 +489,7 @@ struct ChapterReaderView: View {
     @ViewBuilder
     private func verseRow(_ verse: ReaderVerse) -> some View {
         let number = verse.number
-        let selected = sheet.selection?.includes(number) ?? false
+        let selected = (sheet.selection?.includes(number) ?? false) || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
         let flashed = model.highlightedVerse == number
         let highlightHex = model.selectedBook.flatMap {
             app.highlights.hex(translation: translation, book: $0, chapter: model.chapter, verse: number)
@@ -703,7 +729,10 @@ struct ChapterReaderView: View {
 
     private func actions(context: VerseSheetContext, reference: String, text: String, highlighted: Bool) -> [VerseSheetAction] {
         let share = sheet.shareText(context)
-        return [
+        return (app.chapterAudio.available ? [VerseSheetAction(id: "listen", systemImage: "headphones", label: "Listen") {
+            app.dailyCross.listen.pause()
+            app.chapterAudio.start(from: sheet.selection?.start ?? 1)
+        }] : []) + [
             VerseSheetAction(id: "ask", systemImage: "sparkles", label: "Ask") {
                 expandWithAI(reference: reference, text: text)
             },

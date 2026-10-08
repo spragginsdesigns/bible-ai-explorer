@@ -67,6 +67,7 @@ final class AppModel {
     /// AI data-sharing consent for this account (PRD A4): the gate every AI
     /// entry point passes, and the Settings → AI row.
     let aiConsent: AIConsentStore
+    let chapterAudio: ChapterAudioModel
 
     var section: AppSection = .chat
     var isSettingsPresented = false {
@@ -115,6 +116,7 @@ final class AppModel {
         atlas = AtlasModel(api: api)
         preferences = PreferencesSyncModel(transport: api, settings: settings)
         aiConsent = AIConsentStore(account: userID, transport: api)
+        chapterAudio = ChapterAudioModel(api: api, settings: settings)
         preferences.aiConsent = aiConsent
         AIConsentGate.install(aiConsent)
         // Account-guarded like the reading journal's client: a queued review
@@ -149,8 +151,10 @@ final class AppModel {
         let listen = dailyCross.listen
         let reading = bible.reading
         let consent = aiConsent
+        let chapterAudio = chapterAudio
         Task { @MainActor in
             consent.cancelPending()
+            chapterAudio.close()
             chat.teardown()
             listen.reset()
             reading.teardown()
