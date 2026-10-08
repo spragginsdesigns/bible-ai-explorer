@@ -24,7 +24,7 @@ struct SlashCommandTests {
 
     @Test("Is case-insensitive on the typed token")
     func caseInsensitive() {
-        #expect(SlashCommand.matching("/VE").map(\.command) == ["/verse"])
+        #expect(SlashCommand.matching("/VERS").map(\.command) == ["/verse"])
     }
 
     @Test("Stops suggesting once the first token is complete")

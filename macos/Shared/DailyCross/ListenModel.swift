@@ -299,10 +299,11 @@ final class ListenModel {
         failureText = nil
         let task = Task { [weak self] in
             guard let self else { return }
-            // The POST is what reaches ElevenLabs; "Not now" puts the card
-            // back on Try again.
+            // The POST is what reaches ElevenLabs; "Not now" sends nothing
+            // and leaves the card as it was, ready to ask again.
             guard await AIConsentGate.ensure() else {
-                failed = true
+                isRequesting = false
+                requestTask = nil
                 return
             }
             do {
