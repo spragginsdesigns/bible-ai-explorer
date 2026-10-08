@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { decideAccess, houseEffortFor } from "../src/lib/ai/access.ts";
-import { HOUSE_EFFORT, HOUSE_MODEL_ID, getModel, DEFAULT_MODEL_ID } from "../src/lib/ai/models.ts";
+import {
+	HOUSE_CHAT_MODEL_IDS,
+	HOUSE_EFFORT,
+	HOUSE_MODEL_ID,
+	getModel,
+	DEFAULT_MODEL_ID,
+	houseChatModelId,
+} from "../src/lib/ai/models.ts";
 
 test("an account with no key of its own runs on the house model", () => {
 	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 0 }), "house");
@@ -38,6 +45,27 @@ test("the house model is a real registry entry that takes the house effort", () 
 
 test("the registry default is the house model, so both worlds open on the same head", () => {
 	assert.equal(DEFAULT_MODEL_ID, HOUSE_MODEL_ID);
+});
+
+test("included chat runs on GPT-6.1 Sol for Pro and GLM 5.3 Flash for Free", () => {
+	const keys = { openrouter: true };
+	assert.equal(houseChatModelId("pro", keys), "openai/gpt-6.1-sol");
+	assert.equal(houseChatModelId("free", keys), "openrouter/z-ai/glm-5.3-flash");
+	// A deploy with no OpenRouter key keeps answering free accounts on Luna.
+	assert.equal(houseChatModelId("free", { openrouter: false }), HOUSE_MODEL_ID);
+	assert.equal(houseChatModelId("pro", { openrouter: false }), HOUSE_CHAT_MODEL_IDS.pro);
+
+	const sol = getModel(HOUSE_CHAT_MODEL_IDS.pro);
+	assert.ok(sol, "the Pro house model must be curated");
+	// Pro answers at medium; the API rejects `none` on this head.
+	assert.ok(sol.efforts.includes(HOUSE_EFFORT));
+	assert.ok(!sol.efforts.includes("none"));
+	assert.equal(sol.supportsAttachments, true);
+
+	const glm = getModel(HOUSE_CHAT_MODEL_IDS.free);
+	assert.ok(glm, "the Free house model must be curated");
+	assert.equal(glm.supportsAttachments, true);
+	assert.ok(glm.pricing, "metering needs the Free model's price");
 });
 
 test("house effort is a medium ceiling: low passes through, nothing above medium is honoured", () => {

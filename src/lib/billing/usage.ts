@@ -305,7 +305,12 @@ export function meterIncludedModel(
   userId: string,
   model: Exclude<LanguageModel, string>,
   utility = false,
+  /** USD per 1M tokens for the model being metered; omitted means Luna. */
+  pricing: { input: number; output: number } | null = null,
 ): Exclude<LanguageModel, string> {
+  // Cache reads bill at a tenth of input and cache writes at 1.25x on the
+  // OpenAI heads, which is what the Luna-only formula always assumed.
+  const price = pricing ?? { input: 0.2, output: 1.2 };
   if (!usageEnabled()) return model;
   const currentScope = scopes.getStore();
   if (!currentScope && !utility)
@@ -336,10 +341,10 @@ export function meterIncludedModel(
         cacheTokens: { increment: cache },
         costMicros: {
           increment: Math.ceil(
-            (input - cache - cacheWrite) * 0.2 +
-              cache * 0.02 +
-              cacheWrite * 0.25 +
-              output * 1.2,
+            (input - cache - cacheWrite) * price.input +
+              cache * price.input * 0.1 +
+              cacheWrite * price.input * 1.25 +
+              output * price.output,
           ),
         },
       },

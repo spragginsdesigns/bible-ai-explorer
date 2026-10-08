@@ -5,6 +5,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { AiProvider } from "@prisma/client";
 import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
+import { getUserPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import { houseKeyFor } from "./house-key";
@@ -18,6 +19,7 @@ import {
 	DEFAULT_MODEL_ID,
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
+	houseChatModelId,
 	isReasoningEffort,
 	isReasoningMode,
 	isSpeed,
@@ -131,6 +133,22 @@ export async function aiAccessFor(userId: string): Promise<AiAccess> {
 	const ownKeyCount = await prisma.providerCredential.count({ where: { userId } });
 	return decideAccess({ allowlisted, ownKeyCount });
 	});
+}
+
+/**
+ * The model a house account chats on, chosen by plan (see HOUSE_CHAT_MODEL_IDS),
+ * and the server credential that pays for it. The dedicated free-tier OpenAI
+ * key is reserved for the Luna paths, so every other head runs on the
+ * provider's own server key.
+ */
+export async function houseChatModel(userId: string): Promise<{ definition: ModelDefinition; apiKey: string }> {
+	const plan = await getUserPlan(userId);
+	const modelId = houseChatModelId(plan, { openrouter: Boolean(serverKeyFor("openrouter")?.trim()) });
+	const definition = resolveDefinition(modelId);
+	if (!definition) throw new Error(`The house AI model ${modelId} is not registered.`);
+	const apiKey = modelId === HOUSE_MODEL_ID ? houseKeyFor(process.env) : serverKeyFor(definition.provider)?.trim();
+	if (!apiKey) throw new HouseModelUnavailableError();
+	return { definition, apiKey };
 }
 
 /** Non-throwing variant for callers that degrade gracefully (model listing). */
@@ -263,7 +281,10 @@ export async function resolveProgressModel(userId: string, provider: ProviderId)
 	// Kimi's thinking pass is too expensive for a short status line; factual tool updates still work.
 	if (provider === "moonshot") return null;
 	const house = await aiAccessFor(userId) === "house";
-	const key = house && provider === "openai" ? houseKeyFor(process.env) : await apiKeyOrNull(userId, provider);
+	// Whatever a house answer runs on, its status lines stay on Luna and the
+	// free-tier key: a house account holds no provider key of its own.
+	if (house) provider = "openai";
+	const key = house ? houseKeyFor(process.env) : await apiKeyOrNull(userId, provider);
 	if (!key) return null;
 	const modelId = provider === "openai" ? "gpt-5.6-luna" : UTILITY_MODELS[provider].providerModelId;
 	return {
@@ -345,13 +366,13 @@ export async function resolveModel(options: {
 	const structuredCall = options.structured ?? Boolean(options.utility);
 
 	if (access === "house") {
-		// The house key is the only credential in play, so the attachment and
-		// structured-provider fallbacks have nothing to choose between: Luna reads
-		// every attachment type and OpenAI honours JSON schemas.
-		const houseKey = houseKeyFor(process.env);
-		if (!houseKey) throw new HouseModelUnavailableError();
-
+		// Server keys are the only credentials in play, so the attachment and
+		// structured-provider fallbacks have nothing to choose between: every
+		// house chat model reads attachments and honours JSON schemas, and
+		// utility work stays on Luna.
 		if (options.utility) {
+			const houseKey = houseKeyFor(process.env);
+			if (!houseKey) throw new HouseModelUnavailableError();
 			const utility = { providerModelId: "gpt-5.6-luna", effort: "low" as const };
 			const houseUtilityDefinition = resolveDefinition(HOUSE_MODEL_ID)!;
 			return {
@@ -376,8 +397,7 @@ export async function resolveModel(options: {
 			};
 		}
 
-		const houseDefinition = resolveDefinition(HOUSE_MODEL_ID);
-		if (!houseDefinition) throw new Error("The house AI model is not registered.");
+		const { definition: houseDefinition, apiKey: houseChatKey } = await houseChatModel(options.userId);
 		await reserveIncludedRequest(options.userId);
 		const preferredHouseEffort = houseEffortFor(options.effort);
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
@@ -385,12 +405,17 @@ export async function resolveModel(options: {
 			: null;
 
 		return {
-			model: meterIncludedModel(options.userId, buildModel("openai", houseDefinition.providerModelId, houseKey, structuredCall)),
+			model: meterIncludedModel(
+				options.userId,
+				buildModel(houseDefinition.provider, houseDefinition.providerModelId, houseChatKey, structuredCall),
+				false,
+				houseDefinition.pricing,
+			),
 			// Speed, verbosity and mode are ignored outright here. A house answer
 			// is billed to SureWord's own key, and fast mode alone doubles that
 			// bill, so an account with no picker gets no run options either.
 			providerOptions: buildProviderOptions(
-				"openai",
+				houseDefinition.provider,
 				{ ...NO_RUN_OPTIONS, effort: houseEffort },
 				Boolean(options.attachments) && houseDefinition.supportsAttachments,
 				houseDefinition,

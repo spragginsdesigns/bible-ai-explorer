@@ -410,6 +410,24 @@ time, and Luna and Sol joined the curated `MODELS` list ahead of Terra.
 questions. That is the product decision (2026-09-02); the allowlist still
 exists only to let allowlisted accounts pick any model on server keys.
 
+**The house chat model follows the plan (2026-10-08).** Austin moved included
+chat off Luna for both tiers: `houseChatModelId()` in `src/lib/ai/models.ts`
+answers **Pro** on `openai/gpt-6.1-sol` ("GPT-6.1 Sol") at medium on the
+server's `OPENAI_API_KEY`, and **Free** on `openrouter/z-ai/glm-5.3-flash`
+("GLM 5.3 Flash") on `OPENROUTER_API_KEY`, at the provider's default effort
+because GLM lists only low/high/max. A deploy without `OPENROUTER_API_KEY`
+falls back to Luna for Free rather than failing. `houseChatModel()` in
+`provider.ts` resolves plan + key, and both `resolveModel` and
+`GET /api/ai/models` use it, so every client shows the right model with no
+client change. Luna on the dedicated free-tier key (`OPENAI_FREE_TIER_API_KEY`)
+still runs utility work, status lines, and signed-out guests. The usage meter
+now prices each call from the model's own `pricing` instead of Luna's.
+GPT-6 heads also joined the capability rules: effort, verbosity and the fast
+tier are offered (probed against the live API), and `gpt-6.1-sol` /
+`gpt-6-astra` refuse `none`. At $2/$10 per 1M tokens, Sol costs about 10x
+Luna, so a Pro account using all 600 monthly actions can cost more than its
+$15; watch `AiUsageRequest.costMicros` for Pro accounts.
+
 ---
 
 ## Pick Up Your Cross

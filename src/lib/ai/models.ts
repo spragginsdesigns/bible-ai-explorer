@@ -166,9 +166,13 @@ const ANTHROPIC_FAST_NOTE =
 const OPENROUTER_FAST_NOTE = "Routes to the fastest provider; price may differ";
 
 function openAiCapabilities(providerModelId: string): ModelCapabilities {
-	const gpt5 = /^gpt-5/.test(providerModelId);
+	// GPT-6 takes the same Responses options as 5.x (effort, verbosity, the fast
+	// tier), probed against the live API on 2026-10-08. Heads that refuse `none`
+	// (gpt-6-astra, gpt-6.1-sol) narrow their list in CURATED_META.
+	const gpt6 = /^gpt-6/.test(providerModelId);
+	const gpt5 = /^gpt-5/.test(providerModelId) || gpt6;
 	const gpt56 = /^gpt-5\.6/.test(providerModelId);
-	const efforts: readonly ReasoningEffort[] = gpt56
+	const efforts: readonly ReasoningEffort[] = gpt56 || gpt6
 		? ["none", "low", "medium", "high", "xhigh", "max"]
 		: gpt5
 			? ["none", "low", "medium", "high", "xhigh"]
@@ -291,6 +295,17 @@ interface CuratedMeta {
  * price nor context window, so this is the only place those come from.
  */
 const CURATED_META: Record<string, CuratedMeta> = {
+	"openai/gpt-6.1-sol": {
+		tagline: "Deepest reasoning",
+		tier: "flagship",
+		contextWindow: 1_050_000,
+		pricing: { input: 2, output: 10 },
+		// The API answers 400 to `none` on this head.
+		efforts: ["low", "medium", "high", "xhigh", "max"],
+	},
+	"openai/gpt-6-astra": {
+		efforts: ["low", "medium", "high", "xhigh", "max"],
+	},
 	"openai/gpt-5.6-luna": {
 		tagline: "Fastest and lowest cost",
 		tier: "fast",
@@ -304,7 +319,7 @@ const CURATED_META: Record<string, CuratedMeta> = {
 		pricing: { input: 2, output: 12 },
 	},
 	"openai/gpt-5.6-sol": {
-		tagline: "Deepest reasoning",
+		tagline: "Previous flagship",
 		tier: "flagship",
 		contextWindow: 1_050_000,
 		pricing: { input: 4, output: 20 },
@@ -342,6 +357,8 @@ const CURATED_META: Record<string, CuratedMeta> = {
 	"openrouter/z-ai/glm-5.3-flash": {
 		tagline: "Cheap and quick",
 		tier: "fast",
+		contextWindow: 1_048_576,
+		pricing: { input: 0.15, output: 0.5 },
 		// OpenRouter's catalog reports these three for this head; the live row
 		// overwrites them when the picker can reach it.
 		efforts: ["low", "high", "max"],
@@ -391,6 +408,7 @@ export function buildDefinition(options: {
 // provider's list endpoint is unreachable or the user hasn't unlocked it yet.
 export const MODELS: readonly ModelDefinition[] = [
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-luna", label: "GPT-5.6 Luna" }),
+	buildDefinition({ provider: "openai", providerModelId: "gpt-6.1-sol", label: "GPT-6.1 Sol" }),
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-sol", label: "GPT-5.6 Sol" }),
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-terra", label: "GPT-5.6 Terra" }),
 	buildDefinition({
@@ -425,13 +443,38 @@ export const MODELS: readonly ModelDefinition[] = [
 export const DEFAULT_MODEL_ID = "openai/gpt-5.6-luna";
 
 /**
- * The model every account without its own API key runs on, on SureWord's own
- * OpenAI key. Those users get no model or effort picker at all, so this pair is
- * the whole of their configuration: a house account is not a stored choice, and
- * nothing about it is written back to the user row.
+ * The model behind the house (included AI) background paths: utility work,
+ * progress lines, and signed-out guests. It stays on the dedicated free-tier
+ * OpenAI credential and is never what a signed-in account chats on; that is
+ * `houseChatModelId` below.
  */
 export const HOUSE_MODEL_ID = "openai/gpt-5.6-luna";
 export const HOUSE_EFFORT: ReasoningEffort = "medium";
+
+/**
+ * The chat model each plan's included AI answers on (Austin, 2026-10-08): Pro
+ * gets the flagship at medium effort, Free gets GLM 5.3 Flash. Those accounts
+ * have no picker, so this is the whole of their configuration and nothing about
+ * it is written back to the user row.
+ */
+export const HOUSE_CHAT_MODEL_IDS = {
+	pro: "openai/gpt-6.1-sol",
+	free: "openrouter/z-ai/glm-5.3-flash",
+} as const;
+
+/**
+ * The included chat model for a plan, given which server credentials exist.
+ * A deploy missing the OpenRouter key would otherwise turn every free answer
+ * into a configuration error, so free falls back to the background model.
+ * Pure so the rule has a test.
+ */
+export function houseChatModelId(
+	plan: "pro" | "free",
+	serverKeys: { openrouter: boolean },
+): string {
+	if (plan === "pro") return HOUSE_CHAT_MODEL_IDS.pro;
+	return serverKeys.openrouter ? HOUSE_CHAT_MODEL_IDS.free : HOUSE_MODEL_ID;
+}
 
 /**
  * Models that can read the whole attachment pipeline (images, PDFs and text

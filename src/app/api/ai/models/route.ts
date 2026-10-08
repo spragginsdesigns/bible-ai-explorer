@@ -3,8 +3,6 @@ import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
 	DEFAULT_MODEL_ID,
-	HOUSE_EFFORT,
-	HOUSE_MODEL_ID,
 	isReasoningEffort,
 	isReasoningMode,
 	isSpeed,
@@ -15,7 +13,7 @@ import {
 	type ModelDefinition,
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
-import { aiAccessFor, apiKeyOrNull, availableProviders } from "@/lib/ai/provider";
+import { aiAccessFor, apiKeyOrNull, availableProviders, houseChatModel } from "@/lib/ai/provider";
 import { houseEffortFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
@@ -57,9 +55,10 @@ export async function GET(): Promise<Response> {
 		]);
 
 		if (access === "house") {
-			const houseEffort = houseEffortFor(null);
-			const house = resolveDefinition(HOUSE_MODEL_ID);
-			if (!house) throw new Error("The house AI model is not registered.");
+			const { definition: house } = await houseChatModel(userId);
+			// The effort the answer actually runs at: a head that lists no medium
+			// (GLM takes low/high/max) runs at the provider's own default.
+			const houseEffort = house.efforts.includes(houseEffortFor(null)) ? houseEffortFor(null) : null;
 			// The house entry carries the same capability fields as any other, but
 			// a house client renders no option rows at all: the server picks both
 			// the model and how hard it works.

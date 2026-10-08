@@ -498,7 +498,8 @@ test("the live catalog refreshes an OpenRouter definition at request time", () =
 	const derived = resolveDefinition("openrouter/z-ai/glm-5.3-flash");
 	assert.deepEqual(derived.efforts, ["low", "high", "max"]);
 	assert.equal(derived.verbosityMechanism, "prompt");
-	assert.equal(derived.pricing, null);
+	// Curated snapshot (the included-AI meter needs a price); the live row wins.
+	assert.deepEqual(derived.pricing, { input: 0.15, output: 0.5 });
 
 	const live = {
 		...derived,

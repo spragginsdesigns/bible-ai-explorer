@@ -44,7 +44,6 @@ import { createProgressSummarizer } from "@/lib/ai/progress-summary";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import {
-	HOUSE_MODEL_ID,
 	isReasoningEffort,
 	isReasoningMode,
 	isSpeed,
@@ -906,9 +905,9 @@ async function handlePost(req: Request): Promise<Response> {
 					// invalid requested id resolves to a fallback model — don't record that
 					// fallback as if the user picked it.
 					// A house answer is the server's choice, not the user's: those accounts
-					// have no picker, so recording Luna as their stored default would
-					// invent a preference and outlive the day they add their own key.
-					const houseAnswer = access === "house" && definition.id === HOUSE_MODEL_ID;
+					// have no picker, so recording their plan's model as a stored default
+					// would invent a preference and outlive the day they add their own key.
+					const houseAnswer = access === "house";
 					const pickedModel =
 						!houseAnswer && requestedModelId === definition.id ? definition.id : null;
 					// The raw requested value is stored, not the clamped one: a choice the
