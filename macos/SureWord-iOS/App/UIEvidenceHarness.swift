@@ -6,7 +6,7 @@ import SwiftUI
 /// `AppModel` - in a state chosen by launch arguments, so `simctl io
 /// screenshot` can capture it without driving taps:
 ///
-///     -evidence.screen home|reader|search|feedback|readingLog|atlas|picker|cross
+///     -evidence.screen home|reader|search|feedback|readingLog|atlas|picker|cross|memories|notes
 ///     -evidence.book 43 -evidence.chapter 3 -evidence.translation BSB
 ///     -evidence.select 16 -evidence.selectEnd 18 -evidence.scrollVerse 9
 ///     -evidence.tier peek|expanded -evidence.tab explain|words|seeAlso
@@ -21,7 +21,12 @@ import SwiftUI
 ///         cache is seeded with a sample church, key and memory count, so the
 ///         rows and pages show the cached, offline-first state (PRD B7).
 ///
-/// Nothing authenticated works here (no Clerk session): offline text, search,
+/// With fixtures installed (`EvidenceFixtures`, written into the app's
+/// Documents by `scripts/app-store-screenshots.py`) the account routes those
+/// fixtures name answer from disk, so the same screens draw signed-in content:
+///     -evidence.screen shell -evidence.conversation <id> -evidence.shellTab notes
+///
+/// Without fixtures nothing authenticated works here (no Clerk session): offline text, search,
 /// and the public routes (See also) are live; AI and account routes show their
 /// signed-out failure states. Release builds compile none of it.
 struct UIEvidenceHarness: View {
@@ -43,7 +48,15 @@ struct UIEvidenceHarness: View {
         Group {
             if let app, Self.string("screen") == "shell" {
                 // The real shell owns its own navigation stacks.
+                // `-evidence.shellTab bible|notes` picks the first tab and
+                // `-evidence.conversation <id>` opens a fixture conversation
+                // (`EvidenceFixtures`), as tapping it in History would.
                 TabShell().environment(app)
+                    .task {
+                        guard let id = Self.string("conversation") else { return }
+                        await app.chat.loadConversations()
+                        await app.chat.switchConversation(to: id)
+                    }
             } else if let app {
                 NavigationStack { screen }
                     .environment(app)
@@ -96,6 +109,10 @@ struct UIEvidenceHarness: View {
             if let app { ModelPickerSheet(api: app.api, settings: app.settings) }
         case "cross":
             CrossView(onOpenReader: {}, onOpenChat: {})
+        case "memories":
+            if let app { EvidenceMemoriesScreen(api: app.api) }
+        case "notes":
+            NotesTabView()
         default:
             ChapterReaderView(order: Self.int("book") ?? 43, chapter: Self.int("chapter") ?? 3)
         }
@@ -183,4 +200,36 @@ struct UIEvidenceHarness: View {
     #else
     var body: some View { EmptyView() }
     #endif
+
+    /// The tab the shell opens on: Chat everywhere except an evidence run
+    /// that asked for another one.
+    static var initialShellTab: AppSection {
+        #if DEBUG
+        if isEnabled, let raw = UserDefaults.standard.string(forKey: "evidence.shellTab"),
+           let tab = AppSection(rawValue: raw) {
+            return tab
+        }
+        #endif
+        return .chat
+    }
 }
+
+#if DEBUG
+/// Settings -> Memory over the fixture `/api/memories` answer.
+private struct EvidenceMemoriesScreen: View {
+    let api: APIClient
+    @State private var model = MemoriesModel()
+
+    var body: some View {
+        MemoriesView(model: model)
+            .task {
+                model.configure(api)
+                await model.load()
+                // `-evidence.summary 1` presses "Generate summary", as a tap would.
+                if UserDefaults.standard.string(forKey: "evidence.summary") == "1" {
+                    await model.generateSummary()
+                }
+            }
+    }
+}
+#endif

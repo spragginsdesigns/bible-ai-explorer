@@ -37,6 +37,12 @@ final class APIClient: Sendable {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = Self.defaultTimeout
         configuration.waitsForConnectivity = false
+        #if DEBUG
+        // Screenshot harness only: inert unless an evidence run installed fixtures.
+        if EvidenceFixtures.isActive {
+            configuration.protocolClasses = [EvidenceURLProtocol.self] + (configuration.protocolClasses ?? [])
+        }
+        #endif
         self.session = URLSession(configuration: configuration)
     }
 

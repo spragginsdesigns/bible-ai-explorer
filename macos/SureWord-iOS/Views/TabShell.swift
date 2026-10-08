@@ -12,7 +12,7 @@ struct TabShell: View {
     @Environment(\.scenePhase) private var scenePhase
 
     /// Home is Chat, matching Android's initial route.
-    @State private var selectedTab: AppSection = .chat
+    @State private var selectedTab: AppSection = UIEvidenceHarness.initialShellTab
     /// The Daily Cross has no tab of its own (on Android it lives inside Chat
     /// as the pushed `/cross` route); here it is a sheet over whichever tab is
     /// frontmost, so the morning notification can open it from anywhere.
