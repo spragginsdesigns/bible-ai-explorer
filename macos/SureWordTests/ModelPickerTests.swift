@@ -123,6 +123,34 @@ struct ModelPickerRulesTests {
         #expect(!ModelPickerRules.supportsEffort(in: data, stored: nil))
     }
 
+    /// Pro chooses how hard the included model thinks (2026-10-08); Free and
+    /// older servers have no choice.
+    @Test("House reasoning chips come from house.efforts, Pro only")
+    func houseReasoningChips() {
+        var pro = Self.houseResponse(effort: "high")
+        pro.house?.efforts = ["high", "low", "medium", "max-ish"]
+        let proHouse = ModelPickerRules.house(in: pro)
+        // Canonical order, and nothing the client does not understand.
+        #expect(ModelPickerRules.houseEfforts(proHouse) == ["low", "medium", "high"])
+        // A local pick that is one of the choices wins...
+        #expect(ModelPickerRules.activeHouseEffort("low", house: proHouse) == "low")
+        // ...anything else (Auto, a keys-mode xhigh) reads as the server's effort.
+        #expect(ModelPickerRules.activeHouseEffort(AskQuestionRequest.autoEffort, house: proHouse) == "high")
+        #expect(ModelPickerRules.activeHouseEffort("xhigh", house: proHouse) == "high")
+        #expect(ModelPickerRules.activeHouseEffort(nil, house: proHouse) == "high")
+        // The keys-mode effort rows stay empty in house mode.
+        #expect(ModelPickerRules.efforts(in: pro, stored: nil).isEmpty)
+
+        var free = Self.houseResponse()
+        free.house?.label = "SureWord AI"
+        free.house?.efforts = []
+        #expect(ModelPickerRules.houseEfforts(ModelPickerRules.house(in: free)).isEmpty)
+        #expect(ModelPickerRules.buttonLabel(in: free, stored: nil) == "GPT-5.6 Luna")
+        // An older server sends no `efforts` at all.
+        #expect(ModelPickerRules.houseEfforts(ModelPickerRules.house(in: Self.houseResponse())).isEmpty)
+        #expect(ModelPickerRules.activeHouseEffort("high", house: ModelPickerRules.house(in: Self.houseResponse())) == nil)
+    }
+
     @Test("The house note is the server's, or ours when it sends none")
     func houseNoteCopy() throws {
         let served = try #require(ModelPickerRules.house(in: Self.houseResponse()))
@@ -867,8 +895,43 @@ struct ModelPickerRulesTests {
         #expect(decoded.house?.modelId == "openai/gpt-5.6-luna")
         #expect(decoded.house?.label == "GPT-5.6 Luna")
         #expect(decoded.house?.effort == "medium")
+        // Servers before 2026-10-08 send no `efforts`: no choice to offer.
+        #expect(decoded.house?.efforts == nil)
         #expect(ModelPickerRules.isHouse(decoded))
         #expect(ModelPickerRules.providers(in: decoded).isEmpty)
+    }
+
+    @Test("Decodes the Pro house payload with its reasoning choices")
+    func decodesProHousePayload() throws {
+        let json = """
+        {
+          "access": "house",
+          "providers": [],
+          "models": [
+            {
+              "id": "openai/gpt-5.6-luna",
+              "label": "GPT-5.6 Luna",
+              "provider": "openai",
+              "supportsAttachments": true,
+              "efforts": ["none", "low", "medium", "high", "xhigh", "max"],
+              "available": true
+            }
+          ],
+          "defaults": { "modelId": "openai/gpt-5.6-luna", "effort": "high" },
+          "house": {
+            "modelId": "openai/gpt-5.6-luna",
+            "label": "GPT-5.6 Luna",
+            "effort": "high",
+            "efforts": ["low", "medium", "high"],
+            "note": "Included with SureWord."
+          }
+        }
+        """
+        let decoded = try JSONDecoder().decode(AIModelsResponse.self, from: Data(json.utf8))
+        let house = ModelPickerRules.house(in: decoded)
+        #expect(house?.efforts == ["low", "medium", "high"])
+        #expect(ModelPickerRules.houseEfforts(house) == ["low", "medium", "high"])
+        #expect(ModelPickerRules.activeHouseEffort(nil, house: house) == "high")
     }
 
     @Test("Decodes the /api/ai/models payload, defaults included")

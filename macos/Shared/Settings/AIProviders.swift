@@ -144,11 +144,17 @@ struct AIModelsResponse: Sendable, Equatable, Decodable {
     /// never a locked provider the user cannot act on from there.
     struct HouseModel: Sendable, Equatable, Decodable {
         var modelId: String
+        /// "SureWord AI" on Free, the model's own name on Pro (2026-10-08).
         var label: String
-        /// Pinned server-side (`"medium"`). Shown, never chosen: the picker
-        /// offers no reasoning chips in house mode.
+        /// The effort the next answer runs at: the account's stored pick on Pro,
+        /// `"medium"` on Free.
         var effort: String?
         var note: String?
+        /// The reasoning efforts this account may choose on the included model:
+        /// `low` / `medium` / `high` on Pro, empty on Free. Absent from servers
+        /// before 2026-10-08, which read as "no choice". `= nil` keeps the
+        /// existing memberwise `.init(modelId:label:effort:note:)` calls valid.
+        var efforts: [String]? = nil
     }
 
     /// `"house"` while the account has no API keys of its own, `"keys"` once

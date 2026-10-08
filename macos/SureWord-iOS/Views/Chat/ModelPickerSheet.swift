@@ -147,11 +147,28 @@ struct ModelPickerSheet: View {
     // MARK: House
 
     private func houseList(_ house: AIModelsResponse.HouseModel) -> some View {
-        List {
+        let efforts = Self.houseEfforts(house)
+        return List {
             Section {
                 houseRow(house)
             } footer: {
                 Text(Self.houseNote(house))
+            }
+            // Pro chooses how hard the included model thinks; Free has no
+            // choice, so the section is not drawn.
+            if !efforts.isEmpty {
+                optionSection(
+                    title: "REASONING",
+                    name: "Reasoning",
+                    note: nil,
+                    options: efforts.map { Optional($0) },
+                    active: Self.activeHouseEffort(settings.chatEffort, house: house),
+                    label: Self.effortLabel
+                ) { effort in
+                    // Written through like a keys-mode pick, so the account
+                    // default follows and every device agrees.
+                    if let effort { settings.chatEffort = effort }
+                }
             }
             Section {
                 addKeyRow
@@ -163,7 +180,7 @@ struct ModelPickerSheet: View {
     }
 
     /// What a keyless account sees: the one model it has, said plainly. No
-    /// disclosure chevrons and no chips - nothing here is a choice.
+    /// disclosure chevrons; the only choice (Pro's reasoning) sits below it.
     private func houseRow(_ house: AIModelsResponse.HouseModel) -> some View {
         HStack {
             Text(house.label)

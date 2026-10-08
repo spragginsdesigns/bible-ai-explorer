@@ -29,6 +29,18 @@ struct MessageBubble: View {
     /// Mint the link. The shell owns the write and the toast.
     var onShare: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
+    /// Edit this question: its text goes to the composer and sending replaces
+    /// it and every reply after it. Nil while it cannot be edited (an answer is
+    /// in flight, or the conversation is not stored yet), which hides Edit.
+    var onEdit: (() -> Void)? = nil
+    /// Ask this question again. Only the newest settled answer gets one.
+    var onRetry: (() -> Void)? = nil
+    /// Keeps Copy / Edit drawn under the newest question; every other one
+    /// shows them on hover.
+    var showsUserActions: Bool = false
+
+    /// True while the pointer is over a question, which reveals its actions.
+    @State private var isHovering = false
 
     /// The "What went wrong?" panel, raised by a thumbs down. Held here rather
     /// than in the shell so the control stays self-contained, and the draft it
@@ -183,8 +195,63 @@ struct MessageBubble: View {
                             .strokeBorder(theme.border, lineWidth: 1)
                     }
             }
+            // Always laid out, faded in on hover, so revealing the row never
+            // reflows the conversation under the pointer.
+            userActions
+                .opacity(showsUserActions || isHovering ? 1 : 0)
         }
         .frame(maxWidth: 560, alignment: .trailing)
+        .contentShape(.rect)
+        .onHover { isHovering = $0 }
+        .contextMenu {
+            if !message.content.isEmpty {
+                Button("Copy") { copyAnswer() }
+            }
+            if let onEdit {
+                Button("Edit", action: onEdit)
+            }
+        }
+    }
+
+    /// Copy and Edit for a question. Copy is left out for a files-only
+    /// message (there is no text to copy); Edit can still add some.
+    private var userActions: some View {
+        HStack(spacing: 0) {
+            if !message.content.isEmpty {
+                Button {
+                    copyAnswer()
+                } label: {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 12))
+                        .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .help(didCopy ? "Copied" : "Copy your message")
+                .accessibilityLabel(didCopy ? "Copied" : "Copy your message")
+            }
+            if let onEdit {
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .help("Edit your message")
+                .accessibilityLabel("Edit your message")
+            }
+        }
+    }
+
+    /// "Try again" at the end of the newest answer's action row.
+    private func retryControl(_ retry: @escaping () -> Void) -> some View {
+        Button(action: retry) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 12))
+                .foregroundStyle(theme.textFaint)
+        }
+        .buttonStyle(SubtleButtonStyle())
+        .help("Try again")
+        .accessibilityLabel("Try again")
     }
 
     private var attachmentCards: some View {
@@ -248,6 +315,8 @@ struct MessageBubble: View {
                     AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
 
                     shareControl
+
+                    if let onRetry { retryControl(onRetry) }
                 }
                 .popover(isPresented: $isReasonPresented, arrowEdge: .bottom) {
                     reasonPanel

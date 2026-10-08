@@ -152,7 +152,11 @@ struct ChatView: View {
     }
 
     private var messageList: some View {
-        ScrollViewReader { proxy in
+        // The newest question keeps Copy / Edit drawn; only the newest settled
+        // answer offers Try again.
+        let newestUserID = chat.messages.last { $0.role == .user }?.id
+        let retryableID = chat.retryableAnswerID
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.xl) {
                     ForEach(chat.messages) { message in
@@ -204,7 +208,14 @@ struct ChatView: View {
                             onFollowUp: { question in
                                 chat.input = question
                                 Task { await chat.send() }
-                            }
+                            },
+                            onEdit: message.role == .user && chat.canEdit(message.id)
+                                ? { chat.beginEdit(message.id) }
+                                : nil,
+                            onRetry: message.id == retryableID
+                                ? { Task { await chat.retryAnswer() } }
+                                : nil,
+                            showsUserActions: message.id == newestUserID
                         )
                         .id(message.id)
                     }

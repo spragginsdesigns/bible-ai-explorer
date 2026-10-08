@@ -69,6 +69,23 @@ enum ModelPickerRules {
         return note.isEmpty ? fallbackHouseNote : note
     }
 
+    /// The reasoning chips an included account may choose, in canonical order:
+    /// Low / Medium / High on Pro, none on Free or on an older server that
+    /// sends no `efforts`. No Auto chip - the server always runs one of these.
+    static func houseEfforts(_ house: AIModelsResponse.HouseModel?) -> [String] {
+        guard let offered = house?.efforts, !offered.isEmpty else { return [] }
+        return effortOrder.filter { offered.contains($0) }
+    }
+
+    /// The house chip that reads as active: the local pick while it is one the
+    /// account may choose, else what the server says the next answer runs at.
+    static func activeHouseEffort(_ stored: String?, house: AIModelsResponse.HouseModel?) -> String? {
+        let offered = houseEfforts(house)
+        if let stored, offered.contains(stored) { return stored }
+        guard let effort = house?.effort, offered.contains(effort) else { return nil }
+        return effort
+    }
+
     /// The id the picker shows as active. A locally stored pick only counts
     /// while it names a model the account can actually reach - a key removed in
     /// Settings must not leave the picker claiming a model that would fail - so
@@ -750,9 +767,32 @@ struct ModelPickerPopover: View {
     // MARK: House mode
 
     /// What a keyless account sees: the one model it has, said plainly. No
-    /// list, no chevrons, no reasoning chips - nothing here is a choice, and
-    /// dressing it up as one only implies choices that are missing.
+    /// list and no chevrons. Pro also gets the REASONING chips the server
+    /// offers (`house.efforts`); Free gets none, since nothing there is a
+    /// choice and dressing it up as one only implies choices that are missing.
+    @ViewBuilder
     private func houseSection(_ house: AIModelsResponse.HouseModel) -> some View {
+        houseRow(house)
+        let efforts = ModelPickerRules.houseEfforts(house)
+        if !efforts.isEmpty {
+            Divider().overlay(theme.border)
+            optionSection("REASONING", note: nil) {
+                chipRows(
+                    efforts.map { Optional($0) },
+                    active: ModelPickerRules.activeHouseEffort(settings.chatEffort, house: house),
+                    label: ModelPickerRules.effortLabel
+                ) { effort in
+                    // Written through like a keys-mode pick, so the account
+                    // default follows and every device agrees.
+                    if let effort { settings.chatEffort = effort }
+                }
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+        }
+    }
+
+    private func houseRow(_ house: AIModelsResponse.HouseModel) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
                 Text(house.label)

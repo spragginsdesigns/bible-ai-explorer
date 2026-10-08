@@ -111,9 +111,15 @@ struct AskQuestionRequest: Encodable {
     var verbosity: String?
     /// Reasoning mode (`standard` / `pro`), same nil rule as `speed`.
     var mode: String?
+    /// Ids of the messages an Edit, "Try again" or error retry dropped after
+    /// the user message it re-sends - the only stored rows the server may then
+    /// delete. A stored row not named here refuses the turn ("This
+    /// conversation changed on another device"). Nil, for an ordinary send,
+    /// omits the key: nothing is deleted.
+    var replaces: [String]? = nil
 
     private enum CodingKeys: String, CodingKey {
-        case messages, conversationId, translation, modelId, effort, speed, verbosity, mode, timezone
+        case messages, conversationId, translation, modelId, effort, speed, verbosity, mode, timezone, replaces
     }
 
     /// Written out rather than synthesized for exactly one reason: `effort`
@@ -135,5 +141,6 @@ struct AskQuestionRequest: Encodable {
         try container.encodeIfPresent(speed, forKey: .speed)
         try container.encodeIfPresent(verbosity, forKey: .verbosity)
         try container.encodeIfPresent(mode, forKey: .mode)
+        try container.encodeIfPresent(replaces, forKey: .replaces)
     }
 }

@@ -12,6 +12,9 @@ enum ChatErrorCode: String, Sendable, Equatable, CaseIterable {
     case unauthorized
     case invalidInput = "invalid_input"
     case conversationNotFound = "conversation_not_found"
+    /// An Edit or "Try again" the server refused because the stored thread
+    /// has rows this device never saw. Retrying means reloading, not resending.
+    case staleThread = "stale_thread"
     case providerKeyMissing = "provider_key_missing"
     case providerError = "provider_error"
     case rateLimited = "rate_limited"
@@ -24,7 +27,7 @@ enum ChatErrorCode: String, Sendable, Equatable, CaseIterable {
     /// The server's fixed enum - the two client-side codes are never parsed
     /// out of a body or a `[code]` prefix.
     static let serverCodes: Set<ChatErrorCode> = [
-        .unauthorized, .invalidInput, .conversationNotFound, .providerKeyMissing,
+        .unauthorized, .invalidInput, .conversationNotFound, .staleThread, .providerKeyMissing,
         .providerError, .rateLimited, .internal,
     ]
 
@@ -77,6 +80,11 @@ enum ChatErrors {
             title: "Conversation not found",
             message: "This conversation is no longer available. Start a new chat to continue.",
             retryable: false
+        ),
+        .staleThread: Copy(
+            title: "This chat changed",
+            message: "This conversation changed on another device. Reload it and try again.",
+            retryable: true
         ),
         .providerKeyMissing: Copy(
             title: "The AI provider is not configured",

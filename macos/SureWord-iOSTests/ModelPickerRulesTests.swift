@@ -451,6 +451,42 @@ final class ModelPickerRulesTests: XCTestCase {
         XCTAssertNil(settings.chatMode)
     }
 
+    /// Pro chooses its included effort (2026-10-08): a pick that is one of the
+    /// offered choices survives the pin, anything else is pinned as before.
+    func testHouseModeKeepsAProEffortPick() {
+        clearStore()
+        defer { clearStore() }
+        var pro = housePayload()
+        pro.house?.effort = "medium"
+        pro.house?.efforts = ["low", "medium", "high"]
+
+        let settings = SettingsStore()
+        settings.applyRemote { $0.chatEffort = "high" }
+        Rules.pinHouseMode(from: pro, into: settings)
+        XCTAssertEqual(settings.chatEffort, "high")
+
+        // A keys-mode value the house cannot run is still pinned.
+        settings.applyRemote { $0.chatEffort = "xhigh" }
+        Rules.pinHouseMode(from: pro, into: settings)
+        XCTAssertEqual(settings.chatEffort, "medium")
+
+        // Free (no choices) pins exactly as before.
+        settings.applyRemote { $0.chatEffort = "high" }
+        Rules.pinHouseMode(from: housePayload(), into: settings)
+        XCTAssertEqual(settings.chatEffort, "medium")
+    }
+
+    func testHouseEffortChipsArePro() {
+        var pro = housePayload()
+        pro.house?.effort = "high"
+        pro.house?.efforts = ["high", "medium", "low"]
+        XCTAssertEqual(Rules.houseEfforts(pro.house), ["low", "medium", "high"])
+        XCTAssertEqual(Rules.activeHouseEffort("low", house: pro.house), "low")
+        XCTAssertEqual(Rules.activeHouseEffort(AskQuestionRequest.autoEffort, house: pro.house), "high")
+        XCTAssertEqual(Rules.houseEfforts(housePayload().house), [])
+        XCTAssertNil(Rules.activeHouseEffort("high", house: housePayload().house))
+    }
+
     func testKeysModeIsNeverPinned() {
         clearStore()
         defer { clearStore() }

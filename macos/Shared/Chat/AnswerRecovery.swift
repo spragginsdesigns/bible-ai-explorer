@@ -48,11 +48,17 @@ enum AnswerRecovery {
     ///
     /// The user message is persisted when the stream opens and the assistant
     /// message only at the end, so a trailing user message means "not done yet".
-    static func completedHistory(_ payload: JSONValue?) -> [JSONValue]? {
+    ///
+    /// `staleAnswerIDs` are the answers an Edit or "Try again" is replacing.
+    /// Until the server deletes them they still end the thread, and collecting
+    /// one would hand back the old answer as if it were the new one (web and
+    /// Android: `completedHistory(payload, staleAnswerIds)`).
+    static func completedHistory(_ payload: JSONValue?, staleAnswerIDs: [String] = []) -> [JSONValue]? {
         guard let messages = payload?["messages"]?.arrayValue, let last = messages.last else {
             return nil
         }
         guard last.objectValue != nil, last["role"]?.stringValue == "assistant" else { return nil }
+        if let id = last["id"]?.stringValue, staleAnswerIDs.contains(id) { return nil }
         // An assistant row with no content is a persistence artifact, not an
         // answer.
         if let content = last["content"]?.stringValue,
@@ -141,10 +147,13 @@ struct AnswerRecoveryPolicy: Sendable, Equatable {
     /// user message when the stream opens, so "my question is in there" is
     /// exactly the precondition for collecting an answer to it.
     let expectedUserMessages: Int
+    /// Answers the turn in flight replaces; never collected as its answer.
+    let staleAnswerIDs: [String]
 
-    init(startedAt: Date, expectedUserMessages: Int = 0) {
+    init(startedAt: Date, expectedUserMessages: Int = 0, staleAnswerIDs: [String] = []) {
         self.startedAt = startedAt
         self.expectedUserMessages = expectedUserMessages
+        self.staleAnswerIDs = staleAnswerIDs
     }
 
     var deadline: Date { startedAt.addingTimeInterval(AnswerRecovery.maxDuration.inSeconds) }
@@ -153,7 +162,7 @@ struct AnswerRecoveryPolicy: Sendable, Equatable {
     ///   when that request failed. A failure is not terminal: offline is exactly
     ///   the case this whole mechanism exists for, so keep asking.
     func step(at now: Date, payload: JSONValue?) -> Step {
-        if let restored = AnswerRecovery.completedHistory(payload),
+        if let restored = AnswerRecovery.completedHistory(payload, staleAnswerIDs: staleAnswerIDs),
            restored.count(where: { $0["role"]?.stringValue == "user" }) >= expectedUserMessages {
             return .restore(restored)
         }

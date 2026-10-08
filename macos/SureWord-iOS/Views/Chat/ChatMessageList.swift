@@ -23,6 +23,10 @@ struct ChatMessageList: View {
     var onShare: (ChatViewMessage) async -> URL?
 
     var body: some View {
+        // The newest question shows Copy / Edit under it; only the newest
+        // settled answer offers Try again.
+        let newestUserID = chat.messages.last { $0.role == .user }?.id
+        let retryableID = chat.retryableAnswerID
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.xl) {
@@ -44,7 +48,14 @@ struct ChatMessageList: View {
                             onFollowUp: { question in
                                 chat.input = question
                                 Task { await chat.send() }
-                            }
+                            },
+                            onEdit: message.role == .user && chat.canEdit(message.id)
+                                ? { chat.beginEdit(message.id) }
+                                : nil,
+                            onRetry: message.id == retryableID
+                                ? { Task { await chat.retryAnswer() } }
+                                : nil,
+                            showsUserActions: message.id == newestUserID
                         )
                         .id(message.id)
                     }

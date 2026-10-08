@@ -31,6 +31,15 @@ struct ChatMessageBubble: View {
     /// Mint (or re-activate) the link; nil after a failure the tab toasted.
     var onShare: (ChatViewMessage) async -> URL?
     var onFollowUp: (String) -> Void
+    /// Edit this question: its text goes to the composer and sending replaces
+    /// it and every reply after it. Nil while it cannot be edited (an answer is
+    /// in flight, or the conversation is not stored yet), which hides Edit.
+    var onEdit: (() -> Void)? = nil
+    /// Ask this question again. Only the newest settled answer gets one.
+    var onRetry: (() -> Void)? = nil
+    /// Draws Copy and Edit under the bubble rather than only in its long-press
+    /// menu - the newest question, where a long press is least discoverable.
+    var showsUserActions: Bool = false
 
     /// The "What went wrong?" panel, raised by a thumbs down from either the
     /// inline row or the context menu, so both share one presentation. The draft
@@ -197,11 +206,63 @@ struct ChatMessageBubble: View {
                         } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
+                        if let onEdit {
+                            Button(action: onEdit) {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                        }
                     }
+            }
+            if showsUserActions {
+                userActions
             }
         }
         // Phone width: cap the bubble so long questions don't read as answers.
         .frame(maxWidth: 320, alignment: .trailing)
+    }
+
+    /// Copy and Edit under the newest question. Copy is left out for a
+    /// files-only message (there is no text to copy); Edit can still add some.
+    private var userActions: some View {
+        HStack(spacing: 0) {
+            if !message.content.isEmpty {
+                Button {
+                    copyAnswer()
+                } label: {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 12))
+                        .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .accessibilityLabel(didCopy ? "Message copied" : "Copy your message")
+            }
+            if let onEdit {
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(SubtleButtonStyle())
+                .accessibilityLabel("Edit your message")
+            }
+        }
+    }
+
+    /// "Try again" beside the thumbs on the newest answer.
+    private func retryControl(_ retry: @escaping () -> Void) -> some View {
+        Button(action: retry) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 12))
+                .foregroundStyle(theme.textFaint)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(SubtleButtonStyle())
+        .accessibilityLabel("Try again")
     }
 
     private var attachmentCards: some View {
@@ -247,6 +308,11 @@ struct ChatMessageBubble: View {
                             }
                             feedbackMenuItem(.up)
                             feedbackMenuItem(.down)
+                            if let onRetry {
+                                Button(action: onRetry) {
+                                    Label("Try again", systemImage: "arrow.clockwise")
+                                }
+                            }
                         }
                     }
             } else if message.isStreaming, message.activity == nil, message.progress == nil {
@@ -276,6 +342,8 @@ struct ChatMessageBubble: View {
                     AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
 
                     if canShare { shareControl }
+
+                    if let onRetry { retryControl(onRetry) }
                 }
             }
 

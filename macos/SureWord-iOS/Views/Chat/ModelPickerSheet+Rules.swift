@@ -372,6 +372,24 @@ extension ModelPickerSheet {
         return note.isEmpty ? fallbackHouseNote : note
     }
 
+    /// The reasoning chips an included account may choose, in canonical order:
+    /// Low / Medium / High on Pro, none on Free or on an older server that
+    /// sends no `efforts`. No Auto chip - the server always runs one of these.
+    /// Kept in step with `ModelPickerRules.houseEfforts` on macOS.
+    static func houseEfforts(_ house: AIModelsResponse.HouseModel?) -> [String] {
+        guard let offered = house?.efforts, !offered.isEmpty else { return [] }
+        return effortOrder.filter { offered.contains($0) }
+    }
+
+    /// The house chip that reads as active: the local pick while it is one the
+    /// account may choose, else what the server says the next answer runs at.
+    static func activeHouseEffort(_ stored: String?, house: AIModelsResponse.HouseModel?) -> String? {
+        let offered = houseEfforts(house)
+        if let stored, offered.contains(stored) { return stored }
+        guard let effort = house?.effort, offered.contains(effort) else { return nil }
+        return effort
+    }
+
     // MARK: - Store adoption
 
     /// Fills any option the user has never chosen on *this* device with the
@@ -413,12 +431,17 @@ extension ModelPickerSheet {
     /// Local-only: this is the client agreeing with the server, not a choice.
     /// PATCHing it would overwrite the model this account picked while it
     /// still had a key, and lose it the moment the key comes back.
+    ///
+    /// A Pro account chooses its effort (`house.efforts`), so a local pick
+    /// that is one of those choices survives the pin; anything else (Free, a
+    /// pick from a keys-mode model, Auto) is pinned to the server's effort.
     @MainActor
     static func pinHouseMode(from data: AIModelsResponse, into settings: SettingsStore) {
         guard let house = houseMode(data) else { return }
         settings.applyRemote { settings in
             if settings.chatModelId != house.modelId { settings.chatModelId = house.modelId }
-            if settings.chatEffort != house.effort { settings.chatEffort = house.effort }
+            let keepsPick = settings.chatEffort.map { houseEfforts(house).contains($0) } ?? false
+            if !keepsPick, settings.chatEffort != house.effort { settings.chatEffort = house.effort }
             if settings.chatSpeed != nil { settings.chatSpeed = nil }
             if settings.chatVerbosity != nil { settings.chatVerbosity = nil }
             if settings.chatMode != nil { settings.chatMode = nil }

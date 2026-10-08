@@ -84,6 +84,17 @@ final class ChatViewModel {
 
     private var uiMessages: [UIMessage] = []
 
+    /// The user message the composer is editing, or nil for an ordinary draft.
+    /// Sending re-posts the thread cut at this message under the same id, and
+    /// the server deletes every stored row after it.
+    private(set) var editingMessageID: String?
+    /// The draft the composer held before Edit, put back on Cancel or once the
+    /// edit has been sent.
+    private var draftBeforeEdit: (input: String, attachment: VerseAttachment?)?
+    /// Answers the turn in flight replaces (its `replaces`). The recovery poll
+    /// never collects one of these as the new answer.
+    private var staleAnswerIDs: [String] = []
+
     // MARK: Collaborators
 
     private let api: APIClient
@@ -246,10 +257,19 @@ final class ChatViewModel {
         return views
     }
 
-    /// Files alone are a valid message — the model is asked to look at them.
+    /// Files alone are a valid message - the model is asked to look at them.
+    /// An edit keeps the original message's files, so an edit of an
+    /// attachment-only message may send with no text.
     var canSend: Bool {
-        let composed = VerseAttachment.compose(input, attachment: attachment)
-        return (!composed.isEmpty || !fileAttachments.isEmpty)
+        let hasContent: Bool
+        if let editingMessageID {
+            hasContent = !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || Self.hasFiles(uiMessages.first { $0.id == editingMessageID })
+        } else {
+            let composed = VerseAttachment.compose(input, attachment: attachment)
+            hasContent = !composed.isEmpty || !fileAttachments.isEmpty
+        }
+        return hasContent
             && !isBusy
             && !uploadingAttachments
             && !isCreatingConversation
@@ -277,6 +297,8 @@ final class ChatViewModel {
         historyError = nil
         sendError = nil
         lastFailedSend = nil
+        // The message being edited belongs to the thread being left.
+        cancelEdit()
         activeConversationID = nil
         uiMessages = []
     }
@@ -289,6 +311,7 @@ final class ChatViewModel {
         let version = historyLoadVersion
 
         stop()
+        cancelEdit()
         activeConversationID = id
         sendError = nil
         historyError = nil
@@ -619,8 +642,14 @@ final class ChatViewModel {
     // MARK: Sending
 
     func send() async {
+        // An edit is not a new message: no slash commands, no new attachments,
+        // no new conversation - the thread is cut and re-sent under the id.
+        if let editingMessageID {
+            await sendEdit(editingMessageID)
+            return
+        }
         // Local slash commands never reach the model, and are allowed even when
-        // `canSend` is false — `/new` in particular is how you escape a
+        // `canSend` is false - `/new` in particular is how you escape a
         // conversation whose history failed to load.
         let typed = input
         // Android's `submit` parses the trimmed text, newlines included.
@@ -811,7 +840,16 @@ final class ChatViewModel {
 
     /// Re-run the last exchange after a failure, matching `retrySend`.
     func retrySend() async {
-        guard !isBusy, await AIConsentGate.ensure() else { return }
+        guard !isBusy else { return }
+        // A refused Edit or "Try again": the screen no longer matches the
+        // server, and resending would be refused again. Reloading the thread
+        // is the retry (web and Android do the same).
+        if sendError?.code == .staleThread {
+            sendError = nil
+            await retryHistory()
+            return
+        }
+        guard await AIConsentGate.ensure() else { return }
         // The send never happened (the conversation could not be created), so
         // there is no stream to regenerate - send the original question again.
         if let failed = lastFailedSend, activeConversationID == nil {
@@ -822,11 +860,165 @@ final class ChatViewModel {
             return
         }
         sendError = nil
+        // The newest question goes again under its own id, so name what this
+        // drops after it (a failed partial answer, or nothing): the server may
+        // delete only those rows. Computed before the drop below.
+        let replaces = Self.idsAfterLastUser(uiMessages)
         // Drop a failed assistant turn so the model isn't asked to continue it.
         if uiMessages.last?.role == .assistant { uiMessages.removeLast() }
         guard uiMessages.last?.role == .user else { return }
         status = .submitted
-        startStream()
+        startStream(replaces: replaces)
+    }
+
+    // MARK: Message actions (copy / edit / try again)
+
+    /// What the composer bar says while an edit is open. Same string on every
+    /// client.
+    static let editingNotice = "Editing. Sending replaces this message and every reply after it."
+
+    var isEditing: Bool { editingMessageID != nil }
+
+    /// A user message can be edited whenever nothing is in flight and the
+    /// conversation exists (the server only cuts a thread it has stored).
+    func canEdit(_ messageID: String) -> Bool {
+        !isBusy && activeConversationID != nil
+            && uiMessages.contains { $0.id == messageID && $0.role == .user }
+    }
+
+    /// The newest answer, when it can be asked again: settled, at the end of
+    /// the thread, with the question it answered right before it.
+    var retryableAnswerID: String? {
+        guard !isBusy, activeConversationID != nil, uiMessages.count >= 2,
+              let last = uiMessages.last, last.role == .assistant,
+              uiMessages[uiMessages.count - 2].role == .user
+        else { return nil }
+        return last.id
+    }
+
+    /// Put a sent message's text in the composer for editing. The draft that
+    /// was there is kept and comes back on Cancel.
+    func beginEdit(_ messageID: String) {
+        guard canEdit(messageID),
+              let message = uiMessages.first(where: { $0.id == messageID })
+        else { return }
+        if editingMessageID == nil { draftBeforeEdit = (input, attachment) }
+        editingMessageID = messageID
+        attachment = nil
+        input = Self.text(of: message)
+    }
+
+    func cancelEdit() {
+        guard editingMessageID != nil else { return }
+        editingMessageID = nil
+        let draft = draftBeforeEdit
+        draftBeforeEdit = nil
+        input = draft?.input ?? ""
+        attachment = draft?.attachment
+    }
+
+    /// Ask the newest question again: drop its answer and re-post the thread
+    /// ending at that question, under the same id, so the server replaces the
+    /// stored answer instead of keeping both.
+    func retryAnswer() async {
+        guard retryableAnswerID != nil, await AIConsentGate.ensure(),
+              let thread = Self.retryThread(uiMessages)
+        else { return }
+        let replaces = Self.idsAfterLastUser(uiMessages)
+        sendError = nil
+        lastFailedSend = nil
+        uiMessages = thread
+        status = .submitted
+        startStream(replaces: replaces)
+    }
+
+    private func sendEdit(_ messageID: String) async {
+        guard canSend, canEdit(messageID), await AIConsentGate.ensure(),
+              // The consent sheet is a suspension point; the edit may be gone.
+              editingMessageID == messageID, canEdit(messageID),
+              let thread = Self.editedThread(uiMessages, editing: messageID, text: input)
+        else { return }
+        // Everything after the edited message, named before it is cut locally.
+        let replaces = Self.idsAfter(uiMessages, messageID)
+        sendError = nil
+        lastFailedSend = nil
+        // The pre-edit draft goes back in the composer once the edit is away.
+        let draft = draftBeforeEdit
+        editingMessageID = nil
+        draftBeforeEdit = nil
+        input = draft?.input ?? ""
+        attachment = draft?.attachment
+        uiMessages = thread
+        status = .submitted
+        startStream(replaces: replaces)
+    }
+
+    /// The `/api/ask-question` body for the current thread. Internal as a test
+    /// seam: it is how a test sees the `replaces` a send would carry.
+    func askRequest(replaces: [String]? = nil) -> AskQuestionRequest {
+        AskQuestionRequest(
+            messages: uiMessages.compactMap(\.outgoingJSON),
+            conversationId: activeConversationID,
+            translation: settings.translation.rawValue,
+            modelId: settings.chatModelId,
+            effort: settings.chatEffort,
+            speed: settings.chatSpeed,
+            verbosity: settings.chatVerbosity,
+            mode: settings.chatMode,
+            replaces: replaces
+        )
+    }
+
+    /// The ids an edit of `messageID` drops: every message after it. Sent as
+    /// `replaces`, the only stored rows the server may then delete.
+    static func idsAfter(_ messages: [UIMessage], _ messageID: String) -> [String] {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }) else { return [] }
+        return messages[(index + 1)...].map(\.id)
+    }
+
+    /// The ids "Try again" (and an error retry) drops: everything after the
+    /// newest user message.
+    static func idsAfterLastUser(_ messages: [UIMessage]) -> [String] {
+        guard let index = messages.lastIndex(where: { $0.role == .user }) else { return [] }
+        return messages[(index + 1)...].map(\.id)
+    }
+
+    /// The thread an edit sends, AI SDK `sendMessage({ messageId })`
+    /// semantics: everything after the edited message is dropped and the
+    /// message is replaced in place under the same id. Its files and metadata
+    /// (`attachmentIds`, origin) are kept; only the text changes. Nil when the
+    /// id is not a user message or the edit would leave it empty.
+    static func editedThread(_ messages: [UIMessage], editing messageID: String, text: String) -> [UIMessage]? {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }),
+              messages[index].role == .user
+        else { return nil }
+        let original = messages[index]
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        var parts = original.parts.filter { $0.filePart != nil }
+        guard !trimmed.isEmpty || !parts.isEmpty else { return nil }
+        if !trimmed.isEmpty { parts.append(.text(id: "0", text: trimmed)) }
+        var thread = Array(messages[...index])
+        thread[index] = UIMessage(id: original.id, role: .user, parts: parts, metadata: original.metadata)
+        return thread
+    }
+
+    /// The thread "Try again" sends: the newest answer dropped, ending at the
+    /// question it answered. Nil when the thread does not end that way.
+    static func retryThread(_ messages: [UIMessage]) -> [UIMessage]? {
+        guard messages.count >= 2, messages.last?.role == .assistant,
+              messages[messages.count - 2].role == .user
+        else { return nil }
+        return Array(messages.dropLast())
+    }
+
+    /// A user message's typed text, for Copy and Edit: its text parts only,
+    /// never the file names or transcripts beside them.
+    static func text(of message: UIMessage) -> String {
+        message.parts.compactMap(\.textContent).joined(separator: "\n")
+    }
+
+    static func hasFiles(_ message: UIMessage?) -> Bool {
+        message?.parts.contains { $0.filePart != nil } ?? false
     }
 
     /// Stopping is deliberate: the user no longer wants this answer, so the
@@ -887,19 +1079,15 @@ final class ChatViewModel {
         attachmentError = message
     }
 
-    private func startStream() {
+    /// - Parameter replaces: for an Edit, "Try again" or error retry, the ids
+    ///   dropped after the re-sent user message; nil for an ordinary send.
+    private func startStream(replaces: [String]? = nil) {
         streamTask?.cancel()
         markAnswerPending()
-        let request = AskQuestionRequest(
-            messages: uiMessages.compactMap(\.outgoingJSON),
-            conversationId: activeConversationID,
-            translation: settings.translation.rawValue,
-            modelId: settings.chatModelId,
-            effort: settings.chatEffort,
-            speed: settings.chatSpeed,
-            verbosity: settings.chatVerbosity,
-            mode: settings.chatMode
-        )
+        // Until the server deletes them, the replaced answers still end the
+        // stored thread; recovery must never collect one as this turn's answer.
+        staleAnswerIDs = replaces ?? []
+        let request = askRequest(replaces: replaces)
 
         streamTask = Task { [weak self] in
             guard let self else { return }
@@ -1033,7 +1221,8 @@ final class ChatViewModel {
 
         let policy = AnswerRecoveryPolicy(
             startedAt: Date(),
-            expectedUserMessages: uiMessages.count { $0.role == .user }
+            expectedUserMessages: uiMessages.count { $0.role == .user },
+            staleAnswerIDs: staleAnswerIDs
         )
         // Captured instead of reached through `self`: the loop must not hold the
         // view model across its sleep. It did, and that outlived sign-out - the

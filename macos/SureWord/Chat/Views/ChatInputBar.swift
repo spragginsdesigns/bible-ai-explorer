@@ -27,6 +27,12 @@ struct ChatInputBar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
+            if chat.isEditing {
+                EditingMessageBar { chat.cancelEdit() }
+                    // The text is already in the field; put the cursor there.
+                    .onAppear { isFocused = true }
+            }
+
             if !matches.isEmpty {
                 commandPalette
             }
