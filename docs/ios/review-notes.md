@@ -1,6 +1,6 @@
 # App Review notes (PRD H6)
 
-Status: **template.** Paste the block below into App Store Connect → App
+Status: **entered in App Store Connect 2026-10-08** (Notes field). Was a template; Paste the block below into App Store Connect → App
 Review Information → Notes, after walking every path in it on the submission
 build as the demo account. Navigation labels follow the iOS source on
 2026-10-07; the Settings hub is being rebuilt (PRD B5), so re-check each path
@@ -27,44 +27,42 @@ against the final build and fix the wording here first.
 Thank you for reviewing SureWord.
 
 WHAT IT IS
-SureWord is a Bible study app for Christians. The Bible text is the King James Version (public domain), built into the app and readable offline. An AI assistant answers Bible questions by first searching the Scripture text and then quoting and citing it. SureWord is made by LineCrush Inc.
+A Bible study app for Christians, made by LineCrush Inc. The Bible text is the King James Version (public domain), built in and readable offline. An AI assistant answers Bible questions by first searching the Scripture text, then quoting and citing it.
 
 DEMO ACCOUNT
-Sign in with the user name and password provided in the Sign-in Information fields: on the sign-in screen, enter the email, tap Continue, then enter the password. This account has full access to every feature; nothing in the app requires a purchase.
+Use the Sign-in Information above: enter the email, tap Continue, then enter the password. The account has every feature unlocked, including Pro.
 
-NO PURCHASES IN THE APP
-The iOS app contains no in-app purchases, prices or links to buy anything. Free accounts get a daily allowance of AI answers. A few features (for example Listen, below) are unlocked for some accounts on our server; on iOS, a free account sees a locked panel with no purchase button or external link.
+IN-APP PURCHASE
+SureWord Pro is an optional monthly auto-renewing subscription (com.spragginsdesigns.sureword.pro.monthly), bought through StoreKit at Settings (gear, top right) > AI > SureWord Pro, with Restore Purchases on the same screen. It adds the spoken devotional (Listen) and unlimited voice-message transcription. The demo account already has Pro granted on our server; to test the purchase itself, use a Sandbox Apple Account on that screen. Free accounts get a daily allowance of AI answers.
 
-AI CONSENT AND DISCLOSURE
-Before the first AI request, the app shows a one-time sheet that names the AI providers that receive the request (OpenAI, or the user's own provider; Tavily for web search; ElevenLabs for spoken devotionals) and links to the privacy policy. Nothing is sent until the user taps Agree and continue.
+AI CONSENT
+Before the first AI request, a one-time sheet names the providers that receive requests (OpenAI or the user's own provider; Tavily for web search; ElevenLabs for spoken devotionals) and links to the privacy policy. Nothing is sent until the user taps Agree and continue.
 
-HOW TO REACH THE MAIN FEATURES
-1. AI chat: the Chat tab. Type a question such as "What does John 3:16 mean?" and tap Send. Verse references in the answer open the Bible reader.
-2. /check and /reply: in the Chat composer, type "/check" followed by a claim, for example "/check Jesus never claimed to be God". SureWord weighs it against Scripture. Then type "/reply" to draft a short, gentle reply.
-3. Voice messages: in the Chat composer, tap the + button to the left of the text field, choose Choose File, and pick an audio file (M4A, MP3, WAV, OGG or WebM, up to 15 minutes), for example a recording made in Voice Memos and saved to Files. SureWord transcribes it once with OpenAI; tap the voice message chip to read the transcript, then ask about it or use /check.
-4. Photos and documents: the same + button offers Photo Library, Take Photo, Choose File and Paste Image.
-5. Bible: the Bible tab. Choose a book and chapter. Tap any verse for an explanation, word study, highlight colours, copy, share and save to note.
-6. Pick Up Your Cross (a daily verse chosen for the user): the card at the top of the Bible tab.
-7. Listen: inside Pick Up Your Cross, the Listen card plays the day's devotional read aloud (generated with ElevenLabs). It keeps playing in the background, with lock-screen controls.
-8. My church: Settings (gear in the top toolbar) > My church. Search for a church by name and city, for example "First Baptist Church Dallas", and save it. Church details come from Google Places; the app never asks for location permission.
-9. Notes: the Notes tab. Create a note; the AI button helps compose it.
+MAIN FEATURES
+1. Chat tab: ask e.g. "What does John 3:16 mean?". Verse references open the reader.
+2. In the composer, "/check Jesus never claimed to be God" weighs a claim against Scripture; "/reply" drafts a gentle reply.
+3. The + button left of the text field attaches photos, documents or an audio file (e.g. a Voice Memos recording saved to Files); audio is transcribed with OpenAI and the chip shows the transcript.
+4. Bible tab: choose a book and chapter; tap a verse for an explanation, word study, highlights, copy, share and save to note.
+5. Pick Up Your Cross (a daily verse chosen for the user): the card at the top of the Bible tab. Its Listen card plays the devotional aloud (ElevenLabs), in the background with lock-screen controls.
+6. Settings > My church: search e.g. "First Baptist Church Dallas". Details come from Google Places; no location permission is requested.
+7. Notes tab: create a note; the AI button helps compose it.
 
-YOUR OWN AI KEY (OPTIONAL)
-Settings > AI Provider lets a user paste their own API key from OpenAI, Anthropic, Moonshot or OpenRouter to use that provider's models. The key is validated, encrypted at rest on our server and never shown again; that provider bills the user directly. It is optional and not needed to review the app. SureWord does not sell keys or credits.
+OWN AI KEY (OPTIONAL)
+Settings > AI accepts the user's own OpenAI, Anthropic, Moonshot or OpenRouter key, billed by that provider. Keys are validated, encrypted at rest and never shown again. Not needed for review.
 
-REPORTING A BAD ANSWER
-Under every answer, the thumbs-down button lets the user report it and pick a reason (Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, Too long). Settings > Send feedback sends a message to the developer. Every reported answer and every feedback message is reviewed by the developer in a private review queue, where each one is read and marked reviewed; reported answers can also become test cases in the assistant's answer evaluations.
+REPORTING AND MODERATION
+The thumbs-down under every answer reports it with a reason (Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, Too long). Settings > Send feedback messages the developer. Every report and message is read and marked reviewed by the developer in a private review queue.
 
 ACCOUNT DELETION
-Settings > Account > Delete account, then confirm. This permanently deletes the account and all of its data on our servers and signs the user out. Please do not delete the demo account during review.
+Settings > tap your name at the top > Delete account, then confirm. This permanently deletes the account and its data and signs out. Please do not delete the demo account.
 
 NOTIFICATIONS
-Optional. The app asks for permission only after a first answer or a first visit to Pick Up Your Cross, never at launch.
+Optional. Permission is requested only when the user turns on a reminder, never at launch.
 
 CONTENT
-All Scripture is the King James Version (with NKJV available as an option). Answers are written from a Christian perspective that holds the Bible as the Word of God. The app has no user-to-user messaging and no ads.
+All Scripture is KJV (NKJV and BSB optional). Answers are written from a Christian perspective that holds the Bible as the Word of God. No user-to-user messaging and no ads.
 
-Privacy policy: https://sureword.app/privacy
+Privacy: https://sureword.app/privacy
 Support: https://sureword.app/support
 Contact: spragginsdesigns@gmail.com
 ```
