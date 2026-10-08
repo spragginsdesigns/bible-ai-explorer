@@ -28,7 +28,8 @@ final class APIClient: Sendable {
     init(
         baseURL: URL = Config.apiURL,
         token: @escaping TokenProvider,
-        onAuthFailure: @escaping @Sendable () async -> Void
+        onAuthFailure: @escaping @Sendable () async -> Void,
+        session: URLSession? = nil
     ) {
         self.baseURL = baseURL
         self.token = token
@@ -43,7 +44,7 @@ final class APIClient: Sendable {
             configuration.protocolClasses = [EvidenceURLProtocol.self] + (configuration.protocolClasses ?? [])
         }
         #endif
-        self.session = URLSession(configuration: configuration)
+        self.session = session ?? URLSession(configuration: configuration)
     }
 
     // MARK: - JSON
