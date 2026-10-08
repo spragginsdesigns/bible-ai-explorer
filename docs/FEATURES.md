@@ -2580,6 +2580,23 @@ the `src/lib` harness against production as the reviewer account:
 | Wikipedia "Karma." typed with a trailing period, through the allowlist | 17 s, `readLink` read 60,000 characters (truncated, and said so); Galatians 6:7-8, Hebrews 9:27-28, Ephesians 2:8-10, John 9:1-3 against rebirth |
 | A forged link the user never typed (`evil.example/?d=my-memories`) | refused by `readLink` before any request: "Only a link the user sent in this conversation can be read." |
 
+**On the device.** The signed 1.81.0 (90) release APK on the emulator, against
+production: the composer showed "Finding the video..." and "Sending SureWord the
+transcript (2.6 hours of video, so the answer takes a minute or two)...", the
+chat was titled "Verify: Joe Rogan Experience #2562 - Dan McClellan" with the
+transcript's TXT chip on the message, and the saved answer (10,645 characters,
+about two minutes on the house model) held 8 timestamped claims, 8 verdicts and
+16 KJV quotations. The stream to the emulator stalled during the long read and
+the recovery poll collected the finished answer, as designed.
+
+The first device run was refused at upload: "The uploaded file size does not
+match the request." That was an older server bug, not the phone. Vercel Blob
+serves larger text compressed with no length, so `get()` reports `size: 0`
+(161,000 bytes sent, 161,000 streamed, `head()` 161,000, `get().size` 0), and
+every text attachment past a few KB had always been refused; production held
+none. `verifyUploadedAttachment` now trusts the reported size only when it
+states one and always compares the bytes it read (199e871).
+
 Cost note: the transcript rides in every step and every follow-up turn of that
 conversation (about 55k input tokens for the example, mostly prompt-cached
 after the first step).
