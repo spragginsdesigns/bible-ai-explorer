@@ -368,7 +368,9 @@ final class ModelPickerSheetRulesTests: XCTestCase {
         XCTAssertEqual(ModelPickerSheet.priceText(2), "$2")
         XCTAssertEqual(ModelPickerSheet.priceText(0.2), "$0.20")
         XCTAssertEqual(ModelPickerSheet.priceText(4.5), "$4.50")
-        XCTAssertEqual(ModelPickerSheet.priceText(0.0715), "$0.0715")
+        // Two decimals past whole dollars, as Android and web print it.
+        XCTAssertEqual(ModelPickerSheet.priceText(0.0715), "$0.07")
+        XCTAssertEqual(ModelPickerSheet.priceText(1.2), "$1.20")
     }
 
     func testAutoIsAStoredChoiceThatReadsAsAuto() {
