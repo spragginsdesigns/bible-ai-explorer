@@ -72,6 +72,8 @@ struct SettingsView: View {
 
                 WebSearchSection(preferences: app.preferences)
 
+                AIConsentSettingsSection(store: app.aiConsent)
+
                 churchSection
 
                 sharedAnswersSection

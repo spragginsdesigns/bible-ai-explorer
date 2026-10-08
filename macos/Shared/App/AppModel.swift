@@ -64,6 +64,9 @@ final class AppModel {
     /// review outbox, and `add(...)`, the entry point every screen that shows a
     /// verse calls. Keyed by `userID`, so the outbox never crosses accounts.
     let learn: LearnModel
+    /// AI data-sharing consent for this account (PRD A4): the gate every AI
+    /// entry point passes, and the Settings → AI row.
+    let aiConsent: AIConsentStore
 
     var section: AppSection = .chat
     var isSettingsPresented = false {
@@ -108,6 +111,9 @@ final class AppModel {
         suggestedQuestions = SuggestedQuestionsModel(api: api)
         atlas = AtlasModel(api: api)
         preferences = PreferencesSyncModel(transport: api, settings: settings)
+        aiConsent = AIConsentStore(account: userID, transport: api)
+        preferences.aiConsent = aiConsent
+        AIConsentGate.install(aiConsent)
         // Account-guarded like the reading journal's client: a queued review
         // must never go out under a newly signed-in account's token.
         let learnAPI = APIClient(
@@ -139,7 +145,9 @@ final class AppModel {
         let chat = chat
         let listen = dailyCross.listen
         let reading = bible.reading
+        let consent = aiConsent
         Task { @MainActor in
+            consent.cancelPending()
             chat.teardown()
             listen.reset()
             reading.teardown()

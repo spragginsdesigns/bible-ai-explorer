@@ -225,6 +225,12 @@ struct AddToNoteSheet: View {
         saveError = nil
 
         Task {
+            // The append composes the answer into a study note with the model
+            // (`/api/notes/append`, compose on), so it waits on AI consent.
+            guard await AIConsentGate.ensure() else {
+                pendingKey = nil
+                return
+            }
             do {
                 let result = try await AddToNote.append(
                     api: api,

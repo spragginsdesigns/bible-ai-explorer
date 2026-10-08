@@ -463,8 +463,11 @@ struct ReadingPlanView: View {
                 Button {
                     let described = goal.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !described.isEmpty else { return }
-                    goal = ""
-                    model.startGoal(described, days: goalDays)
+                    // Consent first, so "Not now" keeps the typed goal.
+                    AIConsentGate.require {
+                        goal = ""
+                        model.startGoal(described, days: goalDays)
+                    }
                 } label: {
                     Text(model.isWriting ? "Writing your plan…" : "✦ Build my plan")
                         .frame(maxWidth: .infinity)

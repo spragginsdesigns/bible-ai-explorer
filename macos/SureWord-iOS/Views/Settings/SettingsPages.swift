@@ -214,6 +214,7 @@ struct AISettingsPage: View {
             MembershipSection(api: app.api)
             ProviderSettingsSection()
             WebSearchSection(preferences: app.preferences)
+            AIConsentSettingsSection(store: app.aiConsent)
         }
         .navigationTitle("AI")
         .analyticsScreen(AnalyticsScreen.settingsAI)

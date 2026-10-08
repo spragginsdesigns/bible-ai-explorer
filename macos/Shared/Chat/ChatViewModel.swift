@@ -509,6 +509,10 @@ final class ChatViewModel {
 
         do {
             try AttachmentValidator.validateBatch(files, existing: fileAttachments)
+            // A voice message is transcribed by OpenAI when its upload
+            // completes, so consent is asked before the upload starts.
+            if files.contains(where: { AttachmentLimits.isAudio($0.mediaType) }),
+               !(await AIConsentGate.ensure()) { return }
             uploadingAttachments = true
             transcribingVoiceMessage = files.contains { AttachmentLimits.isAudio($0.mediaType) }
             defer {
@@ -649,6 +653,8 @@ final class ChatViewModel {
             text = SlashCommand.outgoingText(parsed.command, args: parsed.args)
         }
 
+        // Asked before anything is cleared, so "Not now" leaves the draft.
+        guard canSend, await AIConsentGate.ensure() else { return }
         let composed = VerseAttachment.compose(text, attachment: attachment)
         guard canSend else { return }
 
@@ -805,7 +811,7 @@ final class ChatViewModel {
 
     /// Re-run the last exchange after a failure, matching `retrySend`.
     func retrySend() async {
-        guard !isBusy else { return }
+        guard !isBusy, await AIConsentGate.ensure() else { return }
         // The send never happened (the conversation could not be created), so
         // there is no stream to regenerate - send the original question again.
         if let failed = lastFailedSend, activeConversationID == nil {

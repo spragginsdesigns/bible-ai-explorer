@@ -66,10 +66,12 @@ final class VerseInsightModel {
 
     func retry() {
         guard let target else { return }
-        start(target)
+        start(target, trigger: .tap)
     }
 
-    func start(_ target: Target) {
+    /// `trigger` is `.automatic` for the explanation a verse selection starts
+    /// on its own, and `.tap` for an explicit retry (see `AIConsentStore`).
+    func start(_ target: Target, trigger: AIConsentStore.Trigger = .automatic) {
         runID += 1
         let id = runID
         task?.cancel()
@@ -88,6 +90,12 @@ final class VerseInsightModel {
         status = .loading
 
         task = Task {
+            guard await AIConsentGate.ensure(trigger) else {
+                guard runID == id else { return }
+                self.error = AIConsent.declinedNotice
+                status = .error
+                return
+            }
             do {
                 let bytes = try await api.stream("/api/verse-insight", body: Request(target))
                 var full = ""

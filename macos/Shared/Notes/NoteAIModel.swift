@@ -120,8 +120,14 @@ final class NoteAIModel {
     func submit() async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        // Before `input` is cleared, so "Not now" keeps the draft. `/clear`
+        // is local and never reaches the model.
+        let parsedCommand = SlashCommand.parse(text, in: SlashCommand.note)
+        if parsedCommand?.command.localAction != .clearNoteChat {
+            guard await AIConsentGate.ensure() else { return }
+        }
 
-        if let parsed = SlashCommand.parse(text, in: SlashCommand.note) {
+        if let parsed = parsedCommand {
             if parsed.command.requiresArgs, parsed.args.isEmpty { return }
             input = ""
             switch parsed.command.localAction {
@@ -147,7 +153,7 @@ final class NoteAIModel {
 
     func send(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !isBusy else { return }
+        guard !trimmed.isEmpty, !isBusy, await AIConsentGate.ensure() else { return }
 
         error = nil
         uiMessages.append(
@@ -162,7 +168,7 @@ final class NoteAIModel {
     }
 
     func retry() async {
-        guard status == .idle else { return }
+        guard status == .idle, await AIConsentGate.ensure() else { return }
         error = nil
         if uiMessages.last?.role == .assistant { uiMessages.removeLast() }
         guard uiMessages.last?.role == .user else { return }

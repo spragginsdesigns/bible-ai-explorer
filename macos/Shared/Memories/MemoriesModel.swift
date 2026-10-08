@@ -216,7 +216,7 @@ final class MemoriesModel {
     /// Only ever called from the button. The endpoint is an LLM call, so it must
     /// not fire on appear — Android is explicit about this and the cost is real.
     func generateSummary() async {
-        guard let api, summaryState != .loading else { return }
+        guard let api, summaryState != .loading, await AIConsentGate.ensure() else { return }
         summaryState = .loading
         do {
             let response = try await api.generateMemorySummary()

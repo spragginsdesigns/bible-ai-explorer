@@ -118,6 +118,11 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     /// deploy that predates the column leaves the local text alone.
     var testimony: String?
     var chat: ChatPreferences?
+    /// AI data-sharing consent (PRD A4), read by `AIConsentStore.absorb`. Both
+    /// nil from a server that predates consent; with `aiConsentRequired`
+    /// present, a nil `aiConsent` is the server's explicit "not agreed".
+    var aiConsent: AIConsentRecord? = nil
+    var aiConsentRequired: Int? = nil
 
     init(
         plan: String? = nil,
@@ -415,6 +420,9 @@ final class PreferencesSyncModel {
     /// the shell stands down while the sheet owns it - the same rule
     /// `memoryErrorAlert(_:isActive:)` follows for the Memories route.
     var isAlertOwnedBySheet = false
+
+    /// Receives the consent fields of every server document this model lands.
+    @ObservationIgnored weak var aiConsent: AIConsentStore?
 
     @ObservationIgnored private let transport: any PreferencesTransport
     @ObservationIgnored private let settings: SettingsStore
@@ -735,7 +743,10 @@ final class PreferencesSyncModel {
     ///
     /// `fromServer` gates one exception, spelled out on `chatEffort` below.
     func apply(_ document: AccountPreferences, fromServer: Bool) {
-        if fromServer { hasLoadedDocument = true }
+        if fromServer {
+            hasLoadedDocument = true
+            aiConsent?.absorb(document)
+        }
         if let webSearchEnabled = document.webSearchEnabled {
             self.webSearchEnabled = webSearchEnabled
         }

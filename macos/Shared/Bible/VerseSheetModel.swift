@@ -174,7 +174,7 @@ final class VerseSheetModel {
 
     func retryInsight(_ context: VerseSheetContext) {
         guard selection != nil else { return }
-        insight.start(target(context))
+        insight.start(target(context), trigger: .tap)
     }
 
     /// Tap-a-verse: a selection immediately starts streaming its explanation

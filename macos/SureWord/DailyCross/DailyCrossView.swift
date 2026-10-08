@@ -365,17 +365,23 @@ struct DailyCrossView: View {
     /// tool uses, and let the model swap the day underneath the timeline.
     private func replaceToday() {
         let steer = focus.trimmingCharacters(in: .whitespacesAndNewlines)
-        confirmingReplace = false
-        focus = ""
-        model.replaceToday(focus: steer.isEmpty ? nil : steer)
+        // A fresh day is a model call: consent first, so "Not now" keeps the
+        // typed focus.
+        AIConsentGate.require {
+            confirmingReplace = false
+            focus = ""
+            model.replaceToday(focus: steer.isEmpty ? nil : steer)
+        }
     }
 
     /// Same replacement flow as the confirmation, carrying a direction instead
     /// of a typed focus.
     private func steerDay(_ direction: DailyCrossDirection) {
-        confirmingReplace = false
-        focus = ""
-        model.replaceToday(direction: direction)
+        AIConsentGate.require {
+            confirmingReplace = false
+            focus = ""
+            model.replaceToday(direction: direction)
+        }
     }
 
     private func openStudyStep(_ step: DailyCrossStudyStep) {

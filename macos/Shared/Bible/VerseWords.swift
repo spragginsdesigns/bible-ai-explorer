@@ -441,7 +441,12 @@ final class VerseWordsModel {
     /// Fetch the word study for one verse. Re-entrant per verse: asking again
     /// for the verse already loaded is a no-op, so a re-render never re-bills
     /// the model.
-    func load(book: Int, chapter: Int, verse: Int) async {
+    func load(
+        book: Int,
+        chapter: Int,
+        verse: Int,
+        trigger: AIConsentStore.Trigger = .automatic
+    ) async {
         let key = Self.key(book: book, chapter: chapter, verse: verse)
         guard key != loadedKey else { return }
 
@@ -465,6 +470,14 @@ final class VerseWordsModel {
             // No client means the host never configured the view. Nothing was
             // sent, so nothing can be retried into existence.
             fail(status: .failed, message: Self.buildFailureMessage)
+            return
+        }
+
+        // The study is written by a model. `.automatic` because the tab loads
+        // on appear; Retry asks again with `.tap`.
+        guard await AIConsentGate.ensure(trigger) else {
+            guard runID == id else { return }
+            fail(status: .failed, message: AIConsent.declinedNotice)
             return
         }
 
@@ -498,7 +511,7 @@ final class VerseWordsModel {
     func retry() async {
         guard let target else { return }
         loadedKey = nil
-        await load(book: target.book, chapter: target.chapter, verse: target.verse)
+        await load(book: target.book, chapter: target.chapter, verse: target.verse, trigger: .tap)
     }
 
     private func apply(_ error: any Error) {
