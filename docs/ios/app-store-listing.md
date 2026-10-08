@@ -1,7 +1,7 @@
 # App Store listing copy (PRD H3)
 
-Status: **draft, not entered in App Store Connect.** Austin enters it when he
-creates the app record (H1). Copy follows the Mission in `CLAUDE.md`: SureWord
+Status: **entered in App Store Connect on 2026-10-07** (version 1.10.0, en-US)
+through the API. This file mirrors what is live there; change both together. Copy follows the Mission in `CLAUDE.md`: SureWord
 speaks as a believer who holds the King James Bible as the inerrant Word of
 God, without claiming the AI is infallible.
 
@@ -12,8 +12,9 @@ Rules for this file:
 - Lines that depend on an in-flight lane carry an HTML comment naming the PRD
   row. Before submitting, delete the comment if the row is `verified`, or
   delete the line if it is not.
-- No price, no "Pro", no purchase wording (PRD F1, guideline 3.1.1/3.1.3),
-  and no competitor names.
+- No price and no competitor names. SureWord Pro is a StoreKit subscription
+  (PRD F2), so the description carries Apple's auto-renewal disclosure and the
+  Terms of Use link (guideline 3.1.2).
 - Character counts below were measured with `wc -m` on the exact text.
 
 ## Name and subtitle
@@ -21,7 +22,7 @@ Rules for this file:
 | Field | Text | Chars (limit) |
 |---|---|---|
 | Name | `SureWord` | 8 (30) |
-| Subtitle | `KJV Bible Study with AI` | 23 (30) |
+| Subtitle | `KJV Bible study, made personal` | 30 (30) |
 
 Alternative if "SureWord" alone is taken or Austin wants the name to carry a
 keyword: Name `SureWord: KJV Bible Study` (25) with Subtitle
@@ -30,63 +31,59 @@ keyword: Name `SureWord: KJV Bible Study` (25) with Subtitle
 ## Promotional text (170 max, editable without review)
 
 ```
-Come hungry for the Word. Ask any Bible question and get answers grounded in the King James Bible, then read, highlight and keep your notes in one quiet place.
+Your daily walk with God, rooted in the King James Bible. A verse chosen for you each morning, answers that cite Scripture, and study that remembers your journey.
 ```
 
-159 characters.
+162 characters.
 
 ## Description (4000 max)
 
 ```
-Come hungry for the Word.
+A Bible study that knows your walk.
 
-SureWord is a Bible study companion for Christians who hold the King James Bible as the inerrant, infallible Word of God. Ask a question, and SureWord searches the Scriptures first, then answers from them, quoting and citing the verses so you can read every one in its context.
+SureWord is a personal Bible study companion for Christians who hold the King James Bible as the inerrant, infallible Word of God. It learns where you are in your walk with the Lord, from what you read, ask, note and tell it, and meets you there. Every answer searches the Scriptures first, then quotes and cites the verses so you can read each one in its context.
 
-"As newborn babes, desire the sincere milk of the word, that ye may grow thereby" (1 Peter 2:2).
+"Thy word is a lamp unto my feet, and a light unto my path" (Psalm 119:105).
+
+PICK UP YOUR CROSS, EVERY MORNING
+• Each day, one verse chosen for you from your own reading, questions and notes, with why it was chosen and how to live it today (Luke 9:23)
+• Ask for a different word for today whenever you need one
+• A gentle reminder at the hour you choose
+
+STUDY THAT KNOWS YOU
+• About me and My testimony: tell SureWord where you are in your walk, privately, so answers meet you there
+• My church: save your congregation, and SureWord keeps it in mind
+• Memory: SureWord remembers what you ask it to, and you can see, add, delete or turn off everything it keeps
+• Learn a verse: hide it word by word until it is written on your heart
+• Reading plans, guided or built around your own goal
 
 ASK, AND SEE WHAT IS WRITTEN
-• Ask anything about the Bible and get an answer that quotes the King James text word for word, with every reference one tap from the reader
-• Finds the passage you half remember, by meaning or by exact words
+• Ask anything about the Bible and get an answer that quotes the King James text word for word, every reference one tap from the reader
+• Find the passage you half remember, by meaning or by exact words
 • Cross-references that trace a verse through the whole Bible
 • The Hebrew and Greek behind a verse, word by word, with Strong's numbers
-• Attach a photo, screenshot, PDF, or text file to your question
-• Share a voice message, and SureWord transcribes it and weighs what was said against Scripture with /check, then helps you write a gentle reply with /reply
+• Attach a photo, screenshot, PDF or text file to your question, or share one into SureWord from any app
 • Optional web search for current events, which you can turn off in Settings
 
 READ THE BIBLE
-• The complete King James Bible, built into the app and readable offline, with the NKJV also available
-• Search the text and jump straight to any reference
+• The complete King James Bible built in and readable offline, with the NKJV and the Berean Standard Bible also available
+• Words of Christ in red, a parchment reading surface, light or dark
+• Pick up where you left off, and keep a reading log of your journey through the Word
 • Tap a verse for a reverent explanation and a word study
-• Highlight verses in eight colours, and name what each colour means to you
-<!-- B5: highlight labels are "uncompiled" on iOS in PARITY; drop the second half of the line above unless verified -->
+• Highlight verses in eight colours
 • Timeline, People and Places: walk Bible history and see who and where a chapter is about
-<!-- C5: add "the Berean Standard Bible" to the translations line only if C5 is verified -->
-<!-- C4: "A parchment reading surface, light or dark" only if C4 is verified -->
-<!-- C6: "Pick up where you left off" only if C6 is verified -->
-
-PICK UP YOUR CROSS
-• Each day, one verse chosen for you from what you have been reading, asking and noting, with why it was chosen and how to live it today (Luke 9:23)
-• Ask for a different word for today whenever you need one
-• A daily reminder at the hour you choose
-<!-- B6: replace the reminder line with "A morning notification that leads with the verse itself" only if B6 (APNs) is verified -->
-<!-- D4 / F1: Listen (spoken devotional) is a Pro benefit with no purchase on iOS; do not list it unless the F1/F2 decision makes it available to every iOS user -->
 
 YOUR STUDY, KEPT TOGETHER
-• Rich Bible study notes with folders, tags and pins
-• The assistant can find your notes by meaning, read them, add to them, and tidy them when you ask
+• Bible study notes with folders, tags, pins, templates and linked notes
+• The assistant can find your notes by meaning, read them, add to them and tidy them when you ask
 • Save any answer to a note
-• Memory: SureWord remembers what you ask it to, and you can see, add, delete or turn off everything it keeps
-• About me and My testimony: tell SureWord where you are in your walk, privately, so answers meet you there
-• My church: save your congregation, and SureWord keeps it in mind
-<!-- C7: "Reading plans: choose a guided plan or have SureWord build one around your goal" only if C7 is verified -->
-<!-- C8: "Learn a verse: hide it word by word until it is written on your heart" only if C8 is verified -->
-<!-- C11: "Sermon studies from your church's recorded services" only if C11 is verified -->
-<!-- E1/E3: templates and linked notes only if E1/E3 are verified -->
-<!-- D8: "Share a screenshot, link or voice message into SureWord from any app" only if D8 is verified -->
 
 YOUR CHOICE OF MODEL
 • SureWord works the moment you sign in
 • Add your own OpenAI, Anthropic, Moonshot or OpenRouter key in Settings to use that provider's models, billed by your provider
+
+SUREWORD PRO
+An optional monthly subscription adds the spoken daily devotional (Listen) and unlimited voice message transcription. Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, and can be managed or cancelled in your App Store account settings.
 
 PRIVATE BY DESIGN
 • No ads, and your study is never sold
@@ -95,11 +92,12 @@ PRIVATE BY DESIGN
 SureWord is a study aid, not a replacement for your Bible or your local church. Its AI can make mistakes, so search the Scriptures daily to see whether these things are so (Acts 17:11).
 
 Also on Android, Mac and the web at sureword.app, with your study kept in step across them.
+
+Terms of Use: https://sureword.app/terms
+Privacy Policy: https://sureword.app/privacy
 ```
 
-Measured length with the HTML comments removed: 2884 characters (check command
-at the end of this file). Must stay under 4000, so every commented line can be
-restored without trimming.
+Measured length: 3566 characters (limit 4000).
 
 Verify before submitting:
 
