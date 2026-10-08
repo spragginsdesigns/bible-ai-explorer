@@ -83,7 +83,7 @@ YOUR CHOICE OF MODEL
 • Add your own OpenAI, Anthropic, Moonshot or OpenRouter key in Settings to use that provider's models, billed by your provider
 
 SUREWORD PRO
-An optional monthly subscription adds the spoken daily devotional (Listen) and unlimited voice message transcription. Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, and can be managed or cancelled in your App Store account settings.
+An optional monthly subscription adds the spoken daily devotional (Listen), more AI messages each day, and unlimited voice message transcription. Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, and can be managed or cancelled in your App Store account settings.
 
 PRIVATE BY DESIGN
 • No ads, and your study is never sold

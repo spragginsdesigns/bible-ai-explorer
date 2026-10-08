@@ -81,3 +81,16 @@ Android bar 1.79.0 (88).
 | H8 submit | Austin | Austin-only gate | |
 
 Statuses marked `source` come from a grep audit, not from running the app.
+
+## Submitted for App Review (2026-10-08)
+
+SureWord 1.10.1 (1) was submitted at 8:01 AM PT together with the SureWord Pro
+Monthly subscription and its group. Version 1.10.1 includes the AI consent sheet,
+the verify lane and the Settings hub. In App Store Connect: listing copy,
+8 iPhone 6.3" and 8 iPad 13" screenshots, App Privacy (15 types, all linked to
+the user, none used for tracking, published), age rating answers with a 13+
+override, Free in all 175 territories, Pro at $14.99 equalized worldwide,
+content rights = third-party content, review notes and the demo account (on
+`PRO_USER_IDS`). Release after approval is App Store Connect's default.
+Still owed after approval: on-device signed-in pass on TestFlight, push
+delivery (APNs key to Expo), and a dedicated iPad layout (G3).
