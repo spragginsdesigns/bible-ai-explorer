@@ -18,6 +18,7 @@ struct NoteEditorView: View {
 
     let noteID: String
     let api: APIClient
+    let onDeleted: (() -> Void)?
 
     @State private var model: NoteEditorModel
     @State private var ai: NoteAIModel
@@ -40,7 +41,8 @@ struct NoteEditorView: View {
     @State private var isCopiedVisible = false
     @FocusState private var isTitleFocused: Bool
 
-    init(noteID: String, api: APIClient) {
+    init(noteID: String, api: APIClient, onDeleted: (() -> Void)? = nil) {
+        self.onDeleted = onDeleted
         self.noteID = noteID
         self.api = api
         _model = State(initialValue: NoteEditorModel(noteID: noteID, api: NotesAPI(api: api)))
@@ -140,8 +142,9 @@ struct NoteEditorView: View {
         ) {
             Button("Delete Note", role: .destructive) {
                 Task {
-                    await model.delete()
-                    dismiss()
+                    if await model.delete() {
+                        if let onDeleted { onDeleted() } else { dismiss() }
+                    }
                 }
             }
         }

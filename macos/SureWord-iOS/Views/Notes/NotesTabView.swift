@@ -6,6 +6,7 @@ import SwiftUI
 struct NotesTabView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     /// Optional because it needs the session's API client, which only exists in
     /// the environment once the tab is on screen. Created exactly once — the
@@ -17,8 +18,21 @@ struct NotesTabView: View {
     var body: some View {
         Group {
             if let library {
-                NotesLibraryView(library: library) { noteID in
-                    openedNoteID = noteID
+                if sizeClass == .regular {
+                    NavigationSplitView {
+                        NotesLibraryView(library: library) { openedNoteID = $0 }
+                            .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 400)
+                    } detail: {
+                        if let openedNoteID {
+                            NoteEditorView(noteID: openedNoteID, api: app.api, onDeleted: { self.openedNoteID = nil })
+                                .id(openedNoteID)
+                                .analyticsScreen(AnalyticsScreen.note)
+                        } else {
+                            ContentUnavailableView("Open a note", systemImage: "note.text", description: Text("Choose a note from your library, or start a new one."))
+                        }
+                    }
+                } else {
+                    NotesLibraryView(library: library) { openedNoteID = $0 }
                 }
             } else {
                 ProgressView()
@@ -28,7 +42,7 @@ struct NotesTabView: View {
         .background(theme.bg.ignoresSafeArea())
         .navigationTitle("Notes")
         .settingsGearToolbar()
-        .navigationDestination(item: $openedNoteID) { noteID in
+        .navigationDestination(item: Binding(get: { sizeClass == .regular ? nil : openedNoteID }, set: { openedNoteID = $0 })) { noteID in
             NoteEditorView(noteID: noteID, api: app.api)
                 .analyticsScreen(AnalyticsScreen.note)
         }

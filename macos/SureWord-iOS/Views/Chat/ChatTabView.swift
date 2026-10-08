@@ -57,6 +57,8 @@ struct ChatTabView: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
         }
+        .frame(maxWidth: 820)
+        .frame(maxWidth: .infinity)
         // A share opens over whatever was up; the picker would hide it.
         .onChange(of: chat.shareNotices != nil) { _, opened in
             if opened { isModelPickerPresented = false }

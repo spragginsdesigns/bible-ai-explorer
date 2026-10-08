@@ -45,6 +45,7 @@ struct TabShell: View {
                 }
             }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .task { app.bible.reading.setForeground(scenePhase == .active); await app.chat.loadConversations() }
         // First hydrate of the session: the server document replaces whatever
         // this phone had cached for the synced preferences.
@@ -209,6 +210,7 @@ struct TabShell: View {
     }
 
     private func openCross() {
+        app.chapterAudio.close()
         isCrossPresented = true
         app.dailyCross.load(force: true)
     }

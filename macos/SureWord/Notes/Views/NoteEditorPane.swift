@@ -131,8 +131,7 @@ struct NoteEditorPane: View {
                 Divider()
                 Button("Delete Note", role: .destructive) {
                     Task {
-                        await model.delete()
-                        library.selectedNoteID = nil
+                        if await model.delete() { library.selectedNoteID = nil }
                     }
                 }
             } label: {

@@ -287,12 +287,15 @@ final class NoteEditorModel {
         }
     }
 
-    func delete() async {
+    @discardableResult
+    func delete() async -> Bool {
         do {
             try await api.deleteNote(id: noteID)
             store.removeNote(id: noteID)
+            return true
         } catch {
             self.error = (error as? APIError)?.message ?? "The note could not be deleted."
+            return false
         }
     }
 
