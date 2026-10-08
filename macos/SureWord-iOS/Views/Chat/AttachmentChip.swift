@@ -110,7 +110,20 @@ struct AttachmentChip: View {
                 openURL(url)
             }
         }
-        .accessibilityLabel(shownTranscript != nil ? "Show what was said in \(filename)" : filename)
+        .accessibilityLabel(
+            Self.accessibilityLabel(
+                filename: filename,
+                hasTranscript: shownTranscript != nil,
+                isTranscriptOpen: showsTranscript
+            )
+        )
+    }
+
+    /// `FileAttachmentCards.tsx`'s labels: a voice message says whether the
+    /// tap shows or hides what was said; anything else says it opens.
+    static func accessibilityLabel(filename: String, hasTranscript: Bool, isTranscriptOpen: Bool) -> String {
+        guard hasTranscript else { return "Open \(filename)" }
+        return "\(isTranscriptOpen ? "Hide" : "Show") what was said in \(filename)"
     }
 
     @ViewBuilder

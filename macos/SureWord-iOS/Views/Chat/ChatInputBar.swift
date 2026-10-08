@@ -7,29 +7,33 @@ import UniformTypeIdentifiers
 /// and the field itself. iOS port of
 /// `macos/SureWord/Chat/Views/ChatInputBar.swift` (and of
 /// `mobile/src/features/chat/ChatInputBar.tsx` before it): the Mac's file
-/// picker / drop / ⌘V become a source dialog with Photos, Camera, Files and
-/// Paste.
+/// picker / drop / ⌘V become Android's source sheet - camera, photo library,
+/// files and paste.
 struct ChatInputBar: View {
     @Environment(\.theme) private var theme
     @Bindable var chat: ChatViewModel
 
     @FocusState private var isFocused: Bool
-    @State private var isSourceDialogPresented = false
+    @State private var isSourceSheetPresented = false
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var isPhotoPickerPresented = false
     @State private var isFileImporterPresented = false
     @State private var isCameraPresented = false
-    /// The source picked in the dialog, presented once the dialog has finished
-    /// dismissing — presenting over a dismissing confirmation dialog drops the
-    /// second presentation.
-    @State private var pendingSource: AttachmentSource?
+    /// The source picked in the sheet, acted on once the sheet has finished
+    /// dismissing - presenting over a dismissing sheet drops the second
+    /// presentation.
+    @State private var pendingSource: AttachmentSourceOption?
 
-    private enum AttachmentSource {
-        case photoLibrary, camera, files
+    /// Android's `locked`: generating, uploading (or creating the
+    /// conversation). The palette hides, the field and the attach button
+    /// disable. History loading/failed is deliberately left out - iOS lets
+    /// `/new` escape a conversation whose history did not load.
+    private var isLocked: Bool {
+        chat.isBusy || chat.uploadingAttachments || chat.isCreatingConversation
     }
 
     private var matches: [SlashCommand] {
-        SlashCommand.matching(chat.input)
+        isLocked ? [] : SlashCommand.matching(chat.input)
     }
 
     /// The allowlist as UTTypes, so the picker greys out what the server rejects.
@@ -37,11 +41,8 @@ struct ChatInputBar: View {
         AttachmentLimits.contentTypes
     }
 
-    /// Presenting over a dismissing confirmation dialog drops the second
-    /// presentation, so the chosen source is staged and presented from the
-    /// dialog's dismissal (`onChange` below) rather than on a timer.
-    private func presentAfterDialog(_ source: AttachmentSource) {
-        pendingSource = source
+    private var sourceOptions: [AttachmentSourceOption] {
+        AttachmentSourceOption.available(hasCamera: UIImagePickerController.isSourceTypeAvailable(.camera))
     }
 
     var body: some View {
@@ -65,23 +66,32 @@ struct ChatInputBar: View {
             HStack(alignment: .bottom, spacing: Spacing.sm) {
                 Button {
                     chat.clearAttachmentError()
-                    isSourceDialogPresented = true
+                    isFocused = false
+                    isSourceSheetPresented = true
                 } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(theme.textMuted)
-                        .frame(width: 36, height: 36)
-                        .contentShape(.circle)
+                    Group {
+                        if chat.uploadingAttachments {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "plus")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(theme.textMuted)
+                        }
+                    }
+                    .frame(width: 36, height: 36)
+                    .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
-                .disabled(chat.uploadingAttachments)
-                .accessibilityLabel("Attach photos or files")
+                .disabled(isLocked)
+                .opacity(isLocked && !chat.uploadingAttachments ? 0.35 : 1)
+                .accessibilityLabel("Add an attachment")
 
-                TextField("Ask anything…", text: $chat.input, axis: .vertical)
+                TextField("Ask a question about the Bible...", text: $chat.input, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...8)
                     .focused($isFocused)
+                    .disabled(isLocked)
                     .onSubmit(submit)
 
                 if chat.isBusy {
@@ -123,68 +133,22 @@ struct ChatInputBar: View {
                     .strokeBorder(isFocused ? theme.accentBorder : theme.border, lineWidth: 1)
             }
         }
-        .confirmationDialog(
-            "Add to your message",
-            isPresented: $isSourceDialogPresented,
-            titleVisibility: .visible
-        ) {
-            Button {
-                presentAfterDialog(.photoLibrary)
-            } label: {
-                Label("Photo Library", systemImage: "photo.on.rectangle")
-            }
-            if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                Button {
-                    presentAfterDialog(.camera)
-                } label: {
-                    Label("Take Photo", systemImage: "camera")
-                }
-            }
-            Button {
-                presentAfterDialog(.files)
-            } label: {
-                Label("Choose File", systemImage: "doc")
-            }
-            if ClipboardAttachments.hasImage {
-                Button {
-                    if let image = ClipboardAttachments.image() {
-                        Task { await chat.addAttachments([image]) }
-                    }
-                } label: {
-                    Label("Paste Image", systemImage: "doc.on.clipboard")
-                }
-            }
-        } message: {
-            Text("Photos, screenshots, documents, text files, and voice messages")
-        }
-        // The dialog has fully dismissed; now present the source it chose.
-        .onChange(of: isSourceDialogPresented) { _, isPresented in
-            guard !isPresented, let source = pendingSource else { return }
-            pendingSource = nil
-            switch source {
-            case .photoLibrary: isPhotoPickerPresented = true
-            case .camera: isCameraPresented = true
-            case .files: isFileImporterPresented = true
+        .sheet(isPresented: $isSourceSheetPresented, onDismiss: presentPendingSource) {
+            AttachmentSourceSheet(options: sourceOptions) { option in
+                pendingSource = option
+                isSourceSheetPresented = false
             }
         }
         .photosPicker(
             isPresented: $isPhotoPickerPresented,
             selection: $photoSelection,
-            maxSelectionCount: AttachmentLimits.maxPerMessage,
+            maxSelectionCount: AttachmentLimits.pickerSelectionLimit(staged: chat.fileAttachments.count),
             matching: .images
         )
         .onChange(of: photoSelection) { _, items in
             guard !items.isEmpty else { return }
             photoSelection = []
-            Task {
-                var files: [LocalAttachment] = []
-                for item in items {
-                    if let photo = try? await item.loadTransferable(type: PickedPhoto.self) {
-                        files.append(photo.attachment)
-                    }
-                }
-                await chat.addAttachments(files)
-            }
+            Task { await attachPickedPhotos(items) }
         }
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -206,6 +170,64 @@ struct ChatInputBar: View {
             }
             .ignoresSafeArea()
         }
+    }
+
+    // MARK: Sources
+
+    /// The sheet has fully dismissed; now act on the source it chose.
+    private func presentPendingSource() {
+        guard let source = pendingSource else { return }
+        pendingSource = nil
+        switch source {
+        case .camera:
+            if let problem = CameraAccess.problem() {
+                chat.reportAttachmentError(problem)
+            } else {
+                isCameraPresented = true
+            }
+        case .photoLibrary:
+            isPhotoPickerPresented = true
+        case .files:
+            isFileImporterPresented = true
+        case .paste:
+            let images = ClipboardAttachments.images()
+            if images.isEmpty {
+                chat.reportAttachmentError(ClipboardAttachments.noImageMessage)
+            } else {
+                Task { await chat.addAttachments(images) }
+            }
+        }
+    }
+
+    /// Load each picked photo in order, name it for its place in the batch,
+    /// and say so when one could not be used - a photo that silently vanished
+    /// from the pick was the old behaviour.
+    private func attachPickedPhotos(_ items: [PhotosPickerItem]) async {
+        let stamp = PastedImages.timestamp()
+        var files: [LocalAttachment] = []
+        var problem: String?
+        for item in items {
+            do {
+                guard let photo = try await item.loadTransferable(type: PickedPhoto.self) else {
+                    problem = problem ?? AttachmentValidator.unsupported("that photo")
+                    continue
+                }
+                let named = photo.named(index: files.count, timestamp: stamp)
+                // The same per-file checks a file from disk gets, so an
+                // oversized photo is refused with Android's wording.
+                files.append(try AttachmentValidator.normalize(
+                    filename: named.filename,
+                    declaredMediaType: named.mediaType,
+                    data: named.data
+                ))
+            } catch let error as AttachmentError {
+                problem = problem ?? error.message
+            } catch {
+                problem = problem ?? "Could not open the photo library."
+            }
+        }
+        await chat.addAttachments(files)
+        if let problem { chat.reportAttachmentError(problem) }
     }
 
     // MARK: Attachment views
@@ -250,31 +272,52 @@ struct ChatInputBar: View {
                 if chat.uploadingAttachments {
                     HStack(spacing: Spacing.sm) {
                         ProgressView().controlSize(.small)
-                        Text(chat.transcribingVoiceMessage ? "Transcribing voice message…" : "Uploading…")
+                        // Android's uploading labels.
+                        Text(chat.transcribingVoiceMessage
+                            ? "Uploading and transcribing the voice message..."
+                            : "Uploading...")
                             .font(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                     }
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
                     .background(theme.surface, in: .rect(cornerRadius: Radius.md))
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
     }
 
+    /// `ChatViewModel.send()` owns the command rules (a command that needs an
+    /// argument waits for one, aliases become their canonical command), so a
+    /// submit is just a send.
     private func submit() {
-        // Completing a command that still needs arguments must not send it —
-        // fill the input and let the user finish typing.
-        if let first = matches.first, chat.input.hasPrefix("/"), matches.count == 1,
-           first.requiresArgs, chat.input.trimmingCharacters(in: .whitespaces) == first.command {
-            chat.input = first.command + " "
-            return
-        }
+        guard !isLocked else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         Task { await chat.send() }
     }
 
     private var commandPalette: some View {
+        // Android caps the palette at 264pt and scrolls the rest, so a bare
+        // "/" (thirteen commands) never shoves the conversation off screen.
+        // `ViewThatFits` keeps a short list at its natural height.
+        ViewThatFits(in: .vertical) {
+            paletteRows
+            ScrollView { paletteRows }
+                .scrollBounceBehavior(.basedOnSize)
+        }
+        .frame(maxHeight: Self.paletteMaxHeight)
+        .background(theme.glass, in: .rect(cornerRadius: Radius.md))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.md)
+                .strokeBorder(theme.border, lineWidth: 1)
+        }
+    }
+
+    /// Android's `paletteScroll.maxHeight`.
+    static let paletteMaxHeight: CGFloat = 264
+
+    private var paletteRows: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(matches) { command in
                 Button {
@@ -292,10 +335,12 @@ struct ChatInputBar: View {
                             Text(hint)
                                 .font(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(theme.textGhost)
+                                .lineLimit(1)
                         }
                         Text(command.description)
                             .font(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.horizontal, Spacing.md)
@@ -304,11 +349,6 @@ struct ChatInputBar: View {
                 }
                 .buttonStyle(.plain)
             }
-        }
-        .background(theme.glass, in: .rect(cornerRadius: Radius.md))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.md)
-                .strokeBorder(theme.border, lineWidth: 1)
         }
     }
 
@@ -331,6 +371,7 @@ struct ChatInputBar: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Remove attachment")
         }
         .font(.system(size: 11))
         .padding(.horizontal, Spacing.md)

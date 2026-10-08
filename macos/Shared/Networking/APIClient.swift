@@ -78,7 +78,11 @@ final class APIClient: Sendable {
 
         guard (200..<300).contains(result.status) else {
             Self.reportHTTPFailure(path: path, status: result.status, hadToken: result.hadToken)
-            throw APIError.server(status: result.status, message: Self.errorMessage(in: result.data))
+            throw APIError.server(
+                status: result.status,
+                message: Self.errorMessage(in: result.data),
+                code: Self.errorCode(in: result.data)
+            )
         }
         return result.data
     }
@@ -160,7 +164,11 @@ final class APIClient: Sendable {
             // Drain the short error body so the message survives into the UI.
             var payload = Data()
             for try await byte in bytes { payload.append(byte) }
-            throw APIError.server(status: response.statusCode, message: Self.errorMessage(in: payload))
+            throw APIError.server(
+                status: response.statusCode,
+                message: Self.errorMessage(in: payload),
+                code: Self.errorCode(in: payload)
+            )
         }
         return bytes
     }
@@ -237,6 +245,14 @@ final class APIClient: Sendable {
     private static func errorMessage(in data: Data) -> String? {
         struct Payload: Decodable { let error: String? }
         return try? JSONDecoder().decode(Payload.self, from: data).error
+    }
+
+    /// The shared error contract's `code` (`{ "error": "...", "code": "rate_limited" }`),
+    /// kept so `ChatErrors.classify` picks the right copy, as Android reads it
+    /// straight off the raw body.
+    private static func errorCode(in data: Data) -> String? {
+        struct Payload: Decodable { let code: String? }
+        return try? JSONDecoder().decode(Payload.self, from: data).code
     }
 
     /// `request_failed` for a non-2xx answer, as `apiJson` reports it on

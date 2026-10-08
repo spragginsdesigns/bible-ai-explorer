@@ -67,7 +67,8 @@ struct ChatRecoveryTests {
             FailingByteStream(failing: APIError.server(status: 500, message: "Model unavailable"))
         )
 
-        #expect(chat.sendError == "Model unavailable")
+        #expect(chat.sendError?.message == "Model unavailable")
+        #expect(chat.sendError?.code == .internal)
         #expect(!chat.isRecovering)
         #expect(chat.status == .idle)
         chat.teardown()
@@ -82,7 +83,8 @@ struct ChatRecoveryTests {
             FailingByteStream(failing: APIError.server(status: 429, message: "Slow down"))
         )
 
-        #expect(chat.sendError == "Slow down")
+        #expect(chat.sendError?.message == "Slow down")
+        #expect(chat.sendError?.code == .rateLimited)
         #expect(!chat.isRecovering)
         chat.teardown()
     }

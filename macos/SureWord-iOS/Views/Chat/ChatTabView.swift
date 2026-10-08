@@ -79,7 +79,7 @@ struct ChatTabView: View {
                 } label: {
                     Image(systemName: "cpu")
                 }
-                .accessibilityLabel("Choose a model")
+                .accessibilityLabel("Choose AI model")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -125,6 +125,15 @@ struct ChatTabView: View {
         // A delete that failed after the sheet closed (Clear all dismisses at
         // once); while the sheet is up it presents the alert itself.
         .historyAlert(chat, isActive: !chat.isHistoryPresented)
+        // `/clear`, confirmed with Android's alert before anything is deleted.
+        .alert("Delete this conversation?", isPresented: $chat.isClearConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await chat.confirmClear() }
+            }
+        } message: {
+            Text("The conversation and its messages will be removed.")
+        }
         .sheet(isPresented: $isModelPickerPresented) {
             ModelPickerSheet(api: app.api, settings: app.settings)
         }
@@ -149,7 +158,9 @@ struct ChatTabView: View {
             ProgressView().controlSize(.small)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let historyError = chat.historyError {
-            ChatErrorCard(message: historyError, actionTitle: "Retry") {
+            // Android always offers Retry on the history card: reloading is
+            // the remedy whatever the cause.
+            ChatErrorCard(error: historyError, actionTitle: "Retry", alwaysRetry: true) {
                 Task { await chat.retryHistory() }
             }
             .padding(Spacing.lg)

@@ -50,7 +50,7 @@ struct ChatMessageList: View {
                     }
 
                     if let sendError = chat.sendError {
-                        ChatErrorCard(message: sendError, actionTitle: "Retry") {
+                        ChatErrorCard(error: sendError, actionTitle: "Try again") {
                             Task { await chat.retrySend() }
                         }
                     }
@@ -89,18 +89,62 @@ struct ChatMessageList: View {
 /// Mac's `ErrorCard`, full-width on a phone.
 struct ChatErrorCard: View {
     @Environment(\.theme) private var theme
+    var title: String?
     let message: String
-    var actionTitle: String
-    var action: () -> Void
+    /// Shown muted as "ref: <code>" so a screenshot identifies the failure.
+    var code: String?
+    var actionTitle: String = "Retry"
+    /// Nil hides the button - Android offers none when retrying cannot help.
+    var action: (() -> Void)?
+
+    init(
+        title: String? = nil,
+        message: String,
+        code: String? = nil,
+        actionTitle: String = "Retry",
+        action: (() -> Void)?
+    ) {
+        self.title = title
+        self.message = message
+        self.code = code
+        self.actionTitle = actionTitle
+        self.action = action
+    }
+
+    /// A classified chat error: its title, message and code, and the action
+    /// only when the error says retrying can help (`onRetry={error.retryable ?
+    /// retrySend : undefined}` on Android).
+    init(error: ClassifiedChatError, actionTitle: String, alwaysRetry: Bool = false, action: @escaping () -> Void) {
+        self.init(
+            title: error.title,
+            message: error.message,
+            code: error.code.rawValue,
+            actionTitle: actionTitle,
+            action: (error.retryable || alwaysRetry) ? action : nil
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
+            if let title {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(theme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             Text(message)
                 .font(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button(actionTitle, action: action)
-                .buttonStyle(AccentButtonStyle())
+            if let code {
+                Text("ref: \(code)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textGhost)
+            }
+            if let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(AccentButtonStyle())
+            }
         }
         .padding(Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)

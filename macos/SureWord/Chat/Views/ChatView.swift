@@ -63,6 +63,15 @@ struct ChatView: View {
             models.configure(api)
             await models.load()
         }
+        // `/clear` asks before deleting (shared `ChatViewModel` behaviour).
+        .alert("Delete this conversation?", isPresented: $chat.isClearConfirmationPresented) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                Task { await chat.confirmClear() }
+            }
+        } message: {
+            Text("The conversation and its messages will be removed.")
+        }
         .sheet(item: $noteTarget) { target in
             AddToNoteSheet(
                 api: api,
@@ -124,7 +133,7 @@ struct ChatView: View {
             centered { ProgressView().controlSize(.small) }
         } else if let historyError = chat.historyError {
             centered {
-                ErrorCard(message: historyError, actionTitle: "Retry") {
+                ErrorCard(message: historyError.message, actionTitle: "Retry") {
                     Task { await chat.retryHistory() }
                 }
             }
@@ -201,7 +210,7 @@ struct ChatView: View {
                     }
 
                     if let sendError = chat.sendError {
-                        ErrorCard(message: sendError, actionTitle: "Retry") {
+                        ErrorCard(message: sendError.message, actionTitle: "Retry") {
                             Task { await chat.retrySend() }
                         }
                     }

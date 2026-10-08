@@ -71,8 +71,39 @@ enum AttachmentLimits {
         return (byMediaType + byExtension).filter { seen.insert($0.identifier).inserted }
     }
 
+    /// The accepted audio types, canonical form (`AUDIO_MEDIA_TYPES`).
+    static let audioMediaTypes: Set<String> = [
+        "audio/ogg", "audio/mpeg", "audio/mp4", "audio/wav", "audio/webm",
+    ]
+
+    /// Exact membership, like Android's `isAudioMediaType`: an unlisted
+    /// `audio/flac` is not a voice message, it is an unsupported file.
     static func isAudio(_ mediaType: String) -> Bool {
-        mediaType.hasPrefix("audio/")
+        audioMediaTypes.contains(mediaType)
+    }
+
+    /// How many more photos the picker may offer, given what is already staged
+    /// - Android's `selectionLimit: Math.max(1, 5 - fileAttachments.length)`.
+    /// Never below one, so a full draft still opens the picker and the batch
+    /// check then explains the cap.
+    static func pickerSelectionLimit(staged: Int) -> Int {
+        max(1, maxPerMessage - staged)
+    }
+
+    /// The allowlisted image type the bytes really are, from their magic
+    /// numbers: PNG, JPEG, WebP or GIF. Nil for anything else (HEIC included),
+    /// which has to be re-encoded before the server will take it.
+    static func sniffImageMediaType(_ data: Data) -> String? {
+        let bytes = [UInt8](data.prefix(12))
+        if bytes.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return "image/png" }
+        if bytes.starts(with: [0xFF, 0xD8, 0xFF]) { return "image/jpeg" }
+        if bytes.starts(with: Array("GIF8".utf8)) { return "image/gif" }
+        if bytes.count >= 12,
+           bytes[0..<4].elementsEqual(Array("RIFF".utf8)),
+           bytes[8..<12].elementsEqual(Array("WEBP".utf8)) {
+            return "image/webp"
+        }
+        return nil
     }
 
     static func byteLimit(for mediaType: String) -> Int {
@@ -204,4 +235,82 @@ func formatAudioDuration(_ seconds: Double) -> String {
 func voiceMessageLabel(durationSeconds: Double?) -> String {
     guard let durationSeconds else { return "Voice message" }
     return "Voice message \u{00B7} \(formatAudioDuration(durationSeconds))"
+}
+
+// MARK: - Pasted images
+
+/// Names and types for images that arrive with no usable file name - a
+/// clipboard paste, a photo out of the system picker. A port of
+/// `mobile/src/features/chat/pastedImages.ts`: `clipboard-<ms>.png`, then
+/// `clipboard-<ms>-2.jpg` and so on for the rest of one paste, so a batch never
+/// carries two chips with the same name.
+enum PastedImages {
+    static let mediaTypeByExtension: [String: String] = [
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "webp": "image/webp",
+        "gif": "image/gif",
+    ]
+
+    static let extensionByMediaType: [String: String] = [
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+    ]
+
+    /// The image extension a URI or file name implies, PNG when it implies none.
+    static func imageExtension(_ uri: String) -> String {
+        let path = uri.split(whereSeparator: { $0 == "?" || $0 == "#" })
+            .first.map(String.init) ?? ""
+        let ext = path.split(separator: ".", omittingEmptySubsequences: false)
+            .last.map { $0.lowercased() } ?? ""
+        return mediaTypeByExtension[ext] != nil ? ext : "png"
+    }
+
+    static func mediaType(forURI uri: String) -> String {
+        mediaTypeByExtension[imageExtension(uri)] ?? "image/png"
+    }
+
+    /// `pastedImageMetadata`: the declared type wins when it is an image type
+    /// we accept (`image/jpg` read as `image/jpeg`), else the name decides.
+    static func metadata(
+        name: String?,
+        declaredType: String?,
+        index: Int,
+        timestamp: Int,
+        prefix: String = "clipboard"
+    ) -> (filename: String, mediaType: String) {
+        let declared = declaredType?
+            .lowercased()
+            .split(separator: ";", maxSplits: 1)
+            .first
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        let mediaType: String
+        if let declared, extensionByMediaType[declared] != nil {
+            mediaType = declared == "image/jpg" ? "image/jpeg" : declared
+        } else {
+            mediaType = Self.mediaType(forURI: name ?? "")
+        }
+        let ext = extensionByMediaType[mediaType] ?? "png"
+        return (sequencedName(prefix: prefix, timestamp: timestamp, index: index, fileExtension: ext), mediaType)
+    }
+
+    /// `pastedImageFilename`.
+    static func filename(uri: String, index: Int, timestamp: Int) -> String {
+        sequencedName(prefix: "clipboard", timestamp: timestamp, index: index, fileExtension: imageExtension(uri))
+    }
+
+    /// `<prefix>-<ms>.<ext>` for the first file, `<prefix>-<ms>-<n>.<ext>` after.
+    static func sequencedName(prefix: String, timestamp: Int, index: Int, fileExtension: String) -> String {
+        let suffix = index == 0 ? "" : "-\(index + 1)"
+        return "\(prefix)-\(timestamp)\(suffix).\(fileExtension)"
+    }
+
+    /// Milliseconds since 1970, the stamp Android's `Date.now()` writes.
+    static func timestamp(_ date: Date = Date()) -> Int {
+        Int((date.timeIntervalSince1970 * 1000).rounded(.down))
+    }
 }

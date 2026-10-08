@@ -155,7 +155,7 @@ struct EmptyStreamGuardTests {
         // What a misconfigured edge or an HTML error page would deliver with a 200.
         await chat.consume(StreamFramingTests.ByteStream("<!doctype html><h1>502</h1>"))
 
-        #expect(chat.sendError == ChatViewModel.emptyStreamError)
+        #expect(chat.sendError?.message == ChatViewModel.emptyStreamError)
         #expect(chat.status == .idle)
         #expect(chat.messages.isEmpty)
     }
@@ -164,14 +164,14 @@ struct EmptyStreamGuardTests {
     func emptyBodyErrors() async {
         let chat = makeViewModel()
         await chat.consume(StreamFramingTests.ByteStream(""))
-        #expect(chat.sendError == ChatViewModel.emptyStreamError)
+        #expect(chat.sendError?.message == ChatViewModel.emptyStreamError)
     }
 
     @Test("A body of only the DONE sentinel raises the empty-stream error")
     func doneOnlyErrors() async {
         let chat = makeViewModel()
         await chat.consume(StreamFramingTests.ByteStream("data: [DONE]\n\n"))
-        #expect(chat.sendError == ChatViewModel.emptyStreamError)
+        #expect(chat.sendError?.message == ChatViewModel.emptyStreamError)
     }
 
     /// The false-positive guard: a model that answers with no text is a valid,
@@ -214,6 +214,21 @@ struct EmptyStreamGuardTests {
         let raw = "data: {\"type\":\"error\",\"errorText\":\"Upstream refused\"}\n\ndata: [DONE]\n\n"
         await chat.consume(StreamFramingTests.ByteStream(raw))
 
-        #expect(chat.sendError == "Upstream refused")
+        #expect(chat.sendError?.message == "Upstream refused")
+        #expect(chat.sendError?.code == .internal)
+    }
+
+    /// The shared contract's mid-stream `[code] message` chunk gets the code's
+    /// title and retry rule, and the prefix never reaches the screen.
+    @Test("A coded server error chunk is classified and its prefix stripped")
+    func codedErrorChunk() async {
+        let chat = makeViewModel()
+        let raw = "data: {\"type\":\"error\",\"errorText\":\"[rate_limited] Slow down.\"}\n\ndata: [DONE]\n\n"
+        await chat.consume(StreamFramingTests.ByteStream(raw))
+
+        #expect(chat.sendError?.code == .rateLimited)
+        #expect(chat.sendError?.title == "Too many requests")
+        #expect(chat.sendError?.message == "Slow down.")
+        #expect(chat.sendError?.retryable == true)
     }
 }

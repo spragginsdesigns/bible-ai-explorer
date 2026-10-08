@@ -53,7 +53,7 @@ extension SlashCommand {
         .init(
             command: "/web",
             hint: "<query>",
-            description: "Search the web — history, archaeology, apologetics",
+            description: "Search the web - history, archaeology, apologetics",
             kind: .ai,
             requiresArgs: true
         ),
@@ -135,16 +135,28 @@ extension SlashCommand {
     }
 
     /// Exact command match on the first token of a submitted message.
+    ///
+    /// Splits on any whitespace, newlines included, exactly like Android's
+    /// `text.split(/\s+/)`: `/verse\nJohn 3:16` is `/verse` with `John 3:16`,
+    /// and the arguments come back with every run of whitespace collapsed to
+    /// one space.
     static func parse(
         _ text: String,
         in commands: [SlashCommand] = SlashCommand.chat
     ) -> (command: SlashCommand, args: String)? {
         guard text.hasPrefix("/") else { return nil }
-        let parts = text.split(separator: " ", omittingEmptySubsequences: true)
+        let parts = text.split(whereSeparator: \.isWhitespace)
         guard let token = parts.first?.lowercased() else { return nil }
         guard let match = commands.first(where: { $0.command == token || $0.aliases.contains(token) })
         else { return nil }
-        let args = parts.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        let args = parts.dropFirst().joined(separator: " ")
         return (match, args)
+    }
+
+    /// The text an `.ai` command sends: the canonical command (an alias such
+    /// as `/add` becomes `/note`) followed by its collapsed arguments - what
+    /// Android's `runCommand` builds as `` `${def.command} ${args}` ``.
+    static func outgoingText(_ command: SlashCommand, args: String) -> String {
+        args.isEmpty ? command.command : "\(command.command) \(args)"
     }
 }

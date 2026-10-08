@@ -32,24 +32,41 @@ struct PickedPhoto: Transferable {
         }
     }
 
-    /// Any image's bytes as what the server accepts: a PNG inside the 2048px
-    /// budget ships untouched; everything else (HEIC, an oversized PNG) is
-    /// downscaled to JPEG like Android's. Shared with "Share into SureWord",
-    /// where Photos hands over HEIC just as the picker does. Nil when the
-    /// bytes are not an image UIKit can decode.
+    /// Any image's bytes as what the server accepts. Like Android's
+    /// `planImageDownscale`, an allowlisted image (PNG, JPEG, WebP, GIF) inside
+    /// the 2048px budget ships untouched in its own format - a GIF keeps its
+    /// animation, a JPEG is not re-compressed. Everything else (HEIC, or
+    /// anything oversized) is downscaled to JPEG. Shared with "Share into
+    /// SureWord", where Photos hands over HEIC just as the picker does. Nil
+    /// when the bytes are not an image UIKit can decode.
     static func uploadReady(_ data: Data) -> (data: Data, mediaType: String, fileExtension: String)? {
-        let isPNG = data.starts(with: [0x89, 0x50, 0x4E, 0x47])
-        if isPNG, let image = UIImage(data: data), ImageDownscale.resized(image) == nil {
-            return (data, "image/png", "png")
+        guard let image = UIImage(data: data) else { return nil }
+        let pixels = ImageDownscale.pixelSize(of: image)
+        let inBudget = ImageDownscale.targetSize(width: pixels.width, height: pixels.height) == nil
+        if inBudget,
+           let mediaType = AttachmentLimits.sniffImageMediaType(data),
+           let ext = PastedImages.extensionByMediaType[mediaType] {
+            return (data, mediaType, ext)
         }
-        guard let image = UIImage(data: data), let jpeg = ImageDownscale.jpegForUpload(image) else {
-            return nil
-        }
+        guard let jpeg = ImageDownscale.jpegForUpload(image) else { return nil }
         return (jpeg, "image/jpeg", "jpg")
     }
 
+    /// The picker hands over no file names, so each photo gets
+    /// `photo-<ms>.<ext>`, `photo-<ms>-2.<ext>` ... - unique within one pick,
+    /// which `photo-<seconds>` was not.
     private static func filename(extension ext: String) -> String {
-        "photo-\(Int(Date().timeIntervalSince1970)).\(ext)"
+        PastedImages.sequencedName(prefix: "photo", timestamp: PastedImages.timestamp(), index: 0, fileExtension: ext)
+    }
+
+    /// The picked photo, renamed to its place in the batch.
+    func named(index: Int, timestamp: Int) -> LocalAttachment {
+        var renamed = attachment
+        let ext = (attachment.filename as NSString).pathExtension
+        renamed.filename = PastedImages.sequencedName(
+            prefix: "photo", timestamp: timestamp, index: index, fileExtension: ext
+        )
+        return renamed
     }
 }
 
@@ -87,7 +104,10 @@ struct CameraPicker: UIViewControllerRepresentable {
                 .flatMap { ImageDownscale.jpegForUpload($0) }
                 .map {
                     LocalAttachment(
-                        filename: "camera-\(Int(Date().timeIntervalSince1970)).jpg",
+                        // Android's fallback name for a camera shot.
+                        filename: PastedImages.sequencedName(
+                            prefix: "photo", timestamp: PastedImages.timestamp(), index: 0, fileExtension: "jpg"
+                        ),
                         mediaType: "image/jpeg",
                         data: $0
                     )
@@ -104,22 +124,49 @@ struct CameraPicker: UIViewControllerRepresentable {
 // MARK: - Clipboard
 
 enum ClipboardAttachments {
-    /// A copied image (screenshot, browser image) as a `LocalAttachment`,
-    /// matching the Mac's ⌘V path. PNG stays PNG so text screenshots keep
-    /// their sharpness; anything else goes out as JPEG.
-    static func image() -> LocalAttachment? {
-        guard let image = UIPasteboard.general.image else { return nil }
-        let stamp = Int(Date().timeIntervalSince1970)
-        if let png = image.pngData() {
-            return LocalAttachment(
-                filename: "clipboard-\(stamp).png",
-                mediaType: "image/png",
-                data: png
+    /// Android's copy when the clipboard holds no image.
+    static let noImageMessage = "There isn't an image on the clipboard."
+
+    /// The representations read off a clipboard item, best first: the
+    /// allowlisted formats keep their original bytes, HEIC/TIFF are decoded and
+    /// re-encoded by `PickedPhoto.uploadReady`.
+    private static let preferredTypes: [UTType] = [.png, .jpeg, .webP, .gif, .heic, .heif, .tiff]
+
+    /// **Every** image on the clipboard (a multi-select copy from Photos puts
+    /// several there), as `LocalAttachment`s named `clipboard-<ms>.<ext>`,
+    /// `clipboard-<ms>-2.<ext>` ... like Android's `pastedImageMetadata`.
+    ///
+    /// The original bytes are used, not `UIPasteboard.image` re-encoded as
+    /// PNG: that turned a copied 12 MP JPEG into a PNG far over the 10 MB cap.
+    /// An in-budget PNG/JPEG/WebP/GIF ships untouched; anything else is
+    /// downscaled to JPEG the way a picked photo is.
+    static func images(now: Date = Date()) -> [LocalAttachment] {
+        let stamp = PastedImages.timestamp(now)
+        var originals = UIPasteboard.general.items.compactMap(originalImageData(in:))
+        if originals.isEmpty, let image = UIPasteboard.general.image, let png = image.pngData() {
+            originals = [png]
+        }
+        return originals.compactMap(PickedPhoto.uploadReady).enumerated().map { index, upload in
+            let named = PastedImages.metadata(
+                name: nil,
+                declaredType: upload.mediaType,
+                index: index,
+                timestamp: stamp
             )
+            return LocalAttachment(filename: named.filename, mediaType: named.mediaType, data: upload.data)
         }
-        return image.jpegData(compressionQuality: 0.9).map {
-            LocalAttachment(filename: "clipboard-\(stamp).jpg", mediaType: "image/jpeg", data: $0)
+    }
+
+    private static func originalImageData(in item: [String: Any]) -> Data? {
+        for type in preferredTypes {
+            if let data = item[type.identifier] as? Data { return data }
+            if let image = item[type.identifier] as? UIImage { return image.pngData() }
         }
+        for (key, value) in item where UTType(key)?.conforms(to: .image) == true {
+            if let data = value as? Data { return data }
+            if let image = value as? UIImage { return image.pngData() }
+        }
+        return nil
     }
 
     static var hasImage: Bool { UIPasteboard.general.hasImages }

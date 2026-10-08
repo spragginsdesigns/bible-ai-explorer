@@ -40,8 +40,17 @@ final class ChatViewModel {
     private(set) var status: Status = .idle
     private(set) var initialLoading = true
     private(set) var historyLoading = false
-    private(set) var historyError: String?
-    private(set) var sendError: String?
+    private(set) var historyError: ClassifiedChatError?
+    /// Classified the way Android's `classifyChatError` does, so the card can
+    /// show a title and offer "Try again" only when retrying can help.
+    private(set) var sendError: ClassifiedChatError?
+    /// Raised by `/clear` while a conversation is open; the shell confirms
+    /// with Android's "Delete this conversation?" alert before deleting.
+    var isClearConfirmationPresented = false
+    /// True while a first send waits for its conversation to be created; the
+    /// draft is already off the composer, so this keeps a second tap from
+    /// creating a second conversation.
+    private(set) var isCreatingConversation = false
     /// True while the answer is being collected from the server after a lost
     /// connection. The UI keeps showing the typing indicator rather than an
     /// error — nothing has actually failed yet.
@@ -77,7 +86,14 @@ final class ChatViewModel {
     private let api: APIClient
     private let settings: SettingsStore
     private let uploader: AttachmentUploader
+    /// Where a deliberate walk-away is recorded, so the "Your answer is ready"
+    /// push the server still sends for it can be suppressed.
+    private let stopSignals: ChatStopSignals
     private var streamTask: Task<Void, Never>?
+    /// Text of a send that failed before the stream opened (the conversation
+    /// could not be created), so Retry can send it again - Android's
+    /// `lastFailedSendRef`.
+    private var lastFailedSend: String?
     /// Guards against a slow history load landing after the user moved on.
     private var historyLoadVersion = 0
     /// Bumped whenever the draft is abandoned, so an upload that lands afterwards
@@ -120,10 +136,11 @@ final class ChatViewModel {
     @ObservationIgnored private nonisolated(unsafe) var resumeCenter: NotificationCenter?
 #endif
 
-    init(api: APIClient, settings: SettingsStore) {
+    init(api: APIClient, settings: SettingsStore, stopSignals: ChatStopSignals = .shared) {
         self.api = api
         self.settings = settings
         self.uploader = AttachmentUploader(api: api)
+        self.stopSignals = stopSignals
 
 #if os(macOS)
         // **Waking, not activating.** `NSApplication.didBecomeActiveNotification`
@@ -232,6 +249,7 @@ final class ChatViewModel {
         return (!composed.isEmpty || !fileAttachments.isEmpty)
             && !isBusy
             && !uploadingAttachments
+            && !isCreatingConversation
             && !historyLoading
             && historyError == nil
     }
@@ -255,6 +273,7 @@ final class ChatViewModel {
         historyLoading = false
         historyError = nil
         sendError = nil
+        lastFailedSend = nil
         activeConversationID = nil
         uiMessages = []
     }
@@ -284,7 +303,7 @@ final class ChatViewModel {
             uiMessages = rows.compactMap(UIMessage.init(storedRow:))
         } catch {
             if version == historyLoadVersion {
-                historyError = Self.historyLoadError
+                historyError = ChatErrors.classify(error, message: Self.historyLoadError)
             }
         }
     }
@@ -596,33 +615,44 @@ final class ChatViewModel {
         // Local slash commands never reach the model, and are allowed even when
         // `canSend` is false — `/new` in particular is how you escape a
         // conversation whose history failed to load.
-        if let parsed = SlashCommand.parse(input.trimmingCharacters(in: .whitespaces)),
-           parsed.command.kind == .local {
-            input = ""
-            switch parsed.command.localAction {
-            case .new:
-                newConversation()
-            case .clear:
-                if let id = activeConversationID {
-                    await deleteConversation(id)
-                } else {
+        let typed = input
+        // Android's `submit` parses the trimmed text, newlines included.
+        var text = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let parsed = SlashCommand.parse(text) {
+            if parsed.command.kind == .local {
+                input = ""
+                switch parsed.command.localAction {
+                case .new:
                     newConversation()
+                case .clear:
+                    // Deleting is destructive, so it is confirmed first, with
+                    // Android's alert. With nothing open it is just a new chat.
+                    if activeConversationID != nil {
+                        isClearConfirmationPresented = true
+                    } else {
+                        newConversation()
+                    }
+                case .history:
+                    isHistoryPresented = true
+                default:
+                    break
                 }
-            case .history:
-                isHistoryPresented = true
-            default:
-                break
+                return
             }
-            return
+            // A command that needs an argument waits for one ("keep typing").
+            if parsed.command.requiresArgs, parsed.args.isEmpty { return }
+            // The model is sent the canonical command with collapsed arguments,
+            // exactly the text Android's `runCommand` builds.
+            text = SlashCommand.outgoingText(parsed.command, args: parsed.args)
         }
 
-        let composed = VerseAttachment.compose(input, attachment: attachment)
+        let composed = VerseAttachment.compose(text, attachment: attachment)
         guard canSend else { return }
 
         sendError = nil
+        lastFailedSend = nil
         input = ""
-        // Once the shared chat has a message, the share actions are done.
-        shareNotices = nil
+        let sendingAttachment = attachment
         let origin = attachment?.origin
         attachment = nil
 
@@ -633,16 +663,26 @@ final class ChatViewModel {
             let title = composed.isEmpty
                 ? "Attachment: \(sending.first?.filename ?? "New chat")"
                 : composed
-            await createConversation(titledAfter: title)
-
-            // `/api/ask-question` rejects attachments without a conversation, so
-            // unlike a text-only message this failure is fatal — sending anyway
-            // would 400 and lose the files.
-            if activeConversationID == nil, !sending.isEmpty {
-                sendError = "Could not create the conversation. Retry to send your files."
+            do {
+                isCreatingConversation = true
+                defer { isCreatingConversation = false }
+                try await createConversation(titledAfter: title)
+            } catch {
+                // Never send without a conversation (Android does not either):
+                // recovery collects a finished answer *from* the conversation,
+                // so a conversationless stream could lose the answer outright,
+                // and attachments are refused without one. Put the draft back
+                // and remember it, so "Try again" sends it.
+                input = typed
+                attachment = sendingAttachment
+                lastFailedSend = typed
+                sendError = ChatErrors.classify(error, message: Self.conversationCreateError)
                 return
             }
         }
+
+        // Once the shared chat has a message, the share actions are done.
+        shareNotices = nil
 
         attachmentDraftVersion += 1
         fileAttachments = []
@@ -703,6 +743,15 @@ final class ChatViewModel {
     /// Re-run the last exchange after a failure, matching `retrySend`.
     func retrySend() async {
         guard !isBusy else { return }
+        // The send never happened (the conversation could not be created), so
+        // there is no stream to regenerate - send the original question again.
+        if let failed = lastFailedSend, activeConversationID == nil {
+            lastFailedSend = nil
+            sendError = nil
+            if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { input = failed }
+            await send()
+            return
+        }
         sendError = nil
         // Drop a failed assistant turn so the model isn't asked to continue it.
         if uiMessages.last?.role == .assistant { uiMessages.removeLast() }
@@ -713,7 +762,16 @@ final class ChatViewModel {
 
     /// Stopping is deliberate: the user no longer wants this answer, so the
     /// recovery poll must not go and fetch it behind their back.
+    ///
+    /// Also covers starting a new chat and switching conversations, which both
+    /// stop first. The server still finishes and saves the answer and sends
+    /// "Your answer is ready" for the dropped connection, so the walk-away is
+    /// recorded for the notification handler to suppress (Android's
+    /// `abandonPendingAnswer` → `markConversationStopped`).
     func stop() {
+        if let conversationID = pendingAnswerConversationID {
+            stopSignals.markStopped(conversationID)
+        }
         cancelStream()
         cancelRecovery()
     }
@@ -734,22 +792,30 @@ final class ChatViewModel {
         isRecovering = false
     }
 
-    private func createConversation(titledAfter text: String) async {
+    private func createConversation(titledAfter text: String) async throws {
         let title = String(text.prefix(60))
         struct NewConversation: Encodable { let title: String }
-        do {
-            let created = try await api.json(
-                "/api/conversations",
-                method: "POST",
-                body: NewConversation(title: title),
-                as: Conversation.self
-            )
-            activeConversationID = created.id
-            conversations.insert(created, at: 0)
-        } catch {
-            // Non-fatal for text-only messages: the answer still streams, it
-            // just isn't persisted. Mirrors the Android client.
-        }
+        let created = try await api.json(
+            "/api/conversations",
+            method: "POST",
+            body: NewConversation(title: title),
+            as: Conversation.self
+        )
+        activeConversationID = created.id
+        conversations.insert(created, at: 0)
+    }
+
+    /// Delete the open conversation once `/clear` has been confirmed.
+    func confirmClear() async {
+        isClearConfirmationPresented = false
+        guard let id = activeConversationID else { return }
+        await deleteConversation(id)
+    }
+
+    /// An attachment problem found outside the model (a photo the picker could
+    /// not hand over, an empty clipboard), shown in the composer's banner.
+    func reportAttachmentError(_ message: String) {
+        attachmentError = message
     }
 
     private func startStream() {
@@ -781,7 +847,7 @@ final class ChatViewModel {
                 status = .idle
                 if !Task.isCancelled {
                     reportStreamFailure(
-                        (error as? APIError)?.message ?? error.localizedDescription,
+                        ChatErrors.classify(error),
                         recoverable: AnswerRecovery.isTransportFailure(error)
                     )
                 }
@@ -794,7 +860,7 @@ final class ChatViewModel {
     func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
         var accumulator = UIMessageAccumulator(id: "assistant-\(UUID().uuidString)")
         var appended = false
-        var failure: (message: String, recoverable: Bool)?
+        var failure: (error: ClassifiedChatError, recoverable: Bool)?
 
         do {
             for try await chunk in UIMessageChunk.stream(fromBytes: bytes) {
@@ -815,7 +881,7 @@ final class ChatViewModel {
             // report failures the user didn't ask for.
             if !Task.isCancelled {
                 failure = (
-                    (error as? APIError)?.message ?? error.localizedDescription,
+                    ChatErrors.classify(error),
                     AnswerRecovery.isTransportFailure(error)
                 )
             }
@@ -827,11 +893,12 @@ final class ChatViewModel {
             // The server said the answer failed, so there is nothing to collect
             // — unlike a dropped connection, this is the final word.
             pendingAnswerConversationID = nil
-            sendError = errorText
+            // A mid-stream `[code] message` chunk, classified like Android.
+            sendError = ChatErrors.classify(text: errorText)
             return
         }
         if let failure {
-            reportStreamFailure(failure.message, recoverable: failure.recoverable)
+            reportStreamFailure(failure.error, recoverable: failure.recoverable)
             return
         }
         if !appended, !Task.isCancelled {
@@ -845,7 +912,10 @@ final class ChatViewModel {
             //
             // The server may well still be writing that answer, so this goes
             // through recovery like any other lost connection.
-            reportStreamFailure(Self.emptyStreamError, recoverable: true)
+            reportStreamFailure(
+                ChatErrors.build(.internal, serverMessage: nil, override: Self.emptyStreamError),
+                recoverable: true
+            )
             return
         }
         // A stream that finished on its own owes nothing.
@@ -872,10 +942,10 @@ final class ChatViewModel {
     /// couldn't retrieve that answer". Show those immediately, and drop the
     /// pending marker with them. Recovery also covers the cases with no `Error`
     /// to classify - an empty or non-SSE body - which the caller flags.
-    private func reportStreamFailure(_ message: String, recoverable: Bool) {
+    private func reportStreamFailure(_ error: ClassifiedChatError, recoverable: Bool) {
         guard recoverable, let conversationID = pendingAnswerConversationID else {
             pendingAnswerConversationID = nil
-            sendError = message
+            sendError = error
             return
         }
         collectPendingAnswer(conversationID)
@@ -933,7 +1003,7 @@ final class ChatViewModel {
                         sendError = nil
                         return
                     case .giveUp:
-                        sendError = AnswerRecovery.exhaustedError
+                        sendError = ChatErrors.recoveryExhausted
                         return
                     case .wait(let interval):
                         nextWait = interval
@@ -985,10 +1055,18 @@ final class ChatViewModel {
                     sinceLastStreamActivity: .seconds(Date().timeIntervalSince(lastStreamActivity))
                 )
             else { return }
+            // The answer is collected here, in the app, so the push the server
+            // sends for the connection this drops would only repeat it -
+            // Android marks the conversation stopped on this path too.
+            stopSignals.markStopped(conversationID)
             cancelStream()
             collectPendingAnswer(conversationID)
         }
     }
+
+    /// Android's `CONVERSATION_CREATE_ERROR`.
+    static let conversationCreateError =
+        "Couldn't start the conversation. Check your connection and try again."
 
     static let historyLoadError =
         "We couldn't load this conversation. Retry to restore its context, or start a new chat."
