@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { combineSharedText, shareActionHref } from "@/lib/share-target";
+import { combineSharedText, shareActionHref, sharedLinkKind } from "@/lib/share-target";
 
 /**
  * The installed web app's share target (`share_target` in site.webmanifest):
  * text or a link shared from another app lands here, and the user picks what
  * SureWord should do with it. Not a public route, so a signed-out share goes
  * through sign-in and comes back with its query intact. Android's native share
- * sheet offers the same two choices.
+ * sheet offers the same choices.
  */
 export default async function SharePage({
 	searchParams,
@@ -16,6 +16,7 @@ export default async function SharePage({
 }) {
 	const shared = combineSharedText(await searchParams);
 	if (!shared) redirect("/");
+	const linkKind = sharedLinkKind(shared);
 
 	return (
 		<main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-4 px-4 py-10">
@@ -24,6 +25,14 @@ export default async function SharePage({
 				{shared}
 			</p>
 			<div className="flex flex-col gap-2 sm:flex-row">
+				{linkKind && (
+					<Link
+						href={shareActionHref("verify", shared)}
+						className="flex min-h-11 flex-1 items-center justify-center rounded-xl border border-amber-500/60 px-4 text-sm font-bold text-amber-700 hover:bg-amber-500/10 dark:border-amber-400/60 dark:text-amber-300 dark:hover:bg-amber-400/10"
+					>
+						{linkKind === "video" ? "Verify this video" : "Verify this link"}
+					</Link>
+				)}
 				<Link
 					href={shareActionHref("check", shared)}
 					className="flex min-h-11 flex-1 items-center justify-center rounded-xl bg-amber-500 px-4 text-sm font-bold text-neutral-950 hover:bg-amber-600 dark:bg-amber-400 dark:hover:bg-amber-300"
@@ -38,7 +47,7 @@ export default async function SharePage({
 				</Link>
 			</div>
 			<p className="text-xs text-neutral-500">
-				Either one opens the chat with this filled in, so you can add to it before you send.
+				Each opens the chat with this filled in, so you can add to it before you send.
 			</p>
 		</main>
 	);

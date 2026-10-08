@@ -6,15 +6,17 @@ import Foundation
 /// (`ShareInbox/`) carry the share to the app, and the chat applies the result.
 ///
 /// A share opens a new chat with the files attached and the text in the
-/// composer, plus two one-tap actions: check it against Scripture (`/check`)
-/// or help answer whoever sent it (`/reply`).
+/// composer, plus one-tap actions: check it against Scripture (`/check`) or
+/// help answer whoever sent it (`/reply`), and, when the share carries a link,
+/// verify the video or page itself (`/verify`).
 enum ShareAction: String, CaseIterable, Sendable, Identifiable {
-    case check, reply
+    case verify, check, reply
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
+        case .verify: "Verify this link"
         case .check: "Check against Scripture"
         case .reply: "Help me reply"
         }
@@ -22,9 +24,25 @@ enum ShareAction: String, CaseIterable, Sendable, Identifiable {
 
     var command: String {
         switch self {
+        case .verify: "/verify"
         case .check: "/check"
         case .reply: "/reply"
         }
+    }
+
+    /// The actions a share offers - `shareActionsFor` on Android. A shared link
+    /// (the YouTube app's Share button sends just the URL) leads with Verify;
+    /// without a link there is nothing to verify, so it is left out.
+    static func actions(for composerText: String) -> [ShareAction] {
+        let hasLink = VideoTranscript.findLink(in: composerText) != nil
+            || composerText.range(of: #"https?://\S+"#, options: [.regularExpression, .caseInsensitive]) != nil
+        return hasLink ? [.verify, .check, .reply] : [.check, .reply]
+    }
+
+    /// Verify is worded for a video when the link is one.
+    func label(composerText: String) -> String {
+        if self == .verify, VideoTranscript.findLink(in: composerText) != nil { return "Verify this video" }
+        return label
     }
 
     /// The message a share action sends: the command, then whatever is in the

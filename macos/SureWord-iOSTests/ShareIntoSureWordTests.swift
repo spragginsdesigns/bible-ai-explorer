@@ -268,7 +268,16 @@ final class ShareIntoSureWordTests: XCTestCase {
     }
 
     func testShareActionsSendTheCommandWithTheComposer() {
-        XCTAssertEqual(ShareAction.allCases.map(\.label), ["Check against Scripture", "Help me reply"])
+        XCTAssertEqual(ShareAction.actions(for: "Karma is biblical").map(\.label), ["Check against Scripture", "Help me reply"])
+        // A shared link leads with Verify, worded for a video when it is one.
+        let video = "https://youtu.be/GMwihA5jnhY"
+        XCTAssertEqual(
+            ShareAction.actions(for: video).map { $0.label(composerText: video) },
+            ["Verify this video", "Check against Scripture", "Help me reply"]
+        )
+        XCTAssertEqual(ShareAction.verify.label(composerText: "https://example.com/post"), "Verify this link")
+        XCTAssertEqual(ShareAction.verify.message(composerText: video), "/verify \(video)")
+        XCTAssertNotNil(SlashCommand.parse("/verify \(video)"))
         XCTAssertEqual(ShareAction.check.message(composerText: "  "), "/check")
         XCTAssertEqual(ShareAction.reply.message(composerText: " what they said "), "/reply what they said")
         // Both are real chat commands the composer palette offers.

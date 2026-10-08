@@ -326,6 +326,15 @@ describe("toViewMessage", () => {
 		}
 	});
 
+	it("says it is reading the link while /verify reads a page", () => {
+		const message = {
+			id: "verify-link",
+			role: "assistant",
+			parts: [{ type: "tool-readLink", state: "input-available" }],
+		} as never;
+		expect(toViewMessage(message, { isStreaming: true }).activity).toBe("Reading the link");
+	});
+
 	it("shows the server status label, and lets a running tool override it", () => {
 		const status = {
 			id: "m4a",

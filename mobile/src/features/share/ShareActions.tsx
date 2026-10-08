@@ -4,25 +4,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { radius, spacing, typography, type Colors } from "@/theme";
-import { SHARE_ACTIONS, type ShareAction } from "./shareIntake";
+import type { ShareAction, ShareActionOption } from "./shareIntake";
 
 interface ShareActionsProps {
 	/** Why parts of the share were not attached. */
 	notices: string[];
 	/** False until there is something to act on (text, or an attached file). */
 	actionable: boolean;
+	/** What this share offers (Verify only when it carries a link). */
+	actions: readonly ShareActionOption[];
 	disabled: boolean;
 	onAction: (action: ShareAction) => void;
 	onDismiss: () => void;
 }
 
 const ACTION_ICONS: Record<ShareAction, React.ComponentProps<typeof Ionicons>["name"]> = {
+	verify: "play-circle-outline",
 	check: "shield-checkmark-outline",
 	reply: "chatbubble-outline",
 };
 
-/** The two one-tap answers to a share, shown above the composer of the new chat. */
-export function ShareActions({ notices, actionable, disabled, onAction, onDismiss }: ShareActionsProps) {
+/** The one-tap answers to a share, shown above the composer of the new chat. */
+export function ShareActions({ notices, actionable, actions, disabled, onAction, onDismiss }: ShareActionsProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 
@@ -33,7 +36,7 @@ export function ShareActions({ notices, actionable, disabled, onAction, onDismis
 			))}
 			<View style={styles.row}>
 				{actionable &&
-					SHARE_ACTIONS.map(({ action, label }) => (
+					actions.map(({ action, label }) => (
 						<Pressable
 							key={action}
 							accessibilityRole="button"

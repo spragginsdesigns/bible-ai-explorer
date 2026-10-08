@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { MAX_SHARED_TEXT_LENGTH, combineSharedText, shareActionHref } from "../src/lib/share-target.ts";
+import { MAX_SHARED_TEXT_LENGTH, combineSharedText, shareActionHref, sharedLinkKind } from "../src/lib/share-target.ts";
 
 test("text alone passes through, trimmed", () => {
 	assert.equal(combineSharedText({ text: "  karma is biblical  " }), "karma is biblical");
@@ -37,4 +37,12 @@ test("the manifest declares the share target at /share", () => {
 	assert.equal(manifest.share_target.action, "/share");
 	assert.equal(manifest.share_target.method, "GET");
 	assert.deepEqual(manifest.share_target.params, { title: "title", text: "text", url: "url" });
+});
+
+test("share target: a shared link offers Verify, worded for a video when it is one", () => {
+	assert.equal(sharedLinkKind("https://youtu.be/GMwihA5jnhY?si=abc"), "video");
+	assert.equal(sharedLinkKind("Read this https://example.com/post"), "link");
+	assert.equal(sharedLinkKind("https://notyoutube.com/watch?v=GMwihA5jnhY"), "link");
+	assert.equal(sharedLinkKind("Karma is in the Bible, right?"), null);
+	assert.equal(shareActionHref("verify", "https://youtu.be/x"), `/?prompt=${encodeURIComponent("/verify https://youtu.be/x")}`);
 });

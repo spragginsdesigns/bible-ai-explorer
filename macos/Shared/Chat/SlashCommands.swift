@@ -74,6 +74,13 @@ extension SlashCommand {
             kind: .ai
         ),
         .init(
+            command: "/verify",
+            hint: "<video or link>",
+            description: "Verify a YouTube video or a web link against Scripture",
+            kind: .ai,
+            requiresArgs: true
+        ),
+        .init(
             command: "/reply",
             aliases: ["/answer"],
             hint: "[what they said]",

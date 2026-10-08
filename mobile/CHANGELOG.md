@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.81.0 (versionCode 90) - 2026-10-07 - internal
+
+**What's new (Play):**
+
+NEW
+- /verify checks a YouTube video or a web link against Scripture. Paste a link after /verify, or share a video from the YouTube app and tap "Verify this video". SureWord reads what was said, lists the claims with timestamps and weighs each one against the KJV, showing each step while it works.
+
+**Dev notes:** The phone fetches the captions itself (`features/chat/videoTranscript.ts`, innertube ANDROID then IOS client, json3 into 30-second stamped paragraphs, capped at 300 KB) because YouTube refuses Vercel and the VPS ("Sign in to confirm you're not a bot", measured 2026-10-07); the transcript rides the normal text-attachment upload as `YouTube-transcript-<title>.txt`. Composer shows "Finding the video...", "Reading the captions of ...", "Sending SureWord the transcript ...", then the server's progress ("Reading the video's transcript"). A send that outlives its draft (New chat or History mid-fetch) is dropped and its upload deleted. Web links go through the new server `readLink` tool (Tavily Extract), allowlisted to links the user typed. Share sheet leads with "Verify this video" / "Verify this link" when the share carries a link. TikTok captions are not reachable from the public page, so a TikTok link checks only the post's caption.
+
 ## 1.80.0 (versionCode 89) - 2026-10-07 - internal
 
 **What's new (Play):**

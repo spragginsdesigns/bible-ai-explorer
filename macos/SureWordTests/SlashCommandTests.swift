@@ -92,7 +92,7 @@ struct SlashCommandTests {
     func matchesAndroidPalette() {
         #expect(
             SlashCommand.chat.map(\.command) == [
-                "/note", "/verse", "/search", "/web", "/who", "/check", "/reply", "/cross", "/plan", "/memory",
+                "/note", "/verse", "/search", "/web", "/who", "/check", "/verify", "/reply", "/cross", "/plan", "/memory",
                 "/new", "/clear", "/history",
             ]
         )

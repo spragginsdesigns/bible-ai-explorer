@@ -212,7 +212,7 @@ struct ChatInputBar: View {
             if chat.uploadingAttachments {
                 HStack(spacing: Spacing.sm) {
                     ProgressView().controlSize(.small)
-                    Text(chat.transcribingVoiceMessage ? "Transcribing voice message…" : "Uploading…")
+                    Text(chat.videoStatus ?? (chat.transcribingVoiceMessage ? "Transcribing voice message…" : "Uploading…"))
                         .font(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                 }

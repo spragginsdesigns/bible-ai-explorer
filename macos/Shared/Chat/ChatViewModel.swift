@@ -68,6 +68,9 @@ final class ChatViewModel {
     /// transcribes before answering; the composer says so rather than leaving
     /// "Uploading" on screen for half a minute.
     private(set) var transcribingVoiceMessage = false
+    /// While a "/verify <YouTube link>" fetches the video's captions before it
+    /// sends: the step it is on, in words for the composer. Nil otherwise.
+    private(set) var videoStatus: String?
     private(set) var attachmentError: String?
     /// Set while a chat opened from "Share into SureWord" has not been sent
     /// yet: the notices about anything left out, shown with the two share
@@ -649,6 +652,59 @@ final class ChatViewModel {
         let composed = VerseAttachment.compose(text, attachment: attachment)
         guard canSend else { return }
 
+        // "/verify <YouTube link>": read the captions over this device's own
+        // connection (YouTube refuses datacenter IPs, so the server cannot) and
+        // send them as a text attachment the answer weighs against Scripture.
+        // A video that cannot be read never reaches the model: the draft comes
+        // back with the reason instead. Matched on the outgoing text, since a
+        // pinned verse is composed in front of it.
+        var videoAttachment: ChatAttachmentDescriptor?
+        var videoTitle: String?
+        if let link = VideoTranscript.verifyRequest(text) {
+            // New chat, History and a conversation switch stay live during a
+            // slow fetch and each bumps the draft version; a send that outlived
+            // its draft must not land in whatever chat is open now.
+            let draftVersion = attachmentDraftVersion
+            let draft = typed
+            input = ""
+            attachmentError = nil
+            uploadingAttachments = true
+            videoStatus = "Finding the video..."
+            defer {
+                uploadingAttachments = false
+                videoStatus = nil
+            }
+            do {
+                guard fileAttachments.count < 5 else {
+                    throw VideoTranscript.Failure(message: "Remove an attachment to make room for the video's transcript.")
+                }
+                let transcript = try await VideoTranscript.fetch(link) { [weak self] stage in
+                    self?.videoStatus = stage
+                }
+                guard draftVersion == attachmentDraftVersion else { return }
+                videoStatus = VideoTranscript.sendingStatus(lengthSeconds: transcript.lengthSeconds)
+                let uploaded = try await uploader.upload([LocalAttachment(
+                    filename: VideoTranscript.filename(for: transcript.title),
+                    mediaType: "text/plain",
+                    data: Data(VideoTranscript.fileText(transcript).utf8)
+                )])
+                guard draftVersion == attachmentDraftVersion else {
+                    let uploader = uploader
+                    Task { await uploader.deleteAll(uploaded.map(\.id)) }
+                    return
+                }
+                videoAttachment = uploaded.first
+                videoTitle = transcript.title
+            } catch {
+                guard draftVersion == attachmentDraftVersion else { return }
+                input = draft
+                attachmentError = (error as? VideoTranscript.Failure)?.message
+                    ?? (error as? APIError)?.message
+                    ?? "Couldn't get this video's transcript."
+                return
+            }
+        }
+
         sendError = nil
         lastFailedSend = nil
         input = ""
@@ -656,13 +712,14 @@ final class ChatViewModel {
         let origin = attachment?.origin
         attachment = nil
 
-        let sending = fileAttachments
+        let sending = fileAttachments + (videoAttachment.map { [$0] } ?? [])
 
         // Create the conversation first so the server can persist the exchange.
         if activeConversationID == nil {
-            let title = composed.isEmpty
-                ? "Attachment: \(sending.first?.filename ?? "New chat")"
-                : composed
+            let title = videoTitle.map { "Verify: \($0)" }
+                ?? (composed.isEmpty
+                    ? "Attachment: \(sending.first?.filename ?? "New chat")"
+                    : composed)
             do {
                 isCreatingConversation = true
                 defer { isCreatingConversation = false }
@@ -676,6 +733,12 @@ final class ChatViewModel {
                 input = typed
                 attachment = sendingAttachment
                 lastFailedSend = typed
+                // "Try again" fetches the video afresh, so this copy would only
+                // hold a slot against the attachment cap.
+                if let videoAttachment {
+                    let uploader = uploader
+                    Task { await uploader.deleteAll([videoAttachment.id]) }
+                }
                 sendError = ChatErrors.classify(error, message: Self.conversationCreateError)
                 return
             }

@@ -25,7 +25,7 @@ import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/sl
 import { useSureWordChat } from "@/features/chat/useSureWordChat";
 import { ShareActions } from "@/features/share/ShareActions";
 import { takePendingShare, usePendingShare } from "@/features/share/shareInbox";
-import { shareActionMessage, type ShareAction } from "@/features/share/shareIntake";
+import { shareActionMessage, shareActionsFor, type ShareAction } from "@/features/share/shareIntake";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { radius, spacing, type Colors } from "@/theme";
 import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
@@ -224,11 +224,12 @@ export default function ChatScreen() {
 			attachment={chat.attachment}
 			onClearAttachment={chat.clearAttachment}
 			fileAttachments={chat.fileAttachments}
-			uploadingAttachments={chat.uploadingAttachments}
+			uploadingAttachments={chat.uploadingAttachments || chat.videoStatus !== null}
 			uploadingLabel={
-				chat.uploadingAudio
-					? "Uploading and transcribing the voice message..."
-					: "Uploading..."
+				chat.videoStatus
+					?? (chat.uploadingAudio
+						? "Uploading and transcribing the voice message..."
+						: "Uploading...")
 			}
 			attachmentError={chat.attachmentError}
 			onTakePhoto={() => void chat.takePhoto()}
@@ -342,7 +343,8 @@ export default function ChatScreen() {
 								chat.fileAttachments.length > 0 ||
 								chat.uploadingAttachments
 							}
-							disabled={chat.uploadingAttachments || loading || isStreaming}
+							actions={shareActionsFor(chat.input)}
+							disabled={chat.uploadingAttachments || chat.videoStatus !== null || loading || isStreaming}
 							onAction={onShareAction}
 							onDismiss={() => setShareNotices(null)}
 						/>

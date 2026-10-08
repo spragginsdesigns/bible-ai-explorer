@@ -41,6 +41,7 @@ import {
 import { getSettings } from "@/features/settings/settingsStore";
 import { effortForRequest } from "./modelPickerRules";
 import {
+	MAX_ATTACHMENTS_PER_MESSAGE,
 	type ChatAttachmentDescriptor,
 	type LocalChatAttachment,
 	copySharedFileToCache,
@@ -51,6 +52,13 @@ import {
 } from "./fileAttachments";
 import { PICKER_MEDIA_TYPES, isAudioMediaType } from "./attachmentRules";
 import { downscaleImageForUpload } from "./imageDownscale";
+import {
+	fetchYouTubeTranscript,
+	transcriptFileText,
+	transcriptFilename,
+	verifyVideoRequest,
+	videoSendingStatus,
+} from "./videoTranscript";
 import { pastedImageMetadata, type PastedImageFile } from "./pastedImages";
 import type { SharedChatDraft } from "@/features/share/shareIntake";
 
@@ -84,6 +92,11 @@ export interface SureWordChat {
 	uploadingAttachments: boolean;
 	/** The upload in flight includes a voice message, which is transcribed before it finishes. */
 	uploadingAudio: boolean;
+	/**
+	 * While a "/verify <YouTube link>" fetches the video's captions before it
+	 * sends: the step it is on, in words for the composer. Null otherwise.
+	 */
+	videoStatus: string | null;
 	attachmentError: string | null;
 	takePhoto: () => Promise<void>;
 	chooseImages: () => Promise<void>;
@@ -168,6 +181,9 @@ export function useSureWordChat(): SureWordChat {
 	const [fileAttachments, setFileAttachments] = useState<ChatAttachmentDescriptor[]>([]);
 	const [uploadingAttachments, setUploadingAttachments] = useState(false);
 	const [uploadingAudio, setUploadingAudio] = useState(false);
+	const [videoStatus, setVideoStatus] = useState<string | null>(null);
+	// The state lags a render, and a double tap must not fetch the video twice.
+	const readingVideoRef = useRef(false);
 	const [attachmentError, setAttachmentError] = useState<string | null>(null);
 	const attachmentDraftVersionRef = useRef(0);
 	const setAttachment = useCallback((next: VerseAttachment) => setAttachmentState(next), []);
@@ -688,6 +704,7 @@ export function useSureWordChat(): SureWordChat {
 			if (
 				(!composed && fileAttachments.length === 0) ||
 				uploadingAttachments ||
+				readingVideoRef.current ||
 				historyLoadingRef.current ||
 				historyErrorRef.current ||
 				status === "submitted" ||
@@ -701,9 +718,70 @@ export function useSureWordChat(): SureWordChat {
 			lastFailedSendRef.current = null;
 			const sendingAttachment = attachment;
 
+			// "/verify <YouTube link>": read the captions from this phone's own
+			// connection (YouTube refuses datacenter IPs, so the server cannot)
+			// and send them as a text attachment the answer weighs against
+			// Scripture. A video that cannot be read never reaches the model:
+			// the draft comes back with the reason instead. Matched on the typed
+			// text, since a pinned verse is composed in front of it.
+			const video = verifyVideoRequest(text);
+			let videoAttachment: ChatAttachmentDescriptor | null = null;
+			let videoTitle: string | null = null;
+			if (video) {
+				// New chat, History and an incoming share all stay live during a
+				// slow fetch and each bumps the draft version; a send that outlived
+				// its draft must not land in whatever chat is open now.
+				const draftVersion = attachmentDraftVersionRef.current;
+				readingVideoRef.current = true;
+				setVideoStatus("Finding the video...");
+				setAttachmentError(null);
+				let file: File | null = null;
+				try {
+					if (fileAttachments.length >= MAX_ATTACHMENTS_PER_MESSAGE) {
+						throw new Error("Remove an attachment to make room for the video's transcript.");
+					}
+					const transcript = await fetchYouTubeTranscript(video.videoId, video.url, setVideoStatus);
+					if (draftVersion !== attachmentDraftVersionRef.current) return;
+					const contents = transcriptFileText(transcript);
+					setVideoStatus(videoSendingStatus(transcript.lengthSeconds));
+					const filename = transcriptFilename(transcript.title);
+					file = new File(Paths.cache, `verify-${Date.now()}-${filename}`);
+					file.create({ overwrite: true });
+					file.write(contents);
+					[videoAttachment] = await uploadChatAttachments(authToken, [{
+						uri: file.uri,
+						filename,
+						mediaType: "text/plain",
+						size: new TextEncoder().encode(contents).length,
+					}]);
+					if (draftVersion !== attachmentDraftVersionRef.current) {
+						void deleteChatAttachment(authToken, videoAttachment.id).catch(() => undefined);
+						return;
+					}
+					videoTitle = transcript.title;
+				} catch (error) {
+					if (draftVersion !== attachmentDraftVersionRef.current) return;
+					setInput(text);
+					setAttachmentError(error instanceof Error ? error.message : "Couldn't get this video's transcript.");
+					return;
+				} finally {
+					readingVideoRef.current = false;
+					setVideoStatus(null);
+					try {
+						file?.delete();
+					} catch {
+						// A cache file the OS can reclaim on its own; nothing to tell the user.
+					}
+				}
+			}
+
 			// Create the conversation first so the server can persist the exchange.
 			if (!conversationIdRef.current) {
-				const title = (composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`).slice(0, 60);
+				const title = (
+					videoTitle
+						? `Verify: ${videoTitle}`
+						: composed || `Attachment: ${fileAttachments[0]?.filename ?? "New chat"}`
+				).slice(0, 60);
 				try {
 					const created = await apiJson<{ id: string }>(authToken, "/api/conversations", {
 						method: "POST",
@@ -726,13 +804,16 @@ export function useSureWordChat(): SureWordChat {
 					// stream could lose the answer outright. Remember the question so
 					// "Try again" resends it instead of regenerating nothing.
 					lastFailedSendRef.current = text;
+					// "Try again" fetches the video afresh, so this copy would only
+					// hold a slot against the attachment cap.
+					if (videoAttachment) void deleteChatAttachment(authToken, videoAttachment.id).catch(() => undefined);
 					setSendError(classifyChatError(error, { message: CONVERSATION_CREATE_ERROR }));
 					return;
 				}
 			}
 
 			setAttachmentState(null);
-			const sendingAttachments = fileAttachments;
+			const sendingAttachments = videoAttachment ? [...fileAttachments, videoAttachment] : fileAttachments;
 			const sendingDetails = attachmentDetailsById(sendingAttachments);
 			setFileAttachments([]);
 			// From here the server owns the answer: if this device's stream dies
@@ -898,6 +979,7 @@ export function useSureWordChat(): SureWordChat {
 		fileAttachments,
 		uploadingAttachments,
 		uploadingAudio,
+		videoStatus,
 		attachmentError,
 		setAttachment,
 		clearAttachment,

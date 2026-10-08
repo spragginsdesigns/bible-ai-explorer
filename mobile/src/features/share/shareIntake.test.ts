@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planSharedChat, shareActionMessage, type IncomingSharedFile } from "./shareIntake";
+import { planSharedChat, shareActionMessage, shareActionsFor, type IncomingSharedFile } from "./shareIntake";
 
 const MB = 1024 * 1024;
 
@@ -103,7 +103,31 @@ describe("planSharedChat", () => {
 	});
 });
 
+describe("shareActionsFor", () => {
+	const actions = (text: string) => shareActionsFor(text).map((entry) => entry.label);
+
+	it("leads with Verify this video for a shared YouTube link", () => {
+		expect(actions("https://youtu.be/GMwihA5jnhY?si=abc")).toEqual([
+			"Verify this video",
+			"Check against Scripture",
+			"Help me reply",
+		]);
+	});
+
+	it("offers Verify this link for any other web link", () => {
+		expect(actions("Read this https://example.com/article")[0]).toBe("Verify this link");
+	});
+
+	it("leaves Verify out when nothing was linked", () => {
+		expect(actions("Karma is in the Bible, right?")).toEqual(["Check against Scripture", "Help me reply"]);
+	});
+});
+
 describe("shareActionMessage", () => {
+	it("sends a shared link as /verify", () => {
+		expect(shareActionMessage("verify", "https://youtu.be/GMwihA5jnhY")).toBe("/verify https://youtu.be/GMwihA5jnhY");
+	});
+
 	it("prefixes the composer text with the action's command", () => {
 		expect(shareActionMessage("check", "  The KJV mistranslates John 1:1. ")).toBe("/check The KJV mistranslates John 1:1.");
 		expect(shareActionMessage("reply", "You're judging me.")).toBe("/reply You're judging me.");

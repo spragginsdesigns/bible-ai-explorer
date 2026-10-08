@@ -272,10 +272,10 @@ struct ChatInputBar: View {
                 if chat.uploadingAttachments {
                     HStack(spacing: Spacing.sm) {
                         ProgressView().controlSize(.small)
-                        // Android's uploading labels.
-                        Text(chat.transcribingVoiceMessage
+                        // Android's uploading labels, and its /verify steps.
+                        Text(chat.videoStatus ?? (chat.transcribingVoiceMessage
                             ? "Uploading and transcribing the voice message..."
-                            : "Uploading...")
+                            : "Uploading..."))
                             .font(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                     }

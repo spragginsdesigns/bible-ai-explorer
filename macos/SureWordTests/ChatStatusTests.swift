@@ -105,6 +105,7 @@ struct ChatStatusTests {
             "tool-startReadingPlan", "tool-markReadingPlanDay",
             "tool-learnVerse", "tool-getLearnVerses",
             "tool-resolvePrayerRequest",
+            "tool-readLink",
         ] {
             #expect(ChatViewMessage.toolActivityLabels[name] != nil, "\(name) has no label")
         }

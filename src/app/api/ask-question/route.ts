@@ -29,6 +29,7 @@ import { audioTranscriptText } from "@/lib/audio-transcription-rules";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
+import { linksInText } from "@/lib/chat/user-links";
 import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, codeForError, streamErrorText } from "@/lib/ai/errors";
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
@@ -630,7 +631,9 @@ async function handlePost(req: Request): Promise<Response> {
 			webSearchEnabled: userPrefs?.webSearchEnabled ?? true,
 			highlightLabels,
 		};
-		const tools = buildSureWordTools(readingContext);
+		// Filled once the messages are validated below; readLink opens only these.
+		let userLinks: string[] = [];
+		const tools = buildSureWordTools({ ...readingContext, userLinks: () => userLinks });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -647,6 +650,9 @@ async function handlePost(req: Request): Promise<Response> {
 		// turned one failed answer into an unretryable conversation.
 		const lastUserIndex = allMessages.findLastIndex((message) => message.role === "user");
 		const lastMessage = lastUserIndex >= 0 ? allMessages[lastUserIndex] : undefined;
+		userLinks = allMessages
+			.filter((message) => message.role === "user")
+			.flatMap((message) => linksInText(extractText(message)));
 		if (
 			!lastMessage ||
 			(!extractText(lastMessage) && attachmentIds(lastMessage).length === 0)
@@ -821,7 +827,17 @@ async function handlePost(req: Request): Promise<Response> {
 				try {
 					writeStatus("Getting ready");
 
-					if (hasAttachments) writeStatus("Opening your attachments");
+					// A video transcript the app fetched on the phone for "/verify";
+					// say so, since a long one is the slow part.
+					if (hasAttachments) {
+						writeStatus(
+							lastMessage.parts.some(
+								(part) => part.type === "file" && Boolean(part.filename?.startsWith("YouTube-transcript-")),
+							)
+								? "Reading the video's transcript"
+								: "Opening your attachments",
+						);
+					}
 					const messages = await hydrateTrustedAttachments(validatedMessages, userId);
 					// Older turns' files are re-hydrated into this request too, so the
 					// model has to be able to read files for the whole thread. Voice

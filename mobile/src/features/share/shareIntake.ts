@@ -4,8 +4,9 @@
  * ShareIntentBridge and the chat screen applies the result.
  *
  * A share opens a new chat with the files attached and the text in the
- * composer, plus two one-tap actions: check it against Scripture (/check) or
- * help answer whoever sent it (/reply).
+ * composer, plus one-tap actions: check it against Scripture (/check) or
+ * help answer whoever sent it (/reply), and, when the share carries a link,
+ * verify the video or page itself (/verify).
  */
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
@@ -14,6 +15,7 @@ import {
 	filenameForSharedFile,
 	resolveAttachmentType,
 } from "@/features/chat/attachmentRules";
+import { findYouTubeLink } from "@/features/chat/videoTranscript";
 
 /** The parts of expo-share-intent's ShareIntent this reads. */
 export interface IncomingShare {
@@ -45,12 +47,32 @@ export interface SharedChatDraft {
 	notices: string[];
 }
 
-export type ShareAction = "check" | "reply";
+export type ShareAction = "verify" | "check" | "reply";
 
-export const SHARE_ACTIONS: readonly { action: ShareAction; label: string; command: string }[] = [
+export interface ShareActionOption {
+	action: ShareAction;
+	label: string;
+	command: string;
+}
+
+export const SHARE_ACTIONS: readonly ShareActionOption[] = [
+	{ action: "verify", label: "Verify this link", command: "/verify" },
 	{ action: "check", label: "Check against Scripture", command: "/check" },
 	{ action: "reply", label: "Help me reply", command: "/reply" },
 ];
+
+/**
+ * The actions a share offers. A shared link (the YouTube app's Share button
+ * sends just the URL) leads with Verify, worded for a video when it is one;
+ * without a link there is nothing to verify, so it is left out.
+ */
+export function shareActionsFor(composerText: string): ShareActionOption[] {
+	const rest = SHARE_ACTIONS.filter((entry) => entry.action !== "verify");
+	const video = findYouTubeLink(composerText);
+	if (!video && !/https?:\/\/\S+/i.test(composerText)) return rest;
+	const label = video ? "Verify this video" : "Verify this link";
+	return [{ action: "verify", label, command: "/verify" }, ...rest];
+}
 
 export function planSharedChat(share: IncomingShare): SharedChatDraft {
 	const text = (share.text ?? "").trim() || (share.webUrl ?? "").trim();

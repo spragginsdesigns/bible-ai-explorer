@@ -8,6 +8,7 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	findVerses: "Searching the Bible for those words",
 	getPassage: "Opening the passage",
 	webSearch: "Searching the web",
+	readLink: "Reading the link",
 	addToNote: "Writing to your note",
 	readNote: "Reading your note",
 	updateNote: "Rewriting your note",

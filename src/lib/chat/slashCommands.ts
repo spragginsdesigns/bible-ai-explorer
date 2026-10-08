@@ -66,6 +66,13 @@ export const CHAT_SLASH_COMMANDS: SlashCommand[] = [
 		kind: "ai",
 	},
 	{
+		command: "/verify",
+		hint: "<video or link>",
+		description: "Verify a YouTube video or a web link against Scripture",
+		kind: "ai",
+		requiresArgs: true,
+	},
+	{
 		command: "/reply",
 		aliases: ["/answer"],
 		hint: "[what they said]",

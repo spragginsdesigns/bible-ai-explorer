@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// The two one-tap answers to a share - "Check against Scripture" (`/check`)
-/// and "Help me reply" (`/reply`) - shown above the composer of the chat a
+/// The one-tap answers to a share - "Verify this video" (`/verify`, only when
+/// it carries a link), "Check against Scripture" (`/check`) and "Help me reply"
+/// (`/reply`) - shown above the composer of the chat a
 /// share opened, with any notice about what was left out. Port of
 /// `mobile/src/features/share/ShareActions.tsx`.
 struct ShareActionsRow: View {
@@ -32,12 +33,15 @@ struct ShareActionsRow: View {
             }
             HStack(spacing: Spacing.sm) {
                 if isActionable {
-                    ForEach(ShareAction.allCases) { action in
+                    ForEach(ShareAction.actions(for: chat.input)) { action in
                         Button {
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                             Task { await chat.sendShareAction(action) }
                         } label: {
-                            Label(action.label, systemImage: action == .check ? "checkmark.shield" : "bubble.left")
+                            Label(
+                                action.label(composerText: chat.input),
+                                systemImage: action == .verify ? "play.circle" : action == .check ? "checkmark.shield" : "bubble.left"
+                            )
                                 .font(.system(size: 13, weight: .medium))
                                 .lineLimit(1)
                                 .foregroundStyle(theme.accent)

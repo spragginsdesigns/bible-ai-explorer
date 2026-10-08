@@ -26,6 +26,7 @@ describe("matchSlashCommands", () => {
 	it("is case-insensitive on the typed token", () => {
 		expect(matchSlashCommands("/VE", CHAT_SLASH_COMMANDS).map((c) => c.command)).toEqual([
 			"/verse",
+			"/verify",
 		]);
 	});
 

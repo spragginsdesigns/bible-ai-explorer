@@ -32,7 +32,18 @@ export function combineSharedText(fields: {
 	return parts.join("\n\n").slice(0, MAX_SHARED_TEXT_LENGTH);
 }
 
-export type ShareAction = "check" | "reply";
+export type ShareAction = "verify" | "check" | "reply";
+
+/**
+ * What a shared link is, for the Verify button's wording, or null when the
+ * share carries no link (then there is nothing to verify). A YouTube video is
+ * named as one even though only the Android app can read its transcript: the
+ * answer says so and points there, which beats hiding the button.
+ */
+export function sharedLinkKind(sharedText: string): "video" | "link" | null {
+	if (/(^|[^\w.-])(?:https?:\/\/)?(?:[\w-]+\.)?(?:youtube\.com|youtu\.be)\//i.test(sharedText)) return "video";
+	return /https?:\/\/\S+/i.test(sharedText) ? "link" : null;
+}
 
 /** The chat link that prefills the command and the shared text; the user sends it. */
 export function shareActionHref(action: ShareAction, sharedText: string): string {

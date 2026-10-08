@@ -152,6 +152,7 @@ const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	"tool-searchOriginalLanguage": "Searching the Hebrew and Greek",
 	"tool-getPassage": "Opening the passage",
 	"tool-webSearch": "Searching the web",
+	"tool-readLink": "Reading the link",
 	"tool-addToNote": "Writing to your note",
 	"tool-readNote": "Reading your note",
 	"tool-updateNote": "Rewriting your note",

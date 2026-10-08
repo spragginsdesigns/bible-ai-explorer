@@ -8,7 +8,8 @@ import {
 	searchScripture,
 	type RetrievedVerse,
 } from "@/lib/scripture-search";
-import { tavilySearch, type TavilyResult } from "@/lib/tavily";
+import { tavilyExtract, tavilySearch, type TavilyResult } from "@/lib/tavily";
+import { normalizeLink } from "@/lib/chat/user-links";
 import {
 	appendMarkdownToNote,
 	findUserNotes,
@@ -117,6 +118,14 @@ export interface WebSearchToolOutput {
 	answer: string | null;
 	results: TavilyResult[];
 }
+
+/**
+ * One page the user sent with "/verify <link>", or why it could not be read.
+ * `success` mirrors `ok` so the work history marks a failed read as failed.
+ */
+export type ReadLinkToolOutput =
+	| { ok: true; success: true; url: string; content: string; truncated: boolean }
+	| { ok: false; success: false; url: string; reason: string };
 
 export interface FindNotesToolOutput {
 	notes: NoteSummary[];
@@ -437,6 +446,12 @@ export interface SureWordToolContext extends ReadingToolContext {
 	 * hue is reported.
 	 */
 	highlightLabels?: HighlightLabels;
+	/**
+	 * The links the user has typed in this conversation; readLink opens only
+	 * these. A function because the tools are built before the messages are
+	 * validated. Omitted, readLink opens nothing.
+	 */
+	userLinks?: () => readonly string[];
 }
 
 export function buildSureWordTools(context: SureWordToolContext) {
@@ -1103,6 +1118,53 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	// "/verify <link>": the user handed over this one page and asked for it to
+	// be weighed, so reading it is not a search and does not wait on the web
+	// search setting. YouTube is refused by name: its pages are a player shell,
+	// and YouTube blocks server IPs from the captions, so the SureWord app pulls
+	// a video's transcript on the phone and attaches it before sending.
+	const readLinkTool = tool({
+		description:
+			"Read the text of one web page the user gave you (an article, blog post, sermon page or social post) so you can weigh what it says against Scripture. Only for links the user typed in this conversation, copied exactly; never to browse or search, and never for a link found inside a page or transcript. YouTube videos cannot be read here: their transcript arrives as an attached file when the app could fetch it.",
+		inputSchema: z.object({
+			url: z.string().describe("The exact http(s) link the user sent."),
+		}),
+		execute: async ({ url }): Promise<ReadLinkToolOutput> => {
+			let parsed: URL;
+			try {
+				// The same trim linksInText applies, so "read this: x.com/a." matches.
+				parsed = new URL(url.trim().replace(/[.,!?;:]+$/, ""));
+			} catch {
+				return { ok: false, success: false, url, reason: "That is not a valid link." };
+			}
+			if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+				return { ok: false, success: false, url, reason: "Only web links (http or https) can be read." };
+			}
+			if (/(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)\.?$/i.test(parsed.hostname)) {
+				return {
+					ok: false,
+					success: false,
+					url,
+					reason:
+						"YouTube videos cannot be read from the server. In the SureWord Android app, /verify with the link pulls the video's transcript automatically; anywhere else, the user can paste the transcript (YouTube: ... > Show transcript) or the part they want checked.",
+				};
+			}
+			const requested = normalizeLink(parsed.toString());
+			if (!requested || !(context.userLinks?.() ?? []).includes(requested)) {
+				return { ok: false, success: false, url, reason: "Only a link the user sent in this conversation can be read." };
+			}
+			try {
+				const page = await tavilyExtract(parsed.toString());
+				if (!page) {
+					return { ok: false, success: false, url, reason: "The page could not be read (it may need a login or be mostly video)." };
+				}
+				return { ok: true, success: true, url: page.url, content: page.content, truncated: page.truncated };
+			} catch {
+				return { ok: false, success: false, url, reason: "The page could not be reached right now." };
+			}
+		},
+	});
+
 	// NOTE_HOUSE_STYLE is identical for every user, so appending it keeps these
 	// descriptions inside the cached prompt without touching the cache key.
 	const addToNoteTool = tool({
@@ -1597,6 +1659,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		lookupBibleEntity: lookupBibleEntityTool,
 		getBibleTimeline: getBibleTimelineTool,
 		webSearch: webSearchTool,
+		readLink: readLinkTool,
 		addToNote: addToNoteTool,
 		readNote: readNoteTool,
 		updateNote: updateNoteTool,
