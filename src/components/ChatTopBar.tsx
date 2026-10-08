@@ -5,8 +5,7 @@ import Link from "next/link";
 import { Menu, Sun, Moon, SquarePen, Smartphone, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
-import { ANDROID_APK_URL } from "@/lib/constants";
-import { trackNativeDownload } from "@/lib/analytics/client";
+import GetAppLink from "./GetAppLink";
 
 interface ChatTopBarProps {
 	title: string;
@@ -40,17 +39,12 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
 				>
 					<SquarePen className="w-4 h-4" />
 				</button>
-				<a
-					href={ANDROID_APK_URL}
-					onClick={() => trackNativeDownload("android", "chat-top-bar")}
-					target="_blank"
-					rel="noopener noreferrer"
-					title="Get the Android app"
-					aria-label="Get the Android app"
+				<GetAppLink
+					source="chat-top-bar"
 					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 				>
 					<Smartphone className="w-4 h-4" />
-				</a>
+				</GetAppLink>
 				<button
 					onClick={() => {
 						const isDark = document.documentElement.classList.contains("dark");

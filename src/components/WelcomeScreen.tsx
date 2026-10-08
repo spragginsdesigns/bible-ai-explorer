@@ -6,6 +6,7 @@ import { AndroidLogo, AppleLogo } from "./icons/BrandIcons";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import { buildSuggestedQuestionItems } from "@/utils/questionPresentation";
 import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
+import { IosInstallSteps, useInstallPlatform } from "./GetAppLink";
 
 interface WelcomeScreenProps {
   onSelectQuestion: (question: string) => void;
@@ -47,6 +48,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   );
   const [releases, setReleases] =
     React.useState<NativeReleases>(FALLBACK_RELEASES);
+  // An APK or DMG does nothing on an iPhone; show the Home Screen steps there.
+  const platform = useInstallPlatform();
 
   React.useEffect(() => {
     let active = true;
@@ -162,6 +165,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               ))}
         </div>
 
+        {platform === "ios" ? (
+          <div className="mx-auto mt-8 max-w-md rounded-xl gradient-border glass-card px-4 py-3">
+            <IosInstallSteps />
+          </div>
+        ) : (
         <div className="mt-8">
           <p className="text-support text-neutral-500 dark:text-neutral-400 mb-3">
             ✦ SureWord is also a native app — same account, chats, notes, memories, and daily walk.
@@ -209,6 +217,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             </a>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

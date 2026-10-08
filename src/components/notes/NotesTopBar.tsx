@@ -1,11 +1,10 @@
 "use client";
 
-import { trackNativeDownload } from "@/lib/analytics/client";
 import React from "react";
 import Link from "next/link";
 import { Menu, FilePlus, Smartphone, Sun, Moon, Settings } from "lucide-react";
 import { useTheme } from "next-themes";
-import { ANDROID_APK_URL } from "@/lib/constants";
+import GetAppLink from "../GetAppLink";
 
 interface NotesTopBarProps {
 	onToggleSidebar: () => void;
@@ -38,17 +37,12 @@ const NotesTopBar: React.FC<NotesTopBarProps> = ({ onToggleSidebar, onNewNote })
 				>
 					<FilePlus className="w-4 h-4" />
 				</button>
-				<a
-					href={ANDROID_APK_URL}
-					onClick={() => trackNativeDownload("android", "notes-top-bar")}
-					target="_blank"
-					rel="noopener noreferrer"
-					title="Get the Android app"
-					aria-label="Get the Android app"
+				<GetAppLink
+					source="notes-top-bar"
 					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
 				>
 					<Smartphone className="w-4 h-4" />
-				</a>
+				</GetAppLink>
 				<button
 					onClick={() => {
 						const isDark = document.documentElement.classList.contains("dark");
