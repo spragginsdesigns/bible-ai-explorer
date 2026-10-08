@@ -7,8 +7,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
-import { ChevronDown, Copy, GraduationCap, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
+import { ChevronDown, Copy, GraduationCap, Headphones, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { hasNarration } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { saveVerseToNote } from "@/lib/bible/verseActions";
@@ -35,12 +36,14 @@ import {
 import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 import { parseCard } from "@/components/learn/learn";
+import ChapterAudioBar from "./ChapterAudioBar";
 import CrossReferencesSection from "./CrossReferencesSection";
 import InsightTeaser from "./InsightTeaser";
 import StudyTabs, { STUDY_PANEL_ID } from "./StudyTabs";
 import VerseActionBar, { type VerseAction } from "./VerseActionBar";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
+import { useChapterAudio } from "./useChapterAudio";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useVerseInsight } from "./useVerseInsight";
 
@@ -274,6 +277,28 @@ const ChapterReader: React.FC = () => {
   }, [order, chapter]);
 
   const reference = book ? `${book.name} ${chapter}` : "";
+
+  // Listen: the narrated KJV, read along with the text. Finishing a chapter
+  // pages the reader to the next one, which carries on playing.
+  const nextChapter = neighbors.next;
+  const onChapterEnd = useCallback(() => {
+    if (!nextChapter) return;
+    router.push(
+      `/bible/chapter?book=${nextChapter.order}&chapter=${nextChapter.chapter}${
+        routeTranslation === "KJV" ? "&translation=KJV" : ""
+      }`,
+      { scroll: false }
+    );
+  }, [nextChapter, routeTranslation, router]);
+  const player = useChapterAudio({
+    book: order,
+    chapter,
+    reference,
+    enabled: translation === "KJV" && !!book,
+    onChapterEnd,
+    nextNarrated: !!nextChapter && hasNarration(nextChapter.order),
+  });
+  const { available: canListen, play: playFrom } = player;
 
   // Every label, payload and rule comes out of the shared selection contract,
   // so web, Android and Apple agree on what a range means.
@@ -552,6 +577,18 @@ const ChapterReader: React.FC = () => {
         disabled: saveBusy,
       },
     ];
+    // Plays the narration from the first selected verse.
+    if (canListen && selection) {
+      list.push({
+        key: "listen",
+        icon: Headphones,
+        label: "Listen",
+        onClick: () => {
+          playFrom(selection.start);
+          closePanel();
+        },
+      });
+    }
     // Learn is an account feature; the old sheet's button rendered nothing
     // when signed out, so the chip is absent rather than dead.
     if (user) {
@@ -578,6 +615,10 @@ const ChapterReader: React.FC = () => {
     user,
     learnStatus,
     onLearnSelection,
+    canListen,
+    playFrom,
+    selection,
+    closePanel,
   ]);
 
   const barMessage: ActionMessage | null =
@@ -627,7 +668,7 @@ const ChapterReader: React.FC = () => {
           clear of it, so the chapter stays readable to its final line. */}
       <div
         className={`mx-auto w-full max-w-2xl lg:max-w-3xl px-5 ${
-          selection ? "pb-[24rem]" : "pb-44 lg:pb-24"
+          selection ? "pb-[24rem]" : player.open ? "pb-64 lg:pb-44" : "pb-44 lg:pb-24"
         }`}
       >
         {/* Top bar. A three-track grid with equal 1fr side slots keeps the
@@ -653,6 +694,24 @@ const ChapterReader: React.FC = () => {
             </Link>
           </h1>
           <div className="flex justify-self-end gap-1 sm:gap-2">
+            {player.available ? (
+              <button
+                type="button"
+                aria-label={player.open ? (player.playing ? "Pause listening" : "Resume listening") : `Listen to ${reference}`}
+                aria-pressed={player.open}
+                title="Listen"
+                onClick={() => (player.open ? player.toggle() : player.play())}
+                className={`flex h-8 w-8 items-center justify-center gap-1.5 rounded-lg border lg:w-auto lg:px-2.5 ${
+                  player.open
+                    ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                    : "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+                }`}
+              >
+                <Headphones className="h-4 w-4" aria-hidden />
+                {/* Mobile keeps the icon in the crowded top bar; desktop names it, like Ask AI. */}
+                <span className="hidden text-xs font-semibold lg:inline">Listen</span>
+              </button>
+            ) : null}
             <Link
               href={`/bible/timeline?book=${order}&chapter=${chapter}`}
               aria-label="Who's in this chapter"
@@ -751,6 +810,7 @@ const ChapterReader: React.FC = () => {
                 const formatted = translation === "BSB" ? getBsbChapter(order, chapter)[index] : null;
                 const segments = readerVerseSegments(text, translation, order, chapter, verseNumber);
                 const selected = selectionIncludes(selection, verseNumber);
+                const beingRead = player.open && player.verse === verseNumber;
                 return (
                   <div key={verseNumber}>
                   {readerSectionHeadings(translation, order, chapter, verseNumber).map((heading, i) => <h3 key={i} className="mb-5 mt-8 font-serif text-2xl italic text-neutral-900 dark:text-neutral-100">{heading}</h3>)}
@@ -769,7 +829,7 @@ const ChapterReader: React.FC = () => {
                     // stored highlight washes the words themselves (below), so
                     // a highlighted verse still shows it is selected.
                     className={`block w-full scroll-mt-6 rounded-lg px-1 text-left transition-colors duration-500 ${
-                      selected || highlighted === verseNumber
+                      selected || highlighted === verseNumber || beingRead
                         ? parchment
                           ? "bg-amber-800/15 dark:bg-amber-400/15"
                           : "bg-amber-500/10 dark:bg-amber-400/10"
@@ -864,7 +924,7 @@ const ChapterReader: React.FC = () => {
               // full-label pill let verse text read straight through it and
               // covered 112px of the reading column. Desktop has room for the
               // label clear of the column, so it keeps the full pill.
-              className="fixed bottom-24 right-3 lg:bottom-6 lg:right-6 z-40 flex h-12 w-12 items-center justify-center gap-1.5 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-[hsl(var(--card))] text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber shadow-lg lg:h-auto lg:w-auto lg:px-6 lg:py-3 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors"
+              className={`fixed ${player.open ? "bottom-[13.5rem] lg:bottom-32" : "bottom-24 lg:bottom-6"} right-3 lg:right-6 z-40 flex h-12 w-12 items-center justify-center gap-1.5 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-[hsl(var(--card))] text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber shadow-lg lg:h-auto lg:w-auto lg:px-6 lg:py-3 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors`}
             >
               <span aria-hidden>✦</span>
               <span className="hidden lg:inline">Ask AI</span>
@@ -872,6 +932,9 @@ const ChapterReader: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* The verse sheet takes the bar's place while it is open; playback carries on. */}
+      {player.open && !selection && <ChapterAudioBar player={player} reference={reference} />}
 
       {/* Tap-a-verse, the web twin of Android's two-tier verse sheet. The
           peek (teaser + action bar) has no scrim, so the chapter stays
