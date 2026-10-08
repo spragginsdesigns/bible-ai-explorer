@@ -10,10 +10,13 @@ import SwiftUI
 /// one.
 ///
 /// Mirrors `src/components/cross/ListenCard.tsx` and
-/// `mobile/src/features/cross/ListenCard.tsx`: it shimmers until the scheduled
-/// generation lands, then becomes a player with a scrubber, a speed chip and a
-/// "Read along" transcript. Listen is a SureWord Pro benefit, so a free account
-/// gets the locked panel instead.
+/// `mobile/src/features/cross/ListenCard.tsx` (1.78.0+): opening reads status,
+/// a day with no narration offers the narrator setup ("Generate audio
+/// narrative"), a requested generation shimmers, and the result becomes a
+/// player with a scrubber, a speed chip and a "Read along" transcript. Listen
+/// is a SureWord Pro benefit, so a free account gets the locked panel instead.
+/// iOS adds a "See SureWord Pro" StoreKit button to that panel (Android has no
+/// button there; Apple billing is in-app only).
 struct ListenCard: View {
     @Environment(\.theme) private var theme
 
@@ -30,6 +33,8 @@ struct ListenCard: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 switch model.phase {
                 case .locked: lockedPanel
+                case .loading: loadingPanel
+                case .idle: setupPanel
                 case .preparing: preparingPanel
                 case .failed: failedPanel
                 case .ready: player
@@ -89,17 +94,36 @@ struct ListenCard: View {
         .accessibilityLabel("Preparing your devotional")
     }
 
+    /// Before the opening status read answers.
+    private var loadingPanel: some View {
+        Text("Loading audio…")
+            .font(.system(size: 14))
+            .foregroundStyle(theme.textSecondary)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+    }
+
+    /// Nothing made yet: choose a narrator and delivery, then ask.
+    private var setupPanel: some View {
+        let model = model
+        return NarrationSetupView(
+            loadVoices: { try await model.voices() },
+            onGenerate: { _ = model.generate($0) }
+        )
+    }
+
+    /// Android's failed card: what went wrong, then the setup panel again, so
+    /// the reader can pick a narrator before asking once more.
     private var failedPanel: some View {
         VStack(spacing: Spacing.md) {
-            Text(Listen.failureText)
+            Text(model.failureText ?? Listen.prepareFailureText)
                 .font(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
-            Button("Try again") { model.retry() }
-                .buttonStyle(AccentButtonStyle())
+                .frame(maxWidth: .infinity)
+            setupPanel
         }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Player

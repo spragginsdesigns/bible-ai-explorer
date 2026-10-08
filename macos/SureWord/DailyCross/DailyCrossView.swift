@@ -19,27 +19,42 @@ struct DailyCrossView: View {
     @State private var confirmingReplace = false
     @State private var focus = ""
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(model.todayLabel)
-                    .font(.system(size: 12))
-                    .foregroundStyle(theme.textFaint)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, Spacing.xl)
+    /// Where a landed replacement scrolls back to - Android's `scrollTo({ y: 0 })`.
+    private static let topAnchor = "cross-top"
 
-                if let entry = model.entry {
-                    timeline(entry)
-                } else if let error = model.error {
-                    errorState(error)
-                } else {
-                    LoadingBars()
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(model.todayLabel)
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, Spacing.xl)
+                        .id(Self.topAnchor)
+
+                    if let entry = model.entry {
+                        // A refresh or replacement that failed leaves the day
+                        // where it was, with the error above it.
+                        if let error = model.error {
+                            inlineError(error)
+                                .padding(.bottom, Spacing.xl)
+                        }
+                        timeline(entry)
+                    } else if let error = model.error {
+                        errorState(error)
+                    } else {
+                        LoadingBars()
+                    }
                 }
+                .frame(maxWidth: 680, alignment: .leading)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, Spacing.xxl)
+                .padding(.vertical, Spacing.xl)
             }
-            .frame(maxWidth: 680, alignment: .leading)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, Spacing.xxl)
-            .padding(.vertical, Spacing.xl)
+            .onChange(of: model.replacedCount) {
+                withAnimation { proxy.scrollTo(Self.topAnchor, anchor: .top) }
+            }
         }
         .background { MeshBackground() }
         .navigationTitle("Pick Up Your Cross")
@@ -83,6 +98,8 @@ struct DailyCrossView: View {
             TimelineStop(glyph: "♪", label: "LISTEN") {
                 ListenCard(model: model.listen, settings: app.settings)
             }
+            // One card per day, so a new word re-runs its `.task`.
+            .id(DailyCrossModel.identity(entry))
         }
 
         if let whyToday = entry.whyToday {
@@ -139,7 +156,9 @@ struct DailyCrossView: View {
             }
             .buttonStyle(.plain)
 
-            if confirmingReplace {
+            if model.isReplacing {
+                replacingPanel
+            } else if confirmingReplace {
                 replacePanel(entry)
             } else {
                 Button {
@@ -185,7 +204,27 @@ struct DailyCrossView: View {
         }
         .font(.system(size: 12))
         .foregroundStyle(theme.textFaint)
-        .disabled(model.isLoading)
+        .disabled(model.isLoading || model.isReplacing)
+    }
+
+    /// In place of the controls while a new word is prepared; the day above
+    /// stays readable. Android's exact sentence.
+    private var replacingPanel: some View {
+        HStack(spacing: Spacing.md) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Preparing a fresh word. You can keep reading this one while SureWord searches.")
+                .font(.system(size: 13))
+                .foregroundStyle(theme.textSecondary)
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Spacing.md)
+        .background(theme.surface, in: .rect(cornerRadius: Radius.lg))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.lg)
+                .strokeBorder(theme.borderStrong, lineWidth: 1)
+        }
     }
 
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
@@ -282,6 +321,22 @@ struct DailyCrossView: View {
     }
 
     // MARK: - States
+
+    /// A failed refresh or replacement above a day still on screen.
+    private func inlineError(_ message: String) -> some View {
+        GlassCard(padding: Spacing.xl) {
+            VStack(spacing: Spacing.md) {
+                Text(message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                Button("Refresh today's word") { model.load(force: true) }
+                    .buttonStyle(AccentButtonStyle())
+            }
+            .frame(maxWidth: 360)
+            .frame(maxWidth: .infinity)
+        }
+    }
 
     private func errorState(_ message: String) -> some View {
         GlassCard(padding: Spacing.xl) {

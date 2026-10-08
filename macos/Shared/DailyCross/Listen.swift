@@ -4,7 +4,7 @@ import Foundation
 ///
 /// A direct port of `src/components/cross/listen.ts` and its Android twin
 /// `mobile/src/features/cross/listen.ts`, kept out of the view for the same
-/// reason they are: which of five states the card is in, and how the speed chip
+/// reason they are: which state the card is in, and how the speed chip
 /// cycles, are the things that are easy to get wrong. `SureWordTests/ListenTests`
 /// is a port of `mobile/src/features/cross/listen.test.ts`, case for case - if
 /// you change one side, change both.
@@ -16,6 +16,10 @@ import Foundation
 /// this account is not on SureWord Pro, and the card renders the Pro panel.
 enum DailyCrossAudioStatus: String, Decodable, Sendable {
     case none, pending, ready, failed, unavailable, locked
+    /// A missing status, or one a newer deployment invented. Never sent by the
+    /// server: Android's `listenPhase` falls through to "failed" for anything
+    /// it does not recognise, and this is how the Apple port says the same.
+    case unrecognized
 }
 
 /// The caller's subscription tier, as reported alongside the audio.
@@ -27,7 +31,8 @@ enum UserPlan: String, Decodable, Sendable {
 ///
 /// Every field is decoded leniently. The route is newer than some of the rows
 /// it reads, and an unrecognised `status` from a future deployment must render
-/// the waiting card rather than fail the whole Daily Cross screen.
+/// the failed card (with its setup panel, as Android does) rather than fail the
+/// whole Daily Cross screen.
 struct DailyCrossAudio: Decodable, Equatable, Sendable {
     let status: DailyCrossAudioStatus
     /// Signed blob URL, good for 24 hours; only present while `status` is
@@ -48,7 +53,7 @@ struct DailyCrossAudio: Decodable, Equatable, Sendable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawStatus = try container.decodeIfPresent(String.self, forKey: .status)
-        status = rawStatus.flatMap(DailyCrossAudioStatus.init(rawValue:)) ?? .none
+        status = rawStatus.flatMap(DailyCrossAudioStatus.init(rawValue:)) ?? .unrecognized
         url = try container.decodeIfPresent(String.self, forKey: .url)
         streamUrl = try container.decodeIfPresent(String.self, forKey: .streamUrl)
         title = try container.decodeIfPresent(String.self, forKey: .title)
@@ -88,15 +93,14 @@ extension DailyCrossAudio {
     }
 }
 
-/// What the card should show.
+/// What the card should show - Android's `ListenPhase`.
 ///
-/// There is no `idle` phase. Nothing is generated on a tap: the day and its
-/// narration are made together, so by the time this card is on screen the
-/// devotional is ready, being made, or has failed. Every client mounts it only
-/// inside a loaded day, which is why `none` - and a nil payload before the
-/// first poll answers - read as "being made" rather than "nothing here".
+/// Since Android 1.78.0 narration is made only when the reader asks for it:
+/// opening the card only reads status, `none` is the invitation (`idle`, the
+/// narrator setup panel), and only a real `pending` generation is polled.
+/// `loading` is the moment before the first status read answers.
 enum ListenPhase: String, Sendable {
-    case hidden, locked, preparing, ready, failed
+    case hidden, locked, loading, idle, preparing, ready, failed
 }
 
 enum Listen {
@@ -143,22 +147,36 @@ enum Listen {
     /// blip.
     static let maxPlaybackFailures = 3
 
+    /// The poll timed out, a requested generation came back `failed`, or
+    /// playback spent its silent retries. Android's exact string.
     static let failureText = "Couldn't prepare audio - try again"
 
-    /// Which of the five states the card is in.
+    /// The generation request itself failed and the follow-up status read was
+    /// neither `pending` nor `ready`; also the failed card's fallback copy.
+    static let prepareFailureText = "Couldn't prepare audio. Try again."
+
+    /// The opening status read failed before anything was known.
+    static let loadFailureText = "Couldn't load audio. Try again."
+
+    /// Which state the card is in - Android's `listenPhase`, case for case.
     static func phase(_ audio: DailyCrossAudio?) -> ListenPhase {
+        guard let audio else { return .loading }
+        switch audio.status {
+        // Nothing made yet: offer the narrator setup. Only an explicit request
+        // ever starts a generation.
+        case .none: return .idle
         // A server that cannot narrate must offer nothing at all - not even for
-        // a Pro account. This outranks every other status.
-        if audio?.status == .unavailable { return .hidden }
+        // a Pro account.
+        case .unavailable: return .hidden
         // A locked benefit stays visible; hiding it would sell nothing and
-        // explain nothing. Outranks the rest: a free account has no audio to be
-        // in.
-        if audio?.status == .locked { return .locked }
-        if audio?.status == .ready, audio?.url != nil { return .ready }
-        if audio?.status == .failed { return .failed }
-        // "pending", "none" before the scheduled generation has claimed the
-        // row, a ready row with no URL, or nothing fetched yet.
-        return .preparing
+        // explain nothing.
+        case .locked: return .locked
+        // A ready row is only playable with a URL.
+        case .ready: return audio.url != nil ? .ready : .failed
+        case .failed: return .failed
+        case .pending: return .preparing
+        case .unrecognized: return .failed
+        }
     }
 
     /// Whether the card should keep polling the server in this phase.

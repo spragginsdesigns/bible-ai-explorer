@@ -26,12 +26,12 @@ private func audio(
 @Suite("Listen phase")
 struct ListenPhaseTests {
 
-    @Test("Waits by default - the devotional is made with the day, not on a tap")
-    func waitsByDefault() {
-        // Nothing here is an invitation any more: a card on screen means a day
-        // exists, and a day always schedules its narration.
-        #expect(Listen.phase(nil) == .preparing)
-        #expect(Listen.phase(audio(status: .none)) == .preparing)
+    @Test("Offers generation on demand and polls only an active request")
+    func offersGenerationOnDemand() {
+        // Android 1.78.0+: opening is idle; only an explicit request can start
+        // generation.
+        #expect(Listen.phase(nil) == .loading)
+        #expect(Listen.phase(audio(status: .none)) == .idle)
         #expect(Listen.phase(audio(status: .pending)) == .preparing)
     }
 
@@ -43,7 +43,7 @@ struct ListenPhaseTests {
 
     @Test("Does not call a ready row playable without a URL")
     func readyNeedsAURL() {
-        #expect(Listen.phase(audio(status: .ready, url: nil)) == .preparing)
+        #expect(Listen.phase(audio(status: .ready, url: nil)) == .failed)
     }
 
     @Test("Hides the card outright when the server cannot narrate")
@@ -65,19 +65,24 @@ struct ListenPhaseTests {
         #expect(!Listen.shouldPoll(.ready))
         #expect(!Listen.shouldPoll(.failed))
         #expect(!Listen.shouldPoll(.hidden))
+        // Neither the opening read nor the setup panel is a generation.
+        #expect(!Listen.shouldPoll(.loading))
+        #expect(!Listen.shouldPoll(.idle))
         // A locked card must never poll - it would be a request per three
         // seconds, forever, for an answer that cannot change.
         #expect(!Listen.shouldPoll(.locked))
     }
 
-    @Test("An unrecognised status from a newer deployment waits rather than failing")
-    func unknownStatusWaits() throws {
+    @Test("An unrecognised status from a newer deployment is the failed card, as on Android")
+    func unknownStatusFails() throws {
         let decoded = try JSONDecoder().decode(
             DailyCrossAudio.self,
             from: Data(#"{"status":"transcoding","plan":"pro"}"#.utf8)
         )
-        #expect(decoded.status == .none)
-        #expect(Listen.phase(decoded) == .preparing)
+        #expect(decoded.status == .unrecognized)
+        // Android's `listenPhase` falls through to "failed", which still
+        // offers the narrator setup - never a shimmer that cannot end.
+        #expect(Listen.phase(decoded) == .failed)
     }
 
     @Test("Decodes the route's ready payload")

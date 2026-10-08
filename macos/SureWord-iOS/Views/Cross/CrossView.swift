@@ -32,33 +32,46 @@ struct CrossView: View {
     /// a confirmation with room to say what the new day should centre on.
     @State private var confirmingReplace = false
     @State private var focus = ""
-    /// Set while a replacement is in flight so its arrival — and only its —
-    /// lands a success haptic.
-    @State private var replaceRequested = false
     /// The locked Listen panel's "See SureWord Pro" opens the in-app purchase
     /// screen over the cross (StoreKit only, never a web link).
     @State private var showingPro = false
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(model.todayLabel)
-                    .font(.footnote)
-                    .foregroundStyle(theme.textFaint)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.bottom, Spacing.xl)
+    /// Where a landed replacement scrolls back to: the top, so the new verse
+    /// is the first thing seen - Android's `scrollTo({ y: 0 })`.
+    private static let topAnchor = "cross-top"
 
-                if let entry = model.entry {
-                    timeline(entry)
-                } else if let error = model.error {
-                    errorState(error)
-                } else {
-                    LoadingBars()
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(model.todayLabel)
+                        .font(.footnote)
+                        .foregroundStyle(theme.textFaint)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, Spacing.xl)
+                        .id(Self.topAnchor)
+
+                    if let entry = model.entry {
+                        // A refresh or replacement that failed leaves the day
+                        // where it was, with the error above it.
+                        if let error = model.error {
+                            inlineError(error)
+                                .padding(.bottom, Spacing.xl)
+                        }
+                        timeline(entry)
+                    } else if let error = model.error {
+                        errorState(error)
+                    } else {
+                        LoadingBars()
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.xl)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.xl)
-            .padding(.vertical, Spacing.xl)
+            .onChange(of: model.replacedCount) {
+                withAnimation { proxy.scrollTo(Self.topAnchor, anchor: .top) }
+            }
         }
         .background { MeshBackground() }
         .navigationTitle("Pick Up Your Cross")
@@ -80,12 +93,9 @@ struct CrossView: View {
             // opened in a session, so it asks for the plan itself.
             app.bible.plan.loadIfNeeded()
         }
-        .sensoryFeedback(.success, trigger: model.entry?.reference) { _, reference in
-            replaceRequested && reference != nil
-        }
-        .onChange(of: model.entry?.reference) {
-            if model.entry != nil { replaceRequested = false }
-        }
+        // A landed replacement - and only that - earns the success haptic:
+        // `replacedCount` moves for nothing else.
+        .sensoryFeedback(.success, trigger: model.replacedCount)
     }
 
     // MARK: - Timeline
@@ -129,6 +139,9 @@ struct CrossView: View {
                         .environment(app)
                     }
             }
+            // One card per day, so a new word re-runs its `.task` - Android's
+            // `<ListenCard key={entry.id}>`.
+            .id(DailyCrossModel.identity(entry))
         }
 
         if let whyToday = entry.whyToday {
@@ -185,7 +198,9 @@ struct CrossView: View {
             }
             .buttonStyle(.plain)
 
-            if confirmingReplace {
+            if model.isReplacing {
+                replacingPanel
+            } else if confirmingReplace {
                 replacePanel(entry)
             } else {
                 Button {
@@ -233,7 +248,28 @@ struct CrossView: View {
         }
         .font(.caption)
         .foregroundStyle(theme.textFaint)
-        .disabled(model.isLoading)
+        .disabled(model.isLoading || model.isReplacing)
+    }
+
+    /// In place of the controls while a new word is prepared; the day above
+    /// stays readable. Android's exact sentence.
+    private var replacingPanel: some View {
+        HStack(spacing: Spacing.md) {
+            ProgressView()
+                .tint(theme.accent)
+            Text("Preparing a fresh word. You can keep reading this one while SureWord searches.")
+                .font(.footnote)
+                .foregroundStyle(theme.textSecondary)
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(Spacing.md)
+        .background(theme.surface, in: .rect(cornerRadius: Radius.lg))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.lg)
+                .strokeBorder(theme.borderStrong, lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
@@ -340,6 +376,22 @@ struct CrossView: View {
 
     // MARK: - States
 
+    /// A failed refresh or replacement above a day that is still on screen -
+    /// Android's inline card, with its "Refresh today's word".
+    private func inlineError(_ message: String) -> some View {
+        GlassCard(padding: Spacing.xl) {
+            VStack(spacing: Spacing.md) {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(theme.textSecondary)
+                    .multilineTextAlignment(.center)
+                Button("Refresh today's word") { model.load(force: true) }
+                    .buttonStyle(AccentButtonStyle())
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
     private func errorState(_ message: String) -> some View {
         GlassCard(padding: Spacing.xl) {
             VStack(spacing: Spacing.md) {
@@ -362,7 +414,6 @@ struct CrossView: View {
         let steer = focus.trimmingCharacters(in: .whitespacesAndNewlines)
         confirmingReplace = false
         focus = ""
-        replaceRequested = true
         model.replaceToday(focus: steer.isEmpty ? nil : steer)
     }
 
@@ -371,7 +422,6 @@ struct CrossView: View {
     private func steerDay(_ direction: DailyCrossDirection) {
         confirmingReplace = false
         focus = ""
-        replaceRequested = true
         model.replaceToday(direction: direction)
     }
 

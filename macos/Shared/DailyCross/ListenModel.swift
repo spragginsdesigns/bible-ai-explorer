@@ -12,9 +12,10 @@ import UIKit
 ///
 /// Port of the stateful half of `mobile/src/features/cross/ListenCard.tsx` and
 /// `src/components/cross/ListenCard.tsx`; the pure rules it leans on live in
-/// `Listen.swift`. The card never asks for a narration: the day and its audio
-/// are made together server-side, so this polls until the scheduled generation
-/// lands and only ever POSTs from the failed card's "Try again".
+/// `Listen.swift`. As on Android 1.78.0+, narration is made on request:
+/// opening reads status once, the narrator setup panel's "Generate audio
+/// narrative" is the only POST, and only a pending generation (or this
+/// client's own request in flight) is polled.
 ///
 /// Owned by `DailyCrossModel` rather than the view, for the reason the day
 /// itself is: the Daily Cross pane is destroyed every time the sidebar moves,
@@ -27,9 +28,13 @@ final class ListenModel {
     // MARK: - Published state
 
     private(set) var audio: DailyCrossAudio?
-    /// Set only by a real dead end: the poll timeout, or a playback failure
-    /// that has already spent both of its silent retries.
-    private(set) var failed = false
+    /// The failed card's message. Set only by a real dead end: the opening
+    /// status read failing, the poll timeout, a requested generation that
+    /// failed, or a playback failure that has spent its silent retries.
+    private(set) var failureText: String?
+    /// This client's own generation request is in flight. The card shows
+    /// "preparing" for its whole length, as Android does.
+    private(set) var isRequesting = false
     private(set) var isPlaying = false
     private(set) var currentTime: Double = 0
     /// The player's real duration once the file is loaded.
@@ -46,7 +51,12 @@ final class ListenModel {
     /// Playing item says which day's word is speaking.
     var reference: String?
 
-    var phase: ListenPhase { failed ? .failed : Listen.phase(audio) }
+    /// Android's `requesting ? "preparing" : failureText ? "failed" : listenPhase(audio)`.
+    var phase: ListenPhase {
+        if isRequesting { return .preparing }
+        if failureText != nil { return .failed }
+        return Listen.phase(audio)
+    }
 
     /// The player's duration once loaded; the server's word-count estimate
     /// before that, so the total never reads 0:00 while buffering.
@@ -61,12 +71,21 @@ final class ListenModel {
 
     // MARK: - Dependencies
 
-    private let api: APIClient
+    private let transport: ListenTransport
     private let mintToken: TokenProvider
 
-    init(api: APIClient, token: @escaping TokenProvider = ClerkAuth.tokenProvider) {
-        self.api = api
+    convenience init(api: APIClient, token: @escaping TokenProvider = ClerkAuth.tokenProvider) {
+        self.init(transport: .live(api: api), token: token)
+    }
+
+    init(transport: ListenTransport, token: @escaping TokenProvider = ClerkAuth.tokenProvider) {
+        self.transport = transport
         self.mintToken = token
+    }
+
+    /// The narrator catalog, for the setup panel.
+    func voices() async throws -> NarrationVoices {
+        try await transport.voices()
     }
 
     // MARK: - Player plumbing
@@ -78,7 +97,16 @@ final class ListenModel {
     private var notificationTokens: [any NSObjectProtocol] = []
     private var remoteTargets: [(MPRemoteCommand, Any)] = []
 
+    /// The opening status read. Cleared when it finishes, so `begin()` can
+    /// read again; `lifecycleRun` stops a superseded read clearing its
+    /// successor.
     private var lifecycle: Task<Void, Never>?
+    private var lifecycleRun = 0
+    /// The poll loop while preparing, with the same superseded-run guard.
+    private var pollTask: Task<Void, Never>?
+    private var pollRun = 0
+    /// This client's own generation request.
+    private var requestTask: Task<Void, Never>?
     private var playerTask: Task<Void, Never>?
     private var stallTask: Task<Void, Never>?
     private var steadyTask: Task<Void, Never>?
@@ -120,11 +148,28 @@ final class ListenModel {
 
     // MARK: - Lifecycle
 
-    /// Start (or resume) the poll loop. Idempotent - the card's `.task` calls
-    /// it on every appearance, and a listen already in progress is left alone.
-    func begin() {
-        guard lifecycle == nil || lifecycle?.isCancelled == true else { return }
-        lifecycle = Task { [weak self] in await self?.run() }
+    /// Read today's status (and poll it if a generation is pending). Re-runnable:
+    /// it coalesces while a read is in flight, but once that read has finished
+    /// the next call reads again - which is what lets a reopened sheet, a new
+    /// day or a replaced word re-ask the server. Android gets the same by
+    /// remounting its card per day (`key={entry.id}`). A listen already in
+    /// progress is left alone: the re-read only rebuilds the player if the
+    /// source really moved (`Listen.sourceIdentity`).
+    ///
+    /// Returns the read's task so tests can await it.
+    @discardableResult
+    func begin() -> Task<Void, Never>? {
+        if let lifecycle { return lifecycle }
+        lifecycleRun &+= 1
+        let run = lifecycleRun
+        let task = Task { [weak self] in
+            await self?.openingRead()
+            guard let self, !Task.isCancelled, run == self.lifecycleRun else { return }
+            self.lifecycle = nil
+            self.startPolling()
+        }
+        lifecycle = task
+        return task
     }
 
     /// Drop everything and stop the audio: a new day's word has landed, or the
@@ -132,13 +177,20 @@ final class ListenModel {
     func reset() {
         lifecycle?.cancel()
         lifecycle = nil
+        lifecycleRun &+= 1
+        pollTask?.cancel()
+        pollTask = nil
+        pollRun &+= 1
+        requestTask?.cancel()
+        requestTask = nil
+        isRequesting = false
         playerTask?.cancel()
         stallTask?.cancel()
         steadyTask?.cancel()
         failureTask?.cancel()
         teardownPlayer()
         audio = nil
-        failed = false
+        failureText = nil
         currentTime = 0
         itemDuration = 0
         transcriptOpen = false
@@ -153,23 +205,54 @@ final class ListenModel {
         resumePlaying = false
     }
 
-    private func run() async {
-        await load()
+    /// The status read on opening. A failure here, before anything is known,
+    /// is the failed card with Android's "Couldn't load audio. Try again." -
+    /// but only then: a re-read failing under a card that already has a state
+    /// keeps that state.
+    private func openingRead() async {
+        do {
+            let next = try await transport.state()
+            guard !Task.isCancelled else { return }
+            apply(next)
+        } catch {
+            guard !Task.isCancelled, audio == nil else { return }
+            failureText = Listen.loadFailureText
+        }
+    }
+
+    /// Poll every `Listen.pollInterval` while the card is preparing - a
+    /// pending generation, or this client's own request in flight - and give
+    /// up after `Listen.pollTimeout` rather than shimmer forever. Idempotent.
+    private func startPolling() {
+        guard pollTask == nil, Listen.shouldPoll(phase) else { return }
+        pollRun &+= 1
+        let run = pollRun
+        pollTask = Task { [weak self] in
+            await self?.poll()
+            guard let self, run == self.pollRun else { return }
+            self.pollTask = nil
+        }
+    }
+
+    private func poll() async {
         let startedAt = Date.now
         while !Task.isCancelled, Listen.shouldPoll(phase) {
             if Date.now.timeIntervalSince(startedAt) > Listen.pollTimeout {
-                failed = true
+                failureText = Listen.failureText
                 return
             }
             try? await Task.sleep(for: Listen.pollInterval)
-            guard !Task.isCancelled else { return }
+            // The request may have landed during the sleep.
+            guard !Task.isCancelled, Listen.shouldPoll(phase) else { return }
             await load()
         }
     }
 
     private func load() async {
         do {
-            apply(try await ListenAPI.state(api: api))
+            let next = try await transport.state()
+            guard !Task.isCancelled else { return }
+            apply(next)
         } catch {
             // A failed poll is not a failed generation: the next tick retries,
             // and the poll timeout is what eventually surfaces a problem.
@@ -181,45 +264,67 @@ final class ListenModel {
     ///
     /// "Moved" is `Listen.sourceIdentity`, not `streamUrl` - see the note
     /// there. A source that really moved is also a fresh chance, so it lifts
-    /// the failure latch: without that, one dead playback left the card stuck
-    /// on "Try again" forever, and "Try again" POSTs, which routes a playback
-    /// fault through the generation endpoint and bills an ElevenLabs call for
-    /// a narration that already exists.
-    private func apply(_ next: DailyCrossAudio) {
+    /// the failure latch. `rebuild` forces a fresh player for the same source:
+    /// a generate request answered with the narration that already exists
+    /// (the failed card after a dead playback) must get a working player, not
+    /// the dead one. The server reuses a ready row rather than billing a
+    /// second narration, so that request costs nothing.
+    private func apply(_ next: DailyCrossAudio, rebuild: Bool = false) {
         let identity = Listen.sourceIdentity(next)
         let moved = identity != sourceIdentity
         audio = next
         urlFetchedAt = next.url != nil ? .now : nil
-        if moved {
+        if moved || (rebuild && identity != nil) {
             sourceIdentity = identity
             tokenRetried = false
             urlRefreshed = false
             consecutiveFailures = 0
-            if next.status == .ready { failed = false }
+            if next.status == .ready { failureText = nil }
             rebuildPlayer()
         }
         updateNowPlaying()
     }
 
-    /// The manual retry, and the only thing that ever POSTs.
-    func retry() {
-        failed = false
-        lifecycle?.cancel()
-        lifecycle = Task { [weak self] in
+    /// "Generate audio narrative": the explicit request, and the only thing
+    /// that ever POSTs. A port of Android's `retry(options)`.
+    ///
+    /// The card reads "preparing" for the whole request, and the status is
+    /// polled alongside it. A request that errors (it can time out while the
+    /// server is still narrating) falls back to one status read: pending or
+    /// ready carries on, anything else is the failed card.
+    @discardableResult
+    func generate(_ options: NarrationOptions) -> Task<Void, Never>? {
+        guard !isRequesting else { return requestTask }
+        isRequesting = true
+        failureText = nil
+        let task = Task { [weak self] in
             guard let self else { return }
             do {
-                let result = try await ListenAPI.retry(api: api)
-                apply(result)
-                if result.status == .failed { failed = true }
+                let result = try await transport.generate(options)
+                guard !Task.isCancelled else { return }
+                apply(result, rebuild: result.status == .ready)
+                if result.status == .failed { failureText = Listen.failureText }
             } catch {
-                // The request itself can time out while the server is still
-                // narrating, so fall back to polling rather than declaring
-                // failure here.
-                await load()
+                guard !Task.isCancelled else { return }
+                do {
+                    let state = try await transport.state()
+                    guard !Task.isCancelled else { return }
+                    apply(state)
+                    if state.status != .pending, state.status != .ready {
+                        failureText = Listen.prepareFailureText
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    failureText = Listen.prepareFailureText
+                }
             }
-            guard !Task.isCancelled else { return }
-            await run()
+            isRequesting = false
+            requestTask = nil
+            startPolling()
         }
+        requestTask = task
+        startPolling()
+        return task
     }
 
     // MARK: - Building the player
@@ -484,7 +589,7 @@ final class ListenModel {
         guard generation == playerGeneration else { return }
         consecutiveFailures += 1
         guard !Listen.shouldSurfaceFailure(consecutiveFailures: consecutiveFailures) else {
-            failed = true
+            failureText = Listen.failureText
             return
         }
 
@@ -500,16 +605,16 @@ final class ListenModel {
         }
 
         guard Listen.shouldRefreshURL(urlFetchedAt: urlFetchedAt, alreadyRetried: urlRefreshed) else {
-            failed = true
+            failureText = Listen.failureText
             return
         }
         urlRefreshed = true
         resumeAt = currentTime
         resumePlaying = true
         do {
-            let fresh = try await ListenAPI.state(api: api)
+            let fresh = try await transport.state()
             guard fresh.status == .ready, fresh.streamUrl != nil else {
-                failed = true
+                failureText = Listen.failureText
                 return
             }
             audio = fresh
@@ -519,7 +624,7 @@ final class ListenModel {
             sourceIdentity = Listen.sourceIdentity(fresh)
             rebuildPlayer()
         } catch {
-            failed = true
+            failureText = Listen.failureText
         }
     }
 
@@ -705,6 +810,8 @@ final class ListenModel {
     /// loop would keep asking the server about a devotional nobody is holding.
     isolated deinit {
         lifecycle?.cancel()
+        pollTask?.cancel()
+        requestTask?.cancel()
         playerTask?.cancel()
         stallTask?.cancel()
         steadyTask?.cancel()
