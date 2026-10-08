@@ -94,7 +94,11 @@ final class LearnContractTests: XCTestCase {
         let unknown = json(Self.card(translation: "unknown"))
         XCTAssertThrowsError(try decode(LearnToday.self, #"{"cards":[\#(unknown)],"knownCount":0,"queueCount":1}"#))
         // knownAt must be present (null or an instant), as `parseCard` demands.
-        let missingKnownAt = card.replacingOccurrences(of: #","knownAt":null"#, with: "")
+        // Dictionary key order is per-process, so the key may lead the object
+        // (no comma before it); strip it in either position.
+        let missingKnownAt = card
+            .replacingOccurrences(of: #""knownAt":null,"#, with: "")
+            .replacingOccurrences(of: #","knownAt":null"#, with: "")
         XCTAssertNotEqual(missingKnownAt, card)
         XCTAssertThrowsError(try decode(LearnCard.self, missingKnownAt))
         XCTAssertThrowsError(try decode(LearnCard.self, json(Self.card(stage: 4))))
