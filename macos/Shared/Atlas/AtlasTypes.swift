@@ -301,6 +301,41 @@ struct AtlasTimelineResponse: Codable, Equatable, Sendable {
     }
 }
 
+/// `GET /api/bible/atlas?book=&chapter=`: who and where a chapter is about,
+/// from the atlas's own references (not only the chapter's events).
+struct AtlasChapterView: Codable, Equatable, Sendable {
+    let people: [AtlasEntityRef]
+    let places: [AtlasEntityRef]
+    let events: [AtlasEventView]
+
+    init(people: [AtlasEntityRef] = [], places: [AtlasEntityRef] = [], events: [AtlasEventView] = []) {
+        self.people = people
+        self.places = places
+        self.events = events
+    }
+
+    private enum CodingKeys: String, CodingKey { case people, places, events }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        people = try values.decodeIfPresent([AtlasEntityRef].self, forKey: .people) ?? []
+        places = try values.decodeIfPresent([AtlasEntityRef].self, forKey: .places) ?? []
+        events = try values.decodeIfPresent([AtlasEventView].self, forKey: .events) ?? []
+    }
+
+    /// People first, then places, as Android's chapter header lists them.
+    var entities: [AtlasEntityRef] { people + places }
+}
+
+/// What a timeline on screen was loaded for, so a shell sharing one model can
+/// tell that another screen replaced its rail and reload it.
+struct AtlasTimelineKey: Equatable, Sendable {
+    var era: AtlasEra?
+    var book: Int?
+    var chapter: Int?
+    var personID: String?
+}
+
 struct AtlasPersonConnectionPath: Codable, Equatable, Sendable {
     let ids: [String]
     let entities: [AtlasEntitySummary]
