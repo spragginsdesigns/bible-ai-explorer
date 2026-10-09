@@ -1,7 +1,18 @@
+One description for both stores (Austin, 2026-10-09): this text is the Play
+full description in `docs/PLAY_STORE.md` word for word, plus the App Store's
+required subscription terms and links at the end. Change both together. It
+opens with why the Word matters (Matthew 24:35) and names, in plain phrases,
+what people search for: KJV Bible, King James Version, audio Bible, verse of
+the day, daily devotional, Strong's concordance, Bible reading plans, prayer
+list, Scripture memory, Bible timeline, Bible study notes. Apple does not
+index the description for search (the name, subtitle and keywords do), but
+Play does, so the phrases earn their place there. Not yet entered in App
+Store Connect; see the PENDING block at the top.
+
 # App Store listing copy (PRD H3)
 
 > **PENDING (2026-10-09): App Store Connect is behind this file.** The name,
-> subtitle, description and keywords below were rewritten on 2026-10-09 but
+> subtitle, promotional text, description and keywords below were rewritten on 2026-10-09 but
 > could not be entered: 1.13.0 was Waiting for Review, which locks them, and
 > Austin chose not to pull it. As soon as that review finishes (approved or
 > rejected), on the Mac:
@@ -50,80 +61,85 @@ the icon on the device stays `SureWord`. Matches the Play title in
 ## Promotional text (170 max, editable without review)
 
 ```
-Your daily walk with God, rooted in the King James Bible. A verse chosen for you each morning, answers that cite Scripture, and study that remembers your journey.
+KJV Bible study with AI: audio Bible, verse of the day, prayer and reading plans
 ```
 
-162 characters.
+80 characters, identical to the Play short description (Austin, 2026-10-09: both stores say the same thing).
 
 ## Description (4000 max)
 
 ```
-Your personal Bible guide, rooted in the King James Bible.
+Come hungry for the Word.
 
-SureWord is for Christians who hold the King James Bible as the inerrant, infallible Word of God. Read it, hear it, ask about it and live it, with a guide that learns where you are in your walk with the Lord and meets you there. Every answer searches the Scriptures first and cites the verses in context.
+"Heaven and earth shall pass away, but my words shall not pass away." Matthew 24:35
 
-"Thy word is a lamp unto my feet, and a light unto my path." Psalm 119:105
+Nothing you read today matters more than the Word of God. SureWord is a KJV Bible app and personal Bible study companion with AI, made for Christians who believe the King James Bible is the inerrant, infallible Word of God. Read it, hear it, study it and live it every day, with a guide that learns where you are in your walk with the Lord and always points you back to Scripture.
 
-PICK UP YOUR CROSS, EVERY MORNING
-• One verse chosen for you each day from your own reading, questions and notes, with why it was chosen and how to live it today (Luke 9:23)
-• Stay with today's word, or ask for a fresh one
-• A gentle reminder at the hour you choose
-
-ASK, AND SEE WHAT IS WRITTEN
-• Ask anything about the Bible and get an answer that quotes the King James text word for word, every reference one tap from the reader
+ASK THE BIBLE ANYTHING
+• Answers that search the Scriptures first and quote the King James Version word for word, every verse one tap from the reader
 • Find the verse you half remember, by meaning or by exact words
 • Cross-references that trace a verse through the whole Bible
-• The Hebrew and Greek behind any verse, word by word, with Strong's numbers
-• Copy, edit and try again on your questions; share, save or rate any answer
-• SureWord AI works the moment you sign in, or bring your own OpenAI, Anthropic, Moonshot or OpenRouter key
+• Hebrew and Greek word study with Strong's concordance numbers
+• Copy, edit and try again; share, save or rate any answer
 
-TRY EVERY WORD BY THE WORD
-• /check weighs a claim, a message or a screenshot against Scripture
-• /reply helps you answer a friend in your own voice, with grace
-• /verify tests what a YouTube video or a web page teaches, claim by claim, with the passages that settle it
-• Ask with a photo, PDF, text file or voice message, or share one into SureWord from any app
+TEST EVERYTHING BY SCRIPTURE
+• /check weighs a claim, a message or a screenshot against the Bible
+• /verify tests what a sermon video, YouTube video or web page teaches, claim by claim
+• /reply helps you answer a friend with grace and truth
+• Ask with a photo, PDF, text file or voice message, or share one in from any app
 
-READ AND HEAR THE BIBLE
-• The complete King James Bible built in and readable offline, with the NKJV and the Berean Standard Bible also available
-• Audio Bible: the whole KJV narrated, Genesis to Revelation, following along verse by verse
-• Words of Christ in red on a parchment page, light or dark
-• Tap a verse for a reverent explanation, word study and related passages
+READ AND LISTEN TO THE KJV BIBLE
+• The complete King James Bible offline, plus the NKJV and the Berean Standard Bible
+• Audio Bible: the whole KJV narrated, Genesis to Revelation, verse by verse
+• Words of Christ in red on a parchment page, in light or dark mode
+• Tap any verse for a clear explanation, word study and related passages
 • Highlight verses in eight colors and name what each color means
-• Pick up right where you left off
 
-GROW IN YOUR WALK
-• Your walk: a reflection on your reading, a map of every book, your streak and your history day by day
-• Reading plans, guided or built around your own goal
-• Learn a verse: practice it word by word until it is written on your heart
-• Timeline, People and Places: walk Bible history and see who and where each chapter is about
+DAILY DEVOTIONAL: PICK UP YOUR CROSS
+• A verse of the day chosen for you from your own reading, questions and notes, with how to live it today (Luke 9:23)
+• Stay with today's word, or ask for a fresh one
+• A daily reminder at the hour you choose
+
+GROW IN YOUR WALK WITH GOD
+• Bible reading plans, guided or built around your own goal
+• Your walk: a reading log with your streak, a map of every book and a short reflection on what you have read
+• Scripture memory: learn a verse word by word until it is written on your heart
+• Bible timeline, people and places, from Creation to Revelation
 • Sermon studies: your church's sermons as guided studies for the week, where available
 
-A GUIDE THAT KNOWS YOU
-• About me and My testimony: tell SureWord where you are in your walk, privately, so answers meet you there
+A BIBLE GUIDE THAT KNOWS YOU
+• Share your testimony and where you are in your faith, privately, so answers meet you there
+• Prayer list: requests that come back to you, so you can mark how God answered
 • My church: save your congregation, and SureWord keeps it in mind
-• Prayer requests that come back to you, so you can mark how God answered
-• Memory you control: see, add, delete or turn off everything SureWord keeps
+• Memory you control: see, add or delete everything SureWord remembers
 
-YOUR STUDY, KEPT TOGETHER
-• Bible study notes with folders, tags, pins, templates and linked notes
+BIBLE STUDY NOTES
+• Notes with folders, tags, templates and linked notes
 • SureWord can find, read, add to and tidy your notes when you ask
 
+YOUR CHOICE OF AI
+• SureWord AI works the moment you sign in, or bring your own OpenAI, Anthropic, Moonshot or OpenRouter key
+
 SUREWORD PRO
-An optional monthly subscription adds Listen (the daily devotional read aloud), more AI messages each day, deeper reasoning from SureWord AI, and unlimited voice message transcription. Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, and can be managed or cancelled in your App Store account settings.
+An optional monthly subscription adds Listen (the daily devotional read aloud), more AI messages each day, deeper reasoning and unlimited voice message transcription.
 
 PRIVATE BY DESIGN
 • No ads, and your study is never sold
 • Delete your account and everything in it from Settings at any time
 
-SureWord is a study aid, not a replacement for your Bible or your local church. Its AI can make mistakes, so search the Scriptures daily to see whether these things are so (Acts 17:11).
+SureWord is a study aid, not a replacement for your Bible or your church. AI can make mistakes, so search the Scriptures daily to see whether these things are so (Acts 17:11).
 
-Also on Android, Mac and the web at sureword.app, all kept in step.
+One account on your phone, tablet, Mac and the web at sureword.app.
+
+Open the Word today. Come hungry.
+
+Payment is charged to your Apple Account at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, and can be managed or cancelled in your App Store account settings.
 
 Terms of Use: https://sureword.app/terms
 Privacy Policy: https://sureword.app/privacy
 ```
 
-Measured length: 3971 characters (limit 4000), counted by code point.
+Measured length: 3834 characters (limit 4000), counted by code point.
 
 Rewritten 2026-10-09 to cover the whole app under the new name: Audio Bible,
 `/verify`, copy/edit/try again, the Your walk reading log, sermon studies and
@@ -142,23 +158,29 @@ not `verified` for the build being submitted):
 - "Audio Bible": PARITY Audio Bible row (Apple 1.12.0, 🟡 today).
 - "Your walk" reading log: PROGRESS C10 (`source` today).
 - "Sermon studies": PROGRESS C11 (`source` today).
-- "Prayer requests": PARITY prayer-request row (⚠️ shared code today).
+- "Prayer list": PARITY prayer-request row (⚠️ shared code today).
+- "Scripture memory": PROGRESS C8 (Learn a verse).
+- "Bible reading plans": PROGRESS C7 (`source` today).
 - "Stay with today's word, or ask for a fresh one": PROGRESS D4.
-- "share one into SureWord from any app": PROGRESS D8.
+- "templates and linked notes": PROGRESS E1 and E3 (`source` today).
+- "share one in from any app": PROGRESS D8.
 - "Delete your account ... from Settings": PROGRESS A1 client row.
 - "word study": PROGRESS C2.
-- "Timeline, People and Places": PROGRESS C9 (`source` today).
+- "Bible timeline, people and places": PROGRESS C9 (`source` today).
 
 ## Keywords (100 max, comma separated, no spaces)
 
 ```
-scripture,devotional,king james,verse,christian,jesus,prayer,faith,church,study,ai,concordance
+king james,audio,devotional,verse,day,scripture,study,prayer,christian,ai,strongs,concordance,plan
 ```
 
-94 characters. Words already in the name or subtitle (SureWord, Personal,
-Bible, Guide, Walk, Word, KJV) are indexed from there and left out. "study"
-and "ai" moved here on 2026-10-09 when the old subtitle that carried them was
-retired; "gospel" and "notes" were dropped to make room. No competitor names.
+98 characters. Words already in the name or subtitle (SureWord, Personal,
+Bible, Guide, Walk, Word, KJV) are indexed from there and left out; Apple
+combines words across fields, so "audio" + Bible finds "audio Bible", "verse" +
+"day" finds "verse of the day", "strongs" + "concordance" finds "Strong's
+concordance" and "plan" finds "Bible reading plan". Reworked 2026-10-09 for
+search; "jesus", "faith", "church" and "notes" were dropped to make room. No
+competitor names.
 
 ## Categories
 
