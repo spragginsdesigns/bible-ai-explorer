@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.13.0"
-    CURRENT_PROJECT_VERSION: "15"
+    MARKETING_VERSION: "1.14.0"
+    CURRENT_PROJECT_VERSION: "16"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -193,7 +193,8 @@ targets:
           - CormorantGaramond-Medium.ttf
           - CormorantGaramond-MediumItalic.ttf
         # No launch storyboard — SwiftUI builds the launch screen from this.
-        UILaunchScreen: {}
+        UILaunchScreen:
+          UIColorName: SureWordLaunchBackground
         # App Store validation rejects an iPad-capable bundle without these
         # (iPad multitasking needs all four). iPhone skips upside-down, as
         # Apple's own apps do.

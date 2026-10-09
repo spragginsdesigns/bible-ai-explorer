@@ -38,6 +38,7 @@ struct SureWordIOSApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .sureWordLaunchSplash()
                 .prefetchClerkImages()
                 // Clerk's OAuth round-trip returns through the `sureword://`
                 // scheme; without this sign-in hangs on the last step. URLs

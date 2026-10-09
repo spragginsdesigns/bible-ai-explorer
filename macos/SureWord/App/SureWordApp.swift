@@ -49,6 +49,7 @@ struct SureWordApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(root: root)
+                .sureWordLaunchSplash()
                 .prefetchClerkImages()
                 // Clerk's OAuth round-trip returns through the `sureword://`
                 // scheme; without this the browser hands back a callback the app

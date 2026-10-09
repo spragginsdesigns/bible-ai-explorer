@@ -9,6 +9,7 @@ import ReadingLogSync from "../components/bible/readingLogClient";
 import PreferencesSync from "../components/PreferencesSync";
 import AnalyticsProvider from "../components/analytics/AnalyticsProvider";
 import AIConsentPresenter from "@/components/AIConsentPresenter";
+import LaunchSplash from "@/components/LaunchSplash";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
 	subsets: ["latin"],
@@ -162,6 +163,7 @@ export default function RootLayout({
 						disableTransitionOnChange
 					>
 						{children}
+						<LaunchSplash />
 						<MobileBottomNav />
 						{/* One mount for the whole app: hydrates the account
 						    preferences and reports a write that did not stick. */}

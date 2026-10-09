@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.86.0 (versionCode 97) - 2026-10-09 - internal
+
+**What's new (Play):**
+
+NEW
+- A beautiful dawn welcome for your walk with God, with a short, silent reveal when you open SureWord or return to it.
+- Tap to skip. Reduced-motion and screen-reader settings take you straight into the app.
+
+**Dev notes:** Original local dawn artwork, native image animation, real background-return replay, inactive-dialog guard and bounded cleanup.
+
 ## 1.85.0 (versionCode 96) - 2026-10-09 - internal
 
 **What's new (Play):**

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { AppState, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
@@ -32,6 +32,7 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { ShareIntentBridge } from "@/features/share/ShareIntentBridge";
 import {
 	markLaunchAnimationStartedThisSession,
+	recordLaunchAppState,
 	shouldShowLaunchAnimationThisSession,
 } from "@/components/launchAnimationSession";
 
@@ -163,6 +164,19 @@ export default function RootLayout() {
 	const [showAnimatedSplash, setShowAnimatedSplash] = useState(
 		shouldShowLaunchAnimationThisSession,
 	);
+	const [splashGeneration, setSplashGeneration] = useState(0);
+
+	useEffect(() => {
+		const subscription = AppState.addEventListener("change", (next) => {
+			const replay = recordLaunchAppState(next);
+			if (next === "background") setShowAnimatedSplash(false);
+			if (replay) {
+				setSplashGeneration((current) => current + 1);
+				setShowAnimatedSplash(true);
+			}
+		});
+		return () => subscription.remove();
+	}, []);
 
 	useEffect(() => {
 		Promise.all([hydrateSettings(), hydrateHighlights(), hydrateNotificationSettings()])
@@ -230,7 +244,7 @@ export default function RootLayout() {
 					<View style={{ flex: 1 }}>
 						<ThemedShell />
 						{showAnimatedSplash ? (
-							<AnimatedSplash onFinish={() => setShowAnimatedSplash(false)} />
+							<AnimatedSplash key={splashGeneration} onFinish={() => setShowAnimatedSplash(false)} />
 						) : null}
 					</View>
 				</PostHogProvider>

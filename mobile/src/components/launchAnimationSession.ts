@@ -1,4 +1,5 @@
 let launchAnimationStarted = false;
+let backgrounded = false;
 
 /**
  * The module is recreated only when Android starts a fresh JavaScript process.
@@ -14,4 +15,13 @@ export function markLaunchAnimationStartedThisSession() {
 
 export function resetLaunchAnimationSessionForTests() {
 	launchAnimationStarted = false;
+	backgrounded = false;
+}
+
+/** Inactive includes permission dialogs. Replay only after a real background. */
+export function recordLaunchAppState(state: string): boolean {
+	if (state === "background") backgrounded = true;
+	if (state !== "active" || !backgrounded) return false;
+	backgrounded = false;
+	return true;
 }
