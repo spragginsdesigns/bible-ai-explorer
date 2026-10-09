@@ -145,8 +145,10 @@ requirements before using them.
    - Short description (80 chars):
      `Come hungry for the Word: your personal Bible study companion.`
     - Full description: see below. Refresh it when a user-visible feature lands;
-      the current copy includes Pick Up Your Cross, Listen, Reading Plans,
-      Timeline/People/Places, My church, and rich attachments.
+      rewritten 2026-10-09 (3808 of 4000 chars) to cover the whole app under
+      the new name, in the same sections as the App Store description in
+      `docs/ios/app-store-listing.md`. It names iPhone/iPad only once the iOS
+      app is live.
    - Icon: `docs/play-store/icon-512.png` · Feature graphic:
      `docs/play-store/feature-graphic-1024x500.png`
    - Screenshots: at least 2 phone screenshots (capture from the S26 Ultra:
@@ -166,51 +168,65 @@ requirements before using them.
 ```
 Come hungry for the Word.
 
-SureWord is your personal Bible study companion, shaped by your reading,
-questions, notes, and daily walk—helping you go deeper in Scripture every
-day. Scripture comes first: answers are grounded in God's inerrant, infallible
-Word.
+SureWord is your personal Bible guide, rooted in the King James Bible and made for Christians who hold it as the inerrant, infallible Word of God. Read it, hear it, ask about it and live it, with a guide that learns where you are in your walk with the Lord and meets you there. Every answer searches the Scriptures first and cites the verses in context.
 
-“As newborn babes, desire the sincere milk of the word, that ye may grow
-thereby:” — 1 Peter 2:2, KJV
+"As newborn babes, desire the sincere milk of the word, that ye may grow thereby." 1 Peter 2:2
 
-The KJV is the foundation and default, quoted word for word, with NKJV
-available when you select it. Ask anything about the Bible and study with an AI
-assistant that answers from a believing perspective.
-
-FOUNDED ON SCRIPTURE
-• Answers cite and quote your selected Bible text exactly - KJV by default
-• Semantic Scripture search finds the verse you half-remember
-• Cross-references trace a verse across the whole Bible
-• Original languages: see the Hebrew and Greek behind any verse, word by
-  word, with Strong's numbers and definitions
-
-A COMPLETE STUDY APP
-• Full offline KJV Bible reader (NKJV available) with search and quick-jump
-• Tap any verse for an instant, reverent explanation
-• Rich Bible study notes with folders and tags - the assistant can find,
-  read, and (when you ask) reorganize them
-• Attach photos, screenshots, PDFs, and text files to your questions - including
-  Paste screenshot from the clipboard
-
-YOUR STUDY, ORGANIZED
-• Reading Plans: choose a guided plan or have SureWord build one around your goal
-• Timeline, People & Places: walk Bible history and trace reviewed connections
-
-YOUR DAILY WALK
-• Pick Up Your Cross (Luke 9:23): a guided day built around one verse
-  chosen for you - from what you have been reading, asking, and noting
-• Listen (SureWord Pro): hear the day's devotional with Read along, playback
-  speed, and lock-screen controls
-• Settings → My church: search for and save your congregation, with public
-  details and mission statement when the feature is enabled
+PICK UP YOUR CROSS, EVERY MORNING
+• One verse chosen for you each day from your own reading, questions and notes, with why it was chosen and how to live it today (Luke 9:23)
+• Stay with today's word, or ask for a fresh one
 • A morning notification that leads with Scripture itself
-• The assistant remembers what matters to you across conversations -
-  and you control every memory
 
-Your study belongs to you: no ads, no selling of data, and one account
-carries your conversations, notes, and daily walk across Android, web
-(sureword.app), and Mac/iOS clients where available.
+ASK, AND SEE WHAT IS WRITTEN
+• Ask anything about the Bible and get an answer that quotes the King James text word for word, every reference one tap from the reader
+• Find the verse you half remember, by meaning or by exact words
+• Cross-references that trace a verse through the whole Bible
+• The Hebrew and Greek behind any verse, word by word, with Strong's numbers
+• Copy, edit and try again on your questions; share, save or rate any answer
+• SureWord AI works the moment you sign in, or bring your own OpenAI, Anthropic, Moonshot or OpenRouter key
+• Lock your phone mid-answer and SureWord tells you when it is ready
+
+TRY EVERY WORD BY THE WORD
+• /check weighs a claim, a message or a screenshot against Scripture
+• /reply helps you answer a friend in your own voice, with grace
+• /verify tests what a YouTube video or a web page teaches, claim by claim, with the passages that settle it
+• Ask with a photo, PDF, text file or voice message, or share one into SureWord from any app
+
+READ AND HEAR THE BIBLE
+• The complete King James Bible built in and readable offline, with the NKJV and the Berean Standard Bible also available
+• Audio Bible: the whole KJV narrated, Genesis to Revelation, following along verse by verse
+• Words of Christ in red on a parchment page, light or dark
+• Tap a verse for a reverent explanation, word study and related passages
+• Highlight verses in eight colors and name what each color means
+• Pick up right where you left off
+
+GROW IN YOUR WALK
+• Your walk: a reflection on your reading, a map of every book, your streak and your history day by day
+• Reading plans, guided or built around your own goal
+• Learn a verse: practice it word by word until it is written on your heart
+• Timeline, People and Places: walk Bible history and see who and where each chapter is about
+• Sermon studies: your church's sermons as guided studies for the week, where available
+
+A GUIDE THAT KNOWS YOU
+• About me and My testimony: tell SureWord where you are in your walk, privately, so answers meet you there
+• My church: save your congregation, and SureWord keeps it in mind
+• Prayer requests that come back to you, so you can mark how God answered
+• Memory you control: see, add, delete or turn off everything SureWord keeps
+
+YOUR STUDY, KEPT TOGETHER
+• Bible study notes with folders, tags, pins, templates, linked notes and Markdown export
+• SureWord can find, read, add to and tidy your notes when you ask
+
+SUREWORD PRO
+An optional monthly subscription adds Listen (the daily devotional read aloud, with Read along and lock-screen controls), more AI messages each day, deeper reasoning from SureWord AI, and unlimited voice message transcription.
+
+PRIVATE BY DESIGN
+• No ads, and your study is never sold
+• Delete your account and everything in it from Settings at any time
+
+SureWord is a study aid, not a replacement for your Bible or your local church. Its AI can make mistakes, so search the Scriptures daily to see whether these things are so (Acts 17:11).
+
+Also on the web at sureword.app and on Mac, all kept in step.
 ```
 
 ## Assets
