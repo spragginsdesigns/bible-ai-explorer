@@ -13,7 +13,7 @@ itself never enters the repo: it is read from ~/.appstoreconnect/private_keys.
       -> prints the next unused build number for that version (1 if the app
          has no builds yet); exits 3 when the App Store Connect app record
          does not exist (Apple's API cannot create it; Austin does, once)
-  ... asc.py listing check|apply com.spragginsdesigns.sureword docs/ios/app-store-listing.md
+  ... asc.py listing check|apply com.spragginsdesigns.sureword store-listing/app-store.md
       -> compares the en-US name, subtitle, promotional text, description and
          keywords in App Store Connect with that doc (the source of truth).
          `check` only reports and exits 4 on drift; `apply` writes the doc's
@@ -157,7 +157,7 @@ EDITABLE_STATES = {
 
 
 def listing_from_doc(path):
-    """Name, subtitle and the fenced text blocks from docs/ios/app-store-listing.md."""
+    """Name, subtitle and the fenced text blocks from store-listing/app-store.md."""
     import re
     text = Path(path).read_text(encoding="utf-8").replace("\r\n", "\n")
 

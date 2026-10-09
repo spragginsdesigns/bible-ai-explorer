@@ -8,8 +8,8 @@ import test from "node:test";
 // Store promotional text. Both docs are the source of truth the stores are
 // filled from, so drift here becomes drift in the stores.
 const read = (path) => readFileSync(path, "utf8").replace(/\r\n/g, "\n");
-const play = read("docs/PLAY_STORE.md");
-const apple = read("docs/ios/app-store-listing.md");
+const play = read("store-listing/play-store.md");
+const apple = read("store-listing/app-store.md");
 
 const fenced = (doc, heading) => {
 	const at = doc.indexOf(heading);
@@ -20,7 +20,7 @@ const fenced = (doc, heading) => {
 };
 const chars = (text) => [...text].length;
 
-const playFull = fenced(play, "## Store listing - full description (paste)");
+const playFull = fenced(play, "## Full description");
 const appleFull = fenced(apple, "## Description (4000 max)");
 const appleFooterStart = "\n\nPayment is charged to your Apple Account";
 
@@ -35,7 +35,7 @@ test("the App Store description is the Play description plus Apple's subscriptio
 
 test("the Play short description is the App Store promotional text", () => {
 	const promo = fenced(apple, "## Promotional text");
-	const short = /Short description[\s\S]*?`([^`]+)`/.exec(play)?.[1];
+	const short = fenced(play, "## Short description");
 	assert.equal(short, promo);
 	assert.ok(chars(short) <= 80, `Play short description is ${chars(short)} chars (max 80)`);
 });

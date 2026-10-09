@@ -144,12 +144,12 @@ else
 	printf '\nExported %s\n' "$(ls "$work_dir"/export/*.ipa)"
 fi
 
-# The store text lives in docs/ios/app-store-listing.md and is easy to forget,
+# The store text lives in store-listing/app-store.md and is easy to forget,
 # because Apple locks it while a version is in review (the 2026-10-09 rename
 # waited on 1.13.0). Every release reports drift; it never blocks the build and
 # never writes, since the description must pass that doc's verify list first.
-listing_doc="$script_dir/../docs/ios/app-store-listing.md"
+listing_doc="$script_dir/../store-listing/app-store.md"
 if ! asc listing check "$bundle_id" "$listing_doc"; then
-	printf 'release-ios: the App Store listing is behind %s.\n' "docs/ios/app-store-listing.md" >&2
-	printf 'release-ios: after its verify list, run: uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply %s docs/ios/app-store-listing.md\n' "$bundle_id" >&2
+	printf 'release-ios: the App Store listing is behind %s.\n' "store-listing/app-store.md" >&2
+	printf 'release-ios: after its verify list, run: uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply %s store-listing/app-store.md\n' "$bundle_id" >&2
 fi

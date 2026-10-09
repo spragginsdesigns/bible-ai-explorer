@@ -46,7 +46,7 @@ test("marketing copy stays on the signed-out landing page, off every empty-chat 
 });
 
 test("release-facing copy leads with the same product promise", () => {
-	for (const path of ["README.md", "mobile/README.md", "docs/PLAY_STORE.md", "src/app/layout.tsx"]) {
+	for (const path of ["README.md", "mobile/README.md", "store-listing/play-store.md", "src/app/layout.tsx"]) {
 		const source = read(path);
 		assert.ok(source.includes("Come hungry for the Word"), `${path} is missing the approved lead`);
 		assert.ok(source.includes("personal Bible study companion"), `${path} is missing the companion positioning`);

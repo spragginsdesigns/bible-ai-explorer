@@ -1,15 +1,8 @@
-One description for both stores (Austin, 2026-10-09): this text is the Play
-full description in `docs/PLAY_STORE.md` word for word, plus the App Store's
-required subscription terms and links at the end. Change both together. It
-opens with why the Word matters (Matthew 24:35) and names, in plain phrases,
-what people search for: KJV Bible, King James Version, audio Bible, verse of
-the day, daily devotional, Strong's concordance, Bible reading plans, prayer
-list, Scripture memory, Bible timeline, Bible study notes. Apple does not
-index the description for search (the name, subtitle and keywords do), but
-Play does, so the phrases earn their place there. Not yet entered in App
-Store Connect; see the PENDING block at the top.
+# App Store listing copy (iOS, PRD H3)
 
-# App Store listing copy (PRD H3)
+The exact text for SureWord's App Store page. Start at
+[`store-listing/README.md`](README.md); the Play twin is
+[`play-store.md`](play-store.md).
 
 > **PENDING (2026-10-09): App Store Connect is behind this file.** The name,
 > subtitle, promotional text, description and keywords below were rewritten on 2026-10-09 but
@@ -18,7 +11,7 @@ Store Connect; see the PENDING block at the top.
 > rejected), on the Mac:
 > 1. Work through "Verify before submitting" under the description and cut
 >    any line whose feature is not verified on the build being submitted.
-> 2. `uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply com.spragginsdesigns.sureword docs/ios/app-store-listing.md`
+> 2. `uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply com.spragginsdesigns.sureword store-listing/app-store.md`
 > 3. `... asc.py listing check ...` must print "matches"; then delete this
 >    block. TickTick task 6ac950948f089f376a25a421 tracks it, and
 >    `macos/release-ios.sh` reports the drift on every run until it is done.
@@ -56,7 +49,7 @@ Scripture names the Holy Spirit as the believer's teacher (John 14:26,
 1 John 2:27). Apple only allows a name change while a version is in Prepare
 for Submission, so this goes live with the next iOS submission; the name under
 the icon on the device stays `SureWord`. Matches the Play title in
-`docs/PLAY_STORE.md`.
+`store-listing/play-store.md`.
 
 ## Promotional text (170 max, editable without review)
 
@@ -141,11 +134,16 @@ Privacy Policy: https://sureword.app/privacy
 
 Measured length: 3834 characters (limit 4000), counted by code point.
 
-Rewritten 2026-10-09 to cover the whole app under the new name: Audio Bible,
-`/verify`, copy/edit/try again, the Your walk reading log, sermon studies and
-prayer requests were added; "colours" became "colors". The Play description
-in `docs/PLAY_STORE.md` uses the same sections. Not yet entered in App Store
-Connect; it goes in with the next version.
+One description for both stores (Austin, 2026-10-09): this text is the Play
+full description in `store-listing/play-store.md` word for word, plus the App Store's
+required subscription terms and links at the end. Change both together. It
+opens with why the Word matters (Matthew 24:35) and names, in plain phrases,
+what people search for: KJV Bible, King James Version, audio Bible, verse of
+the day, daily devotional, Strong's concordance, Bible reading plans, prayer
+list, Scripture memory, Bible timeline, Bible study notes. Apple does not
+index the description for search (the name, subtitle and keywords do), but
+Play does, so the phrases earn their place there. Not yet entered in App
+Store Connect; see the PENDING block at the top.
 
 Verify before submitting (delete a line from the description if its row is
 not `verified` for the build being submitted):
@@ -255,6 +253,6 @@ the fact that an open-ended AI chat can be asked about anything in Scripture.
 
 ```bash
 # Description length with HTML comments stripped (must be < 4000):
-awk '/^## Description/{f=1;next} f&&/^```$/{n++; if(n==2) exit; next} f&&n==1' docs/ios/app-store-listing.md \
+awk '/^## Description/{f=1;next} f&&/^```$/{n++; if(n==2) exit; next} f&&n==1' store-listing/app-store.md \
   | grep -v '^<!--' | wc -m
 ```

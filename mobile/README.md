@@ -193,6 +193,12 @@ ADB-sideload script lives in git history if a debug build ever needs it.
 
 ## Release checklist
 
+> **Store page text:** the Play title, short description and full description
+> live in [`store-listing/play-store.md`](../store-listing/play-store.md) (index:
+> [`store-listing/README.md`](../store-listing/README.md)). A user-visible
+> feature goes into that description, and the identical App Store one, in the
+> same release; clear its PENDING block when the live listing matches.
+
 1. Bump `version` in `app.json` and add a `CHANGELOG.md` entry (heading format
    and the mandatory Play-notes block per the rules at the top of that file).
    The website discovers the newest `android-v*` release containing

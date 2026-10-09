@@ -155,6 +155,7 @@ for the generated Xcode project.
 - [`docs/FEATURES.md`](docs/FEATURES.md) — architecture notes for non-obvious
   product features
 - [`docs/PARITY.md`](docs/PARITY.md) — per-client capability and verification status
+- [`store-listing/`](store-listing/README.md): the exact Play Store and App Store page text (source of truth)
 - [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md) — Android Play release procedure
 - [`docs/play-store/promo-2026-09-06/README.md`](docs/play-store/promo-2026-09-06/README.md) —
   eight Play Store promo images, download pack, editable layouts, and source evidence

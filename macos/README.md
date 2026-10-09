@@ -60,6 +60,12 @@ of truth — run `xcodegen` after pulling or after adding a directory. Requires
 
 ## iOS
 
+> **App Store page text:** name, subtitle, promotional text, description and
+> keywords live in [`store-listing/app-store.md`](../store-listing/app-store.md)
+> (index: [`store-listing/README.md`](../store-listing/README.md)).
+> `python macos/scripts/asc.py listing check|apply` compares it with App Store
+> Connect, and `release-ios.sh` reports drift on every release.
+
 `SureWord-iOS` is a second app target in the same generated project. Everything
 platform-neutral lives in `macos/Shared/` and is compiled into **both** targets
 (same-module sharing, so no imports change); only the shells are per-platform —
