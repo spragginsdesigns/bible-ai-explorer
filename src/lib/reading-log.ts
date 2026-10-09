@@ -582,7 +582,13 @@ export async function searchReadingLog(userId: string, filters: ReadingLogFilter
 	const entries = rows.slice(0, limit);
 	const last = entries[entries.length - 1];
 	return {
-		entries: entries.map(publicReadingEntry),
+		// chapterVerses lets the log draw a partial reading as a share of its chapter.
+		entries: await Promise.all(
+			entries.map(async (entry) => ({
+				...publicReadingEntry(entry),
+				chapterVerses: (await getKjvChapter(entry.book, entry.chapter)).length,
+			})),
+		),
 		nextCursor:
 			rows.length > limit && last
 				? Buffer.from(

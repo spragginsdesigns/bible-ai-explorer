@@ -21,6 +21,9 @@ test("chat, note AI, audio transcription and narration need an explicit consent 
   for (const path of ["/api/ask-question", "/api/guest/ask", "/api/note-ai", "/api/notes/n1/ai", "/api/chat/attachments", "/api/chat/attachments/a1/complete", "/api/memories/summary", "/api/verse-of-day/audio"]) assert.equal(consentPolicy(path, "POST"), "tap", path);
   assert.equal(consentPolicy("/api/verse-insight", "POST"), "automatic");
   assert.equal(consentPolicy("/api/verse-words", "POST"), "automatic");
+  assert.equal(consentPolicy("/api/reading-log/reflection", "GET"), "automatic");
+  assert.equal(consentPolicy("/api/reading-log/overview", "GET"), null);
+  assert.equal(consentPolicy("/api/reading-log", "GET"), null);
 });
 test("custom reading goals require consent while arithmetic presets remain usable", () => {
   assert.equal(consentPolicy("/api/reading-plans", "POST", { goal: "Help me study grace", days: 30 }), "tap");

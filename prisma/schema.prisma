@@ -91,6 +91,7 @@ model User {
   readingLogTotals       ReadingLogTotals?
   sharedAnswers          SharedAnswer[]
   readingLogStreaks      ReadingLogStreak[]
+  readingReflection      ReadingReflection?
   highlights             VerseHighlight[]
   versesOfDay            VerseOfDay[]
   suggestedQuestionSets  SuggestedQuestionSet[]
@@ -936,6 +937,18 @@ model ReadingLogTotals {
   uniqueChapters   Int       @default(0)
   activeDays       Int       @default(0)
   lastReadAt       DateTime?
+}
+
+/// The "Your walk" reflection on the reading log: one per account, rewritten
+/// when the reading behind it changes (src/lib/reading-reflection.ts). `basis`
+/// fingerprints ReadingLogTotals at generation time; `content` is the
+/// validated JSON clients render, with Scripture text taken from the bundled KJV.
+model ReadingReflection {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  basis     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
 }
 
 /// Daily passage counters answer annual coverage without scanning reread events.

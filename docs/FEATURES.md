@@ -1174,6 +1174,23 @@ showing the static six and replacing them a second later.
 
 ---
 
+## Reading log: Your walk, the Bible map and a readable history
+
+*Shipped 2026-10-09 · server first, then Android 1.85.0 with web, macOS and iOS in the same cycle. Free for every account (Austin, 2026-10-09).*
+
+The reading log used to show internal counters ("54 chapter readings · 59 sessions · 23 days"), one card per chapter per session, and verse gaps like "James 4:9-11, 13-17" that only showed where the reader scrolled past. It now has four parts, on every client:
+
+1. **Your walk.** A short AI reflection (`GET /api/reading-log/reflection`, `src/lib/reading-reflection.ts`): two to four sentences on what the person has been reading and how it connects to their questions, notes, memories, plan and church, one KJV verse to carry, and one chapter to read next. It reads the person through `loadStudyContext()` (the same evidence the daily cross and the welcome questions use) plus verified reading facts: the last 14 days by local date, per-book coverage, streak, where they left off and the natural next chapter. The prompt carries the doctrinal foundation and the trusted-context rules, and forbids inventing feelings, struggles or progress; the model meets skeptics, new believers and mature believers where their own words place them, without labeling anyone. Scripture is never taken from the model: the reference is resolved against the bundled KJV and the text comes from there, or the verse is dropped. A suggested chapter must exist. Dashes are stripped mechanically.
+2. **Stats in plain words.** Day streak (with "Read today to keep it" when it ends yesterday), chapters read whole with "% of the Bible", and books opened of 66 (`GET /api/reading-log/overview`, `src/lib/reading-overview.ts`).
+3. **Bible map.** Old/New Testament grid of every book with read/total; selecting a book shows its chapter grid (gold = read whole in one sitting, outlined = started) and every chapter opens the reader.
+4. **History by day.** "Today", "Yesterday", weekdays, then dates; one row per chapter per day with repeated sessions merged ("2 times"), "Physical Bible" tags, and a progress bar for partial readings instead of verse ranges. `GET /api/reading-log` entries now carry `chapterVerses` for that bar. The explanation moved into a collapsible "How the log works".
+
+**Cost and caching.** One `ReadingReflection` row per account (`userId` primary key, migration `20261009160000_reading_reflection`). `basis` fingerprints `ReadingLogTotals` plus whether memories were allowed. Unchanged reading reuses the row for up to 7 days; changed reading rewrites it at most every 3 hours (`src/lib/reading-overview-rules.ts`), so opening the log is normally one row read and a heavy reader costs at most a handful of utility calls a day (`resolveModel({ utility: true })`: house Luna, or the person's own key).
+
+**Consent and privacy.** Clients treat the route as an *automatic* AI request (`consentPolicy` in `src/lib/ai-consent-gate.ts` and its Android and Apple mirrors): on open nothing is sent without consent, and the card offers "Write my reflection", which asks. The server checks `hasCurrentAiConsent` again before generating. Turning memory off retires a reflection that was written from memories (`storedReflectionAllowed`). Accounts with no reading get `empty` and never reach a model. The row is deleted with the account (`ACCOUNT_DATA_MODELS`).
+
+---
+
 ## Reading plans
 
 *Shipped 2026-08-26 · Android 1.29.0 + web, same release*
