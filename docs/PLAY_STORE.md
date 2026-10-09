@@ -137,6 +137,21 @@ requirements before using them.
       policy and Play form definitions before declaring these as "shared" or
       processor-only; document each provider and the data it receives.
 4. **Store listing**:
+
+   > **PENDING (2026-10-09): Play's live listing is behind this file.** The
+   > new App name and the full description below are saved as a **draft** on
+   > the Play Console default store listing but are not live (the API showed
+   > the old "SureWord" title afterwards). The Publishing overview offered no
+   > "send for review" while SureWord has no production or closed-testing
+   > release, so send the draft whenever the console offers it, at the latest
+   > with the first closed-testing/production release. The publisher service
+   > account can patch listings but gets 403 on the commit; granting it Store
+   > presence in Users and permissions would let an agent publish it by API.
+   > Also open: the live short description is "Bible study that stands on the
+   > Word - KJV answers, notes, and a daily walk.", not the one below; Austin
+   > picks which survives. Delete this block once the live listing matches.
+   > TickTick task 6ac950948f089f376a25a421.
+
    - App name: `SureWord: Personal Bible Guide` (30 of 30 chars; chosen
      2026-10-09, was `SureWord`). Same name as the App Store listing in
      `docs/ios/app-store-listing.md`. The launcher label on the device stays

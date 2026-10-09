@@ -1,9 +1,20 @@
 # App Store listing copy (PRD H3)
 
-Status: **entered in App Store Connect on 2026-10-07** (version 1.10.0, en-US)
-through the API. This file mirrors what is live there; change both together.
-Exception: the name, subtitle and keywords changed on 2026-10-09 and are
-entered with the next iOS submission. Copy follows the Mission in `CLAUDE.md`: SureWord
+> **PENDING (2026-10-09): App Store Connect is behind this file.** The name,
+> subtitle, description and keywords below were rewritten on 2026-10-09 but
+> could not be entered: 1.13.0 was Waiting for Review, which locks them, and
+> Austin chose not to pull it. As soon as that review finishes (approved or
+> rejected), on the Mac:
+> 1. Work through "Verify before submitting" under the description and cut
+>    any line whose feature is not verified on the build being submitted.
+> 2. `uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply com.spragginsdesigns.sureword docs/ios/app-store-listing.md`
+> 3. `... asc.py listing check ...` must print "matches"; then delete this
+>    block. TickTick task 6ac950948f089f376a25a421 tracks it, and
+>    `macos/release-ios.sh` reports the drift on every run until it is done.
+
+Status: first entered in App Store Connect on 2026-10-07 (version 1.10.0,
+en-US) through the API. This file is the source of truth for the listing;
+`asc.py listing check` compares it with App Store Connect. Copy follows the Mission in `CLAUDE.md`: SureWord
 speaks as a believer who holds the King James Bible as the inerrant Word of
 God, without claiming the AI is infallible.
 

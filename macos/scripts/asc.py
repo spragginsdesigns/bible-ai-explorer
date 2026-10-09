@@ -13,6 +13,12 @@ itself never enters the repo: it is read from ~/.appstoreconnect/private_keys.
       -> prints the next unused build number for that version (1 if the app
          has no builds yet); exits 3 when the App Store Connect app record
          does not exist (Apple's API cannot create it; Austin does, once)
+  ... asc.py listing check|apply com.spragginsdesigns.sureword docs/ios/app-store-listing.md
+      -> compares the en-US name, subtitle, promotional text, description and
+         keywords in App Store Connect with that doc (the source of truth).
+         `check` only reports and exits 4 on drift; `apply` writes the doc's
+         text to the newest version and app info Apple still lets us edit, and
+         exits 5 when everything is locked in review (try again afterwards).
 
 Override the key with ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH.
 """
@@ -142,10 +148,94 @@ def next_build(identifier, version):
     print(max(numbers, default=0) + 1)
 
 
+# Apple only accepts listing edits in these states; anything else (waiting for
+# review, in review, ready for sale) is locked until the next version.
+EDITABLE_STATES = {
+    "PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED",
+    "METADATA_REJECTED", "INVALID_BINARY",
+}
+
+
+def listing_from_doc(path):
+    """Name, subtitle and the fenced text blocks from docs/ios/app-store-listing.md."""
+    import re
+    text = Path(path).read_text(encoding="utf-8").replace("\r\n", "\n")
+
+    def row(field):
+        m = re.search(rf"^\| {field} \| `([^`]+)` \|", text, re.M)
+        if not m:
+            sys.exit(f"asc: no `{field}` row in {path}")
+        return m.group(1)
+
+    def block(heading):
+        m = re.search(rf"^## {re.escape(heading)}[^\n]*\n.*?^```\n(.*?)\n```", text, re.M | re.S)
+        if not m:
+            sys.exit(f"asc: no fenced block under '## {heading}' in {path}")
+        return m.group(1)
+
+    return {
+        "name": row("Name"),
+        "subtitle": row("Subtitle"),
+        "promotionalText": block("Promotional text"),
+        "description": block("Description"),
+        "keywords": block("Keywords"),
+    }
+
+
+def listing(mode, identifier, doc):
+    want = listing_from_doc(doc)
+    app = get("/v1/apps", **{"filter[bundleId]": identifier, "limit": 5})["data"][0]["id"]
+
+    def newest(items, state_key):
+        # Prefer one Apple still lets us edit; otherwise the newest, read-only.
+        if not items:
+            sys.exit(f"asc: {identifier} has no App Store records to compare")
+        editable = [i for i in items if i["attributes"].get(state_key) in EDITABLE_STATES]
+        return (editable or items)[0]
+
+    infos = get(f"/v1/apps/{app}/appInfos")["data"]
+    versions = get(f"/v1/apps/{app}/appStoreVersions", **{"filter[platform]": "IOS", "limit": 10})["data"]
+    info = newest(infos, "appStoreState")
+    version = newest(versions, "appStoreState")
+    targets = [
+        (info, f"/v1/appInfos/{info['id']}/appInfoLocalizations", "appInfoLocalizations", ["name", "subtitle"]),
+        (version, f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations",
+         "appStoreVersionLocalizations", ["promotionalText", "description", "keywords"]),
+    ]
+    drift, locked = [], []
+    for owner, path, kind, fields in targets:
+        state = owner["attributes"].get("appStoreState")
+        label = owner["attributes"].get("versionString", "app info")
+        loc = next(l for l in get(path)["data"] if l["attributes"]["locale"] == "en-US")
+        changed = {f: want[f] for f in fields if (loc["attributes"].get(f) or "") != want[f]}
+        for f in changed:
+            drift.append(f"{f} ({label}, {state})")
+        if not changed or mode != "apply":
+            continue
+        if state not in EDITABLE_STATES:
+            locked.append(f"{label} is {state}")
+            continue
+        r = requests.patch(f"{BASE}/v1/{kind}/{loc['id']}", headers=headers(), timeout=60,
+                           json={"data": {"type": kind, "id": loc["id"], "attributes": changed}})
+        if r.status_code >= 400:
+            sys.exit(f"asc: PATCH {kind} -> {r.status_code}: {r.text[:500]}")
+        print(f"asc: wrote {', '.join(changed)} to {label}")
+    if mode == "check":
+        if drift:
+            print("asc: App Store listing differs from " + doc + ": " + "; ".join(drift))
+            sys.exit(4)
+        print("asc: App Store listing matches " + doc)
+    elif locked:
+        print("asc: locked while " + "; ".join(locked) + ". Run `listing apply` again once review finishes.")
+        sys.exit(5)
+
+
 if __name__ == "__main__":
     if len(sys.argv) >= 3 and sys.argv[1] == "profiles":
         profiles(sys.argv[2:])
     elif len(sys.argv) == 4 and sys.argv[1] == "next-build":
         next_build(sys.argv[2], sys.argv[3])
+    elif len(sys.argv) == 5 and sys.argv[1] == "listing" and sys.argv[2] in ("check", "apply"):
+        listing(sys.argv[2], sys.argv[3], sys.argv[4])
     else:
         sys.exit(__doc__)
