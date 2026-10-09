@@ -80,7 +80,9 @@ elsewhere. It is built and published from one bound AAB/APK pair through
 
 The normal release path is `bash mobile/scripts/push-phone.sh` from Git Bash at
 the repository root. It builds the upload-signed AAB and matching APK, publishes
-the AAB to the internal track, then publishes `SureWord.apk` to GitHub Releases.
+the AAB to the internal track, promotes that same bundle to closed testing
+(every release goes to both since 2026-10-09), then publishes `SureWord.apk` to
+GitHub Releases.
 
 ## Historical console setup snapshot (2026-08-20)
 

@@ -1,6 +1,6 @@
 ---
 name: push-phone
-description: Build the SureWord Android AAB and release it to the Play Store internal testing track so Austin's Galaxy S26 Ultra updates through the Play Store. Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device.
+description: Build the SureWord Android AAB and release it to the Play Store internal and closed testing tracks so Austin's Galaxy S26 Ultra updates through the Play Store. Use when Austin says "push to my phone", "install on my phone", "/push-phone", or wants the latest mobile build on his device.
 ---
 
 # Push SureWord to Austin's phone (via the Play Store)
@@ -8,7 +8,9 @@ description: Build the SureWord Android AAB and release it to the Play Store int
 Since 2026-08-19 this ships through Google Play, not wireless ADB. The helper
 script bumps `versionCode` in `mobile/app.json`, builds the signed all-ABI AAB
 (`build-aab.sh`), and releases it to the **internal testing** track through the
-Android Publisher API.
+Android Publisher API, then promotes the same bundle to **closed testing**
+(`alpha`) with `play-promote.mjs`. Since 2026-10-09 every release goes to both
+tracks (Austin); a release is not done until both show the same versionCode.
 
 ## MANDATORY: the changelog entry comes first (since 2026-08-20)
 
@@ -23,7 +25,7 @@ published**. Ad-hoc notes arguments are rejected. So the workflow is:
    the top of that file:
 
    ```markdown
-   ## <versionName> (versionCode <n>) - <YYYY-MM-DD> - internal
+   ## <versionName> (versionCode <n>) - <YYYY-MM-DD> - internal and closed testing
 
    **What's new (Play):**
 
@@ -36,14 +38,14 @@ published**. Ad-hoc notes arguments are rejected. So the workflow is:
 3. Then run the script:
 
 ```bash
-bash mobile/scripts/push-phone.sh                # bump + build + release (internal)
+bash mobile/scripts/push-phone.sh                # bump + build + release (internal, then closed)
 bash mobile/scripts/push-phone.sh --skip-build   # upload the existing AAB, no bump
-bash mobile/scripts/push-phone.sh --track <name> # non-default track
 ```
 
 Run it from the repo root. Internal track releases skip review and reach
 opted-in testers within minutes - Austin updates from the Play Store listing
-(or it auto-updates). Commit the CHANGELOG entry together with the `app.json`
+(or it auto-updates). Closed testing gets the same bundle but goes through
+Play review first. Commit the CHANGELOG entry together with the `app.json`
 versionCode bump.
 
 ## Plumbing (all created 2026-08-19 - don't recreate)
@@ -65,6 +67,10 @@ versionCode bump.
 - **"versionCode already used":** a build was uploaded without committing the
   app.json bump - re-run without `--skip-build` so it bumps again (and update
   the CHANGELOG entry's heading to the new versionCode).
+- **"internal testing and GitHub are updated, but closed testing is NOT":** the
+  promotion to `alpha` failed after the upload. Fix the printed error, then run
+  `node mobile/scripts/play-promote.mjs --track alpha --code <n>`; never
+  re-upload under a new versionCode just for closed testing.
 - **"BLOCKED: mobile/CHANGELOG.md needs an entry":** the mandatory Play
   changelog gate - write the entry (step 2 above), don't bypass it.
 - **AAB debug-signed error:** `SUREWORD_UPLOAD_*` entries missing from

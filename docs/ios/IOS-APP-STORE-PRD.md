@@ -223,7 +223,7 @@ from this PRD that also gate Play: A1 account deletion (Play requires an
 in-app path and a web deletion URL), A4 disclosures, A7 policy updates, and the
 Data Safety form updated for analytics before promotion beyond internal. Track
 these on the Android side as part of A1/A4/A7; promotion to production is a
-deliberate act per `CLAUDE.md` (internal only by default).
+deliberate act per `CLAUDE.md` (releases go to internal and closed testing only).
 
 ## 9. Acceptance criteria (100% definition)
 

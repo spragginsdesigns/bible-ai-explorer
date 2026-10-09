@@ -16,6 +16,10 @@
 //   beta     -> "Open testing"
 //   production -> "Production"
 //
+// push-phone.sh calls this with --track alpha after every internal upload, so
+// closed testing always runs the same bundle as internal (Austin, 2026-10-09).
+// It can also be run by hand to re-sync closed testing if that step failed.
+//
 // Release notes come from mobile/CHANGELOG.md, same as every other publish
 // path - the entry for the versionCode being promoted must already exist.
 //
@@ -45,15 +49,12 @@ if (!track || !code) {
 	process.exit(1);
 }
 
-// Same rule as push-phone.sh: internal testing is where releases go, because
-// it is the only track that skips Play review. This script's whole purpose is
-// the occasional promotion to a slower track, so the opt-in is explicit rather
-// than assumed (Austin, 2026-09-20).
-if (track !== "internal" && process.env.SUREWORD_ALLOW_SLOW_TRACK !== "1") {
+// Internal and closed testing are the release tracks. Open testing and
+// production reach the public, so they stay behind an explicit opt-in.
+if (!["internal", "alpha"].includes(track) && process.env.SUREWORD_ALLOW_SLOW_TRACK !== "1") {
 	console.error(
-		`[play-promote] REFUSED: "${track}" goes through Play review, so it is not how a release reaches the phone.\n` +
-			"Releases go to internal testing: bash mobile/scripts/push-phone.sh\n" +
-			"If this is the 14-day closed-testing run Play requires before production access, re-run with:\n" +
+		`[play-promote] REFUSED: "${track}" is not a release track (internal, alpha).\n` +
+			"If you really mean to publish beyond testers, re-run with:\n" +
 			`  SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track ${track} --code ${code}`
 	);
 	process.exit(1);

@@ -144,42 +144,37 @@ Known Windows gotchas (all pre-solved in the checked-in config):
 Run from the repository root in Git Bash:
 
 ```bash
-bash mobile/scripts/push-phone.sh                  # bump + build + publish Play and GitHub APK
+bash mobile/scripts/push-phone.sh                  # bump + build + publish Play (internal + closed) and GitHub APK
 bash mobile/scripts/push-phone.sh --skip-build     # publish one previously bound AAB/APK pair, no bump
-node mobile/scripts/play-promote.mjs --track alpha --code 79   # put a build Play already has on another track
+node mobile/scripts/play-promote.mjs --track alpha --code 97   # re-sync closed testing by hand if that step failed
 ```
 
-**Releases go to internal testing. Not closed testing (Austin, 2026-09-20.)**
-`internal` is the only Play track that skips review, so a build is on the phone
-within minutes. Closed testing (`alpha`) queues behind Play review, which has
-repeatedly meant waiting hours or days to see a change that was finished; that
-delay is the whole reason this rule exists. `push-phone.sh` defaults to
-`internal` and now **refuses any other track** unless
-`SUREWORD_ALLOW_SLOW_TRACK=1` is set, so nobody reaches for `--track alpha` out
-of habit and then wonders why the phone is stale.
+**Every release goes to internal AND closed testing, same bundle (Austin,
+2026-10-09; replaces the 2026-09-20 internal-only rule).** `push-phone.sh`
+uploads the AAB to `internal`, the only Play track that skips review, so the
+phone has it within minutes. It then promotes that exact versionCode to closed
+testing (`alpha`) with `play-promote.mjs`, so both tracks always run identical
+bytes. Closed testing goes through Play review, so its testers see the build
+later. That track holds the 12+ opted-in testers Play requires for 14 days
+before it grants production access.
 
-The escape hatch stays because Play's own rules need it: **production access
-requires 12+ opted-in testers on a closed track for 14 days.** That is a
-deliberate, occasional act, not a release step. When it is time, promote a
-build internal testing already has rather than building a new one:
+If the closed promotion fails, the script still publishes the GitHub APK, then
+exits non-zero and prints the `play-promote.mjs` command to rerun. The release
+is not done until both tracks show the same versionCode. Uploading to any track
+other than `internal`, or promoting to open testing or production, refuses
+unless `SUREWORD_ALLOW_SLOW_TRACK=1` is set.
 
-```bash
-SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code 81
-```
-
-`play-promote.mjs` exists because `push-phone.sh` always *uploads*, and Play
-rejects a versionCode it has already seen - so there was previously no way to
-put the build internal testing already has onto closed testing without
-rebuilding it under a new code, which would mean two tracks running different
-binaries. It moves the exact bytes Play already holds, refuses a versionCode
-Play does not have, and reads its notes from `CHANGELOG.md` like every other
-publish path. Track names are the API's: `internal` is "Internal testing",
-`alpha` is **"Closed testing"**, `beta` is "Open testing". Only `internal`
-skips Play review, so promoting to any other track is not instant.
+`play-promote.mjs` exists because Play rejects a versionCode it has already
+seen, so a second upload for closed testing would need a new code and the two
+tracks would run different binaries. It moves the exact bytes Play already
+holds, refuses a versionCode Play does not have, and reads its notes from
+`CHANGELOG.md` like every other publish path. Track names are the API's:
+`internal` is "Internal testing", `alpha` is **"Closed testing"**, `beta` is
+"Open testing".
 
 Since 2026-08-19 this targets the Play Store's internal testing track (normally
 available to testers within minutes, with no review) instead of wireless ADB -
-the phone updates itself. After the Play upload succeeds, the same command
+the phone updates itself. After the Play upload and closed-testing promotion, the same command
 publishes the matching `SureWord.apk` to GitHub Releases, which refreshes the
 APK served by the website download link. `build-aab.sh` writes a version and
 SHA-256 manifest for both artifacts; `push-phone.sh` verifies it before any
@@ -206,7 +201,8 @@ ADB-sideload script lives in git history if a debug build ever needs it.
 3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
 4. Treat Android as the primary acceptance path: run
    `bash mobile/scripts/push-phone.sh`. It bumps `versionCode`, publishes the
-   signed AAB to the Play internal track, then publishes the matching APK to
+   signed AAB to the Play internal track, promotes the same bundle to closed
+   testing, then publishes the matching APK to
    GitHub Releases. The website download link refreshes from that same release;
    no manual website version edit or second APK publish is needed.
    The script tags `android-v<version>`, attaches the APK under the fixed asset

@@ -10,11 +10,12 @@
 # mandatory rules at its top). No changelog entry for the versionCode being
 # published -> this script refuses to build or upload anything.
 #
-# RELEASES GO TO INTERNAL TESTING, NOT CLOSED TESTING (Austin, 2026-09-20).
-# "internal" is the only Play track that skips review, so a build is on the
-# phone in minutes. Closed testing queues behind Play review and has repeatedly
-# left finished work invisible for hours. Any other track therefore refuses
-# unless SUREWORD_ALLOW_SLOW_TRACK=1 is set; see the guard below.
+# EVERY RELEASE GOES TO INTERNAL AND CLOSED TESTING (Austin, 2026-10-09).
+# The AAB is uploaded to "internal" (the only track that skips review, so the
+# phone has it in minutes), then that exact bundle is promoted to closed
+# testing ("alpha") so both tracks always run identical bytes. Closed testing
+# goes through Play review, so its testers see the build later. Uploading to
+# any other track refuses unless SUREWORD_ALLOW_SLOW_TRACK=1 is set.
 #
 # Usage:
 #   push-phone.sh                       bump + build + release to Play + GitHub
@@ -29,6 +30,7 @@ ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
 log() { echo "[push-phone] $*"; }
 
 TRACK="internal"
+CLOSED_TRACK="alpha"
 SKIP_BUILD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,32 +45,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# ── Internal track only ─────────────────────────────────────────────────────
+# ── Upload to internal, promote to closed ───────────────────────────────────
 # Checked before anything is built, so a wrong track costs a message and not a
-# ten-minute build. The escape hatch exists for exactly one reason: Play grants
-# production access only after 12+ opted-in testers sit on a closed track for
-# 14 days. That is an occasional deliberate act, and the right way to do it is
-# to promote a build internal testing already has:
-#
-#   SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code <n>
-#
-# Promoting moves the exact bytes Play already holds. Building a fresh
-# versionCode for the other track instead leaves the two tracks running
-# different binaries, which is how "it works on my phone" starts.
+# ten-minute build. The upload always lands on internal; closed testing gets
+# the same versionCode through play-promote.mjs after the upload, because
+# Play rejects a second upload of a versionCode and a fresh code per track
+# would leave the two tracks running different binaries.
 if [[ "$TRACK" != "internal" && "${SUREWORD_ALLOW_SLOW_TRACK:-0}" != "1" ]]; then
   cat >&2 <<EOF
-[push-phone] REFUSED: track "$TRACK" is not "internal".
+[push-phone] REFUSED: upload track "$TRACK" is not "internal".
 
-Android releases go to Play INTERNAL testing. It is the only track that skips
-Play review, so the build reaches the phone in minutes; "$TRACK" queues behind
-review and the update does not show up for hours.
+Releases upload to Play INTERNAL testing (the only track that skips review, so
+the phone has the build in minutes) and are then promoted to closed testing
+automatically. You do not need --track for closed testing.
 
 Just run: bash mobile/scripts/push-phone.sh
-
-If this really is the 14-day closed-testing run Play requires before production
-access, promote the build internal already has rather than building a new one:
-
-  SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs --track alpha --code <versionCode>
 EOF
   exit 1
 fi
@@ -88,7 +79,7 @@ if ! NOTES="$(node "$MOBILE_DIR/scripts/play-notes.mjs" "$MOBILE_DIR/CHANGELOG.m
 be published (versionCode $TARGET_CODE) before anything is built or uploaded.
 Add at the top of the changelog:
 
-  ## $APP_VERSION (versionCode $TARGET_CODE) - $(date +%F) - $TRACK
+  ## $APP_VERSION (versionCode $TARGET_CODE) - $(date +%F) - internal and closed testing
 
   **What's new (Play):**
 
@@ -208,6 +199,16 @@ bash "$MOBILE_DIR/scripts/release-apk.sh" --preflight --notes "$NOTES"
 node "$MOBILE_DIR/scripts/play-upload.mjs" --aab "$AAB" --track "$TRACK" \
   --notes "$NOTES" --version-name "$APP_VERSION"
 
+# A closed-testing failure must not hold back the phone or the website APK, so
+# it is reported and turned into a failing exit only after both are published.
+CLOSED_OK=1
+if [[ "$TRACK" == "internal" ]]; then
+  log "Promoting versionCode $TARGET_CODE to closed testing ($CLOSED_TRACK)..."
+  if ! node "$MOBILE_DIR/scripts/play-promote.mjs" --track "$CLOSED_TRACK" --code "$TARGET_CODE"; then
+    CLOSED_OK=0
+  fi
+fi
+
 log "Play upload succeeded. Publishing the matching APK to GitHub Releases..."
 if ! bash "$MOBILE_DIR/scripts/release-apk.sh" --notes "$NOTES"; then
   echo "[push-phone] ERROR: Play upload succeeded, but the GitHub APK publish failed." >&2
@@ -215,4 +216,11 @@ if ! bash "$MOBILE_DIR/scripts/release-apk.sh" --notes "$NOTES"; then
   exit 1
 fi
 
-log "Done. Play delivers it to the phone in a few minutes, and GitHub now serves the matching APK to website download links. To God be the glory."
+if [[ $CLOSED_OK -eq 0 ]]; then
+  echo "[push-phone] ERROR: internal testing and GitHub are updated, but closed testing is NOT." >&2
+  echo "[push-phone] Fix the error above, then rerun:" >&2
+  echo "[push-phone]   node mobile/scripts/play-promote.mjs --track $CLOSED_TRACK --code $TARGET_CODE" >&2
+  exit 1
+fi
+
+log "Done. Play delivers it to the phone in a few minutes (closed testing after Play review), and GitHub now serves the matching APK to website download links. To God be the glory."
