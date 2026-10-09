@@ -5,12 +5,14 @@ import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
 	AUDIO_BIBLE_BASE_URL,
+	DRAMATIZED_BASE_URL,
 	STILL_LISTENING_AFTER_MS,
 	hasNarration,
 	needsStillListening,
 	parseChapterTiming,
 	verseAt,
 	verseStart,
+	chapterAudioUrl,
 	chapterTimingUrl,
 } from "../src/lib/bible/audioBible.ts";
 
@@ -34,6 +36,14 @@ test("the New Testament is narrated, the Old is not yet", () => {
 	assert.equal(hasNarration(40), true);
 	assert.equal(hasNarration(66), true);
 	assert.equal(hasNarration(67), false);
+});
+
+test("Matthew plays the full-cast production, every other book the narration", () => {
+	assert.equal(chapterAudioUrl(40, 2), `${DRAMATIZED_BASE_URL}/40/2.mp3`);
+	assert.equal(chapterTimingUrl(40, 28), `${DRAMATIZED_BASE_URL}/40/28.json`);
+	assert.equal(chapterAudioUrl(41, 1), `${AUDIO_BIBLE_BASE_URL}/41/1.mp3`);
+	assert.equal(chapterTimingUrl(66, 22), `${AUDIO_BIBLE_BASE_URL}/66/22.json`);
+	assert.notEqual(DRAMATIZED_BASE_URL, AUDIO_BIBLE_BASE_URL);
 });
 
 test("verseAt follows the reading, null over the opening cue and heading", () => {
@@ -113,6 +123,18 @@ test("route: ready chapter returns the MP3 and verse timings", async () => {
 	assert.equal(body.status, "ready");
 	assert.equal(body.audioUrl, `${AUDIO_BIBLE_BASE_URL}/43/3.mp3`);
 	assert.match(response.headers.get("cache-control"), /s-maxage=86400/);
+});
+
+test("route: Matthew reads its timings from the drama folder and returns the drama MP3", async () => {
+	const requested = [];
+	const GET = loadRoute(async (url) => {
+		requested.push(url);
+		return new Response(JSON.stringify({ ...TIMING, book: 40, chapter: 2 }), { status: 200 });
+	});
+	const body = await (await call(GET, "book=40&chapter=2")).json();
+	assert.deepEqual(requested, [`${DRAMATIZED_BASE_URL}/40/2.json`]);
+	assert.equal(body.status, "ready");
+	assert.equal(body.audioUrl, `${DRAMATIZED_BASE_URL}/40/2.mp3`);
 });
 
 test("route: Old Testament is unavailable without touching the bucket", async () => {

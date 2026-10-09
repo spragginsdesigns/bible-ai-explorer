@@ -18,6 +18,20 @@ export const AUDIO_BIBLE_BASE_URL =
 export const NARRATED_BOOKS = { first: 40, last: 66 } as const;
 
 /**
+ * Books played as a full-cast production (a voice for every speaker, quiet
+ * ambience, effects and music) instead of the single narrator, from their own
+ * folder with the same per-chapter MP3 and verse timings. Matthew since
+ * LC-15323; the narrated recording stays under AUDIO_BIBLE_BASE_URL.
+ */
+export const DRAMATIZED_BASE_URL =
+  "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/kjv-drama/v1";
+export const DRAMATIZED_BOOKS: ReadonlySet<number> = new Set([40]);
+
+function bookBaseUrl(book: number): string {
+  return DRAMATIZED_BOOKS.has(book) ? DRAMATIZED_BASE_URL : AUDIO_BIBLE_BASE_URL;
+}
+
+/**
  * After this long with no tap, key or media-key press while audio plays, the
  * player pauses and asks "Still listening?", so a phone left playing overnight
  * does not stream the Bible until morning.
@@ -48,11 +62,11 @@ export function hasNarration(book: number): boolean {
 }
 
 export function chapterAudioUrl(book: number, chapter: number): string {
-  return `${AUDIO_BIBLE_BASE_URL}/${book}/${chapter}.mp3`;
+  return `${bookBaseUrl(book)}/${book}/${chapter}.mp3`;
 }
 
 export function chapterTimingUrl(book: number, chapter: number): string {
-  return `${AUDIO_BIBLE_BASE_URL}/${book}/${chapter}.json`;
+  return `${bookBaseUrl(book)}/${book}/${chapter}.json`;
 }
 
 /**
