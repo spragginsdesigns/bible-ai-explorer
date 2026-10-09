@@ -78,14 +78,16 @@ struct BibleTabView: View {
         .sheet(isPresented: $showingHistory) {
             // Android opens the chapter at the reading's first verse, in the
             // translation it was read in.
-            ReadingHistoryView(model: model.reading, onOpen: { entry in
+            ReadingHistoryView(model: model.reading, onOpen: { target in
                 readerRequest = BibleReaderRequest(
-                    order: entry.book, chapter: entry.chapter,
-                    verse: entry.verseRanges.first?.start ?? 1,
-                    translation: TranslationID(rawValue: entry.translation)
+                    order: target.book, chapter: target.chapter,
+                    verse: target.verse,
+                    translation: target.translation
                 )
-            }, onTalk: {
-                // The shell switches to Chat (Android pushes the chat home).
+            }, onTalk: { prompt in
+                // The shell switches to Chat (Android pushes the chat home,
+                // with `?prompt=` filling the composer for "Talk it over").
+                if let prompt { app.chat.input = prompt }
                 NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
             })
         }

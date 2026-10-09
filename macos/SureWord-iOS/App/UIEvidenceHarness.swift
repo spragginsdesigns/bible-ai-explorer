@@ -102,7 +102,7 @@ struct UIEvidenceHarness: View {
         // PRD verify lane (docs/ios/evidence/verify/): the screens as a
         // signed-out session draws them; their account routes answer 401.
         case "readingLog":
-            if let app { ReadingHistoryView(model: app.bible.reading, onOpen: { _ in }, onTalk: {}) }
+            if let app { ReadingHistoryView(model: app.bible.reading, onOpen: { _ in }, onTalk: { _ in }) }
         case "atlas":
             if let app { AtlasExplorerView(model: app.atlas, book: Self.int("book"), chapter: Self.int("chapter")) }
         case "picker":

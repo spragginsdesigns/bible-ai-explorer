@@ -24,6 +24,9 @@ struct ReadingJournalEntry: Codable, Equatable, Identifiable, Sendable {
     var bookName: String?
     var localDate: String?
     var deletedAt: String?
+    /// Verses in the chapter, sent by GET /api/reading-log so the log can draw a
+    /// partial reading as a share of its chapter. Never sent back.
+    var chapterVerses: Int?
     var id: String { eventId }
 
     /// "John 3" for a complete chapter, "John 3:16–21, 24" for a partial one.
@@ -171,10 +174,16 @@ final class ReadingJournal {
     typealias Send = @MainActor (ReadingJournalEntry) async throws -> ReadingJournalSave
     typealias FetchHistory = @MainActor (String) async throws -> ReadingJournalPage
     typealias RetryWait = @MainActor (TimeInterval) async throws -> Void
+    typealias FetchOverview = @MainActor (String) async throws -> ReadingOverview
+    /// The reflection route may generate before it answers (Android allows 60 s).
+    static let reflectionTimeout: TimeInterval = 60
     private var state: State
     private let fileURL: URL?
     private let send: Send
     private let fetchHistory: FetchHistory?
+    private let fetchOverview: FetchOverview?
+    /// "Your walk" for this account; owned here so it shares the account guard.
+    let walk: ReadingWalkModel
     private let waitForRetry: RetryWait
     private let requestTimeout: TimeInterval
     private var loadFailed = false
@@ -202,8 +211,18 @@ final class ReadingJournal {
     private(set) var historyError: String?
     private(set) var history: [ReadingJournalEntry] = []
     private(set) var stats: ReadingJournalStats?
+    /// Totals, streak and the Bible map (GET /api/reading-log/overview), loaded
+    /// with each first page.
+    private(set) var overview: ReadingOverview?
     private(set) var nextCursor: String?
+    /// The cursor of the load that failed, nil for a full refresh; "Try again"
+    /// repeats exactly that request.
+    private(set) var failedCursor: String?
     private(set) var loadingHistory = false
+    /// False until the first page since the last reset has answered, so a
+    /// fresh screen reads as loading rather than flashing the empty state.
+    private(set) var historyLoaded = false
+    private var overviewRequest = 0
     /// Snapshots the next pass may send (blocked ones wait for a deliberate retry).
     var pendingCount: Int { state.rows.values.filter { $0.entry.revision > $0.syncedRevision && !$0.blocked }.count }
     var blockedCount: Int { state.rows.values.filter(\.blocked).count }
@@ -212,6 +231,7 @@ final class ReadingJournal {
     var canTrack: Bool { !stopped && !loadFailed && !state.account.isEmpty && foreground && readerVisible && obscuredReasons.isEmpty && readerFocused && location != nil }
 
     init(account: String?, api: APIClient?, fileURL: URL? = nil, send: Send? = nil, fetchHistory: FetchHistory? = nil,
+         fetchOverview: FetchOverview? = nil, fetchReflection: ReadingWalkModel.Fetch? = nil,
          retryWait: RetryWait? = nil, requestTimeout: TimeInterval = 15) {
         let account = account ?? ""
         self.state = State(account: account)
@@ -231,6 +251,16 @@ final class ReadingJournal {
         else if let api {
             self.fetchHistory = { path in try await api.json(path, timeout: requestTimeout, as: ReadingJournalPage.self) }
         } else { self.fetchHistory = nil }
+        if let fetchOverview { self.fetchOverview = fetchOverview }
+        else if let api {
+            self.fetchOverview = { path in try await api.json(path, timeout: requestTimeout, as: ReadingOverview.self) }
+        } else { self.fetchOverview = nil }
+        if let fetchReflection { self.walk = ReadingWalkModel(fetch: fetchReflection) }
+        else if let api, !account.isEmpty {
+            self.walk = ReadingWalkModel(fetch: { path in
+                try await api.json(path, timeout: Self.reflectionTimeout, as: ReadingReflectionResponse.self)
+            })
+        } else { self.walk = ReadingWalkModel(fetch: nil) }
         if let url = self.fileURL, FileManager.default.fileExists(atPath: url.path) {
             do {
                 let stored = try JSONDecoder().decode(State.self, from: Data(contentsOf: url))
@@ -494,38 +524,77 @@ final class ReadingJournal {
         dwellTask = nil; syncTask = nil; retryTask = nil; debounceTask = nil
         since.removeAll(); visible.removeAll(); emitted.removeAll()
     }
-    /// Android focus effect: the screen opens empty and loads the first page.
+    /// Android focus effect, and the account-switch reset: entries, header,
+    /// cursor and the reflection card all start over, and the screen reads as
+    /// loading (never as empty) until the first page answers.
     func resetHistory() {
-        historyRequest += 1
-        history = []; stats = nil; nextCursor = nil; historyError = nil; loadingHistory = false
+        historyRequest += 1; overviewRequest += 1
+        history = []; stats = nil; overview = nil; nextCursor = nil; failedCursor = nil
+        historyError = nil; loadingHistory = false; historyLoaded = false
+        walk.reset()
     }
+    /// Android `hasReading`: the walk, stats and map appear once anything is logged.
+    var hasReading: Bool { (overview?.totals.chapterReadings ?? 0) > 0 || !history.isEmpty }
     /// `more` loads the page after `nextCursor`; the latest request wins.
     func loadHistory(more: Bool = false) async {
+        if more && nextCursor == nil { return }
+        await loadHistory(cursor: more ? nextCursor : nil)
+    }
+    /// "Try again": exactly the request that failed - the older page it was
+    /// fetching, or a full refresh - never the next page by accident.
+    func retryFailedLoad() async {
+        await loadHistory(cursor: failedCursor)
+    }
+    /// A nil cursor is a full refresh, which also refreshes the header. The
+    /// header is fetched on its own: its failure never blanks the log, it just
+    /// leaves the stats and map out.
+    private func loadHistory(cursor: String?) async {
         guard !stopped, let fetchHistory else { return }
-        let cursor = more ? nextCursor : nil
-        if more && cursor == nil { return }
         historyRequest += 1
         let request = historyRequest
         loadingHistory = true; historyError = nil
-        defer { if request == historyRequest { loadingHistory = false } }
         var allowed = CharacterSet.alphanumerics; allowed.insert(charactersIn: "-._~")
         let suffix = cursor.map { "&cursor=\($0.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")" } ?? ""
+        let summary = cursor == nil ? startOverviewLoad() : nil
         do {
             let page = try await ReadingRequestDeadline<ReadingJournalPage>.run(seconds: requestTimeout) {
                 try await fetchHistory("/api/reading-log?limit=30\(suffix)")
             }
-            guard request == historyRequest, !stopped else { return }
-            history = ReadingJournalCore.mergeHistory(history, page: page.entries, appending: more)
-            stats = page.stats; nextCursor = page.nextCursor
-        } catch {
-            guard request == historyRequest, !stopped else { return }
-            if let apiError = error as? APIError {
-                historyError = apiError.isTimeout
-                    ? "Reading history could not be loaded. Check your connection and try again."
-                    : apiError.message
-            } else {
-                historyError = "Reading history could not be loaded."
+            guard request == historyRequest, !stopped else {
+                _ = await summary?.value
+                return
             }
+            history = ReadingJournalCore.mergeHistory(history, page: page.entries, appending: cursor != nil)
+            stats = page.stats; nextCursor = page.nextCursor; failedCursor = nil
+        } catch {
+            if request == historyRequest, !stopped { recordHistoryFailure(error, cursor: cursor) }
+        }
+        if request == historyRequest { loadingHistory = false; historyLoaded = true }
+        _ = await summary?.value
+    }
+    /// Lands the overview itself when it answers, unless a newer full refresh
+    /// or a reset replaced it; "Load older" never cancels it.
+    private func startOverviewLoad() -> Task<Void, Never>? {
+        guard let fetchOverview else { return nil }
+        overviewRequest += 1
+        let request = overviewRequest
+        let timeout = requestTimeout
+        return Task { @MainActor [weak self] in
+            let loaded = try? await ReadingRequestDeadline<ReadingOverview>.run(seconds: timeout) {
+                try await fetchOverview("/api/reading-log/overview\(ReadingLogRules.timezoneQuery())")
+            }
+            guard let self, let loaded, request == self.overviewRequest, !self.stopped else { return }
+            self.overview = loaded
+        }
+    }
+    private func recordHistoryFailure(_ error: any Error, cursor: String?) {
+        failedCursor = cursor
+        if let apiError = error as? APIError {
+            historyError = apiError.isTimeout
+                ? "Reading history could not be loaded. Check your connection and try again."
+                : apiError.message
+        } else {
+            historyError = "Reading history could not be loaded."
         }
     }
 }

@@ -17,11 +17,13 @@ import {
 	naturalNextChapter,
 	reflectionBasis,
 	reflectionDecision,
+	reflectionSourcesPresent,
 	sanitizeReflection,
 	storedReflectionAllowed,
 	type ReadingReflectionContent,
+	type ReflectionSources,
 } from "@/lib/reading-overview-rules";
-import { loadStudyContext } from "@/lib/study-context";
+import { loadStudyContext, memorySourceKey } from "@/lib/study-context";
 import { getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 import { doctrinalFoundation, interpretationGuidance, trustedContextGuidance } from "@/utils/systemPrompt";
 
@@ -35,6 +37,23 @@ import { doctrinalFoundation, interpretationGuidance, trustedContextGuidance } f
 
 const RECENT_DAYS = 14;
 const RECENT_ENTRY_LIMIT = 120;
+/** Well inside the route's 60s budget, so a hung provider ends in a fallback, not a timeout. */
+const GENERATION_TIMEOUT_MS = 30_000;
+/**
+ * After a failed generation (provider outage, exhausted credits) the next
+ * visits serve what exists instead of waiting on another doomed call. Per
+ * instance only; Fluid Compute reuses instances, so this covers most repeats.
+ */
+const FAILURE_BACKOFF_MS = 10 * 60 * 1000;
+const failures = new Map<string, number>();
+
+function recentFailure(userId: string, now: Date): boolean {
+	const at = failures.get(userId);
+	if (at === undefined) return false;
+	if (now.getTime() - at < FAILURE_BACKOFF_MS) return true;
+	failures.delete(userId);
+	return false;
+}
 
 const reflectionSchema = z.object({
 	title: z.string().describe("Three to six words naming the season of their reading, e.g. 'A week in James'."),
@@ -79,16 +98,50 @@ export type ReadingReflectionResult =
 	| { status: "consent-required" }
 	| { status: "unavailable" };
 
-function parseStored(content: string): ReadingReflectionContent | null {
+/** What the ReadingReflection row's `content` holds: the card plus what it was written from. */
+interface StoredReflection {
+	reflection: ReadingReflectionContent;
+	sources: ReflectionSources;
+}
+
+function parseStored(content: string): StoredReflection | null {
 	try {
-		const parsed = JSON.parse(content) as ReadingReflectionContent;
-		return typeof parsed?.reflection === "string" && parsed.reflection ? parsed : null;
+		const parsed = JSON.parse(content) as Partial<StoredReflection>;
+		const reflection = parsed?.reflection;
+		if (!reflection || typeof reflection.reflection !== "string" || !reflection.reflection) return null;
+		return { reflection, sources: { memories: parsed.sources?.memories ?? [], notes: parsed.sources?.notes ?? [] } };
 	} catch {
 		return null;
 	}
 }
 
-async function buildPrompt(userId: string, timezone: string, now: Date): Promise<string> {
+/**
+ * Whether every memory and note the stored reflection was written from still
+ * exists unchanged. A reflection that could repeat something the person deleted
+ * or corrected is never served.
+ */
+async function sourcesIntact(userId: string, sources: ReflectionSources): Promise<boolean> {
+	if (!sources.memories.length && !sources.notes.length) return true;
+	const memoryIds = sources.memories.map((key) => key.slice(0, key.lastIndexOf(":")));
+	const [memories, notes] = await Promise.all([
+		sources.memories.length
+			? prisma.userMemory.findMany({ where: { userId, id: { in: memoryIds } }, select: { id: true, content: true } })
+			: Promise.resolve([]),
+		sources.notes.length
+			? prisma.note.findMany({ where: { userId, id: { in: sources.notes } }, select: { id: true } })
+			: Promise.resolve([]),
+	]);
+	return reflectionSourcesPresent(sources, {
+		memories: new Set(memories.map((memory) => memorySourceKey(memory.id, memory.content))),
+		notes: new Set(notes.map((note) => note.id)),
+	});
+}
+
+async function buildPrompt(
+	userId: string,
+	timezone: string,
+	now: Date,
+): Promise<{ prompt: string; sources: ReflectionSources }> {
 	const today = localDayKey(now, timezone);
 	const [overview, recent, latest, study] = await Promise.all([
 		getReadingOverview(userId, timezone, now),
@@ -108,7 +161,7 @@ async function buildPrompt(userId: string, timezone: string, now: Date): Promise
 	const next = naturalNextChapter(latest, BOOKS);
 	const nextName = next ? `${bookByOrder(next.book)?.name} ${next.chapter}` : "(none)";
 	const { totals, streak } = overview;
-	return [
+	const prompt = [
 		`Today is ${today} in their timezone.`,
 		`Lifetime: ${totals.chaptersComplete} of ${totals.totalChapters} chapters read in full at least once, across ${totals.booksStarted} books; ${totals.activeDays} days with reading. Current streak: ${streak.current} day(s)${streak.atRisk ? " (not yet extended today)" : ""}; longest ${streak.longest}.`,
 		`Reading in the last ${RECENT_DAYS} days, newest first ("part" means only some verses):\n${formatRecentDays(
@@ -122,24 +175,28 @@ async function buildPrompt(userId: string, timezone: string, now: Date): Promise
 		`What SureWord remembers about them (respecting their memory setting):\n${study.memoriesBlock}`,
 		`Their home church:\n${study.churchBlock}`,
 	].join("\n\n");
+	return { prompt, sources: study.sources };
 }
 
-async function generate(userId: string, timezone: string, now: Date): Promise<ReadingReflectionContent | null> {
+async function generate(userId: string, timezone: string, now: Date): Promise<StoredReflection | null> {
+	const { prompt, sources } = await buildPrompt(userId, timezone, now);
 	const { model, providerOptions } = await resolveModel({ userId, utility: true });
 	const { output } = await generateText({
 		model,
 		providerOptions,
 		output: Output.object({ schema: reflectionSchema }),
 		instructions: INSTRUCTIONS,
-		prompt: await buildPrompt(userId, timezone, now),
+		prompt,
+		abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
 	});
 	if (!output) return null;
-	return sanitizeReflection(output, {
+	const reflection = await sanitizeReflection(output, {
 		bookNumber: getKjvBookNumber,
 		bookMeta: bookByOrder,
 		verseText: getKjvVerseText,
 		clean: stripDashes,
 	});
+	return reflection ? { reflection, sources } : null;
 }
 
 /**
@@ -166,28 +223,39 @@ export async function getReadingReflection(
 	if (!hasAnyReading(totals)) return { status: "empty" };
 	const memoryAllowed = allowsMemoryUse(user?.memoryEnabled);
 	const basis = reflectionBasis(totals, memoryAllowed);
-	const cached =
+	let cached =
 		stored && storedReflectionAllowed(stored.basis, memoryAllowed) ? parseStored(stored.content) : null;
-	if (cached && stored && reflectionDecision(stored, basis, now) === "reuse")
-		return { status: "ready", reflection: cached, generatedAt: stored.createdAt.toISOString() };
+	if (cached && !(await sourcesIntact(userId, cached.sources))) cached = null;
+	if (stored && !cached) {
+		// Retired (memory off, or a source deleted or edited): nothing private
+		// stays behind, even when no new reflection can be written now.
+		await prisma.readingReflection.deleteMany({ where: { userId, createdAt: stored.createdAt } });
+	}
+	const ready = (entry: StoredReflection, at: Date): ReadingReflectionResult => ({
+		status: "ready",
+		reflection: entry.reflection,
+		generatedAt: at.toISOString(),
+	});
+	if (cached && stored && reflectionDecision(stored, basis, now) === "reuse") return ready(cached, stored.createdAt);
 	if (!hasCurrentAiConsent(user))
-		return cached && stored
-			? { status: "ready", reflection: cached, generatedAt: stored.createdAt.toISOString() }
-			: { status: "consent-required" };
+		return cached && stored ? ready(cached, stored.createdAt) : { status: "consent-required" };
+	if (recentFailure(userId, now)) return cached && stored ? ready(cached, stored.createdAt) : { status: "unavailable" };
 
 	try {
-		const reflection = await generate(userId, timezone, now);
-		if (!reflection) throw new Error("The model returned no usable reflection.");
+		const fresh = await generate(userId, timezone, now);
+		if (!fresh) throw new Error("The model returned no usable reflection.");
+		const content = JSON.stringify(fresh);
 		const row = await prisma.readingReflection.upsert({
 			where: { userId },
-			create: { userId, basis, content: JSON.stringify(reflection), createdAt: now },
-			update: { basis, content: JSON.stringify(reflection), createdAt: now },
+			create: { userId, basis, content, createdAt: now },
+			update: { basis, content, createdAt: now },
 		});
-		return { status: "ready", reflection, generatedAt: row.createdAt.toISOString() };
+		failures.delete(userId);
+		return ready(fresh, row.createdAt);
 	} catch (error) {
 		console.error(`[reading-reflection] Generation failed for user ${userId}:`, error);
+		failures.set(userId, now.getTime());
 		// An older reflection beats an empty card; it says when it was written.
-		if (cached && stored) return { status: "ready", reflection: cached, generatedAt: stored.createdAt.toISOString() };
-		return { status: "unavailable" };
+		return cached && stored ? ready(cached, stored.createdAt) : { status: "unavailable" };
 	}
 }

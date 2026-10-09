@@ -19,9 +19,14 @@ Entries below 1.19.0 predate this format and stay as they were.
 **What's new (Play):**
 
 NEW
-- Listen now reads the whole Bible. Every Old Testament chapter, Genesis to Malachi, is narrated, with the same read-along and Listen from any verse as the New Testament.
+- Your walk: the Reading log opens with a short reflection on your reading, tied to your questions, notes and prayers, with a KJV verse to carry and what to read next.
+- Your Bible: every book with the chapters you have read; open any chapter from there.
+- Listen now reads the whole Bible, Genesis to Malachi, with read-along and Listen from any verse.
 
-**Dev notes:** `NARRATED_BOOKS` in `features/bible/audioBible.ts` is now 1-66 (was 40-66), so the reader asks `/api/bible/audio` for Old Testament chapters; the server already answers per chapter. Audio rendered by Context-Pro-AI LC-15317 (narrator only, no chapter cues).
+IMPROVED
+- Reading log stats in plain words, history grouped by day, and pull to refresh.
+
+**Dev notes:** Two features in one build. Reading log: server half shipped in 9fabd03 (GET /api/reading-log/overview and /api/reading-log/reflection, ReadingReflection table); the reflection is an automatic AI-consent route, free for every account, and without consent the card offers "Write my reflection". Old Testament audio: `NARRATED_BOOKS` in `features/bible/audioBible.ts` is now 1-66 (was 40-66), so the reader asks `/api/bible/audio` for Old Testament chapters; the server already answers per chapter. Audio rendered by Context-Pro-AI LC-15317 (narrator only, no chapter cues).
 
 ## 1.84.1 (versionCode 95) - 2026-10-08 - internal
 

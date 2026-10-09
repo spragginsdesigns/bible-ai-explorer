@@ -128,6 +128,20 @@ export function hasAnyReading(totals: ReflectionTotals | null): boolean {
 	return Boolean(totals && totals.chapterReadings + totals.partialReadings > 0);
 }
 
+/** Memories (`id:fingerprint`) and note ids a reflection was written from. */
+export interface ReflectionSources {
+	memories: string[];
+	notes: string[];
+}
+
+/** True while every source is still present as it was; additions never retire a reflection. */
+export function reflectionSourcesPresent(
+	stored: ReflectionSources,
+	current: { memories: ReadonlySet<string>; notes: ReadonlySet<string> },
+): boolean {
+	return stored.memories.every((key) => current.memories.has(key)) && stored.notes.every((id) => current.notes.has(id));
+}
+
 export type ReflectionDecision = "reuse" | "generate";
 
 /**

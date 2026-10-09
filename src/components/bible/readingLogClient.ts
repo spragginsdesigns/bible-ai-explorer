@@ -103,6 +103,44 @@ export function retryBlockedReadings() {
 			),
 		);
 }
+/**
+ * GET one of the reading-log routes (history page, overview) inside the
+ * reading deadline, token refresh and body parsing included. The Bearer token
+ * pins the account like the sync does. Resolves null once `active` turns
+ * false, so a stale answer never lands on another account's screen.
+ */
+export async function fetchReadingLog<T>(
+	getToken: () => Promise<string | null>,
+	path: string,
+	active: () => boolean,
+): Promise<T | null> {
+	try {
+		return await withReadingDeadline(async (live, signal) => {
+			const current = () => live() && active();
+			if (!current()) return null;
+			const token = await getToken();
+			if (!current()) return null;
+			if (!token) throw new Error("Sign in again to load your reading history.");
+			const res = await fetch(path, {
+				headers: { Authorization: `Bearer ${token}` },
+				credentials: "omit",
+				signal,
+			});
+			if (!res.ok)
+				throw new Error(
+					"Reading history could not be loaded. Check your connection and try again.",
+				);
+			const body = (await res.json()) as T;
+			return current() ? body : null;
+		});
+	} catch (e) {
+		if (e && typeof e === "object" && "isTimeout" in e)
+			throw new Error(
+				"Reading history timed out. Check your connection and try again.",
+			);
+		throw e;
+	}
+}
 export function useReadingLogStatus() {
 	return useSyncExternalStore(
 		(f) => {

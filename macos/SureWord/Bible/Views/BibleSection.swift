@@ -47,9 +47,16 @@ struct BibleSection: View {
         .navigationTitle("Bible")
         .toolbar { Button { showingHistory = true } label: { Label("Reading history", systemImage: "clock.arrow.circlepath") } }
         .sheet(isPresented: $showingHistory) {
-            ReadingHistoryView(model: model.reading) { entry in
-                showBible(); model.open(order: entry.book, chapter: entry.chapter)
-            }
+            ReadingHistoryView(model: model.reading, onOpen: { target in
+                showBible()
+                model.open(order: target.book, chapter: target.chapter, verse: target.verse,
+                           translationOverride: target.translation)
+            }, onTalk: { prompt in
+                // Android pushes the chat home with `?prompt=`: the composer is
+                // filled and focused, and sending is left to the person.
+                if let prompt { app.chat.input = prompt }
+                app.section = .chat
+            })
         }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         .overlay(alignment: .bottom) {

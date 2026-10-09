@@ -118,11 +118,15 @@ struct ChatTabView: View {
             }
         }
         .sheet(isPresented: $isReadingHistoryPresented) {
-            ReadingHistoryView(model: app.bible.reading) { entry in
+            ReadingHistoryView(model: app.bible.reading, onOpen: { target in
                 isReadingHistoryPresented = false
-                guard let reference = ReceiptLine.chapterReference(book: entry.book, chapter: entry.chapter, verse: entry.verseRanges.first?.start) else { return }
-                openChapter(reference: reference, translation: TranslationID(rawValue: entry.translation))
-            }
+                guard let reference = ReceiptLine.chapterReference(book: target.book, chapter: target.chapter, verse: target.verse) else { return }
+                openChapter(reference: reference, translation: target.translation)
+            }, onTalk: { prompt in
+                // Already in chat: close the log and fill the composer.
+                isReadingHistoryPresented = false
+                if let prompt { app.chat.input = prompt }
+            })
         }
         // A delete that failed after the sheet closed (Clear all dismisses at
         // once); while the sheet is up it presents the alert itself.

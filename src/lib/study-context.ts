@@ -21,6 +21,13 @@ import {
  */
 
 export const READING_HISTORY_DAYS = 30;
+
+/** "id:fingerprint", so an edited memory no longer matches what was quoted from it. */
+export function memorySourceKey(id: string, content: string): string {
+	let hash = 0;
+	for (let i = 0; i < content.length; i++) hash = (Math.imul(hash, 31) + content.charCodeAt(i)) | 0;
+	return `${id}:${(hash >>> 0).toString(36)}`;
+}
 const RECENT_MESSAGES = 15;
 const RECENT_NOTES = 10;
 const EXCLUDED_PICKS = 30;
@@ -54,6 +61,12 @@ export interface StudyContext {
 	 */
 	churchBlock: string;
 	/**
+	 * Which memories (`id:` plus a content fingerprint) and notes the blocks
+	 * above were built from, so a stored artifact written from them (the reading
+	 * log reflection) can be retired once one is deleted or rewritten.
+	 */
+	sources: { memories: string[]; notes: string[] };
+	/**
 	 * True when there is nothing at all to personalize from — a brand-new
 	 * account. Callers should fall back rather than ask a model to invent a
 	 * history this user does not have.
@@ -81,7 +94,7 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 				},
 				orderBy: { updatedAt: "desc" },
 				take: RECENT_NOTES * 2,
-				select: { title: true, plainText: true },
+				select: { id: true, title: true, plainText: true },
 			})
 			.then((rows) => rows.filter(isMeaningfulNote).slice(0, RECENT_NOTES)),
 		loadUserMemories(userId),
@@ -132,6 +145,10 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			? `${church.name}, ${church.address}` +
 				`${church.mission ? ` - their stated mission: ${church.mission.slice(0, CHURCH_MISSION_SNIPPET_LENGTH)}` : ""}`
 			: "(none)",
+		sources: {
+			memories: memories.map((memory) => memorySourceKey(memory.id, memory.content)),
+			notes: notes.map((note) => note.id),
+		},
 		// The daily picks are not evidence of study - the cron writes them
 		// whether or not the user ever opened the app. A reading plan is, though:
 		// the user chose it, and so is a home church.

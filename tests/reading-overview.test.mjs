@@ -11,6 +11,7 @@ import {
 	naturalNextChapter,
 	reflectionBasis,
 	reflectionDecision,
+	reflectionSourcesPresent,
 	sanitizeReflection,
 	storedReflectionAllowed,
 	streakFromIntervals,
@@ -167,4 +168,14 @@ test("turning memory off retires a reflection that was written from memories", (
 	assert.equal(storedReflectionAllowed("3:2:4:never:m1", true), true);
 	assert.equal(storedReflectionAllowed("3:2:4:never:m1", false), false);
 	assert.equal(storedReflectionAllowed("3:2:4:never:m0", false), true);
+});
+
+test("a reflection retires when a memory or note it was written from is deleted or edited", () => {
+	const stored = { memories: ["m1:abc", "m2:def"], notes: ["n1"] };
+	const current = (memories, notes) => ({ memories: new Set(memories), notes: new Set(notes) });
+	assert.equal(reflectionSourcesPresent(stored, current(["m1:abc", "m2:def", "m3:new"], ["n1", "n2"])), true);
+	assert.equal(reflectionSourcesPresent(stored, current(["m1:abc"], ["n1"])), false);
+	assert.equal(reflectionSourcesPresent(stored, current(["m1:abc", "m2:changed"], ["n1"])), false);
+	assert.equal(reflectionSourcesPresent(stored, current(["m1:abc", "m2:def"], [])), false);
+	assert.equal(reflectionSourcesPresent({ memories: [], notes: [] }, current([], [])), true);
 });

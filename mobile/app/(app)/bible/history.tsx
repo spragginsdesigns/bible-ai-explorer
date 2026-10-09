@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
 	Pressable,
+	RefreshControl,
 	StyleSheet,
 	View,
 } from "react-native";
@@ -14,29 +15,33 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { fetchReadingHistory } from "@/features/reading/readingLogApi";
-import { type ReadingEntry } from "@/features/reading/readingLogCore";
 import {
 	retryBlockedReadings,
 	useReadingLogStatus,
 } from "@/features/reading/readingLogStore";
+import {
+	dayHeading,
+	deviceTimezone,
+	groupByDay,
+	localDateKey,
+	partialPercent,
+	percentOfBible,
+	streakNote,
+	type DayChapter,
+	type LogDay,
+	type LogEntry,
+	type ReadingOverview,
+} from "@/features/reading/readingOverview";
+import { WalkCard } from "@/features/reading/WalkCard";
+import { BibleMap } from "@/features/reading/BibleMap";
 import { bookByOrder } from "@/features/bible/books";
 import { radius, spacing, typography, type Colors } from "@/theme";
-type ServerReadingEntry = Omit<ReadingEntry, "occurredAt"> & {
-	occurredAt: string | null;
-};
+
 interface HistoryPage {
-	entries: ServerReadingEntry[];
+	entries: LogEntry[];
 	nextCursor: string | null;
-	stats: {
-		sessions: number;
-		chapterReadings: number;
-		partialReadings: number;
-		uniqueChapters: number;
-		activeDays: number;
-		lastReadAt: string | null;
-		historicalBackfillPending?: boolean;
-	};
 }
+
 export default function ReadingHistoryScreen() {
 	const router = useRouter();
 	const getToken = useStableGetToken();
@@ -47,25 +52,47 @@ export default function ReadingHistoryScreen() {
 	const { colors } = useTheme();
 	const bottom = useTabBarSpace();
 	const status = useReadingLogStatus();
-	const [entries, setEntries] = useState<ServerReadingEntry[]>([]);
-	const [stats, setStats] = useState<HistoryPage["stats"] | null>(null);
+	const [entries, setEntries] = useState<LogEntry[]>([]);
+	const [overview, setOverview] = useState<ReadingOverview | null>(null);
 	const [cursor, setCursor] = useState<string | null>(null);
-	const [busy, setBusy] = useState(false);
+	// Starts busy so the empty state never flashes before the first load.
+	const [busy, setBusy] = useState(true);
+	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [showHelp, setShowHelp] = useState(false);
+	const [reflectionKey, setReflectionKey] = useState(0);
 	const request = useRef(0);
+
+	// The request "Try again" repeats: undefined is a full refresh, a string is
+	// the older page that failed. Never the next page by accident.
+	const failedCursor = useRef<string | undefined>(undefined);
 	const load = useCallback(
 		async (next?: string) => {
 			const id = ++request.current;
 			const account = owner.current;
+			const live = () => !!account && id === request.current && owner.current === account;
 			setBusy(true);
 			setError(null);
+			const tz = deviceTimezone();
+			// Stats and the map are a bonus over the history: their failure must
+			// never blank the log, so they load on their own.
+			if (!next)
+				void fetchReadingHistory<ReadingOverview>(
+					getToken,
+					`/api/reading-log/overview${tz ? `?tz=${encodeURIComponent(tz)}` : ""}`,
+					live
+				)
+					.then((summary) => {
+						if (live()) setOverview(summary);
+					})
+					.catch(() => undefined);
 			try {
 				const page = await fetchReadingHistory<HistoryPage>(
 					getToken,
 					`/api/reading-log?limit=30${next ? "&cursor=" + encodeURIComponent(next) : ""}`,
-					() => !!account && id === request.current && owner.current === account
+					live
 				);
-				if (id !== request.current || owner.current !== account) return;
+				if (!live()) return;
 				setEntries((old) =>
 					next
 						? [
@@ -77,93 +104,122 @@ export default function ReadingHistoryScreen() {
 						: page.entries
 				);
 				setCursor(page.nextCursor);
-				setStats(page.stats);
 			} catch (e) {
-				if (id === request.current)
+				if (id === request.current) {
+					failedCursor.current = next;
 					setError(
 						e instanceof Error
 							? e.message
 							: "Reading history could not be loaded."
 					);
+				}
 			} finally {
-				if (id === request.current) setBusy(false);
+				if (id === request.current) {
+					setBusy(false);
+					setRefreshing(false);
+				}
 			}
 		},
 		[getToken]
 	);
 	const previousPending = useRef(status.pending);
 	useEffect(() => {
-		if (previousPending.current > 0 && status.pending === 0) void load();
+		if (previousPending.current > 0 && status.pending === 0) {
+			void load();
+			setReflectionKey((key) => key + 1);
+		}
 		previousPending.current = status.pending;
 	}, [status.pending, load]);
+	// Another account's log must never flash on screen, but returning to the
+	// same account keeps what it showed while the refresh runs.
+	const shownFor = useRef(userId);
 	useFocusEffect(
 		useCallback(() => {
-			setEntries([]);
-			setStats(null);
+			if (shownFor.current !== userId) {
+				shownFor.current = userId;
+				setEntries([]);
+				setOverview(null);
+				setCursor(null);
+				setReflectionKey((key) => key + 1);
+			}
 			void load();
 			return () => {
 				request.current++;
 			};
 		}, [load, userId])
 	);
+
+	const refresh = () => {
+		setRefreshing(true);
+		retryBlockedReadings();
+		void load();
+		setReflectionKey((key) => key + 1);
+	};
+	const days = useMemo(
+		() => groupByDay(entries, (order) => bookByOrder(order)?.name ?? "Bible"),
+		[entries]
+	);
+	const today = localDateKey(new Date());
+	const openChapter = (row: DayChapter) =>
+		router.push({
+			pathname: "/bible/chapter",
+			params: {
+				book: String(row.book),
+				chapter: String(row.chapter),
+				verse: String(row.firstVerse),
+				translation: row.translation,
+			},
+		});
+	const hasReading = (overview?.totals.chapterReadings ?? 0) > 0 || entries.length > 0;
+
 	return (
 		<Screen>
 			<View style={styles.header}>
 				<Pressable accessibilityRole="button" onPress={() => router.back()}>
 					<Text style={styles.link}>‹ Bible</Text>
 				</Pressable>
-				<Text style={styles.title}>Reading log</Text>
+				<View style={styles.titleRow}>
+					<Text accessibilityRole="header" style={styles.screenTitle}>
+						Reading log
+					</Text>
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Refresh reading log"
+						disabled={busy}
+						onPress={refresh}
+						hitSlop={8}
+					>
+						<Text style={[styles.link, busy && { opacity: 0.5 }]}>Refresh</Text>
+					</Pressable>
+				</View>
 			</View>
 			<FlatList
-				data={entries}
-				keyExtractor={(entry) => entry.eventId}
+				data={days}
+				keyExtractor={(day: LogDay) => day.date}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						tintColor={colors.accent}
+						colors={[colors.accent]}
+						onRefresh={refresh}
+					/>
+				}
 				contentContainerStyle={{
 					padding: spacing.lg,
 					paddingBottom: bottom + spacing.xxl,
 				}}
 				ListHeaderComponent={
 					<View style={styles.intro}>
-						<Text style={styles.body}>
-							Your reading, over a lifetime. Returning to a chapter in a later
-							session counts again.
-						</Text>
-						{stats ? (
-							<View style={styles.card}>
-								<Text style={styles.title}>
-									{stats.uniqueChapters.toLocaleString()}{" "}
-									{stats.uniqueChapters === 1 ? "chapter" : "chapters"} covered
-								</Text>
-								<Text style={styles.body}>
-									{stats.chapterReadings.toLocaleString()}{" "}
-									{stats.chapterReadings === 1
-										? "chapter reading"
-										: "chapter readings"}{" "}
-									· {stats.sessions.toLocaleString()}{" "}
-									{stats.sessions === 1 ? "session" : "sessions"} ·{" "}
-									{stats.activeDays.toLocaleString()}{" "}
-									{stats.activeDays === 1 ? "day" : "days"}
-								</Text>
-							</View>
+						{hasReading ? (
+							<WalkCard key={userId ?? "signed-out"} getToken={getToken} refreshKey={reflectionKey} />
 						) : null}
-						{stats?.historicalBackfillPending ? (
+						{overview && hasReading ? <Stats overview={overview} styles={styles} /> : null}
+						{overview?.historicalBackfillPending ? (
 							<Text style={styles.body}>
-								Your earlier reading history is still being added. Lifetime
-								totals will update when it finishes.
+								Your earlier reading history is still being added. Totals will
+								update when it finishes.
 							</Text>
 						) : null}
-						<View style={styles.card}>
-							<Text style={styles.body}>
-								The reader logs verses you spend time viewing. A chapter is
-								complete when all its verses have been covered in that session.
-								For your physical Bible, tell SureWord what you read.
-							</Text>
-							<Pressable
-								accessibilityRole="button"
-								onPress={() => router.push("/")}
-							>
-								<Text style={styles.link}>Talk to SureWord →</Text>
-							</Pressable>
-						</View>
 						{status.pending > 0 || status.error ? (
 							<View style={styles.card}>
 								<Text accessibilityLiveRegion="polite" style={styles.body}>
@@ -181,80 +237,88 @@ export default function ReadingHistoryScreen() {
 								</Pressable>
 							</View>
 						) : null}
-						<Pressable
-							accessibilityRole="button"
-							disabled={busy}
-							onPress={() => void load()}
-						>
-							<Text style={styles.link}>Refresh history</Text>
-						</Pressable>
+						{overview && hasReading ? <BibleMap coverage={overview.books} /> : null}
+						{days.length ? (
+							<Text accessibilityRole="header" style={styles.sectionTitle}>
+								History
+							</Text>
+						) : null}
 					</View>
 				}
-				renderItem={({ item, index }) => {
-					const book = item.bookName ?? bookByOrder(item.book)?.name ?? "Bible";
-					const previous = entries[index - 1];
-					const range = item.completed
-						? ""
-						: ":" +
-							item.verseRanges
-								.map((r) =>
-									r.start === r.end ? r.start : `${r.start}–${r.end}`
-								)
-								.join(", ");
-					const when =
-						item.precision === "exact" && item.occurredAt
-							? new Date(item.occurredAt).toLocaleString()
-							: `${item.localDate ?? item.occurredAt?.slice(0, 10) ?? "Date unspecified"} · ${item.precision === "day" ? "time unspecified" : item.precision}`;
-					return (
-						<View>
-							<Text style={styles.session}>
-								{previous?.sessionId !== item.sessionId ? when : ""}
+				renderItem={({ item }) => (
+					<View style={styles.day}>
+						<Text accessibilityRole="header" style={styles.dayHeading}>
+							{dayHeading(item.date, today)}
+						</Text>
+						<View style={styles.dayCard}>
+							{item.chapters.map((row, index) => (
+								<Pressable
+									key={row.key}
+									accessibilityRole="button"
+									accessibilityLabel={`Open ${row.bookName} ${row.chapter}, ${row.completed ? "read" : `${Math.round(row.fraction * 100)} percent read`}`}
+									onPress={() => openChapter(row)}
+									style={({ pressed }) => [
+										styles.entry,
+										index > 0 && styles.entryDivider,
+										pressed && { backgroundColor: colors.surfacePressed },
+									]}
+								>
+									<View style={styles.entryText}>
+										<Text style={styles.entryTitle}>
+											{row.bookName} {row.chapter}
+										</Text>
+										{row.physical || row.legacy || row.readings > 1 ? (
+											<Text style={styles.entryMeta}>
+												{[
+													row.physical ? "Physical Bible" : null,
+													row.legacy ? "Earlier tracking" : null,
+													row.readings > 1 ? `${row.readings} times` : null,
+												]
+													.filter(Boolean)
+													.join(" · ")}
+											</Text>
+										) : null}
+									</View>
+									{row.completed ? (
+										<Text style={styles.done}>✓ Read</Text>
+									) : (
+										<View style={styles.partial}>
+											<View style={styles.partialBar}>
+												<View
+													style={[
+														styles.partialFill,
+														{ width: `${partialPercent(row.fraction)}%` },
+													]}
+												/>
+											</View>
+											<Text style={styles.entryMeta}>Part</Text>
+										</View>
+									)}
+								</Pressable>
+							))}
+						</View>
+					</View>
+				)}
+				ListEmptyComponent={
+					!busy && !error ? (
+						<View style={styles.card}>
+							<Text style={styles.body}>
+								No readings yet. Open any chapter in the Bible tab and SureWord
+								keeps track as you read. Reading a paper Bible? Tell SureWord
+								what you read.
 							</Text>
 							<Pressable
 								accessibilityRole="button"
-								accessibilityLabel={`Open ${book} ${item.chapter}${range}`}
-								onPress={() =>
-									router.push({
-										pathname: "/bible/chapter",
-										params: {
-											book: String(item.book),
-											chapter: String(item.chapter),
-											verse: String(item.verseRanges[0]?.start ?? 1),
-											translation: item.translation,
-										},
-									})
-								}
-								style={styles.card}
+								onPress={() => router.push("/")}
 							>
-								<Text style={styles.title}>
-									{book} {item.chapter}
-									{range}
-								</Text>
-								<Text style={styles.body}>
-									{item.completed ? "Chapter complete" : "Partial reading"} ·{" "}
-									{item.source === "reader"
-										? "SureWord reader"
-										: item.source === "physical"
-											? "Physical Bible"
-											: item.source === "legacy"
-												? "Earlier tracking"
-												: "Reported reading"}
-								</Text>
+								<Text style={styles.link}>Talk to SureWord →</Text>
 							</Pressable>
 						</View>
-					);
-				}}
-				ListEmptyComponent={
-					!busy && !error ? (
-						<Text style={styles.body}>
-							No readings yet. Start with a chapter, or tell SureWord what you
-							read in your physical Bible.
-						</Text>
 					) : null
 				}
 				ListFooterComponent={
 					<View style={styles.intro}>
-						{busy ? <ActivityIndicator color={colors.accent} /> : null}
+						{busy && !refreshing ? <ActivityIndicator color={colors.accent} /> : null}
 						{error ? (
 							<>
 								<Text accessibilityRole="alert" style={styles.body}>
@@ -262,11 +326,7 @@ export default function ReadingHistoryScreen() {
 								</Text>
 								<Pressable
 									accessibilityRole="button"
-									onPress={() =>
-										void load(
-											entries.length ? (cursor ?? undefined) : undefined
-										)
-									}
+									onPress={() => void load(failedCursor.current)}
 								>
 									<Text style={styles.link}>Try again</Text>
 								</Pressable>
@@ -280,33 +340,87 @@ export default function ReadingHistoryScreen() {
 								<Text style={styles.link}>Load older readings</Text>
 							</Pressable>
 						) : null}
-						<Text style={styles.body}>
-							Need to correct or remove a reading? Ask SureWord to find the
-							entry and make the change.
-						</Text>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityState={{ expanded: showHelp }}
+							onPress={() => setShowHelp((open) => !open)}
+						>
+							<Text style={styles.link}>
+								{showHelp ? "Hide how the log works" : "How the log works"}
+							</Text>
+						</Pressable>
+						{showHelp ? (
+							<Text style={styles.body}>
+								The reader counts a verse once it has been on screen for a few
+								seconds. A chapter is marked read when you cover every verse in
+								one sitting; coming back to it later counts again. For a paper
+								Bible, tell SureWord what you read, and ask SureWord if an entry
+								needs correcting or removing.
+							</Text>
+						) : null}
 					</View>
 				}
 			/>
 		</Screen>
 	);
 }
+
+function Stats({
+	overview,
+	styles,
+}: {
+	overview: ReadingOverview;
+	styles: ReturnType<typeof createStyles>;
+}) {
+	const { totals, streak } = overview;
+	const tiles = [
+		{
+			value: streak.current.toLocaleString(),
+			label: "day streak",
+			sub: streakNote(streak),
+		},
+		{
+			value: totals.chaptersComplete.toLocaleString(),
+			label: totals.chaptersComplete === 1 ? "chapter read" : "chapters read",
+			sub: `${percentOfBible(totals.chaptersComplete, totals.totalChapters)} of the Bible`,
+		},
+		{
+			value: totals.booksStarted.toLocaleString(),
+			label: totals.booksStarted === 1 ? "book opened" : "books opened",
+			sub: "of 66",
+		},
+	];
+	return (
+		<View style={styles.stats}>
+			{tiles.map((tile) => (
+				<View
+					key={tile.label}
+					style={styles.stat}
+					accessible
+					accessibilityLabel={`${tile.value} ${tile.label}, ${tile.sub}`}
+				>
+					<Text style={styles.statValue}>{tile.value}</Text>
+					<Text style={styles.statLabel}>{tile.label}</Text>
+					<Text style={styles.statSub}>{tile.sub}</Text>
+				</View>
+			))}
+		</View>
+	);
+}
+
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
 		header: { padding: spacing.lg, gap: spacing.sm },
-		intro: { gap: spacing.md, paddingBottom: spacing.lg },
-		title: { color: c.text, ...typography.control, fontWeight: "600" },
+		titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+		intro: { gap: spacing.lg, paddingBottom: spacing.lg },
+		screenTitle: { color: c.text, ...typography.screenTitle, fontWeight: "700" },
+		sectionTitle: { color: c.text, ...typography.sectionTitle, fontWeight: "700", marginTop: spacing.sm },
 		link: {
 			color: c.accent,
 			...typography.support,
 			paddingVertical: spacing.sm,
 		},
 		body: { color: c.textSecondary, ...typography.support },
-		session: {
-			color: c.textMuted,
-			...typography.meta,
-			marginTop: spacing.md,
-			marginBottom: spacing.xs,
-		},
 		card: {
 			padding: spacing.lg,
 			borderRadius: radius.lg,
@@ -315,4 +429,40 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 			gap: spacing.sm,
 		},
+		stats: { flexDirection: "row", gap: spacing.sm },
+		stat: {
+			flex: 1,
+			padding: spacing.md,
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+		},
+		statValue: { color: c.text, fontSize: 26, lineHeight: 32, fontWeight: "700" },
+		statLabel: { color: c.textSecondary, ...typography.meta },
+		statSub: { color: c.textFaint, ...typography.micro, marginTop: 2 },
+		day: { marginBottom: spacing.lg, gap: spacing.sm },
+		dayHeading: { color: c.textMuted, ...typography.meta, fontWeight: "600" },
+		dayCard: {
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderColor: c.borderStrong,
+			borderWidth: StyleSheet.hairlineWidth,
+			overflow: "hidden",
+		},
+		entry: {
+			flexDirection: "row",
+			alignItems: "center",
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.md,
+			gap: spacing.md,
+		},
+		entryDivider: { borderTopColor: c.border, borderTopWidth: StyleSheet.hairlineWidth },
+		entryText: { flex: 1, gap: 2 },
+		entryTitle: { color: c.text, ...typography.control, fontWeight: "600" },
+		entryMeta: { color: c.textFaint, ...typography.micro },
+		done: { color: c.accent, ...typography.meta, fontWeight: "600" },
+		partial: { alignItems: "flex-end", gap: 4, width: 72 },
+		partialBar: { width: 72, height: 4, borderRadius: 2, backgroundColor: c.border, overflow: "hidden" },
+		partialFill: { height: 4, backgroundColor: c.accentDim },
 	});

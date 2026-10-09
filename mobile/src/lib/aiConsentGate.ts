@@ -21,7 +21,7 @@ export function consentPolicy(path: string, method: string, body?: unknown): "ta
     return typeof plan?.presetKey === "string" && !plan.goal ? null : "tap";
   }
   if (write && (route === "/api/verse-insight" || route === "/api/verse-words")) return "automatic";
-  if (route === "/api/suggested-questions") return "automatic";
+  if (route === "/api/suggested-questions" || route === "/api/reading-log/reflection") return "automatic";
   if (write && (route === "/api/ask-question" || route === "/api/guest/ask" || route === "/api/note-ai" || /^\/api\/notes\/[^/]+\/ai$/.test(route)
     || route === "/api/memories/summary" || route === "/api/verse-of-day/today"
     || route === "/api/verse-of-day/audio" || route === "/api/chat/attachments"
