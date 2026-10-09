@@ -6,16 +6,16 @@
  * in it, narrated once by LineCrush's Fish Audio pipeline
  * (`backend/scripts/fish_audio_bible.py` in Context-Pro-AI, LC-15116) and
  * hosted in our S3 media bucket. Nothing is generated when someone presses
- * play, so listening is free for every account. The New Testament is narrated
- * first; NARRATED_BOOKS grows as more books are rendered.
+ * play, so listening is free for every account. The whole Bible is narrated:
+ * the New Testament since LC-15116, the Old Testament since LC-15317.
  */
 
 /** Where the chapter MP3s and their verse timings live: `<base>/<book>/<chapter>.mp3|json`. */
 export const AUDIO_BIBLE_BASE_URL =
   "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/kjv/v1";
 
-/** Book orders with narration: Matthew (40) through Revelation (66). */
-export const NARRATED_BOOKS = { first: 40, last: 66 } as const;
+/** Book orders with narration: Genesis (1) through Revelation (66). */
+export const NARRATED_BOOKS = { first: 1, last: 66 } as const;
 
 /**
  * Books played as a full-cast production (a voice for every speaker, quiet

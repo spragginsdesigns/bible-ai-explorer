@@ -17,6 +17,6 @@ final class ChapterAudioTests: XCTestCase {
         XCTAssertFalse(missing.valid(book: 43, chapter: 3))
         let malformed = try JSONDecoder().decode(ChapterAudio.self, from: Data(#"{"status":"ready","book":43,"chapter":3,"audioUrl":"http://example.com/chapter.mp3","duration":20,"verses":[{"verse":2,"start":-1,"end":10}]}"#.utf8))
         XCTAssertFalse(malformed.valid(book: 43, chapter: 3))
-        XCTAssertFalse(ChapterAudio.hasNarration(39)); XCTAssertTrue(ChapterAudio.hasNarration(40)); XCTAssertTrue(ChapterAudio.hasNarration(66))
+        XCTAssertFalse(ChapterAudio.hasNarration(0)); XCTAssertTrue(ChapterAudio.hasNarration(1)); XCTAssertTrue(ChapterAudio.hasNarration(39)); XCTAssertTrue(ChapterAudio.hasNarration(66)); XCTAssertFalse(ChapterAudio.hasNarration(67))
     }
 }

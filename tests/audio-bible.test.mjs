@@ -31,8 +31,10 @@ const TIMING = {
 	],
 };
 
-test("the New Testament is narrated, the Old is not yet", () => {
-	assert.equal(hasNarration(39), false);
+test("every book from Genesis to Revelation is narrated", () => {
+	assert.equal(hasNarration(0), false);
+	assert.equal(hasNarration(1), true);
+	assert.equal(hasNarration(39), true);
 	assert.equal(hasNarration(40), true);
 	assert.equal(hasNarration(66), true);
 	assert.equal(hasNarration(67), false);

@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.85.0 (versionCode 96) - 2026-10-09 - internal
+
+**What's new (Play):**
+
+NEW
+- Listen now reads the whole Bible. Every Old Testament chapter, Genesis to Malachi, is narrated, with the same read-along and Listen from any verse as the New Testament.
+
+**Dev notes:** `NARRATED_BOOKS` in `features/bible/audioBible.ts` is now 1-66 (was 40-66), so the reader asks `/api/bible/audio` for Old Testament chapters; the server already answers per chapter. Audio rendered by Context-Pro-AI LC-15317 (narrator only, no chapter cues).
+
 ## 1.84.1 (versionCode 95) - 2026-10-08 - internal
 
 **What's new (Play):**

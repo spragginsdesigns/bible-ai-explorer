@@ -12,7 +12,7 @@ struct ChapterAudio: Decodable, Sendable, Equatable {
     let duration: Double?
     let verses: [Timing]?
 
-    static func hasNarration(_ book: Int) -> Bool { (40...66).contains(book) }
+    static func hasNarration(_ book: Int) -> Bool { (1...66).contains(book) }
     func verse(at seconds: Double) -> Int? { verses?.last(where: { $0.start <= seconds })?.verse }
     func start(of verse: Int) -> Double { verses?.first(where: { $0.verse == verse })?.start ?? 0 }
     func valid(book: Int, chapter: Int) -> Bool {

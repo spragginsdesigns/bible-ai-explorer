@@ -6,7 +6,7 @@ describe("chapter narration timing", () => {
     expect(verseAt(verses, 0)).toBe(null); expect(verseAt(verses, 9.99)).toBe(1); expect(verseAt(verses, 10)).toBe(2);
     expect(verseStart(verses, 2)).toBe(10); expect(verseStart(verses, 50)).toBe(0);
   });
-  it("doesn't offer narration for books without recordings", () => { expect(hasNarration(39)).toBe(false); expect(hasNarration(40)).toBe(true); expect(hasNarration(66)).toBe(true); expect(hasNarration(67)).toBe(false); });
+  it("offers narration for every book and none outside the Bible", () => { expect(hasNarration(0)).toBe(false); expect(hasNarration(1)).toBe(true); expect(hasNarration(39)).toBe(true); expect(hasNarration(66)).toBe(true); expect(hasNarration(67)).toBe(false); });
   it("rejects timings from a different chapter or missing verse", () => {
     const data = { book: 43, chapter: 3, duration: 20, verses };
     expect(parseChapterTiming(data, 43, 4)).toBe(null);

@@ -18,8 +18,8 @@ const UNAVAILABLE: ChapterAudioResponse = { status: "unavailable" };
  * the audio was rendered once (see src/lib/bible/audioBible.ts), so a play
  * costs storage egress, never a generation.
  *
- * `status: "unavailable"` means this chapter has no narration yet (the Old
- * Testament, until it is rendered), and the clients then show no Listen
+ * `status: "unavailable"` means this chapter has no narration yet (one not
+ * uploaded), and the clients then show no Listen
  * control at all. The timing file is read from our media bucket and cached
  * for a day, so the bucket sees about one request per chapter per day.
  */

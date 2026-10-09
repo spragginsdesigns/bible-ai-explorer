@@ -974,18 +974,22 @@ Every chapter was narrated once by LineCrush's Fish Audio pipeline
 `s2.1-pro-free` model in the "Unknown Dark" audiobook voice, from the same
 bundled KJV text the reader shows. Each verse is its own request, so
 `<book>/<chapter>.json` carries exact verse start/end offsets with no alignment
-pass. A chapter opens with a quiet cue reused from the shared sound library (one
-low church bell before a book's first chapter, a soft swell before the others),
-14 LU under the narration, which is leveled to -19 LUFS. Files live in our S3
+pass. A New Testament chapter opens with a quiet cue reused from the shared
+sound library (one low church bell before a book's first chapter, a soft swell
+before the others), well under the narration, which is leveled to -19 LUFS. Old
+Testament chapters have no cue and open on the spoken heading (Jay, LC-15317:
+just the narrator). Files live in our S3
 media bucket under `Audio/sureword-bible/kjv/v1/`; `GET /api/bible/audio?book=&chapter=`
 (public, cached a day) returns the MP3 URL and the verse timings, or
 `status: "unavailable"` for a chapter with no narration, and the clients then
 show no Listen control. Listening is free for every account: one shared asset,
 paid for in storage, not per play.
 
-**Scope.** The New Testament (books 40-66, 260 chapters, about 15 hours) is
-narrated. `NARRATED_BOOKS` grows when more books are rendered and uploaded;
-re-renders go to a new `v2/` prefix because the bucket serves a day-long cache.
+**Scope.** The whole KJV is narrated: the New Testament (books 40-66, 260
+chapters, about 15 hours, 2026-10-08) and the Old Testament (books 1-39, 929
+chapters, about 54 hours, 2026-10-09). Matthew plays the full-cast production
+instead (`DRAMATIZED_BOOKS`). Re-renders go to a new `v2/` prefix because the
+bucket serves a day-long cache.
 NKJV and BSB show no Listen control, since the audio is the KJV.
 
 ## An app-aware assistant, and changing today's cross from chat
