@@ -1083,7 +1083,7 @@ async function handlePost(req: Request): Promise<Response> {
 								if (chunk.type === "reasoning-end") progress.summary(chunk.id, "", true);
 							}
 						},
-						onEnd: () => progress.finish(metricError !== null),
+						// Finalize after consumption, including any incomplete-answer notice.
 						onAbort: () => progress.finish(true),
 						experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
 						// Supplying onError replaces streamText's default console.error, so
@@ -1159,7 +1159,7 @@ async function handlePost(req: Request): Promise<Response> {
 						writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
 						writer.write({ type: "text-end", id: textId });
 					}
-					progress.finish(metricError !== null);
+					progress.finish(metricError !== null || notice !== null);
 				} catch (error) {
 					progress.finish(true);
 					throw error;

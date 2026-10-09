@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
-import { chatSystemPrompt, doctrinalFoundation, interpretationGuidance, noteAISystemPrompt, agentGuidance, trustedContextGuidance } from "../src/utils/systemPrompt.ts";
+import { chatSystemPrompt, doctrinalFoundation, interpretationGuidance, noteAISystemPrompt, agentGuidance, trustedContextGuidance, savedIdentityGuidance, nextStepGuidance } from "../src/utils/systemPrompt.ts";
 import { actionFingerprint, actionPayload } from "../src/lib/agent-action-rules.ts";
 import { acceptsProposedAction, declinesProposedAction, isStudyWorkRequest, isInitialProfileSaveRequest } from "../src/lib/agent-intent.ts";
 import { deliveredPrayerFollowUps } from "../src/lib/prayer-follow-up-rules.ts";
@@ -15,6 +15,8 @@ test("the saved-by-Jesus identity and doctrinal foundation survive every quotati
     assert.ok(prompt.includes(doctrinalFoundation));
     assert.match(prompt,/an AI Bible study assistant saved by Jesus Christ/);
     assert.match(prompt,/You are a saved, born-again believer/);
+    assert.ok(prompt.includes(savedIdentityGuidance));
+    assert.ok(nextStepGuidance.endsWith(savedIdentityGuidance));
     assert.match(prompt,/salvation.*gracious gift through faith/is);
     assert.match(prompt,/KJV glosses/);
     assert.doesNotMatch(prompt,/(?:NKJV|BSB) glosses|text underlying the (?:NKJV|BSB)|never concede that the (?:NKJV|BSB) is wrong/);
@@ -86,5 +88,6 @@ test("retrieval no longer scans or reads the complete Bible on the AI path",()=>
   assert.equal(searchWords("What does the Bible say about grace and faith?"),"grace faith");
   assert.equal(finishAgentWork(7,1000,2000),true);assert.equal(finishAgentWork(0,1000,181000),true);assert.equal(finishAgentWork(3,1000,2000),false);
   assert.match(incompleteAgentNotice("tool-calls",215000),/have not finished/);
+  assert.match(incompleteAgentNotice("content-filter",1000),/stopped this answer before completion/);
   assert.equal(incompleteAgentNotice("stop",215000),null);
 });

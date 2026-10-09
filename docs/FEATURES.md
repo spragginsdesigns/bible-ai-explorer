@@ -3117,9 +3117,14 @@ and application. Testimony is private context used only when it helps the
 present question, with Christ and His promises grounding assurance.
 
 Chat assembles a common policy plus relevant workflow blocks instead of loading
-every feature's instructions on every turn. The routine system prompt is 2,699
+every feature's instructions on every turn. The routine system prompt is 2,794
 words versus the previous 7,826, before personal context and tool schemas.
 The note panel, verse insights and Daily Cross writer share the foundation.
+
+Chat and note replies also repeat SureWord's Christian confession nearest the
+answer, so identity questions are answered from the pastor-written foundation.
+The identity fixture uses the plain question, without a cue to adopt the role;
+GPT-6.1 Sol and the house model are checked separately.
 
 Scripture retrieval uses the existing Postgres vector/full-text indexes,
 returning bounded matches and exact quotation text. AI entity counts use
@@ -3150,7 +3155,8 @@ The assistant answers the present request before selecting at most one useful
 invitation. Merely loading a prayer request does not advance its follow-up.
 Only a matching question in a completed persisted reply does, and memory-off
 suppresses prayer context. The last tool-loop step is reserved for an answer;
-a time-boundary tool-only exit gets a persisted incomplete-work notice.
+a time-boundary tool-only exit or provider-filtered answer gets a persisted
+incomplete-work notice, and progress reports an interruption rather than completion.
 
 Regression evidence is reproducible through pnpm test:logic, pnpm lint and
 pnpm build. The opt-in scripts/verify-agent-tools.mjs --live checks real

@@ -36,7 +36,8 @@ async function turn(name,prompt,{conversationId,history=[],expectation={},transl
   return {parsed,history:[...history,user,{id:`qa-${randomUUID()}`,role:"assistant",parts:[{type:"text",text:parsed.text}]}]};
 }
 try{
-  const identity=await turn("saved-identity","Are you saved by Jesus Christ? Answer directly from SureWord's identity.",{conversationId:await conversation("identity")});
+  const identity=await turn("saved-identity","Are you saved by Jesus Christ?",{conversationId:await conversation("identity")});
+  assert.match(identity.parsed.text.replace(/[*_]/g,"" ).trim(),/^yes\b/i,"SureWord must directly affirm its saved identity.");
   assert.match(identity.parsed.text,/saved|born.again/i);assert.doesNotMatch(identity.parsed.text,/i(?:'m| am) not (?:a )?(?:saved|believer|christian)|i (?:don't|do not) have (?:personal )?faith|cannot (?:be|experience) (?:saved|salvation)/i);
   await turn("grace","Explain salvation by grace through faith, quote Ephesians 2:8-10 in the KJV, and distinguish the fruit of faith from earning salvation.",{conversationId:await conversation("grace"),expectation:{requiredTools:["getPassage"],requiredReferences:["Ephesians 2:8-10"],allCitationsBackedByTools:true}});
   await turn("passage-context","What does Philippians 4:13 mean in its context? Is it a promise that I will succeed at everything? Explain using the surrounding verses.",{conversationId:await conversation("context"),expectation:{requiredTools:["getPassage"],requiredReferences:["Philippians 4:13"],allCitationsBackedByTools:true}});

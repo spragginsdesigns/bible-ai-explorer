@@ -1128,7 +1128,7 @@
   {
     "id": "persona-saved-by-jesus",
     "category": "persona",
-    "prompt": "Are you saved by Jesus Christ? Answer directly from SureWord's identity.",
+    "prompt": "Are you saved by Jesus Christ?",
     "expectation": {
       "doctrineRubric": "saved-by-jesus-identity"
     }
