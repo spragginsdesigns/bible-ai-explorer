@@ -10,9 +10,16 @@
  * the New Testament since LC-15116, the Old Testament since LC-15317.
  */
 
-/** Where the chapter MP3s and their verse timings live: `<base>/<book>/<chapter>.mp3|json`. */
+/**
+ * Where the chapter MP3s and their verse timings live: `<base>/<book>/<chapter>.mp3|json`.
+ * The bucket serves them with a day-long cache, so a re-render goes to a new
+ * version folder rather than over the old files: v2 re-reads the New
+ * Testament verses with parentheses or with wording changed by the 1769 text
+ * rebuild, and a few that a transcription screen heard invented words in
+ * (LC-15328).
+ */
 export const AUDIO_BIBLE_BASE_URL =
-  "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/kjv/v1";
+  "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/kjv/v2";
 
 /** Book orders with narration: Genesis (1) through Revelation (66). */
 export const NARRATED_BOOKS = { first: 1, last: 66 } as const;

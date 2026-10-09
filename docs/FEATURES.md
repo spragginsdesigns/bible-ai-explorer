@@ -979,7 +979,7 @@ sound library (one low church bell before a book's first chapter, a soft swell
 before the others), well under the narration, which is leveled to -19 LUFS. Old
 Testament chapters have no cue and open on the spoken heading (Jay, LC-15317:
 just the narrator). Files live in our S3
-media bucket under `Audio/sureword-bible/kjv/v1/`; `GET /api/bible/audio?book=&chapter=`
+media bucket under `Audio/sureword-bible/kjv/v2/`; `GET /api/bible/audio?book=&chapter=`
 (public, cached a day) returns the MP3 URL and the verse timings, or
 `status: "unavailable"` for a chapter with no narration, and the clients then
 show no Listen control. Listening is free for every account: one shared asset,
@@ -988,8 +988,11 @@ paid for in storage, not per play.
 **Scope.** The whole KJV is narrated: the New Testament (books 40-66, 260
 chapters, about 15 hours, 2026-10-08) and the Old Testament (books 1-39, 929
 chapters, about 54 hours, 2026-10-09). Matthew plays the full-cast production
-instead (`DRAMATIZED_BOOKS`). Re-renders go to a new `v2/` prefix because the
-bucket serves a day-long cache.
+instead (`DRAMATIZED_BOOKS`). Re-renders go to a new version prefix because the
+bucket serves a day-long cache: `v2/` (2026-10-09, LC-15328) re-reads the 110
+New Testament verses with parentheses, the 148 whose wording changed in the
+1769 text rebuild and 8 where a transcription screen heard invented words after
+the verse, and copies every other chapter from `v1/` unchanged.
 NKJV and BSB show no Listen control, since the audio is the KJV.
 
 ## An app-aware assistant, and changing today's cross from chat
