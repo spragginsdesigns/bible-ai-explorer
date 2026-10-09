@@ -137,7 +137,11 @@ requirements before using them.
       policy and Play form definitions before declaring these as "shared" or
       processor-only; document each provider and the data it receives.
 4. **Store listing**:
-   - App name: `SureWord` (30 char limit)
+   - App name: `SureWord: Personal Bible Guide` (30 of 30 chars; chosen
+     2026-10-09, was `SureWord`). Same name as the App Store listing in
+     `docs/ios/app-store-listing.md`. The launcher label on the device stays
+     `SureWord`; this is the store title only, edited in Play Console → Grow
+     users → Store presence → Main store listing, no new build needed.
    - Short description (80 chars):
      `Come hungry for the Word: your personal Bible study companion.`
     - Full description: see below. Refresh it when a user-visible feature lands;

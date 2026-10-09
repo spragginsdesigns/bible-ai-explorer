@@ -1,7 +1,9 @@
 # App Store listing copy (PRD H3)
 
 Status: **entered in App Store Connect on 2026-10-07** (version 1.10.0, en-US)
-through the API. This file mirrors what is live there; change both together. Copy follows the Mission in `CLAUDE.md`: SureWord
+through the API. This file mirrors what is live there; change both together.
+Exception: the name, subtitle and keywords changed on 2026-10-09 and are
+entered with the next iOS submission. Copy follows the Mission in `CLAUDE.md`: SureWord
 speaks as a believer who holds the King James Bible as the inerrant Word of
 God, without claiming the AI is infallible.
 
@@ -21,12 +23,18 @@ Rules for this file:
 
 | Field | Text | Chars (limit) |
 |---|---|---|
-| Name | `SureWord` | 8 (30) |
-| Subtitle | `KJV Bible study, made personal` | 30 (30) |
+| Name | `SureWord: Personal Bible Guide` | 30 (30) |
+| Subtitle | `Walk with the Word in the KJV` | 29 (30) |
 
-Alternative if "SureWord" alone is taken or Austin wants the name to carry a
-keyword: Name `SureWord: KJV Bible Study` (25) with Subtitle
-`Ask, read and study the Word` (28).
+Chosen by Austin on 2026-10-09 to replace `SureWord` / `KJV Bible study, made
+personal`. The app does more than study (Bible reader, Pick Up Your Cross,
+Listen, reading plans, word study, prayer), so the name says "guide" and the
+title keeps "Bible" for search. "Guide" rather than "Teacher" on purpose:
+Scripture names the Holy Spirit as the believer's teacher (John 14:26,
+1 John 2:27). Apple only allows a name change while a version is in Prepare
+for Submission, so this goes live with the next iOS submission; the name under
+the icon on the device stays `SureWord`. Matches the Play title in
+`docs/PLAY_STORE.md`.
 
 ## Promotional text (170 max, editable without review)
 
@@ -110,11 +118,13 @@ Verify before submitting:
 ## Keywords (100 max, comma separated, no spaces)
 
 ```
-scripture,devotional,king james,verse,christian,jesus,gospel,prayer,faith,church,notes,concordance
+scripture,devotional,king james,verse,christian,jesus,prayer,faith,church,study,ai,concordance
 ```
 
-98 characters. Words already in the name or subtitle (SureWord, KJV, Bible,
-Study, AI) are indexed from there and left out. No competitor names.
+94 characters. Words already in the name or subtitle (SureWord, Personal,
+Bible, Guide, Walk, Word, KJV) are indexed from there and left out. "study"
+and "ai" moved here on 2026-10-09 when the old subtitle that carried them was
+retired; "gospel" and "notes" were dropped to make room. No competitor names.
 
 ## Categories
 
