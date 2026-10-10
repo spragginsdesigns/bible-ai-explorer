@@ -78,6 +78,19 @@ done
 # ---------------------------------------------------------------------------
 step "Building SureWord $version (Release)"
 (cd -- "$script_dir" && xcodegen generate >/dev/null)
+# Snapshot macos/ before xcodebuild reads it and, once the build succeeds,
+# record that snapshot next to the app with the app's CDHash. build-dmg.sh
+# packages only an app whose record matches it and the current source, so a
+# DMG can never be made from a stale or replaced build. The old record is
+# removed first so a failed build cannot leave it describing an older app.
+# shellcheck source=../scripts/lib/release-provenance.sh
+. "$repo_root/scripts/lib/release-provenance.sh"
+rm -f "$built_app.build" "$built_app.sources"
+build_sources="$(mktemp)"
+trap 'rm -f "$build_sources"' EXIT
+release_source_listing "$repo_root" macos >"$build_sources"
+build_commit="$(git -C "$repo_root" rev-parse HEAD)"
+build_dirty="$(release_source_dirty_count "$repo_root" macos)"
 (cd -- "$script_dir" && xcodebuild -project SureWord.xcodeproj -scheme SureWord \
 	-configuration Release -destination 'platform=macOS' \
 	-derivedDataPath "$build_dir" build -quiet) || die "xcodebuild failed"
@@ -86,6 +99,10 @@ step "Building SureWord $version (Release)"
 built_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$built_app/Contents/Info.plist")"
 [ "$built_version" = "$version" ] ||
 	die "built app reports $built_version but project.yml declares $version"
+if ! release_record_app_build "$built_app" "$build_sources" "$build_commit" "$build_dirty"; then
+	[ "$do_release" = 0 ] || die "could not record which source $built_app was built from; nothing was published"
+	printf '  note: no build record written; this app cannot be packaged for release\n'
+fi
 
 # ---------------------------------------------------------------------------
 step "Installing to $installed_app"

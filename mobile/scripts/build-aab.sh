@@ -57,12 +57,27 @@ case "$HOST_OS" in
 esac
 AAB="$MOBILE_DIR/android/app/build/outputs/bundle/release/app-release.aab"
 ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
+SOURCE_LISTING="$MOBILE_DIR/android/app/build/outputs/release-sources.txt"
+UPLOAD_CERT="$MOBILE_DIR/scripts/upload-cert.sha256"
+REPO_ROOT="$(cd "$MOBILE_DIR/.." && pwd)"
+# shellcheck source=../../scripts/lib/release-provenance.sh
+. "$REPO_ROOT/scripts/lib/release-provenance.sh"
 
 log() { echo "[build-aab] $*"; }
 
 [[ -d "$MOBILE_DIR/android" ]] || {
   echo "No android/ prebuild. Run: cd mobile && npx expo prebuild --platform android"; exit 1;
 }
+
+# Snapshot the source BEFORE Gradle reads it. The publish scripts recompute
+# this and refuse when mobile/ no longer matches, so an edit made during or
+# after the build cannot ship under a binary that does not contain it.
+SOURCE_LISTING_TMP="$(mktemp)"
+trap 'rm -f "$SOURCE_LISTING_TMP"' EXIT
+release_source_listing "$REPO_ROOT" mobile > "$SOURCE_LISTING_TMP"
+SOURCE_SHA="$(release_source_digest "$SOURCE_LISTING_TMP")"
+SOURCE_COMMIT="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+SOURCE_DIRTY="$(release_source_dirty_count "$REPO_ROOT" mobile)"
 
 cd "$MOBILE_DIR/android"
 
@@ -124,19 +139,32 @@ APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 [[ -f "$APK" ]] || { echo "APK not found at $APK"; exit 1; }
 log "APK ready: $APK ($(du -h "$APK" | cut -f1))"
 
-# Bind the two artifacts to the exact version they were built from. The publish
-# script verifies this manifest before touching Play, including --skip-build,
-# so an old APK cannot be paired with a new AAB (or vice versa).
+# Not-debug is not enough: both artifacts must carry the pinned upload
+# certificate, or nothing downstream will publish them.
+AAB_SIGNER="$(release_require_android_signer "$AAB" "$UPLOAD_CERT")"
+APK_SIGNER="$(release_require_android_signer "$APK" "$UPLOAD_CERT")"
+[[ "$AAB_SIGNER" == "$APK_SIGNER" ]] || { echo "AAB and APK are signed by different certificates"; exit 1; }
+log "AAB and APK signed by the pinned upload certificate $AAB_SIGNER."
+
+# Bind the two artifacts to the exact version and source they were built from.
+# The publish script verifies this manifest before touching Play, including
+# --skip-build, so an old APK cannot be paired with a new AAB (or vice versa)
+# and neither can ship once mobile/ has changed underneath it.
 BUILT_CODE="$(sed -nE 's/^[[:space:]]*versionCode[[:space:]]+([0-9]+).*$/\1/p' app/build.gradle | head -n 1)"
 BUILT_NAME="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]+"([^"]+)".*$/\1/p' app/build.gradle | head -n 1)"
 [[ -n "$BUILT_CODE" && -n "$BUILT_NAME" ]] || {
   echo "Could not read the built version from android/app/build.gradle"; exit 1;
 }
 mkdir -p "$(dirname "$ARTIFACT_MANIFEST")"
-printf 'versionCode=%s\nversionName=%s\naabSha256=%s\napkSha256=%s\n' \
+cp "$SOURCE_LISTING_TMP" "$SOURCE_LISTING"
+printf 'versionCode=%s\nversionName=%s\naabSha256=%s\napkSha256=%s\nsignerSha256=%s\nsourceCommit=%s\nsourceDirtyFiles=%s\nsourceSha256=%s\n' \
   "$BUILT_CODE" \
   "$BUILT_NAME" \
   "$(sha256sum "$AAB" | awk '{print $1}')" \
   "$(sha256sum "$APK" | awk '{print $1}')" \
+  "$AAB_SIGNER" \
+  "$SOURCE_COMMIT" \
+  "$SOURCE_DIRTY" \
+  "$SOURCE_SHA" \
   > "$ARTIFACT_MANIFEST"
-log "Bound AAB and APK to $BUILT_NAME ($BUILT_CODE) in $ARTIFACT_MANIFEST."
+log "Bound AAB and APK to $BUILT_NAME ($BUILT_CODE), source $SOURCE_COMMIT + $SOURCE_DIRTY uncommitted file(s) under mobile/, in $ARTIFACT_MANIFEST."

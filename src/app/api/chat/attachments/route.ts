@@ -3,11 +3,16 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import {
   AttachmentValidationError,
+  PENDING_ATTACHMENT_WINDOW_MS,
+  pendingAttachmentRefusal,
   sanitizeAttachmentFilename,
   validateAttachmentBatch,
 } from "@/lib/chat-attachment-types";
 import { createAttachmentUploadUrl } from "@/lib/chat-attachments.server";
 import { prisma } from "@/lib/prisma";
+
+/** Thrown inside the reservation transaction; answered as 429. */
+class PendingAttachmentLimitError extends Error {}
 
 export async function POST(request: Request) {
   let createdIds: string[] = [];
@@ -31,9 +36,19 @@ export async function POST(request: Request) {
       };
     });
 
-    await prisma.$transaction(
-      records.map((record) => prisma.chatAttachment.create({ data: record })),
-    );
+    // Count and create under one per-user lock, so parallel requests cannot
+    // each see room for themselves and together blow past the allowance.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8205)`;
+      const pending = await tx.chatAttachment.aggregate({
+        where: { userId, messageId: null, createdAt: { gte: new Date(Date.now() - PENDING_ATTACHMENT_WINDOW_MS) } },
+        _count: { _all: true },
+        _sum: { size: true },
+      });
+      const refusal = pendingAttachmentRefusal({ count: pending._count._all, bytes: pending._sum.size ?? 0 }, files);
+      if (refusal) throw new PendingAttachmentLimitError(refusal);
+      await tx.chatAttachment.createMany({ data: records });
+    });
     createdIds = records.map((record) => record.id);
 
     const uploads = await Promise.all(
@@ -51,6 +66,9 @@ export async function POST(request: Request) {
       await prisma.chatAttachment.deleteMany({ where: { id: { in: createdIds }, messageId: null } });
     }
     if (error instanceof Response) return error;
+    if (error instanceof PendingAttachmentLimitError) {
+      return NextResponse.json({ error: error.message, code: "attachments_pending" }, { status: 429 });
+    }
     if (error instanceof AttachmentValidationError || error instanceof SyntaxError) {
       return NextResponse.json(
         { error: error instanceof Error ? error.message : "Invalid request." },

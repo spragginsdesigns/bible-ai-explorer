@@ -1,6 +1,12 @@
 import { ImageResponse } from "next/og";
+import { addCacheTag } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
-import { isSharedAnswerId, shareCardExcerpt } from "@/lib/shared-answer";
+import {
+	SHARED_CARD_CACHE_CONTROL,
+	isSharedAnswerId,
+	shareCardExcerpt,
+	sharedAnswerCacheTag,
+} from "@/lib/shared-answer";
 
 /**
  * The unfurl card for a shared answer (docs/FEATURES.md, "Share an answer").
@@ -9,7 +15,9 @@ import { isSharedAnswerId, shareCardExcerpt } from "@/lib/shared-answer";
  * WhatsApp, X and Discord all fetch this signed-out, from their own scrapers,
  * which is why `/api/shared/(.*)/image` is in `isPublicRoute`. It reads the
  * SharedAnswer snapshot only - never Message - so a revoked link stops
- * unfurling the moment it is revoked.
+ * unfurling the moment it is revoked. Caches are the other half of that: the
+ * card is never cached as long-lived (SHARED_CARD_CACHE_CONTROL), and its CDN
+ * copy carries a per-share tag that revoking purges.
  *
  * No `fonts` option is passed on purpose. next/og replaces the bundled default
  * face outright when one is supplied (`options.fonts || defaultFonts` in
@@ -49,6 +57,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 		select: { answer: true, references: true, translation: true },
 	});
 	if (!share) return notFound();
+	// A no-op off Vercel. A failed tag only loses the instant purge; the short
+	// s-maxage still bounds how long the CDN can serve a revoked card.
+	await addCacheTag(sharedAnswerCacheTag(id)).catch(() => undefined);
 
 	const references = Array.isArray(share.references)
 		? share.references.filter((reference): reference is string => typeof reference === "string")
@@ -161,7 +172,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 			// "cache-control" key and spreads `options.headers` over it. A
 			// "Cache-Control" spelling would be a SECOND header entry rather than
 			// a replacement, and the two values would be concatenated.
-			headers: { "cache-control": "public, max-age=86400, s-maxage=86400" },
+			headers: { "cache-control": SHARED_CARD_CACHE_CONTROL },
 		},
 	);
 }

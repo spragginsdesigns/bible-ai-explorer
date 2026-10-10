@@ -43,6 +43,12 @@ enum PushRegistration {
     private static let remoteLiveKey = "push.remoteLive"
     /// Expo's `deviceId`, a per-install UUID like `getInstallationIdAsync`.
     private static let installationIDKey = "push.installationId"
+    /// The device proof the server returned for `proofTokenKey`'s Expo token
+    /// (Android's `pushTokenProof.ts`). Sent back on every registration so the
+    /// token is bound to this device and another account cannot take it by
+    /// knowing it. Derived from the token, not the account, so sign-out keeps it.
+    private static let proofKey = "push.tokenProof"
+    private static let proofTokenKey = "push.tokenProofToken"
 
     /// The last token APNs issued, hex-encoded, kept across launches so a
     /// settings change can re-register (or unregister) without waiting for
@@ -131,9 +137,16 @@ enum PushRegistration {
             let notifyHour: Int
             let enabled: Bool
             let chatReplies: Bool
+            /// Omitted while nil; servers before 2026-10-09 ignore it.
+            let proof: String?
         }
-        do {
-            try await api.data(
+        /// Only `proof` is read, and it is optional: an older server, or one with
+        /// the feature off, answers `{ id }` alone.
+        struct RegisterResponse: Decodable {
+            let proof: String?
+        }
+        func send(proof: String?) async throws -> String? {
+            let data = try await api.data(
                 "/api/push-tokens",
                 method: "POST",
                 body: RegisterBody(
@@ -142,13 +155,38 @@ enum PushRegistration {
                     timezone: TimeZone.current.identifier,
                     notifyHour: hour,
                     enabled: verseOfDayEnabled,
-                    chatReplies: chatReplies
+                    chatReplies: chatReplies,
+                    proof: proof
                 )
             )
+            return (try? JSONDecoder().decode(RegisterResponse.self, from: data))?.proof
+        }
+        do {
+            let returned = try await send(proof: storedProof(for: expoToken))
+            // A proof this device did not send yet is echoed straight back, which
+            // binds the token now rather than at the next launch. Best-effort.
+            if let returned, storeProof(returned, for: expoToken) {
+                _ = try? await send(proof: returned)
+            }
             return .registered
         } catch {
             return .unavailable
         }
+    }
+
+    private static func storedProof(for expoToken: String) -> String? {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: proofTokenKey) == expoToken else { return nil }
+        return defaults.string(forKey: proofKey)
+    }
+
+    /// Returns true when `proof` is new for this token and was stored.
+    private static func storeProof(_ proof: String, for expoToken: String) -> Bool {
+        guard !proof.isEmpty, storedProof(for: expoToken) != proof else { return false }
+        let defaults = UserDefaults.standard
+        defaults.set(proof, forKey: proofKey)
+        defaults.set(expoToken, forKey: proofTokenKey)
+        return true
     }
 
     /// The Expo token for this APNs token, exchanged once and then reused.

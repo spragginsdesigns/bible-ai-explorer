@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
-import { patchUserNote } from "@/lib/notes-io";
+import { FolderNotFoundError, patchUserNote } from "@/lib/notes-io";
 import { type NoteProperties, validateAliases, validateProperties } from "@/lib/note-links";
 
 function isNotFound(err: unknown): boolean {
@@ -74,6 +74,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 		return NextResponse.json(note);
 	} catch (err) {
 		if (err instanceof Response) return err;
+		if (err instanceof FolderNotFoundError) {
+			return NextResponse.json({ error: err.message }, { status: 400 });
+		}
 		if (isNotFound(err)) {
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
 		}

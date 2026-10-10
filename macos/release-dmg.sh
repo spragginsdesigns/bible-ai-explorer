@@ -6,14 +6,24 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 project_file="$script_dir/project.yml"
 dmg_file="$script_dir/SureWord.dmg"
+provenance_file="$dmg_file.provenance"
+# The app inside the DMG must be signed by SureWord's Apple team under its own
+# bundle id. The team also holds another company's app, so the pin is the
+# bundle id plus the team, never the team alone.
+team_id="389LLKGY3Y"
+bundle_id="com.spragginsdesigns.sureword"
 staging_dir=""
 mount_dir=""
 
 cleanup() {
-	if [ -n "$mount_dir" ] && mount | grep -Fq " on $mount_dir "; then
-		hdiutil detach "$mount_dir" -quiet >/dev/null 2>&1 || true
+	# Detach unconditionally: `mount` lists the image under /private/var/...
+	# while mktemp returns /var/..., so a grep on `mount` never matched and a
+	# failed check left the DMG attached. rmdir, never rm -rf, on a mountpoint.
+	if [ -n "$mount_dir" ]; then
+		hdiutil detach "$mount_dir" -quiet >/dev/null 2>&1 ||
+			hdiutil detach "$mount_dir" -force -quiet >/dev/null 2>&1 || true
+		rmdir "$mount_dir" 2>/dev/null || true
 	fi
-	[ -z "$mount_dir" ] || rm -rf "$mount_dir"
 	[ -z "$staging_dir" ] || rm -rf "$staging_dir"
 }
 trap cleanup EXIT
@@ -34,7 +44,25 @@ version="$(sed -nE 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"?([^"[:space:]
 printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' ||
 	die "MARKETING_VERSION is not a release version: $version"
 
+# Bind the DMG to the build that produced it and to the source on disk:
+# build-dmg.sh records the DMG hash and a content digest of macos/, and a DMG
+# with no record, a different hash, or source that changed since is refused.
+# shellcheck source=../scripts/lib/release-provenance.sh
+. "$repo_root/scripts/lib/release-provenance.sh"
+[ -f "$provenance_file" ] ||
+	die "missing $provenance_file; rebuild the DMG with scripts/build-dmg.sh (install-mac.sh --release does this)"
+provenance_value() {
+	awk -F= -v key="$1" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$provenance_file"
+}
+[ "$(provenance_value dmgSha256)" = "$(release_sha256 "$dmg_file")" ] ||
+	die "SureWord.dmg does not match the hash build-dmg.sh recorded; rebuild it"
+[ "$(provenance_value version)" = "$version" ] ||
+	die "SureWord.dmg was built as $(provenance_value version), but project.yml declares $version; rebuild it"
+release_require_unchanged_source "$(provenance_value sourceSha256)" "$dmg_file.sources" "$repo_root" macos ||
+	die "macos/ changed since SureWord.dmg was built; rebuild it"
+
 command -v hdiutil >/dev/null 2>&1 || die "hdiutil is required to verify the DMG"
+command -v codesign >/dev/null 2>&1 || die "codesign is required to verify the DMG"
 [ -x /usr/libexec/PlistBuddy ] || die "PlistBuddy is required to verify the app version"
 mount_dir="$(mktemp -d)"
 hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_file" -quiet ||
@@ -45,6 +73,16 @@ built_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 
 	die "could not read CFBundleShortVersionString from the DMG"
 [ "$built_version" = "$version" ] ||
 	die "DMG contains SureWord $built_version, but project.yml declares $version"
+codesign --verify --deep --strict "$mount_dir/SureWord.app" ||
+	die "SureWord.app in the DMG fails codesign --verify --deep --strict"
+signature="$(codesign -dv "$mount_dir/SureWord.app" 2>&1)" ||
+	die "could not read the code signature of SureWord.app in the DMG"
+signed_team="$(printf '%s\n' "$signature" | sed -n 's/^TeamIdentifier=//p')"
+signed_id="$(printf '%s\n' "$signature" | sed -n 's/^Identifier=//p')"
+[ "$signed_team" = "$team_id" ] && [ "$signed_id" = "$bundle_id" ] ||
+	die "SureWord.app in the DMG is signed as $signed_id by team ${signed_team:-none}, expected $bundle_id by team $team_id"
+[ "$(release_app_cdhash "$mount_dir/SureWord.app")" = "$(provenance_value appCdhash)" ] ||
+	die "SureWord.app in the DMG is not the app install-mac.sh built and recorded; rebuild with install-mac.sh --release"
 hdiutil detach "$mount_dir" -quiet
 rmdir "$mount_dir"
 mount_dir=""
@@ -102,3 +140,5 @@ else
 fi
 
 printf 'Published %s (%s) with %s\n' "$tag" "$repo" "${assets[*]}"
+printf 'DMG built from %s + %s uncommitted file(s) under macos/, app signed by team %s\n' \
+	"$(provenance_value sourceCommit)" "$(provenance_value sourceDirtyFiles)" "$team_id"

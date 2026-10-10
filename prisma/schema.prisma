@@ -80,6 +80,7 @@ model User {
   tags                   Tag[]
   memories               UserMemory[]
   attachments            ChatAttachment[]
+  audioTranscriptions    AudioTranscriptionUsage[]
   providerCredentials    ProviderCredential[]
   pushTokens             PushToken[]
   readingEvents          ReadingEvent[]
@@ -100,6 +101,7 @@ model User {
   learnReviewReceipts    LearnReviewReceipt[]
   feedback               Feedback[]
   church                 UserChurch?
+  churchSaves            ChurchSaveEvent[]
   agentStudies           AgentStudy[]
   agentActions           AgentAction[]
 }
@@ -278,6 +280,19 @@ model AiUsageRequest {
   @@index([userId, createdAt, status])
 }
 
+/// One church save that reached the paid Places and enrichment work. Counted
+/// per user over the last hour, under an advisory lock (namespace 8206), so
+/// the limit holds across every server instance; rows past the window are
+/// pruned by the cleanup cron.
+model ChurchSaveEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model UserChurch {
   userId           String   @id
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -300,8 +315,15 @@ model UserChurch {
   // Null means the church is named but nothing is ingested for it, which is
   // every church except the ones explicitly wired up.
   youtubeChannelId String?
+  /// When the Places, website and model work behind this row actually ran.
+  /// A save that reuses another row's fresh enrichment copies that row's
+  /// value, so reuse can never stretch a read past its window. Null on rows
+  /// saved before 2026-10-09, which therefore never serve as a reuse source.
+  enrichedAt       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([placeId])
 }
 
 enum AiProvider {
@@ -428,12 +450,34 @@ model ChatAttachment {
   /// reads in place of the audio. Null for every other type.
   transcript      String?              @db.Text
   /// Audio only: length in seconds, read from the file before transcribing.
-  /// Summed per user over 24 hours for the free daily voice-message cap.
+  /// The daily cap is counted from AudioTranscriptionUsage, not from here.
   durationSeconds Float?
+  /// Set by the one /complete request that won the right to verify (and, for
+  /// audio, pay to transcribe) this upload; a parallel request waits for it
+  /// instead of paying again. A claim older than the route's maxDuration is
+  /// stale and may be taken over.
+  processingToken String?
+  processingAt    DateTime?
 
   @@index([userId])
   @@index([messageId])
   @@index([status, createdAt])
+}
+
+/// One voice message sent for paid transcription: the ledger the free daily
+/// cap is counted from. Kept apart from ChatAttachment on purpose, so deleting
+/// an attachment or its conversation never hands the allowance back. A row is
+/// written before the paid call and removed only if that call fails.
+model AudioTranscriptionUsage {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  /// No foreign key: the row must outlive the attachment it paid for.
+  attachmentId String   @unique
+  seconds      Float
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 model Folder {
@@ -446,6 +490,9 @@ model Folder {
   notes     Note[]
   createdAt DateTime @default(now())
 
+  /// Target of Note's (folderId, userId) key, which is what stops a note
+  /// being filed in another account's folder.
+  @@unique([id, userId])
   @@index([userId])
 }
 
@@ -475,7 +522,10 @@ model Note {
   /// string/number/boolean/string[] values. Kept out of list payloads.
   properties    Json?
   folderId      String?
-  folder        Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  /// Keyed on (folderId, userId) so the database refuses a folder owned by
+  /// someone else. NoAction rather than SetNull, which would null userId too:
+  /// DELETE /api/folders/[id] unfiles the notes first, in the same transaction.
+  folder        Folder?         @relation(fields: [folderId, userId], references: [id, userId], onDelete: NoAction, onUpdate: Cascade)
   userId        String
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags          NoteTag[]
@@ -632,6 +682,17 @@ model PushToken {
   /// disconnected. Independent of `enabled` so turning off the morning verse
   /// does not silence chat replies.
   chatReplies Boolean  @default(true)
+  /// Expo rows only: set once a client has registered this token together
+  /// with the server-issued device proof (HMAC of the token and proofNonce,
+  /// src/lib/push-token-proof.ts). From then on the
+  /// token moves to another account only with that proof, which only the
+  /// device holding the token has. Rows from builds that predate the proof
+  /// stay false and keep the old move-on-register behavior.
+  deviceBound Boolean  @default(false)
+  /// Random per-row input to that proof. Rotated whenever an unbound row
+  /// changes owner without a valid proof, so a proof handed to someone who
+  /// once registered the token stops working once it moves away from them.
+  proofNonce  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

@@ -36,12 +36,15 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
 		}
 
-		// Move notes in this folder to unfiled
-		await prisma.note.updateMany({
-			where: { folderId: id },
-			data: { folderId: null },
-		});
-		await prisma.folder.delete({ where: { id } });
+		// Unfile the folder's notes, then delete it, together. The database no
+		// longer unfiles them itself: the (folderId, userId) key is NO ACTION.
+		await prisma.$transaction([
+			prisma.note.updateMany({
+				where: { folderId: id, userId },
+				data: { folderId: null },
+			}),
+			prisma.folder.delete({ where: { id, userId } }),
+		]);
 		return NextResponse.json({ success: true });
 	} catch (err) {
 		if (err instanceof Response) return err;

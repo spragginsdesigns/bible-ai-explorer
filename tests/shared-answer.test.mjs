@@ -18,6 +18,7 @@ import {
 	MAX_SHARED_QUESTION_LENGTH,
 	MAX_SHARED_REFERENCES,
 	SHARED_ANSWER_FALLBACK_TITLE,
+	SHARED_CARD_CACHE_CONTROL,
 	SHARED_ANSWER_ID_LENGTH,
 	SHARED_CARD_EXCERPT_LENGTH,
 	SHARED_DESCRIPTION_LENGTH,
@@ -33,6 +34,7 @@ import {
 	shareQuestion,
 	shareTitle,
 	shareTranslation,
+	sharedAnswerCacheTag,
 	sharedAnswerCardUrl,
 	sharedAnswerUrl,
 } from "../src/lib/shared-answer.ts";
@@ -282,5 +284,30 @@ test("neither public surface reads the Message table", () => {
 			`${file} reads Message; the snapshot is the only thing a public page may show`,
 		);
 		assert.match(source, /revokedAt: null/, `${file} does not exclude revoked shares`);
+	}
+});
+
+// ---------------------------------------------------------------------------
+// A revoked card must not outlive its link in a shared cache
+// ---------------------------------------------------------------------------
+
+test("the card is never cached as long-lived by browsers or the CDN", () => {
+	const directives = SHARED_CARD_CACHE_CONTROL.split(",").map((part) => part.trim());
+	assert.ok(directives.includes("max-age=0"), "browsers must revalidate a revocable card");
+	assert.ok(directives.includes("must-revalidate"));
+	assert.ok(!directives.includes("immutable"));
+	const sMaxAge = Number(directives.find((part) => part.startsWith("s-maxage="))?.split("=")[1]);
+	assert.ok(Number.isFinite(sMaxAge) && sMaxAge > 0 && sMaxAge <= 300, `s-maxage=${sMaxAge}`);
+});
+
+test("the card route tags its CDN copy and every revoke path purges that tag", () => {
+	assert.equal(sharedAnswerCacheTag("abcdefghijklmnop"), "shared-answer:abcdefghijklmnop");
+	const card = read("src/app/api/shared/[id]/image/route.tsx");
+	assert.match(card, /"cache-control": SHARED_CARD_CACHE_CONTROL/);
+	assert.match(card, /addCacheTag\(sharedAnswerCacheTag\(id\)\)/);
+	for (const file of ["src/app/api/shared/[id]/route.ts", "src/app/api/conversations/[id]/route.ts"]) {
+		const source = read(file);
+		assert.match(source, /dangerouslyDeleteByTag\(/, `${file} revokes without purging the card`);
+		assert.match(source, /sharedAnswerCacheTag\(/, `${file} purges a tag the card does not carry`);
 	}
 });

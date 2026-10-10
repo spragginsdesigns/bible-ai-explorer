@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
-import { clearUserChurch, loadUserChurch, setUserChurch } from "@/lib/church";
+import { ChurchSaveRateLimitError, clearUserChurch, loadUserChurch, setUserChurch } from "@/lib/church";
 import { isPlacesConfigured } from "@/lib/church-rules";
 import { PlaceNotFoundError } from "@/lib/google-places";
 
@@ -52,6 +52,12 @@ export async function PUT(req: Request) {
 		if (err instanceof Response) return err;
 		if (err instanceof PlaceNotFoundError) {
 			return NextResponse.json({ error: "That church could not be found." }, { status: 404 });
+		}
+		if (err instanceof ChurchSaveRateLimitError) {
+			return NextResponse.json(
+				{ error: err.message },
+				{ status: 429, headers: { "Retry-After": String(err.retryAfterSeconds) } }
+			);
 		}
 		console.error("[api/church] PUT failed", err);
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });

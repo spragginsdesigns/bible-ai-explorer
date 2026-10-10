@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -7,6 +8,7 @@ import {
 	formatChurchBlock,
 	htmlToText,
 	isPlacesConfigured,
+	lookupWithSaveRefund,
 	normalizeChurchWebsite,
 	pickMetaDescription,
 	pickMissionCandidateLinks,
@@ -149,4 +151,76 @@ test("a church with only a name and address still formats cleanly", () => {
 	assert.ok(!block.includes("About:"));
 	assert.ok(!block.includes("Website:"));
 	assert.ok(!block.includes("Phone:"));
+});
+
+class FakePlaceNotFound extends Error {}
+
+function refundHarness() {
+	const refunds = [];
+	const refundErrors = [];
+	return {
+		refunds,
+		refundErrors,
+		options: {
+			keepsCharge: (error) => error instanceof FakePlaceNotFound,
+			refund: async () => void refunds.push("refund"),
+			onRefundError: (error) => refundErrors.push(error),
+		},
+	};
+}
+
+test("a successful Places lookup keeps the reserved church save", async () => {
+	const { refunds, options } = refundHarness();
+	assert.equal(await lookupWithSaveRefund(async () => "place", options), "place");
+	assert.deepEqual(refunds, []);
+});
+
+test("a Places outage refunds the reserved save and still surfaces the error", async () => {
+	const { refunds, options } = refundHarness();
+	const outage = new Error("Google Places details failed (503)");
+	await assert.rejects(lookupWithSaveRefund(async () => { throw outage; }, options), (error) => error === outage);
+	assert.deepEqual(refunds, ["refund"]);
+});
+
+test("an unknown place keeps the charge: clients only send ids search returned", async () => {
+	const { refunds, options } = refundHarness();
+	await assert.rejects(lookupWithSaveRefund(async () => { throw new FakePlaceNotFound(); }, options), FakePlaceNotFound);
+	assert.deepEqual(refunds, []);
+});
+
+test("a refund that fails is reported, and the caller still sees the lookup's error", async () => {
+	const { refundErrors, options } = refundHarness();
+	const dbDown = new Error("database unreachable");
+	const outage = new Error("fetch failed");
+	await assert.rejects(
+		lookupWithSaveRefund(async () => { throw outage; }, { ...options, refund: async () => { throw dbDown; } }),
+		(error) => error === outage
+	);
+	assert.deepEqual(refundErrors, [dbDown]);
+});
+
+test("church saves refund only the Places call, keyed to the reserved event, and keep unknown places counted", () => {
+	const source = readFileSync(new URL("../src/lib/church.ts", import.meta.url), "utf8");
+	const build = source.slice(source.indexOf("async function buildChurchData"), source.indexOf("/** Forget the user's church."));
+	assert.match(build, /const eventId = await reservePaidChurchSave\(userId\);/);
+	assert.match(build, /lookupWithSaveRefund\(\(\) => getPlaceDetails\(placeId\),/);
+	assert.match(build, /keepsCharge: \(error\) => error instanceof PlaceNotFoundError/);
+	assert.match(build, /churchSaveEvent\.deleteMany\(\{ where: \{ id: eventId \} \}\)/);
+	// Website and model work runs after the lookup and is never inside the refund.
+	assert.ok(build.indexOf("lookupWithSaveRefund") < build.indexOf("fetchPage("));
+	assert.equal((build.match(/lookupWithSaveRefund/g) ?? []).length, 1);
+});
+
+test("an unfetchable church website is still stored and shown; only the server's fetch is gated", () => {
+	const source = readFileSync(new URL("../src/lib/church.ts", import.meta.url), "utf8");
+	const build = source.slice(source.indexOf("async function buildChurchData"), source.indexOf("/** Forget the user's church."));
+	assert.match(build, /const website = normalizeChurchWebsite\(details\.website\);/);
+	assert.doesNotMatch(build, /isOutboundUrlAllowed/);
+
+	const fetchPage = source.slice(source.indexOf("async function fetchPage"), source.indexOf("const churchExtractionSchema"));
+	assert.match(fetchPage, /if \(!isOutboundUrlAllowed\(url\)\) return null;/);
+	assert.match(fetchPage, /await safeFetch\(url,/);
+
+	// A site on an unusual port keeps its link: it normalizes, it just is not fetched.
+	assert.equal(normalizeChurchWebsite("http://gracechapel.org:8080/"), "http://gracechapel.org:8080/");
 });

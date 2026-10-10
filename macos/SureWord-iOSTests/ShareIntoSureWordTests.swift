@@ -192,6 +192,86 @@ final class ShareIntoSureWordTests: XCTestCase {
         XCTAssertEqual(PendingShareNaming.mediaType(for: .pdf, filename: nil), "application/pdf")
     }
 
+    // MARK: Bounded copy (security scan 2026-10-09, #8)
+
+    func testCopyLimitIsTheAppsPerTypeCap() {
+        XCTAssertEqual(PendingShareCopy.limit(filename: "voice.ogg", mediaType: "audio/opus"), AttachmentLimits.maxAudioBytes)
+        XCTAssertEqual(PendingShareCopy.limit(filename: "tract.pdf", mediaType: "application/pdf"), AttachmentLimits.maxImageOrPDFBytes)
+        XCTAssertEqual(PendingShareCopy.limit(filename: "notes.txt", mediaType: nil), AttachmentLimits.maxTextBytes)
+        XCTAssertEqual(
+            PendingShareCopy.limit(filename: "New Recording.m4a", mediaType: "audio/x-m4a"),
+            AttachmentLimits.maxAudioBytes,
+            "aliases resolve to the canonical type before the cap is chosen"
+        )
+        XCTAssertEqual(
+            PendingShareCopy.limit(filename: "PTT-20261007", mediaType: "audio/ogg"),
+            AttachmentLimits.maxAudioBytes,
+            "a nameless file is capped by its declared type, as the app will name it"
+        )
+        XCTAssertEqual(
+            PendingShareCopy.limit(filename: "clip.mov", mediaType: "video/quicktime"),
+            AttachmentLimits.maxMessageBytes,
+            "a type SureWord never takes keeps the message cap, so the app still calls it unsupported"
+        )
+        XCTAssertEqual(
+            PendingShareCopy.limit(filename: "voice.ogg", mediaType: "video/mp4"),
+            AttachmentLimits.maxMessageBytes,
+            "a declared type the validator refuses and SureWord never takes gets no type cap"
+        )
+    }
+
+    /// The validator and the extension's cap read a file through one resolver.
+    func testValidatorAndCopyCapShareOneResolver() {
+        XCTAssertEqual(AttachmentLimits.resolvedMediaType(filename: "voice.opus", declaredMediaType: "audio/opus; codecs=opus"), "audio/ogg")
+        XCTAssertEqual(AttachmentLimits.resolvedMediaType(filename: "notes.md", declaredMediaType: "application/octet-stream"), "text/markdown")
+        XCTAssertEqual(AttachmentLimits.resolvedMediaType(filename: "tract.pdf", declaredMediaType: ""), "application/pdf")
+        XCTAssertNil(AttachmentLimits.resolvedMediaType(filename: "voice.ogg", declaredMediaType: "application/pdf"))
+        XCTAssertNil(AttachmentLimits.resolvedMediaType(filename: "PTT-20261007", declaredMediaType: "audio/ogg"))
+        XCTAssertEqual(ShareIntake.canonicalMediaType(" Audio/X-M4A ; foo=bar"), "audio/mp4")
+        XCTAssertNil(ShareIntake.canonicalMediaType(""))
+    }
+
+    func testCopyKeepsAFileUnderItsCap() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let source = root.appendingPathComponent("source.ogg")
+        let destination = root.appendingPathComponent("1-voice.ogg")
+        let bytes = Data(repeating: 7, count: PendingShareCopy.chunkBytes * 2 + 5)
+        try bytes.write(to: source)
+
+        XCTAssertEqual(PendingShareCopy.copy(from: source, to: destination, limit: bytes.count), .copied(bytes: bytes.count))
+        XCTAssertEqual(try Data(contentsOf: destination), bytes)
+    }
+
+    func testCopyStopsPastTheCapAndLeavesNothingBehind() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let source = root.appendingPathComponent("source.ogg")
+        let destination = root.appendingPathComponent("1-voice.ogg")
+        try Data(repeating: 7, count: PendingShareCopy.chunkBytes * 3).write(to: source)
+
+        let outcome = PendingShareCopy.copy(from: source, to: destination, limit: PendingShareCopy.chunkBytes + 1)
+        XCTAssertEqual(outcome, .tooLarge(bytesRead: PendingShareCopy.chunkBytes * 2))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+    }
+
+    func testCopyOfAnUnreadableSourceFailsCleanly() throws {
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let destination = root.appendingPathComponent("1-voice.ogg")
+        let outcome = PendingShareCopy.copy(from: root.appendingPathComponent("missing.ogg"), to: destination, limit: 1024)
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+    }
+
+    func testAFileStoppedPastItsCapIsExplainedAsTooLarge() {
+        let size = AttachmentLimits.maxAudioBytes + PendingShareCopy.chunkBytes
+        let draft = ShareIntake.plan(
+            text: nil,
+            webURL: nil,
+            files: [.init(filename: "voice.ogg", mediaType: "audio/ogg", data: nil, size: size)]
+        )
+        XCTAssertEqual(draft.files, [])
+        XCTAssertEqual(draft.notices, ["voice.ogg exceeds the 20 MB file limit."])
+    }
+
     // MARK: Planner (shareIntake.ts parity)
 
     func testTextGoesInTheComposerAndFilesAreAttached() {

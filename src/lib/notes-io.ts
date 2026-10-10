@@ -292,6 +292,36 @@ export async function readUserNote(
 	};
 }
 
+/**
+ * A folderId that is not one of the caller's own folders. Routes answer 400:
+ * the bad value is in the request body, and a 404 on a note PATCH would read
+ * as "this note is gone".
+ */
+export class FolderNotFoundError extends Error {
+	constructor() {
+		super("Folder not found");
+		this.name = "FolderNotFoundError";
+	}
+}
+
+/**
+ * Resolve a client-supplied folderId for a note write: undefined leaves the
+ * folder alone, null or "" unfiles, and anything else must name a folder this
+ * user owns. The (folderId, userId) foreign key refuses a foreign folder too;
+ * checking first turns that into a clean 400 instead of a database error.
+ */
+export async function resolveOwnedFolderId(
+	userId: string,
+	folderId: unknown
+): Promise<string | null | undefined> {
+	if (folderId === undefined) return undefined;
+	if (folderId === null || folderId === "") return null;
+	if (typeof folderId !== "string") throw new FolderNotFoundError();
+	const folder = await prisma.folder.findFirst({ where: { id: folderId, userId }, select: { id: true } });
+	if (!folder) throw new FolderNotFoundError();
+	return folder.id;
+}
+
 /** Fields PATCH /api/notes/[id] may change, already validated by the caller. */
 export interface NotePatch {
 	title?: string;
@@ -323,6 +353,7 @@ export async function patchUserNote(
 		deferEmbeddings?: (task: Promise<void>) => void;
 	} = {}
 ) {
+	const folderId = await resolveOwnedFolderId(userId, patch.folderId);
 	const note = await prisma.note.update({
 		where: { id: noteId, userId },
 		data: {
@@ -332,7 +363,7 @@ export async function patchUserNote(
 			...(patch.plainText !== undefined && { plainText: patch.plainText }),
 			...(patch.aliases !== undefined && { aliases: patch.aliases }),
 			...(patch.properties !== undefined && { properties: patch.properties ?? Prisma.DbNull }),
-			...(patch.folderId !== undefined && { folderId: patch.folderId }),
+			...(folderId !== undefined && { folderId }),
 			...(patch.isPinned !== undefined && { isPinned: patch.isPinned }),
 			...(patch.wordCount !== undefined && { wordCount: patch.wordCount }),
 		},

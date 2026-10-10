@@ -9,13 +9,16 @@ import {
 	MAX_CHURCH_MISSION_LENGTH,
 	clampChurchText,
 	htmlToText,
+	lookupWithSaveRefund,
 	normalizeChurchWebsite,
 	pickMetaDescription,
 	pickMissionCandidateLinks,
 	pickWebsiteLogo,
 	type ChurchPromptFacts,
 } from "@/lib/church-rules";
-import { getPlaceDetails, type PlaceDetails } from "@/lib/google-places";
+import { PlaceNotFoundError, getPlaceDetails, type PlaceDetails } from "@/lib/google-places";
+import { createRateLimiter } from "@/lib/rateLimit";
+import { isOutboundUrlAllowed, safeFetch } from "@/lib/safe-fetch";
 
 /**
  * The user's home church: reading it, and building it once from a Google Places
@@ -40,6 +43,42 @@ const MAX_PAGE_BYTES = 300 * 1024;
 const MAX_PAGE_PROMPT_CHARS = 6_000;
 /** Places photos are shown on a card, not full bleed. */
 export const CHURCH_PHOTO_WIDTH_PX = 512;
+
+/**
+ * Paid saves per user per hour, counted in `ChurchSaveEvent` so the limit holds
+ * across server instances. Each one is a Places details call, up to four page
+ * fetches and a utility-model call; six still leaves room to pick the wrong
+ * church and fix it a few times over. Saves served from a fresh copy of the
+ * same place (see `CHURCH_ENRICHMENT_REUSE_MS`) cost nothing and are not counted.
+ */
+export const CHURCH_SAVE_RATE_LIMIT = 6;
+export const CHURCH_SAVE_RATE_WINDOW_MS = 60 * 60_000;
+
+/**
+ * Every save, paid or not, per server instance. The durable count above is the
+ * limit on paid work; this only stops a burst before it reaches the database,
+ * including reused saves, which the durable count leaves alone. Looser than the
+ * durable limit so it never decides an honest user's paid save.
+ */
+const churchSaveBurstLimiter = createRateLimiter({
+	limit: 10,
+	windowMs: CHURCH_SAVE_RATE_WINDOW_MS,
+});
+
+/**
+ * How long a stored church's Places facts and website enrichment are reused for
+ * anyone saving the same place. A church's site and mission change rarely; a
+ * user saving it again a day later gets a fresh read.
+ */
+export const CHURCH_ENRICHMENT_REUSE_MS = 24 * 60 * 60_000;
+
+/** Thrown before any paid work when a user has saved too many churches lately. */
+export class ChurchSaveRateLimitError extends Error {
+	constructor(readonly retryAfterSeconds: number) {
+		super("You've changed your church several times in the last hour. Try again later.");
+		this.name = "ChurchSaveRateLimitError";
+	}
+}
 
 export interface ChurchProfile extends ChurchPromptFacts {
 	placeId: string;
@@ -127,40 +166,26 @@ interface FetchedPage {
  * Fetch one page, giving up on anything that is slow, large, or not HTML. Every
  * failure mode returns null: this is enrichment, and a church whose website is
  * down is still a church the user attends.
+ *
+ * The URL comes from Google Places or from the church's own markup, so it goes
+ * through `safeFetch`: public addresses on ports 80/443 only, checked again on
+ * every redirect and every DNS answer. A refusal is just another null. The
+ * static check up front only skips a request `safeFetch` would refuse anyway
+ * (a private literal, localhost, an odd port), for the homepage and the
+ * candidate pages alike.
  */
 async function fetchPage(url: string): Promise<FetchedPage | null> {
+	if (!isOutboundUrlAllowed(url)) return null;
 	try {
-		const response = await fetch(url, {
+		const response = await safeFetch(url, {
 			headers: { "User-Agent": SCRAPE_USER_AGENT, Accept: "text/html,application/xhtml+xml" },
-			redirect: "follow",
-			signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+			timeoutMs: SCRAPE_TIMEOUT_MS,
+			maxBytes: MAX_PAGE_BYTES,
+			acceptContentType: (contentType) => !contentType || /text\/html|application\/xhtml/i.test(contentType),
 		});
 		if (!response.ok || !response.body) return null;
 
-		const contentType = response.headers.get("content-type") ?? "";
-		if (contentType && !/text\/html|application\/xhtml/i.test(contentType)) return null;
-
-		const reader = response.body.getReader();
-		const chunks: Uint8Array[] = [];
-		let total = 0;
-		while (total < MAX_PAGE_BYTES) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			if (value) {
-				chunks.push(value);
-				total += value.byteLength;
-			}
-		}
-		await reader.cancel().catch(() => undefined);
-
-		const bytes = new Uint8Array(total);
-		let offset = 0;
-		for (const chunk of chunks) {
-			bytes.set(chunk, offset);
-			offset += chunk.byteLength;
-		}
-
-		return { url: response.url || url, html: new TextDecoder().decode(bytes) };
+		return { url: response.url, html: new TextDecoder().decode(response.body) };
 	} catch {
 		return null;
 	}
@@ -281,12 +306,132 @@ function resolveChurchImage(details: PlaceDetails, homepage: FetchedPage | null)
 /**
  * Set (or replace) the user's home church from a Places pick.
  *
- * Throws only for the two things that make the save meaningless: a place id
- * Google does not have (`PlaceNotFoundError`) and a database failure. Website
- * and model work is best effort throughout.
+ * Throws only for the things that make the save meaningless or unaffordable: a
+ * place id Google does not have (`PlaceNotFoundError`), a user over the save
+ * limit (`ChurchSaveRateLimitError`, thrown before any paid call) and a
+ * database failure. Website and model work is best effort throughout.
+ *
+ * A place saved by anyone in the last day is copied rather than fetched again,
+ * which is free and does not count against the limit.
  */
 export async function setUserChurch(userId: string, placeId: string, options: { expectedPlaceId?: string | null } = {}): Promise<ChurchProfile> {
-	const details = await getPlaceDetails(placeId);
+	const rate = churchSaveBurstLimiter.check(userId);
+	if (!rate.allowed) throw new ChurchSaveRateLimitError(rate.retryAfterSeconds);
+
+	const data = (await findFreshChurchData(placeId)) ?? (await buildChurchData(userId, placeId));
+
+	const row = await prisma.$transaction(async tx => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8203)`;
+		const current = await tx.userChurch.findUnique({ where: { userId }, select: { placeId: true } });
+		if (options.expectedPlaceId !== undefined && (current?.placeId ?? null) !== options.expectedPlaceId) throw new Error("Your church changed while this profile was being prepared. Confirm the new choice again.");
+		return tx.userChurch.upsert({
+		where: { userId },
+		create: { userId, ...data },
+		update: data,
+		select: PROFILE_SELECT,
+	});
+	});
+
+	return toChurchProfile(row);
+}
+
+/** Everything a save writes: Places facts plus the website enrichment. */
+const CHURCH_DATA_SELECT = {
+	placeId: true,
+	name: true,
+	address: true,
+	phone: true,
+	website: true,
+	mapsUrl: true,
+	photoUrl: true,
+	photoSource: true,
+	photoName: true,
+	mission: true,
+	about: true,
+	missionSource: true,
+	enrichedAt: true,
+} as const;
+
+interface ChurchData {
+	placeId: string;
+	name: string;
+	address: string;
+	phone: string | null;
+	website: string | null;
+	mapsUrl: string | null;
+	photoUrl: string | null;
+	photoSource: string | null;
+	photoName: string | null;
+	mission: string | null;
+	about: string | null;
+	missionSource: string | null;
+	enrichedAt: Date | null;
+}
+
+/**
+ * The same place as someone (this user included) saved it recently, so saving
+ * it again costs no Places call, no page fetch and no model call. Every field
+ * here is public: Places facts and what the church's own site says, identical
+ * for every member who picks it. Only rows this module wrote are ever read.
+ *
+ * Freshness is `enrichedAt`, which a copy carries over unchanged, so reuse never
+ * stretches one read past its window. Rows saved before that column existed
+ * have it null and are never reused.
+ */
+async function findFreshChurchData(placeId: string): Promise<ChurchData | null> {
+	return prisma.userChurch.findFirst({
+		where: { placeId, enrichedAt: { gte: new Date(Date.now() - CHURCH_ENRICHMENT_REUSE_MS) } },
+		orderBy: { enrichedAt: "desc" },
+		select: CHURCH_DATA_SELECT,
+	});
+}
+
+/**
+ * Count this paid save against the user's hourly limit, or refuse it. Count and
+ * insert happen under the user's church-save lock (namespace 8206), so parallel
+ * saves on several instances cannot all read the same count and all go through.
+ * Returns the event's id, so a save that failed on our side can be refunded.
+ */
+async function reservePaidChurchSave(userId: string): Promise<string> {
+	const reservation = await prisma.$transaction(async tx => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8206)`;
+		const now = Date.now();
+		const recent = await tx.churchSaveEvent.findMany({
+			where: { userId, createdAt: { gt: new Date(now - CHURCH_SAVE_RATE_WINDOW_MS) } },
+			orderBy: { createdAt: "asc" },
+			select: { createdAt: true },
+		});
+		if (recent.length >= CHURCH_SAVE_RATE_LIMIT) {
+			return {
+				eventId: null,
+				retryAfterSeconds: Math.max(1, Math.ceil((recent[0].createdAt.getTime() + CHURCH_SAVE_RATE_WINDOW_MS - now) / 1000)),
+			};
+		}
+		const event = await tx.churchSaveEvent.create({ data: { userId }, select: { id: true } });
+		return { eventId: event.id, retryAfterSeconds: 0 };
+	});
+	if (!reservation.eventId) throw new ChurchSaveRateLimitError(reservation.retryAfterSeconds);
+	return reservation.eventId;
+}
+
+/**
+ * The paid path: Places details, the church's website, and the model read of
+ * it. Counted against the user's limit before the first paid call; refunded
+ * only when that Places call fails on our side. An unknown place, and any
+ * website or model failure (best effort, after money was spent), stay counted.
+ */
+async function buildChurchData(userId: string, placeId: string): Promise<ChurchData> {
+	const eventId = await reservePaidChurchSave(userId);
+	const enrichedAt = new Date();
+	const details = await lookupWithSaveRefund(() => getPlaceDetails(placeId), {
+		keepsCharge: (error) => error instanceof PlaceNotFoundError,
+		refund: async () => {
+			await prisma.churchSaveEvent.deleteMany({ where: { id: eventId } });
+		},
+		onRefundError: (error) => console.error("Refunding a failed church save failed:", error),
+	});
+	// Stored and shown as Places reports it, whatever its host or port: a link the
+	// member taps is not a request from our server. Only `fetchPage` is gated.
 	const website = normalizeChurchWebsite(details.website);
 
 	const homepage = website ? await fetchPage(website) : null;
@@ -302,7 +447,7 @@ export async function setUserChurch(userId: string, placeId: string, options: { 
 		pages,
 	});
 
-	const data = {
+	return {
 		placeId: details.placeId,
 		name: details.name,
 		address: details.address,
@@ -315,21 +460,8 @@ export async function setUserChurch(userId: string, placeId: string, options: { 
 		mission: extracted.mission,
 		about: extracted.about,
 		missionSource: extracted.missionSource,
+		enrichedAt,
 	};
-
-	const row = await prisma.$transaction(async tx => {
-		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8203)`;
-		const current = await tx.userChurch.findUnique({ where: { userId }, select: { placeId: true } });
-		if (options.expectedPlaceId !== undefined && (current?.placeId ?? null) !== options.expectedPlaceId) throw new Error("Your church changed while this profile was being prepared. Confirm the new choice again.");
-		return tx.userChurch.upsert({
-		where: { userId },
-		create: { userId, ...data },
-		update: data,
-		select: PROFILE_SELECT,
-	});
-	});
-
-	return toChurchProfile(row);
 }
 
 /** Forget the user's church. Idempotent: clearing when none is set is a no-op. */

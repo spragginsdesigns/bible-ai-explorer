@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { openReferenceInReader } from "@/features/chat/verseLinks";
 import { registerPushToken, unregisterPushToken } from "./api";
+import { readPushTokenProof, savePushTokenProof } from "./pushTokenProof";
 import { wasConversationStopped } from "./chatStopSignals";
 import {
 	getNotificationSettings,
@@ -264,14 +265,25 @@ export function usePushNotifications(): void {
 				if (pushToken) {
 					try {
 						const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-						await registerPushToken(getToken, {
-							token: pushToken,
-							platform: Platform.OS === "ios" ? "ios" : "android",
-							timezone,
-							notifyHour: hour,
-							enabled,
-							chatReplies,
-						});
+						const token = pushToken;
+						const register = (proof: string | undefined) =>
+							registerPushToken(getToken, {
+								token,
+								platform: Platform.OS === "ios" ? "ios" : "android",
+								timezone,
+								notifyHour: hour,
+								enabled,
+								chatReplies,
+								proof,
+							});
+						const registered = await register(await readPushTokenProof(token));
+						// A proof this device did not send yet is echoed straight back,
+						// which binds the token to the device now rather than at the
+						// next launch. Best-effort: the next registration binds anyway.
+						const proof = registered?.proof;
+						if (typeof proof === "string" && (await savePushTokenProof(token, proof))) {
+							await register(proof).catch(() => undefined);
+						}
 						if (cancelled) return;
 						// Remote delivery is live; a local daily would duplicate it.
 						await AsyncStorage.setItem(REMOTE_LIVE_KEY, "1").catch(() => {});

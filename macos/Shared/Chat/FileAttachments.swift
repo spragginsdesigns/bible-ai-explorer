@@ -111,6 +111,33 @@ enum AttachmentLimits {
         if isAudio(mediaType) { return maxAudioBytes }
         return maxImageOrPDFBytes
     }
+
+    /// A declared type in canonical form: lowercased, parameters dropped,
+    /// aliases resolved. Empty when nothing was declared.
+    static func canonicalMediaType(_ declared: String) -> String {
+        let raw = declared
+            .lowercased()
+            .split(separator: ";", maxSplits: 1)
+            .first
+            .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+        return mediaTypeAliases[raw] ?? raw
+    }
+
+    /// The allowlisted type a file is accepted as, or nil when it is not
+    /// accepted. The declared type wins unless it is empty or generic, and it
+    /// must agree with the extension, because the server checks both. Shared
+    /// by `AttachmentValidator` and the iOS share extension's copy cap
+    /// (`ShareInbox/PendingShareCopy.swift`), so both read a file as one type.
+    static func resolvedMediaType(filename: String, declaredMediaType: String) -> String? {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        let extensionType = mediaTypeByExtension[ext]
+        let declared = canonicalMediaType(declaredMediaType)
+        let mediaType = !declared.isEmpty && declared != "application/octet-stream"
+            ? declared
+            : extensionType
+        guard let extensionType, let mediaType, mediaType == extensionType else { return nil }
+        return mediaType
+    }
 }
 
 /// A file staged on this Mac, before upload. Held as bytes rather than a URL so
@@ -154,21 +181,7 @@ enum AttachmentValidator {
         declaredMediaType: String,
         data: Data
     ) throws -> LocalAttachment {
-        let ext = (filename as NSString).pathExtension.lowercased()
-        let extensionType = AttachmentLimits.mediaTypeByExtension[ext]
-
-        let declaredRaw = declaredMediaType
-            .lowercased()
-            .split(separator: ";", maxSplits: 1)
-            .first
-            .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
-        let declared = AttachmentLimits.mediaTypeAliases[declaredRaw] ?? declaredRaw
-
-        let mediaType = !declared.isEmpty && declared != "application/octet-stream"
-            ? declared
-            : extensionType
-
-        guard let extensionType, let mediaType, mediaType == extensionType else {
+        guard let mediaType = AttachmentLimits.resolvedMediaType(filename: filename, declaredMediaType: declaredMediaType) else {
             throw AttachmentError(message: Self.unsupported(filename))
         }
 

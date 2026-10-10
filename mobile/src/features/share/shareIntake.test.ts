@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { planSharedChat, shareActionMessage, shareActionsFor, type IncomingSharedFile } from "./shareIntake";
+import {
+	planSharedChat,
+	shareActionMessage,
+	shareActionsFor,
+	sharedFileCopyLimit,
+	sharedFileSizeError,
+	type IncomingSharedFile,
+} from "./shareIntake";
 
 const MB = 1024 * 1024;
 
@@ -100,6 +107,48 @@ describe("planSharedChat", () => {
 			files: [],
 			notices: ["Nothing in that share could be opened in SureWord."],
 		});
+	});
+});
+
+describe("sharedFileCopyLimit", () => {
+	it("caps a copy at its type's limit while the message has room", () => {
+		expect(sharedFileCopyLimit("audio/ogg", 0)).toBe(20 * MB);
+		expect(sharedFileCopyLimit("application/pdf", 0)).toBe(10 * MB);
+		expect(sharedFileCopyLimit("text/plain", 0)).toBe(1 * MB);
+	});
+
+	it("caps a copy at what the message has left when that is less", () => {
+		expect(sharedFileCopyLimit("audio/ogg", 15 * MB)).toBe(10 * MB);
+		expect(sharedFileCopyLimit("image/png", 25 * MB)).toBe(0);
+	});
+});
+
+describe("sharedFileSizeError", () => {
+	const voice = { filename: "voice-message.ogg", mediaType: "audio/ogg" };
+
+	it("accepts a file that fits its type and the message", () => {
+		expect(sharedFileSizeError(voice, 48_000, 0)).toBeNull();
+		expect(sharedFileSizeError(voice, 10 * MB, 15 * MB)).toBeNull();
+	});
+
+	it("names the type's limit for a file over it, whatever was declared", () => {
+		expect(sharedFileSizeError(voice, 20 * MB + 1, 0)).toBe("voice-message.ogg exceeds the 20 MB file limit.");
+	});
+
+	it("leaves out a file that would push the message past 25 MB", () => {
+		expect(sharedFileSizeError(voice, 10 * MB + 1, 15 * MB))
+			.toBe("Attachments can total up to 25 MB per message, so voice-message.ogg was left out.");
+	});
+
+	it("refuses an empty copy", () => {
+		expect(sharedFileSizeError(voice, 0, 0)).toBe("voice-message.ogg is empty or unreadable.");
+	});
+
+	it("explains every copy stopped past its limit", () => {
+		for (const used of [0, 5 * MB, 15 * MB, 25 * MB]) {
+			const limit = sharedFileCopyLimit(voice.mediaType, used);
+			expect(sharedFileSizeError(voice, limit + 1, used)).not.toBeNull();
+		}
 	});
 });
 

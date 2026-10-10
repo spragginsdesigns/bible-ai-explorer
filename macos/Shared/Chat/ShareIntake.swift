@@ -149,13 +149,8 @@ enum ShareIntake {
     }
 
     static func canonicalMediaType(_ raw: String?) -> String? {
-        let type = (raw ?? "")
-            .lowercased()
-            .split(separator: ";", maxSplits: 1)
-            .first
-            .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
-        guard !type.isEmpty else { return nil }
-        return AttachmentLimits.mediaTypeAliases[type] ?? type
+        let type = AttachmentLimits.canonicalMediaType(raw ?? "")
+        return type.isEmpty ? nil : type
     }
 
     /// `EXTENSION_BY_MEDIA_TYPE` on Android: the one extension each type gets.

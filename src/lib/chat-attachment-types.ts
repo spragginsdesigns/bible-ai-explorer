@@ -228,6 +228,29 @@ export function validateAttachmentBatch(inputs: AttachmentInput[]): ValidatedAtt
   return validated;
 }
 
+/**
+ * Uploads an account may have started but not yet sent: five full messages'
+ * worth. Every one holds a row and possibly a private blob until it is sent,
+ * removed, or swept by the daily cleanup after a day, so without a cap a loop
+ * of uploads would outrun the sweep.
+ */
+export const MAX_PENDING_ATTACHMENTS = 5 * MAX_ATTACHMENTS_PER_MESSAGE;
+export const MAX_PENDING_ATTACHMENT_BYTES = 5 * MAX_ATTACHMENT_MESSAGE_BYTES;
+/** Matches the cleanup cron's cutoff: older unsent uploads are about to be swept. */
+export const PENDING_ATTACHMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Why a new batch would put the account past its unsent-upload allowance, or null if it fits. */
+export function pendingAttachmentRefusal(
+  pending: { count: number; bytes: number },
+  batch: ValidatedAttachmentInput[],
+): string | null {
+  const bytes = batch.reduce((total, input) => total + input.size, 0);
+  if (pending.count + batch.length > MAX_PENDING_ATTACHMENTS || pending.bytes + bytes > MAX_PENDING_ATTACHMENT_BYTES) {
+    return "You have too many attachments waiting to be sent. Send or remove some, then try again.";
+  }
+  return null;
+}
+
 export function sanitizeAttachmentFilename(filename: string): string {
   const normalized = filename.normalize("NFKC").replace(/[^a-zA-Z0-9._-]+/g, "-");
   return normalized.replace(/^-+|-+$/g, "").slice(0, 120) || "attachment";

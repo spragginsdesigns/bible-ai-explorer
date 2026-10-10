@@ -75,6 +75,17 @@ versionCode bump.
   changelog gate - write the entry (step 2 above), don't bypass it.
 - **AAB debug-signed error:** `SUREWORD_UPLOAD_*` entries missing from
   `~/.gradle/gradle.properties`.
+- **"signed by certificate ..., which is not the pinned upload certificate":**
+  the AAB or APK was not signed with the upload key whose SHA-256 is pinned in
+  `mobile/scripts/upload-cert.sha256`. Fix the signing config and rebuild;
+  only edit that file if the upload key was genuinely reset in Play Console.
+- **"mobile changed since this artifact was built":** a file under `mobile/`
+  that can reach the binary changed (the error lists it) after `build-aab.sh`
+  snapshotted the source. Nothing was uploaded. Run
+  `bash mobile/scripts/push-phone.sh --rebuild` (same versionCode, no second
+  bump). Docs, CHANGELOG.md, unit tests and fixtures never trigger this. A
+  manifest from before 2026-10-09 has no source record and also needs
+  `--rebuild`. Release from a dedicated worktree to avoid it entirely.
 - **Prebuild/EBUSY/CMake issues:** same landmines as before - see
   `mobile/README.md` (adb/gradle daemon holding `android/`, `cmake.dir` pin).
 

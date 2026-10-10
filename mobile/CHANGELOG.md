@@ -14,6 +14,16 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.87.0 (versionCode 98) - 2026-10-09 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Security update: files you share into SureWord from other apps are checked against the size limit before they are copied, and nothing is left behind in storage when a file is too large.
+- Your notification settings now stay tied to this phone, so another account cannot take over its reminders.
+
+**Dev notes:** Security scan 2026-10-09 fixes. #8: expo-share-intent no longer copies every shared file into cacheDir on arrival (patch), and shared files are copied by the new SureWordShare native module with a hard cap (the type's limit, or what the 25 MB message budget has left), using the measured size. #10: push registration sends and stores the server's device proof (HMAC of the Expo token), so a bound token moves accounts only with it. Server-side fixes (voice-message quota ledger, church SSRF guard and save limit, note folder ownership, answer forgery, share-card caching) reach every installed build through the sureword.app deploy, not this APK.
+
 ## 1.86.0 (versionCode 97) - 2026-10-09 - internal
 
 **What's new (Play):**

@@ -13,6 +13,10 @@
 #   bash mobile/scripts/release-apk.sh                      # release the APK already built by push-phone.sh / gradle
 #   bash mobile/scripts/release-apk.sh --notes "..."        # custom release notes
 #   bash mobile/scripts/release-apk.sh --notes-file <path>  # notes from a file
+#
+# Refuses an APK that is not signed by the pinned upload certificate
+# (mobile/scripts/upload-cert.sha256) or whose mobile/ source changed since
+# build-aab.sh built it.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -22,11 +26,16 @@ ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
 
 NOTES=""
 PREFLIGHT=0
+# --after-play: push-phone.sh only. Play already holds this exact build (its
+# source was proven before the upload), so the GitHub APK must follow it even
+# if mobile/ changed during the upload; the signer check still runs.
+AFTER_PLAY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --notes) NOTES="$2"; shift 2 ;;
     --notes-file) NOTES="$(cat "$2")"; shift 2 ;;
     --preflight) PREFLIGHT=1; shift ;;
+    --after-play) AFTER_PLAY=1; shift ;;
     *) echo "unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -58,6 +67,22 @@ manifest_value() {
 [[ "$(manifest_value apkSha256)" == "$(sha256sum "$APK" | awk '{print $1}')" ]] || {
   echo "The APK hash does not match its release artifact manifest — rebuild first."; exit 1;
 }
+# The public download must carry the pinned upload signature and still match
+# the mobile/ source it was built from (see scripts/lib/release-provenance.sh).
+# shellcheck source=../../scripts/lib/release-provenance.sh
+. "$REPO_ROOT/scripts/lib/release-provenance.sh"
+APK_SIGNER="$(release_require_android_signer "$APK" "$MOBILE_DIR/scripts/upload-cert.sha256")" || {
+  echo "GitHub was not updated."; exit 1;
+}
+if [[ $AFTER_PLAY -eq 0 ]]; then
+  release_require_unchanged_source "$(manifest_value sourceSha256)" \
+    "$MOBILE_DIR/android/app/build/outputs/release-sources.txt" "$REPO_ROOT" mobile || {
+    echo "GitHub was not updated. If Play already has this versionCode, rerun with --after-play so the"
+    echo "APK matches Play; otherwise rebuild and release it with: bash mobile/scripts/push-phone.sh --rebuild"
+    exit 1
+  }
+fi
+log "APK signed by the pinned upload certificate $APK_SIGNER."
 
 # Pull each other platform from its newest platform-specific release. This is
 # fail-closed for the DMG: persistent releases/latest links must never lose the

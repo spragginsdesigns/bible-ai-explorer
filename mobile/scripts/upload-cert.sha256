@@ -1,0 +1,13 @@
+# SHA-256 fingerprint of the SureWord Play UPLOAD certificate, the key in
+# ~/.sureword-signing/sureword-upload.jks (created 2026-08-19). Public data,
+# not a secret. build-aab.sh, push-phone.sh and release-apk.sh refuse to
+# publish an AAB or APK signed by any certificate not listed here.
+#
+#   CN=Austin Spraggins, OU=SureWord, O=SureWord, L=Fresno, ST=California, C=US
+#   serial f7555c22a86c2769, valid 2026-08-19 to 2054-01-04
+#
+# Read from the signed 1.85.0 (96) AAB and APK on 2026-10-09. If the upload
+# key is ever reset in Play Console, add the new fingerprint on its own line
+# (keytool -printcert -jarfile app-release.aab, the SHA256 line) and remove
+# this one once nothing signed with it remains to publish.
+5f7f48390a7486eb3b2ecd4a81b106e38ce5d9d21cf84743f88ba9b1c51fca6a

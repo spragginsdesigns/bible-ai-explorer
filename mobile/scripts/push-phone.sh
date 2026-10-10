@@ -20,21 +20,32 @@
 # Usage:
 #   push-phone.sh                       bump + build + release to Play + GitHub
 #   push-phone.sh --skip-build          upload the existing AAB as-is (no bump)
+#   push-phone.sh --rebuild             rebuild the CURRENT versionCode (no bump),
+#                                       then release; the recovery path when a
+#                                       publish was refused because mobile/
+#                                       changed after the build
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 AAB="$MOBILE_DIR/android/app/build/outputs/bundle/release/app-release.aab"
 APK="$MOBILE_DIR/android/app/build/outputs/apk/release/app-release.apk"
 ARTIFACT_MANIFEST="$MOBILE_DIR/android/app/build/outputs/release-artifacts.env"
+SOURCE_LISTING="$MOBILE_DIR/android/app/build/outputs/release-sources.txt"
+UPLOAD_CERT="$MOBILE_DIR/scripts/upload-cert.sha256"
+REPO_ROOT="$(cd "$MOBILE_DIR/.." && pwd)"
+# shellcheck source=../../scripts/lib/release-provenance.sh
+. "$REPO_ROOT/scripts/lib/release-provenance.sh"
 
 log() { echo "[push-phone] $*"; }
 
 TRACK="internal"
 CLOSED_TRACK="alpha"
 SKIP_BUILD=0
+REBUILD=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-build) SKIP_BUILD=1; shift ;;
+    --rebuild) REBUILD=1; shift ;;
     --track) TRACK="$2"; shift 2 ;;
     *)
       echo "[push-phone] Ad-hoc release notes are no longer accepted." >&2
@@ -44,6 +55,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+[[ $SKIP_BUILD -eq 1 && $REBUILD -eq 1 ]] && { echo "[push-phone] --skip-build and --rebuild are exclusive." >&2; exit 1; }
 
 # ── Upload to internal, promote to closed ───────────────────────────────────
 # Checked before anything is built, so a wrong track costs a message and not a
@@ -72,7 +84,7 @@ read -r CUR_CODE APP_VERSION <<<"$(node -e '
   console.log(j.expo.android.versionCode, j.expo.version);
 ' "$MOBILE_DIR/app.json")"
 TARGET_CODE=$CUR_CODE
-[[ $SKIP_BUILD -eq 0 ]] && TARGET_CODE=$((CUR_CODE + 1))
+[[ $SKIP_BUILD -eq 0 && $REBUILD -eq 0 ]] && TARGET_CODE=$((CUR_CODE + 1))
 if ! NOTES="$(node "$MOBILE_DIR/scripts/play-notes.mjs" "$MOBILE_DIR/CHANGELOG.md" "$TARGET_CODE" "$APP_VERSION")"; then
   cat >&2 <<EOF
 [push-phone] BLOCKED: mobile/CHANGELOG.md needs an entry for the build about to
@@ -136,15 +148,23 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
   # source of truth), then apply the same bump to the generated build.gradle
   # directly and refresh the prebuild stamp - a versionCode change alone must
   # not trigger a full prebuild (Expo 57 would wipe android/ -> clean rebuild).
-  read -r VERSION_CODE VERSION_NAME <<<"$(node -e '
-    const fs = require("fs");
-    const p = process.argv[1];
-    const j = JSON.parse(fs.readFileSync(p, "utf8"));
-    j.expo.android.versionCode += 1;
-    fs.writeFileSync(p, JSON.stringify(j, null, "\t") + "\n");
-    console.log(j.expo.android.versionCode, j.expo.version);
-  ' "$MOBILE_DIR/app.json")"
-  prebuild_sha > "$PREBUILD_STAMP"
+  # --rebuild keeps the versionCode app.json already holds: Play has not seen
+  # it yet (the refused publish never uploaded), so bumping again would only
+  # orphan a changelog entry.
+  if [[ $REBUILD -eq 1 ]]; then
+    VERSION_CODE=$CUR_CODE
+    VERSION_NAME=$APP_VERSION
+  else
+    read -r VERSION_CODE VERSION_NAME <<<"$(node -e '
+      const fs = require("fs");
+      const p = process.argv[1];
+      const j = JSON.parse(fs.readFileSync(p, "utf8"));
+      j.expo.android.versionCode += 1;
+      fs.writeFileSync(p, JSON.stringify(j, null, "\t") + "\n");
+      console.log(j.expo.android.versionCode, j.expo.version);
+    ' "$MOBILE_DIR/app.json")"
+    prebuild_sha > "$PREBUILD_STAMP"
+  fi
   CODE="$VERSION_CODE" perl -pi -e 's/^(\s*versionCode\s+)\d+/$1$ENV{CODE}/' "$MOBILE_DIR/android/app/build.gradle"
   NAME="$VERSION_NAME" perl -pi -e 's/^(\s*versionName\s+)"[^"]*"/$1"$ENV{NAME}"/' "$MOBILE_DIR/android/app/build.gradle"
   grep -q "versionCode $VERSION_CODE" "$MOBILE_DIR/android/app/build.gradle" \
@@ -186,6 +206,21 @@ ACTUAL_APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
   echo "Rebuild both artifacts before publishing; Play was not updated." >&2
   exit 1
 }
+# Signer and source checks run here, after any build and before anything is
+# published, so --skip-build gets exactly the same proof as a fresh build.
+AAB_SIGNER="$(release_require_android_signer "$AAB" "$UPLOAD_CERT")" || {
+  echo "Play was not updated." >&2; exit 1;
+}
+release_require_android_signer "$APK" "$UPLOAD_CERT" >/dev/null || {
+  echo "Play was not updated." >&2; exit 1;
+}
+release_require_unchanged_source "$(manifest_value sourceSha256)" "$SOURCE_LISTING" "$REPO_ROOT" mobile || {
+  echo "Play was not updated. Rebuild this same versionCode ($TARGET_CODE, no second app.json bump) and publish it with:" >&2
+  echo "  bash mobile/scripts/push-phone.sh --rebuild" >&2
+  echo "To avoid this, release from a dedicated worktree no other agent edits (mobile/README.md)." >&2
+  exit 1
+}
+log "Artifacts signed by the pinned upload certificate $AAB_SIGNER, built from $(manifest_value sourceCommit) + $(manifest_value sourceDirtyFiles) uncommitted file(s) under mobile/, which still match the source on disk."
 command -v gh >/dev/null 2>&1 || {
   echo "gh CLI is required before Play can be updated." >&2
   exit 1
@@ -210,9 +245,9 @@ if [[ "$TRACK" == "internal" ]]; then
 fi
 
 log "Play upload succeeded. Publishing the matching APK to GitHub Releases..."
-if ! bash "$MOBILE_DIR/scripts/release-apk.sh" --notes "$NOTES"; then
+if ! bash "$MOBILE_DIR/scripts/release-apk.sh" --after-play --notes "$NOTES"; then
   echo "[push-phone] ERROR: Play upload succeeded, but the GitHub APK publish failed." >&2
-  echo "[push-phone] The Play track is updated; rerun release-apk.sh after fixing the GitHub failure." >&2
+  echo "[push-phone] The Play track is updated; rerun release-apk.sh --after-play after fixing the GitHub failure." >&2
   exit 1
 fi
 

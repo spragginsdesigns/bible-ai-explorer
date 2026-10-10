@@ -636,6 +636,80 @@ Two paths in `mobile/src/features/notifications/useVerseOfDayNotifications.ts`:
 Tap routing: notification data `{screen: "cross"}` → `/cross`; legacy
 payloads with only a verse reference fall back to the reader.
 
+### Who owns a push token (device proof)
+
+`POST /api/push-tokens` upserts by token, so until 2026-10-09 anyone who knew
+another account's Expo token or browser endpoint could move it to their own
+account (a security-scan finding). The rule is now
+`mayRegisterExistingPushToken` in `src/lib/push-routing.ts`:
+
+- The owner refreshing their own row: always.
+- A browser subscription owned by someone else moves only to a caller sending
+  the same `p256dh` and `auth` keys. `auth` is the browser's secret, so this
+  proves the caller holds the subscription rather than having seen its URL.
+- An Expo token owned by someone else moves only with its **device proof** once
+  the row is `deviceBound`. The proof is
+  HMAC-SHA256(`PUSH_TOKEN_PROOF_SECRET`,
+  `"push-token-proof:v2:" + token + ":" + proofNonce`), base64url
+  (`src/lib/push-token-proof.ts`), where `proofNonce` is 16 random bytes kept
+  on the row. The route returns it as `proof` beside `{ id }` whenever the
+  caller ends up owning a native row, always computed from the row's current
+  nonce; the device stores it per token (Android
+  `mobile/src/features/notifications/pushTokenProof.ts`, iOS `PushRegistration`
+  in UserDefaults) and sends it on every registration. The first registration
+  that carries a valid proof sets `deviceBound`, and a new proof is echoed
+  straight back so a phone binds on its first launch, not its second. The proof
+  does not depend on the account, so a second account signed in on the same
+  phone still has it, and sign-out keeps it.
+- An Expo row that is not bound (registered by a build from before the proof,
+  which never sends one) moves exactly as it always did, so a shared phone on
+  an old build can still switch accounts. But the move **rotates the nonce**:
+  every proof handed out for that token before is dead, so someone who once
+  registered a victim's token cannot keep a proof and take it back after the
+  victim's updated app binds it. The nonce is kept on an owner's refresh and on
+  a move that brought the current proof, so the device's stored proof stays
+  good. A row from before the nonce existed gets one on its first registration.
+- A refusal is the same 400 as a malformed subscription, so it does not confirm
+  that someone else registered the token.
+
+The decision and the write cannot be split by another request. The route reads
+the row, decides, and writes with `updateMany` conditional on that same row
+(owner, platform, keys, `deviceBound`, `proofNonce`), or with a `create` that
+the unique token refuses if someone registered first (P2002). A write that
+misses means the row changed in between, for example the owner's device bound
+it, so the route reads and decides again once. After a second miss it reads
+the row one last time: if the caller owns it by then (their own launch and
+settings-change registrations racing), it answers 200 with that row's `{ id,
+proof }`; otherwise the generic 400.
+Without this, a proof-less move checked against the unbound row could land on
+a row that had just been bound.
+
+`PUSH_TOKEN_PROOF_SECRET` is optional. Unset (or blank), no proof is issued,
+nothing binds, the nonce is left alone, and bound rows move as before, so the
+code deploys safely ahead of the variable. Rotating it invalidates every stored
+proof: owners still refresh their own rows and pick up the new proof, but a
+bound row cannot change accounts until its device has registered once under
+the new secret. **Never unset it casually once it is live:** with it unset,
+binding is ignored, so every bound token can be moved again by anyone who knows
+it, for as long as it stays unset (setting it back restores the protection,
+since the nonces and `deviceBound` are kept).
+
+Two residual gaps. A token deleted by `DELETE /api/push-tokens` (every stream
+turned off) is free again, and whoever registers it first is handed its proof.
+And an attacker who registers a victim's token while it is still unbound (an
+old build, or a new one before its first echo) can echo the proof and bind it
+to their own account; they then keep it until the row is cleared (a
+DeviceNotRegistered receipt, or deleting it in the database), and the victim's
+phone falls back to its local reminder. Both need the victim's token, which no
+SureWord API exposes. **Recovery** for a row an attacker bound before the real
+device updated: it stays theirs until the Expo token changes (reinstalling the
+app, or clearing its data on Android, issues a new token) or the row is deleted
+by hand (`DELETE FROM "PushToken" WHERE token = '<ExponentPushToken[...]>'`),
+after which the real device registers and binds on its next launch. The earlier
+static-proof design (an HMAC of the token alone) had the same outcome for this
+case, so the nonce costs nothing here. Migration `20261009230000_push_token_device_bound` adds
+`deviceBound` and `proofNonce`.
+
 ### Surfaces
 
 - Android: `mobile/app/(app)/cross.tsx` (+ ✝ entry card on the Bible tab)
@@ -2291,10 +2365,24 @@ as image" most people actually experience.
 
 **Card** `GET /api/shared/{id}/image`: a 1200×630 PNG rendered with
 `ImageResponse` from `next/og` (the gold day-star mark on `#0a0a0a`, the first
-reference in serif, the answer's first ~200 characters, "sureword.app"), cached
-publicly for a day. This route runs on Vercel; it is not exercised locally on
-Windows (see `vercel-og-windows-broken` in memory), so its proof is the
-production URL.
+reference in serif, the answer's first ~200 characters, "sureword.app"). It is
+revocable, so no cache keeps it long: `SHARED_CARD_CACHE_CONTROL` in
+`src/lib/shared-answer.ts` makes browsers revalidate every time and lets the
+Vercel CDN hold it five minutes at most, and the CDN copy carries the tag
+`shared-answer:{id}`, which revoking a link (or deleting its conversation)
+purges with `dangerouslyDeleteByTag`. What a chat app already copied into a
+sent message is outside our reach. (Until 2026-10-09 it was cached publicly
+for a day, so a revoked card could keep unfurling for up to 24 hours.) This
+route runs on Vercel; it is not exercised locally on Windows (see
+`vercel-og-windows-broken` in memory), so its proof is the production URL.
+
+**Only the server writes answers.** Assistant rows come from the ask-question
+persist and the guest claim, nowhere else: `POST
+/api/conversations/{id}/messages` accepts `role: "user"` only, and `PATCH
+.../messages/{messageId}` refuses `content`/`metadata` on an assistant row
+(thumbs still work). Both used to accept them, which let a client write any
+text as an "answer" and then share it publicly as SureWord's words. No client
+used either path for that.
 
 **Clients.** On a settled assistant answer, beside "Add to notes" and the
 thumbs: "Share". Web: `navigator.share({ title, text, url })` with a
@@ -2890,12 +2978,34 @@ a voice message is just another attachment.
 
 ### The free allowance
 
-`AUDIO_TRANSCRIPTION_FREE_DAILY_MINUTES` (default 10) per rolling 24 hours,
-summed from `durationSeconds`; 0 turns free use off without a deploy. Pro is
-uncapped. The whole message has to fit. Over the cap, completion answers 429
-`audio_quota` with a sentence the clients show verbatim, before any spend:
-"This voice message is 6:15 and you have 4 min left of today's 10 free
-minutes. They refresh over the next 24 hours, and SureWord Pro has no limit."
+`AUDIO_TRANSCRIPTION_FREE_DAILY_MINUTES` (default 10) per rolling 24 hours;
+0 turns free use off without a deploy. Pro is uncapped. The whole message has
+to fit. Over the cap, completion answers 429 `audio_quota` with a sentence the
+clients show verbatim, before any spend: "This voice message is 6:15 and you
+have 4 min left of today's 10 free minutes. They refresh over the next 24
+hours, and SureWord Pro has no limit."
+
+The allowance is counted from the `AudioTranscriptionUsage` ledger, not from
+the attachments (security scan 2026-10-09; it used to sum
+`ChatAttachment.durationSeconds`, so deleting a transcribed attachment, or the
+conversation holding it, handed the minutes back). `reserveAudioSeconds`
+books a message's seconds under a per-user advisory lock (namespace 8204)
+*before* the paid call; a failed transcription gives them back, and nothing
+else ever does. The ledger has no foreign key to the attachment, so it outlives
+it. One /complete request claims the upload first
+(`ChatAttachment.processingToken`), so a double tap or a retry waits for that
+request's answer instead of paying to transcribe the same file again; a claim
+older than the route's `maxDuration` is from a request that died and may be
+taken over.
+
+### Unsent uploads
+
+An account may hold 25 started-but-unsent uploads, or 125 MB of them, at once
+(`MAX_PENDING_ATTACHMENTS`, five full messages). Initialization counts and
+creates under a per-user lock (namespace 8205) and answers 429
+`attachments_pending` past that. Unsent uploads older than a day are swept by
+`/api/cron/chat-attachments`, which drains page by page within a four-minute
+budget instead of a fixed 100 a day.
 
 ### Seeing it in chat
 
@@ -2919,7 +3029,19 @@ rebuilt from file parts, which have no room for them.
   (EACCES); it now prefers the granted `content://` URI. The chat then copies
   each shared `content://` file into the app cache at once
   (`copySharedFileToCache`), since the sender's read grant can lapse before the
-  upload runs.
+  upload runs. The sending app controls both the size it declares and the
+  bytes it serves, so that copy is bounded (security scan 2026-10-09, finding
+  #8): a declared oversize file is refused before any copy, and the local
+  `modules/sureword-share` module stops the copy at the first byte past the
+  file's cap (its type's limit, or what the message's 25 MB has left), then
+  deletes the partial file. The size checked and uploaded is the one measured,
+  never the declared one. The same patch also stops `expo-share-intent` from
+  copying every shared stream into the cache, whole and uncapped, the moment
+  the intent arrived (nothing read that copy). A JS update running on an older
+  binary without the module falls back to the whole copy, measured and deleted
+  when it is over the cap. The iOS share extension copies the same way
+  (`macos/ShareInbox/PendingShareCopy.swift`): streamed, stopped past the
+  app's per-type cap, re-measured, and deleted when incomplete or over.
 - **Web** (installed PWA) declares `share_target` (GET title/text/url) at
   `/share`, which shows what was shared and the same two actions; each opens
   chat prefilled so the user can add to it before sending. Files still come in

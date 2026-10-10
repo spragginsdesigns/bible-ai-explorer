@@ -155,6 +155,66 @@ export function isAllowedWebPushEndpoint(endpoint: string): boolean {
 	return WEB_PUSH_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
 }
 
+/** The stored PushToken columns that decide who may re-register a token. */
+export interface PushTokenOwnerRow {
+	userId: string;
+	platform: string;
+	webP256dh: string | null;
+	webAuth: string | null;
+	/** The device has sent its proof back (push-token-proof.ts). */
+	deviceBound?: boolean;
+}
+
+/**
+ * Whether `userId` may register `token` when a row for it already exists.
+ * Registration upserts by token, so without this rule anyone who learned
+ * another account's token could move it to themselves.
+ *
+ * - The owner refreshing their own row: always.
+ * - A browser endpoint owned by someone else: only by a caller holding the
+ *   same subscription keys. `auth` is the browser's secret, so matching it is
+ *   proof of holding the subscription, not just of having seen its URL. The
+ *   honest path never needs more: the same browser signing into another
+ *   account re-sends its own subscription unchanged (and sign-out normally
+ *   unsubscribes, which mints a new endpoint anyway).
+ * - An Expo token owned by someone else, on a `deviceBound` row: only with
+ *   the device proof. The proof comes from the token, not the account, so a
+ *   second account signed in on the same phone still has it.
+ * - An Expo token owned by someone else, not yet bound: allowed, as before.
+ *   These rows come from builds that never kept a proof, where refusing would
+ *   break signing out and in as someone else on a shared phone (the app does
+ *   not unregister on sign-out) and keep the old account's answer previews
+ *   landing on the new person's phone.
+ *
+ * `proofValid` is null when the proof feature is off (no
+ * PUSH_TOKEN_PROOF_SECRET): binding is then ignored and Expo rows move as they
+ * always did, so a deploy without the secret behaves exactly as before.
+ */
+export function mayRegisterExistingPushToken(
+	stored: PushTokenOwnerRow,
+	request: {
+		userId: string;
+		platform: string;
+		keys?: WebPushKeys | null;
+		proofValid?: boolean | null;
+	},
+): boolean {
+	if (stored.userId === request.userId) return true;
+	if (stored.platform === "web") {
+		return (
+			request.platform === "web" &&
+			Boolean(stored.webP256dh && stored.webAuth) &&
+			request.keys?.p256dh === stored.webP256dh &&
+			request.keys?.auth === stored.webAuth
+		);
+	}
+	if (request.platform === "web") return false;
+	if (stored.deviceBound && request.proofValid !== null && request.proofValid !== undefined) {
+		return request.proofValid;
+	}
+	return true;
+}
+
 /** Push services answer 404 or 410 for a subscription that will never work again. */
 export function isGoneWebPushStatus(statusCode: number | undefined): boolean {
 	return statusCode === 404 || statusCode === 410;

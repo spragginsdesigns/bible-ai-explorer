@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
-import { isSharedAnswerId } from "@/lib/shared-answer";
+import { dangerouslyDeleteByTag } from "@vercel/functions";
+import { isSharedAnswerId, sharedAnswerCacheTag } from "@/lib/shared-answer";
 
 /**
  * Revoke a share link (docs/FEATURES.md, "Share an answer").
@@ -84,6 +85,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 				data: { revokedAt: new Date(), listedAt: null },
 			});
 		}
+		// The card image is CDN-cached under this tag; drop it now rather than
+		// leave it to expire. Best-effort: s-maxage bounds a failed purge.
+		await dangerouslyDeleteByTag(sharedAnswerCacheTag(share.id)).catch(() => undefined);
 
 		return NextResponse.json({ ok: true });
 	} catch (err) {

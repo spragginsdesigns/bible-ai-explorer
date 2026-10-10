@@ -146,6 +146,7 @@ Run from the repository root in Git Bash:
 ```bash
 bash mobile/scripts/push-phone.sh                  # bump + build + publish Play (internal + closed) and GitHub APK
 bash mobile/scripts/push-phone.sh --skip-build     # publish one previously bound AAB/APK pair, no bump
+bash mobile/scripts/push-phone.sh --rebuild        # rebuild + publish the CURRENT versionCode, no bump (source-drift recovery)
 node mobile/scripts/play-promote.mjs --track alpha --code 97   # re-sync closed testing by hand if that step failed
 ```
 
@@ -180,6 +181,49 @@ APK served by the website download link. `build-aab.sh` writes a version and
 SHA-256 manifest for both artifacts; `push-phone.sh` verifies it before any
 Play upload, including `--skip-build`, so stale or independently built files
 fail closed.
+
+Since 2026-10-09 every publish step also proves who signed the artifacts and
+what source they came from (`scripts/lib/release-provenance.sh`):
+
+- **Signer pin.** The AAB (`jarsigner -verify` + `keytool -printcert`) and the
+  APK (`apksigner verify --print-certs`) must be signed only by the upload
+  certificate whose SHA-256 is in `mobile/scripts/upload-cert.sha256`.
+  `build-aab.sh`, `push-phone.sh` and `release-apk.sh` all refuse anything
+  else, so a debug-signed or foreign-signed file in the build directory can
+  never reach Play or GitHub. The fingerprint is public, not a secret. If the
+  upload key is ever reset in Play Console, add the new fingerprint to that
+  file in the same change.
+- **Source binding.** `build-aab.sh` snapshots a content digest of every
+  tracked and untracked (non-ignored) file under `mobile/` that can reach the
+  binary before Gradle runs, and records it with `HEAD` and the uncommitted
+  file count in the manifest (plus the per-file list in `release-sources.txt`).
+  Publishing recomputes it and refuses, naming the changed files, if `mobile/`
+  no longer matches what was built. Left out of the digest because they cannot
+  reach the APK/AAB: Markdown (so CHANGELOG.md edits never block), unit tests
+  and fixtures under `src/` (`*.test.*`, `__tests__/`, `__fixtures__/`),
+  `vitest.config.ts`, and the publish-only scripts (`play-*.mjs`,
+  `release-apk.sh`, `upload-cert.sha256`). Everything under `app/` (expo-router
+  makes every file a route), native modules, patches, config and the build
+  scripts stay in. Building from an uncommitted tree stays allowed (the
+  script's own `app.json` bump is uncommitted). `release-apk.sh --after-play`
+  (used by `push-phone.sh` once Play has the bundle) keeps the signer check but
+  skips the source check, so the GitHub APK always follows the build Play
+  received.
+- **Recovering from a drift refusal.** Nothing was uploaded, and `app.json`
+  already holds the new versionCode, so do not run a plain `push-phone.sh`
+  again (it would bump a second time). Run
+  `bash mobile/scripts/push-phone.sh --rebuild`: it rebuilds that same
+  versionCode (re-running prebuild only if its inputs changed) and publishes
+  it. The refusal message prints this command.
+
+**Release from a dedicated worktree.** Agents edit this repository
+concurrently, and a release build takes ten minutes or more. Run releases from
+a git worktree that nothing else edits (for example
+`git worktree add ../sureword-release origin/main`, then build there), so no
+other session's half-finished change lands in the binary or trips the
+source-drift refusal. Remember that `mobile/android/` is a per-worktree
+prebuild, and keep the `app.json` bump and CHANGELOG entry committed back to
+`main` afterwards.
 
 **Mandatory (since 2026-08-20): write the `CHANGELOG.md` entry first.** The
 changelog is the single source of truth for Play "What's new" notes - the

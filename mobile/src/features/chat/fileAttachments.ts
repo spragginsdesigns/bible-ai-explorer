@@ -1,5 +1,7 @@
 import { File, Paths } from "expo-file-system";
 import { apiJson, type GetToken } from "@/lib/api";
+import { copySharedFileBounded, type SharedFileCopy } from "@/lib/sharedFileCopy";
+import { sharedFileCopyLimit, sharedFileSizeError, type SharedFile } from "@/features/share/shareIntake";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
@@ -47,15 +49,53 @@ export function normalizeLocalAttachment(input: Omit<LocalChatAttachment, "size"
 
 /**
  * A file shared from another app arrives as a content:// URI whose read grant
- * belongs to the share and can lapse before the upload runs. Copy it into the
- * app's own cache at once and upload the copy. Anything else is returned as is.
+ * belongs to the share and can lapse before the upload runs, so it is copied
+ * into the app's own cache at once and the copy is uploaded. The sending app
+ * picks both the size it declares and the bytes it serves, so the copy stops
+ * at the first byte past the cap (the type's, or what the message has left
+ * after `usedBytes`), and the size checked and uploaded is the one measured.
  */
-export async function copySharedFileToCache(uri: string, filename: string): Promise<string> {
-	if (!uri.startsWith("content://")) return uri;
-	const safeName = filename.replace(/[^A-Za-z0-9._-]+/g, "-").slice(-80) || "shared";
+export async function copySharedFileToCache(file: SharedFile, usedBytes: number): Promise<LocalChatAttachment> {
+	const declaredError = file.size === null ? null : sharedFileSizeError(file, file.size, usedBytes);
+	if (declaredError) throw new Error(declaredError);
+
+	if (!file.uri.startsWith("content://")) {
+		const size = new File(file.uri).size;
+		const sizeError = sharedFileSizeError(file, size, usedBytes);
+		if (sizeError) throw new Error(sizeError);
+		return normalizeLocalAttachment({ ...file, size });
+	}
+
+	const limit = sharedFileCopyLimit(file.mediaType, usedBytes);
+	const copied = await copySharedFileBounded(file.uri, limit) ?? await copyWholeSharedFile(file);
+	if (copied.tooLarge) {
+		throw new Error(sharedFileSizeError(file, copied.size, usedBytes) ?? `${file.filename} is too large to attach.`);
+	}
+	const target = new File(copied.uri);
+	try {
+		const sizeError = sharedFileSizeError(file, copied.size, usedBytes);
+		if (sizeError) throw new Error(sizeError);
+		return normalizeLocalAttachment({ ...file, uri: copied.uri, size: copied.size });
+	} catch (error) {
+		if (target.exists) target.delete();
+		throw error;
+	}
+}
+
+/**
+ * The unbounded copy, for a JS update running on a binary built before the
+ * SureWordShare module: its oversize result is deleted by the caller.
+ */
+async function copyWholeSharedFile(file: SharedFile): Promise<SharedFileCopy> {
+	const safeName = file.filename.replace(/[^A-Za-z0-9._-]+/g, "-").slice(-80) || "shared";
 	const target = new File(Paths.cache, `shared-${Date.now()}-${safeName}`);
-	await new File(uri).copy(target);
-	return target.uri;
+	try {
+		await new File(file.uri).copy(target);
+	} catch (error) {
+		if (target.exists) target.delete();
+		throw error;
+	}
+	return { tooLarge: false, uri: target.uri, size: target.size };
 }
 
 export function validateLocalAttachmentBatch(

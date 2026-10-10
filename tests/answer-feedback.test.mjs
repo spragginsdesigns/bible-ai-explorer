@@ -345,14 +345,37 @@ test("a message id outside the owned conversation is 404, not a create", async (
 	assert.deepEqual(route.calls[1][1].where, { id: "msg-1", conversationId: "convo-1" });
 });
 
-test("the original content/metadata edit still returns the whole row untouched", async () => {
-	const route = patchRoute();
+test("the original content/metadata edit still returns the whole row on a user message", async () => {
+	const route = patchRoute({ role: "user" });
 	const response = await route.send({ content: "edited", metadata: { parts: [] } });
 	assert.equal(response.status, 200);
 	assert.deepEqual(dataOf(route.calls), { content: "edited", metadata: { parts: [] } });
-	// No thumb in the body means no role lookup and no feedback columns written.
-	assert.deepEqual(names(route.calls), ["conversation.findFirst", "message.update"]);
+	// No thumb in the body means no feedback columns written.
+	assert.deepEqual(names(route.calls), ["conversation.findFirst", "message.findFirst", "message.update"]);
 	assert.equal(response.body.content, "edited");
+});
+
+test("an answer's text and metadata cannot be rewritten by the client", async () => {
+	// A shared answer is published as SureWord's words, so a client-edited
+	// assistant row would be a forged public answer.
+	for (const body of [
+		{ content: "forged answer" },
+		{ metadata: { parts: [{ type: "text", text: "forged" }] } },
+		{ feedback: "up", content: "forged answer" },
+	]) {
+		const route = patchRoute({ role: "assistant" });
+		const response = await route.send(body);
+		assert.equal(response.status, 400, JSON.stringify(body));
+		assert.deepEqual(response.body, { error: "An answer cannot be edited." });
+		assert.ok(!names(route.calls).includes("message.update"));
+	}
+});
+
+test("an edit naming a message outside the owned conversation is 404, not a write", async () => {
+	const route = patchRoute({ exists: false });
+	const response = await route.send({ content: "edited" });
+	assert.equal(response.status, 404);
+	assert.ok(!names(route.calls).includes("message.update"));
 });
 
 test("no session is the 401 Response, re-returned rather than reported as a 500", async () => {

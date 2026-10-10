@@ -81,6 +81,10 @@ function makeDb({ notes = [], folders = [], tags = [], noteTags = [] } = {}) {
 		folder: {
 			findFirst: async ({ where }) => {
 				state.calls.push(["folder.findFirst", where]);
+				// By id: patchUserNote re-checking the folder is the caller's own.
+				if (where.id !== undefined) {
+					return state.folders.find((folder) => folder.id === where.id && folder.userId === where.userId) ?? null;
+				}
 				return (
 					state.folders
 						.filter((folder) => folder.userId === where.userId && insensitiveEquals(folder.name, where.name))

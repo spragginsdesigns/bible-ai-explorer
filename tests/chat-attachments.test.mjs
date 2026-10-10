@@ -4,6 +4,9 @@ import test from "node:test";
 import {
 	AttachmentValidationError,
 	MAX_ATTACHMENT_MESSAGE_BYTES,
+	MAX_PENDING_ATTACHMENT_BYTES,
+	MAX_PENDING_ATTACHMENTS,
+	pendingAttachmentRefusal,
 	sizeMatches,
 	validateAttachmentBatch,
 	validateAttachmentInput,
@@ -80,4 +83,20 @@ test("a blob size of 0 or none is unstated, never a mismatch on its own", () => 
 	assert.equal(sizeMatches(undefined, 156_000), true);
 	assert.equal(sizeMatches(156_000, 156_000), true);
 	assert.equal(sizeMatches(155_999, 156_000), false);
+});
+
+// Security scan 2026-10-09: initialization had no cumulative cap, so a loop of
+// uploads could outrun the daily cleanup sweep.
+test("unsent uploads are capped per account by count and by bytes", () => {
+	const one = [{ filename: "a.png", mediaType: "image/png", size: 1000 }];
+	assert.equal(pendingAttachmentRefusal({ count: 0, bytes: 0 }, one), null);
+	assert.equal(pendingAttachmentRefusal({ count: MAX_PENDING_ATTACHMENTS - 1, bytes: 0 }, one), null);
+	assert.match(pendingAttachmentRefusal({ count: MAX_PENDING_ATTACHMENTS, bytes: 0 }, one) ?? "", /waiting to be sent/);
+	assert.match(
+		pendingAttachmentRefusal({ count: 1, bytes: MAX_PENDING_ATTACHMENT_BYTES - 999 }, one) ?? "",
+		/waiting to be sent/,
+	);
+	// A full message's batch still fits after four full messages are waiting.
+	const full = Array.from({ length: 5 }, (_, i) => ({ filename: `${i}.png`, mediaType: "image/png", size: 5 * 1024 * 1024 }));
+	assert.equal(pendingAttachmentRefusal({ count: 20, bytes: 4 * MAX_ATTACHMENT_MESSAGE_BYTES }, full), null);
 });

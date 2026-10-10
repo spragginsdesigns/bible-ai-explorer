@@ -15,28 +15,60 @@
 // Output, mirroring the KJV corpus layout (chapters -> verses -> words):
 //   src/data/originals/NN-book.json      [[["word","strongs","morph"],...],...]
 //   src/data/originals/strongs-hebrew.json / strongs-greek.json
+//
+// Supply chain: every source is read at a pinned upstream commit (see the
+// RAW_* constants below), and every downloaded file must match the SHA-256
+// recorded for its exact URL in build-original-languages.lock.json before it
+// is parsed. A moved branch, a rewritten file or a hijacked upstream therefore
+// fails the build instead of flowing into the bundled data. The Strong's
+// dictionaries are JavaScript files upstream; they are read as JSON data and
+// never executed.
+//
+// To move to a newer upstream commit: change the commit in RAW_*, run
+//   node scripts/build-original-languages.mjs --update-lock
+// review the regenerated src/data/originals/ diff and the lock diff, and
+// commit both together.
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const outDir = path.join(root, "src/data/originals");
+const lockPath = path.join(root, "scripts/build-original-languages.lock.json");
+const updateLock = process.argv.includes("--update-lock");
 fs.mkdirSync(outDir, { recursive: true });
 
 const books = JSON.parse(fs.readFileSync(path.join(root, "src/data/books.json"), "utf8"));
 const fileByOrder = new Map(books.map((b) => [b.order, b.file]));
 
+const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
+const seenUrls = {};
+
 async function fetchText(url) {
+	let bytes;
 	for (let attempt = 1; attempt <= 3; attempt++) {
 		try {
 			const res = await fetch(url);
 			if (!res.ok) throw new Error(`${res.status} for ${url}`);
-			return await res.text();
+			bytes = new Uint8Array(await res.arrayBuffer());
+			break;
 		} catch (err) {
 			if (attempt === 3) throw err;
 			await new Promise((r) => setTimeout(r, 1500 * attempt));
 		}
 	}
+	const sha256 = createHash("sha256").update(bytes).digest("hex");
+	seenUrls[url] = sha256;
+	if (!updateLock && lock[url] !== sha256) {
+		throw new Error(
+			lock[url]
+				? `SHA-256 mismatch for ${url}: expected ${lock[url]}, got ${sha256}. Upstream content changed; nothing was written for this file.`
+				: `No pinned SHA-256 for ${url} in ${path.relative(root, lockPath)}. Run with --update-lock after reviewing the new source commit.`,
+		);
+	}
+	// Same decoding as Response.text(): UTF-8, leading BOM dropped.
+	return new TextDecoder().decode(bytes);
 }
 
 // ---------------- Hebrew OT (WLC / OSHB) ----------------
@@ -168,12 +200,13 @@ function parseTrBook(raw) {
 // ---------------- Strong's dictionaries ----------------
 
 function parseStrongsJs(js) {
-	// Files are "var name = { ... };" possibly followed by module.exports.
+	// Files are "var name = { ... };" possibly followed by module.exports. The
+	// object literal itself is strict JSON (double-quoted keys and strings), so
+	// it is parsed as data; anything that is not plain JSON fails here.
 	const start = js.indexOf("{");
-	let end = js.lastIndexOf("};");
+	const end = js.lastIndexOf("};");
 	if (start < 0 || end < 0) throw new Error("Unexpected dictionary format");
-	const object = js.slice(start, end + 1);
-	return (0, eval)(`(${object})`);
+	return JSON.parse(js.slice(start, end + 1));
 }
 
 function compactDictionary(raw) {
@@ -191,9 +224,11 @@ function compactDictionary(raw) {
 
 // ---------------- main ----------------
 
-const RAW_WLC = "https://raw.githubusercontent.com/openscriptures/morphhb/master/wlc";
-const RAW_TR = "https://raw.githubusercontent.com/byztxt/greektext-textus-receptus/master/parsed";
-const RAW_STRONGS = "https://raw.githubusercontent.com/openscriptures/strongs/master";
+// Immutable commits, not branches. These were the master heads of each
+// repository when src/data/originals/ was generated (2026-08-19).
+const RAW_WLC = "https://raw.githubusercontent.com/openscriptures/morphhb/3d15126fb1ef74867fc1434be1942e837932691f/wlc";
+const RAW_TR = "https://raw.githubusercontent.com/byztxt/greektext-textus-receptus/7fd4d02c3e5adebd379ebfbc824040820dde10fc/parsed";
+const RAW_STRONGS = "https://raw.githubusercontent.com/openscriptures/strongs/0acd2f251c2d35ff8db2dece4e0593979d3ac223";
 
 let totalWords = 0;
 for (let i = 0; i < WLC_BOOKS.length; i++) {
@@ -221,3 +256,8 @@ fs.writeFileSync(path.join(outDir, "strongs-hebrew.json"), JSON.stringify(hebrew
 fs.writeFileSync(path.join(outDir, "strongs-greek.json"), JSON.stringify(greekDict));
 console.log(`Dictionaries: ${Object.keys(hebrewDict).length} Hebrew, ${Object.keys(greekDict).length} Greek entries`);
 console.log(`Total words: ${totalWords}`);
+
+if (updateLock) {
+	fs.writeFileSync(lockPath, `${JSON.stringify(seenUrls, null, "\t")}\n`);
+	console.log(`Pinned ${Object.keys(seenUrls).length} source hashes in ${path.relative(root, lockPath)}`);
+}

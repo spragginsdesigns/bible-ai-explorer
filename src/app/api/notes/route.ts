@@ -6,6 +6,7 @@ import { getAuthUser, getAuthUserId } from "@/lib/auth";
 import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders, sizeBucket } from "@/lib/analytics/events";
 import { syncNoteEmbeddings } from "@/lib/note-embeddings";
+import { FolderNotFoundError, resolveOwnedFolderId } from "@/lib/notes-io";
 import {
 	resolvePendingLinks,
 	syncNoteLinks,
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
 				plainText: body.plainText || "",
 				aliases: aliases.value,
 				properties: properties.value ?? Prisma.DbNull,
-				folderId: body.folderId || null,
+				folderId: (await resolveOwnedFolderId(userId, body.folderId)) ?? null,
 				userId,
 				isPinned: false,
 				wordCount: body.wordCount || 0,
@@ -122,6 +123,9 @@ export async function POST(req: Request) {
 		return NextResponse.json(note, { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;
+		if (err instanceof FolderNotFoundError) {
+			return NextResponse.json({ error: err.message }, { status: 400 });
+		}
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 	}
 }

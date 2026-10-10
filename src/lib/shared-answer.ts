@@ -73,6 +73,22 @@ export function sharedAnswerCardUrl(id: string, origin: string = SHARED_ANSWER_O
 }
 
 /**
+ * Cache-Control for the card image. A share is revocable, so no cache may keep
+ * serving it on its own authority: browsers revalidate every time
+ * (`max-age=0`), and the CDN holds it for five minutes at most. Revoking also
+ * purges the CDN copy by `sharedAnswerCacheTag`, so five minutes is only the
+ * bound for a purge that failed or a path that does not purge (account
+ * deletion). Unfurl scrapers fetch once per link, so the short life costs
+ * little.
+ */
+export const SHARED_CARD_CACHE_CONTROL = "public, max-age=0, s-maxage=300, must-revalidate";
+
+/** The Vercel CDN cache tag on one share's card image, purged on revoke. */
+export function sharedAnswerCacheTag(id: string): string {
+	return `shared-answer:${id}`;
+}
+
+/**
  * Clip to a hard character budget, preferring the last word boundary so the
  * cut does not land mid-word. The ellipsis is counted inside the budget, so
  * the result is never longer than `max`.

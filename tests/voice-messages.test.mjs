@@ -128,8 +128,14 @@ test("the duration reader measures a real WAV exactly", async () => {
 
 test("audio is transcribed at completion and read by the chat route as text", () => {
 	const complete = read("src/app/api/chat/attachments/[id]/complete/route.ts");
-	// Measure and check the allowance before anything is paid for.
-	assert.match(complete, /readAudioDurationSeconds[\s\S]*audioQuotaDecision[\s\S]*transcribeAudio/);
+	// Claim the upload, measure, and reserve the allowance before anything is
+	// paid for (security scan 2026-10-09: parallel completes each paid).
+	assert.match(complete, /claimOrWait[\s\S]*readAudioDurationSeconds[\s\S]*reserveAudioSeconds[\s\S]*transcribeAudio/);
+	assert.match(complete, /catch \(error\) \{\s*await releaseAudioReservation/);
+	// The allowance is counted from the ledger, never from deletable attachments.
+	const usage = read("src/lib/audio-transcription-usage.ts");
+	assert.match(usage, /pg_advisory_xact_lock[\s\S]*audioTranscriptionUsage\.aggregate[\s\S]*audioQuotaDecision[\s\S]*audioTranscriptionUsage\.create/);
+	assert.doesNotMatch(complete, /chatAttachment\.aggregate/);
 	const chat = read("src/app/api/ask-question/route.ts");
 	assert.match(chat, /isAudioMediaType\(record\.mediaType\)[\s\S]*audioTranscriptText/);
 	assert.match(chat, /requireAttachments: threadHasFiles/);

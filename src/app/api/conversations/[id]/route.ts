@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { deleteAttachmentBlobs, toAttachmentDescriptor } from "@/lib/chat-attachments.server";
+import { dangerouslyDeleteByTag } from "@vercel/functions";
+import { sharedAnswerCacheTag } from "@/lib/shared-answer";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
@@ -88,10 +90,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 		// A deleted conversation must not keep serving a shared answer that came
 		// out of it: revoke every link first. The snapshot rows stay (owned and
 		// listed under Settings → Shared answers) so nothing public dangles.
+		const liveShares = await prisma.sharedAnswer.findMany({
+			where: { conversationId: id, userId, revokedAt: null },
+			select: { id: true },
+		});
 		await prisma.sharedAnswer.updateMany({
 			where: { conversationId: id, userId, revokedAt: null },
 			data: { revokedAt: new Date() },
 		});
+		// Their card images are CDN-cached; purge them like a single revoke does.
+		if (liveShares.length > 0) {
+			await dangerouslyDeleteByTag(liveShares.map((share) => sharedAnswerCacheTag(share.id))).catch(
+				() => undefined,
+			);
+		}
 		await prisma.conversation.delete({ where: { id } });
 		return NextResponse.json({ success: true });
 	} catch (err) {

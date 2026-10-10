@@ -264,22 +264,30 @@ About. Android's Check for updates is a Play Store row and has no iOS page.
 
 ## Releasing a DMG
 
-Distribution is a DMG attached to a GitHub release. The normal path is
+Distribution is a DMG attached to a GitHub release. The release path is
 `bash macos/install-mac.sh --release`, which builds Release, installs the
-same build to `/Applications`, then runs the two steps below. By hand:
-
-```bash
-cd macos && xcodegen
-xcodebuild -project SureWord.xcodeproj -scheme SureWord -configuration Release \
-  -destination 'platform=macOS' -derivedDataPath build-release.noindex build
-
-../scripts/build-dmg.sh          # styled installer → macos/SureWord.dmg
-bash ./release-dmg.sh
-```
+same build to `/Applications`, then runs `scripts/build-dmg.sh` (styled
+installer at `macos/SureWord.dmg`) and `macos/release-dmg.sh`. A plain
+`xcodebuild` by hand can no longer be packaged for release: before building,
+`install-mac.sh` snapshots a content digest of `macos/` (tests, `scripts/`,
+Markdown and the publish-only release scripts excluded) and, after the build,
+writes it next to the app with the app's code-signature CDHash
+(`SureWord.app.build` / `SureWord.app.sources` in `build-release.noindex`).
+`build-dmg.sh` refuses an app with no record, an app whose CDHash no longer
+matches it (rebuilt or replaced), or one whose recorded source no longer
+matches `macos/`, so a stale build can never be packaged later. To retry only
+the publish after an interrupted upload, `bash macos/release-dmg.sh` can be
+run on its own.
 
 `release-dmg.sh` refuses a missing or empty `SureWord.dmg`, reads
-`MARKETING_VERSION` from `project.yml`, mounts the DMG read-only and verifies
-the bundled app reports that exact version, requires authenticated `gh`, creates
+`MARKETING_VERSION` from `project.yml`, and refuses a DMG whose
+`SureWord.dmg.provenance` record (carried forward by `build-dmg.sh`) is
+missing, names a different DMG hash or version, or whose recorded content
+digest of `macos/` no longer matches the tree (the changed files are listed).
+It mounts the DMG read-only, verifies the bundled app reports that exact
+version, passes `codesign --verify --deep --strict`, is signed as
+`com.spragginsdesigns.sureword` by team `389LLKGY3Y`, and is the exact app
+(same CDHash) the build recorded, then requires authenticated `gh`, creates
 the `macos-v<version>` tag/release, and uploads the fixed asset name
 `SureWord.dmg`. It also carries the current `SureWord.apk` (and `SureWord.ipa`
 once iOS distribution exists) forward, so persistent

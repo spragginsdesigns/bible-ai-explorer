@@ -7,12 +7,10 @@ import UniformTypeIdentifiers
 /// extension stays small and the rules live in one place.
 ///
 /// Files are copied, never loaded into memory - a share extension is killed
-/// well before an app would be, and a voice message can be 20 MB.
+/// well before an app would be, and a voice message can be 20 MB. Each copy
+/// stops at the file's cap (`PendingShareCopy`); a file over it is listed
+/// without bytes so the app can say why.
 enum ShareCollector {
-    /// Bigger than any single file SureWord accepts (audio, 20 MB), so not
-    /// worth copying; the manifest still lists it so the app can say why.
-    static let maxCopyBytes = 25 * 1024 * 1024
-
     /// One provider's contribution, already in Sendable form.
     private enum Loaded: Sendable {
         case text(String)
@@ -175,13 +173,21 @@ enum ShareCollector {
             mediaType: PendingShareNaming.mediaType(for: type, filename: original),
             size: size
         )
-        if let size, size > maxCopyBytes { return file }
+        // The reported size only saves a doomed copy; the copy itself stops at
+        // the cap, since the sending app controls the bytes it serves.
+        let limit = PendingShareCopy.limit(filename: original, mediaType: file.mediaType)
+        if let size, size > limit { return file }
         let stored = PendingShareNaming.storedName(original, index: index)
-        do {
-            try FileManager.default.copyItem(at: source, to: directory.appendingPathComponent(stored))
+        switch PendingShareCopy.copy(from: source, to: directory.appendingPathComponent(stored), limit: limit) {
+        case .copied(let bytes):
             file.storedName = stored
-        } catch {
+            file.size = bytes
+        case .tooLarge(let bytesRead):
+            // Listed without bytes; the app says it exceeds the file limit.
+            file.size = bytesRead
+        case .failed:
             // Listed without bytes; the app reports it as unreadable.
+            break
         }
         return file
     }
@@ -201,7 +207,7 @@ enum ShareCollector {
             mediaType: PendingShareNaming.mediaType(for: type, filename: original),
             size: data.count
         )
-        guard data.count <= maxCopyBytes else { return file }
+        guard data.count <= PendingShareCopy.limit(filename: original, mediaType: file.mediaType) else { return file }
         let stored = PendingShareNaming.storedName(original, index: index)
         if (try? data.write(to: directory.appendingPathComponent(stored))) != nil {
             file.storedName = stored

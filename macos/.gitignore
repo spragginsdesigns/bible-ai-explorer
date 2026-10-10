@@ -25,6 +25,8 @@ Packages/
 .DS_Store
 build-merge/
 SureWord.dmg
+SureWord.dmg.provenance
+SureWord.dmg.sources
 build-release/
 
 # Spotlight-invisible build dirs used by install-mac.sh / README commands

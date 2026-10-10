@@ -328,6 +328,12 @@ Also required in `.env.local`:
   Vercel scopes on 2026-08-27. Without it every `/api/church*` route answers
   `status: "unavailable"` and every client hides the section entirely. See
   `docs/FEATURES.md` → "My church".
+- `PUSH_TOKEN_PROOF_SECRET` - HMAC key for the Expo push-token device proof
+  (security scan 2026-10-09, finding #10). Once a phone has registered with
+  its proof, its token can only move to another account with that proof.
+  Unset turns the proof off and push registration behaves as before. Rotating
+  it invalidates stored proofs until each phone re-registers once. See
+  `docs/FEATURES.md` → "Who owns a push token (device proof)".
 - `APP_STORE_APP_ID` - SureWord's numeric Apple ID from App Store Connect
   (App Information → Apple ID). Turns on StoreKit 2 purchase verification
   (`POST /api/billing/app-store/verify`) and App Store Server Notifications V2

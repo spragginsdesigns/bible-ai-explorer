@@ -662,10 +662,13 @@ export function useSureWordChat(): SureWordChat {
 		// One unreadable file should not cost the user the rest of the share.
 		const ready: LocalChatAttachment[] = [];
 		const problems: string[] = [];
+		// Bytes already copied, so each copy is capped by what the message has left.
+		let usedBytes = 0;
 		for (const file of draft.files) {
 			try {
-				const uri = await copySharedFileToCache(file.uri, file.filename);
-				ready.push(normalizeLocalAttachment({ ...file, uri }));
+				const local = await copySharedFileToCache(file, usedBytes);
+				ready.push(local);
+				usedBytes += local.size;
 			} catch (error) {
 				problems.push(error instanceof Error ? error.message : `${file.filename} could not be read.`);
 			}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { CHURCH_PHOTO_WIDTH_PX, findChurchPhotoName } from "@/lib/church";
 import { isPlacesConfigured } from "@/lib/church-rules";
 import { resolvePlacePhotoUri } from "@/lib/google-places";
+import { createRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 
 /**
  * A church's Google Places photo, streamed through our own origin.
@@ -20,6 +21,10 @@ import { resolvePlacePhotoUri } from "@/lib/google-places";
 // the CDN is a Places media call we do not pay for.
 const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800";
 
+// The route is public and a varied query string misses the CDN, so each miss is
+// a paid Places media call. Real cards miss rarely; this only stops a loop.
+const photoLimiter = createRateLimiter({ limit: 60, windowMs: 5 * 60_000 });
+
 export async function GET(req: Request) {
 	try {
 		if (!isPlacesConfigured(process.env.GOOGLE_PLACES_API_KEY)) {
@@ -30,6 +35,11 @@ export async function GET(req: Request) {
 		if (!placeId) {
 			return NextResponse.json({ error: "placeId is required" }, { status: 400 });
 		}
+		const rate = photoLimiter.check(rateLimitKey(req, null));
+		if (!rate.allowed) return NextResponse.json(
+			{ error: "Too many photo requests. Try again shortly." },
+			{ status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+		);
 
 		const photoName = await findChurchPhotoName(placeId);
 		if (!photoName) {

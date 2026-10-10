@@ -13,6 +13,7 @@ import {
 	MAX_ATTACHMENT_MESSAGE_BYTES,
 	attachmentSizeError,
 	filenameForSharedFile,
+	maxBytesFor,
 	resolveAttachmentType,
 } from "@/features/chat/attachmentRules";
 import { findYouTubeLink } from "@/features/chat/videoTranscript";
@@ -101,12 +102,12 @@ export function planSharedChat(share: IncomingShare): SharedChatDraft {
 		notices.push(`You can attach up to ${MAX_ATTACHMENTS_PER_MESSAGE} files per message, so only the first ${MAX_ATTACHMENTS_PER_MESSAGE} were attached.`);
 	}
 
-	// Sizes the sharing app reported; an unreported one is checked after it is read.
+	// Sizes the sharing app reported; an unreported one is checked as it is read.
 	let total = 0;
 	const fitting = files.filter((file) => {
 		const next = total + (file.size ?? 0);
 		if (next > MAX_ATTACHMENT_MESSAGE_BYTES) {
-			notices.push(`Attachments can total up to 25 MB per message, so ${file.filename} was left out.`);
+			notices.push(messageTotalNotice(file.filename));
 			return false;
 		}
 		total = next;
@@ -117,6 +118,34 @@ export function planSharedChat(share: IncomingShare): SharedChatDraft {
 		notices.push("Nothing in that share could be opened in SureWord.");
 	}
 	return { text, files: fitting, notices };
+}
+
+function messageTotalNotice(filename: string): string {
+	return `Attachments can total up to 25 MB per message, so ${filename} was left out.`;
+}
+
+/**
+ * The most bytes a shared file may copy into the cache: its type's cap, or
+ * what the message has left after `usedBytes` when that is less. The size the
+ * sending app declares cannot be trusted, so the copy itself stops here.
+ */
+export function sharedFileCopyLimit(mediaType: string, usedBytes: number): number {
+	return Math.max(0, Math.min(maxBytesFor(mediaType), MAX_ATTACHMENT_MESSAGE_BYTES - usedBytes));
+}
+
+/**
+ * null when a shared file of `size` bytes fits beside `usedBytes` already
+ * attached, else why it was left out, worded as the pickers and the share
+ * plan word it.
+ */
+export function sharedFileSizeError(
+	file: Pick<SharedFile, "filename" | "mediaType">,
+	size: number,
+	usedBytes: number,
+): string | null {
+	const sizeError = attachmentSizeError(file.filename, file.mediaType, size);
+	if (sizeError) return sizeError;
+	return usedBytes + size > MAX_ATTACHMENT_MESSAGE_BYTES ? messageTotalNotice(file.filename) : null;
 }
 
 /** The message a share action sends: the command, then whatever is in the composer. */

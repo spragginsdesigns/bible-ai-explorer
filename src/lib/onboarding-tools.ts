@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { setUserChurch } from "@/lib/church";
+import { ChurchSaveRateLimitError, setUserChurch } from "@/lib/church";
 import { PlaceNotFoundError, PlacesNotConfiguredError, searchChurches } from "@/lib/google-places";
 import { MAX_ABOUT_ME_LENGTH, MAX_TESTIMONY_LENGTH } from "@/lib/preferences-contract";
 import { AgentActionError, executeApprovedAction, type AgentActionContext } from "@/lib/agent-actions";
@@ -83,6 +83,7 @@ export function buildOnboardingTools(userId: string, context: AgentActionContext
 					if (error instanceof PlaceNotFoundError) {
 						return { success: false as const, error: "That church id is not valid. Search again with findChurch." };
 					}
+					if (error instanceof ChurchSaveRateLimitError) return { success: false as const, error: error.message };
 					if (error instanceof PlacesNotConfiguredError) {
 						return { success: false as const, error: "Church lookup is unavailable right now. Save the church they named as a profile memory instead." };
 					}

@@ -4,8 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { z } from "zod";
 
+// User rows only. An assistant row is SureWord's words: the share route
+// publishes it on a public page as a genuine answer, so only the server's own
+// answer paths (ask-question, guest claim) may write one. No client has posted
+// here since the web moved to the ask-question persist on 2026-08-09.
 const messageSchema = z.object({
-	role: z.enum(["user", "assistant"]),
+	role: z.literal("user"),
 	content: z.string().min(1).max(50_000),
 	metadata: z.record(z.string(), z.unknown()).optional(),
 });

@@ -41,9 +41,13 @@ export function isPlacesConfigured(apiKey: string | undefined | null): apiKey is
 }
 
 /**
- * A church website as Places reports it, reduced to something safe to fetch and
- * to show: absolute, http(s) only, no credentials, no fragment. Returns null for
- * anything else (mailto:, javascript:, a bare "call us" string).
+ * A church website as Places reports it, reduced to a well-formed link: absolute,
+ * http(s) only, no credentials, no fragment. Returns null for anything else
+ * (mailto:, javascript:, a bare "call us" string).
+ *
+ * This is syntax only. Whether the server may connect to it (public address,
+ * standard port, on every redirect and DNS answer) is decided by `safeFetch` in
+ * `src/lib/safe-fetch.ts`, which every website fetch goes through.
  */
 export function normalizeChurchWebsite(url: string | null | undefined): string | null {
 	if (typeof url !== "string" || !url.trim()) return null;
@@ -317,4 +321,32 @@ export function pickMetaDescription(html: string): string | null {
 		if (content) return content;
 	}
 	return null;
+}
+
+/**
+ * Run the paid Places lookup behind a church save whose slot in the hourly limit
+ * is already reserved, handing the slot back when the failure was ours (Places
+ * down, the network, no key) rather than the caller's.
+ *
+ * `keepsCharge` names the caller's failures: an unknown place still counts,
+ * because clients only send ids that search returned. A refund that itself
+ * fails is reported and swallowed, so the caller always sees the lookup's
+ * own error.
+ */
+export async function lookupWithSaveRefund<T>(
+	lookup: () => Promise<T>,
+	options: {
+		keepsCharge: (error: unknown) => boolean;
+		refund: () => Promise<void>;
+		onRefundError: (error: unknown) => void;
+	}
+): Promise<T> {
+	try {
+		return await lookup();
+	} catch (error) {
+		if (!options.keepsCharge(error)) {
+			await options.refund().catch(options.onRefundError);
+		}
+		throw error;
+	}
 }

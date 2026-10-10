@@ -9,7 +9,8 @@ import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 /**
  * Edit one message in a conversation the caller owns.
  *
- * Two bodies share this handler. `{ content, metadata }` is the original edit.
+ * Two bodies share this handler. `{ content, metadata }` is the original edit,
+ * allowed on the user's own messages only (no current client sends it).
  * `{ feedback, feedbackReason }` is the user's thumb on an answer
  * (docs/FEATURES.md, "Answer feedback, and how it reaches the doctrinal eval
  * harness"); its rules live in src/lib/chat/answer-feedback.ts, and a feedback
@@ -36,9 +37,13 @@ export async function PATCH(
 			return NextResponse.json({ error: feedback.error }, { status: 400 });
 		}
 
-		if (feedback.data) {
-			// A thumb is a judgment about an answer, so the user's own message is
-			// not rateable. Scoped to the conversation already proven to be theirs.
+		const patch = (typeof body === "object" && body !== null && !Array.isArray(body)
+			? body
+			: {}) as { content?: unknown; metadata?: Prisma.InputJsonValue };
+		const editsRow = typeof patch.content === "string" || patch.metadata !== undefined;
+
+		if (feedback.data || editsRow) {
+			// Scoped to the conversation already proven to be theirs.
 			const target = await prisma.message.findFirst({
 				where: { id: messageId, conversationId: id },
 				select: { role: true },
@@ -46,14 +51,18 @@ export async function PATCH(
 			if (!target) {
 				return NextResponse.json({ error: "Not found" }, { status: 404 });
 			}
-			if (target.role !== "assistant") {
+			// A thumb is a judgment about an answer, so the user's own message is
+			// not rateable.
+			if (feedback.data && target.role !== "assistant") {
 				return NextResponse.json({ error: "Only an answer can be rated." }, { status: 400 });
 			}
+			// An answer's text and metadata (which carries its references) are
+			// written only by the server. Sharing publishes them as SureWord's
+			// words, so a client edit here would be a forged public answer.
+			if (editsRow && target.role === "assistant") {
+				return NextResponse.json({ error: "An answer cannot be edited." }, { status: 400 });
+			}
 		}
-
-		const patch = (typeof body === "object" && body !== null && !Array.isArray(body)
-			? body
-			: {}) as { content?: unknown; metadata?: Prisma.InputJsonValue };
 		const message = await prisma.message.update({
 			where: { id: messageId, conversationId: id },
 			data: {

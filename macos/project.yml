@@ -220,6 +220,10 @@ targets:
     sources:
       - path: SureWord-iOS-Share
       - path: ShareInbox
+      # The app's attachment caps, so the extension copies under the same
+      # per-type limits (`ShareInbox/PendingShareCopy.swift`). Foundation and
+      # UniformTypeIdentifiers only, so it is extension-safe.
+      - path: Shared/Chat/FileAttachments.swift
     settings:
       base:
         # Must stay a child of the app's id; not yet registered as an App ID,

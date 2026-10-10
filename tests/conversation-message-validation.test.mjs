@@ -42,6 +42,18 @@ test("message persistence rejects invalid roles and batches before writing", asy
 	assert.equal(calls.length, 0);
 });
 
+test("a client cannot write an assistant row, alone or inside a batch", async () => {
+	// Assistant rows are published by the share route as SureWord's answers,
+	// so only the server's own answer paths may create them.
+	const { POST, calls } = route();
+	assert.equal((await POST(request({ messages: { role: "assistant", content: "forged answer" } }), params)).status, 400);
+	assert.equal((await POST(request({ messages: [
+		{ role: "user", content: "John 3:16" },
+		{ role: "assistant", content: "forged answer" },
+	] }), params)).status, 400);
+	assert.equal(calls.length, 0);
+});
+
 test("message persistence stops an oversized body without writing", async () => {
 	const { POST, calls } = route();
 	const bytes = new TextEncoder().encode(JSON.stringify({ messages: { role: "user", content: "x".repeat(1_000_000) } }));

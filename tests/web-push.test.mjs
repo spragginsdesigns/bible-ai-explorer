@@ -7,6 +7,7 @@ import {
 	isAllowedWebPushEndpoint,
 	isExpoPushToken,
 	isGoneWebPushStatus,
+	mayRegisterExistingPushToken,
 	recipientFromRow,
 	splitRecipients,
 	webPushTapUrl,
@@ -213,4 +214,50 @@ test("a browser refresh never moves the phone's morning hour", () => {
 	assert.equal(adoptPhoneHour({ hour: 8, hourChangedAt: null, seed: phoneAt("2026-10-03T07:00:00.000Z") }), 6);
 	// No phone: nothing to follow.
 	assert.equal(adoptPhoneHour({ hour: 8, hourChangedAt: null, seed: null }), 8);
+});
+
+test("a browser subscription moves to another account only with its own keys", () => {
+	const stored = { userId: "victim", platform: "web", webP256dh: KEYS.p256dh, webAuth: KEYS.auth };
+	// The owner refreshing, even with rotated keys.
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "victim", platform: "web", keys: { p256dh: "new", auth: "new" } }), true);
+	// The same browser signed into another account re-sends its subscription unchanged.
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "other", platform: "web", keys: KEYS }), true);
+	// Knowing the endpoint URL is not holding the subscription.
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "attacker", platform: "web", keys: { p256dh: KEYS.p256dh, auth: "guess" } }), false);
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "attacker", platform: "web", keys: { p256dh: "mine", auth: "mine" } }), false);
+	// Relabelling the endpoint as a phone token must not skip the key check.
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "attacker", platform: "android" }), false);
+	// A stored browser row with no keys cannot be proven, so it never moves.
+	assert.equal(
+		mayRegisterExistingPushToken({ ...stored, webAuth: null }, { userId: "attacker", platform: "web", keys: KEYS }),
+		false,
+	);
+});
+
+test("an Expo token follows the account signed in on its phone", () => {
+	const stored = { userId: "first", platform: "android", webP256dh: null, webAuth: null };
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "first", platform: "android" }), true);
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "second", platform: "android" }), true);
+	assert.equal(mayRegisterExistingPushToken(stored, { userId: "second", platform: "web", keys: KEYS }), false);
+});
+
+test("a device-bound Expo token moves only with its proof, unless the feature is off", () => {
+	const bound = { userId: "first", platform: "android", webP256dh: null, webAuth: null, deviceBound: true };
+	assert.equal(mayRegisterExistingPushToken(bound, { userId: "first", platform: "android", proofValid: false }), true);
+	assert.equal(mayRegisterExistingPushToken(bound, { userId: "second", platform: "android", proofValid: false }), false);
+	assert.equal(mayRegisterExistingPushToken(bound, { userId: "second", platform: "android", proofValid: true }), true);
+	// No PUSH_TOKEN_PROOF_SECRET: binding is ignored and the old move stands.
+	assert.equal(mayRegisterExistingPushToken(bound, { userId: "second", platform: "android", proofValid: null }), true);
+});
+
+test("push registration checks the stored owner before it writes", async () => {
+	const source = await read("src/app/api/push-tokens/route.ts");
+	const post = source.slice(source.indexOf("export async function POST"), source.indexOf("const unregisterSchema"));
+	const check = post.indexOf("mayRegisterExistingPushToken(");
+	assert.ok(check > 0, "POST never checks who holds the token");
+	for (const write of ["prisma.pushToken.create", "prisma.pushToken.updateMany"]) {
+		assert.ok(post.indexOf(write) > check, `the ownership check runs after ${write}`);
+	}
+	// The write is conditional on the row the decision read, never a blind upsert.
+	assert.ok(!post.includes("prisma.pushToken.upsert"), "POST upserts without re-checking ownership");
 });

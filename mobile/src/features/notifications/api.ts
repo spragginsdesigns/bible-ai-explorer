@@ -6,6 +6,10 @@ import { apiJson, type GetToken } from "@/lib/api";
  * verse-of-the-day cron and `chatReplies` the "your answer is ready" push; the
  * token itself stays registered either way, so turning one off never silences
  * the other.
+ *
+ * `proof` is the device proof an earlier registration returned (see
+ * pushTokenProof.ts); the answer carries the current one. Servers from before
+ * 2026-10-09, or with the feature off, ignore it and send none back.
  */
 export function registerPushToken(
 	getToken: GetToken,
@@ -16,9 +20,10 @@ export function registerPushToken(
 		notifyHour: number;
 		enabled: boolean;
 		chatReplies: boolean;
+		proof?: string;
 	}
 ) {
-	return apiJson<{ success: boolean }>(getToken, "/api/push-tokens", {
+	return apiJson<{ id?: string; proof?: unknown }>(getToken, "/api/push-tokens", {
 		method: "POST",
 		body,
 	});
