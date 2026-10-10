@@ -176,7 +176,11 @@ deleted.
 **Caught after deploy:** the first version guarded the tag calls with
 `addCacheTag(...).catch(...)`, and in production the runtime's `addCacheTag`
 returns `undefined`, so every live card answered 500 ("Cannot read properties
-of undefined (reading 'catch')") for about five minutes. Tagging and purging
-now live in `src/lib/shared-answer-cache.ts` behind `try`/`await`, which can
-never fail a card, a revoke or a conversation delete, and a test forbids the
-`.catch` form.
+of undefined (reading 'catch')") for 61 minutes: the fix (`80ceac0`) was
+pushed within minutes, but its deploy sat queued behind the team's single
+build slot for most of that hour. Revoking a link and deleting a conversation
+with live shares failed the same way in that window. Tagging and purging now
+live in `src/lib/shared-answer-cache.ts` behind `try`/`await`, which can never
+fail a card, a revoke or a conversation delete, and a test forbids the
+`.catch` form. After the fix: the live card answers 200 `image/png` and the
+second request is a CDN HIT; an unknown or revoked id answers 404.
