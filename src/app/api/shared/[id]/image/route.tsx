@@ -1,12 +1,7 @@
 import { ImageResponse } from "next/og";
-import { addCacheTag } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
-import {
-	SHARED_CARD_CACHE_CONTROL,
-	isSharedAnswerId,
-	shareCardExcerpt,
-	sharedAnswerCacheTag,
-} from "@/lib/shared-answer";
+import { SHARED_CARD_CACHE_CONTROL, isSharedAnswerId, shareCardExcerpt } from "@/lib/shared-answer";
+import { tagSharedCard } from "@/lib/shared-answer-cache";
 
 /**
  * The unfurl card for a shared answer (docs/FEATURES.md, "Share an answer").
@@ -57,9 +52,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 		select: { answer: true, references: true, translation: true },
 	});
 	if (!share) return notFound();
-	// A no-op off Vercel. A failed tag only loses the instant purge; the short
-	// s-maxage still bounds how long the CDN can serve a revoked card.
-	await addCacheTag(sharedAnswerCacheTag(id)).catch(() => undefined);
+	// A no-op off Vercel, and never throws: a failed tag only loses the
+	// instant purge, the short s-maxage still bounds a revoked card.
+	await tagSharedCard(id);
 
 	const references = Array.isArray(share.references)
 		? share.references.filter((reference): reference is string => typeof reference === "string")

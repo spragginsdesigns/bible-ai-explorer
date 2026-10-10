@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { deleteAttachmentBlobs, toAttachmentDescriptor } from "@/lib/chat-attachments.server";
-import { dangerouslyDeleteByTag } from "@vercel/functions";
-import { sharedAnswerCacheTag } from "@/lib/shared-answer";
+import { purgeSharedCards } from "@/lib/shared-answer-cache";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
@@ -99,11 +98,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 			data: { revokedAt: new Date() },
 		});
 		// Their card images are CDN-cached; purge them like a single revoke does.
-		if (liveShares.length > 0) {
-			await dangerouslyDeleteByTag(liveShares.map((share) => sharedAnswerCacheTag(share.id))).catch(
-				() => undefined,
-			);
-		}
+		await purgeSharedCards(liveShares.map((share) => share.id));
 		await prisma.conversation.delete({ where: { id } });
 		return NextResponse.json({ success: true });
 	} catch (err) {

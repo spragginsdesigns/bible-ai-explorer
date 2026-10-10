@@ -172,3 +172,11 @@ answers 400 on create and move; own-folder create, move, unfile and delete work.
 **Now:** the card is `public, max-age=0, s-maxage=300, must-revalidate`, tagged
 per share, and purged by tag when the link is revoked or its conversation is
 deleted.
+
+**Caught after deploy:** the first version guarded the tag calls with
+`addCacheTag(...).catch(...)`, and in production the runtime's `addCacheTag`
+returns `undefined`, so every live card answered 500 ("Cannot read properties
+of undefined (reading 'catch')") for about five minutes. Tagging and purging
+now live in `src/lib/shared-answer-cache.ts` behind `try`/`await`, which can
+never fail a card, a revoke or a conversation delete, and a test forbids the
+`.catch` form.

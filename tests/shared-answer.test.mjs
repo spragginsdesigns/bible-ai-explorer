@@ -304,10 +304,29 @@ test("the card route tags its CDN copy and every revoke path purges that tag", (
 	assert.equal(sharedAnswerCacheTag("abcdefghijklmnop"), "shared-answer:abcdefghijklmnop");
 	const card = read("src/app/api/shared/[id]/image/route.tsx");
 	assert.match(card, /"cache-control": SHARED_CARD_CACHE_CONTROL/);
-	assert.match(card, /addCacheTag\(sharedAnswerCacheTag\(id\)\)/);
+	assert.match(card, /await tagSharedCard\(id\)/);
 	for (const file of ["src/app/api/shared/[id]/route.ts", "src/app/api/conversations/[id]/route.ts"]) {
-		const source = read(file);
-		assert.match(source, /dangerouslyDeleteByTag\(/, `${file} revokes without purging the card`);
-		assert.match(source, /sharedAnswerCacheTag\(/, `${file} purges a tag the card does not carry`);
+		assert.match(read(file), /await purgeSharedCards\(/, `${file} revokes without purging the card`);
+	}
+	const cache = read("src/lib/shared-answer-cache.ts");
+	assert.match(cache, /addCacheTag\(sharedAnswerCacheTag\(id\)\)/);
+	assert.match(cache, /dangerouslyDeleteByTag\(ids\.map\(sharedAnswerCacheTag\)\)/);
+});
+
+// Production 2026-10-09: `addCacheTag(...).catch(...)` 500'd every live card.
+// The runtime's tag functions can throw synchronously or return a non-promise,
+// so only try/await is a guard; a throw there must never fail a card, a
+// revoke or a conversation delete.
+test("cache tag calls are guarded by try/await, never by .catch on the call", () => {
+	const cache = read("src/lib/shared-answer-cache.ts");
+	assert.match(cache, /try \{\s*await addCacheTag\(/);
+	assert.match(cache, /try \{\s*await dangerouslyDeleteByTag\(/);
+	for (const file of [
+		"src/lib/shared-answer-cache.ts",
+		"src/app/api/shared/[id]/image/route.tsx",
+		"src/app/api/shared/[id]/route.ts",
+		"src/app/api/conversations/[id]/route.ts",
+	]) {
+		assert.doesNotMatch(read(file), /(addCacheTag|dangerouslyDeleteByTag)\([^)]*\)+\.catch/, file);
 	}
 });
