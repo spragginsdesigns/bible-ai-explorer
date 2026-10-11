@@ -19,7 +19,7 @@ Wide web layouts, selected by a minimum aspect ratio of 4:3, move the title to 7
 ## Behavior
 
 - A fresh app process shows the reveal once. Navigation, sign-in state changes, root recreation, and temporary inactive states do not restart it.
-- A real background-to-foreground return shows it again, following Austin's explicit background-return request on 2026-10-09. On web, returning to the signed-in app tab uses document visibility. Public marketing pages do not show it.
+- It plays on a cold start only. Austin, 2026-10-11, reversing the 2026-10-09 background-return replay: "it should only play the 1 time you FIRST open the app when its been closed completely". Returning from the background never replays it on any client (Android 1.87.1 (99), web, Apple 1.14.1 (17)); backgrounding or hiding the tab mid-reveal ends it. On web a page load is the cold start. Public marketing pages do not show it.
 - Artwork reveals over 1.65 seconds, followed by a 220 ms dismissal. Tap/click or Android Back skips it. Web keyboard input skips it.
 - Web consumes the dismissing key in a capture listener with `preventDefault()` and `stopImmediatePropagation()`. A focused composer cannot receive that key and submit a draft hidden beneath the splash.
 - Android and web have a three-second failsafe and dismiss on image failure. Android's dismissal completion uses its own timer so backgrounding cannot strand it on an animation callback. The main application mounts underneath, so the splash does not hold auth, navigation, or data loading.

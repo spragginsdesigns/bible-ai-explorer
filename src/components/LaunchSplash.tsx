@@ -21,13 +21,10 @@ export function LaunchSplashPlayback() {
 
 	useEffect(() => {
 		if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-		const show = () => { setReady(false); setGeneration((value) => value + 1); setVisible(true); };
-		if (!launched) { launched = true; show(); }
-		let backgrounded = false;
-		const visibility = () => {
-			if (document.hidden) { backgrounded = true; setVisible(false); }
-			else if (backgrounded) { backgrounded = false; show(); }
-		};
+		if (!launched) { launched = true; setReady(false); setGeneration((value) => value + 1); setVisible(true); }
+		// A page load is the cold start: hiding the tab ends the reveal, and
+		// coming back to it never replays it (Austin, 2026-10-11).
+		const visibility = () => { if (document.hidden) setVisible(false); };
 		document.addEventListener("visibilitychange", visibility);
 		return () => document.removeEventListener("visibilitychange", visibility);
 	}, []);

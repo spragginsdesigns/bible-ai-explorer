@@ -32,7 +32,6 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { ShareIntentBridge } from "@/features/share/ShareIntentBridge";
 import {
 	markLaunchAnimationStartedThisSession,
-	recordLaunchAppState,
 	shouldShowLaunchAnimationThisSession,
 } from "@/components/launchAnimationSession";
 
@@ -164,16 +163,12 @@ export default function RootLayout() {
 	const [showAnimatedSplash, setShowAnimatedSplash] = useState(
 		shouldShowLaunchAnimationThisSession,
 	);
-	const [splashGeneration, setSplashGeneration] = useState(0);
 
+	// Backgrounding mid-reveal drops it at once (its fade timer may not run
+	// while backgrounded); coming back never brings it back. Cold start only.
 	useEffect(() => {
 		const subscription = AppState.addEventListener("change", (next) => {
-			const replay = recordLaunchAppState(next);
 			if (next === "background") setShowAnimatedSplash(false);
-			if (replay) {
-				setSplashGeneration((current) => current + 1);
-				setShowAnimatedSplash(true);
-			}
 		});
 		return () => subscription.remove();
 	}, []);
@@ -244,7 +239,7 @@ export default function RootLayout() {
 					<View style={{ flex: 1 }}>
 						<ThemedShell />
 						{showAnimatedSplash ? (
-							<AnimatedSplash key={splashGeneration} onFinish={() => setShowAnimatedSplash(false)} />
+							<AnimatedSplash onFinish={() => setShowAnimatedSplash(false)} />
 						) : null}
 					</View>
 				</PostHogProvider>

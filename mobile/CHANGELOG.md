@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.87.1 (versionCode 99) - 2026-10-11 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- The dawn welcome now plays only when you open SureWord fresh. Switching back to the app from another app or the home screen takes you straight to where you were.
+
+**Dev notes:** Austin, 2026-10-11: the splash replayed on every return from the background (1.86.0 added background-return replay on purpose). It now plays once per JavaScript process, which on Android is exactly a cold start; backgrounding mid-reveal still ends it. The same change ships on web (a tab switch no longer replays it; a page load is the cold start) through the sureword.app deploy, and in the Apple source (1.14.1 (17)), which ships with the next Mac release.
+
 ## 1.87.0 (versionCode 98) - 2026-10-09 - internal and closed testing
 
 **What's new (Play):**

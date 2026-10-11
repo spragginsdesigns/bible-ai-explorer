@@ -21,27 +21,21 @@ private struct LaunchSplashModifier: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @State private var showing = !LaunchSplashSession.started
-    @State private var backgrounded = false
-    @State private var generation = 0
 
+    // Cold launch only: backgrounding ends the reveal and returning never
+    // replays it (Austin, 2026-10-11).
     func body(content: Content) -> some View {
         content
             .overlay {
                 if showing && !reduceMotion && !voiceOver {
                     DawnLaunchSplash { showing = false }
-                        .id(generation)
                         .transition(.opacity)
                         .zIndex(1_000)
                 }
             }
             .onAppear { LaunchSplashSession.started = true }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background { backgrounded = true; showing = false }
-                if phase == .active && backgrounded {
-                    backgrounded = false
-                    generation += 1
-                    showing = true
-                }
+                if phase == .background { showing = false }
             }
     }
 }

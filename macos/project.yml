@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.14.0"
-    CURRENT_PROJECT_VERSION: "16"
+    MARKETING_VERSION: "1.14.1"
+    CURRENT_PROJECT_VERSION: "17"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
