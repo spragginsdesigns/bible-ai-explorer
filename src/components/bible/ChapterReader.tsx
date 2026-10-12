@@ -9,7 +9,7 @@ import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
 import { ChevronDown, Copy, GraduationCap, Headphones, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { hasNarration } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, hasNarration } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
 import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { saveVerseToNote } from "@/lib/bible/verseActions";
@@ -37,6 +37,7 @@ import { HIGHLIGHT_COLORS, highlightWash } from "@/lib/highlights";
 import { useGlobalShortcuts } from "@/lib/shortcuts";
 import { parseCard } from "@/components/learn/learn";
 import ChapterAudioBar from "./ChapterAudioBar";
+import ListenButton from "./ListenButton";
 import CrossReferencesSection from "./CrossReferencesSection";
 import InsightTeaser from "./InsightTeaser";
 import StudyTabs, { STUDY_PANEL_ID } from "./StudyTabs";
@@ -298,7 +299,7 @@ const ChapterReader: React.FC = () => {
     onChapterEnd,
     nextNarrated: !!nextChapter && hasNarration(nextChapter.order),
   });
-  const { available: canListen, play: playFrom } = player;
+  const { available: canListen, play: playFrom, editions: listenEditions } = player;
 
   // Every label, payload and rule comes out of the shared selection contract,
   // so web, Android and Apple agree on what a range means.
@@ -577,17 +578,30 @@ const ChapterReader: React.FC = () => {
         disabled: saveBusy,
       },
     ];
-    // Plays the narration from the first selected verse.
+    // Plays the narration from the first selected verse; a book with an
+    // Alive recording offers it as a second chip (LC-15532).
     if (canListen && selection) {
+      const choice = listenEditions.length > 1;
       list.push({
         key: "listen",
         icon: Headphones,
         label: "Listen",
         onClick: () => {
-          playFrom(selection.start);
+          playFrom(selection.start, choice ? "regular" : undefined);
           closePanel();
         },
       });
+      if (choice) {
+        list.push({
+          key: "listen-alive",
+          icon: Headphones,
+          label: EDITION_CHOICES.alive.label,
+          onClick: () => {
+            playFrom(selection.start, "alive");
+            closePanel();
+          },
+        });
+      }
     }
     // Learn is an account feature; the old sheet's button rendered nothing
     // when signed out, so the chip is absent rather than dead.
@@ -617,6 +631,7 @@ const ChapterReader: React.FC = () => {
     onLearnSelection,
     canListen,
     playFrom,
+    listenEditions,
     selection,
     closePanel,
   ]);
@@ -694,24 +709,7 @@ const ChapterReader: React.FC = () => {
             </Link>
           </h1>
           <div className="flex justify-self-end gap-1 sm:gap-2">
-            {player.available ? (
-              <button
-                type="button"
-                aria-label={player.open ? (player.playing ? "Pause listening" : "Resume listening") : `Listen to ${reference}`}
-                aria-pressed={player.open}
-                title="Listen"
-                onClick={() => (player.open ? player.toggle() : player.play())}
-                className={`flex h-8 w-8 items-center justify-center gap-1.5 rounded-lg border lg:w-auto lg:px-2.5 ${
-                  player.open
-                    ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
-                    : "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
-                }`}
-              >
-                <Headphones className="h-4 w-4" aria-hidden />
-                {/* Mobile keeps the icon in the crowded top bar; desktop names it, like Ask AI. */}
-                <span className="hidden text-xs font-semibold lg:inline">Listen</span>
-              </button>
-            ) : null}
+            {player.available ? <ListenButton player={player} reference={reference} /> : null}
             <Link
               href={`/bible/timeline?book=${order}&chapter=${chapter}`}
               aria-label="Who's in this chapter"

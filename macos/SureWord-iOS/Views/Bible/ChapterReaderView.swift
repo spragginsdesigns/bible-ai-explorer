@@ -199,7 +199,24 @@ struct ChapterReaderView: View {
                         .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Who's in this chapter")
-                if app.chapterAudio.available {
+                if app.chapterAudio.editions.count > 1 {
+                    // Mark has an Alive recording too (LC-15532): ask which one.
+                    Menu {
+                        ForEach(app.chapterAudio.editions, id: \.self) { edition in
+                            Button {
+                                app.dailyCross.listen.pause()
+                                app.chapterAudio.start(edition: edition)
+                            } label: {
+                                Text(edition.label)
+                                Text(edition.detail)
+                            }
+                        }
+                    } label: {
+                        Label("Listen to this chapter", systemImage: "headphones")
+                            .labelStyle(.iconOnly)
+                            .frame(width: 44, height: 44)
+                    }
+                } else if app.chapterAudio.available {
                     Button("Listen to this chapter", systemImage: "headphones") {
                         app.dailyCross.listen.pause()
                         app.chapterAudio.start()
@@ -729,10 +746,17 @@ struct ChapterReaderView: View {
 
     private func actions(context: VerseSheetContext, reference: String, text: String, highlighted: Bool) -> [VerseSheetAction] {
         let share = sheet.shareText(context)
-        return (app.chapterAudio.available ? [VerseSheetAction(id: "listen", systemImage: "headphones", label: "Listen") {
+        let choice = app.chapterAudio.editions.count > 1
+        let listen = app.chapterAudio.available ? [VerseSheetAction(id: "listen", systemImage: "headphones", label: "Listen") {
             app.dailyCross.listen.pause()
-            app.chapterAudio.start(from: sheet.selection?.start ?? 1)
-        }] : []) + [
+            app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: choice ? .regular : nil)
+        }] : []
+        // A book with an Alive recording offers it as a second action (LC-15532).
+        let alive = choice ? [VerseSheetAction(id: "listen-alive", systemImage: "headphones", label: AudioEdition.alive.label) {
+            app.dailyCross.listen.pause()
+            app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: .alive)
+        }] : []
+        return listen + alive + [
             VerseSheetAction(id: "ask", systemImage: "sparkles", label: "Ask") {
                 expandWithAI(reference: reference, text: text)
             },

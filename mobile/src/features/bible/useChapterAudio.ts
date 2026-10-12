@@ -1,9 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatus } from "expo-audio";
 import { API_URL } from "@/lib/api";
 import { setListenRate, useSettings } from "@/features/settings/settingsStore";
 import { nextListenRate } from "@/features/cross/listen";
-import { hasNarration, needsStillListening, verseAt, verseStart, type ChapterAudio } from "./audioBible";
+import { hasAlive, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
+
+type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
+
+/** One recording's timings, or null when the chapter has none (or a mismatched file). */
+async function readRecording(book: number, chapter: number, edition: AudioEdition, signal: AbortSignal) {
+  const query = edition === "alive" ? "&edition=alive" : "";
+  const response = await fetch(`${API_URL}/api/bible/audio?book=${book}&chapter=${chapter}${query}`, { signal });
+  if (!response.ok) throw new Error("Narration unavailable");
+  const data = await response.json() as ChapterAudio | { status: "unavailable" };
+  return data.status === "ready" && data.book === book && data.chapter === chapter ? data : null;
+}
 
 /** One active native player. Each chapter gets a distinct player identity so
  * a queued finish or error event from the old source cannot affect the new one. */
@@ -13,6 +24,10 @@ export function useChapterAudio(options: {
 }) {
   const { listenRate: rate } = useSettings();
   const [audio, setAudio] = useState<ChapterAudio | null>(null);
+  const [recordings, setRecordings] = useState<Recordings>({});
+  /** The listener's Listen choice (LC-15532); it carries into the next chapter, or falls back to regular there. */
+  const chosenEdition = useRef<AudioEdition>("regular");
+  const recordingsRef = useRef<Recordings>({});
   const [open, setOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [ready, setReady] = useState(false);
@@ -55,7 +70,7 @@ export function useChapterAudio(options: {
     let lastTime = 0;
     setReady(false); setPlaying(false); setElapsed(0);
     item.setActiveForLockScreen(true, {
-      title: latest.current.options.reference, artist: "SureWord · KJV",
+      title: latest.current.options.reference, artist: recording.edition === "alive" ? "SureWord · Alive" : "SureWord · KJV",
       artworkUrl: `${API_URL}/web-app-manifest-512x512.png`,
     }, { showSeekBackward: true, showSeekForward: true });
     const current = () => player.current === item && generation === run.current && sessionOpen.current;
@@ -103,22 +118,27 @@ export function useChapterAudio(options: {
     const controller = new AbortController();
     const generation = ++run.current;
     const continuePlaying = sessionOpen.current && (player.current?.playing || pendingPlay.current !== null);
-    releasePlayer(); audioRef.current = null;
-    setAudio(null); setReady(false); setPlaying(false); setElapsed(0); setError(null); setStillListeningPrompt(false);
+    releasePlayer(); audioRef.current = null; recordingsRef.current = {};
+    setAudio(null); setRecordings({}); setReady(false); setPlaying(false); setElapsed(0); setError(null); setStillListeningPrompt(false);
     if (!options.enabled || !hasNarration(options.book)) {
       pendingPlay.current = null; sessionOpen.current = false; setOpen(false);
       return () => controller.abort();
     }
-    void fetch(`${API_URL}/api/bible/audio?book=${options.book}&chapter=${options.chapter}`, { signal: controller.signal })
-      .then(async response => {
-        if (!response.ok) throw new Error("Narration unavailable");
-        return await response.json() as ChapterAudio | { status: "unavailable" };
-      })
-      .then(data => {
+    // Every recording of the chapter (the narration, and Mark's Alive one), so
+    // the Listen choice can play either; a missing Alive recording is skipped.
+    const editions: AudioEdition[] = hasAlive(options.book) ? ["regular", "alive"] : ["regular"];
+    void Promise.all(editions.map(edition => edition === "regular"
+      ? readRecording(options.book, options.chapter, edition, controller.signal)
+      : readRecording(options.book, options.chapter, edition, controller.signal).catch(() => null)))
+      .then(found => {
         if (controller.signal.aborted || generation !== run.current) return;
-        if (data.status !== "ready" || data.book !== options.book || data.chapter !== options.chapter) {
+        const next: Recordings = {};
+        editions.forEach((edition, index) => { const recording = found[index]; if (recording) next[edition] = recording; });
+        const data = next[chosenEdition.current] ?? next.regular;
+        if (!data) {
           pendingPlay.current = null; sessionOpen.current = false; setOpen(false); return;
         }
+        recordingsRef.current = next; setRecordings(next);
         audioRef.current = data; setAudio(data);
         pendingPlay.current = null;
         if (sessionOpen.current) installPlayer(data, continuePlaying ? 0 : null);
@@ -138,8 +158,10 @@ export function useChapterAudio(options: {
   }, [rate, ready]);
   useEffect(() => () => { run.current++; playOperation.current++; sessionOpen.current = false; releasePlayer(); }, [releasePlayer]);
 
-  const play = useCallback(async (fromVerse = 0) => {
+  const play = useCallback(async (fromVerse = 0, edition?: AudioEdition) => {
     markAction(); setError(null); setStillListeningPrompt(false);
+    const picked = edition ? recordingsRef.current[edition] : undefined;
+    if (edition && picked) { chosenEdition.current = edition; audioRef.current = picked; setAudio(picked); }
     const recording = audioRef.current;
     if (!recording) { setRetry(count => count + 1); return; }
     const generation = run.current; const operation = ++playOperation.current;
@@ -164,8 +186,12 @@ export function useChapterAudio(options: {
     if (item?.isLoaded && recording) void item.seekTo(Math.max(0, Math.min(recording.duration, seconds)));
   }, [markAction]);
   const verse = audio && ready ? verseAt(audio.verses, elapsed) : null;
+  const editions = useMemo(() => (["regular", "alive"] as const).filter(edition => recordings[edition]), [recordings]);
   return {
     available: !!audio, open, playing, ready, verse, audio, error, stillListeningPrompt, elapsed, rate,
+    /** The recordings this chapter has, regular first; two means Listen asks which. */
+    editions,
+    edition: (audio?.edition ?? "regular") as AudioEdition,
     play, stop, toggle, seek, markAction,
     retryLoad: () => setRetry(count => count + 1),
     skipVerse: (delta: -1 | 1) => {

@@ -1059,6 +1059,27 @@ media bucket under `Audio/sureword-bible/kjv/v2/`; `GET /api/bible/audio?book=&c
 show no Listen control. Listening is free for every account: one shared asset,
 paid for in storage, not per play.
 
+**Alive: Mark in our own translation (LC-15532).** Mark has a second
+recording. On a Mark chapter, Listen first asks which one: **Regular** (the
+King James Version, read aloud) or **Alive** (full cast, in our modern
+translation). On web the headphones button opens a two-item menu; Android asks
+in a dialog; macOS and iOS use a menu. The verse sheet shows a second chip,
+**Alive**, next to Listen. Alive is a full-cast production with no outside
+narrator: Mark himself tells it, every speaker has a voice, with ambience,
+effects and music under the voices. It reads SureWord's own modern-English
+translation of the Textus Receptus (the Greek the KJV was made from), built
+verse by verse from public-domain wording (BSB, WEB, KJV) corrected to the
+Greek. It keeps the KJV's verse numbering, so the read-along tint follows the
+KJV verse on screen while Alive reads our wording of it. The player shows
+"· Alive" and the OS media card says "SureWord Alive". The choice carries into
+the next chapter; past Mark 16 it falls back to the regular recording.
+`GET /api/bible/audio?book=41&chapter=N&edition=alive` serves it from
+`Audio/sureword-bible/alive/v1/`, and a book without an Alive recording answers
+`unavailable` for that edition (`ALIVE_BOOKS`, `EDITION_CHOICES` in
+`src/lib/bible/audioBible.ts`). Rendered by Context-Pro-AI's
+`fish_audio_bible.py --drama --text`; the translation and production notes live
+in Context-Pro-AI `docs/creative/sureword-audio-bible/`.
+
 **Scope.** The whole KJV is narrated: the New Testament (books 40-66, 260
 chapters, about 15 hours, 2026-10-08) and the Old Testament (books 1-39, 929
 chapters, about 54 hours, 2026-10-09). Matthew plays the full-cast production

@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { bookByOrder } from "@/lib/bible/books";
 import {
 	chapterTimingUrl,
+	hasAlive,
 	hasNarration,
 	parseChapterTiming,
+	parseEdition,
 	type ChapterAudioResponse,
 } from "@/lib/bible/audioBible";
 
@@ -22,28 +24,37 @@ const UNAVAILABLE: ChapterAudioResponse = { status: "unavailable" };
  * uploaded), and the clients then show no Listen
  * control at all. The timing file is read from our media bucket and cached
  * for a day, so the bucket sees about one request per chapter per day.
+ *
+ * `edition=alive` asks for the book's Alive recording instead (LC-15532);
+ * a book without one answers unavailable, so clients offer only the Listen
+ * choices that exist.
  */
 export async function GET(request: Request) {
 	const params = new URL(request.url).searchParams;
 	const book = Number(params.get("book"));
 	const chapter = Number(params.get("chapter"));
 	const selectedBook = bookByOrder(book);
+	const edition = parseEdition(params.get("edition"));
 	if (
+		!edition ||
 		!/^\d+$/.test(params.get("book") ?? "") ||
 		!/^\d+$/.test(params.get("chapter") ?? "") ||
 		!selectedBook ||
 		chapter < 1 ||
 		chapter > selectedBook.chapters
 	) {
-		return NextResponse.json({ error: "Use book=1–66 and a valid chapter." }, { status: 400 });
+		return NextResponse.json(
+			{ error: "Use book=1–66, a valid chapter and edition=regular|alive." },
+			{ status: 400 }
+		);
 	}
-	if (!hasNarration(book)) {
+	if (!hasNarration(book) || (edition === "alive" && !hasAlive(book))) {
 		return NextResponse.json(UNAVAILABLE, { headers: { "Cache-Control": CACHE_CONTROL } });
 	}
 	try {
-		const response = await fetch(chapterTimingUrl(book, chapter), { next: { revalidate: 86400 } });
+		const response = await fetch(chapterTimingUrl(book, chapter, edition), { next: { revalidate: 86400 } });
 		// The bucket answers 403 (not 404) for a key that does not exist yet.
-		const audio = response.ok ? parseChapterTiming(await response.json(), book, chapter) : null;
+		const audio = response.ok ? parseChapterTiming(await response.json(), book, chapter, edition) : null;
 		return NextResponse.json(audio ?? UNAVAILABLE, {
 			headers: { "Cache-Control": audio ? CACHE_CONTROL : UNAVAILABLE_CACHE_CONTROL },
 		});

@@ -9,7 +9,7 @@ struct ChapterAudioBar: View {
         if model.isOpen {
             VStack(spacing: 6) {
                 HStack {
-                    Text(model.reference + (model.verse.map { " · \($0)" } ?? "")).font(.headline)
+                    Text(model.reference + (model.verse.map { " · \($0)" } ?? "") + (model.edition == .alive ? " · Alive" : "")).font(.headline)
                     Spacer()
                     Button("Close narration", systemImage: "xmark", action: model.close).labelStyle(.iconOnly)
                 }

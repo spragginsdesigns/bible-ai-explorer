@@ -19,4 +19,14 @@ final class ChapterAudioTests: XCTestCase {
         XCTAssertFalse(malformed.valid(book: 43, chapter: 3))
         XCTAssertFalse(ChapterAudio.hasNarration(0)); XCTAssertTrue(ChapterAudio.hasNarration(1)); XCTAssertTrue(ChapterAudio.hasNarration(39)); XCTAssertTrue(ChapterAudio.hasNarration(66)); XCTAssertFalse(ChapterAudio.hasNarration(67))
     }
+    func testMarkOffersAnAliveRecordingNamedLikeWeb() throws {
+        XCTAssertTrue(ChapterAudio.hasAlive(41)); XCTAssertFalse(ChapterAudio.hasAlive(40)); XCTAssertFalse(ChapterAudio.hasAlive(43))
+        let alive = try JSONDecoder().decode(ChapterAudio.self, from: Data(#"{"status":"ready","book":41,"chapter":1,"edition":"alive","audioUrl":"https://example.com/alive.mp3","duration":20,"verses":[{"verse":1,"start":3,"end":10}]}"#.utf8))
+        XCTAssertTrue(alive.valid(book: 41, chapter: 1))
+        XCTAssertEqual(alive.kind, .alive)
+        let older = try JSONDecoder().decode(ChapterAudio.self, from: Data(#"{"status":"ready","book":41,"chapter":1,"audioUrl":"https://example.com/kjv.mp3","duration":20,"verses":[{"verse":1,"start":3,"end":10}]}"#.utf8))
+        XCTAssertEqual(older.kind, .regular, "a response without edition is the regular recording")
+        XCTAssertEqual(AudioEdition.allCases.map(\.label), ["Regular", "Alive"])
+        XCTAssertEqual(AudioEdition.alive.detail, "Full cast, in our modern translation")
+    }
 }

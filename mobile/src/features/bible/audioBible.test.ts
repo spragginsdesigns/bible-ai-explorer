@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { hasNarration, needsStillListening, parseChapterTiming, verseAt, verseStart } from "./audioBible";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { ALIVE_BASE_URL, AUDIO_BIBLE_BASE_URL, EDITION_CHOICES, hasAlive, hasNarration, needsStillListening, parseChapterTiming, parseEdition, verseAt, verseStart } from "./audioBible";
 describe("chapter narration timing", () => {
   const verses = [{ verse: 1, start: 3, end: 10 }, { verse: 2, start: 10, end: 18 }];
   it("keeps headings outside read-along and selects the boundary verse", () => {
@@ -12,6 +14,18 @@ describe("chapter narration timing", () => {
     expect(parseChapterTiming(data, 43, 4)).toBe(null);
     expect(parseChapterTiming({ ...data, verses: [verses[1]] }, 43, 3)).toBe(null);
     expect(parseChapterTiming(data, 43, 3)?.verses).toEqual(verses);
+  });
+  it("offers Mark's Alive recording beside the narration (LC-15532)", () => {
+    expect(hasAlive(41)).toBe(true); expect(hasAlive(40)).toBe(false); expect(hasAlive(43)).toBe(false);
+    expect(parseEdition(null)).toBe("regular"); expect(parseEdition("alive")).toBe("alive"); expect(parseEdition("drama")).toBe(null);
+    const data = { book: 41, chapter: 1, duration: 20, verses };
+    expect(parseChapterTiming(data, 41, 1, "alive")?.audioUrl).toBe(`${ALIVE_BASE_URL}/41/1.mp3`);
+    expect(parseChapterTiming(data, 41, 1)?.audioUrl).toBe(`${AUDIO_BIBLE_BASE_URL}/41/1.mp3`);
+    expect(EDITION_CHOICES.alive.label).toBe("Alive"); expect(EDITION_CHOICES.regular.label).toBe("Regular");
+  });
+  it("is the same contract file as web's src/lib/bible/audioBible.ts", () => {
+    const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");
+    expect(read("audioBible.ts")).toBe(read("../../../../src/lib/bible/audioBible.ts"));
   });
   it("pauses precisely after one idle hour", () => { expect(needsStillListening(500, 3600499)).toBe(false); expect(needsStillListening(500, 3600500)).toBe(true); });
 });

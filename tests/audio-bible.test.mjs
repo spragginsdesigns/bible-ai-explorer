@@ -4,11 +4,14 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
+	ALIVE_BASE_URL,
 	AUDIO_BIBLE_BASE_URL,
 	DRAMATIZED_BASE_URL,
 	STILL_LISTENING_AFTER_MS,
+	hasAlive,
 	hasNarration,
 	needsStillListening,
+	parseEdition,
 	parseChapterTiming,
 	verseAt,
 	verseStart,
@@ -48,6 +51,27 @@ test("Matthew plays the full-cast production, every other book the narration", (
 	assert.notEqual(DRAMATIZED_BASE_URL, AUDIO_BIBLE_BASE_URL);
 });
 
+test("Mark has an Alive recording in its own folder beside the narration (LC-15532)", () => {
+	assert.equal(hasAlive(41), true);
+	assert.equal(hasAlive(40), false, "Matthew's full cast is its regular recording");
+	assert.equal(hasAlive(42), false);
+	assert.equal(chapterAudioUrl(41, 16, "alive"), `${ALIVE_BASE_URL}/41/16.mp3`);
+	assert.equal(chapterTimingUrl(41, 1, "alive"), `${ALIVE_BASE_URL}/41/1.json`);
+	assert.equal(chapterAudioUrl(41, 1, "regular"), `${AUDIO_BIBLE_BASE_URL}/41/1.mp3`);
+	assert.equal(chapterAudioUrl(41, 1), `${AUDIO_BIBLE_BASE_URL}/41/1.mp3`, "regular is the default");
+	assert.notEqual(ALIVE_BASE_URL, DRAMATIZED_BASE_URL);
+	assert.notEqual(ALIVE_BASE_URL, AUDIO_BIBLE_BASE_URL);
+});
+
+test("parseEdition: absent or regular is regular, alive is alive, anything else is refused", () => {
+	assert.equal(parseEdition(null), "regular");
+	assert.equal(parseEdition("regular"), "regular");
+	assert.equal(parseEdition("alive"), "alive");
+	assert.equal(parseEdition("ALIVE"), null);
+	assert.equal(parseEdition(""), null);
+	assert.equal(parseEdition("drama"), null);
+});
+
 test("verseAt follows the reading, null over the opening cue and heading", () => {
 	const { verses } = TIMING;
 	assert.equal(verseAt(verses, 0), null);
@@ -80,6 +104,10 @@ test("parseChapterTiming accepts the render's file and rejects mismatches", () =
 		"verses must run 1..n"
 	);
 	assert.equal(parseChapterTiming(null, 43, 3), null);
+	const alive = parseChapterTiming({ ...TIMING, book: 41, chapter: 3 }, 41, 3, "alive");
+	assert.equal(alive?.edition, "alive");
+	assert.equal(alive?.audioUrl, `${ALIVE_BASE_URL}/41/3.mp3`);
+	assert.equal(audio?.edition, "regular");
 });
 
 // The route with its imports replaced by injected doubles, as
@@ -101,8 +129,10 @@ function loadRoute(fetchImpl) {
 		NextResponse,
 		bookByOrder: (order) => books.find((b) => b.order === order) ?? null,
 		chapterTimingUrl,
+		hasAlive,
 		hasNarration,
 		parseChapterTiming,
+		parseEdition,
 		fetch: fetchImpl,
 		console: { error() {} },
 	};
@@ -139,6 +169,36 @@ test("route: Matthew reads its timings from the drama folder and returns the dra
 	assert.equal(body.audioUrl, `${DRAMATIZED_BASE_URL}/40/2.mp3`);
 });
 
+test("route: edition=alive reads Mark's Alive folder and returns its MP3", async () => {
+	const requested = [];
+	const GET = loadRoute(async (url) => {
+		requested.push(url);
+		return new Response(JSON.stringify({ ...TIMING, book: 41, chapter: 3 }), { status: 200 });
+	});
+	const body = await (await call(GET, "book=41&chapter=3&edition=alive")).json();
+	assert.deepEqual(requested, [`${ALIVE_BASE_URL}/41/3.json`]);
+	assert.equal(body.status, "ready");
+	assert.equal(body.edition, "alive");
+	assert.equal(body.audioUrl, `${ALIVE_BASE_URL}/41/3.mp3`);
+	const regular = await (await call(GET, "book=41&chapter=3")).json();
+	assert.equal(requested[1], `${AUDIO_BIBLE_BASE_URL}/41/3.json`, "no edition is the narration");
+	assert.equal(regular.audioUrl, `${AUDIO_BIBLE_BASE_URL}/41/3.mp3`);
+});
+
+test("route: edition=alive on a book without one is unavailable without touching the bucket", async () => {
+	const requested = [];
+	const GET = loadRoute(async (url) => {
+		requested.push(url);
+		return new Response(JSON.stringify(TIMING), { status: 200 });
+	});
+	for (const query of ["book=40&chapter=2&edition=alive", "book=43&chapter=3&edition=alive"]) {
+		const response = await call(GET, query);
+		assert.equal(response.status, 200, query);
+		assert.deepEqual(await response.json(), { status: "unavailable" }, query);
+	}
+	assert.deepEqual(requested, [], "the bucket is never asked");
+});
+
 test("route: Old Testament is unavailable without touching the bucket", async () => {
 	const GET = loadRoute(async () => assert.fail("no fetch for an unnarrated book"));
 	const body = await (await call(GET, "book=19&chapter=23")).json();
@@ -161,7 +221,7 @@ test("route: a missing key (S3 answers 403) and a bucket error are unavailable",
 
 test("route: rejects bad input", async () => {
 	const GET = loadRoute(async () => assert.fail("no fetch"));
-	for (const query of ["book=43&chapter=22", "book=0&chapter=1", "book=x&chapter=1", "book=43"]) {
+	for (const query of ["book=43&chapter=22", "book=0&chapter=1", "book=x&chapter=1", "book=43", "book=41&chapter=1&edition=drama"]) {
 		assert.equal((await call(GET, query)).status, 400, query);
 	}
 });

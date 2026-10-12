@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	FlatList,
 	Image,
 	Modal,
@@ -16,7 +17,7 @@ import { typography } from "@/theme";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useChapterAudio } from "@/features/bible/useChapterAudio";
 import { ChapterAudioBar } from "@/features/bible/ChapterAudioBar";
-import { hasNarration } from "@/features/bible/audioBible";
+import { EDITION_CHOICES, hasNarration, type AudioEdition } from "@/features/bible/audioBible";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
@@ -436,6 +437,15 @@ export default function BibleChapterScreen() {
 		onChapterEnd: () => goTo(neighbors.next),
 	});
 	useFocusEffect(useCallback(() => () => chapterAudio.stop(), [chapterAudio.stop]));
+	// Listen on a chapter with an Alive recording (Mark, LC-15532) asks which one first.
+	const { play: playChapter, editions: listenEditions } = chapterAudio;
+	const listen = useCallback((fromVerse = 0) => {
+		if (listenEditions.length < 2) { void playChapter(fromVerse); return; }
+		const choice = (edition: AudioEdition) => ({ text: EDITION_CHOICES[edition].label, onPress: () => void playChapter(fromVerse, edition) });
+		Alert.alert(`Listen to ${reference}`,
+			listenEditions.map(edition => `${EDITION_CHOICES[edition].label}: ${EDITION_CHOICES[edition].detail}.`).join("\n"),
+			[{ text: "Cancel", style: "cancel" }, ...listenEditions.map(choice)]);
+	}, [listenEditions, playChapter, reference]);
 	const lastManualScroll = useRef(0);
 	useEffect(() => {
 		if (!chapterAudio.playing || !chapterAudio.verse || loadedKey !== chapterKey || (selection !== null && sheetTier === "expanded")) return;
@@ -718,7 +728,7 @@ export default function BibleChapterScreen() {
 
 	const sheetActions = useMemo<VerseAction[]>(
 		() => [
-			...(chapterAudio.available ? [{ key: "listen", icon: "headset-outline" as const, label: "Listen", onPress: () => void chapterAudio.play(activeSelection.start) }] : []),
+			...(chapterAudio.available ? [{ key: "listen", icon: "headset-outline" as const, label: "Listen", onPress: () => listen(activeSelection.start) }] : []),
 			{
 				key: "ask",
 				icon: "sparkles-outline",
@@ -749,7 +759,7 @@ export default function BibleChapterScreen() {
 				onPress: () => void onLearn(),
 			},
 		],
-		[chapterAudio.available, chapterAudio.play, activeSelection.start, askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
+		[chapterAudio.available, listen, activeSelection.start, askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
 	);
 
 	const barMessage = actionMessage
@@ -829,7 +839,7 @@ export default function BibleChapterScreen() {
 					<Ionicons name="chevron-back" size={24} color={colors.text} />
 				</Pressable>
 				<View style={styles.headerSpacer} />
-				{chapterAudio.available ? <Pressable accessibilityRole="button" accessibilityLabel="Listen to this chapter" onPress={() => void chapterAudio.play()} style={styles.fontButton}><Ionicons name="headset-outline" size={22} color={colors.accent} /></Pressable> : chapterAudio.error ? <Pressable accessibilityRole="button" accessibilityLabel="Retry chapter narration" onPress={chapterAudio.retryLoad} style={styles.fontButton}><Ionicons name="refresh" size={22} color={colors.accent} /></Pressable> : null}
+				{chapterAudio.available ? <Pressable accessibilityRole="button" accessibilityLabel="Listen to this chapter" onPress={() => listen()} style={styles.fontButton}><Ionicons name="headset-outline" size={22} color={colors.accent} /></Pressable> : chapterAudio.error ? <Pressable accessibilityRole="button" accessibilityLabel="Retry chapter narration" onPress={chapterAudio.retryLoad} style={styles.fontButton}><Ionicons name="refresh" size={22} color={colors.accent} /></Pressable> : null}
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel={`Translation and reading settings, ${translation}`}

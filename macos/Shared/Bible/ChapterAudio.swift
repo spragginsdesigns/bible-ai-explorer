@@ -2,17 +2,31 @@ import Foundation
 import AVFoundation
 import MediaPlayer
 
+/// Which recording of a chapter to play: the book's usual one, or the Alive
+/// production (full cast, SureWord's modern translation) offered beside it on
+/// Listen. Same names and wording as `EDITION_CHOICES` in src/lib/bible/audioBible.ts (LC-15532).
+enum AudioEdition: String, CaseIterable, Sendable {
+    case regular, alive
+    var label: String { self == .alive ? "Alive" : "Regular" }
+    var detail: String { self == .alive ? "Full cast, in our modern translation" : "The King James Version, read aloud" }
+}
+
 /// Same public wire contract and timing rules as src/lib/bible/audioBible.ts.
 struct ChapterAudio: Decodable, Sendable, Equatable {
     struct Timing: Decodable, Sendable, Equatable { let verse: Int; let start: Double; let end: Double }
     let status: String
     let book: Int?
     let chapter: Int?
+    /// "alive" for an Alive recording; absent (regular) from servers before LC-15532.
+    let edition: String?
     let audioUrl: String?
     let duration: Double?
     let verses: [Timing]?
 
     static func hasNarration(_ book: Int) -> Bool { (1...66).contains(book) }
+    /// Books with an Alive recording (`ALIVE_BOOKS`): Mark.
+    static func hasAlive(_ book: Int) -> Bool { book == 41 }
+    var kind: AudioEdition { edition == AudioEdition.alive.rawValue ? .alive : .regular }
     func verse(at seconds: Double) -> Int? { verses?.last(where: { $0.start <= seconds })?.verse }
     func start(of verse: Int) -> Double { verses?.first(where: { $0.verse == verse })?.start ?? 0 }
     func valid(book: Int, chapter: Int) -> Bool {
@@ -29,6 +43,8 @@ struct ChapterAudio: Decodable, Sendable, Equatable {
 @MainActor @Observable
 final class ChapterAudioModel {
     private(set) var audio: ChapterAudio?
+    /// Every recording of the chapter; two means Listen asks which.
+    private(set) var recordings: [AudioEdition: ChapterAudio] = [:]
     private(set) var isOpen = false
     private(set) var isPlaying = false
     private(set) var isReady = false
@@ -39,6 +55,8 @@ final class ChapterAudioModel {
     var verse: Int? { isReady ? audio?.verse(at: elapsed) : nil }
     var duration: Double { audio?.duration ?? 0 }
     var available: Bool { audio != nil }
+    var editions: [AudioEdition] { AudioEdition.allCases.filter { recordings[$0] != nil } }
+    var edition: AudioEdition { audio?.kind ?? .regular }
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private var player = AVPlayer()
@@ -51,6 +69,8 @@ final class ChapterAudioModel {
     @ObservationIgnored private var nextChapter: (@MainActor () -> Void)?
     @ObservationIgnored private var sourceKey = ""
     @ObservationIgnored private var pendingStart: Double?
+    /// The listener's Listen choice; it carries into the next chapter, or falls back to regular there.
+    @ObservationIgnored private var chosenEdition: AudioEdition = .regular
 
     init(api: APIClient, settings: SettingsStore) { self.api = api; self.settings = settings }
 
@@ -62,15 +82,23 @@ final class ChapterAudioModel {
         let run = generation
         let continuePlaying = isPlaying || pendingStart != nil
         clearItem()
-        audio = nil; elapsed = 0; error = nil; stillListening = false
+        audio = nil; recordings = [:]; elapsed = 0; error = nil; stillListening = false
         self.reference = reference; nextChapter = next
         pendingStart = continuePlaying ? 0 : nil
         guard enabled, ChapterAudio.hasNarration(book) else { close(); return }
         do {
             let response = try await api.json("/api/bible/audio?book=\(book)&chapter=\(chapter)", as: ChapterAudio.self)
+            var found: [AudioEdition: ChapterAudio] = [:]
+            if response.valid(book: book, chapter: chapter) { found[.regular] = response }
+            if ChapterAudio.hasAlive(book),
+               let alive = try? await api.json("/api/bible/audio?book=\(book)&chapter=\(chapter)&edition=alive", as: ChapterAudio.self),
+               alive.valid(book: book, chapter: chapter) {
+                found[.alive] = alive
+            }
             guard run == generation, !Task.isCancelled else { return }
-            guard response.valid(book: book, chapter: chapter) else { close(); return }
-            audio = response
+            guard let picked = found[chosenEdition] ?? found[.regular] else { close(); return }
+            recordings = found
+            audio = picked
             if isOpen { installItem() }
         } catch {
             guard run == generation, !Task.isCancelled else { return }
@@ -79,7 +107,8 @@ final class ChapterAudioModel {
         }
     }
 
-    func start(from verse: Int = 0) {
+    func start(from verse: Int = 0, edition: AudioEdition? = nil) {
+        if let edition, let picked = recordings[edition] { chosenEdition = edition; audio = picked }
         guard let audio else { return }
         markAction(); error = nil; stillListening = false
         pendingStart = verse > 0 ? audio.start(of: verse) : 0
@@ -90,7 +119,8 @@ final class ChapterAudioModel {
             try AVAudioSession.sharedInstance().setActive(true)
         } catch { self.error = "Couldn't start audio. Try again."; return }
         #endif
-        if player.currentItem == nil || player.currentItem?.status == .failed { installItem() }
+        let installed = (player.currentItem?.asset as? AVURLAsset)?.url.absoluteString
+        if player.currentItem == nil || player.currentItem?.status == .failed || installed != audio.audioUrl { installItem() }
         else if isReady { seek(to: pendingStart ?? 0); pendingStart = nil; play() }
     }
 
@@ -184,7 +214,7 @@ final class ChapterAudioModel {
     private func updateNowPlaying() {
         guard isOpen, audio != nil else { return }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: reference, MPMediaItemPropertyArtist: "SureWord · KJV",
+            MPMediaItemPropertyTitle: reference, MPMediaItemPropertyArtist: edition == .alive ? "SureWord · Alive" : "SureWord · KJV",
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? settings.listenRate : 0,

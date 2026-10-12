@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_LISTEN_RATE, nextListenRate } from "@/components/cross/listen";
 import {
+  hasAlive,
   hasNarration,
   needsStillListening,
   verseAt,
   verseStart,
+  type AudioEdition,
   type ChapterAudio,
   type ChapterAudioResponse,
 } from "@/lib/bible/audioBible";
@@ -43,10 +45,17 @@ export interface ChapterAudioPlayer {
   /** Paused after an hour with no interaction, waiting for "Keep listening". */
   stillListeningPrompt: boolean;
   audio: ChapterAudio | null;
+  /** The recordings this chapter has, regular first; two means Listen offers a choice. */
+  editions: AudioEdition[];
+  /** The recording playing, or the one the next Listen continues with. */
+  edition: AudioEdition;
   rate: number;
   elementRef: React.MutableRefObject<HTMLAudioElement | null>;
-  /** Play the chapter from the top (cue and heading first), or from a verse. */
-  play: (fromVerse?: number) => void;
+  /**
+   * Play the chapter from the top (cue and heading first), or from a verse,
+   * in the given recording (default: the current one).
+   */
+  play: (fromVerse?: number, edition?: AudioEdition) => void;
   toggle: () => void;
   stop: () => void;
   skipVerse: (delta: 1 | -1) => void;
@@ -71,11 +80,32 @@ function startAt(audio: ChapterAudio, fromVerse: number): number {
   return fromVerse > 0 ? verseStart(audio.verses, fromVerse) : 0;
 }
 
-async function readChapterAudio(book: number, chapter: number, signal: AbortSignal) {
-  const response = await fetch(`/api/bible/audio?book=${book}&chapter=${chapter}`, { signal });
+async function readChapterAudio(book: number, chapter: number, edition: AudioEdition, signal: AbortSignal) {
+  const query = edition === "alive" ? "&edition=alive" : "";
+  const response = await fetch(`/api/bible/audio?book=${book}&chapter=${chapter}${query}`, { signal });
   if (!response.ok) return null;
   const body = (await response.json()) as ChapterAudioResponse;
   return body.status === "ready" ? body : null;
+}
+
+type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
+
+/**
+ * Every recording of the chapter, fetched together so choosing one on Listen
+ * plays inside the tap (iOS Safari refuses a play() that waits on a fetch).
+ * A missing Alive recording leaves just the regular one.
+ */
+async function readRecordings(book: number, chapter: number, signal: AbortSignal): Promise<Recordings> {
+  const editions: AudioEdition[] = hasAlive(book) ? ["regular", "alive"] : ["regular"];
+  const found = await Promise.all(
+    editions.map((edition) => readChapterAudio(book, chapter, edition, signal).catch(() => null))
+  );
+  const recordings: Recordings = {};
+  editions.forEach((edition, index) => {
+    const recording = found[index];
+    if (recording) recordings[edition] = recording;
+  });
+  return recordings;
 }
 
 /**
@@ -94,6 +124,7 @@ export function useChapterAudio({
   nextNarrated,
 }: Options): ChapterAudioPlayer {
   const elementRef = useRef<HTMLAudioElement | null>(null);
+  const [recordings, setRecordings] = useState<Recordings>({});
   const [audio, setAudio] = useState<ChapterAudio | null>(null);
   const [open, setOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -103,6 +134,10 @@ export function useChapterAudio({
 
   const audioRef = useRef(audio);
   audioRef.current = audio;
+  const recordingsRef = useRef(recordings);
+  recordingsRef.current = recordings;
+  /** The listener's Listen choice; it carries into the next chapter, or falls back to regular there. */
+  const chosenEdition = useRef<AudioEdition>("regular");
   const openRef = useRef(open);
   openRef.current = open;
   /** Start playing (0 = from the top, else from this verse) once this chapter's audio loads. */
@@ -113,6 +148,11 @@ export function useChapterAudio({
   endHandlers.current = { onChapterEnd, nextNarrated };
 
   const narrated = enabled && hasNarration(book);
+  const playingEdition: AudioEdition = audio?.edition ?? "regular";
+  const editions = useMemo(
+    () => (["regular", "alive"] as const).filter((option) => recordings[option]),
+    [recordings]
+  );
   const markAction = useCallback(() => {
     lastActionAt.current = Date.now();
   }, []);
@@ -160,6 +200,7 @@ export function useChapterAudio({
   // into the new chapter from the top; a paused one waits there.
   useEffect(() => {
     setAudio(null);
+    setRecordings({});
     setVerse(null);
     setStillListeningPrompt(false);
     if (!narrated) {
@@ -179,9 +220,11 @@ export function useChapterAudio({
     }
     element?.pause();
     const controller = new AbortController();
-    readChapterAudio(book, chapter, controller.signal)
-      .then((next) => {
+    readRecordings(book, chapter, controller.signal)
+      .then((found) => {
         if (controller.signal.aborted) return;
+        const next = found[chosenEdition.current] ?? found.regular ?? null;
+        setRecordings(found);
         setAudio(next);
         if (!next) {
           pendingPlay.current = null;
@@ -210,8 +253,14 @@ export function useChapterAudio({
   }, [rate]);
 
   const play = useCallback(
-    (fromVerse = 0) => {
+    (fromVerse = 0, chosen?: AudioEdition) => {
       const element = elementRef.current;
+      const picked = chosen ? recordingsRef.current[chosen] : undefined;
+      if (chosen && picked) {
+        chosenEdition.current = chosen;
+        audioRef.current = picked;
+        setAudio(picked);
+      }
       const current = audioRef.current;
       if (!element || !current) return;
       markAction();
@@ -308,7 +357,7 @@ export function useChapterAudio({
     if (typeof MediaMetadata !== "undefined") {
       session.metadata = new MediaMetadata({
         title: reference,
-        artist: "King James Version",
+        artist: playingEdition === "alive" ? "SureWord Alive" : "King James Version",
         album: "SureWord",
         artwork: [{ src: ARTWORK_URL, sizes: "512x512", type: "image/png" }],
       });
@@ -344,7 +393,7 @@ export function useChapterAudio({
       }
       session.metadata = null;
     };
-  }, [open, reference, markAction, skipVerse]);
+  }, [open, reference, playingEdition, markAction, skipVerse]);
 
   return {
     available: narrated && audio !== null,
@@ -353,6 +402,8 @@ export function useChapterAudio({
     verse,
     stillListeningPrompt,
     audio,
+    editions,
+    edition: playingEdition,
     rate,
     elementRef,
     play,

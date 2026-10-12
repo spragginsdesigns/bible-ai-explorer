@@ -18,7 +18,7 @@ export function ChapterAudioBar({ audio, reference }: { audio: ReturnType<typeof
   );
   return <View style={[styles.bar, { backgroundColor: colors.bgElevated, borderColor: colors.borderStrong }]}>
     <View style={styles.row}>
-      <Text style={{ color: colors.text, flex: 1 }}>{reference}{audio.verse ? ` · ${audio.verse}` : ""}</Text>
+      <Text style={{ color: colors.text, flex: 1 }}>{reference}{audio.verse ? ` · ${audio.verse}` : ""}{audio.edition === "alive" ? <Text style={{ color: colors.textMuted }}> · Alive</Text> : null}</Text>
       {icon("close", "Close narration", audio.stop)}
     </View>
     {audio.error ? <View style={styles.row}><Text accessibilityRole="alert" style={{ color: colors.danger, flex: 1 }}>{audio.error}</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry narration" onPress={() => void audio.play(audio.verse ?? 0)} style={styles.button}><Text style={{ color: colors.accent }}>Retry</Text></Pressable></View> : null}

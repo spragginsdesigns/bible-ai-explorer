@@ -34,7 +34,39 @@ export const DRAMATIZED_BASE_URL =
   "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/kjv-drama/v1";
 export const DRAMATIZED_BOOKS: ReadonlySet<number> = new Set([40]);
 
-function bookBaseUrl(book: number): string {
+/**
+ * Which recording of a chapter to play. "regular" is the book's usual one
+ * above (the narrated KJV, or Matthew's full cast). "alive" is a second
+ * recording offered beside it on Listen (LC-15532): a full-cast production
+ * with no outside narrator, the evangelist telling it, in SureWord's own
+ * modern-English translation of the Textus Receptus (the Greek the KJV was
+ * translated from). It keeps the KJV's verse numbering, so the read-along
+ * highlight follows it verse for verse while the KJV stays on screen.
+ */
+export type AudioEdition = "regular" | "alive";
+export const ALIVE_BASE_URL =
+  "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/alive/v1";
+/** Books with an Alive recording: Mark since LC-15532. */
+export const ALIVE_BOOKS: ReadonlySet<number> = new Set([41]);
+
+/** How each recording is named in the Listen choice, the same on every client. */
+export const EDITION_CHOICES: Record<AudioEdition, { label: string; detail: string }> = {
+  regular: { label: "Regular", detail: "The King James Version, read aloud" },
+  alive: { label: "Alive", detail: "Full cast, in our modern translation" },
+};
+
+export function hasAlive(book: number): boolean {
+  return ALIVE_BOOKS.has(book);
+}
+
+/** The `edition` query value: absent means regular; anything unknown is null (a bad request). */
+export function parseEdition(raw: string | null): AudioEdition | null {
+  if (raw === null || raw === "regular") return "regular";
+  return raw === "alive" ? "alive" : null;
+}
+
+function bookBaseUrl(book: number, edition: AudioEdition): string {
+  if (edition === "alive") return ALIVE_BASE_URL;
   return DRAMATIZED_BOOKS.has(book) ? DRAMATIZED_BASE_URL : AUDIO_BIBLE_BASE_URL;
 }
 
@@ -56,6 +88,8 @@ export interface ChapterAudio {
   status: "ready";
   book: number;
   chapter: number;
+  /** Which recording this is (absent from servers before LC-15532: regular). */
+  edition?: AudioEdition;
   audioUrl: string;
   /** Length of the MP3 in seconds. */
   duration: number;
@@ -68,12 +102,12 @@ export function hasNarration(book: number): boolean {
   return book >= NARRATED_BOOKS.first && book <= NARRATED_BOOKS.last;
 }
 
-export function chapterAudioUrl(book: number, chapter: number): string {
-  return `${bookBaseUrl(book)}/${book}/${chapter}.mp3`;
+export function chapterAudioUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
+  return `${bookBaseUrl(book, edition)}/${book}/${chapter}.mp3`;
 }
 
-export function chapterTimingUrl(book: number, chapter: number): string {
-  return `${bookBaseUrl(book)}/${book}/${chapter}.json`;
+export function chapterTimingUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
+  return `${bookBaseUrl(book, edition)}/${book}/${chapter}.json`;
 }
 
 /**
@@ -107,7 +141,8 @@ export function needsStillListening(lastActionAt: number, now: number): boolean 
 export function parseChapterTiming(
   raw: unknown,
   book: number,
-  chapter: number
+  chapter: number,
+  edition: AudioEdition = "regular"
 ): ChapterAudio | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -132,7 +167,8 @@ export function parseChapterTiming(
     status: "ready",
     book,
     chapter,
-    audioUrl: chapterAudioUrl(book, chapter),
+    edition,
+    audioUrl: chapterAudioUrl(book, chapter, edition),
     duration: value.duration,
     verses,
   };

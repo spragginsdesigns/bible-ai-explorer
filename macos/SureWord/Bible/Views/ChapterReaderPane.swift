@@ -116,7 +116,24 @@ struct ChapterReaderPane: View {
 
             Spacer()
 
-            if app.chapterAudio.available {
+            if app.chapterAudio.editions.count > 1 {
+                // Mark has an Alive recording too (LC-15532): ask which one.
+                Menu {
+                    ForEach(app.chapterAudio.editions, id: \.self) { edition in
+                        Button {
+                            app.dailyCross.listen.pause()
+                            app.chapterAudio.start(edition: edition)
+                        } label: {
+                            Text(edition.label)
+                            Text(edition.detail)
+                        }
+                    }
+                } label: {
+                    Label("Listen", systemImage: "headphones")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            } else if app.chapterAudio.available {
                 Button("Listen", systemImage: "headphones") {
                     app.dailyCross.listen.pause()
                     app.chapterAudio.start()

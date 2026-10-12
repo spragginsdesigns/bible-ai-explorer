@@ -88,6 +88,9 @@ export default function ChapterAudioBar({
               <p className="truncate text-[13.5px] font-semibold text-neutral-900 dark:text-neutral-100">
                 {reference}
                 {player.verse ? `:${player.verse}` : null}
+                {player.edition === "alive" ? (
+                  <span className="font-normal text-neutral-500 dark:text-neutral-400"> · Alive</span>
+                ) : null}
               </p>
             </div>
             <button type="button" aria-label="Previous verse" onClick={() => player.skipVerse(-1)} className={ICON_BUTTON}>
