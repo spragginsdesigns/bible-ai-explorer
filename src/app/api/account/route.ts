@@ -57,10 +57,8 @@ const deps: AccountDeletionDeps = {
 	async deleteDatabaseRows(userId) {
 		await prisma.$transaction(async (tx) => {
 			const user = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
-			// Rows with no FK to User. Embeddings and links would also cascade
-			// through Note, but carry their own userId, so delete them by it too.
-			await tx.noteEmbedding.deleteMany({ where: { userId } });
-			await tx.noteLink.deleteMany({ where: { userId } });
+			// Note-derived rows follow Note's FK cascade. Their copied userId can
+			// lag behind account rekeying and must never authorize deletion.
 			await tx.guestTurn.deleteMany({ where: { claimedByUserId: userId } });
 			await tx.legacyClerkAccount.deleteMany({
 				where: {
