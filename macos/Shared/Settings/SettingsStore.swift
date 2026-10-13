@@ -191,6 +191,11 @@ final class SettingsStore {
         }
     }
 
+    /// Read at the start of a verse request so a picker change cannot reuse another model's explanation.
+    static func selectedChatModelId() -> String? {
+        UserDefaults.standard.string(forKey: Key.chatModelId)
+    }
+
     /// Reasoning effort override. The vocabulary is the server's
     /// (`none` / `minimal` / `low` / `medium` / `high` / `xhigh` / `max`), and
     /// a value the chosen model does not accept is dropped server-side rather

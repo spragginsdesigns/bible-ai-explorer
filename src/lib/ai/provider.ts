@@ -363,6 +363,8 @@ export async function resolveModel(options: {
 	 * utility work, because every utility caller today parses a schema.
 	 */
 	structured?: boolean;
+	/** Cache lookup only. The caller must reserve included inference before opening a cache-miss stream. */
+	deferReservation?: boolean;
 }): Promise<ResolvedModel> {
 	const access = await aiAccessFor(options.userId);
 	const structuredCall = options.structured ?? Boolean(options.utility);
@@ -400,7 +402,7 @@ export async function resolveModel(options: {
 		}
 
 		const { definition: houseDefinition, apiKey: houseChatKey, plan } = await houseChatModel(options.userId);
-		await reserveIncludedRequest(options.userId);
+		if (!options.deferReservation) await reserveIncludedRequest(options.userId);
 		// A Pro request with no effort of its own runs the account's stored pick,
 		// the same one GET /api/ai/models reports; an explicit Auto does not.
 		const storedHouseEffort =

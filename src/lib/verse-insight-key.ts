@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
  * next tap regenerates under the new prompt. (Rows written under older
  * versions stay behind as history; nothing reads them.)
  */
-export const VERSE_INSIGHT_PROMPT_VERSION = 2;
+export const VERSE_INSIGHT_PROMPT_VERSION = 3;
 
 /**
  * Stable digest of the verse text with whitespace collapsed, so the same
@@ -21,4 +21,9 @@ export function verseTextHash(text: string): string {
 		.update(text.replace(/\s+/g, " ").trim())
 		.digest("hex")
 		.slice(0, 32);
+}
+
+/** A public explanation may be shared only for the same actual model, effort and canonical text. */
+export function verseInsightCacheHash(modelId: string, effort: string | null, text: string): string {
+	return createHash("sha256").update(JSON.stringify([modelId, effort, verseTextHash(text)])).digest("hex").slice(0, 32);
 }

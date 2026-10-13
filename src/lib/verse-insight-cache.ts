@@ -1,19 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import type { TranslationId } from "@/lib/bible/translations";
-import { VERSE_INSIGHT_PROMPT_VERSION, verseTextHash } from "@/lib/verse-insight-key";
+import { VERSE_INSIGHT_PROMPT_VERSION, verseInsightCacheHash } from "@/lib/verse-insight-key";
 
 export interface VerseInsightKey {
 	translation: TranslationId;
 	reference: string;
-	/** The verse text the client sent; hashed into the key, never stored. */
+	/** Canonical passage text from the verified corpus; hashed into the key. */
 	text: string;
+	modelId: string;
+	effort: string | null;
 }
 
 function whereKey(key: VerseInsightKey) {
 	return {
 		translation: key.translation,
 		reference: key.reference,
-		textHash: verseTextHash(key.text),
+		textHash: verseInsightCacheHash(key.modelId, key.effort, key.text),
 		promptVersion: VERSE_INSIGHT_PROMPT_VERSION,
 	};
 }

@@ -3,16 +3,9 @@ import Foundation
 /// Tap-a-verse: a short KJV-grounded explanation of one verse, streamed as
 /// plain text from `POST /api/verse-insight`.
 ///
-/// Port of `mobile/src/features/bible/useVerseInsight.ts` and its web twin
-/// `src/components/bible/useVerseInsight.ts` — same state machine
-/// (`idle → loading → streaming → done | error`), same session cache keyed
-/// `translation:reference`, same run-id guard. If one side changes, change all
-/// three.
-///
-/// The Mac client deliberately sends no `modelId`: it has no model picker yet
-/// (Android 1.12.0's BYOK/provider UI is still unported), and the route falls
-/// back to the account default when the field is absent. Adding a picker here
-/// later is the only change needed.
+/// Mirrors the web and Android state machines. Every start reaches the server,
+/// which resolves the current model and serves its cache without another quota
+/// reservation. Client preferences alone cannot identify plan or fallback changes.
 @MainActor
 @Observable
 final class VerseInsightModel {
@@ -30,24 +23,21 @@ final class VerseInsightModel {
     private(set) var text = ""
     private(set) var error: String?
 
-    /// Session cache so re-opening a verse renders instantly and never re-bills
-    /// the model. Partial output is never cached. MainActor-isolated with the
-    /// rest of the type, which is what makes a mutable static safe here.
-    private static var cache: [String: String] = [:]
-
     /// Smallest gap between two view updates while streaming. Fast enough to
     /// read as live typing, slow enough that the reader can keep up.
     private static let publishInterval: Duration = .milliseconds(200)
 
     private let api: APIClient
+    private let selectedModel: @MainActor () -> String?
     private var task: Task<Void, Never>?
     /// Guards every state write: only the most recent `start()`/`reset()` may
     /// touch state, so a slow stream for verse A can never bleed into a row
     /// that has already moved to verse B.
     private var runID = 0
 
-    init(api: APIClient) {
+    init(api: APIClient, selectedModel: @escaping @MainActor () -> String? = { SettingsStore.selectedChatModelId() }) {
         self.api = api
+        self.selectedModel = selectedModel
     }
 
     /// The last target handed to `start()`, so the error state can retry
@@ -78,13 +68,7 @@ final class VerseInsightModel {
         task = nil
         self.target = target
 
-        if let cached = Self.cache[Self.key(target)] {
-            text = cached
-            error = nil
-            status = .done
-            return
-        }
-
+        let modelId = selectedModel()
         text = ""
         error = nil
         status = .loading
@@ -97,7 +81,7 @@ final class VerseInsightModel {
                 return
             }
             do {
-                let bytes = try await api.stream("/api/verse-insight", body: Request(target))
+                let bytes = try await api.stream("/api/verse-insight", body: Request(target, modelId: modelId))
                 var full = ""
                 var lastPublished: ContinuousClock.Instant?
 
@@ -122,7 +106,6 @@ final class VerseInsightModel {
                 guard !full.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     throw APIError(message: "The model returned nothing.")
                 }
-                Self.cache[Self.key(target)] = full
                 text = full
                 status = .done
             } catch {
@@ -165,25 +148,17 @@ final class VerseInsightModel {
         }
     }
 
-    private static func key(_ target: Target) -> String {
-        "\(target.translation.rawValue):\(target.reference)"
-    }
-
-    /// Test seam: the cache is process-wide by design, which would otherwise
-    /// leak one test's fixture into the next.
-    static func clearCache() {
-        cache.removeAll()
-    }
-
     private struct Request: Encodable {
         let reference: String
         let text: String
         let translation: String
+        let modelId: String?
 
-        init(_ target: Target) {
+        init(_ target: Target, modelId: String?) {
             reference = target.reference
             text = target.text
             translation = target.translation.rawValue
+            self.modelId = modelId
         }
     }
 }

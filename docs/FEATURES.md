@@ -254,23 +254,23 @@ Deliberate properties, in rough order of importance:
   extraction, and — unlike `ask-question` — the model used is **not** recorded
   as the account default. A passive tap is not a pick.
 - **Explanations are cached server-side and shared across accounts**
-  (`src/lib/verse-insight-cache.ts`, Prisma `VerseInsight`, added 2026-09-02).
-  The prompt carries only the verse — no memories, church or history — so one
-  explanation is as right for the next reader as for the first, and a verse
-  bills a model only the first time anyone in the world taps it. The route
-  checks the cache before it resolves a model, so a hit never needs a key. Key:
-  `(translation, reference, textHash, promptVersion)` — `textHash` is a sha256
-  of the whitespace-normalised verse text the client sent, so altered text
-  under a real reference cannot poison another reader's sheet;
-  `VERSE_INSIGHT_PROMPT_VERSION` (`src/lib/verse-insight-key.ts`) must be
-  bumped whenever `verseInsightSystemPrompt` changes so stale wording ages out.
-  Only a naturally finished (`finishReason === "stop"`), non-empty answer is
-  stored, written from `onEnd` after `result.consumeStream()` so closing the
-  sheet mid-stream still fills the cache. A hit is a single `text/plain` body
-  with `X-Verse-Insight-Cache: hit` (misses carry `miss`); clients read both
-  through the same stream path. Rows are kept for good — the table caps at
-  roughly 31k verses x 2 translations, a few MB. If the prompt ever takes user
-  context, this cache must become per-user or be removed.
+  (`src/lib/verse-insight-cache.ts`, Prisma `VerseInsight`). The prompt carries
+  only the canonical passage and its context, without memories or account history.
+  Every client requests the server so current plan, default-model and provider
+  fallback resolution remains authoritative. The server verifies the passage,
+  resolves the actual model and effort, then checks the cache. Hits require current
+  model access but make no model call or included-quota reservation.
+  The key includes translation, canonical reference, normalized canonical text,
+  resolved model, effort and `VERSE_INSIGHT_PROMPT_VERSION`. Bump that version
+  whenever `verseInsightSystemPrompt` changes. Client-provided wording cannot
+  poison another reader's sheet because it is replaced with canonical text.
+  Only naturally finished (`finishReason === "stop"`), non-empty answers are
+  stored from `onEnd`. `result.consumeStream()` lets a closed sheet still fill
+  the cache. Both hits and misses use the same plain-text stream, with
+  `X-Verse-Insight-Cache` and `X-Verse-Insight-Model` headers. Rows persist across
+  requests; new models or prompt versions create separate entries. Simultaneous
+  cache misses can still make two model calls. Adding personalized context would
+  require a per-user cache or removing the shared cache.
 - **Prompt** is `verseInsightSystemPrompt(translation)` in
   `src/utils/systemPrompt.ts`: the full canonical SureWord persona plus a task
   addendum (2–4 plain sentences, no headings/lists/`[FOLLOWUP]` lines, never

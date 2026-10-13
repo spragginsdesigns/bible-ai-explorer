@@ -11,13 +11,6 @@ export interface VerseInsightTarget {
 	translation: TranslationId;
 }
 
-/** Session cache so re-tapping a verse never re-bills the model. */
-const insightCache = new Map<string, string>();
-
-function cacheKey(target: VerseInsightTarget): string {
-	return `${target.translation}:${target.reference}`;
-}
-
 /**
  * Tap-a-verse explanation stream for the reader sheet. Mirrors the web hook in
  * src/components/bible/useVerseInsight.ts. Reads the plain-text stream from
@@ -49,15 +42,7 @@ export function useVerseInsight(getToken: GetToken) {
 			const id = ++runIdRef.current;
 			abortRef.current?.abort();
 
-			const cached = insightCache.get(cacheKey(target));
-			if (cached) {
-				abortRef.current = null;
-				setText(cached);
-				setError(null);
-				setStatus("done");
-				return;
-			}
-
+			const modelId = getSettings().chatModelId;
 			const controller = new AbortController();
 			abortRef.current = controller;
 			setText("");
@@ -74,7 +59,7 @@ export function useVerseInsight(getToken: GetToken) {
 							reference: target.reference,
 							text: target.text,
 							translation: target.translation,
-							modelId: getSettings().chatModelId,
+							modelId,
 						}),
 						signal: controller.signal,
 					});
@@ -110,7 +95,6 @@ export function useVerseInsight(getToken: GetToken) {
 					full += decoder.decode();
 					if (runIdRef.current !== id) return;
 					if (!full.trim()) throw new Error("The model returned nothing.");
-					insightCache.set(cacheKey(target), full);
 					setText(full);
 					setStatus("done");
 				} catch (err) {

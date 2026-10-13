@@ -32,7 +32,7 @@ const RANGE_REFERENCE = /:\d+\s*[---]\s*\d+$/;
  * stored text. A hit is answered as a single plain-text body with
  * `X-Verse-Insight-Cache: hit`; clients read it through the same stream path.
  */
-import { withIncludedAiRequest } from "@/lib/billing/usage";
+import { reserveIncludedRequest, withIncludedAiRequest } from "@/lib/billing/usage";
 export const POST = withIncludedAiRequest(handlePost, "verse-insight");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -70,7 +70,16 @@ async function handlePost(req: Request): Promise<Response> {
 		}
 		if (passage.truncated) return NextResponse.json({ error: "Select no more than 30 verses for a passage insight." }, { status: 400 });
 		const canonicalText = passage.verses.map(verse => verse.text).join("\n");
-		const cacheKey = { translation, reference: passage.reference, text: canonicalText };
+		// Resolve the actual account/model first, without charging quota for a cached explanation.
+		let resolved;
+		try {
+			resolved = await resolveModel({ userId, modelId, effort: "low", deferReservation: true });
+		} catch (error) {
+			if (error instanceof AiCredentialError) return NextResponse.json({ error: error.message }, { status: 403 });
+			throw error;
+		}
+		const modelUsed = resolved.definition.id;
+		const cacheKey = { translation, reference: passage.reference, text: canonicalText, modelId: modelUsed, effort: resolved.effort };
 		const cached = await readVerseInsight(cacheKey);
 		if (cached) {
 			// The reference itself stays out of the event: it is a string the
@@ -87,24 +96,12 @@ async function handlePost(req: Request): Promise<Response> {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
 					"X-Verse-Insight-Cache": "hit",
+					"X-Verse-Insight-Model": modelUsed,
 				},
 			});
 		}
 
-		let resolved;
-		try {
-			// The user's universal model pick applies, but effort is pinned low —
-			// a tap in the reader has to answer in seconds, whatever the user's
-			// chat reasoning default is.
-			resolved = await resolveModel({ userId, modelId, effort: "low" });
-		} catch (error) {
-			if (error instanceof AiCredentialError) {
-				return NextResponse.json({ error: error.message }, { status: 403 });
-			}
-			throw error;
-		}
-
-		const modelUsed = resolved.definition.id;
+		if (resolved.access === "house") await reserveIncludedRequest(userId);
 		const result = streamText({
 			model: resolved.model,
 			system: verseInsightSystemPrompt(translation, { passage: isPassage }),
@@ -142,7 +139,7 @@ async function handlePost(req: Request): Promise<Response> {
 
 		return createTextStreamResponse({
 			stream: toTextStream({ stream: result.stream }),
-			headers: { "X-Verse-Insight-Cache": "miss" },
+			headers: { "X-Verse-Insight-Cache": "miss", "X-Verse-Insight-Model": modelUsed },
 		});
 	} catch (error) {
 		if (error instanceof Response) return error;
