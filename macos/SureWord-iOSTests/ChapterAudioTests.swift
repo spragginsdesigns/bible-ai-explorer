@@ -20,7 +20,7 @@ final class ChapterAudioTests: XCTestCase {
         XCTAssertFalse(ChapterAudio.hasNarration(0)); XCTAssertTrue(ChapterAudio.hasNarration(1)); XCTAssertTrue(ChapterAudio.hasNarration(39)); XCTAssertTrue(ChapterAudio.hasNarration(66)); XCTAssertFalse(ChapterAudio.hasNarration(67))
     }
     func testMarkOffersAnAliveRecordingNamedLikeWeb() throws {
-        XCTAssertTrue(ChapterAudio.hasAlive(41)); XCTAssertTrue(ChapterAudio.hasAlive(40)); XCTAssertTrue(ChapterAudio.hasAlive(42)); XCTAssertFalse(ChapterAudio.hasAlive(43))
+        XCTAssertTrue(ChapterAudio.hasAlive(41)); XCTAssertTrue(ChapterAudio.hasAlive(40)); XCTAssertTrue(ChapterAudio.hasAlive(42)); XCTAssertTrue(ChapterAudio.hasAlive(43)); XCTAssertFalse(ChapterAudio.hasAlive(44))
         let alive = try JSONDecoder().decode(ChapterAudio.self, from: Data(#"{"status":"ready","book":41,"chapter":1,"edition":"alive","audioUrl":"https://example.com/alive.mp3","duration":20,"verses":[{"verse":1,"start":3,"end":10}]}"#.utf8))
         XCTAssertTrue(alive.valid(book: 41, chapter: 1))
         XCTAssertEqual(alive.kind, .alive)

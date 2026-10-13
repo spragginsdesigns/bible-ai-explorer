@@ -33,8 +33,9 @@ test("every Alive book has its LC Greek text, and only those", () => {
 	assert.equal(hasLcGreek(41), true);
 	assert.equal(hasLcGreek(40), true);
 	assert.equal(hasLcGreek(42), true);
-	assert.equal(hasLcGreek(43), false);
-	for (const order of [1, 39, 40, 41, 42, 43, 66]) assert.equal(hasLcGreek(order), hasAlive(order));
+	assert.equal(hasLcGreek(43), true);
+	assert.equal(hasLcGreek(44), false);
+	for (const order of [1, 39, 40, 41, 42, 43, 44, 66]) assert.equal(hasLcGreek(order), hasAlive(order));
 	assert.equal(LC_GREEK.label, "LC Greek");
 	// The web loader names every book literally (webpack), so pin it to ALIVE_BOOKS.
 	const loaderBooks = [...read("../src/lib/bible/lcGreek.ts").matchAll(/^\s*(\d+): async \(\) =>/gm)]
@@ -113,7 +114,7 @@ test("route: a Mark chapter returns its LC Greek verses", async () => {
 test("route: a book without LC Greek is unavailable, bad input is a 400", async () => {
 	const GET = loadRoute(loader);
 	assert.deepEqual(await (await call(GET, "book=44&chapter=1")).json(), { status: "unavailable" });
-	assert.deepEqual(await (await call(GET, "book=43&chapter=3")).json(), { status: "unavailable" });
+	assert.deepEqual(await (await call(GET, "book=45&chapter=3")).json(), { status: "unavailable" });
 	for (const query of ["book=41&chapter=17", "book=41&chapter=0", "book=67&chapter=1", "book=41", "book=4x&chapter=1", "book=41&chapter=1.5"]) {
 		assert.equal((await call(GET, query)).status, 400, query);
 	}

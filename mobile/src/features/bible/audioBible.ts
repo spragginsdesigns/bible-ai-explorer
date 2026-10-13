@@ -48,10 +48,10 @@ export const ALIVE_BASE_URL =
   "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/alive/v1";
 /**
  * Books with an Alive recording: Mark since LC-15532, Matthew since LC-15843,
- * Luke since LC-15844. Each one also has its LC Greek text (below), so a book
- * is added here together with its text.
+ * Luke since LC-15844, John since LC-15845. Each one also has its LC Greek text
+ * (below), so a book is added here together with its text.
  */
-export const ALIVE_BOOKS: ReadonlySet<number> = new Set([40, 41, 42]);
+export const ALIVE_BOOKS: ReadonlySet<number> = new Set([40, 41, 42, 43]);
 
 /** How each recording is named in the Listen choice, the same on every client. */
 export const EDITION_CHOICES: Record<AudioEdition, { label: string; detail: string }> = {

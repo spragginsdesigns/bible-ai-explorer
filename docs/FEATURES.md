@@ -1100,9 +1100,20 @@ and Alive carries from Matthew 1 through Luke 24; past Luke 24 it falls back to
 the regular recording. Audio in `Audio/sureword-bible/alive/v1/42/`, text in
 `src/data/lc-greek/42.json` (Context-Pro-AI `luke-alive/luke.json`).
 
+**Alive John (LC-15845).** John has an Alive recording in the same form: our
+own translation of the TR, told by John himself, the aged eyewitness (his own
+voice, apart from John the Baptist's), with the Gospels' shared cast and new
+voices for Nicodemus, the Samaritan woman, the man born blind, Thomas, Philip,
+Nathanael, Andrew, Mary Magdalene, Mary of Bethany and others. John's Regular
+recording stays the narrated KJV. `ALIVE_BOOKS` is now the four Gospels, so
+Listen offers both on every John chapter, the LC Greek chip shows on John, and
+Alive carries from Matthew 1 through John 21; past John 21 it falls back to the
+regular recording. Audio in `Audio/sureword-bible/alive/v1/43/`, text in
+`src/data/lc-greek/43.json` (Context-Pro-AI `john-alive/john.json`).
+
 **LC Greek, and Listen recommends Alive (LC-15842).** The translation Alive
-reads is also a reading text, called **LC Greek**. On a book that has it (Matthew,
-Mark and Luke today; John follows with its Alive recording), the reader's
+reads is also a reading text, called **LC Greek**. On a book that has it (the four
+Gospels), the reader's
 translation chips gain an **LC Greek** chip that shows it verse for verse in
 the KJV's numbering, under the BSB section headings, without red letters. The
 choice is kept on the device (web `sureword-lc-greek`, Android settings

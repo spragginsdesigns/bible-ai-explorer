@@ -15,7 +15,7 @@ final class LCGreekTests: XCTestCase {
     }
 
     func testEveryAliveBookHasItsLCGreek() {
-        XCTAssertTrue(LCGreek.has(41)); XCTAssertTrue(LCGreek.has(40)); XCTAssertTrue(LCGreek.has(42)); XCTAssertFalse(LCGreek.has(43))
+        XCTAssertTrue(LCGreek.has(41)); XCTAssertTrue(LCGreek.has(40)); XCTAssertTrue(LCGreek.has(42)); XCTAssertTrue(LCGreek.has(43)); XCTAssertFalse(LCGreek.has(44))
         for book in 1...66 { XCTAssertEqual(LCGreek.has(book), ChapterAudio.hasAlive(book)) }
     }
 
@@ -50,7 +50,7 @@ final class LCGreekTests: XCTestCase {
             XCTAssertEqual(error as? BibleError, BibleError(message: BibleTranslations.chapterLoadError))
         }
         do {
-            _ = try await provider.chapter(book: 43, chapter: 1)
+            _ = try await provider.chapter(book: 44, chapter: 1)
             XCTFail("a book without the LC Greek is never fetched")
         } catch {}
         let paths = await calls.paths

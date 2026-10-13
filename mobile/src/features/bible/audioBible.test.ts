@@ -16,7 +16,7 @@ describe("chapter narration timing", () => {
     expect(parseChapterTiming(data, 43, 3)?.verses).toEqual(verses);
   });
   it("offers Mark's Alive recording beside the narration (LC-15532)", () => {
-    expect(hasAlive(41)).toBe(true); expect(hasAlive(40)).toBe(true); expect(hasAlive(42)).toBe(true); expect(hasAlive(43)).toBe(false);
+    expect(hasAlive(41)).toBe(true); expect(hasAlive(40)).toBe(true); expect(hasAlive(42)).toBe(true); expect(hasAlive(43)).toBe(true); expect(hasAlive(44)).toBe(false);
     expect(parseEdition(null)).toBe("regular"); expect(parseEdition("alive")).toBe("alive"); expect(parseEdition("drama")).toBe(null);
     const data = { book: 41, chapter: 1, duration: 20, verses };
     expect(parseChapterTiming(data, 41, 1, "alive")?.audioUrl).toBe(`${ALIVE_BASE_URL}/41/1.mp3`);
@@ -26,7 +26,7 @@ describe("chapter narration timing", () => {
   it("recommends Alive first and reads the LC Greek beside it (LC-15842)", () => {
     expect(LISTEN_ORDER[0]).toBe(RECOMMENDED_EDITION); expect(RECOMMENDED_EDITION).toBe("alive"); expect(RECOMMENDED_LABEL).toBe("Recommended");
     expect(EDITION_CHOICES.alive.detail).toContain(LC_GREEK.label);
-    expect(hasLcGreek(41)).toBe(true); expect(hasLcGreek(40)).toBe(true); expect(hasLcGreek(42)).toBe(true); expect(hasLcGreek(43)).toBe(false);
+    expect(hasLcGreek(41)).toBe(true); expect(hasLcGreek(40)).toBe(true); expect(hasLcGreek(42)).toBe(true); expect(hasLcGreek(43)).toBe(true); expect(hasLcGreek(44)).toBe(false);
     const ready = { status: "ready", book: 41, chapter: 1, verses: ["The beginning.", "As it is written."] };
     expect(parseLcGreek(ready, 41, 1)).toEqual(ready.verses);
     expect(parseLcGreek(ready, 41, 2)).toBe(null);
