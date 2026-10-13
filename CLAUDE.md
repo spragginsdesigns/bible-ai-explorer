@@ -10,7 +10,7 @@ SureWord is a Bible study assistant for Christians. It MUST emulate a saved, bor
 
 ## Project Context
 
-**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Terra) + Neon Postgres/Prisma (app data AND pgvector embeddings) + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
+**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Luna house default, BYOK model picker) + Neon Postgres/Prisma (app data AND pgvector embeddings) + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
 **Repo:** https://github.com/spragginsdesigns/bible-ai-explorer
 
 ## Development Priorities (IMPORTANT)
@@ -118,8 +118,14 @@ bible-ai-explorer/
 # Start dev server (Claude should NOT run this - assume it's running)
 pnpm dev
 
-# Type check / lint
+# Lint
 pnpm lint
+
+# Web typecheck (mobile has its own npm run typecheck)
+pnpm typecheck
+
+# Both web checks
+pnpm check:errors
 
 # Build
 pnpm build
@@ -313,8 +319,8 @@ Also required in `.env.local`:
   it the audio routes answer `status: "unavailable"` and every client hides the
   Listen card entirely, so an unconfigured deploy shows no broken button.
   Billed per character (~3,000-5,500 per devotional), which is why audio is
-  scheduled with the daily cross and by the morning cron, never generated on a
-  tap. See
+  generated only when a Pro reader requests it; ordinary status reads and
+  chapter playback do not buy narration. See
   `docs/FEATURES.md` → "Listen".
 - `ELEVENLABS_VOICE_ID` - optional override for the narrator. Defaults to
   `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations").

@@ -41,10 +41,10 @@ black-and-gold Play Store artwork.
 ## Clients and parity
 
 - **Android** (`mobile/`, Expo / React Native) is the primary client and first
-  acceptance target. The current checked-in version is **1.50.0 (versionCode 49)**.
+  acceptance target. Version and Android versionCode come from [`mobile/app.json`](mobile/app.json).
 - **Web** (`src/`, Next.js) runs at [sureword.app](https://sureword.app).
 - **macOS** (`macos/SureWord/`, SwiftUI) is the native desktop client; the current
-  project version is **1.6.0**.
+  project version comes from [`macos/project.yml`](macos/project.yml).
 - **iOS** (`macos/SureWord-iOS/`, SwiftUI) shares the Apple core. Its source and
   simulator target are checked in, but it is not yet distributed.
 

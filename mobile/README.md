@@ -20,7 +20,7 @@ lives in `CLAUDE.md`; the feature-by-feature tracker is `docs/PARITY.md` —
 update it on every feature release. The web app links to this app's APK on
 GitHub Releases (see the release checklist) so web users can install it.
 
-**Current app configuration:** 1.76.0 (Android versionCode 85 in `app.json`).
+**Current app configuration:** [`app.json`](app.json) is the source of truth for the version and Android versionCode; [`package.json`](package.json) must match the version. Published build status is recorded in the release notes and store receipts.
 See `CHANGELOG.md` for release notes and the release checklist below for
 distribution verification. See `scripts/bible/README.md` for Scripture source
 provenance.
