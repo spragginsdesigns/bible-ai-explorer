@@ -15,7 +15,7 @@ final class LCGreekTests: XCTestCase {
     }
 
     func testEveryAliveBookHasItsLCGreek() {
-        XCTAssertTrue(LCGreek.has(41)); XCTAssertTrue(LCGreek.has(40)); XCTAssertFalse(LCGreek.has(42)); XCTAssertFalse(LCGreek.has(43))
+        XCTAssertTrue(LCGreek.has(41)); XCTAssertTrue(LCGreek.has(40)); XCTAssertTrue(LCGreek.has(42)); XCTAssertFalse(LCGreek.has(43))
         for book in 1...66 { XCTAssertEqual(LCGreek.has(book), ChapterAudio.hasAlive(book)) }
     }
 

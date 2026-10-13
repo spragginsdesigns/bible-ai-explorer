@@ -31,8 +31,8 @@ struct ChapterAudio: Decodable, Sendable, Equatable {
     let verses: [Timing]?
 
     static func hasNarration(_ book: Int) -> Bool { (1...66).contains(book) }
-    /// Books with an Alive recording (`ALIVE_BOOKS`): Matthew and Mark.
-    static func hasAlive(_ book: Int) -> Bool { book == 40 || book == 41 }
+    /// Books with an Alive recording (`ALIVE_BOOKS`): Matthew, Mark and Luke.
+    static func hasAlive(_ book: Int) -> Bool { (40...42).contains(book) }
     var kind: AudioEdition { edition == AudioEdition.alive.rawValue ? .alive : .regular }
     func verse(at seconds: Double) -> Int? { verses?.last(where: { $0.start <= seconds })?.verse }
     func start(of verse: Int) -> Double { verses?.first(where: { $0.verse == verse })?.start ?? 0 }

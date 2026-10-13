@@ -12,6 +12,7 @@ type Book = string[][];
 const loaders: Record<number, () => Promise<Book>> = {
   40: async () => (await import("../../data/lc-greek/40.json")).default as Book,
   41: async () => (await import("../../data/lc-greek/41.json")).default as Book,
+  42: async () => (await import("../../data/lc-greek/42.json")).default as Book,
 };
 
 const cache = new Map<number, Book>();
