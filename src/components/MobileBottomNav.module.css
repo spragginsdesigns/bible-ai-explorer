@@ -1,0 +1,12 @@
+.nav { position:fixed; inset-inline:0; bottom:0; z-index:40; padding-bottom:max(env(safe-area-inset-bottom),8px); background:#f6f2e9; border-top:1px solid #79561f20; }
+:global(.dark) .nav { background:#0a0a0a; border-top-color:#ffffff12; }
+:global(.dark) .chat { background:#0d100d; border-top-color:#e5b66412; }
+.tabs { display:flex; padding-inline:16px; }
+.tabs a { position:relative; flex:1; min-width:44px; min-height:var(--sureword-mobile-tab-height); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:6px; color:#5f6658; font-size:14px; }
+:global(.dark) .tabs a { color:#bbb3a7; }
+.tabs .active { color:#79561f; }
+:global(.dark) .tabs .active { color:#e5b664; }
+.tabs .active::after { content:""; position:absolute; bottom:0; width:48px; height:2px; background:currentColor; }
+.tabs a:focus-visible { outline:2px solid currentColor; outline-offset:-4px; border-radius:8px; }
+.tabs a:active { opacity:.75; }
+@media(min-width:1024px) { .nav { display:none; } }

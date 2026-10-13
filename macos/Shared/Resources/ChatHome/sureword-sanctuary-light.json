@@ -1,0 +1,55 @@
+{
+  "asset": "sureword-sanctuary-light.png",
+  "appearance": "light",
+  "createdDate": "2026-10-12",
+  "tool": "image_gen.imagegen",
+  "mode": "built-in",
+  "useCase": "background-extraction",
+  "prompt": "Use case: background-extraction\nAsset type: production transparent PNG sanctuary-background layer for SureWord Android native light appearance.\nInput image 1 is the EXACT ARTWORK TO EXTRACT. This is background extraction of the existing artwork, not a new scene.\nPrimary request: retain the existing composition with quiet olive-and-gold foliage at the far left and far right edges and the small warm-gold grounding light pool low at horizontal center, but REMOVE ALL of the solid dark near-black backing. All center, top-center and bottom negative space must be genuinely transparent alpha. No flat background color remains anywhere behind the isolated foliage and light pool.\nKeep the same wide landscape approximately 5:3 framing, requested 1200 x 720 pixels. Preserve the positions, sizes and silhouettes of the foliage and gold grounding glow. The consuming native layout displays this art in a 390 x 344 cover crop.\nStyle adjustment: the leaves remain sophisticated desaturated olive and warm gold, with slightly softer light-appearance values, detailed natural material, low visual weight and calm mature atmosphere. Feather the silhouettes and surrounding gold light glows gently into true transparency. The grounding gold light pool is a delicate translucent isolated glow, not a floor or ground rectangle.\nConstraints: output must have genuine transparent RGBA alpha, including fully transparent corners and fully transparent top-center and bottom-center negative space. No hard rectangular boundary, no retained black backing, no opaque gray, white, cream, colored or checkerboard background. Keep this same composition. Do not add a character, people, emblem, star, sunburst, text, UI, icons, frame, or any extra object. No neon or teal cast. Do not replace the scene.",
+  "referencePath": "C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer/mobile/assets/chat-home/sureword-sanctuary.png",
+  "inspectedAtmosphereReference": "C:/Users/Owner/.codex/generated_images/01a130fb-0abf-7f72-b3a7-a569a8aecae0/exec-1904b868-aca4-4d23-9d06-bd37d320d68a.png",
+  "originalOutputPath": "C:/Users/Owner/.codex/generated_images/01a13161-ff61-7d63-a894-b74e95126135/exec-894dd4a9-2073-41f0-b31d-69bca95c77e5.png",
+  "requestedDimensions": {
+    "width": 1200,
+    "height": 720
+  },
+  "actualDimensions": {
+    "width": 1619,
+    "height": 971
+  },
+  "intendedNativeDisplay": {
+    "width": 390,
+    "height": 344,
+    "contentFit": "cover"
+  },
+  "transparentBackground": true,
+  "pixelMode": "RGBA",
+  "alphaVerification": {
+    "min": 0,
+    "max": 255,
+    "fullyTransparentPixels": 967774,
+    "partiallyTransparentPixels": 604218,
+    "fullyOpaquePixels": 57,
+    "corners": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "topCenterRange": [
+      0,
+      1
+    ],
+    "centerNegativeRange": [
+      0,
+      2
+    ],
+    "bottomCenterRange": [
+      0,
+      2
+    ],
+    "note": "Negative spaces contain only negligible generator alpha residue up to 2/255; no opaque backing or rectangular background."
+  },
+  "export": "Exact copy of generated original; no crop, resize, alpha adjustment or pixel edits",
+  "visualQA": "Existing wide sanctuary composition retained: olive/gold foliage at far left and right, isolated feathered gold grounding glow low at center. Dark backing removed into genuine alpha. No character, text, UI, emblem or extra object. All four corners fully transparent."
+}

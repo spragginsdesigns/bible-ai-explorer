@@ -9,6 +9,7 @@ import SwiftUI
 /// notification, a `sureword://cross` deep link, or the Bible header card.
 struct TabShell: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.theme) private var theme
     @Environment(\.scenePhase) private var scenePhase
 
     /// Home is Chat, matching Android's initial route.
@@ -24,7 +25,7 @@ struct TabShell: View {
     @State private var permissionGrants = 0
     @State private var permissionListener: UUID?
 
-    var body: some View {
+    private var tabContent: some View {
         TabView(selection: $selectedTab) {
             Tab(AppSection.chat.title, systemImage: "bubble.left.and.bubble.right", value: .chat) {
                 NavigationStack {
@@ -46,6 +47,11 @@ struct TabShell: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .tint(selectedTab == .chat ? ChatAppearance.colors(for: theme).accent : theme.accent)
+    }
+
+    var body: some View {
+        tabContent
         .task { app.bible.reading.setForeground(scenePhase == .active); await app.chat.loadConversations() }
         // First hydrate of the session: the server document replaces whatever
         // this phone had cached for the synced preferences.

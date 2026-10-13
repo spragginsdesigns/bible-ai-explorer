@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
+import { guidePhase } from "@/components/guideMotion";
 import type { ChatViewMessage } from "@/lib/chatView";
 import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing, typography } from "@/theme";
@@ -256,7 +257,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 
 	return (
 		<View style={styles.assistantRow}>
-			<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
+			<SureWordGuideAvatar phase={guidePhase(Boolean(message.isStreaming), message.content)} />
 			<View style={styles.assistantBody}>
 				{message.progress && <WorkActivity progress={message.progress} isStreaming={Boolean(message.isStreaming)} />}
 				{assistantMarkdown !== null ? (

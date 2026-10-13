@@ -228,7 +228,7 @@ private struct NoteAIMessageView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         } else {
             HStack(alignment: .top, spacing: Spacing.sm) {
-                SureWordGuideAvatar(size: 22, active: message.isStreaming)
+                SureWordGuideAvatar(size: 28, phase: .resolve(streaming: message.isStreaming, content: message.content))
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {

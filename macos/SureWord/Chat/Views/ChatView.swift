@@ -39,12 +39,18 @@ struct ChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                ChatArtwork.image("sureword-mark").resizable().scaledToFit().frame(width: 44, height: 44).accessibilityHidden(true)
+                BrandMark(size: 27)
+                Spacer()
+            }.padding(.horizontal, 16).frame(height: 56)
             content
             Divider().overlay(theme.border)
             ChatInputBar(chat: chat)
                 .padding(Spacing.lg)
         }
-        .background(MeshBackground())
+        .background(ChatAppearance.colors(for: theme).bg)
+        .environment(\.theme, ChatAppearance.colors(for: theme))
         .overlay(alignment: .top) {
             if let toast {
                 Text(toast)

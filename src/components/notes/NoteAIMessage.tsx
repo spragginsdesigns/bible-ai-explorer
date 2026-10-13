@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import FormattedResponse from "../FormattedResponse";
 import type { ChatMessage } from "../useChat";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
-import SureWordGuideAvatar from "../SureWordGuideAvatar";
+import SureWordGuideAvatar, { guidePhase } from "../SureWordGuideAvatar";
 import ReceiptLine from "../chat/ReceiptLine";
 
 interface NoteAIMessageProps {
@@ -28,7 +28,7 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 	return (
 		<div className="flex gap-2 mb-3 animate-message-in">
 			<div className="mt-1 flex-shrink-0">
-				<SureWordGuideAvatar size={24} active={Boolean(message.isStreaming)} />
+				<SureWordGuideAvatar size={28} phase={guidePhase(Boolean(message.isStreaming), message.content)} />
 			</div>
 			<div className="flex-1 min-w-0">
 				{message.content ? (

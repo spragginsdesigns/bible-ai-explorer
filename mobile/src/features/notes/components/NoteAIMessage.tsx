@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
+import { guidePhase } from "@/components/guideMotion";
 import { radius, spacing, typography } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
@@ -27,7 +28,7 @@ export function NoteAIMessage({ message }: { message: ChatViewMessage }) {
 
 	return (
 		<View style={styles.assistantRow}>
-			<SureWordGuideAvatar size={26} active={Boolean(message.isStreaming)} />
+			<SureWordGuideAvatar size={26} phase={guidePhase(Boolean(message.isStreaming), message.content)} />
 			<View style={styles.assistantBody}>
 				{/* The same normalizer the three other assistant renderers use;
 				    fb2eec4 wired it into chat and web but missed this panel. */}

@@ -13,35 +13,36 @@ const noteMessage = readFileSync(
 	resolve(root, "src/features/notes/components/NoteAIMessage.tsx"),
 	"utf8",
 );
-const assetPath = resolve(root, "assets/sureword-guide.png");
 
 describe("SureWord guide avatar contract", () => {
-	it("ships one real RGBA artwork asset at production resolution", () => {
+	it.each(["idle", "thinking", "answering"])("ships the %s pose with consistent RGBA framing", (phase) => {
+		const assetPath = resolve(root, `assets/chat-home/sureword-companion-${phase}.png`);
 		expect(existsSync(assetPath)).toBe(true);
 		expect(statSync(assetPath).size).toBeGreaterThan(100_000);
 
 		const png = readFileSync(assetPath);
 		expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-		expect(png.readUInt32BE(16)).toBe(768);
-		expect(png.readUInt32BE(20)).toBe(768);
+		expect(png.readUInt32BE(16)).toBe(1145);
+		expect(png.readUInt32BE(20)).toBe(1374);
 		// PNG color type 6 is truecolor with an alpha channel.
 		expect(png[25]).toBe(6);
 	});
 
 	it("animates the hero and active replies while respecting Reduce Motion", () => {
-		expect(component).toContain("variant === \"hero\" || active");
+		expect(component).toContain("variant === \"hero\" || phase !== \"idle\"");
 		expect(component).toContain("AccessibilityInfo.isReduceMotionEnabled()");
 		expect(component).toContain("\"reduceMotionChanged\"");
-		expect(component).toContain('require("../../assets/sureword-guide.png")');
+		expect(component).toContain('"screenReaderChanged"');
+		expect(component).toContain('AppState.addEventListener');
 	});
 
 	it("uses the shared identity everywhere the mobile AI speaks", () => {
-		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={96} />');
+		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={190}');
 		expect(chatMessage).toContain(
-			'<SureWordGuideAvatar active={Boolean(message.isStreaming)} />',
+			'<SureWordGuideAvatar phase={guidePhase(Boolean(message.isStreaming), message.content)} />',
 		);
 		expect(noteMessage).toContain(
-			'<SureWordGuideAvatar size={26} active={Boolean(message.isStreaming)} />',
+			'<SureWordGuideAvatar size={26} phase={guidePhase(Boolean(message.isStreaming), message.content)} />',
 		);
 		expect(chatMessage).not.toContain("avatarGlyph");
 		expect(noteMessage).not.toContain("avatarGlyph");

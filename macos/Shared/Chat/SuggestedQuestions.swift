@@ -12,6 +12,10 @@ enum CommonQuestions {
         "What does it mean to be born again?",
         "How should I pray according to Scripture?",
     ]
+    /// Same truthful fallback references used by Android and web.
+    static let suggestions: [SuggestedQuestionInput] = zip(all, [
+        "Genesis 1", "Ecclesiastes 12:13", "Luke 2:7", "Ephesians 4:32", "John 3:3", "Matthew 6:9",
+    ]).map { SuggestedQuestionInput(question: $0.0, label: $0.1) }
 }
 
 enum SuggestedQuestionsAPI {
@@ -110,7 +114,7 @@ final class SuggestedQuestionsModel {
     /// Never empty: the static six until this user's own arrive. Each carries
     /// the gold caption the welcome chips render above the question.
     private(set) var questions: [SuggestedQuestionItem] =
-        QuestionPresentation.buildItems(CommonQuestions.all)
+        QuestionPresentation.buildItems(CommonQuestions.suggestions)
     private(set) var isLoading = false
 
     private let api: APIClient

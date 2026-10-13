@@ -325,6 +325,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 	return (
 		<div
+			data-chat-composer
 			className={`border-t glass pb-safe transition-colors ${dragging ? "border-amber-500 bg-amber-500/[0.05]" : "border-black/[0.08] dark:border-white/[0.06]"}`}
 			onDragEnter={(event) => { event.preventDefault(); if (!disabled) setDragging(true); }}
 			onDragOver={(event) => event.preventDefault()}
@@ -438,14 +439,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
 					{/* Two rows: the field owns the full width, the controls sit
 					    under it. A single row left the textarea 162px wide at
 					    390, which wrapped and then clipped the placeholder. */}
-					<div className="gradient-border liquid-glass rounded-xl px-2 py-1.5">
+					<div data-chat-input className="rounded-3xl px-3 py-2">
 						<textarea
 							ref={textareaRef}
 							value={text}
 							onChange={(e) => setText(e.target.value)}
 							onKeyDown={handleKeyDown}
 							onPaste={handlePaste}
-							placeholder="Ask a question about the Bible..."
+							placeholder="Ask a Bible question..."
+							aria-label="Ask a Bible question"
 							rows={1}
 							disabled={inputDisabled}
 							className="block w-full bg-transparent px-1 py-1.5 text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none max-h-[200px]"
@@ -552,6 +554,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							) : (
 								<button
 									type="button"
+									data-chat-send
 									aria-label="Send message"
 									onClick={handleSubmit}
 									disabled={disabled || !canSend}
@@ -563,7 +566,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</div>
 					</div>
 				</div>
-				<p className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-1.5 sm:mt-2">
+				<p data-chat-disclaimer className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-1.5 sm:mt-2">
 					{/* The long form needs three lines at 390 and pushed the bottom
 					    chrome past a quarter of the viewport. */}
 					<span className="hidden sm:inline">

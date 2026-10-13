@@ -19,6 +19,7 @@ const SWIPE_THRESHOLD = 50;
 const EDGE_ZONE = 30;
 const ERROR_DWELL_MS = 6000;
 const NOTES_PATH = "/notes";
+export const NOTES_WORKSPACE_CLASS_NAME = "flex-1 flex flex-col min-w-0 pb-[var(--sureword-mobile-tab-clearance)] lg:pb-0";
 
 const noteUrl = (id: string) => `${NOTES_PATH}?note=${encodeURIComponent(id)}`;
 
@@ -261,7 +262,7 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 				/>
 			</AppSidebar>
 
-			<div className="flex-1 flex flex-col min-w-0 pb-20 lg:pb-0">
+			<div className={NOTES_WORKSPACE_CLASS_NAME}>
 				<NotesTopBar
 					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
 					onNewNote={handleCreateNote}

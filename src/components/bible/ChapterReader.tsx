@@ -922,7 +922,7 @@ const ChapterReader: React.FC = () => {
               // full-label pill let verse text read straight through it and
               // covered 112px of the reading column. Desktop has room for the
               // label clear of the column, so it keeps the full pill.
-              className={`fixed ${player.open ? "bottom-[13.5rem] lg:bottom-32" : "bottom-24 lg:bottom-6"} right-3 lg:right-6 z-40 flex h-12 w-12 items-center justify-center gap-1.5 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-[hsl(var(--card))] text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber shadow-lg lg:h-auto lg:w-auto lg:px-6 lg:py-3 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors`}
+              className={`fixed ${player.open ? "bottom-[calc(var(--sureword-mobile-tab-clearance)_+_9.25rem)] lg:bottom-32" : "bottom-[calc(var(--sureword-mobile-tab-clearance)_+_1rem)] lg:bottom-6"} right-3 lg:right-6 z-40 flex h-12 w-12 items-center justify-center gap-1.5 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-[hsl(var(--card))] text-sm font-bold text-amber-600 dark:text-amber-400 glow-amber shadow-lg lg:h-auto lg:w-auto lg:px-6 lg:py-3 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors`}
             >
               <span aria-hidden>✦</span>
               <span className="hidden lg:inline">Ask AI</span>

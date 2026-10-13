@@ -1,21 +1,18 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
+import styles from "./ChatHome.module.css";
 import SureWordGuideAvatar from "./SureWordGuideAvatar";
 import { AndroidLogo, AppleLogo } from "./icons/BrandIcons";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
-import { buildSuggestedQuestionItems } from "@/utils/questionPresentation";
+import { buildSuggestedQuestionItems, parseReferenceLabel } from "@/utils/questionPresentation";
 import { ANDROID_APK_URL, MACOS_DMG_URL } from "@/lib/constants";
 import { IosInstallSteps, useInstallPlatform } from "./GetAppLink";
 
 interface WelcomeScreenProps {
   onSelectQuestion: (question: string) => void;
-  /**
-   * The chat composer, rendered inline under the hero because the desktop
-   * fold has room for it there. Android docks its composer at the bottom in
-   * every state instead (see `mobile/app/(app)/index.tsx`).
-   */
-  composer?: React.ReactNode;
 }
 
 /** Chip-shaped placeholders while this user's own questions are being drawn. */
@@ -39,9 +36,9 @@ function isNativeRelease(value: unknown): value is NativeRelease {
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onSelectQuestion,
-  composer,
 }) => {
-  const { questions, loading, personalized } = useSuggestedQuestions();
+  const { questions, loading } = useSuggestedQuestions();
+  const [showAll, setShowAll] = React.useState(false);
   const questionItems = React.useMemo(
     () => buildSuggestedQuestionItems(questions),
     [questions],
@@ -79,92 +76,36 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     };
   }, []);
 
+  const visibleItems = showAll ? questionItems : questionItems.slice(0, 4);
+  const hiddenCount = Math.max(0, questionItems.length - 4);
   return (
-    // Scrolls itself instead of centering: vertical centering let the intrinsic
-    // height win in the flex column and pushed the composer past the fold.
-    <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-      {/* max-w-3xl, matching MessageList and the docked composer: at 4xl the
-          column jumped 64px narrower the moment the first message was sent. */}
-      <div className="max-w-3xl mx-auto px-4 pt-8 pb-10 text-center">
-        <div className="mb-6">
-          <div className="mb-5 flex justify-center">
-            <SureWordGuideAvatar variant="hero" size={96} />
-          </div>
-          {/* Headline only: the pitch, the verse and the trust line live on
-              the signed-out landing page now. A signed-in user is here to ask. */}
-          <h1 className="text-4xl sm:text-6xl font-bold text-neutral-900 dark:text-white font-[family-name:var(--font-pirata)]">
-            Come hungry for the Word.
-          </h1>
+    <div className={styles.welcome}>
+      <div className={styles.backdrop} aria-hidden="true">
+        <Image src="/chat-home/sureword-sanctuary.png" alt="" fill sizes="(max-width: 768px) 100vw, 768px" priority className={styles.darkArt} />
+        <Image src="/chat-home/sureword-sanctuary-light.png" alt="" fill sizes="(max-width: 768px) 100vw, 768px" priority className={styles.lightArt} />
+      </div>
+      <div className={styles.content}>
+        <div className={styles.hero}>
+          <SureWordGuideAvatar variant="hero" size={190} />
+          <h1>Come hungry for the Word.</h1>
         </div>
-
-        {composer ? (
-          // The docked composer draws its own top divider against the viewport
-          // edge; mid-page it needs to read as a card instead. No
-          // `overflow-hidden` here: it would clip the model picker's popover,
-          // so the child gets the matching radius instead.
-          // `relative z-10` keeps the model popover above the question cards:
-          // their backdrop filters make stacking contexts that would otherwise
-          // paint over it, since they come later in the document.
-          <div className="relative z-10 mx-auto mb-8 w-full max-w-3xl rounded-2xl border border-black/[0.08] text-left dark:border-white/[0.06] [&>div]:rounded-2xl [&>div]:border-t-0">
-            {composer}
-          </div>
-        ) : null}
-
-        <div className="mb-3">
-          <h2 className="text-metadata font-semibold uppercase tracking-[0.16em] text-amber-600 dark:text-amber-400">
-            {personalized ? "CHOSEN FROM YOUR STUDY" : "QUESTIONS TO EXPLORE"}
-          </h2>
-          <p className="mt-1 text-support text-neutral-600 dark:text-neutral-300">
-            {personalized
-              ? "Based on your reading, questions, notes, and daily walk."
-              : "Pick a question, or ask your own."}
-          </p>
+        <h2 className={styles.sectionHeading}>CHOSEN FROM YOUR STUDY</h2>
+        <div className={styles.questionGrid} aria-busy={loading} aria-label={loading ? "Preparing your questions" : "Suggested questions"}>
+          {loading ? SKELETON_WIDTHS.slice(0, 4).map((width, i) => <div key={i} className={styles.skeleton} aria-hidden="true">
+            <span style={{ width: `${width}%` }} /><span />
+          </div>) : visibleItems.map(item => <button key={item.key} type="button" className={styles.question}
+            onClick={() => onSelectQuestion(item.question)}>
+            <span>{item.question}</span>
+            <span className={styles.tileFooter}>
+              <span>{item.label ? parseReferenceLabel(item.label) ?? item.label : ""}</span>
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </span>
+          </button>)}
         </div>
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-8"
-          aria-busy={loading}
-          aria-label={
-            loading ? "Preparing your questions" : "Suggested questions"
-          }
-        >
-          {loading
-            ? SKELETON_WIDTHS.map((width, i) => (
-                <div
-                  key={i}
-                  className="px-4 py-3 rounded-xl gradient-border glass-card"
-                  aria-hidden
-                >
-                  <div
-                    className="h-2.5 w-16 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
-                    style={{ animationDelay: `${i * 120}ms` }}
-                  />
-                  <div
-                    className="mt-2 h-4 animate-pulse rounded-full bg-amber-500/15 dark:bg-amber-400/15"
-                    style={{
-                      width: `${width}%`,
-                      animationDelay: `${i * 120}ms`,
-                    }}
-                  />
-                </div>
-              ))
-            : questionItems.map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => onSelectQuestion(item.question)}
-                  className="text-control text-left px-4 py-3 rounded-xl gradient-border glass-card text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-all duration-200 group animate-message-in"
-                >
-                  {item.label ? (
-                    <span className="mb-1 block text-metadata font-semibold uppercase tracking-[0.14em] text-amber-600/90 dark:text-amber-400/80">
-                      {item.label}
-                    </span>
-                  ) : null}
-                  <span className="group-hover:text-neutral-900 dark:group-hover:text-neutral-200 transition-colors">
-                    {item.question}
-                  </span>
-                </button>
-              ))}
-        </div>
-
+        {!loading && !showAll && hiddenCount > 0 && <button type="button" className={styles.more}
+          aria-label={`Show ${hiddenCount} more questions from your study`} onClick={() => setShowAll(true)}>
+          {hiddenCount} more questions <ChevronDown size={18} aria-hidden="true" />
+        </button>}
         {platform === "ios" ? (
           <div className="mx-auto mt-8 max-w-md rounded-xl gradient-border glass-card px-4 py-3">
             <IosInstallSteps />
@@ -172,7 +113,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         ) : (
         <div className="mt-8">
           <p className="text-support text-neutral-500 dark:text-neutral-400 mb-3">
-            ✦ SureWord is also a native app — same account, chats, notes, memories, and daily walk.
+            SureWord is also a native app. Same account, chats, notes, memories, and daily walk.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <a

@@ -1,0 +1,7 @@
+.pose { display: inline-block; flex-shrink: 0; }
+.pose img { display: block; object-fit: contain; }
+.moving img { animation: breathe 6.4s ease-in-out infinite; }
+.thinking img { animation-duration: 4.4s; }
+.answering img { animation-duration: 5.2s; }
+@keyframes breathe { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-3px) rotate(1deg); } }
+@media (prefers-reduced-motion: reduce) { .moving img { animation: none; } }

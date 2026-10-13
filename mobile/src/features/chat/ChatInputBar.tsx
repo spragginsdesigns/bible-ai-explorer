@@ -14,6 +14,7 @@ import {
 	View,
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
+import { chatColors } from "./chatAppearance";
 import PasteInput, {
 	type PastedFile,
 	type PasteTextInputInstance,
@@ -80,7 +81,7 @@ export function ChatInputBar({
 	loading,
 	isStreaming,
 	disabled = false,
-	placeholder = "Ask a question about the Bible...",
+	placeholder = "Ask a Bible question...",
 	commands = [],
 	onLocalCommand,
 	attachment = null,
@@ -101,7 +102,8 @@ export function ChatInputBar({
 	prominent = false,
 	editing = null,
 }: ChatInputBarProps) {
-	const { colors } = useTheme();
+	const { colors: themeColors } = useTheme();
+	const colors = chatColors(themeColors);
 	const styles = useThemedStyles(createStyles);
 	const [innerText, setInnerText] = useState("");
 	const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
@@ -291,6 +293,7 @@ export function ChatInputBar({
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel="Add an attachment"
+					accessibilityState={{ disabled: locked || Boolean(editing) }}
 					disabled={locked || Boolean(editing)}
 					onPress={showAttachmentMenu}
 					style={({ pressed }) => [
@@ -302,7 +305,7 @@ export function ChatInputBar({
 					{uploadingAttachments ? (
 						<ActivityIndicator size="small" color={colors.accentDim} />
 					) : (
-						<Ionicons name="attach" size={21} color={colors.accent} />
+						<Ionicons name="attach" size={23} color={colors.textSecondary} />
 					)}
 				</Pressable>
 				<PasteInput
@@ -333,16 +336,17 @@ export function ChatInputBar({
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Send"
+						accessibilityState={{ disabled: !canSend || locked }}
 						disabled={!canSend || locked}
 						onPress={submit}
 						style={({ pressed }) => [
 							styles.action,
 							styles.send,
-							pressed && { backgroundColor: colors.accentPressed },
+							pressed && { opacity: 0.85 },
 							(!canSend || locked) && styles.sendDisabled,
 						]}
 					>
-						<Ionicons name="arrow-up" size={19} color={colors.accent} />
+						<Ionicons name="arrow-up" size={23} color={colors.bg} />
 					</Pressable>
 				)}
 			</View>
@@ -350,8 +354,9 @@ export function ChatInputBar({
 	);
 }
 
-const createStyles = (c: Colors) =>
-	StyleSheet.create({
+const createStyles = (theme: Colors) => {
+	const c = chatColors(theme);
+	return StyleSheet.create({
 		wrap: { position: "relative" },
 		pill: {
 			flexDirection: "row",
@@ -431,54 +436,33 @@ const createStyles = (c: Colors) =>
 			flexDirection: "row",
 			alignItems: "flex-end",
 			gap: spacing.sm,
-			padding: spacing.sm,
-			paddingLeft: spacing.lg,
+			padding: 8,
+			paddingLeft: 10,
 			backgroundColor: c.surfaceStrong,
-			borderColor: c.borderStrong,
-			borderWidth: 1,
-			borderRadius: radius.xl,
-			// A restrained light halo separates the composer from the black canvas.
-			boxShadow: [
-				{
-					offsetX: 0,
-					offsetY: 0,
-					blurRadius: 10,
-					spreadDistance: 0,
-					color: c.borderStrong,
-				},
-			],
+			borderColor: c.accentBorder,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderRadius: 24,
 		},
-		// On the empty screen the composer is the one thing to do, so the halo
-		// warms to gold and widens a touch; mid-conversation it settles back.
 		barProminent: {
 			borderColor: c.accentBorder,
-			borderWidth: 1,
-			boxShadow: [
-				{
-					offsetX: 0,
-					offsetY: 0,
-					blurRadius: 18,
-					spreadDistance: 0,
-					color: c.accentSoft,
-				},
-			],
 		},
 		input: {
+			fontFamily: fonts.sans,
 			paddingTop: spacing.md,
 			paddingBottom: spacing.md,
 			backgroundColor: "transparent",
 			color: c.text,
-			fontSize: 15,
-			lineHeight: 21,
+			fontSize: 16,
+			lineHeight: 22,
 		},
 		inputWrapper: {
 			flex: 1,
-			minHeight: 45,
+			minHeight: 48,
 			maxHeight: 140,
 		},
 		action: {
-			width: 40,
-			height: 40,
+			width: 48,
+			height: 48,
 			borderRadius: radius.full,
 			alignItems: "center",
 			justifyContent: "center",
@@ -487,8 +471,9 @@ const createStyles = (c: Colors) =>
 			borderWidth: StyleSheet.hairlineWidth,
 		},
 		send: {
-			backgroundColor: c.accentSoft,
-			borderColor: c.accentBorder,
+			backgroundColor: c.accent,
+			borderColor: c.accent,
 		},
-		sendDisabled: { opacity: 0.35 },
+		sendDisabled: { opacity: 0.5 },
 	});
+};

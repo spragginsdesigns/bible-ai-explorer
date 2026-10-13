@@ -171,6 +171,8 @@ tab selection). Same behavior, different plumbing.
 
 ## Chat
 
+2026-10-12: The approved chat home and three-pose companion now have matching Android, web, iOS/iPadOS, and macOS source. Suggestions, actions, composer behavior, and API contracts are retained. Android full checks and native fixtures, web checks/browser geometry, and Apple simulator/unit/UI checks passed. Physical-device and per-channel delivery proof are separate; see [the release ledger](sureword-chat-home-release-2026-10-12.md).
+
 | Feature | Android | Web | macOS | iOS | Notes |
 |---|---|---|---|---|---|
 | Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |

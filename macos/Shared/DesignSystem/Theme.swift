@@ -214,43 +214,49 @@ extension View {
 
 // MARK: - AI guide
 
-/// The one visual identity for an assistant turn on macOS and iOS.
-struct SureWordGuideAvatar: View {
-    @Environment(\.theme) private var theme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var size: CGFloat = 30
-    var active = false
-
-    @State private var pulse = false
-
-    private var shouldAnimate: Bool { active && !reduceMotion }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(theme.glass)
-                .overlay { Circle().strokeBorder(theme.accentBorder, lineWidth: 1) }
-
-            Image("SureWordGuide")
-                .resizable()
-                .scaledToFit()
-                .padding(size * 0.04)
+enum GuidePhase: String {
+    case idle, thinking, answering
+    static func resolve(streaming: Bool, content: String) -> Self {
+        !streaming ? .idle : content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .thinking : .answering
+    }
+    var label: String {
+        switch self {
+        case .idle: "SureWord study companion"
+        case .thinking: "SureWord companion reaching upward in prayer while thinking"
+        case .answering: "SureWord companion raising its page arms in praise while answering"
         }
-        .frame(width: size, height: size)
-        .scaleEffect(pulse ? 1.055 : 1)
-        .offset(y: pulse ? -1 : 0)
-        .animation(
-            shouldAnimate
-                ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
-                : .easeOut(duration: 0.15),
-            value: pulse
-        )
-        .onAppear { pulse = shouldAnimate }
-        .onChange(of: active) { _, _ in pulse = shouldAnimate }
-        .onChange(of: reduceMotion) { _, _ in pulse = shouldAnimate }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("SureWord AI assistant")
+    }
+}
+
+struct SureWordGuideAvatar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @Environment(\.scenePhase) private var scenePhase
+    var size: CGFloat = 40
+    var active = false
+    var phase: GuidePhase? = nil
+    var hero = false
+    @State private var lifted = false
+    private var pose: GuidePhase { phase ?? (active ? .thinking : .idle) }
+    private var shouldAnimate: Bool { (hero || pose != .idle) && !reduceMotion && !voiceOver && scenePhase == .active }
+    private var duration: Double { pose == .thinking ? 2.2 : pose == .answering ? 2.6 : 3.2 }
+    var body: some View {
+        ChatArtwork.image("sureword-companion-\(pose.rawValue)")
+            .resizable().scaledToFit()
+            .frame(width: size, height: size * 1.2)
+            .offset(y: lifted ? (hero ? -3 : -1.2) : 0)
+            .rotationEffect(.degrees(lifted ? 1 : -1))
+            .animation(shouldAnimate ? .easeInOut(duration: duration).repeatForever(autoreverses: true) : nil, value: lifted)
+            .onAppear { lifted = shouldAnimate }
+            .onChange(of: shouldAnimate) { _, value in lifted = value }
+            .onChange(of: pose) { _, _ in
+                lifted = false
+                if shouldAnimate { lifted = true }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityAddTraits(.isImage)
+            .accessibilityLabel(pose.label)
+            .accessibilityIdentifier("sureword-companion-\(pose.rawValue)")
     }
 }
 

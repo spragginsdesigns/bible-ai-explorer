@@ -63,36 +63,39 @@ struct ChatTabView: View {
         .onChange(of: chat.shareNotices != nil) { _, opened in
             if opened { isModelPickerPresented = false }
         }
-        .background(MeshBackground())
+        .background(ChatAppearance.colors(for: theme).bg)
+        .environment(\.theme, ChatAppearance.colors(for: theme))
         .navigationTitle(chat.activeConversation?.title ?? "SureWord")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    chat.isHistoryPresented = true
-                } label: {
-                    Image(systemName: "clock.arrow.circlepath")
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 6) {
+                    if chat.isBusy {
+                        SureWordGuideAvatar(size: 36, phase: .resolve(streaming: true, content: chat.messages.last(where: { $0.role == .assistant })?.content ?? ""))
+                    } else {
+                        ChatArtwork.image("sureword-mark").resizable().scaledToFit().frame(width: 40, height: 40).accessibilityHidden(true)
+                    }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("SureWord").font(.custom(FontFamily.brand, size: 27)).foregroundStyle(ChatAppearance.colors(for: theme).text)
+                        if let title = chat.activeConversation?.title {
+                            Text(title).font(.caption2).foregroundStyle(ChatAppearance.colors(for: theme).textMuted).lineLimit(1)
+                        }
+                    }
                 }
-                .accessibilityLabel("Conversation history")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isModelPickerPresented = true
-                } label: {
-                    Image(systemName: "cpu")
-                }
-                .accessibilityLabel("Choose AI model")
+                Button { chat.newConversation() } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("New chat")
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    chat.newConversation()
-                } label: {
-                    Image(systemName: "square.and.pencil")
-                }
-                .accessibilityLabel("New chat")
+                Menu {
+                    Button("Choose AI model", systemImage: "sparkles") { isModelPickerPresented = true }
+                    Button("Conversation history", systemImage: "clock") { chat.isHistoryPresented = true }
+                    Button("Settings", systemImage: "gearshape") { studyRoute = .settings }
+                } label: { Image(systemName: "ellipsis") }
+                    .accessibilityLabel("Chat options")
             }
         }
-        .settingsGearToolbar()
         .overlay(alignment: .top) {
             if let toast {
                 Text(toast)

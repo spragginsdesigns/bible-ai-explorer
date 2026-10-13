@@ -1,0 +1,35 @@
+{
+  "asset": "sureword-companion-answering.png",
+  "state": "answering-praise",
+  "createdDate": "2026-10-12",
+  "tool": "image_gen.imagegen",
+  "mode": "built-in",
+  "useCase": "identity-preserve",
+  "prompt": "Use case: identity-preserve\nAsset type: production transparent PNG character pose for SureWord Android answering state.\nInput image 1 is the EXACT CHARACTER IDENTITY AND FRAMING reference. Preserve this same little cream-colored folded S-shaped parchment-page companion, its asymmetrical sweeping page hood, two oval ink eyes, kind small smile, golden eight-point day-star at the chest, textured ivory parchment, thin golden page-edge highlights, warm lighting, rendering style, body proportions and scale.\nChange only the pose: both little folded-page arms are raised outward and upward in a joyful yet reverent gesture of praise, naturally part of the page body. Head is gently lifted and the eye gaze slightly elevated, with a peaceful thankful expression. Both raised arms must be clearly visible with refined folded-page tips and no fingers. Keep the existing small smile, do not exaggerate it.\nMaintain the reference's padded portrait 5:6 framing (1145 x 1374 pixels), full body centered at the same approximate chest and lower-body position with generous identical top, side and bottom padding. The arms fit fully within the padding, no clipping. This is a mature tasteful little paper guide and has a welcoming calm expression.\nConstraints: whole character isolated on a genuinely transparent alpha background. No background color, no floor, no cast floor shadow, no foliage, no text, no UI. No deity, dove, cloud, halo, book, particles or any extra object. The chest day-star remains part of the exact character. Preserve material, lighting and visual identity. No cartoon exaggeration, no thick outlines, no extra limbs, nothing clipped.",
+  "referencePath": "C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer/mobile/assets/chat-home/sureword-companion-idle.png",
+  "originalOutputPath": "C:/Users/Owner/.codex/generated_images/01a13161-ff61-7d63-a894-b74e95126135/exec-f2201a52-462d-4e85-956c-9900562e10c2.png",
+  "dimensions": {
+    "width": 1145,
+    "height": 1374
+  },
+  "transparentBackground": true,
+  "pixelMode": "RGBA",
+  "alphaVerification": {
+    "min": 0,
+    "max": 255,
+    "fullyTransparentPixels": 1189105,
+    "partiallyTransparentPixels": 383640,
+    "fullyOpaquePixels": 485,
+    "visibleBoundsAboveAlpha8": [
+      178,
+      172,
+      980,
+      1190
+    ],
+    "maxBorderAlpha": 1,
+    "note": "Character is fully padded and unclipped. Eleven negligible alpha-1 border pixels are generator residue; original alpha is preserved without edits."
+  },
+  "sha256": "378F80E39C9C1A03C4459A0260F5659002862D8980C125E86A9597641AA0F625",
+  "export": "Exact copy of generated original; no crop, resize, alpha adjustment or pixel edits",
+  "visualQA": "Same cream folded S-page identity and golden chest day-star as idle reference, both page arms raised outward and upward in praise, head slightly raised, kind peaceful small smile. No extra objects, background, text, UI, foliage or floor. Generous padding with no visible clipping."
+}

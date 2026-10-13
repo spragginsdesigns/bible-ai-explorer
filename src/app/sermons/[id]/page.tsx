@@ -277,7 +277,7 @@ export default function SermonStudyPage() {
 				<p className="mt-2 text-neutral-700 dark:text-neutral-200">{study.prayer}</p>
 			</section>
 
-			<div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] -mx-5 lg:bottom-0 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
+			<div className="sticky bottom-[calc(var(--sureword-mobile-tab-clearance)_+_0.5rem)] -mx-5 lg:bottom-0 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
 				<a
 					href={watchUrl(study.videoId, study.sermonStartMs)}
 					target="_blank"

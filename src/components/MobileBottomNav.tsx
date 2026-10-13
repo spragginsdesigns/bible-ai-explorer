@@ -1,63 +1,29 @@
 "use client";
-
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-
-/**
- * Mobile bottom navigation: a 1:1 port of the Android glass tab bar
- * (mobile/app/(app)/_layout.tsx). Same three tabs, same glyphs, same
- * floating-pill styling, same active/inactive colors. Rendered from the root
- * layout on every page; visible only below the lg breakpoint, where the top
- * bars hide their own tab nav. Hidden on the auth pages, which sit outside
- * the tab navigator on Android too.
- */
+import { MessageCircle, BookOpen, FileText } from "lucide-react";
+import styles from "./MobileBottomNav.module.css";
 const TABS = [
-	{ href: "/", label: "Chat", glyph: "✦", isActive: (pathname: string) => pathname === "/" },
-	// Pick Up Your Cross and sermon studies live inside the Bible stack on
-	// Android (bible/cross, bible/sermons), so the Bible tab stays lit there.
-	{ href: "/bible", label: "Bible", glyph: "✝", isActive: (pathname: string) => ["/bible", "/cross", "/sermons"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)) },
-	{ href: "/notes", label: "Notes", glyph: "✎", isActive: (pathname: string) => pathname.startsWith("/notes") },
+  { href: "/", label: "Chat", Icon: MessageCircle, isActive: (path: string) => path === "/" },
+  { href: "/bible", label: "Bible", Icon: BookOpen, isActive: (path: string) => ["/bible", "/cross", "/sermons"].some(prefix => path === prefix || path.startsWith(`${prefix}/`)) },
+  { href: "/notes", label: "Notes", Icon: FileText, isActive: (path: string) => path.startsWith("/notes") },
 ] as const;
-
-const HIDDEN_PREFIXES = ["/sign-in", "/sign-up"];
-
-const MobileBottomNav: React.FC = () => {
-	const pathname = usePathname();
-	const { isSignedIn } = useAuth();
-
-	if (!isSignedIn || pathname === "/terms" || HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) return null;
-
-	return (
-		<nav
-			aria-label="Primary"
-			className="fixed inset-x-0 bottom-0 z-40 px-6 pb-[max(env(safe-area-inset-bottom),0.5rem)] lg:hidden"
-		>
-			<div className="liquid-glass flex overflow-hidden rounded-[24px] border border-black/[0.12] dark:border-white/[0.08]">
-				{TABS.map((tab) => {
-					const active = tab.isActive(pathname);
-					return (
-						<Link
-							key={tab.href}
-							href={tab.href}
-							aria-current={active ? "page" : undefined}
-							className={`flex flex-1 items-center justify-center gap-1.5 py-3.5 transition-colors active:opacity-70 ${
-								active
-									? "bg-amber-600/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
-									: "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
-							}`}
-						>
-							<span aria-hidden className="text-[15px] leading-none">
-								{tab.glyph}
-							</span>
-							<span className="text-[13px] font-semibold">{tab.label}</span>
-						</Link>
-					);
-				})}
-			</div>
-		</nav>
-	);
-};
-
-export default MobileBottomNav;
+/** Pure presentation shared with local UI fixtures. The real shell retains its session guard. */
+export function PrimaryNavigation({ pathname }: { pathname: string }) {
+  return <nav aria-label="Primary" className={`${styles.nav} ${pathname === "/" ? styles.chat : ""}`}>
+    <div className={styles.tabs}>{TABS.map(({ href, label, Icon, isActive }) => {
+      const active = isActive(pathname);
+      return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={active ? styles.active : undefined}>
+        <Icon size={24} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span>
+      </Link>;
+    })}</div>
+  </nav>;
+}
+export default function MobileBottomNav() {
+  const pathname = usePathname();
+  const { isSignedIn } = useAuth();
+  if (!isSignedIn || pathname === "/terms" || ["/sign-in", "/sign-up"].some(prefix => pathname.startsWith(prefix))) return null;
+  return <PrimaryNavigation pathname={pathname} />;
+}

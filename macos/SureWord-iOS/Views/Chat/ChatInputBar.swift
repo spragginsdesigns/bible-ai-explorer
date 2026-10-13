@@ -79,12 +79,12 @@ struct ChatInputBar: View {
                         if chat.uploadingAttachments {
                             ProgressView().controlSize(.small)
                         } else {
-                            Image(systemName: "plus")
+                            Image(systemName: "paperclip")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(theme.textMuted)
                         }
                     }
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .contentShape(.circle)
                 }
                 .buttonStyle(.plain)
@@ -92,9 +92,11 @@ struct ChatInputBar: View {
                 .opacity(isLocked && !chat.uploadingAttachments ? 0.35 : 1)
                 .accessibilityLabel("Add an attachment")
 
-                TextField("Ask a question about the Bible...", text: $chat.input, axis: .vertical)
+                TextField("Ask a Bible question...", text: $chat.input,
+                          prompt: Text("Ask a Bible question...").foregroundStyle(theme.textGhost), axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15))
+                    .font(.body)
+                    .foregroundStyle(theme.text)
                     .lineLimit(1...8)
                     .focused($isFocused)
                     .disabled(isLocked)
@@ -107,7 +109,7 @@ struct ChatInputBar: View {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(theme.danger)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .background(theme.dangerSoft, in: .circle)
                             .overlay { Circle().strokeBorder(theme.dangerBorder, lineWidth: 1) }
                             .contentShape(.circle)
@@ -119,7 +121,7 @@ struct ChatInputBar: View {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(chat.canSend ? theme.bg : theme.textGhost)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .background(
                                 chat.canSend ? theme.accent : theme.surfaceStrong,
                                 in: .circle
@@ -132,7 +134,7 @@ struct ChatInputBar: View {
                 }
             }
             .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
+            .padding(.vertical, Spacing.sm)
             .background(theme.glassLight, in: .rect(cornerRadius: Radius.xl))
             .overlay {
                 RoundedRectangle(cornerRadius: Radius.xl)

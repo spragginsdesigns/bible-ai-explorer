@@ -1,0 +1,51 @@
+{
+  "asset": "sureword-companion-idle.png",
+  "generation_date": "2026-10-12",
+  "tool": "image_gen.imagegen",
+  "model_identity": "Not exposed by the built-in tool",
+  "prompt": "Use case: identity-preserve\nAsset type: isolated transparent PNG of the SureWord folded-page companion for a mobile UI.\nInput image 1 is the exact edit target. Keep this character, face, expression, paper folds, chest star, materials, color, lighting and one gently raised page arm IDENTICAL.\nChange ONLY its framing: place this exact complete character at smaller scale in the center of a portrait transparent canvas with generous clean transparent padding. Target canvas 640x768, portrait aspect ratio 5:6. The character must occupy at most 70% of canvas HEIGHT and at most 70% of canvas WIDTH, leaving 15% empty transparent margin above its crest and 15% empty transparent margin below its bottom point. Keep the whole silhouette intact.\nThe page edges should be clean and continuous, without disconnected colored edge pixels. Make the surrounding area completely alpha transparent. No painted checkerboard.\nDo not redesign the character. Do not crop any part. Do not change pose or create a new companion. No floor, cast shadow outside the character, foliage, backdrop, glow on empty canvas, props, words, logo, UI, or extra character. One character only.",
+  "initial_prompt": "Use case: background-extraction\nAsset type: transparent raster companion for the SureWord mobile chat hero (112x160 logical pixels) and message avatar (40x48).\nInput image 1 is the edit target and exact identity reference: the approved SureWord screen. Extract ONLY its friendly folded-page companion, located in the upper center.\nPrimary request: create a single isolated transparent PNG of that EXACT companion in its current idle pose, with one page arm gently raised. Preserve its identity exactly: cream parchment/paper texture, sculptural folded S-shaped page silhouette, long pointed folded-page crest, round small paper face, two oval dark ink eyes, tiny gentle curved smile, warm golden eight-ray day-star centered on its chest, delicate honey-gold paper edges. Keep its proportions, expression, layered folds, color and light quality faithful to the reference.\nComposition/framing: portrait canvas approximately 640x768. Whole character silhouette fully inside frame, centered, with at least 10% genuinely transparent padding on all sides. Make the face and chest star clean and readable at small UI sizes. Preserve soft highlights within the character. Remove the floor and its glow entirely.\nScene/backdrop: genuinely transparent alpha background. Character alone. No scene.\nConstraints: output exactly one complete character, one face, two ink eyes, one gentle smile, one golden chest star, one page arm gently raised. This is an extraction with identity preservation, not a redesign or a new mascot.\nAvoid: foliage, floor, pedestal, UI, text, logos, words, background gradients, background colors, background texture, backdrop, cast shadows or floor glows outside the character, extra characters, extra stars detached from character, decorative particles, teal recoloring, anthropomorphic hands or feet, outlines.",
+  "reference_path": "C:/Users/Owner/.codex/generated_images/01a130fb-0abf-7f72-b3a7-a569a8aecae0/exec-1904b868-aca4-4d23-9d06-bd37d320d68a.png",
+  "edit_reference_path": "C:/Users/Owner/.codex/generated_images/01a13161-d17d-7ed1-a7c5-8019cf35c21d/exec-0771eed9-87d5-477a-a12b-b82aabd4c9bd.png",
+  "original_output_path": "C:/Users/Owner/.codex/generated_images/01a13161-d17d-7ed1-a7c5-8019cf35c21d/exec-d0d318bd-bc59-48dc-b42a-4ef9bb3b12e3.png",
+  "transparent_background": true,
+  "requested_dimensions": [
+    640,
+    768
+  ],
+  "output_dimensions": [
+    1145,
+    1374
+  ],
+  "final_saved_path": "C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer/mobile/assets/chat-home/sureword-companion-idle.png",
+  "alpha_verification": {
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "transparent_corner_values": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "transparent_pixels": 1252026,
+    "total_pixels": 1573230,
+    "alpha_at_least_32_bbox": [
+      302,
+      219,
+      923,
+      1180
+    ],
+    "all_nontransparent_bbox": [
+      106,
+      104,
+      1085,
+      1358
+    ]
+  },
+  "sha256": "66b166fa1dc6b676ef5701b41ab83cdcf0b438d37bdf0089437eed21b597ec51",
+  "original_preserved": true,
+  "notes": "Original generated PNG copied byte-for-byte without resizing or alpha modification. Subject silhouette has at least 14 percent vertical and 19 percent horizontal padding at alpha >= 32. A few low-opacity pixels extend into margins."
+}

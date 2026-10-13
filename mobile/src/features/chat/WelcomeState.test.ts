@@ -10,8 +10,8 @@ const normalized = welcome.replace(/\s+/g, " ");
 describe("empty chat welcome", () => {
 	it("keeps the approved headline and nothing else above the questions", () => {
 		expect(normalized).toContain('WELCOME_HEADLINE = "Come hungry for the Word."');
-		expect(welcome).toContain("{WELCOME_HEADLINE}");
-		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={96} />');
+		expect(welcome).toContain("accessibilityLabel={WELCOME_HEADLINE}");
+		expect(welcome).toContain('<SureWordGuideAvatar variant="hero" size={190}');
 
 		// The pitch, the verse and the trust line moved to the signed-out
 		// landing page; a signed-in user opens a chat tab, not a brochure.
@@ -29,8 +29,8 @@ describe("empty chat welcome", () => {
 	it("shows the first four questions with a reveal for the rest, in server order", () => {
 		expect(welcome).toContain("CHOSEN FROM YOUR STUDY");
 		expect(welcome).toContain("VISIBLE_QUESTION_COUNT = 4");
-		expect(welcome).toContain("questionItems.slice(0, VISIBLE_QUESTION_COUNT)");
-		expect(welcome).toContain("more from your study");
+		expect(welcome).toContain("items.slice(0, VISIBLE_QUESTION_COUNT)");
+		expect(welcome).toContain("more questions");
 		expect(welcome).not.toContain("featuredQuestion");
 	});
 

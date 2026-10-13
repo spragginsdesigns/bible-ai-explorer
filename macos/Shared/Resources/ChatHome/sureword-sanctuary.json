@@ -1,0 +1,25 @@
+{
+  "asset": "sureword-sanctuary.png",
+  "createdDate": "2026-10-12",
+  "tool": "image_gen.imagegen",
+  "mode": "built-in",
+  "useCase": "stylized-concept",
+  "prompt": "Use case: stylized-concept\nAsset type: production Android chat-home hero background raster, wide landscape 1200 x 720 pixels, opaque.\nInput image 1 is a STYLE AND COLOR REFERENCE ONLY. It is an approved SureWord mobile mockup. Create ONLY its quiet atmospheric background as a separate landscape asset. Do not reproduce the user interface or central character.\nPrimary request: a restrained, beautiful near-black warm charcoal sanctuary background, base color #0d100d. Quiet dark olive-charcoal foliage frames only the far left and far right edges. Leaf tips have a few desaturated warm gold accents with subtle natural material detail. The spacious center is intentionally empty and near-black so a separately rendered animated companion can be layered there.\nComposition: wide landscape, 5:3 ratio. Foliage stays within the outer 20 percent at each edge and does not intrude on the clear central 60 percent. A very subtle small warm pool of light sits low at horizontal center around the lower-middle region, with a faint honey-gold atmospheric illumination from upper right. Light is understated, leaving the center predominantly dark. Bottom 15 percent visually blends gradually and smoothly into solid #0d100d, no horizon line or hard cutoff.\nStyle and mood: match the attached approved mockup's adult, restrained atmosphere, elegant dimensional foliage, sophisticated low contrast, calm and welcoming, a subtle cinematic soft-focus backdrop.\nConstraints: background only. No companion or character, no people, no face, no emblem, no star, no sunburst, no book, no logo, no text, no UI, no icons, no frame or border. No teal cast, no neon, no bright particle field. Opaque background.",
+  "referencePath": "C:/Users/Owner/.codex/generated_images/01a130fb-0abf-7f72-b3a7-a569a8aecae0/exec-1904b868-aca4-4d23-9d06-bd37d320d68a.png",
+  "originalOutputPath": "C:/Users/Owner/.codex/generated_images/01a13161-ff61-7d63-a894-b74e95126135/exec-a6c7ae2f-c954-4e78-bb2a-20f5618c859d.png",
+  "requestedDimensions": {
+    "width": 1200,
+    "height": 720
+  },
+  "actualDimensions": {
+    "width": 1619,
+    "height": 971
+  },
+  "transparentBackground": false,
+  "export": "Exact copy of generated original, no pixel edits",
+  "intendedDisplay": {
+    "width": 390,
+    "height": 230
+  },
+  "visualQA": "Warm olive-charcoal foliage frames both edges, a clear near-black center, low honey-gold light pool, no character, emblem, words or UI. Opaque RGB. Bottom is visually dark with a soft fade; consuming layout may add its normal bottom overlay to guarantee exact screen-color blending."
+}

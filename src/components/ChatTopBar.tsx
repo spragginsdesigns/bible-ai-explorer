@@ -1,80 +1,34 @@
 "use client";
-
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Menu, Sun, Moon, SquarePen, Smartphone, Settings } from "lucide-react";
+import { Clock, Sun, Moon, Plus, Smartphone, Settings, MoreVertical } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
 import GetAppLink from "./GetAppLink";
-
-interface ChatTopBarProps {
-	title: string;
-	onToggleSidebar: () => void;
-	onNewChat: () => void;
-}
-
+import styles from "./ChatTopBar.module.css";
+interface ChatTopBarProps { title: string; onToggleSidebar: () => void; onNewChat: () => void }
 const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewChat }) => {
-	const { setTheme } = useTheme();
-
-	return (
-		<header className="h-14 flex lg:hidden items-center justify-between px-4 border-b border-black/[0.08] dark:border-white/[0.06] glass flex-shrink-0">
-			<div className="flex items-center gap-1 min-w-0">
-				<button
-					onClick={onToggleSidebar}
-					aria-label="Open sidebar"
-					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
-				>
-					<Menu className="w-5 h-5" />
-				</button>
-				<span className="truncate text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-					{title}
-				</span>
-			</div>
-			<div className="flex items-center gap-0">
-				<button
-					onClick={onNewChat}
-					title="New Chat"
-					aria-label="New chat"
-					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-				>
-					<SquarePen className="w-4 h-4" />
-				</button>
-				<GetAppLink
-					source="chat-top-bar"
-					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-				>
-					<Smartphone className="w-4 h-4" />
-				</GetAppLink>
-				<button
-					onClick={() => {
-						const isDark = document.documentElement.classList.contains("dark");
-						setTheme(isDark ? "light" : "dark");
-					}}
-					title="Toggle theme"
-					aria-label="Toggle theme"
-					className="text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-				>
-					<Sun className="w-4 h-4 hidden dark:block" />
-					<Moon className="w-4 h-4 block dark:hidden" />
-				</button>
-				<Link
-					href="/settings"
-					title="Settings"
-					aria-label="Settings"
-					className="text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-				>
-					<Settings className="w-4 h-4" />
-				</Link>
-				<div className="ml-1 flex items-center">
-					{/* afterSignOutUrl was removed from UserButton in @clerk/nextjs v7.
-					    Nothing is lost: signing out drops the session, the next
-					    protected page hits the middleware, and that redirects to
-					    /sign-in. */}
-					<UserButton />
-				</div>
-			</div>
-		</header>
-	);
+  const { setTheme } = useTheme();
+  return <header className={styles.header}>
+    <Image src="/chat-home/sureword-mark.png" width={48} height={48} alt="" className={styles.mark} />
+    <div className={styles.title}>
+      <span className="font-[family-name:var(--font-pirata)]">SureWord</span>
+      {title !== "New Chat" && <small>{title}</small>}
+    </div>
+    <button type="button" className={styles.newChat} onClick={onNewChat} aria-label="New chat"><Plus size={24} /></button>
+    <details className={styles.options}>
+      <summary aria-label="Chat options"><MoreVertical size={22} /></summary>
+      <div className={styles.menu}>
+        <button type="button" onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); onToggleSidebar(); }}><Clock size={20} /> Conversation history</button>
+        <GetAppLink source="chat-top-bar" className={styles.row}><Smartphone size={20} /> Get the app</GetAppLink>
+        <button type="button" onClick={() => setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark")}>
+          <Sun size={20} className="hidden dark:block" /><Moon size={20} className="block dark:hidden" /> Toggle theme
+        </button>
+        <Link href="/settings" className={styles.row}><Settings size={20} /> Settings</Link>
+        <div className={styles.row}><UserButton /><span>Account</span></div>
+      </div>
+    </details>
+  </header>;
 };
-
 export default ChatTopBar;

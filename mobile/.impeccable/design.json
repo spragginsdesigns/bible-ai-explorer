@@ -1,0 +1,968 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-12T20:47:32Z",
+  "title": "Design System: SureWord Android chat",
+  "extensions": {
+    "scope": {
+      "platform": "android",
+      "surface": "chat-home",
+      "approvalDate": "2026-10-12",
+      "approvedComp": "../artifacts/chat-home-redesign/approved.png",
+      "surfaceBrief": ".impeccable/surfaces/chat-home.md",
+      "paletteBoundary": "chat only; global palettes and reader ink retain src/theme/index.ts",
+      "sharedChange": "navigation geometry across Android primary tabs only",
+      "unmodifiedWorlds": [
+        "Bible screen body",
+        "Notes screen body",
+        "Settings",
+        "web",
+        "Apple clients"
+      ]
+    },
+    "colorMeta": {
+      "charcoal-bg": {
+        "role": "neutral",
+        "displayName": "Warm charcoal",
+        "sourceRoles": [
+          "dark.bg",
+          "dark.bgMid",
+          "dark.bgEnd"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.00782 145.22)",
+          "oklch(26.43% 0.00782 145.22)",
+          "oklch(37.86% 0.00782 145.22)",
+          "oklch(49.29% 0.00782 145.22)",
+          "oklch(60.71% 0.00782 145.22)",
+          "oklch(72.14% 0.00782 145.22)",
+          "oklch(83.57% 0.00782 145.22)",
+          "oklch(95.00% 0.00782 145.22)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "charcoal-elevated": {
+        "role": "neutral",
+        "displayName": "Elevated charcoal",
+        "sourceRoles": [
+          "dark.bgElevated",
+          "dark.glass"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.00911 137.84)",
+          "oklch(26.43% 0.00911 137.84)",
+          "oklch(37.86% 0.00911 137.84)",
+          "oklch(49.29% 0.00911 137.84)",
+          "oklch(60.71% 0.00911 137.84)",
+          "oklch(72.14% 0.00911 137.84)",
+          "oklch(83.57% 0.00911 137.84)",
+          "oklch(95.00% 0.00911 137.84)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "charcoal-surface": {
+        "role": "neutral",
+        "displayName": "Olive charcoal surface",
+        "sourceRoles": [
+          "dark.glassLight",
+          "dark.surface"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01197 145.18)",
+          "oklch(26.43% 0.01197 145.18)",
+          "oklch(37.86% 0.01197 145.18)",
+          "oklch(49.29% 0.01197 145.18)",
+          "oklch(60.71% 0.01197 145.18)",
+          "oklch(72.14% 0.01197 145.18)",
+          "oklch(83.57% 0.01197 145.18)",
+          "oklch(95.00% 0.01197 145.18)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "charcoal-composer": {
+        "role": "neutral",
+        "displayName": "Composer charcoal",
+        "sourceRoles": [
+          "dark.surfaceStrong"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01265 135.10)",
+          "oklch(26.43% 0.01265 135.10)",
+          "oklch(37.86% 0.01265 135.10)",
+          "oklch(49.29% 0.01265 135.10)",
+          "oklch(60.71% 0.01265 135.10)",
+          "oklch(72.14% 0.01265 135.10)",
+          "oklch(83.57% 0.01265 135.10)",
+          "oklch(95.00% 0.01265 135.10)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "charcoal-pressed": {
+        "role": "neutral",
+        "displayName": "Pressed charcoal",
+        "sourceRoles": [
+          "dark.surfacePressed"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01730 131.20)",
+          "oklch(26.43% 0.01730 131.20)",
+          "oklch(37.86% 0.01730 131.20)",
+          "oklch(49.29% 0.01730 131.20)",
+          "oklch(60.71% 0.01730 131.20)",
+          "oklch(72.14% 0.01730 131.20)",
+          "oklch(83.57% 0.01730 131.20)",
+          "oklch(95.00% 0.01730 131.20)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "gold-border": {
+        "role": "neutral",
+        "displayName": "Quiet gold border",
+        "sourceRoles": [
+          "dark.border"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89 / 0.12)",
+          "oklch(26.43% 0.11406 79.89 / 0.12)",
+          "oklch(37.86% 0.11406 79.89 / 0.12)",
+          "oklch(49.29% 0.11406 79.89 / 0.12)",
+          "oklch(60.71% 0.11406 79.89 / 0.12)",
+          "oklch(72.14% 0.11406 79.89 / 0.12)",
+          "oklch(83.57% 0.11406 79.89 / 0.12)",
+          "oklch(95.00% 0.11406 79.89 / 0.12)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "gold-border-strong": {
+        "role": "neutral",
+        "displayName": "Strong gold border",
+        "sourceRoles": [
+          "dark.borderStrong"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89 / 0.2)",
+          "oklch(26.43% 0.11406 79.89 / 0.2)",
+          "oklch(37.86% 0.11406 79.89 / 0.2)",
+          "oklch(49.29% 0.11406 79.89 / 0.2)",
+          "oklch(60.71% 0.11406 79.89 / 0.2)",
+          "oklch(72.14% 0.11406 79.89 / 0.2)",
+          "oklch(83.57% 0.11406 79.89 / 0.2)",
+          "oklch(95.00% 0.11406 79.89 / 0.2)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "ivory": {
+        "role": "neutral",
+        "displayName": "Warm ivory",
+        "sourceRoles": [
+          "dark.text"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02409 85.79)",
+          "oklch(26.43% 0.02409 85.79)",
+          "oklch(37.86% 0.02409 85.79)",
+          "oklch(49.29% 0.02409 85.79)",
+          "oklch(60.71% 0.02409 85.79)",
+          "oklch(72.14% 0.02409 85.79)",
+          "oklch(83.57% 0.02409 85.79)",
+          "oklch(95.00% 0.02409 85.79)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "soft-ivory": {
+        "role": "neutral",
+        "displayName": "Soft ivory",
+        "sourceRoles": [
+          "dark.textSecondary"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01655 79.35)",
+          "oklch(26.43% 0.01655 79.35)",
+          "oklch(37.86% 0.01655 79.35)",
+          "oklch(49.29% 0.01655 79.35)",
+          "oklch(60.71% 0.01655 79.35)",
+          "oklch(72.14% 0.01655 79.35)",
+          "oklch(83.57% 0.01655 79.35)",
+          "oklch(95.00% 0.01655 79.35)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "warm-stone": {
+        "role": "neutral",
+        "displayName": "Warm stone",
+        "sourceRoles": [
+          "dark.textMuted"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01909 78.21)",
+          "oklch(26.43% 0.01909 78.21)",
+          "oklch(37.86% 0.01909 78.21)",
+          "oklch(49.29% 0.01909 78.21)",
+          "oklch(60.71% 0.01909 78.21)",
+          "oklch(72.14% 0.01909 78.21)",
+          "oklch(83.57% 0.01909 78.21)",
+          "oklch(95.00% 0.01909 78.21)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "muted-stone": {
+        "role": "neutral",
+        "displayName": "Muted stone",
+        "sourceRoles": [
+          "dark.textFaint"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02056 80.09)",
+          "oklch(26.43% 0.02056 80.09)",
+          "oklch(37.86% 0.02056 80.09)",
+          "oklch(49.29% 0.02056 80.09)",
+          "oklch(60.71% 0.02056 80.09)",
+          "oklch(72.14% 0.02056 80.09)",
+          "oklch(83.57% 0.02056 80.09)",
+          "oklch(95.00% 0.02056 80.09)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "dim-stone": {
+        "role": "neutral",
+        "displayName": "Dim stone",
+        "sourceRoles": [
+          "dark.textGhost"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02067 80.09)",
+          "oklch(26.43% 0.02067 80.09)",
+          "oklch(37.86% 0.02067 80.09)",
+          "oklch(49.29% 0.02067 80.09)",
+          "oklch(60.71% 0.02067 80.09)",
+          "oklch(72.14% 0.02067 80.09)",
+          "oklch(83.57% 0.02067 80.09)",
+          "oklch(95.00% 0.02067 80.09)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "honey-gold": {
+        "role": "primary",
+        "displayName": "Honey gold",
+        "sourceRoles": [
+          "dark.accent"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89)",
+          "oklch(26.43% 0.11406 79.89)",
+          "oklch(37.86% 0.11406 79.89)",
+          "oklch(49.29% 0.11406 79.89)",
+          "oklch(60.71% 0.11406 79.89)",
+          "oklch(72.14% 0.11406 79.89)",
+          "oklch(83.57% 0.11406 79.89)",
+          "oklch(95.00% 0.11406 79.89)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "aged-gold": {
+        "role": "primary",
+        "displayName": "Aged gold",
+        "sourceRoles": [
+          "dark.accentDim"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.08545 81.47)",
+          "oklch(26.43% 0.08545 81.47)",
+          "oklch(37.86% 0.08545 81.47)",
+          "oklch(49.29% 0.08545 81.47)",
+          "oklch(60.71% 0.08545 81.47)",
+          "oklch(72.14% 0.08545 81.47)",
+          "oklch(83.57% 0.08545 81.47)",
+          "oklch(95.00% 0.08545 81.47)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "gold-wash": {
+        "role": "primary",
+        "displayName": "Gold wash",
+        "sourceRoles": [
+          "dark.accentSoft"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89 / 0.08)",
+          "oklch(26.43% 0.11406 79.89 / 0.08)",
+          "oklch(37.86% 0.11406 79.89 / 0.08)",
+          "oklch(49.29% 0.11406 79.89 / 0.08)",
+          "oklch(60.71% 0.11406 79.89 / 0.08)",
+          "oklch(72.14% 0.11406 79.89 / 0.08)",
+          "oklch(83.57% 0.11406 79.89 / 0.08)",
+          "oklch(95.00% 0.11406 79.89 / 0.08)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "gold-outline": {
+        "role": "primary",
+        "displayName": "Gold outline",
+        "sourceRoles": [
+          "dark.accentBorder"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89 / 0.28)",
+          "oklch(26.43% 0.11406 79.89 / 0.28)",
+          "oklch(37.86% 0.11406 79.89 / 0.28)",
+          "oklch(49.29% 0.11406 79.89 / 0.28)",
+          "oklch(60.71% 0.11406 79.89 / 0.28)",
+          "oklch(72.14% 0.11406 79.89 / 0.28)",
+          "oklch(83.57% 0.11406 79.89 / 0.28)",
+          "oklch(95.00% 0.11406 79.89 / 0.28)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "gold-pressed": {
+        "role": "primary",
+        "displayName": "Pressed gold",
+        "sourceRoles": [
+          "dark.accentPressed"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.11406 79.89 / 0.14)",
+          "oklch(26.43% 0.11406 79.89 / 0.14)",
+          "oklch(37.86% 0.11406 79.89 / 0.14)",
+          "oklch(49.29% 0.11406 79.89 / 0.14)",
+          "oklch(60.71% 0.11406 79.89 / 0.14)",
+          "oklch(72.14% 0.11406 79.89 / 0.14)",
+          "oklch(83.57% 0.11406 79.89 / 0.14)",
+          "oklch(95.00% 0.11406 79.89 / 0.14)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "parchment-bg": {
+        "role": "neutral",
+        "displayName": "Light parchment",
+        "sourceRoles": [
+          "light.bg"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01269 86.83)",
+          "oklch(26.43% 0.01269 86.83)",
+          "oklch(37.86% 0.01269 86.83)",
+          "oklch(49.29% 0.01269 86.83)",
+          "oklch(60.71% 0.01269 86.83)",
+          "oklch(72.14% 0.01269 86.83)",
+          "oklch(83.57% 0.01269 86.83)",
+          "oklch(95.00% 0.01269 86.83)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Elevated warm paper",
+        "sourceRoles": [
+          "light.bgElevated"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.00821 91.48)",
+          "oklch(26.43% 0.00821 91.48)",
+          "oklch(37.86% 0.00821 91.48)",
+          "oklch(49.29% 0.00821 91.48)",
+          "oklch(60.71% 0.00821 91.48)",
+          "oklch(72.14% 0.00821 91.48)",
+          "oklch(83.57% 0.00821 91.48)",
+          "oklch(95.00% 0.00821 91.48)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "pale-parchment": {
+        "role": "neutral",
+        "displayName": "Pale parchment surface",
+        "sourceRoles": [
+          "light.surface"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01655 91.56)",
+          "oklch(26.43% 0.01655 91.56)",
+          "oklch(37.86% 0.01655 91.56)",
+          "oklch(49.29% 0.01655 91.56)",
+          "oklch(60.71% 0.01655 91.56)",
+          "oklch(72.14% 0.01655 91.56)",
+          "oklch(83.57% 0.01655 91.56)",
+          "oklch(95.00% 0.01655 91.56)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "ivory-composer": {
+        "role": "neutral",
+        "displayName": "Light ivory composer",
+        "sourceRoles": [
+          "light.surfaceStrong"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.00818 91.48)",
+          "oklch(26.43% 0.00818 91.48)",
+          "oklch(37.86% 0.00818 91.48)",
+          "oklch(49.29% 0.00818 91.48)",
+          "oklch(60.71% 0.00818 91.48)",
+          "oklch(72.14% 0.00818 91.48)",
+          "oklch(83.57% 0.00818 91.48)",
+          "oklch(95.00% 0.00818 91.48)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "pressed-parchment": {
+        "role": "neutral",
+        "displayName": "Pressed parchment",
+        "sourceRoles": [
+          "light.surfacePressed"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02212 92.52)",
+          "oklch(26.43% 0.02212 92.52)",
+          "oklch(37.86% 0.02212 92.52)",
+          "oklch(49.29% 0.02212 92.52)",
+          "oklch(60.71% 0.02212 92.52)",
+          "oklch(72.14% 0.02212 92.52)",
+          "oklch(83.57% 0.02212 92.52)",
+          "oklch(95.00% 0.02212 92.52)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "deep-olive": {
+        "role": "neutral",
+        "displayName": "Deep olive ink",
+        "sourceRoles": [
+          "light.text"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.01949 163.33)",
+          "oklch(26.43% 0.01949 163.33)",
+          "oklch(37.86% 0.01949 163.33)",
+          "oklch(49.29% 0.01949 163.33)",
+          "oklch(60.71% 0.01949 163.33)",
+          "oklch(72.14% 0.01949 163.33)",
+          "oklch(83.57% 0.01949 163.33)",
+          "oklch(95.00% 0.01949 163.33)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "olive-ink": {
+        "role": "neutral",
+        "displayName": "Secondary olive ink",
+        "sourceRoles": [
+          "light.textSecondary"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02481 158.56)",
+          "oklch(26.43% 0.02481 158.56)",
+          "oklch(37.86% 0.02481 158.56)",
+          "oklch(49.29% 0.02481 158.56)",
+          "oklch(60.71% 0.02481 158.56)",
+          "oklch(72.14% 0.02481 158.56)",
+          "oklch(83.57% 0.02481 158.56)",
+          "oklch(95.00% 0.02481 158.56)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "olive-muted": {
+        "role": "neutral",
+        "displayName": "Muted olive",
+        "sourceRoles": [
+          "light.textMuted"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02336 128.99)",
+          "oklch(26.43% 0.02336 128.99)",
+          "oklch(37.86% 0.02336 128.99)",
+          "oklch(49.29% 0.02336 128.99)",
+          "oklch(60.71% 0.02336 128.99)",
+          "oklch(72.14% 0.02336 128.99)",
+          "oklch(83.57% 0.02336 128.99)",
+          "oklch(95.00% 0.02336 128.99)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "olive-faint": {
+        "role": "neutral",
+        "displayName": "Faint olive",
+        "sourceRoles": [
+          "light.textFaint",
+          "light.textGhost"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.02216 120.17)",
+          "oklch(26.43% 0.02216 120.17)",
+          "oklch(37.86% 0.02216 120.17)",
+          "oklch(49.29% 0.02216 120.17)",
+          "oklch(60.71% 0.02216 120.17)",
+          "oklch(72.14% 0.02216 120.17)",
+          "oklch(83.57% 0.02216 120.17)",
+          "oklch(95.00% 0.02216 120.17)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "bronze": {
+        "role": "primary",
+        "displayName": "Readable bronze",
+        "sourceRoles": [
+          "light.accent",
+          "light.accentDim"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.08425 75.21)",
+          "oklch(26.43% 0.08425 75.21)",
+          "oklch(37.86% 0.08425 75.21)",
+          "oklch(49.29% 0.08425 75.21)",
+          "oklch(60.71% 0.08425 75.21)",
+          "oklch(72.14% 0.08425 75.21)",
+          "oklch(83.57% 0.08425 75.21)",
+          "oklch(95.00% 0.08425 75.21)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "bronze-wash": {
+        "role": "primary",
+        "displayName": "Bronze wash",
+        "sourceRoles": [
+          "light.accentSoft"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.08425 75.21 / 0.07)",
+          "oklch(26.43% 0.08425 75.21 / 0.07)",
+          "oklch(37.86% 0.08425 75.21 / 0.07)",
+          "oklch(49.29% 0.08425 75.21 / 0.07)",
+          "oklch(60.71% 0.08425 75.21 / 0.07)",
+          "oklch(72.14% 0.08425 75.21 / 0.07)",
+          "oklch(83.57% 0.08425 75.21 / 0.07)",
+          "oklch(95.00% 0.08425 75.21 / 0.07)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "bronze-outline": {
+        "role": "primary",
+        "displayName": "Bronze outline",
+        "sourceRoles": [
+          "light.accentBorder"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.08425 75.21 / 0.22)",
+          "oklch(26.43% 0.08425 75.21 / 0.22)",
+          "oklch(37.86% 0.08425 75.21 / 0.22)",
+          "oklch(49.29% 0.08425 75.21 / 0.22)",
+          "oklch(60.71% 0.08425 75.21 / 0.22)",
+          "oklch(72.14% 0.08425 75.21 / 0.22)",
+          "oklch(83.57% 0.08425 75.21 / 0.22)",
+          "oklch(95.00% 0.08425 75.21 / 0.22)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      },
+      "bronze-pressed": {
+        "role": "primary",
+        "displayName": "Pressed bronze",
+        "sourceRoles": [
+          "light.accentPressed"
+        ],
+        "source": "src/features/chat/chatAppearance.ts",
+        "tonalRamp": [
+          "oklch(15.00% 0.08425 75.21 / 0.12)",
+          "oklch(26.43% 0.08425 75.21 / 0.12)",
+          "oklch(37.86% 0.08425 75.21 / 0.12)",
+          "oklch(49.29% 0.08425 75.21 / 0.12)",
+          "oklch(60.71% 0.08425 75.21 / 0.12)",
+          "oklch(72.14% 0.08425 75.21 / 0.12)",
+          "oklch(83.57% 0.08425 75.21 / 0.12)",
+          "oklch(95.00% 0.08425 75.21 / 0.12)"
+        ],
+        "tonalRampStatus": "synthetic panel swatches, not implemented palette tokens"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "SureWord wordmark",
+        "purpose": "ChatHeader BrandTitle, rounded 1.25x line box"
+      },
+      "headline": {
+        "displayName": "Welcome headline",
+        "purpose": "WelcomeContent headline"
+      },
+      "body": {
+        "displayName": "Question and composer",
+        "purpose": "Question text line-height override and native input"
+      },
+      "label": {
+        "displayName": "Study section label",
+        "purpose": "Uppercase section heading with 1.7 tracking"
+      },
+      "micro": {
+        "displayName": "Study reference",
+        "purpose": "Tile reference and optional header subtitle"
+      },
+      "support": {
+        "displayName": "Navigation label",
+        "purpose": "14/20 regular tab text"
+      },
+      "support-bold": {
+        "displayName": "More questions",
+        "purpose": "14/20 bold reveal action"
+      },
+      "chip": {
+        "displayName": "Verse context",
+        "purpose": "13/18 declared weight 600, AppText resolves the bundled bold face"
+      }
+    },
+    "native": {
+      "sources": [
+        "src/features/chat/WelcomeState.tsx",
+        "src/features/chat/ChatHeader.tsx",
+        "src/features/chat/ChatInputBar.tsx",
+        "src/features/chat/layout.ts",
+        "app/(app)/_layout.tsx",
+        "src/theme/index.ts",
+        "src/components/AppText.tsx",
+        "src/components/ui.tsx"
+      ],
+      "units": {
+        "dimensions": "React Native logical dp",
+        "text": "native logical font size, system scaling enabled",
+        "frontmatter": "portable px serialization of source numbers"
+      },
+      "inheritedRoles": {
+        "dark": [
+          "danger",
+          "dangerSoft",
+          "dangerBorder",
+          "parchmentInk",
+          "parchmentNumber",
+          "parchmentHighlight"
+        ],
+        "light": [
+          "bgMid",
+          "bgEnd",
+          "glass",
+          "glassLight",
+          "border",
+          "borderStrong",
+          "danger",
+          "dangerSoft",
+          "dangerBorder",
+          "parchmentInk",
+          "parchmentNumber",
+          "parchmentHighlight"
+        ],
+        "source": "src/theme/index.ts"
+      },
+      "layout": {
+        "header": {
+          "minHeight": 56,
+          "paddingHorizontal": 16,
+          "paddingVertical": 4,
+          "gap": 8,
+          "target": 48
+        },
+        "hero": {
+          "companionWidth": 190,
+          "companionHeightRatio": 1.2,
+          "marginTop": -18,
+          "marginBottom": -18,
+          "paddingBottom": 24,
+          "headlineMarginTop": -8,
+          "headlineMaxWidth": 310,
+          "headlinePaddingHorizontal": 12,
+          "backdropHeight": 344,
+          "backdropOpacityDark": 0.65,
+          "backdropOpacityLight": 0.18,
+          "backdropChildWidth": "100%",
+          "backdropChildHeight": "100%",
+          "backdropResizeMode": "cover",
+          "lightBackdropAsset": "assets/chat-home/sureword-sanctuary-light.png"
+        },
+        "questions": {
+          "initialVisibleCount": 4,
+          "paddingHorizontal": 16,
+          "paddingBottom": 8,
+          "gap": 10,
+          "tilePadding": 14,
+          "tileMinHeight": 124,
+          "moreMinHeight": 48,
+          "singleColumnFormula": "width < 350 || Math.round(fontScale * 100) >= 130",
+          "native130PercentFloat": 1.2999999523162842
+        },
+        "composer": {
+          "padding": 8,
+          "paddingLeft": 10,
+          "gap": 8,
+          "wrapperPaddingHorizontal": 16,
+          "wrapperPaddingTop": 8,
+          "wrapperBottomFormula": "useTabBarSpace() + spacing.md",
+          "inputMinHeight": 48,
+          "inputMaxHeight": 140,
+          "inputPaddingVertical": 12,
+          "actionWidth": 48,
+          "actionHeight": 48,
+          "disabledOpacity": 0.5
+        },
+        "navigation": {
+          "itemMinHeight": 72,
+          "paddingVertical": 4,
+          "paddingHorizontal": 8,
+          "gap": 4,
+          "iconSize": 24,
+          "labelGap": 3,
+          "visibleHeightBeforeInset": 80,
+          "bottomPaddingFormula": "Math.max(insets.bottom, spacing.sm)",
+          "reservedSpaceFormula": "TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm)",
+          "softKeyboardReservedSpace": 0,
+          "indicatorHeight": 2,
+          "indicatorLeft": "26%",
+          "indicatorRight": "26%"
+        }
+      },
+      "border": "StyleSheet.hairlineWidth; browser snippets use 1px as a preview translation",
+      "poses": {
+        "source": "src/components/SureWordGuideAvatar.tsx",
+        "phaseResolver": "src/components/guideMotion.ts",
+        "idle": "one gently raised page arm",
+        "thinking": "prayerful upward reach",
+        "answering": "both page arms raised in praise",
+        "transition": "streaming without non-whitespace answer text -> thinking; visible answer text -> answering; not streaming -> idle",
+        "guards": [
+          "Reduce Motion",
+          "screen reader enabled",
+          "app not foreground"
+        ],
+        "accessibilityRole": "image",
+        "pointerEvents": "none"
+      },
+      "assets": [
+        {
+          "png": "assets/chat-home/sureword-companion-idle.png",
+          "provenance": "assets/chat-home/sureword-companion-idle.json"
+        },
+        {
+          "png": "assets/chat-home/sureword-companion-thinking.png",
+          "provenance": "assets/chat-home/sureword-companion-thinking.json"
+        },
+        {
+          "png": "assets/chat-home/sureword-companion-answering.png",
+          "provenance": "assets/chat-home/sureword-companion-answering.json"
+        },
+        {
+          "png": "assets/chat-home/sureword-sanctuary.png",
+          "provenance": "assets/chat-home/sureword-sanctuary.json"
+        },
+        {
+          "png": "assets/chat-home/sureword-sanctuary-light.png",
+          "provenance": "assets/chat-home/sureword-sanctuary-light.json"
+        },
+        {
+          "png": "assets/chat-home/sureword-mark.png",
+          "provenance": "assets/chat-home/sureword-mark.json"
+        }
+      ]
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "companion-sinusoidal-loop",
+        "value": "Easing.inOut(Easing.sin), native driver",
+        "purpose": "quiet pose movement",
+        "idleHalfCycleMs": 3200,
+        "thinkingHalfCycleMs": 2200,
+        "answeringHalfCycleMs": 2600,
+        "heroTranslationDp": -3,
+        "otherTranslationDp": -1.2,
+        "thinkingRotationDegrees": [
+          -2,
+          1
+        ],
+        "otherRotationDegrees": [
+          -1,
+          1
+        ],
+        "idleMessageMotion": false
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "question-single-column",
+        "value": "width < 350dp or Math.round(fontScale * 100) >= 130"
+      }
+    ],
+    "preview": {
+      "scope": "Browser panel translations of the native primitives",
+      "fontAvailability": "CSS family falls back to sans-serif if the bundled native fonts are unavailable to the panel",
+      "iconFidelity": "inline SVG illustrations; native implementation uses Ionicons and Feather",
+      "states": "hover and focus-visible are panel affordances, not new native behaviors"
+    },
+    "evidence": {
+      "status": "scoped native fixture visuals approved; tested edge states pass",
+      "reviewedViewport": {
+        "width": 390,
+        "height": 844,
+        "appearances": ["dark", "light"]
+      },
+      "reviewerVerdict": "ship for scoped native fixture visuals after all P2 findings were closed",
+      "captures": [
+        "../artifacts/chat-home-redesign/native-dark-390.png",
+        "../artifacts/chat-home-redesign/comparison-final.png",
+        "../artifacts/chat-home-redesign/light-390.png",
+        "../artifacts/chat-home-redesign/motion-video-thinking.png",
+        "../artifacts/chat-home-redesign/motion-video-answering.png"
+      ],
+      "harness": "scripts/chat-home-qa-entry.tsx",
+      "dataMode": "synthetic fixtures using actual components",
+      "authenticatedTransportVerified": false,
+      "physicalDeviceVerified": false,
+      "physicalPerformanceMeasured": false,
+      "documentationRefresh": "source, provenance, result JSON, and captures inspected; no new tests run",
+      "reportedChecks": {
+        "uiOnlyTypecheck": "pass after final source fixes",
+        "scopedTests": 165,
+        "contrastTests": 2,
+        "contrastTestsIncludedInScopedTotal": true,
+        "fullMobileTypecheck": "only already-modified useSureWordChat.ts line 493: expected 1 argument, got 2; line 866: stale_thread outside accepted union",
+        "nativeCompile": "pass in C:/Users/Owner/Documents/SureWordQA/chat-home-20261012 with JDK 21"
+      },
+      "nativeFixtureChecks": {
+        "keyboard": "pass: full edited question and Send remain above IME",
+        "questionTap": "pass: exact fixture question retained",
+        "stop": "pass: generation settles",
+        "questionReveal": "pass: all 6 fixture questions reachable",
+        "menu": "pass: all 3 choices visible",
+        "largeText": {
+          "status": "pass at rounded 130%",
+          "singleColumnTileScreenPixelBounds": [48, 1238, 1122, 1610],
+          "scrolledRevealScreenPixelBounds": [48, 1966, 1122, 2110]
+        },
+        "lightAppearance": "pass: separate RGBA layer at 0.18 opacity with full-size cover child, no gray seam",
+        "activePoses": "pass: native fixture recording demonstrates reaching then praising"
+      },
+      "motionProof": {
+        "result": "../artifacts/chat-home-redesign/motion-proof.json",
+        "avatarScreenPixelRegion": [315, 926, 855, 1574],
+        "reducedMotionChangedPixels": 0,
+        "motionEnabledChangedPixels": 83289,
+        "recording": "../artifacts/chat-home-redesign/guide-motion.mp4",
+        "durationSeconds": 6.9,
+        "recordingOrigin": "cropped actual native screen recording",
+        "dataMode": "fixture state transitions, not live API",
+        "guardProof": "Reduce Motion measured; screen-reader and foreground guards inspected in source"
+      },
+      "pendingNativeChecks": [],
+      "noDeliveryClaim": [
+        "release",
+        "production deployment",
+        "store upload",
+        "physical-phone install",
+        "web redesign",
+        "Apple redesign",
+        "full mobile green"
+      ]
+    }
+  },
+  "components": [
+    {
+      "name": "Send",
+      "kind": "button",
+      "refersTo": "button-send",
+      "description": "Native 48dp gold Send target; browser press and focus translation.",
+      "html": "<button class=\"ds-send\" aria-label=\"Send\"><svg aria-hidden=\"true\" width=\"23\" height=\"23\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20V4M5 11l7-7 7 7\"/></svg></button>",
+      "css": ".ds-send{width:48px;height:48px;border-radius:999px;background:#e5b664;color:#0d100d;border:1px solid #e5b664;display:inline-flex;align-items:center;justify-content:center}.ds-send:hover,.ds-send:active{background:rgba(229,182,100,.14)}.ds-send:focus-visible{outline:2px solid #f6eedd;outline-offset:3px}.ds-send:disabled{opacity:.5}"
+    },
+    {
+      "name": "Question tile",
+      "kind": "card",
+      "refersTo": "question-tile",
+      "description": "Wrapping study question with a reference and directional arrow.",
+      "html": "<button class=\"ds-question\"><span class=\"ds-question-copy\">What is the story of creation?</span><span class=\"ds-question-footer\"><span>Genesis 1</span><svg aria-hidden=\"true\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg></span></button>",
+      "css": ".ds-question{font-family:'Atkinson Hyperlegible',sans-serif;display:flex;flex-direction:column;justify-content:space-between;gap:8px;text-align:left;min-height:124px;width:180px;padding:14px;border-radius:16px;border:1px solid rgba(229,182,100,.28);background:#1b201b;color:#f6eedd}.ds-question-copy{font-size:16px;line-height:22px}.ds-question-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:4px;font-size:12px;line-height:16px;color:#e5b664}.ds-question:hover,.ds-question:active{background:#2b3027}.ds-question:focus-visible{outline:2px solid #e5b664;outline-offset:3px}"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "Docked composer surface with attachment and Send controls; no transport in the panel.",
+      "html": "<div class=\"ds-composer\"><button class=\"ds-composer-attachment\" aria-label=\"Add an attachment\"><svg aria-hidden=\"true\" width=\"23\" height=\"23\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><path d=\"M8 12v5a4 4 0 0 0 8 0V7a3 3 0 0 0-6 0v10a1 1 0 0 0 2 0V8\"/></svg></button><textarea class=\"ds-composer-input\" rows=\"1\" aria-label=\"Bible question\" placeholder=\"Ask a Bible question...\"></textarea><button class=\"ds-composer-send\" aria-label=\"Send\" disabled><svg aria-hidden=\"true\" width=\"23\" height=\"23\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 20V4M5 11l7-7 7 7\"/></svg></button></div>",
+      "css": ".ds-composer{display:flex;align-items:flex-end;gap:8px;padding:8px 8px 8px 10px;border:1px solid rgba(229,182,100,.28);border-radius:24px;background:#1d211b;max-width:390px}.ds-composer-input{font-family:'Atkinson Hyperlegible',sans-serif;min-width:0;flex:1;min-height:48px;max-height:140px;padding:12px 0;border:0;background:transparent;color:#f6eedd;font-size:16px;line-height:22px;resize:vertical}.ds-composer-input::placeholder{color:#aaa295}.ds-composer-attachment,.ds-composer-send{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:48px;height:48px;border-radius:999px;border:1px solid rgba(229,182,100,.12);background:#1b201b;color:#eee7dc}.ds-composer-send{background:#e5b664;color:#0d100d;border-color:#e5b664}.ds-composer-send:disabled{opacity:.5}.ds-composer-attachment:hover,.ds-composer-attachment:active{background:#2b3027}.ds-composer-send:hover:not(:disabled),.ds-composer-send:active:not(:disabled){background:rgba(229,182,100,.14)}.ds-composer-input:focus-visible,.ds-composer-attachment:focus-visible,.ds-composer-send:focus-visible{outline:2px solid #e5b664;outline-offset:3px}"
+    },
+    {
+      "name": "Verse context",
+      "kind": "chip",
+      "refersTo": "reference-chip",
+      "description": "Existing dismissible verse-context pill above the composer.",
+      "html": "<div class=\"ds-reference\"><span>Genesis 1</span><button class=\"ds-reference-close\" aria-label=\"Remove verse context\">&#215;</button></div>",
+      "css": ".ds-reference{font-family:'Atkinson Hyperlegible',sans-serif;display:inline-flex;align-items:center;gap:8px;padding:4px 8px 4px 12px;margin-bottom:8px;border-radius:999px;border:1px solid rgba(229,182,100,.20);background:#1b201b;color:#e5b664;font-size:13px;line-height:18px;font-weight:700}.ds-reference-close{border:0;background:transparent;color:#bbb3a7;padding:0 2px;font-size:15px;line-height:16px}.ds-reference-close:hover,.ds-reference-close:active{color:#f6eedd}.ds-reference-close:focus-visible{outline:2px solid #e5b664;outline-offset:3px}"
+    },
+    {
+      "name": "Primary navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Shared 72dp tab targets plus 8dp vertical padding, shown with Chat selected.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><button class=\"ds-nav-item ds-nav-selected\" aria-current=\"page\"><svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 3C6.5 3 2 6.8 2 11.5c0 2.8 1.6 5.2 4 6.7L5 22l4.2-2.3c.9.2 1.8.3 2.8.3 5.5 0 10-3.8 10-8.5S17.5 3 12 3z\"/></svg><span>Chat</span></button><button class=\"ds-nav-item\"><svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M12 5v16M12 5C8 2 4 3 2 4v15c4-1 7-1 10 2M12 5c4-3 8-2 10-1v15c-4-1-7-1-10 2\"/></svg><span>Bible</span></button><button class=\"ds-nav-item\"><svg aria-hidden=\"true\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"><path d=\"M5 2h9l5 5v15H5zM14 2v5h5M8 12h8M8 16h8\"/></svg><span>Notes</span></button></nav>",
+      "css": ".ds-nav{display:flex;padding:4px 8px;gap:4px;background:#141713;border-top:1px solid rgba(229,182,100,.20);width:374px}.ds-nav-item{font-family:'Atkinson Hyperlegible',sans-serif;position:relative;display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:72px;border:0;border-radius:16px;background:transparent;color:#bbb3a7;font-size:14px;line-height:20px;font-weight:400}.ds-nav-selected{color:#e5b664}.ds-nav-selected::after{content:'';position:absolute;bottom:0;left:26%;right:26%;height:2px;border-radius:2px;background:#e5b664}.ds-nav-item:hover,.ds-nav-item:active{opacity:.7}.ds-nav-item:focus-visible{outline:2px solid #e5b664;outline-offset:-2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Approved companion and question grid",
+    "overview": "The Android chat home uses warm charcoal, ivory text, restrained gold, and a friendly folded-page companion. The open-Bible day-star mark and Pirata One wordmark preserve SureWord's recognizable identity; readable Atkinson Hyperlegible carries questions and controls.\n\nThis record applies to the approved chat surface and its shared navigation geometry. It does not replace the existing visual system for Bible, Notes, Settings, web, or Apple clients. Global palettes, Scripture typography, and reader ink remain defined by src/theme/index.ts.",
+    "keyCharacteristics": [
+      "Friendly parchment companion with an unchanged face, folds, and chest day-star.",
+      "Quiet tonal surfaces, restrained hairline gold borders, and readable body type.",
+      "Responsive question grid above a stable docked composer."
+    ],
+    "rules": [
+      {
+        "name": "Chat Boundary",
+        "body": "Resolve the sanctuary palette through chatColors for chat. Preserve global theme colors and reader ink elsewhere.",
+        "section": "colors"
+      },
+      {
+        "name": "Reading First",
+        "body": "Use Pirata One only for the SureWord wordmark; questions and controls retain the shared readable body family.",
+        "section": "typography"
+      },
+      {
+        "name": "Shared Clearance",
+        "body": "Derive reserved navigation space from TAB_BAR_HEIGHT and safe-area insets. Never substitute the item height for the whole bar.",
+        "section": "layout"
+      },
+      {
+        "name": "Quiet Motion",
+        "body": "Keep the selected pose readable when animation stops. Disable companion movement for Reduce Motion, a screen reader, or a backgrounded app.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do preserve the folded-page companion, open-Bible day-star mark, and SureWord wordmark.",
+      "Do keep every suggested question in server order, reveal additional questions, and allow question text to wrap.",
+      "Do keep chat palette changes scoped to chat and reserve the shared navigation height."
+    ],
+    "donts": [
+      "Don't apply this chat palette to reader ink or treat the surface as an app-wide redesign.",
+      "Don't hide model selection, conversation history, settings, attachment, send, or stop callbacks behind a visual replacement.",
+      "Don't treat fixture screenshots or a scoped visual approval as authenticated transport, device, or release proof."
+    ]
+  }
+}
+

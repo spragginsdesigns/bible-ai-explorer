@@ -63,7 +63,7 @@ struct MessageBubble: View {
                 userBubble
             } else {
                 HStack(alignment: .top, spacing: Spacing.md) {
-                    SureWordGuideAvatar(size: 30, active: message.isStreaming)
+                    SureWordGuideAvatar(size: 40, phase: .resolve(streaming: message.isStreaming, content: message.content))
                     assistantBody
                 }
             }

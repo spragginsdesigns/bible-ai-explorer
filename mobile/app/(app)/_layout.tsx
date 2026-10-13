@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
+import { chatColors } from "@/features/chat/chatAppearance";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { AIConsentPresenter } from "@/features/settings/AIConsentPresenter";
@@ -39,10 +40,12 @@ const TAB_ICONS: Record<
 	notes: { active: "document-text", inactive: "document-text-outline" },
 };
 
-function SolidTabBar({ state, navigation }: BottomTabBarProps) {
+export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 	const departing = useRef(false);
 	const insets = useSafeAreaInsets();
-	const { colors } = useTheme();
+	const { colors: themeColors } = useTheme();
+	const chatSelected = state.routes[state.index]?.name === "index";
+	const colors = chatSelected ? chatColors(themeColors) : themeColors;
 	const styles = useThemedStyles(createStyles);
 	const primaryRoutes: TabRouteEntry[] = state.routes
 		.map((route: TabRoute, index: number) => ({ route, index }))
@@ -52,6 +55,7 @@ function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 		<View
 			style={[
 				styles.tabBarWrap,
+				{ backgroundColor: colors.bgElevated, borderTopColor: colors.borderStrong },
 				{ paddingBottom: Math.max(insets.bottom, spacing.sm) },
 			]}
 		>
@@ -82,20 +86,21 @@ function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							}}
 							style={({ pressed }) => [
 								styles.tabItem,
-								focused && styles.tabItemActive,
+								focused && !chatSelected && styles.tabItemActive,
 								pressed && { opacity: 0.7 },
 							]}
 						>
 							<Ionicons
 								name={focused ? icon.active : icon.inactive}
-								size={21}
-								color={focused ? colors.accent : colors.textFaint}
+								size={24}
+								color={focused ? colors.accent : colors.textMuted}
 							/>
 							<Text
-								style={[styles.tabLabel, focused && { color: colors.accent }]}
+								style={[styles.tabLabel, { color: focused ? colors.accent : colors.textMuted }]}
 							>
 								{label}
 							</Text>
+							{chatSelected && focused ? <View style={[styles.chatIndicator, { backgroundColor: colors.accent }]} /> : null}
 						</Pressable>
 					);
 				})}
@@ -173,8 +178,9 @@ const createStyles = (c: Colors) =>
 			minHeight: TAB_BAR_ITEM_HEIGHT,
 			borderRadius: radius.lg,
 		},
+		chatIndicator: { position: "absolute", bottom: 0, left: "26%", right: "26%", height: 2, borderRadius: 2 },
 		tabItemActive: {
 			backgroundColor: c.accentSoft,
 		},
-		tabLabel: { color: c.textFaint, ...typography.meta, fontWeight: "600" },
+		tabLabel: { color: c.textFaint, ...typography.support, fontWeight: "400" },
 	});

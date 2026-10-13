@@ -25,8 +25,7 @@ import { NoteCard } from "@/features/notes/components/NoteCard";
 import { Chip, GlyphButton, LUCIDE_STROKE } from "@/features/notes/components/primitives";
 import type { Note } from "@/features/notes/types";
 import { SORT_LABELS, nextSort, useNotesLibrary } from "@/features/notes/useNotesLibrary";
-
-const TAB_BAR_CLEARANCE = 100;
+import { useTabBarSpace } from "@/features/chat/layout";
 
 export default function NotesListScreen() {
  const { userId, isLoaded } = useAuth();
@@ -35,6 +34,7 @@ export default function NotesListScreen() {
 }
 function NotesListSession() {
 	const router = useRouter();
+	const tabBarSpace = useTabBarSpace();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const library = useNotesLibrary();
@@ -177,7 +177,7 @@ function NotesListSession() {
 					style={styles.list}
 					data={library.notes}
 					keyExtractor={(note) => note.id}
-					contentContainerStyle={styles.listContent}
+					contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
 					keyboardShouldPersistTaps="handled"
 					refreshControl={
 						<RefreshControl
@@ -285,7 +285,7 @@ const createStyles = (c: Colors) =>
 		},
 
 		loading: { flex: 1, alignItems: "center", justifyContent: "center" },
-		listContent: { paddingHorizontal: spacing.lg, paddingBottom: TAB_BAR_CLEARANCE },
+		listContent: { paddingHorizontal: spacing.lg },
 		separator: { height: spacing.sm },
 		empty: { alignItems: "center", paddingTop: 64, gap: 6 },
 		emptyTitle: { color: c.textMuted, ...typography.control, fontWeight: "600" },

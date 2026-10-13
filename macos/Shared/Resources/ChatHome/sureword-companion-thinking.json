@@ -1,0 +1,46 @@
+{
+  "asset": "sureword-companion-thinking.png",
+  "generation_date": "2026-10-12",
+  "tool": "image_gen.imagegen",
+  "model_identity": "Not exposed by the built-in tool",
+  "prompt": "Use case: identity-preserve\nAsset type: transparent SureWord mobile UI companion, THINKING state.\nInput image 1 is the exact identity reference and edit target. Preserve this exact cream parchment folded S-page character, its pointed page crest, round small paper face, two oval dark ink eyes, tiny gentle curved smile, golden eight-ray day-star on the chest, honey-gold edges, material texture, sculptural folds, proportions, soft golden lighting, and clean isolated rendering.\nChange ONLY its pose: turn its head and eyes gently upward in a reverent, attentive, peaceful expression. Extend the page arm on the viewer's right upward, clearly higher than the current idle arm, as if prayerfully reaching toward the Holy Spirit above. Hold the other folded-page arm softly near its chest, allowing the day-star to remain visible. Page arms remain sculptural sheets of paper, no human hands or fingers. Keep one face, two eyes, one mouth and one chest star.\nComposition: same portrait 5:6 framing as the reference. Full body from pointed crest to lower paper tip completely in frame. Character occupies no more than 70% of canvas height and width including the upward arm, leaving at least 15% entirely empty transparent padding on all sides. Keep body scale and center close to the reference; do not crop the raised arm.\nBackground: truly transparent alpha, no painted checkerboard, no backdrop, no ambient lighting painted outside the character.\nAvoid: deity, dove, cloud, halo, extra light object above, props, extra character, new detached stars, particles, text, logo, UI, foliage, floor, cast shadows outside the character, floor glow, feet, human hands, fingers, changes to character identity, smile exaggeration, grief or worry.",
+  "reference_path": "C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer/mobile/assets/chat-home/sureword-companion-idle.png",
+  "original_output_path": "C:/Users/Owner/.codex/generated_images/01a13161-d17d-7ed1-a7c5-8019cf35c21d/exec-318e1808-08f0-458d-8687-0dc667ed2da4.png",
+  "transparent_background": true,
+  "output_dimensions": [
+    1145,
+    1374
+  ],
+  "final_saved_path": "C:/Users/Owner/Documents/Github_Repositories/bible-ai-explorer/mobile/assets/chat-home/sureword-companion-thinking.png",
+  "pose": "Head gently turned upward; one page arm reaching upward; other page arm resting near chest",
+  "alpha_verification": {
+    "mode": "RGBA",
+    "alpha_extrema": [
+      0,
+      255
+    ],
+    "corner_values": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "transparent_pixels": 1214565,
+    "total_pixels": 1573230,
+    "alpha_at_least_32_bbox": [
+      314,
+      143,
+      948,
+      1183
+    ],
+    "all_nontransparent_bbox": [
+      0,
+      0,
+      1044,
+      1307
+    ]
+  },
+  "sha256": "942252cc4992293ca21a0b9f893553c01ff91b9ba4c8d698b71436c6e3ea0623",
+  "original_preserved": true,
+  "notes": "Original generated PNG copied byte-for-byte without resizing, cropping, or alpha modification. Visible silhouette has at least 10 percent padding at alpha >= 32. Faint low-opacity pixels extend into margins, including alpha 1 of 255 at the upper-left corner."
+}

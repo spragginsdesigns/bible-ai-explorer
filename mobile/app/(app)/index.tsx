@@ -11,15 +11,17 @@ import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useAuth } from "@clerk/expo";
-import { Ionicons } from "@expo/vector-icons";
-import { BrandTitle, Screen } from "@/components/ui";
+import { Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
 import { ModelPickerSheet } from "@/features/chat/ModelPickerSheet";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { ErrorCard } from "@/features/chat/ErrorCard";
 import { HistoryModal } from "@/features/chat/HistoryModal";
 import { MessageList } from "@/features/chat/MessageList";
-import { WelcomeState } from "@/features/chat/WelcomeState";
+import { SanctuaryBackdrop, WelcomeState } from "@/features/chat/WelcomeState";
+import { ChatHeader } from "@/features/chat/ChatHeader";
+import { chatColors } from "@/features/chat/chatAppearance";
+import { guidePhase } from "@/components/guideMotion";
 import { useKeyboardVisible, useTabBarSpace } from "@/features/chat/layout";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/features/chat/slashCommands";
 import { useSureWordChat } from "@/features/chat/useSureWordChat";
@@ -28,14 +30,15 @@ import type { ChatViewMessage } from "@/lib/chatView";
 import { takePendingShare, usePendingShare } from "@/features/share/shareInbox";
 import { shareActionMessage, shareActionsFor, type ShareAction } from "@/features/share/shareIntake";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
-import { radius, spacing, type Colors } from "@/theme";
+import { spacing, type Colors } from "@/theme";
 import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
 
 export default function ChatScreen() {
 	const router = useRouter();
 	const chat = useSureWordChat();
 	const styles = useThemedStyles(createStyles);
-	const { colors } = useTheme();
+	const { colors: themeColors } = useTheme();
+	const colors = chatColors(themeColors);
 	const { translation: defaultTranslation } = useSettings();
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -337,54 +340,21 @@ export default function ChatScreen() {
 	);
 
 	return (
-		<Screen>
+		<Screen style={styles.screen}>
 			<KeyboardAvoidingView
 				style={styles.fill}
 				behavior="padding"
 				enabled={keyboardVisible}
 			>
-				<View style={styles.header}>
-					<View style={styles.headerTitle}>
-						<BrandTitle size={26} />
-						{chat.activeConversation && (
-							<Text style={styles.subtitle} numberOfLines={1}>
-								{chat.activeConversation.title}
-							</Text>
-						)}
-					</View>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Choose AI model"
-						onPress={() => setModelPickerOpen(true)}
-						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-					>
-						<Ionicons name="sparkles-outline" size={17} color={colors.accentDim} />
-					</Pressable>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="New chat"
-						onPress={onNewChat}
-						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-					>
-						<Ionicons name="add" size={21} color={colors.accentDim} />
-					</Pressable>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Conversation history"
-						onPress={openHistory}
-						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-					>
-						<Ionicons name="time-outline" size={19} color={colors.accentDim} />
-					</Pressable>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Settings"
-						onPress={() => router.push("/settings")}
-						style={({ pressed }) => [styles.headerButton, pressed && styles.headerButtonPressed]}
-					>
-						<Ionicons name="settings-outline" size={18} color={colors.accentDim} />
-					</Pressable>
-				</View>
+				{showWelcome ? <SanctuaryBackdrop /> : null}
+				<ChatHeader
+					title={chat.activeConversation?.title}
+					phase={guidePhase(busy, messages.find(message => message.role === "assistant" && message.isStreaming)?.content ?? "")}
+					onNewChat={onNewChat}
+					onOpenModelPicker={() => setModelPickerOpen(true)}
+					onOpenHistory={openHistory}
+					onOpenSettings={() => router.push("/settings")}
+				/>
 
 				{historyLoading ? (
 					<View style={styles.center}>
@@ -427,7 +397,7 @@ export default function ChatScreen() {
 
 				{/* Docked in every state, the welcome included, so the composer
 				    never jumps when the first answer replaces the empty screen. */}
-				<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.sm }]}>
+				<View style={[styles.inputWrap, { paddingBottom: tabBarSpace + spacing.md }]}>
 					{shareNotices !== null && (
 						<ShareActions
 							notices={shareNotices}
@@ -470,39 +440,14 @@ export default function ChatScreen() {
 	);
 }
 
-const createStyles = (c: Colors) =>
-	StyleSheet.create({
+const createStyles = (theme: Colors) => {
+	const c = chatColors(theme);
+	return StyleSheet.create({
+		screen: { backgroundColor: c.bg },
 		fill: { flex: 1 },
-		header: {
-			flexDirection: "row",
-			alignItems: "center",
-			gap: spacing.sm,
-			paddingHorizontal: spacing.lg,
-			paddingTop: spacing.sm,
-			paddingBottom: spacing.md,
-			// The thread scrolls under this bar; the hairline gives the clip an
-			// edge, the way the note editor's bar already does.
-			borderBottomWidth: StyleSheet.hairlineWidth,
-			borderBottomColor: c.border,
-		},
-		headerTitle: { flex: 1, minWidth: 0 },
-		subtitle: { color: c.textFaint, ...typography.support, marginTop: 2 },
-		headerButton: {
-			width: 40,
-			height: 40,
-			borderRadius: radius.full,
-			alignItems: "center",
-			justifyContent: "center",
-			backgroundColor: c.surface,
-			borderColor: c.accentBorder,
-			borderWidth: 1,
-		},
-		headerButtonPressed: { backgroundColor: c.surfacePressed },
 		center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md },
-		centerLabel: { color: c.textFaint, ...typography.support },
+		centerLabel: { color: c.textMuted, ...typography.support },
 		centerPadded: { flex: 1, justifyContent: "center", paddingHorizontal: spacing.lg },
-		inputWrap: {
-			paddingHorizontal: spacing.lg,
-			paddingTop: spacing.sm,
-		},
+		inputWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 	});
+};

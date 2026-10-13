@@ -23,7 +23,7 @@ import VersePopover from "./VersePopover";
 import { parseVerseReferences } from "@/utils/verseParser";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import WorkActivity from "./WorkActivity";
-import SureWordGuideAvatar from "./SureWordGuideAvatar";
+import SureWordGuideAvatar, { guidePhase } from "./SureWordGuideAvatar";
 import ReceiptLine from "./chat/ReceiptLine";
 import { FEEDBACK_TAGS, type FeedbackTagId } from "@/lib/chat/answer-feedback";
 import {
@@ -308,7 +308,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 	return (
 		<div className="flex gap-3 mb-4 animate-message-in">
 			<div className="mt-1 flex-shrink-0">
-				<SureWordGuideAvatar active={Boolean(message.isStreaming)} />
+				<SureWordGuideAvatar phase={guidePhase(Boolean(message.isStreaming), message.content)} />
 			</div>
 			<div className="flex-1 min-w-0">
 				{message.progress && <WorkActivity progress={message.progress} isStreaming={Boolean(message.isStreaming)} />}

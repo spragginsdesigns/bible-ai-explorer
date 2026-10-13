@@ -1,60 +1,35 @@
 "use client";
 
 import Image from "next/image";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
+import styles from "./GuideMotion.module.css";
 
+export type GuidePhase = "idle" | "thinking" | "answering";
+export function guidePhase(streaming: boolean, content: string): GuidePhase {
+  return !streaming ? "idle" : content.trim() ? "answering" : "thinking";
+}
+const labels = {
+  idle: "SureWord study companion",
+  thinking: "SureWord companion reaching upward in prayer while thinking",
+  answering: "SureWord companion raising its page arms in praise while answering",
+};
 const SureWordGuideAvatar = memo(function SureWordGuideAvatar({
-	size = 32,
-	active = false,
-	variant = "message",
-}: {
-	size?: number;
-	active?: boolean;
-	/** "hero" is the welcome-screen form, as on Android: no frame, a soft
-	 *  accent glow behind it, and a slow breath that stops under reduced motion. */
-	variant?: "message" | "hero";
-}) {
-	if (variant === "hero") {
-		return (
-			<span
-				role="img"
-				aria-label="SureWord AI guide, a golden day star held by folded pages"
-				className="relative inline-flex flex-shrink-0 items-center justify-center"
-				style={{ width: size, height: size }}
-			>
-				<span
-					aria-hidden
-					className="absolute rounded-full bg-amber-500/15 blur-xl motion-safe:animate-pulse dark:bg-amber-400/15"
-					style={{ width: size * 0.58, height: size * 0.58 }}
-				/>
-				<Image
-					src="/sureword-guide.png"
-					alt=""
-					width={size}
-					height={size}
-					priority
-					className="relative object-contain"
-					style={{ width: size, height: size }}
-				/>
-			</span>
-		);
-	}
-	return (
-		<span
-			role="img"
-			aria-label="SureWord AI assistant"
-			className="relative inline-flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/20 bg-black/[0.04] dark:bg-white/[0.04]"
-			style={{ width: size, height: size }}
-		>
-			<Image
-				src="/sureword-guide.png"
-				alt=""
-				width={size}
-				height={size}
-				className={`object-contain p-[2px] ${active ? "motion-safe:animate-pulse" : ""}`}
-			/>
-		</span>
-	);
+  size = 40, active = false, variant = "message", phase = active ? "thinking" : "idle",
+}: { size?: number; active?: boolean; variant?: "message" | "hero"; phase?: GuidePhase }) {
+  const [foreground, setForeground] = useState(false);
+  const eligible = variant === "hero" || phase !== "idle";
+  useEffect(() => {
+    if (!eligible) return;
+    const update = () => setForeground(document.visibilityState === "visible");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, [eligible]);
+  return <span role="img" aria-label={labels[phase]}
+    className={`${styles.pose} ${eligible && foreground ? styles.moving : ""} ${styles[phase] ?? ""}`}
+    style={{ width: size, height: size * 1.2 }}>
+    <Image src={`/chat-home/sureword-companion-${phase}.png`} alt="" width={1145} height={1374}
+      priority={variant === "hero"} sizes={`${size}px`} style={{ width: size, height: size * 1.2 }} />
+  </span>;
 });
-
 export default SureWordGuideAvatar;

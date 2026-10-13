@@ -51,7 +51,7 @@ export default function ChapterAudioBar({
     <div
       role="region"
       aria-label="Audio Bible player"
-      className="glass fixed inset-x-3 bottom-[calc(max(env(safe-area-inset-bottom),0.5rem)+4.25rem)] z-40 mx-auto max-w-lg rounded-2xl border border-black/[0.1] dark:border-white/[0.08] px-3 py-2.5 shadow-xl lg:bottom-6 lg:left-[268px] lg:max-w-xl"
+      className="glass fixed inset-x-3 bottom-[calc(var(--sureword-mobile-tab-clearance)_+_0.5rem)] z-40 mx-auto max-w-lg rounded-2xl border border-black/[0.1] dark:border-white/[0.08] px-3 py-2.5 shadow-xl lg:bottom-6 lg:left-[268px] lg:max-w-xl"
     >
       {player.stillListeningPrompt ? (
         <div className="flex flex-col gap-2.5 px-1 py-1" role="alertdialog" aria-labelledby="still-listening-title">

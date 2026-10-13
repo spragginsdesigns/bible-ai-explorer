@@ -1,0 +1,11 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "date": "2026-10-12",
+  "prompt": "Use case: logo-brand. Create a single refined SureWord open-Bible and sunburst brand mark, matching the small mark at top left of the attached approved UI. Use the second attachment as the exact incumbent open-book/star shape identity. Icon only, no wordmark or any text. Clean symmetrical open Bible formed of two elegant thin warm-gold curved page lines, rays rising from center seam, a clear eight-point day-star above. Simplify tiny overlapping detail so it remains legible at 40 logical pixels. Warm muted brushed honey gold #e5b664 with subtle metallic light, not neon yellow, not chunky 3D sculpture, not badge or circle. Transparent background, genuine alpha. 512x512 square, centered complete mark with 12% transparent margin; no floor, glow field, backdrop, shadow, white/black plate, UI, foliage or extra symbols. Preserve the recognizable book-plus-day-star silhouette and exact charcoal/ivory/gold art direction of the approved screen.",
+  "reference_paths": [
+    "C:/Users/Owner/.codex/generated_images/01a130fb-0abf-7f72-b3a7-a569a8aecae0/exec-1904b868-aca4-4d23-9d06-bd37d320d68a.png",
+    "mobile/assets/icon.png"
+  ],
+  "original_output": "C:/Users/Owner/.codex/generated_images/01a130fb-0abf-7f72-b3a7-a569a8aecae0/exec-f6f16736-440b-41ee-92c8-57484c27f76d.png",
+  "scope": "Chat header only; app launcher icon stays separate"
+}

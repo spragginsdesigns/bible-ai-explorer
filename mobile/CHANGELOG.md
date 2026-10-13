@@ -14,6 +14,20 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.88.0 (versionCode 100) - 2026-10-12 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- A calmer Chat home with warm gold, ivory, and charcoal colors, a friendly study companion, and easy-to-read question cards.
+- Your companion reaches upward while preparing an answer and raises its arms in praise as the answer arrives.
+- All your study questions are still there. Tap the extra-questions button to see more.
+
+IMPROVED
+- Clearer Chat options, larger touch targets, and comfortable spacing for the keyboard and large text.
+
+**Dev notes:** Approved chat redesign with shared three-pose artwork. Native motion respects reduced motion, screen readers, and app visibility. Scoped colors preserve Bible reader ink. Notes clearance derives the actual tab height and bottom inset.
+
 ## 1.87.1 (versionCode 99) - 2026-10-11 - internal and closed testing
 
 **What's new (Play):**

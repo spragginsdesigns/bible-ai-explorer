@@ -7,6 +7,7 @@ import ChatSidebar from "./ChatSidebar";
 import ChatTopBar from "./ChatTopBar";
 import MessageList from "./MessageList";
 import ChatInput from "./ChatInput";
+import chatHome from "./ChatHome.module.css";
 import WelcomeScreen from "./WelcomeScreen";
 import { useChat } from "./useChat";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCommands";
@@ -245,15 +246,11 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	const title = activeConversation?.title ?? "New Chat";
 
-	// The welcome renders the composer inline because the desktop fold has room
-	// for it under the hero, so the docked copy is suppressed there. (Android
-	// docks its composer in every state instead.) Loading/error states keep the
-	// docked composer.
+	// Keep one docked composer through welcome, history, and active chat states.
 	const showWelcome =
 		!historyLoading && !historyError && messages.length === 0;
 
-	// The welcome copy lives inside a scroll container, so its model popover has
-	// to open downward or the container clips it.
+	// The dock is outside the welcome scroller, so popovers remain visible.
 	const renderChatInput = (pickerPlacement: "above" | "below") => (
 		<ChatInput
 			pickerPlacement={pickerPlacement}
@@ -284,7 +281,7 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	return (
 		<div
-			className="flex h-[100dvh] gradient-mesh overflow-hidden"
+			className={`flex h-[100dvh] overflow-hidden ${chatHome.shell}`}
 			onTouchStart={handleTouchStart}
 			onTouchEnd={handleTouchEnd}
 		>
@@ -366,7 +363,6 @@ const BibleAIExplorerInner: React.FC = () => {
 				) : showWelcome ? (
 					<WelcomeScreen
 						onSelectQuestion={handleSend}
-						composer={renderChatInput("below")}
 					/>
 				) : (
 					<MessageList
@@ -379,7 +375,7 @@ const BibleAIExplorerInner: React.FC = () => {
 					/>
 				)}
 
-				{showWelcome ? null : renderChatInput("above")}
+				{renderChatInput("above")}
 			</main>
 		</div>
 	);
