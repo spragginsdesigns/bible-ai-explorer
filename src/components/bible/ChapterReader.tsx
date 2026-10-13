@@ -460,6 +460,7 @@ const ChapterReader: React.FC = () => {
     if (!sheetOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (document.querySelector('dialog:modal, [role="dialog"][aria-modal="true"]')) return;
       if (sheetTier === "expanded") setSheetTier("peek");
       else closePanel();
     };

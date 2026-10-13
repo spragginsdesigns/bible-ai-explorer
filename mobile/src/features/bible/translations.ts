@@ -20,6 +20,7 @@ export const CHAPTER_LOAD_ERROR =
 const NKJV_TIMEOUT_MS = 15000;
 
 const nkjvCache = new Map<string, string[]>();
+const nkjvPending = new Map<string, Promise<string[]>>();
 
 interface BollsVerseRow {
 	verse: number;
@@ -27,6 +28,17 @@ interface BollsVerseRow {
 }
 
 async function fetchNkjvChapter(order: number, chapter: number): Promise<string[]> {
+	const key = `${order}:${chapter}`;
+	const cached = nkjvCache.get(key);
+	if (cached) return cached;
+	const existing = nkjvPending.get(key);
+	if (existing) return existing;
+	const request = loadNkjvChapter(order, chapter).finally(() => nkjvPending.delete(key));
+	nkjvPending.set(key, request);
+	return request;
+}
+
+async function loadNkjvChapter(order: number, chapter: number): Promise<string[]> {
 	const key = `${order}:${chapter}`;
 	const cached = nkjvCache.get(key);
 	if (cached) return cached;

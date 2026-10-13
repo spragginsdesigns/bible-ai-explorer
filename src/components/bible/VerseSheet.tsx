@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 
 export type VerseSheetTier = "peek" | "expanded";
@@ -46,6 +46,41 @@ export default function VerseSheet({
 }: VerseSheetProps) {
   const expanded = tier === "expanded";
   const touchStart = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const tierButtonRef = useRef<HTMLButtonElement>(null);
+  const changeTierRef = useRef(onTierChange);
+  changeTierRef.current = onTierChange;
+
+  useEffect(() => {
+    if (!expanded) return;
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const topmost = () => !document.querySelector("dialog:modal") && Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).at(-1) === sheet;
+    const tabbable = () => Array.from(sheet.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.getClientRects().length > 0);
+    const tierButton = tierButtonRef.current;
+    sheet.focus({ preventScroll: true });
+    const keydown = (event: KeyboardEvent) => {
+      if (!topmost()) return;
+      if (event.key === "Escape") {
+        event.preventDefault(); event.stopPropagation(); changeTierRef.current("peek");
+      } else if (event.key === "Tab") {
+        const nodes = tabbable(); const first = nodes[0]; const last = nodes.at(-1);
+        if (!first || !last) { event.preventDefault(); sheet.focus(); return; }
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || document.activeElement === sheet)) { event.preventDefault(); first.focus(); }
+      }
+    };
+    const contain = (event: FocusEvent) => { if (topmost() && event.target instanceof Node && !sheet.contains(event.target)) sheet.focus({ preventScroll: true }); };
+    document.addEventListener("keydown", keydown, true);
+    document.addEventListener("focusin", contain);
+    return () => {
+      document.removeEventListener("keydown", keydown, true);
+      document.removeEventListener("focusin", contain);
+      if (previous?.isConnected && previous !== document.body) previous.focus({ preventScroll: true });
+      else tierButton?.focus({ preventScroll: true });
+    };
+  }, [expanded]);
 
   const onTouchEnd = (endY: number) => {
     const start = touchStart.current;
@@ -70,6 +105,8 @@ export default function VerseSheet({
         />
       ) : null}
       <div
+        ref={sheetRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal={expanded}
         aria-label={`${title} actions`}
@@ -87,6 +124,7 @@ export default function VerseSheet({
           onTouchEnd={(event) => onTouchEnd(event.changedTouches[0]?.clientY ?? 0)}
         >
           <button
+            ref={tierButtonRef}
             type="button"
             aria-label={expanded ? "Collapse details" : "Expand details"}
             aria-expanded={expanded}
@@ -106,7 +144,7 @@ export default function VerseSheet({
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
             >
               <X className="h-4 w-4" aria-hidden />
             </button>
