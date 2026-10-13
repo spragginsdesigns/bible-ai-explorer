@@ -14,6 +14,15 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.88.1 (versionCode 101) - 2026-10-13 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- The questions on the Chat home are chosen from your own study again: your reading, questions, notes, memories, and today's verse. They had fallen back to the same six starter questions for everyone.
+
+**Dev notes:** useSuggestedQuestions ran before AIConsentPresenter configured the consent gate (sibling effect order), so the automatic request was refused on the device and the static six were cached for the session. The hook now waits for the gate to hold current consent. Server generation was never broken. Web fixed in 2289c16.
+
 ## 1.88.0 (versionCode 100) - 2026-10-12 - internal and closed testing
 
 **What's new (Play):**
