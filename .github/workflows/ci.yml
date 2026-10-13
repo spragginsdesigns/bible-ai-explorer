@@ -1,9 +1,8 @@
 name: CI
 
 # main auto-deploys to Vercel on every push, so until this workflow existed
-# nothing at all ran before production. Both clients are checked here: the web
-# app in the repo root and the Android app in mobile/, which is intentionally
-# outside the pnpm workspace and carries its own npm tree.
+# nothing ran before production. Web, Android and both Apple targets are checked.
+# mobile/ stays outside the pnpm workspace and carries its own npm tree.
 
 on:
   push:
@@ -45,7 +44,7 @@ jobs:
         run: pnpm lint
 
       - name: Typecheck
-        run: pnpm exec tsc --noEmit -p tsconfig.json
+        run: pnpm typecheck
 
   mobile:
     name: mobile (typecheck, test)
@@ -70,3 +69,23 @@ jobs:
 
       - name: Test
         run: npm test
+
+  apple:
+    name: Apple (compile and unit tests)
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: macos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen
+      - name: macOS tests
+        run: xcodebuild test -project SureWord.xcodeproj -scheme SureWord -destination 'platform=macOS' -derivedDataPath build-ci-mac.noindex CODE_SIGNING_ALLOWED=NO
+      - name: iOS tests
+        shell: bash
+        run: |
+          simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; print(next(d["udid"] for devices in json.load(sys.stdin)["devices"].values() for d in devices if d["name"].startswith("iPhone")))')
+          xcodebuild test -project SureWord.xcodeproj -scheme SureWord-iOS -destination "platform=iOS Simulator,id=$simulator_id" -derivedDataPath build-ci-ios.noindex CODE_SIGNING_ALLOWED=NO

@@ -7,6 +7,11 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   sharp: true
+  # Its postinstall prints a donation banner; runtime files are already shipped.
+  core-js: false
 
 minimumReleaseAgeExclude:
   - '@vercel/blob@2.8.0'
+  - '@ai-sdk/gateway@4.0.112'
+  - '@ai-sdk/openai@4.0.93'
+  - ai@7.0.139

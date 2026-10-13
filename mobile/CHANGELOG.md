@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.89.1 (versionCode 103) - 2026-10-13 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Bible search responds more reliably and reuses repeated searches.
+- Note search keeps the newest edits and finds the best matches.
+- Verse explanations follow your current AI model.
+- Chat follows new answers with less motion.
+
+**Dev notes:** Bounded embedding and SQL deadlines, source-checked note indexes, resolved-model insight cache, NKJV request deduplication, and Expo 57 compatibility patches.
+
 ## Rules (mandatory - applies to every agent and dev shipping Android builds)
 
 1. **Every versionCode released to Google Play gets an entry here, written BEFORE the build is published.** No entry, no publish - `push-phone.sh` enforces this on every track (internal included) and on `--skip-build` uploads.
