@@ -217,4 +217,3 @@ The sidecar contains browser panel translations of native primitives. Its hover 
 - Don't apply this chat palette to reader ink or treat the surface as an app-wide redesign.
 - Don't hide model selection, conversation history, settings, attachment, send, or stop callbacks behind a visual replacement.
 - Don't treat fixture screenshots or a scoped visual approval as authenticated transport, device, or release proof.
-

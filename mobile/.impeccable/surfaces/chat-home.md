@@ -59,4 +59,3 @@ The tested native fixture states passed:
 No tested fixture-state checks remain pending. Screen-reader and foreground guards remain documented from source inspection. The documentation refresh inspected source, provenance, result JSON, and captures; it did not run new tests.
 
 Live authenticated AI transport, physical-device performance, release delivery, and the full source TypeScript gate remain outside this evidence. There is no release, production deployment, store upload, physical-phone installation, web redesign, Apple redesign, or app-wide visual approval in this record. Native fixture captures and the recording prove the reviewed presentation and interactions only.
-
