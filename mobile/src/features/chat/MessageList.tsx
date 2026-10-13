@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from "react";
-import { FlatList, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { AccessibilityInfo, FlatList, StyleSheet, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import type { ChatViewMessage } from "@/lib/chatView";
 import type { SetAnswerFeedback } from "@/lib/answerFeedback";
 import { spacing } from "@/theme";
@@ -28,12 +28,22 @@ interface MessageListProps {
 export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitle, onFeedback, conversationId, onEdit, onRetry, children }: MessageListProps) {
 	const scrollRef = useRef<FlatList<ChatViewMessage>>(null);
 	const nearBottom = useRef(true);
-	const latestUserId = [...messages].reverse().find(message => message.role === "user")?.id;
+	const reduceMotion = useRef(true);
+	useEffect(() => {
+		let active = true;
+		void AccessibilityInfo.isReduceMotionEnabled().then(value => { if (active) reduceMotion.current = value; }).catch(() => {});
+		const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", value => { reduceMotion.current = value; });
+		return () => { active = false; subscription.remove(); };
+	}, []);
+	let latestUserId: string | undefined;
+	let latestAssistantId: string | undefined;
+	for (let i = messages.length - 1; i >= 0; i--) {
+		if (!latestUserId && messages[i].role === "user") latestUserId = messages[i].id;
+		if (!latestAssistantId && messages[i].role === "assistant") latestAssistantId = messages[i].id;
+		if (latestUserId && latestAssistantId) break;
+	}
 	const previousUserId = useRef(latestUserId);
 
-	const latestAssistantId = [...messages]
-		.reverse()
-		.find((message) => message.role === "assistant")?.id;
 
 	const onScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
 		const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
@@ -44,7 +54,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 	// Growing content follows the stream, but only while the reader is at the
 	// bottom — scrolling up to re-read must not get yanked back.
 	const onContentSizeChange = useCallback(() => {
-		if (nearBottom.current) scrollRef.current?.scrollToEnd({ animated: true });
+		if (nearBottom.current) scrollRef.current?.scrollToEnd({ animated: false });
 	}, []);
 
 	// A newly sent question always pulls the view back down.
@@ -53,7 +63,7 @@ export function MessageList({ messages, onFollowUp, bottomInset, defaultNoteTitl
 		// Follow the new user id even when an assistant row is already last.
 		if (latestUserId && latestUserId !== previousUserId.current) {
 			nearBottom.current = true;
-			scrollRef.current?.scrollToEnd({ animated: true });
+			scrollRef.current?.scrollToEnd({ animated: !reduceMotion.current });
 		}
 		previousUserId.current = latestUserId;
 	}, [latestUserId]);

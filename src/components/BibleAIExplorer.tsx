@@ -382,7 +382,7 @@ const BibleAIExplorerInner: React.FC = () => {
 };
 
 const BibleAIExplorer: React.FC = () => (
-	<Suspense fallback={null}>
+	<Suspense fallback={<main className="flex min-h-dvh items-center justify-center" role="status" aria-label="Loading SureWord"><p className="text-sm text-neutral-600 dark:text-neutral-400">Opening SureWord...</p></main>}>
 		<BibleAIExplorerInner />
 	</Suspense>
 );

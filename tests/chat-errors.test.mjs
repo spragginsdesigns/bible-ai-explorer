@@ -10,6 +10,14 @@ import { createRateLimiter, rateLimitKey } from "../src/lib/rateLimit.ts";
 // Contract: JSON body code > [code] prefix > HTTP status > network/timeout
 // detection > generic internal fallback.
 
+test("stale edits tell the client to reload and an old replaced answer cannot satisfy recovery",async()=>{
+	const error=classifyChatError({bodyText:JSON.stringify({code:"stale_thread",error:"Reload first"})});
+	assert.equal(error.code,"stale_thread");assert.equal(error.retryable,true);
+	const {completedHistory}=await import("../src/lib/chat/answerRecovery.ts");
+	const history={messages:[{id:"old",role:"assistant",content:"The old answer"}]};
+	assert.equal(completedHistory(history,["old"]),null);assert.deepEqual(completedHistory(history,[]),history.messages);
+});
+
 test("classifies by the code in a JSON error body", () => {
 	const result = classifyChatError({
 		status: 429,

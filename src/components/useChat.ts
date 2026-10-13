@@ -36,6 +36,7 @@ import {
 	type VerseAttachment,
 } from "@/lib/chat/verseActions";
 import { effortForRequest } from "@/components/modelPickerRules";
+import { createMessageViewCache } from "@/lib/chat/message-view-cache";
 import {
 	editedUserMessage,
 	idsAfter,
@@ -238,6 +239,7 @@ export function toViewMessage(
 		/** Omitted by callers whose answers are not persisted messages. */
 		conversationId?: string | null;
 		feedback?: AnswerFeedback | null;
+		timestamp?: number;
 	}
 ): ChatMessage {
 	const legacy = isRecord(message.metadata)
@@ -380,7 +382,7 @@ export function toViewMessage(
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(progress ? { progress } : {}),
 		...(options.isStreaming ? { isStreaming: true } : {}),
-		timestamp: Date.now(),
+		timestamp: options.timestamp ?? Date.now(),
 	};
 }
 
@@ -1161,35 +1163,38 @@ export const useChat = () => {
 	// the user asked a question and one is on its way, same as a live stream.
 	const loading = status === "submitted" || recovering;
 
+	const [viewCache] = useState(() => createMessageViewCache<SureWordUIMessage, ChatMessage>());
+	const pendingTimestamp = useRef<number | null>(null);
 	const messages = useMemo(() => {
 		const busy = isStreaming || loading;
 		const activeAssistantId = streamingAssistantId(uiMessages, busy);
 
-		const viewMessages = uiMessages.map((message) =>
-			toViewMessage(message, {
-				isStreaming:
-					busy &&
-					message.role === "assistant" &&
-					message.id === activeAssistantId,
+		viewCache.retain(new Set(uiMessages.map(message => message.id)));
+		const viewMessages = uiMessages.map((message) => {
+			const streaming = busy && message.role === "assistant" && message.id === activeAssistantId;
+			return viewCache.get(message, JSON.stringify([streaming, activeConversationId, messageFeedback[message.id] ?? null]), timestamp => toViewMessage(message, {
+				isStreaming: streaming,
+				timestamp,
 				conversationId: activeConversationId,
 				feedback: messageFeedback[message.id] ?? null,
-			})
-		).filter(isRenderableChatMessage);
+			}));
+		}).filter(isRenderableChatMessage);
 
 		// While waiting for the stream to start there is no assistant message
 		// yet; show a typing indicator in its place.
 		if (loading && viewMessages.at(-1)?.role === "user") {
+			pendingTimestamp.current ??= Date.now();
 			viewMessages.push({
 				id: "pending-assistant",
 				role: "assistant",
 				content: "",
 				isStreaming: true,
-				timestamp: Date.now(),
+				timestamp: pendingTimestamp.current,
 			});
-		}
+		} else pendingTimestamp.current = null;
 
 		return viewMessages;
-	}, [uiMessages, isStreaming, loading, activeConversationId, messageFeedback]);
+	}, [uiMessages, isStreaming, loading, activeConversationId, messageFeedback, viewCache]);
 
 	const activeConversation =
 		conversations.find((c) => c.id === activeConversationId) ?? null;

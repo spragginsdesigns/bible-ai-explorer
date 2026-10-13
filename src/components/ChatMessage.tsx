@@ -547,4 +547,4 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 	);
 };
 
-export default ChatMessage;
+export default React.memo(ChatMessage);
