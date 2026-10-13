@@ -22,7 +22,7 @@ test('a saved answer without reasoning replays as full content through the real 
   const result = await generateText({model:provider('gpt-5.6-luna'),messages:withoutOrphanedOpenAIReferences(history)});
   assert.equal(result.text,'Follow-up answered.');
   assert.equal(request.input.some(item => item.type === 'item_reference'),false);
-  assert.equal(request.input.find(item => item.role === 'assistant').content[0].text,'The first answer.');
+  assert.equal(request.input.find(item => item.role === 'assistant').content,'The first answer.');
   assert.equal(request.input.find(item => item.type === 'function_call').call_id,'call_passage');
   assert.equal(request.input.find(item => item.type === 'function_call_output').output,'The passage.');
   assert.equal(history[3].content[0].providerOptions.openai.itemId,'msg_old','never alter stored history');
