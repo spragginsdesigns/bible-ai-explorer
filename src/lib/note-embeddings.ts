@@ -2,6 +2,8 @@ import { openai } from "@ai-sdk/openai";
 import { embed, embedMany } from "ai";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { chunkNoteText } from "@/lib/embedding-index";
+export { chunkNoteText } from "@/lib/embedding-index";
 
 /**
  * Semantic index of the user's Bible study notes in Neon (pgvector table
@@ -12,45 +14,13 @@ import { prisma } from "@/lib/prisma";
  * perspective - a failed sync only degrades search, never a note write.
  *
  * Existing notes are indexed by `scripts/backfill-note-embeddings.mjs`,
- * which mirrors the chunking here and must be kept in sync with it.
+ * which imports the same chunking contract.
  */
-
-const CHUNK_SIZE = 1200;
-const CHUNK_OVERLAP = 150;
-const MAX_CHUNKS_PER_NOTE = 24;
 
 const embeddingModel = openai.embedding("text-embedding-3-large");
 
 function toVectorLiteral(vector: number[]): string {
 	return `[${vector.join(",")}]`;
-}
-
-/**
- * Split a note into overlapping plain-text chunks, each prefixed with the
- * note's title so a chunk embeds what it is about, not just its words.
- */
-export function chunkNoteText(title: string, plainText: string): string[] {
-	const body = plainText.trim();
-	const heading = title.trim();
-	if (!body && !heading) return [];
-	if (!body) return [heading];
-
-	const chunks: string[] = [];
-	let start = 0;
-	while (start < body.length && chunks.length < MAX_CHUNKS_PER_NOTE) {
-		let end = Math.min(start + CHUNK_SIZE, body.length);
-		// Prefer to break on a paragraph or sentence boundary near the end.
-		if (end < body.length) {
-			const window = body.slice(start, end);
-			const breakAt = Math.max(window.lastIndexOf("\n\n"), window.lastIndexOf(". "));
-			if (breakAt > CHUNK_SIZE * 0.5) end = start + breakAt + 1;
-		}
-		const piece = body.slice(start, end).trim();
-		if (piece) chunks.push(heading ? `${heading}\n\n${piece}` : piece);
-		if (end >= body.length) break;
-		start = end - CHUNK_OVERLAP;
-	}
-	return chunks;
 }
 
 /**

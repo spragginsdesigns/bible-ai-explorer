@@ -1,12 +1,13 @@
 // One-time backfill: embed every existing note into the Neon pgvector table
 // "NoteEmbedding". New/edited notes stay in sync via src/lib/note-embeddings.ts
-// (this script mirrors its chunking; keep them in step).
+// (the app and this script share their chunking contract).
 //
 //   node scripts/backfill-note-embeddings.mjs
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { chunkNoteText } from "../src/lib/embedding-index.ts";
 
 const require = createRequire(import.meta.url);
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -31,32 +32,6 @@ const [{ db, users }] = await prisma.$queryRawUnsafe(
 if (db !== "neondb" || users < 30) {
 	console.error(`Refusing: connected to ${db} with ${users} users - not production neondb.`);
 	process.exit(1);
-}
-
-// -- chunking, mirrored from src/lib/note-embeddings.ts --
-const CHUNK_SIZE = 1200;
-const CHUNK_OVERLAP = 150;
-const MAX_CHUNKS_PER_NOTE = 24;
-function chunkNoteText(title, plainText) {
-	const body = plainText.trim();
-	const heading = title.trim();
-	if (!body && !heading) return [];
-	if (!body) return [heading];
-	const chunks = [];
-	let start = 0;
-	while (start < body.length && chunks.length < MAX_CHUNKS_PER_NOTE) {
-		let end = Math.min(start + CHUNK_SIZE, body.length);
-		if (end < body.length) {
-			const window = body.slice(start, end);
-			const breakAt = Math.max(window.lastIndexOf("\n\n"), window.lastIndexOf(". "));
-			if (breakAt > CHUNK_SIZE * 0.5) end = start + breakAt + 1;
-		}
-		const piece = body.slice(start, end).trim();
-		if (piece) chunks.push(heading ? `${heading}\n\n${piece}` : piece);
-		if (end >= body.length) break;
-		start = end - CHUNK_OVERLAP;
-	}
-	return chunks;
 }
 
 async function embedBatch(texts) {
