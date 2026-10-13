@@ -28,6 +28,7 @@ import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { TimelineStop } from "@/features/cross/TimelineStop";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { CONSENT_DECLINED_NOTICE } from "@/lib/aiConsentGate";
 import { signalNotificationPermissionMoment } from "@/features/notifications/permissionPrompt";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -223,9 +224,15 @@ export default function DailyCrossScreen() {
 				) : !entry && error ? (
 					<GlassCard style={styles.errorCard}>
 						<Text style={styles.errorText}>{error}</Text>
-						<Pressable accessibilityRole="button" onPress={load} style={styles.retry}>
-							<Text style={styles.retryLabel}>Try again</Text>
-						</Pressable>
+						{error === CONSENT_DECLINED_NOTICE ? (
+							<Pressable accessibilityRole="button" onPress={() => router.push("/settings/ai")} style={styles.retry}>
+								<Text style={styles.retryLabel}>Open AI settings</Text>
+							</Pressable>
+						) : (
+							<Pressable accessibilityRole="button" onPress={load} style={styles.retry}>
+								<Text style={styles.retryLabel}>Try again</Text>
+							</Pressable>
+						)}
 					</GlassCard>
 				) : entry ? (
 					<View style={styles.timeline}>

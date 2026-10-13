@@ -176,7 +176,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 		{
 			type: "p",
 			content: [
-				"Before your first AI request, the app shows a one-time notice, \"How SureWord answers you\", that names these providers and asks your permission. Nothing is sent to them until you tap Agree and continue, and the rest of the app (the Bible, search, highlights and notes) works without it. Your choice is saved with your account, so you are asked once rather than on every device. You can withdraw it at any time in Settings → AI → AI data sharing, and the app asks again before the next AI request.",
+				"The first time you open the app after signing in, it shows a one-time notice, \"How SureWord answers you\", that names these providers and asks your permission. Nothing is sent to them until you tap Agree and continue. If you say no, the app confirms once and then never asks again; the rest of the app (the Bible, search, highlights and notes) works without it. Your choice is saved with your account, so you are asked once, ever, rather than on every device. You can turn AI off or back on at any time in Settings → AI → AI data sharing.",
 			],
 		},
 		{ type: "h2", text: "Notifications" },

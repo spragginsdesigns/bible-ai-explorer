@@ -122,6 +122,9 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     /// nil from a server that predates consent; with `aiConsentRequired`
     /// present, a nil `aiConsent` is the server's explicit "not agreed".
     var aiConsent: AIConsentRecord? = nil
+    /// True when the person said no; the sheet is then never shown again.
+    /// nil from a server that predates recording a no.
+    var aiConsentDeclined: Bool? = nil
     var aiConsentRequired: Int? = nil
 
     init(

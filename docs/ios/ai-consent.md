@@ -35,20 +35,48 @@ links, see PRD F1).
 
 ### Behavior
 
-- Shown once per account, before the first request that reaches an AI provider:
-  chat send (including `/check`, `/reply`, slash commands that call the model),
-  tap-a-verse Explain and Words, note AI, Build my own plan, a fresh Daily
-  Cross, Listen generation, and a voice-message upload (transcription happens at
-  upload completion, so the gate must sit before the upload, not before send).
-- **Agree and continue** records consent (section 2) and then performs the
-  action the person tapped, so they never have to tap twice.
-- **Not now** dismisses the sheet and sends nothing. The draft stays in the
-  composer. Reading, search, highlights, notes, Atlas and every non-AI screen
-  keep working (Apple 5.1.1(iv): do not hold the rest of the app hostage). The
-  next AI action shows the sheet again.
-- Settings → AI gets one row, "AI data sharing", showing "Allowed on <date>"
-  and a **Withdraw** action (confirm dialog). Withdrawing clears consent; the
-  next AI action shows the sheet again.
+**Once per account, ever (Austin, 2026-10-13).** A yes or a confirmed no is
+saved on the account and the sheet is never shown again, on any device.
+Before this rule, "Not now" was not saved, so every AI action asked again, and
+the version 1 to 2 copy bump re-asked people who had already agreed; screens
+that loaded AI on their own (Pick Up Your Cross) showed a dead-end "Try again"
+card instead.
+
+- Shown by itself the first time a signed-in client hears from the server that
+  the account never chose (`aiConsentDeclined: false` and no `aiConsent`). An
+  AI action started while it is up waits for the answer instead of failing. If
+  the sheet could not be shown (it was dismissed by the system), the first AI
+  tap shows it, as before: chat send, tap-a-verse Explain and Words, note AI,
+  Build my own plan, a fresh Daily Cross, Listen generation, a voice-message
+  upload.
+- **Agree and continue** records consent (section 2) and then performs any
+  action that was waiting, so nobody taps twice.
+- **No thanks** (or Escape, Back, a swipe) never closes the sheet unanswered.
+  It moves to a confirmation, because SureWord is mostly AI: **Turn off AI?**
+  with the confirm body, **Allow AI** (agrees) and **Turn off AI** (saves the
+  no). Reading, search, highlights, notes, Atlas and every non-AI screen keep
+  working (Apple 5.1.1(iv)). AI screens show "AI is turned off for your
+  account. You can turn it on in Settings → AI." and Pick Up Your Cross offers
+  an "Open AI settings" button.
+- Settings → AI keeps one row, "AI data sharing", showing "Allowed on <date>"
+  or "Off". **Turn off AI** (confirm dialog) records a no. **Turn on AI** shows
+  the disclosure again; it is the only way the sheet ever reappears.
+- Any recorded agreement counts, whatever copy version it was given to.
+  `AI_CONSENT_VERSION` still stops a stale build recording agreement to copy
+  it never showed, but bumping it never re-asks anyone; provider changes go in
+  the privacy policy.
+
+**Confirmation copy:** title "Turn off AI?", body "SureWord is built around AI.
+Without it, chat, verse explanations, word studies, Pick Up Your Cross
+reflections and note help won't work. You can still read the Bible, highlight
+and write notes. You won't be asked again; to change your mind, go to
+Settings → AI."
+
+**Server:** `User.aiConsentDeclinedAt` (migration
+`20261013180000_ai_consent_declined`). `PATCH { aiConsent: null }` clears the
+agreement and stamps it; `{ aiConsent: { version } }` clears it. The document
+carries `aiConsentDeclined`. Older builds that still send null on "Withdraw"
+therefore also record a no.
 - Signed-out guests on the web landing page ("Try before you sign up") are a
   separate surface with no account to record against; show the same body as a
   one-line notice with the Privacy link under the guest composer instead.

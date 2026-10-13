@@ -67,9 +67,14 @@ model User {
   testimony              String?
   // AI data-sharing consent (docs/ios/ai-consent.md): the copy version the
   // person agreed to on the one-time sheet, and when the server recorded it.
-  // Null until they agree; both cleared on withdraw.
+  // Null until they agree; both cleared when they turn AI off.
   aiConsentVersion       Int?
   aiConsentAt            DateTime?
+  // When the person said no to AI (the sheet's confirmed "Turn off AI", or
+  // Settings → AI). Recorded so the sheet is shown once per account, ever:
+  // a declined account is never asked again unless it turns AI on itself.
+  // Cleared by agreeing.
+  aiConsentDeclinedAt    DateTime?
   // When the in-chat "getting to know you" interview finished or was skipped
   // (src/lib/onboarding-tools.ts). Null means chat still runs it.
   onboardedAt            DateTime?

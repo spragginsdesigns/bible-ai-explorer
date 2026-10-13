@@ -19,6 +19,7 @@ struct AIConsentSheet: View {
     let store: AIConsentStore
 
     private var isSaving: Bool { store.prompt?.isSaving == true }
+    private var isConfirming: Bool { store.prompt?.isConfirmingDecline == true }
 
     var body: some View {
 #if os(iOS)
@@ -41,10 +42,10 @@ struct AIConsentSheet: View {
                 .controlSize(.large)
                 .disabled(isSaving)
 
-                Button {
-                    store.decline()
+                Button(role: isConfirming ? .destructive : nil) {
+                    if isConfirming { Task { await store.confirmDecline() } } else { store.decline() }
                 } label: {
-                    Text(AIConsent.decline).frame(maxWidth: .infinity)
+                    Text(isConfirming ? AIConsent.confirmDecline : AIConsent.decline).frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.glass)
                 .controlSize(.large)
@@ -60,9 +61,17 @@ struct AIConsentSheet: View {
             errorLine
             HStack {
                 Spacer()
-                Button(AIConsent.decline) { store.decline() }
+                Button(isConfirming ? AIConsent.confirmDecline : AIConsent.decline, role: isConfirming ? .destructive : nil) {
+                    if isConfirming { Task { await store.confirmDecline() } } else { store.decline() }
+                }
+                .disabled(isSaving)
+                // Escape never closes the sheet unanswered: it asks to
+                // confirm, and on the confirmation goes back.
+                Button("") { if isConfirming { store.back() } else { store.decline() } }
                     .keyboardShortcut(.cancelAction)
-                    .disabled(isSaving)
+                    .frame(width: 0, height: 0)
+                    .opacity(0)
+                    .accessibilityHidden(true)
                 Button {
                     Task { await store.agree() }
                 } label: {
@@ -86,16 +95,16 @@ struct AIConsentSheet: View {
                 .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .accessibilityHidden(true)
-            Text(AIConsent.title)
+            Text(isConfirming ? AIConsent.confirmTitle : AIConsent.title)
                 .font(.title2.weight(.bold))
                 .foregroundStyle(theme.text)
                 .accessibilityAddTraits(.isHeader)
-            Text(AIConsent.body)
+            Text(isConfirming ? AIConsent.confirmBody : AIConsent.body)
                 .font(.body)
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             // `Link` opens through `openURL`, which is the system browser.
-            if let url = URL(string: AIConsent.privacyURL) {
+            if !isConfirming, let url = URL(string: AIConsent.privacyURL) {
                 Link(AIConsent.privacyLabel, destination: url)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(theme.accent)
@@ -118,13 +127,14 @@ struct AIConsentSheet: View {
 
     @ViewBuilder
     private var agreeLabel: some View {
+        let title = isConfirming ? AIConsent.confirmAllow : AIConsent.agree
         if isSaving {
             HStack(spacing: Spacing.sm) {
                 ProgressView().controlSize(.small)
-                Text(AIConsent.agree)
+                Text(title)
             }
         } else {
-            Text(AIConsent.agree)
+            Text(title)
         }
     }
 }
@@ -201,12 +211,14 @@ private final class AIConsentPresenter {
         }
         delegate.store = store
         controller.presentationController?.delegate = delegate
-        // However the sheet goes away - Not now, a swipe, or the controller it
-        // sits on being dismissed underneath it - an unanswered prompt is a
-        // "Not now", so the action that is waiting is never left hanging.
+        // The question is asked once, ever, so it cannot be swiped away
+        // unanswered; a swipe attempt moves to the "Turn off AI?" step.
+        controller.isModalInPresentation = true
+        // If the controller it sits on is dismissed underneath it, release the
+        // waiting actions unrun and record nothing.
         controller.onDisappear = { [weak store] in
             guard let store, store.prompt?.id == promptID else { return }
-            store.decline()
+            store.cancelPending()
         }
         top.present(controller, animated: true)
         hosting = controller
@@ -231,13 +243,13 @@ private final class AIConsentPresenter {
         return top
     }
 
-    /// Blocks a swipe-down while the agreement is being saved, so the sheet
-    /// cannot vanish under a PATCH that is about to release the action.
+    /// The sheet is modal in presentation, so a swipe-down lands here: it
+    /// shows the "Turn off AI?" confirmation instead of closing.
     private final class DismissDelegate: NSObject, UIAdaptivePresentationControllerDelegate {
         weak var store: AIConsentStore?
 
-        func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
-            store?.prompt?.isSaving != true
+        func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+            MainActor.assumeIsolated { store?.decline() }
         }
     }
 #elseif os(macOS)
@@ -293,8 +305,9 @@ private final class AIConsentHostingController: UIHostingController<AnyView> {
 // MARK: - Settings → AI
 
 /// Settings → AI, shared by both Apple clients: the "AI data sharing" row with
-/// "Allowed on <date>" or "Not allowed yet", and Withdraw behind a confirm
-/// dialog. Same row as the web and Android settings.
+/// "Allowed on <date>" or "Off", "Turn off AI" behind a confirm dialog, and
+/// "Turn on AI", which shows the disclosure again. Same row as the web and
+/// Android settings.
 struct AIConsentSettingsSection: View {
     @Environment(\.theme) private var theme
 
@@ -309,7 +322,7 @@ struct AIConsentSettingsSection: View {
                 Button(AIConsent.withdraw, role: .destructive) { isConfirmingWithdraw = true }
                     .disabled(store.isWithdrawing)
                     .confirmationDialog(
-                        "Withdraw AI data sharing?",
+                        "Turn off AI?",
                         isPresented: $isConfirmingWithdraw,
                         titleVisibility: .visible
                     ) {
@@ -319,10 +332,13 @@ struct AIConsentSettingsSection: View {
                         Button("Cancel", role: .cancel) {}
                     } message: {
                         Text(
-                            "SureWord will ask again before your next AI request. "
-                                + "Reading, notes and highlights keep working."
+                            "Chat, verse explanations and the other AI features stop working "
+                                + "until you turn AI back on here. Your study data is kept."
                         )
                     }
+            } else {
+                Button(AIConsent.enable) { store.reconsider() }
+                    .disabled(store.prompt != nil)
             }
             Text("What SureWord sends to AI providers to answer you, and your permission for it.")
                 .font(.system(size: 11))
@@ -333,7 +349,7 @@ struct AIConsentSettingsSection: View {
             if !store.hasServerState { await store.refresh() }
         }
         .alert(
-            "Could not withdraw",
+            "Could not turn off AI",
             isPresented: Binding(
                 get: { store.withdrawError != nil },
                 set: { if !$0 { store.withdrawError = nil } }

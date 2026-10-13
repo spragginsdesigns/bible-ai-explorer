@@ -14,6 +14,19 @@ Entries below 1.19.0 predate this format and stay as they were.
 
 ---
 
+## 1.89.0 (versionCode 102) - 2026-10-13 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- SureWord asks about AI once, the first time you open the app, and never again. If you say no, it checks once, since most of SureWord runs on AI, and then remembers your choice on every device.
+- Turn AI off or back on anytime in Settings, AI.
+
+FIXED
+- Pick Up Your Cross no longer shows a "needs your permission" card with a Try again button that did nothing.
+
+**Dev notes:** Consent is asked once per account, ever. New `User.aiConsentDeclinedAt` (migration 20261013180000) records a confirmed no; `aiConsentDeclined` rides the preferences document; any recorded agreement counts regardless of copy version (no more re-asks on a version bump). The gate raises the sheet on launch for undecided accounts, joins waiting actions to the open sheet instead of refusing them, and "No thanks" moves to a "Turn off AI?" confirmation. Same state machine on web, Android and Apple.
+
 ## 1.88.1 (versionCode 101) - 2026-10-13 - internal and closed testing
 
 **What's new (Play):**

@@ -88,13 +88,12 @@ test("the current consent copy is version 2 for included OpenRouter models", () 
 	assert.equal(AI_CONSENT_VERSION, 2);
 });
 
-test("the sheet is needed until the account agreed to the version the server requires", () => {
+test("AI is allowed by any recorded agreement: the sheet is asked once, ever", () => {
 	assert.equal(copy.aiConsentNeeded(null), true);
 	assert.equal(copy.aiConsentNeeded(undefined), true);
 	assert.equal(copy.aiConsentNeeded({ version: AI_CONSENT_VERSION }), false);
-	// A bumped copy version asks everyone again, including people who agreed.
-	assert.equal(copy.aiConsentNeeded({ version: 1 }, 2), true);
-	assert.equal(copy.aiConsentNeeded({ version: 2 }, 2), false);
+	// A later copy version never re-asks someone who already said yes.
+	assert.equal(copy.aiConsentNeeded({ version: 1 }), false);
 });
 
 test("a stored consent needs both columns, a positive integer version and a real time", () => {
@@ -114,14 +113,14 @@ test("a stored consent needs both columns, a positive integer version and a real
 	}
 });
 
-test("current consent is the required version with a time; anything else is not consent", () => {
+test("current consent is any recorded version with a time; anything else is not consent", () => {
 	const at = new Date("2026-10-07T12:00:00.000Z");
 	assert.equal(hasCurrentAiConsent({ aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: at }), true);
 	assert.equal(hasCurrentAiConsent({ aiConsentVersion: 1, aiConsentAt: null }), false);
 	assert.equal(hasCurrentAiConsent({ aiConsentVersion: null, aiConsentAt: null }), false);
 	assert.equal(hasCurrentAiConsent({}), false);
 	assert.equal(hasCurrentAiConsent(null), false);
-	assert.equal(hasCurrentAiConsent({ aiConsentVersion: 1, aiConsentAt: at }, 2), false);
+	assert.equal(hasCurrentAiConsent({ aiConsentVersion: 1, aiConsentAt: at }), true);
 });
 
 test("the Settings row reads 'Allowed on <date>' and nothing without consent", () => {
@@ -139,6 +138,13 @@ test("the document carries the consent on record and the version required", () =
 	const none = toPreferencesDocument(row(), "free", MODELS);
 	assert.equal(none.aiConsent, null);
 	assert.equal(none.aiConsentRequired, AI_CONSENT_VERSION);
+	assert.equal(none.aiConsentDeclined, false);
+
+	const declined = toPreferencesDocument(row({ aiConsentDeclinedAt: NOW }), "free", MODELS);
+	assert.equal(declined.aiConsent, null);
+	assert.equal(declined.aiConsentDeclined, true);
+	// An agreement always wins over a stale decline stamp.
+	assert.equal(toPreferencesDocument(row({ aiConsentVersion: 2, aiConsentAt: NOW, aiConsentDeclinedAt: NOW }), "free", MODELS).aiConsentDeclined, false);
 
 	const agreed = toPreferencesDocument(row({ aiConsentVersion: 1, aiConsentAt: NOW }), "free", MODELS);
 	assert.deepEqual(agreed.aiConsent, { version: 1, acceptedAt: NOW.toISOString() });
@@ -150,14 +156,14 @@ test("the document carries the consent on record and the version required", () =
 test("agreeing records the current version and the server's time", () => {
 	assert.deepEqual(parse({ aiConsent: { version: AI_CONSENT_VERSION } }), {
 		ok: true,
-		data: { aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: NOW },
+		data: { aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: NOW, aiConsentDeclinedAt: null },
 	});
 });
 
-test("withdrawing clears both columns", () => {
+test("saying no clears the agreement and records when, so it is never asked again", () => {
 	assert.deepEqual(parse({ aiConsent: null }), {
 		ok: true,
-		data: { aiConsentVersion: null, aiConsentAt: null },
+		data: { aiConsentVersion: null, aiConsentAt: null, aiConsentDeclinedAt: NOW },
 	});
 });
 
@@ -204,7 +210,7 @@ test("agreeing twice writes the same thing: the write is idempotent", () => {
 test("consent rides with the other preferences in one patch", () => {
 	assert.deepEqual(parse({ aiConsent: { version: AI_CONSENT_VERSION }, webSearchEnabled: false }), {
 		ok: true,
-		data: { aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: NOW, webSearchEnabled: false },
+		data: { aiConsentVersion: AI_CONSENT_VERSION, aiConsentAt: NOW, aiConsentDeclinedAt: null, webSearchEnabled: false },
 	});
 });
 
@@ -212,6 +218,7 @@ test("the route reads and returns both columns, and counts the write as one sett
 	const route = read("../src/app/api/preferences/route.ts");
 	assert.match(route, /aiConsentVersion: true/);
 	assert.match(route, /aiConsentAt: true/);
+	assert.match(route, /aiConsentDeclinedAt: true/);
 	assert.match(route, /key\.startsWith\("aiConsent"\) \? "aiConsent" : key/);
 });
 
@@ -223,6 +230,11 @@ test("the columns live on User, so account deletion removes them with the row", 
 	const migration = read("../prisma/migrations/20261007160000_ai_consent/migration.sql");
 	assert.match(migration, /ADD COLUMN "aiConsentVersion" INTEGER/);
 	assert.match(migration, /ADD COLUMN "aiConsentAt" TIMESTAMP\(3\)/);
+	assert.match(user, /aiConsentDeclinedAt\s+DateTime\?/);
+	assert.match(
+		read("../prisma/migrations/20261013180000_ai_consent_declined/migration.sql"),
+		/ADD COLUMN "aiConsentDeclinedAt" TIMESTAMP\(3\)/
+	);
 });
 
 // -- the morning Daily Cross gate --------------------------------------------
@@ -237,7 +249,7 @@ test("only accounts with current consent are personalised by the morning cron", 
 		{ id: "old-copy", aiConsentVersion: 0, aiConsentAt: at },
 	]);
 	assert.deepEqual([...consented], ["agreed"]);
-	assert.deepEqual([...aiConsentedUserIds([{ id: "agreed", aiConsentVersion: 1, aiConsentAt: at }], 2)], []);
+	assert.deepEqual([...aiConsentedUserIds([{ id: "older-copy", aiConsentVersion: 1, aiConsentAt: at }])], ["older-copy"]);
 	assert.deepEqual([...aiConsentedUserIds([])], []);
 });
 
@@ -273,11 +285,11 @@ test("without personal context the generator reads nothing about the person", ()
 test("the approved copy, verbatim", () => {
 	assert.equal(copy.AI_CONSENT_TITLE, "How SureWord answers you");
 	assert.equal(copy.AI_CONSENT_AGREE, "Agree and continue");
-	assert.equal(copy.AI_CONSENT_DECLINE, "Not now");
+	assert.equal(copy.AI_CONSENT_DECLINE, "No thanks");
 	assert.equal(copy.AI_CONSENT_PRIVACY_LABEL, "Privacy Policy");
 	assert.equal(copy.AI_CONSENT_PRIVACY_URL, "https://sureword.app/privacy");
 	assert.equal(copy.AI_CONSENT_SETTINGS_TITLE, "AI data sharing");
-	assert.equal(copy.AI_CONSENT_WITHDRAW, "Withdraw");
+	assert.equal(copy.AI_CONSENT_WITHDRAW, "Turn off AI");
 	// The spec's body, joined from its wrapped lines.
 	const spec = read("../docs/ios/ai-consent.md");
 	const quoted = spec

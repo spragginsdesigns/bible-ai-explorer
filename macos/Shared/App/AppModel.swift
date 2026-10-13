@@ -115,7 +115,7 @@ final class AppModel {
         suggestedQuestions = SuggestedQuestionsModel(api: api)
         atlas = AtlasModel(api: api)
         preferences = PreferencesSyncModel(transport: api, settings: settings)
-        aiConsent = AIConsentStore(account: userID, transport: api)
+        aiConsent = AIConsentStore(account: userID, transport: api, askOnLaunch: true)
         chapterAudio = ChapterAudioModel(api: api, settings: settings)
         preferences.aiConsent = aiConsent
         AIConsentGate.install(aiConsent)

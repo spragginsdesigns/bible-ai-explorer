@@ -1,5 +1,5 @@
 "use client";
-import { consentFetch } from "@/lib/ai-consent-gate";
+import { CONSENT_DECLINED_NOTICE, consentFetch } from "@/lib/ai-consent-gate";
 
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -197,10 +197,10 @@ export default function DailyCrossPage() {
 						<p className="text-center text-support text-neutral-600 dark:text-neutral-300">{error}</p>
 						<button
 							type="button"
-							onClick={load}
+							onClick={error === CONSENT_DECLINED_NOTICE ? () => router.push("/settings") : load}
 							className="rounded-lg border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-6 py-2 text-control font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 						>
-							Try again
+							{error === CONSENT_DECLINED_NOTICE ? "Open AI settings" : "Try again"}
 						</button>
 					</div>
 				) : entry ? (

@@ -57,6 +57,7 @@ const PREFERENCE_SELECT = {
 	testimony: true,
 	aiConsentVersion: true,
 	aiConsentAt: true,
+	aiConsentDeclinedAt: true,
 	defaultModelId: true,
 	defaultEffort: true,
 	defaultSpeed: true,

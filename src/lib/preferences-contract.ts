@@ -82,12 +82,13 @@ export const MAX_ABOUT_ME_LENGTH = 1000;
 export const MAX_TESTIMONY_LENGTH = 2000;
 
 /**
- * The AI data-sharing copy version (docs/ios/ai-consent.md). Bump when the
- * provider list or what is sent changes materially: every account then sees
- * the "How SureWord answers you" sheet once more on its next AI action, and a
- * PATCH from a build still showing the old copy is refused, because a stale
- * build must not record agreement to copy it never showed. The sheet's text
- * lives in `src/lib/ai-consent.ts` and its mirrors on every client.
+ * The AI data-sharing copy version (docs/ios/ai-consent.md). A PATCH from a
+ * build still showing older copy is refused, because a stale build must not
+ * record agreement to copy it never showed. Bumping it does NOT ask anyone
+ * again: Austin's rule (2026-10-13) is one sheet per account, ever, so any
+ * recorded agreement counts (`hasCurrentAiConsent`). Provider changes go in
+ * the privacy policy. The sheet's text lives in `src/lib/ai-consent.ts` and
+ * its mirrors on every client.
  */
 export const AI_CONSENT_VERSION = 2;
 
@@ -185,8 +186,13 @@ export interface PreferencesDocument {
 	/** "" until the user writes one, like `aboutMe`. */
 	testimony: string;
 	chat: PreferencesChatDocument;
-	/** The consent on record, or null when the person has not agreed (or withdrew). */
+	/** The consent on record, or null when the person has not agreed (or turned AI off). */
 	aiConsent: AiConsentDocument | null;
+	/**
+	 * True when the person said no (`aiConsent` is then null). Clients never
+	 * show the sheet to a declined account; only Settings → AI turns it back on.
+	 */
+	aiConsentDeclined: boolean;
 	/**
 	 * The copy version this server requires, `AI_CONSENT_VERSION`. A client
 	 * shows the sheet when `aiConsent?.version !== aiConsentRequired`.
@@ -217,6 +223,8 @@ export interface PreferencesUserRow {
 	aiConsentVersion?: number | null;
 	/** The `aiConsentAt` column; optional like the version. */
 	aiConsentAt?: Date | null;
+	/** The `aiConsentDeclinedAt` column; optional like the version. */
+	aiConsentDeclinedAt?: Date | null;
 	defaultModelId: string | null;
 	defaultEffort: string | null;
 	defaultSpeed: string | null;
@@ -240,10 +248,12 @@ export interface PreferencesPatchData {
 	aboutMe?: string | null;
 	/** null clears the column, like `aboutMe`. */
 	testimony?: string | null;
-	/** Agreement records the current version; withdraw clears both columns. */
+	/** Agreement records the current version; declining clears both columns. */
 	aiConsentVersion?: number | null;
-	/** Stamped by the parser from its `now`; null on withdraw. */
+	/** Stamped by the parser from its `now`; null on decline. */
 	aiConsentAt?: Date | null;
+	/** Stamped on decline (`aiConsent: null`); cleared by agreeing. */
+	aiConsentDeclinedAt?: Date | null;
 	defaultModelId?: string | null;
 	defaultEffort?: string | null;
 	defaultSpeed?: string | null;
@@ -315,16 +325,15 @@ export function readStoredAiConsent(
 }
 
 /**
- * True when the account agreed to the copy this server requires. The test
- * every server path that sends personal context without a tap asks first (the
- * morning Daily Cross cron today), and the same comparison every client's gate
- * makes against the document.
+ * True when the account has agreed, to any copy version: the sheet is asked
+ * once per account, ever, so a later copy version never revokes an earlier
+ * yes. The test every server path that sends personal context without a tap
+ * asks first (the morning Daily Cross cron today).
  */
 export function hasCurrentAiConsent(
-	user: { aiConsentVersion?: number | null; aiConsentAt?: Date | null } | null | undefined,
-	required: number = AI_CONSENT_VERSION
+	user: { aiConsentVersion?: number | null; aiConsentAt?: Date | null } | null | undefined
 ): boolean {
-	return readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt)?.version === required;
+	return readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt) !== null;
 }
 
 /**
@@ -332,15 +341,14 @@ export function hasCurrentAiConsent(
  * The morning cron reads every due user's two columns at once and asks this.
  */
 export function aiConsentedUserIds(
-	rows: readonly { id: string; aiConsentVersion?: number | null; aiConsentAt?: Date | null }[],
-	required: number = AI_CONSENT_VERSION
+	rows: readonly { id: string; aiConsentVersion?: number | null; aiConsentAt?: Date | null }[]
 ): Set<string> {
-	return new Set(rows.filter((row) => hasCurrentAiConsent(row, required)).map((row) => row.id));
+	return new Set(rows.filter((row) => hasCurrentAiConsent(row)).map((row) => row.id));
 }
 
 /**
  * Validate an `aiConsent` write. `{ version }` must name the current copy
- * version; `null` withdraws. The server stamps the time, so a body carrying
+ * version; `null` declines (turns AI off and records that the person said no). The server stamps the time, so a body carrying
  * `acceptedAt` (or anything else) is refused rather than half-honoured.
  */
 function readAiConsentPatch(
@@ -495,6 +503,9 @@ export function toPreferencesDocument(
 			mode: pickFromVocabulary<ReasoningMode>(user?.defaultMode, models.modes),
 		},
 		aiConsent: readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt),
+		aiConsentDeclined:
+			readStoredAiConsent(user?.aiConsentVersion, user?.aiConsentAt) === null &&
+			user?.aiConsentDeclinedAt instanceof Date,
 		aiConsentRequired: AI_CONSENT_VERSION,
 	};
 }
@@ -589,6 +600,7 @@ export function parsePreferencesPatch(
 				if (!parsed.ok) return { ok: false, error: parsed.error };
 				data.aiConsentVersion = parsed.version;
 				data.aiConsentAt = parsed.at;
+				data.aiConsentDeclinedAt = parsed.version === null ? now : null;
 				break;
 			}
 			case "chat": {

@@ -54,8 +54,7 @@ function load(userId: string): Promise<QuestionSet> {
 }
 
 function hasCurrentConsent(): boolean {
-	const { record, required } = aiConsentGate.getSnapshot();
-	return record?.version === required;
+	return aiConsentGate.getSnapshot().record !== null;
 }
 
 export function useSuggestedQuestions(): {

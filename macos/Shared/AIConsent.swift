@@ -11,7 +11,8 @@ import Foundation
 enum AIConsent {
     /// The copy version this build shows. The server refuses agreement to any
     /// other version, so a stale build can never record consent to text it did
-    /// not display.
+    /// not display. It never re-asks anyone: the sheet is shown once per
+    /// account, ever (Austin, 2026-10-13), and any recorded yes counts.
     static let version = 2
 
     static let title = "How SureWord answers you"
@@ -24,28 +25,40 @@ enum AIConsent {
 
     static let agree = "Agree and continue"
 
-    static let decline = "Not now"
+    static let decline = "No thanks"
+
+    /// The confirmation "No thanks" leads to. SureWord is mostly AI, so a no
+    /// is confirmed before it is saved; once saved it is never asked again.
+    static let confirmTitle = "Turn off AI?"
+
+    static let confirmBody = "SureWord is built around AI. Without it, chat, verse explanations, word studies, Pick Up Your Cross reflections and note help won't work. You can still read the Bible, highlight and write notes. You won't be asked again; to change your mind, go to Settings → AI."
+
+    /// The confirmation's primary button: agrees, as "Agree and continue" does.
+    static let confirmAllow = "Allow AI"
+
+    /// The confirmation's no, saved on the account.
+    static let confirmDecline = "Turn off AI"
 
     /// Settings → AI row title.
     static let settingsTitle = "AI data sharing"
 
-    /// Settings → AI action that clears consent, after a confirm dialog.
-    static let withdraw = "Withdraw"
+    /// Settings → AI action that turns AI off, after a confirm dialog.
+    static let withdraw = "Turn off AI"
 
-    /// The Settings row's value while there is no current consent.
-    static let notAllowedLabel = "Not allowed yet"
+    /// Settings → AI action that shows the disclosure again to turn AI on.
+    static let enable = "Turn on AI"
 
-    /// Shown in place of an explanation or word study that would have started
-    /// on its own (selecting a verse, opening the Words tab) while AI data
-    /// sharing is not allowed. The section's own retry button is the tap that
-    /// may raise the sheet.
-    static let declinedNotice = "Written by AI, which needs your permission first. Try again to choose."
+    /// The Settings row's value while AI is off or was never allowed.
+    static let notAllowedLabel = "Off"
 
-    /// True when the sheet must be shown before an AI action: no consent on
-    /// record, or consent to a version other than the one the server requires.
-    /// Same rule as `aiConsentNeeded` on the web.
-    static func needed(_ consent: AIConsentRecord?, required: Int = version) -> Bool {
-        consent?.version != required
+    /// Shown in place of anything AI would have written while AI is off.
+    static let declinedNotice = "AI is turned off for your account. You can turn it on in Settings → AI."
+
+    /// True when AI is not allowed: no consent on record. Any recorded yes
+    /// counts, whatever copy version it was given to. Same rule as
+    /// `aiConsentNeeded` on the web.
+    static func needed(_ consent: AIConsentRecord?) -> Bool {
+        consent == nil
     }
 
     /// "Allowed on October 7, 2026" for the Settings row; nil when not allowed
@@ -88,7 +101,7 @@ struct AIConsentRecord: Codable, Sendable, Equatable {
 }
 
 /// The `PATCH /api/preferences` body for consent: `{ "aiConsent": { "version": 1 } }`
-/// to agree, `{ "aiConsent": null }` to withdraw. The null is written
+/// to agree, `{ "aiConsent": null }` to turn AI off (recorded as a no). The null is written
 /// explicitly - an absent key would mean "leave consent alone" and the
 /// withdrawal would silently do nothing.
 struct AIConsentPatch: Encodable, Sendable, Equatable {
@@ -152,16 +165,21 @@ final class AIConsentStore {
         case automatic
     }
 
-    /// The sheet currently on screen. One at a time: a second AI action while
-    /// it is up is refused rather than queued.
+    /// The sheet currently on screen. One at a time: every AI action started
+    /// while it is up waits for the same answer.
     struct Prompt: Identifiable, Equatable {
         let id = UUID()
+        /// "No thanks" was tapped: the sheet shows the "Turn off AI?" step.
+        var isConfirmingDecline = false
         var isSaving = false
         var error: String?
     }
 
     /// The consent on record for this account, nil when none.
     private(set) var record: AIConsentRecord?
+    /// The person said no. The sheet never shows again; only Settings → AI
+    /// can reopen it.
+    private(set) var declined = false
     /// The version the server requires (`aiConsentRequired`). Defaults to this
     /// build's copy version until a document says otherwise.
     private(set) var required: Int
@@ -177,23 +195,40 @@ final class AIConsentStore {
 
     @ObservationIgnored private let transport: any AIConsentTransport
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private var continuation: CheckedContinuation<Bool, Never>?
+    @ObservationIgnored private var continuations: [CheckedContinuation<Bool, Never>] = []
+    /// The signed-in session's store raises the sheet by itself the first time
+    /// the server says this account never chose, so it is asked once, up front.
+    @ObservationIgnored private let askOnLaunch: Bool
+    /// When this session last saved an answer. A preferences fetch that began
+    /// before the save can land after it; within this window a document that
+    /// disagrees with the saved answer is that stale fetch, not a newer
+    /// choice from another device, and must not undo the answer or reopen
+    /// the sheet.
+    @ObservationIgnored private var lastLocalDecision: Date?
+    private static let staleDocumentWindow: TimeInterval = 30
 
-    init(account: String?, transport: any AIConsentTransport, defaults: UserDefaults = .standard) {
+    init(
+        account: String?,
+        transport: any AIConsentTransport,
+        defaults: UserDefaults = .standard,
+        askOnLaunch: Bool = false
+    ) {
         self.account = account
         self.transport = transport
         self.defaults = defaults
+        self.askOnLaunch = askOnLaunch
         required = AIConsent.version
         if let account,
            let data = defaults.data(forKey: Self.cacheKey(account)),
            let cached = try? JSONDecoder().decode(Cached.self, from: data) {
             record = cached.record
+            declined = cached.declined ?? false
             required = max(AIConsent.version, cached.required)
         }
     }
 
     /// True when AI actions may run without asking.
-    var isCurrent: Bool { !AIConsent.needed(record, required: required) }
+    var isCurrent: Bool { !AIConsent.needed(record) }
 
     /// The Settings row's value.
     var statusLabel: String {
@@ -205,6 +240,8 @@ final class AIConsentStore {
 
     private struct Cached: Codable {
         var record: AIConsentRecord?
+        /// Optional so a cache written before declines were recorded still reads.
+        var declined: Bool?
         var required: Int
     }
 
@@ -212,7 +249,7 @@ final class AIConsentStore {
 
     private func persist() {
         guard let account else { return }
-        if let data = try? JSONEncoder().encode(Cached(record: record, required: required)) {
+        if let data = try? JSONEncoder().encode(Cached(record: record, declined: declined, required: required)) {
             defaults.set(data, forKey: Self.cacheKey(account))
         }
     }
@@ -227,10 +264,19 @@ final class AIConsentStore {
     @discardableResult
     func absorb(_ document: AccountPreferences) -> Bool {
         guard let required = document.aiConsentRequired else { return false }
+        if let lastLocalDecision, Date.now.timeIntervalSince(lastLocalDecision) < Self.staleDocumentWindow {
+            let documentDeclined = document.aiConsent == nil && document.aiConsentDeclined == true
+            if (document.aiConsent != nil) != (record != nil) || documentDeclined != declined { return true }
+        }
         self.required = max(AIConsent.version, required)
         record = document.aiConsent
+        declined = record == nil && document.aiConsentDeclined == true
         hasServerState = true
         persist()
+        // Only a server that records a no can keep the promise of asking once.
+        if askOnLaunch, lastLocalDecision == nil, record == nil, document.aiConsentDeclined == false, prompt == nil {
+            prompt = Prompt()
+        }
         return true
     }
 
@@ -244,29 +290,37 @@ final class AIConsentStore {
     // MARK: Gate
 
     /// Run before any request that reaches an AI provider. True means go ahead;
-    /// false means the person chose "Not now" (or another sheet is already up)
-    /// and nothing may be sent.
+    /// false means AI is off for this account and nothing may be sent.
     ///
     /// Consent current → true at once, offline included. Otherwise, when this
     /// session has not heard from the server yet, a fresh GET comes first, so a
-    /// person who agreed on another device is not asked again. Then the sheet;
-    /// this suspends until it is answered.
+    /// person who agreed on another device is not asked again. A declined
+    /// account is refused without a sheet. An undecided one waits on the sheet
+    /// (joining it when it is already up), which suspends until it is answered.
     func ensureConsent(_ trigger: Trigger = .tap) async -> Bool {
         if isCurrent { return true }
         if !hasServerState {
             await refresh()
             if isCurrent { return true }
         }
-        if trigger == .automatic { return false }
-        guard prompt == nil, continuation == nil else { return false }
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
+        if declined { return false }
+        if prompt == nil {
+            if trigger == .automatic { return false }
             prompt = Prompt()
+        }
+        return await withCheckedContinuation { continuation in
+            continuations.append(continuation)
         }
     }
 
+    /// Settings → AI → Turn on AI: the disclosure again, even after a no.
+    func reconsider() {
+        guard !isCurrent, prompt == nil else { return }
+        prompt = Prompt()
+    }
+
     /// Run `action` once consent is current - at once if it already is, after
-    /// "Agree and continue" if not, never after "Not now".
+    /// "Agree and continue" if not, never while AI is off.
     func require(_ trigger: Trigger = .tap, _ action: @escaping @MainActor () async -> Void) {
         Task {
             guard await ensureConsent(trigger) else { return }
@@ -293,6 +347,7 @@ final class AIConsentStore {
                 hasServerState = true
                 persist()
             }
+            if isCurrent { lastLocalDecision = .now }
             guard prompt?.id == current.id else { return }
             guard isCurrent else {
                 prompt?.isSaving = false
@@ -307,30 +362,66 @@ final class AIConsentStore {
         }
     }
 
-    /// "Not now", a swipe down or Escape: nothing is sent and the action is
-    /// dropped. The next AI action asks again.
+    /// "No thanks" or Escape: never closes the sheet unanswered, it moves to
+    /// the "Turn off AI?" confirmation.
     func decline() {
-        guard prompt != nil else { return }
-        finish(granted: false)
+        guard prompt != nil, prompt?.isSaving != true else { return }
+        // After a failed save (offline) it closes unrecorded, so nobody is trapped.
+        if prompt?.error != nil { cancelPending(); return }
+        prompt?.isConfirmingDecline = true
+        prompt?.error = nil
     }
 
-    /// The session ended with the sheet up: release the waiting action
-    /// without running it.
+    /// Escape on the confirmation returns to the disclosure.
+    func back() {
+        guard prompt != nil, prompt?.isSaving != true else { return }
+        if prompt?.error != nil { cancelPending(); return }
+        prompt?.isConfirmingDecline = false
+        prompt?.error = nil
+    }
+
+    /// The confirmed "Turn off AI": saved on the account, so the sheet never
+    /// returns. Waiting actions are dropped unrun.
+    func confirmDecline() async {
+        guard let current = prompt, !current.isSaving else { return }
+        prompt?.isSaving = true
+        prompt?.error = nil
+        do {
+            let document = try await transport.saveAIConsent(version: nil)
+            if !absorb(document) {
+                record = nil
+                declined = true
+                persist()
+            }
+            lastLocalDecision = .now
+            guard prompt?.id == current.id else { return }
+            finish(granted: false)
+        } catch {
+            guard prompt?.id == current.id else { return }
+            prompt?.isSaving = false
+            prompt?.error = Self.message(error, fallback: "Your choice was not saved. Check your connection and try again.")
+        }
+    }
+
+    /// The session ended, or the sheet could not stay on screen, unanswered:
+    /// release the waiting actions without running them and record nothing,
+    /// so an undecided account is asked on its next launch.
     func cancelPending() {
         finish(granted: false)
     }
 
     private func finish(granted: Bool) {
         prompt = nil
-        let waiting = continuation
-        continuation = nil
-        waiting?.resume(returning: granted)
+        let waiting = continuations
+        continuations = []
+        waiting.forEach { $0.resume(returning: granted) }
     }
 
     // MARK: Withdraw
 
-    /// Settings → AI → Withdraw. PATCHes an explicit `aiConsent: null`; the
-    /// next AI action asks again.
+    /// Settings → AI → Turn off AI. PATCHes an explicit `aiConsent: null`,
+    /// which the server records as a no: nothing asks again until the person
+    /// turns AI back on in Settings.
     @discardableResult
     func withdraw() async -> Bool {
         guard !isWithdrawing else { return false }
@@ -340,8 +431,10 @@ final class AIConsentStore {
             let document = try await transport.saveAIConsent(version: nil)
             if !absorb(document) {
                 record = nil
+                declined = true
                 persist()
             }
+            lastLocalDecision = .now
             return true
         } catch {
             withdrawError = Self.message(error, fallback: "Your choice was not saved. Try again.")
@@ -378,7 +471,7 @@ enum AIConsentGate {
     }
 
     /// For a synchronous call site (a button action): run `action` once
-    /// consent is current, never after "Not now".
+    /// consent is current, never while AI is off.
     static func require(
         _ trigger: AIConsentStore.Trigger = .tap,
         _ action: @escaping @MainActor () async -> Void

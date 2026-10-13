@@ -5,8 +5,8 @@ import XCTest
 
 /// PRD A4, the one-time AI disclosure and consent sheet: the copy mirror, the
 /// "consent needed" rule, the wire shapes, and the gate's behaviour - agree
-/// runs the action, "Not now" sends nothing, and an account never inherits
-/// another account's consent. The code under test is all in `Shared/`.
+/// runs the action, a confirmed "No thanks" is saved and never asked again,
+/// and an account never inherits another account's consent. The code under test is all in `Shared/`.
 @MainActor
 final class AIConsentTests: XCTestCase {
     private static let suite = "AIConsentTests"
@@ -32,27 +32,28 @@ final class AIConsentTests: XCTestCase {
         XCTAssertEqual(AIConsent.privacyLabel, "Privacy Policy")
         XCTAssertEqual(AIConsent.privacyURL, "https://sureword.app/privacy")
         XCTAssertEqual(AIConsent.agree, "Agree and continue")
-        XCTAssertEqual(AIConsent.decline, "Not now")
+        XCTAssertEqual(AIConsent.decline, "No thanks")
         XCTAssertEqual(AIConsent.settingsTitle, "AI data sharing")
-        XCTAssertEqual(AIConsent.withdraw, "Withdraw")
+        XCTAssertEqual(AIConsent.withdraw, "Turn off AI")
         XCTAssertTrue(AIConsent.body.hasPrefix("SureWord's answers are written by AI."))
         XCTAssertLessThanOrEqual(AIConsent.body.split(whereSeparator: \.isWhitespace).count, 120)
     }
 
     // MARK: - Rules
 
-    func testOldCachedProviderConsentIsNotCurrentAfterUpdating() {
+    func testAnOlderCachedAgreementStillCounts() {
         defaults.set(Data(#"{"record":{"version":1,"acceptedAt":"2026-10-07T15:04:05Z"},"required":1}"#.utf8), forKey: AIConsentStore.cacheKey("old_user"))
         let store = AIConsentStore(account: "old_user", transport: FakeConsentTransport(), defaults: defaults)
-        XCTAssertFalse(store.isCurrent)
+        XCTAssertTrue(store.isCurrent)
+        XCTAssertFalse(store.declined)
         XCTAssertEqual(store.required, AIConsent.version)
     }
 
-    func testConsentIsNeededUnlessTheRequiredVersionWasAgreed() {
-        XCTAssertTrue(AIConsent.needed(nil, required: 2))
-        XCTAssertFalse(AIConsent.needed(Self.agreed, required: 2))
-        // The server bumped the copy: the old agreement no longer counts.
-        XCTAssertTrue(AIConsent.needed(Self.agreed, required: 3))
+    func testAnyRecordedAgreementCounts() {
+        XCTAssertTrue(AIConsent.needed(nil))
+        XCTAssertFalse(AIConsent.needed(Self.agreed))
+        // A later copy version never re-asks someone who already said yes.
+        XCTAssertFalse(AIConsent.needed(AIConsentRecord(version: 1, acceptedAt: "2026-10-07T15:04:05Z")))
     }
 
     func testStatusLabelIsALongDate() throws {
@@ -88,8 +89,9 @@ final class AIConsentTests: XCTestCase {
     }
 
     func testDocumentDecodesAnExplicitNoConsent() throws {
-        let document = try Self.decode(#"{"aiConsent":null,"aiConsentRequired":2}"#)
+        let document = try Self.decode(#"{"aiConsent":null,"aiConsentDeclined":true,"aiConsentRequired":2}"#)
         XCTAssertNil(document.aiConsent)
+        XCTAssertEqual(document.aiConsentDeclined, true)
         XCTAssertEqual(document.aiConsentRequired, 2)
     }
 
@@ -205,51 +207,133 @@ final class AIConsentTests: XCTestCase {
         XCTAssertEqual(store.prompt?.isSaving, false)
         XCTAssertFalse(store.isCurrent)
 
-        store.decline()
+        store.cancelPending()
         let granted = await gate.value
         XCTAssertFalse(granted)
     }
 
-    func testNotNowSendsNothingAndAsksAgainNextTime() async throws {
+    func testNoThanksConfirmsThenIsNeverAskedAgain() async throws {
         let transport = FakeConsentTransport(loadDocument: Self.document(nil))
         let store = AIConsentStore(account: "user_a", transport: transport, defaults: defaults)
 
         let first = Task { await store.ensureConsent() }
         try await waitUntil { store.prompt != nil }
         store.decline()
+        // "No thanks" asks to confirm; nothing is saved and the sheet stays.
+        XCTAssertEqual(store.prompt?.isConfirmingDecline, true)
+        var saves = await transport.saves
+        XCTAssertTrue(saves.isEmpty)
+        store.back()
+        XCTAssertEqual(store.prompt?.isConfirmingDecline, false)
+        store.decline()
+
+        await store.confirmDecline()
         let firstResult = await first.value
         XCTAssertFalse(firstResult)
         XCTAssertNil(store.prompt)
-        let saves = await transport.saves
-        XCTAssertTrue(saves.isEmpty)
+        XCTAssertTrue(store.declined)
+        saves = await transport.saves
+        XCTAssertEqual(saves, [nil])
 
-        // A verse selection never raises the sheet...
+        // Never again: neither a verse selection nor a deliberate tap asks.
         let automatic = await store.ensureConsent(.automatic)
         XCTAssertFalse(automatic)
+        let tap = await store.ensureConsent()
+        XCTAssertFalse(tap)
         XCTAssertNil(store.prompt)
 
-        // ...but the next deliberate AI action does.
-        let second = Task { await store.ensureConsent() }
-        try await waitUntil { store.prompt != nil }
-        store.decline()
-        let secondResult = await second.value
-        XCTAssertFalse(secondResult)
+        // Nor after a cold start.
+        let reopened = AIConsentStore(account: "user_a", transport: FakeConsentTransport(loadError: true), defaults: defaults)
+        XCTAssertTrue(reopened.declined)
+        let afterLaunch = await reopened.ensureConsent()
+        XCTAssertFalse(afterLaunch)
+        XCTAssertNil(reopened.prompt)
     }
 
-    func testOnlyOneSheetAtATime() async throws {
+    func testAllowOnTheConfirmationAgrees() async throws {
+        let transport = FakeConsentTransport(loadDocument: Self.document(nil))
+        let store = AIConsentStore(account: "user_a", transport: transport, defaults: defaults)
+        let gate = Task { await store.ensureConsent() }
+        try await waitUntil { store.prompt != nil }
+        store.decline()
+        await store.agree()
+        let granted = await gate.value
+        XCTAssertTrue(granted)
+        XCTAssertTrue(store.isCurrent)
+    }
+
+    func testActionsWhileTheSheetIsUpWaitForTheSameAnswer() async throws {
         let transport = FakeConsentTransport(loadDocument: Self.document(nil))
         let store = AIConsentStore(account: "user_a", transport: transport, defaults: defaults)
         let first = Task { await store.ensureConsent() }
         try await waitUntil { store.prompt != nil }
-        let second = await store.ensureConsent()
-        XCTAssertFalse(second)
-        store.cancelPending()
+        let second = Task { await store.ensureConsent(.automatic) }
+        try await Task.sleep(for: .milliseconds(20))
+        await store.agree()
         let firstResult = await first.value
-        XCTAssertFalse(firstResult)
+        let secondResult = await second.value
+        XCTAssertTrue(firstResult)
+        XCTAssertTrue(secondResult)
+    }
+
+    func testTheSheetOpensByItselfOnlyForAnUndecidedAccount() {
+        let undecided = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults, askOnLaunch: true)
+        undecided.absorb(Self.document(nil))
+        XCTAssertNotNil(undecided.prompt)
+
+        let declined = AIConsentStore(account: "user_b", transport: FakeConsentTransport(), defaults: defaults, askOnLaunch: true)
+        declined.absorb(Self.document(nil, declined: true))
+        XCTAssertNil(declined.prompt)
+
+        let allowed = AIConsentStore(account: "user_c", transport: FakeConsentTransport(), defaults: defaults, askOnLaunch: true)
+        allowed.absorb(Self.document(Self.agreed))
+        XCTAssertNil(allowed.prompt)
+
+        // A server that does not record a no yet cannot promise "once".
+        let older = AIConsentStore(account: "user_d", transport: FakeConsentTransport(), defaults: defaults, askOnLaunch: true)
+        older.absorb(Self.document(nil, declined: nil))
+        XCTAssertNil(older.prompt)
+    }
+
+    func testSettingsCanTurnAIBackOn() async {
+        let store = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults)
+        store.absorb(Self.document(nil, declined: true))
+        store.reconsider()
+        XCTAssertNotNil(store.prompt)
+        await store.agree()
+        XCTAssertTrue(store.isCurrent)
+        XCTAssertFalse(store.declined)
+    }
+
+    func testAStaleFetchCannotUndoAnAnswerOrReopenTheSheet() async {
+        let store = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults, askOnLaunch: true)
+        store.absorb(Self.document(nil))
+        XCTAssertNotNil(store.prompt)
+        await store.agree()
+        XCTAssertTrue(store.isCurrent)
+        // A fetch that started before the save lands afterwards.
+        store.absorb(Self.document(nil))
+        XCTAssertTrue(store.isCurrent)
+        XCTAssertNil(store.prompt)
+    }
+
+    func testAfterAFailedSaveBackClosesTheSheetUnrecorded() async throws {
+        let transport = FakeConsentTransport(loadDocument: Self.document(nil), saveError: true)
+        let store = AIConsentStore(account: "user_a", transport: transport, defaults: defaults)
+        let gate = Task { await store.ensureConsent() }
+        try await waitUntil { store.prompt != nil }
+        store.decline()
+        await store.confirmDecline()
+        XCTAssertEqual(store.prompt?.error, "offline")
+        store.back()
+        XCTAssertNil(store.prompt)
+        let granted = await gate.value
+        XCTAssertFalse(granted)
+        XCTAssertFalse(store.declined)
     }
 
     func testWithdrawClearsConsent() async {
-        let transport = FakeConsentTransport(saveDocument: Self.document(nil))
+        let transport = FakeConsentTransport(saveDocument: Self.document(nil, declined: true))
         let store = AIConsentStore(account: "user_a", transport: transport, defaults: defaults)
         store.absorb(Self.document(Self.agreed))
         XCTAssertEqual(store.statusLabel.hasPrefix("Allowed on "), true)
@@ -263,6 +347,7 @@ final class AIConsentTests: XCTestCase {
 
         let reopened = AIConsentStore(account: "user_a", transport: FakeConsentTransport(), defaults: defaults)
         XCTAssertFalse(reopened.isCurrent)
+        XCTAssertTrue(reopened.declined)
     }
 
     func testAFailedWithdrawKeepsConsentAndReports() async {
@@ -275,7 +360,7 @@ final class AIConsentTests: XCTestCase {
         XCTAssertEqual(store.withdrawError, "offline")
     }
 
-    func testTheGateIsOpenWithNoSessionAndClosedOnNotNow() async throws {
+    func testTheGateIsOpenWithNoSessionAndClosedOnNo() async throws {
         let previous = AIConsentGate.current
         defer { AIConsentGate.current = previous }
 
@@ -293,6 +378,7 @@ final class AIConsentTests: XCTestCase {
         AIConsentGate.require { ran = true }
         try await waitUntil { store.prompt != nil }
         store.decline()
+        await store.confirmDecline()
         try await Task.sleep(for: .milliseconds(50))
         XCTAssertFalse(ran)
     }
@@ -301,9 +387,10 @@ final class AIConsentTests: XCTestCase {
 
     private static let agreed = AIConsentRecord(version: 2, acceptedAt: "2026-10-07T15:04:05.000Z")
 
-    private static func document(_ consent: AIConsentRecord?) -> AccountPreferences {
+    private static func document(_ consent: AIConsentRecord?, declined: Bool? = false) -> AccountPreferences {
         var document = AccountPreferences()
         document.aiConsent = consent
+        document.aiConsentDeclined = consent == nil ? declined : false
         document.aiConsentRequired = 2
         return document
     }
@@ -367,6 +454,7 @@ private actor FakeConsentTransport: AIConsentTransport {
         var document = AccountPreferences()
         document.aiConsentRequired = 2
         document.aiConsent = version.map { AIConsentRecord(version: $0, acceptedAt: "2026-10-07T15:04:05.000Z") }
+        document.aiConsentDeclined = version == nil
         return document
     }
 }

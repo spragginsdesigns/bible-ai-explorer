@@ -32,30 +32,81 @@ test("custom reading goals require consent while arithmetic presets remain usabl
   assert.equal(consentPolicy("/api/reading-plans", "POST", JSON.stringify({ presetKey: "gospels-30" })), null);
   assert.equal(consentPolicy("/api/reading-plans/p1/days/1", "POST", { done: true }), null);
 });
+const declinedDoc = { aiConsent: null, aiConsentDeclined: true, aiConsentRequired: 2 };
+const undecided = { aiConsent: null, aiConsentDeclined: false, aiConsentRequired: 2 };
+const saver = async version => version === null ? declinedDoc : agreed;
 test("automatic verse studies decline quietly while a deliberate retry can ask", async () => {
-  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => agreed }); await tick();
+  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: saver }); await tick();
   assert.equal(await gate.ensure(false), false); assert.equal(gate.getSnapshot().prompt, false);
   const pending = gate.ensure(true); await tick(); assert.equal(gate.getSnapshot().prompt, true);
-  gate.decline(); assert.equal(await pending, false);
+  await gate.agree(); assert.equal(await pending, true);
 });
-test("agreement waits for successful server recording, then releases exactly one action", async () => {
+test("No thanks asks for confirmation instead of closing the sheet", async () => {
+  let writes = 0;
+  const gate = new ConsentGate(); gate.configure({ load: async () => undecided, save: async version => { writes++; return saver(version); } }); await tick();
+  const pending = gate.ensure(); await tick();
+  gate.decline();
+  assert.equal(gate.getSnapshot().prompt, true); assert.equal(gate.getSnapshot().confirming, true); assert.equal(writes, 0);
+  gate.back(); assert.equal(gate.getSnapshot().confirming, false);
+  gate.decline(); await gate.confirmDecline();
+  assert.equal(await pending, false); assert.equal(writes, 1);
+  assert.equal(gate.getSnapshot().prompt, false); assert.equal(gate.getSnapshot().declined, true);
+});
+test("Allow AI on the confirmation agrees and releases the action", async () => {
+  const gate = new ConsentGate(); gate.configure({ load: async () => undecided, save: saver }); await tick();
+  const pending = gate.ensure(); await tick(); gate.decline(); await gate.agree();
+  assert.equal(await pending, true); assert.equal(gate.getSnapshot().declined, false);
+});
+test("a declined account is never asked again, even on a tap", async () => {
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => declinedDoc, save: saver }); await tick();
+  assert.equal(gate.getSnapshot().prompt, false);
+  assert.equal(await gate.ensure(true), false); assert.equal(gate.getSnapshot().prompt, false);
+  await gate.refresh(); assert.equal(gate.getSnapshot().prompt, false);
+});
+test("the sheet opens by itself once for an account that never chose", async () => {
+  let server = undecided;
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => server, save: async version => (server = await saver(version)) }); await tick();
+  assert.equal(gate.getSnapshot().prompt, true);
+  gate.decline(); await gate.confirmDecline();
+  assert.equal(gate.getSnapshot().prompt, false);
+  await gate.refresh(); assert.equal(gate.getSnapshot().prompt, false);
+});
+test("the launch sheet waits for a server that records a no, and never shows to guests or allowed accounts", async () => {
+  for (const [askOnLaunch, doc] of [[true, none], [true, agreed], [false, undecided]]) {
+    const gate = new ConsentGate(); gate.configure({ askOnLaunch, load: async () => doc, save: saver }); await tick();
+    assert.equal(gate.getSnapshot().prompt, false, JSON.stringify(doc));
+  }
+});
+test("automatic actions started while the sheet is up wait for its answer", async () => {
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => undecided, save: saver }); await tick();
+  const automatic = gate.ensure(false); const tap = gate.ensure(true); await tick();
+  await gate.agree(); assert.equal(await automatic, true); assert.equal(await tap, true);
+});
+test("Settings can turn AI back on after a no", async () => {
+  const gate = new ConsentGate(); gate.configure({ load: async () => declinedDoc, save: saver }); await tick();
+  gate.reconsider(); assert.equal(gate.getSnapshot().prompt, true);
+  await gate.agree(); assert.equal(await gate.ensure(false), true);
+});
+test("agreement waits for successful server recording, then releases every waiting action once", async () => {
   const saved = deferred(); let writes = 0;
   const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => { writes++; return saved.promise; } }); await tick();
-  const pending = gate.ensure(); await tick();
-  assert.equal(await gate.ensure(), false);
+  const pending = gate.ensure(); const second = gate.ensure(); await tick();
   const saving = gate.agree(); void gate.agree(); assert.equal(writes, 1);
   let sent = false; void pending.then(value => { sent = value; }); await tick(); assert.equal(sent, false);
-  saved.resolve(agreed); await saving; assert.equal(await pending, true); assert.equal(await gate.ensure(false), true);
+  saved.resolve(agreed); await saving; assert.equal(await pending, true); assert.equal(await second, true); assert.equal(await gate.ensure(false), true);
 });
 test("a failed consent write keeps the sheet open and never grants permission", async () => {
   const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => { throw new Error("offline"); } }); await tick();
   const pending = gate.ensure(); await tick(); await gate.agree();
   assert.equal(gate.getSnapshot().prompt, true); assert.equal(gate.getSnapshot().error, "offline");
-  gate.decline(); assert.equal(await pending, false);
+  // Offline, "No thanks" closes the sheet unrecorded instead of trapping the person.
+  gate.decline();
+  assert.equal(gate.getSnapshot().prompt, false); assert.equal(gate.getSnapshot().declined, false);
+  assert.equal(await pending, false);
 });
 test("account switching cancels a pending action and drops the previous account's consent", async () => {
-  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => agreed }); await tick();
-  const pending = gate.ensure(); await tick(); gate.configure({ load: async () => none, save: async () => agreed });
+  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: saver }); await tick();
+  const pending = gate.ensure(); await tick(); gate.configure({ load: async () => none, save: saver });
   assert.equal(await pending, false); await tick(); assert.equal(await gate.ensure(false), false);
 });
 test("a consent save completing after sign-out cannot unlock the new session", async () => {
@@ -66,23 +117,24 @@ test("a consent save completing after sign-out cannot unlock the new session", a
 });
 test("a slow startup read cannot undo a newer agreement", async () => {
   const slow = deferred(); let reads = 0; const gate = new ConsentGate();
-  gate.configure({ load: async () => ++reads === 1 ? slow.promise : none, save: async () => agreed });
+  gate.configure({ load: async () => ++reads === 1 ? slow.promise : none, save: saver });
   const pending = gate.ensure(); await tick(); await gate.agree(); assert.equal(await pending, true);
   slow.resolve(none); await tick(); assert.equal(await gate.ensure(false), true);
 });
-test("withdrawal clears permission and a stale concurrent read cannot restore it", async () => {
+test("turning AI off in Settings is recorded as a no and a stale concurrent read cannot restore it", async () => {
   const slow = deferred(); let reads = 0; const gate = new ConsentGate();
-  gate.configure({ load: async () => ++reads === 1 ? agreed : slow.promise, save: async () => none }); await tick();
+  gate.configure({ load: async () => ++reads === 1 ? agreed : slow.promise, save: saver }); await tick();
   const refresh = gate.refresh(); await gate.withdraw(); slow.resolve(agreed); await refresh;
-  assert.equal(await gate.ensure(false), false);
+  assert.equal(gate.getSnapshot().declined, true);
+  assert.equal(await gate.ensure(true), false); assert.equal(gate.getSnapshot().prompt, false);
 });
-test("an old disclosure is not sufficient for the current provider list", async () => {
-  const gate = new ConsentGate(); gate.configure({ load: async () => ({ aiConsent: { version: 1, acceptedAt: "2026-10-07T00:00:00Z" }, aiConsentRequired: 1 }), save: async () => agreed }); await tick();
-  assert.equal(await gate.ensure(false), false); assert.equal(gate.getSnapshot().required, 2);
+test("an agreement to older copy still counts: the sheet is asked once, ever", async () => {
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => ({ aiConsent: { version: 1, acceptedAt: "2026-10-07T00:00:00Z" }, aiConsentDeclined: false, aiConsentRequired: 2 }), save: saver }); await tick();
+  assert.equal(await gate.ensure(false), true); assert.equal(gate.getSnapshot().prompt, false);
 });
 test("the SDK account can revoke the old grant before React reconfigures the store", async () => {
   let currentAccount = true;
-  const gate = new ConsentGate(); gate.configure({ isCurrentAccount: () => currentAccount, load: async () => agreed, save: async () => agreed }); await tick();
+  const gate = new ConsentGate(); gate.configure({ isCurrentAccount: () => currentAccount, load: async () => agreed, save: saver }); await tick();
   const session = gate.sessionId;
   assert.equal(await gate.ensure(false), true);
   currentAccount = false;
@@ -90,14 +142,24 @@ test("the SDK account can revoke the old grant before React reconfigures the sto
   assert.equal(gate.isCurrentAccount(), false);
   assert.equal(await gate.ensure(), false);
 });
-test("aborting a waiting action closes its disclosure and never grants it", async () => {
-  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => agreed }); await tick();
+test("aborting a waiting action drops it without answering the sheet for anyone", async () => {
+  const gate = new ConsentGate(); gate.configure({ load: async () => none, save: saver }); await tick();
   const controller = new AbortController(); const pending = gate.ensure(true, controller.signal); await tick();
-  controller.abort(); assert.equal(await pending, false); assert.equal(gate.getSnapshot().prompt, false);
+  const other = gate.ensure(); await tick();
+  controller.abort(); assert.equal(await pending, false); assert.equal(gate.getSnapshot().prompt, true);
+  await gate.agree(); assert.equal(await other, true);
 });
-test("a save finishing after an aborted action cannot release a later action", async () => {
-  const saved = deferred(); const gate = new ConsentGate(); gate.configure({ load: async () => none, save: async () => saved.promise }); await tick();
-  const controller = new AbortController(); const first = gate.ensure(true, controller.signal); await tick(); const save = gate.agree(); controller.abort();
-  const second = gate.ensure(); await tick(); saved.resolve(agreed); await save;
-  assert.equal(await first, false); assert.equal(gate.getSnapshot().prompt, true); gate.decline(); assert.equal(await second, false);
+test("a cached copy read offline never opens the launch sheet", async () => {
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => ({ ...undecided, stale: true }), save: saver }); await tick();
+  assert.equal(gate.getSnapshot().prompt, false);
+});
+test("after a failed save, Back or Escape closes the sheet unrecorded so nobody is trapped offline", async () => {
+  let writes = 0;
+  const gate = new ConsentGate(); gate.configure({ askOnLaunch: true, load: async () => undecided, save: async () => { writes++; throw new Error("offline"); } }); await tick();
+  const pending = gate.ensure(); await tick();
+  gate.decline(); await gate.confirmDecline();
+  assert.equal(gate.getSnapshot().prompt, true); assert.equal(gate.getSnapshot().error, "offline");
+  gate.back();
+  assert.equal(gate.getSnapshot().prompt, false); assert.equal(await pending, false);
+  assert.equal(gate.getSnapshot().declined, false); assert.equal(writes, 1);
 });
