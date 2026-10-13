@@ -20,13 +20,19 @@ Independent source review found and resolved Notes clearance, held Send contrast
 - AAB SHA-256: `4000f3effe492142ee945c09be3104c6c52bf0ad36794ecc914ea5f9f5bbf18c`.
 - APK SHA-256: `96ef420d52b4ea9fbbd8bd9e92bb7d8efdf68f0d227710e343446c52001002ea`.
 - Upload signer SHA-256: `5f7f48390a7486eb3b2ecd4a81b106e38ce5d9d21cf84743f88ba9b1c51fca6a`.
-- Mobile source digest: `bfb640678186b29f5aa4767fdbae0de4d5b5715d00d5e8cdafcd3c5016ba2354`.
+- Mobile source digest: `08eb34377bea2dad25eaba51659d1c1cbaa3fb7467e1e211ca82214b4b072167`.
 
-The build records base commit `e774c63a230f74185ace6c69275aef0132ea34c9` plus the owned uncommitted mobile changes. Publishing verifies the source bytes still match. The release copy preserves current remote main features and leaves the shared checkout's unrelated work intact.
+The final build records commit `b97c50fff9a77084791846c17e2c2a4b02c1a423` with zero uncommitted mobile files. The AAB and APK hashes stayed identical after the final source refresh. Publishing verifies the source bytes still match. The release copy preserves current remote main features and leaves the shared checkout's unrelated work intact.
 
 ## Delivery receipts
 
-Delivery is in progress. Store readback, GitHub asset verification, production deployment, and Apple processing/submission states are recorded separately after each succeeds. An exported artifact or a passing simulator does not establish store delivery.
+Delivery verified on 2026-10-12:
+
+- Web production deployment `dpl_HbtdaGbjwWhudLJbnk9x1MoWAadL` is READY for `b97c50fff9a77084791846c17e2c2a4b02c1a423`, assigned to sureword.app and the legacy host. Live mark, thinking, and answering PNG requests returned 200 with hashes matching source.
+- Play internal and alpha readback both report 1.88.0 (100), status completed, with the same release notes. Closed-testing availability remains subject to Play review.
+- GitHub release [android-v1.88.0](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/android-v1.88.0) serves SureWord.apk with the exact signed-build SHA-256 above and carries forward SureWord.dmg.
+- iOS 1.15.0 (1) upload succeeded. Processing and TestFlight availability were not yet verified when Austin narrowed the remaining work to web and Android. The existing 1.13.0 App Store review remains queued at his explicit request.
+- Mac signing still failed in the SSH session. Austin asked to skip Mac for now; the interactive signing prompt was closed and the existing installed app and DMG were preserved.
 
 The previous iOS 1.13.0 review was still waiting when this release started. The repository records Austin's earlier preference to keep that review queued. Uploading this version to TestFlight can proceed while the older App Store submission remains in review; replacing that queue entry is a separate decision.
 
