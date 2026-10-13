@@ -1080,9 +1080,18 @@ the next chapter; past Mark 16 it falls back to the regular recording.
 `fish_audio_bible.py --drama --text`; the translation and production notes live
 in Context-Pro-AI `docs/creative/sureword-audio-bible/`.
 
+**Alive Matthew (LC-15843).** Matthew has an Alive recording too, in the same
+form: our own translation of the TR, told by Matthew himself with the cast and
+sound design of Matthew's full-cast KJV production, which stays its Regular
+recording. `ALIVE_BOOKS` is now Matthew and Mark, so Listen offers both on
+every Matthew chapter, the LC Greek chip shows on Matthew, and Alive carries
+from Matthew 28 into Mark 1; past Mark 16 it still falls back to the regular
+recording. Audio in `Audio/sureword-bible/alive/v1/40/`, text in
+`src/data/lc-greek/40.json` (Context-Pro-AI `matthew-alive/matthew.json`).
+
 **LC Greek, and Listen recommends Alive (LC-15842).** The translation Alive
-reads is also a reading text, called **LC Greek**. On a book that has it (Mark
-today; Matthew, Luke and John follow with their Alive recordings), the reader's
+reads is also a reading text, called **LC Greek**. On a book that has it (Matthew
+and Mark today; Luke and John follow with their Alive recordings), the reader's
 translation chips gain an **LC Greek** chip that shows it verse for verse in
 the KJV's numbering, under the BSB section headings, without red letters. The
 choice is kept on the device (web `sureword-lc-greek`, Android settings

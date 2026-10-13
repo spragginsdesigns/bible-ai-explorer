@@ -53,7 +53,7 @@ test("Matthew plays the full-cast production, every other book the narration", (
 
 test("Mark has an Alive recording in its own folder beside the narration (LC-15532)", () => {
 	assert.equal(hasAlive(41), true);
-	assert.equal(hasAlive(40), false, "Matthew's full cast is its regular recording");
+	assert.equal(hasAlive(40), true, "Matthew's Alive sits beside its full-cast KJV regular recording");
 	assert.equal(hasAlive(42), false);
 	assert.equal(chapterAudioUrl(41, 16, "alive"), `${ALIVE_BASE_URL}/41/16.mp3`);
 	assert.equal(chapterTimingUrl(41, 1, "alive"), `${ALIVE_BASE_URL}/41/1.json`);
@@ -191,7 +191,7 @@ test("route: edition=alive on a book without one is unavailable without touching
 		requested.push(url);
 		return new Response(JSON.stringify(TIMING), { status: 200 });
 	});
-	for (const query of ["book=40&chapter=2&edition=alive", "book=43&chapter=3&edition=alive"]) {
+	for (const query of ["book=42&chapter=2&edition=alive", "book=43&chapter=3&edition=alive"]) {
 		const response = await call(GET, query);
 		assert.equal(response.status, 200, query);
 		assert.deepEqual(await response.json(), { status: "unavailable" }, query);
