@@ -140,6 +140,13 @@ function makePrisma({ enabled = true, users = ["alice", "bob"], memories = [], f
 		state,
 		user: tx.user,
 		userMemory: tx.userMemory,
+		$queryRaw: async (_strings, _limit, userId) => {
+			maybeFail("user"); maybeFail("findMany");
+			const user = state.users.get(userId);
+			if (!user) return [];
+			const memories = user.memoryEnabled === true ? state.memories.filter(m => m.userId === userId).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,MAX_MEMORIES_PER_USER) : [];
+			return memories.length ? memories.map(m=>({memoryEnabled:true,...select(m)})) : [{memoryEnabled:user.memoryEnabled,id:null,content:null,category:null,status:null,askedAt:null,followUpAfter:null}];
+		},
 		$transaction: async (callback) => callback(tx),
 	};
 }

@@ -11,22 +11,22 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { parseEnv } from "node:util";
+import { EMBEDDING_MODEL_ID, EMBEDDING_DIMENSIONS } from "../src/lib/embedding-index.ts";
+import { assertBackfillTarget } from "./lib/backfill-target.mjs";
 
 const require = createRequire(import.meta.url);
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
-const env = {};
-for (const line of fs.readFileSync(path.join(root, ".env.local"), "utf8").split(/\r?\n/)) {
-	const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*)"?\s*$/);
-	if (match) env[match[1]] = match[2].trim();
-}
+const env = parseEnv(fs.readFileSync(path.join(root, ".env.local"), "utf8"));
 const { OPENAI_API_KEY, DATABASE_URL_UNPOOLED } = env;
-if (!OPENAI_API_KEY || !DATABASE_URL_UNPOOLED) {
+if ((!OPENAI_API_KEY && !process.argv.includes("--check")) || !DATABASE_URL_UNPOOLED) {
 	console.error("Missing OPENAI_API_KEY / DATABASE_URL_UNPOOLED in .env.local");
 	process.exit(1);
 }
 
 const { PrismaClient } = require("@prisma/client");
+assertBackfillTarget(DATABASE_URL_UNPOOLED);
 const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL_UNPOOLED } } });
 
 // Refuse to write anywhere but real production (identified by data, not name).
@@ -38,22 +38,31 @@ if (db !== "neondb" || users < 30) {
 	process.exit(1);
 }
 console.log(`Target: ${db} (${users} users)`);
+if (process.argv.includes("--check")) {
+	console.log("Target checks passed; no embedding calls or writes.");
+	await prisma.$disconnect();
+	process.exit(0);
+}
 
 const books = JSON.parse(fs.readFileSync(path.join(root, "src/data/books.json"), "utf8"));
 
 async function embedBatch(texts) {
-	for (let attempt = 1; attempt <= 4; attempt++) {
+	const signal = AbortSignal.timeout(20000);
+	for (let attempt = 1; attempt <= 2; attempt++) {
 		const res = await fetch("https://api.openai.com/v1/embeddings", {
 			method: "POST",
 			headers: { "content-type": "application/json", authorization: `Bearer ${OPENAI_API_KEY}` },
-			body: JSON.stringify({ model: "text-embedding-3-large", input: texts }),
+			body: JSON.stringify({ model: EMBEDDING_MODEL_ID, dimensions: EMBEDDING_DIMENSIONS, input: texts }),
+			signal,
 		});
 		if (res.ok) {
 			const json = await res.json();
-			return json.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+			const vectors = json.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+			if (vectors.length !== texts.length || vectors.some(vector => !Array.isArray(vector) || vector.length !== EMBEDDING_DIMENSIONS || vector.some(value => !Number.isFinite(value)))) throw new Error("Invalid verse embeddings.");
+			return vectors;
 		}
-		if (attempt === 4) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-		await new Promise((r) => setTimeout(r, 2000 * attempt));
+		if (attempt === 2 || !(res.status === 429 || res.status >= 500)) throw new Error(`Embedding provider returned HTTP ${res.status}.`);
+		await new Promise((r) => setTimeout(r, 500));
 	}
 }
 
@@ -77,12 +86,12 @@ for (const book of books) {
 		const values = slice
 			.map(
 				(r, j) =>
-					`(${book.order}, ${r.chapter}, ${r.verse}, '[${embeddings[j].join(",")}]'::halfvec(3072))`
+					`(${book.order}, ${r.chapter}, ${r.verse}, '[${embeddings[j].join(",")}]'::halfvec(3072), '${EMBEDDING_MODEL_ID}', ${EMBEDDING_DIMENSIONS})`
 			)
 			.join(",");
 		await prisma.$executeRawUnsafe(
-			`INSERT INTO "VerseEmbedding" ("book","chapter","verse","embedding") VALUES ${values}
-			 ON CONFLICT ("book","chapter","verse") DO UPDATE SET "embedding" = EXCLUDED."embedding"`
+			`INSERT INTO "VerseEmbedding" ("book","chapter","verse","embedding","modelId","dimensions") VALUES ${values}
+			 ON CONFLICT ("book","chapter","verse") DO UPDATE SET "embedding" = EXCLUDED."embedding", "modelId" = EXCLUDED."modelId", "dimensions" = EXCLUDED."dimensions"`
 		);
 		done += slice.length;
 	}

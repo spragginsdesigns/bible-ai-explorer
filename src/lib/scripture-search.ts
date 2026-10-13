@@ -1,11 +1,10 @@
-import { openai } from "@ai-sdk/openai";
-import { embed } from "ai";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, type TranslationId } from "@/lib/bible/translations";
 import { getKjvBookName } from "@/utils/kjvBible";
 import { findVersesFullText } from "@/lib/bible/verse-fulltext";
 import { searchWords } from "@/lib/bible/search-words";
+import { queryEmbedding, EMBEDDING_MODEL_ID, EMBEDDING_DIMENSIONS } from "@/lib/ai/embeddings";
+import { searchQuery } from "@/lib/search-query";
 
 export interface RetrievedVerse {
 	reference: string;
@@ -22,28 +21,8 @@ export interface ScriptureSearchResult {
 	degraded?: boolean;
 }
 
-const embeddingModel = openai.embedding("text-embedding-3-large");
-
 /** Keyword hits merged in beyond the vector results (exact-wording recall). */
 const KEYWORD_MERGE_HITS = 2;
-
-export async function retryWithExponentialBackoff<T>(
-	operation: () => Promise<T>,
-	maxRetries: number = 3,
-	baseDelay: number = 1000
-): Promise<T> {
-	for (let attempt = 1; attempt <= maxRetries; attempt++) {
-		try {
-			return await operation();
-		} catch (error) {
-			if (attempt === maxRetries) throw error;
-			const delay = baseDelay * Math.pow(2, attempt - 1);
-			console.warn(`Attempt ${attempt} failed. Retrying in ${delay}ms...`);
-			await new Promise((resolve) => setTimeout(resolve, delay));
-		}
-	}
-	throw new Error("This should never be reached");
-}
 
 interface VerseCoordinates {
 	book: number;
@@ -66,52 +45,39 @@ function toAstraScale(rawCosine: number): number {
 	return (1 + rawCosine) / 2;
 }
 
-/** Nearest verses to the query vector in the Neon pgvector index. */
-async function vectorSearch(queryVector: number[], limit: number): Promise<VerseCoordinates[]> {
-	const literal = toVectorLiteral(queryVector);
-	const rows = await prisma.$queryRaw<
-		{ book: number; chapter: number; verse: number; similarity: number }[]
-	>`
-		SELECT "book", "chapter", "verse",
-			1 - ("embedding" <=> ${literal}::halfvec(3072)) AS "similarity"
-		FROM "VerseEmbedding"
-		ORDER BY "embedding" <=> ${literal}::halfvec(3072)
-		LIMIT ${limit}
-	`;
-	return rows.map((row) => ({
-		book: row.book,
-		chapter: row.chapter,
-		verse: row.verse,
-		similarity: toAstraScale(Number(row.similarity) || 0),
-	}));
-}
-
-/** True cosine similarity of specific verses against the query vector. */
-async function similarityFor(
+/** One bound vector parameter, one HNSW scan, and honest scoring of keyword extras. */
+async function vectorSearch(
 	queryVector: number[],
-	coordinates: { book: number; chapter: number; verse: number }[]
-): Promise<Map<string, number>> {
-	if (coordinates.length === 0) return new Map();
-	const literal = toVectorLiteral(queryVector);
-	const tuples = Prisma.join(
-		coordinates.map(
-			(c) => Prisma.sql`(${c.book}::int, ${c.chapter}::int, ${c.verse}::int)`
-		)
-	);
-	const rows = await prisma.$queryRaw<
-		{ book: number; chapter: number; verse: number; similarity: number }[]
-	>`
-		SELECT "book", "chapter", "verse",
-			1 - ("embedding" <=> ${literal}::halfvec(3072)) AS "similarity"
-		FROM "VerseEmbedding"
-		WHERE ("book", "chapter", "verse") IN (${tuples})
-	`;
-	return new Map(
-		rows.map((row) => [
-			`${row.book}:${row.chapter}:${row.verse}`,
-			toAstraScale(Number(row.similarity) || 0),
-		])
-	);
+	limit: number,
+	keywords: { book: number; chapter: number; verse: number }[],
+): Promise<VerseCoordinates[]> {
+	const keywordQuery = keywords.length ? Prisma.sql`, keyword_hits AS (
+		SELECT k.book, k.chapter, k.verse,
+			e."embedding" <=> (SELECT embedding FROM query_vector) AS distance
+		FROM (VALUES ${Prisma.join(keywords.map((k, i) => Prisma.sql`(${k.book}::int, ${k.chapter}::int, ${k.verse}::int, ${i}::int)`))})
+			AS k(book, chapter, verse, position)
+		LEFT JOIN "VerseEmbedding" e ON e."book" = k.book AND e."chapter" = k.chapter AND e."verse" = k.verse
+			AND e."modelId" = ${EMBEDDING_MODEL_ID} AND e."dimensions" = ${EMBEDDING_DIMENSIONS}
+		WHERE NOT EXISTS (SELECT 1 FROM vector_hits v WHERE (v.book, v.chapter, v.verse) = (k.book, k.chapter, k.verse))
+		ORDER BY k.position LIMIT ${KEYWORD_MERGE_HITS}
+	)` : Prisma.empty;
+	const union = keywords.length ? Prisma.sql`UNION ALL SELECT * FROM keyword_hits` : Prisma.empty;
+	const rows = await searchQuery<{ book: number; chapter: number; verse: number; distance: number | null; vectorCount: number }>(Prisma.sql`
+		WITH query_vector AS MATERIALIZED (SELECT ${toVectorLiteral(queryVector)}::halfvec(3072) AS embedding),
+		vector_hits AS MATERIALIZED (
+			SELECT "book", "chapter", "verse", "embedding" <=> (SELECT embedding FROM query_vector) AS distance
+			FROM "VerseEmbedding"
+			WHERE "modelId" = ${EMBEDDING_MODEL_ID} AND "dimensions" = ${EMBEDDING_DIMENSIONS}
+			ORDER BY "embedding" <=> (SELECT embedding FROM query_vector) LIMIT ${limit}
+		) ${keywordQuery}
+		SELECT hits.*, (SELECT count(*)::int FROM vector_hits) AS "vectorCount" FROM (SELECT * FROM vector_hits ${union}) hits
+		ORDER BY distance NULLS LAST, book, chapter, verse
+	`);
+	if (!rows.length || rows[0].vectorCount === 0) throw new Error("The active embedding space has no indexed verses.");
+	return rows.map(({ distance, vectorCount: _count, ...coordinates }) => ({
+		...coordinates,
+		similarity: distance === null ? 0 : toAstraScale(1 - Number(distance)),
+	}));
 }
 
 /**
@@ -127,27 +93,18 @@ async function similarityFor(
 export async function searchScripture(
 	query: string,
 	limit: number = 5,
-	translation: TranslationId = "KJV"
+	translation: TranslationId = "KJV",
+	signal?: AbortSignal,
 ): Promise<ScriptureSearchResult> {
-	const [vectorOutcome, keywordHits] = await Promise.all([
-		(async () => {
-			const { embedding } = await retryWithExponentialBackoff(() =>
-				embed({ model: embeddingModel, value: query })
-			);
-			if (!Array.isArray(embedding) || embedding.length === 0) {
-				throw new Error("Expected a non-empty vector from embedding.");
-			}
-			const hits = await retryWithExponentialBackoff(
-				() => vectorSearch(embedding, limit),
-				2
-			);
-			return { embedding, hits };
-		})().catch((error) => {
-			console.error("Scripture vector search failed; falling back to keywords:", error);
-			return null;
-		}),
+	signal?.throwIfAborted();
+	limit = Math.min(20, Math.max(1, Math.trunc(limit) || 5));
+	const [embedding, keywordHits] = await Promise.all([
+		queryEmbedding(query, signal).catch(() => null),
 		findVersesFullText(searchWords(query), Math.max(limit, KEYWORD_MERGE_HITS)).catch(() => []),
 	]);
+	signal?.throwIfAborted();
+	const vectorOutcome = embedding ? await vectorSearch(embedding, limit, keywordHits).catch(() => null) : null;
+	signal?.throwIfAborted();
 
 	let coordinates: VerseCoordinates[];
 	let degraded = false;
@@ -162,40 +119,25 @@ export async function searchScripture(
 			similarity: 0,
 		}));
 	} else {
-		coordinates = [...vectorOutcome.hits];
-		const seen = new Set(coordinates.map((c) => `${c.book}:${c.chapter}:${c.verse}`));
-		const extras = keywordHits
-			.filter((hit) => !seen.has(`${hit.book}:${hit.chapter}:${hit.verse}`))
-			.slice(0, KEYWORD_MERGE_HITS)
-			.map((hit) => ({ book: hit.book, chapter: hit.chapter, verse: hit.verse }));
-		if (extras.length > 0) {
-			// Score merged keyword hits honestly with their real cosine similarity.
-			const scores = await similarityFor(vectorOutcome.embedding, extras).catch(
-				() => new Map<string, number>()
-			);
-			for (const extra of extras) {
-				coordinates.push({
-					...extra,
-					similarity: scores.get(`${extra.book}:${extra.chapter}:${extra.verse}`) ?? 0,
-				});
-			}
-			coordinates.sort((a, b) => b.similarity - a.similarity);
-		}
+		coordinates = vectorOutcome;
 	}
 
 	if (coordinates.length === 0) {
 		return { verses: [], averageSimilarity: 0, ...(degraded ? { degraded } : {}) };
 	}
 
-	const verses: RetrievedVerse[] = await Promise.all(
-		coordinates.map(async ({ book, chapter, verse, similarity }) => {
+	const chapters = new Map<string, string[]>();
+	await Promise.all([...new Map(coordinates.map(c => [`${c.book}:${c.chapter}`, c])).entries()].map(async ([key, c]) => {
+		chapters.set(key, await getChapter(translation, c.book, c.chapter));
+	}));
+	signal?.throwIfAborted();
+	const verses: RetrievedVerse[] = coordinates.map(({ book, chapter, verse, similarity }) => {
 			const bookName = getKjvBookName(book) ?? `Book ${book}`;
 			const reference = `${bookName} ${chapter}:${verse}`;
-			const text = await getVerseText(translation, book, chapter, verse);
+			const text = chapters.get(`${book}:${chapter}`)?.[verse - 1];
 
 			return { reference, similarity, translation, ...(text ? { text } : {}) };
-		})
-	);
+		});
 
 	const averageSimilarity =
 		verses.length > 0

@@ -391,6 +391,7 @@ model UserMemory {
 
   @@index([userId])
   @@index([userId, category, status, followUpAfter])
+  @@index([userId, updatedAt])
 }
 
 model Conversation {
@@ -536,6 +537,8 @@ model Note {
   tags          NoteTag[]
   aiMessages    NoteAIMessage[]
   embeddings    NoteEmbedding[]
+  /// Hash of the last successfully indexed title/body and embedding space.
+  embeddingSourceHash String?
   outgoingLinks NoteLink[]      @relation("NoteLinkSource")
   incomingLinks NoteLink[]      @relation("NoteLinkTarget")
   isPinned      Boolean         @default(false)
@@ -578,6 +581,8 @@ model VerseEmbedding {
   chapter   Int
   verse     Int
   embedding Unsupported("halfvec(3072)")
+  modelId   String @default("text-embedding-3-large")
+  dimensions Int @default(3072)
 
   @@id([book, chapter, verse])
 }
@@ -640,6 +645,8 @@ model NoteEmbedding {
   userId    String
   content   String                       @db.Text
   embedding Unsupported("halfvec(3072)")
+  modelId   String @default("text-embedding-3-large")
+  dimensions Int @default(3072)
   note      Note                         @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
   @@id([noteId, chunk])

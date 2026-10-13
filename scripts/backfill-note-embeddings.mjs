@@ -1,73 +1,49 @@
-// One-time backfill: embed every existing note into the Neon pgvector table
-// "NoteEmbedding". New/edited notes stay in sync via src/lib/note-embeddings.ts
-// (the app and this script share their chunking contract).
-//
-//   node scripts/backfill-note-embeddings.mjs
+// Rebuild notes atomically from current source. --check validates the target without embeddings or writes.
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
-import { chunkNoteText } from "../src/lib/embedding-index.ts";
+import {fileURLToPath} from "node:url";
+import {parseEnv} from "node:util";
+import {PrismaClient} from "@prisma/client";
+import {chunkNoteText, writeNoteIndex, EMBEDDING_MODEL_ID, EMBEDDING_DIMENSIONS} from "../src/lib/embedding-index.ts";
+import {assertBackfillTarget} from "./lib/backfill-target.mjs";
 
-const require = createRequire(import.meta.url);
-const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
-const env = {};
-for (const line of fs.readFileSync(path.join(root, ".env.local"), "utf8").split(/\r?\n/)) {
-	const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*)"?\s*$/);
-	if (match) env[match[1]] = match[2].trim();
+const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const env=parseEnv(fs.readFileSync(path.join(root,".env.local"),"utf8"));
+if(!env.DATABASE_URL_UNPOOLED)throw new Error("Missing configured unpooled database URL.");
+assertBackfillTarget(env.DATABASE_URL_UNPOOLED);
+const prisma=new PrismaClient({datasources:{db:{url:env.DATABASE_URL_UNPOOLED}}});
+async function embedBatch(texts){
+ const signal=AbortSignal.timeout(20000);
+ for(let attempt=0;attempt<2;attempt++){
+  const response=await fetch("https://api.openai.com/v1/embeddings",{method:"POST",headers:{"content-type":"application/json",authorization:`Bearer ${env.OPENAI_API_KEY}`},body:JSON.stringify({model:EMBEDDING_MODEL_ID,dimensions:EMBEDDING_DIMENSIONS,input:texts}),signal});
+  if(response.ok){
+   const data=await response.json();
+   if(!Array.isArray(data.data))throw new Error("Invalid embedding response.");
+   return data.data.sort((a,b)=>a.index-b.index).map(row=>row.embedding);
+  }
+  if(attempt===1||!(response.status===429||response.status>=500))throw new Error(`Embedding provider returned HTTP ${response.status}.`);
+  await new Promise(resolve=>setTimeout(resolve,500));
+ }
 }
-const { OPENAI_API_KEY, DATABASE_URL_UNPOOLED } = env;
-if (!OPENAI_API_KEY || !DATABASE_URL_UNPOOLED) {
-	console.error("Missing OPENAI_API_KEY / DATABASE_URL_UNPOOLED in .env.local");
-	process.exit(1);
-}
-
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL_UNPOOLED } } });
-
-const [{ db, users }] = await prisma.$queryRawUnsafe(
-	'SELECT current_database() AS db, (SELECT count(*)::int FROM "User") AS users'
-);
-if (db !== "neondb" || users < 30) {
-	console.error(`Refusing: connected to ${db} with ${users} users - not production neondb.`);
-	process.exit(1);
-}
-
-async function embedBatch(texts) {
-	const res = await fetch("https://api.openai.com/v1/embeddings", {
-		method: "POST",
-		headers: { "content-type": "application/json", authorization: `Bearer ${OPENAI_API_KEY}` },
-		body: JSON.stringify({ model: "text-embedding-3-large", input: texts }),
-	});
-	if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-	const json = await res.json();
-	return json.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
-}
-
-const notes = await prisma.note.findMany({
-	select: { id: true, userId: true, title: true, plainText: true },
-});
-console.log(`${notes.length} notes to index`);
-
-let chunksTotal = 0;
-for (const note of notes) {
-	const chunks = chunkNoteText(note.title, note.plainText ?? "");
-	await prisma.$executeRawUnsafe('DELETE FROM "NoteEmbedding" WHERE "noteId" = $1', note.id);
-	if (chunks.length === 0) continue;
-	const embeddings = await embedBatch(chunks);
-	const values = chunks
-		.map((_, i) => `($1, ${i}, $2, $${3 + i}, '[${embeddings[i].join(",")}]'::halfvec(3072))`)
-		.join(",");
-	await prisma.$executeRawUnsafe(
-		`INSERT INTO "NoteEmbedding" ("noteId","chunk","userId","content","embedding") VALUES ${values}`,
-		note.id,
-		note.userId,
-		...chunks.map((c) => c.slice(0, 2000))
-	);
-	chunksTotal += chunks.length;
-	console.log(`  ${note.id} "${note.title.slice(0, 40)}": ${chunks.length} chunks`);
-}
-const [{ count }] = await prisma.$queryRawUnsafe('SELECT count(*)::int AS count FROM "NoteEmbedding"');
-console.log(`Done. ${chunksTotal} chunks written; NoteEmbedding rows: ${count}`);
-await prisma.$disconnect();
+try{
+ const [identity]=await prisma.$queryRaw`SELECT current_database() AS db,(SELECT count(*)::int FROM "VerseEmbedding") AS verses`;
+ if(identity.db!=="neondb"||identity.verses!==31102)throw new Error("Unexpected production index identity.");
+ if(process.argv.includes("--check"))console.log(JSON.stringify({targetChecksPassed:true,verses:identity.verses}));
+ else{
+  if(!env.OPENAI_API_KEY)throw new Error("Missing configured OpenAI key.");
+  const only=process.argv.indexOf("--note-id");
+  if(only>=0&&!process.argv[only+1])throw new Error("--note-id requires an ID.");
+  const notes=await prisma.note.findMany({where:only>=0?{id:process.argv[only+1]}:undefined,select:{id:true,userId:true,title:true,plainText:true}});
+  let indexed=0,stale=0;
+  for(const note of notes){
+   const source={userId:note.userId,noteId:note.id,title:note.title,plainText:note.plainText??""};
+   const chunks=chunkNoteText(source.title,source.plainText);
+   const vectors=chunks.length?await embedBatch(chunks):[];
+   // Force rebuild heals damaged/missing chunks. The shared writer still refuses stale or deleted source.
+   const status=await writeNoteIndex(prisma,source,chunks,vectors,{force:true});
+   if(status==="indexed")indexed++;else stale++;
+   console.log(JSON.stringify({processed:indexed+stale,indexed,stale}));
+  }
+ }
+}catch(error){console.error("Note backfill failed; existing indexes were retained.",error instanceof Error?error.message:"UnknownError");process.exitCode=1;}
+finally{await prisma.$disconnect();}

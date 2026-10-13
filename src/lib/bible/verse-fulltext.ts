@@ -10,7 +10,7 @@
  * and topic questions.
  */
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { searchQuery } from "@/lib/search-query";
 
 export interface FullTextVerseHit {
 	book: number;
@@ -109,13 +109,13 @@ async function runTsQuery(tsquery: string, limit: number, book?: number): Promis
 	// first column, so it belongs in SQL rather than in a post-filter that
 	// would silently drop hits past the LIMIT.
 	const bookFilter = book === undefined ? Prisma.empty : Prisma.sql`AND "book" = ${book}`;
-	return prisma.$queryRaw<RankedRow[]>`
+	return searchQuery<RankedRow>(Prisma.sql`
 		SELECT "book", "chapter", "verse", "text", ts_rank_cd("search", q) AS "rank"
 		FROM "KjvVerse", to_tsquery('simple', ${tsquery}) q
 		WHERE "search" @@ q ${bookFilter}
 		ORDER BY "rank" DESC, "book", "chapter", "verse"
 		LIMIT ${limit}
-	`;
+	`);
 }
 
 export interface FindVersesOptions {

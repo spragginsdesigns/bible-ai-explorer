@@ -100,32 +100,24 @@ export function toUserMemoryRecord(row: {
 	};
 }
 
-async function fetchUserMemories(userId: string): Promise<UserMemoryRecord[]> {
-	const rows = await prisma.userMemory.findMany({
-		where: { userId },
-		orderBy: { updatedAt: "desc" },
-		take: MAX_MEMORIES_PER_USER,
-		select: MEMORY_RECORD_SELECT,
-	});
-	return rows.map(toUserMemoryRecord);
-}
-
-/**
- * The Settings → Memory toggle. Fails closed when the row is missing or the
- * read errors: we must never use or learn personal data unless the persisted
- * preference was read successfully and is explicitly enabled.
- */
-async function isMemoryEnabled(userId: string): Promise<boolean> {
-	try {
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { memoryEnabled: true },
-		});
-		return allowsMemoryUse(user?.memoryEnabled);
-	} catch (error) {
-		console.error("Reading memoryEnabled failed; disabling memory for this request:", error);
-		return false;
-	}
+/** One statement sees the preference and owned memories in the same snapshot. Failures must throw for extraction. */
+async function loadMemorySnapshot(userId: string): Promise<{ enabled: boolean; memories: UserMemoryRecord[] }> {
+	const rows = await prisma.$queryRaw<{
+		memoryEnabled: boolean; id: string | null; content: string | null; category: string | null;
+		status: string | null; askedAt: Date | null; followUpAfter: Date | null;
+	}[]>`
+		SELECT u."memoryEnabled", m."id", m."content", m."category", m."status", m."askedAt", m."followUpAfter"
+		FROM "User" u LEFT JOIN LATERAL (
+			SELECT "id", "content", "category", "status", "askedAt", "followUpAfter"
+			FROM "UserMemory" WHERE "userId" = u."id" AND u."memoryEnabled" = true
+			ORDER BY "updatedAt" DESC, "id" LIMIT ${MAX_MEMORIES_PER_USER}
+		) m ON true WHERE u."id" = ${userId}
+	`;
+	const enabled = allowsMemoryUse(rows[0]?.memoryEnabled);
+	const memories = enabled ? rows.flatMap(row => row.id === null || row.content === null || row.category === null ? [] : [toUserMemoryRecord({
+		id: row.id, content: row.content, category: row.category, status: row.status, askedAt: row.askedAt, followUpAfter: row.followUpAfter,
+	})]) : [];
+	return { enabled, memories };
 }
 
 /**
@@ -137,8 +129,7 @@ async function isMemoryEnabled(userId: string): Promise<boolean> {
  */
 export async function loadUserMemories(userId: string): Promise<UserMemoryRecord[]> {
 	try {
-		if (!(await isMemoryEnabled(userId))) return [];
-		return await fetchUserMemories(userId);
+		return (await loadMemorySnapshot(userId)).memories;
 	} catch (error) {
 		console.error("Loading user memories failed; continuing without them:", error);
 		return [];
@@ -226,15 +217,11 @@ export async function extractAndStoreMemories(options: {
 		// The Settings toggle turns off writes too: nothing new is learned while
 		// memory is disabled, but existing rows are kept for when it is turned
 		// back on.
-		if (!(await isMemoryEnabled(options.userId))) return;
-
-		// fetchUserMemories, not loadUserMemories: the read must be allowed to
-		// throw here. Reconciliation is only correct if the model is shown the
-		// memories that actually exist - if a transient read failure silently
-		// yielded [], every stored fact would look new and get re-added as a
-		// duplicate. Failing the whole extraction is the safe outcome; the outer
-		// catch swallows it and the next exchange retries.
-		const existing = await fetchUserMemories(options.userId);
+		// Unlike prompt injection, a failed snapshot must stop extraction rather
+		// than make existing facts look new. The write-side recheck below remains.
+		const snapshot = await loadMemorySnapshot(options.userId);
+		if (!snapshot.enabled) return;
+		const existing = snapshot.memories;
 		const existingBlock =
 			existing.length > 0
 				? existing.map((m) => `[${m.id}] (${m.category}) ${m.content}`).join("\n")

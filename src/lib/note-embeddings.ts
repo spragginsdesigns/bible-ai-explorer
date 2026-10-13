@@ -1,74 +1,36 @@
-import { openai } from "@ai-sdk/openai";
-import { embed, embedMany } from "ai";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { chunkNoteText } from "@/lib/embedding-index";
+import { queryEmbedding, noteChunkEmbeddings } from "@/lib/ai/embeddings";
+import { chunkNoteText, noteEmbeddingHash, writeNoteIndex, EMBEDDING_MODEL_ID, EMBEDDING_DIMENSIONS, type NoteIndexSource } from "@/lib/embedding-index";
+import { searchQuery } from "@/lib/search-query";
+
 export { chunkNoteText } from "@/lib/embedding-index";
 
-/**
- * Semantic index of the user's Bible study notes in Neon (pgvector table
- * "NoteEmbedding", beside the verse embeddings). Every note write path
- * re-embeds the note (upsert every chunk + drop the surplus trailing ones,
- * so the index never holds stale chunks); rows vanish with their note via
- * the FK cascade. All sync calls are fire-and-forget from the caller's
- * perspective - a failed sync only degrades search, never a note write.
- *
- * Existing notes are indexed by `scripts/backfill-note-embeddings.mjs`,
- * which imports the same chunking contract.
- */
+/** Identical autosaves share the work; every write still rechecks the source under a lock. */
+const pending = new Map<string, Promise<void>>();
 
-const embeddingModel = openai.embedding("text-embedding-3-large");
-
-function toVectorLiteral(vector: number[]): string {
-	return `[${vector.join(",")}]`;
-}
-
-/**
- * Re-index one note: replace all of its chunks with freshly embedded ones.
- *
- * Notes autosave every ~1.5s, so two syncs for the same note routinely
- * overlap. The old delete-then-insert pair was not safe under that race: the
- * second transaction's INSERT hit the ("noteId","chunk") primary key and died
- * with 23505, leaving the note's embeddings stale. Both statements below are
- * idempotent instead, and because a sync takes its row locks in ascending
- * chunk order starting at chunk 0, the loser of a race blocks on chunk 0
- * before holding any lock of its own - the two syncs serialize rather than
- * deadlock, and the last writer's chunk set wins completely.
- */
-export async function syncNoteEmbeddings(note: {
-	userId: string;
-	noteId: string;
-	title: string;
-	plainText: string;
-}): Promise<void> {
-	try {
-		const chunks = chunkNoteText(note.title, note.plainText);
-		if (chunks.length === 0) {
-			await prisma.$executeRaw`DELETE FROM "NoteEmbedding" WHERE "noteId" = ${note.noteId}`;
-			return;
+export async function syncNoteEmbeddings(note: NoteIndexSource): Promise<void> {
+	const hash = noteEmbeddingHash(note.title, note.plainText);
+	const key = JSON.stringify([note.userId, note.noteId, hash]);
+	const existing = pending.get(key);
+	if (existing) return existing;
+	const job = (async () => {
+		try {
+			const current = await prisma.note.findFirst({
+				where: { id: note.noteId, userId: note.userId },
+				select: { title: true, plainText: true, embeddingSourceHash: true },
+			});
+			if (!current || noteEmbeddingHash(current.title, current.plainText ?? "") !== hash || current.embeddingSourceHash === hash) return;
+			const chunks = chunkNoteText(note.title, note.plainText);
+			const embeddings = chunks.length ? await noteChunkEmbeddings(chunks) : [];
+			await writeNoteIndex(prisma, note, chunks, embeddings);
+		} catch (error) {
+			// Provider exceptions can carry the note text. Only log the failure category.
+			console.error("Note indexing failed; keeping the existing index.", error instanceof Error ? error.name : "UnknownError");
 		}
-
-		const { embeddings } = await embedMany({ model: embeddingModel, values: chunks });
-		const values = Prisma.join(
-			chunks.map(
-				(text, i) =>
-					Prisma.sql`(${note.noteId}, ${i}, ${note.userId}, ${text.slice(0, 2000)}, ${toVectorLiteral(embeddings[i])}::halfvec(3072))`
-			)
-		);
-		await prisma.$transaction([
-			prisma.$executeRaw`
-				INSERT INTO "NoteEmbedding" ("noteId","chunk","userId","content","embedding")
-				VALUES ${values}
-				ON CONFLICT ("noteId","chunk") DO UPDATE SET
-					"userId" = EXCLUDED."userId",
-					"content" = EXCLUDED."content",
-					"embedding" = EXCLUDED."embedding"
-			`,
-			prisma.$executeRaw`DELETE FROM "NoteEmbedding" WHERE "noteId" = ${note.noteId} AND "chunk" >= ${chunks.length}`,
-		]);
-	} catch (error) {
-		console.error(`Failed to sync note embeddings for ${note.noteId}:`, error);
-	}
+	})();
+	pending.set(key, job);
+	try { await job; } finally { if (pending.get(key) === job) pending.delete(key); }
 }
 
 export interface NoteChunkHit {
@@ -77,38 +39,29 @@ export interface NoteChunkHit {
 	similarity: number;
 }
 
-/**
- * Semantic search over the user's note chunks. Returns at most one hit per
- * note (its best chunk). Failures degrade to an empty result so callers can
- * fall back to substring search.
- */
-export async function searchNoteEmbeddings(
-	userId: string,
-	query: string,
-	limit = 6
-): Promise<NoteChunkHit[]> {
+/** Exact best chunk per note, then global ranking and SQL limit. Ownership precedes ranking. */
+export async function searchNoteEmbeddings(userId: string, query: string, limit = 6, signal?: AbortSignal): Promise<NoteChunkHit[]> {
 	try {
-		const { embedding } = await embed({ model: embeddingModel, value: query });
-		const literal = toVectorLiteral(embedding);
-		const rows = await prisma.$queryRaw<
-			{ noteId: string; content: string; similarity: number }[]
-		>`
-			SELECT DISTINCT ON ("noteId") "noteId", "content",
-				1 - ("embedding" <=> ${literal}::halfvec(3072)) AS "similarity"
-			FROM "NoteEmbedding"
-			WHERE "userId" = ${userId}
-			ORDER BY "noteId", "embedding" <=> ${literal}::halfvec(3072)
-		`;
-		return rows
-			.map((row) => ({
-				noteId: row.noteId,
-				excerpt: row.content.slice(0, 240),
-				similarity: Number(row.similarity) || 0,
-			}))
-			.sort((a, b) => b.similarity - a.similarity)
-			.slice(0, limit);
+		limit = Math.min(50, Math.max(1, Math.trunc(limit) || 6));
+		const embedding = await queryEmbedding(query, signal);
+		signal?.throwIfAborted();
+		const rows = await searchQuery<{ noteId: string; excerpt: string; similarity: number }>(Prisma.sql`
+			WITH query_vector AS MATERIALIZED (SELECT ${`[${embedding.join(",")}]`}::halfvec(3072) AS embedding),
+			best_chunks AS (
+				SELECT DISTINCT ON (e."noteId") e."noteId", e."content",
+					e."embedding" <=> (SELECT embedding FROM query_vector) AS distance
+				FROM "NoteEmbedding" e JOIN "Note" n ON n."id" = e."noteId"
+				WHERE n."userId" = ${userId} AND e."modelId" = ${EMBEDDING_MODEL_ID} AND e."dimensions" = ${EMBEDDING_DIMENSIONS}
+				ORDER BY e."noteId", distance, e."chunk"
+			)
+			SELECT "noteId", left("content", 240) AS excerpt, 1 - distance AS similarity
+			FROM best_chunks ORDER BY distance, "noteId" LIMIT ${limit}
+		`);
+		signal?.throwIfAborted();
+		return rows.map(row => ({ ...row, similarity: Number(row.similarity) || 0 }));
 	} catch (error) {
-		console.error("Note embedding search failed:", error);
+		if (signal?.aborted) throw signal.reason;
+		console.error("Note search failed; falling back to text search.", error instanceof Error ? error.name : "UnknownError");
 		return [];
 	}
 }
