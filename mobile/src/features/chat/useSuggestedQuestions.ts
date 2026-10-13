@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@clerk/expo";
 import { apiJson, type GetToken } from "@/lib/api";
+import { aiConsentGate } from "@/lib/aiConsentGate";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { commonQuestionSuggestions } from "./commonQuestions";
 import {
@@ -48,18 +49,28 @@ function load(userId: string, getToken: GetToken): Promise<SuggestedQuestionInpu
 	return promise;
 }
 
+function hasCurrentConsent(): boolean {
+	const { record, required } = aiConsentGate.getSnapshot();
+	return record?.version === required;
+}
+
 export function useSuggestedQuestions(): {
 	questions: SuggestedQuestionInput[];
 	loading: boolean;
 } {
 	const { userId } = useAuth();
 	const getToken = useStableGetToken();
+	const consented = useSyncExternalStore(aiConsentGate.subscribe, hasCurrentConsent);
 	const [questions, setQuestions] = useState<SuggestedQuestionInput[] | null>(
 		cached && cached.userId === userId ? cached.questions : null
 	);
 
 	useEffect(() => {
-		if (!userId || questions) return;
+		// Wait for the consent gate to hold this account's recorded consent. The
+		// chat screen mounts before AIConsentPresenter configures the gate, so
+		// asking earlier was refused on the device, never reached the server, and
+		// the static six were cached as this user's questions for the session.
+		if (!userId || !consented || questions) return;
 		let active = true;
 		void load(userId, getToken).then((loaded) => {
 			if (active) setQuestions(loaded);
@@ -67,7 +78,9 @@ export function useSuggestedQuestions(): {
 		return () => {
 			active = false;
 		};
-	}, [userId, getToken, questions]);
+	}, [userId, consented, getToken, questions]);
 
+	// Without consent the static six are the answer, not an endless skeleton.
+	if (!consented && !questions) return { questions: DEFAULTS, loading: false };
 	return { questions: questions ?? [], loading: questions === null };
 }

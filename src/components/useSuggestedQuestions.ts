@@ -1,7 +1,7 @@
 "use client";
-import { consentFetch } from "@/lib/ai-consent-gate";
+import { aiConsentGate, consentFetch } from "@/lib/ai-consent-gate";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { commonQuestionSuggestions } from "@/utils/commonQuestions";
 import {
@@ -53,18 +53,28 @@ function load(userId: string): Promise<QuestionSet> {
 	return promise;
 }
 
+function hasCurrentConsent(): boolean {
+	const { record, required } = aiConsentGate.getSnapshot();
+	return record?.version === required;
+}
+
 export function useSuggestedQuestions(): {
 	questions: SuggestedQuestionInput[];
 	loading: boolean;
 	personalized: boolean;
 } {
 	const { userId } = useAuth();
+	const consented = useSyncExternalStore(aiConsentGate.subscribe, hasCurrentConsent, () => false);
 	const [state, setState] = useState<{ userId: string; result: QuestionSet } | null>(
 		cached && cached.userId === userId ? cached : null
 	);
 
 	useEffect(() => {
-		if (!userId || state?.userId === userId) return;
+		// Wait for the consent gate to hold this account's recorded consent. The
+		// welcome screen mounts before AIConsentPresenter configures the gate, so
+		// asking earlier was refused locally, never reached the server, and the
+		// static six were cached as this user's questions for the whole session.
+		if (!userId || !consented || state?.userId === userId) return;
 		let active = true;
 		void load(userId).then((loaded) => {
 			if (active) setState({ userId, result: loaded });
@@ -72,8 +82,14 @@ export function useSuggestedQuestions(): {
 		return () => {
 			active = false;
 		};
-	}, [userId, state]);
+	}, [userId, consented, state]);
 
 	const current = state && state.userId === userId ? state.result : null;
-	return { questions: current?.questions ?? DEFAULTS, loading: false, personalized: current?.personalized ?? false };
+	// Skeleton only while a request this account is allowed to make is pending;
+	// without consent the static six are the answer, not a wait.
+	return {
+		questions: current?.questions ?? DEFAULTS,
+		loading: Boolean(userId) && consented && !current,
+		personalized: current?.personalized ?? false,
+	};
 }

@@ -37,7 +37,7 @@ function isNativeRelease(value: unknown): value is NativeRelease {
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onSelectQuestion,
 }) => {
-  const { questions, loading } = useSuggestedQuestions();
+  const { questions, loading, personalized } = useSuggestedQuestions();
   const [showAll, setShowAll] = React.useState(false);
   const questionItems = React.useMemo(
     () => buildSuggestedQuestionItems(questions),
@@ -89,7 +89,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           <SureWordGuideAvatar variant="hero" size={190} />
           <h1>Come hungry for the Word.</h1>
         </div>
-        <h2 className={styles.sectionHeading}>CHOSEN FROM YOUR STUDY</h2>
+        {/* Only claim the user's study when the server says it personalized them;
+            the static six are not "chosen" from anything. */}
+        <h2 className={styles.sectionHeading}>
+          {personalized ? "CHOSEN FROM YOUR STUDY" : "QUESTIONS TO EXPLORE"}
+        </h2>
         <div className={styles.questionGrid} aria-busy={loading} aria-label={loading ? "Preparing your questions" : "Suggested questions"}>
           {loading ? SKELETON_WIDTHS.slice(0, 4).map((width, i) => <div key={i} className={styles.skeleton} aria-hidden="true">
             <span style={{ width: `${width}%` }} /><span />
@@ -103,7 +107,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           </button>)}
         </div>
         {!loading && !showAll && hiddenCount > 0 && <button type="button" className={styles.more}
-          aria-label={`Show ${hiddenCount} more questions from your study`} onClick={() => setShowAll(true)}>
+          aria-label={`Show ${hiddenCount} more questions${personalized ? " from your study" : ""}`} onClick={() => setShowAll(true)}>
           {hiddenCount} more questions <ChevronDown size={18} aria-hidden="true" />
         </button>}
         {platform === "ios" ? (
