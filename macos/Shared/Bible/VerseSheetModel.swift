@@ -8,6 +8,12 @@ struct VerseSheetContext: Sendable, Equatable {
     /// Every verse's plain text, verse 1 at index 0 (`ReaderVerse.plainText`).
     let plainTexts: [String]
     let translation: TranslationID
+    /// The KJV words behind the LC Greek on screen (LC-15842), which Explain
+    /// and Ask AI read; nil when the page shows `translation` itself.
+    var studyTexts: [String]? = nil
+
+    /// What Copy, Share and Save to note name the words on screen.
+    var label: String { studyTexts == nil ? translation.rawValue : LCGreek.label }
 }
 
 /// State and rules behind the two-tier verse sheet - the slice of
@@ -85,15 +91,21 @@ final class VerseSheetModel {
         activeSelection.reference(bookName: context.bookName, chapter: context.chapter)
     }
 
+    /// The selected words on screen, for Copy, Share and Save to note.
     func text(_ context: VerseSheetContext) -> String {
         activeSelection.text(in: context.plainTexts)
+    }
+
+    /// The same verses in the study translation, for Explain and Ask AI.
+    func studyText(_ context: VerseSheetContext) -> String {
+        activeSelection.text(in: context.studyTexts ?? context.plainTexts)
     }
 
     func shareText(_ context: VerseSheetContext) -> String {
         VerseSelection.shareText(
             reference: reference(context),
             text: text(context),
-            translation: context.translation.rawValue
+            translation: context.label
         )
     }
 
@@ -202,7 +214,7 @@ final class VerseSheetModel {
     private func target(_ context: VerseSheetContext) -> VerseInsightModel.Target {
         VerseInsightModel.Target(
             reference: reference(context),
-            text: text(context),
+            text: studyText(context),
             translation: context.translation
         )
     }
@@ -231,7 +243,8 @@ final class VerseSheetModel {
                 api: api,
                 reference: reference(context),
                 text: text(context),
-                translation: context.translation
+                translation: context.translation,
+                label: context.label
             )
         } catch {
             actionMessage = Message(text: Self.saveError, tone: .danger)

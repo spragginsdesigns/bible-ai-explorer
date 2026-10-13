@@ -3,12 +3,19 @@ import AVFoundation
 import MediaPlayer
 
 /// Which recording of a chapter to play: the book's usual one, or the Alive
-/// production (full cast, SureWord's modern translation) offered beside it on
-/// Listen. Same names and wording as `EDITION_CHOICES` in src/lib/bible/audioBible.ts (LC-15532).
+/// production (full cast, the LC Greek text) offered beside it on Listen. Same
+/// names and wording as `EDITION_CHOICES` in src/lib/bible/audioBible.ts (LC-15532).
 enum AudioEdition: String, CaseIterable, Sendable {
     case regular, alive
+    /// Listen recommends Alive wherever a book has it (LC-15842): the choice
+    /// lists it first, marked with `recommendedLabel` (`RECOMMENDED_EDITION`,
+    /// `RECOMMENDED_LABEL`, `LISTEN_ORDER`).
+    static let recommended: AudioEdition = .alive
+    static let recommendedLabel = "Recommended"
+    static let listenOrder: [AudioEdition] = [.alive, .regular]
     var label: String { self == .alive ? "Alive" : "Regular" }
-    var detail: String { self == .alive ? "Full cast, in our modern translation" : "The King James Version, read aloud" }
+    var detail: String { self == .alive ? "Full cast, in our LC Greek translation" : "The King James Version, read aloud" }
+    var isRecommended: Bool { self == Self.recommended }
 }
 
 /// Same public wire contract and timing rules as src/lib/bible/audioBible.ts.
@@ -55,7 +62,8 @@ final class ChapterAudioModel {
     var verse: Int? { isReady ? audio?.verse(at: elapsed) : nil }
     var duration: Double { audio?.duration ?? 0 }
     var available: Bool { audio != nil }
-    var editions: [AudioEdition] { AudioEdition.allCases.filter { recordings[$0] != nil } }
+    /// The chapter's recordings in `listenOrder`, the recommended one first.
+    var editions: [AudioEdition] { AudioEdition.listenOrder.filter { recordings[$0] != nil } }
     var edition: AudioEdition { audio?.kind ?? .regular }
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let settings: SettingsStore

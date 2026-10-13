@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Headphones } from "lucide-react";
-import { EDITION_CHOICES } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, RECOMMENDED_EDITION, RECOMMENDED_LABEL } from "@/lib/bible/audioBible";
 import type { ChapterAudioPlayer } from "./useChapterAudio";
 
 const BUTTON =
@@ -15,7 +15,8 @@ const BUTTON_ON =
 /**
  * The reader's headphones button. While listening it pauses and resumes; to
  * start, a chapter with one recording plays it at once, and a chapter with an
- * Alive recording too (Mark) first asks which one.
+ * Alive recording too (Mark) first asks which one, listing Alive first,
+ * highlighted and marked Recommended (LC-15842).
  */
 export default function ListenButton({ player, reference }: { player: ChapterAudioPlayer; reference: string }) {
   const [choosing, setChoosing] = useState(false);
@@ -73,23 +74,41 @@ export default function ListenButton({ player, reference }: { player: ChapterAud
           // edge, so below sm it spans the screen under the header instead.
           className="fixed inset-x-3 top-14 z-50 sm:absolute sm:inset-x-auto sm:right-0 sm:top-10 sm:w-64 rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-white dark:bg-neutral-900 p-1.5 shadow-xl"
         >
-          {player.editions.map((edition) => (
-            <button
-              key={edition}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setChoosing(false);
-                player.play(0, edition);
-              }}
-              className="flex min-h-11 w-full flex-col items-start rounded-lg px-3 py-2 text-left hover:bg-black/[0.05] dark:hover:bg-white/[0.06] focus-visible:bg-black/[0.05] dark:focus-visible:bg-white/[0.06]"
-            >
-              <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                {EDITION_CHOICES[edition].label}
-              </span>
-              <span className="text-xs text-neutral-500 dark:text-neutral-400">{EDITION_CHOICES[edition].detail}</span>
-            </button>
-          ))}
+          {player.editions.map((edition) => {
+            const recommended = edition === RECOMMENDED_EDITION;
+            return (
+              <button
+                key={edition}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setChoosing(false);
+                  player.play(0, edition);
+                }}
+                className={`flex min-h-11 w-full flex-col items-start rounded-lg border px-3 py-2 text-left ${
+                  recommended
+                    ? "mb-1 border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 focus-visible:bg-amber-500/20 dark:focus-visible:bg-amber-400/20"
+                    : "border-transparent hover:bg-black/[0.05] dark:hover:bg-white/[0.06] focus-visible:bg-black/[0.05] dark:focus-visible:bg-white/[0.06]"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`text-sm font-semibold ${
+                      recommended ? "text-amber-700 dark:text-amber-300" : "text-neutral-900 dark:text-neutral-100"
+                    }`}
+                  >
+                    {EDITION_CHOICES[edition].label}
+                  </span>
+                  {recommended ? (
+                    <span className="rounded-full bg-amber-500/20 dark:bg-amber-400/20 px-2 py-0.5 text-metadata font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                      {RECOMMENDED_LABEL}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">{EDITION_CHOICES[edition].detail}</span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>

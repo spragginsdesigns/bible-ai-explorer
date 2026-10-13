@@ -38,7 +38,8 @@ export function readerRouteParams(
 /** "John 3:16 — \"For God so loved...\" (KJV)" plain-text form for copy/share. */
 export function formatVerseForSharing(
 	verse: VerseActionSource,
-	translation?: TranslationId
+	/** A translation id, or the reader's "LC Greek" label (LC-15842). */
+	translation?: string
 ): string {
 	const body = verse.text?.trim();
 	const label = translation ?? verse.translation;
@@ -93,7 +94,8 @@ export async function shareVerse(verse: VerseActionSource, translation?: Transla
 export async function saveVerseToNote(
 	getToken: GetToken,
 	verse: VerseActionSource,
-	translation?: TranslationId
+	/** A translation id, or the reader's "LC Greek" label (LC-15842). */
+	translation?: string
 ): Promise<string> {
 	const text = verse.text?.trim() ?? "";
 	const label = translation ?? verse.translation;

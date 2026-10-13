@@ -17,7 +17,16 @@ import { typography } from "@/theme";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useChapterAudio } from "@/features/bible/useChapterAudio";
 import { ChapterAudioBar } from "@/features/bible/ChapterAudioBar";
-import { EDITION_CHOICES, hasNarration, type AudioEdition } from "@/features/bible/audioBible";
+import {
+	EDITION_CHOICES,
+	LC_GREEK,
+	RECOMMENDED_EDITION,
+	RECOMMENDED_LABEL,
+	hasLcGreek,
+	hasNarration,
+	type AudioEdition,
+} from "@/features/bible/audioBible";
+import { getChapterTexts } from "@/features/bible/lcGreek";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
@@ -41,10 +50,14 @@ import {
 	setHighlight,
 	useChapterHighlights,
 } from "@/features/bible/highlightsStore";
-import { TRANSLATIONS, getChapter, type TranslationId } from "@/features/bible/translations";
+import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText } from "@/features/bible/verseMarkup";
 import { getBsbChapter } from "@/features/bible/bsb";
-import { readerVerseSegments, readerSectionHeadings } from "@/features/bible/redLetters";
+import {
+	readerVerseSegments,
+	readerSectionHeadings,
+	type ReaderVerseSegment,
+} from "@/features/bible/redLetters";
 import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
@@ -72,6 +85,7 @@ import { InsightTeaser } from "@/features/bible/verse-sheet/InsightTeaser";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
+	setLcGreek,
 	useHighlightLabels,
 	useSettings,
 	useThemedStyles,
@@ -105,6 +119,8 @@ interface VerseRowProps {
 	bookOrder: number;
 	chapterNumber: number;
 	translation: TranslationId;
+	/** The LC Greek is on screen: plain text, no red letters (headings as for the KJV). */
+	lcGreek: boolean;
 	redLetterColor: string;
 	/** The verse as the provider gave it - KJV plain text, NKJV inline markup. */
 	markup: string;
@@ -133,6 +149,7 @@ const VerseRow = React.memo(function VerseRow({
 	bookOrder,
 	chapterNumber,
 	translation,
+	lcGreek,
 	redLetterColor,
 	markup,
 	verseNumber,
@@ -146,9 +163,12 @@ const VerseRow = React.memo(function VerseRow({
 	colors,
 	onPress,
 }: VerseRowProps) {
-	const segments = useMemo(
-		() => readerVerseSegments(markup, translation, bookOrder, chapterNumber, verseNumber),
-		[markup, translation, bookOrder, chapterNumber, verseNumber],
+	const segments = useMemo<ReaderVerseSegment[]>(
+		() =>
+			lcGreek
+				? [{ text: markup, italic: false }]
+				: readerVerseSegments(markup, translation, bookOrder, chapterNumber, verseNumber),
+		[lcGreek, markup, translation, bookOrder, chapterNumber, verseNumber],
 	);
 	const open = useCallback(() => onPress(verseNumber), [onPress, verseNumber]);
 
@@ -247,17 +267,34 @@ export default function BibleChapterScreen() {
 	// silently change the account-wide default in Settings. Tapping a chip is an
 	// explicit preference choice, so it clears the route override and persists it.
 	const sourceTranslationParam = parseTranslationId(params.translation);
-	const { translation: accountTranslation, parchment } = useSettings();
+	const { translation: accountTranslation, parchment, lcGreek: lcGreekOn } = useSettings();
 	const highlightLabels = useHighlightLabels();
-	const translation = readerTranslation(accountTranslation, params.translation);
+	// The LC Greek chip (LC-15842) is kept on this device; a source translation
+	// from chat still wins. While the LC Greek is on screen, `translation` is
+	// the KJV, which every study tool reads (see getChapterTexts).
+	const lcGreek = lcGreekOn && !sourceTranslationParam && hasLcGreek(order);
+	const translation: TranslationId = lcGreek
+		? "KJV"
+		: readerTranslation(accountTranslation, params.translation);
+	/** What copied, shared and saved verses are labelled: the words on screen. */
+	const textLabel = lcGreek ? LC_GREEK.label : translation;
+	/** The footer's attribution for the words on screen. */
+	const textSource = lcGreek ? LC_GREEK : TRANSLATIONS[translation];
 	const setTranslation = useCallback(
 		(next: TranslationId) => {
 			if (sourceTranslationParam) router.setParams({ translation: undefined });
+			setLcGreek(false);
 			setBibleTranslation(next);
 		},
 		[router, sourceTranslationParam],
 	);
+	const showLcGreek = useCallback(() => {
+		if (sourceTranslationParam) router.setParams({ translation: undefined });
+		setLcGreek(true);
+	}, [router, sourceTranslationParam]);
 	const [verses, setVerses] = useState<string[]>([]);
+	/** The same chapter in the study translation; differs from `verses` only on the LC Greek. */
+	const [studyVerses, setStudyVerses] = useState<string[]>([]);
 	// Which chapter `verses` actually holds. Params change a render before the
 	// new text arrives, so without this the effects below would run once against
 	// the previous chapter's verses while `order`/`chapter` already point at the
@@ -296,7 +333,8 @@ export default function BibleChapterScreen() {
 	const requestId = useRef(0);
 	const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const chapterKey = `${translation}:${order}:${chapter}`;
+	const textKey = lcGreek ? "LCG" : translation;
+	const chapterKey = `${textKey}:${order}:${chapter}`;
 	const visibleChapter = useRef({ key: chapterKey, loadedKey, count: verses.length });
 	visibleChapter.current = { key: chapterKey, loadedKey, count: verses.length };
 	const scrollToVerse = useCallback((index: number, position: number, animated: boolean, expectedKey: string) => {
@@ -320,23 +358,25 @@ export default function BibleChapterScreen() {
 		// two loads racing; only the newest may write. NKJV comes over the network,
 		// so the slower one is not always the older one.
 		const id = ++requestId.current;
-		const key = `${translation}:${order}:${chapter}`;
+		const key = `${textKey}:${order}:${chapter}`;
 		setLoading(true);
 		setError(null);
 		try {
-			const next = await getChapter(translation, order, chapter);
+			const next = await getChapterTexts(lcGreek, translation, order, chapter);
 			if (requestId.current !== id) return;
-			setVerses(next);
+			setVerses(next.shown);
+			setStudyVerses(next.study);
 			setLoadedKey(key);
 		} catch (err) {
 			if (requestId.current !== id) return;
 			setVerses([]);
+			setStudyVerses([]);
 			setLoadedKey(null);
 			setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
 		} finally {
 			if (requestId.current === id) setLoading(false);
 		}
-	}, [translation, order, chapter]);
+	}, [lcGreek, textKey, translation, order, chapter]);
 
 	useEffect(() => {
 		void load();
@@ -347,7 +387,7 @@ export default function BibleChapterScreen() {
 	// chapter's scroll offset.
 	useEffect(() => {
 		listRef.current?.scrollToOffset({ offset: 0, animated: false });
-	}, [translation, order, chapter]);
+	}, [textKey, order, chapter]);
 
 	// ?verse= deep link: scroll to the verse once the chapter is on screen and
 	// flash it briefly so the eye lands there. Guarded by the reference it last
@@ -437,14 +477,18 @@ export default function BibleChapterScreen() {
 		onChapterEnd: () => goTo(neighbors.next),
 	});
 	useFocusEffect(useCallback(() => () => chapterAudio.stop(), [chapterAudio.stop]));
-	// Listen on a chapter with an Alive recording (Mark, LC-15532) asks which one first.
+	// Listen on a chapter with an Alive recording (Mark, LC-15532) asks which one
+	// first, recommending Alive (LC-15842): the message lists the recordings in
+	// LISTEN_ORDER, and the recommended one is the last button, which Android
+	// makes the positive (primary) action, on top when the buttons stack.
 	const { play: playChapter, editions: listenEditions } = chapterAudio;
 	const listen = useCallback((fromVerse = 0) => {
 		if (listenEditions.length < 2) { void playChapter(fromVerse); return; }
-		const choice = (edition: AudioEdition) => ({ text: EDITION_CHOICES[edition].label, onPress: () => void playChapter(fromVerse, edition) });
+		const label = (edition: AudioEdition) => edition === RECOMMENDED_EDITION ? `${EDITION_CHOICES[edition].label} (${RECOMMENDED_LABEL})` : EDITION_CHOICES[edition].label;
+		const choice = (edition: AudioEdition) => ({ text: label(edition), onPress: () => void playChapter(fromVerse, edition) });
 		Alert.alert(`Listen to ${reference}`,
-			listenEditions.map(edition => `${EDITION_CHOICES[edition].label}: ${EDITION_CHOICES[edition].detail}.`).join("\n"),
-			[{ text: "Cancel", style: "cancel" }, ...listenEditions.map(choice)]);
+			listenEditions.map(edition => `${label(edition)}: ${EDITION_CHOICES[edition].detail}.`).join("\n"),
+			[{ text: "Cancel", style: "cancel" }, ...[...listenEditions].reverse().map(choice)]);
 	}, [listenEditions, playChapter, reference]);
 	const lastManualScroll = useRef(0);
 	useEffect(() => {
@@ -455,8 +499,9 @@ export default function BibleChapterScreen() {
 	}, [chapterAudio.verse, chapterAudio.playing, chapterAudio.audio, order, chapter, verses.length, loadedKey, chapterKey, selection, sheetTier, scrollToVerse]);
 
 	// Every verse without markup, once per chapter load. The sheet, clipboard,
-	// share, note and Ask AI all read the selection from here, and a range
-	// covers verses that were never tapped themselves.
+	// share and note read the words on screen; Explain and Ask AI read the study
+	// translation, which differs only on the LC Greek. A range covers verses
+	// that were never tapped themselves.
 	const plainTexts = useMemo(
 		() =>
 			verses.map((markup, index) =>
@@ -466,11 +511,23 @@ export default function BibleChapterScreen() {
 			),
 		[verses, translation, order, chapter],
 	);
+	const studyPlainTexts = useMemo(
+		() =>
+			studyVerses === verses
+				? plainTexts
+				: studyVerses.map((markup, index) =>
+						readerVerseSegments(markup, translation, order, chapter, index + 1)
+							.map((segment) => segment.text)
+							.join(""),
+					),
+		[studyVerses, verses, plainTexts, translation, order, chapter],
+	);
 
 	const sheetOpen = selection !== null;
 	const activeSelection = selection ?? shownSelection;
 	const selectionRef = book ? selectionReference(book.name, chapter, activeSelection) : "";
 	const selectionPlain = selectionText(plainTexts, activeSelection);
+	const selectionStudy = selectionText(studyPlainTexts, activeSelection);
 	const selectedCount = selectionCount(activeSelection);
 	const selectionHex = selectionColor(highlights, activeSelection);
 	const selectionHasColor = selectionVerses(activeSelection).some((verse) => highlights.has(verse));
@@ -518,7 +575,7 @@ export default function BibleChapterScreen() {
 		const request = () =>
 			startInsight({
 				reference: selectionReference(book.name, chapter, selection),
-				text: selectionText(plainTexts, selection),
+				text: selectionText(studyPlainTexts, selection),
 				translation,
 			});
 		if (!wasOpen) {
@@ -527,12 +584,12 @@ export default function BibleChapterScreen() {
 		}
 		const timer = setTimeout(request, SELECTION_SETTLE_MS);
 		return () => clearTimeout(timer);
-	}, [selection, book, chapter, plainTexts, translation, startInsight]);
+	}, [selection, book, chapter, studyPlainTexts, translation, startInsight]);
 
 	const retryInsight = useCallback(() => {
 		if (!selection) return;
-		startInsight({ reference: selectionRef, text: selectionPlain, translation }, true);
-	}, [selection, selectionRef, selectionPlain, startInsight, translation]);
+		startInsight({ reference: selectionRef, text: selectionStudy, translation }, true);
+	}, [selection, selectionRef, selectionStudy, startInsight, translation]);
 
 	const askAI = useCallback(
 		(verse: { reference: string; text: string }) => {
@@ -562,14 +619,14 @@ export default function BibleChapterScreen() {
 					...(attach
 						? {
 								attachRef: selectionRef,
-								attachText: selectionPlain,
+								attachText: selectionStudy,
 								attachTranslation: translation,
 							}
 						: {}),
 				},
 			});
 		},
-		[router, closeSheet, selectionRef, selectionPlain, translation],
+		[router, closeSheet, selectionRef, selectionStudy, translation],
 	);
 
 	useEffect(
@@ -581,18 +638,18 @@ export default function BibleChapterScreen() {
 
 	const onCopyVerse = useCallback(async () => {
 		if (!selection) return;
-		await Clipboard.setStringAsync(selectionShareText(selectionRef, selectionPlain, translation));
+		await Clipboard.setStringAsync(selectionShareText(selectionRef, selectionPlain, textLabel));
 		setCopied(true);
 		if (copiedTimer.current) clearTimeout(copiedTimer.current);
 		copiedTimer.current = setTimeout(() => setCopied(false), 1400);
-	}, [selection, selectionRef, selectionPlain, translation]);
+	}, [selection, selectionRef, selectionPlain, textLabel]);
 
 	const onShareVerse = useCallback(() => {
 		if (!selection) return;
 		Share.share({
-			message: selectionShareText(selectionRef, selectionPlain, translation),
+			message: selectionShareText(selectionRef, selectionPlain, textLabel),
 		}).catch(() => {});
-	}, [selection, selectionRef, selectionPlain, translation]);
+	}, [selection, selectionRef, selectionPlain, textLabel]);
 
 	const onSaveVerse = useCallback(async () => {
 		if (!selection || saveBusy) return;
@@ -602,7 +659,7 @@ export default function BibleChapterScreen() {
 			const noteId = await saveVerseToNote(
 				getToken,
 				{ reference: selectionRef, text: selectionPlain },
-				translation,
+				textLabel,
 			);
 			closeSheet();
 			router.push({ pathname: "/notes/[id]", params: { id: noteId } });
@@ -614,7 +671,7 @@ export default function BibleChapterScreen() {
 		} finally {
 			setSaveBusy(false);
 		}
-	}, [selection, saveBusy, selectionRef, selectionPlain, getToken, translation, router, closeSheet]);
+	}, [selection, saveBusy, selectionRef, selectionPlain, getToken, textLabel, router, closeSheet]);
 
 	// Learn takes one verse per request, so a range is added verse by verse;
 	// the route is idempotent, so a retry after a mid-way failure is safe.
@@ -733,7 +790,7 @@ export default function BibleChapterScreen() {
 				key: "ask",
 				icon: "sparkles-outline",
 				label: "Ask",
-				onPress: () => askAI({ reference: selectionRef, text: selectionPlain }),
+				onPress: () => askAI({ reference: selectionRef, text: selectionStudy }),
 			},
 			{
 				key: "copy",
@@ -759,7 +816,7 @@ export default function BibleChapterScreen() {
 				onPress: () => void onLearn(),
 			},
 		],
-		[chapterAudio.available, listen, activeSelection.start, askAI, selectionRef, selectionPlain, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
+		[chapterAudio.available, listen, activeSelection.start, askAI, selectionRef, selectionStudy, copied, onCopyVerse, onShareVerse, saveBusy, onSaveVerse, learnStatus, onLearn],
 	);
 
 	const barMessage = actionMessage
@@ -775,6 +832,7 @@ export default function BibleChapterScreen() {
 				bookOrder={order}
 				chapterNumber={chapter}
 				translation={translation}
+				lcGreek={lcGreek}
 				redLetterColor={isDark ? "#EF8A83" : "#A12E2A"}
 				verseNumber={index + 1}
 				verseColor={highlights.get(index + 1)}
@@ -803,6 +861,7 @@ export default function BibleChapterScreen() {
 			order,
 			chapter,
 			translation,
+			lcGreek,
 			isDark,
 		],
 	);
@@ -842,12 +901,12 @@ export default function BibleChapterScreen() {
 				{chapterAudio.available ? <Pressable accessibilityRole="button" accessibilityLabel="Listen to this chapter" onPress={() => listen()} style={styles.fontButton}><Ionicons name="headset-outline" size={22} color={colors.accent} /></Pressable> : chapterAudio.error ? <Pressable accessibilityRole="button" accessibilityLabel="Retry chapter narration" onPress={chapterAudio.retryLoad} style={styles.fontButton}><Ionicons name="refresh" size={22} color={colors.accent} /></Pressable> : null}
 				<Pressable
 					accessibilityRole="button"
-					accessibilityLabel={`Translation and reading settings, ${translation}`}
+					accessibilityLabel={`Translation and reading settings, ${textLabel}`}
 					onPress={() => setReaderOptionsVisible(true)}
 					style={styles.translationChip}
 				>
 					<Ionicons name="globe-outline" size={18} color={colors.text} />
-					<Text style={styles.translationChipLabel}>{translation}</Text>
+					<Text style={styles.translationChipLabel}>{textLabel}</Text>
 					<Ionicons name="chevron-down" size={14} color={colors.textMuted} />
 				</Pressable>
 				<Pressable
@@ -902,28 +961,43 @@ export default function BibleChapterScreen() {
 				</View>
 				<Text style={styles.optionsLabel}>Translation</Text>
 				<View style={styles.translationRow}>
-					{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
-						<Pressable
-							key={id}
-							accessibilityRole="button"
-							accessibilityState={{ selected: translation === id }}
-							onPress={() => setTranslation(id)}
-							style={[styles.translationChip, translation === id && styles.translationChipActive]}
-						>
-							<Text
-								style={[styles.translationChipLabel, translation === id && { color: colors.text }]}
+					{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => {
+						const selected = !lcGreek && translation === id;
+						return (
+							<Pressable
+								key={id}
+								accessibilityRole="button"
+								accessibilityState={{ selected }}
+								onPress={() => setTranslation(id)}
+								style={[styles.translationChip, selected && styles.translationChipActive]}
 							>
-								{id}
+								<Text style={[styles.translationChipLabel, selected && { color: colors.text }]}>
+									{id}
+								</Text>
+							</Pressable>
+						);
+					})}
+					{hasLcGreek(order) ? (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityState={{ selected: lcGreek }}
+							onPress={showLcGreek}
+							style={[styles.translationChip, lcGreek && styles.translationChipActive]}
+						>
+							<Text style={[styles.translationChipLabel, lcGreek && { color: colors.text }]}>
+								{LC_GREEK.label}
 							</Text>
 						</Pressable>
-					))}
+					) : null}
 				</View>
 				<Text style={styles.optionsLabel}>
-					{translation === "KJV"
-						? "KJV words of Jesus · eBible edition. Editorial headings · BSB."
-						: translation === "BSB"
-							? "Section headings and words of Jesus · Berean Standard Bible"
-							: "Red letters aren't available from our NKJV text provider yet."}
+					{lcGreek
+						? LC_GREEK.note
+						: translation === "KJV"
+							? "KJV words of Jesus · eBible edition. Editorial headings · BSB."
+							: translation === "BSB"
+								? "Section headings and words of Jesus · Berean Standard Bible"
+								: "Red letters aren't available from our NKJV text provider yet."}
 				</Text>
 			</BottomSheet>
 
@@ -1004,7 +1078,7 @@ export default function BibleChapterScreen() {
 								<Text
 									style={[styles.copyright, !parchment && { color: colors.textGhost, opacity: 1 }]}
 								>
-									{TRANSLATIONS[translation].label} — {TRANSLATIONS[translation].copyright}
+									{textSource.label} — {textSource.copyright}
 								</Text>
 							</View>
 						}
@@ -1050,7 +1124,7 @@ export default function BibleChapterScreen() {
 							onPress={() =>
 								askAI({
 									reference,
-									text: verses
+									text: studyVerses
 										.map((text, index) => `${index + 1} ${bibleVersePlainText(text)}`)
 										.join("\n"),
 								})

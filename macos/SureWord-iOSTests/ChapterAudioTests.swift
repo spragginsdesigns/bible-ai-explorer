@@ -27,6 +27,12 @@ final class ChapterAudioTests: XCTestCase {
         let older = try JSONDecoder().decode(ChapterAudio.self, from: Data(#"{"status":"ready","book":41,"chapter":1,"audioUrl":"https://example.com/kjv.mp3","duration":20,"verses":[{"verse":1,"start":3,"end":10}]}"#.utf8))
         XCTAssertEqual(older.kind, .regular, "a response without edition is the regular recording")
         XCTAssertEqual(AudioEdition.allCases.map(\.label), ["Regular", "Alive"])
-        XCTAssertEqual(AudioEdition.alive.detail, "Full cast, in our modern translation")
+        XCTAssertEqual(AudioEdition.alive.detail, "Full cast, in our LC Greek translation")
+    }
+    func testListenRecommendsAliveAndListsItFirstLikeWeb() {
+        XCTAssertEqual(AudioEdition.recommended, .alive)
+        XCTAssertEqual(AudioEdition.recommendedLabel, "Recommended")
+        XCTAssertEqual(AudioEdition.listenOrder, [.alive, .regular])
+        XCTAssertTrue(AudioEdition.alive.isRecommended); XCTAssertFalse(AudioEdition.regular.isRecommended)
     }
 }

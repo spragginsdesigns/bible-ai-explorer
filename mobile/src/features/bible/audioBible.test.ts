@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ALIVE_BASE_URL, AUDIO_BIBLE_BASE_URL, EDITION_CHOICES, hasAlive, hasNarration, needsStillListening, parseChapterTiming, parseEdition, verseAt, verseStart } from "./audioBible";
+import { ALIVE_BASE_URL, AUDIO_BIBLE_BASE_URL, EDITION_CHOICES, LC_GREEK, LISTEN_ORDER, RECOMMENDED_EDITION, RECOMMENDED_LABEL, hasAlive, hasLcGreek, hasNarration, needsStillListening, parseChapterTiming, parseEdition, parseLcGreek, verseAt, verseStart } from "./audioBible";
 describe("chapter narration timing", () => {
   const verses = [{ verse: 1, start: 3, end: 10 }, { verse: 2, start: 10, end: 18 }];
   it("keeps headings outside read-along and selects the boundary verse", () => {
@@ -22,6 +22,16 @@ describe("chapter narration timing", () => {
     expect(parseChapterTiming(data, 41, 1, "alive")?.audioUrl).toBe(`${ALIVE_BASE_URL}/41/1.mp3`);
     expect(parseChapterTiming(data, 41, 1)?.audioUrl).toBe(`${AUDIO_BIBLE_BASE_URL}/41/1.mp3`);
     expect(EDITION_CHOICES.alive.label).toBe("Alive"); expect(EDITION_CHOICES.regular.label).toBe("Regular");
+  });
+  it("recommends Alive first and reads the LC Greek beside it (LC-15842)", () => {
+    expect(LISTEN_ORDER[0]).toBe(RECOMMENDED_EDITION); expect(RECOMMENDED_EDITION).toBe("alive"); expect(RECOMMENDED_LABEL).toBe("Recommended");
+    expect(EDITION_CHOICES.alive.detail).toContain(LC_GREEK.label);
+    expect(hasLcGreek(41)).toBe(true); expect(hasLcGreek(40)).toBe(false);
+    const ready = { status: "ready", book: 41, chapter: 1, verses: ["The beginning.", "As it is written."] };
+    expect(parseLcGreek(ready, 41, 1)).toEqual(ready.verses);
+    expect(parseLcGreek(ready, 41, 2)).toBe(null);
+    expect(parseLcGreek({ status: "unavailable" }, 41, 1)).toBe(null);
+    expect(parseLcGreek({ ...ready, verses: ["ok", " "] }, 41, 1)).toBe(null);
   });
   it("is the same contract file as web's src/lib/bible/audioBible.ts", () => {
     const read = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");

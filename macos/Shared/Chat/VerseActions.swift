@@ -39,15 +39,19 @@ struct VerseAttachmentOrigin: Sendable, Equatable {
 
 extension VerseAttachment {
     /// `John 3:16 — "For God so loved…" (KJV)` — the plain-text form used for
-    /// copy, share, and the attachment block prepended to a question.
+    /// copy, share, and the attachment block prepended to a question. `label`
+    /// names a text that is not a translation (the reader's "LC Greek",
+    /// LC-15842) in place of the translation's id.
     static func formatForSharing(
         reference: String,
         text: String?,
-        translation: TranslationID = .kjv
+        translation: TranslationID = .kjv,
+        label: String? = nil
     ) -> String {
+        let name = label ?? translation.rawValue
         let body = text?.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let body, !body.isEmpty else { return "\(reference) (\(translation.rawValue))" }
-        return "\(reference) — \"\(body)\" (\(translation.rawValue))"
+        guard let body, !body.isEmpty else { return "\(reference) (\(name))" }
+        return "\(reference) — \"\(body)\" (\(name))"
     }
 
     /// Compose the outgoing user message: the passage first, then the question.
@@ -71,8 +75,8 @@ extension VerseAttachment {
 // MARK: - Verse actions
 
 enum VerseActions {
-    static func copy(reference: String, text: String?, translation: TranslationID? = nil) {
-        let value = formatSource(reference: reference, text: text, translation: translation)
+    static func copy(reference: String, text: String?, translation: TranslationID? = nil, label: String? = nil) {
+        let value = formatSource(reference: reference, text: text, translation: translation, label: label)
         #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
@@ -89,14 +93,15 @@ enum VerseActions {
         api: APIClient,
         reference: String,
         text: String?,
-        translation: TranslationID? = nil
+        translation: TranslationID? = nil,
+        label: String? = nil
     ) async throws -> String {
         let body = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let html = "<blockquote><p><strong>\(escapeHTML(reference))</strong></p>"
             + (body.isEmpty ? "" : "<p>\(escapeHTML(body))</p>")
-            + (translation.map { "<p>(\(escapeHTML($0.rawValue)))</p>" } ?? "")
+            + ((label ?? translation?.rawValue).map { "<p>(\(escapeHTML($0)))</p>" } ?? "")
             + "</blockquote>"
-        let plainText = formatSource(reference: reference, text: text, translation: translation)
+        let plainText = formatSource(reference: reference, text: text, translation: translation, label: label)
         let wordCount = plainText.split(whereSeparator: \.isWhitespace).count
 
         struct NewNote: Encodable {
@@ -137,7 +142,8 @@ enum VerseActions {
     private static func formatSource(
         reference: String,
         text: String?,
-        translation: TranslationID?
+        translation: TranslationID?,
+        label: String?
     ) -> String {
         guard let translation else {
             let body = text?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -147,7 +153,8 @@ enum VerseActions {
         return VerseAttachment.formatForSharing(
             reference: reference,
             text: text,
-            translation: translation
+            translation: translation,
+            label: label
         )
     }
 

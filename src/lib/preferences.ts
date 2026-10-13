@@ -257,6 +257,23 @@ export function writeParchmentPref(enabled: boolean) {
 }
 
 /**
+ * The reader's LC Greek chip (LC-15842): show the LC Greek on a book that has
+ * it. Kept on this device only, not in the account document, since only a
+ * few books have the text. Default off.
+ */
+export const LC_GREEK_PREF_KEY = "sureword-lc-greek";
+
+export function readLcGreekPref(): boolean {
+	if (typeof window === "undefined") return false;
+	return window.localStorage.getItem(LC_GREEK_PREF_KEY) === "true";
+}
+
+export function writeLcGreekPref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(LC_GREEK_PREF_KEY, String(enabled));
+}
+
+/**
  * Chat model/effort picks. Sent with every chat request; the server persists
  * the last choice as the account default so other clients follow along.
  * Null means "no local pick" — the server falls back to the account default.

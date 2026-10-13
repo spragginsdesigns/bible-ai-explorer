@@ -19,6 +19,7 @@ final class BibleModel {
 
     private enum Key {
         static let fontStep = "bible.fontStep"
+        static let lcGreek = LCGreek.preferenceKey
     }
 
     /// What the detail pane shows for the selected book.
@@ -38,7 +39,11 @@ final class BibleModel {
 
     // MARK: Reading
 
+    /// The verses on screen.
     private(set) var verses: [String] = []
+    /// The KJV chapter behind the LC Greek, which every study path reads
+    /// (`verseText`, `chapterText`); nil when the page shows a translation.
+    private(set) var studyVerses: [String]?
     /// `verses` formatted for drawing: headings, italics, the words of Jesus
     /// and omitted-verse notes (`ReaderAnnotations`). Always the same length
     /// as `verses` and written in the same step, so the two never disagree.
@@ -60,6 +65,12 @@ final class BibleModel {
 
     var fontStep: Int {
         didSet { defaults.set(fontStep, forKey: Key.fontStep) }
+    }
+
+    /// The reader's LC Greek choice (LC-15842), kept on this device. It shows
+    /// only on a book that has the text and with no chat source override.
+    var lcGreek: Bool {
+        didSet { defaults.set(lcGreek, forKey: Key.lcGreek) }
     }
 
     // MARK: Searching
@@ -95,6 +106,7 @@ final class BibleModel {
     var highlights: HighlightsStore?
 
     private let api: APIClient
+    private let lcGreekText: LCGreekProvider
     /// Where `fontStep` is persisted. Injected so the tests can hand in a
     /// throwaway suite: under `TEST_HOST` `.standard` *is* the shipping app's
     /// domain, and a test run must not rewrite the reader's real type size.
@@ -112,8 +124,10 @@ final class BibleModel {
         self.insight = insight
         sheet = VerseSheetModel(insight: insight)
         plan = ReadingPlanModel(api: api)
+        lcGreekText = LCGreekProvider { [api] path in try await api.data(path) }
         let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
+        lcGreek = defaults.bool(forKey: Key.lcGreek)
     }
 
     // MARK: - Derived
@@ -151,21 +165,31 @@ final class BibleModel {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    func chapterKey(_ translation: TranslationID) -> String {
-        "\(translation.rawValue):\(selectedBook ?? 0):\(chapter)"
+    /// `lcGreek` is the LC Greek on screen over the KJV `translation` every
+    /// study path reads, a different text with its own key.
+    func chapterKey(_ translation: TranslationID, lcGreek: Bool = false) -> String {
+        "\(lcGreek ? "LCG" : translation.rawValue):\(selectedBook ?? 0):\(chapter)"
     }
 
     func verseReference(_ verse: Int) -> String { "\(reference):\(verse)" }
 
-    /// Plain text of one verse — provider markup stripped.
+    /// Plain text of one verse — provider markup stripped — in the study
+    /// translation: the KJV under the LC Greek, for Explain and Ask AI.
     func verseText(_ verse: Int) -> String {
+        let source = studyVerses ?? verses
+        guard verse >= 1, verse <= source.count else { return "" }
+        return VerseMarkup.plainText(source[verse - 1])
+    }
+
+    /// Plain text of one verse as it reads on screen, for Copy, Share and Save.
+    func shownText(_ verse: Int) -> String {
         guard verse >= 1, verse <= verses.count else { return "" }
         return VerseMarkup.plainText(verses[verse - 1])
     }
 
     /// The whole chapter, numbered, for the "✦ Ask AI" attach.
     var chapterText: String {
-        verses.enumerated()
+        (studyVerses ?? verses).enumerated()
             .map { "\($0.offset + 1) \(VerseMarkup.plainText($0.element))" }
             .joined(separator: "\n")
     }
@@ -239,9 +263,12 @@ final class BibleModel {
     /// Load the current chapter. Driven by `.task(id:)`, so a superseded load is
     /// cancelled rather than raced — but a cancelled task can still be mid-flight
     /// when the next one starts, hence the checks before every write.
-    func load(translation: TranslationID) async {
+    ///
+    /// With `lcGreek` the page shows the LC Greek, plain text under the KJV's
+    /// headings, and `translation` (the KJV) is loaded alongside for study.
+    func load(translation: TranslationID, lcGreek: Bool = false) async {
         guard let order = selectedBook else { return }
-        let key = chapterKey(translation)
+        let key = chapterKey(translation, lcGreek: lcGreek)
         loading = true
         error = nil
         do {
@@ -250,19 +277,33 @@ final class BibleModel {
                 order: order,
                 chapter: chapter
             )
-            let formatted = await ReaderAnnotations.shared.chapter(
+            var formatted = await ReaderAnnotations.shared.chapter(
                 translation,
                 order: order,
                 chapter: chapter,
                 markups: next
             )
+            var shown = next
+            if lcGreek {
+                shown = try await lcGreekText.chapter(book: order, chapter: chapter)
+                formatted = shown.enumerated().map { index, text in
+                    ReaderVerse(
+                        number: index + 1,
+                        headings: index < formatted.count ? formatted[index].headings : [],
+                        segments: [ReaderSegment(text: text, italic: false)],
+                        omitted: false
+                    )
+                }
+            }
             guard !Task.isCancelled else { return }
-            verses = next
+            verses = shown
+            studyVerses = lcGreek ? next : nil
             readerVerses = formatted
             loadedKey = key
         } catch {
             guard !Task.isCancelled else { return }
             verses = []
+            studyVerses = nil
             readerVerses = []
             loadedKey = nil
             self.error = (error as? BibleError)?.message ?? BibleTranslations.chapterLoadError
@@ -313,14 +354,14 @@ final class BibleModel {
 
     // MARK: - Reading history
 
-    func prepareReading(translation: TranslationID) {
-        guard let book, loadedKey == chapterKey(translation) else { return }
+    func prepareReading(translation: TranslationID, lcGreek: Bool = false) {
+        guard let book, loadedKey == chapterKey(translation, lcGreek: lcGreek) else { return }
         reading.enter(book: book.order, chapter: chapter, translation: translation.rawValue, verseCount: verses.count)
     }
 
-    func readingVisibility(verse: Int, visible: Bool, translation: TranslationID) {
-        guard loadedKey == chapterKey(translation) else { return }
-        prepareReading(translation: translation)
+    func readingVisibility(verse: Int, visible: Bool, translation: TranslationID, lcGreek: Bool = false) {
+        guard loadedKey == chapterKey(translation, lcGreek: lcGreek) else { return }
+        prepareReading(translation: translation, lcGreek: lcGreek)
         reading.visibility(verse: verse, isVisible: visible)
     }
 
@@ -353,13 +394,13 @@ final class BibleModel {
         VerseAttachment(reference: reference, text: text, translation: translation)
     }
 
-    func copy(reference: String, text: String, translation: TranslationID) {
-        VerseActions.copy(reference: reference, text: text, translation: translation)
+    func copy(reference: String, text: String, translation: TranslationID, label: String? = nil) {
+        VerseActions.copy(reference: reference, text: text, translation: translation, label: label)
         show(toast: "Copied \(reference)")
         dismissVerseActions()
     }
 
-    func saveToNote(reference: String, text: String, translation: TranslationID) {
+    func saveToNote(reference: String, text: String, translation: TranslationID, label: String? = nil) {
         saveTask?.cancel()
         saveTask = Task { [api] in
             do {
@@ -367,7 +408,8 @@ final class BibleModel {
                     api: api,
                     reference: reference,
                     text: text,
-                    translation: translation
+                    translation: translation,
+                    label: label
                 )
                 show(toast: "Saved \(reference) to your notes")
                 dismissVerseActions()

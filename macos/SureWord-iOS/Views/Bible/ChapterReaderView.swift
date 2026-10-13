@@ -28,7 +28,16 @@ struct ChapterReaderView: View {
     private var model: BibleModel { app.bible }
     private var sheet: VerseSheetModel { app.bible.sheet }
     @State private var localTranslationOverride: TranslationID?
-    private var translation: TranslationID { localTranslationOverride ?? app.settings.translation }
+    /// The LC Greek is on the page (LC-15842): the device choice is on, the
+    /// book has it, and no chat source pinned a translation.
+    private var lcGreek: Bool {
+        model.lcGreek && localTranslationOverride == nil && LCGreek.has(model.selectedBook ?? order)
+    }
+    /// The translation every study path works on: the KJV under the LC Greek.
+    private var translation: TranslationID {
+        lcGreek ? .kjv : localTranslationOverride ?? app.settings.translation
+    }
+    private var chapterKey: String { model.chapterKey(translation, lcGreek: lcGreek) }
     /// Set once this screen has pushed its location into the shared model.
     /// Re-appearing (back from Atlas or Learn) must not re-seed it, or the
     /// reader would jump back to the chapter it was first opened on.
@@ -67,13 +76,14 @@ struct ChapterReaderView: View {
     /// The chapter on screen, as the sheet sees it. Nil until the text for
     /// this exact translation and chapter has arrived.
     private var context: VerseSheetContext? {
-        guard let book = model.book, model.loadedKey == model.chapterKey(translation) else { return nil }
+        guard let book = model.book, model.loadedKey == chapterKey else { return nil }
         return VerseSheetContext(
             order: book.order,
             bookName: book.name,
             chapter: model.chapter,
             plainTexts: model.readerVerses.map(\.plainText),
-            translation: translation
+            translation: translation,
+            studyTexts: model.studyVerses?.map(VerseMarkup.plainText)
         )
     }
 
@@ -103,20 +113,20 @@ struct ChapterReaderView: View {
         // The chapter *and* the translation are part of the identity of what is
         // on screen, so a translation change reloads through the same path a
         // page turn does.
-        .task(id: model.chapterKey(translation)) {
-            await model.load(translation: translation)
+        .task(id: chapterKey) {
+            await model.load(translation: translation, lcGreek: lcGreek)
             await loadAudio()
         }
         // A new chapter or translation under an open sheet: the selection no
         // longer describes what is on screen.
-        .onChange(of: model.chapterKey(translation)) { _, _ in sheet.chapterChanged() }
+        .onChange(of: chapterKey) { _, _ in sheet.chapterChanged() }
         .onAppear {
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
-            model.prepareReading(translation: translation)
+            model.prepareReading(translation: translation, lcGreek: lcGreek)
         }
         .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
-        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
+        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation, lcGreek: lcGreek) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
         // The peek leaves most of the chapter readable; only the expanded
         // study view covers the text.
@@ -146,42 +156,60 @@ struct ChapterReaderView: View {
 
     private var translationChips: some View {
         @Bindable var settings = app.settings
-        return HStack(spacing: Spacing.xs) {
-            Spacer()
-            ForEach(TranslationID.allCases, id: \.self) { id in
-                let isActive = translation == id
-                Button {
+        return VStack(alignment: .trailing, spacing: 2) {
+            HStack(spacing: Spacing.xs) {
+                Spacer()
+                ForEach(TranslationID.allCases, id: \.self) { id in
                     // A chip is an explicit preference choice: it clears a
                     // chat source's one-hop override and persists.
-                    localTranslationOverride = nil
-                    settings.translation = id
-                } label: {
-                    Text(id.label)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(isActive ? theme.accent : theme.textMuted)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, 4)
-                        .background(
-                            isActive ? theme.accentSoft : theme.surface,
-                            in: .rect(cornerRadius: Radius.full)
-                        )
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(
-                                    isActive ? theme.accentBorder : theme.borderStrong,
-                                    lineWidth: 1
-                                )
-                        }
-                        .frame(minHeight: 32)
-                        .contentShape(.capsule)
+                    translationChip(id.label, name: id.name, isActive: !lcGreek && translation == id) {
+                        localTranslationOverride = nil
+                        model.lcGreek = false
+                        settings.translation = id
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Read in the \(id.name)")
-                .accessibilityAddTraits(isActive ? .isSelected : [])
+                // The LC Greek (LC-15842) joins the row only on a book that has it.
+                if LCGreek.has(model.selectedBook ?? order) {
+                    translationChip(LCGreek.label, name: LCGreek.label, isActive: lcGreek) {
+                        localTranslationOverride = nil
+                        model.lcGreek = true
+                    }
+                }
+            }
+            if lcGreek {
+                Text(LCGreek.note)
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textMuted)
             }
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.xs)
+    }
+
+    private func translationChip(_ label: String, name: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isActive ? theme.accent : theme.textMuted)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, 4)
+                .background(
+                    isActive ? theme.accentSoft : theme.surface,
+                    in: .rect(cornerRadius: Radius.full)
+                )
+                .overlay {
+                    Capsule()
+                        .strokeBorder(
+                            isActive ? theme.accentBorder : theme.borderStrong,
+                            lineWidth: 1
+                        )
+                }
+                .frame(minHeight: 32)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Read in the \(name)")
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     @ToolbarContentBuilder
@@ -200,7 +228,8 @@ struct ChapterReaderView: View {
                 }
                 .accessibilityLabel("Who's in this chapter")
                 if app.chapterAudio.editions.count > 1 {
-                    // Mark has an Alive recording too (LC-15532): ask which one.
+                    // Mark has an Alive recording too (LC-15532): ask which
+                    // one, Alive first and marked Recommended (LC-15842).
                     Menu {
                         ForEach(app.chapterAudio.editions, id: \.self) { edition in
                             Button {
@@ -208,7 +237,8 @@ struct ChapterReaderView: View {
                                 app.chapterAudio.start(edition: edition)
                             } label: {
                                 Text(edition.label)
-                                Text(edition.detail)
+                                Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail)" : edition.detail)
+                                if edition.isRecommended { Image(systemName: "star.fill") }
                             }
                         }
                     } label: {
@@ -272,7 +302,7 @@ struct ChapterReaderView: View {
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") {
-                    Task { await model.load(translation: translation) }
+                    Task { await model.load(translation: translation, lcGreek: lcGreek) }
                 }
                 .buttonStyle(AccentButtonStyle())
             }
@@ -311,7 +341,7 @@ struct ChapterReaderView: View {
                                     revealGeometry.record(frame, verse: verse.number, chapter: key)
                                 }
                                 .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                    model.readingVisibility(verse: verse.number, visible: visible, translation: translation)
+                                    model.readingVisibility(verse: verse.number, visible: visible, translation: translation, lcGreek: lcGreek)
                                 }
                         }
 
@@ -495,7 +525,7 @@ struct ChapterReaderView: View {
     }
 
     private func scrollToPendingVerse(_ proxy: ScrollViewProxy) {
-        guard model.loadedKey == model.chapterKey(translation),
+        guard model.loadedKey == chapterKey,
               let verse = model.pendingVerse,
               verse >= 1, verse <= model.verses.count
         else { return }
@@ -574,7 +604,7 @@ struct ChapterReaderView: View {
 
     private var footer: some View {
         VStack(spacing: Spacing.xl) {
-            Text("\(translation.name) - \(translation.copyright)")
+            Text(lcGreek ? "\(LCGreek.label) - \(LCGreek.copyright)" : "\(translation.name) - \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)
@@ -681,7 +711,8 @@ struct ChapterReaderView: View {
                     onHighlight: { applyHighlight($0) },
                     onRemoveHighlight: removeHighlight,
                     onCustomColor: { showingCustomColor = true },
-                    actions: actions(context: context, reference: reference, text: text, highlighted: shared != nil),
+                    // Ask takes the study words (the KJV under the LC Greek).
+                    actions: actions(context: context, reference: reference, text: sheet.studyText(context), highlighted: shared != nil),
                     message: message
                 )
             }
@@ -726,7 +757,7 @@ struct ChapterReaderView: View {
                         verse: selection.start,
                         modelId: app.settings.chatModelId,
                         onAsk: { prompt, attach in
-                            askWithPrompt(prompt, reference: attach ? reference : nil, text: attach ? text : nil)
+                            askWithPrompt(prompt, reference: attach ? reference : nil, text: attach ? sheet.studyText(context) : nil)
                         }
                     )
                 case .seeAlso:
@@ -751,12 +782,13 @@ struct ChapterReaderView: View {
             app.dailyCross.listen.pause()
             app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: choice ? .regular : nil)
         }] : []
-        // A book with an Alive recording offers it as a second action (LC-15532).
+        // A book with an Alive recording (LC-15532) offers it too, first, as
+        // Listen recommends it (LC-15842).
         let alive = choice ? [VerseSheetAction(id: "listen-alive", systemImage: "headphones", label: AudioEdition.alive.label) {
             app.dailyCross.listen.pause()
             app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: .alive)
         }] : []
-        return listen + alive + [
+        return alive + listen + [
             VerseSheetAction(id: "ask", systemImage: "sparkles", label: "Ask") {
                 expandWithAI(reference: reference, text: text)
             },

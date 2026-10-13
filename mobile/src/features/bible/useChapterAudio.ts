@@ -3,7 +3,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatu
 import { API_URL } from "@/lib/api";
 import { setListenRate, useSettings } from "@/features/settings/settingsStore";
 import { nextListenRate } from "@/features/cross/listen";
-import { hasAlive, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
+import { LISTEN_ORDER, hasAlive, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
 
 type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
 
@@ -186,10 +186,10 @@ export function useChapterAudio(options: {
     if (item?.isLoaded && recording) void item.seekTo(Math.max(0, Math.min(recording.duration, seconds)));
   }, [markAction]);
   const verse = audio && ready ? verseAt(audio.verses, elapsed) : null;
-  const editions = useMemo(() => (["regular", "alive"] as const).filter(edition => recordings[edition]), [recordings]);
+  const editions = useMemo(() => LISTEN_ORDER.filter(edition => recordings[edition]), [recordings]);
   return {
     available: !!audio, open, playing, ready, verse, audio, error, stillListeningPrompt, elapsed, rate,
-    /** The recordings this chapter has, regular first; two means Listen asks which. */
+    /** The recordings this chapter has, in LISTEN_ORDER (Alive first); two means Listen asks which. */
     editions,
     edition: (audio?.edition ?? "regular") as AudioEdition,
     play, stop, toggle, seek, markAction,

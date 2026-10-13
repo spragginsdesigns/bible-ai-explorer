@@ -43,7 +43,17 @@ struct ChapterReaderPane: View {
     let askAI: (_ reference: String, _ text: String) -> Void
     let showAtlas: (_ book: Int, _ chapter: Int) -> Void
 
-    private var translation: TranslationID { model.translationOverride ?? app.settings.translation }
+    /// The LC Greek is on the page (LC-15842): the device choice is on, the
+    /// book has it, and no chat source pinned a translation.
+    private var lcGreek: Bool {
+        model.lcGreek && model.translationOverride == nil && LCGreek.has(model.selectedBook ?? 0)
+    }
+    /// The translation every study path works on: the KJV under the LC Greek.
+    private var translation: TranslationID {
+        lcGreek ? .kjv : model.translationOverride ?? app.settings.translation
+    }
+    /// What Copy, Share and Save to note name the words on screen.
+    private var textLabel: String { lcGreek ? LCGreek.label : translation.rawValue }
 
     /// The parchment page surface, per the shared setting. Off restores the
     /// plain reader on the app's own shell, exactly as on Android and web -
@@ -58,6 +68,12 @@ struct ChapterReaderPane: View {
         VStack(spacing: 0) {
             ReadingSyncStatus(model: model.reading)
             topBar
+            if lcGreek {
+                Text(LCGreek.note)
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textMuted)
+                    .padding(.bottom, Spacing.xs)
+            }
 
             if model.loading {
                 loadingState
@@ -71,8 +87,8 @@ struct ChapterReaderPane: View {
         // The chapter *and* the translation are part of the identity of what is
         // on screen, so a translation change reloads through the same path a
         // page turn does — and a superseded load is cancelled, not raced.
-        .task(id: model.chapterKey(translation)) {
-            await model.load(translation: translation)
+        .task(id: model.chapterKey(translation, lcGreek: lcGreek)) {
+            await model.load(translation: translation, lcGreek: lcGreek)
             let reader = model
             let next = reader.nextLocation
             await app.chapterAudio.load(book: reader.selectedBook ?? 0, chapter: reader.chapter, reference: reader.reference, enabled: translation == .kjv, next: next.flatMap { location in
@@ -85,10 +101,10 @@ struct ChapterReaderPane: View {
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
             model.reading.setReaderFocused(appearsActive)
-            model.prepareReading(translation: translation)
+            model.prepareReading(translation: translation, lcGreek: lcGreek)
         }
         .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
-        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation) }
+        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation, lcGreek: lcGreek) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
         .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
         .onChange(of: appearsActive) { _, active in model.reading.setReaderFocused(active) }
@@ -117,7 +133,8 @@ struct ChapterReaderPane: View {
             Spacer()
 
             if app.chapterAudio.editions.count > 1 {
-                // Mark has an Alive recording too (LC-15532): ask which one.
+                // Mark has an Alive recording too (LC-15532): ask which one,
+                // Alive first and marked Recommended (LC-15842).
                 Menu {
                     ForEach(app.chapterAudio.editions, id: \.self) { edition in
                         Button {
@@ -125,7 +142,8 @@ struct ChapterReaderPane: View {
                             app.chapterAudio.start(edition: edition)
                         } label: {
                             Text(edition.label)
-                            Text(edition.detail)
+                            Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail)" : edition.detail)
+                            if edition.isRecommended { Image(systemName: "star.fill") }
                         }
                     }
                 } label: {
@@ -167,33 +185,44 @@ struct ChapterReaderPane: View {
         @Bindable var settings = app.settings
         return HStack(spacing: Spacing.xs) {
             ForEach(TranslationID.allCases, id: \.self) { id in
-                let isActive = translation == id
-                Button {
+                translationChip(id.label, help: "Read in the \(id.label)", isActive: !lcGreek && translation == id) {
                     model.translationOverride = nil
+                    model.lcGreek = false
                     settings.translation = id
-                } label: {
-                    Text(id.label)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(isActive ? theme.accent : theme.textMuted)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, 4)
-                        .background(
-                            isActive ? theme.accentSoft : theme.surface,
-                            in: .rect(cornerRadius: Radius.full)
-                        )
-                        .overlay {
-                            Capsule()
-                                .strokeBorder(
-                                    isActive ? theme.accentBorder : theme.borderStrong,
-                                    lineWidth: 1
-                                )
-                        }
-                        .contentShape(.capsule)
                 }
-                .buttonStyle(.plain)
-                .help("Read in the \(id.label)")
+            }
+            // The LC Greek (LC-15842) joins the row only on a book that has it.
+            if LCGreek.has(model.selectedBook ?? 0) {
+                translationChip(LCGreek.label, help: "Read in the \(LCGreek.label)", isActive: lcGreek) {
+                    model.translationOverride = nil
+                    model.lcGreek = true
+                }
             }
         }
+    }
+
+    private func translationChip(_ label: String, help: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(isActive ? theme.accent : theme.textMuted)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, 4)
+                .background(
+                    isActive ? theme.accentSoft : theme.surface,
+                    in: .rect(cornerRadius: Radius.full)
+                )
+                .overlay {
+                    Capsule()
+                        .strokeBorder(
+                            isActive ? theme.accentBorder : theme.borderStrong,
+                            lineWidth: 1
+                        )
+                }
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     private func fontButton(
@@ -240,7 +269,7 @@ struct ChapterReaderPane: View {
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") {
-                    Task { await model.load(translation: translation) }
+                    Task { await model.load(translation: translation, lcGreek: lcGreek) }
                 }
                 .buttonStyle(AccentButtonStyle())
             }
@@ -259,7 +288,7 @@ struct ChapterReaderPane: View {
                         verseRow(number: index + 1, markup: markup)
                             .id(index + 1)
                             .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation)
+                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation, lcGreek: lcGreek)
                             }
                     }
 
@@ -387,6 +416,7 @@ struct ChapterReaderPane: View {
     private var versePanel: some View {
         if let number = model.actionVerse {
             let reference = model.verseReference(number)
+            // The study words (the KJV under the LC Greek) for Ask AI.
             let text = model.verseText(number)
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -438,7 +468,7 @@ struct ChapterReaderPane: View {
                     )
                 }
 
-                actionRow(reference: reference, text: text)
+                actionRow(reference: reference, text: text, shown: model.shownText(number))
             }
             .padding(.horizontal, Spacing.xxl)
             .padding(.vertical, Spacing.md)
@@ -454,7 +484,7 @@ struct ChapterReaderPane: View {
     }
 
     private func scrollToPendingVerse(_ proxy: ScrollViewProxy) {
-        guard model.loadedKey == model.chapterKey(translation),
+        guard model.loadedKey == model.chapterKey(translation, lcGreek: lcGreek),
               let verse = model.pendingVerse,
               verse >= 1, verse <= model.verses.count
         else { return }
@@ -562,22 +592,23 @@ struct ChapterReaderPane: View {
                 Divider()
             }
             Button("Copy") {
-                model.copy(reference: reference, text: text, translation: translation)
+                model.copy(reference: reference, text: text, translation: translation, label: textLabel)
             }
             ShareLink(
                 item: VerseAttachment.formatForSharing(
                     reference: reference,
                     text: text,
-                    translation: translation
+                    translation: translation,
+                    label: textLabel
                 )
             ) {
                 Text("Share…")
             }
             Button("Save to note") {
-                model.saveToNote(reference: reference, text: text, translation: translation)
+                model.saveToNote(reference: reference, text: text, translation: translation, label: textLabel)
             }
             Button("✦ Expand with AI") {
-                askAI(reference, text)
+                askAI(reference, model.verseText(number))
             }
         }
     }
@@ -608,18 +639,21 @@ struct ChapterReaderPane: View {
         return result
     }
 
-    private func actionRow(reference: String, text: String) -> some View {
+    /// `text` is the study words Ask AI takes; `shown` is the words on screen,
+    /// which Copy, Share and Save to note take.
+    private func actionRow(reference: String, text: String, shown: String) -> some View {
         HStack(spacing: Spacing.sm) {
             Button("Copy") {
-                model.copy(reference: reference, text: text, translation: translation)
+                model.copy(reference: reference, text: shown, translation: translation, label: textLabel)
             }
             .buttonStyle(SubtleButtonStyle())
 
             ShareLink(
                 item: VerseAttachment.formatForSharing(
                     reference: reference,
-                    text: text,
-                    translation: translation
+                    text: shown,
+                    translation: translation,
+                    label: textLabel
                 )
             ) {
                 Text("Share")
@@ -627,7 +661,7 @@ struct ChapterReaderPane: View {
             .buttonStyle(SubtleButtonStyle())
 
             Button("Save to note") {
-                model.saveToNote(reference: reference, text: text, translation: translation)
+                model.saveToNote(reference: reference, text: shown, translation: translation, label: textLabel)
             }
             .buttonStyle(SubtleButtonStyle())
 
@@ -747,7 +781,7 @@ struct ChapterReaderPane: View {
             // An em dash, matching `TranslationID.copyright`'s own - so the
             // NKJV line does not read "NKJV - © Thomas Nelson - text via …"
             // with two different dashes in one sentence.
-            Text("\(translation.label) \u{2014} \(translation.copyright)")
+            Text(lcGreek ? "\(LCGreek.label) \u{2014} \(LCGreek.copyright)" : "\(translation.label) \u{2014} \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)

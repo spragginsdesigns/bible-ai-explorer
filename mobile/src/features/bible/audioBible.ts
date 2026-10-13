@@ -46,17 +46,62 @@ export const DRAMATIZED_BOOKS: ReadonlySet<number> = new Set([40]);
 export type AudioEdition = "regular" | "alive";
 export const ALIVE_BASE_URL =
   "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/alive/v1";
-/** Books with an Alive recording: Mark since LC-15532. */
+/**
+ * Books with an Alive recording: Mark since LC-15532. Each one also has its
+ * LC Greek text (below), so a book is added here together with its text.
+ */
 export const ALIVE_BOOKS: ReadonlySet<number> = new Set([41]);
 
 /** How each recording is named in the Listen choice, the same on every client. */
 export const EDITION_CHOICES: Record<AudioEdition, { label: string; detail: string }> = {
   regular: { label: "Regular", detail: "The King James Version, read aloud" },
-  alive: { label: "Alive", detail: "Full cast, in our modern translation" },
+  alive: { label: "Alive", detail: "Full cast, in our LC Greek translation" },
 };
+
+/**
+ * Listen recommends Alive wherever a book has it (LC-15842): the choice lists
+ * it first, highlighted and marked with RECOMMENDED_LABEL.
+ */
+export const RECOMMENDED_EDITION: AudioEdition = "alive";
+export const RECOMMENDED_LABEL = "Recommended";
+/** The order every client lists the recordings in: the recommended one first. */
+export const LISTEN_ORDER: readonly AudioEdition[] = ["alive", "regular"];
 
 export function hasAlive(book: number): boolean {
   return ALIVE_BOOKS.has(book);
+}
+
+/**
+ * The LC Greek (LC-15842): SureWord's own modern-English translation of the
+ * Textus Receptus, the text every Alive recording reads. The reader offers it
+ * beside its translations on a book that has it, verse for verse in the KJV's
+ * numbering. It is a reading text only: highlights, Explain, Learn and Ask AI
+ * keep working on the KJV verse with the same number. The source of each book
+ * is Context-Pro-AI's docs/creative/sureword-audio-bible/<book>-alive/.
+ */
+export const LC_GREEK = {
+  label: "LC Greek",
+  note: "Our own translation of the Greek · the text Alive reads",
+  copyright: "SureWord's own translation of the Textus Receptus",
+} as const;
+
+export function hasLcGreek(book: number): boolean {
+  return hasAlive(book);
+}
+
+export type LcGreekResponse =
+  | { status: "ready"; book: number; chapter: number; verses: string[] }
+  | { status: "unavailable" };
+
+/** The `GET /api/bible/lc-greek` answer, or null when it is not a usable chapter. */
+export function parseLcGreek(raw: unknown, book: number, chapter: number): string[] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (value.status !== "ready" || value.book !== book || value.chapter !== chapter) return null;
+  const verses = value.verses;
+  if (!Array.isArray(verses) || verses.length === 0) return null;
+  if (!verses.every((verse) => typeof verse === "string" && verse.trim() !== "")) return null;
+  return verses as string[];
 }
 
 /** The `edition` query value: absent means regular; anything unknown is null (a bad request). */

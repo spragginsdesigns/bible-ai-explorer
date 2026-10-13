@@ -60,6 +60,9 @@ const isPublicRoute = createRouteMatcher([
 	// The narrated KJV's chapter MP3 location and verse timings: the same
 	// public-domain, user-free class, so the reader's Listen works signed out.
 	"/api/bible/audio",
+	// The LC Greek, the text the Alive recordings read: SureWord's own
+	// translation, user-free like the rest, so the reader shows it signed out.
+	"/api/bible/lc-greek",
 	// A shared answer is a capability link: the 16-char id IS the credential,
 	// and the page reads only the SharedAnswer snapshot (never Message), so the
 	// recipient has to be able to open it with no account. Revoking is what

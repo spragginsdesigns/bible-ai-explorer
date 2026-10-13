@@ -5,6 +5,7 @@ import { DEFAULT_LISTEN_RATE, nextListenRate } from "@/components/cross/listen";
 import {
   hasAlive,
   hasNarration,
+  LISTEN_ORDER,
   needsStillListening,
   verseAt,
   verseStart,
@@ -45,7 +46,7 @@ export interface ChapterAudioPlayer {
   /** Paused after an hour with no interaction, waiting for "Keep listening". */
   stillListeningPrompt: boolean;
   audio: ChapterAudio | null;
-  /** The recordings this chapter has, regular first; two means Listen offers a choice. */
+  /** The recordings this chapter has, in LISTEN_ORDER (Alive first); two means Listen offers a choice. */
   editions: AudioEdition[];
   /** The recording playing, or the one the next Listen continues with. */
   edition: AudioEdition;
@@ -150,7 +151,7 @@ export function useChapterAudio({
   const narrated = enabled && hasNarration(book);
   const playingEdition: AudioEdition = audio?.edition ?? "regular";
   const editions = useMemo(
-    () => (["regular", "alive"] as const).filter((option) => recordings[option]),
+    () => LISTEN_ORDER.filter((option) => recordings[option]),
     [recordings]
   );
   const markAction = useCallback(() => {

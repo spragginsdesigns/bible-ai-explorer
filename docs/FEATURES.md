@@ -1080,6 +1080,29 @@ the next chapter; past Mark 16 it falls back to the regular recording.
 `fish_audio_bible.py --drama --text`; the translation and production notes live
 in Context-Pro-AI `docs/creative/sureword-audio-bible/`.
 
+**LC Greek, and Listen recommends Alive (LC-15842).** The translation Alive
+reads is also a reading text, called **LC Greek**. On a book that has it (Mark
+today; Matthew, Luke and John follow with their Alive recordings), the reader's
+translation chips gain an **LC Greek** chip that shows it verse for verse in
+the KJV's numbering, under the BSB section headings, without red letters. The
+choice is kept on the device (web `sureword-lc-greek`, Android settings
+`lcGreek`, Apple `UserDefaults`) and comes back on every book that has the
+text; tapping KJV, NKJV or BSB turns it off, and a chat source translation in
+the link still wins. Study tools keep working on the KJV verse with the same
+number: highlights, the reading log, Explain, Learn, cross-references and Ask
+AI read the KJV, and Listen stays available. Copy, Share and Save to note use
+the words on screen, labelled "LC Greek". Listen now recommends Alive wherever
+a book has it: the choice lists Alive first, highlighted and marked
+**Recommended** (Android makes it the primary button of the dialog), and the
+verse sheet puts the Alive chip before Listen. The text is bundled in
+`src/data/lc-greek/<book>.json` (copied from Context-Pro-AI
+`docs/creative/sureword-audio-bible/<book>-alive/`), loaded by
+`src/lib/bible/lcGreek.ts` on web and served to the apps by the public
+`GET /api/bible/lc-greek?book=&chapter=`. A book joins by adding its text file,
+its loader line and its number in `ALIVE_BOOKS` together;
+`tests/lc-greek.test.mjs` fails if they disagree or the verse counts differ
+from the KJV.
+
 **Scope.** The whole KJV is narrated: the New Testament (books 40-66, 260
 chapters, about 15 hours, 2026-10-08) and the Old Testament (books 1-39, 929
 chapters, about 54 hours, 2026-10-09). Matthew plays the full-cast production

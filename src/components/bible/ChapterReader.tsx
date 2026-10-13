@@ -9,9 +9,10 @@ import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
 import { ChevronDown, Copy, GraduationCap, Headphones, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { EDITION_CHOICES, hasNarration } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
-import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { loadLcGreekChapter } from "@/lib/bible/lcGreek";
+import { CHAPTER_LOAD_ERROR, getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { saveVerseToNote } from "@/lib/bible/verseActions";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import {
@@ -26,9 +27,10 @@ import {
   toggleVerse,
   type VerseSelection,
 } from "@/lib/bible/verseSelection";
-import { readParchmentPref, readTranslationPref } from "@/lib/preferences";
+import { readLcGreekPref, readParchmentPref, readTranslationPref, writeLcGreekPref } from "@/lib/preferences";
 import {
   highlightLabelFor,
+  notifyPreferencesChanged,
   setTranslationPreference,
   useHighlightLabels,
   usePreference,
@@ -107,6 +109,29 @@ async function addVerseToLearn(
   }
 }
 
+/**
+ * The verses the reader shows, and the ones its study tools read. They differ
+ * only on the LC Greek (LC-15842): it is shown, while highlights, Explain,
+ * Learn, Ask AI and Listen keep working on the KJV verse with the same number.
+ */
+async function readChapterTexts(
+  lcGreek: boolean,
+  translation: TranslationId,
+  order: number,
+  chapter: number
+): Promise<{ shown: string[]; study: string[] }> {
+  if (!lcGreek) {
+    const verses = await getChapter(translation, order, chapter);
+    return { shown: verses, study: verses };
+  }
+  const [shown, study] = await Promise.all([
+    loadLcGreekChapter(order, chapter).catch(() => null),
+    getChapter("KJV", order, chapter),
+  ]);
+  if (!shown) throw new Error(CHAPTER_LOAD_ERROR);
+  return { shown, study };
+}
+
 function readFontStep(): number {
   if (typeof window === "undefined") return 1;
   const raw = Number.parseInt(window.sessionStorage.getItem(FONT_STEP_KEY) ?? "", 10);
@@ -139,12 +164,23 @@ const ChapterReader: React.FC = () => {
   // text. This is a local route override; the account preference changes only
   // when the user explicitly taps a reader translation chip.
   const routeTranslation = searchParams.get("translation");
-  const translation: TranslationId = routeTranslation === "NKJV" || routeTranslation === "KJV" || routeTranslation === "BSB"
-    ? routeTranslation
-    : accountTranslation;
+  const routeTranslationSet = routeTranslation === "NKJV" || routeTranslation === "KJV" || routeTranslation === "BSB";
+  // The LC Greek chip (LC-15842) is kept on this device; a source translation
+  // from chat still wins. While the LC Greek is on screen, `translation` is
+  // the KJV, which every study tool reads (see readChapterTexts).
+  const lcGreekOn = usePreference(readLcGreekPref, false);
+  const lcGreek = lcGreekOn && !routeTranslationSet && hasLcGreek(order);
+  const translation: TranslationId = lcGreek
+    ? "KJV"
+    : routeTranslationSet
+      ? routeTranslation
+      : accountTranslation;
+  /** What copied, shared and saved verses are labelled: the words on screen. */
+  const textLabel = lcGreek ? LC_GREEK.label : translation;
   const parchment = usePreference(readParchmentPref, true);
   const highlightLabels = useHighlightLabels();
   const [verses, setVerses] = useState<string[]>([]);
+  const [studyVerses, setStudyVerses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fontStep, setFontStep] = useState(readFontStep);
@@ -178,22 +214,25 @@ const ChapterReader: React.FC = () => {
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const learnRequest = useRef<AbortController | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const chapterKey = `${translation}:${order}:${chapter}`;
+  const textKey = lcGreek ? "LCG" : translation;
+  const chapterKey = `${textKey}:${order}:${chapter}`;
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const next = await getChapter(translation, order, chapter);
-      setVerses(next);
-      setLoadedKey(`${translation}:${order}:${chapter}`);
+      const next = await readChapterTexts(lcGreek, translation, order, chapter);
+      setVerses(next.shown);
+      setStudyVerses(next.study);
+      setLoadedKey(`${textKey}:${order}:${chapter}`);
     } catch (err) {
       setVerses([]);
+      setStudyVerses([]);
       setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, [translation, order, chapter]);
+  }, [lcGreek, textKey, translation, order, chapter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -201,14 +240,16 @@ const ChapterReader: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const next = await getChapter(translation, order, chapter);
+        const next = await readChapterTexts(lcGreek, translation, order, chapter);
         if (cancelled) return;
-        setVerses(next);
-        setLoadedKey(`${translation}:${order}:${chapter}`);
+        setVerses(next.shown);
+        setStudyVerses(next.study);
+        setLoadedKey(`${textKey}:${order}:${chapter}`);
         window.scrollTo(0, 0);
       } catch (err) {
         if (cancelled) return;
         setVerses([]);
+        setStudyVerses([]);
         setError(err instanceof Error ? err.message : "That chapter could not be loaded.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -217,7 +258,7 @@ const ChapterReader: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [translation, order, chapter]);
+  }, [lcGreek, textKey, translation, order, chapter]);
 
   // ?verse= deep link: scroll to the verse once the chapter is on screen and
   // flash it briefly so the eye lands there.
@@ -246,14 +287,25 @@ const ChapterReader: React.FC = () => {
   });
 
   // The reader's chips and Settings share one account preference.
+  const clearRouteTranslation = useCallback(() => {
+    if (!routeTranslationSet) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("translation");
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  }, [pathname, routeTranslationSet, router, searchParams]);
+  const chooseLcGreek = useCallback((on: boolean) => {
+    writeLcGreekPref(on);
+    notifyPreferencesChanged();
+  }, []);
   const setTranslation = useCallback((id: TranslationId) => {
-    if (routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB") {
-      const next = new URLSearchParams(searchParams.toString());
-      next.delete("translation");
-      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-    }
+    clearRouteTranslation();
+    chooseLcGreek(false);
     void setTranslationPreference(id);
-  }, [pathname, routeTranslation, router, searchParams]);
+  }, [chooseLcGreek, clearRouteTranslation]);
+  const showLcGreek = useCallback(() => {
+    clearRouteTranslation();
+    chooseLcGreek(true);
+  }, [chooseLcGreek, clearRouteTranslation]);
 
   const stepFont = useCallback((delta: number) => {
     setFontStep((step) => {
@@ -304,8 +356,12 @@ const ChapterReader: React.FC = () => {
   // Every label, payload and rule comes out of the shared selection contract,
   // so web, Android and Apple agree on what a range means.
   const plainTexts = useMemo(() => verses.map(bibleVersePlainText), [verses]);
+  const studyPlainTexts = useMemo(() => studyVerses.map(bibleVersePlainText), [studyVerses]);
   const selectionRef = selection && book ? selectionReference(book.name, chapter, selection) : "";
+  /** The selected words on screen, for Copy, Share and Note. */
   const selectionPlain = selection ? selectionText(plainTexts, selection) : "";
+  /** The same verses in the study translation, for Explain and Ask AI. */
+  const selectionStudy = selection ? selectionText(studyPlainTexts, selection) : "";
   const selectionHex = selection ? selectionColor(verseHighlights, selection) : undefined;
   const selectionHasColor =
     selection !== null && selectionVerses(selection).some((verse) => verseHighlights.has(verse));
@@ -379,7 +435,7 @@ const ChapterReader: React.FC = () => {
       return;
     }
     const request = () =>
-      startInsight({ reference: selectionRef, text: selectionPlain, translation });
+      startInsight({ reference: selectionRef, text: selectionStudy, translation });
     if (!insightWasOpen.current) {
       insightWasOpen.current = true;
       request();
@@ -387,7 +443,7 @@ const ChapterReader: React.FC = () => {
     }
     const timer = setTimeout(request, INSIGHT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [selectionRef, selectionPlain, translation, startInsight, resetInsight]);
+  }, [selectionRef, selectionStudy, translation, startInsight, resetInsight]);
 
   useEffect(
     () => () => {
@@ -418,8 +474,8 @@ const ChapterReader: React.FC = () => {
 
   const retryInsight = useCallback(() => {
     if (!selectionRef) return;
-    startInsight({ reference: selectionRef, text: selectionPlain, translation }, true);
-  }, [selectionRef, selectionPlain, startInsight, translation]);
+    startInsight({ reference: selectionRef, text: selectionStudy, translation }, true);
+  }, [selectionRef, selectionStudy, startInsight, translation]);
 
   const askAI = useCallback(
     (verse: { reference: string; text: string }) => {
@@ -442,12 +498,12 @@ const ChapterReader: React.FC = () => {
       const query = new URLSearchParams({ prompt });
       if (attach && selectionRef) {
         query.set("attachRef", selectionRef);
-        query.set("attachText", selectionPlain);
+        query.set("attachText", selectionStudy);
         query.set("attachTranslation", translation);
       }
       router.push(`/?${query.toString()}`);
     },
-    [router, closePanel, selectionRef, selectionPlain, translation]
+    [router, closePanel, selectionRef, selectionStudy, translation]
   );
 
   const flagCopied = useCallback(() => {
@@ -460,24 +516,24 @@ const ChapterReader: React.FC = () => {
     if (!selectionRef) return;
     try {
       await navigator.clipboard.writeText(
-        selectionShareText(selectionRef, selectionPlain, translation)
+        selectionShareText(selectionRef, selectionPlain, textLabel)
       );
       flagCopied();
     } catch {
       // A blocked clipboard leaves the chip alone rather than claiming a copy.
     }
-  }, [selectionRef, selectionPlain, translation, flagCopied]);
+  }, [selectionRef, selectionPlain, textLabel, flagCopied]);
 
   const onShareSelection = useCallback(async () => {
     if (!selectionRef) return;
     if (typeof navigator.share === "function") {
       navigator
-        .share({ text: selectionShareText(selectionRef, selectionPlain, translation) })
+        .share({ text: selectionShareText(selectionRef, selectionPlain, textLabel) })
         .catch(() => {});
       return;
     }
     await onCopySelection();
-  }, [selectionRef, selectionPlain, translation, onCopySelection]);
+  }, [selectionRef, selectionPlain, textLabel, onCopySelection]);
 
   const onSaveSelection = useCallback(async () => {
     if (!selectionRef || saveBusy) return;
@@ -486,7 +542,7 @@ const ChapterReader: React.FC = () => {
     try {
       const noteId = await saveVerseToNote(
         { reference: selectionRef, text: selectionPlain },
-        translation
+        textLabel
       );
       closePanel();
       router.push(`/notes?note=${encodeURIComponent(noteId)}`);
@@ -495,7 +551,7 @@ const ChapterReader: React.FC = () => {
     } finally {
       setSaveBusy(false);
     }
-  }, [selectionRef, selectionPlain, saveBusy, router, closePanel, translation]);
+  }, [selectionRef, selectionPlain, saveBusy, router, closePanel, textLabel]);
 
   const onLearnSelection = useCallback(async () => {
     if (!selection || learnStatus === "adding") return;
@@ -561,7 +617,7 @@ const ChapterReader: React.FC = () => {
         key: "ask",
         icon: Sparkles,
         label: "Ask",
-        onClick: () => askAI({ reference: selectionRef, text: selectionPlain }),
+        onClick: () => askAI({ reference: selectionRef, text: selectionStudy }),
       },
       {
         key: "copy",
@@ -579,18 +635,10 @@ const ChapterReader: React.FC = () => {
       },
     ];
     // Plays the narration from the first selected verse; a book with an
-    // Alive recording offers it as a second chip (LC-15532).
+    // Alive recording (LC-15532) offers it first, as Listen recommends it
+    // (LC-15842).
     if (canListen && selection) {
       const choice = listenEditions.length > 1;
-      list.push({
-        key: "listen",
-        icon: Headphones,
-        label: "Listen",
-        onClick: () => {
-          playFrom(selection.start, choice ? "regular" : undefined);
-          closePanel();
-        },
-      });
       if (choice) {
         list.push({
           key: "listen-alive",
@@ -602,6 +650,15 @@ const ChapterReader: React.FC = () => {
           },
         });
       }
+      list.push({
+        key: "listen",
+        icon: Headphones,
+        label: "Listen",
+        onClick: () => {
+          playFrom(selection.start, choice ? "regular" : undefined);
+          closePanel();
+        },
+      });
     }
     // Learn is an account feature; the old sheet's button rendered nothing
     // when signed out, so the chip is absent rather than dead.
@@ -620,7 +677,7 @@ const ChapterReader: React.FC = () => {
   }, [
     askAI,
     selectionRef,
-    selectionPlain,
+    selectionStudy,
     copied,
     onCopySelection,
     onShareSelection,
@@ -742,24 +799,35 @@ const ChapterReader: React.FC = () => {
         {/* Translation chips: centred under the title so the header reads as
             one balanced block rather than a right-hung second row. */}
         <div className="flex justify-center gap-1 pb-2">
-          {(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
+          {[
+            ...(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => ({
+              key: id,
+              label: id,
+              on: !lcGreek && translation === id,
+              choose: () => setTranslation(id),
+            })),
+            // The LC Greek joins the row only on a book that has it.
+            ...(hasLcGreek(order)
+              ? [{ key: "LCG", label: LC_GREEK.label, on: lcGreek, choose: showLcGreek }]
+              : []),
+          ].map((chip) => (
             <button
-              key={id}
+              key={chip.key}
               type="button"
-              aria-pressed={translation === id}
-              onClick={() => setTranslation(id)}
+              aria-pressed={chip.on}
+              onClick={chip.choose}
               className={`rounded-full border px-2.5 py-1 text-metadata font-bold transition-colors ${
-                translation === id
+                chip.on
                   ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
                   : "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
               }`}
             >
-              {id}
+              {chip.label}
             </button>
           ))}
         </div>
         <p className="pb-2 text-center text-metadata text-neutral-500 dark:text-neutral-400">
-          {TRANSLATION_NOTES[translation]}
+          {lcGreek ? LC_GREEK.note : TRANSLATION_NOTES[translation]}
         </p>
 
         {readingStatus.error ? (
@@ -877,8 +945,10 @@ const ChapterReader: React.FC = () => {
                   parchment ? "opacity-60" : "text-neutral-400/70 dark:text-neutral-600"
                 }`}
               >
-                {TRANSLATIONS[translation].label} - {TRANSLATIONS[translation].copyright}
-                {translation === "KJV" ? " · Editorial headings: BSB" : ""}
+                {lcGreek
+                  ? `${LC_GREEK.label} - ${LC_GREEK.copyright} · Editorial headings: BSB`
+                  : `${TRANSLATIONS[translation].label} - ${TRANSLATIONS[translation].copyright}`}
+                {!lcGreek && translation === "KJV" ? " · Editorial headings: BSB" : ""}
               </p>
               <div className="mt-6 flex gap-4">
                 {neighbors.prev ? (
