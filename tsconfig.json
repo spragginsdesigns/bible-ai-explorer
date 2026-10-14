@@ -39,6 +39,7 @@
     "node_modules",
     "mobile",
     "macos",
-    "remotion"
+    "remotion",
+    "artifacts"
   ]
 }
