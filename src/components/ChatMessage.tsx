@@ -320,9 +320,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 					/>
 				) : message.isStreaming && !message.activity && !message.progress ? (
 					<div className="flex items-center gap-1 py-2">
-						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce" />
-						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-200" />
-						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-bounce animation-delay-500" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-pulse motion-reduce:animate-none" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-pulse motion-reduce:animate-none animation-delay-200" />
+						<span className="w-2 h-2 rounded-full bg-neutral-500 animate-pulse motion-reduce:animate-none animation-delay-500" />
 					</div>
 				) : null}
 				{message.isStreaming && message.activity && !message.progress && (
