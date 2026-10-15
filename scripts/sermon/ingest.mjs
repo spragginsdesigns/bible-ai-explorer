@@ -310,7 +310,15 @@ async function main() {
  * the stream has not ended or the feed has not caught up.
  */
 async function selectNext(opts) {
-	const uploads = await discoverUploads(opts.channelId);
+	let uploads;
+	try {
+		uploads = await discoverUploads(opts.channelId);
+	} catch (error) {
+		// YouTube itself having a bad few minutes is a reason to poll again, not
+		// one of the runner's three strikes.
+		if (error.transient) return { status: "waiting", reason: `cannot list the channel: ${error.message}` };
+		throw error;
+	}
 	const oldest = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 	let waiting = null;
 	for (const upload of uploads.slice(0, 8)) {

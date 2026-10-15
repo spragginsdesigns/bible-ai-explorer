@@ -80,10 +80,56 @@ function run(cmd, args, { capture = false, timeoutMs = 0 } = {}) {
 // ---------------------------------------------------------------- discovery
 
 /**
- * Latest uploads for a channel, newest first, from the public RSS feed. No API
- * key and no quota, unlike the YouTube Data API, and it is not IP-blocked.
+ * Latest uploads for a channel, newest first. The public RSS feed is the first
+ * choice (no API key, no quota), but it is flaky: it answered 404/500 through
+ * the whole Wednesday window on 9/30, 10/7 and 10/14 while the channel page
+ * worked, and each of those services waited until Sunday. So a feed failure
+ * falls back to the channel's Streams tab through yt-dlp. Throws a `transient`
+ * error only when both are down, which a scheduled run should wait out.
  */
 export async function discoverUploads(channelId) {
+	let feedError;
+	try {
+		return await discoverFromFeed(channelId);
+	} catch (error) {
+		feedError = error;
+	}
+	try {
+		return await discoverFromStreamsTab(channelId);
+	} catch (error) {
+		const both = new Error(
+			`${feedError.message}; Streams tab fallback failed too: ${error.message.trim().split("\n").pop()}`
+		);
+		both.transient = true;
+		throw both;
+	}
+}
+
+async function discoverFromStreamsTab(channelId) {
+	const { out } = await run(
+		"yt-dlp",
+		[
+			"--flat-playlist",
+			"--no-warnings",
+			"--playlist-end",
+			"10",
+			"--print",
+			"%(id)s|%(title)s",
+			`https://www.youtube.com/channel/${channelId}/streams`,
+		],
+		{ capture: true, timeoutMs: 2 * 60 * 1000 }
+	);
+	const entries = [];
+	for (const line of out.split(/\r?\n/)) {
+		const sep = line.indexOf("|");
+		if (sep !== 11) continue;
+		entries.push({ videoId: line.slice(0, sep), title: line.slice(sep + 1).trim(), published: null });
+	}
+	if (!entries.length) throw new Error("Streams tab listed nothing");
+	return entries;
+}
+
+async function discoverFromFeed(channelId) {
 	const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
 		headers: { "user-agent": "SureWord sermon pipeline" },
 	});
