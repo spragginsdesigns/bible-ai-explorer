@@ -18,6 +18,7 @@ import { createNote, deleteNote, patchNote } from "@/features/notes/api";
 import {
 	composeMessageWithAttachment,
 	formatVerseForSharing,
+	formatVerseNoteMarkdown,
 	parseTranslationId,
 	readerRouteParams,
 	readerTranslation,
@@ -29,6 +30,22 @@ const getToken = async () => "token";
 beforeEach(() => vi.clearAllMocks());
 
 describe("formatVerseForSharing", () => {
+	it("formats formatVerseNoteMarkdown as a clean markdown blockquote", () => {
+		expect(
+			formatVerseNoteMarkdown(
+				{ reference: "Romans 8:28", text: "And we know that all things work together for good" },
+				"KJV"
+			)
+		).toBe(
+			[
+				"> **Romans 8:28**",
+				">",
+				"> And we know that all things work together for good",
+				">",
+				"> (KJV)",
+			].join("\n")
+		);
+	});
 	it("formats reference and text as a quotation", () => {
 		expect(
 			formatVerseForSharing(

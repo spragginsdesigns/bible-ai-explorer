@@ -27,7 +27,7 @@ final class VerseSheetModel {
     enum Tier: Sendable, Equatable { case peek, expanded }
 
     enum StudyTab: String, CaseIterable, Identifiable, Sendable {
-        case explain, words, seeAlso
+        case explain, words, seeAlso, notes
 
         var id: String { rawValue }
 
@@ -36,6 +36,7 @@ final class VerseSheetModel {
             case .explain: "Explain"
             case .words: "Words"
             case .seeAlso: "See also"
+            case .notes: "Notes"
             }
         }
     }

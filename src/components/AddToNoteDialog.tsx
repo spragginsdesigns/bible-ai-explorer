@@ -6,10 +6,13 @@ import { Check, Loader2, NotebookPen, Plus, Search, X } from "lucide-react";
 import { useModalFocus } from "./useModalFocus";
 
 interface AddToNoteDialogProps {
-	/** Cleaned assistant markdown to save (view-model content, follow-ups stripped). */
+	/** Cleaned assistant markdown or verse blockquote to save. */
 	markdown: string;
-	/** Active conversation title, used as the title when creating a new note. */
+	/** Default title when creating a new note (conversation title or verse reference). */
 	conversationTitle?: string;
+	/** Pass false when saving pre-formatted Scripture so it is stored verbatim. */
+	compose?: boolean;
+	onSaved?: (result: { noteId: string | null; noteTitle: string; created: boolean }) => void;
 	onClose: () => void;
 }
 
@@ -45,6 +48,8 @@ function relativeTime(iso: string): string {
 const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 	markdown,
 	conversationTitle,
+	compose,
+	onSaved,
 	onClose,
 }) => {
 	const [notes, setNotes] = useState<NoteSummaryItem[] | null>(null);
@@ -122,6 +127,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					markdown,
+					...(compose === false ? { compose: false } : {}),
 					...(noteId
 						? { noteId }
 						: conversationTitle
@@ -135,13 +141,15 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 				created?: boolean;
 			} | null;
 			if (!res.ok) throw new Error("Append request failed");
-			setSuccess({
+			const result = {
 				key,
 				created: data?.created === true,
 				noteId: typeof data?.noteId === "string" && data.noteId ? data.noteId : null,
 				noteTitle:
 					typeof data?.noteTitle === "string" ? data.noteTitle : "note",
-			});
+			};
+			setSuccess(result);
+			onSaved?.(result);
 		} catch {
 			setErrorKey(key);
 		} finally {

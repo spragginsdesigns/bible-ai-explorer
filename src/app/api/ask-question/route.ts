@@ -913,7 +913,15 @@ async function handlePost(req: Request): Promise<Response> {
 						});
 					}
 
-					const [memories, church, dayContext, legend, userName] = await Promise.all([
+					const [
+						memories,
+						church,
+						dayContext,
+						legend,
+						userName,
+						resolvedModelResult,
+						actionDecision,
+					] = await Promise.all([
 						loadUserMemories(userId),
 						loadUserChurch(userId),
 						// Chat is the only surface allowed to reschedule prayer follow-ups:
@@ -921,6 +929,23 @@ async function handlePost(req: Request): Promise<Response> {
 						loadChatDayContext(userId, highlightLabels, { memoryEnabled: userPrefs?.memoryEnabled === true }),
 						loadHighlightLegend(userId, highlightLabels, highlightMeanings),
 						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
+						resolveModel({
+							userId,
+							modelId: requestedModelId,
+							effort: requestedEffort,
+							ignoreStoredEffort: explicitAutoEffort,
+							fallbackEffort: isOpeningQuestion ? "high" : "medium",
+							attachments: true,
+							requireAttachments: threadHasFiles,
+							// Chat is the only surface with a picker, so it is the only caller
+							// that opts into speed/verbosity/mode and their stored defaults.
+							run: {
+								speed: requestedSpeed,
+								verbosity: requestedVerbosity,
+								mode: requestedMode,
+							},
+						}),
+						actionDecisionBlock(actionContext),
 					]);
 					duePrayers = dayContext.prayers;
 					const {
@@ -934,22 +959,7 @@ async function handlePost(req: Request): Promise<Response> {
 						verbosity: appliedVerbosity,
 						mode: appliedMode,
 						promptHints,
-					} = await resolveModel({
-						userId,
-						modelId: requestedModelId,
-						effort: requestedEffort,
-						ignoreStoredEffort: explicitAutoEffort,
-						fallbackEffort: isOpeningQuestion ? "high" : "medium",
-						attachments: true,
-						requireAttachments: threadHasFiles,
-						// Chat is the only surface with a picker, so it is the only caller
-						// that opts into speed/verbosity/mode and their stored defaults.
-						run: {
-							speed: requestedSpeed,
-							verbosity: requestedVerbosity,
-							mode: requestedMode,
-						},
-					});
+					} = resolvedModelResult;
 					resolvedModelId = definition.id;
 					metricProvider = definition.provider;
 					metricModelId = definition.providerModelId;
@@ -1045,7 +1055,7 @@ async function handlePost(req: Request): Promise<Response> {
 						shapeHint ? `\n\n${shapeHint}` : "",
 						// Last on purpose: an instruction for this reply, nearest the answer.
 						formatPrayerFollowUpBlock(dayContext),
-						await actionDecisionBlock(actionContext),
+						actionDecision,
 						`\n\n${nextStepGuidance}`,
 					].join("");
 					const promptCache = buildPromptCachePlan({

@@ -33,14 +33,24 @@ interface SaveTarget {
 
 interface AddToNoteSheetProps {
 	visible: boolean;
-	/** The assistant message's cleaned markdown (follow-up lines already stripped). */
+	/** The assistant message's cleaned markdown or a verse blockquote. */
 	markdown: string;
-	/** Default title for the create path — the active conversation title. */
+	/** Default title for the create path — the active conversation title or verse reference. */
 	defaultTitle?: string;
+	/** Pass false when saving pre-formatted Scripture so it is stored verbatim. */
+	compose?: boolean;
+	onSaved?: (result: AppendToNoteResult) => void;
 	onClose: () => void;
 }
 
-export function AddToNoteSheet({ visible, markdown, defaultTitle, onClose }: AddToNoteSheetProps) {
+export function AddToNoteSheet({
+	visible,
+	markdown,
+	defaultTitle,
+	compose,
+	onSaved,
+	onClose,
+}: AddToNoteSheetProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
@@ -100,9 +110,11 @@ export function AddToNoteSheet({ visible, markdown, defaultTitle, onClose }: Add
 				const result = await appendAnswerToNote(getToken, {
 					markdown,
 					noteId: target.noteId,
+					...(compose === false ? { compose: false } : {}),
 					...(target.noteId === null && title ? { title } : {}),
 				});
 				setSaved(result);
+				onSaved?.(result);
 			} catch (error) {
 				setSaveError(error instanceof Error ? error.message : "Could not save to the note.");
 			} finally {

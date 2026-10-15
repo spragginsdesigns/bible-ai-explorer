@@ -735,7 +735,7 @@ struct ChapterReaderView: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 // Each study is a model generation, so a range studies its
                 // first verse only rather than firing one per selected verse.
-                if sheet.studyTab != .explain, selection.count > 1 {
+                if (sheet.studyTab == .words || sheet.studyTab == .seeAlso), selection.count > 1 {
                     Text("For verse \(selection.start)")
                         .font(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
@@ -768,6 +768,69 @@ struct ChapterReaderView: View {
                         translation: context.translation,
                         onNavigate: openCrossReference
                     )
+                case .notes:
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        let matched = ChapterNotes.notesForSelection(
+                            ChapterNotes.matchChapterNotes(
+                                notes: NotesStore.shared.notes.map {
+                                    ChapterNoteSummary(
+                                        id: $0.id,
+                                        title: $0.title,
+                                        plainText: $0.plainText,
+                                        updatedAt: $0.updatedAt
+                                    )
+                                },
+                                context: ChapterNotesContext(
+                                    bookName: context.bookName,
+                                    chapter: context.chapter,
+                                    verseCount: context.plainTexts.count
+                                )
+                            ),
+                            selection: selection
+                        )
+                        if matched.isEmpty {
+                            Text("No study notes mention \(reference) yet.")
+                                .font(.system(size: 13))
+                                .foregroundStyle(theme.textMuted)
+                        } else {
+                            ForEach(matched) { note in
+                                Button {
+                                    sheet.close()
+                                    NotificationCenter.default.post(
+                                        name: .openNote,
+                                        object: nil,
+                                        userInfo: ["noteId": note.id]
+                                    )
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("✎ \(note.title)")
+                                            .font(.system(size: 13.5, weight: .bold))
+                                            .foregroundStyle(theme.accent)
+                                        if !note.excerpt.isEmpty {
+                                            Text(note.excerpt)
+                                                .font(.system(size: 12.5))
+                                                .foregroundStyle(theme.textSecondary)
+                                                .lineLimit(2)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(Spacing.sm)
+                                    .background(theme.surface, in: RoundedRectangle(cornerRadius: Radius.md))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        Button {
+                            Task { await saveToNote(context) }
+                        } label: {
+                            Text("＋ Add \(reference) to a note")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(theme.accent)
+                                .frame(maxWidth: .infinity, minHeight: 38)
+                                .background(theme.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(.horizontal, Spacing.lg)

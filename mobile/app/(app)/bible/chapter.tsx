@@ -32,10 +32,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { GlassCard, Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import {
+	formatVerseNoteMarkdown,
 	parseTranslationId,
 	readerTranslation,
-	saveVerseToNote,
 } from "@/features/chat/verseActions";
+import { AddToNoteSheet } from "@/features/chat/AddToNoteSheet";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { apiJson } from "@/lib/api";
@@ -62,8 +63,12 @@ import { HighlightColorPicker } from "@/features/bible/HighlightColorPicker";
 import { useVerseInsight } from "@/features/bible/useVerseInsight";
 import { VerseInsightSection } from "@/features/bible/VerseInsightSection";
 import { WordStudySection } from "@/features/bible/WordStudySection";
+import { VerseNotesSection } from "@/features/bible/VerseNotesSection";
+import { notesForSelection } from "@/features/bible/chapterNotes";
+import { useChapterNotes } from "@/features/bible/useChapterNotes";
 import {
 	CrossReferencesSection,
+	prefetchCrossReferences,
 	type CrossReferenceTarget,
 } from "@/features/bible/CrossReferencesSection";
 import {
@@ -102,7 +107,7 @@ const HIGHLIGHT_MS = 2400;
 /** Remembered for the whole app session, like the old reader's default. */
 let sessionFontStep = 1;
 
-type StudyTabKey = "explain" | "words" | "seealso";
+type StudyTabKey = "explain" | "words" | "seealso" | "notes";
 const STUDY_TABS: { key: StudyTabKey; label: string }[] = [
 	{ key: "explain", label: "Explain" },
 	{ key: "words", label: "Words" },
@@ -127,6 +132,8 @@ interface VerseRowProps {
 	verseNumber: number;
 	/** Stored highlight color for this verse, if any. */
 	verseColor: string | undefined;
+	/** True when the user has a saved study note mentioning this verse. */
+	hasNote: boolean;
 	/** True only for the verse a ?verse= deep link is briefly flashing. */
 	flashed: boolean;
 	/** Part of the verse sheet's current selection. */
@@ -154,6 +161,7 @@ const VerseRow = React.memo(function VerseRow({
 	markup,
 	verseNumber,
 	verseColor,
+	hasNote,
 	flashed,
 	selected,
 	parchment,
@@ -206,6 +214,7 @@ const VerseRow = React.memo(function VerseRow({
 						]}
 					>
 						{verseNumber}
+						{hasNote ? " ✎" : ""}
 						{"\u2002"}
 					</ScriptureText>
 					{formatted?.omitted ? (
@@ -351,7 +360,18 @@ export default function BibleChapterScreen() {
 	// Stored highlight colors for the chapter on screen: `Map<verse, #RRGGBB>`.
 	// Backed by the shared store (AsyncStorage cache + per-chapter server GET).
 	const highlights = useChapterHighlights(translation, order, chapter);
+	const chapterNotes = useChapterNotes({
+		getToken,
+		bookName: book?.name ?? "",
+		bookAbbr: book?.abbr,
+		chapter,
+		verseCount: verses.length,
+	});
 	const [pickerVisible, setPickerVisible] = useState(false);
+	const [notePickerTarget, setNotePickerTarget] = useState<{
+		markdown: string;
+		title: string;
+	} | null>(null);
 
 	const load = useCallback(async () => {
 		// Paging quickly, or deep-linking while a fetch is in flight, can leave
@@ -420,7 +440,10 @@ export default function BibleChapterScreen() {
 		// The peek leaves most of the chapter readable; only the expanded study
 		// view covers the text.
 		obscured:
-			(selection !== null && sheetTier === "expanded") || pickerVisible || readerOptionsVisible,
+			(selection !== null && sheetTier === "expanded") ||
+			pickerVisible ||
+			readerOptionsVisible ||
+			notePickerTarget !== null,
 	});
 
 	const stepFont = useCallback((delta: number) => {
@@ -452,6 +475,24 @@ export default function BibleChapterScreen() {
 						: null,
 		};
 	}, [order, chapter]);
+
+	// Warm adjacent chapters in the background once the active chapter settles so
+	// paging Previous or Next in network-loaded editions (NKJV / LC Greek) is instant.
+	useEffect(() => {
+		if (loading || error || loadedKey !== chapterKey) return;
+		const timer = setTimeout(() => {
+			for (const target of [neighbors.prev, neighbors.next]) {
+				if (!target) continue;
+				void getChapterTexts(
+					lcGreekOn && !sourceTranslationParam && hasLcGreek(target.order),
+					translation,
+					target.order,
+					target.chapter,
+				).catch(() => {});
+			}
+		}, 400);
+		return () => clearTimeout(timer);
+	}, [loading, error, loadedKey, chapterKey, neighbors, lcGreekOn, sourceTranslationParam, translation]);
 
 	const goTo = useCallback(
 		(target: { order: number; chapter: number } | null) => {
@@ -537,6 +578,20 @@ export default function BibleChapterScreen() {
 			)
 		: undefined;
 	const selectionHighlightLabel = highlightLabelFor(highlightLabels, selectionPreset?.name);
+	const selectionNotes = useMemo(
+		() => notesForSelection(chapterNotes.matches, activeSelection),
+		[chapterNotes.matches, activeSelection],
+	);
+	const studyTabs = useMemo(
+		() => [
+			...STUDY_TABS,
+			{
+				key: "notes" as const,
+				label: selectionNotes.length > 0 ? `Notes · ${selectionNotes.length}` : "Notes",
+			},
+		],
+		[selectionNotes.length],
+	);
 
 	// The insight is not reset here: the teaser must keep its text while the
 	// sheet slides out. The close effect below aborts it once the slide is done.
@@ -572,12 +627,20 @@ export default function BibleChapterScreen() {
 		const wasOpen = previousSelection.current !== null;
 		previousSelection.current = selection;
 		if (!selection || !book) return;
-		const request = () =>
+		const request = () => {
 			startInsight({
 				reference: selectionReference(book.name, chapter, selection),
 				text: selectionText(studyPlainTexts, selection),
 				translation,
 			});
+			prefetchCrossReferences(
+				selectionReference(book.name, chapter, {
+					start: selection.start,
+					end: selection.start,
+				}),
+				translation,
+			);
+		};
 		if (!wasOpen) {
 			request();
 			return;
@@ -651,27 +714,17 @@ export default function BibleChapterScreen() {
 		}).catch(() => {});
 	}, [selection, selectionRef, selectionPlain, textLabel]);
 
-	const onSaveVerse = useCallback(async () => {
+	const onSaveVerse = useCallback(() => {
 		if (!selection || saveBusy) return;
-		setSaveBusy(true);
 		setActionMessage(null);
-		try {
-			const noteId = await saveVerseToNote(
-				getToken,
+		setNotePickerTarget({
+			markdown: formatVerseNoteMarkdown(
 				{ reference: selectionRef, text: selectionPlain },
 				textLabel,
-			);
-			closeSheet();
-			router.push({ pathname: "/notes/[id]", params: { id: noteId } });
-		} catch {
-			setActionMessage({
-				text: "The note could not be saved. Check your connection and try again.",
-				tone: "danger",
-			});
-		} finally {
-			setSaveBusy(false);
-		}
-	}, [selection, saveBusy, selectionRef, selectionPlain, getToken, textLabel, router, closeSheet]);
+			),
+			title: selectionRef,
+		});
+	}, [selection, saveBusy, selectionRef, selectionPlain, textLabel]);
 
 	// Learn takes one verse per request, so a range is added verse by verse;
 	// the route is idempotent, so a retry after a mid-way failure is safe.
@@ -836,6 +889,7 @@ export default function BibleChapterScreen() {
 				redLetterColor={isDark ? "#EF8A83" : "#A12E2A"}
 				verseNumber={index + 1}
 				verseColor={highlights.get(index + 1)}
+				hasNote={chapterNotes.notedVerses.has(index + 1)}
 				flashed={highlighted === index + 1 || (chapterAudio.playing && chapterAudio.verse === index + 1)}
 				selected={selectionIncludes(selection, index + 1)}
 				parchment={parchment}
@@ -850,6 +904,7 @@ export default function BibleChapterScreen() {
 			chapterAudio.playing,
 			chapterAudio.verse,
 			highlights,
+			chapterNotes.notedVerses,
 			highlighted,
 			selection,
 			parchment,
@@ -1174,7 +1229,7 @@ export default function BibleChapterScreen() {
 							{selectionPlain}
 						</Text>
 						<StudyTabs
-							tabs={STUDY_TABS}
+							tabs={studyTabs}
 							value={studyTab}
 							onChange={(key) => setStudyTab(key as StudyTabKey)}
 						/>
@@ -1203,7 +1258,7 @@ export default function BibleChapterScreen() {
 										onAsk={askAboutWord}
 									/>
 								</>
-							) : (
+							) : studyTab === "seealso" ? (
 								<>
 									{selectedCount > 1 ? (
 										<Text style={styles.studyNote}>For verse {activeSelection.start}</Text>
@@ -1224,11 +1279,30 @@ export default function BibleChapterScreen() {
 										alwaysExpanded
 									/>
 								</>
+							) : (
+								<VerseNotesSection
+									reference={selectionRef}
+									notes={selectionNotes}
+									onOpenNote={(noteId) => {
+										closeSheet();
+										router.push({ pathname: "/notes/[id]", params: { id: noteId } });
+									}}
+									onAddToNote={onSaveVerse}
+								/>
 							)}
 						</View>
 					</VerseSheet>
 				</View>
 			)}
+
+			<AddToNoteSheet
+				visible={notePickerTarget !== null}
+				markdown={notePickerTarget?.markdown ?? ""}
+				defaultTitle={notePickerTarget?.title}
+				compose={false}
+				onSaved={() => void chapterNotes.refresh()}
+				onClose={() => setNotePickerTarget(null)}
+			/>
 
 			{/* The verse sheet lives inside the reader body (see the render above): it is not a modal, so the chapter stays tappable to grow the selection. */}
 			{/* Custom highlight color. Rendered as a sibling Modal so it stacks

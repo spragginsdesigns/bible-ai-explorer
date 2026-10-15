@@ -29,7 +29,7 @@ interface LastReadState {
 
 const BOOK_BY_NAME = new Map(BOOKS.map((book) => [book.name, book]));
 
-function parseLastRead(value: unknown): LastRead | null {
+export function parseLastRead(value: unknown): LastRead | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as Record<string, unknown>;
   if (

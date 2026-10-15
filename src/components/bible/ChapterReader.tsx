@@ -13,7 +13,8 @@ import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible
 import { bookByOrder } from "@/lib/bible/books";
 import { loadLcGreekChapter } from "@/lib/bible/lcGreek";
 import { CHAPTER_LOAD_ERROR, getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
-import { saveVerseToNote } from "@/lib/bible/verseActions";
+import { formatVerseNoteMarkdown, saveVerseToNote } from "@/lib/bible/verseActions";
+import { notesForSelection } from "@/lib/bible/chapterNotes";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import {
   MAX_SELECTED_VERSES,
@@ -40,14 +41,17 @@ import { useGlobalShortcuts } from "@/lib/shortcuts";
 import { parseCard } from "@/components/learn/learn";
 import ChapterAudioBar from "./ChapterAudioBar";
 import ListenButton from "./ListenButton";
-import CrossReferencesSection from "./CrossReferencesSection";
+import CrossReferencesSection, { prefetchCrossReferences } from "./CrossReferencesSection";
 import InsightTeaser from "./InsightTeaser";
 import StudyTabs, { STUDY_PANEL_ID } from "./StudyTabs";
 import VerseActionBar, { type VerseAction } from "./VerseActionBar";
+import VerseNotesSection from "./VerseNotesSection";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
+import AddToNoteDialog from "../AddToNoteDialog";
 import { useChapterAudio } from "./useChapterAudio";
 import { useChapterHighlights } from "./useChapterHighlights";
+import { useChapterNotes } from "./useChapterNotes";
 import { useVerseInsight } from "./useVerseInsight";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
@@ -72,7 +76,7 @@ interface ActionMessage {
   tone: "muted" | "danger";
 }
 
-type StudyTabKey = "explain" | "words" | "seealso";
+type StudyTabKey = "explain" | "words" | "seealso" | "notes";
 
 const STUDY_TABS = [
   { key: "explain", label: "Explain" },
@@ -196,6 +200,10 @@ const ChapterReader: React.FC = () => {
   const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
   // The native colour picker covers the page while it is open.
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [notePickerTarget, setNotePickerTarget] = useState<{
+    markdown: string;
+    title: string;
+  } | null>(null);
   const { user } = useUser();
   const {
     status: insightStatus,
@@ -209,6 +217,13 @@ const ChapterReader: React.FC = () => {
     setColor: setHighlightColor,
     remove: removeHighlight,
   } = useChapterHighlights(translation, order, chapter);
+  const chapterNotes = useChapterNotes({
+    userId: user?.id,
+    bookName: book?.name ?? "",
+    bookAbbr: book?.abbr,
+    chapter,
+    verseCount: verses.length,
+  });
 
   const lastFlashed = useRef<string | null>(null);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,8 +297,8 @@ const ChapterReader: React.FC = () => {
     book: order, chapter, translation, verseCount: verses.length,
     ready: !loading && !error && loadedKey === chapterKey && !!book,
     // The peek leaves most of the chapter readable; only the expanded study
-    // view (or the colour picker) covers the text, as on Android.
-    obscured: (selection !== null && sheetTier === "expanded") || pickerOpen,
+    // view (or the colour/note picker) covers the text, as on Android.
+    obscured: (selection !== null && sheetTier === "expanded") || pickerOpen || notePickerTarget !== null,
   });
 
   // The reader's chips and Settings share one account preference.
@@ -328,6 +343,24 @@ const ChapterReader: React.FC = () => {
         chapter < current.chapters ? at(order, chapter + 1) : nextBook ? at(nextBook.order, 1) : null,
     };
   }, [order, chapter]);
+
+  // Warm adjacent chapters in the background once the active chapter settles so
+  // clicking Previous or Next renders in 0ms without a network wait.
+  useEffect(() => {
+    if (loading || error || loadedKey !== chapterKey) return;
+    const timer = setTimeout(() => {
+      for (const target of [neighbors.prev, neighbors.next]) {
+        if (!target) continue;
+        void readChapterTexts(
+          lcGreekOn && !routeTranslationSet && hasLcGreek(target.order),
+          translation,
+          target.order,
+          target.chapter
+        ).catch(() => {});
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [loading, error, loadedKey, chapterKey, neighbors, lcGreekOn, routeTranslationSet, translation]);
 
   const reference = book ? `${book.name} ${chapter}` : "";
 
@@ -376,6 +409,20 @@ const ChapterReader: React.FC = () => {
     selection && book
       ? selectionReference(book.name, chapter, { start: selection.start, end: selection.start })
       : "";
+  const selectionNotes = useMemo(
+    () => notesForSelection(chapterNotes.matches, selection),
+    [chapterNotes.matches, selection]
+  );
+  const studyTabs = useMemo(
+    () => [
+      ...STUDY_TABS,
+      {
+        key: "notes" as const,
+        label: selectionNotes.length > 0 ? `Notes · ${selectionNotes.length}` : "Notes",
+      },
+    ],
+    [selectionNotes.length]
+  );
 
   const closePanel = useCallback(() => {
     setSelection(null);
@@ -434,8 +481,10 @@ const ChapterReader: React.FC = () => {
       resetInsight();
       return;
     }
-    const request = () =>
+    const request = () => {
       startInsight({ reference: selectionRef, text: selectionStudy, translation });
+      if (anchorRef) prefetchCrossReferences(anchorRef, translation);
+    };
     if (!insightWasOpen.current) {
       insightWasOpen.current = true;
       request();
@@ -443,7 +492,7 @@ const ChapterReader: React.FC = () => {
     }
     const timer = setTimeout(request, INSIGHT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [selectionRef, selectionStudy, translation, startInsight, resetInsight]);
+  }, [selectionRef, selectionStudy, anchorRef, translation, startInsight, resetInsight]);
 
   useEffect(
     () => () => {
@@ -538,6 +587,16 @@ const ChapterReader: React.FC = () => {
 
   const onSaveSelection = useCallback(async () => {
     if (!selectionRef || saveBusy) return;
+    if (user) {
+      setNotePickerTarget({
+        markdown: formatVerseNoteMarkdown(
+          { reference: selectionRef, text: selectionPlain },
+          textLabel
+        ),
+        title: selectionRef,
+      });
+      return;
+    }
     setSaveBusy(true);
     setActionMessage(null);
     try {
@@ -552,7 +611,7 @@ const ChapterReader: React.FC = () => {
     } finally {
       setSaveBusy(false);
     }
-  }, [selectionRef, selectionPlain, saveBusy, router, closePanel, textLabel]);
+  }, [selectionRef, selectionPlain, saveBusy, user, router, closePanel, textLabel]);
 
   const onLearnSelection = useCallback(async () => {
     if (!selection || learnStatus === "adding") return;
@@ -919,6 +978,15 @@ const ChapterReader: React.FC = () => {
                         }`}
                       >
                         {verseNumber}
+                        {chapterNotes.notedVerses.has(verseNumber) ? (
+                          <span
+                            title="You have a study note on this verse"
+                            aria-label="Has study note"
+                            className="ml-0.5 text-amber-600 dark:text-amber-400"
+                          >
+                            ✎
+                          </span>
+                        ) : null}
                       </span>
                       {segments.map((segment, i) => (
                         <span
@@ -1046,7 +1114,7 @@ const ChapterReader: React.FC = () => {
 
           <div className="px-4 pb-2">
             <StudyTabs
-              tabs={STUDY_TABS}
+              tabs={studyTabs}
               active={studyTab}
               onChange={setStudyTab}
               label="Study this passage"
@@ -1109,7 +1177,7 @@ const ChapterReader: React.FC = () => {
                   onAsk={askAboutWord}
                 />
               </div>
-            ) : (
+            ) : studyTab === "seealso" ? (
               <div className="pt-1">
                 {isRange && (
                   <p className="pb-2 text-metadata text-neutral-500 dark:text-neutral-400">
@@ -1124,9 +1192,29 @@ const ChapterReader: React.FC = () => {
                   onNavigate={closePanel}
                 />
               </div>
+            ) : (
+              <div className="pt-1">
+                <VerseNotesSection
+                  reference={selectionRef}
+                  notes={selectionNotes}
+                  signedIn={Boolean(user)}
+                  onAddToNote={() => void onSaveSelection()}
+                  onNavigate={closePanel}
+                />
+              </div>
             )}
           </div>
         </VerseSheet>
+      )}
+
+      {notePickerTarget && (
+        <AddToNoteDialog
+          markdown={notePickerTarget.markdown}
+          conversationTitle={notePickerTarget.title}
+          compose={false}
+          onSaved={() => void chapterNotes.refresh()}
+          onClose={() => setNotePickerTarget(null)}
+        />
       )}
     </div>
   );

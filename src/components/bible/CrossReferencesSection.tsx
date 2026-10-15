@@ -76,25 +76,33 @@ function parseResponse(value: unknown, translation: TranslationId): CrossReferen
 	return { reference: value.reference, translation, crossReferences: crossReferences.slice(0, 5) };
 }
 
-/** A collapsed, translation-aware list of the five closest Scripture links. */
-export default function CrossReferencesSection({
-	reference,
-	translation,
-	onNavigate,
-	alwaysExpanded = false,
-}: CrossReferencesSectionProps) {
-	const [expanded, setExpanded] = useState(false);
-	const [state, setState] = useState<LoadState>({ status: "loading", items: [] });
-	const requestId = useRef(0);
-	const controllerRef = useRef<AbortController | null>(null);
+const crossRefsCache = new Map<string, CrossReferenceItem[]>();
+const crossRefsPending = new Map<string, Promise<CrossReferenceItem[]>>();
 
-	const load = useCallback(async () => {
-		const id = ++requestId.current;
-		controllerRef.current?.abort();
-		const controller = new AbortController();
-		controllerRef.current = controller;
-		const timer = setTimeout(() => controller.abort(), 15_000);
-		setState({ status: "loading", items: [] });
+function cacheKey(reference: string, translation: TranslationId): string {
+	return `${translation}:${reference.trim()}`;
+}
+
+async function fetchCrossReferences(
+	reference: string,
+	translation: TranslationId,
+	signal?: AbortSignal
+): Promise<CrossReferenceItem[]> {
+	const key = cacheKey(reference, translation);
+	const cached = crossRefsCache.get(key);
+	if (cached) return cached;
+
+	if (!signal) {
+		const inflight = crossRefsPending.get(key);
+		if (inflight) return inflight;
+	}
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), 15_000);
+	const onAbort = () => controller.abort();
+	signal?.addEventListener("abort", onAbort, { once: true });
+
+	const task = (async () => {
 		try {
 			const query = new URLSearchParams({ reference, translation, limit: "5" });
 			const response = await fetch(`/api/bible/crossrefs?${query.toString()}`, {
@@ -103,13 +111,66 @@ export default function CrossReferencesSection({
 			if (!response.ok) throw new Error(`Cross-reference request failed: ${response.status}`);
 			const parsed = parseResponse(await response.json(), translation);
 			if (!parsed) throw new Error("Unexpected cross-reference response");
+			crossRefsCache.set(key, parsed.crossReferences);
+			return parsed.crossReferences;
+		} finally {
+			clearTimeout(timer);
+			signal?.removeEventListener("abort", onAbort);
+		}
+	})();
+
+	if (!signal) {
+		crossRefsPending.set(
+			key,
+			task.finally(() => crossRefsPending.delete(key))
+		);
+	}
+	return task;
+}
+
+/**
+ * Warm the in-memory cross-reference cache as soon as a verse selection settles,
+ * so switching to the "See also" tab renders immediately without a loading flash.
+ */
+export function prefetchCrossReferences(reference: string, translation: TranslationId): void {
+	if (!reference.trim()) return;
+	void fetchCrossReferences(reference, translation).catch(() => {});
+}
+
+/** A collapsed, translation-aware list of the five closest Scripture links. */
+export default function CrossReferencesSection({
+	reference,
+	translation,
+	onNavigate,
+	alwaysExpanded = false,
+}: CrossReferencesSectionProps) {
+	const [expanded, setExpanded] = useState(false);
+	const initialCached = crossRefsCache.get(cacheKey(reference, translation));
+	const [state, setState] = useState<LoadState>(() =>
+		initialCached ? { status: "ready", items: initialCached } : { status: "loading", items: [] }
+	);
+	const requestId = useRef(0);
+	const controllerRef = useRef<AbortController | null>(null);
+
+	const load = useCallback(async () => {
+		const id = ++requestId.current;
+		controllerRef.current?.abort();
+		const cached = crossRefsCache.get(cacheKey(reference, translation));
+		if (cached) {
+			setState({ status: "ready", items: cached });
+			return;
+		}
+		const controller = new AbortController();
+		controllerRef.current = controller;
+		setState({ status: "loading", items: [] });
+		try {
+			const items = await fetchCrossReferences(reference, translation, controller.signal);
 			if (requestId.current === id) {
-				setState({ status: "ready", items: parsed.crossReferences });
+				setState({ status: "ready", items });
 			}
 		} catch {
 			if (requestId.current === id) setState({ status: "error", items: [] });
 		} finally {
-			clearTimeout(timer);
 			if (controllerRef.current === controller) controllerRef.current = null;
 		}
 	}, [reference, translation]);

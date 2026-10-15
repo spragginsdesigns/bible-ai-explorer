@@ -14,7 +14,7 @@ export interface AppendToNoteResult {
  */
 export function appendAnswerToNote(
 	getToken: GetToken,
-	body: { markdown: string; noteId: string | null; title?: string }
+	body: { markdown: string; noteId: string | null; title?: string; compose?: boolean }
 ) {
 	return apiJson<AppendToNoteResult>(getToken, "/api/notes/append", {
 		method: "POST",

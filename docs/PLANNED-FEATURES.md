@@ -50,3 +50,36 @@ continue a developing theme or receive a fresh direction. Candidate controls:
 
 Do not build these controls until stored theme, evidence and message-origin data
 can support them honestly.
+
+---
+
+## Five-Phase Product Roadmap (2026-10-14)
+
+Approved for phased delivery across shared backend, Android (`mobile/`), Web (`src/`), and Apple (`macos/`):
+
+### Phase 1 — Speed + True "Study Bible" Loop (In Progress)
+1. **Chat TTFT Parallelization (`src/app/api/ask-question/route.ts`):** Run `resolveModel` and `actionDecisionBlock` concurrently inside the pre-stream `Promise.all` alongside `loadUserMemories`, `loadUserChurch`, `loadChatDayContext`, `loadHighlightLegend`, and profile sync.
+2. **Reader & Verse Sheet Prefetching:**
+   - Prefetch adjacent chapters (`neighbors.prev` and `neighbors.next`) in the background once the active chapter settles.
+   - Cache and prefetch `See also` cross-references (`GET /api/bible/crossrefs`) per session (`translation:reference`) as soon as a verse selection settles, eliminating tab-switch re-fetches and loading states.
+3. **Android BSB "Continue reading" Parity Fix:** Accept `"BSB"` alongside `"KJV"` and `"NKJV"` in `parseLastRead` on Android (`mobile/app/(app)/bible/index.tsx`), matching Web.
+4. **Reader Note Picker + "Notes" in the Verse Sheet ("Study Bible" Loop):**
+   - Tapping **Note** in the Bible reader's Verse Sheet opens the Note Picker (`AddToNoteSheet` / `AddToNoteDialog` with `compose: false`) so verses can be appended to an existing study note or saved as a new note without leaving the chapter.
+   - Pure chapter-note matcher (`chapterNotes.ts` / `ChapterNotes.swift`) links the user's saved notes to the verses and chapters they reference, showing inline verse note indicators in the chapter reader and a **Notes** tab (`Explain` | `Words` | `See also` | `Notes`) in the Verse Sheet.
+
+### Phase 2 — Pick Up Your Cross 2.0 + Persistent `Listen` Mini-Player
+1. **Answer "Carry This" on the Daily Cross screen:** Save a personal reflection or prayer on today's question (`VerseOfDay.reflection` / `answeredAt`), optionally mirrored to a running journal note.
+2. **Daily Cross History Scrubber:** Browse past `VerseOfDay` entries (`Today · Yesterday · ...`) to revisit previous verses, why they were chosen, spoken devotionals, and personal reflections.
+3. **Persistent `Listen` Mini-Player:** Keep the spoken devotional playing in a floating mini-player bar when navigating from Pick Up Your Cross into the Bible chapters of Today's Study.
+
+### Phase 3 — Bible Hub "Today's Walk" Bento + Highlights Gallery
+1. **Bible Hub "Today's Walk" Bento:** Replace the 6 stacked gray rows at the top of the Bible tab with a prioritized "Today's Walk" hero pair (Pick Up Your Cross + Continue Reading / Plan) and a 2×2 study bento grid (`Learn`, `Plan`, `Timeline & People`, `Reading Log` / `Sermons`).
+2. **Highlights Gallery by Label:** Browse and filter all highlighted verses across the Bible by the user's custom color labels (*Promises*, *Commands*, *Warnings*, etc.), with one-tap jump to chapter or add to Learn.
+
+### Phase 4 — The Prayer Closet & *Ebenezer* Answered Prayer Wall
+1. **Dedicated Prayer Closet Screen:** Elevate prayer requests out of `Settings → Memory` into a dedicated Prayer Closet surface with KJV promises paired to each open request.
+2. **"Pray Through My List" Mode & Ebenezer Wall (1 Samuel 7:12):** Guided distraction-free prayer cards and a permanent hall of answered prayers with dates and praise notes.
+
+### Phase 5 — Sacred Verse Art Cards, Animations & Book Headers
+1. **1-Tap Shareable Sacred Verse Art Cards:** Render shareable verse images in Sanctuary Dark/Gold, Aged Parchment, and Olive Dawn styles (1:1 Square and 9:16 Story/Wallpaper).
+2. **Sacred Micro-Animations & Book Headers:** Smooth pose crossfades and radial gold halo on `SureWordGuideAvatar`, tactile reader chapter transitions + haptics, and Chapter 1 book introduction headers.

@@ -73,6 +73,67 @@ function parseResponse(value: unknown, translation: TranslationId): CrossReferen
 	return { reference: value.reference, translation, crossReferences: crossReferences.slice(0, 5) };
 }
 
+const crossRefsCache = new Map<string, CrossReferenceItem[]>();
+const crossRefsPending = new Map<string, Promise<CrossReferenceItem[]>>();
+
+function cacheKey(reference: string, translation: TranslationId): string {
+	return `${translation}:${reference.trim()}`;
+}
+
+async function fetchCrossReferences(
+	reference: string,
+	translation: TranslationId,
+	signal?: AbortSignal
+): Promise<CrossReferenceItem[]> {
+	const key = cacheKey(reference, translation);
+	const cached = crossRefsCache.get(key);
+	if (cached) return cached;
+
+	if (!signal) {
+		const inflight = crossRefsPending.get(key);
+		if (inflight) return inflight;
+	}
+
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+	const onAbort = () => controller.abort();
+	signal?.addEventListener("abort", onAbort, { once: true });
+
+	const task = (async () => {
+		try {
+			const query = new URLSearchParams({ reference, translation, limit: "5" });
+			const response = await fetch(`${API_URL}/api/bible/crossrefs?${query.toString()}`, {
+				signal: controller.signal,
+			});
+			if (!response.ok) throw new Error(`Cross-reference request failed: ${response.status}`);
+			const parsed = parseResponse(await response.json(), translation);
+			if (!parsed) throw new Error("Unexpected cross-reference response");
+			crossRefsCache.set(key, parsed.crossReferences);
+			return parsed.crossReferences;
+		} finally {
+			clearTimeout(timer);
+			signal?.removeEventListener("abort", onAbort);
+		}
+	})();
+
+	if (!signal) {
+		crossRefsPending.set(
+			key,
+			task.finally(() => crossRefsPending.delete(key))
+		);
+	}
+	return task;
+}
+
+/**
+ * Warm the in-memory cross-reference cache as soon as a verse selection settles,
+ * so switching to the "See also" tab renders immediately without a loading flash.
+ */
+export function prefetchCrossReferences(reference: string, translation: TranslationId): void {
+	if (!reference.trim()) return;
+	void fetchCrossReferences(reference, translation).catch(() => {});
+}
+
 /** Collapsed top-five Scripture links for the verse sheet. */
 export function CrossReferencesSection({
 	reference,
@@ -84,7 +145,10 @@ export function CrossReferencesSection({
 	const styles = useThemedStyles(createStyles);
 	const [expandedByTap, setExpanded] = useState(false);
 	const expanded = alwaysExpanded || expandedByTap;
-	const [state, setState] = useState<LoadState>({ status: "loading", items: [] });
+	const initialCached = crossRefsCache.get(cacheKey(reference, translation));
+	const [state, setState] = useState<LoadState>(() =>
+		initialCached ? { status: "ready", items: initialCached } : { status: "loading", items: [] }
+	);
 	const requestId = useRef(0);
 	const controllerRef = useRef<AbortController | null>(null);
 
@@ -92,25 +156,22 @@ export function CrossReferencesSection({
 		if (!enabled) return;
 		const id = ++requestId.current;
 		controllerRef.current?.abort();
+		const cached = crossRefsCache.get(cacheKey(reference, translation));
+		if (cached) {
+			setState({ status: "ready", items: cached });
+			return;
+		}
 		setState({ status: "loading", items: [] });
 		const controller = new AbortController();
 		controllerRef.current = controller;
-		const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 		try {
-			const query = new URLSearchParams({ reference, translation, limit: "5" });
-			const response = await fetch(`${API_URL}/api/bible/crossrefs?${query.toString()}`, {
-				signal: controller.signal,
-			});
-			if (!response.ok) throw new Error(`Cross-reference request failed: ${response.status}`);
-			const parsed = parseResponse(await response.json(), translation);
-			if (!parsed) throw new Error("Unexpected cross-reference response");
+			const items = await fetchCrossReferences(reference, translation, controller.signal);
 			if (requestId.current === id) {
-				setState({ status: "ready", items: parsed.crossReferences });
+				setState({ status: "ready", items });
 			}
 		} catch {
 			if (requestId.current === id) setState({ status: "error", items: [] });
 		} finally {
-			clearTimeout(timer);
 			if (controllerRef.current === controller) controllerRef.current = null;
 		}
 	}, [enabled, reference, translation]);

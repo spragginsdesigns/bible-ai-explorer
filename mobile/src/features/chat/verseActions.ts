@@ -47,6 +47,22 @@ export function formatVerseForSharing(
 	return body ? `${verse.reference} — "${body}"${suffix}` : `${verse.reference}${suffix}`;
 }
 
+/**
+ * Markdown blockquote for saving or appending a verse into a note via the
+ * note picker (`POST /api/notes/append` with `compose: false`).
+ */
+export function formatVerseNoteMarkdown(
+	verse: VerseActionSource,
+	translation?: string
+): string {
+	const body = verse.text?.trim() ?? "";
+	const label = translation ?? verse.translation;
+	const lines = [`> **${verse.reference}**`];
+	if (body) lines.push(">", `> ${body}`);
+	if (label) lines.push(">", `> (${label})`);
+	return lines.join("\n");
+}
+
 /** The narrowly-scoped source attribution carried by a Daily Cross CTA. */
 export interface VerseAttachmentOrigin {
 	surface: "daily-cross";

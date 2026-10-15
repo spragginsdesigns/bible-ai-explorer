@@ -38,6 +38,22 @@ export function formatVerseForSharing(
 }
 
 /**
+ * Markdown blockquote for saving or appending a verse into a note via the
+ * note picker (`POST /api/notes/append` with `compose: false`).
+ */
+export function formatVerseNoteMarkdown(
+  verse: VerseRef,
+  translation?: TranslationId | string
+): string {
+  const body = verse.text ? bibleVersePlainText(verse.text).trim() : "";
+  const label = sourceTranslation(verse, translation);
+  const lines = [`> **${verse.reference}**`];
+  if (body) lines.push(">", `> ${body}`);
+  if (label) lines.push(">", `> (${label})`);
+  return lines.join("\n");
+}
+
+/**
  * Save a verse to the notes library: creates a note titled by the reference
  * with the passage as a Scripture blockquote (HTML, so it round-trips with the
  * web/mobile rich text editors). Returns the new note id.
