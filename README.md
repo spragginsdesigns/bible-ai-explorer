@@ -163,9 +163,5 @@ for the generated Xcode project.
 - [`macos/README.md`](macos/README.md) — Apple build, install, and test workflow
 - [`src/data/bible-atlas/README.md`](src/data/bible-atlas/README.md) — atlas data
   authoring and validation
-- [`docs/NextJS_to_Expo_Migration_Plan.md`](docs/NextJS_to_Expo_Migration_Plan.md) —
-  historical migration record; not current architecture guidance
-- [`design-qa.md`](design-qa.md) — historical UI QA evidence and its verification
-  boundaries
 
 *SureWord: Illuminating Scripture through Artificial Intelligence*

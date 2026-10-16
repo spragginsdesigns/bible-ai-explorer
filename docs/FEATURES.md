@@ -1907,8 +1907,7 @@ runs on a trusted machine and posts the finished study to
 `POST /api/sermon-studies/ingest` behind `SERMON_INGEST_SECRET`, one of the two
 sermon routes exempted from Clerk in `src/middleware.ts` (the other is the
 HMAC-keyed artwork route above). `GET /api/cron/sermon-watchdog`
-says when a study has not arrived. The design notes are in
-`docs/sermon-study-pipeline-plan-2026-09-20.html`.
+says when a study has not arrived.
 
 ## Note wikilinks, backlinks, and properties
 
@@ -2107,8 +2106,7 @@ switch, which was already stored per push token and so already per device.
 
 ## Contracts for the 2026-09-12 plan (receipts, Learn a verse)
 
-Published first so the three lanes in
-[`product-changes-review-2026-09-12.html`](product-changes-review-2026-09-12.html)
+Published first so the three lanes of the 2026-09-12 product plan
 build against one shape. The backend lane owns the server half of both; the
 frontend lane renders receipts; the Windows/Learn lane builds the Learn screens.
 Change a contract here before changing it in code.

@@ -1,7 +1,6 @@
 # SureWord iOS: Capability Parity, Design Pass and App Store Launch (PRD)
 
 Status: draft 1, 2026-10-07. Owner: Austin Spraggins.
-Companion: `docs/ios/NEXT-SESSION-PROMPT.md` (the prompt that executes this).
 
 ## 1. Goal
 
