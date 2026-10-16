@@ -744,6 +744,11 @@ export async function generateImage(apiKey, prompt, outPath, { size = "1536x1024
 			prompt: `${prompt}\n\n${IMAGE_STYLE}`,
 			size,
 			quality,
+			// A phone shows these at card width. A 1536x1024 PNG is ~2.5 MB, which
+			// made the study list a 25 MB download; JPEG 82 is ~10x smaller and
+			// indistinguishable at that size.
+			output_format: "jpeg",
+			output_compression: 82,
 			n: 1,
 		}),
 	});
@@ -773,7 +778,7 @@ export async function uploadImage(token, localPath, pathname) {
 	const blob = await put(pathname, fs.readFileSync(localPath), {
 		access: "private",
 		token,
-		contentType: "image/png",
+		contentType: localPath.endsWith(".png") ? "image/png" : "image/jpeg",
 		addRandomSuffix: false,
 		allowOverwrite: true,
 	});

@@ -219,7 +219,7 @@ async function main() {
 	if (opts.images) {
 		const targets = study.sections.filter((s) => s.imagePrompt).slice(0, MAX_IMAGES);
 		for (const [i, section] of targets.entries()) {
-			const file = `image-${study.sections.indexOf(section) + 1}.png`;
+			const file = `image-${study.sections.indexOf(section) + 1}.jpg`;
 			log(`illustrating ${i + 1}/${targets.length}: ${section.heading}`);
 			try {
 				await generateImage(apiKey, section.imagePrompt, path.join(outDir, file));
@@ -238,9 +238,11 @@ async function main() {
 		for (const [i, section] of study.sections.entries()) {
 			// An earlier run's illustrations are still on disk under a stable
 			// name, so re-publishing does not pay to draw them again.
-			const onDisk = `image-${i + 1}.png`;
-			const file =
-				section.imageFile ?? (fs.existsSync(path.join(outDir, onDisk)) ? onDisk : null);
+			// Older runs drew PNGs; either is reused.
+			const onDisk = [`image-${i + 1}.jpg`, `image-${i + 1}.png`].find((name) =>
+				fs.existsSync(path.join(outDir, name))
+			);
+			const file = section.imageFile ?? onDisk ?? null;
 			if (!file || section.imagePathname) continue;
 			if (!blobToken) {
 				log("  no BLOB_READ_WRITE_TOKEN, publishing without illustrations");
@@ -250,7 +252,7 @@ async function main() {
 			section.imagePathname = await uploadImage(
 				blobToken,
 				path.join(outDir, file),
-				`sermons/${meta.videoId}/${i + 1}.png`
+				`sermons/${meta.videoId}/${i + 1}${path.extname(file)}`
 			);
 		}
 		const result = await publishStudy(opts.api, secret, {

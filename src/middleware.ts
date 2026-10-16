@@ -46,6 +46,10 @@ const isPublicRoute = createRouteMatcher([
 	// stays behind the session, because that is what scopes a study to the
 	// reader's own church.
 	"/api/sermon-studies/ingest",
+	// Sermon-study artwork: loaded by RN Image / <img> with no session header.
+	// The route checks its own HMAC, which only the session-scoped study API
+	// hands out, so the church rule above still decides who can see a picture.
+	"/api/sermon-studies/image",
 	// Church photo proxy: loaded by a plain <img> / RN Image with no session
 	// header, keyed only by a place id some user already saved (see the route).
 	"/api/church/photo",

@@ -11,6 +11,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -26,6 +27,7 @@ const EXPORTS = [
 	"formatServiceDate",
 	"formatTimestamp",
 	"getSermonStudy",
+	"isSignedSermonImage",
 	"latestSermonStudy",
 	"listSermonStudies",
 	"resolveSermonStudy",
@@ -42,9 +44,11 @@ function loadSermonStudies({
 	const factory = new Function(
 		"prisma",
 		"createAttachmentPreviewUrl",
+		"createHmac",
+		"timingSafeEqual",
 		`${stripTypeScriptTypes(source)}\nreturn { ${EXPORTS.join(", ")} };`,
 	);
-	return factory(prisma, createAttachmentPreviewUrl);
+	return factory(prisma, createAttachmentPreviewUrl, createHmac, timingSafeEqual);
 }
 
 const CHANNEL = "UCiTssyWZc2PJ25OAZOaN7Ag";
@@ -331,6 +335,48 @@ test("the chat tools never pay to sign a picture they cannot see", async () => {
 	const forAScreen = await getSermonStudy("user_1", "smn_1");
 	assert.equal(signed, 1, "a screen still gets its picture");
 	assert.equal(forAScreen.sections[0].imageUrl, "https://blob.example/signed");
+});
+
+test("a screen gets one stable sureword.app URL per picture, never a presigned Blob URL", async () => {
+	const saved = process.env.SERMON_INGEST_SECRET;
+	process.env.SERMON_INGEST_SECRET = "test-secret";
+	try {
+		let signed = 0;
+		const row = { ...STUDY_ROW, sections: [{ ...SECTION, imagePathname: "sermons/abcdefghijk/1.png" }] };
+		const { getSermonStudy, listSermonStudies, isSignedSermonImage } = loadSermonStudies({
+			prisma: db([row]),
+			createAttachmentPreviewUrl: async () => {
+				signed += 1;
+				return { previewUrl: "https://blob.example/signed" };
+			},
+		});
+
+		const first = (await getSermonStudy("user_1", "smn_1")).sections[0].imageUrl;
+		const again = (await getSermonStudy("user_1", "smn_1")).sections[0].imageUrl;
+		const listed = (await listSermonStudies("user_1"))[0].imageUrl;
+		assert.equal(signed, 0, "no presigned Blob URL is minted");
+		assert.equal(first, again, "the same picture keeps the same URL, so it can be cached");
+		assert.equal(listed, first);
+
+		const url = new URL(first);
+		assert.equal(url.origin + url.pathname, "https://sureword.app/api/sermon-studies/image");
+		const p = url.searchParams.get("p");
+		const s = url.searchParams.get("s");
+		assert.equal(p, "sermons/abcdefghijk/1.png");
+		assert.equal(isSignedSermonImage(p, s), true);
+		assert.equal(isSignedSermonImage(p, s.slice(0, -1) + (s.endsWith("A") ? "B" : "A")), false);
+		assert.equal(isSignedSermonImage("sermons/abcdefghijk/2.png", s), false, "a signature names one picture");
+		assert.equal(isSignedSermonImage("chat-attachments/user_x/a/1.png", s), false);
+		assert.equal(isSignedSermonImage("sermons/../chat-attachments/1.png", s), false);
+
+		delete process.env.SERMON_INGEST_SECRET;
+		assert.equal(isSignedSermonImage(p, s), false, "no secret, no image route");
+		const fallback = (await getSermonStudy("user_1", "smn_1")).sections[0].imageUrl;
+		assert.equal(fallback, "https://blob.example/signed", "without the secret it falls back to a presigned URL");
+	} finally {
+		if (saved === undefined) delete process.env.SERMON_INGEST_SECRET;
+		else process.env.SERMON_INGEST_SECRET = saved;
+	}
 });
 
 test("the day block only names a study recent enough to be this week's", async () => {

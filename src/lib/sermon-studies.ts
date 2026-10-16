@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 
@@ -87,15 +88,54 @@ function sectionsOf(value: unknown): SermonSection[] {
 	return Array.isArray(value) ? (value as SermonSection[]) : [];
 }
 
+const APP_ORIGIN = "https://sureword.app";
+
+/** The only pathnames the image route will serve: what ingest uploads. */
+const SERMON_IMAGE_PATHNAME = /^sermons\/[A-Za-z0-9_-]{1,32}\/\d{1,2}\.(png|jpg)$/;
+
 /**
- * The Blob store is private, so an illustration is stored as a pathname and
- * signed per read, exactly like chat attachments and Listen audio. A signing
- * failure costs the picture, never the study.
+ * A stable credential for one illustration: an HMAC of its pathname under the
+ * ingest secret, with a purpose prefix so it can never double as anything the
+ * ingest route accepts. Only a reader who got the study through the session-
+ * scoped API ever sees one, so the church rule still decides who gets a URL.
+ */
+function sermonImageSignature(pathname: string): string | null {
+	const secret = process.env.SERMON_INGEST_SECRET?.trim();
+	if (!secret) return null;
+	return createHmac("sha256", secret).update(`sermon-image\n${pathname}`).digest("base64url");
+}
+
+export function isSignedSermonImage(pathname: string, signature: string): boolean {
+	if (!SERMON_IMAGE_PATHNAME.test(pathname)) return false;
+	const expected = sermonImageSignature(pathname);
+	if (!expected) return false;
+	const a = Buffer.from(expected);
+	const b = Buffer.from(signature);
+	return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * The Blob store is private, so an illustration is stored as a pathname. It is
+ * served from our own origin (`/api/sermon-studies/image`) at a URL that never
+ * changes, not as a 15-minute presigned Blob URL: the presigned one changed on
+ * every read, so no phone or CDN could ever cache a 2.5 MB picture, it expired
+ * under anyone who left a study open, and it sent the phone to a second host
+ * (`*.private.blob.vercel-storage.com`). Android readers saw empty frames
+ * where the artwork belonged (2026-10-16). The presigned URL remains only as
+ * the fallback for a deploy without the ingest secret. A signing failure costs
+ * the picture, never the study.
  */
 async function withSignedImage(section: SermonSection): Promise<SermonSection> {
 	const { imagePathname, ...rest } = section;
 	rest.explanation = stripTeachingLabel(rest.explanation);
 	if (!imagePathname) return { ...rest, imageUrl: null };
+	const signature = SERMON_IMAGE_PATHNAME.test(imagePathname)
+		? sermonImageSignature(imagePathname)
+		: null;
+	if (signature) {
+		const query = new URLSearchParams({ p: imagePathname, s: signature });
+		return { ...rest, imageUrl: `${APP_ORIGIN}/api/sermon-studies/image?${query}` };
+	}
 	try {
 		const { previewUrl } = await createAttachmentPreviewUrl(imagePathname);
 		return { ...rest, imageUrl: previewUrl };

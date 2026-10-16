@@ -1851,6 +1851,33 @@ every turn and only the study changes. The line is dropped once the study is
 older than `SERMON_RECENT_DAYS` (10), so a church that stops ingesting does not
 have a stale sermon named on every turn for the rest of the year.
 
+### The artwork
+
+Each study carries up to four illustrations, stored in the private Blob store
+under `sermons/<videoId>/<n>.jpg` (PNGs before 2026-10-16, kept in the store).
+A client never receives a Blob URL. It gets one stable URL per picture on our
+own origin, `https://sureword.app/api/sermon-studies/image?p=<pathname>&s=<hmac>`,
+and the route streams the blob with week-long cache headers.
+
+`s` is an HMAC-SHA256 of the pathname under `SERMON_INGEST_SECRET`, with a
+`sermon-image` purpose prefix. Only the session-scoped study API hands one out,
+so the church rule still decides who gets a picture, even though the route is
+exempt from Clerk in `src/middleware.ts` (an RN `Image` and an `<img>` send no
+session). The route serves nothing outside `sermons/`. A deploy without the
+secret falls back to 15-minute presigned Blob URLs.
+
+**Why not presigned URLs (2026-10-16):** on Austin's phone every sermon card
+and study showed an empty frame where its picture belonged. The server, the
+blobs and the signing all checked out, and the same signed URL rendered on an
+emulator running the shipped 1.89.1 native build. What the presigned scheme did
+do was mint a new URL on every read, so nothing (phone cache or CDN) could ever
+cache a picture. The URL also expired 15 minutes after the study loaded, and it
+sent the phone to a second host, `*.private.blob.vercel-storage.com`. Each
+picture was also a 2.5 MB 1536x1024 PNG, so the list alone was a ~25 MB
+download. New illustrations are generated as JPEG 82 (`output_format: "jpeg"`
+in `scripts/sermon/lib.mjs`), and the existing ones were re-encoded the same
+way: about 250 KB each, roughly a tenth of the PNG size.
+
 ### The dock
 
 Every study screen ends in a dock, the same shape as the Bible reader's: the
@@ -1874,8 +1901,9 @@ of step with the server.
 Ingestion cannot run on Vercel: YouTube answers datacenter ranges with "Sign in
 to confirm you're not a bot" and transcription needs a GPU. `scripts/sermon/`
 runs on a trusted machine and posts the finished study to
-`POST /api/sermon-studies/ingest` behind `SERMON_INGEST_SECRET`, the one sermon
-route exempted from Clerk in `src/middleware.ts`. `GET /api/cron/sermon-watchdog`
+`POST /api/sermon-studies/ingest` behind `SERMON_INGEST_SECRET`, one of the two
+sermon routes exempted from Clerk in `src/middleware.ts` (the other is the
+HMAC-keyed artwork route above). `GET /api/cron/sermon-watchdog`
 says when a study has not arrived. The design notes are in
 `docs/sermon-study-pipeline-plan-2026-09-20.html`.
 
