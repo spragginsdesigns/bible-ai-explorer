@@ -14,7 +14,7 @@ This result covers the Android presentation and companion behavior exercised wit
 - Native full frame: `../artifacts/chat-home-redesign/native-postfix-full.png`, 1170x2751 pixels, Android density 480 (3 pixels per dp).
 - App content crop: top 147-pixel status/cutout inset and bottom 72-pixel system navigation inset removed, producing 1170x2532, then normalized to 390x844.
 - Native host: dedicated `SureWord_Chat_UI_20261012` emulator on `emulator-5556`, Android API 35. The other emulator was not modified.
-- Native entry: `scripts/chat-home-qa-entry.tsx`, built in `C:/Users/Owner/Documents/SureWordQA/chat-home-20261012`. It renders the actual header, welcome, composer, tab bar, and avatar with synthetic questions and callback handlers. The production package keeps `expo-router/entry`.
+- Native entry: a temporary harness (`scripts/chat-home-qa-entry.tsx`, since deleted), built in `C:/Users/Owner/Documents/SureWordQA/chat-home-20261012`. It renders the actual header, welcome, composer, tab bar, and avatar with synthetic questions and callback handlers. The production package keeps `expo-router/entry`.
 
 ## Comparison history
 

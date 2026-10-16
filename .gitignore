@@ -49,14 +49,20 @@ Frontend-Codebase-ContextPro.md
 .logo-work/
 .claude/worktrees/
 .env*
-/artifacts/tier-launch-20260913/
 
 # clerk configuration (can include secrets)
 /.clerk/
-/artifacts/sermons/
 
 # App Store screenshot work dir: raw captures, generated art, fixtures (scripts/app-store-screenshots.py)
 .app-store-work/
 
-# Local prompt-agent proofs and temporary QA session handles
-/artifacts/prompt-agent-qa/
+# Local proof output: screenshots, dumps, logs, sermon pipeline state
+# (scripts/sermon/ingest.mjs keeps artifacts/sermons/ as its record of finished studies)
+/artifacts/
+
+# Agent scratch: design-review captures, alternate Next builds, Codex local config
+/.impeccable/
+/.next-*/
+/.codex/
+/.codex-remote-attachments/
+*.log
