@@ -1876,7 +1876,10 @@ sent the phone to a second host, `*.private.blob.vercel-storage.com`. Each
 picture was also a 2.5 MB 1536x1024 PNG, so the list alone was a ~25 MB
 download. New illustrations are generated as JPEG 82 (`output_format: "jpeg"`
 in `scripts/sermon/lib.mjs`), and the existing ones were re-encoded the same
-way: about 250 KB each, roughly a tenth of the PNG size.
+way: about 250 KB each, roughly a tenth of the PNG size. Shipped in `ca08bd6`
+with the study rows' pathnames switched to `.jpg` (the PNGs stay in Blob). Austin
+confirmed on his Galaxy S26 Ultra the same day that the artwork shows on the
+list and in every study, with no app update needed, since the change is server-side.
 
 ### The dock
 
