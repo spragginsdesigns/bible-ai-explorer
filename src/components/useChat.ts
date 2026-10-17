@@ -61,6 +61,12 @@ export interface RetrievedVerse {
 	text?: string;
 	/** Translation that produced this text; absent on legacy/history rows. */
 	translation?: "KJV" | "NKJV" | "BSB";
+	/**
+	 * Rows with no real score: "passage" for getPassage lookups, "exact" for
+	 * word-match tools (findVerses, searchOriginalLanguage). Absent for scored
+	 * search hits.
+	 */
+	source?: "passage" | "exact";
 }
 
 export interface TavilyResult {
@@ -305,11 +311,18 @@ export function toViewMessage(
 			part.type === "tool-findVerses" ||
 			part.type === "tool-searchOriginalLanguage"
 		) {
-			const verses = parseVerses(output.verses);
+			// The word-match tools tag every row similarity 1, which is not a
+			// score; only searchScripture's cosine similarity feeds the badge.
+			const exact = part.type !== "tool-searchScripture";
+			const verses = parseVerses(output.verses).map((verse) =>
+				exact ? { ...verse, source: "exact" as const } : verse
+			);
 			retrievedVerses.push(...verses);
-			similarities.push(...verses.map((verse) => verse.similarity));
+			if (!exact) similarities.push(...verses.map((verse) => verse.similarity));
 		} else if (part.type === "tool-getPassage") {
-			retrievedVerses.push(...parseVerses(output.verses));
+			retrievedVerses.push(
+				...parseVerses(output.verses).map((verse) => ({ ...verse, source: "passage" as const }))
+			);
 		} else if (part.type === "tool-webSearch") {
 			tavilyResults.push(...parseTavilyResults(output.results));
 		} else if (part.type === "tool-addToNote") {

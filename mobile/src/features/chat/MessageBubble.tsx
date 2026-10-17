@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	AccessibilityInfo,
 	ActivityIndicator,
@@ -35,7 +35,8 @@ import { ReceiptLine } from "./ReceiptLine";
 import { RetrievedVersesCard } from "./RetrievedVersesCard";
 import { WorkActivity } from "./WorkActivity";
 import { TypingDots } from "./TypingDots";
-import { openReferenceInReader, segmentVerseReferences } from "./verseLinks";
+import { openReferenceInReader, resolveVerseReference, segmentVerseReferences } from "./verseLinks";
+import { findPassageForReference, groupRetrievedVerses } from "@/lib/versePassages";
 import { WebResultsCard } from "./WebResultsCard";
 import { FileAttachmentCards } from "./FileAttachmentCards";
 
@@ -115,6 +116,34 @@ export const MessageBubble = React.memo(function MessageBubble({
 					streaming: Boolean(message.isStreaming),
 				}),
 		[message.role, message.content, message.isStreaming],
+	);
+
+	// The answer's Scripture as passages, ordered by where the answer cites
+	// them. A reference tapped in the answer opens the sheet on its passage
+	// when this turn retrieved it, and falls through to the reader otherwise.
+	const groupedVerses = useMemo(() => {
+		// Nothing reads it mid-stream (the card and link claims wait for the
+		// settled answer), so skip regrouping on every streamed chunk.
+		if (message.role === "user" || message.isStreaming || !message.retrievedVerses?.length) return null;
+		const cited = segmentVerseReferences(message.content)
+			.filter((segment) => segment.type === "verse-ref")
+			.map((segment) => segment.value);
+		return groupRetrievedVerses(message.retrievedVerses, {
+			resolve: resolveVerseReference,
+			citedReferences: cited,
+		});
+	}, [message.role, message.isStreaming, message.retrievedVerses, message.content]);
+	const [versesFocus, setVersesFocus] = useState<string | null>(null);
+	const closeVerses = useCallback(() => setVersesFocus(null), []);
+	const onVerseReference = useCallback(
+		(raw: string): boolean => {
+			if (!groupedVerses) return false;
+			const passage = findPassageForReference(groupedVerses, raw, resolveVerseReference);
+			if (!passage) return false;
+			setVersesFocus(passage.key);
+			return true;
+		},
+		[groupedVerses],
 	);
 
 	/** Put `text` on the clipboard and flash the checkmark on the Copy glyph. */
@@ -261,7 +290,7 @@ export const MessageBubble = React.memo(function MessageBubble({
 			<View style={styles.assistantBody}>
 				{message.progress && <WorkActivity progress={message.progress} isStreaming={Boolean(message.isStreaming)} />}
 				{assistantMarkdown !== null ? (
-					<MarkdownBody content={assistantMarkdown} />
+					<MarkdownBody content={assistantMarkdown} onVerseReference={onVerseReference} />
 				) : message.isStreaming && !message.activity && !message.progress ? (
 					<TypingDots />
 				) : null}
@@ -393,10 +422,13 @@ export const MessageBubble = React.memo(function MessageBubble({
 					<CrossActionCard key={`${action.reference}-${index}`} action={action} />
 				))}
 
-				{settled && message.retrievedVerses && message.retrievedVerses.length > 0 && (
+				{settled && groupedVerses && (
 					<RetrievedVersesCard
-						verses={message.retrievedVerses}
-						averageSimilarity={message.averageSimilarity ?? 0}
+						grouped={groupedVerses}
+						averageSimilarity={message.averageSimilarity}
+						focusKey={versesFocus}
+						onOpen={setVersesFocus}
+						onClose={closeVerses}
 					/>
 				)}
 

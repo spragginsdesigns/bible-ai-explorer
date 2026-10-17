@@ -306,7 +306,14 @@ function useCoalescedContent(content: string): string {
 	return displayed;
 }
 
-export const MarkdownBody = React.memo(function MarkdownBody({ content }: { content: string }) {
+export const MarkdownBody = React.memo(function MarkdownBody({
+	content,
+	onVerseReference,
+}: {
+	content: string;
+	/** Claims a tapped reference (returns true); unclaimed ones open the reader. */
+	onVerseReference?: (reference: string) => boolean;
+}) {
 	const markdownStyles = useThemedStyles(createMarkdownStyles);
 	const router = useRouter();
 	const displayed = useCoalescedContent(content);
@@ -315,12 +322,13 @@ export const MarkdownBody = React.memo(function MarkdownBody({ content }: { cont
 	const onLinkPress = useCallback(
 		(url: string) => {
 			if (url.startsWith(VERSE_REF_SCHEME)) {
-				openReferenceInReader(router, url.slice(VERSE_REF_SCHEME.length));
+				const reference = url.slice(VERSE_REF_SCHEME.length);
+				if (!onVerseReference?.(reference)) openReferenceInReader(router, reference);
 				return false;
 			}
 			return true;
 		},
-		[router]
+		[router, onVerseReference]
 	);
 	return (
 		<MarkdownView

@@ -533,7 +533,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 				{doneStreaming && message.retrievedVerses && message.retrievedVerses.length > 0 && (
 					<RetrievedVersesCollapsible
 						verses={message.retrievedVerses}
-						averageSimilarity={message.averageSimilarity ?? 0}
+						averageSimilarity={message.averageSimilarity}
+						content={message.content}
 					/>
 				)}
 				{doneStreaming && message.tavilyResults && message.tavilyResults.length > 0 && (

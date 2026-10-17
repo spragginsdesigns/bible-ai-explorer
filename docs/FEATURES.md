@@ -168,6 +168,47 @@ conversation, and memories already drawn from deleted turns stay. A late
 answer persisted after Stop can still race a Try again: caught by the
 `stale_thread` check if it lands first, a duplicate if it lands after.
 
+## Scripture under an answer (passages, not verse rows)
+
+Shipped 2026-10-16 (Android 1.90.0, web; Apple in the same cycle). Every verse
+an answer's tools fetched (`getPassage`, `searchScripture`, `findVerses`,
+`searchOriginalLanguage`) used to render as its own row with a score and four
+action chips. A `getPassage` of 2 Peter 3:5-13 became nine rows, each showing a
+meaningless "100%" (exact lookups are tagged `similarity: 1`), and in the 30
+days before the change a quarter of answers carried 20+ verses (the largest,
+85), so one answer could scroll for screens.
+
+`src/lib/chat/versePassages.ts` (copied byte for byte to
+`mobile/src/lib/versePassages.ts`; `tests/verse-passages.test.mjs` fails on
+drift) now groups them:
+
+- The chat view models tag `getPassage` verses `source: "passage"` and the
+  word-match tools (`findVerses`, `searchOriginalLanguage`, whose rows all say
+  `similarity: 1`) `source: "exact"`. Only `searchScripture`'s cosine scores
+  feed the match badge's average.
+- Adjacent passage rows (same book, chapter and translation, verse + 1) merge
+  into one passage, "Psalms 56:1-4", even across two lookups; a repeated
+  lookup adds nothing.
+- Passages are ordered by where the answer first cites them (the same verse
+  reference parser that makes links in the text; a cited range such as
+  "2 Peter 3:5-13" matches a passage holding any verse of it); uncited ones
+  follow in retrieval order.
+- Search hits never merge and keep their retrieval order, in a "Found by
+  search" section. Scored hits show their percentage and the section shows the
+  match badge; exact-word hits show neither. A verse already shown as a
+  passage is dropped from the hits. Passages get no score and no badge.
+
+The inline card is a summary line ("6 passages · 3 search results") plus up to
+four reference chips and "+N more". The chips and the line open a sheet
+(Android `BottomSheet`, web dialog portaled to `body`, Apple `.sheet`) titled
+"Scripture in this answer", focused and highlighted on the chosen passage, with
+Copy, Share, Save to note and Read in context per passage (multi-verse text is
+copied and saved as "19 For the earnest... 20 For the creature...").
+
+On Android, tapping a verse reference inside the answer opens that sheet on its
+passage when the turn retrieved it, and the reader otherwise. Web keeps its
+existing inline verse popover for references in the text.
+
 ## Tap-a-verse
 
 *Shipped 2026-08-16 · Android 1.13.0 + web (`23df5d9`) · macOS 1.1.0 (2026-08-17)*

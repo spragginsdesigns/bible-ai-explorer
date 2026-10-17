@@ -173,9 +173,16 @@ describe("toViewMessage", () => {
 				}],
 			} as never;
 			const view = toViewMessage(message, { isStreaming: false });
+			// Only exact lookups are tagged, so the card can drop their fake score.
+			const source =
+				type === "tool-getPassage"
+					? { source: "passage" }
+					: type === "tool-searchScripture"
+						? {}
+						: { source: "exact" };
 			expect(view.retrievedVerses).toEqual([
-				{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" },
-				{ reference: "John 3:17", similarity: 0.8 },
+				{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV", ...source },
+				{ reference: "John 3:17", similarity: 0.8, ...source },
 			]);
 		}
 	});
@@ -219,10 +226,11 @@ describe("toViewMessage", () => {
 		const view = toViewMessage(message, { isStreaming: false });
 		expect(view.retrievedVerses).toEqual([
 			{ reference: "John 3:16", similarity: 0.9 },
-			{ reference: "Psalm 23:1", similarity: 0.7, text: "The LORD is my shepherd" },
-			{ reference: "Psalm 23:2", similarity: 0.5 },
+			{ reference: "Psalm 23:1", similarity: 0.7, text: "The LORD is my shepherd", source: "exact" },
+			{ reference: "Psalm 23:2", similarity: 0.5, source: "exact" },
 		]);
-		expect(view.averageSimilarity).toBeCloseTo(0.7);
+		// Word-match rows carry no real score, so only the cosine hit is averaged.
+		expect(view.averageSimilarity).toBeCloseTo(0.9);
 	});
 
 	it("labels a running findVerses call as an exact-word Bible search", () => {
@@ -266,10 +274,10 @@ describe("toViewMessage", () => {
 		const view = toViewMessage(message, { isStreaming: false });
 		expect(view.retrievedVerses).toEqual([
 			{ reference: "John 3:16", similarity: 0.9 },
-			{ reference: "Genesis 1:1", similarity: 0.7, text: "In the beginning God created" },
-			{ reference: "John 1:1", similarity: 0.5 },
+			{ reference: "Genesis 1:1", similarity: 0.7, text: "In the beginning God created", source: "exact" },
+			{ reference: "John 1:1", similarity: 0.5, source: "exact" },
 		]);
-		expect(view.averageSimilarity).toBeCloseTo(0.7);
+		expect(view.averageSimilarity).toBeCloseTo(0.9);
 	});
 
 	it("labels a running searchOriginalLanguage call as a Hebrew and Greek search", () => {
@@ -549,7 +557,7 @@ describe("dbMessageToUIMessage", () => {
 			},
 		});
 		expect(toViewMessage(ui, { isStreaming: false }).retrievedVerses).toEqual([
-			{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV" },
+			{ reference: "John 3:16", similarity: 0.9, text: "For God so loved…", translation: "NKJV", source: "passage" },
 		]);
 	});
 

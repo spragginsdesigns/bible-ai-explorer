@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.90.0 (versionCode 104) - 2026-10-16 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Scripture under an answer is now a short row of passages instead of a long list of verses. Tap a passage, or a verse reference in the answer, to read it in a sheet with Copy, Share, Save to note and Read in context.
+- Passages show in the order the answer cites them, and search results keep their own section.
+
+**Dev notes:** getPassage verses are tagged source "passage" in the chat view model and grouped by mobile/src/lib/versePassages.ts (byte-identical to src/lib/chat/versePassages.ts, tests/verse-passages.test.mjs). getPassage and the word-match tools (findVerses, searchOriginalLanguage, tagged source "exact") no longer show a fake 100% score, and only searchScripture scores feed the match badge. The sheet clears cached scroll offsets on close so every reopen scrolls to the chosen passage.
+
 ## 1.89.1 (versionCode 103) - 2026-10-13 - internal and closed testing
 
 **What's new (Play):**
