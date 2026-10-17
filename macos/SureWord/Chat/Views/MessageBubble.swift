@@ -279,7 +279,7 @@ struct MessageBubble: View {
 
             if !message.retrievedVerses.isEmpty {
                 RetrievedVersesCard(
-                    verses: message.retrievedVerses,
+                    grouped: message.groupedVerses,
                     strength: message.matchStrength,
                     onCopy: onVerseCopy,
                     onSaveToNote: onVerseSaveToNote,

@@ -1,112 +1,91 @@
 import SwiftUI
 
-/// Retrieved-verses card with its match-strength badge.
+/// The answer's Scripture, summarised as one chip per passage; the full text
+/// and the per-passage actions live in a sheet, so a long answer no longer
+/// grows by a row per verse (see `Shared/Chat/VersePassages.swift`).
 /// Port of `mobile/src/features/chat/RetrievedVersesCard.tsx`.
 struct RetrievedVersesCard: View {
-    static let initiallyExpanded = false
-
     @Environment(\.theme) private var theme
 
-    let verses: [RetrievedVerse]
+    let grouped: GroupedVerses
     let strength: MatchStrength?
     var onCopy: (RetrievedVerse) -> Void
     var onSaveToNote: (RetrievedVerse) -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
-    @State private var isExpanded = RetrievedVersesCard.initiallyExpanded
-
-    private var badgeColor: Color {
-        switch strength {
-        case .strong: theme.accent
-        case .moderate: theme.accentDim
-        case .broad, nil: theme.textFaint
-        }
-    }
+    @State private var focus: VersesSheetFocus?
 
     var body: some View {
+        let chips = grouped.inlineChips
         GlassCard {
-            VStack(alignment: .leading, spacing: Spacing.md) {
-                HStack {
-                    Label("Retrieved verses", systemImage: "book.closed")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(theme.textMuted)
-                    Spacer()
-                    if let strength {
-                        Text(strength.label)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(badgeColor)
-                            .padding(.horizontal, Spacing.sm)
-                            .padding(.vertical, 3)
-                            .background(badgeColor.opacity(0.12), in: .capsule)
-                    }
-                    Button {
-                        withAnimation(.snappy) { isExpanded.toggle() }
-                    } label: {
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                Button {
+                    focus = VersesSheetFocus(key: "")
+                } label: {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "book.closed")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(theme.textMuted)
+                        Text(grouped.summary)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.textSecondary)
+                            .lineLimit(1)
+                        Spacer()
+                        Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(theme.textFaint)
                     }
-                    .buttonStyle(SubtleButtonStyle())
+                    .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Scripture in this answer, \(grouped.summary)")
 
-                if isExpanded {
-                    ForEach(verses) { verse in
-                        VerseRow(
-                            verse: verse,
-                            onCopy: { onCopy(verse) },
-                            onSaveToNote: { onSaveToNote(verse) },
-                            onReadInBible: { onReadInBible(verse) }
-                        )
+                ChipFlowLayout {
+                    ForEach(chips.shown) { passage in
+                        PassageReferenceChip(label: passage.reference) {
+                            focus = VersesSheetFocus(key: passage.key)
+                        }
+                    }
+                    if chips.hidden > 0 {
+                        PassageReferenceChip(label: "+\(chips.hidden) more", isMore: true) {
+                            focus = VersesSheetFocus(key: "")
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-private struct VerseRow: View {
-    @Environment(\.theme) private var theme
-
-    let verse: RetrievedVerse
-    var onCopy: () -> Void
-    var onSaveToNote: () -> Void
-    var onReadInBible: () -> Void
-
-    @State private var isHovering = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            HStack(spacing: Spacing.sm) {
-                    Text(verse.reference)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(theme.accent)
-                    if let translation = verse.translation {
-                        Text(translation.rawValue)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(theme.textFaint)
-                    }
-                Spacer()
-                // Actions appear on hover — the Mac equivalent of Android's
-                // long-press sheet.
-                if isHovering {
-                    Button("Copy", action: onCopy)
-                    Button("Save to note", action: onSaveToNote)
-                    Button("Read in Bible", action: onReadInBible)
+        .sheet(item: $focus) { focus in
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Scripture in this answer")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(theme.text)
+                    Spacer()
+                    Button("Done") { self.focus = nil }
+                        .keyboardShortcut(.cancelAction)
                 }
+                .padding(Spacing.md)
+                Divider().overlay(theme.border)
+                VersesSheetContent(
+                    grouped: grouped,
+                    strength: grouped.searchHits.isEmpty ? nil : strength,
+                    focusKey: focus.key,
+                    onCopy: { onCopy($0.asRetrievedVerse) },
+                    // Both hops leave the sheet first, so the toast and the
+                    // reader are not hidden behind it.
+                    onSaveToNote: { passage in
+                        self.focus = nil
+                        onSaveToNote(passage.asRetrievedVerse)
+                    },
+                    onReadInBible: { passage in
+                        self.focus = nil
+                        onReadInBible(passage.readTarget)
+                    }
+                )
             }
-            .font(.system(size: 11))
-            .buttonStyle(SubtleButtonStyle())
-
-            if let text = verse.text {
-                Text(text)
-                    .font(.custom(FontFamily.verse, size: 16))
-                    .foregroundStyle(theme.textSecondary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            .frame(width: 520, height: 640)
+            .background(theme.bgElevated)
         }
-        .padding(.vertical, Spacing.xs)
-        .onHover { isHovering = $0 }
     }
 }
 

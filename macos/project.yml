@@ -266,6 +266,8 @@ targets:
     platform: iOS
     sources:
       - path: SureWord-iOSTests
+      # Pure Shared/ logic, so the macOS suite runs on iOS unchanged.
+      - path: SureWordTests/VersePassagesTests.swift
     dependencies:
       - target: SureWord-iOS
     settings:

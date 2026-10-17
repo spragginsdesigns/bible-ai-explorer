@@ -8,6 +8,14 @@ struct RetrievedVerse: Sendable, Equatable, Identifiable {
     var text: String?
     /// Translation that produced this text; absent on legacy/history rows.
     var translation: TranslationID? = nil
+    /// Rows with no real score: `.passage` for getPassage lookups, `.exact` for
+    /// the word-match tools (findVerses, searchOriginalLanguage). Nil for
+    /// searchScripture's scored hits.
+    var source: Source? = nil
+
+    enum Source: Sendable, Equatable {
+        case passage, exact
+    }
 
     var id: String { "\(reference)-\(similarity)" }
 }
@@ -304,11 +312,23 @@ extension ChatViewMessage {
             // original-language tool adds fields we ignore here), so all three
             // feed the one "Retrieved Verses" card.
             case "tool-searchScripture", "tool-findVerses", "tool-searchOriginalLanguage":
+                // Only searchScripture's cosine similarity is a real score; the
+                // word-match tools report a flat value, so they stay out of
+                // the badge's average.
+                let exact = tool.type != "tool-searchScripture"
                 let verses = Self.parseVerses(output["verses"])
-                retrievedVerses.append(contentsOf: verses)
-                similarities.append(contentsOf: verses.map(\.similarity))
+                retrievedVerses.append(contentsOf: verses.map { verse in
+                    var tagged = verse
+                    if exact { tagged.source = .exact }
+                    return tagged
+                })
+                if !exact { similarities.append(contentsOf: verses.map(\.similarity)) }
             case "tool-getPassage":
-                retrievedVerses.append(contentsOf: Self.parseVerses(output["verses"]))
+                retrievedVerses.append(contentsOf: Self.parseVerses(output["verses"]).map { verse in
+                    var tagged = verse
+                    tagged.source = .passage
+                    return tagged
+                })
             case "tool-webSearch":
                 tavilyResults.append(contentsOf: Self.parseTavilyResults(output["results"]))
             case "tool-addToNote":

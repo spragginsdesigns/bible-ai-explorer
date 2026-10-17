@@ -366,7 +366,7 @@ struct ChatMessageBubble: View {
             // cross cards, in Android's order (`MessageBubble.tsx`).
             if !message.isStreaming, !message.retrievedVerses.isEmpty {
                 RetrievedVersesCard(
-                    verses: message.retrievedVerses,
+                    grouped: message.groupedVerses,
                     strength: message.matchStrength,
                     onCopy: onVerseCopy,
                     onSaveToNote: onVerseSaveToNote,
