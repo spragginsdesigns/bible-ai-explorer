@@ -31,8 +31,8 @@ export const runtime = "nodejs";
 
 const ID_PATTERN = /^[a-z0-9]{20,40}$/i;
 
-/** A day's row never changes (a replaced day is a new row), so the client may keep it. */
-const PRIVATE_CACHE = "private, max-age=86400";
+/** The card carries today's date, so a client keeps it an hour, not a day. */
+const PRIVATE_CACHE = "private, max-age=3600";
 
 function notFound(): Response {
 	return NextResponse.json({ error: "Not found" }, { status: 404, headers: { "cache-control": "no-store" } });
@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 		const day = await prisma.verseOfDay.findFirst({
 			where: { id, userId },
-			select: { book: true, chapter: true, verse: true, text: true, question: true, sentAt: true },
+			select: { book: true, chapter: true, verse: true, text: true, question: true },
 		});
 		if (!day) return notFound();
 
@@ -63,7 +63,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 				door: verseDoor(`${day.book} ${day.chapter}:${day.verse}`),
 				translation: "KJV",
 				text: day.text,
-				dateLabel: cardDateLabel(day.sentAt, timeZone),
+				// Today in the reader's zone, as the screen shows it: a day chosen
+				// last night is still "today's word" this morning, and a card dated
+				// yesterday read as stale.
+				dateLabel: cardDateLabel(new Date(), timeZone),
 				question,
 			},
 			{
