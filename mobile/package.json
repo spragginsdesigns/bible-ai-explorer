@@ -1,6 +1,6 @@
 {
   "name": "sureword-mobile",
-  "version": "1.89.1",
+  "version": "1.91.0",
   "main": "expo-router/entry",
   "scripts": {
     "postinstall": "patch-package --error-on-fail",
@@ -48,6 +48,7 @@
     "expo-router": "~57.0.26",
     "expo-secure-store": "~57.0.4",
     "expo-share-intent": "~8.0.1",
+    "expo-sharing": "~57.0.23",
     "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",

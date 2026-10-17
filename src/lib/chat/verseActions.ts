@@ -47,18 +47,6 @@ export async function copyVerse(
 	await navigator.clipboard.writeText(formatVerseForSharing(verse));
 }
 
-/** System share sheet where available, clipboard copy otherwise. */
-export async function shareVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" | "BSB" }
-): Promise<void> {
-	const text = formatVerseForSharing(verse);
-	if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-		await navigator.share({ text });
-		return;
-	}
-	await navigator.clipboard.writeText(text);
-}
-
 /**
  * Deep link into the Bible reader for a "John 3:16"-style reference, e.g.
  * "/bible/chapter?book=43&chapter=3&verse=16". A known source translation is

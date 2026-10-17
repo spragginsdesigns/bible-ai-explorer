@@ -5,6 +5,7 @@ import {
 	MAX_CARD_QUESTION_LENGTH,
 	cardDateLabel,
 	collapseWhitespace,
+	verseDoor,
 	parseShareCardFormat,
 	parseShareCardSize,
 	parseShareCardStyle,
@@ -59,6 +60,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 			{
 				kind: "cross",
 				reference: `${day.book} ${day.chapter}:${day.verse}`,
+				door: verseDoor(`${day.book} ${day.chapter}:${day.verse}`),
 				translation: "KJV",
 				text: day.text,
 				dateLabel: cardDateLabel(day.sentAt, timeZone),

@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.91.0 (versionCode 105) - 2026-10-17 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Share beautiful cards. Share a verse, your Pick Up Your Cross day or an answer as an image in three styles, Dawn, Parchment and Sanctuary, sized for stories or posts.
+- Verse cards can carry a word of encouragement written for whoever reads it.
+- Every card links to a page where friends can read the verse and ask SureWord about it.
+- Pick Up Your Cross now has a Share button.
+
+**Dev notes:** One server renderer draws every card (src/lib/share-cards, routes /api/cards/verse, /api/cards/cross/{id}, /api/shared/{id}/image). Sheet in mobile/src/features/shareCards; the JPEG is shared with expo-sharing (new native dependency, prebuild required). Encouragement comes from POST /api/cards/encouragement (cached per passage, AI consent "tap"). Text shares end with the sureword.app/v/<slug> door.
+
 ## 1.90.0 (versionCode 104) - 2026-10-16 - internal and closed testing
 
 **What's new (Play):**

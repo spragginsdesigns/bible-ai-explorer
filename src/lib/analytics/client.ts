@@ -58,6 +58,24 @@ export function trackGuestLimit(reason: string): void {
 	}
 }
 
+/**
+ * Something left the Share dialog (docs/FEATURES.md, "Share cards"). The kind
+ * of thing, the card's look and how it went out; never the reference, the
+ * verse or the answer.
+ */
+export function trackShareCard(properties: {
+	kind: "verse" | "cross" | "answer";
+	method: "image" | "download" | "text" | "link";
+	style?: string;
+	format?: string;
+}): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.shareCardShared, { ...properties, platform: "web", source: "client" });
+	} catch {
+		// A dropped event is never worth a failed share.
+	}
+}
+
 /** Which build a download link points at. Not the URL: the release moves. */
 export type NativeDownloadPlatform = "android" | "macos";
 

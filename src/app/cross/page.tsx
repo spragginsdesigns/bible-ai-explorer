@@ -1,8 +1,8 @@
 "use client";
-import { CONSENT_DECLINED_NOTICE, consentFetch } from "@/lib/ai-consent-gate";
+import { CONSENT_DECLINED_NOTICE, aiConsentGate, consentFetch } from "@/lib/ai-consent-gate";
 
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
@@ -10,6 +10,10 @@ import DirectionControls, { type CrossDirection } from "@/components/cross/Direc
 import ListenCard from "@/components/cross/ListenCard";
 import NotificationAsk from "@/components/cross/NotificationAsk";
 import TimelineStop from "@/components/cross/TimelineStop";
+import ShareCardDialog from "@/components/share/ShareCardDialog";
+import { formatVerseForSharing } from "@/lib/chat/verseActions";
+import { Share2 } from "lucide-react";
+import type { ShareCardTarget } from "@/lib/share-cards/targets";
 import { isTodaysPlanReading } from "@/components/plan/planView";
 import { useReadingPlan } from "@/components/plan/useReadingPlan";
 
@@ -51,6 +55,7 @@ function studyHref(step: StudyStep): string | null {
 export default function DailyCrossPage() {
 	const router = useRouter();
 	const [entry, setEntry] = useState<DailyCrossEntry | null>(null);
+	const [shareOpen, setShareOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [replacing, setReplacing] = useState(false);
@@ -125,9 +130,15 @@ export default function DailyCrossPage() {
 		[focus, replacing, request]
 	);
 
+	// Wait for the consent gate to hold this account before the first load.
+	// The page's effect runs before AIConsentPresenter (a sibling up the tree)
+	// configures the gate, and a gate with no account refuses every AI request,
+	// so a direct visit showed "AI is turned off" to people who had agreed. The
+	// same trap as the welcome questions (2289c16).
+	const gateReady = useSyncExternalStore(aiConsentGate.subscribe, aiConsentGate.isCurrentAccount, () => false);
 	useEffect(() => {
-		load();
-	}, [load]);
+		if (gateReady) load();
+	}, [gateReady, load]);
 
 	useEffect(() => {
 		const refresh = () => request(undefined, { clear: false });
@@ -160,6 +171,19 @@ export default function DailyCrossPage() {
 		day: "numeric",
 	});
 
+	// Share today's word: the verse and its "Carry this" question as a card.
+	// "Why this verse today" stays in the app; it is built from the reader's
+	// own week, and a card is handed to other people.
+	// Stable per day, so the open dialog is not reset by unrelated renders.
+	const shareTarget = useMemo<ShareCardTarget | null>(
+		() => (entry ? { kind: "cross", id: entry.id, reference: entry.reference } : null),
+		[entry]
+	);
+	const shareText = entry
+		? formatVerseForSharing({ reference: entry.reference, text: entry.text, translation: "KJV" }) +
+			(entry.question ? `\n\nCarry this: ${entry.question}` : "")
+		: "";
+
 	return (
 		<div className="min-h-[100dvh] gradient-mesh">
 			<div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-28 lg:pb-16">
@@ -174,7 +198,19 @@ export default function DailyCrossPage() {
 					<h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100">
 						Pick Up Your Cross
 					</h1>
-					<span className="w-11" aria-hidden />
+					{entry ? (
+						<button
+							type="button"
+							onClick={() => setShareOpen(true)}
+							aria-label="Share today's word"
+							title="Share"
+							className="flex h-11 w-11 items-center justify-center rounded-lg text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
+						>
+							<Share2 className="h-5 w-5" />
+						</button>
+					) : (
+						<span className="w-11" aria-hidden />
+					)}
 				</div>
 
 				<p className="mb-5 text-center text-metadata text-neutral-400 dark:text-neutral-500">{today}</p>
@@ -228,6 +264,14 @@ export default function DailyCrossPage() {
 								<p className="text-metadata italic text-neutral-500 dark:text-neutral-400">
 									{entry.reason}
 								</p>
+								<button
+									type="button"
+									onClick={() => setShareOpen(true)}
+									className="inline-flex min-h-9 items-center gap-1.5 self-start rounded-full border border-amber-500/30 bg-amber-500/10 px-3 text-sm font-bold text-amber-700 hover:bg-amber-500/20 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
+								>
+									<Share2 className="h-4 w-4" />
+									Share
+								</button>
 							</div>
 						</TimelineStop>
 
@@ -375,6 +419,13 @@ export default function DailyCrossPage() {
 					</div>
 				) : null}
 			</div>
+			{shareOpen && shareTarget ? (
+				<ShareCardDialog
+					target={shareTarget}
+					shareText={shareText}
+					onClose={() => setShareOpen(false)}
+				/>
+			) : null}
 		</div>
 	);
 }

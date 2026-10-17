@@ -49,6 +49,8 @@ import VerseNotesSection from "./VerseNotesSection";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
 import AddToNoteDialog from "../AddToNoteDialog";
+import ShareCardDialog from "../share/ShareCardDialog";
+import type { ShareCardTarget } from "@/lib/share-cards/targets";
 import { useChapterAudio } from "./useChapterAudio";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useChapterNotes } from "./useChapterNotes";
@@ -200,6 +202,7 @@ const ChapterReader: React.FC = () => {
   const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
   // The native colour picker covers the page while it is open.
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ target: ShareCardTarget; text: string } | null>(null);
   const [notePickerTarget, setNotePickerTarget] = useState<{
     markdown: string;
     title: string;
@@ -298,7 +301,7 @@ const ChapterReader: React.FC = () => {
     ready: !loading && !error && loadedKey === chapterKey && !!book,
     // The peek leaves most of the chapter readable; only the expanded study
     // view (or the colour/note picker) covers the text, as on Android.
-    obscured: (selection !== null && sheetTier === "expanded") || pickerOpen || notePickerTarget !== null,
+    obscured: (selection !== null && sheetTier === "expanded") || pickerOpen || notePickerTarget !== null || shareTarget !== null,
   });
 
   // The reader's chips and Settings share one account preference.
@@ -574,16 +577,14 @@ const ChapterReader: React.FC = () => {
     }
   }, [selectionRef, selectionPlain, textLabel, flagCopied]);
 
+  // Share opens the card dialog; the LC Greek has no card, so it shares as text there.
   const onShareSelection = useCallback(async () => {
     if (!selectionRef) return;
-    if (typeof navigator.share === "function") {
-      navigator
-        .share({ text: selectionShareText(selectionRef, selectionPlain, textLabel) })
-        .catch(() => {});
-      return;
-    }
-    await onCopySelection();
-  }, [selectionRef, selectionPlain, textLabel, onCopySelection]);
+    setShareTarget({
+      target: { kind: "verse", reference: selectionRef, translation: textLabel },
+      text: selectionShareText(selectionRef, selectionPlain, textLabel),
+    });
+  }, [selectionRef, selectionPlain, textLabel]);
 
   const onSaveSelection = useCallback(async () => {
     if (!selectionRef || saveBusy) return;
@@ -1214,6 +1215,13 @@ const ChapterReader: React.FC = () => {
           compose={false}
           onSaved={() => void chapterNotes.refresh()}
           onClose={() => setNotePickerTarget(null)}
+        />
+      )}
+      {shareTarget && (
+        <ShareCardDialog
+          target={shareTarget.target}
+          shareText={shareTarget.text}
+          onClose={() => setShareTarget(null)}
         />
       )}
     </div>

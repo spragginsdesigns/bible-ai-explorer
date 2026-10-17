@@ -26,6 +26,9 @@ import {
 	wrapText,
 } from "../src/lib/share-cards/layout.ts";
 import { GLYPH_WIDTHS } from "../src/lib/share-cards/glyph-widths.ts";
+import { verseSlug as serverSlug, verseDoor } from "../src/lib/share-cards/layout.ts";
+import { verseSlug as clientSlug, shareCardPath, SHARE_CARD_DESIGN_VERSION as CLIENT_VERSION } from "../src/lib/share-cards/targets.ts";
+import { SHARE_CARD_DESIGN_VERSION as SERVER_VERSION } from "../src/lib/share-cards/layout.ts";
 
 /** Built from its code point: some tools on this machine rewrite the literal. */
 const NBSP = String.fromCharCode(0xa0);
@@ -168,4 +171,40 @@ test("the cross card is owner-scoped and never draws why-today", () => {
 	assert.match(route, /err instanceof CardTooLongError/);
 	assert.equal(route.includes("whyToday: true"), false);
 	assert.equal(route.includes("application: true"), false);
+});
+
+test("the web and Android card modules are one file", () => {
+	assert.equal(
+		read("src/lib/share-cards/targets.ts"),
+		read("mobile/src/features/shareCards/shareCards.ts"),
+		"copy mobile/src/features/shareCards/shareCards.ts over src/lib/share-cards/targets.ts (or the reverse)"
+	);
+});
+
+test("clients and server agree on the design version, the door and the canonical URL", () => {
+	assert.equal(CLIENT_VERSION, SERVER_VERSION);
+	for (const reference of ["John 3:16", "1 John 1:9", "Song of Solomon 2:1-3", "Psalms 23:1-4"]) {
+		assert.equal(clientSlug(reference), serverSlug(reference), reference);
+	}
+	assert.equal(verseDoor("Psalms 23:1-4"), "sureword.app/v/psalms-23-1-4");
+	// The client builds exactly the query the verse route treats as canonical.
+	const path = shareCardPath(
+		{ kind: "verse", reference: "John 3:16", translation: "KJV" },
+		{ style: "dawn", format: "story", size: "preview", note: true }
+	);
+	assert.equal(path, `/api/cards/verse?ref=John+3%3A16&translation=KJV&style=dawn&format=story&note=1&size=preview&v=${SERVER_VERSION}`);
+	const route = read("src/app/api/cards/verse/route.tsx");
+	assert.ok(route.includes("new URLSearchParams({ ref: parsed.label, translation, style, format })"));
+	assert.ok(route.indexOf('canonical.set("note", "1")') < route.indexOf('canonical.set("size", "preview")'));
+});
+
+test("the public card never writes an encouragement; only the signed-in route does", () => {
+	const route = read("src/app/api/cards/verse/route.tsx");
+	assert.ok(route.includes("readEncouragement("));
+	assert.equal(route.includes("ensureEncouragement"), false, "a public cache miss must never spend a model call");
+	const writer = read("src/app/api/cards/encouragement/route.ts");
+	assert.ok(writer.includes("await getAuthUser()"));
+	assert.ok(writer.includes("generationLimiter.check(userId)"));
+	const middleware = read("src/middleware.ts");
+	assert.equal(middleware.includes("/api/cards/encouragement"), false);
 });

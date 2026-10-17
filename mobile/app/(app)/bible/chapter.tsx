@@ -6,7 +6,6 @@ import {
 	Image,
 	Modal,
 	Pressable,
-	Share,
 	StyleSheet,
 	Text as ScriptureText,
 	View,
@@ -37,6 +36,8 @@ import {
 	readerTranslation,
 } from "@/features/chat/verseActions";
 import { AddToNoteSheet } from "@/features/chat/AddToNoteSheet";
+import { ShareCardSheet } from "@/features/shareCards/ShareCardSheet";
+import type { ShareCardTarget } from "@/features/shareCards/shareCards";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { apiJson } from "@/lib/api";
@@ -368,6 +369,7 @@ export default function BibleChapterScreen() {
 		verseCount: verses.length,
 	});
 	const [pickerVisible, setPickerVisible] = useState(false);
+	const [shareTarget, setShareTarget] = useState<{ target: ShareCardTarget; text: string } | null>(null);
 	const [notePickerTarget, setNotePickerTarget] = useState<{
 		markdown: string;
 		title: string;
@@ -707,11 +709,13 @@ export default function BibleChapterScreen() {
 		copiedTimer.current = setTimeout(() => setCopied(false), 1400);
 	}, [selection, selectionRef, selectionPlain, textLabel]);
 
+	// Share opens the card sheet; the LC Greek has no card, so it shares as text there.
 	const onShareVerse = useCallback(() => {
 		if (!selection) return;
-		Share.share({
-			message: selectionShareText(selectionRef, selectionPlain, textLabel),
-		}).catch(() => {});
+		setShareTarget({
+			target: { kind: "verse", reference: selectionRef, translation: textLabel },
+			text: selectionShareText(selectionRef, selectionPlain, textLabel),
+		});
 	}, [selection, selectionRef, selectionPlain, textLabel]);
 
 	const onSaveVerse = useCallback(() => {
@@ -1302,6 +1306,12 @@ export default function BibleChapterScreen() {
 				compose={false}
 				onSaved={() => void chapterNotes.refresh()}
 				onClose={() => setNotePickerTarget(null)}
+			/>
+
+			<ShareCardSheet
+				target={shareTarget?.target ?? null}
+				shareText={shareTarget?.text}
+				onClose={() => setShareTarget(null)}
 			/>
 
 			{/* The verse sheet lives inside the reader body (see the render above): it is not a modal, so the chapter stays tappable to grow the selection. */}

@@ -37,6 +37,9 @@ interface ModalFocusOptions {
  *
  * Returns the ref to attach to the container element.
  */
+/** Open surfaces, oldest first; the last one owns Tab and Escape. */
+const modalStack: symbol[] = [];
+
 export function useModalFocus<T extends HTMLElement>(
 	options: ModalFocusOptions
 ): RefObject<T> {
@@ -63,6 +66,17 @@ export function useModalFocus<T extends HTMLElement>(
 		if (!open) return;
 		const container = containerRef.current;
 		if (!container) return;
+		// Only the topmost surface handles Tab and Escape. Every instance
+		// listens on window, so a dialog opened over another (Share over the
+		// Scripture sheet) used to have both fight over each key: Tab could only
+		// reach the first and last controls, and Escape closed the one beneath.
+		const token = Symbol("modal");
+		modalStack.push(token);
+		const isTop = () => modalStack[modalStack.length - 1] === token;
+		// A native modal <dialog> outside this surface (the AI consent sheet a
+		// request can raise) manages its own keys.
+		const inForeignDialog = (target: EventTarget | null) =>
+			target instanceof Element && target.closest("dialog[open]") !== null && !container.contains(target);
 		const trigger =
 			document.activeElement instanceof HTMLElement
 				? document.activeElement
@@ -84,6 +98,7 @@ export function useModalFocus<T extends HTMLElement>(
 		// Check the original target, since a menu may restore focus while closing.
 		const onEscape = (event: KeyboardEvent) => {
 			if (event.key !== "Escape" || event.defaultPrevented) return;
+			if (!isTop() || inForeignDialog(event.target)) return;
 			if (
 				optionsRef.current.allowPortalFocus &&
 				(!(event.target instanceof Node) || !container.contains(event.target))
@@ -94,6 +109,7 @@ export function useModalFocus<T extends HTMLElement>(
 		};
 		const onKey = (event: KeyboardEvent) => {
 			if (event.key !== "Tab") return;
+			if (!isTop() || inForeignDialog(event.target)) return;
 			const active =
 				document.activeElement instanceof HTMLElement
 					? document.activeElement
@@ -125,6 +141,7 @@ export function useModalFocus<T extends HTMLElement>(
 		return () => {
 			window.removeEventListener("keydown", onKey, true);
 			window.removeEventListener("keydown", onEscape);
+			modalStack.splice(modalStack.indexOf(token), 1);
 			if (trigger?.isConnected) trigger.focus();
 		};
 	}, [open]);

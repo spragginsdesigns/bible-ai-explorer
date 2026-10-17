@@ -9,7 +9,9 @@ import { passagePlainText, passagesSummary, type GroupedVerses, type VersePassag
 import { fonts, radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
-import { copyVerse, parseTranslationId, readerRouteParams, saveVerseToNote, shareVerse } from "./verseActions";
+import { ShareCardSheet } from "@/features/shareCards/ShareCardSheet";
+import type { ShareCardTarget } from "@/features/shareCards/shareCards";
+import { copyVerse, formatVerseForSharing, parseTranslationId, readerRouteParams, saveVerseToNote } from "./verseActions";
 
 /** Chips shown inline before the rest collapse into "+N more". */
 const INLINE_CHIP_LIMIT = 4;
@@ -198,8 +200,13 @@ function PassageBlock({
 	const getToken = useStableGetToken();
 	const [copyStatus, setCopyStatus] = useState<ActionStatus>("idle");
 	const [saveStatus, setSaveStatus] = useState<ActionStatus>("idle");
+	const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
 	const translation = parseTranslationId(passage.translation) ?? undefined;
 	const source = { reference: passage.reference, text: passagePlainText(passage), translation };
+	// A passage with no known translation shares as text only: a card would
+	// otherwise draw the KJV under words the reader saw in another version.
+	const openShare = () =>
+		setShareTarget({ kind: "verse", reference: passage.reference, translation: translation ?? "" });
 
 	const flash = useCallback((set: (s: ActionStatus) => void, next: ActionStatus) => {
 		set(next);
@@ -258,7 +265,7 @@ function PassageBlock({
 			</Text>
 			<View style={styles.actions}>
 				<ActionChip label={copyStatus === "done" ? "Copied ✓" : "Copy"} onPress={onCopy} />
-				<ActionChip label="Share" onPress={() => shareVerse(source).catch(() => {})} />
+				<ActionChip label="Share" onPress={openShare} />
 				<ActionChip
 					label={
 						saveStatus === "busy"
@@ -275,6 +282,11 @@ function PassageBlock({
 				/>
 				<ActionChip label="Read in context" onPress={onRead} />
 			</View>
+			<ShareCardSheet
+				target={shareTarget}
+				shareText={formatVerseForSharing(source)}
+				onClose={() => setShareTarget(null)}
+			/>
 		</View>
 	);
 }

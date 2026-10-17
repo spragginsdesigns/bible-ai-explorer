@@ -85,6 +85,10 @@ const isPublicRoute = createRouteMatcher([
 	// Exactly this path: the route has no subpaths, and a wildcard would make
 	// any future route under it public by accident.
 	"/api/cards/verse",
+	// The door every verse card prints (sureword.app/v/john-3-16): the passage,
+	// its shared encouragement line and the guest box, for whoever received the
+	// card. Scripture and shared data only, nothing about the sender.
+	"/v/(.*)",
 	// Try before you sign up: a signed-out visitor's question from the landing
 	// page. The route enforces its own per-guest, per-IP and global daily
 	// ceilings in the database and runs Vercel BotID, because it spends

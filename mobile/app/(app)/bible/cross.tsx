@@ -22,6 +22,10 @@ import {
 	type DailyCrossStudyStep,
 } from "@/features/notifications/api";
 import { DirectionControls } from "@/features/cross/DirectionControls";
+import { formatVerseForSharing } from "@/features/chat/verseActions";
+import { ShareCardSheet } from "@/features/shareCards/ShareCardSheet";
+import type { ShareCardTarget } from "@/features/shareCards/shareCards";
+import { Ionicons } from "@expo/vector-icons";
 import { ListenCard } from "@/features/cross/ListenCard";
 import { isTodaysPlanReading } from "@/features/plan/planView";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
@@ -87,6 +91,7 @@ export default function DailyCrossScreen() {
 	const [confirmingReplace, setConfirmingReplace] = useState(false);
 	const [replacing, setReplacing] = useState(false);
 	const [focus, setFocus] = useState("");
+	const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
 	const requestVersion = useRef(0);
 	const loadInFlight = useRef(false);
 	const scrollRef = useRef<ScrollView>(null);
@@ -195,6 +200,20 @@ export default function DailyCrossScreen() {
 		});
 	}, [router, entry]);
 
+	/**
+	 * Share today's word: the verse and its "Carry this" question as a card.
+	 * "Why this verse today" stays in the app; it is built from the reader's
+	 * own week, and a card is handed to other people.
+	 */
+	const openShare = useCallback(() => {
+		if (entry?.id) setShareTarget({ kind: "cross", id: entry.id, reference: entry.reference });
+	}, [entry]);
+
+	const shareText = entry
+		? formatVerseForSharing({ reference: entry.reference, text: entry.text }, "KJV") +
+			(entry.question ? `\n\nCarry this: ${entry.question}` : "")
+		: "";
+
 	const today = new Date().toLocaleDateString(undefined, {
 		weekday: "long",
 		month: "long",
@@ -210,7 +229,19 @@ export default function DailyCrossScreen() {
 				<Text numberOfLines={1} style={styles.title}>
 					Pick Up Your Cross
 				</Text>
-				<View style={styles.topBarSpacer} />
+				{entry?.id ? (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Share today's word"
+						onPress={openShare}
+						hitSlop={8}
+						style={styles.topBarAction}
+					>
+						<Ionicons name="share-outline" size={22} color={colors.accent} />
+					</Pressable>
+				) : (
+					<View style={styles.topBarSpacer} />
+				)}
 			</View>
 
 			<ScrollView
@@ -249,6 +280,20 @@ export default function DailyCrossScreen() {
 								<Text style={styles.reference}>{entry.reference}</Text>
 								<Text style={styles.verseText}>{entry.text}</Text>
 								<Text style={styles.reason}>{entry.reason}</Text>
+								{entry.id ? (
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel="Share today's word as a card"
+										onPress={openShare}
+										style={({ pressed }) => [
+											styles.sharePill,
+											pressed && { backgroundColor: colors.accentPressed },
+										]}
+									>
+										<Ionicons name="share-outline" size={16} color={colors.accent} />
+										<Text style={styles.sharePillLabel}>Share</Text>
+									</Pressable>
+								) : null}
 							</GlassCard>
 						</TimelineStop>
 
@@ -386,6 +431,8 @@ export default function DailyCrossScreen() {
 					</View>
 				) : null}
 			</ScrollView>
+
+			<ShareCardSheet target={shareTarget} shareText={shareText} onClose={() => setShareTarget(null)} />
 		</Screen>
 	);
 }
@@ -411,6 +458,20 @@ const createStyles = (c: Colors) =>
 			textAlign: "center",
 		},
 		topBarSpacer: { width: 44 },
+		topBarAction: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+		sharePill: {
+			flexDirection: "row",
+			alignItems: "center",
+			alignSelf: "flex-start",
+			gap: spacing.xs,
+			minHeight: 36,
+			paddingHorizontal: spacing.md,
+			borderRadius: radius.full,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		sharePillLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		content: { paddingHorizontal: spacing.xl },
 		date: {
 			color: c.textFaint,

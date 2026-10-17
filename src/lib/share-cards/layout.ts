@@ -38,7 +38,7 @@ export const SHARE_CARD_SIZES: Record<ShareCardFormat, { width: number; height: 
  * still answer: from the CDN while their copy lives, and by redirect to this
  * version once it expires.
  */
-export const SHARE_CARD_DESIGN_VERSION = "1";
+export const SHARE_CARD_DESIGN_VERSION = "2";
 
 /** The longest selection the reader allows; the card route refuses more. */
 export const MAX_CARD_VERSES = 10;
@@ -95,6 +95,23 @@ export function quoteScripture(text: string): string {
 /** "Psalms 23:1" names the book; a verse from it is "Psalm 23:1". */
 export function cardReferenceLabel(reference: string): string {
 	return reference.replace(/^Psalms (?=\d)/, "Psalm ");
+}
+
+/**
+ * "John 3:16-17" to "john-3-16-17": the path of that passage's public page,
+ * the door every verse and cross card prints. Read back by
+ * `referenceFromSlug` in reference.ts.
+ */
+export function verseSlug(reference: string): string {
+	return reference
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+/** What a card prints for its door: short enough to type from a screenshot. */
+export function verseDoor(reference: string): string {
+	return `sureword.app/v/${verseSlug(reference)}`;
 }
 
 /** Full size is what gets shared; the preview is what the sheet shows. */
@@ -234,6 +251,10 @@ export type ShareCardContent =
 			reference: string;
 			translation: string;
 			text: string;
+			/** One line that turns the verse toward the reader (encouragement.ts). */
+			encouragement: string | null;
+			/** "sureword.app/v/john-3-16", the passage's public page. */
+			door: string;
 	  }
 	| {
 			kind: "cross";
@@ -244,6 +265,7 @@ export type ShareCardContent =
 			dateLabel: string;
 			/** The day's "Carry this" question, when the day has one. */
 			question: string | null;
+			door: string;
 	  }
 	| {
 			kind: "answer";

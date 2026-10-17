@@ -1,4 +1,3 @@
-import { Share } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import type { GetToken } from "@/lib/api";
 import type { RetrievedVerse } from "@/lib/chatView";
@@ -96,10 +95,6 @@ export function composeMessageWithAttachment(
 
 export async function copyVerse(verse: VerseActionSource, translation?: TranslationId): Promise<void> {
 	await Clipboard.setStringAsync(formatVerseForSharing(verse, translation));
-}
-
-export async function shareVerse(verse: VerseActionSource, translation?: TranslationId): Promise<void> {
-	await Share.share({ message: formatVerseForSharing(verse, translation) });
 }
 
 /**

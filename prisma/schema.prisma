@@ -831,6 +831,23 @@ model VerseWordStudy {
   @@unique([book, chapter, verse, promptVersion])
 }
 
+/// The one line of encouragement a share card can carry under a verse
+/// (docs/FEATURES.md, "Share cards"), shared across every account like
+/// VerseInsight: it is written from the KJV text alone, so one line serves
+/// every reader of that passage. Only a signed-in reader's share sheet asks
+/// for a new one; the public card route only reads. `reference` is the
+/// canonical label ("John 3:16-17"); bump `promptVersion` with the wording.
+model VerseEncouragement {
+  id            String   @id @default(cuid())
+  reference     String
+  promptVersion Int
+  text          String
+  model         String?
+  createdAt     DateTime @default(now())
+
+  @@unique([reference, promptVersion])
+}
+
 /// A day's personalized welcome-screen questions, generated once (by the
 /// morning cron or the first app open of the day) and served from here so
 /// opening the app never waits on a model call. Newest row inside the reuse

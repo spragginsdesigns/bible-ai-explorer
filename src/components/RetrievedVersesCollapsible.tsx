@@ -8,9 +8,9 @@ import type { RetrievedVerse } from "./useChat";
 import {
 	chapterHrefForReference,
 	copyVerse,
+	formatVerseForSharing,
 	resolveReference,
 	saveVerseToNote,
-	shareVerse,
 } from "@/lib/chat/verseActions";
 import {
 	groupRetrievedVerses,
@@ -21,6 +21,8 @@ import {
 } from "@/lib/chat/versePassages";
 import { parseVerseReferences, stripTranslationTag } from "@/utils/verseParser";
 import { useModalFocus } from "./useModalFocus";
+import ShareCardDialog from "./share/ShareCardDialog";
+import type { ShareCardTarget } from "@/lib/share-cards/targets";
 
 interface RetrievedVersesCollapsibleProps {
 	verses: RetrievedVerse[];
@@ -133,9 +135,12 @@ function PassageActions({ passage, onNavigate }: { passage: VersePassage; onNavi
 		}
 	}, [source, flash]);
 
+	// A passage with no known translation shares as text only: a card would
+	// otherwise draw the KJV under words the reader saw in another version.
+	const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
 	const onShare = useCallback(() => {
-		shareVerse(source).catch(() => {});
-	}, [source]);
+		setShareTarget({ kind: "verse", reference: passage.reference, translation: source.translation ?? "" });
+	}, [passage.reference, source.translation]);
 
 	const onSave = useCallback(async () => {
 		if (saveStatus === "busy") return;
@@ -182,6 +187,13 @@ function PassageActions({ passage, onNavigate }: { passage: VersePassage; onNavi
 					<ExternalLink className="h-3 w-3" />
 					View in notes
 				</Link>
+			)}
+			{shareTarget && (
+				<ShareCardDialog
+					target={shareTarget}
+					shareText={formatVerseForSharing(source)}
+					onClose={() => setShareTarget(null)}
+				/>
 			)}
 		</div>
 	);

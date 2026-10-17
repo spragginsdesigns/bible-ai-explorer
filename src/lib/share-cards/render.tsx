@@ -117,7 +117,7 @@ const PALETTES: Record<ShareCardStyle, Palette> = {
 	// printed their headings in.
 	parchment: {
 		text: "#2a1b0c",
-		muted: "rgba(42, 27, 12, 0.7)",
+		muted: "rgba(42, 27, 12, 0.8)",
 		accent: "#8a2316",
 		rule: "rgba(138, 35, 22, 0.55)",
 		questionFill: "rgba(255, 246, 222, 0.38)",
@@ -249,6 +249,8 @@ interface Measured {
 	headline: FitResult | null;
 	body: FitResult;
 	question: FitResult | null;
+	/** The encouragement line under a verse card's reference. */
+	word: FitResult | null;
 }
 
 /**
@@ -267,7 +269,7 @@ function measure(
 	// gap, the 2px rule, the rule-to-label gap, and the label line.
 	const referenceBlock = g.gap + 2 + Math.round(g.gap * 0.55) + g.referenceSize * 1.4;
 	const ornament = style === "parchment" && content.kind !== "answer" ? ornamentSize(g) * 0.75 + g.gap * 0.6 : 0;
-	let band = height - footerSpace(content, g) - bandTop - referenceBlock - ornament;
+	let band = height - footerSpace(content, g, footerRise(style, format)) - bandTop - referenceBlock - ornament;
 
 	let question: FitResult | null = null;
 	if (content.kind === "cross" && content.question) {
@@ -309,7 +311,22 @@ function measure(
 			sizes: g.proseSizes,
 			lineHeight: PROSE_LINE_HEIGHT,
 		});
-		return { headline, body, question };
+		return { headline, body, question, word: null };
+	}
+
+	// The encouragement takes what it needs first, within a cap; Scripture
+	// keeps the rest and is never the one that gives way.
+	let word: FitResult | null = null;
+	if (content.kind === "verse" && content.encouragement) {
+		word = fitText({
+			text: content.encouragement,
+			table: GLYPH_WIDTHS.verseItalic,
+			maxWidth: textWidth,
+			maxHeight: band * 0.22,
+			sizes: g.questionSizes,
+			lineHeight: QUESTION_LINE_HEIGHT,
+		});
+		band -= word.lines * word.fontSize * QUESTION_LINE_HEIGHT + g.gap;
 	}
 
 	const body = fitText({
@@ -320,7 +337,7 @@ function measure(
 		sizes: g.verseSizes,
 		lineHeight: SCRIPTURE_LINE_HEIGHT,
 	});
-	return { headline, body, question };
+	return { headline, body, question, word };
 }
 
 /**
@@ -340,8 +357,21 @@ function footnoteSize(g: Geometry): number {
 }
 
 /** The bottom space the text band must leave: the wordmark, and any notice above it. */
-function footerSpace(content: ShareCardContent, g: Geometry): number {
-	return footnoteFor(content) ? g.footer + footnoteSize(g) * 1.35 * 2 + 12 : g.footer;
+function footerSpace(content: ShareCardContent, g: Geometry, rise: number): number {
+	return rise + (footnoteFor(content) ? g.footer + footnoteSize(g) * 1.35 * 2 + 12 : g.footer);
+}
+
+/**
+ * The parchment story is a scroll whose bottom edge is rolled and dark; the
+ * wordmark and the door sit above it there, where the ink can be read.
+ */
+function footerRise(style: ShareCardStyle, format: ShareCardFormat): number {
+	return style === "parchment" && format === "story" ? 150 : 0;
+}
+
+/** How far the wordmark rises to make room for the door line beneath it. */
+function doorLift(g: Geometry): number {
+	return Math.round(g.eyebrowSize * 1.1);
 }
 
 /**
@@ -355,6 +385,24 @@ export class CardTooLongError extends Error {
 		super("This passage is too long for this card size. Try another size, or choose fewer verses.");
 		this.name = "CardTooLongError";
 	}
+}
+
+/**
+ * Scripture never gives way to the encouragement line: when the line would
+ * leave a long passage too little room, the card is measured again without
+ * it, and only a passage too long on its own is refused.
+ */
+function measureScriptureFirst(
+	content: ShareCardContent,
+	format: ShareCardFormat,
+	style: ShareCardStyle,
+	bandTop: number
+): Measured {
+	const measured = measure(content, format, style, bandTop);
+	if (content.kind === "verse" && content.encouragement && measured.body.truncated) {
+		return measure({ ...content, encouragement: null }, format, style, bandTop);
+	}
+	return measured;
 }
 
 /** Below this, the sanctuary's mark is worth less than the words' size. */
@@ -377,10 +425,10 @@ function plan(content: ShareCardContent, format: ShareCardFormat, style: ShareCa
 	// A card with an eyebrow never lets the text band start inside it.
 	const eyebrowBottom = hasEyebrow ? g.eyebrowTop[style] + eyebrowHeight(g) + g.gap : 0;
 	const bandTop = Math.max(g.textTop[style], eyebrowBottom);
-	const measured = measure(content, format, style, bandTop);
+	const measured = measureScriptureFirst(content, format, style, bandTop);
 	if (heroMark && measured.body.fontSize < COMPACT_BELOW[format]) {
 		const compactTop = g.compactTop;
-		return { bandTop: compactTop, showHeroMark: false, measured: measure(content, format, style, compactTop) };
+		return { bandTop: compactTop, showHeroMark: false, measured: measureScriptureFirst(content, format, style, compactTop) };
 	}
 	return { bandTop, showHeroMark: heroMark, measured };
 }
@@ -528,6 +576,25 @@ function CardText({
 				</div>
 			) : null}
 
+			{measured.word ? (
+				<div
+					style={{
+						display: "flex",
+						marginTop: g.gap,
+						fontFamily: "Cormorant",
+						fontStyle: "italic",
+						fontWeight: 500,
+						fontSize: measured.word.fontSize,
+						lineHeight: QUESTION_LINE_HEIGHT,
+						color: palette.text,
+						opacity: 0.92,
+						textAlign,
+					}}
+				>
+					{measured.word.text}
+				</div>
+			) : null}
+
 			{measured.question ? (
 				<div
 					style={{
@@ -646,6 +713,8 @@ async function renderPng(content: ShareCardContent, style: ShareCardStyle, forma
 	const { bandTop, showHeroMark, measured } = plan(content, format, style, eyebrow !== null);
 	if (content.kind !== "answer" && measured.body.truncated) throw new CardTooLongError();
 	const footnote = footnoteFor(content);
+	const door = content.kind === "answer" ? null : content.door;
+	const rise = footerRise(style, format);
 	// Scripture is centred like an inscription; an answer is prose, and
 	// centred prose is hard to read, so answers (and the wide unfurl) set left.
 	const align = format === "wide" || content.kind === "answer" ? "flex-start" : "center";
@@ -728,7 +797,7 @@ async function renderPng(content: ShareCardContent, style: ShareCardStyle, forma
 					top: bandTop,
 					left: g.padX,
 					width: width - g.padX * 2,
-					height: height - bandTop - footerSpace(content, g),
+					height: height - bandTop - footerSpace(content, g, rise),
 					flexDirection: "column",
 					justifyContent: "center",
 					alignItems: align,
@@ -749,7 +818,7 @@ async function renderPng(content: ShareCardContent, style: ShareCardStyle, forma
 					display: "flex",
 					position: "absolute",
 					left: g.padX,
-					bottom: Math.round(g.footer * 0.36),
+					bottom: rise + Math.round(g.footer * 0.36) + (door && format !== "wide" ? doorLift(g) : 0),
 					width: width - g.padX * 2,
 					justifyContent: format === "wide" ? "space-between" : "center",
 					alignItems: "center",
@@ -777,10 +846,31 @@ async function renderPng(content: ShareCardContent, style: ShareCardStyle, forma
 				<Wordmark mark={mark} palette={palette} g={g} />
 				{format === "wide" ? (
 					<div style={{ display: "flex", fontFamily: "Atkinson", fontSize: 22, color: palette.muted }}>
-						sureword.app
+						{door ?? "sureword.app"}
 					</div>
 				) : null}
 			</div>
+
+			{/* The door: the passage's public page, where whoever receives the
+			    card can read it in context and ask SureWord about it. */}
+			{door && format !== "wide" ? (
+				<div
+					style={{
+						display: "flex",
+						position: "absolute",
+						left: g.padX,
+						bottom: rise + Math.round(g.footer * 0.16),
+						width: width - g.padX * 2,
+						justifyContent: "center",
+						fontFamily: "Atkinson",
+						fontSize: Math.round(g.eyebrowSize * 0.92),
+						letterSpacing: 1,
+						color: palette.muted,
+					}}
+				>
+					{door}
+				</div>
+			) : null}
 		</div>
 	);
 

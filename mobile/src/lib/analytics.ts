@@ -45,6 +45,7 @@ export const ANALYTICS_EVENTS = {
 	signInCompleted: "sign_in_completed",
 	signInFailed: "sign_in_failed",
 	requestFailed: "request_failed",
+	shareCardShared: "share_card_shared",
 } as const;
 
 /**

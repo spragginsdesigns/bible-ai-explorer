@@ -1,4 +1,3 @@
-import { bookByOrder, resolveReference } from "@/lib/bible/books";
 import { canonicalPassage } from "@/lib/bible/passage-context";
 import { getChapter, type TranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
@@ -6,10 +5,13 @@ import {
 	MAX_CARD_VERSES,
 	SHARE_CARD_DESIGN_VERSION,
 	cardScriptureText,
+	verseDoor,
 	parseShareCardFormat,
 	parseShareCardSize,
 	parseShareCardStyle,
 } from "@/lib/share-cards/layout";
+import { readEncouragement } from "@/lib/share-cards/encouragement";
+import { canonicalCardReference } from "@/lib/share-cards/reference";
 import { CardTooLongError, renderShareCard } from "@/lib/share-cards/render";
 
 /**
@@ -38,41 +40,15 @@ const IMMUTABLE_CACHE = "public, max-age=86400, s-maxage=31536000, immutable";
 /** A redirect may point at an old design version, so it is kept only a day. */
 const REDIRECT_CACHE = "public, max-age=3600, s-maxage=86400";
 
-/** A verse or a range within one chapter, the same shape `canonicalPassage` reads. */
-const RANGE = /^([1-3]?\s*[a-zA-Z. ]+?)\s*(\d+)\s*:\s*(\d+)(?:\s*[-\u2013\u2014]\s*(\d+))?$/;
-
 function failure(status: number, message: string): Response {
 	return Response.json({ error: message }, { status, headers: { "cache-control": "no-store" } });
-}
-
-interface CardReference {
-	/** "jn 3 : 16" and "John 3:16" are one card: the reference as the server writes it. */
-	label: string;
-	order: number;
-	chapter: number;
-	end: number;
-}
-
-function canonicalReference(input: string): CardReference | null {
-	const ref = resolveReference(input);
-	const range = input.match(RANGE);
-	const book = ref ? bookByOrder(ref.order) : undefined;
-	if (!ref?.verse || !range || !book) return null;
-	const end = Number(range[4] ?? ref.verse);
-	if (!Number.isInteger(end) || end < ref.verse || end - ref.verse + 1 > MAX_CARD_VERSES) return null;
-	return {
-		label: `${book.name} ${ref.chapter}:${ref.verse}${end > ref.verse ? `-${end}` : ""}`,
-		order: ref.order,
-		chapter: ref.chapter,
-		end,
-	};
 }
 
 export async function GET(request: Request) {
 	const url = new URL(request.url);
 	const input = url.searchParams.get("ref")?.trim() ?? "";
 	if (!input || input.length > 60) return failure(400, "Pass ref, e.g. John 3:16.");
-	const parsed = canonicalReference(input);
+	const parsed = canonicalCardReference(input);
 	if (!parsed) {
 		return failure(400, `Use one verse, or up to ${MAX_CARD_VERSES} verses within one chapter.`);
 	}
@@ -84,7 +60,10 @@ export async function GET(request: Request) {
 	const style = parseShareCardStyle(url.searchParams.get("style"));
 	const format = parseShareCardFormat(url.searchParams.get("format"));
 	const size = parseShareCardSize(url.searchParams.get("size"));
+	// note=1 asks for the encouragement line under the verse.
+	const withNote = url.searchParams.get("note") === "1";
 	const canonical = new URLSearchParams({ ref: parsed.label, translation, style, format });
+	if (withNote) canonical.set("note", "1");
 	if (size === "preview") canonical.set("size", "preview");
 	canonical.set("v", SHARE_CARD_DESIGN_VERSION);
 	if (url.search !== `?${canonical.toString()}`) {
@@ -123,9 +102,24 @@ export async function GET(request: Request) {
 	}));
 	if (!verses.some((row) => row.text)) return failure(404, "That passage has no text in this translation.");
 
+	// This route only reads the line; a signed-in share sheet writes it first
+	// (POST /api/cards/encouragement). Refused rather than drawn without it,
+	// because the CDN would keep a card missing its line for a year.
+	const encouragement = withNote ? await readEncouragement(reference, { anyVersion: true }) : null;
+	if (withNote && !encouragement) {
+		return failure(409, "This verse has no encouragement yet. Ask for it from the Share sheet first.");
+	}
+
 	try {
 		return await renderShareCard(
-			{ kind: "verse", reference: passage.reference, translation, text: cardScriptureText(verses) },
+			{
+				kind: "verse",
+				reference: passage.reference,
+				translation,
+				text: cardScriptureText(verses),
+				encouragement,
+				door: verseDoor(passage.reference),
+			},
 			{ style, format, size, cacheControl: IMMUTABLE_CACHE }
 		);
 	} catch (error) {

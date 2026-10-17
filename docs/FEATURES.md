@@ -2602,13 +2602,20 @@ so gold type stays crisp.
 
 **Routes**
 
-- `GET /api/cards/verse?ref=John 3:16-17&translation=KJV|BSB|NKJV&style&format&size&v`
-  - public (`isPublicRoute`). The server looks the text up itself through
-  `canonicalPassage`; no caller text is ever drawn, so it cannot put words in
-  SureWord's mouth. Up to `MAX_CARD_VERSES` (10, the reader's selection limit)
-  verses in one chapter. Cached a year at the CDN (`immutable`); `v` is
-  `SHARE_CARD_DESIGN_VERSION`, bumped whenever the look changes. An NKJV
-  failure at bolls.life is a 502, never cached.
+- `GET /api/cards/verse?ref=John 3:16-17&translation=KJV|BSB|NKJV&style&format[&note=1][&size=preview]&v`
+  - public (`isPublicRoute`, exact path). The server looks the text up itself
+  through `canonicalPassage`; no caller text is ever drawn, so it cannot put
+  words in SureWord's mouth. Up to `MAX_CARD_VERSES` (10, the reader's
+  selection limit) verses in one chapter. Each card has one URL: any other
+  spelling, unknown value, stray parameter or old `v` is 308-redirected there
+  before any drawing (redirects cached a day), so random query strings cannot
+  force a render. Cached a year at the CDN (`immutable`); `v` is
+  `SHARE_CARD_DESIGN_VERSION` (2 since the door and the encouragement line),
+  bumped when the look changes or the bundled text is corrected. 400 for a bad
+  reference or a verse past its chapter's end, 422 when the passage cannot fit
+  the size (never clipped under a full reference), 409 for `note=1` before the
+  line exists, 500/502 (never cached) when the text fails to load. NKJV cards
+  print Thomas Nelson's notice.
 - `GET /api/cards/cross/{verseOfDayId}?style&format&size&tz` - behind the
   session, owner-only (404 otherwise). Draws the verse, the date in the
   device's zone (`tz`, UTC when unknown) and the day's "Carry this" question.
@@ -2618,8 +2625,59 @@ so gold type stays crisp.
 - `GET /api/shared/{id}/image` - the answer card above, with the answer
   snapshot's revocation and cache-tag rules unchanged.
 
-Pinned by `tests/share-cards.test.mjs` (fitter, labels, date zone, and the
-public/private route contracts) and `tests/shared-answer.test.mjs` (excerpt).
+**Better than a verse picture (Austin, 2026-10-16).** Every Bible app makes
+verse images. Two things make a SureWord card worth sending:
+
+- **A word of encouragement.** Verse cards can carry one sentence under the
+  reference that turns the verse toward whoever reads it ("You can bring your
+  sorrow to Jesus, knowing that tears are not foreign to Him." under John
+  11:35). `src/lib/share-cards/encouragement.ts` writes it once per passage
+  from the KJV text with the house model and stores it in `VerseEncouragement`
+  (migration `20261017000000_verse_encouragement`), shared by every reader
+  like VerseInsight. The prompt holds the persona (a born-again believer who
+  takes the KJV as written), forbids restating the verse or adding a promise
+  it does not make, and the output is cleaned (one sentence, no dashes, at
+  most 150 characters) before it is cached. Only `POST
+  /api/cards/encouragement { ref }` (signed in, AI consent "tap", 30 new lines
+  per account per hour) writes; the public card route only reads, so a
+  stranger can never spend a model call. The Share sheets ask for it as they
+  open ("Add a word of encouragement", on by default and remembered); any
+  failure leaves a plain verse card. A card URL does not carry the prompt
+  version, so bumping `ENCOURAGEMENT_PROMPT_VERSION` reaches cards already in
+  the CDN only with a `SHARE_CARD_DESIGN_VERSION` bump; readers take the newest
+  line of any version, so old card links keep drawing. When a long passage
+  needs the whole card, the line gives way (Scripture never does).
+- **Every card is a door.** Verse and cross cards print
+  `sureword.app/v/<slug>` under the wordmark (the wide unfurl prints it at the
+  right), and text shares end with the same link. `src/app/v/[slug]/page.tsx`
+  (public, `/v/(.*)`) shows the passage, its encouragement when one exists, a
+  "Read it in context" link and the landing page's guest box opened on that
+  verse ("What does John 3:16 mean?"), then the install links. Its Open Graph
+  image is the wide card, so the link unfurls as the card. `?t=bsb|nkjv` picks
+  the translation. The page reads only Scripture and the shared encouragement
+  table, never anything about the sender.
+
+**The Share sheets.** Android `mobile/src/features/shareCards/ShareCardSheet.tsx`,
+web `src/components/share/ShareCardDialog.tsx`, Apple
+`macos/Shared/Share/ShareCardSheet.swift`. Live preview (the 540 px card, the
+other two styles warmed in the background), style chips, Story/Square, the
+encouragement switch for verses, Share image, and Share as text (verse, cross)
+or Share link (answer). Last choices are remembered per device. Android shares
+the JPEG through `expo-sharing` (React Native's `Share` cannot send a file on
+Android); web uses `navigator.share({ files })` where the browser can and
+downloads the image where it cannot; Apple uses the system share sheet. A verse
+in a translation the server cannot draw (the LC Greek) shares as text only. An
+answer's sheet mints its public link as it opens. The cross card is reachable
+from a header icon and a pill on the verse card on every client; the web
+`/cross` page now waits for the consent gate to hold the account before its
+first load (a direct visit used to show "AI is turned off" to people who had
+agreed, the same effect-order trap as 2289c16). Sends `share_card_shared {
+kind, method, style, format }`, never the reference or the words.
+
+Pinned by `tests/share-cards.test.mjs` (fitter, labels, date zone, the
+public/private route contracts, one canonical URL, the byte-identical client
+module, encouragement written only by the signed-in route) and
+`tests/shared-answer.test.mjs` (excerpt).
 
 ### Try before you sign up
 

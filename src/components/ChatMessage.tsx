@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	Check,
 	Copy,
@@ -33,7 +33,9 @@ import {
 	type AnswerFeedback,
 	type AnswerFeedbackDetails,
 } from "@/lib/chat/feedback-client";
-import { presentShareLink, shareAnswer, shareSheetText } from "@/lib/chat/share-client";
+import { shareSheetText } from "@/lib/chat/share-client";
+import ShareCardDialog from "./share/ShareCardDialog";
+import type { ShareCardTarget } from "@/lib/share-cards/targets";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -66,10 +68,6 @@ const ACTION_CHOSEN_CLASS =
 const ICON_TAP_CLASS = "min-h-11 min-w-11 justify-center sm:min-h-0 sm:min-w-0";
 /** Chips are their own row, and a pill is a smaller target than a bare glyph. */
 const CHIP_CLASS = "min-h-9 rounded-full border px-3 py-1.5 text-xs transition-colors";
-/** The share sheet's heading. The answer itself travels as the descriptive line. */
-const SHARE_TITLE = "An answer from SureWord";
-/** How long "Link copied" stays up before the row goes quiet again. */
-const SHARE_COPIED_MS = 2000;
 /** How long the Copy glyph holds its check before returning to the clipboard. */
 const COPIED_MS = 1500;
 
@@ -95,9 +93,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 	const [feedbackError, setFeedbackError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [copyError, setCopyError] = useState<string | null>(null);
-	const [sharePending, setSharePending] = useState(false);
-	const [shareCopied, setShareCopied] = useState(false);
-	const [shareError, setShareError] = useState<string | null>(null);
+	const [shareOpen, setShareOpen] = useState(false);
 
 	const conversationId = message.conversationId;
 	const feedback = chosenFeedback === undefined ? message.feedback ?? null : chosenFeedback;
@@ -202,39 +198,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 		return () => clearTimeout(timer);
 	}, [copied]);
 
-	// "Link copied" is a confirmation, not a state: it says its piece and goes.
-	useEffect(() => {
-		if (!shareCopied) return;
-		const timer = setTimeout(() => setShareCopied(false), SHARE_COPIED_MS);
-		return () => clearTimeout(timer);
-	}, [shareCopied]);
-
-	/**
-	 * Mint (or reuse) the public link for this answer, then hand it over. The
-	 * route is idempotent on the message, so a second tap shares the same link
-	 * rather than minting a second capability for text that is already out
-	 * there. A dismissed share sheet leaves the row silent - the reader changed
-	 * their mind, and a copied-link toast for that would be a surprise.
-	 */
-	const share = async () => {
-		if (!conversationId || sharePending) return;
-		setSharePending(true);
-		setShareError(null);
-		setShareCopied(false);
-		try {
-			const link = await shareAnswer(conversationId, message.id);
-			const outcome = await presentShareLink({
-				title: SHARE_TITLE,
-				text: shareSheetText(message.content),
-				url: link.url,
-			});
-			if (outcome === "copied") setShareCopied(true);
-		} catch (error) {
-			setShareError(error instanceof Error ? error.message : "Could not share that answer.");
-		} finally {
-			setSharePending(false);
-		}
-	};
+	// The Share dialog mints (or reuses) the answer's public link and offers it
+	// as a card image or as the link itself. The route is idempotent on the
+	// message, so a second Share hands over the same link.
+	const shareTarget = useMemo<ShareCardTarget | null>(
+		() => (shareOpen && conversationId ? { kind: "answer", conversationId, messageId: message.id } : null),
+		[conversationId, message.id, shareOpen]
+	);
 
 	if (message.role === "user") {
 		return (
@@ -403,24 +373,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 							<>
 								<button
 									type="button"
-									onClick={() => void share()}
-									disabled={sharePending}
-									aria-label={sharePending ? "Sharing" : "Share answer"}
-									title={sharePending ? "Sharing" : "Share"}
-									className={`${ACTION_CLASS} ${ICON_TAP_CLASS} disabled:opacity-60`}
+									onClick={() => setShareOpen(true)}
+									aria-label="Share answer"
+									title="Share"
+									className={`${ACTION_CLASS} ${ICON_TAP_CLASS}`}
 								>
-									{sharePending ? (
-										<Loader2 className="w-4 h-4 animate-spin" />
-									) : (
-										<Share2 className="w-4 h-4" />
-									)}
+									<Share2 className="w-4 h-4" />
 								</button>
-								<span
-									aria-live="polite"
-									className="text-xs text-amber-600 dark:text-amber-400"
-								>
-									{shareCopied ? "Link copied" : ""}
-								</span>
 							</>
 						)}
 					</div>
@@ -493,10 +452,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 						{feedbackError}
 					</p>
 				)}
-				{shareError && (
-					<p role="alert" className="mt-1.5 text-xs text-red-600 dark:text-red-400">
-						{shareError}
-					</p>
+				{shareTarget && (
+					<ShareCardDialog
+						target={shareTarget}
+						linkText={shareSheetText(message.content)}
+						onClose={() => setShareOpen(false)}
+					/>
 				)}
 				{addToNoteOpen && (
 					<AddToNoteDialog

@@ -48,7 +48,15 @@ function markPending() {
 	}
 }
 
-export default function GuestAsk() {
+/**
+ * `samples` and `heading` let a public verse page (/v/[slug]) open the same
+ * box on its own passage: "What does John 3:16 mean?" instead of the landing
+ * page's general starters. Everything else, limits included, is unchanged.
+ */
+export default function GuestAsk({
+	samples = SAMPLE_QUESTIONS,
+	heading,
+}: { samples?: readonly string[]; heading?: string } = {}) {
 	const [turns, setTurns] = useState<Turn[]>([]);
 	const [input, setInput] = useState("");
 	const [streaming, setStreaming] = useState(false);
@@ -149,7 +157,11 @@ export default function GuestAsk() {
 		<section id="ask" className={styles.section} aria-labelledby="ask-heading">
 			<p className={styles.eyebrow}>Try it now · no account needed</p>
 			<h2 id="ask-heading" className={styles.heading}>
-				Ask SureWord <em>a question.</em>
+				{heading ?? (
+					<>
+						Ask SureWord <em>a question.</em>
+					</>
+				)}
 			</h2>
 			<p className={styles.lede}>
 				A real answer, grounded in the King James Bible. Your first three are free,
@@ -242,7 +254,7 @@ export default function GuestAsk() {
 
 			{turns.length === 0 && !limitMessage && (
 				<div className={styles.chips} aria-label="Example questions">
-					{SAMPLE_QUESTIONS.map((question) => (
+					{samples.map((question) => (
 						<button
 							key={question}
 							type="button"
