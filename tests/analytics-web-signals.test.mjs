@@ -33,6 +33,8 @@ test("URLs lose their query string, fragment and shared-answer id", () => {
 	assert.equal(sanitizeAnalyticsUrl("https://sureword.app/shared/abc123secret?x=1"), "https://sureword.app/shared/[id]");
 	assert.equal(sanitizeAnalyticsUrl("/notes?note=n1"), "/notes");
 	assert.equal(sanitizeAnalyticsPathname("/shared/token"), "/shared/[id]");
+	assert.equal(sanitizeAnalyticsPathname("/c/AbCdEfGhIjKlMnOp"), "/c/[id]");
+	assert.equal(sanitizeAnalyticsUrl("https://sureword.app/c/AbCdEfGhIjKlMnOp?x=1"), "https://sureword.app/c/[id]");
 	assert.equal(sanitizeAnalyticsPathname("/sermons"), "/sermons");
 });
 

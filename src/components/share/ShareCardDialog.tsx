@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Download, Link2, Loader2, Share2, Type, X } from "lucide-react";
+import { Check, Download, Link2, Loader2, Send, Share2, Type, X } from "lucide-react";
+import SendWordDialog from "./SendWordDialog";
 import { useModalFocus } from "@/components/useModalFocus";
 import { consentFetch } from "@/lib/ai-consent-gate";
 import { trackShareCard } from "@/lib/analytics/client";
@@ -15,6 +16,7 @@ import {
 	cardTranslation,
 	parseStoredShareCardPrefs,
 	shareCardFileName,
+	sendWordReference,
 	shareCardPath,
 	verseDoorUrl,
 	type ShareCardPrefs,
@@ -130,6 +132,9 @@ export default function ShareCardDialog({
 		}
 	}, []);
 	const drawable = canDrawCard(target);
+	// "Send to someone" swaps this dialog for Send a word, carrying the passage.
+	const [sendOpen, setSendOpen] = useState(false);
+	const sendReference = sendWordReference(target);
 
 	// Object URLs hold the previews in memory until the dialog goes.
 	useEffect(() => {
@@ -341,6 +346,8 @@ export default function ShareCardDialog({
 	const canShareWords = target.kind === "answer" ? link !== null : Boolean(shareText);
 	const SecondaryIcon = target.kind === "answer" ? Link2 : Type;
 
+	if (sendOpen) return <SendWordDialog reference={sendReference} onClose={onClose} />;
+
 	return createPortal(
 		<div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
 			<div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
@@ -504,6 +511,18 @@ export default function ShareCardDialog({
 					{busy === "text" ? <Loader2 className="h-4 w-4 animate-spin" /> : <SecondaryIcon className="h-4 w-4" />}
 					{target.kind === "answer" ? "Share link" : "Share as text"}
 				</button>
+
+				{sendReference ? (
+					<button
+						type="button"
+						onClick={() => setSendOpen(true)}
+						disabled={busy !== null}
+						className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-black/[0.1] dark:border-white/[0.1] px-4 text-sm font-semibold text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+					>
+						<Send className="h-4 w-4" />
+						Send to someone
+					</button>
+				) : null}
 
 				{notice ? (
 					<p className="flex items-center justify-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400" role="status">

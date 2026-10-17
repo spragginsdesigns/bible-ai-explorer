@@ -6,6 +6,7 @@ import {
 	cardNeedsSession,
 	cardTranslation,
 	parseStoredShareCardPrefs,
+	sendWordReference,
 	shareCardFileName,
 	shareCardPath,
 	verseDoorUrl,
@@ -80,6 +81,16 @@ describe("share card paths", () => {
 		expect(cardNeedsSession(cross)).toBe(true);
 		expect(cardNeedsSession(verse)).toBe(false);
 		expect(cardNeedsSession(answer)).toBe(false);
+	});
+
+	it("carries a passage into Send a word only when a word card takes it", () => {
+		expect(sendWordReference(verse)).toBe("Psalms 23:1-4");
+		expect(sendWordReference(cross)).toBe("Isaiah 41:10");
+		expect(sendWordReference(answer)).toBeNull();
+		// Drawable as a card, but more than the four verses a word card carries.
+		expect(sendWordReference({ kind: "verse", reference: "Romans 8:31-39", translation: "KJV" })).toBeNull();
+		expect(sendWordReference({ kind: "verse", reference: "John 1:1", translation: "LC Greek" })).toBeNull();
+		expect(sendWordReference({ kind: "cross", id: "x", reference: "Psalms 23:1-6" })).toBeNull();
 	});
 });
 

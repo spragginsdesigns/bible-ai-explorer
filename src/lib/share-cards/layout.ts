@@ -268,6 +268,22 @@ export type ShareCardContent =
 			door: string;
 	  }
 	| {
+			/** A verse sent to someone, and/or with the sender's own words (SharedCard). */
+			kind: "personal";
+			reference: string;
+			translation: string;
+			text: string;
+			/** "Sarah": printed as "For Sarah". */
+			recipient: string | null;
+			/** SureWord's word for the recipient, written by the server only. */
+			word: string | null;
+			/** The sender's own line, printed in quotation marks as theirs. */
+			personalLine: string | null;
+			/** The sender's first name: "With love, Austin". */
+			signature: string | null;
+			door: string;
+	  }
+	| {
 			kind: "answer";
 			question: string;
 			excerpt: string;

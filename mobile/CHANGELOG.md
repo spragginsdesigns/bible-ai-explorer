@@ -2,6 +2,17 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.92.0 (versionCode 106) - 2026-10-17 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Send a word to someone. Tell SureWord who it is for and what they are facing, and it finds a KJV verse and writes a few words just for them, ready to share as a card with your own message and name.
+- Find it on the Bible tab, or tap Send to someone when you share a verse or today's word.
+- See and take back the cards you sent in Settings, Shared answers.
+
+**Dev notes:** SendWordSheet (mobile/src/features/shareCards) drafts through POST /api/cards/word, saves the sender's line with PATCH /api/cards/personal/{id}, previews the owner-only draft image, and publishes on the first share (frozen after). SentCardsSection lists and revokes. What the sender types about the situation is never stored. Consent policy "tap" for /api/cards/word.
+
 ## 1.91.0 (versionCode 105) - 2026-10-17 - internal and closed testing
 
 **What's new (Play):**

@@ -2679,6 +2679,113 @@ public/private route contracts, one canonical URL, the byte-identical client
 module, encouragement written only by the signed-in route) and
 `tests/shared-answer.test.mjs` (excerpt).
 
+#### Send a word
+
+*Server and web 2026-10-17; Android 1.92.0; Apple in the same cycle*
+
+The card people send to someone by name. The sender says who it is for and
+what they face ("Sarah, surgery tomorrow, scared she won't wake up"); SureWord
+chooses a KJV passage and writes a word for her, and the card reads "FOR
+SARAH", the verse, the word, then the sender's own line in quotation marks and
+"With love, Austin". It opens from "Send a word to someone" on Bible home,
+from "Send to someone" in the Share sheet (carrying that verse, or the day's
+verse on Pick Up Your Cross), on every client. The button shows only for a
+passage of at most four verses (`sendWordReference` in the shared client
+module), so the draft is never refused for its length.
+
+- **Choosing the passage.** `draftWord` in `src/lib/share-cards/personal.ts`.
+  The model names up to three KJV references a pastor would turn to (comfort,
+  hope, promise, strength, God's presence; never a passage whose subject is
+  death, judgment or loss), and the server reads each one's exact text through
+  `canonicalPassage`, taking the first that resolves and leaves room on the
+  card for a full word; no Scripture wording ever comes from the model. When
+  none does, a fixed list of comforting passages (`SAFE_PASSAGES`) is used.
+  Semantic search was the first design and is not used at all now: for the
+  surgery example it returned 1 Samuel 4:20, a woman dying in childbirth,
+  because it echoed "fear not" and "death". A passage the sender chose is
+  used as given when it is at most four verses (`MAX_WORD_PASSAGE_VERSES`)
+  and leaves room for at least a short word; otherwise the request is a 400
+  that says to choose a shorter one. Drafts are KJV.
+- **The sender's text is data, not instructions.** The name and situation
+  reach both prompts as quoted JSON fields, and the prompts tell the model to
+  ignore any instructions inside them. A word that echoes four or more words
+  of the situation in a row, or carries a link, an address or the brand name,
+  never prints: the draft fails with 502 ("try again") rather than show it
+  (`wordIsSafe` in `src/lib/share-cards/personal-rules.ts`, called by
+  `cleanWord`).
+- **Writing the word.** A second call writes one or two sentences to the
+  recipient by name from that exact text, speaking to their moment rather than
+  restating the verse, alluding to what they face only in general terms
+  (never a diagnosis, a place, money or another person), no dashes. It is
+  sized to the card: `wordRoom` measures, with a stand-in word, the longest of
+  160, 110 or 80 characters that draws whole beside the passage at every size
+  and style, the model is asked for that, and the real word is measured too
+  and asked for once more, shorter, if it would not fit. `cleanWord` bounds it
+  at 200 characters. So a fresh draft always fits before the sender adds a
+  line, and "Shorten your words" only ever means the sender's own words. Runs
+  on the sender's account
+  (`resolveModel({ utility: true })`), AI consent "tap", 20 drafts per account
+  per hour (an in-memory limiter, so per server instance: a ceiling on model
+  spend, not an exact quota).
+- **Privacy.** The situation steers the choice and the writing and is then
+  dropped: never stored, logged or shown. The recipient's name, the word and
+  the sender's line and name live in `SharedCard` (migration
+  `20261017100000_shared_card`, applied to production 2026-10-17) behind a
+  random 16-character capability id, like `SharedAnswer`.
+- **Draft, preview, send.** `POST /api/cards/word { recipient, situation,
+  reference?, replaces? }` makes an unpublished draft and returns `{ id,
+  reference, text, word, fits }`. "Write another word" passes the draft it
+  replaces, which is deleted, and every account's unsent drafts older than a
+  day go with it, so names and words are not kept once they are no use. The
+  card is written for the name as it was when drafted; changing the name
+  after means "Write another word". `PATCH /api/cards/personal/{id} { personalLine, signature }` saves the
+  sender's words as they type and returns `{ ok, fits }` (409 once sent).
+  `fits` is false when the card would cut anything off at story, square or
+  wide size in any of the three styles (`cardFitsEverySize`), and the sheet
+  holds Share until it is true. The sender's line is at most 120 characters
+  (`MAX_PERSONAL_LINE_LENGTH`); with a 200 character word and a 30 character
+  name that fits beside Philippians 4:6-7 everywhere
+  (`tests/share-card-fit.test.mjs` runs the real layout to hold the limits to
+  it). The wide card is only the link's unfurl, so it prints the word and
+  "With love, name" and leaves the line to the story and square cards and the
+  page. Share also waits while a line has no name under it, and on web until
+  the server holds exactly the words on screen, because web starts the share
+  before the send finishes (Safari's gesture window); a send lost to the
+  network is retried on the same id, which makes the link already shared
+  open. `GET /api/cards/personal/{id}/image` is the owner-only preview of a
+  draft (never cached). `POST /api/cards/personal { draftId, personalLine,
+  signature }` publishes with one conditional write on an unsent draft, and
+  freezes the card so whoever received it never sees it change; publishing a
+  card that was already sent changes nothing and returns its link, and a card
+  that would not fit is refused with 422. Once a share has started the sheet
+  locks the line and the name, so a cancelled share sheet can never edit a
+  card that already went out.
+- **What the sender may write.** SureWord's word is never accepted from a
+  request. The recipient's name, the line and the signature are cleaned of
+  invisible and direction-changing characters and refused with 400 if they
+  name SureWord ("SureWord", "Sure Word", "Sure-Word") or carry a link or an
+  address (`personalTextProblem`), so a card cannot pass itself off as a
+  message from SureWord or carry a phishing link. Plain English that only
+  looks like either passes: "sure words", "a more sure word" (2 Peter 1:19,
+  where the name comes from) and a missed space after a sentence ("with
+  you.Me and Dad"). A line needs the sender's name under it ("Add your name
+  under your words."), and the card prints the line only above a name that
+  prints.
+- **Public, revocable.** `sureword.app/c/{id}` (public, `noindex`) shows the
+  card addressed to the recipient, the verse, the word and the sender's line,
+  then the guest box opened on that verse and the install links. Its image is
+  `/api/cards/c/{id}/image` (the bare URL is the 1200x630 unfurl; style,
+  format and size as for every card), cached under
+  `SHARED_CARD_CACHE_CONTROL` with the per-id tag a revoke purges. Drafts,
+  revoked and unknown ids are a plain 404. Settings lists "Cards you sent"
+  (`GET /api/cards/personal`) with Copy link and Revoke (`DELETE
+  /api/cards/personal/{id}`) on every client.
+
+Pinned in `tests/share-cards.test.mjs`: the situation never reaches the row
+or the schema, the word is never read from a request and a sent card is
+frozen, only published unrevoked cards are public and only by their own
+paths, the preview is owner-only, and no verse text comes from model output.
+
 ### Try before you sign up
 
 A signed-out visitor asks a real question on the landing page (`#ask`,
@@ -3509,6 +3616,7 @@ if Clerk fails after the commit).
 | ReadingPlan, ReadingPlanCompletion | userId / plan | cascade |
 | ReadingLogEntry, Chapter, Day, Session, Totals, ChapterDay, Streak | userId | cascade |
 | SharedAnswer | userId | cascade (public share link stops resolving) |
+| SharedCard (sent words and their drafts) | userId | cascade (the `/c/{id}` link and its card image stop resolving) |
 | GuestTurn | plain `claimedByUserId`, no FK | deleted explicitly |
 | LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
 | BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |

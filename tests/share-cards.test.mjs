@@ -181,6 +181,16 @@ test("the web and Android card modules are one file", () => {
 	);
 });
 
+test("Send to someone offers only a passage the word route takes", () => {
+	// The clients hide the button past this length; the server refuses past its own.
+	const client = read("src/lib/share-cards/targets.ts").match(/MAX_WORD_VERSES = ([0-9]+);/);
+	const server = read("src/lib/share-cards/personal.ts").match(/MAX_WORD_PASSAGE_VERSES = ([0-9]+);/);
+	assert.ok(client && server, "both limits are declared as plain numbers");
+	assert.equal(client[1], server[1]);
+	const swift = read("macos/Shared/Share/ShareCards.swift").match(/maxWordVerses = ([0-9]+)/);
+	if (swift) assert.equal(swift[1], server[1], "the Apple sheet carries the same limit");
+});
+
 test("clients and server agree on the design version, the door and the canonical URL", () => {
 	assert.equal(CLIENT_VERSION, SERVER_VERSION);
 	for (const reference of ["John 3:16", "1 John 1:9", "Song of Solomon 2:1-3", "Psalms 23:1-4"]) {
@@ -207,4 +217,58 @@ test("the public card never writes an encouragement; only the signed-in route do
 	assert.ok(writer.includes("generationLimiter.check(userId)"));
 	const middleware = read("src/middleware.ts");
 	assert.equal(middleware.includes("/api/cards/encouragement"), false);
+});
+
+// ---------------------------------------------------------------------------
+// Send a word: personal cards carry caller text, so every rule is pinned here
+// ---------------------------------------------------------------------------
+
+test("what the sender says about the situation is never stored", () => {
+	const route = read("src/app/api/cards/word/route.ts");
+	const create = route.slice(route.indexOf("prisma.sharedCard.create"));
+	assert.ok(create.length > 0);
+	assert.equal(create.slice(0, create.indexOf("select:")).includes("situation"), false, "situation must not reach the row");
+	assert.equal(read("prisma/schema.prisma").match(/model SharedCard \{[\s\S]*?\n\}/)?.[0].includes("situation"), false);
+	assert.ok(route.includes("await getAuthUser()"));
+	assert.ok(route.includes("draftLimiter.check(userId)"));
+});
+
+test("SureWord's word is written by the server, never taken from a request", () => {
+	const publish = read("src/app/api/cards/personal/route.ts");
+	assert.equal(publish.includes("body?.message"), false);
+	assert.equal(publish.includes("body?.word"), false);
+	const edit = read("src/app/api/cards/personal/[id]/route.ts");
+	assert.equal(edit.includes("message:"), false, "PATCH may only change the sender's own line and name");
+	assert.ok(edit.includes("status: 409"), "a sent card is frozen");
+});
+
+test("only published, unrevoked personal cards are public, and only by their own paths", () => {
+	for (const file of ["src/app/api/cards/c/[id]/image/route.tsx", "src/app/c/[id]/page.tsx"]) {
+		const source = read(file);
+		assert.ok(source.includes("revokedAt: null, publishedAt: { not: null }"), file);
+	}
+	assert.ok(read("src/app/c/[id]/page.tsx").includes("robots: { index: false }"));
+	const middleware = read("src/middleware.ts");
+	assert.ok(middleware.includes('"/c/(.*)",'));
+	assert.ok(middleware.includes('"/api/cards/c/(.*)/image",'));
+	assert.equal(middleware.includes('"/api/cards/personal'), false, "drafting, listing and revoking stay behind the session");
+	assert.equal(middleware.includes('"/api/cards/word'), false);
+	const preview = read("src/app/api/cards/personal/[id]/image/route.tsx");
+	assert.ok(preview.includes("where: { id, userId, revokedAt: null }"), "the draft preview is owner-only");
+});
+
+test("the model only names references; Scripture text always comes from the bundled Bible", () => {
+	const personal = read("src/lib/share-cards/personal.ts");
+	assert.ok(personal.includes("canonicalPassage(parsed.label, \"KJV\")"));
+	assert.equal(/text:\s*output/.test(personal), false, "no verse text may come from model output");
+});
+
+test("a sent card is frozen by a conditional write, on publish and on edit", () => {
+	const publish = read("src/app/api/cards/personal/route.ts");
+	assert.ok(publish.includes("publishedAt: null }"), "publish writes only an unsent draft");
+	assert.ok(publish.includes("if (draft.publishedAt) return json({ id: draftId"), "publishing a sent card changes nothing");
+	assert.equal(publish.includes('kind: "verse"'), false, "the no-draft publish path is gone");
+	assert.ok(publish.includes("cardFitsEverySize(content)"), "a card that cannot draw whole is refused");
+	const edit = read("src/app/api/cards/personal/[id]/route.ts");
+	assert.ok(edit.includes("where: { id, userId, revokedAt: null, publishedAt: null }"));
 });

@@ -18,7 +18,7 @@ test("reading, stored audio, ordinary saves and external upload URLs aren't AI c
   for (const [path, method] of [["/api/bible/chapter", "GET"], ["/api/bible/audio", "GET"], ["/api/verse-of-day/audio", "GET"], ["/api/notes/n1", "PATCH"], ["/api/preferences", "PATCH"], ["/api/conversations/c1", "GET"], ["/api/chat/attachments/a1", "DELETE"]]) assert.equal(consentPolicy(path, method), null);
 });
 test("chat, note AI, audio transcription and narration need an explicit consent gate", () => {
-  for (const path of ["/api/ask-question", "/api/guest/ask", "/api/note-ai", "/api/notes/n1/ai", "/api/chat/attachments", "/api/chat/attachments/a1/complete", "/api/memories/summary", "/api/verse-of-day/audio", "/api/cards/encouragement"]) assert.equal(consentPolicy(path, "POST"), "tap", path);
+  for (const path of ["/api/ask-question", "/api/guest/ask", "/api/note-ai", "/api/notes/n1/ai", "/api/chat/attachments", "/api/chat/attachments/a1/complete", "/api/memories/summary", "/api/verse-of-day/audio", "/api/cards/encouragement", "/api/cards/word"]) assert.equal(consentPolicy(path, "POST"), "tap", path);
   assert.equal(consentPolicy("/api/verse-insight", "POST"), "automatic");
   assert.equal(consentPolicy("/api/verse-words", "POST"), "automatic");
   assert.equal(consentPolicy("/api/reading-log/reflection", "GET"), "automatic");

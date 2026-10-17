@@ -79,6 +79,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "ReadingLogStreak", via: "cascade" },
 	{ model: "ReadingReflection", via: "cascade" },
 	{ model: "SharedAnswer", via: "cascade" },
+	{ model: "SharedCard", via: "cascade" },
 	{ model: "Feedback", via: "cascade" },
 	{ model: "GuestTurn", via: "explicit" },
 	{ model: "LegacyClerkAccount", via: "explicit" },

@@ -20,6 +20,7 @@ import { ANALYTICS_EVENTS, track } from "@/lib/analytics";
 import { apiJson } from "@/lib/api";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { downloadCard, shareCardImage } from "./shareCardFiles";
+import { SendWordSheet } from "./SendWordSheet";
 import {
 	SHARE_CARD_FORMATS,
 	SHARE_CARD_STYLES,
@@ -28,6 +29,7 @@ import {
 	cardTranslation,
 	cardNeedsSession,
 	parseStoredShareCardPrefs,
+	sendWordReference,
 	shareCardFileName,
 	shareCardPath,
 	verseDoorUrl,
@@ -104,6 +106,15 @@ export function ShareCardSheet({
 	const [linkError, setLinkError] = useState<string | null>(null);
 	const [preview, setPreview] = useState<PreviewState>({ status: "loading" });
 	const [busy, setBusy] = useState<"image" | "text" | null>(null);
+	// "Send to someone" swaps this sheet for the Send a word sheet, carrying the
+	// passage: a verse or the day's verse, when it is short enough for a word
+	// card. Words are drawn in the KJV.
+	const [sendOpen, setSendOpen] = useState(false);
+	const sendVerse = useMemo(() => {
+		const reference = target ? sendWordReference(target) : null;
+		if (!target || !reference) return null;
+		return { reference, translation: target.kind === "verse" ? target.translation : "KJV" };
+	}, [target]);
 	const [actionError, setActionError] = useState<string | null>(null);
 	const previews = useRef(new Map<string, string>());
 	const timeZone = useMemo(deviceTimeZone, []);
@@ -138,6 +149,7 @@ export function ShareCardSheet({
 		setActionError(null);
 		setBusy(null);
 		setNote({ status: "idle" });
+		setSendOpen(false);
 		setPreview({ status: "loading" });
 		previews.current.clear();
 	}, [target]);
@@ -305,7 +317,8 @@ export function ShareCardSheet({
 	const canShareWords = target?.kind === "answer" ? link !== null : Boolean(shareText);
 
 	return (
-		<BottomSheet visible={target !== null} onClose={onClose} title="Share" scroll>
+		<>
+		<BottomSheet visible={target !== null && !sendOpen} onClose={onClose} title="Share" scroll>
 			<View style={styles.body}>
 				{drawable ? (
 					<>
@@ -421,9 +434,14 @@ export function ShareCardSheet({
 					onPress={shareWords}
 					disabled={busy !== null || !canShareWords}
 				/>
+				{sendVerse ? (
+					<GhostButton label="Send to someone" onPress={() => setSendOpen(true)} disabled={busy !== null} />
+				) : null}
 				{actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
 			</View>
 		</BottomSheet>
+		<SendWordSheet visible={target !== null && sendOpen} verse={sendVerse} onClose={onClose} />
+		</>
 	);
 }
 

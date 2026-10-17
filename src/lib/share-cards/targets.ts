@@ -61,11 +61,6 @@ export function cardTranslation(label: string): CardTranslation | null {
 	return upper === "KJV" || upper === "BSB" || upper === "NKJV" ? upper : null;
 }
 
-/**
- * Whether this share can be a picture. A verse in a translation the server
- * cannot draw (the LC Greek) shares as text only, rather than as a card that
- * would silently swap in the KJV.
- */
 /** Mirrors MAX_CARD_VERSES on the server: the reader's selection limit. */
 export const MAX_CARD_VERSES = 10;
 
@@ -89,6 +84,21 @@ export function cardVerseCount(reference: string): number {
 export function canDrawCard(target: ShareCardTarget): boolean {
 	if (target.kind !== "verse") return true;
 	return cardTranslation(target.translation) !== null && cardVerseCount(target.reference) <= MAX_CARD_VERSES;
+}
+
+/** Mirrors MAX_WORD_PASSAGE_VERSES on the server: the most a "send a word" card carries. */
+export const MAX_WORD_VERSES = 4;
+
+/**
+ * The passage "Send to someone" carries out of a Share sheet: a verse the
+ * server can draw, or the day's verse, when it is short enough for a word
+ * card, so the draft is never refused for its length. Null for an answer
+ * or a longer passage, which hides the button.
+ */
+export function sendWordReference(target: ShareCardTarget): string | null {
+	if (target.kind === "answer") return null;
+	if (target.kind === "verse" && !canDrawCard(target)) return null;
+	return cardVerseCount(target.reference) <= MAX_WORD_VERSES ? target.reference : null;
 }
 
 /** The personal cards need the session; verse cards are public. */
@@ -162,6 +172,30 @@ export function verseSlug(reference: string): string {
 export function verseDoorUrl(reference: string): string | null {
 	if (cardVerseCount(reference) > MAX_CARD_VERSES) return null;
 	return `https://sureword.app/v/${verseSlug(reference)}`;
+}
+
+/**
+ * A personal card ("send a word"): the sender's own preview, which draws the
+ * draft and needs the session, and the public image of the sent card.
+ * `edit` changes with every saved edit so a client's file cache never shows
+ * the line as it was before.
+ */
+export function personalPreviewPath(
+	id: string,
+	request: Pick<CardRequest, "style" | "format" | "size">,
+	edit: number
+): string {
+	const params = new URLSearchParams({ style: request.style, format: request.format });
+	if (request.size === "preview") params.set("size", "preview");
+	params.set("t", String(edit));
+	return `/api/cards/personal/${encodeURIComponent(id)}/image?${params.toString()}`;
+}
+
+export function personalCardPath(id: string, request: Pick<CardRequest, "style" | "format" | "size">): string {
+	const params = new URLSearchParams({ style: request.style, format: request.format });
+	if (request.size === "preview") params.set("size", "preview");
+	params.set("v", SHARE_CARD_DESIGN_VERSION);
+	return `/api/cards/c/${encodeURIComponent(id)}/image?${params.toString()}`;
 }
 
 /** "SureWord John 3-16.jpg": what the receiving app shows as the file name. */

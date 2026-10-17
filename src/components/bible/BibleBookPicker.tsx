@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Mail, Search } from "lucide-react";
+import SendWordDialog from "@/components/share/SendWordDialog";
 import { useAuth } from "@clerk/nextjs";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/lib/bible/books";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -108,6 +109,7 @@ const BibleBookPicker: React.FC = () => {
   // wired up, so it stays invisible for everyone else. Fail-soft: any error
   // leaves the row hidden rather than showing a link to an empty page.
   const [hasSermons, setHasSermons] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     fetch("/api/sermon-studies")
@@ -304,6 +306,25 @@ const BibleBookPicker: React.FC = () => {
           </span>
           <span aria-hidden className="text-lg font-semibold text-amber-600 dark:text-amber-400">›</span>
         </Link>
+
+        {/* Send a word to someone (mirrors the Android Bible tab card) */}
+        <button
+          type="button"
+          onClick={() => setSendOpen(true)}
+          className="mb-3 flex w-full items-center gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] px-4 py-3 text-left lg:px-5 lg:py-4 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+        >
+          <Mail aria-hidden className="h-5 w-5 text-neutral-500 dark:text-neutral-400" />
+          <span className="flex-1">
+            <span className="block text-[15px] lg:text-base font-bold text-neutral-900 dark:text-neutral-100">
+              Send a word to someone
+            </span>
+            <span className="block text-[12.5px] lg:text-sm text-neutral-500 dark:text-neutral-400">
+              A verse and a few words for what they face
+            </span>
+          </span>
+          <span aria-hidden className="text-lg font-semibold text-neutral-400 dark:text-neutral-500">›</span>
+        </button>
+        {sendOpen ? <SendWordDialog onClose={() => setSendOpen(false)} /> : null}
 
         {sections.map((section) => {
           const expanded = !collapsed[section.testament];

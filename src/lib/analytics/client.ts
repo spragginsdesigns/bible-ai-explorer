@@ -64,7 +64,7 @@ export function trackGuestLimit(reason: string): void {
  * verse or the answer.
  */
 export function trackShareCard(properties: {
-	kind: "verse" | "cross" | "answer";
+	kind: "verse" | "cross" | "answer" | "word";
 	method: "image" | "download" | "text" | "link";
 	style?: string;
 	format?: string;

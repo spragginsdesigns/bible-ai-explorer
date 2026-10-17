@@ -89,6 +89,12 @@ const isPublicRoute = createRouteMatcher([
 	// its shared encouragement line and the guest box, for whoever received the
 	// card. Scripture and shared data only, nothing about the sender.
 	"/v/(.*)",
+	// A personal card (send a word, or a verse with the sender's own line) and
+	// its image: a capability link like a shared answer. The 16-char id is the
+	// credential, only published unrevoked cards answer, and revoking takes it
+	// back. Drafting, publishing, listing and revoking stay behind the session.
+	"/c/(.*)",
+	"/api/cards/c/(.*)/image",
 	// Try before you sign up: a signed-out visitor's question from the landing
 	// page. The route enforces its own per-guest, per-IP and global daily
 	// ceilings in the database and runs Vercel BotID, because it spends

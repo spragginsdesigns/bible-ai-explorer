@@ -258,6 +258,12 @@ export function routeShape(path: string): string {
 	if (sharedAt !== -1 && segments.length > sharedAt + 1) {
 		segments.splice(sharedAt + 1, segments.length, "[id]");
 	}
+	// A personal card id is the credential that opens it too, and a random
+	// 16-character id need not contain a digit, so the generic rule can miss it.
+	for (const marker of ["c", "personal"]) {
+		const at = segments.indexOf(marker);
+		if (at > 0 && segments[at - 1] === "cards" && segments.length > at + 1) segments[at + 1] = "[id]";
+	}
 
 	return `/${segments.join("/")}`;
 }

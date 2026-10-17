@@ -28,7 +28,10 @@ const PATHNAME_PROPERTY = /(^|[_$])pathname$/i;
  */
 export function sanitizeAnalyticsPathname(pathname: string): string {
 	const path = pathname.split(/[?#]/)[0] || "/";
-	return path.startsWith("/shared/") ? "/shared/[id]" : path;
+	if (path.startsWith("/shared/")) return "/shared/[id]";
+	// A personal card (sureword.app/c/{id}) is opened by its id the same way.
+	if (path.startsWith("/c/")) return "/c/[id]";
+	return path;
 }
 
 /**

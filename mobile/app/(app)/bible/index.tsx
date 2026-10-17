@@ -16,6 +16,7 @@ import { apiJson } from "@/lib/api";
 import { fetchSermonStudies } from "@/features/sermons/sermonApi";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { SendWordSheet } from "@/features/shareCards/SendWordSheet";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
@@ -110,6 +111,7 @@ function buildRows(collapsed: Record<Testament, boolean>): ListRow[] {
  */
 export default function BibleBooksScreen() {
 	const router = useRouter();
+	const [sendOpen, setSendOpen] = useState(false);
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
@@ -347,6 +349,19 @@ export default function BibleBooksScreen() {
 							</View>
 							<Text style={styles.crossChevron}>›</Text>
 						</Pressable>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Send a word to someone"
+							onPress={() => setSendOpen(true)}
+							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
+						>
+							<Ionicons name="mail-outline" size={22} color={colors.textMuted} />
+							<View style={styles.crossCopy}>
+								<Text style={styles.planTitle}>Send a word to someone</Text>
+								<Text style={styles.crossSubtitle}>A verse and a few words for what they face</Text>
+							</View>
+							<Text style={styles.planChevron}>›</Text>
+						</Pressable>
 					</>
 				}
 				renderItem={({ item: row }) => {
@@ -385,6 +400,7 @@ export default function BibleBooksScreen() {
 					);
 				}}
 			/>
+			<SendWordSheet visible={sendOpen} onClose={() => setSendOpen(false)} />
 		</Screen>
 	);
 }

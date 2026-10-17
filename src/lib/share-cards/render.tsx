@@ -225,6 +225,15 @@ const SCRIPTURE_LINE_HEIGHT = 1.3;
 const PROSE_LINE_HEIGHT = 1.42;
 const QUESTION_LINE_HEIGHT = 1.32;
 const REFERENCE_SPACING = 0.2;
+/**
+ * The most of the text band a personal card's word and the sender's line may
+ * take. Measured against MAX_WORD_LENGTH and MAX_PERSONAL_LINE_LENGTH in
+ * personal.ts: the longest of each fits beside a passage the length of
+ * Psalms 23:1-4 at every size and style (tests/share-card-fit.test.mjs holds
+ * the limits to it).
+ */
+const PERSONAL_WORD_SHARE = 0.3;
+const PERSONAL_LINE_SHARE = 0.22;
 
 function overlay(style: ShareCardStyle, format: ShareCardFormat): string {
 	if (style === "dawn") {
@@ -251,6 +260,8 @@ interface Measured {
 	question: FitResult | null;
 	/** The encouragement line under a verse card's reference. */
 	word: FitResult | null;
+	/** A personal card's line in the sender's own words. */
+	sender: FitResult | null;
 }
 
 /**
@@ -311,22 +322,54 @@ function measure(
 			sizes: g.proseSizes,
 			lineHeight: PROSE_LINE_HEIGHT,
 		});
-		return { headline, body, question, word: null };
+		return { headline, body, question, word: null, sender: null };
 	}
 
 	// The encouragement takes what it needs first, within a cap; Scripture
-	// keeps the rest and is never the one that gives way.
+	// keeps the rest and is never the one that gives way. A personal card's
+	// word is what the card is for, so its cap is larger than a verse card's
+	// one-line encouragement.
 	let word: FitResult | null = null;
-	if (content.kind === "verse" && content.encouragement) {
+	const wordText = content.kind === "verse" ? content.encouragement : content.kind === "personal" ? content.word : null;
+	if (wordText) {
 		word = fitText({
-			text: content.encouragement,
+			text: wordText,
 			table: GLYPH_WIDTHS.verseItalic,
 			maxWidth: textWidth,
-			maxHeight: band * 0.22,
+			maxHeight: band * (content.kind === "personal" ? PERSONAL_WORD_SHARE : 0.22),
 			sizes: g.questionSizes,
 			lineHeight: QUESTION_LINE_HEIGHT,
 		});
 		band -= word.lines * word.fontSize * QUESTION_LINE_HEIGHT + g.gap;
+	}
+
+	// The sender's own line, and the "With love" line under it. The wide card
+	// is only ever the link's unfurl, too small for both beside Scripture, so
+	// it keeps the name and leaves the line to the story and square cards and
+	// the page the link opens.
+	let sender: FitResult | null = null;
+	if (content.kind === "personal" && (content.personalLine || content.signature)) {
+		if (content.personalLine && format !== "wide") {
+			sender = fitText({
+				text: `“${content.personalLine}”`,
+				table: GLYPH_WIDTHS.verseItalic,
+				// At least three lines at the smallest size: on the tightest card
+				// (dawn square) a share of what the word left is less than two.
+				maxHeight: Math.max(
+					band * PERSONAL_LINE_SHARE,
+					3 * g.questionSizes[g.questionSizes.length - 1] * QUESTION_LINE_HEIGHT
+				),
+				// One glyph narrower, so a clipped line has room for its closing
+				// quotation mark.
+				maxWidth: textWidth - g.questionSizes[0] * 0.5,
+				sizes: g.questionSizes,
+				lineHeight: QUESTION_LINE_HEIGHT,
+			});
+			if (sender.truncated) sender = { ...sender, text: `${sender.text}”` };
+			band -= sender.lines * sender.fontSize * QUESTION_LINE_HEIGHT;
+		}
+		if (content.signature) band -= g.referenceSize * 1.6;
+		band -= g.gap;
 	}
 
 	const body = fitText({
@@ -337,7 +380,7 @@ function measure(
 		sizes: g.verseSizes,
 		lineHeight: SCRIPTURE_LINE_HEIGHT,
 	});
-	return { headline, body, question, word };
+	return { headline, body, question, word, sender };
 }
 
 /**
@@ -595,6 +638,42 @@ function CardText({
 				</div>
 			) : null}
 
+			{content.kind === "personal" && (measured.sender || content.signature) ? (
+				<div style={{ display: "flex", flexDirection: "column", alignItems: align, marginTop: g.gap }}>
+					{measured.sender ? (
+						<div
+							style={{
+								display: "flex",
+								fontFamily: "Cormorant",
+								fontStyle: "italic",
+								fontWeight: 500,
+								fontSize: measured.sender.fontSize,
+								lineHeight: QUESTION_LINE_HEIGHT,
+								color: palette.text,
+								textAlign,
+							}}
+						>
+							{measured.sender.text}
+						</div>
+					) : null}
+					{content.signature ? (
+						<div
+							style={{
+								display: "flex",
+								marginTop: measured.sender ? Math.round(g.gap * 0.4) : 0,
+								fontFamily: "Atkinson",
+								fontWeight: 700,
+								fontSize: Math.round(g.referenceSize * 0.95),
+								letterSpacing: g.referenceSize * 0.08,
+								color: palette.accent,
+							}}
+						>
+							{`With love, ${content.signature}`}
+						</div>
+					) : null}
+				</div>
+			) : null}
+
 			{measured.question ? (
 				<div
 					style={{
@@ -645,6 +724,7 @@ function CardText({
 function eyebrowFor(content: ShareCardContent): { title: string; subtitle: string | null } | null {
 	if (content.kind === "cross") return { title: "Pick Up Your Cross", subtitle: content.dateLabel };
 	if (content.kind === "answer") return { title: "Asked on SureWord", subtitle: null };
+	if (content.kind === "personal" && content.recipient) return { title: `For ${content.recipient}`, subtitle: null };
 	return null;
 }
 
@@ -684,6 +764,27 @@ export interface RenderOptions {
  * anyway. sharp re-encodes it as a high-quality JPEG with full-resolution
  * colour (4:4:4), so gold text on a dark ground stays crisp.
  */
+/**
+ * Whether a card draws whole at every size: no clipped Scripture, word,
+ * question or line. A personal card is checked at publish, because its link
+ * unfurls as the wide card and a card that cannot draw there would leave
+ * messaging apps with no preview at all.
+ */
+export function cardFitsEverySize(content: ShareCardContent): boolean {
+	const formats: ShareCardFormat[] = ["story", "square", "wide"];
+	// Every style too: parchment's ornament leaves less room than dawn.
+	const styles: ShareCardStyle[] = ["dawn", "parchment", "sanctuary"];
+	const eyebrow = eyebrowFor(content) !== null;
+	return formats.every((format) =>
+		styles.every((style) => {
+			const { measured } = plan(content, format, style, eyebrow);
+			return ![measured.body, measured.word, measured.sender, measured.question, measured.headline].some(
+				(fit) => fit?.truncated
+			);
+		})
+	);
+}
+
 export async function renderShareCard(content: ShareCardContent, options: RenderOptions): Promise<Response> {
 	const png = await renderPng(content, options.style, options.format);
 	let pipeline = sharp(png);

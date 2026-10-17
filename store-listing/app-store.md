@@ -87,12 +87,13 @@ READ AND LISTEN TO THE KJV BIBLE
 • Words of Christ in red on a parchment page, in light or dark mode
 • Tap any verse for a clear explanation, word study and related passages
 • Highlight verses in eight colors and name what each color means
-• Share any verse as a beautiful image, with a word of encouragement and a link to read it
+• Share any verse as a beautiful image with a word of encouragement
+• Send a verse and a word of encouragement to someone you love
 
 DAILY DEVOTIONAL: PICK UP YOUR CROSS
 • A verse of the day chosen for you from your own reading, questions and notes, with how to live it today (Luke 9:23)
 • Stay with today's word, or ask for a fresh one
-• Share today's word as a card for your story or a friend
+• Share today's word as a card
 • A daily reminder at the hour you choose
 
 GROW IN YOUR WALK WITH GOD

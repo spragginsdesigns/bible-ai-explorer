@@ -27,6 +27,10 @@ test("internal accounts are the allowlist and nothing else", () => {
 
 test("routeShape keeps the endpoint and drops the id", () => {
 	assert.equal(routeShape("/api/notes"), "/api/notes");
+	// Personal card ids open the card, and an all-letter id has no digit to trip the generic rule.
+	assert.equal(routeShape("/api/cards/c/AbCdEfGhIjKlMnOp/image"), "/api/cards/c/[id]/image");
+	assert.equal(routeShape("/api/cards/personal/AbCdEfGhIjKlMnOp"), "/api/cards/personal/[id]");
+	assert.equal(routeShape("/api/cards/personal"), "/api/cards/personal");
 	assert.equal(routeShape("/api/verse-of-day/audio"), "/api/verse-of-day/audio");
 	assert.equal(
 		routeShape("/api/conversations/cmfk3x9q10001l504abcd1234/messages/cmfk3x9q10002l504efgh5678"),

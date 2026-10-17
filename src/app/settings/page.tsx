@@ -48,6 +48,7 @@ import TestimonySection from "@/components/settings/TestimonySection";
 import ChurchSection from "@/components/settings/ChurchSection";
 import HighlightLabelsSection from "@/components/settings/HighlightLabelsSection";
 import SharedAnswersSection from "@/components/settings/SharedAnswersSection";
+import SentCardsSection from "@/components/settings/SentCardsSection";
 import FeedbackSection from "@/components/settings/FeedbackSection";
 import MembershipSummary from "@/components/settings/MembershipSummary";
 import { AIConsentSettingsSection } from "@/components/AIConsentPresenter";
@@ -448,6 +449,7 @@ export default function SettingsPage() {
 					{/* Shared answers: the links this account has handed out, and
 					    the Revoke that takes one back. */}
 					{userLoaded ? <SharedAnswersSection key={user?.id ?? "signed-out"} /> : null}
+					{userLoaded ? <SentCardsSection key={`sent-${user?.id ?? "signed-out"}`} /> : null}
 
 					{/* Send feedback: the one place a person can answer back in
 					    their own words. */}

@@ -96,6 +96,7 @@ model User {
   readingLogSessions     ReadingLogSession[]
   readingLogTotals       ReadingLogTotals?
   sharedAnswers          SharedAnswer[]
+  sharedCards            SharedCard[]
   readingLogStreaks      ReadingLogStreak[]
   readingReflection      ReadingReflection?
   highlights             VerseHighlight[]
@@ -1059,6 +1060,32 @@ model ReadingLogChapterDay {
 /// Share an answer (docs/FEATURES.md, "Share an answer"): a snapshot of one
 /// assistant answer behind a random slug. The public page reads only this
 /// table, never Message, so revoking or editing the conversation cannot leak.
+/// A personal share card (docs/FEATURES.md, "Share cards" -> "Send a word"):
+/// a verse sent to someone by name with SureWord's word for them, and/or the
+/// sender's own line signed with their first name. Public cards never draw
+/// caller text, so anything personal lives here, behind a random capability
+/// id like SharedAnswer, and is revocable. `message` is only ever written by
+/// the server (the word for the recipient); `personalLine` and `signature`
+/// are the sender's own and print as theirs. What the sender said about the
+/// recipient's situation is never stored. A row is a draft until published.
+model SharedCard {
+  id           String    @id // random 16-char slug, the capability
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         String // "word" (SureWord wrote a word for someone) | "verse" (the sender's own line)
+  reference    String // canonical label, "John 3:16-17"
+  translation  String    @default("KJV")
+  recipient    String?   @db.VarChar(40)
+  message      String?   @db.VarChar(400)
+  personalLine String?   @db.VarChar(200)
+  signature    String?   @db.VarChar(40)
+  publishedAt  DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
 model SharedAnswer {
   id             String    @id // random 16-char slug, the capability
   userId         String
