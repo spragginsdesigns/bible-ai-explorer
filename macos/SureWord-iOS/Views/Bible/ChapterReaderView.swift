@@ -45,6 +45,8 @@ struct ChapterReaderView: View {
     @State private var crossReferences = CrossReferencesModel()
     @State private var showingLearn = false
     @State private var showingCustomColor = false
+    /// The Share sheet (a card, or the words as text) for the selection.
+    @State private var shareCard: ShareCardItem?
     /// Drives the reveal scroll (`ReaderReveal`); deep links keep using the
     /// `ScrollViewReader` proxy.
     @State private var scrollPosition = ScrollPosition(idType: Int.self)
@@ -137,6 +139,7 @@ struct ChapterReaderView: View {
                 applyHighlight(hex)
             }
         }
+        .shareCardSheet(item: $shareCard, api: app.api)
     }
 
     private func loadAudio() async {
@@ -864,7 +867,14 @@ struct ChapterReaderView: View {
                 UIPasteboard.general.string = share
                 sheet.markCopied()
             },
-            VerseSheetAction(id: "share", systemImage: "square.and.arrow.up", label: "Share", shareText: share) {},
+            // The card is drawn in the translation on the page; the LC Greek
+            // label has no card, so that page shares as text.
+            VerseSheetAction(id: "share", systemImage: "square.and.arrow.up", label: "Share") {
+                shareCard = ShareCardItem(
+                    target: .verse(reference: reference, translation: context.label),
+                    shareText: share
+                )
+            },
             VerseSheetAction(
                 id: "note",
                 systemImage: "square.and.pencil",

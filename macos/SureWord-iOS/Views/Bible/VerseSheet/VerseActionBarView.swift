@@ -8,8 +8,6 @@ struct VerseSheetAction: Identifiable {
     var disabled = false
     /// Draws the icon and label in the accent.
     var active = false
-    /// Set for Share, which is a `ShareLink` rather than a button.
-    var shareText: String?
     let action: () -> Void
 }
 
@@ -152,18 +150,12 @@ struct VerseActionBarView: View {
         .padding(.horizontal, Spacing.xs)
         .contentShape(.rect(cornerRadius: Radius.md))
 
-        if let shareText = action.shareText {
-            ShareLink(item: shareText) { label }
-                .buttonStyle(.plain)
-                .accessibilityLabel(action.label)
-        } else {
-            Button(action: action.action) { label }
-                .buttonStyle(.plain)
-                .disabled(action.disabled)
-                .opacity(action.disabled ? 0.4 : 1)
-                .accessibilityLabel(action.label)
-                .accessibilityAddTraits(action.active ? .isSelected : [])
-        }
+        Button(action: action.action) { label }
+            .buttonStyle(.plain)
+            .disabled(action.disabled)
+            .opacity(action.disabled ? 0.4 : 1)
+            .accessibilityLabel(action.label)
+            .accessibilityAddTraits(action.active ? .isSelected : [])
     }
 }
 

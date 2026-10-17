@@ -35,6 +35,9 @@ enum AnalyticsEvents {
     static let signInCompleted = "sign_in_completed"
     static let signInFailed = "sign_in_failed"
     static let requestFailed = "request_failed"
+    /// Something left a Share sheet: a verse, a Pick Up Your Cross day or an
+    /// answer, as a card image, text or a link. Kind and method only.
+    static let shareCardShared = "share_card_shared"
 
     /// Key to name, exactly as `ANALYTICS_EVENTS` in `mobile/src/lib/analytics.ts`
     /// spells it. The mirror test compares this table against both TS files.
@@ -45,6 +48,7 @@ enum AnalyticsEvents {
         "signInCompleted": signInCompleted,
         "signInFailed": signInFailed,
         "requestFailed": requestFailed,
+        "shareCardShared": shareCardShared,
     ]
 
     /// The PostHog mobile SDKs' lifecycle names (`captureAppLifecycleEvents`

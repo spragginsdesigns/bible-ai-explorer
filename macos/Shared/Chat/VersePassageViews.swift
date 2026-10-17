@@ -87,6 +87,8 @@ struct VersesSheetContent: View {
     let strength: MatchStrength?
     let focusKey: String
     var onCopy: (VersePassage) -> Void
+    /// Opens the Share sheet (a card, or the words as text) for one passage.
+    var onShare: (VersePassage) -> Void
     var onSaveToNote: (VersePassage) -> Void
     var onReadInBible: (VersePassage) -> Void
 
@@ -146,6 +148,7 @@ struct VersesSheetContent: View {
             passage: passage,
             focused: passage.key == focusKey,
             onCopy: { onCopy(passage) },
+            onShare: { onShare(passage) },
             onSaveToNote: { onSaveToNote(passage) },
             onReadInBible: { onReadInBible(passage) }
         )
@@ -161,6 +164,7 @@ struct PassageBlock: View {
     let passage: VersePassage
     let focused: Bool
     var onCopy: () -> Void
+    var onShare: () -> Void
     var onSaveToNote: () -> Void
     var onReadInBible: () -> Void
 
@@ -217,16 +221,8 @@ struct PassageBlock: View {
                 }
                 .buttonStyle(PassageActionChipStyle())
 
-                ShareLink(
-                    item: VerseAttachment.formatForSharing(
-                        reference: passage.reference,
-                        text: passage.plainText,
-                        translation: passage.translation ?? .kjv
-                    )
-                ) {
-                    Text("Share")
-                }
-                .buttonStyle(PassageActionChipStyle())
+                Button("Share", action: onShare)
+                    .buttonStyle(PassageActionChipStyle())
 
                 Button("Save to note", action: onSaveToNote)
                     .buttonStyle(PassageActionChipStyle(accent: true))
@@ -243,6 +239,23 @@ struct PassageBlock: View {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(focused ? theme.accentBorder : theme.border, lineWidth: 1)
         }
+    }
+}
+
+extension VersePassage {
+    /// The Share sheet for this passage. A passage with no known translation
+    /// shares as text only: a card would otherwise draw the KJV under words
+    /// the reader saw in another version. The text keeps the KJV label it
+    /// always carried.
+    var shareCardItem: ShareCardItem {
+        ShareCardItem(
+            target: .verse(reference: reference, translation: translation?.rawValue ?? ""),
+            shareText: VerseAttachment.formatForSharing(
+                reference: reference,
+                text: plainText,
+                translation: translation ?? .kjv
+            )
+        )
     }
 }
 

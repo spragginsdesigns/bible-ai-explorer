@@ -35,6 +35,8 @@ struct CrossView: View {
     /// The locked Listen panel's "See SureWord Pro" opens the in-app purchase
     /// screen over the cross (StoreKit only, never a web link).
     @State private var showingPro = false
+    /// Today's Share sheet: the day as a card, or as text.
+    @State private var shareCard: ShareCardItem?
 
     /// Where a landed replacement scrolls back to: the top, so the new verse
     /// is the first thing seen - Android's `scrollTo({ y: 0 })`.
@@ -85,7 +87,18 @@ struct CrossView: View {
                 }
                 .accessibilityLabel("Close")
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                if let item = model.entry?.shareCardItem {
+                    Button {
+                        shareCard = item
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel("Share today's word")
+                }
+            }
         }
+        .shareCardSheet(item: $shareCard, api: app.api)
         .task {
             model.load()
             // The "FROM YOUR PLAN" tag reads the shared plan model, which the
@@ -117,6 +130,9 @@ struct CrossView: View {
                         .font(.footnote)
                         .italic()
                         .foregroundStyle(theme.textMuted)
+                    if let item = entry.shareCardItem {
+                        CrossSharePill { shareCard = item }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

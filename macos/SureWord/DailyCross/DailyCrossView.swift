@@ -18,6 +18,8 @@ struct DailyCrossView: View {
     /// a confirmation with room to say what the new day should centre on.
     @State private var confirmingReplace = false
     @State private var focus = ""
+    /// Today's Share sheet: the day as a card, or as text.
+    @State private var shareCard: ShareCardItem?
 
     /// Where a landed replacement scrolls back to - Android's `scrollTo({ y: 0 })`.
     private static let topAnchor = "cross-top"
@@ -58,6 +60,19 @@ struct DailyCrossView: View {
         }
         .background { MeshBackground() }
         .navigationTitle("Pick Up Your Cross")
+        .toolbar {
+            ToolbarItem {
+                if let item = model.entry?.shareCardItem {
+                    Button {
+                        shareCard = item
+                    } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Share today's word")
+                }
+            }
+        }
+        .shareCardSheet(item: $shareCard, api: app.api)
         .task {
             model.load()
             // The "FROM YOUR PLAN" tag reads the shared plan model, which the
@@ -86,6 +101,9 @@ struct DailyCrossView: View {
                         .font(.system(size: 13))
                         .italic()
                         .foregroundStyle(theme.textMuted)
+                    if let item = entry.shareCardItem {
+                        CrossSharePill { shareCard = item }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

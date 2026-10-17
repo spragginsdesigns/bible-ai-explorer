@@ -26,10 +26,9 @@ struct ChatMessageBubble: View {
     /// False until the conversation exists: an unsaved turn has nothing to
     /// share, so Android hides the button rather than explaining.
     var canShare: Bool
-    /// True while this answer's link is being minted.
-    var isSharing: Bool
-    /// Mint (or re-activate) the link; nil after a failure the tab toasted.
-    var onShare: (ChatViewMessage) async -> URL?
+    /// Open the Share sheet for this answer. The tab owns the sheet, which
+    /// mints (or re-activates) the public link the card is drawn from.
+    var onShare: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
     /// Edit this question: its text goes to the composer and sending replaces
     /// it and every reply after it. Nil while it cannot be edited (an answer is
@@ -47,8 +46,6 @@ struct ChatMessageBubble: View {
     @State private var isReasonPresented = false
     @State private var reason = ""
     @State private var reasonTags: [FeedbackTag] = []
-    /// The link the share sheet is presenting, once minted.
-    @State private var sharing: AnswerShareLink?
 
     /// True for the moment after a Copy, which swaps the glyph for a checkmark.
     @State private var didCopy = false
@@ -144,41 +141,24 @@ struct ChatMessageBubble: View {
         }
     }
 
-    /// "Share", beside the thumbs on a settled answer: one tap mints the link
-    /// (or re-activates a revoked one) and opens the share sheet, as Android's
-    /// `Share.share` does. `ShareLink` needs its URL up front, so this presents
-    /// a `UIActivityViewController` once the POST returns.
+    /// "Share", beside the thumbs on a settled answer: opens the Share sheet,
+    /// as Android's does, whose card and link both come from the answer's
+    /// public snapshot.
     ///
     /// Inline only, unlike the thumbs: a context-menu entry would have to
     /// dismiss the menu before the sheet could rise.
     private var shareControl: some View {
         Button {
-            Task {
-                if let url = await onShare(message) {
-                    sharing = AnswerShareLink(url: url)
-                }
-            }
+            onShare(message)
         } label: {
-            Group {
-                if isSharing {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Image(systemName: "square.and.arrow.up")
-                }
-            }
-            .font(.system(size: 12))
-            .foregroundStyle(theme.textFaint)
-            .frame(minWidth: 44, minHeight: 44)
-            .contentShape(.rect)
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 12))
+                .foregroundStyle(theme.textFaint)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(SubtleButtonStyle())
-        .disabled(isSharing)
         .accessibilityLabel("Share this answer")
-        .accessibilityValue(isSharing ? "Creating the link" : "")
-        .sheet(item: $sharing) { link in
-            AnswerShareSheet(url: link.url)
-                .presentationDetents([.medium, .large])
-        }
     }
 
     @ViewBuilder
@@ -368,6 +348,7 @@ struct ChatMessageBubble: View {
                 RetrievedVersesCard(
                     grouped: message.groupedVerses,
                     strength: message.matchStrength,
+                    api: api,
                     onCopy: onVerseCopy,
                     onSaveToNote: onVerseSaveToNote,
                     onReadInBible: onVerseReadInBible
@@ -386,32 +367,4 @@ struct ChatMessageBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-}
-
-/// The link a share sheet is presenting; identifiable for `.sheet(item:)`.
-private struct AnswerShareLink: Identifiable {
-    let url: URL
-    var id: String { url.absoluteString }
-}
-
-/// The system share sheet for one answer link, with the subject Android puts
-/// on its `Share.share` call ("An answer from SureWord").
-private struct AnswerShareSheet: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [AnswerShareItem(url: url)], applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
-}
-
-private final class AnswerShareItem: NSObject, UIActivityItemSource {
-    static let subject = "An answer from SureWord"
-    let url: URL
-    init(url: URL) { self.url = url }
-
-    func activityViewControllerPlaceholderItem(_ controller: UIActivityViewController) -> Any { url }
-    func activityViewController(_ controller: UIActivityViewController, itemForActivityType type: UIActivity.ActivityType?) -> Any? { url }
-    func activityViewController(_ controller: UIActivityViewController, subjectForActivityType type: UIActivity.ActivityType?) -> String { Self.subject }
 }

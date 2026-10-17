@@ -10,11 +10,15 @@ struct RetrievedVersesCard: View {
 
     let grouped: GroupedVerses
     let strength: MatchStrength?
+    /// For the Share sheet the passages open; the answer card's bubble owns it.
+    let api: APIClient
     var onCopy: (RetrievedVerse) -> Void
     var onSaveToNote: (RetrievedVerse) -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
     @State private var focus: VersesSheetFocus?
+    /// Presented over the passages sheet, so sharing does not lose the place.
+    @State private var shareCard: ShareCardItem?
 
     var body: some View {
         let chips = grouped.inlineChips
@@ -62,6 +66,7 @@ struct RetrievedVersesCard: View {
                     strength: grouped.searchHits.isEmpty ? nil : strength,
                     focusKey: focus.key,
                     onCopy: { onCopy($0.asRetrievedVerse) },
+                    onShare: { shareCard = $0.shareCardItem },
                     // Both hops leave the sheet first, so the toast and the
                     // reader are not hidden behind it.
                     onSaveToNote: { passage in
@@ -84,6 +89,7 @@ struct RetrievedVersesCard: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+            .shareCardSheet(item: $shareCard, api: api)
         }
     }
 }

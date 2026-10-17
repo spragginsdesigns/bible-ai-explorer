@@ -25,6 +25,8 @@ struct ChatView: View {
     @State private var toast: String?
     /// The answer whose "Add to notes" picker is open, if any.
     @State private var noteTarget: PendingNoteSave?
+    /// The answer whose Share sheet is open, if any.
+    @State private var shareCard: ShareCardItem?
     /// The model list behind the header picker. Owned here so the toolbar
     /// button can name the current model while the popover is closed.
     @State private var models = ModelPickerModel()
@@ -91,6 +93,7 @@ struct ChatView: View {
                 )
             }
         }
+        .shareCardSheet(item: $shareCard, api: api)
     }
 
     /// Model + reasoning picker, the Mac form of the web dropdown and the iOS
@@ -197,18 +200,13 @@ struct ChatView: View {
                                     }
                                 }
                             },
-                            shareURL: chat.sharedLink(for: message.id),
-                            isSharing: chat.isSharing(message.id),
                             onShare: { answer in
-                                Task {
-                                    // On success the link lands in the model and
-                                    // the button becomes a ShareLink; only a
-                                    // failure has anything to say.
-                                    if let failure = await chat.shareAnswer(
-                                        messageID: answer.id
-                                    ) {
-                                        show(toast: failure)
-                                    }
+                                // The sheet mints the link as it opens; an
+                                // unsaved turn has nothing to share and says so.
+                                if let item = chat.shareCardItem(forAnswer: answer.id) {
+                                    shareCard = item
+                                } else {
+                                    show(toast: ChatViewModel.shareUnavailableError)
                                 }
                             },
                             onFollowUp: { question in

@@ -17,6 +17,8 @@ struct ChatTabView: View {
     @State private var toast: String?
     /// The answer whose "Add to notes" picker is open, if any.
     @State private var noteTarget: PendingNoteSave?
+    /// The answer whose Share sheet is open, if any.
+    @State private var shareCard: ShareCardItem?
     @State private var isModelPickerPresented = false
     /// A plan or Learn receipt tapped in chat pushes that screen onto this
     /// stack - the same screens the Bible home's cards push.
@@ -159,6 +161,7 @@ struct ChatTabView: View {
                 )
             }
         }
+        .shareCardSheet(item: $shareCard, api: app.api)
     }
 
     @ViewBuilder
@@ -214,13 +217,14 @@ struct ChatTabView: View {
                     }
                 },
                 onShare: { answer in
-                    // Every tap POSTs, as Android does, so a link revoked in
-                    // Settings is re-activated before it is handed out again.
-                    if let failure = await chat.shareAnswer(messageID: answer.id) {
-                        show(toast: failure)
-                        return nil
+                    // The button only shows once the conversation exists; the
+                    // sheet POSTs on every open, as Android does, so a link
+                    // revoked in Settings is re-activated before it goes out.
+                    guard let item = chat.shareCardItem(forAnswer: answer.id) else {
+                        show(toast: ChatViewModel.shareUnavailableError)
+                        return
                     }
-                    return chat.sharedLink(for: answer.id)
+                    shareCard = item
                 }
             )
         }

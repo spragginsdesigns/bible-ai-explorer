@@ -114,6 +114,35 @@ final class APIClient: Sendable {
         return (result.status, result.data)
     }
 
+    /// A GET on our own API that deliberately carries no session, for the
+    /// public share cards (`docs/FEATURES.md`, "Share cards"): those images are
+    /// the same for everyone and cached at the edge, so a bearer would add
+    /// nothing but a reason not to cache them. Errors surface exactly as
+    /// `data` reports them, server `{ "error": ... }` text included.
+    func publicData(_ path: String, timeout: TimeInterval = defaultTimeout) async throws -> Data {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            throw APIError(message: "Invalid request path: \(path)")
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.setValue(Self.clientHeaderValue, forHTTPHeaderField: Self.clientHeaderName)
+
+        let data: Data
+        let status: Int
+        do {
+            let (body, response) = try await session.data(for: request)
+            data = body
+            status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        } catch {
+            throw Self.translate(error, reportingFor: path)
+        }
+        guard (200..<300).contains(status) else {
+            Self.reportHTTPFailure(path: path, status: status, hadToken: false)
+            throw APIError.server(status: status, message: Self.errorMessage(in: data), code: Self.errorCode(in: data))
+        }
+        return data
+    }
+
     private func attempt(
         _ path: String,
         method: String,

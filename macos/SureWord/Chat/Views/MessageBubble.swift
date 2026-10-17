@@ -21,12 +21,8 @@ struct MessageBubble: View {
     /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
     /// The shell owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
-    /// The public link already minted for this answer, if any. Supplied by the
-    /// shell from `ChatViewModel.sharedLink(for:)`.
-    var shareURL: URL?
-    /// True while this answer's link is being minted.
-    var isSharing: Bool
-    /// Mint the link. The shell owns the write and the toast.
+    /// Open the Share sheet for this answer. The shell owns the sheet, which
+    /// mints the public link the card is drawn from.
     var onShare: (ChatViewMessage) -> Void
     var onFollowUp: (String) -> Void
     /// Edit this question: its text goes to the composer and sending replaces
@@ -131,48 +127,23 @@ struct MessageBubble: View {
         }
     }
 
-    /// "Share", beside the thumbs on a settled answer.
-    ///
-    /// **Two steps by necessity.** `ShareLink` needs its item up front, and the
-    /// link does not exist until the server mints it, so the button mints and
-    /// the `ShareLink` takes its place once there is a URL to hand over. There
-    /// is no public API to open a share sheet programmatically; the alternative
-    /// is an `NSSharingServicePicker` bridge, which is AppKit view plumbing this
-    /// row does not otherwise need and the repo has no precedent for.
-    ///
-    /// Re-sharing is idempotent server-side, so the second tap on the ShareLink
-    /// costs nothing and the link is always the same one.
-    @ViewBuilder
+    /// "Share", beside the thumbs on a settled answer: opens the Share sheet,
+    /// whose card and link both come from the answer's public snapshot. The
+    /// sheet mints the link as it opens (idempotent server-side, and the POST
+    /// is also what re-activates a link revoked in Settings).
     private var shareControl: some View {
-        if let shareURL {
-            ShareLink(item: shareURL) {
-                shareLabel(tint: theme.accent)
-            }
-            .buttonStyle(SubtleButtonStyle())
-            .accessibilityLabel("Share this answer")
-        } else {
-            Button {
-                onShare(message)
-            } label: {
-                shareLabel(tint: theme.textFaint, busy: isSharing)
-            }
-            .buttonStyle(SubtleButtonStyle())
-            .disabled(isSharing)
-            .accessibilityLabel("Create a link to this answer")
-        }
-    }
-
-    private func shareLabel(tint: Color, busy: Bool = false) -> some View {
-        HStack(spacing: 6) {
-            if busy {
-                ProgressView().controlSize(.small)
-            } else {
+        Button {
+            onShare(message)
+        } label: {
+            HStack(spacing: 6) {
                 Image(systemName: "square.and.arrow.up")
+                Text("Share")
             }
-            Text("Share")
+            .font(.system(size: 12))
+            .foregroundStyle(theme.textFaint)
         }
-        .font(.system(size: 12))
-        .foregroundStyle(tint)
+        .buttonStyle(SubtleButtonStyle())
+        .accessibilityLabel("Share this answer")
     }
 
     @ViewBuilder
@@ -281,6 +252,7 @@ struct MessageBubble: View {
                 RetrievedVersesCard(
                     grouped: message.groupedVerses,
                     strength: message.matchStrength,
+                    api: api,
                     onCopy: onVerseCopy,
                     onSaveToNote: onVerseSaveToNote,
                     onReadInBible: onVerseReadInBible

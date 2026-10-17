@@ -18,9 +18,8 @@ struct ChatMessageList: View {
     /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
     /// The tab owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
-    /// Mint (or re-activate) the public link for one answer and hand it back
-    /// for the share sheet; `nil` after a failure, which the tab has toasted.
-    var onShare: (ChatViewMessage) async -> URL?
+    /// Open the Share sheet for one answer; the tab owns it.
+    var onShare: (ChatViewMessage) -> Void
 
     var body: some View {
         // The newest question shows Copy / Edit under it; only the newest
@@ -43,7 +42,6 @@ struct ChatMessageList: View {
                             onFeedback: onFeedback,
                             // Android hides Share until the conversation exists.
                             canShare: chat.activeConversationID != nil,
-                            isSharing: chat.isSharing(message.id),
                             onShare: onShare,
                             onFollowUp: { question in
                                 chat.input = question

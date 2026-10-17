@@ -64,6 +64,10 @@ struct ChapterReaderPane: View {
     /// wide as the words plus a margin, never the whole window.
     private static let pageWidth: CGFloat = 760 + Spacing.xxl * 2
 
+    /// The Share sheet (a card, or the words as text) for the verse or
+    /// selection whose Share was clicked.
+    @State private var shareCard: ShareCardItem?
+
     var body: some View {
         VStack(spacing: 0) {
             ReadingSyncStatus(model: model.reading)
@@ -108,7 +112,7 @@ struct ChapterReaderPane: View {
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
         .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
         .onChange(of: appearsActive) { _, active in model.reading.setReaderFocused(active) }
-
+        .shareCardSheet(item: $shareCard, api: app.api)
     }
 
     // MARK: - Chrome
@@ -594,15 +598,8 @@ struct ChapterReaderPane: View {
             Button("Copy") {
                 model.copy(reference: reference, text: text, translation: translation, label: textLabel)
             }
-            ShareLink(
-                item: VerseAttachment.formatForSharing(
-                    reference: reference,
-                    text: text,
-                    translation: translation,
-                    label: textLabel
-                )
-            ) {
-                Text("Share…")
+            Button("Share…") {
+                share(reference: reference, text: text)
             }
             Button("Save to note") {
                 model.saveToNote(reference: reference, text: text, translation: translation, label: textLabel)
@@ -611,6 +608,21 @@ struct ChapterReaderPane: View {
                 askAI(reference, model.verseText(number))
             }
         }
+    }
+
+    /// Open the Share sheet on the words on screen. The card is drawn in the
+    /// translation on the page; the LC Greek label has no card, so that page
+    /// shares as text, with the same text Share always sent.
+    private func share(reference: String, text: String) {
+        shareCard = ShareCardItem(
+            target: .verse(reference: reference, translation: textLabel),
+            shareText: VerseAttachment.formatForSharing(
+                reference: reference,
+                text: text,
+                translation: translation,
+                label: textLabel
+            )
+        )
     }
 
     /// Verse number then the emphasis-aware segments, concatenated into one
@@ -648,15 +660,8 @@ struct ChapterReaderPane: View {
             }
             .buttonStyle(SubtleButtonStyle())
 
-            ShareLink(
-                item: VerseAttachment.formatForSharing(
-                    reference: reference,
-                    text: shown,
-                    translation: translation,
-                    label: textLabel
-                )
-            ) {
-                Text("Share")
+            Button("Share") {
+                share(reference: reference, text: shown)
             }
             .buttonStyle(SubtleButtonStyle())
 
