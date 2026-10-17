@@ -2568,7 +2568,8 @@ every card with `next/og` (satori) and answers a JPEG. Android, web, macOS and
 iOS all fetch the image from the server and share that file, so a card looks
 identical wherever it was made, and a design change ships in one deploy. The
 cost is that cards need a connection; every Share sheet keeps "Share as text"
-as the offline path.
+as the offline path. How the pictures are drawn, where the art and fonts came
+from, and how to change the look safely: `docs/architecture/share-card-images.md`.
 
 **Three styles, from the app's own art** (`src/assets/share-cards/`, each
 pre-cropped to every size):
@@ -2621,7 +2622,7 @@ so gold type stays crisp.
   device's zone (`tz`, UTC when unknown) and the day's "Carry this" question.
   It never draws "Why this verse today" or "For you": those are built from the
   reader's own week, and a card is handed to other people. `private,
-  max-age=86400` (a replaced day is a new row).
+  max-age=3600`, since the card carries today's date.
 - `GET /api/shared/{id}/image` - the answer card above, with the answer
   snapshot's revocation and cache-tag rules unchanged.
 
