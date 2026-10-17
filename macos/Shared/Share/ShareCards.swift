@@ -111,8 +111,27 @@ enum ShareCards {
     static let defaultStyle: ShareCardStyle = .dawn
     static let defaultFormat: ShareCardFormat = .story
 
-    /// Shown in place of the card controls for a translation the server cannot draw.
-    static let textOnlyNotice = "Cards are drawn in the KJV, BSB and NKJV. This passage shares as text."
+    /// Mirrors `MAX_CARD_VERSES` on the server: the reader's selection limit.
+    static let maxCardVerses = 10
+
+    /// Shown in place of the card controls when this share cannot be a picture.
+    static func textOnlyNotice(for target: ShareCardTarget) -> String {
+        if case .verse(_, let translation) = target, cardTranslation(translation) != nil {
+            return "A card holds up to \(maxCardVerses) verses. This passage shares as text."
+        }
+        return "Cards are drawn in the KJV, BSB and NKJV. This passage shares as text."
+    }
+
+    /// How many verses "John 3:16-18" spans: 3. A single verse, or a reference
+    /// this cannot read, counts as 1, and the server stays the judge of those.
+    static func verseCount(_ reference: String) -> Int {
+        let trimmed = reference.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let colon = trimmed.lastIndex(of: ":") else { return 1 }
+        let tail = trimmed[trimmed.index(after: colon)...]
+        let parts = tail.split(separator: "-").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 2, let start = Int(parts[0]), let end = Int(parts[1]), end >= start else { return 1 }
+        return end - start + 1
+    }
 
     /// The translations the server can look up and draw, by their wire id.
     static func cardTranslation(_ label: String) -> String? {
@@ -121,10 +140,13 @@ enum ShareCards {
     }
 
     /// Whether this share can be a picture. A verse in a translation the server
-    /// cannot draw (the LC Greek) shares as text only, rather than as a card
-    /// that would silently swap in the KJV.
+    /// cannot draw (the LC Greek), or a chat passage longer than a card holds
+    /// (1 Corinthians 13:1-13), shares as text only, rather than as a card that
+    /// would silently swap in the KJV or an error that never clears.
     static func canDraw(_ target: ShareCardTarget) -> Bool {
-        if case .verse(_, let translation) = target { return cardTranslation(translation) != nil }
+        if case .verse(let reference, let translation) = target {
+            return cardTranslation(translation) != nil && verseCount(reference) <= maxCardVerses
+        }
         return true
     }
 
@@ -191,15 +213,18 @@ enum ShareCards {
     }
 
     /// The door as a link, for text shares: the page the card itself prints.
-    static func doorURL(_ reference: String) -> String {
-        "https://sureword.app/v/\(slug(reference))"
+    /// Nil for a passage longer than a card, which has no page.
+    static func doorURL(_ reference: String) -> String? {
+        guard verseCount(reference) <= maxCardVerses else { return nil }
+        return "https://sureword.app/v/\(slug(reference))"
     }
 
     /// A verse or cross share as text: the words, the encouragement line when
     /// one is on the card, then the door, so a text share brings people in too.
     static func textShare(_ text: String, reference: String, note: String? = nil) -> String {
         let line = note.map { "\n\n\($0)" } ?? ""
-        return "\(text)\(line)\n\n\(doorURL(reference))"
+        let door = doorURL(reference).map { "\n\n\($0)" } ?? ""
+        return "\(text)\(line)\(door)"
     }
 
     /// A Pick Up Your Cross day as text: the verse, then the question to carry

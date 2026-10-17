@@ -111,6 +111,18 @@ struct ShareCardsTests {
         #expect(ShareCards.doorURL("Psalms 23:1-4") == "https://sureword.app/v/psalms-23-1-4")
     }
 
+    @Test("A passage longer than a card shares as text, with no door that would 404")
+    func longPassage() {
+        #expect(ShareCards.verseCount("1 Corinthians 13:1-13") == 13)
+        #expect(ShareCards.verseCount("John 3:16") == 1)
+        #expect(ShareCards.verseCount("Psalms 23:1-4") == 4)
+        #expect(!ShareCards.canDraw(.verse(reference: "1 Corinthians 13:1-13", translation: "KJV")))
+        #expect(ShareCards.canDraw(.verse(reference: "Romans 8:31-40", translation: "KJV")))
+        #expect(ShareCards.doorURL("1 Corinthians 13:1-13") == nil)
+        #expect(ShareCards.textShare("Charity words", reference: "1 Corinthians 13:1-13") == "Charity words")
+        #expect(ShareCards.textOnlyNotice(for: .verse(reference: "1 Corinthians 13:1-13", translation: "KJV")).hasPrefix("A card holds up to 10"))
+    }
+
     @Test("A text share carries the encouragement line, then the door")
     func textShare() {
         #expect(ShareCards.textShare("John 3:16 words", reference: "John 3:16") == "John 3:16 words\n\nhttps://sureword.app/v/john-3-16")

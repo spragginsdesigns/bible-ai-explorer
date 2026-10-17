@@ -503,7 +503,7 @@ struct ShareCardSheet: View {
                 if model.isVerse { encourageRow }
                 shareImageButton
             } else {
-                Text(ShareCards.textOnlyNotice)
+                Text(ShareCards.textOnlyNotice(for: model.target))
                     .font(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
