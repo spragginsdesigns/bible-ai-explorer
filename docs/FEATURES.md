@@ -2508,10 +2508,12 @@ install links from `src/lib/constants.ts`. `generateMetadata` sets title
 unfurls as an image on iMessage, WhatsApp, X and Discord - that is the "share
 as image" most people actually experience.
 
-**Card** `GET /api/shared/{id}/image`: a 1200×630 PNG rendered with
-`ImageResponse` from `next/og` (the gold day-star mark on `#0a0a0a`, the first
-reference in serif, the answer's first ~200 characters, "sureword.app"). It is
-revocable, so no cache keeps it long: `SHARED_CARD_CACHE_CONTROL` in
+**Card** `GET /api/shared/{id}/image`: since 2026-10-16 drawn by the share-card
+renderer (see "Share cards" below). With no query it is the 1200×630 Dawn
+unfurl: the question, the answer's opening paragraphs (`shareCardExcerpt`,
+whole paragraphs until ~220 characters, never one run into the next), the
+first reference, "sureword.app". `?format=story|square&style=…` draws the
+same answer as a picture to share. It is revocable, so no cache keeps it long: `SHARED_CARD_CACHE_CONTROL` in
 `src/lib/shared-answer.ts` makes browsers revalidate every time and lets the
 Vercel CDN hold it five minutes at most, and the CDN copy carries the tag
 `shared-answer:{id}`, which revoking a link (or deleting its conversation)
@@ -2551,6 +2553,73 @@ and robots.txt no longer disallows `/shared/`, because a crawler that may not
 fetch a page can never see its `noindex`. The page's "Ask your own question"
 button now opens the landing page's guest box (`/#ask`). Pinned by
 `tests/guest-rules.test.mjs`.
+
+### Share cards
+
+*Server shipped 2026-10-16; clients in the same cycle (see `docs/PARITY.md`)*
+
+SureWord is a personal Bible, so what people want to share is what it gave
+them: a verse they marked, the word chosen for their day, an answer that
+helped. Until now verses went out as plain text and Pick Up Your Cross could
+not be shared at all. Share cards make each of those a picture worth posting.
+
+**One renderer for every client.** `src/lib/share-cards/render.tsx` draws
+every card with `next/og` (satori) and answers a JPEG. Android, web, macOS and
+iOS all fetch the image from the server and share that file, so a card looks
+identical wherever it was made, and a design change ships in one deploy. The
+cost is that cards need a connection; every Share sheet keeps "Share as text"
+as the offline path.
+
+**Three styles, from the app's own art** (`src/assets/share-cards/`, each
+pre-cropped to every size):
+
+- **Dawn** - the Judean sunrise from the splash screen; the words sit on the
+  darkened hills below the sun, ivory with a soft shadow.
+- **Parchment** - the reader's parchment texture, iron-gall ink, the reference
+  in rubric red under a ruled diamond.
+- **Sanctuary** - the app's charcoal lit by the gold day-star mark, which steps
+  aside when a long passage needs the room.
+
+**Sizes:** `story` 1080×1920 (status and stories), `square` 1080×1080 (posts and
+chats), `wide` 1200×630 (link unfurls). `size=preview` returns the same card at
+540 px wide for the sheet's live preview (about 60 KB instead of 300-700 KB).
+
+**Type that always fits.** satori cannot report how tall text came out, so
+`fitText` in `src/lib/share-cards/layout.ts` wraps the text itself with the real
+advance widths of the card fonts (`glyph-widths.ts`, generated with fontTools
+from the font files) and picks the largest size on a ladder whose wrapped
+height fits; only past the smallest size is text clipped, at a word, with an
+ellipsis. "Jesus wept." sets at 112 px; Esther 8:9 (the longest verse) at 52.
+A numbered range uses superscript glyphs (satori cannot size part of a line)
+and no quotation marks; one verse is quoted. Fonts are Cormorant Garamond,
+Atkinson Hyperlegible and Pirata One (OFL, `docs/licenses/`), Cormorant subset
+to Latin (667 KB to 50 KB). Fleuron glyphs render as emoji in satori, so
+ornaments are drawn with divs.
+
+**JPEG, not PNG.** A satori PNG of a painting is 2-4 MB; sharp (a direct
+dependency since this release) re-encodes it at quality 90 with 4:4:4 chroma
+so gold type stays crisp.
+
+**Routes**
+
+- `GET /api/cards/verse?ref=John 3:16-17&translation=KJV|BSB|NKJV&style&format&size&v`
+  - public (`isPublicRoute`). The server looks the text up itself through
+  `canonicalPassage`; no caller text is ever drawn, so it cannot put words in
+  SureWord's mouth. Up to `MAX_CARD_VERSES` (10, the reader's selection limit)
+  verses in one chapter. Cached a year at the CDN (`immutable`); `v` is
+  `SHARE_CARD_DESIGN_VERSION`, bumped whenever the look changes. An NKJV
+  failure at bolls.life is a 502, never cached.
+- `GET /api/cards/cross/{verseOfDayId}?style&format&size&tz` - behind the
+  session, owner-only (404 otherwise). Draws the verse, the date in the
+  device's zone (`tz`, UTC when unknown) and the day's "Carry this" question.
+  It never draws "Why this verse today" or "For you": those are built from the
+  reader's own week, and a card is handed to other people. `private,
+  max-age=86400` (a replaced day is a new row).
+- `GET /api/shared/{id}/image` - the answer card above, with the answer
+  snapshot's revocation and cache-tag rules unchanged.
+
+Pinned by `tests/share-cards.test.mjs` (fitter, labels, date zone, and the
+public/private route contracts) and `tests/shared-answer.test.mjs` (excerpt).
 
 ### Try before you sign up
 

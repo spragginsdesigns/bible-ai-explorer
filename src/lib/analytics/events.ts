@@ -26,6 +26,12 @@ export const ANALYTICS_EVENTS = {
 	answerRated: "answer_rated",
 	/** An answer was shared out of the app as a link. */
 	answerShared: "answer_shared",
+	/**
+	 * Something left a client's Share sheet: a verse, a Pick Up Your Cross day
+	 * or an answer, as a card image, text or a link. Carries the kind, style,
+	 * format and method only, never the reference or the words.
+	 */
+	shareCardShared: "share_card_shared",
 	/** A tapped verse produced an insight. */
 	verseInsightOpened: "verse_insight_opened",
 	/** A tapped word produced a word study. */

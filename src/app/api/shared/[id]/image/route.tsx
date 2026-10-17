@@ -1,40 +1,41 @@
-import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/prisma";
-import { SHARED_CARD_CACHE_CONTROL, isSharedAnswerId, shareCardExcerpt } from "@/lib/shared-answer";
+import {
+	SHARED_ANSWER_FALLBACK_TITLE,
+	SHARED_CARD_CACHE_CONTROL,
+	clipText,
+	isSharedAnswerId,
+	shareCardExcerpt,
+} from "@/lib/shared-answer";
 import { tagSharedCard } from "@/lib/shared-answer-cache";
+import {
+	MAX_CARD_QUESTION_LENGTH,
+	SHARE_CARD_DESIGN_VERSION,
+	collapseWhitespace,
+	parseShareCardFormat,
+	parseShareCardSize,
+	parseShareCardStyle,
+} from "@/lib/share-cards/layout";
+import { renderShareCard } from "@/lib/share-cards/render";
 
 /**
- * The unfurl card for a shared answer (docs/FEATURES.md, "Share an answer").
+ * The card for a shared answer (docs/FEATURES.md, "Share an answer" and
+ * "Share cards").
  *
- * This is the "share as image" most people actually experience: iMessage,
- * WhatsApp, X and Discord all fetch this signed-out, from their own scrapers,
- * which is why `/api/shared/(.*)/image` is in `isPublicRoute`. It reads the
- * SharedAnswer snapshot only - never Message - so a revoked link stops
- * unfurling the moment it is revoked. Caches are the other half of that: the
- * card is never cached as long-lived (SHARED_CARD_CACHE_CONTROL), and its CDN
- * copy carries a per-share tag that revoking purges.
+ * With no query it is the 1200x630 unfurl: iMessage, WhatsApp, X and Discord
+ * all fetch it signed-out, from their own scrapers, which is why
+ * `/api/shared/(.*)/image` is in `isPublicRoute`. The share sheet asks for
+ * the same card as a story or square image (`?format=story&style=parchment`)
+ * to share the picture itself.
  *
- * No `fonts` option is passed on purpose. next/og replaces the bundled default
- * face outright when one is supplied (`options.fonts || defaultFonts` in
- * @vercel/og), so shipping a serif for the reference line would have rendered
- * the whole card in it, and fetching a face at request time would add a
- * network failure mode to a route that cannot be exercised locally on Windows
- * (see `vercel-og-windows-broken` in memory). The reference is set apart by
- * size, colour and italics instead.
+ * It reads the SharedAnswer snapshot only - never Message - so a revoked link
+ * stops drawing the moment it is revoked. Caches are the other half of that:
+ * the card is never cached as long-lived (SHARED_CARD_CACHE_CONTROL), and its
+ * CDN copy carries a per-share tag that revoking purges. Every format and
+ * style of one share sits under the same tag, so one purge takes them all.
  *
  * Node runtime, because it reads Postgres through Prisma.
  */
 export const runtime = "nodejs";
-
-const CARD_WIDTH = 1200;
-const CARD_HEIGHT = 630;
-
-const SHELL = "#0a0a0a";
-const GOLD = "#fbbf24";
-const GOLD_DEEP = "#f59e0b";
-const GOLD_PALE = "#fde68a";
-const BODY_TEXT = "#e9e6df";
-const MUTED_TEXT = "#8f8a80";
 
 function notFound(): Response {
 	return new Response("Not found", {
@@ -43,13 +44,32 @@ function notFound(): Response {
 	});
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
 	const { id } = await params;
 	if (!isSharedAnswerId(id)) return notFound();
 
+	// The bare URL is the unfurl. Any other query has one spelling, and
+	// everything else is redirected to it before the database or the
+	// renderer is touched, so random query strings cannot force a render.
+	const url = new URL(req.url);
+	const style = parseShareCardStyle(url.searchParams.get("style"));
+	const format = parseShareCardFormat(url.searchParams.get("format"), "wide");
+	const size = parseShareCardSize(url.searchParams.get("size"));
+	if (url.search) {
+		const canonical = new URLSearchParams({ style, format });
+		if (size === "preview") canonical.set("size", "preview");
+		canonical.set("v", SHARE_CARD_DESIGN_VERSION);
+		if (url.search !== `?${canonical.toString()}`) {
+			return new Response(null, {
+				status: 308,
+				headers: { location: `${url.pathname}?${canonical.toString()}`, "cache-control": SHARED_CARD_CACHE_CONTROL },
+			});
+		}
+	}
+
 	const share = await prisma.sharedAnswer.findFirst({
 		where: { id, revokedAt: null },
-		select: { answer: true, references: true, translation: true },
+		select: { question: true, answer: true, references: true },
 	});
 	if (!share) return notFound();
 	// A no-op off Vercel, and never throws: a failed tag only loses the
@@ -59,115 +79,20 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 	const references = Array.isArray(share.references)
 		? share.references.filter((reference): reference is string => typeof reference === "string")
 		: [];
-	const headline = references[0] ?? share.translation;
-	const excerpt = shareCardExcerpt(share.answer);
-
-	return new ImageResponse(
-		(
-			<div
-				style={{
-					width: CARD_WIDTH,
-					height: CARD_HEIGHT,
-					display: "flex",
-					flexDirection: "column",
-					justifyContent: "space-between",
-					backgroundColor: SHELL,
-					padding: "60px 72px",
-					color: BODY_TEXT,
-				}}
-			>
-				<div style={{ display: "flex", alignItems: "center" }}>
-					{/* The day star rising over the open Word, in the shapes satori
-					    renders reliably: a gold disc above two gold rules. */}
-					<div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 72 }}>
-						<div
-							style={{
-								display: "flex",
-								width: 38,
-								height: 38,
-								borderRadius: 19,
-								backgroundImage: `linear-gradient(180deg, ${GOLD_PALE} 0%, ${GOLD_DEEP} 100%)`,
-							}}
-						/>
-						<div
-							style={{
-								display: "flex",
-								width: 72,
-								height: 7,
-								marginTop: 12,
-								borderRadius: 4,
-								backgroundColor: GOLD,
-							}}
-						/>
-						<div
-							style={{
-								display: "flex",
-								width: 52,
-								height: 5,
-								marginTop: 6,
-								borderRadius: 3,
-								backgroundColor: GOLD,
-								opacity: 0.5,
-							}}
-						/>
-					</div>
-					<div
-						style={{
-							display: "flex",
-							marginLeft: 26,
-							fontSize: 34,
-							letterSpacing: 6,
-							color: GOLD,
-						}}
-					>
-						SUREWORD
-					</div>
-				</div>
-
-				<div style={{ display: "flex", flexDirection: "column" }}>
-					<div
-						style={{
-							display: "flex",
-							fontSize: 44,
-							fontStyle: "italic",
-							letterSpacing: 1,
-							color: GOLD,
-						}}
-					>
-						{headline}
-					</div>
-					<div
-						style={{
-							display: "flex",
-							width: 120,
-							height: 3,
-							marginTop: 26,
-							marginBottom: 26,
-							backgroundColor: GOLD,
-							opacity: 0.45,
-						}}
-					/>
-					<div style={{ display: "flex", fontSize: 34, lineHeight: 1.4, color: BODY_TEXT }}>
-						{excerpt}
-					</div>
-				</div>
-
-				<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-					<div style={{ display: "flex", fontSize: 24, color: MUTED_TEXT }}>
-						Shared from SureWord
-					</div>
-					<div style={{ display: "flex", fontSize: 24, color: MUTED_TEXT }}>sureword.app</div>
-				</div>
-			</div>
-		),
+	return renderShareCard(
 		{
-			width: CARD_WIDTH,
-			height: CARD_HEIGHT,
-			// Lowercase on purpose: next/og sets its own immutable one-year
-			// "cache-control" key and spreads `options.headers` over it. A
-			// "Cache-Control" spelling would be a SECOND header entry rather than
-			// a replacement, and the two values would be concatenated.
-			headers: { "cache-control": SHARED_CARD_CACHE_CONTROL },
+			kind: "answer",
+			question:
+				clipText(collapseWhitespace(share.question), MAX_CARD_QUESTION_LENGTH) ||
+				SHARED_ANSWER_FALLBACK_TITLE,
+			excerpt: shareCardExcerpt(share.answer),
+			reference: references[0] ?? null,
 		},
+		{
+			style,
+			format,
+			size,
+			cacheControl: SHARED_CARD_CACHE_CONTROL,
+		}
 	);
 }

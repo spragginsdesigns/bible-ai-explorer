@@ -158,7 +158,21 @@ test("fenced code and images are dropped from the preview text", () => {
 	assert.equal(plain, "Before After");
 });
 
-test("the card excerpt is about 200 characters of prose", () => {
+test("the card excerpt takes whole opening paragraphs and never runs one into the next", () => {
+	const answer = [
+		"Merely believing facts means agreeing that Jesus existed, that He died, or even that He rose again. Those facts are true and must be believed, but intellectual agreement alone does not reconcile a sinner to God. James says even demons know:",
+		"> Thou believest that there is one God; thou doest well: the devils also believe, and tremble. (James 2:19, KJV)",
+		"Saving faith is personal reliance upon Jesus Christ Himself.",
+	].join("\n\n");
+	const excerpt = shareCardExcerpt(answer);
+	assert.equal(excerpt.includes("Saving faith"), false, excerpt);
+	assert.equal(excerpt.includes("devils"), false, excerpt);
+	assert.ok(excerpt.endsWith("demons know…"), excerpt);
+	// A short opening paragraph is joined by the next one.
+	assert.equal(shareCardExcerpt("Yes.\n\nGrace is the unmerited favour of God."), "Yes. Grace is the unmerited favour of God.");
+});
+
+test("the card excerpt is bounded prose", () => {
 	const excerpt = shareCardExcerpt("**Grace** is unmerited favour. ".repeat(40));
 	assert.equal(excerpt.length <= SHARED_CARD_EXCERPT_LENGTH, true, `excerpt was ${excerpt.length}`);
 	assert.equal(excerpt.includes("**"), false);
@@ -303,7 +317,7 @@ test("the card is never cached as long-lived by browsers or the CDN", () => {
 test("the card route tags its CDN copy and every revoke path purges that tag", () => {
 	assert.equal(sharedAnswerCacheTag("abcdefghijklmnop"), "shared-answer:abcdefghijklmnop");
 	const card = read("src/app/api/shared/[id]/image/route.tsx");
-	assert.match(card, /"cache-control": SHARED_CARD_CACHE_CONTROL/);
+	assert.match(card, /cacheControl: SHARED_CARD_CACHE_CONTROL/);
 	assert.match(card, /await tagSharedCard\(id\)/);
 	for (const file of ["src/app/api/shared/[id]/route.ts", "src/app/api/conversations/[id]/route.ts"]) {
 		assert.match(read(file), /await purgeSharedCards\(/, `${file} revokes without purging the card`);

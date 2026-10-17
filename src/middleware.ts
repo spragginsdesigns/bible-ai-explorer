@@ -77,6 +77,14 @@ const isPublicRoute = createRouteMatcher([
 	// The unfurl card is fetched by iMessage, WhatsApp, X and Discord scrapers,
 	// which carry no session at all. Same snapshot, same revoke.
 	"/api/shared/(.*)/image",
+	// Verse share cards: Scripture only, looked up by the server from the
+	// reference (the caller sends no text to draw), so they hold no user
+	// state. A card URL dropped into a chat app is fetched by scrapers with no
+	// session. The personal Pick Up Your Cross card (/api/cards/cross/{id})
+	// stays behind the session.
+	// Exactly this path: the route has no subpaths, and a wildcard would make
+	// any future route under it public by accident.
+	"/api/cards/verse",
 	// Try before you sign up: a signed-out visitor's question from the landing
 	// page. The route enforces its own per-guest, per-IP and global daily
 	// ceilings in the database and runs Vercel BotID, because it spends

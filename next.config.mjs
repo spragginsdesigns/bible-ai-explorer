@@ -7,6 +7,9 @@ const nextConfig = {
 	distDir: process.env.SUREWORD_BUILD_DIR || ".next",
 	outputFileTracingIncludes: {
 		"/api/**": ["./src/data/kjv/*.json"],
+		// Share-card fonts and art, read from disk by src/lib/share-cards/render.tsx.
+		"/api/cards/**": ["./src/assets/share-cards/**/*"],
+		"/api/shared/*/image": ["./src/assets/share-cards/**/*"],
 	},
 	// Analytics ingestion, served from our own origin so an ad blocker cannot
 	// silently delete half the numbers. The two asset rewrites must stay above

@@ -39,8 +39,12 @@ const MAX_REFERENCE_LENGTH = 60;
 export const SHARED_TITLE_LENGTH = 70;
 /** Unfurl description length, the shortest common limit across the platforms. */
 export const SHARED_DESCRIPTION_LENGTH = 160;
-/** How much of the answer the 1200x630 card can hold at a readable size. */
-export const SHARED_CARD_EXCERPT_LENGTH = 200;
+/**
+ * How much of the answer a card is handed. The card's own fitter
+ * (src/lib/share-cards/layout.ts) sets as much of it as reads well at each
+ * size and clips the rest, so this only bounds the work.
+ */
+export const SHARED_CARD_EXCERPT_LENGTH = 480;
 
 const ELLIPSIS = "…";
 
@@ -131,9 +135,34 @@ export function shareDescription(answer: string): string {
 	return clipText(plainTextFromMarkdown(answer), SHARED_DESCRIPTION_LENGTH);
 }
 
-/** The answer excerpt printed on the card image. */
+/**
+ * Below this, the card adds the next paragraph; past it, the card stops at a
+ * paragraph break instead of running the next one on.
+ */
+const CARD_LEAD_LENGTH = 220;
+
+/**
+ * The answer excerpt printed on the card image: the answer's opening, whole
+ * paragraphs at a time. Flattening the entire answer ran a quoted verse's
+ * citation straight into the next paragraph ("...and tremble. - James 2:19,
+ * KJV Saving faith is..."), so paragraphs are taken until the lead is long
+ * enough, and only the last one taken may be clipped.
+ */
 export function shareCardExcerpt(answer: string): string {
-	return clipText(plainTextFromMarkdown(answer), SHARED_CARD_EXCERPT_LENGTH);
+	const paragraphs = answer
+		.replace(/\r\n?/g, "\n")
+		.replace(/```[\s\S]*?```/g, "\n\n")
+		.split(/\n\s*\n/)
+		.map(plainTextFromMarkdown)
+		.filter(Boolean);
+	let lead = "";
+	for (const paragraph of paragraphs) {
+		lead = lead ? `${lead} ${paragraph}` : paragraph;
+		if (lead.length >= CARD_LEAD_LENGTH) break;
+	}
+	// A lead ending "...yet remain His enemies:" introduces a quotation the
+	// card does not carry, so it trails off instead of promising one.
+	return clipText(lead.replace(/\s*[:;,]$/, ELLIPSIS), SHARED_CARD_EXCERPT_LENGTH);
 }
 
 /**
