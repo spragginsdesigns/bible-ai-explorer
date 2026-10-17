@@ -114,6 +114,10 @@ enum ShareCards {
     /// Mirrors `MAX_CARD_VERSES` on the server: the reader's selection limit.
     static let maxCardVerses = 10
 
+    /// Mirrors `MAX_WORD_PASSAGE_VERSES` on the server: the most a "send a
+    /// word" card carries (`tests/share-cards.test.mjs` pins the two).
+    static let maxWordVerses = 4
+
     /// Shown in place of the card controls when this share cannot be a picture.
     static func textOnlyNotice(for target: ShareCardTarget) -> String {
         if case .verse(_, let translation) = target, cardTranslation(translation) != nil {
@@ -264,6 +268,78 @@ enum ShareCards {
         return "SureWord \(collapsed) \(style.rawValue) \(format.rawValue).jpg"
     }
 
+    // MARK: Send a word
+
+    /// The passage "Send to someone" carries from a Share sheet: a verse the
+    /// server can draw, or the day's verse on Pick Up Your Cross, when it is
+    /// at most `maxWordVerses` long, so the draft is never refused for its
+    /// length. Only the reference travels, because drafts are KJV whatever the
+    /// reader had open. Nil for an answer and for a longer passage, which hides
+    /// the button. `sendWordReference` in the web and Android card module.
+    static func sendWordReference(for target: ShareCardTarget) -> String? {
+        let reference: String
+        switch target {
+        case .verse(let verse, _):
+            guard canDraw(target) else { return nil }
+            reference = verse
+        case .cross(_, let verse):
+            reference = verse
+        case .answer:
+            return nil
+        }
+        return verseCount(reference) <= maxWordVerses ? reference : nil
+    }
+
+    /// The owner-only preview of a draft (`GET /api/cards/personal/{id}/image`),
+    /// sent with the session. `edit` counts the saved edits, so a new line of
+    /// the sender's is a new URL and no cache ever shows the line as it was.
+    static func personalPreviewPath(
+        id: String,
+        style: ShareCardStyle,
+        format: ShareCardFormat,
+        size: ShareCardSize,
+        edit: Int
+    ) -> String {
+        var params: [(String, String)] = [("style", style.rawValue), ("format", format.rawValue)]
+        if size == .preview { params.append(("size", "preview")) }
+        params.append(("t", String(edit)))
+        return "/api/cards/personal/\(pathSegment(id))/image?\(formQuery(params))"
+    }
+
+    /// The public image of a sent card (`GET /api/cards/c/{id}/image`), asked
+    /// for with no session like every other public card.
+    static func personalCardPath(id: String, style: ShareCardStyle, format: ShareCardFormat, size: ShareCardSize) -> String {
+        var params: [(String, String)] = [("style", style.rawValue), ("format", format.rawValue)]
+        if size == .preview { params.append(("size", "preview")) }
+        params.append(("v", designVersion))
+        return "/api/cards/c/\(pathSegment(id))/image?\(formQuery(params))"
+    }
+
+    /// The line above the fields before the draft exists.
+    static func sendWordIntro(reference: String?) -> String {
+        guard let reference else { return "SureWord will find a verse for them and write a word to go with it." }
+        return "SureWord will write a word for them under \(reference)."
+    }
+
+    /// What Share link sends: who it is for, then the card's page.
+    static func sendWordLinkText(recipient: String, url: String) -> String {
+        "A word for \(recipient.trimmingCharacters(in: .whitespacesAndNewlines)): \(url)"
+    }
+
+    /// "SureWord for Sarah dawn story.jpg". Anything but ASCII letters, digits
+    /// and spaces is dropped (not replaced, as Android's file name drops it),
+    /// and a name with nothing left reads "you".
+    static func personalFileName(recipient: String, style: ShareCardStyle, format: ShareCardFormat) -> String {
+        var safe = ""
+        for scalar in recipient.unicodeScalars {
+            if isLowerAlphanumeric(scalar) || (65...90).contains(scalar.value) || scalar == " " {
+                safe.unicodeScalars.append(scalar)
+            }
+        }
+        let name = safe.trimmingCharacters(in: .whitespaces)
+        return "SureWord for \(name.isEmpty ? "you" : name) \(style.rawValue) \(format.rawValue).jpg"
+    }
+
     // MARK: Encoding
 
     /// ASCII `a-z` or `0-9` only, as the JS character classes read: a
@@ -299,7 +375,7 @@ enum ShareCards {
     /// `encodeURIComponent` for one path segment. Server-minted ids are
     /// URL-safe already; escaping them anyway is the habit that keeps a path
     /// from ever being built out of raw data.
-    private static func pathSegment(_ value: String) -> String {
+    static func pathSegment(_ value: String) -> String {
         var allowed = CharacterSet.alphanumerics
         allowed.insert(charactersIn: "-_.!~*'()")
         return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
@@ -373,4 +449,186 @@ struct EncouragementRequest: Sendable, Equatable, Encodable {
 struct EncouragementResponse: Sendable, Equatable, Decodable {
     var reference: String
     var text: String
+}
+
+/// The Send a word inputs, with the server's limits. A SwiftUI text field has
+/// no `maxLength`, so the sheet clips through `clip` as the person types, and
+/// the server refuses (400) anything longer either way.
+enum SendWordLimits {
+    static let recipient = 40
+    static let situation = 300
+    static let personalLine = 120
+    static let signature = 30
+
+    static func clip(_ value: String, to limit: Int) -> String {
+        value.count > limit ? String(value.prefix(limit)) : value
+    }
+
+    /// Both a name and what they face, or there is nothing to choose a verse by.
+    static func canWrite(recipient: String, situation: String) -> Bool {
+        !recipient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !situation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+/// Body of `POST /api/cards/word`. `reference` is left out entirely when
+/// SureWord is to find the passage, which the synthesized encoder does for a
+/// nil optional. `situation` is sent once and never stored by the server.
+struct SendWordRequest: Sendable, Equatable, Encodable {
+    var recipient: String
+    var situation: String
+    var reference: String?
+    /// "Write another word": the unsent draft this one replaces, which the
+    /// server deletes. Left out for the first draft.
+    var replaces: String? = nil
+}
+
+/// Response of `POST /api/cards/word`: an unpublished draft. Decoded leniently
+/// so a missing field reads as empty rather than throwing away the draft; the
+/// sheet treats an empty id as a failure.
+struct SendWordDraft: Sendable, Equatable, Decodable {
+    var id: String
+    var reference: String
+    var text: String
+    var word: String
+    /// Whether the card draws whole at every size. Share waits for true,
+    /// because publishing refuses (422) a card that would cut anything off.
+    var fits: Bool
+
+    init(id: String, reference: String, text: String, word: String, fits: Bool = true) {
+        self.id = id
+        self.reference = reference
+        self.text = text
+        self.word = word
+        self.fits = fits
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, reference, text, word, fits }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(String.self, forKey: .id)) ?? ""
+        reference = (try? container.decode(String.self, forKey: .reference)) ?? ""
+        text = (try? container.decode(String.self, forKey: .text)) ?? ""
+        word = (try? container.decode(String.self, forKey: .word)) ?? ""
+        fits = (try? container.decode(Bool.self, forKey: .fits)) ?? true
+    }
+}
+
+/// Response of `PATCH /api/cards/personal/{id}`: whether the card, with the
+/// sender's words as just saved, still draws whole at every size.
+struct PersonalCardSaved: Sendable, Equatable, Decodable {
+    var fits: Bool
+
+    init(fits: Bool) {
+        self.fits = fits
+    }
+
+    private enum CodingKeys: String, CodingKey { case fits }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fits = (try? container.decode(Bool.self, forKey: .fits)) ?? true
+    }
+}
+
+/// Body of `PATCH /api/cards/personal/{id}`: the sender's own line and name.
+struct PersonalCardEdit: Sendable, Equatable, Encodable {
+    var personalLine: String
+    var signature: String
+}
+
+/// Body of `POST /api/cards/personal` when publishing a draft.
+struct PublishPersonalCardRequest: Sendable, Equatable, Encodable {
+    var draftId: String
+    var personalLine: String
+    var signature: String
+}
+
+/// Response of `POST /api/cards/personal`: the sent card and its public page.
+struct PublishedPersonalCard: Sendable, Equatable, Decodable {
+    var id: String
+    var url: String
+
+    private enum CodingKeys: String, CodingKey { case id, url }
+
+    init(id: String, url: String) {
+        self.id = id
+        self.url = url
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(String.self, forKey: .id)) ?? ""
+        url = (try? container.decode(String.self, forKey: .url)) ?? ""
+    }
+}
+
+/// One row of `GET /api/cards/personal`, for Settings -> Cards you sent.
+/// Lenient for the same reason as `SharedAnswerRow`: one odd row must not
+/// empty the list.
+struct SentCardRow: Sendable, Equatable, Decodable, Identifiable {
+    var id: String
+    var url: String
+    /// "word" for a Send a word card, "verse" for a personal verse card.
+    var kind: String
+    var reference: String
+    var recipient: String?
+    var createdAt: String?
+    /// `var` so the optimistic revoke can stamp it.
+    var revokedAt: String?
+
+    var isRevoked: Bool { revokedAt != nil }
+
+    /// "For Sarah · Isaiah 41:10", or the reference alone when the card names
+    /// nobody. The middle dot is Android's and the web's separator.
+    var title: String {
+        guard let recipient = recipient?.trimmingCharacters(in: .whitespacesAndNewlines), !recipient.isEmpty else {
+            return reference
+        }
+        return "For \(recipient) \u{00B7} \(reference)"
+    }
+
+    init(
+        id: String,
+        url: String,
+        kind: String = "word",
+        reference: String,
+        recipient: String? = nil,
+        createdAt: String? = nil,
+        revokedAt: String? = nil
+    ) {
+        self.id = id
+        self.url = url
+        self.kind = kind
+        self.reference = reference
+        self.recipient = recipient
+        self.createdAt = createdAt
+        self.revokedAt = revokedAt
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, url, kind, reference, recipient, createdAt, revokedAt }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(String.self, forKey: .id)) ?? ""
+        url = (try? container.decode(String.self, forKey: .url)) ?? ""
+        kind = (try? container.decode(String.self, forKey: .kind)) ?? "word"
+        reference = (try? container.decode(String.self, forKey: .reference)) ?? ""
+        recipient = try? container.decode(String.self, forKey: .recipient)
+        createdAt = try? container.decode(String.self, forKey: .createdAt)
+        revokedAt = try? container.decode(String.self, forKey: .revokedAt)
+    }
+}
+
+/// Envelope of `GET /api/cards/personal`.
+struct SentCardsResponse: Sendable, Equatable, Decodable {
+    var cards: [SentCardRow]
+
+    private enum CodingKeys: String, CodingKey { case cards }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        cards = (try? container.decode([SentCardRow].self, forKey: .cards)) ?? []
+    }
 }

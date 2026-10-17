@@ -182,4 +182,120 @@ struct ShareCardsTests {
         )
         #expect(response.reference == "John 3:16")
     }
+
+    // MARK: Send a word
+
+    @Test("Send to someone carries a drawable verse or the day's verse, never an answer")
+    func sendWordReference() {
+        #expect(ShareCards.sendWordReference(for: verse) == "Psalms 23:1-4")
+        #expect(ShareCards.sendWordReference(for: .verse(reference: "John 3:16", translation: "BSB")) == "John 3:16")
+        #expect(ShareCards.sendWordReference(for: cross) == "Isaiah 41:10")
+        #expect(ShareCards.sendWordReference(for: answer) == nil)
+        #expect(ShareCards.sendWordReference(for: .verse(reference: "John 1:1", translation: "LC Greek")) == nil)
+        #expect(ShareCards.sendWordReference(for: .verse(reference: "1 Corinthians 13:1-13", translation: "KJV")) == nil)
+        // Drawable as a card, but longer than the four verses a word card carries.
+        #expect(ShareCards.sendWordReference(for: .verse(reference: "Romans 8:31-39", translation: "KJV")) == nil)
+        #expect(ShareCards.sendWordReference(for: .cross(id: "x", reference: "Psalms 23:1-6")) == nil)
+    }
+
+    @Test("Asks for the owner's draft preview with the edit counter last")
+    func personalPreviewPath() {
+        #expect(
+            ShareCards.personalPreviewPath(id: "abcDEF123ghi456J", style: .parchment, format: .square, size: .preview, edit: 3)
+                == "/api/cards/personal/abcDEF123ghi456J/image?style=parchment&format=square&size=preview&t=3"
+        )
+        #expect(
+            ShareCards.personalPreviewPath(id: "abcDEF123ghi456J", style: .dawn, format: .story, size: .full, edit: 0)
+                == "/api/cards/personal/abcDEF123ghi456J/image?style=dawn&format=story&t=0"
+        )
+    }
+
+    @Test("Fetches a sent card's public image in the server's order")
+    func personalCardPath() {
+        #expect(
+            ShareCards.personalCardPath(id: "abcDEF123ghi456J", style: .sanctuary, format: .story, size: .full)
+                == "/api/cards/c/abcDEF123ghi456J/image?style=sanctuary&format=story&v=\(ShareCards.designVersion)"
+        )
+        #expect(
+            ShareCards.personalCardPath(id: "a/b", style: .dawn, format: .square, size: .preview)
+                == "/api/cards/c/a%2Fb/image?style=dawn&format=square&size=preview&v=\(ShareCards.designVersion)"
+        )
+    }
+
+    @Test("Introduces the sheet by whether a passage was chosen")
+    func sendWordIntro() {
+        #expect(ShareCards.sendWordIntro(reference: nil) == "SureWord will find a verse for them and write a word to go with it.")
+        #expect(ShareCards.sendWordIntro(reference: "Isaiah 41:10") == "SureWord will write a word for them under Isaiah 41:10.")
+    }
+
+    @Test("Shares the link with who it is for")
+    func sendWordLinkText() {
+        #expect(
+            ShareCards.sendWordLinkText(recipient: " Sarah ", url: "https://sureword.app/c/abc")
+                == "A word for Sarah: https://sureword.app/c/abc"
+        )
+    }
+
+    @Test("Names a sent card's file after its recipient, safely")
+    func personalFileName() {
+        #expect(ShareCards.personalFileName(recipient: "Sarah", style: .dawn, format: .story) == "SureWord for Sarah dawn story.jpg")
+        #expect(ShareCards.personalFileName(recipient: "Mary-Jo O'Neil", style: .parchment, format: .square)
+            == "SureWord for MaryJo ONeil parchment square.jpg")
+        #expect(ShareCards.personalFileName(recipient: " ??? ", style: .sanctuary, format: .story) == "SureWord for you sanctuary story.jpg")
+    }
+
+    @Test("Keeps the inputs inside the server's limits")
+    func sendWordLimits() {
+        #expect(SendWordLimits.clip(String(repeating: "a", count: 45), to: SendWordLimits.recipient).count == 40)
+        #expect(SendWordLimits.clip("Sarah", to: SendWordLimits.recipient) == "Sarah")
+        #expect(SendWordLimits.canWrite(recipient: "Sarah", situation: "Surgery tomorrow"))
+        #expect(!SendWordLimits.canWrite(recipient: "  ", situation: "Surgery tomorrow"))
+        #expect(!SendWordLimits.canWrite(recipient: "Sarah", situation: "\n"))
+    }
+
+    @Test("Leaves the reference out of the draft request when SureWord picks the verse")
+    func sendWordBody() throws {
+        let found = try JSONEncoder().encode(SendWordRequest(recipient: "Sarah", situation: "Surgery", reference: nil))
+        let foundObject = try #require(try JSONSerialization.jsonObject(with: found) as? [String: Any])
+        #expect(foundObject.keys.sorted() == ["recipient", "situation"])
+        let chosen = try JSONEncoder().encode(SendWordRequest(recipient: "Sarah", situation: "Surgery", reference: "Isaiah 41:10"))
+        let chosenObject = try #require(try JSONSerialization.jsonObject(with: chosen) as? [String: Any])
+        #expect(chosenObject["reference"] as? String == "Isaiah 41:10")
+
+        let draft = try JSONDecoder().decode(
+            SendWordDraft.self,
+            from: Data(#"{"id":"abc","reference":"Isaiah 41:10","text":"Fear thou not","word":"Sarah, He is with you."}"#.utf8)
+        )
+        #expect(draft == SendWordDraft(id: "abc", reference: "Isaiah 41:10", text: "Fear thou not", word: "Sarah, He is with you."))
+        #expect(try JSONDecoder().decode(SendWordDraft.self, from: Data("{}".utf8)).id.isEmpty)
+        #expect(draft.fits, "an older server with no fits field reads as fitting")
+        let tight = try JSONDecoder().decode(SendWordDraft.self, from: Data(#"{"id":"abc","fits":false}"#.utf8))
+        #expect(!tight.fits)
+        #expect(try !JSONDecoder().decode(PersonalCardSaved.self, from: Data(#"{"ok":true,"fits":false}"#.utf8)).fits)
+
+        let another = try JSONEncoder().encode(SendWordRequest(recipient: "Sarah", situation: "Surgery", reference: nil, replaces: "old"))
+        let anotherObject = try #require(try JSONSerialization.jsonObject(with: another) as? [String: Any])
+        #expect(anotherObject["replaces"] as? String == "old")
+
+        let publish = try JSONEncoder().encode(PublishPersonalCardRequest(draftId: "abc", personalLine: "Praying", signature: "Austin"))
+        let publishObject = try #require(try JSONSerialization.jsonObject(with: publish) as? [String: Any])
+        #expect(publishObject.keys.sorted() == ["draftId", "personalLine", "signature"])
+    }
+
+    @Test("Reads the sent cards leniently and titles them by recipient")
+    func sentCards() throws {
+        let json = #"""
+        {"cards":[
+          {"id":"a","url":"https://sureword.app/c/a","kind":"word","reference":"Isaiah 41:10","recipient":"Sarah","createdAt":"2026-10-17T10:00:00.000Z","revokedAt":null},
+          {"id":"b","url":"https://sureword.app/c/b","kind":"verse","reference":"John 3:16","recipient":null,"createdAt":"2026-10-16T10:00:00.000Z","revokedAt":"2026-10-17T11:00:00.000Z"}
+        ]}
+        """#
+        let cards = try JSONDecoder().decode(SentCardsResponse.self, from: Data(json.utf8)).cards
+        #expect(cards.count == 2)
+        #expect(cards[0].title == "For Sarah \u{00B7} Isaiah 41:10")
+        #expect(!cards[0].isRevoked)
+        #expect(cards[1].title == "John 3:16")
+        #expect(cards[1].isRevoked)
+        #expect(try JSONDecoder().decode(SentCardsResponse.self, from: Data(#"{"cards":"nope"}"#.utf8)).cards.isEmpty)
+    }
 }

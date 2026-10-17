@@ -51,6 +51,8 @@ struct BibleTabView: View {
                 }
                 BibleHomeStudyCards()
                 crossCard
+                SendWordHomeCard(titleSize: 15, subtitleSize: 12)
+                    .padding(.bottom, Spacing.sm)
                 atlasCard
                 Button { showingHistory = true } label: {
                     Label("Reading log", systemImage: "clock.arrow.circlepath")

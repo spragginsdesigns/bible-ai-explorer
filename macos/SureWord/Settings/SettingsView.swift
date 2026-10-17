@@ -25,6 +25,8 @@ struct SettingsView: View {
     /// And again: a revoke in flight must survive a redraw, or the optimistic
     /// row would snap back while its DELETE is still going.
     @State private var shares = SharedAnswersModel()
+    /// Cards you sent, owned here for the same reason as `shares`.
+    @State private var sentCards = SentCardsModel()
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -77,6 +79,8 @@ struct SettingsView: View {
                 churchSection
 
                 sharedAnswersSection
+
+                SentCardsSectionView(model: sentCards)
 
                 Section("Account") {
                     if let name = accountName {
@@ -145,6 +149,10 @@ struct SettingsView: View {
         .task {
             shares.configure(app.api)
             await shares.load()
+        }
+        .task {
+            sentCards.configure(app.api)
+            await sentCards.load()
         }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)

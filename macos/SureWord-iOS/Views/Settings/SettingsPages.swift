@@ -229,16 +229,23 @@ struct SharedAnswersSettingsPage: View {
     /// A revoke in flight must survive a redraw, or the optimistic row would
     /// snap back while its DELETE is still going.
     @State private var shares = SharedAnswersModel()
+    /// Cards you sent, under the answers as on Android and the web.
+    @State private var sentCards = SentCardsModel()
 
     var body: some View {
         Form {
             SharedAnswersSectionView(model: shares)
+            SentCardsSectionView(model: sentCards)
         }
         .navigationTitle("Shared answers")
         .analyticsScreen(AnalyticsScreen.settingsShared)
         .task {
             shares.configure(app.api)
             await shares.load()
+        }
+        .task {
+            sentCards.configure(app.api)
+            await sentCards.load()
         }
     }
 }

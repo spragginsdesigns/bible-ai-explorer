@@ -25,6 +25,9 @@ struct BibleSidebar: View {
                 planCard
                 atlasCard
                 crossCard
+                SendWordHomeCard()
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.bottom, Spacing.sm)
                 bookList
             }
         }

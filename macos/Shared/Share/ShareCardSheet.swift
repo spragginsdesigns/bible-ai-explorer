@@ -83,6 +83,19 @@ extension APIClient {
 
 // MARK: - Model
 
+/// Where a card preview stands. Top level rather than nested in a model,
+/// because the Share sheet and Send a word draw it with the same frame.
+enum ShareCardPreview {
+    case loading(String?)
+    case ready(Image)
+    case error(String)
+
+    var isReady: Bool {
+        if case .ready = self { return true }
+        return false
+    }
+}
+
 /// State behind one open of the sheet. Owned by the view as `@State`, so it
 /// lives exactly as long as the sheet does.
 @MainActor
@@ -96,11 +109,7 @@ final class ShareCardModel {
         case unavailable(String)
     }
 
-    enum Preview {
-        case loading(String?)
-        case ready(Image)
-        case error(String)
-    }
+    typealias Preview = ShareCardPreview
 
     static let writingNotice = "Writing a word for this verse…"
     static let noteFallback = "Encouragement isn't available right now."
@@ -148,10 +157,7 @@ final class ShareCardModel {
         return false
     }
 
-    var isPreviewReady: Bool {
-        if case .ready = preview { return true }
-        return false
-    }
+    var isPreviewReady: Bool { preview.isReady }
 
     /// The quiet line under the toggle when the word could not be written.
     var noteHint: String? {
@@ -354,7 +360,7 @@ final class ShareCardModel {
         return image
     }
 
-    private static func image(from data: Data) -> Image? {
+    static func image(from data: Data) -> Image? {
         #if os(macOS)
         NSImage(data: data).map { Image(nsImage: $0) }
         #else
@@ -407,7 +413,7 @@ final class ShareCardModel {
 
     /// Cards are written into their own folder under the temporary directory,
     /// named for what they show, and the OS may clear them whenever it likes.
-    private static func write(_ data: Data, named name: String) throws -> URL {
+    static func write(_ data: Data, named name: String) throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appending(path: "share-cards", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let file = folder.appending(path: name, directoryHint: .notDirectory)
@@ -417,7 +423,7 @@ final class ShareCardModel {
 
     /// The server's own `{ "error": ... }` text when there is one (a 422 says
     /// the passage is too long for that size), else the fixed sentence.
-    private static func message(_ error: any Error, fallback: String) -> String {
+    static func message(_ error: any Error, fallback: String) -> String {
         if let apiError = error as? APIError, !apiError.message.isEmpty { return apiError.message }
         return fallback
     }
@@ -428,21 +434,34 @@ final class ShareCardModel {
 struct ShareCardSheet: View {
     @Environment(\.theme) private var theme
     @State private var model: ShareCardModel
+    /// "Send to someone" swaps this sheet's content for Send a word, in the
+    /// same presentation, as Android swaps one sheet for the other.
+    @State private var isSendingWord = false
+    private let api: APIClient
     private let onClose: () -> Void
 
     init(item: ShareCardItem, api: APIClient, onClose: @escaping () -> Void) {
         _model = State(initialValue: ShareCardModel(item: item, api: api))
+        self.api = api
         self.onClose = onClose
     }
 
+    /// The passage Send a word carries, or nil when this share offers no
+    /// "Send to someone" (an answer, or a passage that shares as text only).
+    private var sendWordReference: String? { ShareCards.sendWordReference(for: model.target) }
+
     var body: some View {
-        chrome
-            .task { model.start() }
-            .onDisappear { model.stop() }
+        if isSendingWord {
+            SendWordSheet(reference: sendWordReference, api: api, onClose: onClose)
+        } else {
+            chrome
+                .task { model.start() }
+                .onDisappear { model.stop() }
+        }
     }
 
     #if os(macOS)
-    private static let sheetSize = CGSize(width: 440, height: 700)
+    static let sheetSize = CGSize(width: 440, height: 700)
 
     private var chrome: some View {
         VStack(spacing: 0) {
@@ -497,9 +516,16 @@ struct ShareCardSheet: View {
     private func content(maxPreviewHeight: CGFloat, width: CGFloat) -> some View {
         VStack(spacing: Spacing.md) {
             if model.drawable {
-                preview(maxHeight: maxPreviewHeight, width: width)
-                styleChips
-                formatPicker
+                ShareCardPreviewFrame(
+                    preview: model.preview,
+                    format: model.prefs.format,
+                    maxHeight: maxPreviewHeight,
+                    width: width,
+                    accessibilityLabel: "Preview of the \(model.prefs.style.label) \(model.prefs.format.rawValue) card",
+                    onRetry: model.retry
+                )
+                ShareCardStyleChips(selected: model.prefs.style) { model.choose(style: $0) }
+                ShareCardFormatPicker(selected: model.prefs.format) { model.choose(format: $0) }
                 if model.isVerse { encourageRow }
                 shareImageButton
             } else {
@@ -527,6 +553,19 @@ struct ShareCardSheet: View {
             }
             #endif
 
+            if sendWordReference != nil {
+                Button {
+                    model.stop()
+                    isSendingWord = true
+                } label: {
+                    Text("Send to someone")
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(GhostShareButtonStyle())
+                .disabled(model.isPreparing)
+                .accessibilityHint("Write a word for someone under this verse")
+            }
+
             if let actionError = model.actionError {
                 Text(actionError)
                     .font(.system(size: 13))
@@ -539,97 +578,7 @@ struct ShareCardSheet: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: Preview
-
-    private func preview(maxHeight: CGFloat, width: CGFloat) -> some View {
-        let aspect = CGFloat(model.prefs.format.aspectRatio)
-        let height = max(120, min(maxHeight, (width - Spacing.xl * 2) / aspect))
-        return ZStack {
-            switch model.preview {
-            case .ready(let image):
-                image
-                    .resizable()
-                    .scaledToFill()
-            case .error(let message):
-                VStack(spacing: Spacing.md) {
-                    Text(message)
-                        .font(.system(size: 13))
-                        .foregroundStyle(theme.textSecondary)
-                        .multilineTextAlignment(.center)
-                    Button("Try again") { model.retry() }
-                        .buttonStyle(AccentButtonStyle())
-                }
-                .padding(Spacing.lg)
-            case .loading(let message):
-                VStack(spacing: Spacing.md) {
-                    ProgressView()
-                        .tint(theme.accent)
-                    if let message {
-                        Text(message)
-                            .font(.system(size: 13))
-                            .foregroundStyle(theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(Spacing.lg)
-            }
-        }
-        .frame(width: height * aspect, height: height)
-        .background(theme.surface)
-        .clipShape(.rect(cornerRadius: Radius.lg))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.lg)
-                .strokeBorder(theme.borderStrong, lineWidth: 1)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Preview of the \(model.prefs.style.label) \(model.prefs.format.rawValue) card")
-    }
-
     // MARK: Choices
-
-    private var styleChips: some View {
-        HStack(spacing: Spacing.sm) {
-            ForEach(ShareCardStyle.allCases) { style in
-                let selected = style == model.prefs.style
-                Button {
-                    model.choose(style: style)
-                } label: {
-                    HStack(spacing: 6) {
-                        StyleSwatch(style: style)
-                        Text(style.label)
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(selected ? theme.accent : theme.textMuted)
-                    .padding(.horizontal, 10)
-                    .frame(minHeight: 40)
-                    .background(selected ? theme.accentSoft : .clear, in: .capsule)
-                    .overlay {
-                        Capsule().strokeBorder(selected ? theme.accent : theme.borderStrong, lineWidth: selected ? 1.5 : 1)
-                    }
-                    .contentShape(.capsule)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(style.label) style")
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-    }
-
-    private var formatPicker: some View {
-        Picker("Card size", selection: Binding(
-            get: { model.prefs.format },
-            set: { model.choose(format: $0) }
-        )) {
-            ForEach(ShareCardFormat.allCases) { format in
-                Text(format.label).tag(format)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(maxWidth: 240)
-    }
 
     private var encourageRow: some View {
         Toggle(isOn: Binding(
@@ -696,6 +645,122 @@ struct CrossSharePill: View {
     }
 }
 
+// MARK: - Shared pieces
+
+/// The card itself, at the size the sheet allows, or what stands in for it
+/// while it loads or after it failed. The Share sheet and Send a word both
+/// draw their server preview through this frame, so the two never drift.
+struct ShareCardPreviewFrame: View {
+    @Environment(\.theme) private var theme
+    let preview: ShareCardPreview
+    let format: ShareCardFormat
+    let maxHeight: CGFloat
+    let width: CGFloat
+    let accessibilityLabel: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        let aspect = CGFloat(format.aspectRatio)
+        let height = max(120, min(maxHeight, (width - Spacing.xl * 2) / aspect))
+        ZStack {
+            switch preview {
+            case .ready(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            case .error(let message):
+                VStack(spacing: Spacing.md) {
+                    Text(message)
+                        .font(.system(size: 13))
+                        .foregroundStyle(theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                    Button("Try again", action: onRetry)
+                        .buttonStyle(AccentButtonStyle())
+                }
+                .padding(Spacing.lg)
+            case .loading(let message):
+                VStack(spacing: Spacing.md) {
+                    ProgressView()
+                        .tint(theme.accent)
+                    if let message {
+                        Text(message)
+                            .font(.system(size: 13))
+                            .foregroundStyle(theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(Spacing.lg)
+            }
+        }
+        .frame(width: height * aspect, height: height)
+        .background(theme.surface)
+        .clipShape(.rect(cornerRadius: Radius.lg))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.lg)
+                .strokeBorder(theme.borderStrong, lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+/// Dawn, Parchment and Sanctuary as chips, each with its own swatch.
+struct ShareCardStyleChips: View {
+    @Environment(\.theme) private var theme
+    let selected: ShareCardStyle
+    let onSelect: (ShareCardStyle) -> Void
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            ForEach(ShareCardStyle.allCases) { style in
+                let isSelected = style == selected
+                Button {
+                    onSelect(style)
+                } label: {
+                    HStack(spacing: 6) {
+                        StyleSwatch(style: style)
+                        Text(style.label)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .foregroundStyle(isSelected ? theme.accent : theme.textMuted)
+                    .padding(.horizontal, 10)
+                    .frame(minHeight: 40)
+                    .background(isSelected ? theme.accentSoft : .clear, in: .capsule)
+                    .overlay {
+                        Capsule().strokeBorder(isSelected ? theme.accent : theme.borderStrong, lineWidth: isSelected ? 1.5 : 1)
+                    }
+                    .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(style.label) style")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+    }
+}
+
+/// Story or Square.
+struct ShareCardFormatPicker: View {
+    let selected: ShareCardFormat
+    let onSelect: (ShareCardFormat) -> Void
+
+    var body: some View {
+        Picker("Card size", selection: Binding(
+            get: { selected },
+            set: { onSelect($0) }
+        )) {
+            ForEach(ShareCardFormat.allCases) { format in
+                Text(format.label).tag(format)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .frame(maxWidth: 240)
+    }
+}
+
 /// The chip's two-colour swatch: the style's ground with its glow rising in it.
 private struct StyleSwatch: View {
     let style: ShareCardStyle
@@ -716,7 +781,7 @@ private struct StyleSwatch: View {
 }
 
 /// The secondary action: an outline, quieter than the accent primary.
-private struct GhostShareButtonStyle: ButtonStyle {
+struct GhostShareButtonStyle: ButtonStyle {
     @Environment(\.theme) private var theme
     @Environment(\.isEnabled) private var isEnabled
 
@@ -751,7 +816,7 @@ extension View {
 /// The system share sheet for one card, text or link. `UIActivityViewController`
 /// rather than `ShareLink` because the file does not exist until Share image
 /// has downloaded it, and `ShareLink` needs its item up front.
-private struct ActivitySheet: UIViewControllerRepresentable {
+struct ActivitySheet: UIViewControllerRepresentable {
     let share: OutgoingShare
     /// Called once something was actually sent, not when the sheet is swiped away.
     let onShared: () -> Void
@@ -806,7 +871,7 @@ private final class AnswerLinkItem: NSObject, UIActivityItemSource {
 /// The sheet stays open afterwards, unlike iOS: the chosen service (AirDrop,
 /// Messages) presents from this sheet's window, and closing it under them
 /// would take their UI with it.
-private struct SharingPicker: NSViewRepresentable {
+struct SharingPicker: NSViewRepresentable {
     @Binding var share: OutgoingShare?
     let matches: (OutgoingShare) -> Bool
     let onShared: (OutgoingShare) -> Void

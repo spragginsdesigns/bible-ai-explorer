@@ -188,7 +188,11 @@ test("Send to someone offers only a passage the word route takes", () => {
 	assert.ok(client && server, "both limits are declared as plain numbers");
 	assert.equal(client[1], server[1]);
 	const swift = read("macos/Shared/Share/ShareCards.swift").match(/maxWordVerses = ([0-9]+)/);
-	if (swift) assert.equal(swift[1], server[1], "the Apple sheet carries the same limit");
+	assert.ok(swift, "the Apple sheet declares maxWordVerses");
+	assert.equal(swift[1], server[1], "the Apple sheet carries the same limit");
+	const line = read("macos/Shared/Share/ShareCards.swift").match(/static let personalLine = ([0-9]+)/);
+	const serverLine = read("src/lib/share-cards/personal.ts").match(/MAX_PERSONAL_LINE_LENGTH = ([0-9]+);/);
+	assert.equal(line?.[1], serverLine?.[1], "the Apple line limit matches the server's");
 });
 
 test("clients and server agree on the design version, the door and the canonical URL", () => {
