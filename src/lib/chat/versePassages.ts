@@ -167,8 +167,12 @@ interface CitedReference extends ResolvedReference {
 }
 
 // A same-chapter range tail, before any translation tag: "3:5-13", "3:5-13 KJV".
-// Dashes are escapes so the file stays ASCII: hyphen, en dash, em dash.
-const RANGE_TAIL = /:(\d{1,3})\s*[---]\s*(\d{1,3})(?:\s+[A-Za-z]+)?\s*$/;
+// Built from code points: an escape inside a regex class has been flattened to a
+// plain hyphen by this PC's editing tools before (it read [---]).
+const RANGE_DASHES = `[-${String.fromCharCode(0x2013)}${String.fromCharCode(0x2014)}]`;
+const RANGE_TAIL = new RegExp(
+	String.raw`:(\d{1,3})\s*` + RANGE_DASHES + String.raw`\s*(\d{1,3})(?:\s+[A-Za-z]+)?\s*$`
+);
 
 function resolveCited(reference: string, resolve: ReferenceResolver): CitedReference | null {
 	const resolved = resolve(reference);

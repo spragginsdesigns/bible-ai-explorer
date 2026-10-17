@@ -13,7 +13,10 @@ import {
 // book names to canon order; these tests only need a stable book key.
 const BOOKS = { genesis: 1, psalms: 19, ps: 19, acts: 44, "2 peter": 61, revelation: 66 };
 function resolve(reference) {
-	const match = /^(.*\S)\s+(\d+)(?::(\d+))?(?:\s*[--]\s*\d+)?(?:\s+KJV)?$/.exec(reference.trim());
+	// The en dash comes from its code point: this PC's tools flatten a literal or escape.
+	const match = new RegExp(
+		String.raw`^(.*\S)\s+(\d+)(?::(\d+))?(?:\s*[-` + String.fromCharCode(0x2013) + String.raw`]\s*\d+)?(?:\s+KJV)?$`
+	).exec(reference.trim());
 	if (!match) return null;
 	const order = BOOKS[match[1].toLowerCase()];
 	if (!order) return null;
@@ -124,6 +127,6 @@ test("verse passages: a cited range matches a passage that holds any verse of it
 		{ resolve, citedReferences: ["2 Peter 3:5-13"] }
 	);
 	assert.deepEqual(grouped.passages.map((p) => p.reference), ["2 Peter 3:10-11", "Acts 19:13"]);
-	assert.equal(findPassageForReference(grouped, "2 Peter 3:5-13 KJV", resolve)?.reference, "2 Peter 3:10-11");
+	assert.equal(findPassageForReference(grouped, `2 Peter 3:5${String.fromCharCode(0x2013)}13 KJV`, resolve)?.reference, "2 Peter 3:10-11");
 	assert.equal(findPassageForReference(grouped, "2 Peter 3:5-9", resolve), null);
 });
