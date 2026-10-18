@@ -1063,7 +1063,7 @@ are what keep playback going on each platform.
 ## Audio Bible - the narrated KJV
 
 *First shipped 2026-10-07 · web (LC-15116); Android (LC-15134) and macOS/iOS
-(LC-15135) players not built yet*
+(LC-15135) players added 2026-10-08*
 
 The reader can read the Bible aloud. On any narrated chapter in the KJV, a
 headphones button sits in the reader's top bar. Tapping it plays the chapter
