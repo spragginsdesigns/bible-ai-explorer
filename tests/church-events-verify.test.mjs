@@ -70,6 +70,49 @@ test("a time the recording never said is not certain", () => {
 	assert.match(events[0].unsureWhy, /not heard/);
 });
 
+test("real caption time forms count as spoken: ranges and run-together minutes", () => {
+	// Verbatim from the Oct 18 2026 service.
+	const service = [
+		{ startMs: 0, endMs: 9_000, text: "Our Harvest Festival, that is October 31st from 2 to 5 p.m." },
+		{
+			startMs: 60_000,
+			endMs: 69_000,
+			text: "So two weeks from today, November 1st, we're going to have Sunday school at 1115 because their race will be over.",
+		},
+	];
+	const { events } = verifyEvents(
+		service,
+		[
+			raw({
+				title: "Harvest Festival",
+				date: "2026-10-31",
+				dateWords: "October 31st",
+				startTime: "14:00",
+				endTime: "17:00",
+				sourceQuote: "that is October 31st from 2 to 5 p.m.",
+				quoteAtMs: 0,
+			}),
+			raw({
+				title: "Sunday school",
+				date: "2026-11-01",
+				dateWords: "two weeks from today, November 1st",
+				startTime: "11:15",
+				sourceQuote:
+					"So two weeks from today, November 1st, we're going to have Sunday school at 1115 because their race will be over.",
+				quoteAtMs: 60_000,
+			}),
+		],
+		SUNDAY
+	);
+	assert.deepEqual(
+		events.map((e) => [e.title, e.certain, e.unsureWhy]),
+		[
+			["Harvest Festival", true, null],
+			["Sunday school", true, null],
+		]
+	);
+});
+
 test("a stray number nearby is not a spoken time", () => {
 	const stray = [
 		{ startMs: 0, endMs: 9_000, text: "Turn with me to Luke 2, and one more thing." },

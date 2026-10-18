@@ -660,7 +660,11 @@ function hourIsSpoken(time, text) {
 	const patterns = [
 		`(^|[^0-9.:])${digits}[:.][0-5][0-9]\\b`,
 		`(^|[^0-9.:])${digits}\\s*${after}`,
-		`\\bat\\s+${digits}\\b(?![:.]?[0-9])`,
+		// "at 6", and "at 1115", which is how captions write 11:15.
+		`\\bat\\s+${digits}([:.]?[0-5][0-9])?\\b`,
+		// "from 2 to 5", "2 to 5 p.m."
+		`\\bfrom\\s+${digits}\\b`,
+		`(^|[^0-9.:])${digits}\\s*(to|until|till|-)\\s*[0-9]`,
 		`\\bat\\s+${word}\\b`,
 		`\\b${word}\\s+${after}`,
 	];
@@ -766,7 +770,11 @@ export function verifyEvents(cues, rawEvents, serviceDate, { maxDaysAhead = 120 
 			reasons.push(`"${raw.dateWords}" does not fall on ${raw.date}`);
 		}
 		// "Tomorrow" after a Sunday service is Monday, whatever the model wrote.
-		const relative = RELATIVE_DAYS.find((r) => r.pattern.test(raw.dateWords ?? ""));
+		// Only when the words are the relative day itself: "two weeks from
+		// today, November 1st" names its own date.
+		const dateWords = raw.dateWords ?? "";
+		const namesItsOwnDate = /\b(from|after|before)\s+(today|tonight|tomorrow)\b|\bweeks?\b|\d/i.test(dateWords);
+		const relative = namesItsOwnDate ? null : RELATIVE_DAYS.find((r) => r.pattern.test(dateWords));
 		if (relative && ahead !== relative.offset) reasons.push(`"${raw.dateWords}" is not ${raw.date}`);
 		// Evening gatherings are announced as "6:30", and a model reading that
 		// can land on the morning. Anything before 6am is almost surely that.
