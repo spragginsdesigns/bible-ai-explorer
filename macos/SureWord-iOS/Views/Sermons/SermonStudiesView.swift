@@ -10,6 +10,8 @@ struct SermonStudiesView: View {
     @Environment(AppModel.self) private var app
 
     @State private var studies: [SermonStudySummary]?
+    @State private var events: [ChurchEvent] = []
+    @State private var churchApp: ChurchApp?
     @State private var busy = false
     @State private var error: String?
 
@@ -20,6 +22,10 @@ struct SermonStudiesView: View {
                     .font(.system(size: 15))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if !events.isEmpty {
+                    ChurchEventsCard(events: events, churchApp: churchApp, title: "Coming up", eyebrow: "Announced at church")
+                }
 
                 if let studies, !studies.isEmpty {
                     ForEach(studies) { study in
@@ -69,7 +75,10 @@ struct SermonStudiesView: View {
         error = nil
         defer { busy = false }
         do {
-            studies = try await SermonStudiesAPI.list(api: app.api)
+            let home = try await SermonStudiesAPI.home(api: app.api)
+            studies = home.studies
+            events = home.events
+            churchApp = home.churchApp
         } catch {
             self.error = "Could not load your sermon studies."
         }

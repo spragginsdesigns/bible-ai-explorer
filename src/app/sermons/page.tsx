@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ChurchEventsCard } from "@/components/sermons/ChurchEventsCard";
+import type { ChurchApp, ChurchEventView } from "@/lib/church-events-rules";
 
 interface SermonStudySummary {
 	id: string;
@@ -33,6 +35,8 @@ function formatDate(date: string | null): string | null {
  */
 export default function SermonsPage() {
 	const [studies, setStudies] = useState<SermonStudySummary[] | null>(null);
+	const [events, setEvents] = useState<ChurchEventView[]>([]);
+	const [churchApp, setChurchApp] = useState<ChurchApp | null>(null);
 	const [failed, setFailed] = useState(false);
 	const [busy, setBusy] = useState(true);
 	const sequence = useRef(0);
@@ -47,9 +51,18 @@ export default function SermonsPage() {
 		setFailed(false);
 		fetch("/api/sermon-studies")
 			.then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-			.then((data: { studies?: SermonStudySummary[] }) => {
-				if (request === sequence.current) setStudies(data.studies ?? []);
-			})
+			.then(
+				(data: {
+					studies?: SermonStudySummary[];
+					events?: ChurchEventView[];
+					churchApp?: ChurchApp | null;
+				}) => {
+					if (request !== sequence.current) return;
+					setStudies(data.studies ?? []);
+					setEvents(data.events ?? []);
+					setChurchApp(data.churchApp ?? null);
+				}
+			)
 			.catch(() => {
 				if (request === sequence.current) setFailed(true);
 			})
@@ -137,6 +150,13 @@ export default function SermonsPage() {
 					</p>
 				</div>
 			)}
+
+			<ChurchEventsCard
+				events={events}
+				churchApp={churchApp}
+				eyebrow="Announced at church"
+				title="Coming up"
+			/>
 
 			<ul className="space-y-3">
 				{studies?.map((study) => {

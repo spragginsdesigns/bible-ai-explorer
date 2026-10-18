@@ -7,10 +7,13 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import {
-	fetchSermonStudies,
+	fetchSermonHome,
 	formatServiceDate,
+	type ChurchApp,
+	type ChurchEvent,
 	type SermonStudySummary,
 } from "@/features/sermons/sermonApi";
+import { ChurchEventsCard } from "@/features/sermons/ChurchEventsCard";
 import { radius, spacing, typography, type Colors } from "@/theme";
 
 /**
@@ -25,6 +28,8 @@ export default function SermonStudiesScreen() {
 	const { colors } = useTheme();
 	const bottom = useTabBarSpace();
 	const [studies, setStudies] = useState<SermonStudySummary[] | null>(null);
+	const [events, setEvents] = useState<ChurchEvent[]>([]);
+	const [churchApp, setChurchApp] = useState<ChurchApp | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +37,10 @@ export default function SermonStudiesScreen() {
 		setBusy(true);
 		setError(null);
 		try {
-			setStudies(await fetchSermonStudies(getToken));
+			const home = await fetchSermonHome(getToken);
+			setStudies(home.studies);
+			setEvents(home.events);
+			setChurchApp(home.churchApp);
 		} catch {
 			setError("Could not load your sermon studies.");
 		} finally {
@@ -63,10 +71,19 @@ export default function SermonStudiesScreen() {
 					gap: spacing.md,
 				}}
 				ListHeaderComponent={
-					<Text style={styles.body}>
-						A guided walk through each recorded service, so you can follow the message
-						even when you could not be there.
-					</Text>
+					<View style={{ gap: spacing.md }}>
+						<Text style={styles.body}>
+							A guided walk through each recorded service, so you can follow the message
+							even when you could not be there.
+						</Text>
+						<ChurchEventsCard
+							events={events}
+							churchApp={churchApp}
+							eyebrow="Announced at church"
+							title="Coming up"
+							getToken={getToken}
+						/>
+					</View>
 				}
 				ListEmptyComponent={
 					busy ? (

@@ -10,6 +10,8 @@
 //                      (skips Sunday School, live streams, and anything past 14 days)
 //   --expect-date D    with --latest: exit 75 until the service on date D has a study
 //   --from-srt <path>  skip download and transcription, compose from this SRT
+//   --events-only      re-read the announcements of an already-built study and
+//                      (with --publish) send just its events; the study is untouched
 //   --no-images        skip illustration (the slowest and only billed-by-image step)
 //   --keep-audio       leave the .m4a behind (it is ~70 MB per service)
 //   --out <dir>        output directory (default artifacts/sermons/<videoId>)
@@ -26,7 +28,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+	announcementCues,
 	composeStudy,
+	extractEvents,
+	publishEvents,
+	verifyEvents,
 	discoverUploads,
 	downloadAudio,
 	generateImage,
@@ -49,6 +55,8 @@ import {
 
 const root = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const FMBC_CHANNEL_ID = "UCiTssyWZc2PJ25OAZOaN7Ag";
+/** Announced times are Fresno wall clock times. */
+const CHURCH_TIME_ZONE = "America/Los_Angeles";
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const MAX_IMAGES = 4;
 const TEMPFAIL = 75;
@@ -61,6 +69,7 @@ function parseArgs(argv) {
 	const opts = {
 		latest: false,
 		rerender: false,
+		eventsOnly: false,
 		fromSrt: null,
 		images: true,
 		keepAudio: false,
@@ -80,6 +89,7 @@ function parseArgs(argv) {
 		else if (a === "--no-images") opts.images = false;
 		else if (a === "--keep-audio") opts.keepAudio = true;
 		else if (a === "--rerender") opts.rerender = true;
+		else if (a === "--events-only") opts.eventsOnly = true;
 		else if (a === "--publish") opts.publish = true;
 		else if (a === "--api") opts.api = argv[++i];
 		else if (a === "--channel-id") opts.channelId = argv[++i];
@@ -170,13 +180,30 @@ async function main() {
 	// generation already on disk. Useful while tuning the renderer or the
 	// honesty guards, and it bills nothing.
 	const jsonPath = path.join(outDir, "study.json");
+
+	if (opts.eventsOnly) {
+		if (!fs.existsSync(jsonPath)) throw new Error(`--events-only needs an existing ${jsonPath}`);
+		const saved = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+		const found = await findEvents(model(env, opts.model), cues, saved.segment, {
+			title: saved.meta?.title ?? meta.title ?? "Service",
+			serviceDate: meta.serviceDate ?? saved.meta?.serviceDate ?? null,
+		});
+		saved.events = found.events;
+		saved.droppedEvents = found.dropped;
+		fs.writeFileSync(jsonPath, JSON.stringify(saved, null, 2), "utf8");
+		if (opts.publish) await sendEvents(opts, env, meta.videoId, found.events);
+		return;
+	}
+
 	let segment;
 	let composed;
+	let events = null;
 	if (opts.rerender) {
 		if (!fs.existsSync(jsonPath)) throw new Error(`--rerender needs an existing ${jsonPath}`);
 		const saved = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
 		segment = saved.segment;
 		composed = saved.composed ?? saved.study;
+		events = saved.events ?? null;
 		log("re-rendering the saved generation, no model calls");
 	}
 
@@ -213,6 +240,22 @@ async function main() {
 	for (const r of study.removedQuotes) log(`  withheld paraphrased quote in "${r.heading}"`);
 	if (study.droppedReferences.length) {
 		log(`dropped unverified references: ${study.droppedReferences.join(", ")}`);
+	}
+
+	// ---- announced events ----------------------------------------------------
+	// A bonus on top of the study: if reading the announcements fails, the
+	// study still ships and the events wait for an --events-only rerun.
+	if (!opts.rerender) {
+		try {
+			events = (
+				await findEvents(m, cues, segment, {
+					title: meta.title ?? segment.serviceTitle,
+					serviceDate: meta.serviceDate ?? null,
+				})
+			).events;
+		} catch (error) {
+			log(`reading the announcements failed, continuing without events: ${error.message}`);
+		}
 	}
 
 	// ---- illustrate --------------------------------------------------------
@@ -283,6 +326,13 @@ async function main() {
 			writerModel: `openai/${opts.model}`,
 		});
 		log(`published to ${opts.api} as ${result.id} (${result.created ? "new" : "updated"})`);
+		if (events) {
+			try {
+				await sendEvents(opts, env, meta.videoId, events);
+			} catch (error) {
+				log(`  events not published (rerun with --events-only --publish): ${error.message}`);
+			}
+		}
 	}
 
 	// ---- write -------------------------------------------------------------
@@ -297,7 +347,7 @@ async function main() {
 	fs.writeFileSync(path.join(outDir, "study.md"), markdown, "utf8");
 	fs.writeFileSync(
 		jsonPath,
-		JSON.stringify({ meta: { ...finalMeta, root: undefined }, segment, composed, study }, null, 2),
+		JSON.stringify({ meta: { ...finalMeta, root: undefined }, segment, composed, study, events }, null, 2),
 		"utf8"
 	);
 	log(`wrote ${path.relative(root, path.join(outDir, "study.md"))}`);
@@ -370,6 +420,37 @@ function hasStudyFor(date) {
 			return false;
 		}
 	});
+}
+
+/** Read the announcements, keep what the recording backs up, and say what happened. */
+async function findEvents(m, cues, segment, meta) {
+	if (!meta.serviceDate) {
+		log("no service date, so announced days cannot be placed; skipping events");
+		return { events: [], dropped: [] };
+	}
+	log("reading the announcements...");
+	const raw = await extractEvents(m, announcementCues(cues, segment), meta);
+	const result = verifyEvents(cues, raw, meta.serviceDate);
+	for (const e of result.events) {
+		log(
+			`  event: ${e.title}, ${e.date}${e.startTime ? ` ${e.startTime}` : ""}${
+				e.certain ? "" : ` (unsure: ${e.unsureWhy})`
+			}`
+		);
+	}
+	for (const d of result.dropped) log(`  dropped event "${d.title}": ${d.why}`);
+	return result;
+}
+
+async function sendEvents(opts, env, videoId, events) {
+	const secret = (env.SERMON_INGEST_SECRET || process.env.SERMON_INGEST_SECRET || "").trim();
+	if (!secret) throw new Error("SERMON_INGEST_SECRET is required to publish.");
+	const result = await publishEvents(opts.api, secret, {
+		videoId,
+		timeZone: CHURCH_TIME_ZONE,
+		events,
+	});
+	log(`published ${result.stored} event${result.stored === 1 ? "" : "s"} for ${videoId}`);
 }
 
 function outDirFor(opts, videoId) {

@@ -46,6 +46,9 @@ const isPublicRoute = createRouteMatcher([
 	// stays behind the session, because that is what scopes a study to the
 	// reader's own church.
 	"/api/sermon-studies/ingest",
+	// The events announced at that service, posted right after the study by
+	// the same script under the same secret.
+	"/api/sermon-studies/ingest/events",
 	// Sermon-study artwork: loaded by RN Image / <img> with no session header.
 	// The route checks its own HMAC, which only the session-scoped study API
 	// hands out, so the church rule above still decides who can see a picture.

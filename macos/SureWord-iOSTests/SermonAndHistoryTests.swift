@@ -1,3 +1,4 @@
+import EventKit
 import Foundation
 import XCTest
 
@@ -87,5 +88,58 @@ final class SermonAndHistoryTests: XCTestCase {
         XCTAssertEqual(ChatViewModel.normalizedConversationTitle("  Grace \n in\tRomans  "), "Grace in Romans")
         XCTAssertEqual(ChatViewModel.normalizedConversationTitle("   "), "")
         XCTAssertEqual(ChatViewModel.maxConversationTitleLength, 60)
+    }
+
+    // MARK: - Church events
+
+    private static let eventsJSON = """
+    {"studies":[{"id":"smn_1","videoId":"abcdefghijk","title":"T","serviceTitle":"S","serviceDate":null,"preacher":null,"preachingText":null,"bigIdea":"B","imageUrl":null}],
+     "events":[
+      {"id":"evt_1","studyId":"smn_1","title":"Ladies fellowship","details":null,"audience":"ladies","location":null,
+       "startsAt":"2026-10-24T18:00:00.000Z","endsAt":null,"allDay":false,"timeZone":"America/Los_Angeles",
+       "when":"Saturday, October 24 at 11:00 AM","certain":false,"sourceQuote":"Ladies fellowship at 11.",
+       "sourceUrl":"https://www.youtube.com/watch?v=abcdefghijk&t=95s","googleCalendarUrl":"https://calendar.google.com/calendar/render?action=TEMPLATE",
+       "calendarNotes":"For: ladies","calendarEndsAt":"2026-10-24T19:30:00.000Z","calendarLocation":"First Missionary Baptist Church",
+       "icsPath":"/api/church-events/evt_1/ics"},
+      {"id":"evt_bad"},
+      {"id":"evt_2","title":"Church picnic","startsAt":"2026-10-31T07:00:00.000Z","allDay":true,"when":"Saturday, October 31"}
+     ],
+     "churchApp":{"name":"FMBC Fresno","androidUrl":"https://play.google.com/store/apps/details?id=x","iosUrl":"https://apps.apple.com/us/app/fmbc-fresno/id1567963142"}}
+    """
+
+    private struct HomeEnvelope: Decodable {
+        let studies: [SermonStudySummary]
+        let events: LenientList<ChurchEvent>
+        let churchApp: ChurchApp?
+    }
+
+    func testChurchEventsDecodeLenientlyAndAnUnsureFlagDefaultsToUnsure() throws {
+        let home = try JSONDecoder().decode(HomeEnvelope.self, from: Data(Self.eventsJSON.utf8))
+        XCTAssertEqual(home.studies.map { $0.id }, ["smn_1"])
+        XCTAssertEqual(home.events.items.map { $0.id },["evt_1", "evt_2"], "a broken event is dropped, not fatal")
+        XCTAssertEqual(home.churchApp?.name, "FMBC Fresno")
+        let fellowship = home.events.items[0]
+        XCTAssertFalse(fellowship.certain)
+        XCTAssertEqual(fellowship.meta, "For ladies")
+        XCTAssertEqual(fellowship.startDate, LearnTime.parse("2026-10-24T18:00:00Z"))
+        let picnic = home.events.items[1]
+        XCTAssertFalse(picnic.certain, "missing certain must never read as confirmed")
+        XCTAssertNil(picnic.calendarEndDate)
+    }
+
+    func testAppleCalendarEntryCarriesTheServersTimesPlaceAndNotes() throws {
+        let home = try JSONDecoder().decode(HomeEnvelope.self, from: Data(Self.eventsJSON.utf8))
+        let store = EKEventStore()
+        let timed = ChurchEventCalendar.makeEvent(home.events.items[0], store: store)
+        XCTAssertEqual(timed.title, "Ladies fellowship")
+        XCTAssertFalse(timed.isAllDay)
+        XCTAssertEqual(timed.startDate, LearnTime.parse("2026-10-24T18:00:00Z"))
+        XCTAssertEqual(timed.endDate, LearnTime.parse("2026-10-24T19:30:00Z"))
+        XCTAssertEqual(timed.location, "First Missionary Baptist Church")
+        XCTAssertEqual(timed.notes, "For: ladies")
+        XCTAssertEqual(timed.timeZone?.identifier, "America/Los_Angeles")
+        let allDay = ChurchEventCalendar.makeEvent(home.events.items[1], store: store)
+        XCTAssertTrue(allDay.isAllDay)
+        XCTAssertNil(allDay.notes)
     }
 }

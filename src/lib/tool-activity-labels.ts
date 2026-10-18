@@ -36,6 +36,7 @@ export const TOOL_ACTIVITY_LABELS: Record<string, string> = {
 	setDailyCross: "Preparing your new day",
 	listSermonStudies: "Looking through your church's studies",
 	getSermonStudy: "Opening the sermon study",
+	getChurchEvents: "Checking what's coming up at church",
 	getReadingPlan: "Opening your reading plan",
 	startReadingPlan: "Setting up your reading plan",
 	markReadingPlanDay: "Marking your reading",

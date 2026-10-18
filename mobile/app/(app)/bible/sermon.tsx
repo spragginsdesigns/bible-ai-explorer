@@ -19,8 +19,11 @@ import {
 	fetchSermonStudy,
 	formatTimestamp,
 	watchUrl,
+	type ChurchApp,
+	type ChurchEvent,
 	type SermonStudyDetail,
 } from "@/features/sermons/sermonApi";
+import { ChurchEventsCard } from "@/features/sermons/ChurchEventsCard";
 import { radius, spacing, typography, type Colors } from "@/theme";
 
 /**
@@ -43,13 +46,18 @@ export default function SermonStudyScreen() {
 	const { colors } = useTheme();
 	const bottom = useTabBarSpace();
 	const [study, setStudy] = useState<SermonStudyDetail | null>(null);
+	const [events, setEvents] = useState<ChurchEvent[]>([]);
+	const [churchApp, setChurchApp] = useState<ChurchApp | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const load = useCallback(async () => {
 		if (!id) return;
 		setError(null);
 		try {
-			setStudy(await fetchSermonStudy(getToken, id));
+			const result = await fetchSermonStudy(getToken, id);
+			setStudy(result.study);
+			setEvents(result.events);
+			setChurchApp(result.churchApp);
 		} catch {
 			setError("Could not load this study.");
 		}
@@ -182,6 +190,15 @@ export default function SermonStudyScreen() {
 						<View style={styles.section}>
 							<Text style={styles.reference}>PRAYER</Text>
 							<Text style={styles.body}>{study.prayer}</Text>
+						</View>
+						<View style={styles.section}>
+							<ChurchEventsCard
+								events={events}
+								churchApp={churchApp}
+								eyebrow="Announced at this service"
+								title="Coming up at church"
+								getToken={getToken}
+							/>
 						</View>
 					</>
 				)}

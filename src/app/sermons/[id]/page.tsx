@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ChurchEventsCard } from "@/components/sermons/ChurchEventsCard";
+import type { ChurchApp, ChurchEventView } from "@/lib/church-events-rules";
 
 interface SermonSection {
 	heading: string;
@@ -76,6 +78,8 @@ function Verses({ verses }: { verses: { verse: number; text: string }[] }) {
 export default function SermonStudyPage() {
 	const params = useParams<{ id: string }>();
 	const [study, setStudy] = useState<SermonStudyDetail | null>(null);
+	const [events, setEvents] = useState<ChurchEventView[]>([]);
+	const [churchApp, setChurchApp] = useState<ChurchApp | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const id = params?.id;
@@ -93,11 +97,19 @@ export default function SermonStudyPage() {
 			.then((res) =>
 				res.ok ? res.json() : Promise.reject(new Error(res.status === 404 ? "404" : "failed"))
 			)
-			.then((data: { study: SermonStudyDetail }) => {
-				if (request !== sequence.current) return;
-				loaded.current = true;
-				setStudy(data.study);
-			})
+			.then(
+				(data: {
+					study: SermonStudyDetail;
+					events?: ChurchEventView[];
+					churchApp?: ChurchApp | null;
+				}) => {
+					if (request !== sequence.current) return;
+					loaded.current = true;
+					setStudy(data.study);
+					setEvents(data.events ?? []);
+					setChurchApp(data.churchApp ?? null);
+				}
+			)
 			.catch((err: Error) => {
 				if (request !== sequence.current) return;
 				if (err.message === "404") {
@@ -276,6 +288,13 @@ export default function SermonStudyPage() {
 				</h2>
 				<p className="mt-2 text-neutral-700 dark:text-neutral-200">{study.prayer}</p>
 			</section>
+
+			<ChurchEventsCard
+				events={events}
+				churchApp={churchApp}
+				eyebrow="Announced at this service"
+				title="Coming up at church"
+			/>
 
 			<div className="sticky bottom-[calc(var(--sureword-mobile-tab-clearance)_+_0.5rem)] -mx-5 lg:bottom-0 flex items-center gap-3 border-t border-black/[0.08] bg-background/90 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8 dark:border-white/[0.08]">
 				<a

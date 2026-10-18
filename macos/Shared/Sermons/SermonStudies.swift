@@ -133,17 +133,149 @@ struct SermonStudyDetail: Decodable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// The church's own app, where the exact time of an unconfirmed event lives.
+struct ChurchApp: Decodable, Sendable, Equatable {
+    let name: String
+    let androidUrl: String
+    let iosUrl: String
+}
+
+/// A gathering announced from the pulpit - `ChurchEventView` in
+/// `src/lib/church-events-rules.ts`. The server builds every label and link;
+/// `calendarNotes`, `calendarEndsAt` and `calendarLocation` fill the Apple
+/// Calendar sheet, so it says exactly what the Google link and the .ics say.
+struct ChurchEvent: Decodable, Sendable, Equatable, Identifiable {
+    let id: String
+    let title: String
+    let details: String?
+    let audience: String?
+    let location: String?
+    let startsAt: String
+    let allDay: Bool
+    let timeZone: String
+    let when: String
+    /// False when the recording left the time unclear; the card then says so
+    /// and points at the church's app.
+    let certain: Bool
+    let sourceQuote: String
+    let sourceUrl: String
+    let googleCalendarUrl: String
+    let calendarNotes: String
+    let calendarEndsAt: String?
+    let calendarLocation: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, details, audience, location, startsAt, allDay, timeZone, when
+        case certain, sourceQuote, sourceUrl, googleCalendarUrl, calendarNotes, calendarEndsAt, calendarLocation
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        details = try? c.decodeIfPresent(String.self, forKey: .details)
+        audience = try? c.decodeIfPresent(String.self, forKey: .audience)
+        location = try? c.decodeIfPresent(String.self, forKey: .location)
+        startsAt = try c.decode(String.self, forKey: .startsAt)
+        allDay = (try? c.decode(Bool.self, forKey: .allDay)) ?? false
+        timeZone = (try? c.decode(String.self, forKey: .timeZone)) ?? "America/Los_Angeles"
+        when = (try? c.decode(String.self, forKey: .when)) ?? ""
+        // An event that cannot say whether it is sure is treated as unsure.
+        certain = (try? c.decode(Bool.self, forKey: .certain)) ?? false
+        sourceQuote = (try? c.decode(String.self, forKey: .sourceQuote)) ?? ""
+        sourceUrl = (try? c.decode(String.self, forKey: .sourceUrl)) ?? ""
+        googleCalendarUrl = (try? c.decode(String.self, forKey: .googleCalendarUrl)) ?? ""
+        calendarNotes = (try? c.decode(String.self, forKey: .calendarNotes)) ?? ""
+        calendarEndsAt = try? c.decodeIfPresent(String.self, forKey: .calendarEndsAt)
+        calendarLocation = try? c.decodeIfPresent(String.self, forKey: .calendarLocation)
+    }
+
+    var startDate: Date? { LearnTime.parse(startsAt) }
+    var calendarEndDate: Date? { calendarEndsAt.flatMap(LearnTime.parse) }
+
+    /// "Ministry hall · For ladies" - the line under the time.
+    var meta: String {
+        [location, audience.map { "For \($0)" }].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// The studies list with the events announced across them.
+struct SermonHome: Sendable, Equatable {
+    var studies: [SermonStudySummary]
+    var events: [ChurchEvent]
+    var churchApp: ChurchApp?
+}
+
+/// One study with the events announced at that service.
+struct SermonStudyPage: Sendable, Equatable {
+    var study: SermonStudyDetail
+    var events: [ChurchEvent]
+    var churchApp: ChurchApp?
+}
+
 enum SermonStudiesAPI {
-    private struct ListResponse: Decodable { let studies: [SermonStudySummary]? }
-    private struct DetailResponse: Decodable { let study: SermonStudyDetail }
+    private struct ListResponse: Decodable {
+        let studies: [SermonStudySummary]?
+        let events: LenientList<ChurchEvent>?
+        let churchApp: ChurchApp?
+    }
+
+    private struct DetailResponse: Decodable {
+        let study: SermonStudyDetail
+        let events: LenientList<ChurchEvent>?
+        let churchApp: ChurchApp?
+    }
+
+    static func home(api: APIClient) async throws -> SermonHome {
+        let response = try await api.json("/api/sermon-studies", as: ListResponse.self)
+        return SermonHome(
+            studies: response.studies ?? [],
+            events: response.events?.items ?? [],
+            churchApp: response.churchApp
+        )
+    }
 
     static func list(api: APIClient) async throws -> [SermonStudySummary] {
-        try await api.json("/api/sermon-studies", as: ListResponse.self).studies ?? []
+        try await home(api: api).studies
+    }
+
+    static func page(api: APIClient, id: String) async throws -> SermonStudyPage {
+        let escaped = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id
+        let response = try await api.json("/api/sermon-studies/\(escaped)", as: DetailResponse.self)
+        return SermonStudyPage(
+            study: response.study,
+            events: response.events?.items ?? [],
+            churchApp: response.churchApp
+        )
     }
 
     static func study(api: APIClient, id: String) async throws -> SermonStudyDetail {
-        let escaped = id.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? id
-        return try await api.json("/api/sermon-studies/\(escaped)", as: DetailResponse.self).study
+        try await page(api: api, id: id).study
+    }
+}
+
+/// An array decoded element by element, dropping any that fail, so one odd
+/// event never hides the studies around it.
+struct LenientList<Element: Decodable>: Decodable {
+    let items: [Element]
+
+    /// Reads nothing, so it succeeds on any value (null and strings included)
+    /// and the container always moves past a bad element.
+    private struct Skip: Decodable {
+        init(from decoder: any Decoder) throws {}
+    }
+
+    init(from decoder: any Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        var items: [Element] = []
+        while !container.isAtEnd {
+            if let item = try? container.decode(Element.self) {
+                items.append(item)
+            } else {
+                _ = try? container.decode(Skip.self)
+            }
+        }
+        self.items = items
     }
 }
 

@@ -1176,8 +1176,39 @@ model SermonStudy {
   sermonEndMs   Int?
   durationSec   Int?
   writerModel   String?
+  events        ChurchEvent[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([channelId, serviceDate])
+}
+
+/// A gathering announced from the pulpit during a recorded service ("the
+/// trustees meet tomorrow at 6:30"), lifted out of the parts of the service
+/// that are not the sermon. Like the study it came from, it belongs to the
+/// channel, not to a reader. `sourceQuote` is verbatim from the recording, and
+/// `certain` is false whenever the time was not stated plainly, in which case
+/// every client says so and points at the church's own app.
+model ChurchEvent {
+  id          String      @id @default(cuid())
+  studyId     String
+  study       SermonStudy @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  channelId   String
+  title       String
+  details     String?     @db.Text
+  audience    String?
+  location    String?
+  /// For an all-day event, local midnight of that day in `timeZone`.
+  startsAt    DateTime
+  endsAt      DateTime?
+  allDay      Boolean     @default(false)
+  timeZone    String
+  certain     Boolean
+  unsureWhy   String?
+  sourceQuote String      @db.Text
+  sourceMs    Int
+  createdAt   DateTime    @default(now())
+
+  @@index([channelId, startsAt])
+  @@index([studyId])
 }

@@ -53,6 +53,8 @@ import {
 	watchUrl as sermonWatchUrl,
 	type SermonStudyMatch,
 } from "@/lib/sermon-studies";
+import { listChurchEvents } from "@/lib/church-events";
+import { formatChurchEventsForModel } from "@/lib/church-events-rules";
 import {
 	MAX_PLAN_DAYS,
 	MIN_PLAN_DAYS,
@@ -256,6 +258,13 @@ export interface SermonStudyToolOutput {
 export interface SermonStudyListToolOutput {
 	count: number;
 	studies: { id: string; title: string; serviceDate: string | null }[];
+	formatted: string;
+}
+
+/** Coming church events, with the prose the model reads. */
+export interface ChurchEventsToolOutput {
+	count: number;
+	events: { id: string; title: string; when: string; certain: boolean }[];
 	formatted: string;
 }
 
@@ -1435,6 +1444,25 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		},
 	});
 
+	const getChurchEventsTool = tool({
+		description:
+			"List what is coming up at the user's own church, as announced from the pulpit in its recorded services: meetings, Bible studies, fellowships, revivals, concerts and the like, soonest first, each with its day and time, where it is, who it is for, and the sentence it was announced in. Some times are marked as not confirmed because the recording was unclear; say so whenever you mention one. Call it when they ask what is happening at church, this week, or when a particular meeting is. Read-only.",
+		inputSchema: z.object({}),
+		execute: async (): Promise<ChurchEventsToolOutput> => {
+			const { events, churchApp } = await listChurchEvents(context.userId);
+			return {
+				count: events.length,
+				events: events.map((event) => ({
+					id: event.id,
+					title: event.title,
+					when: event.when,
+					certain: event.certain,
+				})),
+				formatted: formatChurchEventsForModel(events, churchApp),
+			};
+		},
+	});
+
 	const getReadingPlanTool = tool({
 		description:
 			"Read the reading plan this user is following: today's reading, how far through they are, their streak, and the next few days. Also lists the plans they could start if they have none. Call it whenever they ask about their plan or what they are meant to read, and whenever knowing where they are in Scripture would make your answer fit their actual walk. Read-only.",
@@ -1665,6 +1693,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		setDailyCross: setDailyCrossTool,
 		listSermonStudies: listSermonStudiesTool,
 		getSermonStudy: getSermonStudyTool,
+		getChurchEvents: getChurchEventsTool,
 		getReadingPlan: getReadingPlanTool,
 		startReadingPlan: startReadingPlanTool,
 		markReadingPlanDay: markReadingPlanDayTool,

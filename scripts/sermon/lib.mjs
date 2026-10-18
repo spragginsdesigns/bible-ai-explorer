@@ -556,6 +556,196 @@ export async function composeStudy(m, sermonCues, meta) {
 	return output;
 }
 
+// ------------------------------------------------------------------ events
+
+const eventSchema = z.object({
+	title: z.string().describe('Short name of the gathering, e.g. "Trustees meeting" or "Ladies Bible study".'),
+	audience: z
+		.string()
+		.nullable()
+		.describe('Who it is for when that was said, e.g. "men", "ladies", "youth". Null if everyone.'),
+	date: z
+		.string()
+		.nullable()
+		.describe('The local day it happens, "YYYY-MM-DD", worked out from the service date. Null if no day was said.'),
+	dateWords: z
+		.string()
+		.describe('The words the day was given in, exactly, e.g. "tomorrow evening", "this Wednesday", "October 25th".'),
+	startTime: z
+		.string()
+		.nullable()
+		.describe('24-hour local start time "HH:MM" exactly as announced ("6:30" in the evening is "18:30"). Null if no clock time was said.'),
+	endTime: z.string().nullable().describe('24-hour local end time "HH:MM" if one was announced, else null.'),
+	location: z
+		.string()
+		.nullable()
+		.describe("Where, if it is somewhere other than this church, e.g. \"Clovis Missionary Baptist Church\". Null for this church or if not said."),
+	details: z.string().nullable().describe("One plain sentence on what it is, or null."),
+	sourceQuote: z
+		.string()
+		.describe("The sentence in the transcript that announces it, copied verbatim. Never paraphrase."),
+	quoteAtMs: z
+		.number()
+		.describe("Millisecond timestamp of the [h:mm:ss] mark on the line the quote was copied from."),
+	certainty: z
+		.enum(["certain", "unsure"])
+		.describe('"certain" only when the day and the clock time were both said plainly and do not conflict anywhere in the service.'),
+	unsureWhy: z.string().nullable().describe("When unsure, why, in a few words. Else null."),
+});
+
+const eventsSchema = z.object({ events: z.array(eventSchema) });
+
+const EVENT_INSTRUCTIONS = `You are reading the parts of a recorded church service
+that are not the sermon: the welcome, the announcements, and the closing.
+
+List every upcoming gathering that was announced: meetings, Bible studies,
+fellowships, revivals, concerts, dinners, workdays, special services. For each
+one give its day as a calendar date, worked out from the service date you are
+given ("tomorrow" after a Sunday service is Monday). Leave out:
+
+- anything cancelled ("there is no ladies meeting tomorrow"),
+- anything that already happened,
+- prayer requests, birthdays, and thanks,
+- engagements away from this church that the congregation is not invited to
+  (the pastor preaching a revival in another town, a member's trip),
+- the regular Sunday services themselves, unless something about them changes.
+
+When the same gathering is announced twice, list it once. If the two mentions
+disagree on the day or the time, mark it unsure. Never invent a clock time that
+was not said at all, but when one was said without a.m. or p.m. ("11 o'clock",
+"from 2 to 5"), give its most likely reading for that kind of gathering and mark
+it unsure. Copy "sourceQuote" verbatim from the transcript.
+
+The speech was transcribed by machine, so a time can be misheard. Mark an event
+unsure whenever the time sounds garbled, was only implied ("after church",
+"this evening"), or you had to infer it.`;
+
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+function weekdayOf(date) {
+	const [y, m, d] = date.split("-").map(Number);
+	return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+function daysBetween(from, to) {
+	const at = (s) => {
+		const [y, m, d] = s.split("-").map(Number);
+		return Date.UTC(y, m - 1, d);
+	};
+	return Math.round((at(to) - at(from)) / 86_400_000);
+}
+
+const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
+const isTime = (s) => typeof s === "string" && /^([01]?\d|2[0-3]):[0-5]\d$/.test(s);
+
+/** Everything in the service outside the sermon, which is where announcements live. */
+export function announcementCues(cues, segment) {
+	return cues.filter((c) => c.startMs < segment.sermonStartMs || c.startMs > segment.sermonEndMs);
+}
+
+export async function extractEvents(m, cues, meta) {
+	if (!cues.length || !meta.serviceDate) return [];
+	const weekday = WEEKDAYS[weekdayOf(meta.serviceDate)];
+	const { output } = await generateText({
+		model: m,
+		reasoning: "high",
+		output: Output.object({ schema: eventsSchema }),
+		instructions: EVENT_INSTRUCTIONS,
+		prompt: `Service: ${meta.title}\nThe service took place on ${weekday[0].toUpperCase()}${weekday.slice(
+			1
+		)}, ${meta.serviceDate}.\n\nTranscript outside the sermon:\n${cuesToTranscript(cues)}`,
+	});
+	return output?.events ?? [];
+}
+
+/**
+ * The deterministic half, the same idea as verifyQuotes: an event is kept only
+ * if the sentence announcing it is really in the recording, and whatever the
+ * model claims, a time is only "certain" when nothing here contradicts it.
+ * Dropping is reserved for events that cannot have been said or cannot be put
+ * on a day; everything else is kept and flagged, because Austin's rule is that
+ * an unsure event is still shown, with the church's app as the final word.
+ */
+export function verifyEvents(cues, rawEvents, serviceDate, { maxDaysAhead = 120 } = {}) {
+	const flat = normalizeQuote(cues.map((c) => c.text).join(" "));
+	const kept = [];
+	const dropped = [];
+	for (const raw of rawEvents.map(deepStrip)) {
+		const title = String(raw.title ?? "").trim();
+		if (!title) continue;
+		if (!isDate(raw.date)) {
+			dropped.push({ title, why: "no day" });
+			continue;
+		}
+		const ahead = daysBetween(serviceDate, raw.date);
+		if (ahead < 0 || ahead > maxDaysAhead) {
+			dropped.push({ title, why: `day ${raw.date} is ${ahead} days from the service` });
+			continue;
+		}
+
+		const quote = normalizeQuote(raw.sourceQuote);
+		let sourceQuote = quote && flat.includes(quote) ? quote : null;
+		if (!sourceQuote) {
+			const anchored = sentenceAt(cues, raw.quoteAtMs);
+			if (anchored && overlapRatio(words(anchored), new Set(words(quote))) >= 0.34) {
+				sourceQuote = normalizeQuote(anchored);
+			}
+		}
+		if (!sourceQuote) {
+			dropped.push({ title, why: "announcement not found in the recording" });
+			continue;
+		}
+
+		const reasons = [];
+		if (raw.certainty !== "certain") reasons.push(raw.unsureWhy || "unclear in the recording");
+		const startTime = isTime(raw.startTime) ? raw.startTime : null;
+		if (!startTime && !reasons.length) reasons.push("no clock time was said");
+		let endTime = isTime(raw.endTime) ? raw.endTime : null;
+		if (startTime && endTime && endTime <= startTime) endTime = null;
+		// "This Wednesday" that resolved to a Thursday is a slip somewhere.
+		const named = WEEKDAYS.findIndex((day) => new RegExp(`\\b${day}`, "i").test(raw.dateWords ?? ""));
+		if (named >= 0 && named !== weekdayOf(raw.date)) {
+			reasons.push(`"${raw.dateWords}" does not fall on ${raw.date}`);
+		}
+		// Evening gatherings are announced as "6:30", and a model reading that
+		// can land on the morning. Anything before 6am is almost surely that.
+		if (startTime && Number(startTime.split(":")[0]) < 6) reasons.push("the time reads as before 6am");
+
+		// "Hear the announcement" should land on the sentence, not wherever the
+		// model thought it was reading.
+		const head = sourceQuote.split(" ").slice(0, 8).join(" ");
+		const spoken = sentencesFrom(cues).find((s) => normalizeQuote(s.text).includes(head));
+		const sourceMs = spoken?.startMs ?? Number(raw.quoteAtMs);
+
+		kept.push({
+			title,
+			details: raw.details?.trim() || null,
+			audience: raw.audience?.trim() || null,
+			location: raw.location?.trim() || null,
+			date: raw.date,
+			startTime,
+			endTime,
+			certain: reasons.length === 0,
+			unsureWhy: reasons.length ? reasons.join("; ") : null,
+			sourceQuote,
+			sourceMs: Math.max(0, Math.round(sourceMs || 0)),
+		});
+	}
+	return { events: kept, dropped };
+}
+
+/** Hand a service's events to SureWord, after the study they belong to. */
+export async function publishEvents(apiBase, secret, payload) {
+	const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/sermon-studies/ingest/events`, {
+		method: "POST",
+		headers: { "content-type": "application/json", "x-ingest-secret": secret },
+		body: JSON.stringify(payload),
+	});
+	const text = await res.text();
+	if (!res.ok) throw new Error(`event ingest returned ${res.status}: ${text.slice(0, 400)}`);
+	return JSON.parse(text);
+}
+
 /**
  * Austin's house rule is zero em and en dashes in anything an agent writes,
  * enforced mechanically rather than by asking a model nicely, because asking

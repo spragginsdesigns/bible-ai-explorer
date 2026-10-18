@@ -43,20 +43,75 @@ export interface SermonStudyDetail extends SermonStudySummary {
 	durationSec: number | null;
 }
 
-export async function fetchSermonStudies(getToken: GetToken): Promise<SermonStudySummary[]> {
-	const data = await apiJson<{ studies?: SermonStudySummary[] }>(getToken, "/api/sermon-studies");
-	return data.studies ?? [];
+/**
+ * A gathering announced at a service, mirror of `ChurchEventView` in
+ * `src/lib/church-events-rules.ts`. The server has already done the time zone
+ * work: `when` is the label, the calendar links are built.
+ */
+export interface ChurchEvent {
+	id: string;
+	studyId: string;
+	title: string;
+	details: string | null;
+	audience: string | null;
+	location: string | null;
+	startsAt: string;
+	endsAt: string | null;
+	allDay: boolean;
+	timeZone: string;
+	when: string;
+	/** False means the time needs checking in the church's app. */
+	certain: boolean;
+	sourceQuote: string;
+	sourceUrl: string;
+	googleCalendarUrl: string;
+	icsPath: string;
 }
 
+/** The church's own app, where an unsure time can be checked. */
+export interface ChurchApp {
+	name: string;
+	androidUrl: string;
+	iosUrl: string;
+}
+
+export interface ChurchEvents {
+	events: ChurchEvent[];
+	churchApp: ChurchApp | null;
+}
+
+type WithEvents = { events?: ChurchEvent[]; churchApp?: ChurchApp | null };
+
+const eventsOf = (data: WithEvents): ChurchEvents => ({
+	events: data.events ?? [],
+	churchApp: data.churchApp ?? null,
+});
+
+export async function fetchSermonStudies(getToken: GetToken): Promise<SermonStudySummary[]> {
+	return (await fetchSermonHome(getToken)).studies;
+}
+
+/** The studies list, with the church's coming events riding along. */
+export async function fetchSermonHome(
+	getToken: GetToken
+): Promise<ChurchEvents & { studies: SermonStudySummary[] }> {
+	const data = await apiJson<{ studies?: SermonStudySummary[] } & WithEvents>(
+		getToken,
+		"/api/sermon-studies"
+	);
+	return { studies: data.studies ?? [], ...eventsOf(data) };
+}
+
+/** One study, with the still-upcoming events announced at that service. */
 export async function fetchSermonStudy(
 	getToken: GetToken,
 	id: string
-): Promise<SermonStudyDetail> {
-	const data = await apiJson<{ study: SermonStudyDetail }>(
+): Promise<ChurchEvents & { study: SermonStudyDetail }> {
+	const data = await apiJson<{ study: SermonStudyDetail } & WithEvents>(
 		getToken,
 		`/api/sermon-studies/${encodeURIComponent(id)}`
 	);
-	return data.study;
+	return { study: data.study, ...eventsOf(data) };
 }
 
 /** Deep link into the recording, at a moment when one is given. */

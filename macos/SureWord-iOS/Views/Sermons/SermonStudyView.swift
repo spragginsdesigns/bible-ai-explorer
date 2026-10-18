@@ -17,6 +17,8 @@ struct SermonStudyView: View {
     let id: String
 
     @State private var study: SermonStudyDetail?
+    @State private var events: [ChurchEvent] = []
+    @State private var churchApp: ChurchApp?
     @State private var error: String?
 
     var body: some View {
@@ -54,7 +56,10 @@ struct SermonStudyView: View {
     private func load() async {
         error = nil
         do {
-            study = try await SermonStudiesAPI.study(api: app.api, id: id)
+            let page = try await SermonStudiesAPI.page(api: app.api, id: id)
+            study = page.study
+            events = page.events
+            churchApp = page.churchApp
         } catch {
             self.error = "Could not load this study."
         }
@@ -155,6 +160,15 @@ struct SermonStudyView: View {
             paragraph(study.prayer)
         }
         .padding(.top, Spacing.lg)
+        if !events.isEmpty {
+            ChurchEventsCard(
+                events: events,
+                churchApp: churchApp,
+                title: "Coming up at church",
+                eyebrow: "Announced at this service"
+            )
+            .padding(.top, Spacing.lg)
+        }
     }
 
     private func paragraph(_ text: String) -> some View {
