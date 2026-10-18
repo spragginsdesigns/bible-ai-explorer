@@ -59,7 +59,7 @@ const DELETE_ACCOUNT_PATH = "Settings → Account → Delete account";
 
 export const PRIVACY_POLICY: LegalDocument = {
 	title: "SureWord Privacy Policy",
-	byline: "Last updated: October 8, 2026",
+	byline: "Last updated: October 18, 2026",
 	blocks: [
 		{
 			type: "p",
@@ -83,7 +83,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 				],
 				[
 					{ strong: "About me and My testimony." },
-					" Text you choose to write in Settings → Memory: a few words about where you are in your walk and, if you wish, how you came to faith. Your testimony is information about your religious beliefs, and we treat it as sensitive. It is private, it is never shown to or shared with anyone, and it is used only so the assistant can answer you with it in mind.",
+					" Text you choose to write in Settings → Memory: a few words about where you are in your walk and, if you wish, how you came to faith. Your testimony is information about your religious beliefs, and we treat it as sensitive. It stays private and is never automatically posted or copied into a shared card. When you request a personal share reflection, AI can use this context to identify general spiritual themes. The suggestion is checked for private details and unsupported claims; you review and edit the final words before publishing. Shared cards contain those approved words, not the source notes, testimony or conversations. Anyone holding the published link can read it until you revoke it; copies already downloaded by recipients cannot be recalled.",
 				],
 				[
 					{ strong: "Voice messages." },

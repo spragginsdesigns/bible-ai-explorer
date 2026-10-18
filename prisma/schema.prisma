@@ -1072,13 +1072,15 @@ model SharedCard {
   id           String    @id // random 16-char slug, the capability
   userId       String
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind         String // "word" (SureWord wrote a word for someone) | "verse" (the sender's own line)
+  kind         String // "word" (for someone) | "reflection" (the sender's walk) | "verse"
   reference    String // canonical label, "John 3:16-17"
   translation  String    @default("KJV")
   recipient    String?   @db.VarChar(40)
   message      String?   @db.VarChar(400)
   personalLine String?   @db.VarChar(200)
   signature    String?   @db.VarChar(40)
+  // Appearance only. Never private context, model reasoning or source records.
+  presentation Json?
   publishedAt  DateTime?
   revokedAt    DateTime?
   createdAt    DateTime  @default(now())

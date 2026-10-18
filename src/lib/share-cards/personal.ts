@@ -1,4 +1,5 @@
 import "server-only";
+import { reflectionPresentation } from "./reflection-contract";
 
 import { generateText, Output } from "ai";
 import { z } from "zod";
@@ -270,6 +271,8 @@ export async function draftWord(options: {
 export class WordInputError extends Error {}
 
 export interface PersonalCardRow {
+	kind?: string;
+	presentation?: unknown;
 	reference: string;
 	translation: string;
 	recipient: string | null;
@@ -298,9 +301,10 @@ export async function personalCardContent(id: string, card: PersonalCardRow): Pr
 		// that tightens later) never prints text that poses as SureWord.
 		recipient: printable(card.recipient),
 		word: card.message,
-		// A line prints only above a name that prints.
-		personalLine: printable(card.signature) ? printable(card.personalLine) : null,
+		// A recipient's card keeps the sender's name; a personal reflection may be anonymous.
+		personalLine: card.kind === "reflection" || printable(card.signature) ? printable(card.personalLine) : null,
 		signature: printable(card.signature),
+		...(card.kind === "reflection" ? { reflection: reflectionPresentation(card.presentation) } : {}),
 		door: personalCardDoor(id),
 	};
 }
@@ -310,6 +314,8 @@ function printable(text: string | null): string | null {
 }
 
 export const PERSONAL_CARD_SELECT = {
+	kind: true,
+	presentation: true,
 	reference: true,
 	translation: true,
 	recipient: true,

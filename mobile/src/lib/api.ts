@@ -4,8 +4,13 @@ import { aiConsentGate, consentPolicy, CONSENT_DECLINED_NOTICE } from "./aiConse
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
 
+// A debug emulator can exercise a local API and its matching Clerk instance.
+// Release bundles always use app.json, regardless of the build shell's values.
+const debugApi = typeof __DEV__ !== "undefined" && __DEV__ ? process.env.EXPO_PUBLIC_SUREWORD_API_URL : undefined;
+const debugClerk = typeof __DEV__ !== "undefined" && __DEV__ ? process.env.EXPO_PUBLIC_SUREWORD_CLERK_KEY : undefined;
+
 export const API_URL: string =
-	typeof extra.apiUrl === "string" ? extra.apiUrl : "https://sureword.app";
+	debugApi || (typeof extra.apiUrl === "string" ? extra.apiUrl : "https://sureword.app");
 
 /**
  * The production key encodes the Frontend API host it must talk to
@@ -28,7 +33,7 @@ const CLIENT_HEADER = "x-sureword-client";
 const CLIENT_NAME = "android";
 
 export const CLERK_PUBLISHABLE_KEY: string =
-	typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "";
+	debugClerk || (typeof extra.clerkPublishableKey === "string" ? extra.clerkPublishableKey : "");
 
 /**
  * Token getter. Pass `{ fresh: true }` to bypass the Clerk token cache - used

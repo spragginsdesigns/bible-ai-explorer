@@ -2554,6 +2554,38 @@ fetch a page can never see its `noindex`. The page's "Ask your own question"
 button now opens the landing page's guest box (`/#ask`). Pinned by
 `tests/guest-rules.test.mjs`.
 
+### Personal share reflections
+
+Added 2026-10-18. **Share → Add my reflection** adds the sender's own words to
+a verse or Daily Cross card, preserving its translation and the existing
+backgrounds. It accepts up to four verses and a reflection of up to 200
+characters. A name is optional. Italic, Book and Simple use the renderer's
+existing fonts; the reflection can sit above or below Scripture.
+
+**Draft from my walk** is an explicit, consent-gated action. The server reviews
+recent reading, questions, notes, enabled memories, About me, testimony,
+highlights, plan, and available sermon/Daily Cross background. A private reader
+selects only enumerated spiritual themes and evidenced posture. The writer
+sees Scripture and those themes, with no raw private records. An independent
+review checks disclosure, embarrassing implications, grounding, invented
+testimony and Scripture fidelity. Every decision must pass. Generated days and
+available sermons cannot independently establish personal activity. Missing
+safe evidence yields an explanation, not invented intimacy. Consent is checked
+before later model calls; changed source context invalidates the attempt.
+
+Raw records, prompts and model reasoning are never stored in a card, URL or
+analytics event. A suggestion stays editable. Manual entry needs no AI. Both
+paths save an unpublished `SharedCard` of kind `reflection`; only the sender can
+render its preview. Publication compares the exact saved words, name and
+presentation, then freezes them. Public `/c/{id}` pages read only approved
+content and are not indexed. Revoking disables the link and server image,
+but cannot recall files recipients already saved. `presentation` is a nullable
+JSONB column from migration `20261018190000_share_reflection_presentation`.
+
+No new provider, package or production secret is required. Rollback can remove
+the optional entry point while retaining existing unpublished/published rows;
+old Send a word and generic verse cards keep their original behavior.
+
 ### Share cards
 
 *Server shipped 2026-10-16; clients in the same cycle (see `docs/PARITY.md`)*

@@ -64,7 +64,7 @@ READ AND LISTEN TO THE KJV BIBLE
 • Words of Christ in red on a parchment page, in light or dark mode
 • Tap any verse for a clear explanation, word study and related passages
 • Highlight verses in eight colors and name what each color means
-• Share any verse as a beautiful image with a word of encouragement
+• Share verse cards with AI or your own words, fonts and placement
 • Send a verse and a word of encouragement to someone you love
 
 DAILY DEVOTIONAL: PICK UP YOUR CROSS

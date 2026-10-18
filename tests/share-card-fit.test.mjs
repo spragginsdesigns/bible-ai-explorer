@@ -60,6 +60,19 @@ const WORD_SAMPLE =
 const LINE_SAMPLE =
 	"Praying for you every hour today and tomorrow, and I will be right there in the waiting room with coffee when you wake up. We love you so much.";
 
+test("a personal reflection is measured with its selected face at both placements", async () => {
+	const out = build();
+	try {
+		const { cardFitsEverySize } = await import(pathToFileURL(join(out, "render.mjs")).href);
+		for (const font of ["italic", "book", "simple"]) for (const placement of ["above", "below"]) {
+			assert.equal(cardFitsEverySize({ kind: "personal", reference: "Psalms 46:1", translation: "KJV",
+				text: "God is our refuge and strength, a very present help in trouble.", recipient: null, word: null,
+				personalLine: "As I study this verse, I'm considering what it means to take refuge in God and trust His strength for my next step.",
+				signature: "Austin", reflection: { font, placement }, door: "sureword.app/c/AbCdEfGhIjKlMnOp" }), true, `${font} ${placement}`);
+		}
+	} finally { rmSync(out, { recursive: true, force: true }); }
+});
+
 test("the longest word, line and name fit beside a 240 character passage at every size and style", async () => {
 	const out = build();
 	try {

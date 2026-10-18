@@ -47,8 +47,8 @@ export async function generateMetadata({ params }: PersonalCardPageProps): Promi
 	const card = await loadCard(id);
 	if (!card) return { title: "Not found", robots: { index: false } };
 	const label = cardReferenceLabel(card.reference);
-	const title = card.recipient ? `A word for ${card.recipient}` : `${label} (${card.translation})`;
-	const description = card.word ?? card.text.slice(0, 160);
+	const title = card.reflection ? `A reflection on ${label}` : card.recipient ? `A word for ${card.recipient}` : `${label} (${card.translation})`;
+	const description = card.reflection && card.personalLine ? card.personalLine : card.word ?? card.text.slice(0, 160);
 	const image = `https://sureword.app/api/cards/c/${id}/image`;
 	return {
 		title,
@@ -74,6 +74,15 @@ export default async function PersonalCardPage({ params }: PersonalCardPageProps
 
 	const label = cardReferenceLabel(card.reference);
 	const context = sharedPassageLink(card.reference, card.translation);
+	const reflection = card.personalLine || card.signature ? <div className="my-8">
+		{card.personalLine ? <p className="text-2xl leading-snug text-neutral-800 dark:text-neutral-200" style={{
+			fontFamily: card.reflection?.font === "simple" ? "var(--font-body), sans-serif" : "var(--font-cormorant), serif",
+			fontStyle: !card.reflection || card.reflection.font === "italic" ? "italic" : "normal",
+		}}>&ldquo;{card.personalLine}&rdquo;</p> : null}
+		{card.signature ? <p className="mt-2 text-support font-semibold text-amber-700 dark:text-amber-400">
+			{card.reflection ? "Shared by" : "With love,"} {card.signature}
+		</p> : null}
+	</div> : null;
 
 	return (
 		<main className="min-h-screen bg-background text-foreground selection:bg-amber-200 selection:text-neutral-950 dark:selection:bg-amber-400/30 dark:selection:text-amber-100">
@@ -89,6 +98,8 @@ export default async function PersonalCardPage({ params }: PersonalCardPageProps
 				</header>
 
 				<article className="mt-10 sm:mt-14">
+					{card.reflection ? <h1 className="font-[family-name:var(--font-cormorant)] text-4xl font-semibold leading-tight">A reflection on {label}</h1> : null}
+					{card.reflection?.placement === "above" ? reflection : null}
 					{card.recipient ? (
 						<h1 className="font-[family-name:var(--font-cormorant)] text-4xl font-semibold leading-tight text-neutral-900 sm:text-5xl dark:text-neutral-100">
 							A word for {card.recipient}
@@ -105,20 +116,7 @@ export default async function PersonalCardPage({ params }: PersonalCardPageProps
 							{card.word}
 						</p>
 					) : null}
-					{card.personalLine || card.signature ? (
-						<div className="mt-8">
-							{card.personalLine ? (
-								<p className="font-[family-name:var(--font-cormorant)] text-2xl italic leading-snug text-neutral-800 dark:text-neutral-200">
-									&ldquo;{card.personalLine}&rdquo;
-								</p>
-							) : null}
-							{card.signature ? (
-								<p className="mt-2 text-support font-semibold text-amber-700 dark:text-amber-400">
-									With love, {card.signature}
-								</p>
-							) : null}
-						</div>
-					) : null}
+					{card.reflection?.placement === "above" ? null : reflection}
 					{context ? (
 						<a
 							href={context.href}

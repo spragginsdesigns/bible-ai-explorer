@@ -12,6 +12,7 @@ import {
 	personalTextProblem,
 } from "@/lib/share-cards/personal";
 import { cardFitsEverySize } from "@/lib/share-cards/render";
+import { MAX_REFLECTION_LENGTH, reflectionPresentation, validReflectionPresentation } from "@/lib/share-cards/reflection-contract";
 
 /**
  * One personal card, owner-only (docs/FEATURES.md, "Share cards" -> "Send a
@@ -36,15 +37,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 		const userId = await getAuthUser();
 		const { id } = await params;
 		if (!isSharedAnswerId(id)) return notFound();
+		const current = await prisma.sharedCard.findFirst({ where: { id, userId, revokedAt: null }, select: { kind: true, presentation: true, publishedAt: true } });
+		if (!current) return notFound();
+		if (current.publishedAt) return NextResponse.json({ error: "This card was already sent." }, { status: 409 });
 		const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
-		const personalLine = cleanPersonalText(body?.personalLine, MAX_PERSONAL_LINE_LENGTH);
+		const isReflection = current.kind === "reflection";
+		const maxLength = isReflection ? MAX_REFLECTION_LENGTH : MAX_PERSONAL_LINE_LENGTH;
+		if (isReflection && (typeof body?.personalLine !== "string" || body.personalLine.length > maxLength)) return NextResponse.json({ error: "Keep your reflection within 200 characters." }, { status: 400 });
+		if (isReflection && !validReflectionPresentation(body?.presentation)) return NextResponse.json({ error: "Choose a reflection font and placement." }, { status: 400 });
+		const personalLine = cleanPersonalText(body?.personalLine, maxLength);
 		const signature = cleanPersonalText(body?.signature, MAX_SIGNATURE_LENGTH);
 		const problem = personalTextProblem(personalLine) ?? personalTextProblem(signature);
 		if (problem) return NextResponse.json({ error: problem }, { status: 400 });
 
 		const saved = await prisma.sharedCard.updateMany({
 			where: { id, userId, revokedAt: null, publishedAt: null },
-			data: { personalLine, signature },
+			data: { personalLine, signature, ...(isReflection ? { presentation: { ...reflectionPresentation(body?.presentation) } } : {}) },
 		});
 		if (saved.count === 0) {
 			const sent = await prisma.sharedCard.findFirst({ where: { id, userId, revokedAt: null }, select: { id: true } });

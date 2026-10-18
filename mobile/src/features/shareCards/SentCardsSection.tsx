@@ -18,7 +18,7 @@ import { radius, spacing, typography, type Colors } from "@/theme";
 interface SentCard {
 	id: string;
 	url: string;
-	kind: "word" | "verse";
+	kind: "word" | "verse" | "reflection";
 	reference: string;
 	recipient: string | null;
 	createdAt: string;

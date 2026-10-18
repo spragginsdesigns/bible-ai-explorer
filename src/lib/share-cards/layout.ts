@@ -281,6 +281,8 @@ export type ShareCardContent =
 			personalLine: string | null;
 			/** The sender's first name: "With love, Austin". */
 			signature: string | null;
+			/** A sender reflection, distinct from a word addressed to someone else. */
+			reflection?: { font: "italic" | "book" | "simple"; placement: "above" | "below" };
 			door: string;
 	  }
 	| {

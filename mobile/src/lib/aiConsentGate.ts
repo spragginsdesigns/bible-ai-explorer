@@ -17,6 +17,7 @@ export const CONSENT_DECLINED_NOTICE = "AI is turned off for your account. You c
 export function consentPolicy(path: string, method: string, body?: unknown): "tap" | "automatic" | null {
   const route = path.split("?")[0];
   const write = method.toUpperCase() === "POST";
+  if (write && /^\/api\/cards\/reflection\/[^/]+\/suggest$/.test(route)) return "tap";
   if (write && route === "/api/reading-plans") {
     let payload = body;
     if (typeof body === "string") { try { payload = JSON.parse(body); } catch { return "tap"; } }

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 import { Check, Download, Link2, Loader2, Send, Share2, Type, X } from "lucide-react";
 import SendWordDialog from "./SendWordDialog";
+import ReflectionDialog from "./ReflectionDialog";
 import { useModalFocus } from "@/components/useModalFocus";
 import { consentFetch } from "@/lib/ai-consent-gate";
 import { trackShareCard } from "@/lib/analytics/client";
@@ -134,6 +135,7 @@ export default function ShareCardDialog({
 	const drawable = canDrawCard(target);
 	// "Send to someone" swaps this dialog for Send a word, carrying the passage.
 	const [sendOpen, setSendOpen] = useState(false);
+	const [reflectionOpen, setReflectionOpen] = useState(false);
 	const sendReference = sendWordReference(target);
 
 	// Object URLs hold the previews in memory until the dialog goes.
@@ -347,6 +349,7 @@ export default function ShareCardDialog({
 	const SecondaryIcon = target.kind === "answer" ? Link2 : Type;
 
 	if (sendOpen) return <SendWordDialog reference={sendReference} onClose={onClose} />;
+	if (reflectionOpen && sendReference) return <ReflectionDialog reference={sendReference} translation={target.kind === "verse" ? target.translation : "KJV"} initialStyle={style} initialFormat={format} onClose={onClose} />;
 
 	return createPortal(
 		<div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4">
@@ -374,6 +377,8 @@ export default function ShareCardDialog({
 					</button>
 				</div>
 
+				{sendReference ? <button type="button" onClick={() => setReflectionOpen(true)} disabled={busy !== null}
+					className="min-h-11 rounded-xl border border-amber-500/30 bg-amber-400/10 px-4 text-sm font-semibold text-amber-700 dark:text-amber-300">Add my reflection</button> : null}
 				{drawable ? (
 					<>
 						<div

@@ -349,10 +349,10 @@ function measure(
 	// the page the link opens.
 	let sender: FitResult | null = null;
 	if (content.kind === "personal" && (content.personalLine || content.signature)) {
-		if (content.personalLine && format !== "wide") {
+		if (content.personalLine && (format !== "wide" || content.reflection)) {
 			sender = fitText({
 				text: `“${content.personalLine}”`,
-				table: GLYPH_WIDTHS.verseItalic,
+				table: content.reflection?.font === "simple" ? GLYPH_WIDTHS.body : content.reflection?.font === "book" ? GLYPH_WIDTHS.verse : GLYPH_WIDTHS.verseItalic,
 				// At least three lines at the smallest size: on the tightest card
 				// (dawn square) a share of what the word left is less than two.
 				maxHeight: Math.max(
@@ -532,6 +532,26 @@ function Rule({ palette, width }: { palette: Palette; width: number }) {
 	return <div style={{ display: "flex", width, height: 2, backgroundColor: palette.rule }} />;
 }
 
+function SenderMessage({ content, sender, palette, g, align }: {
+	content: Extract<ShareCardContent, { kind: "personal" }>;
+	sender: FitResult | null; palette: Palette; g: Geometry; align: "center" | "flex-start";
+}) {
+	const above = content.reflection?.placement === "above";
+	const font = content.reflection?.font ?? "italic";
+	return <div style={{ display: "flex", flexDirection: "column", alignItems: align,
+		marginTop: above ? 0 : g.gap, marginBottom: above ? g.gap : 0 }}>
+		{sender ? <div style={{ display: "flex", fontFamily: font === "simple" ? "Atkinson" : "Cormorant",
+			fontStyle: font === "italic" ? "italic" : "normal", fontWeight: font === "simple" ? 400 : 500,
+			fontSize: sender.fontSize, lineHeight: QUESTION_LINE_HEIGHT, color: palette.text,
+			textAlign: align === "center" ? "center" : "left" }}>{sender.text}</div> : null}
+		{content.signature ? <div style={{ display: "flex", marginTop: sender ? Math.round(g.gap * 0.4) : 0,
+			fontFamily: "Atkinson", fontWeight: 700, fontSize: Math.round(g.referenceSize * 0.95),
+			letterSpacing: g.referenceSize * 0.08, color: palette.accent }}>
+			{`${content.reflection ? "Shared by" : "With love,"} ${content.signature}`}
+		</div> : null}
+	</div>;
+}
+
 /**
  * The text column. `align` is center for portrait cards and start for the
  * wide unfurl, where the words sit left of the light.
@@ -552,6 +572,9 @@ function CardText({
 	ornament: boolean;
 }) {
 	const textAlign = align === "center" ? "center" : "left";
+	const senderAbove = content.kind === "personal" && content.reflection?.placement === "above";
+	const sender = content.kind === "personal" && (measured.sender || content.signature)
+		? <SenderMessage content={content} sender={measured.sender} palette={palette} g={g} align={align} /> : null;
 	const reference =
 		content.kind === "answer"
 			? content.reference
@@ -560,6 +583,7 @@ function CardText({
 	return (
 		<div style={{ display: "flex", flexDirection: "column", alignItems: align, width: "100%" }}>
 			{ornament ? <Ornament palette={palette} g={g} /> : null}
+			{senderAbove ? sender : null}
 			{measured.headline ? (
 				<div
 					style={{
@@ -638,41 +662,7 @@ function CardText({
 				</div>
 			) : null}
 
-			{content.kind === "personal" && (measured.sender || content.signature) ? (
-				<div style={{ display: "flex", flexDirection: "column", alignItems: align, marginTop: g.gap }}>
-					{measured.sender ? (
-						<div
-							style={{
-								display: "flex",
-								fontFamily: "Cormorant",
-								fontStyle: "italic",
-								fontWeight: 500,
-								fontSize: measured.sender.fontSize,
-								lineHeight: QUESTION_LINE_HEIGHT,
-								color: palette.text,
-								textAlign,
-							}}
-						>
-							{measured.sender.text}
-						</div>
-					) : null}
-					{content.signature ? (
-						<div
-							style={{
-								display: "flex",
-								marginTop: measured.sender ? Math.round(g.gap * 0.4) : 0,
-								fontFamily: "Atkinson",
-								fontWeight: 700,
-								fontSize: Math.round(g.referenceSize * 0.95),
-								letterSpacing: g.referenceSize * 0.08,
-								color: palette.accent,
-							}}
-						>
-							{`With love, ${content.signature}`}
-						</div>
-					) : null}
-				</div>
-			) : null}
+			{senderAbove ? null : sender}
 
 			{measured.question ? (
 				<div

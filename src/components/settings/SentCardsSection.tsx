@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 interface SentCard {
 	id: string;
 	url: string;
-	kind: "word" | "verse";
+	kind: "word" | "verse" | "reflection";
 	reference: string;
 	recipient: string | null;
 	createdAt: string;

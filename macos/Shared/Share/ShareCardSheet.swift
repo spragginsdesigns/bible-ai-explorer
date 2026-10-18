@@ -437,6 +437,7 @@ struct ShareCardSheet: View {
     /// "Send to someone" swaps this sheet's content for Send a word, in the
     /// same presentation, as Android swaps one sheet for the other.
     @State private var isSendingWord = false
+    @State private var isReflecting = false
     private let api: APIClient
     private let onClose: () -> Void
 
@@ -451,13 +452,20 @@ struct ShareCardSheet: View {
     private var sendWordReference: String? { ShareCards.sendWordReference(for: model.target) }
 
     var body: some View {
-        if isSendingWord {
+        if isReflecting, let reference = sendWordReference {
+            ReflectionSheet(reference: reference, translation: reflectionTranslation, api: api, prefs: model.prefs, onClose: onClose)
+        } else if isSendingWord {
             SendWordSheet(reference: sendWordReference, api: api, onClose: onClose)
         } else {
             chrome
                 .task { model.start() }
                 .onDisappear { model.stop() }
         }
+    }
+
+    private var reflectionTranslation: String {
+        if case .verse(_, let translation) = model.target { return translation }
+        return "KJV"
     }
 
     #if os(macOS)
@@ -515,6 +523,11 @@ struct ShareCardSheet: View {
 
     private func content(maxPreviewHeight: CGFloat, width: CGFloat) -> some View {
         VStack(spacing: Spacing.md) {
+            if sendWordReference != nil {
+                Button("Add my reflection") { isReflecting = true }
+                    .buttonStyle(GhostShareButtonStyle())
+                    .disabled(model.isPreparing)
+            }
             if model.drawable {
                 ShareCardPreviewFrame(
                     preview: model.preview,

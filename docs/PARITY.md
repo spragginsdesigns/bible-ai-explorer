@@ -7,6 +7,22 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+**2026-10-18 personal share reflections:** Add my reflection is available for
+verse and Daily Cross shares of up to four verses. Manual text and explicit AI
+drafting, three reflection fonts, existing card backgrounds/formats, and
+above/below placement use the same private draft and server renderer across
+Android, web, macOS and iOS. Authenticated API proof passed for private drafts,
+anonymous denial, exact-preview publication, frozen content and revocation.
+Five final real AI cases included fictional sensitive context and prompt
+injection. Four produced grounded reflections; the sensitive/injection case
+failed closed. Mid-request context changes and AI withdrawal also returned 422.
+Web browser generation, editing, presentation and preview invalidation are
+verified. Android runtime acceptance is blocked by emulator System UI failures,
+including a null UI root in Android Settings independently of SureWord.
+macOS and iOS unsigned build-for-testing passed; signed Apple
+delivery is blocked by the Mac keychain, and iOS simulator execution by the
+installed CoreSimulator version. These are build results, not release claims.
+
 **2026-10-13 retrieval and cache correctness:** web/API and all three native
 clients use the resolved model and effort for verse explanation caching. Query
 embeddings are bounded and reused, SQL searches have server-side deadlines, and

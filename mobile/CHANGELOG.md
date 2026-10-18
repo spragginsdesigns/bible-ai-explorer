@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.93.0 (versionCode 107) - 2026-10-18 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Add a personal reflection when sharing a verse or today's word. Write your own, or ask SureWord to connect the verse to your walk with God while keeping private details out.
+- Edit every word and choose its font, card style and placement before previewing and sharing.
+
+**Dev notes:** ReflectionSheet uses owner-only SharedCard drafts. AI generation reads private context into bounded spiritual themes, writes without raw records, then independently reviews privacy, grounding and Scripture fidelity. Consent and source changes invalidate generation. Manual entry needs no AI. Publication must match the saved preview. Presentation is stored by migration 20261018190000_share_reflection_presentation. Android, web and Apple share one renderer.
+
 ## 1.92.0 (versionCode 106) - 2026-10-17 - internal and closed testing
 
 **What's new (Play):**

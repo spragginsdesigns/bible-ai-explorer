@@ -21,6 +21,7 @@ import { apiJson } from "@/lib/api";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { downloadCard, shareCardImage } from "./shareCardFiles";
 import { SendWordSheet } from "./SendWordSheet";
+import { ReflectionSheet } from "./ReflectionSheet";
 import {
 	SHARE_CARD_FORMATS,
 	SHARE_CARD_STYLES,
@@ -110,6 +111,7 @@ export function ShareCardSheet({
 	// passage: a verse or the day's verse, when it is short enough for a word
 	// card. Words are drawn in the KJV.
 	const [sendOpen, setSendOpen] = useState(false);
+	const [reflectionOpen, setReflectionOpen] = useState(false);
 	const sendVerse = useMemo(() => {
 		const reference = target ? sendWordReference(target) : null;
 		if (!target || !reference) return null;
@@ -150,6 +152,7 @@ export function ShareCardSheet({
 		setBusy(null);
 		setNote({ status: "idle" });
 		setSendOpen(false);
+		setReflectionOpen(false);
 		setPreview({ status: "loading" });
 		previews.current.clear();
 	}, [target]);
@@ -318,8 +321,9 @@ export function ShareCardSheet({
 
 	return (
 		<>
-		<BottomSheet visible={target !== null && !sendOpen} onClose={onClose} title="Share" scroll>
+		<BottomSheet visible={target !== null && !sendOpen && !reflectionOpen} onClose={onClose} title="Share" scroll>
 			<View style={styles.body}>
+				{sendVerse ? <GhostButton label="Add my reflection" onPress={() => setReflectionOpen(true)} disabled={busy !== null} /> : null}
 				{drawable ? (
 					<>
 						<View
@@ -441,6 +445,7 @@ export function ShareCardSheet({
 			</View>
 		</BottomSheet>
 		<SendWordSheet visible={target !== null && sendOpen} verse={sendVerse} onClose={onClose} />
+		{target && reflectionOpen && sendVerse ? <ReflectionSheet reference={sendVerse.reference} translation={sendVerse.translation} initialStyle={style} initialFormat={format} onClose={onClose} /> : null}
 		</>
 	);
 }

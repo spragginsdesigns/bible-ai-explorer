@@ -269,8 +269,8 @@ test("the model only names references; Scripture text always comes from the bund
 
 test("a sent card is frozen by a conditional write, on publish and on edit", () => {
 	const publish = read("src/app/api/cards/personal/route.ts");
-	assert.ok(publish.includes("publishedAt: null }"), "publish writes only an unsent draft");
-	assert.ok(publish.includes("if (draft.publishedAt) return json({ id: draftId"), "publishing a sent card changes nothing");
+	assert.match(publish, /where: \{ id: draftId, userId, kind:[\s\S]*?revokedAt: null, publishedAt: null/, "publish writes only an unsent draft");
+	assert.ok(publish.includes("if (draft.publishedAt) {"), "publishing a sent card changes nothing");
 	assert.equal(publish.includes('kind: "verse"'), false, "the no-draft publish path is gone");
 	assert.ok(publish.includes("cardFitsEverySize(content)"), "a card that cannot draw whole is refused");
 	const edit = read("src/app/api/cards/personal/[id]/route.ts");

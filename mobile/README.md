@@ -235,6 +235,15 @@ Plumbing and failure modes are documented in
 `.claude/skills/push-phone/SKILL.md` and `docs/PLAY_STORE.md`. The old
 ADB-sideload script lives in git history if a debug build ever needs it.
 
+### Local API acceptance on a debug emulator
+
+Debug bundles may set `EXPO_PUBLIC_SUREWORD_API_URL` (for example
+`http://10.0.2.2:3000`) and `EXPO_PUBLIC_SUREWORD_CLERK_KEY` to the local API's
+matching Clerk publishable key. Release bundles ignore both and always use
+`app.json`. No production environment variable is needed. Pin the intended
+database when starting the local API; an inherited shell DATABASE_URL wins
+over its env files.
+
 ## Release checklist
 
 > **Store page text:** the Play title, short description and full description
