@@ -17,8 +17,16 @@ Five final real AI cases included fictional sensitive context and prompt
 injection. Four produced grounded reflections; the sensitive/injection case
 failed closed. Mid-request context changes and AI withdrawal also returned 422.
 Web browser generation, editing, presentation and preview invalidation are
-verified. Android runtime acceptance is blocked by emulator System UI failures,
-including a null UI root in Android Settings independently of SureWord.
+verified. Commit `a796c40` is deployed to sureword.app by Vercel Production
+`dpl_3KtYsvddoQJixoPRX835ztrtkzzf` (READY, exact commit verified). The schema
+migration is applied to production. Web lint/typecheck/build and 1,589 logic
+tests passed (17 optional skips); Android typecheck and 1,046 tests passed.
+Android 1.93.0 (107) all-ABI AAB and APK built, match the pinned upload
+certificate and pass the source-content digest check. The signed APK installs
+and reaches sign-in. Authenticated Android sharing remains unverified: the
+runner had System UI failures, the debug client stalls at startup, and access
+to the production review credentials is locked in 1Password. Play internal,
+closed testing and the GitHub APK have not been published for this version.
 macOS and iOS unsigned build-for-testing passed; signed Apple
 delivery is blocked by the Mac keychain, and iOS simulator execution by the
 installed CoreSimulator version. These are build results, not release claims.
