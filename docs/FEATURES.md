@@ -2017,7 +2017,7 @@ failure never breaks the studies (`churchEventsForScreen` falls back to none).
 | Web | `src/components/sermons/ChurchEventsCard.tsx` + `CalendarLogos.tsx` |
 | Android | `mobile/src/features/sermons/ChurchEventsCard.tsx`, `calendarFile.ts` (Bearer-token `.ics` download, shared as `text/calendar`) |
 | iOS | `macos/SureWord-iOS/Views/Sermons/ChurchEventsCard.swift`: EventKitUI's `EKEventEditViewController`, which on iOS 17+ runs out of process and needs no calendar permission |
-| Tests | `tests/church-events-rules.test.mjs` (13), `tests/church-events-verify.test.mjs` (7), `SermonAndHistoryTests` (lenient decoding, EventKit mapping) |
+| Tests | `tests/church-events-rules.test.mjs` (13), `tests/church-events-verify.test.mjs` (8), `SermonAndHistoryTests` (lenient decoding, EventKit mapping) |
 
 Backfill or redo one service: `node scripts/sermon/ingest.mjs <videoId>
 --events-only --publish` (reads the saved `study.json`, no re-transcription).

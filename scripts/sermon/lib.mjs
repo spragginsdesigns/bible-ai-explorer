@@ -645,16 +645,26 @@ const minutesOf = (time) => {
 const HOUR_WORDS = ["twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven"];
 
 /**
- * Whether the clock hour of `time` is actually said in `text`, as "6", "6:30",
- * "six" or (for 12) "noon". A time the model resolved from nothing said is
- * not certain, however sure the model sounds.
+ * Whether the clock hour of `time` is actually said in `text` AS A TIME:
+ * "6:30", "6.30", "6 o'clock", "6 pm", "at 6", "six thirty", "at six", or
+ * (for 12) "noon". A bare "one" or "2" is not enough, since "one more thing"
+ * and "Luke 2" are said all the time. A time the model resolved from nothing
+ * said is not certain, however sure the model sounds.
  */
 function hourIsSpoken(time, text) {
 	const hour12 = Number(time.split(":")[0]) % 12;
 	const spoken = text.toLowerCase();
 	const digits = String(hour12 === 0 ? 12 : hour12);
-	if (new RegExp(`(^|[^0-9])${digits}([^0-9]|$)`).test(spoken)) return true;
-	if (new RegExp(`\\b${HOUR_WORDS[hour12]}\\b`).test(spoken)) return true;
+	const word = HOUR_WORDS[hour12];
+	const after = "(o'?\\s?clock|a\\.?\\s?m\\b|p\\.?\\s?m\\b|thirty|fifteen|forty|o'clock)";
+	const patterns = [
+		`(^|[^0-9.:])${digits}[:.][0-5][0-9]\\b`,
+		`(^|[^0-9.:])${digits}\\s*${after}`,
+		`\\bat\\s+${digits}\\b(?![:.]?[0-9])`,
+		`\\bat\\s+${word}\\b`,
+		`\\b${word}\\s+${after}`,
+	];
+	if (patterns.some((p) => new RegExp(p).test(spoken))) return true;
 	return hour12 === 0 && /\bnoon\b/.test(spoken);
 }
 

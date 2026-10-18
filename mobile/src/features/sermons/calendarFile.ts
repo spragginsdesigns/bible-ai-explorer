@@ -34,7 +34,9 @@ export async function shareEventFile(getToken: GetToken, event: ChurchEvent): Pr
 			idempotent: true,
 		});
 	} catch {
-		throw new Error("The calendar file didn't load. Check your connection and try again.");
+		// Also what a changed or finished event looks like, so refreshing is
+		// the advice that fits both.
+		throw new Error("The calendar file didn't load. Refresh this page and try again.");
 	}
 	await Sharing.shareAsync(file.uri, {
 		mimeType: "text/calendar",

@@ -105,6 +105,12 @@ test("a contained title is only the same gathering at the same time", () => {
 		event({ id: "new", title: "Ladies tea", startsAt: at("15:00"), serviceDate: new Date("2026-10-11T12:00:00Z"), studyId: "smn_2" }),
 	]);
 	assert.deepEqual(moved.map((e) => [e.id, e.announcedIn]), [["new", ["smn_1", "smn_2"]]]);
+	// Two sessions announced at one service stay two.
+	const sessions = dedupeEvents([
+		event({ id: "am", title: "Bible study", startsAt: at("10:00") }),
+		event({ id: "pm", title: "Bible study", startsAt: at("18:30") }),
+	]);
+	assert.deepEqual(sessions.map((e) => e.id), ["am", "pm"]);
 });
 
 test("a later announcement with no time keeps the earlier time, as unconfirmed", () => {

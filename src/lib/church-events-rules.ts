@@ -210,19 +210,22 @@ const normalizeTitle = (title: string) =>
 
 /**
  * "Ladies fellowship" and "Ladies' fellowship lunch" on one day are one
- * gathering. The same title on the same day is one gathering even at another
- * time (a reschedule, which the newest announcement settles); a title that
- * only contains the other must also agree on the time, or "Choir rehearsal" at
- * 5 would swallow "Youth choir rehearsal" at 7.
+ * gathering. The same title on the same day announced at another service is
+ * one gathering even at another time (a reschedule, which the newest
+ * announcement settles), but from one service it is two sessions ("Bible
+ * study at 10 and again at 6:30"). A title that only contains the other must
+ * also agree on the time, or "Choir rehearsal" at 5 would swallow "Youth
+ * choir rehearsal" at 7.
  */
 function sameGathering(a: ChurchEventRecord, b: ChurchEventRecord): boolean {
 	if (localDateOf(a.startsAt, a.timeZone) !== localDateOf(b.startsAt, b.timeZone)) return false;
 	const x = normalizeTitle(a.title);
 	const y = normalizeTitle(b.title);
 	if (!x || !y) return false;
-	if (x === y) return true;
+	const sameTime = a.allDay || b.allDay || a.startsAt.getTime() === b.startsAt.getTime();
+	if (x === y) return sameTime || a.studyId !== b.studyId;
 	if (!x.includes(y) && !y.includes(x)) return false;
-	return a.allDay || b.allDay || a.startsAt.getTime() === b.startsAt.getTime();
+	return sameTime;
 }
 
 const announcedAt = (event: ChurchEventRecord) => event.serviceDate?.getTime() ?? 0;

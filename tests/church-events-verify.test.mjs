@@ -70,6 +70,28 @@ test("a time the recording never said is not certain", () => {
 	assert.match(events[0].unsureWhy, /not heard/);
 });
 
+test("a stray number nearby is not a spoken time", () => {
+	const stray = [
+		{ startMs: 0, endMs: 9_000, text: "Turn with me to Luke 2, and one more thing." },
+		{ startMs: 10_000, endMs: 19_000, text: "Our youth will gather after church in the fellowship hall." },
+	];
+	const { events } = verifyEvents(
+		stray,
+		[
+			raw({
+				title: "Youth gathering",
+				date: SUNDAY,
+				dateWords: "after church",
+				startTime: "13:00",
+				sourceQuote: "Our youth will gather after church in the fellowship hall.",
+			}),
+		],
+		SUNDAY
+	);
+	assert.equal(events[0].certain, false);
+	assert.match(events[0].unsureWhy, /not heard/);
+});
+
 test("a paraphrased quote is replaced by the real sentence and is never certain", () => {
 	const { events } = verify(raw({ sourceQuote: "Trustees meet this Tuesday at 6:30 in the hall." }));
 	assert.equal(events[0].sourceQuote, "The trustees will meet this Tuesday at 6:30 in the fellowship hall.");
