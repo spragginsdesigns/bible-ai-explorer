@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.94.0 (versionCode 108) - 2026-10-18 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Coming up at church: the events announced at your church's services, like a ladies' fellowship or a trustees' meeting, now appear in Sermon studies with the announcement in the church's own words.
+- Add any of them to Google Calendar or another calendar in one tap.
+- If the time was not clear in the recording, SureWord says so and links the church's app for the exact time.
+- Add a personal reflection when sharing a verse or today's word, and choose its font, card style and placement.
+
+**Dev notes:** First Play build since 1.92.0 (106); 1.93.0 (107) was built but never published, so its reflection notes ride here. Church events: ChurchEventsCard (mobile/src/features/sermons) on the sermon list header and after the study's prayer, from the events and churchApp fields GET /api/sermon-studies and /api/sermon-studies/[id] now return. Google Calendar opens the server-built TEMPLATE URL; Other calendar downloads /api/church-events/[id]/ics with the Bearer token and shares it as text/calendar. Uncertain rows show a notice and the church's Google Play link. Server: ChurchEvent table (migration 20261018200000_church_events, applied to production), ingest route /api/sermon-studies/ingest/events, getChurchEvents chat tool. iOS mirrors it with EventKitUI (1.20.0 build 24).
+
 ## 1.93.0 (versionCode 107) - 2026-10-18 - internal and closed testing
 
 **What's new (Play):**

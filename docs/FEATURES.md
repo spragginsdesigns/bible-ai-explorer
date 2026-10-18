@@ -1938,7 +1938,8 @@ of step with the server.
 |---|---|
 | Web | `src/app/sermons/page.tsx` (list) and `src/app/sermons/[id]/page.tsx` (study + dock); the entry card on `/bible` appears only when `GET /api/sermon-studies` returns studies |
 | Android | `mobile/app/(app)/bible/sermons.tsx` and `mobile/app/(app)/bible/sermon.tsx` (study + dock); shapes in `mobile/src/features/sermons/sermonApi.ts` |
-| macOS / iOS | Not built. The backend and the chat tools serve them the day a screen exists |
+| iOS | `macos/SureWord-iOS/Views/Sermons/SermonStudiesView.swift` and `SermonStudyView.swift` (1a37aa7); shapes in `macos/Shared/Sermons/SermonStudies.swift` |
+| macOS | No sermon screens yet. The backend and the chat tools serve it the day one exists |
 
 ### The pipeline is off-platform on purpose
 
@@ -1949,6 +1950,73 @@ runs on a trusted machine and posts the finished study to
 sermon routes exempted from Clerk in `src/middleware.ts` (the other is the
 HMAC-keyed artwork route above). `GET /api/cron/sermon-watchdog`
 says when a study has not arrived.
+
+### Coming up at church (announced events)
+
+*Shipped 2026-10-18 · Android 1.94.0 (108), web, iOS (compiled; simulator run pending)*
+
+Every service ends with announcements: a ladies' fellowship on the 24th, a
+trustees' meeting Tuesday at 6:30, a church picnic. The pipeline now reads them
+out of the same transcript and shows them as a **Coming up** card at the top of
+the sermon list, and as **Coming up at church** at the end of the study for the
+service where they were announced. Every event has Add to Google Calendar and
+Add to Apple Calendar (Android: Other calendar, the `.ics` handed to Samsung
+Calendar, Outlook and the rest), and the announcement's own words with a
+"Hear the announcement" link to that moment in the recording.
+
+**Unsure times say so, and point at the church's app.** Austin's rule
+(2026-10-18): publish automatically, but when the recording does not make the
+time 100% clear, show the event anyway with a "Time not confirmed" pill and
+send the reader to the church's own app (FMBC Fresno on
+[Google Play](https://play.google.com/store/apps/details?id=com.subsplashconsulting.s_W98M7N)
+or the [App Store](https://apps.apple.com/us/app/fmbc-fresno/id1567963142)),
+which has the real time. The calendar entry itself carries the same warning and
+both links in its notes. Church apps live in `CHURCH_APPS` in
+`src/lib/church-events-rules.ts`, keyed by YouTube channel; a church without
+one gets "Check with the church for the exact time."
+
+**Nothing is invented.** `extractEvents` and `verifyEvents` in
+`scripts/sermon/lib.mjs` only look at the transcript outside the sermon itself,
+and every event must quote the announcement verbatim (anchored with the same
+sentence matcher the study's quotes use) or it is dropped. A day must fall
+between the service and 120 days after it. `certain` is forced false when the
+model was unsure, when no clock time was said, when a named weekday does not
+match the date, or when the time is before 6am (an "11 o'clock" said with no AM
+or PM is given its most likely reading and marked unsure). Cancellations, past
+events, prayer requests, birthdays and thanks, regular Sunday services, and the
+pastor's engagements at other churches that the congregation is not invited to
+are excluded by instruction.
+
+**Time zones are the server's job.** The pipeline sends a local date and
+`HH:MM`; `zonedTimeToUtc` converts in the church's zone (America/Los_Angeles,
+DST-correct), and all-day events are stored at local midnight. The server builds
+every label (`when`), the Google Calendar TEMPLATE URL, the RFC 5545 `.ics`
+(`GET /api/church-events/[id]/ics`, `inline` so iOS Safari offers Add to
+Calendar), and the fields the Apple sheet is filled from (`calendarNotes`,
+`calendarEndsAt`, `calendarLocation`). Clients render only.
+
+**The same gathering announced on four Sundays is one event.** `dedupeEvents`
+merges rows on the same local day whose normalized titles match or contain one
+another. The newest announcement wins, except that a timed earlier announcement
+beats a later all-day one, and is then marked unconfirmed (the real Oct 24 ladies'
+fellowship gave its time once in four services).
+
+| Piece | Where |
+|-------|-------|
+| Table | `ChurchEvent` (migration `20261018200000_church_events`), one row per announcement, cascades with its study, indexed by `[channelId, startsAt]` |
+| Ingest | `POST /api/sermon-studies/ingest/events` behind `SERMON_INGEST_SECRET` (exempt from Clerk in `src/middleware.ts`); replaces a study's events in one transaction |
+| Reads | `GET /api/sermon-studies` returns `{ studies, events, churchApp }`; `GET /api/sermon-studies/[id]` the same for that service. `listChurchEvents` in `src/lib/church-events.ts` scopes by `UserChurch.youtubeChannelId`, keeps upcoming events (until they end), at most 20 |
+| Chat | `getChurchEvents` in `src/lib/ai-tools.ts`; `sermonGuidance` says to give times exactly as returned, name unconfirmed ones with the church app, and never invent |
+| Web | `src/components/sermons/ChurchEventsCard.tsx` + `CalendarLogos.tsx` |
+| Android | `mobile/src/features/sermons/ChurchEventsCard.tsx`, `calendarFile.ts` (Bearer-token `.ics` download, shared as `text/calendar`) |
+| iOS | `macos/SureWord-iOS/Views/Sermons/ChurchEventsCard.swift`: EventKitUI's `EKEventEditViewController`, which on iOS 17+ runs out of process and needs no calendar permission |
+| Tests | `tests/church-events-rules.test.mjs` (12), `SermonAndHistoryTests` (lenient decoding, EventKit mapping) |
+
+Backfill or redo one service: `node scripts/sermon/ingest.mjs <videoId>
+--events-only --publish` (reads the saved `study.json`, no re-transcription).
+New services get events on the scheduled run automatically once the main
+checkout has this code. Reminders (push before an event) are deliberately not
+in v1.
 
 ## Note wikilinks, backlinks, and properties
 
