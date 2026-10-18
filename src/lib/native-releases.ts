@@ -137,6 +137,7 @@ export async function getNativeReleases(): Promise<NativeReleases> {
 			"User-Agent": "SureWord-native-release-check",
 		},
 		next: { revalidate: GITHUB_CACHE_SECONDS },
+		signal: AbortSignal.timeout(10_000),
 	});
 	if (!response.ok) throw new Error(`GitHub releases request failed (${response.status})`);
 

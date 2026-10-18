@@ -33,6 +33,8 @@ const hack = localFont({
 		{ path: "./fonts/hack-bolditalic.woff2", weight: "700", style: "italic" },
 	],
 	display: "swap",
+	// Only code spans and the admin page use it; preloading 4 files on every page delayed the hero image.
+	preload: false,
 	variable: "--font-mono",
 });
 

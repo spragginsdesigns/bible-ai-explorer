@@ -62,7 +62,20 @@ export default withBotId(withPWA({
 	// sign-in, so precaching either one meant the worker (and with it web push)
 	// never activated.
 	buildExcludes: [/app-build-manifest\.json$/],
-	publicExcludes: ["!noprecache/**/*", "!browserconfig.xml"],
+	// Precache was ~28 MB per first visit, signed-out visitors included: every
+	// per-book Bible data chunk plus raw art PNGs the app only shows through
+	// next/image. Large files now load on demand and land in the runtime caches
+	// below, so a book someone has opened still reads offline.
+	publicExcludes: [
+		"!noprecache/**/*",
+		"!browserconfig.xml",
+		"!chat-home/**/*",
+		"!textures/**/*",
+		"!splash/**/*",
+		"!og-image.png",
+		"!sureword-guide.png",
+	],
+	maximumFileSizeToCacheInBytes: 200 * 1024,
 	runtimeCaching: [
 		{
 			urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,
@@ -77,7 +90,8 @@ export default withBotId(withPWA({
 			handler: "StaleWhileRevalidate",
 			options: {
 				cacheName: "static-resources",
-				expiration: { maxEntries: 32, maxAgeSeconds: 24 * 60 * 60 },
+				// Room for the on-demand Bible book chunks the precache no longer carries.
+				expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
 			},
 		},
 		{

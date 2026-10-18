@@ -148,6 +148,8 @@ async function sendViaExpo(messages: PendingPush[], label: string): Promise<numb
 		const recipients = chunk.flatMap((piece) => piece.recipients);
 		try {
 			const response = await fetch(EXPO_PUSH_URL, {
+				// A hung chunk would otherwise hold the cron until it is killed, and the remaining chunks never send.
+				signal: AbortSignal.timeout(15_000),
 				method: "POST",
 				headers: { "Content-Type": "application/json", Accept: "application/json" },
 				body: JSON.stringify(

@@ -132,10 +132,16 @@ async function claimLegacyAccount(newUserId: string): Promise<boolean> {
  * check for everybody who already has a row, which is the steady state.
  */
 async function ensureUserRecord(userId: string): Promise<void> {
-	const existing = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
-	if (existing) return;
+	// Every authed request ran this lookup before any route work. Rows are only
+	// removed by account deletion (which also deletes the Clerk user), so a
+	// short per-instance memory of confirmed ids is safe and saves a round trip.
+	const confirmedUntil = confirmedUsers.get(userId);
+	if (confirmedUntil && confirmedUntil > Date.now()) return;
 
-	if (await claimLegacyAccount(userId)) return;
+	const existing = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+	if (existing) return rememberConfirmedUser(userId);
+
+	if (await claimLegacyAccount(userId)) return rememberConfirmedUser(userId);
 
 	// Empty-update upserts can become a read followed by a create. First-run
 	// clients load several routes in parallel, so let Postgres arbitrate the
@@ -151,6 +157,21 @@ async function ensureUserRecord(userId: string): Promise<void> {
 		captureServerEvent({ userId, event: ANALYTICS_EVENTS.accountCreated });
 		await flushAnalytics();
 	}
+	rememberConfirmedUser(userId);
+}
+
+const CONFIRMED_USER_TTL_MS = 10 * 60_000;
+const CONFIRMED_USER_LIMIT = 5_000;
+const confirmedUsers = new Map<string, number>();
+
+function rememberConfirmedUser(userId: string): void {
+	if (confirmedUsers.size >= CONFIRMED_USER_LIMIT) confirmedUsers.clear();
+	confirmedUsers.set(userId, Date.now() + CONFIRMED_USER_TTL_MS);
+}
+
+/** Account deletion calls this so this instance re-checks the row on the next request. */
+export function forgetConfirmedUser(userId: string): void {
+	confirmedUsers.delete(userId);
 }
 
 /**

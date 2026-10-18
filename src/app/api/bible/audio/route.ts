@@ -52,7 +52,10 @@ export async function GET(request: Request) {
 		return NextResponse.json(UNAVAILABLE, { headers: { "Cache-Control": CACHE_CONTROL } });
 	}
 	try {
-		const response = await fetch(chapterTimingUrl(book, chapter, edition), { next: { revalidate: 86400 } });
+		const response = await fetch(chapterTimingUrl(book, chapter, edition), {
+			next: { revalidate: 86400 },
+			signal: AbortSignal.timeout(10_000),
+		});
 		// The bucket answers 403 (not 404) for a key that does not exist yet.
 		const audio = response.ok ? parseChapterTiming(await response.json(), book, chapter, edition) : null;
 		return NextResponse.json(audio ?? UNAVAILABLE, {

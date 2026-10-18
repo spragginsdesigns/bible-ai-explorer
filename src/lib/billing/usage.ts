@@ -18,6 +18,8 @@ type Scope = {
   reservation?: Promise<void>;
   visible: boolean;
   calls: number;
+  /** Answer-model steps only; in-scope utility calls (progress narration) must not use up the answer's step cap. */
+  steps?: number;
   ended: boolean;
   denied?: IncludedAiLimitError;
   accessResolution?: Promise<AiAccess>;
@@ -360,7 +362,9 @@ export function meterIncludedModel(
             "This study is too large for one included request. Use a shorter conversation or smaller attachment.",
             413,
           );
-        if (++scope.calls > 12)
+        scope.calls += 1;
+        // Up to 6 narration calls share this scope, so counting them let 6 narrations + 7 steps abort a live answer.
+        if ((!utility || scope.background) && (scope.steps = (scope.steps ?? 0) + 1) > 12)
           throw new IncludedAiLimitError(
             "This study needs more AI steps than one included message allows. Try a more focused question.",
           );

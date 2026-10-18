@@ -1,4 +1,5 @@
 {
+	"regions": ["pdx1"],
 	"functions": {
 		"src/app/api/ask-question/route.ts": {
 			"maxDuration": 300

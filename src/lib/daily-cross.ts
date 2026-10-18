@@ -603,10 +603,16 @@ export async function generateDailyCross(
 export async function storeDailyCross(
 	userId: string,
 	cross: DailyCross,
-	expectedPreviousId?: string | null
-): Promise<{ id: string; sentAt: Date }> {
+	expectedPreviousId?: string | null,
+	/** Keep a day another request stored while this one was generating; `reused` tells the caller to read it back. */
+	options: { keepExisting?: boolean } = {}
+): Promise<{ id: string; sentAt: Date; reused?: boolean }> {
 	return prisma.$transaction(async tx => {
 	await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8202)`;
+	if (options.keepExisting) {
+		const current = await tx.verseOfDay.findFirst({ where: { userId, sentAt: { gte: new Date(Date.now() - DAILY_CROSS_REUSE_MS) } }, orderBy: { sentAt: "desc" }, select: { id: true, sentAt: true } });
+		if (current) return { ...current, reused: true };
+	}
 	if (expectedPreviousId !== undefined) {
 		const current = await tx.verseOfDay.findFirst({ where: { userId, sentAt: { gte: new Date(Date.now() - DAILY_CROSS_REUSE_MS) } }, orderBy: { sentAt: "desc" }, select: { id: true } });
 		if ((current?.id ?? null) !== expectedPreviousId) throw new Error("Today's cross changed while its replacement was being prepared. Read it and confirm again.");

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 		const encoded = encodeURIComponent(stripTranslationTag(reference));
 		const apiRes = await fetch(
 			`https://bible-api.com/${encoded}?translation=kjv`,
-			{ next: { revalidate: 86400 } } // Cache for 24h
+			{ next: { revalidate: 86400 }, signal: AbortSignal.timeout(10_000) } // Cache for 24h
 		);
 
 		if (!apiRes.ok) {

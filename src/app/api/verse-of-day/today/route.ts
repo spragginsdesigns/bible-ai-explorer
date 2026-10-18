@@ -77,7 +77,12 @@ export async function GET(): Promise<Response> {
 		if (limited) return limited;
 
 		const cross = await generateDailyCross(userId);
-		const { id, sentAt } = await storeDailyCross(userId, cross);
+		// Two opens at once (two devices, a double mount) both generate; the first stored day wins for both.
+		const { id, sentAt, reused } = await storeDailyCross(userId, cross, undefined, { keepExisting: true });
+		if (reused) {
+			const stored = await findTodayCross(userId);
+			if (stored) return privateJson(toResponse(stored, stored.sentAt));
+		}
 
 		return privateJson(toResponse({ ...cross, id }, sentAt));
 	} catch (error) {

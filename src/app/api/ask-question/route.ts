@@ -585,8 +585,13 @@ async function persistAssistantResponse(options: {
 			}),
 		);
 
+		// Its own waitUntil: an extra LLM call must not delay the outcome metric or the "answer ready" push.
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
-			await extractAndStoreMemories({ userId: options.userId, userText });
+			waitUntil(
+				extractAndStoreMemories({ userId: options.userId, userText }).catch((error) =>
+					console.error("Failed to extract memories:", error),
+				),
+			);
 		}
 	} catch (error) {
 		console.error("Failed to persist assistant response:", error);
@@ -945,7 +950,11 @@ async function handlePost(req: Request): Promise<Response> {
 								mode: requestedMode,
 							},
 						}),
-						actionDecisionBlock(actionContext),
+						// Optional context, like every other loader here: a DB error must not fail the answer.
+						actionDecisionBlock(actionContext).catch((error) => {
+							console.error("Failed to load pending action:", error);
+							return "";
+						}),
 					]);
 					duePrayers = dayContext.prayers;
 					const {

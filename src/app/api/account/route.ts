@@ -8,6 +8,7 @@ import {
 	uniquePathnames,
 	type AccountDeletionDeps,
 } from "@/lib/account-deletion";
+import { forgetConfirmedUser } from "@/lib/auth";
 import { billingAvailable, stripeClient } from "@/lib/billing/stripe";
 import { prisma } from "@/lib/prisma";
 
@@ -72,6 +73,7 @@ const deps: AccountDeletionDeps = {
 			// Every other user-owned table is ON DELETE CASCADE from User.
 			await tx.user.deleteMany({ where: { id: userId } });
 		});
+		forgetConfirmedUser(userId);
 	},
 	async deleteBlobs(pathnames) {
 		for (let i = 0; i < pathnames.length; i += 500) await del(pathnames.slice(i, i + 500));
