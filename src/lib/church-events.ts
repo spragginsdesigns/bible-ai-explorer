@@ -73,8 +73,26 @@ async function readerChurch(userId: string) {
 }
 
 /**
- * Upcoming events, soonest first. `studyId` narrows to what was announced at
- * one service, which is what a study screen shows.
+ * Every upcoming gathering at the church, merged across the services that
+ * announced it. Both screens and the .ics read this one list, so a time that
+ * one service gave and a later one left out is unconfirmed everywhere, and a
+ * study screen shows the newest time rather than what was said that week.
+ */
+async function upcomingGatherings(channelId: string, now: Date) {
+	// An all-day event started at local midnight, so look back a day to keep
+	// today's in the list until the day is over; isUpcoming does the real cut.
+	const rows = await prisma.churchEvent.findMany({
+		where: { channelId, startsAt: { gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) } },
+		orderBy: { startsAt: "asc" },
+		take: 200,
+		select: EVENT_SELECT,
+	});
+	return dedupeEvents(rows.map(toRecord)).filter((event) => isUpcoming(event, now));
+}
+
+/**
+ * Upcoming events, soonest first. `studyId` narrows to the gatherings
+ * announced at one service, which is what a study screen shows.
  */
 export async function listChurchEvents(
 	userId: string,
@@ -82,44 +100,46 @@ export async function listChurchEvents(
 ): Promise<ChurchEventsResult> {
 	const church = await readerChurch(userId);
 	if (!church) return EMPTY;
-	const now = options.now ?? new Date();
-	// An all-day event started at local midnight, so look back a day to keep
-	// today's in the list until the day is over; isUpcoming does the real cut.
-	const rows = await prisma.churchEvent.findMany({
-		where: {
-			channelId: church.channelId,
-			startsAt: { gte: new Date(now.getTime() - 36 * 60 * 60 * 1000) },
-			...(options.studyId ? { studyId: options.studyId } : {}),
-		},
-		orderBy: { startsAt: "asc" },
-		take: MAX_EVENTS * 3,
-		select: EVENT_SELECT,
-	});
 	const app = churchAppFor(church.channelId);
 	const location = defaultLocation(church);
-	const events = dedupeEvents(rows.map(toRecord))
-		.filter((event) => isUpcoming(event, now))
+	const events = (await upcomingGatherings(church.channelId, options.now ?? new Date()))
+		.filter((event) => !options.studyId || event.announcedIn.includes(options.studyId))
 		.slice(0, MAX_EVENTS)
 		.map((event) => toEventView(event, event.location ?? location, app));
 	return { events, churchApp: app };
 }
 
 /**
- * One event as an .ics file, or null when it does not exist or belongs to
- * another church. The channel is part of the lookup, as for studies.
+ * The events for a sermon screen, or none if they cannot be read. The events
+ * ride along with the studies, so a failure here must never take the studies
+ * down with it.
+ */
+export async function churchEventsForScreen(
+	userId: string,
+	options: { studyId?: string } = {}
+): Promise<ChurchEventsResult> {
+	try {
+		return await listChurchEvents(userId, options);
+	} catch (error) {
+		console.error("[church-events] read failed", error);
+		return EMPTY;
+	}
+}
+
+/**
+ * One event as an .ics file, or null when it does not exist, is over, or
+ * belongs to another church. It is built from the same merged record the card
+ * shows, never the raw row, so an unconfirmed time says so in the file too.
  */
 export async function churchEventIcs(
 	userId: string,
-	id: string
+	id: string,
+	now: Date = new Date()
 ): Promise<{ fileName: string; body: string } | null> {
 	const church = await readerChurch(userId);
 	if (!church) return null;
-	const row = await prisma.churchEvent.findFirst({
-		where: { id, channelId: church.channelId },
-		select: EVENT_SELECT,
-	});
-	if (!row) return null;
-	const event = toRecord(row);
+	const event = (await upcomingGatherings(church.channelId, now)).find((gathering) => gathering.id === id);
+	if (!event) return null;
 	return {
 		fileName: icsFileName(event.title),
 		body: buildIcs(event, event.location ?? defaultLocation(church), churchAppFor(church.channelId)),

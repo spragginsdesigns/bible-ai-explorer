@@ -208,12 +208,21 @@ const normalizeTitle = (title: string) =>
 		.replace(/\s+/g, " ")
 		.trim();
 
-/** "Ladies fellowship" and "Ladies' fellowship lunch" on one day are one gathering. */
+/**
+ * "Ladies fellowship" and "Ladies' fellowship lunch" on one day are one
+ * gathering. The same title on the same day is one gathering even at another
+ * time (a reschedule, which the newest announcement settles); a title that
+ * only contains the other must also agree on the time, or "Choir rehearsal" at
+ * 5 would swallow "Youth choir rehearsal" at 7.
+ */
 function sameGathering(a: ChurchEventRecord, b: ChurchEventRecord): boolean {
 	if (localDateOf(a.startsAt, a.timeZone) !== localDateOf(b.startsAt, b.timeZone)) return false;
 	const x = normalizeTitle(a.title);
 	const y = normalizeTitle(b.title);
-	return x === y || x.includes(y) || y.includes(x);
+	if (!x || !y) return false;
+	if (x === y) return true;
+	if (!x.includes(y) && !y.includes(x)) return false;
+	return a.allDay || b.allDay || a.startsAt.getTime() === b.startsAt.getTime();
 }
 
 const announcedAt = (event: ChurchEventRecord) => event.serviceDate?.getTime() ?? 0;
@@ -224,8 +233,11 @@ const announcedAt = (event: ChurchEventRecord) => event.serviceDate?.getTime() ?
  * that changed was changed most recently. The one exception is a latest
  * announcement that gave no time when an earlier one did: the earlier time is
  * kept, but as unconfirmed, since nobody restated it.
+ *
+ * `announcedIn` lists every study that announced the gathering, so a study
+ * screen can show the merged event (with the newest time) for its service.
  */
-export function dedupeEvents<T extends ChurchEventRecord>(events: T[]): T[] {
+export function dedupeEvents<T extends ChurchEventRecord>(events: T[]): (T & { announcedIn: string[] })[] {
 	const groups: T[][] = [];
 	for (const event of events) {
 		const group = groups.find((members) => members.some((member) => sameGathering(member, event)));
@@ -233,13 +245,14 @@ export function dedupeEvents<T extends ChurchEventRecord>(events: T[]): T[] {
 		else groups.push([event]);
 	}
 	const kept = groups.map((members) => {
+		const announcedIn = [...new Set(members.map((member) => member.studyId))];
 		const newest = [...members].sort(
 			(a, b) => announcedAt(b) - announcedAt(a) || Number(b.certain) - Number(a.certain)
 		);
 		const latest = newest[0];
-		if (!latest.allDay) return latest;
+		if (!latest.allDay) return { ...latest, announcedIn };
 		const timed = newest.find((member) => !member.allDay);
-		return timed ? { ...timed, certain: false } : latest;
+		return timed ? { ...timed, certain: false, announcedIn } : { ...latest, announcedIn };
 	});
 	return kept.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
 }

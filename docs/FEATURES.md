@@ -1980,8 +1980,10 @@ one gets "Check with the church for the exact time."
 and every event must quote the announcement verbatim (anchored with the same
 sentence matcher the study's quotes use) or it is dropped. A day must fall
 between the service and 120 days after it. `certain` is forced false when the
-model was unsure, when no clock time was said, when a named weekday does not
-match the date, or when the time is before 6am (an "11 o'clock" said with no AM
+model was unsure, when its quote was a paraphrase (replaced by the real
+sentence), when no clock time was said, when the hour is not heard in the
+quote or within 20 seconds of it, when a named weekday or "tomorrow" or
+"tonight" does not match the date, or when the time is before 6am (an "11 o'clock" said with no AM
 or PM is given its most likely reading and marked unsure). Cancellations, past
 events, prayer requests, birthdays and thanks, regular Sunday services, and the
 pastor's engagements at other churches that the congregation is not invited to
@@ -1996,10 +1998,15 @@ Calendar), and the fields the Apple sheet is filled from (`calendarNotes`,
 `calendarEndsAt`, `calendarLocation`). Clients render only.
 
 **The same gathering announced on four Sundays is one event.** `dedupeEvents`
-merges rows on the same local day whose normalized titles match or contain one
-another. The newest announcement wins, except that a timed earlier announcement
+merges rows on the same local day with the same normalized title (a reschedule),
+or a title that contains the other at the same time (so "Choir rehearsal" at 5
+never swallows "Youth choir rehearsal" at 7). The newest announcement wins, except that a timed earlier announcement
 beats a later all-day one, and is then marked unconfirmed (the real Oct 24 ladies'
-fellowship gave its time once in four services).
+fellowship gave its time once in four services). Every read goes through the
+same merged list: a study screen shows the gatherings its service announced
+(`announcedIn`) with the newest time, and the `.ics` is built from the merged
+record, so an unconfirmed time is unconfirmed in the file as well. An events
+failure never breaks the studies (`churchEventsForScreen` falls back to none).
 
 | Piece | Where |
 |-------|-------|
@@ -2010,7 +2017,7 @@ fellowship gave its time once in four services).
 | Web | `src/components/sermons/ChurchEventsCard.tsx` + `CalendarLogos.tsx` |
 | Android | `mobile/src/features/sermons/ChurchEventsCard.tsx`, `calendarFile.ts` (Bearer-token `.ics` download, shared as `text/calendar`) |
 | iOS | `macos/SureWord-iOS/Views/Sermons/ChurchEventsCard.swift`: EventKitUI's `EKEventEditViewController`, which on iOS 17+ runs out of process and needs no calendar permission |
-| Tests | `tests/church-events-rules.test.mjs` (12), `SermonAndHistoryTests` (lenient decoding, EventKit mapping) |
+| Tests | `tests/church-events-rules.test.mjs` (13), `tests/church-events-verify.test.mjs` (7), `SermonAndHistoryTests` (lenient decoding, EventKit mapping) |
 
 Backfill or redo one service: `node scripts/sermon/ingest.mjs <videoId>
 --events-only --publish` (reads the saved `study.json`, no re-transcription).

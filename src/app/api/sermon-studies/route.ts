@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { listChurchEvents } from "@/lib/church-events";
+import { churchEventsForScreen } from "@/lib/church-events";
 import { listSermonStudies } from "@/lib/sermon-studies";
 
 /**
@@ -18,7 +18,7 @@ export async function GET() {
 		const userId = await getAuthUser();
 		const [studies, { events, churchApp }] = await Promise.all([
 			listSermonStudies(userId),
-			listChurchEvents(userId),
+			churchEventsForScreen(userId),
 		]);
 		return NextResponse.json({ studies, events, churchApp });
 	} catch (error) {

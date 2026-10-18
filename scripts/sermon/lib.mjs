@@ -637,6 +637,32 @@ function daysBetween(from, to) {
 
 const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`));
 const isTime = (s) => typeof s === "string" && /^([01]?\d|2[0-3]):[0-5]\d$/.test(s);
+const minutesOf = (time) => {
+	const [h, m] = time.split(":").map(Number);
+	return h * 60 + m;
+};
+
+const HOUR_WORDS = ["twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven"];
+
+/**
+ * Whether the clock hour of `time` is actually said in `text`, as "6", "6:30",
+ * "six" or (for 12) "noon". A time the model resolved from nothing said is
+ * not certain, however sure the model sounds.
+ */
+function hourIsSpoken(time, text) {
+	const hour12 = Number(time.split(":")[0]) % 12;
+	const spoken = text.toLowerCase();
+	const digits = String(hour12 === 0 ? 12 : hour12);
+	if (new RegExp(`(^|[^0-9])${digits}([^0-9]|$)`).test(spoken)) return true;
+	if (new RegExp(`\\b${HOUR_WORDS[hour12]}\\b`).test(spoken)) return true;
+	return hour12 === 0 && /\bnoon\b/.test(spoken);
+}
+
+/** Relative days whose meaning is fixed by the service date. */
+const RELATIVE_DAYS = [
+	{ pattern: /\b(today|tonight|this evening|this afternoon)\b/i, offset: 0 },
+	{ pattern: /\btomorrow\b/i, offset: 1 },
+];
 
 /** Everything in the service outside the sermon, which is where announcements live. */
 export function announcementCues(cues, segment) {
@@ -685,10 +711,14 @@ export function verifyEvents(cues, rawEvents, serviceDate, { maxDaysAhead = 120 
 
 		const quote = normalizeQuote(raw.sourceQuote);
 		let sourceQuote = quote && flat.includes(quote) ? quote : null;
+		// A paraphrase is replaced by the real sentence near where the model read
+		// it, but its details are then the model's words, so it is never certain.
+		let paraphrased = false;
 		if (!sourceQuote) {
 			const anchored = sentenceAt(cues, raw.quoteAtMs);
 			if (anchored && overlapRatio(words(anchored), new Set(words(quote))) >= 0.34) {
 				sourceQuote = normalizeQuote(anchored);
+				paraphrased = true;
 			}
 		}
 		if (!sourceQuote) {
@@ -696,26 +726,41 @@ export function verifyEvents(cues, rawEvents, serviceDate, { maxDaysAhead = 120 
 			continue;
 		}
 
-		const reasons = [];
-		if (raw.certainty !== "certain") reasons.push(raw.unsureWhy || "unclear in the recording");
-		const startTime = isTime(raw.startTime) ? raw.startTime : null;
-		if (!startTime && !reasons.length) reasons.push("no clock time was said");
-		let endTime = isTime(raw.endTime) ? raw.endTime : null;
-		if (startTime && endTime && endTime <= startTime) endTime = null;
-		// "This Wednesday" that resolved to a Thursday is a slip somewhere.
-		const named = WEEKDAYS.findIndex((day) => new RegExp(`\\b${day}`, "i").test(raw.dateWords ?? ""));
-		if (named >= 0 && named !== weekdayOf(raw.date)) {
-			reasons.push(`"${raw.dateWords}" does not fall on ${raw.date}`);
-		}
-		// Evening gatherings are announced as "6:30", and a model reading that
-		// can land on the morning. Anything before 6am is almost surely that.
-		if (startTime && Number(startTime.split(":")[0]) < 6) reasons.push("the time reads as before 6am");
-
 		// "Hear the announcement" should land on the sentence, not wherever the
 		// model thought it was reading.
 		const head = sourceQuote.split(" ").slice(0, 8).join(" ");
 		const spoken = sentencesFrom(cues).find((s) => normalizeQuote(s.text).includes(head));
 		const sourceMs = spoken?.startMs ?? Number(raw.quoteAtMs);
+
+		const reasons = [];
+		if (raw.certainty !== "certain") reasons.push(raw.unsureWhy || "unclear in the recording");
+		if (paraphrased) reasons.push("the announcement was not quoted exactly");
+		const startTime = isTime(raw.startTime) ? raw.startTime : null;
+		if (!startTime && !reasons.length) reasons.push("no clock time was said");
+		let endTime = isTime(raw.endTime) ? raw.endTime : null;
+		if (startTime && endTime && minutesOf(endTime) <= minutesOf(startTime)) endTime = null;
+		// The hour must be heard around the announcement, not only in the
+		// model's answer: the quote plus 20 seconds either side of it.
+		if (startTime) {
+			const nearby = cues
+				.filter((c) => Math.abs(c.startMs - sourceMs) <= 20_000)
+				.map((c) => c.text)
+				.join(" ");
+			if (!hourIsSpoken(startTime, `${sourceQuote} ${nearby}`)) {
+				reasons.push("the time was not heard in the announcement");
+			}
+		}
+		// "This Wednesday" that resolved to a Thursday is a slip somewhere.
+		const named = WEEKDAYS.findIndex((day) => new RegExp(`\\b${day}`, "i").test(raw.dateWords ?? ""));
+		if (named >= 0 && named !== weekdayOf(raw.date)) {
+			reasons.push(`"${raw.dateWords}" does not fall on ${raw.date}`);
+		}
+		// "Tomorrow" after a Sunday service is Monday, whatever the model wrote.
+		const relative = RELATIVE_DAYS.find((r) => r.pattern.test(raw.dateWords ?? ""));
+		if (relative && ahead !== relative.offset) reasons.push(`"${raw.dateWords}" is not ${raw.date}`);
+		// Evening gatherings are announced as "6:30", and a model reading that
+		// can land on the morning. Anything before 6am is almost surely that.
+		if (startTime && Number(startTime.split(":")[0]) < 6) reasons.push("the time reads as before 6am");
 
 		kept.push({
 			title,

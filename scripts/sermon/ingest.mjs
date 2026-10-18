@@ -188,6 +188,7 @@ async function main() {
 			title: saved.meta?.title ?? meta.title ?? "Service",
 			serviceDate: meta.serviceDate ?? saved.meta?.serviceDate ?? null,
 		});
+		if (!found.events) return;
 		saved.events = found.events;
 		saved.droppedEvents = found.dropped;
 		fs.writeFileSync(jsonPath, JSON.stringify(saved, null, 2), "utf8");
@@ -425,8 +426,10 @@ function hasStudyFor(date) {
 /** Read the announcements, keep what the recording backs up, and say what happened. */
 async function findEvents(m, cues, segment, meta) {
 	if (!meta.serviceDate) {
+		// null, not [], so nothing is published: an empty list would replace
+		// events an earlier run stored for this service.
 		log("no service date, so announced days cannot be placed; skipping events");
-		return { events: [], dropped: [] };
+		return { events: null, dropped: [] };
 	}
 	log("reading the announcements...");
 	const raw = await extractEvents(m, announcementCues(cues, segment), meta);

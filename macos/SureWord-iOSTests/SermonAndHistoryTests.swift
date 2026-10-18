@@ -138,8 +138,14 @@ final class SermonAndHistoryTests: XCTestCase {
         XCTAssertEqual(timed.location, "First Missionary Baptist Church")
         XCTAssertEqual(timed.notes, "For: ladies")
         XCTAssertEqual(timed.timeZone?.identifier, "America/Los_Angeles")
-        let allDay = ChurchEventCalendar.makeEvent(home.events.items[1], store: store)
+        // Fresno midnight on Oct 31 is still Oct 30 in Honolulu; the entry must
+        // be Oct 31 there too.
+        var honolulu = Calendar(identifier: .gregorian)
+        honolulu.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Honolulu"))
+        let allDay = ChurchEventCalendar.makeEvent(home.events.items[1], store: store, readerCalendar: honolulu)
         XCTAssertTrue(allDay.isAllDay)
         XCTAssertNil(allDay.notes)
+        let day = honolulu.dateComponents([.year, .month, .day], from: try XCTUnwrap(allDay.startDate))
+        XCTAssertEqual([day.year, day.month, day.day], [2026, 10, 31])
     }
 }

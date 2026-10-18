@@ -90,6 +90,23 @@ test("the same gathering announced at two services is one event, the newest wins
 	assert.deepEqual(kept.map((e) => e.id), ["new", "men"]);
 });
 
+test("a contained title is only the same gathering at the same time", () => {
+	const at = (time) => zonedTimeToUtc("2026-10-13", time, TZ);
+	const kept = dedupeEvents([
+		event({ id: "choir", title: "Choir rehearsal", startsAt: at("17:00") }),
+		event({ id: "youth", title: "Youth choir rehearsal", startsAt: at("19:00") }),
+		event({ id: "the", title: "The" }),
+		event({ id: "an", title: "An" }),
+	]);
+	assert.deepEqual(kept.map((e) => e.id).sort(), ["an", "choir", "the", "youth"]);
+	// The same title moved to another hour is a reschedule; the newest wins.
+	const moved = dedupeEvents([
+		event({ id: "old", title: "Ladies tea", startsAt: at("14:00"), serviceDate: new Date("2026-10-04T12:00:00Z") }),
+		event({ id: "new", title: "Ladies tea", startsAt: at("15:00"), serviceDate: new Date("2026-10-11T12:00:00Z"), studyId: "smn_2" }),
+	]);
+	assert.deepEqual(moved.map((e) => [e.id, e.announcedIn]), [["new", ["smn_1", "smn_2"]]]);
+});
+
 test("a later announcement with no time keeps the earlier time, as unconfirmed", () => {
 	// The real Oct 24 ladies fellowship: four services, only one gave a time.
 	const day = zonedTimeToUtc("2026-10-24", null, TZ);
