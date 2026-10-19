@@ -48,8 +48,15 @@ struct ChatView: View {
             }.padding(.horizontal, 16).frame(height: 56)
             content
             Divider().overlay(theme.border)
-            ChatInputBar(chat: chat)
-                .padding(Spacing.lg)
+            VStack(spacing: Spacing.sm) {
+                // "Share into SureWord": the one-tap actions, until the shared
+                // chat has its first message.
+                if let notices = chat.shareNotices {
+                    ShareActionsRow(chat: chat, notices: notices)
+                }
+                ChatInputBar(chat: chat)
+            }
+            .padding(Spacing.lg)
         }
         .background(ChatAppearance.colors(for: theme).bg)
         .environment(\.theme, ChatAppearance.colors(for: theme))
@@ -67,6 +74,10 @@ struct ChatView: View {
             }
         }
         .toolbar { modelPickerItem }
+        // A share opens over whatever was up; the picker would hide it.
+        .onChange(of: chat.shareNotices != nil) { _, opened in
+            if opened { isModelPickerPresented = false }
+        }
         .task {
             models.configure(api)
             await models.load()
