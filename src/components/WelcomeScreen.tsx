@@ -168,4 +168,4 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   );
 };
 
-export default WelcomeScreen;
+export default React.memo(WelcomeScreen);

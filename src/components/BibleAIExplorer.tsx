@@ -207,10 +207,13 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	// Follow-up chips and suggested questions always start a new message, so an
 	// edit in progress is set aside first (its earlier draft comes back).
-	const handleSend = (text: string) => {
+	// Stable across keystrokes: the input lives in useChat, so every character
+	// re-renders this component, and the memoized list, sidebar and welcome
+	// screen below only skip that work while their props hold still.
+	const handleSend = useCallback((text: string) => {
 		cancelEditing();
 		sendMessage(text);
-	};
+	}, [cancelEditing, sendMessage]);
 
 	// The composer's own send: while editing, it replaces the edited message.
 	const handleComposerSend = (text: string) => {
@@ -218,10 +221,15 @@ const BibleAIExplorerInner: React.FC = () => {
 		else sendMessage(text);
 	};
 
-	const handleEditMessage = (messageId: string) => {
-		startEditing(messageId);
+	// startEditing reads the draft, so it changes on every keystroke; the ref keeps this handler fixed.
+	const startEditingRef = useRef(startEditing);
+	startEditingRef.current = startEditing;
+	const handleEditMessage = useCallback((messageId: string) => {
+		startEditingRef.current(messageId);
 		setFocusSignal((signal) => signal + 1);
-	};
+	}, []);
+	const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+	const toggleSidebar = useCallback(() => setSidebarOpen((open) => !open), []);
 
 	const onLocalCommand = useCallback(
 		(action: LocalCommandAction) => {
@@ -288,7 +296,7 @@ const BibleAIExplorerInner: React.FC = () => {
 			<AppSidebar
 				active="chat"
 				open={sidebarOpen}
-				onClose={() => setSidebarOpen(false)}
+				onClose={closeSidebar}
 			>
 				<ChatSidebar
 					conversations={conversations}
@@ -299,14 +307,14 @@ const BibleAIExplorerInner: React.FC = () => {
 					onSelectConversation={switchConversation}
 					onDeleteConversation={deleteConversation}
 					onClearAll={clearAllConversations}
-					onNavigate={() => setSidebarOpen(false)}
+					onNavigate={closeSidebar}
 				/>
 			</AppSidebar>
 
 			<main className="flex-1 flex flex-col min-w-0 min-h-0 pb-20 lg:pb-0">
 				<ChatTopBar
 					title={title}
-					onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+					onToggleSidebar={toggleSidebar}
 					onNewChat={newConversation}
 				/>
 				{historyActionError && (

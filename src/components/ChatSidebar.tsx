@@ -332,4 +332,4 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
 	);
 };
 
-export default ChatSidebar;
+export default React.memo(ChatSidebar);

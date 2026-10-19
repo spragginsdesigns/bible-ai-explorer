@@ -31,4 +31,4 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
     </details>
   </header>;
 };
-export default ChatTopBar;
+export default React.memo(ChatTopBar);
