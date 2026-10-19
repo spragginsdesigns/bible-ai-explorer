@@ -60,6 +60,8 @@ struct SettingsView: View {
 
                 HighlightLabelsSection(settings: app.settings, preferences: app.preferences)
 
+                chatNotificationSection
+
                 verseOfDaySection
 
                 providerSection
@@ -190,6 +192,29 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You can sign back in at any time.")
+        }
+    }
+
+    // MARK: - Chat
+
+    /// Android's Chat card in Settings → Notifications
+    /// (`settings/notifications.tsx`), same switch and copy as there and on
+    /// iOS. The Mac registers no push token, so the preference stays on this
+    /// Mac like the reminder's and decides the local notice
+    /// `AnswerReadyNotifier` posts while SureWord is in the background.
+    @ViewBuilder
+    private var chatNotificationSection: some View {
+        @Bindable var settings = app.settings
+
+        Section("Chat") {
+            Toggle("Notify when an answer is ready", isOn: $settings.notifyChatReplies)
+            hint(
+                "Leave the app while SureWord is answering and it keeps working. "
+                    + "This tells you when the answer has landed."
+            )
+        }
+        .onChange(of: settings.notifyChatReplies) { was, now in
+            if now, !was { Task { await AnswerReadyNotifier.requestAuthorization() } }
         }
     }
 

@@ -107,7 +107,16 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        NotificationCenter.default.post(name: .openDailyCross, object: nil)
+        // A clicked "Your answer is ready" opens its conversation, through the
+        // same `NotificationTapTarget` iOS reads and the buffer that survives a
+        // click launching the app (`PendingDeepLinks`). Anything else is the
+        // morning reminder, which opens the Daily Cross as it always has.
+        let userInfo = response.notification.request.content.userInfo
+        if case .chat(let conversationID) = NotificationTapTarget(userInfo: userInfo) {
+            Task { @MainActor in PendingDeepLinks.shared.post(.chat(conversationID)) }
+        } else {
+            NotificationCenter.default.post(name: .openDailyCross, object: nil)
+        }
         completionHandler()
     }
 }

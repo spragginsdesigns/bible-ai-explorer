@@ -6,10 +6,15 @@ import SwiftUI
 ///
 /// The sign-in form itself is ClerkKitUI's `AuthView`, deliberately rather than a
 /// hand-rolled flow: it picks up whatever strategies the Clerk dashboard has
-/// enabled (email code + Google SSO here), and handles verification,
+/// enabled (email code, Google and Apple SSO here), and handles verification,
 /// continuations and MFA. This repo has already paid for hand-rolling Clerk
 /// plumbing once — see the Frontend API proxy post-mortem in `CLAUDE.md` — so the
 /// supported component wins, themed to match SureWord.
+///
+/// That includes password sign-in, Android 1.19.1's path for the review demo
+/// account: the instance prefers password sign-in, so Continue opens "Enter
+/// password" for an account that has one, with "Use another method" for the
+/// email code (LC-16620).
 struct SignInView: View {
     @Environment(\.theme) private var theme
     @State private var authIsPresented = false

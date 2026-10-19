@@ -37,10 +37,29 @@ struct MainWindow: View {
                 hour: app.settings.verseOfDayHour
             )
         }
+        // "Your answer is ready" while SureWord is in the background, the Mac's
+        // version of the web's hidden-tab notice. Wired here, not in AppModel,
+        // because only the Mac posts it; iOS's notice is the server's push.
+        .task {
+            let settings = app.settings
+            app.chat.onAnswerReady = { conversationID, title in
+                AnswerReadyNotifier.answerLanded(
+                    conversationID: conversationID,
+                    title: title,
+                    chatReplies: settings.notifyChatReplies
+                )
+            }
+        }
         // Clicking the morning notification lands here.
         .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
             app.section = .cross
         }
+        // Clicking "Your answer is ready" lands here, or, when the click
+        // launched the app, in the buffer drained once this window appears.
+        .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { _ in
+            openPendingLinks()
+        }
+        .task { openPendingLinks() }
         // A preference changed on the phone or the web should be here by the
         // time the window is looked at again. `refresh` throttles itself, which
         // matters on macOS: clicking back into the app fires this constantly.
@@ -95,6 +114,32 @@ struct MainWindow: View {
         case .cross:
             DailyCrossView()
         }
+    }
+
+    /// Handles everything `PendingDeepLinks` holds. Draining on the live
+    /// notification too (not only on appearance, as the iOS shell does) means
+    /// a click opens its conversation once and is never replayed into a later
+    /// window or a later account.
+    private func openPendingLinks() {
+        for link in PendingDeepLinks.shared.drain() {
+            switch link {
+            case .chat(let conversationID): openConversation(conversationID)
+            case .cross: app.section = .cross
+            case .verse(let reference):
+                app.section = .bible
+                app.pendingVerseReference = reference
+            }
+        }
+    }
+
+    /// Android's `router.push("/", { conversationId })` for a chat push tap,
+    /// as on iOS (`TabShell.openConversation`).
+    private func openConversation(_ id: String) {
+        guard !id.isEmpty else { return }
+        app.isSettingsPresented = false
+        app.chat.isHistoryPresented = false
+        app.section = .chat
+        Task { await app.chat.switchConversation(to: id) }
     }
 }
 

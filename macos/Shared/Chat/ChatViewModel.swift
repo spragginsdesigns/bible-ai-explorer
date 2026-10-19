@@ -103,6 +103,13 @@ final class ChatViewModel {
     /// Where a deliberate walk-away is recorded, so the "Your answer is ready"
     /// push the server still sends for it can be suppressed.
     private let stopSignals: ChatStopSignals
+    /// Called when an answer lands, streamed to the end or collected after a
+    /// dropped connection, with its conversation and that conversation's
+    /// title: the two moments the web's `notifyIfHidden` runs (`useChat.ts`).
+    /// The Mac shell posts "Your answer is ready" from it while SureWord is in
+    /// the background (`AnswerReadyNotifier`). iOS leaves it unset; its notice
+    /// is the server's push. Never called for a stopped or failed answer.
+    @ObservationIgnored var onAnswerReady: (@MainActor (_ conversationID: String, _ title: String?) -> Void)?
     private var streamTask: Task<Void, Never>?
     /// Text of a send that failed before the stream opened (the conversation
     /// could not be created), so Retry can send it again - Android's
@@ -1127,12 +1134,19 @@ final class ChatViewModel {
         }
         // A stream that finished on its own owes nothing.
         if !Task.isCancelled {
+            let landed = pendingAnswerConversationID
             pendingAnswerConversationID = nil
             // A settled answer is the moment "your answer is ready" makes
             // sense, so iOS may ask for notification permission now (PRD
             // B6a). Nothing listens on the Mac.
             NotificationPermissionMoments.shared.signal(.firstAnswer)
+            if let landed { answerLanded(in: landed) }
         }
+    }
+
+    /// See `onAnswerReady`.
+    private func answerLanded(in conversationID: String) {
+        onAnswerReady?(conversationID, conversations.first { $0.id == conversationID }?.title)
     }
 
     // MARK: Answer recovery
@@ -1209,6 +1223,7 @@ final class ChatViewModel {
                     case .restore(let rows):
                         uiMessages = rows.compactMap(UIMessage.init(storedRow:))
                         sendError = nil
+                        answerLanded(in: conversationID)
                         return
                     case .giveUp:
                         sendError = ChatErrors.recoveryExhausted

@@ -325,9 +325,10 @@ cover the current Android/web capability set: streaming chat and recovery,
 provider keys and the model/effort picker, live status labels, normalized
 Markdown, suggested-question labels, Reading Plans, Listen with playback speed,
 Now Playing and the Pro lock, the parchment reader, Daily Cross, atlas tools,
-Notes, Memories, Settings, and `/plan`/`/who`. The two intentional macOS gaps
-are password sign-in for password-bearing accounts and the "Your answer is
-ready" push; neither is available in the current native target. The last Mac
+Notes, Memories, Settings, and `/plan`/`/who`. Password sign-in for
+password-bearing accounts comes from ClerkKitUI's own `AuthView` (no app code),
+and "Your answer is ready" is a local notification posted while the app is in
+the background (LC-16620); neither has been run on a Mac yet. The last Mac
 release verification was for 1.5.0 and included its build, install, and signed-in
 product pass; 1.6.0 still requires the Mac/Xcode gate above before it can be
 called verified or shipped.

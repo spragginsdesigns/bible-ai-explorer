@@ -156,7 +156,9 @@ final class SettingsStore {
     /// Notify when a chat answer finishes after this device dropped off the
     /// stream - Android's `chatReplies`. Device-local like the reminder, and
     /// independent of it: the push token stays registered for either stream.
-    /// Only remote push can deliver it (see `PushRegistration`).
+    /// iOS delivers it through the server's push (`PushRegistration`); the Mac,
+    /// which registers no token, posts a local notice instead while SureWord
+    /// is in the background (`AnswerReadyNotifier`).
     var notifyChatReplies: Bool {
         didSet { UserDefaults.standard.set(notifyChatReplies, forKey: Key.chatReplies) }
     }
