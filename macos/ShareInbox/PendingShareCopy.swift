@@ -1,13 +1,15 @@
 import Foundation
+import UniformTypeIdentifiers
 
-/// How the share extension copies a shared file into the inbox without
-/// trusting the size the sending app reports (security scan 2026-10-09, #8;
-/// Android does the same in `modules/sureword-share`). The copy is streamed in
-/// chunks and stops at the first byte past the file's cap, and what lands is
-/// measured again before it is kept, so an oversize or endless source never
-/// fills the App Group container.
+/// How a shared file is copied into the inbox without trusting the size the
+/// sending app reports (security scan 2026-10-09, #8; Android does the same in
+/// `modules/sureword-share`). The copy is streamed in chunks and stops at the
+/// first byte past the file's cap, and what lands is measured again before it
+/// is kept, so an oversize or endless source never fills the inbox.
 ///
-/// In `ShareInbox` so the app's tests pin it; the caps are the app's own
+/// The iOS share extension copies this way into the App Group container, and
+/// the Mac does too for the Services menu and drops (`MacShareInbox`). In
+/// `ShareInbox` so the app's tests pin it; the caps are the app's own
 /// `AttachmentLimits` (`Shared/Chat/FileAttachments.swift`, which the
 /// extension also compiles).
 enum PendingShareCopy {
@@ -80,6 +82,47 @@ enum PendingShareCopy {
         try? FileManager.default.removeItem(at: destination)
         if case .copied = outcome { return .failed }
         return outcome
+    }
+
+    /// Copy one shared file into a share folder and describe it for the
+    /// manifest: stored when it fits under its cap, otherwise listed without
+    /// bytes so the app can say why (too large, or unreadable).
+    static func file(
+        from source: URL,
+        type: UTType,
+        suggestedName: String?,
+        index: Int,
+        into directory: URL
+    ) -> PendingShareManifest.File {
+        let scoped = source.startAccessingSecurityScopedResource()
+        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+
+        let original = PendingShareNaming.name(suggested: suggestedName, url: source, type: type)
+        let size = (try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+        var file = PendingShareManifest.File(
+            storedName: nil,
+            originalName: original,
+            typeIdentifier: type.identifier,
+            mediaType: PendingShareNaming.mediaType(for: type, filename: original),
+            size: size
+        )
+        // The reported size only saves a doomed copy; the copy itself stops at
+        // the cap, since the sending app controls the bytes it serves.
+        let limit = PendingShareCopy.limit(filename: original, mediaType: file.mediaType)
+        if let size, size > limit { return file }
+        let stored = PendingShareNaming.storedName(original, index: index)
+        switch PendingShareCopy.copy(from: source, to: directory.appendingPathComponent(stored), limit: limit) {
+        case .copied(let bytes):
+            file.storedName = stored
+            file.size = bytes
+        case .tooLarge(let bytesRead):
+            // Listed without bytes; the app says it exceeds the file limit.
+            file.size = bytesRead
+        case .failed:
+            // Listed without bytes; the app reports it as unreadable.
+            break
+        }
+        return file
     }
 
     static func measuredSize(_ url: URL) -> Int? {

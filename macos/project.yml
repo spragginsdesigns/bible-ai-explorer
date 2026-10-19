@@ -50,6 +50,10 @@ targets:
     sources:
       - path: SureWord
       - path: Shared
+      # "Share into SureWord": the Services menu entry and drops on the window
+      # or Dock icon write the same inbox the iOS share extension does
+      # (`SureWord/App/MacShareInbox.swift`), under Application Support.
+      - path: ShareInbox
     dependencies:
       - package: Clerk
         product: ClerkKit

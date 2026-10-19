@@ -1,11 +1,14 @@
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 /// The one-tap answers to a share - "Verify this video" (`/verify`, only when
 /// it carries a link), "Check against Scripture" (`/check`) and "Help me reply"
 /// (`/reply`) - shown above the composer of the chat a
 /// share opened, with any notice about what was left out. Port of
-/// `mobile/src/features/share/ShareActions.tsx`.
+/// `mobile/src/features/share/ShareActions.tsx`, shared by the iOS chat tab and
+/// the Mac chat pane.
 struct ShareActionsRow: View {
     @Environment(\.theme) private var theme
     @Bindable var chat: ChatViewModel
@@ -35,7 +38,9 @@ struct ShareActionsRow: View {
                 if isActionable {
                     ForEach(ShareAction.actions(for: chat.input)) { action in
                         Button {
+                            #if os(iOS)
                             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            #endif
                             Task { await chat.sendShareAction(action) }
                         } label: {
                             Label(

@@ -106,7 +106,7 @@ enum ShareCollector {
                     )))
                     return
                 }
-                continuation.resume(returning: .file(copy(url, type: type, suggestedName: suggestedName, index: index, into: directory)))
+                continuation.resume(returning: .file(PendingShareCopy.file(from: url, type: type, suggestedName: suggestedName, index: index, into: directory)))
             }
         }
     }
@@ -127,7 +127,7 @@ enum ShareCollector {
                 switch item {
                 case let url as URL where url.isFileURL:
                     let fileType = UTType(filenameExtension: url.pathExtension) ?? type
-                    loaded = .file(copy(url, type: fileType, suggestedName: suggestedName, index: index, into: directory))
+                    loaded = .file(PendingShareCopy.file(from: url, type: fileType, suggestedName: suggestedName, index: index, into: directory))
                 case let url as URL:
                     loaded = .webURL(url.absoluteString)
                 case let text as String:
@@ -153,44 +153,6 @@ enum ShareCollector {
     }
 
     // MARK: Copying
-
-    private static func copy(
-        _ source: URL,
-        type: UTType,
-        suggestedName: String?,
-        index: Int,
-        into directory: URL
-    ) -> PendingShareManifest.File {
-        let scoped = source.startAccessingSecurityScopedResource()
-        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
-
-        let original = PendingShareNaming.name(suggested: suggestedName, url: source, type: type)
-        let size = (try? source.resourceValues(forKeys: [.fileSizeKey]).fileSize)
-        var file = PendingShareManifest.File(
-            storedName: nil,
-            originalName: original,
-            typeIdentifier: type.identifier,
-            mediaType: PendingShareNaming.mediaType(for: type, filename: original),
-            size: size
-        )
-        // The reported size only saves a doomed copy; the copy itself stops at
-        // the cap, since the sending app controls the bytes it serves.
-        let limit = PendingShareCopy.limit(filename: original, mediaType: file.mediaType)
-        if let size, size > limit { return file }
-        let stored = PendingShareNaming.storedName(original, index: index)
-        switch PendingShareCopy.copy(from: source, to: directory.appendingPathComponent(stored), limit: limit) {
-        case .copied(let bytes):
-            file.storedName = stored
-            file.size = bytes
-        case .tooLarge(let bytesRead):
-            // Listed without bytes; the app says it exceeds the file limit.
-            file.size = bytesRead
-        case .failed:
-            // Listed without bytes; the app reports it as unreadable.
-            break
-        }
-        return file
-    }
 
     private static func write(
         _ data: Data,
