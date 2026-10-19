@@ -5,11 +5,10 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { AiProvider } from "@prisma/client";
 import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
-import { getUserPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "./crypto";
 import { houseKeyFor } from "./house-key";
-import { meterIncludedModel, usageEnabled, resolveRequestAccess, reserveIncludedRequest } from "@/lib/billing/usage";
+import { meterIncludedModel, usageEnabled, resolveRequestAccess, reserveIncludedRequest, requestUserPlan } from "@/lib/billing/usage";
 import { decideAccess, houseEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
 import {
@@ -144,7 +143,7 @@ export async function aiAccessFor(userId: string): Promise<AiAccess> {
 export async function houseChatModel(
 	userId: string,
 ): Promise<{ definition: ModelDefinition; apiKey: string; plan: "pro" | "free" }> {
-	const plan = await getUserPlan(userId);
+	const plan = await requestUserPlan(userId);
 	const modelId = houseChatModelId(plan, { openrouter: Boolean(serverKeyFor("openrouter")?.trim()) });
 	const definition = resolveDefinition(modelId);
 	if (!definition) throw new Error(`The house AI model ${modelId} is not registered.`);

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { wrapLanguageModel, type LanguageModel } from "ai";
 import { prisma } from "@/lib/prisma";
-import { getUserPlan } from "@/lib/entitlements";
+import { getUserPlan, type UserPlan } from "@/lib/entitlements";
 import { calendarMonthWindow, quotaDecision, utcDayWindow } from "./plans";
 import { IncludedAiLimitError } from "./usage-errors";
 import type { AiAccess } from "@/lib/ai/access";
@@ -24,9 +24,21 @@ type Scope = {
   denied?: IncludedAiLimitError;
   accessResolution?: Promise<AiAccess>;
   background?: boolean;
+  plan?: { userId: string; value: Promise<UserPlan> };
 };
 const scopes = new AsyncLocalStorage<Scope>();
 export const usageEnabled = () => process.env.SUREWORD_USAGE_ENABLED === "true";
+
+/**
+ * One plan lookup per metered request. Choosing the house model and reserving
+ * the request both need it, and each lookup is several subscription reads.
+ */
+export function requestUserPlan(userId: string): Promise<UserPlan> {
+  const scope = scopes.getStore();
+  if (!scope) return getUserPlan(userId);
+  if (scope.plan?.userId !== userId) scope.plan = { userId, value: getUserPlan(userId) };
+  return scope.plan.value;
+}
 
 /** Keep the payer stable across tools and background work even if Settings changes mid-answer. */
 export function resolveRequestAccess(
@@ -89,7 +101,7 @@ async function reserve(scope: Scope, userId: string) {
   if (scope.reservation) return scope.reservation;
   scope.userId = userId;
   scope.reservation = (async () => {
-    const pro = (await getUserPlan(userId)) === "pro";
+    const pro = (await requestUserPlan(userId)) === "pro";
     await prisma.$transaction(
       async (tx) => {
         // Lock the account before counting; all concurrent writers use this same lock.

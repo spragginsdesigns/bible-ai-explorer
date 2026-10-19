@@ -17,13 +17,13 @@ export async function accountSubscription(
   userId: string,
   db: Pick<Prisma.TransactionClient, "billingSubscription" | "googlePlaySubscription" | "appStoreSubscription"> = prisma,
 ) {
-  const stripe = await db.billingSubscription.findUnique({ where: { userId } });
-  const play = playBillingAvailable()
-    ? await db.googlePlaySubscription.findUnique({ where: { userId } })
-    : null;
-  const appStoreRow = appStoreBillingAvailable()
-    ? pickAppStoreRow(await db.appStoreSubscription.findMany({ where: { userId } }))
-    : null;
+  // Independent stores, so read them together; this sits in front of every metered answer.
+  const [stripe, play, appStoreRows] = await Promise.all([
+    db.billingSubscription.findUnique({ where: { userId } }),
+    playBillingAvailable() ? db.googlePlaySubscription.findUnique({ where: { userId } }) : null,
+    appStoreBillingAvailable() ? db.appStoreSubscription.findMany({ where: { userId } }) : null,
+  ]);
+  const appStoreRow = appStoreRows ? pickAppStoreRow(appStoreRows) : null;
   const appStore = appStoreRow ? { ...appStoreRow, ...asAccountSubscription(appStoreRow) } : null;
   if (stripe && activeSubscription(stripe)) return { ...stripe, provider: "stripe" as const };
   if (play && activeSubscription(play)) return { ...play, provider: "google-play" as const };

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { activeSubscription } from "@/lib/billing/plans";
 import { accountSubscription } from "@/lib/billing/subscription";
@@ -33,9 +34,18 @@ export async function getUserPlan(userId: string): Promise<UserPlan> {
 	const allowlist = parseUserIdAllowlist(process.env.PRO_USER_IDS);
 	if (allowlist.includes(userId) || parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS).includes(userId)) return "pro";
 	if (process.env.SUREWORD_USAGE_ENABLED === "true") {
-		await refreshGooglePlaySubscription(userId);
 		const subscription = await accountSubscription(userId);
-		if (subscription && activeSubscription(subscription)) return "pro";
+		if (subscription && activeSubscription(subscription)) {
+			// A stale Play check talks to Google and can take most of a minute, so an
+			// active row answers now and a revocation lands after this response.
+			if (subscription.provider === "google-play") waitUntil(refreshGooglePlaySubscription(userId));
+			return "pro";
+		}
+		// Only a renewal Google has not pushed to us yet can turn a lapsed row back on, so wait here.
+		if (await refreshGooglePlaySubscription(userId)) {
+			const refreshed = await accountSubscription(userId);
+			if (refreshed && activeSubscription(refreshed)) return "pro";
+		}
 	}
 
 	const user = await prisma.user.findUnique({

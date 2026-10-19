@@ -187,21 +187,26 @@ export async function refreshBoundPurchase(purchaseToken: string): Promise<void>
  * A failed Google/API/decryption call leaves the last known row untouched so a
  * transient outage cannot revoke a paid user. The caller can then apply the
  * normal expiry check to that unchanged authoritative snapshot.
+ * Resolves true only when the row was re-read from Google.
  */
-export async function refreshGooglePlaySubscription(userId: string): Promise<void> {
-  if (!billingEnabled()) return;
+export async function refreshGooglePlaySubscription(userId: string): Promise<boolean> {
+  if (!billingEnabled()) return false;
+  let refreshed = false;
   try {
     const existing = await prisma.googlePlaySubscription.findUnique({ where: { userId } });
-    if (!existing || existing.lastVerifiedAt > new Date(Date.now() - 5 * 60_000)) return;
+    if (!existing || existing.lastVerifiedAt > new Date(Date.now() - 5 * 60_000)) return false;
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
       const current = await tx.googlePlaySubscription.findUnique({ where: { userId } });
       if (!current || current.lastVerifiedAt > new Date(Date.now() - 5 * 60_000)) return;
       await refreshLockedPurchase(tx, current, decryptSecret(current.encryptedPurchaseToken));
+      refreshed = true;
     }, { timeout: 45_000 });
   } catch {
     // Preserve the last verified state on transient failures.
+    return false;
   }
+  return refreshed;
 }
 
 const oidcClient = new OAuth2Client();
