@@ -69,7 +69,7 @@ import {
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance } from "@/utils/systemPrompt";
+import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import {
@@ -1041,7 +1041,12 @@ async function handlePost(req: Request): Promise<Response> {
 					};
 
 					writeStatus("Thinking");
-					const stableSystem = chatSystemPrompt(translation, { userText: currentUserText, previousUserText: validatedMessages.filter(message => message.role === "user").at(-2) ? extractText(validatedMessages.filter(message => message.role === "user").at(-2)!) : "", hasAttachment: threadHasFiles });
+					// The task blocks are chosen from this turn's wording, so they ride the
+					// uncached half. Left in the stable half they split the cache key per
+					// message, and almost no first step reused another turn's prefix.
+					const stableSystem = chatSystemPrompt(translation);
+					const previousUserMessage = validatedMessages.filter(message => message.role === "user").at(-2);
+					const turnGuidance = taskGuidance({ userText: currentUserText, previousUserText: previousUserMessage ? extractText(previousUserMessage) : "", hasAttachment: threadHasFiles });
 					// The getting-to-know-you interview runs until it is finished or
 					// skipped (finishOnboarding), and again on demand with /onboard.
 					const onboarding = !userPrefs?.onboardedAt || isOnboardCommand(extractText(lastMessage));
@@ -1049,6 +1054,7 @@ async function handlePost(req: Request): Promise<Response> {
 					// follows the profile blocks it reads from, and the shape hint goes
 					// last, nearest the answer.
 					const volatileSystem = [
+						...turnGuidance.map((block) => `\n\n${block}`),
 						formatUserNameLine(userName),
 						// Their own words come before what was inferred about them.
 						formatAboutMeBlock(aboutMe),

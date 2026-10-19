@@ -154,8 +154,9 @@ export default clerkMiddleware(
 
 export const config = {
 	matcher: [
-		// Skip Next.js internals and all static files
-		"/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+		// Skip Next.js internals, all static files, and /ingest: every analytics
+		// beacon is proxied straight to PostHog and needs no session lookup.
+		"/((?!_next|ingest(?:/|$)|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
 		// Always run for API routes
 		"/(api|trpc)(.*)",
 	],
