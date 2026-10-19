@@ -131,10 +131,15 @@ final class SermonStudiesTests: XCTestCase {
         let store = EKEventStore()
         let picnic = try home().events.items[1]
         // Fresno midnight on Oct 31 is still Oct 30 in Honolulu and already
-        // Oct 31 morning in Tokyo; the entry must be Oct 31 in both.
+        // Oct 31 morning in Tokyo; the entry must be Oct 31 in both. EventKit
+        // reads a floating all-day date in the process's zone, so each reader
+        // runs in its own zone, as the app does on that reader's device.
+        let processZone = NSTimeZone.default
+        defer { NSTimeZone.default = processZone }
         for zone in ["Pacific/Honolulu", "Asia/Tokyo", "America/Los_Angeles"] {
             var reader = Calendar(identifier: .gregorian)
             reader.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
+            NSTimeZone.default = reader.timeZone
             let entry = ChurchEventCalendar.makeEvent(picnic, store: store, readerCalendar: reader)
             XCTAssertTrue(entry.isAllDay, zone)
             let day = reader.dateComponents([.year, .month, .day], from: try XCTUnwrap(entry.startDate))

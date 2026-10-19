@@ -139,9 +139,13 @@ final class SermonAndHistoryTests: XCTestCase {
         XCTAssertEqual(timed.notes, "For: ladies")
         XCTAssertEqual(timed.timeZone?.identifier, "America/Los_Angeles")
         // Fresno midnight on Oct 31 is still Oct 30 in Honolulu; the entry must
-        // be Oct 31 there too.
+        // be Oct 31 there too. EventKit reads a floating all-day date in the
+        // process's zone, so the reader runs in Honolulu, as on their device.
         var honolulu = Calendar(identifier: .gregorian)
         honolulu.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Honolulu"))
+        let processZone = NSTimeZone.default
+        defer { NSTimeZone.default = processZone }
+        NSTimeZone.default = honolulu.timeZone
         let allDay = ChurchEventCalendar.makeEvent(home.events.items[1], store: store, readerCalendar: honolulu)
         XCTAssertTrue(allDay.isAllDay)
         XCTAssertNil(allDay.notes)
