@@ -56,6 +56,7 @@ struct NotesSection: View {
                     // and owns an autosave timer, so reusing it across notes
                     // would write one note's text into another.
                     .id(noteID)
+                    .analyticsScreen(AnalyticsScreen.note)
             } else {
                 emptyDetail
             }

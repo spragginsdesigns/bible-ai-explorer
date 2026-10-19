@@ -58,6 +58,7 @@ final class AnalyticsMirrorTests: XCTestCase {
                 "screen",
                 "method", "reason", "step",
                 "route", "kind", "status", "app_state",
+                "style", "format",
                 "version", "build", "previous_version", "previous_build", "from_background",
             ]
         )
@@ -94,6 +95,82 @@ final class AnalyticsMirrorTests: XCTestCase {
         }
     }
 
+    /// Every key Android's call sites send must survive this allowlist, or the
+    /// Apple half of a chart is missing a column. `share_card_shared` lost
+    /// `style` and `format` that way until LC-16619.
+    func testEveryPropertyAndroidSendsIsAllowlisted() throws {
+        var keysByEvent: [String: Set<String>] = [:]
+        let blockComment = try Regex(#"/\*[\s\S]*?\*/"#)
+        let lineComment = try Regex(#"//[^\n]*"#)
+        for file in Self.androidSources() {
+            let source = try String(contentsOf: file, encoding: .utf8)
+                .replacing(blockComment, with: "")
+                .replacing(lineComment, with: "")
+            for call in source.matches(of: /track\(ANALYTICS_EVENTS\.(\w+),\s*\{([^}]*)\}/) {
+                for piece in call.output.2.split(separator: ",") {
+                    let entry = piece.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard let key = entry.prefixMatch(of: /(\w+)\s*(?::|$)/)?.output.1 else { continue }
+                    keysByEvent[String(call.output.1), default: []].insert(String(key))
+                }
+            }
+        }
+        // The parse found the calls this test exists for.
+        XCTAssertTrue(keysByEvent["shareCardShared", default: []].isSuperset(of: ["kind", "method", "style", "format"]), "\(keysByEvent)")
+        XCTAssertTrue(keysByEvent["signInFailed", default: []].isSuperset(of: ["method", "reason", "step"]), "\(keysByEvent)")
+        XCTAssertEqual(keysByEvent["screenViewed"], ["screen"])
+        for (event, keys) in keysByEvent {
+            for key in keys {
+                XCTAssertTrue(AnalyticsRules.allowedPropertyKeys.contains(key), "Android sends \(key) on \(event); the Apple allowlist drops it")
+            }
+        }
+    }
+
+    /// Android's TypeScript under `mobile/app` and `mobile/src`, tests excluded.
+    private static func androidSources() -> [URL] {
+        ["mobile/app", "mobile/src"].flatMap { folder -> [URL] in
+            guard let walker = FileManager.default.enumerator(at: repoRoot.appending(path: folder), includingPropertiesForKeys: nil)
+            else { return [] }
+            return walker.compactMap { $0 as? URL }.filter { url in
+                ["ts", "tsx"].contains(url.pathExtension) && !url.lastPathComponent.contains(".test.")
+            }
+        }
+    }
+
+    // MARK: Shares
+
+    func testShareCardSharedCarriesStyleAndFormatOnlyForAnImage() {
+        // Android: `{ kind, style, format, method: "image" }` for the card
+        // image, `{ kind, method }` for text and links.
+        XCTAssertEqual(
+            AnalyticsRules.shareCardShared(kind: "verse", method: "image", style: "parchment", format: "square"),
+            ["kind": "verse", "method": "image", "style": "parchment", "format": "square"]
+        )
+        XCTAssertEqual(
+            AnalyticsRules.shareCardShared(kind: "cross", method: "text", style: "parchment", format: "square"),
+            ["kind": "cross", "method": "text"]
+        )
+        XCTAssertEqual(
+            AnalyticsRules.shareCardShared(kind: "word", method: "link", style: "dawn", format: "story"),
+            ["kind": "word", "method": "link"]
+        )
+    }
+
+    @MainActor
+    func testAShareEventKeepsItsCardOptionsAndNothingElse() throws {
+        let analytics = makeClient()
+        var properties = AnalyticsRules.shareCardShared(kind: "word", method: "image", style: "sanctuary", format: "story")
+        properties["recipient"] = "Mom"
+        properties["reference"] = "John 3:16"
+        analytics.track(AnalyticsEvents.shareCardShared, properties)
+        let sent = try XCTUnwrap(analytics.pending.last?["properties"] as? [String: Any])
+        XCTAssertEqual(sent["kind"] as? String, "word")
+        XCTAssertEqual(sent["method"] as? String, "image")
+        XCTAssertEqual(sent["style"] as? String, "sanctuary")
+        XCTAssertEqual(sent["format"] as? String, "story")
+        XCTAssertNil(sent["recipient"])
+        XCTAssertNil(sent["reference"])
+    }
+
     @MainActor
     func testEveryEventCarriesTheBaseProperties() throws {
         let analytics = makeClient()
@@ -115,8 +192,10 @@ final class AnalyticsMirrorTests: XCTestCase {
     func testScreenPatternsAreAndroidsRoutePatternsWithNoIDs() {
         let patterns = [
             AnalyticsScreen.chat, AnalyticsScreen.signIn, AnalyticsScreen.bible, AnalyticsScreen.chapter,
-            AnalyticsScreen.chapters, AnalyticsScreen.search, AnalyticsScreen.atlas, AnalyticsScreen.learn,
-            AnalyticsScreen.plan, AnalyticsScreen.sermons, AnalyticsScreen.cross, AnalyticsScreen.notes,
+            AnalyticsScreen.chapters, AnalyticsScreen.search, AnalyticsScreen.timeline, AnalyticsScreen.atlas,
+            AnalyticsScreen.atlasEvent, AnalyticsScreen.atlasFamily, AnalyticsScreen.atlasTrace,
+            AnalyticsScreen.history, AnalyticsScreen.learn,
+            AnalyticsScreen.plan, AnalyticsScreen.sermons, AnalyticsScreen.sermon, AnalyticsScreen.cross, AnalyticsScreen.notes,
             AnalyticsScreen.note, AnalyticsScreen.memories, AnalyticsScreen.settings, AnalyticsScreen.feedback,
             AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance,
             AnalyticsScreen.settingsHighlights, AnalyticsScreen.settingsChurch, AnalyticsScreen.settingsMemory,
@@ -153,6 +232,20 @@ final class AnalyticsMirrorTests: XCTestCase {
         analytics.screen(AnalyticsScreen.note)
         analytics.screen(AnalyticsScreen.notes)
         XCTAssertEqual(screens(analytics), ["/notes", "/notes/[id]", "/notes"])
+    }
+
+    @MainActor
+    func testClosingASheetReportsTheScreenUnderItOnlyIfNothingElseDid() {
+        let analytics = makeClient()
+        analytics.screen(AnalyticsScreen.bible)
+        analytics.screen(AnalyticsScreen.history)
+        analytics.screenReturned(from: AnalyticsScreen.history, to: AnalyticsScreen.bible)
+        // Opening the log again after closing it is a second visit, not a redraw.
+        analytics.screen(AnalyticsScreen.history)
+        // A reading opened from the log reports itself before the sheet is gone.
+        analytics.screen(AnalyticsScreen.chapter)
+        analytics.screenReturned(from: AnalyticsScreen.history, to: AnalyticsScreen.bible)
+        XCTAssertEqual(screens(analytics), ["/bible", "/bible/history", "/bible", "/bible/history", "/bible/chapter"])
     }
 
     // MARK: Identity
@@ -250,6 +343,23 @@ final class AnalyticsMirrorTests: XCTestCase {
         XCTAssertEqual(failures[1]["status"] as? Int, 500)
         XCTAssertTrue(failures[0]["status"] is NSNull)
         XCTAssertEqual(failures[0]["app_state"] as? String, "active")
+    }
+
+    @MainActor
+    func testACardCapabilityIDNeverReachesAFailureEvent() throws {
+        // A personal card's random id opens the card, and need not hold a digit.
+        let analytics = makeClient()
+        analytics.trackRequestFailure(
+            path: "/api/cards/personal/abcdefghijklmnop/image?style=dawn&format=story&size=full",
+            kind: "http",
+            status: 404
+        )
+        analytics.trackRequestFailure(path: "https://sureword.app/api/cards/c/QwErTyUiOpAsDfGh/image", kind: "offline", status: nil)
+        let routes = analytics.pending.compactMap { ($0["properties"] as? [String: Any])?["route"] as? String }
+        XCTAssertEqual(routes, ["/api/cards/personal/[id]/image", "/api/cards/c/[id]/image"])
+        let serialized = String(decoding: try JSONSerialization.data(withJSONObject: analytics.pending), as: UTF8.self)
+        XCTAssertFalse(serialized.contains("abcdefghijklmnop"))
+        XCTAssertFalse(serialized.contains("QwErTyUiOpAsDfGh"))
     }
 
     // MARK: Helpers

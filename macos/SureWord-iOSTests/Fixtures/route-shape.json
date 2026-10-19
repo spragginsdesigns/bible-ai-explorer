@@ -86,5 +86,49 @@
 	[
 		"/api/notes#only-fragment",
 		"/api/notes"
+	],
+	[
+		"/api/cards/personal/abcdefghijklmnop/image?style=dawn&format=story&size=full",
+		"/api/cards/personal/[id]/image"
+	],
+	[
+		"https://sureword.app/api/cards/c/QwErTyUiOpAsDfGh/image?style=parchment&format=square",
+		"/api/cards/c/[id]/image"
+	],
+	[
+		"/api/cards/personal/abcdefghijklmnop",
+		"/api/cards/personal/[id]"
+	],
+	[
+		"/api/cards/personal",
+		"/api/cards/personal"
+	],
+	[
+		"/api/cards/c",
+		"/api/cards/c"
+	],
+	[
+		"/api/cards/cross/abcdefghijklmnop?style=dawn",
+		"/api/cards/cross/abcdefghijklmnop"
+	],
+	[
+		"/api/cards/reflection/abcdefghijklmnop/suggest",
+		"/api/cards/reflection/abcdefghijklmnop/suggest"
+	],
+	[
+		"/api/cards/verse?ref=John+3:16&translation=kjv",
+		"/api/cards/verse"
+	],
+	[
+		"/api/cards/encouragement",
+		"/api/cards/encouragement"
+	],
+	[
+		"/cards/c/abcdefghijklmnop",
+		"/cards/c/[id]"
+	],
+	[
+		"/c/abcdefghijklmnop",
+		"/c/abcdefghijklmnop"
 	]
 ]

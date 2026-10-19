@@ -403,11 +403,17 @@ final class ShareCardModel {
     }
 
     /// Something actually left the device: the event carries the kind and the
-    /// method only, never the reference or the words.
+    /// method (plus the card's style and format for an image), never the
+    /// reference or the words.
     func didShare(_ share: OutgoingShare) {
         AnalyticsReporter.track(
             AnalyticsEvents.shareCardShared,
-            ["kind": .string(target.kind), "method": .string(share.method)]
+            AnalyticsRules.shareCardShared(
+                kind: target.kind,
+                method: share.method,
+                style: prefs.style.rawValue,
+                format: prefs.format.rawValue
+            )
         )
     }
 

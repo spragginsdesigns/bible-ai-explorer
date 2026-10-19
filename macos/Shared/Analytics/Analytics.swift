@@ -94,6 +94,7 @@ enum AnalyticsRules {
     /// - screens: `screen` (a route pattern)
     /// - sign-in: `method`, `reason` (Clerk error code), `step`
     /// - failures: `route` (a route shape), `kind`, `status`, `app_state`
+    /// - shares: `kind`, `method`, `style`, `format` (fixed card options)
     /// - lifecycle: `version`, `build`, `previous_version`, `previous_build`,
     ///   `from_background`
     static let allowedPropertyKeys: Set<String> = [
@@ -101,6 +102,7 @@ enum AnalyticsRules {
         "screen",
         "method", "reason", "step",
         "route", "kind", "status", "app_state",
+        "style", "format",
         "version", "build", "previous_version", "previous_build", "from_background",
     ]
 
@@ -108,11 +110,27 @@ enum AnalyticsRules {
         properties.filter { allowedPropertyKeys.contains($0.key) }
     }
 
+    /// `share_card_shared`, as Android's `ShareCardSheet.tsx` and
+    /// `SendWordSheet.tsx` send it: the kind and the method always, and the
+    /// card's style and format when the card image itself left. Never the
+    /// reference, the words or the recipient.
+    static func shareCardShared(kind: String, method: String, style: String, format: String) -> AnalyticsProperties {
+        var properties: AnalyticsProperties = ["kind": .string(kind), "method": .string(method)]
+        if method == "image" {
+            properties["style"] = .string(style)
+            properties["format"] = .string(format)
+        }
+        return properties
+    }
+
     /// Reduce an API path to its route shape. A line-for-line port of
     /// `routeShape` in `mobile/src/lib/analytics.ts` (itself a mirror of the
     /// server's copy): numeric, UUID-shaped and long digit-bearing segments
     /// become `[id]`, the query and fragment go, and a shared-answer path
     /// always loses its tail because that id is the credential that opens it.
+    /// So does a personal card's (`cards/c/{id}`, `cards/personal/{id}`): a
+    /// random 16-character id need not hold a digit, so the generic rule can
+    /// miss it.
     static func routeShape(_ path: String) -> String {
         var rest = Substring(path)
         if let scheme = rest.range(of: "^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*", options: .regularExpression) {
@@ -127,6 +145,11 @@ enum AnalyticsRules {
 
         if let sharedAt = segments.firstIndex(of: "shared"), segments.count > sharedAt + 1 {
             segments.replaceSubrange((sharedAt + 1)..., with: ["[id]"])
+        }
+        for marker in ["c", "personal"] {
+            if let at = segments.firstIndex(of: marker), at > 0, segments[at - 1] == "cards", segments.count > at + 1 {
+                segments[at + 1] = "[id]"
+            }
         }
         return "/" + segments.joined(separator: "/")
     }
@@ -381,6 +404,15 @@ final class Analytics {
         guard pattern != lastScreen else { return }
         lastScreen = pattern
         track(AnalyticsEvents.screenViewed, ["screen": .string(pattern)])
+    }
+
+    /// A sheet over `parent` closed. The parent does not reappear, so it is
+    /// reported again here, as Android reports the screen it goes back to;
+    /// but only while the sheet is still the last screen, so a screen the
+    /// sheet opened on its way out (a reading from the log) keeps its place.
+    func screenReturned(from sheet: String, to parent: String) {
+        guard lastScreen == sheet else { return }
+        screen(parent)
     }
 
     /// Report a failed API call, at most once per route and cause per 30

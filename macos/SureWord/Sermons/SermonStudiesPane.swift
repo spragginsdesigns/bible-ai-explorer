@@ -56,6 +56,11 @@ struct SermonStudiesPane: View {
         }
         .task { await load() }
         .analyticsScreen(AnalyticsScreen.sermons)
+        // Choosing a study is Android pushing `/bible/sermon`; back to the
+        // list is the list again.
+        .onChange(of: selectedID) { _, id in
+            Analytics.shared.screen(id == nil ? AnalyticsScreen.sermons : AnalyticsScreen.sermon)
+        }
     }
 
     private func load() async {

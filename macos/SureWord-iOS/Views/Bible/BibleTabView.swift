@@ -92,6 +92,8 @@ struct BibleTabView: View {
                 if let prompt { app.chat.input = prompt }
                 NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
             })
+            .analyticsScreen(AnalyticsScreen.history)
+            .onDisappear { Analytics.shared.screenReturned(from: AnalyticsScreen.history, to: AnalyticsScreen.bible) }
         }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         // Fail-soft and refreshed on every return to the home, like Android's
@@ -252,7 +254,6 @@ struct BibleTabView: View {
     private var atlasCard: some View {
         NavigationLink {
             AtlasExplorerView(model: app.atlas)
-                .analyticsScreen(AnalyticsScreen.atlas)
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "clock.arrow.circlepath")

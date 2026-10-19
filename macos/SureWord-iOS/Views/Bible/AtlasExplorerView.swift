@@ -74,6 +74,9 @@ struct AtlasExplorerView: View {
         .background { MeshBackground() }
         .navigationTitle(atlasTitle)
         .navigationBarTitleDisplayMode(.inline)
+        // Every way in (Bible home, the reader, a person's "in the timeline")
+        // is Android's `/bible/timeline`, so the explorer reports itself.
+        .analyticsScreen(AnalyticsScreen.timeline)
         .onAppear { refresh(initial: true) }
         .onChange(of: mode) { _, next in
             // Android clears the era only when switching to Places; Timeline
@@ -628,6 +631,7 @@ private struct AtlasEventDetailView: View {
         .background { MeshBackground() }
         .navigationTitle(event?.title ?? "Event")
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(AnalyticsScreen.atlasEvent)
         .onAppear { model.loadEvent(eventID) }
         .onChange(of: model.selectedEvent) { _, next in
             if let next, next.id == eventID { cached = next }
@@ -708,6 +712,7 @@ private struct AtlasEntityDetailView: View {
         .background { MeshBackground() }
         .navigationTitle(entity?.name ?? (isCurrentRequest && model.detailNotFound ? "Not found" : ""))
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(AnalyticsScreen.atlas)
         .onAppear { model.loadEntity(entityID) }
         .onChange(of: model.selectedEntity) { _, next in
             if let next, next.id == entityID { cached = next }
@@ -942,6 +947,7 @@ private struct AtlasFamilyView: View {
         .background { MeshBackground() }
         .navigationTitle("Immediate family")
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(AnalyticsScreen.atlasFamily)
     }
 }
 
@@ -1010,6 +1016,7 @@ private struct AtlasTraceView: View {
         .background { MeshBackground() }
         .navigationTitle("Trace connection")
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(AnalyticsScreen.atlasTrace)
         .onAppear(perform: resume)
     }
 

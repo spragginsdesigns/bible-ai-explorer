@@ -15,10 +15,19 @@ enum AnalyticsScreen {
     static let chapter = "/bible/chapter"
     static let chapters = "/bible/chapters"
     static let search = "/bible/search"
+    /// The Timeline, People & Places explorer. Android pushes `/bible/timeline`
+    /// for it from the Bible home, the reader and a person's page; the
+    /// `/bible/atlas/...` routes are the pages pushed from it.
+    static let timeline = "/bible/timeline"
     static let atlas = "/bible/atlas/[id]"
+    static let atlasEvent = "/bible/atlas/event/[id]"
+    static let atlasFamily = "/bible/atlas/family/[id]"
+    static let atlasTrace = "/bible/atlas/trace/[id]"
+    static let history = "/bible/history"
     static let learn = "/bible/learn"
     static let plan = "/bible/plan"
     static let sermons = "/bible/sermons"
+    static let sermon = "/bible/sermon"
     static let cross = "/bible/cross"
     static let notes = "/notes"
     static let note = "/notes/[id]"

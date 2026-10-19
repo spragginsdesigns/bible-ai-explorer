@@ -47,6 +47,7 @@ struct SermonStudyView: View {
         .background { MeshBackground() }
         .navigationTitle(study?.title ?? "Sermon study")
         .navigationBarTitleDisplayMode(.inline)
+        .analyticsScreen(AnalyticsScreen.sermon)
         .safeAreaInset(edge: .bottom) {
             if let study { dock(study) }
         }

@@ -132,6 +132,8 @@ struct ChatTabView: View {
                 isReadingHistoryPresented = false
                 if let prompt { app.chat.input = prompt }
             })
+            .analyticsScreen(AnalyticsScreen.history)
+            .onDisappear { Analytics.shared.screenReturned(from: AnalyticsScreen.history, to: AnalyticsScreen.chat) }
         }
         // A delete that failed after the sheet closed (Clear all dismisses at
         // once); while the sheet is up it presents the alert itself.

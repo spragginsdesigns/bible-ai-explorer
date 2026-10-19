@@ -44,6 +44,21 @@ struct AtlasExplorerPane: View {
             traceQuery = ""
             traceTargetID = nil
         }
+        // Picking an entry is Android pushing its page; the trace is its own
+        // page there too. Family stays inline on the entry's page here.
+        .onChange(of: model.selectedEntityID) { _, id in
+            if id != nil { Analytics.shared.screen(AnalyticsScreen.atlas) }
+        }
+        .onChange(of: model.selectedEventID) { _, id in
+            if id != nil { Analytics.shared.screen(AnalyticsScreen.atlasEvent) }
+        }
+        .onChange(of: traceExpanded) { _, expanded in
+            if expanded {
+                Analytics.shared.screen(AnalyticsScreen.atlasTrace)
+            } else {
+                Analytics.shared.screenReturned(from: AnalyticsScreen.atlasTrace, to: AnalyticsScreen.atlas)
+            }
+        }
     }
 
     private var listPane: some View {

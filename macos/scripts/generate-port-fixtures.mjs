@@ -59,6 +59,18 @@ const paths = [
 	"",
 	"/",
 	"/api/notes#only-fragment",
+	// A personal card id is the credential that opens it, and need not hold a digit.
+	"/api/cards/personal/abcdefghijklmnop/image?style=dawn&format=story&size=full",
+	"https://sureword.app/api/cards/c/QwErTyUiOpAsDfGh/image?style=parchment&format=square",
+	"/api/cards/personal/abcdefghijklmnop",
+	"/api/cards/personal",
+	"/api/cards/c",
+	"/api/cards/cross/abcdefghijklmnop?style=dawn",
+	"/api/cards/reflection/abcdefghijklmnop/suggest",
+	"/api/cards/verse?ref=John+3:16&translation=kjv",
+	"/api/cards/encouragement",
+	"/cards/c/abcdefghijklmnop",
+	"/c/abcdefghijklmnop",
 ];
 write("route-shape.json", paths.map((path) => [path, routeShape(path)]));
 

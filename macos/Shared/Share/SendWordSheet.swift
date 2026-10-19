@@ -364,13 +364,19 @@ final class SendWordModel {
 
     /// Something actually left the device. The only text this sheet shares is
     /// the link message, so a text payload is the "link" method. Kind and
-    /// method only: never the name, the situation or the words.
+    /// method (plus the card's style and format for an image): never the
+    /// name, the situation or the words.
     func didShare(_ share: OutgoingShare) {
         let method: String
         if case .image = share.payload { method = "image" } else { method = "link" }
         AnalyticsReporter.track(
             AnalyticsEvents.shareCardShared,
-            ["kind": .string("word"), "method": .string(method)]
+            AnalyticsRules.shareCardShared(
+                kind: "word",
+                method: method,
+                style: prefs.style.rawValue,
+                format: prefs.format.rawValue
+            )
         )
     }
 }

@@ -64,7 +64,11 @@ struct BibleSection: View {
                 if let prompt { app.chat.input = prompt }
                 app.section = .chat
             })
+            .analyticsScreen(AnalyticsScreen.history)
+            .onDisappear { Analytics.shared.screenReturned(from: AnalyticsScreen.history, to: detailScreen) }
         }
+        // The pane in front is the screen Android would have pushed.
+        .onChange(of: detailScreen, initial: true) { _, screen in Analytics.shared.screen(screen) }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
@@ -93,6 +97,18 @@ struct BibleSection: View {
             }
             app.pendingVerseReference = nil
             app.pendingVerseTranslation = nil
+        }
+    }
+
+    /// Android's route for the pane `detail` is showing (`screen_viewed`).
+    private var detailScreen: String {
+        if showingSermons { return AnalyticsScreen.sermons }
+        if showingPlan { return AnalyticsScreen.plan }
+        if showingAtlas { return AnalyticsScreen.timeline }
+        guard model.selectedBook != nil else { return AnalyticsScreen.bible }
+        switch model.pane {
+        case .chapters: return AnalyticsScreen.chapters
+        case .reader: return AnalyticsScreen.chapter
         }
     }
 
