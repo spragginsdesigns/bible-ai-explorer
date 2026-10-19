@@ -107,6 +107,117 @@ struct NoteWikilinksTests {
         #expect(links.outgoing[1].noteId == nil)
         #expect(links.backlinks.first?.snippet == "see [[Romans study]]")
     }
+
+    @Test("sortedByRecentlyUpdated puts the newest note first")
+    func sortsNewestFirst() {
+        var older = makeNote("old", "Older")
+        older.updatedAt = "2026-01-01T00:00:00.000Z"
+        var newer = makeNote("new", "Newer")
+        newer.updatedAt = "2026-03-01T00:00:00.000Z"
+        #expect(NoteWikilinks.sortedByRecentlyUpdated([older, newer]).map(\.id) == ["new", "old"])
+    }
+}
+
+// The editor draws `[[links]]` from these. Expected targets were checked
+// against the server's `parseWikilinks` (`src/lib/note-links.ts`) on the same
+// strings and agree on every one but the cross-line case, where the server
+// still records a link and the editor, like the web's, draws none.
+@Suite("Wikilinks in the editor")
+struct NoteWikilinkMatchTests {
+
+    private func targets(_ text: String) -> [String] {
+        NoteWikilinks.matches(in: text).map(\.target)
+    }
+
+    @Test("Finds each link with its UTF-16 range")
+    func findsRanges() {
+        let matches = NoteWikilinks.matches(in: "See [[Romans study]] and [[Grace alone]].")
+        #expect(matches.map(\.target) == ["Romans study", "Grace alone"])
+        #expect(matches.map(\.range) == [NSRange(location: 4, length: 16), NSRange(location: 25, length: 15)])
+    }
+
+    @Test("Display text and headings are presentation, not the target")
+    func displayAndHeading() {
+        #expect(targets("[[Romans study|my notes]] [[Grace alone#Verse 8]] [[ Faith | x ]]")
+            == ["Romans study", "Grace alone", "Faith"])
+    }
+
+    @Test("A blank target is not a link")
+    func blankTarget() {
+        #expect(targets("[[ ]] [[#heading]] [[|alias]] []] [[]]").isEmpty)
+    }
+
+    @Test("The inside holds no bracket: the leftmost complete link wins")
+    func brackets() {
+        #expect(targets("[[[Romans]]") == ["Romans"])
+        #expect(targets("[[a[b]] [[c]]") == ["c"])
+        #expect(targets("[[unclosed and [[Closed]]") == ["Closed"])
+        #expect(targets("[[Grace]]]]") == ["Grace"])
+    }
+
+    @Test("A link never runs across a paragraph or a hard break")
+    func staysInOneLine() {
+        #expect(targets("[[Romans\nstudy]]").isEmpty)
+        #expect(targets("[[Romans\u{2028}study]]").isEmpty)
+        #expect(targets("[[Romans]]\n[[Grace]]") == ["Romans", "Grace"])
+    }
+
+    @Test("Ranges count UTF-16 units, as the text storage does")
+    func utf16Ranges() {
+        let text = "🙏 [[Grace]]"
+        let match = NoteWikilinks.matches(in: text).first
+        #expect(match?.range == NSRange(location: 3, length: 9))
+        #expect(match.map { (text as NSString).substring(with: $0.range) } == "[[Grace]]")
+    }
+
+    @Test("No links, no matches")
+    func noLinks() {
+        #expect(targets("").isEmpty)
+        #expect(targets("Plain [single] brackets").isEmpty)
+    }
+}
+
+@Suite("Wikilink resolution")
+struct NoteWikilinkResolutionTests {
+
+    private func note(_ id: String, _ title: String, aliases: [String] = [], updated: String) -> Note {
+        var note = makeNote(id, title, aliases: aliases)
+        note.updatedAt = updated
+        return note
+    }
+
+    @Test("Matches a title or an alias, ignoring case and outer spaces")
+    func titleOrAlias() {
+        #expect(NoteWikilinks.resolve("romans STUDY", in: notes) == "a")
+        #expect(NoteWikilinks.resolve(" paul to rome ", in: notes) == "a")
+        #expect(NoteWikilinks.resolve("Grace alone", in: notes) == "b")
+    }
+
+    @Test("A name no note carries, or a blank one, resolves to nothing")
+    func unresolved() {
+        #expect(NoteWikilinks.resolve("Ephesians", in: notes) == nil)
+        #expect(NoteWikilinks.resolve("  ", in: notes) == nil)
+        #expect(NoteWikilinks.resolve("Romans", in: notes) == nil)
+    }
+
+    @Test("The most recently updated note wins a shared name, title or alias")
+    func newestWins() {
+        let pool = [
+            note("old", "Grace", updated: "2026-01-01T00:00:00.000Z"),
+            note("new", "Sermon", aliases: ["grace"], updated: "2026-02-01T00:00:00.000Z"),
+            note("mid", "GRACE", updated: "2026-01-15T00:00:00.000Z"),
+        ]
+        #expect(NoteWikilinks.resolve("Grace", in: pool) == "new")
+    }
+
+    @Test("A tie keeps the first note, as the web does")
+    func tieKeepsFirst() {
+        let pool = [
+            note("first", "Grace", updated: "2026-01-01T00:00:00.000Z"),
+            note("second", "Grace", updated: "2026-01-01T00:00:00.000Z"),
+        ]
+        #expect(NoteWikilinks.resolve("grace", in: pool) == "first")
+    }
 }
 
 @Suite("Note properties")

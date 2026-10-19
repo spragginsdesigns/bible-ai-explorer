@@ -21,6 +21,7 @@ struct NoteEditorPane: View {
     @State private var draftTitle = ""
     @State private var linkTarget = ""
     @State private var isLinkPopoverPresented = false
+    @State private var isWikilinkPickerPresented = false
     // The note menu (PRD E2).
     @State private var isInfoPresented = false
     @State private var isDeleteConfirming = false
@@ -41,11 +42,20 @@ struct NoteEditorPane: View {
             VStack(spacing: 0) {
                 topBar
                 Divider().overlay(theme.border)
-                NoteFormattingToolbar(controller: model.controller) {
-                    linkTarget = ""
-                    isLinkPopoverPresented = true
-                }
+                NoteFormattingToolbar(
+                    controller: model.controller,
+                    onEditLink: {
+                        linkTarget = ""
+                        isLinkPopoverPresented = true
+                    },
+                    onInsertWikilink: { isWikilinkPickerPresented = true }
+                )
                 .popover(isPresented: $isLinkPopoverPresented) { linkPopover }
+                .popover(isPresented: $isWikilinkPickerPresented) {
+                    InsertWikilinkPopover(currentNoteID: noteID) { title in
+                        model.controller.insertText(NoteWikilinks.format(title))
+                    }
+                }
                 Divider().overlay(theme.border)
 
                 if model.isLoading {
@@ -81,7 +91,9 @@ struct NoteEditorPane: View {
             NoteInfoSheet(
                 model: model,
                 folderName: library.folders.first { $0.id == model.note?.folderId }?.name
-            )
+            ) { id in
+                library.selectedNoteID = id
+            }
         }
         .alert(
             "Couldn't export this note",
@@ -108,6 +120,13 @@ struct NoteEditorPane: View {
                 guard event.noteID == noteID else { return }
                 Task { await model.reloadAfterAIAppend() }
             }
+            // A clicked `[[link]]` opens its note in this pane, as the info
+            // sheet's links do; `onDisappear` flushes this one first.
+            model.controller.onOpenWikilink = { id in library.selectedNoteID = id }
+        }
+        .onChange(of: NotesStore.shared.notes) {
+            // A note created, renamed or aliased can resolve a drawn link.
+            model.controller.refreshWikilinks()
         }
         .onChange(of: model.note?.title) { _, title in
             draftTitle = title ?? ""

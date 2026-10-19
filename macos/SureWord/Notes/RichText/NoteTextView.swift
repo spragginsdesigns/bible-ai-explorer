@@ -32,6 +32,9 @@ final class NoteTextView: NSTextView {
     /// Fired when the user clicks a task checkbox in the gutter.
     var onToggleTask: ((Int) -> Void)?
 
+    /// Fired with the note id when the user clicks a resolved `[[wikilink]]`.
+    var onOpenWikilink: ((String) -> Void)?
+
     // MARK: - Drawing
 
     override func draw(_ dirtyRect: NSRect) {
@@ -136,8 +139,45 @@ final class NoteTextView: NSTextView {
             onToggleTask?(offset)
             return
         }
+        // A resolved link opens its note, as a click does on the web. The
+        // caret never lands, which is also the web's behaviour; an unresolved
+        // link is plain text to the mouse.
+        if let noteID = wikilinkNoteID(at: point) {
+            onOpenWikilink?(noteID)
+            return
+        }
         if window?.firstResponder !== self { window?.makeFirstResponder(self) }
         super.mouseDown(with: event)
+    }
+
+    /// The pointing hand over a link that opens, as the web's `cursor: pointer`.
+    override func mouseMoved(with event: NSEvent) {
+        if wikilinkNoteID(at: convert(event.locationInWindow, from: nil)) != nil {
+            NSCursor.pointingHand.set()
+            return
+        }
+        super.mouseMoved(with: event)
+    }
+
+    /// The note behind the resolved `[[wikilink]]` under `point`, if any.
+    /// The glyph's own box must hold the point: the nearest character to a
+    /// click past the end of a line is the line's last one, and that click
+    /// should place the caret, not follow a link.
+    func wikilinkNoteID(at point: NSPoint) -> String? {
+        guard let layoutManager, let container = textContainer, let storage = textStorage, storage.length > 0
+        else { return nil }
+        let origin = textContainerOrigin
+        let local = NSPoint(x: point.x - origin.x, y: point.y - origin.y)
+        var fraction: CGFloat = 0
+        let glyph = layoutManager.glyphIndex(for: local, in: container, fractionOfDistanceThroughGlyph: &fraction)
+        let box = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container)
+        guard box.contains(local) else { return nil }
+        let index = layoutManager.characterIndexForGlyph(at: glyph)
+        guard index < storage.length,
+              let noteID = storage.attribute(NoteAttributedText.wikilinkKey, at: index, effectiveRange: nil) as? String,
+              !noteID.isEmpty
+        else { return nil }
+        return noteID
     }
 
     private func taskMarkerOffset(at point: NSPoint) -> Int? {

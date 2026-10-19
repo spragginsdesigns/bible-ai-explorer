@@ -8,6 +8,8 @@ struct NoteFormattingToolbar: View {
     @Environment(\.theme) private var theme
     @Bindable var controller: NoteRichTextController
     var onEditLink: () -> Void
+    /// Opens the note picker; the editor inserts the chosen `[[wikilink]]`.
+    var onInsertWikilink: () -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -16,6 +18,8 @@ struct NoteFormattingToolbar: View {
                     button("arrow.uturn.backward", help: "Undo") { undo() }
                     button("arrow.uturn.forward", help: "Redo") { redo() }
                 }
+                separator
+                button("link.badge.plus", help: "Link to a note") { onInsertWikilink() }
                 separator
                 group {
                     markButton("bold", .bold, help: "Bold (⌘B)")

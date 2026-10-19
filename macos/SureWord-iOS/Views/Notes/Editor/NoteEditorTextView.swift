@@ -51,6 +51,9 @@ struct NoteEditorTextView: UIViewRepresentable {
         textView.onToggleTask = { [controller] offset in
             controller.toggleTask(atParagraphOffset: offset)
         }
+        textView.onOpenWikilink = { [controller] noteID in
+            controller.onOpenWikilink?(noteID)
+        }
 
         controller.textView = textView
         controller.theme = theme
