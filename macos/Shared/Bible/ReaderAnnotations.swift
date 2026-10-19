@@ -63,6 +63,17 @@ actor ReaderAnnotations {
         }
     }
 
+    /// Where the page's red letters and headings come from, shown under the
+    /// translation chips. Word for word Android's reader options line and
+    /// web's `TRANSLATION_NOTES`.
+    static func sourceNote(_ translation: TranslationID) -> String {
+        switch translation {
+        case .kjv: "KJV words of Jesus · eBible edition. Editorial headings · BSB."
+        case .bsb: "Section headings and words of Jesus · Berean Standard Bible"
+        case .nkjv: "Red letters aren't available from our NKJV text provider yet."
+        }
+    }
+
     /// `readerSectionHeadings`: none for NKJV, the shared BSB set otherwise.
     func sectionHeadings(_ translation: TranslationID, order: Int, chapter: Int, verse: Int) -> [String] {
         guard translation != .nkjv else { return [] }

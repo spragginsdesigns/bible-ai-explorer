@@ -244,6 +244,37 @@ struct BibleModelTests {
         #expect(model.chapterText.contains("\n16 For God so loved the world"))
     }
 
+    @Test("a BSB chapter loads formatted for the reader: headings, red letters, omitted verses")
+    func loadBSBChapter() async throws {
+        let model = Self.makeModel()
+        model.open(order: 40, chapter: 17)
+        await model.load(translation: .bsb)
+
+        #expect(model.error == nil)
+        #expect(model.loadedKey == "BSB:40:17")
+        #expect(model.readerVerses.count == model.verses.count)
+        try #require(model.readerVerses.count == 27)
+        #expect(model.readerVerses[0].headings == ["The Transfiguration"])
+        #expect(model.readerVerses[6].segments.contains { $0.jesusSpeech })
+        #expect(model.readerVerses[6].plainText == model.shownText(7))
+        // Matthew 17:21 keeps its number and says so; nothing to copy.
+        #expect(model.readerVerses[20].omitted)
+        #expect(model.shownText(21).isEmpty)
+        #expect(model.verseText(16) == "I brought him to Your disciples, but they could not heal him.”")
+    }
+
+    @Test("the KJV reader carries the sourced words of Jesus and the BSB headings")
+    func loadKJVFormatting() async throws {
+        let model = Self.makeModel()
+        model.open(order: 43, chapter: 3)
+        await model.load(translation: .kjv)
+
+        try #require(model.readerVerses.count == 36)
+        #expect(model.readerVerses[0].headings == ["Jesus and Nicodemus"])
+        #expect(model.readerVerses[15].segments.allSatisfy { $0.jesusSpeech })
+        #expect(!model.readerVerses[0].segments.contains { $0.jesusSpeech })
+    }
+
     @Test("flashing a verse consumes the deep link exactly once")
     func flashConsumesDeepLink() {
         let model = Self.makeModel()

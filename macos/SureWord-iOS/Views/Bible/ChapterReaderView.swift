@@ -179,11 +179,13 @@ struct ChapterReaderView: View {
                     }
                 }
             }
-            if lcGreek {
-                Text(LCGreek.note)
-                    .font(.system(size: 11))
-                    .foregroundStyle(theme.textMuted)
-            }
+            // The line under the chips on web and in Android's reader options:
+            // what the LC Greek is, or where the red letters and headings
+            // come from.
+            Text(lcGreek ? LCGreek.note : ReaderAnnotations.sourceNote(translation))
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textMuted)
+                .multilineTextAlignment(.trailing)
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.xs)

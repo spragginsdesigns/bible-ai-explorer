@@ -72,12 +72,13 @@ struct ChapterReaderPane: View {
         VStack(spacing: 0) {
             ReadingSyncStatus(model: model.reading)
             topBar
-            if lcGreek {
-                Text(LCGreek.note)
-                    .font(.system(size: 11))
-                    .foregroundStyle(theme.textMuted)
-                    .padding(.bottom, Spacing.xs)
-            }
+            // The line under the chips on web and in Android's reader options:
+            // what the LC Greek is, or where the red letters and headings
+            // come from.
+            Text(lcGreek ? LCGreek.note : ReaderAnnotations.sourceNote(translation))
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textMuted)
+                .padding(.bottom, Spacing.xs)
 
             if model.loading {
                 loadingState
@@ -288,11 +289,11 @@ struct ChapterReaderPane: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                    ForEach(Array(model.verses.enumerated()), id: \.offset) { index, markup in
-                        verseRow(number: index + 1, markup: markup)
-                            .id(index + 1)
+                    ForEach(model.readerVerses, id: \.number) { verse in
+                        verseEntry(verse)
+                            .id(verse.number)
                             .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                model.readingVisibility(verse: index + 1, visible: visible, translation: translation, lcGreek: lcGreek)
+                                model.readingVisibility(verse: verse.number, visible: visible, translation: translation, lcGreek: lcGreek)
                             }
                     }
 
@@ -520,12 +521,36 @@ struct ChapterReaderPane: View {
             .opacity(theme.isDark ? 0.34 : 0.42)
     }
 
+    /// A verse with what the page prints above it: the publisher headings, or
+    /// Android's chapter title on a chapter whose first verse has none. Verse 1
+    /// carries the title so opening a chapter, which scrolls verse 1 to the
+    /// top, still shows it. Headings are never part of the verse, so they sit
+    /// outside its wash and its menu and are never copied.
     @ViewBuilder
-    private func verseRow(number: Int, markup: String) -> some View {
+    private func verseEntry(_ verse: ReaderVerse) -> some View {
+        let isTitle = verse.number == 1 && verse.headings.isEmpty
+
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array((isTitle ? [model.reference] : verse.headings).enumerated()), id: \.offset) { _, heading in
+                Text(heading)
+                    .font(.custom(FontFamily.verseItalic, size: isTitle ? 28 : 24))
+                    .foregroundStyle(parchment ? theme.parchmentInk : theme.text)
+                    .padding(.top, isTitle ? 0 : 16)
+                    .padding(.bottom, isTitle ? 24 : 20)
+                    .padding(.horizontal, Spacing.sm)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            verseRow(verse)
+        }
+    }
+
+    @ViewBuilder
+    private func verseRow(_ verse: ReaderVerse) -> some View {
+        let number = verse.number
         let isHighlighted = model.highlightedVerse == number || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
         let isOpen = model.actionVerse == number
         let reference = model.verseReference(number)
-        let text = VerseMarkup.plainText(markup)
+        let text = model.shownText(number)
         let highlightHex = model.selectedBook.flatMap {
             app.highlights.hex(translation: translation, book: $0, chapter: model.chapter, verse: number)
         }
@@ -546,7 +571,7 @@ struct ChapterReaderPane: View {
             Button {
                 model.toggleVerse(number, translation: translation)
             } label: {
-                verseText(number: number, markup: markup)
+                verseText(verse)
                     .lineSpacing(model.lineHeight - model.fontSize)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
@@ -625,18 +650,27 @@ struct ChapterReaderPane: View {
         )
     }
 
-    /// Verse number then the emphasis-aware segments, concatenated into one
-    /// `Text` so the number stays inline with the wrapped body.
-    private func verseText(number: Int, markup: String) -> Text {
+    /// Verse number then the formatted segments (`ReaderAnnotations`),
+    /// concatenated into one `Text` so the number stays inline with the
+    /// wrapped body. The sourced words of Jesus take Android's two reds.
+    private func verseText(_ verse: ReaderVerse) -> Text {
         // Ink read against the sheet, not against the shell: the parchment
         // tokens are a separate set for exactly this reason.
         let ink = parchment ? theme.parchmentInk : theme.textSecondary
         let numberInk = parchment ? theme.parchmentNumber : theme.accentDim
+        let redLetter = theme.isDark ? Color(hex: 0xEF8A83) : Color(hex: 0xA12E2A)
 
-        var result = Text("\(number) ")
+        var result = Text("\(verse.number) ")
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(numberInk)
-        for segment in VerseMarkup.segments(markup) {
+        if verse.omitted {
+            result = result
+                + Text("Not included in this edition\u{2019}s main text.")
+                .font(.system(size: 14))
+                .italic()
+                .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textMuted)
+        }
+        for segment in verse.segments {
             result = result
                 + Text(segment.text)
                 .font(
@@ -646,7 +680,7 @@ struct ChapterReaderPane: View {
                     )
                 )
                 .italic(segment.italic)
-                .foregroundStyle(ink)
+                .foregroundStyle(segment.jesusSpeech ? redLetter : ink)
         }
         return result
     }
@@ -786,7 +820,7 @@ struct ChapterReaderPane: View {
             // An em dash, matching `TranslationID.copyright`'s own - so the
             // NKJV line does not read "NKJV - © Thomas Nelson - text via …"
             // with two different dashes in one sentence.
-            Text(lcGreek ? "\(LCGreek.label) \u{2014} \(LCGreek.copyright)" : "\(translation.label) \u{2014} \(translation.copyright)")
+            Text(lcGreek ? "\(LCGreek.label) \u{2014} \(LCGreek.copyright)" : "\(translation.name) \u{2014} \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)

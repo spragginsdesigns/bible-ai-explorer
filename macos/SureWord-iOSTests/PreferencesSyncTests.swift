@@ -181,6 +181,18 @@ final class PreferencesSyncTests: XCTestCase {
         XCTAssertEqual(sync.memoryEnabled, false)
     }
 
+    func testApplyAdoptsABSBAccountTranslation() {
+        // The reader's BSB chip follows the account like KJV and NKJV do; an
+        // Apple build that predates `.bsb` kept its own choice instead.
+        let settings = SettingsStore()
+        settings.translation = .kjv
+        let sync = PreferencesSyncModel(transport: FakeTransport(), settings: settings)
+
+        sync.apply(AccountPreferences(translation: "BSB"), fromServer: true)
+
+        XCTAssertEqual(settings.translation, .bsb)
+    }
+
     func testApplyIgnoresATranslationTheClientDoesNotKnow() {
         let settings = SettingsStore()
         settings.translation = .nkjv
@@ -250,6 +262,20 @@ final class PreferencesSyncTests: XCTestCase {
         XCTAssertTrue(arrived)
         let patches = await fake.patches
         XCTAssertEqual(patches.first, PreferencesPatch(translation: "NKJV"))
+        XCTAssertNil(sync.errorAlert)
+    }
+
+    func testChoosingBSBInTheReaderPatchesTheAccount() async {
+        let fake = FakeTransport()
+        let settings = SettingsStore()
+        let sync = PreferencesSyncModel(transport: fake, settings: settings)
+
+        settings.translation = .bsb
+
+        let arrived = await Self.wait { await fake.patches.count == 1 }
+        XCTAssertTrue(arrived)
+        let patches = await fake.patches
+        XCTAssertEqual(patches.first, PreferencesPatch(translation: "BSB"))
         XCTAssertNil(sync.errorAlert)
     }
 

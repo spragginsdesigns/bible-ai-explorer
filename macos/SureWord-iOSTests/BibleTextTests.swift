@@ -85,6 +85,89 @@ struct BibleTextTests {
         #expect(TranslationID.bsb.copyright == "Public domain · BSB Publishing")
         #expect(TranslationID(rawValue: "BSB") == .bsb)
     }
+
+    @Test("the compact book file decodes positional verses, flag bits and omitted verses")
+    func bsbDecodesCompactFormat() throws {
+        let json = #"""
+        [[{"s":[["In the beginning ",0],["was",1],[" the Word.",2],[" Amen",3]]},{"s":[],"o":1},{"s":[["Plain.",0]],"o":0}],
+         [{"s":[["Line one\nline two",0]]}]]
+        """#
+        let chapters = try BSBLibrary.decode(Data(json.utf8))
+        try #require(chapters.count == 2)
+        try #require(chapters[0].count == 3)
+        #expect(chapters[0].map(\.number) == [1, 2, 3])
+        #expect(chapters[1].map(\.number) == [1])
+
+        let first = chapters[0][0]
+        #expect(first.segments == [
+            ReaderSegment(text: "In the beginning ", italic: false),
+            ReaderSegment(text: "was", italic: true),
+            ReaderSegment(text: " the Word.", italic: false, jesusSpeech: true),
+            ReaderSegment(text: " Amen", italic: true, jesusSpeech: true),
+        ])
+        #expect(first.text == "In the beginning was the Word. Amen")
+        #expect(!first.omitted)
+        #expect(chapters[0][1].omitted)
+        #expect(chapters[0][1].text.isEmpty)
+        #expect(!chapters[0][2].omitted)
+        #expect(chapters[1][0].text == "Line one\nline two")
+    }
+
+    @Test("a book file that is not the compact shape is refused")
+    func bsbRejectsMalformedFile() {
+        #expect(throws: (any Error).self) { try BSBLibrary.decode(Data(#"[[{"s":[["no flags"]]}]]"#.utf8)) }
+        #expect(throws: (any Error).self) { try BSBLibrary.decode(Data(#"[{"s":[]}]"#.utf8)) }
+    }
+
+    @Test("each book loads from its own file with exactly the canon's chapters")
+    func bsbLoadsPerBook() async throws {
+        // Jude is a single-chapter book; Psalms the longest file.
+        let jude = try await BSBLibrary.shared.chapter(order: 65, chapter: 1)
+        try #require(jude.count == 25)
+        #expect(jude[0].text.hasPrefix("Jude, a servant of Jesus Christ"))
+        let psalm119 = try await BSBLibrary.shared.chapter(order: 19, chapter: 119)
+        #expect(psalm119.count == 176)
+        await #expect(throws: BibleError.self) {
+            _ = try await BSBLibrary.shared.chapter(order: 65, chapter: 2)
+        }
+        await #expect(throws: BibleError.self) {
+            _ = try await BSBLibrary.shared.chapter(order: 67, chapter: 1)
+        }
+        await #expect(throws: BibleError.self) {
+            _ = try await BSBLibrary.shared.chapter(order: 43, chapter: 0)
+        }
+    }
+
+    @Test("the BSB reader chapter carries its headings, speech spans and omitted verses")
+    func bsbReaderChapter() async throws {
+        let markups = try await BibleTranslations.chapter(.bsb, order: 40, chapter: 17)
+        let verses = await ReaderAnnotations.shared.chapter(.bsb, order: 40, chapter: 17, markups: markups)
+        try #require(verses.count == 27)
+        #expect(verses[0].headings == ["The Transfiguration"])
+        #expect(verses[13].headings == ["The Boy with a Demon"])
+        #expect(verses[1].headings.isEmpty)
+        // Then Jesus came over and touched them. “Get up,” He said. “Do not be afraid.”
+        #expect(verses[6].segments.map(\.jesusSpeech) == [false, true, false, true])
+        #expect(verses[6].plainText == markups[6])
+        #expect(verses[20].omitted)
+        #expect(verses[20].plainText.isEmpty)
+    }
+
+    @Test("BSB formatting applies only to the publisher's exact text")
+    func bsbFormattingNeedsMatchingText() async throws {
+        let verse = try await BSBLibrary.shared.chapter(order: 43, chapter: 3)[15]
+        let matched = await ReaderAnnotations.shared.segments(verse.text, translation: .bsb, order: 43, chapter: 3, verse: 16, bsb: verse)
+        #expect(matched == verse.segments)
+        let stale = await ReaderAnnotations.shared.segments("Other words.", translation: .bsb, order: 43, chapter: 3, verse: 16, bsb: verse)
+        #expect(stale == [ReaderSegment(text: "Other words.", italic: false)])
+    }
+
+    @Test("the source line under the chips is Android's and web's, word for word")
+    func sourceNotes() {
+        #expect(ReaderAnnotations.sourceNote(.kjv) == "KJV words of Jesus · eBible edition. Editorial headings · BSB.")
+        #expect(ReaderAnnotations.sourceNote(.bsb) == "Section headings and words of Jesus · Berean Standard Bible")
+        #expect(ReaderAnnotations.sourceNote(.nkjv) == "Red letters aren't available from our NKJV text provider yet.")
+    }
 }
 
 @Suite("Translation-aware Bible search (search.ts)")
