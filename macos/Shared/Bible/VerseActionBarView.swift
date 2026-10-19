@@ -160,8 +160,8 @@ struct VerseActionBarView: View {
 }
 
 /// Custom highlight colour. Android opens a colour-wheel modal over the sheet;
-/// iOS uses the system colour well, applied with an explicit button so
-/// dragging through the wheel does not write a highlight per frame.
+/// both Apple readers use the system colour well, applied with an explicit
+/// button so dragging through the wheel does not write a highlight per frame.
 struct CustomHighlightSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
