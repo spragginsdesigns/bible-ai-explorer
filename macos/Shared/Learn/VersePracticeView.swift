@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// One verse, one job, in whichever mode the card opened in - port of
-/// `mobile/src/features/learn/VersePractice.tsx`. Every mode works from the
+/// `mobile/src/features/learn/VersePractice.tsx`, drawn by both apps' Learn
+/// screens (`LearnSessionView`). Every mode works from the
 /// downloaded card, so practice keeps working with no connection. The parent
 /// re-identifies this view per card, review and mode (`.id(practiceRound)`),
 /// which is what clears a round.
@@ -170,7 +171,9 @@ struct VersePracticeView: View {
                 .lineLimit(5...10)
                 .font(.custom(FontFamily.verse, size: 20, relativeTo: .body))
                 .foregroundStyle(theme.text)
+                #if os(iOS)
                 .textInputAutocapitalization(.sentences)
+                #endif
                 .padding(Spacing.md)
                 .frame(minHeight: 140, alignment: .topLeading)
                 .overlay {
