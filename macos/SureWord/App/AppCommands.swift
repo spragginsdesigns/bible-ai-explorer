@@ -41,11 +41,18 @@ struct AppCommands: Commands {
 
             Divider()
 
-            Button("Delete Conversation") {
-                guard let app, let id = app.chat.activeConversationID else { return }
-                Task { await app.chat.deleteConversation(id) }
+            // Asks first, through the chat's own `/clear` confirmation.
+            Button("Delete Conversation…") {
+                guard let app, app.chat.activeConversationID != nil else { return }
+                app.section = .chat
+                app.chat.isClearConfirmationPresented = true
             }
-            .disabled(app?.chat.activeConversationID == nil)
+            // The confirmation lives on the chat, which a sheet would cover.
+            .disabled(
+                app?.chat.activeConversationID == nil
+                    || app?.chat.isHistoryPresented == true
+                    || app?.isSettingsPresented == true
+            )
         }
 
         CommandGroup(after: .sidebar) {

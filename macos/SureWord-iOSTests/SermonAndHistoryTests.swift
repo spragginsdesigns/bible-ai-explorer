@@ -83,11 +83,11 @@ final class SermonAndHistoryTests: XCTestCase {
         XCTAssertEqual(HistorySearch.displayTitle(conversations[1]), "Untitled conversation")
     }
 
-    @MainActor
     func testRenameStoresTheTitleTheRouteWillStore() {
-        XCTAssertEqual(ChatViewModel.normalizedConversationTitle("  Grace \n in\tRomans  "), "Grace in Romans")
-        XCTAssertEqual(ChatViewModel.normalizedConversationTitle("   "), "")
-        XCTAssertEqual(ChatViewModel.maxConversationTitleLength, 60)
+        XCTAssertEqual(ConversationRename.normalized("  Grace \n in\tRomans  "), "Grace in Romans")
+        XCTAssertEqual(ConversationRename.normalized("   "), "")
+        // The PATCH route's limit (`MAX_CONVERSATION_TITLE_LENGTH`), as Android's input.
+        XCTAssertEqual(ConversationRename.maxLength, 120)
     }
 
     // MARK: - Church events

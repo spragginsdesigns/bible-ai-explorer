@@ -48,6 +48,9 @@ struct MainWindow: View {
             app.preferences.refresh()
         }
         .preferencesErrorAlert(app.preferences, isActive: !app.isSettingsPresented)
+        // A delete the server refused (the history picker shows its own while
+        // it is up).
+        .historyAlert(chat, isActive: !chat.isHistoryPresented)
         .sheet(isPresented: $chat.isHistoryPresented) {
             HistoryPicker()
         }
@@ -101,8 +104,14 @@ struct Sidebar: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
 
+    /// Searches Recents by title, as Android's history modal and the web
+    /// sidebar's "Search chats" do.
+    @State private var query = ""
+    @State private var actions = ConversationActions()
+
     var body: some View {
         @Bindable var app = app
+        let results = HistorySearch.filter(app.chat.conversations, query: query)
 
         List(selection: $app.section) {
             Section {
@@ -114,13 +123,25 @@ struct Sidebar: View {
 
             if !app.chat.conversations.isEmpty {
                 Section("Recent") {
-                    ForEach(app.chat.conversations) { conversation in
-                        ConversationRow(conversation: conversation)
+                    if let error = actions.error {
+                        Text(error)
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.danger)
+                    }
+                    ForEach(results) { conversation in
+                        ConversationRow(conversation: conversation, actions: actions)
+                    }
+                    if results.isEmpty {
+                        Text(HistorySearch.noMatches(query))
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textMuted)
                     }
                 }
             }
         }
         .listStyle(.sidebar)
+        .searchable(text: $query, placement: .sidebar, prompt: "Search conversations")
+        .conversationActions(actions, chat: app.chat)
         .safeAreaInset(edge: .top) {
             HStack {
                 BrandMark(size: 22)
@@ -158,24 +179,33 @@ struct Sidebar: View {
 private struct ConversationRow: View {
     @Environment(AppModel.self) private var app
     let conversation: Conversation
+    let actions: ConversationActions
 
     var body: some View {
         Button {
             app.section = .chat
             Task { await app.chat.switchConversation(to: conversation.id) }
         } label: {
-            Text(conversation.title)
+            Text(HistorySearch.displayTitle(conversation))
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .fontWeight(app.chat.activeConversationID == conversation.id ? .semibold : .regular)
-        .contextMenu {
-            Button("Delete", role: .destructive) {
-                Task { await app.chat.deleteConversation(conversation.id) }
-            }
-        }
+        .contextMenu { ConversationMenu(conversation: conversation, actions: actions) }
+    }
+}
+
+/// Rename and Delete for one conversation, in a row's context menu. Both open
+/// the shared `ConversationActions` dialogs; nothing is deleted from here.
+private struct ConversationMenu: View {
+    let conversation: Conversation
+    let actions: ConversationActions
+
+    var body: some View {
+        Button("Rename…") { actions.startRename(conversation) }
+        Button("Delete…", role: .destructive) { actions.requestDelete(conversation) }
     }
 }
 
@@ -187,12 +217,11 @@ struct HistoryPicker: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var query = ""
+    @State private var confirmClearAll = false
+    @State private var actions = ConversationActions()
 
     private var results: [Conversation] {
-        guard !query.isEmpty else { return app.chat.conversations }
-        return app.chat.conversations.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-        }
+        HistorySearch.filter(app.chat.conversations, query: query)
     }
 
     var body: some View {
@@ -204,17 +233,33 @@ struct HistoryPicker: View {
 
             Divider().overlay(theme.border)
 
-            List(results) { conversation in
-                Button {
-                    app.section = .chat
-                    Task { await app.chat.switchConversation(to: conversation.id) }
-                    dismiss()
-                } label: {
-                    Text(conversation.title)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(.rect)
+            if let error = actions.error {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.danger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.top, Spacing.sm)
+            }
+
+            List {
+                ForEach(results) { conversation in
+                    Button {
+                        app.section = .chat
+                        Task { await app.chat.switchConversation(to: conversation.id) }
+                        dismiss()
+                    } label: {
+                        Text(HistorySearch.displayTitle(conversation))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu { ConversationMenu(conversation: conversation, actions: actions) }
                 }
-                .buttonStyle(.plain)
+                if results.isEmpty, !app.chat.conversations.isEmpty {
+                    Text(HistorySearch.noMatches(query))
+                        .foregroundStyle(theme.textMuted)
+                }
             }
             .listStyle(.inset)
 
@@ -222,9 +267,9 @@ struct HistoryPicker: View {
 
             HStack {
                 Button("Clear all", role: .destructive) {
-                    Task { await app.chat.clearAllConversations() }
-                    dismiss()
+                    confirmClearAll = true
                 }
+                .disabled(app.chat.conversations.isEmpty)
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
@@ -232,6 +277,18 @@ struct HistoryPicker: View {
             .padding(Spacing.md)
         }
         .frame(width: 520, height: 420)
+        .conversationActions(actions, chat: app.chat)
+        // The iOS sheet's alert, so Clear all asks first on both.
+        .alert("Clear all conversations?", isPresented: $confirmClearAll) {
+            Button("Clear all", role: .destructive) {
+                Task { await app.chat.clearAllConversations() }
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Every conversation will be deleted. This cannot be undone.")
+        }
+        .historyAlert(app.chat)
     }
 }
 

@@ -373,35 +373,27 @@ final class ChatViewModel {
         }
     }
 
-    /// `MAX_CONVERSATION_TITLE_LENGTH` in `src/lib/conversation-title-rules.ts`;
-    /// the PATCH route answers 400 past it.
-    static let maxConversationTitleLength = 60
-
-    /// The title the route will store: runs of whitespace collapsed, trimmed.
-    static func normalizedConversationTitle(_ raw: String) -> String {
-        raw.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
-    }
-
     /// Rename a conversation (`PATCH /api/conversations/:id`), as the Android
-    /// history list does. Returns an error line for the sheet, or nil when the
-    /// rename landed or there was nothing to change.
+    /// history list does (rules in `ConversationRename`). Returns an error line
+    /// for the list, or nil when the rename landed or there was nothing to
+    /// change.
     @discardableResult
     func renameConversation(_ id: String, to raw: String) async -> String? {
-        let title = Self.normalizedConversationTitle(raw)
-        guard let index = conversations.firstIndex(where: { $0.id == id }) else { return nil }
-        guard !title.isEmpty, title != conversations[index].title else { return nil }
-        guard title.count <= Self.maxConversationTitleLength else {
-            return "Titles can be up to \(Self.maxConversationTitleLength) characters."
-        }
-        struct Body: Encodable { let title: String }
+        guard let index = conversations.firstIndex(where: { $0.id == id }),
+              let title = ConversationRename.titleToSend(raw, current: conversations[index].title)
+        else { return nil }
         do {
-            try await api.data("/api/conversations/\(id)", method: "PATCH", body: Body(title: title))
+            try await api.data(
+                "/api/conversations/\(id)",
+                method: "PATCH",
+                body: ConversationRename.Body(title: title)
+            )
             if let current = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[current].title = title
             }
             return nil
         } catch {
-            return "Couldn't rename. Try again."
+            return ConversationRename.failureMessage
         }
     }
 
