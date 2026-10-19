@@ -46,6 +46,32 @@ struct BibleModelTests {
         #expect(model.selectedBook == nil)
     }
 
+    @Test("navigating away closes an open verse sheet")
+    func navigationClosesVerseSheet() {
+        // A dead host: a tap starts the explanation stream, which must not
+        // reach the real API from a test.
+        let model = BibleModel(
+            api: APIClient(baseURL: URL(string: "https://example.invalid")!, token: { _ in nil }, onAuthFailure: {}),
+            defaults: Self.makeDefaults()
+        )
+        func context(_ chapter: Int) -> VerseSheetContext {
+            VerseSheetContext(order: 43, bookName: "John", chapter: chapter, plainTexts: (1...36).map { "v\($0)" }, translation: .kjv)
+        }
+        model.open(order: 43, chapter: 3)
+        model.sheet.tap(16, context: context(3))
+        model.sheet.tap(18, context: context(3))
+        #expect(model.sheet.selection == VerseSelection(start: 16, end: 18))
+
+        model.go(to: model.nextLocation)
+        #expect(model.chapter == 4)
+        #expect(!model.sheet.isOpen)
+
+        model.sheet.tap(2, context: context(4))
+        #expect(model.sheet.isOpen)
+        model.showChapterGrid()
+        #expect(!model.sheet.isOpen)
+    }
+
     @Test("opening a chapter switches to the reader and arms the verse flash")
     func openChapter() {
         let model = Self.makeModel()

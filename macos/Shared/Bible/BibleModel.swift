@@ -56,9 +56,6 @@ final class BibleModel {
     /// Verse the pending deep link wants brought into view; cleared once flashed.
     var pendingVerse: Int?
     var highlightedVerse: Int?
-    /// Verse whose panel is open under the reader — the Mac stand-in for
-    /// Android's tap-a-verse bottom sheet.
-    var actionVerse: Int?
     var toast: String?
 
     var fontStep: Int {
@@ -85,10 +82,9 @@ final class BibleModel {
     /// running a second one.
     let insight: VerseInsightModel
 
-    /// The iOS two-tier verse sheet (selection, tier, study tab, action
-    /// states). It shares `insight` above, so the Mac's single-verse panel and
-    /// the phone's sheet never stream two explanations at once. The Mac does
-    /// not use it.
+    /// The two-tier verse sheet (selection, tier, study tab, action states)
+    /// both readers draw: the iPhone's drag sheet and the Mac's docked panel.
+    /// It streams through `insight` above.
     let sheet: VerseSheetModel
 
     /// The reading plan the user is following, and every action the plan pane
@@ -320,26 +316,10 @@ final class BibleModel {
 
     // MARK: - Verse actions
 
-    /// Open a verse's panel and start streaming its explanation — Tap-a-verse.
-    /// Clicking the open verse again closes it, which is what makes this the
-    /// toggle the reader calls on every click.
-    func toggleVerse(_ number: Int, translation: TranslationID) {
-        guard actionVerse != number else {
-            dismissVerseActions()
-            return
-        }
-        actionVerse = number
-        insight.start(
-            VerseInsightModel.Target(
-                reference: verseReference(number),
-                text: verseText(number),
-                translation: translation
-            )
-        )
-    }
-
+    /// Close the verse sheet and abandon its explanation: navigation, a hop
+    /// to chat, or a context-menu action that finished the job.
     func dismissVerseActions() {
-        actionVerse = nil
+        sheet.close()
         insight.reset()
     }
 

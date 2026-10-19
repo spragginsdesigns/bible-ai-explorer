@@ -364,7 +364,8 @@ Also note `.textSelection(.enabled)` is deliberately **absent** from the verse
 text: a selectable `Text` on macOS owns the whole text region and swallows both
 left- and right-clicks, which silently made every verse action — and later
 Tap-a-verse — unreachable anywhere except the few points of padding around the
-words. Copy lives in the verse panel and the context menu instead.
+words. Copy lives on the verse sheet's action bar and in the context menu
+instead.
 
 A related rule for anything streaming: a `Task` started from a `@MainActor`
 method inherits that isolation, so draining `URLSession.AsyncBytes` in one runs

@@ -26,13 +26,14 @@ private struct ParchmentSheet: View {
     }
 }
 
-/// Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), per-verse
-/// actions (copy / share / save to note / Ask AI), adjustable type size, and
-/// prev/next navigation that rolls into adjacent books like YouVersion.
+/// Chapter reading screen: bundled KJV (offline) or NKJV (bolls.life), the
+/// two-tier verse sheet, adjustable type size, and prev/next navigation that
+/// rolls into adjacent books like YouVersion.
 ///
-/// Port of `mobile/app/(app)/bible/chapter.tsx`. Android opens the actions from
-/// a long-press bottom sheet; a Mac gets both a click-to-open inline row and the
-/// same four items on the right-click menu.
+/// Port of `mobile/app/(app)/bible/chapter.tsx`. Clicking a verse opens the
+/// verse sheet docked under the chapter (`VerseStudyPanel`); clicking more
+/// verses grows the range, as tapping does on Android. The right-click menu
+/// keeps its per-verse items as well.
 struct ChapterReaderPane: View {
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.scenePhase) private var scenePhase
@@ -67,6 +68,24 @@ struct ChapterReaderPane: View {
     /// The Share sheet (a card, or the words as text) for the verse or
     /// selection whose Share was clicked.
     @State private var shareCard: ShareCardItem?
+    @State private var crossReferences = CrossReferencesModel()
+    @State private var showingCustomColor = false
+
+    private var sheet: VerseSheetModel { model.sheet }
+
+    /// The chapter on screen, as the sheet sees it. Nil until the text for
+    /// this exact translation and chapter has arrived.
+    private var context: VerseSheetContext? {
+        guard let book = model.book, model.loadedKey == model.chapterKey(translation, lcGreek: lcGreek) else { return nil }
+        return VerseSheetContext(
+            order: book.order,
+            bookName: book.name,
+            chapter: model.chapter,
+            plainTexts: model.readerVerses.map(\.plainText),
+            translation: translation,
+            studyTexts: model.studyVerses?.map(VerseMarkup.plainText)
+        )
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -85,8 +104,25 @@ struct ChapterReaderPane: View {
             } else if let error = model.error {
                 errorState(error)
             } else {
-                reader
-                versePanel
+                // The verse sheet sits under the scroll view, never inside it,
+                // and that is a hard requirement: streaming the explanation into
+                // a row of the reader's `LazyVStack` re-measures the whole
+                // chapter on every update, which pegged the main thread until
+                // the stream feeding it starved (`macos/README.md`, "The reader
+                // is a layout minefield").
+                GeometryReader { geometry in
+                    VStack(spacing: 0) {
+                        reader
+                        if sheet.isOpen, let context {
+                            verseSheet(context: context, availableHeight: geometry.size.height)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                    .animation(.snappy, value: sheet.isOpen)
+                    // The reader gives up the height the study tier takes in
+                    // the same motion.
+                    .animation(.snappy, value: sheet.tier)
+                }
             }
         }
         // The chapter *and* the translation are part of the identity of what is
@@ -111,9 +147,19 @@ struct ChapterReaderPane: View {
         .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
         .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation, lcGreek: lcGreek) }
         .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
-        .onChange(of: model.actionVerse) { _, verse in model.reading.setObscured(verse != nil) }
+        // A new chapter or translation under an open sheet: the selection no
+        // longer describes what is on screen.
+        .onChange(of: model.chapterKey(translation, lcGreek: lcGreek)) { _, _ in sheet.chapterChanged() }
+        // The peek leaves the chapter readable; only the study tier covers
+        // most of it.
+        .onChange(of: sheet.obscuresReader) { _, obscured in model.reading.setObscured(obscured) }
         .onChange(of: appearsActive) { _, active in model.reading.setReaderFocused(active) }
         .shareCardSheet(item: $shareCard, api: app.api)
+        .sheet(isPresented: $showingCustomColor) {
+            CustomHighlightSheet(color: Color(hex: selectionHex ?? HighlightColors.presets[0].hex) ?? .yellow) { hex in
+                applyHighlight(hex)
+            }
+        }
     }
 
     // MARK: - Chrome
@@ -404,90 +450,6 @@ struct ChapterReaderPane: View {
             .allowsHitTesting(false)
     }
 
-    // MARK: - Verse panel
-
-    /// Tap-a-verse lands here: the tapped verse's explanation and actions, in a
-    /// panel pinned under the reader rather than inline in the verse list.
-    ///
-    /// The placement is a hard requirement, not a layout preference. Streaming
-    /// text into a row of the reader's `LazyVStack` re-measures every verse in
-    /// the chapter on every update — a chapter of Cormorant Garamond, tens of
-    /// times a second — which pegged the main thread so badly that the very
-    /// stream feeding it never got scheduled again, and the explanation never
-    /// arrived. Outside the scroll view, the verse list never re-measures at
-    /// all. It also happens to be the better Mac reading experience, and the
-    /// closest analogue to Android's bottom sheet.
-    @ViewBuilder
-    private var versePanel: some View {
-        if let number = model.actionVerse {
-            let reference = model.verseReference(number)
-            // The study words (the KJV under the LC Greek) for Ask AI.
-            let text = model.verseText(number)
-
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                HStack {
-                    Text(reference)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Spacer()
-                    Button {
-                        model.dismissVerseActions()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(theme.textMuted)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Close")
-                    .accessibilityLabel("Close verse panel")
-                }
-
-                VerseInsightView(
-                    status: model.insight.status,
-                    text: model.insight.text,
-                    error: model.insight.error,
-                    onRetry: { model.insight.retry() }
-                )
-
-                // The Hebrew or Greek behind the verse, word by word beside the
-                // King James wording it became, and a short study of what the
-                // original carries.
-                if let order = model.selectedBook {
-                    WordStudyView(
-                        api: app.api,
-                        book: order,
-                        chapter: model.chapter,
-                        verse: number,
-                        modelId: app.settings.chatModelId,
-                        onAsk: { prompt, attach in
-                            // `askAI` is the panel's one door into chat: it
-                            // attaches the passage, closes the panel and
-                            // switches sections. The prompt is set first so the
-                            // composer is already filled when chat appears.
-                            app.chat.input = prompt
-                            askAI(reference, text)
-                            // "Every verse" is a lexicon search, not a question
-                            // about this passage, so it travels without it.
-                            if !attach { app.chat.attachment = nil }
-                        }
-                    )
-                }
-
-                actionRow(reference: reference, text: text, shown: model.shownText(number))
-            }
-            .padding(.horizontal, Spacing.xxl)
-            .padding(.vertical, Spacing.md)
-            .frame(maxWidth: 760, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(theme.glassLight)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(theme.border)
-                    .frame(height: 1)
-            }
-        }
-    }
-
     private func scrollToPendingVerse(_ proxy: ScrollViewProxy) {
         guard model.loadedKey == model.chapterKey(translation, lcGreek: lcGreek),
               let verse = model.pendingVerse,
@@ -548,7 +510,7 @@ struct ChapterReaderPane: View {
     private func verseRow(_ verse: ReaderVerse) -> some View {
         let number = verse.number
         let isHighlighted = model.highlightedVerse == number || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
-        let isOpen = model.actionVerse == number
+        let isOpen = sheet.selection?.includes(number) ?? false
         let reference = model.verseReference(number)
         let text = model.shownText(number)
         let highlightHex = model.selectedBook.flatMap {
@@ -566,10 +528,11 @@ struct ChapterReaderPane: View {
             // `Text` takes ownership of the whole text region on macOS: it
             // swallows left-clicks *and* right-clicks, so right-clicking a
             // verse raised the system Cut/Copy/Font menu instead of SureWord's
-            // own. Copy still sits one click away in the action row and the
-            // context menu, and the AI explanation below *is* selectable.
+            // own. Copy still sits one click away on the verse sheet's action
+            // bar and in the context menu, and the AI explanation *is*
+            // selectable.
             Button {
-                model.toggleVerse(number, translation: translation)
+                tap(number)
             } label: {
                 verseText(verse)
                     .lineSpacing(model.lineHeight - model.fontSize)
@@ -578,6 +541,8 @@ struct ChapterReaderPane: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(reference). Explain this verse")
+            .accessibilityHint(isOpen ? "Selected. Click to change the selection." : "Opens the verse sheet")
+            .accessibilityAddTraits(isOpen ? .isSelected : [])
         }
         .padding(.horizontal, Spacing.sm)
         .padding(.vertical, Spacing.xs)
@@ -685,122 +650,304 @@ struct ChapterReaderPane: View {
         return result
     }
 
-    /// `text` is the study words Ask AI takes; `shown` is the words on screen,
-    /// which Copy, Share and Save to note take.
-    private func actionRow(reference: String, text: String, shown: String) -> some View {
-        HStack(spacing: Spacing.sm) {
-            Button("Copy") {
-                model.copy(reference: reference, text: shown, translation: translation, label: textLabel)
-            }
-            .buttonStyle(SubtleButtonStyle())
+    // MARK: - Verse sheet
 
-            Button("Share") {
-                share(reference: reference, text: shown)
-            }
-            .buttonStyle(SubtleButtonStyle())
-
-            Button("Save to note") {
-                model.saveToNote(reference: reference, text: shown, translation: translation, label: textLabel)
-            }
-            .buttonStyle(SubtleButtonStyle())
-
-            Button("✦ Expand with AI") {
-                askAI(reference, text)
-            }
-            .buttonStyle(SubtleButtonStyle())
-
-            if let order = model.selectedBook, let verse = model.actionVerse {
-                highlightControls(order: order, verse: verse)
-            }
-
-            Spacer()
-        }
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundStyle(theme.textMuted)
+    /// The reader's click. A refused click (the ten-verse cap) changes
+    /// nothing, and the action bar says why.
+    private func tap(_ number: Int) {
+        guard let context else { return }
+        sheet.tap(number, context: context)
     }
 
-    /// YouVersion-style highlight picker: the shared preset swatches (current
-    /// colour ringed), a native `ColorPicker` for a custom colour, and a
-    /// Remove button once the verse is highlighted.
-    private func highlightControls(order: Int, verse: Int) -> some View {
-        let current = app.highlights.hex(
-            translation: translation,
-            book: order,
-            chapter: model.chapter,
-            verse: verse
-        )
-        return HStack(spacing: Spacing.xs) {
-            ForEach(HighlightColors.presets) { preset in
-                let isCurrent = current?.caseInsensitiveCompare(preset.hex) == .orderedSame
-                Button {
-                    app.highlights.setColor(
-                        translation: translation,
-                        book: order,
-                        chapter: model.chapter,
-                        verse: verse,
-                        hex: preset.hex
-                    )
-                } label: {
-                    Circle()
-                        .fill(Color(hex: preset.hex) ?? .clear)
-                        .frame(width: 14, height: 14)
-                        .overlay {
-                            if isCurrent {
-                                Circle()
-                                    .strokeBorder(theme.accent, lineWidth: 2)
-                                    .padding(-2)
-                            }
-                        }
-                        .contentShape(.circle)
-                }
-                .buttonStyle(.plain)
-                .help("Highlight \(highlightName(preset))")
-                .accessibilityLabel("Highlight \(highlightName(preset))")
-            }
-
-            ColorPicker(
-                "",
-                selection: Binding(
-                    get: { current.flatMap { Color(hex: $0) } ?? Color(hex: 0xF5D76E) },
-                    set: { picked in
-                        guard let hex = HighlightColors.hexString(from: picked) else { return }
-                        app.highlights.setColor(
-                            translation: translation,
-                            book: order,
-                            chapter: model.chapter,
-                            verse: verse,
-                            hex: hex
-                        )
-                    }
-                ),
-                supportsOpacity: false
-            )
-            .labelsHidden()
-            .frame(width: 28, height: 22)
-            .help("Custom highlight color")
-
-            if current != nil {
-                Button("Remove") {
-                    app.highlights.remove(
-                        translation: translation,
-                        book: order,
-                        chapter: model.chapter,
-                        verse: verse
-                    )
-                }
-                .buttonStyle(SubtleButtonStyle())
-            }
-
-            // The user's own reason for this colour, the way web shows it under
-            // the verse. Only for a colour they named: telling someone a blue
-            // highlight is blue says nothing.
-            if let current, let label = markedAsLabel(current) {
-                Text("Marked as \u{201C}\(label)\u{201D}")
-                    .font(.system(size: 11))
-                    .foregroundStyle(theme.textFaint)
-                    .lineLimit(1)
+    /// Stored colours for the selection, verse → hex.
+    private var selectionHighlights: [Int: String] {
+        guard let book = model.selectedBook else { return [:] }
+        var map: [Int: String] = [:]
+        for verse in sheet.activeSelection.verses {
+            if let hex = app.highlights.hex(translation: translation, book: book, chapter: model.chapter, verse: verse) {
+                map[verse] = hex
             }
         }
+        return map
+    }
+
+    private var selectionHex: String? { sheet.activeSelection.sharedColor(in: selectionHighlights) }
+
+    private func verseSheet(context: VerseSheetContext, availableHeight: CGFloat) -> some View {
+        let reference = sheet.reference(context)
+        let text = sheet.text(context)
+        let highlights = selectionHighlights
+        let shared = sheet.activeSelection.sharedColor(in: highlights)
+        let markedAs = shared.flatMap(markedAsLabel)
+        let message = sheet.actionMessage
+            ?? markedAs.map { VerseSheetModel.Message(text: "Marked as \u{201C}\($0)\u{201D}", tone: .muted) }
+
+        return VerseStudyPanel(
+            model: sheet,
+            title: reference,
+            subtitle: sheet.subtitle,
+            availableHeight: availableHeight,
+            onClose: { sheet.close() },
+            peek: {
+                InsightTeaserView(
+                    insight: sheet.insight,
+                    onExpand: { sheet.openStudy(.explain) },
+                    onRetry: { sheet.retryInsight(context) }
+                )
+            },
+            study: {
+                studyView(context: context, reference: reference, text: text)
+            },
+            footer: {
+                VerseActionBarView(
+                    color: shared,
+                    canRemove: !highlights.isEmpty,
+                    labelForPreset: highlightName,
+                    onHighlight: { applyHighlight($0) },
+                    onRemoveHighlight: removeHighlight,
+                    onCustomColor: { showingCustomColor = true },
+                    // Ask takes the study words (the KJV under the LC Greek).
+                    actions: actions(context: context, reference: reference, text: text, highlighted: shared != nil),
+                    message: message
+                )
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func studyView(context: VerseSheetContext, reference: String, text: String) -> some View {
+        @Bindable var sheet = sheet
+        let selection = sheet.activeSelection
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text(text)
+                .font(.custom(FontFamily.verse, size: 17))
+                .foregroundStyle(theme.textSecondary)
+                .lineLimit(4)
+                .padding(.horizontal, Spacing.lg)
+
+            StudyTabsView(selection: $sheet.studyTab)
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                // Each study is a model generation, so a range studies its
+                // first verse only rather than firing one per selected verse.
+                if (sheet.studyTab == .words || sheet.studyTab == .seeAlso), selection.count > 1 {
+                    Text("For verse \(selection.start)")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                }
+                switch sheet.studyTab {
+                case .explain:
+                    VerseInsightView(
+                        status: sheet.insight.status,
+                        text: sheet.insight.text,
+                        error: sheet.insight.error,
+                        onRetry: { sheet.retryInsight(context) }
+                    )
+                case .words:
+                    // The Hebrew or Greek behind the verse, word by word beside
+                    // the King James wording it became.
+                    WordStudyView(
+                        api: app.api,
+                        book: context.order,
+                        chapter: context.chapter,
+                        verse: selection.start,
+                        modelId: app.settings.chatModelId,
+                        onAsk: { prompt, attach in
+                            // `askAI` is the sheet's one door into chat: it
+                            // attaches the passage, closes the sheet and
+                            // switches sections. The prompt is set first so the
+                            // composer is already filled when chat appears.
+                            app.chat.input = prompt
+                            askAI(reference, sheet.studyText(context))
+                            // "Every verse" is a lexicon search, not a question
+                            // about this passage, so it travels without it.
+                            if !attach { app.chat.attachment = nil }
+                        }
+                    )
+                case .seeAlso:
+                    CrossReferencesView(
+                        model: crossReferences,
+                        reference: VerseSelection(start: selection.start, end: selection.start)
+                            .reference(bookName: context.bookName, chapter: context.chapter),
+                        translation: context.translation,
+                        onNavigate: openCrossReference
+                    )
+                case .notes:
+                    notesTab(context: context, reference: reference, selection: selection)
+                }
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.xs)
+        }
+    }
+
+    /// Study notes that mention the selection, and a way to add it to one.
+    /// A note opens in the Notes section; the Mac's Notes pane owns its own
+    /// selection, so the hop lands on the library, as a chat note receipt does
+    /// (`ChatView.openReceipt`).
+    private func notesTab(context: VerseSheetContext, reference: String, selection: VerseSelection) -> some View {
+        let matched = ChapterNotes.notesForSelection(
+            ChapterNotes.matchChapterNotes(
+                notes: NotesStore.shared.notes.map {
+                    ChapterNoteSummary(
+                        id: $0.id,
+                        title: $0.title,
+                        plainText: $0.plainText,
+                        updatedAt: $0.updatedAt
+                    )
+                },
+                context: ChapterNotesContext(
+                    bookName: context.bookName,
+                    chapter: context.chapter,
+                    verseCount: context.plainTexts.count
+                )
+            ),
+            selection: selection
+        )
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            if matched.isEmpty {
+                Text("No study notes mention \(reference) yet.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(theme.textMuted)
+            } else {
+                ForEach(matched) { note in
+                    Button {
+                        sheet.close()
+                        app.section = .notes
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("✎ \(note.title)")
+                                .font(.system(size: 13.5, weight: .bold))
+                                .foregroundStyle(theme.accent)
+                            if !note.excerpt.isEmpty {
+                                Text(note.excerpt)
+                                    .font(.system(size: 12.5))
+                                    .foregroundStyle(theme.textSecondary)
+                                    .lineLimit(2)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Spacing.sm)
+                        .background(theme.surface, in: RoundedRectangle(cornerRadius: Radius.md))
+                        .contentShape(.rect(cornerRadius: Radius.md))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Button {
+                Task { await saveToNote(context) }
+            } label: {
+                Text("＋ Add \(reference) to a note")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+                    .frame(maxWidth: .infinity, minHeight: 38)
+                    .background(theme.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md))
+                    .contentShape(.rect(cornerRadius: Radius.md))
+            }
+            .buttonStyle(.plain)
+            .disabled(sheet.saveBusy)
+        }
+        // The library cache is read from disk once per run; the reader may be
+        // the first screen to need it.
+        .task { await NotesStore.shared.hydrate() }
+    }
+
+    private func actions(context: VerseSheetContext, reference: String, text: String, highlighted: Bool) -> [VerseSheetAction] {
+        let study = sheet.studyText(context)
+        let choice = app.chapterAudio.editions.count > 1
+        let listen = app.chapterAudio.available ? [VerseSheetAction(id: "listen", systemImage: "headphones", label: "Listen") {
+            app.dailyCross.listen.pause()
+            app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: choice ? .regular : nil)
+        }] : []
+        // A book with an Alive recording (LC-15532) offers it too, first, as
+        // Listen recommends it (LC-15842).
+        let alive = choice ? [VerseSheetAction(id: "listen-alive", systemImage: "headphones", label: AudioEdition.alive.label) {
+            app.dailyCross.listen.pause()
+            app.chapterAudio.start(from: sheet.selection?.start ?? 1, edition: .alive)
+        }] : []
+        return alive + listen + [
+            VerseSheetAction(id: "ask", systemImage: "sparkles", label: "Ask") {
+                askAI(reference, study)
+            },
+            VerseSheetAction(
+                id: "copy",
+                systemImage: sheet.copied ? "checkmark" : "doc.on.doc",
+                label: sheet.copied ? "Copied" : "Copy",
+                active: sheet.copied
+            ) {
+                // The same string Android's `selectionShareText` builds: the
+                // reference, the words in quotes, then the label.
+                VerseActions.copy(reference: reference, text: text, translation: translation, label: context.label)
+                sheet.markCopied()
+            },
+            // The card is drawn in the translation on the page; the LC Greek
+            // label has no card, so that page shares as text.
+            VerseSheetAction(id: "share", systemImage: "square.and.arrow.up", label: "Share") {
+                shareCard = ShareCardItem(
+                    target: .verse(reference: reference, translation: context.label),
+                    shareText: sheet.shareText(context)
+                )
+            },
+            VerseSheetAction(
+                id: "note",
+                systemImage: "square.and.pencil",
+                label: sheet.saveBusy ? "Saving…" : "Note",
+                disabled: sheet.saveBusy
+            ) {
+                Task { await saveToNote(context) }
+            },
+            // Adds every selected verse to Learn. Android's "Added" chip then
+            // opens the Learn screen, which the Mac does not have yet, so here
+            // it stays a settled stub until the Learn port wires it (LC-16614).
+            VerseSheetAction(
+                id: "learn",
+                systemImage: sheet.learnStatus == .added ? "graduationcap.fill" : "graduationcap",
+                label: sheet.learnStatus == .adding ? "Adding…" : sheet.learnStatus == .added ? "Added" : "Learn",
+                disabled: sheet.learnStatus != .idle,
+                active: sheet.learnStatus == .added
+            ) {
+                Task { await addToLearn(context, highlighted: highlighted) }
+            },
+        ]
+    }
+
+    /// Highlight writes are optimistic - the store recolours at once and rolls
+    /// back any verse whose write fails - so this fires one per verse.
+    private func applyHighlight(_ hex: String) {
+        guard let book = model.selectedBook else { return }
+        for verse in sheet.activeSelection.verses {
+            app.highlights.setColor(translation: translation, book: book, chapter: model.chapter, verse: verse, hex: hex)
+        }
+    }
+
+    private func removeHighlight() {
+        guard let book = model.selectedBook else { return }
+        for verse in sheet.activeSelection.verses {
+            app.highlights.remove(translation: translation, book: book, chapter: model.chapter, verse: verse)
+        }
+    }
+
+    /// Save the selection as a new note. A failure stays on the action bar;
+    /// a success closes the sheet with the toast the reader has always shown.
+    private func saveToNote(_ context: VerseSheetContext) async {
+        let reference = sheet.reference(context)
+        guard await sheet.saveToNote(api: app.api, context: context) != nil else { return }
+        sheet.close()
+        model.show(toast: "Saved \(reference) to your notes")
+    }
+
+    private func addToLearn(_ context: VerseSheetContext, highlighted: Bool) async {
+        let api = app.api
+        await sheet.addToLearn(context: context, highlighted: highlighted) { body in
+            try await api.json("/api/learn", method: "POST", body: body, as: VerseLearnCard.self)
+        }
+    }
+
+    /// The sheet is not modal, so a See-also jump lands straight away: the
+    /// reader opens the passage in place and flashes the verse. Opening closes
+    /// the sheet (`BibleModel.dismissVerseActions`).
+    private func openCrossReference(_ target: Reference) {
+        model.open(target, translationOverride: model.translationOverride)
     }
 
     /// What to call a highlight colour in the reader: the label the user gave it

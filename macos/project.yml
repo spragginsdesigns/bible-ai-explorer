@@ -116,6 +116,10 @@ targets:
       # Pure Shared/ logic behind the Mac note menu's Copy and Share as
       # Markdown; it reads its fixtures by #filePath, so no resources needed.
       - path: SureWord-iOSTests/NoteMarkdownExportTests.swift
+      # Pure Shared/ logic the Mac reader's verse sheet now draws too: the
+      # selection rules, the sheet model and the See also decoder.
+      - path: SureWord-iOSTests/VerseSelectionTests.swift
+      - path: SureWord-iOSTests/BibleTextTests.swift
     dependencies:
       - target: SureWord
     settings:

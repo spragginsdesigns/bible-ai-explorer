@@ -40,23 +40,13 @@ final class VerseInsightModel {
         self.selectedModel = selectedModel
     }
 
-    /// The last target handed to `start()`, so the error state can retry
-    /// without the view having to remember what it asked for.
-    private(set) var target: Target?
-
     func reset() {
         runID += 1
         task?.cancel()
         task = nil
-        target = nil
         status = .idle
         text = ""
         error = nil
-    }
-
-    func retry() {
-        guard let target else { return }
-        start(target, trigger: .tap)
     }
 
     /// `trigger` is `.automatic` for the explanation a verse selection starts
@@ -66,7 +56,6 @@ final class VerseInsightModel {
         let id = runID
         task?.cancel()
         task = nil
-        self.target = target
 
         let modelId = selectedModel()
         text = ""
