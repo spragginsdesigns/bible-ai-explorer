@@ -198,8 +198,12 @@ Shared/         Compiled into BOTH the macOS and iOS targets (same-module
 ├── Resources/    Brand fonts (Pirata One, Cormorant Garamond)
 └── DesignSystem/ Theme tokens and shared views
 
+ShareInbox/     "Share into SureWord" inbox (manifest, store, capped copy),
+                compiled into both apps and the iOS share extension
+
 SureWord/       macOS-only shell:
-├── App/          SureWordApp (@main), MainWindow shell, menu commands
+├── App/          SureWordApp (@main), MainWindow shell, menu commands,
+│                MacShareInbox (Services menu, window and Dock drops)
 ├── Bible/Views/  Reader panes
 ├── Chat/Views/   Cards, bubbles, input bar
 ├── Notes/        AppKit editor (NoteRichTextController, NoteTextView,
@@ -209,6 +213,8 @@ SureWord/       macOS-only shell:
 
 SureWord-iOS/   iOS-only shell: SureWordIOSApp (@main), RootView, TabShell, and
                 native Bible, Chat, Notes, Cross, and Settings views.
+SureWord-iOS-Share/  iOS Share Extension: copies a share into the App Group
+                     inbox for the app to open.
 SureWord-iOSTests/  iOS test host (shell, protocol, Bible, deep-link, and notes
                     coverage).
 ```

@@ -60,6 +60,18 @@ struct MainWindow: View {
             openPendingLinks()
         }
         .task { openPendingLinks() }
+        // "Share into SureWord" (Services, or a drop on the window or the Dock
+        // icon; `MacShareInbox`). This shell only exists signed in, so a share
+        // made signed out waits in the inbox and opens right after sign-in.
+        .task { openPendingShare() }
+        .onReceive(NotificationCenter.default.publisher(for: .pendingShareArrived)) { _ in
+            openPendingShare()
+        }
+        // An upload already running would make the share's upload bail out,
+        // so a share that arrived mid-upload opens once it finishes.
+        .onChange(of: app.chat.uploadingAttachments) { _, uploading in
+            if !uploading { openPendingShare() }
+        }
         // A preference changed on the phone or the web should be here by the
         // time the window is looked at again. `refresh` throttles itself, which
         // matters on macOS: clicking back into the app fires this constantly.
@@ -83,6 +95,19 @@ struct MainWindow: View {
         }
         .onChange(of: app.isSettingsPresented) { _, presented in
             if !presented { Analytics.shared.screen(AnalyticsScreen.pattern(for: app.section)) }
+        }
+    }
+
+    /// Open the waiting share, if any, as a new chat (the iOS shell's
+    /// `openPendingShare`). Taking it empties the inbox, so it is applied once.
+    private func openPendingShare() {
+        guard !app.chat.uploadingAttachments else { return }
+        Task {
+            guard let draft = await MacShareInbox.shared.takeDraft() else { return }
+            app.isSettingsPresented = false
+            app.chat.isHistoryPresented = false
+            app.section = .chat
+            await app.chat.startSharedChat(draft)
         }
     }
 

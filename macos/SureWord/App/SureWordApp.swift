@@ -53,8 +53,14 @@ struct SureWordApp: App {
                 .prefetchClerkImages()
                 // Clerk's OAuth round-trip returns through the `sureword://`
                 // scheme; without this the browser hands back a callback the app
-                // never consumes and sign-in hangs on the last step.
+                // never consumes and sign-in hangs on the last step. A file URL
+                // is a file dropped on the Dock icon (or opened with SureWord):
+                // "Share into SureWord" (`MacShareInbox`).
                 .onOpenURL { url in
+                    if url.isFileURL {
+                        Task { @MainActor in MacShareInbox.shared.open(fileURL: url) }
+                        return
+                    }
                     Task { try? await Clerk.shared.handle(url) }
                 }
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
@@ -77,6 +83,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Must be set before any notification can be delivered, or a click on
         // the morning reminder does nothing but foreground the app.
         UNUserNotificationCenter.current().delegate = self
+        // "Share into SureWord" in other apps' Services menus (`NSServices` in
+        // project.yml, handled in `MacShareInbox.swift`). Requests can arrive
+        // as soon as this is set.
+        NSApp.servicesProvider = self
     }
 
     /// Reopen a window when the app is activated with none open. If SureWord is
@@ -151,6 +161,15 @@ struct RootView: View {
             } else {
                 ProgressView().controlSize(.small)
             }
+        }
+        // "Share into SureWord": files, or a web page's link, dropped anywhere
+        // on the window, signed in or out (`MacShareInbox`). A drop on the
+        // composer still attaches to the open chat; that target is innermost.
+        .dropDestination(for: URL.self) { urls, _ in
+            let items = MacSharedItems(urls: urls)
+            guard !items.isEmpty else { return false }
+            Task { @MainActor in MacShareInbox.shared.receive(items) }
+            return true
         }
         .onChange(of: scenePhase) { _, phase in root.app?.bible.reading.setForeground(phase == .active) }
         // Analytics identity, lifecycle and sign-in completions. Identify on a

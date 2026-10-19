@@ -3529,6 +3529,26 @@ rebuilt from file parts, which have no room for them.
   when it is over the cap. The iOS share extension copies the same way
   (`macos/ShareInbox/PendingShareCopy.swift`): streamed, stopped past the
   app's per-type cap, re-measured, and deleted when incomplete or over.
+- **iOS** has a Share Extension (`macos/SureWord-iOS-Share/`) for the same
+  kinds. It copies the share into the App Group inbox
+  (`group.com.spragginsdesigns.sureword`, `macos/ShareInbox/`) and says it is
+  waiting in SureWord, because iOS does not let a share extension open its
+  app. The app opens it as a new chat with the same actions the next time it
+  comes to the foreground signed in, so a share made signed out opens after
+  sign-in.
+- **macOS** takes the same kinds three ways: "Share into SureWord" in the
+  Services menu (the text selected in any app, or files selected in Finder), a
+  drop anywhere on the window, and a drop on the Dock icon. Each writes one
+  share in the same inbox format under
+  `~/Library/Application Support/SureWord/PendingShares`
+  (`macos/SureWord/App/MacShareInbox.swift`), files copied under the same caps,
+  and the window opens it with the same planner and actions as iOS
+  (`ShareInboxIntake`, `ShareActionsRow`). Files dropped on the Dock icon
+  together reach the app one at a time, so they are gathered into one share. A
+  drop on the composer still attaches to the open chat. `macos/project.yml`
+  declares the Services entry (`NSServices`) and the Dock types
+  (`CFBundleDocumentTypes` with rank None, so SureWord accepts the drop but is
+  never made the default app for those files).
 - **Web** (installed PWA) declares `share_target` (GET title/text/url) at
   `/share`, which shows what was shared and the same two actions; each opens
   chat prefilled so the user can add to it before sending. Files still come in
@@ -3551,7 +3571,8 @@ history load; `/share` at 390 px.
 | Rules (allowance, transcript text, m:ss) | `src/lib/audio-transcription-rules.ts` |
 | Transcription | `src/lib/audio-transcription.ts`, `src/app/api/chat/attachments/[id]/complete/route.ts` |
 | Web | `src/components/ChatFileAttachments.tsx`, `src/app/share/page.tsx`, `src/lib/share-target.ts`, `public/site.webmanifest` |
-| Tests | `tests/voice-messages.test.mjs`, `tests/share-target.test.mjs` |
+| Apple | `macos/ShareInbox/`, `macos/Shared/Chat/ShareIntake.swift`, `macos/Shared/Chat/ShareInboxIntake.swift`, `macos/Shared/Chat/ShareActionsRow.swift`, `macos/SureWord-iOS-Share/`, `macos/SureWord/App/MacShareInbox.swift` |
+| Tests | `tests/voice-messages.test.mjs`, `tests/share-target.test.mjs`, `macos/SureWord-iOSTests/ShareIntoSureWordTests.swift`, `macos/SureWordTests/ShareIntoSureWordMacTests.swift` |
 
 ## App Store subscription
 

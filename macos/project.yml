@@ -92,6 +92,39 @@ targets:
         # no EventKitUI, so the app asks for write-only access and saves the
         # event itself; without this string the request is refused.
         NSCalendarsWriteOnlyAccessUsageDescription: "Allow SureWord to add events announced at your church to your calendar."
+        # "Share into SureWord" in other apps' Services menus: the selected
+        # text, or the files selected in Finder (images, PDFs, audio, text, the
+        # kinds Android's share target takes). AppKit sends
+        # `shareIntoSureWord:userData:error:` to the app delegate
+        # (`MacShareInbox.swift`). NSRequiredContext must be present (empty:
+        # no filtering), or the system registers the service but does not put
+        # it in the Services menu. A new or changed entry is picked up at the
+        # next login, or at once with `/System/Library/CoreServices/pbs -update`.
+        NSServices:
+          - NSMenuItem:
+              default: Share into SureWord
+            NSMessage: shareIntoSureWord
+            NSPortName: SureWord
+            NSRequiredContext: {}
+            NSSendTypes:
+              - public.utf8-plain-text
+            NSSendFileTypes:
+              - public.image
+              - public.audio
+              - com.adobe.pdf
+              - public.text
+        # The same kinds dropped on the Dock icon. Rank None: SureWord accepts
+        # the drop (it arrives through `onOpenURL` as a file URL) but is never
+        # chosen to open these files.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Shared into SureWord
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: None
+            LSItemContentTypes:
+              - public.image
+              - public.audio
+              - com.adobe.pdf
+              - public.text
     # Hardened Runtime resource access only, and specifically NO App Sandbox.
     # The Hardened Runtime refuses calendar access to an app that lacks this
     # entitlement, whatever the person answers; it needs no provisioning
