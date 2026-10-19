@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.95.0 (versionCode 109) - 2026-10-18 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Starting SureWord without a connection no longer leaves Settings switches and requests stuck after you come back online.
+- If a screen hits a problem, you now get a Try again button instead of the app closing.
+- A reply whose formatting cannot be drawn now shows as plain text instead of breaking the chat.
+- Changing a setting no longer redraws the whole app, so the app stays smoother.
+- Lighter companion and logo images make the chat home load faster and use less memory.
+
+**Dev notes:** Performance and stability pass from the 2026-10-18 audit. api.ts bounds every Clerk getToken wait at 15 s (TOKEN_TIMEOUT_MS, fails like a timeout) in both makeAuthedFetch and apiJson. RouteErrorBoundary (src/components) is exported as ErrorBoundary from the root, (app), chat, bible, notes and settings layouts, and reports app_render_error with the error name only. MarkdownBody wraps the renderer in a plain-text fallback that retries on the next streamed chunk. settingsStore gains useSettingsSelector; useTheme, useResolvedTheme and useHighlightLabels subscribe to their slice only, and setSnapshot skips no-op writes. readingLogCore drops a corrupt stored row instead of throwing on every load. Companion poses resized 1145x1374 to 700x840 (5:6 framing kept, test updated) and the header mark to 256x256. Server-only work from the same audit (pdx1 region, billing and prompt-cache fixes) shipped separately and needs no app update.
+
 ## 1.94.0 (versionCode 108) - 2026-10-18 - internal and closed testing
 
 **What's new (Play):**

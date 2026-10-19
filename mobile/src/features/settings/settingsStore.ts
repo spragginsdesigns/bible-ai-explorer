@@ -85,6 +85,9 @@ let hydrated = false;
 const listeners = new Set<() => void>();
 
 function setSnapshot(next: Settings) {
+	// Server syncs re-apply unchanged values often, and every emit re-renders each subscriber.
+	const keys = new Set([...Object.keys(snapshot), ...Object.keys(next)] as (keyof Settings)[]);
+	if ([...keys].every((key) => Object.is(snapshot[key], next[key]))) return;
 	snapshot = next;
 	persist();
 	listeners.forEach((listener) => listener());
@@ -335,9 +338,22 @@ export function useSettings(): Settings {
 	return useSyncExternalStore(subscribe, () => snapshot);
 }
 
+/**
+ * Subscribe to one slice. Every themed component reads the theme, so through
+ * useSettings any setting change (a model pick, a listen rate) re-rendered all
+ * of them; with a selector only a change to the slice does. Return a primitive
+ * or a reference held in the snapshot, never a fresh object.
+ */
+export function useSettingsSelector<T>(select: (settings: Settings) => T): T {
+	return useSyncExternalStore(subscribe, () => select(snapshot));
+}
+
+const selectThemeMode = (settings: Settings) => settings.themeMode;
+const selectHighlightLabels = (settings: Settings) => settings.highlightLabels;
+
 /** Reader-facing hook. An unhydrated account uses the standard hue names. */
 export function useHighlightLabels(): HighlightLabels {
-	return useSettings().highlightLabels ?? EMPTY_HIGHLIGHT_LABELS;
+	return useSettingsSelector(selectHighlightLabels) ?? EMPTY_HIGHLIGHT_LABELS;
 }
 
 /** Non-reactive read of the current settings, for one-shot request bodies. */
@@ -347,7 +363,7 @@ export function getSettings(): Settings {
 
 /** The theme the app should actually render, resolving "system" via the OS. */
 export function useResolvedTheme(): ResolvedTheme {
-	const { themeMode } = useSettings();
+	const themeMode = useSettingsSelector(selectThemeMode);
 	const system = useColorScheme();
 	if (themeMode === "system") return system === "light" ? "light" : "dark";
 	return themeMode;
@@ -362,7 +378,7 @@ export interface Theme {
 }
 
 export function useTheme(): Theme {
-	const { themeMode } = useSettings();
+	const themeMode = useSettingsSelector(selectThemeMode);
 	const resolved = useResolvedTheme();
 	return {
 		mode: themeMode,

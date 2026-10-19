@@ -2,6 +2,9 @@ import React from "react";
 import { Stack } from "expo-router/stack";
 import { useTheme } from "@/features/settings/settingsStore";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 /**
  * Deep links straight to a category (the model picker's "add a key", a
  * memory or church receipt) mount the hub beneath the page, so back never

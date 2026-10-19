@@ -2,6 +2,9 @@ import React from "react";
 import { Stack } from "expo-router/stack";
 import { useTheme } from "@/features/settings/settingsStore";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 // Deep links from chat, notifications, and the legacy /cross URL must leave
 // the Bible home beneath the destination so Android Back returns to Bible.
 export const unstable_settings = { anchor: "index" };

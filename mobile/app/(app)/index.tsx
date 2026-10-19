@@ -33,6 +33,9 @@ import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations"
 import { spacing, type Colors } from "@/theme";
 import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 export default function ChatScreen() {
 	const router = useRouter();
 	const chat = useSureWordChat();

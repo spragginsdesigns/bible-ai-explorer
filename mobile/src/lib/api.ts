@@ -69,6 +69,13 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
  */
 export const STREAM_TIMEOUT_MS = 45_000;
 
+/**
+ * Clerk's token refresh never settles when it started offline, and every
+ * request awaiting it used to hang for the rest of the session (locking any
+ * one-in-flight dedupe with it). Past this, the request fails like a timeout.
+ */
+export const TOKEN_TIMEOUT_MS = 15_000;
+
 /** Error with enough context for the UI to show offline vs server failures. */
 export class ApiError extends Error {
 	readonly status?: number;
@@ -133,6 +140,21 @@ export function setRequestFailureReporter(reporter: RequestFailureReporter | nul
 
 function reportRequestFailure(failure: RequestFailure): void {
 	requestFailureReporter?.(failure);
+}
+
+async function boundedToken(getToken: GetToken, fresh: boolean, path: string): Promise<string | null> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const ceiling = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => {
+			reportRequestFailure({ path, kind: "timeout" });
+			reject(new ApiError("The request timed out. Check your connection and try again.", { isTimeout: true }));
+		}, TOKEN_TIMEOUT_MS);
+	});
+	try {
+		return await Promise.race([getToken(fresh ? { fresh: true } : undefined), ceiling]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 function reportAuthFailure(): void {
@@ -224,7 +246,7 @@ export function makeAuthedFetch(getToken: GetToken) {
 		if (init?.signal?.aborted) throw new DOMException("The request was cancelled.", "AbortError");
 
 		const attempt = async (fresh: boolean): Promise<Response> => {
-			const token = await getToken(fresh ? { fresh: true } : undefined);
+			const token = await boundedToken(getToken, fresh, url);
 			if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
 			const headers = await buildHeaders(token, init);
 
@@ -304,7 +326,7 @@ export async function apiJson<T>(
 	let hadToken = false;
 
 	const attempt = async (fresh: boolean): Promise<Response> => {
-		const token = await getToken(fresh ? { fresh: true } : undefined);
+		const token = await boundedToken(getToken, fresh, path);
 		if (policy && (session !== aiConsentGate.sessionId || !aiConsentGate.isCurrentAccount())) throw new ApiError("Your account changed. Try again.");
 		hadToken = Boolean(token);
 		return fetchWithTimeout(

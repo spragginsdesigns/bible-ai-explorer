@@ -306,6 +306,33 @@ function useCoalescedContent(content: string): string {
 	return displayed;
 }
 
+/**
+ * One answer whose markdown the renderer cannot lay out shows as plain text,
+ * instead of throwing up through the message list and taking the chat down.
+ * The next streamed chunk gets a fresh attempt.
+ */
+class PlainTextFallback extends React.Component<
+	{ content: string; style: StyleProp<TextStyle>; children: React.ReactNode },
+	{ failedOn: string | null }
+> {
+	state = { failedOn: null as string | null };
+	static getDerivedStateFromError() {
+		return { failedOn: "" };
+	}
+	componentDidCatch() {
+		this.setState({ failedOn: this.props.content });
+	}
+	componentDidUpdate(previous: { content: string }) {
+		if (this.state.failedOn !== null && previous.content !== this.props.content && this.state.failedOn !== this.props.content) {
+			this.setState({ failedOn: null });
+		}
+	}
+	render() {
+		if (this.state.failedOn !== null) return <Text selectable style={this.props.style}>{this.props.content}</Text>;
+		return this.props.children;
+	}
+}
+
 export const MarkdownBody = React.memo(function MarkdownBody({
 	content,
 	onVerseReference,
@@ -331,16 +358,18 @@ export const MarkdownBody = React.memo(function MarkdownBody({
 		[router, onVerseReference]
 	);
 	return (
-		<MarkdownView
-			style={markdownStyles}
-			rules={sureWordMarkdownRules}
-			markdownit={markdownIt}
-			onLinkPress={onLinkPress}
-			allowedImageHandlers={ALLOWED_IMAGE_HANDLERS}
-			defaultImageHandler={DEFAULT_IMAGE_HANDLER}
-			topLevelMaxExceededItem={truncationMarker}
-		>
-			{displayed}
-		</MarkdownView>
+		<PlainTextFallback content={displayed} style={markdownStyles.body as StyleProp<TextStyle>}>
+			<MarkdownView
+				style={markdownStyles}
+				rules={sureWordMarkdownRules}
+				markdownit={markdownIt}
+				onLinkPress={onLinkPress}
+				allowedImageHandlers={ALLOWED_IMAGE_HANDLERS}
+				defaultImageHandler={DEFAULT_IMAGE_HANDLER}
+				topLevelMaxExceededItem={truncationMarker}
+			>
+				{displayed}
+			</MarkdownView>
+		</PlainTextFallback>
 	);
 });

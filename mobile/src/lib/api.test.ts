@@ -53,6 +53,23 @@ describe("makeAuthedFetch", () => {
 		expect(vi.mocked(expoFetch)).toHaveBeenCalledTimes(1);
 	});
 
+	it("fails a token refresh that never settles instead of hanging forever", async () => {
+		vi.useFakeTimers();
+		try {
+			const getToken: GetToken = () => new Promise(() => {});
+			const authed = makeAuthedFetch(getToken)("https://api.test/x").catch((e) => e);
+			const json = apiJson(getToken, "/api/x").catch((e) => e);
+			await vi.advanceTimersByTimeAsync(15_000);
+			for (const error of [await authed, await json]) {
+				expect(error).toBeInstanceOf(ApiError);
+				expect(isOfflineMessage(error)).toBe(true);
+			}
+			expect(vi.mocked(expoFetch)).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("aborts a stalled connection after the stream timeout", async () => {
 		vi.useFakeTimers();
 		try {

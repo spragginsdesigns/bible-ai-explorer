@@ -35,6 +35,9 @@ import {
 	shouldShowLaunchAnimationThisSession,
 } from "@/components/launchAnimationSession";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const Hack_400Regular = require("../assets/fonts/Hack-Regular.ttf");

@@ -2,6 +2,9 @@ import React from "react";
 import { Stack } from "expo-router/stack";
 import { useTheme } from "@/features/settings/settingsStore";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 /**
  * Deep links straight to a note (chat's "note added" card, retrieved-verse
  * cards) mount the hub beneath the editor, so back never skips the hub.

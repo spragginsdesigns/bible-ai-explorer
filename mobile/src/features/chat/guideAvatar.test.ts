@@ -22,8 +22,9 @@ describe("SureWord guide avatar contract", () => {
 
 		const png = readFileSync(assetPath);
 		expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
-		expect(png.readUInt32BE(16)).toBe(1145);
-		expect(png.readUInt32BE(20)).toBe(1374);
+		// 700x840 keeps the original 5:6 framing and is still sharp at the 192dp hero on a 4x screen.
+		expect(png.readUInt32BE(16)).toBe(700);
+		expect(png.readUInt32BE(20)).toBe(840);
 		// PNG color type 6 is truecolor with an alpha channel.
 		expect(png[25]).toBe(6);
 	});

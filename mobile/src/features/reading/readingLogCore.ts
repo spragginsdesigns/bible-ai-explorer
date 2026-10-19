@@ -54,6 +54,14 @@ export function retryDelay(attempt: number, random: number): number {
 	);
 }
 
+function parseStored(value: string): unknown {
+	try {
+		return JSON.parse(value);
+	} catch {
+		return null;
+	}
+}
+
 export interface KeyValueStorage {
 	getItem(key: string): Promise<string | null>;
 	setItem(key: string, value: string): Promise<void>;
@@ -113,7 +121,7 @@ export class ReadingJournal {
 		if (this.loaded) return;
 		const prefix = this.prefix();
 		const session = await this.storage.getItem(prefix + "session");
-		if (session) this.session = JSON.parse(session);
+		this.session = session ? (parseStored(session) as Session | null) : null;
 		const keys = (await this.storage.getAllKeys()).filter((k) =>
 			k.startsWith(prefix + "event:"),
 		);
@@ -124,11 +132,11 @@ export class ReadingJournal {
 					.slice(i, i + 50)
 					.map(async (k) => [k, await this.storage.getItem(k)] as const),
 			)) {
-				if (value)
-					this.rows.set(
-						key.slice((prefix + "event:").length),
-						JSON.parse(value),
-					);
+				if (!value) continue;
+				// One torn write used to throw here on every load and stop all reading sync for good.
+				const row = parseStored(value) as StoredEntry | null;
+				if (row) this.rows.set(key.slice((prefix + "event:").length), row);
+				else await this.storage.removeItem(key);
 			}
 		this.loaded = true;
 		this.notify();

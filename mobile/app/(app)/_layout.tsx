@@ -18,6 +18,9 @@ import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 import { afterTabDepartureGuard } from "@/lib/tabDeparture";
 
+// A render crash shows a Try again screen in place of this route instead of closing the app.
+export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
+
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
 	index: "Chat",
 	bible: "Bible",
