@@ -68,8 +68,8 @@ enum ChatReceiptTarget: Sendable, Equatable {
     case plan
     case readingHistory
     case cross
-    /// The Learn queue. iOS pushes `LearnView`; the Mac has no Learn screen
-    /// yet, so there the tap says so rather than going nowhere.
+    /// The Learn queue. iOS pushes `LearnView`; the Mac shows the Bible
+    /// section's Learn pane (`AppModel.pendingLearn`).
     case learn
     case settings(section: ChatReceiptSettingsSection?)
 }

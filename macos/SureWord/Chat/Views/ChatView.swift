@@ -291,9 +291,10 @@ struct ChatView: View {
     /// Where a receipt fragment goes on the Mac. The window's sections are
     /// `chat`, `bible`, `notes` and `cross` (`AppSection`, `Shared/App/AppModel.swift:9`),
     /// and the shell also handed this pane two hops of its own: the Daily Cross
-    /// and the reader. Anything a section owns privately - the Memories sheet
-    /// inside Settings, the reading plan and history panes inside Bible - is
-    /// named rather than jumped to, because there is no cross-section hook.
+    /// and the reader. A note and Learn are staged on `AppModel` for their
+    /// section to open. Anything else a section owns privately - the Memories
+    /// sheet inside Settings, the reading plan and history panes inside Bible -
+    /// is named rather than jumped to.
     private func openReceipt(_ receipt: ChatReceipt) {
         switch receipt.target {
         case .note(let noteID):
@@ -321,7 +322,9 @@ struct ChatView: View {
         case .cross:
             onOpenCross()
         case .learn:
-            show(toast: "Learn arrives in a later phase.")
+            // Learn is a pane of the Bible section, staged like the note above.
+            app.pendingLearn = true
+            app.section = .bible
         case .settings(let section):
             show(toast: ReceiptLine.settingsMessage(for: section))
         }

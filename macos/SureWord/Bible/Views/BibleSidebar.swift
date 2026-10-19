@@ -11,6 +11,7 @@ struct BibleSidebar: View {
     @Bindable var model: BibleModel
     let onShowAtlas: () -> Void
     let onShowPlan: () -> Void
+    let onShowLearn: () -> Void
     let onShowSermons: () -> Void
     let onShowBible: () -> Void
 
@@ -40,6 +41,7 @@ struct BibleSidebar: View {
                 if let lastRead = continueReading?.lastRead {
                     continueCard(lastRead)
                 }
+                learnCard
                 planCard
                 if hasSermons { sermonsCard }
                 atlasCard
@@ -119,6 +121,48 @@ struct BibleSidebar: View {
         .buttonStyle(.plain)
         .help("Continue reading \(lastRead.label)")
         .accessibilityLabel("Continue reading \(lastRead.label)")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
+    }
+
+    // MARK: - Learn a verse
+
+    /// Between Continue reading and the plan, where the Android Bible tab puts
+    /// its "Learn a verse" row (`mobile/app/(app)/bible/index.tsx`).
+    private var learnCard: some View {
+        Button(action: onShowLearn) {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Learn a verse")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text("Practice today's verses")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help("Practice today's verses")
+        .accessibilityLabel("Learn a verse")
         .padding(.horizontal, Spacing.md)
         .padding(.bottom, Spacing.sm)
     }

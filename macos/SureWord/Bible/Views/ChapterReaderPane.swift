@@ -43,6 +43,8 @@ struct ChapterReaderPane: View {
     @Bindable var model: BibleModel
     let askAI: (_ reference: String, _ text: String) -> Void
     let showAtlas: (_ book: Int, _ chapter: Int) -> Void
+    /// Open Learn a verse, as the Added chip does on Android and iOS.
+    let showLearn: () -> Void
 
     /// The LC Greek is on the page (LC-15842): the device choice is on, the
     /// book has it, and no chat source pinned a translation.
@@ -896,17 +898,21 @@ struct ChapterReaderPane: View {
             ) {
                 Task { await saveToNote(context) }
             },
-            // Adds every selected verse to Learn. Android's "Added" chip then
-            // opens the Learn screen, which the Mac does not have yet, so here
-            // it stays a settled stub until the Learn port wires it (LC-16614).
+            // Adds every selected verse to Learn (as "highlight" when the
+            // range is highlighted); the "Added" chip then opens Learn, as on
+            // Android and iOS.
             VerseSheetAction(
                 id: "learn",
                 systemImage: sheet.learnStatus == .added ? "graduationcap.fill" : "graduationcap",
                 label: sheet.learnStatus == .adding ? "Adding…" : sheet.learnStatus == .added ? "Added" : "Learn",
-                disabled: sheet.learnStatus != .idle,
+                disabled: sheet.learnStatus == .adding,
                 active: sheet.learnStatus == .added
             ) {
-                Task { await addToLearn(context, highlighted: highlighted) }
+                if sheet.learnStatus == .added {
+                    showLearn()
+                } else {
+                    Task { await addToLearn(context, highlighted: highlighted) }
+                }
             },
         ]
     }

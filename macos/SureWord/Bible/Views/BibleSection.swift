@@ -15,6 +15,7 @@ struct BibleSection: View {
     @State private var showingAtlas = false
     @State private var showingPlan = false
     @State private var showingSermons = false
+    @State private var showingLearn = false
     @State private var showingHistory = false
     @State private var atlasBook: Int?
     @State private var atlasChapter: Int?
@@ -28,6 +29,7 @@ struct BibleSection: View {
                     atlasChapter = nil
                     showingPlan = false
                     showingSermons = false
+                    showingLearn = false
                     showingAtlas = true
                 },
                 onShowPlan: {
@@ -35,8 +37,10 @@ struct BibleSection: View {
                     atlasChapter = nil
                     showingAtlas = false
                     showingSermons = false
+                    showingLearn = false
                     showingPlan = true
                 },
+                onShowLearn: { showLearn() },
                 onShowSermons: {
                     showBible()
                     showingSermons = true
@@ -98,10 +102,18 @@ struct BibleSection: View {
             app.pendingVerseReference = nil
             app.pendingVerseTranslation = nil
         }
+        // A chat "Learning John 3:16" receipt lands here, consumed once for
+        // the same reason as the verse reference above.
+        .onChange(of: app.pendingLearn, initial: true) { _, pending in
+            guard pending else { return }
+            showLearn()
+            app.pendingLearn = false
+        }
     }
 
     /// Android's route for the pane `detail` is showing (`screen_viewed`).
     private var detailScreen: String {
+        if showingLearn { return AnalyticsScreen.learn }
         if showingSermons { return AnalyticsScreen.sermons }
         if showingPlan { return AnalyticsScreen.plan }
         if showingAtlas { return AnalyticsScreen.timeline }
@@ -117,13 +129,23 @@ struct BibleSection: View {
         showingAtlas = false
         showingPlan = false
         showingSermons = false
+        showingLearn = false
         atlasBook = nil
         atlasChapter = nil
     }
 
+    /// Learn a verse in front of the books, from the sidebar card, the
+    /// reader's Added chip or a chat receipt.
+    private func showLearn() {
+        showBible()
+        showingLearn = true
+    }
+
     @ViewBuilder
     private var detail: some View {
-        if showingSermons {
+        if showingLearn {
+            LearnPane(onDismiss: { showBible() })
+        } else if showingSermons {
             SermonStudiesPane(onDismiss: { showBible() })
         } else if showingPlan {
             ReadingPlanPane(
@@ -171,7 +193,8 @@ struct BibleSection: View {
                         atlasBook = book
                         atlasChapter = chapter
                         showingAtlas = true
-                    }
+                    },
+                    showLearn: { showLearn() }
                 )
             }
         }

@@ -84,6 +84,10 @@ final class AppModel {
     /// macOS section selects it). The notes counterpart of
     /// `pendingVerseReference`.
     var pendingNoteID: String?
+    /// Set when a chat "Learning John 3:16" receipt asks for Learn a verse on
+    /// the Mac; consumed by the Bible section, which shows its Learn pane. iOS
+    /// pushes `LearnView` from the chat stack instead and never sets it.
+    var pendingLearn = false
 
     /// `userID` is the Clerk id of the session this model is being built for.
     /// It is what tells the preference sync whether the persisted caches belong

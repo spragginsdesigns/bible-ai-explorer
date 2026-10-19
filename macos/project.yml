@@ -157,6 +157,11 @@ targets:
       # selection rules, the sheet model and the See also decoder.
       - path: SureWord-iOSTests/VerseSelectionTests.swift
       - path: SureWord-iOSTests/BibleTextTests.swift
+      # Learn a verse, which the Mac now shows too: the card and mode
+      # decoders, the masking ladder, the practice modes and the review sync.
+      - path: SureWord-iOSTests/LearnContractTests.swift
+      - path: SureWord-iOSTests/LearnPracticeTests.swift
+      - path: SureWord-iOSTests/LearnSyncTests.swift
     dependencies:
       - target: SureWord
     settings:
