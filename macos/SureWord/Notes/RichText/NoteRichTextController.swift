@@ -38,6 +38,13 @@ final class NoteRichTextController {
     /// Fired on every user edit; the editor model debounces it into an autosave.
     var onChange: (@MainActor () -> Void)?
 
+    /// The note a `[[wikilink]]` target opens, or nil while none carries that
+    /// name. The editor model points it at the notes library.
+    @ObservationIgnored var resolveWikilink: (@MainActor (String) -> String?)?
+    /// Opens the note behind a resolved `[[wikilink]]` the user clicked. The
+    /// editor view sets it, since opening a note is navigation.
+    @ObservationIgnored var onOpenWikilink: (@MainActor (String) -> Void)?
+
     /// Attaching the view is what flushes a document that was loaded before it
     /// existed — see `pendingHTML`.
     @ObservationIgnored weak var textView: NoteTextView? {
@@ -93,6 +100,19 @@ final class NoteRichTextController {
         let trailing = (textView.typingAttributes[NoteAttributedText.blockKey]
             as? NoteAttributedText.BlockBox)?.block
         return NoteAttributedText.document(from: storage, trailingBlock: trailing)
+    }
+
+    // MARK: - Text insertion
+
+    /// Insert plain text at the caret (replacing any selection) the way typing
+    /// does: with the caret's typing attributes and through `NSTextView`'s own
+    /// change path, so it lands on the undo stack and autosaves. The iOS
+    /// controller's `insertText` and Android's wikilink insert do the same.
+    func insertText(_ text: String) {
+        guard let textView, !text.isEmpty else { return }
+        // The picker that called this held focus; typing carries on after it.
+        textView.window?.makeFirstResponder(textView)
+        textView.insertText(text, replacementRange: textView.selectedRange())
     }
 
     // MARK: - Inline marks
@@ -502,6 +522,33 @@ final class NoteRichTextController {
         }
         textView.decorations = decorations
         textView.theme = theme
+        styleWikilinks()
+    }
+
+    // MARK: - Wikilinks
+
+    /// Redraw the `[[wikilinks]]` after the notes they point at changed (one
+    /// was created, renamed or given an alias). Display only: no autosave, no
+    /// undo step.
+    func refreshWikilinks() {
+        styleWikilinks()
+    }
+
+    /// Runs after every render and keystroke, from `updateDecorations`. Skipped
+    /// while an input method is composing, so restyling never disturbs the
+    /// marked text; the commit that ends it is a change and runs it again.
+    private func styleWikilinks() {
+        guard let textView, let storage = textView.textStorage, !textView.hasMarkedText() else { return }
+        let links = NoteWikilinks.matches(in: storage.string).map {
+            NoteAttributedText.DrawnWikilink(range: $0.range, noteID: resolveWikilink?($0.target) ?? "")
+        }
+        NoteAttributedText.styleWikilinks(links, in: storage, theme: theme)
+        // Typing right after a link would otherwise carry its colour onto the
+        // next character until the following pass.
+        if textView.typingAttributes[NoteAttributedText.wikilinkKey] != nil,
+           let plain = NoteAttributedText.withoutWikilink(textView.typingAttributes, theme: theme) {
+            textView.typingAttributes = plain
+        }
     }
 
     private func refreshState(document: NoteDocument? = nil) {

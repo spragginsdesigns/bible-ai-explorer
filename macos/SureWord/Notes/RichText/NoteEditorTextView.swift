@@ -42,6 +42,9 @@ struct NoteEditorTextView: NSViewRepresentable {
         textView.onToggleTask = { [controller] offset in
             controller.toggleTask(atParagraphOffset: offset)
         }
+        textView.onOpenWikilink = { [controller] noteID in
+            controller.onOpenWikilink?(noteID)
+        }
 
         let scrollView = NSScrollView()
         scrollView.drawsBackground = false

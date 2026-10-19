@@ -155,6 +155,12 @@ struct NoteEditorView: View {
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
                 Task { await model.reloadAfterAIAppend() }
             }
+            // A tapped `[[link]]` pushes its note, like the info sheet's links.
+            model.controller.onOpenWikilink = { id in linkedNoteID = id }
+        }
+        .onChange(of: NotesStore.shared.notes) {
+            // A note created, renamed or aliased can resolve a drawn link.
+            model.controller.refreshWikilinks()
         }
         .onChange(of: model.note?.title) { _, title in
             if !isTitleFocused { draftTitle = title ?? "" }

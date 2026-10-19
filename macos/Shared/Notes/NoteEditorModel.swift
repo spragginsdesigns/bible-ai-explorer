@@ -53,6 +53,11 @@ final class NoteEditorModel {
         controller.onChange = { [weak self] in
             self?.scheduleSave()
         }
+        // In-text `[[links]]` resolve against the cached library, the web
+        // editor's `linkTargets`, so drawing them costs no request.
+        controller.resolveWikilink = { [weak store] target in
+            NoteWikilinks.resolve(target, in: store?.notes ?? [])
+        }
     }
 
     // MARK: - Loading

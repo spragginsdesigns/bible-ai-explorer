@@ -51,6 +51,13 @@ final class NoteRichTextController {
     /// Fired on every user edit; the editor model debounces it into an autosave.
     var onChange: (@MainActor () -> Void)?
 
+    /// The note a `[[wikilink]]` target opens, or nil while none carries that
+    /// name. The editor model points it at the notes library.
+    @ObservationIgnored var resolveWikilink: (@MainActor (String) -> String?)?
+    /// Opens the note behind a resolved `[[wikilink]]` the user tapped. The
+    /// editor view sets it, since opening a note is navigation.
+    @ObservationIgnored var onOpenWikilink: (@MainActor (String) -> Void)?
+
     /// Attaching the view is what flushes a document that was loaded before it
     /// existed — see `pendingHTML`.
     @ObservationIgnored weak var textView: NoteTextView? {
@@ -722,6 +729,34 @@ final class NoteRichTextController {
         }
         textView.decorations = decorations
         textView.theme = theme
+        styleWikilinks()
+    }
+
+    // MARK: - Wikilinks
+
+    /// Redraw the `[[wikilinks]]` after the notes they point at changed (one
+    /// was created, renamed or given an alias). Display only: no autosave, no
+    /// undo step.
+    func refreshWikilinks() {
+        styleWikilinks()
+    }
+
+    /// Runs after every render and keystroke, from `updateDecorations`. Skipped
+    /// while an input method is composing, so restyling never disturbs the
+    /// marked text; the commit that ends it is a change and runs it again.
+    private func styleWikilinks() {
+        guard let textView, textView.markedTextRange == nil else { return }
+        let storage = textView.textStorage
+        let links = NoteWikilinks.matches(in: storage.string).map {
+            NoteAttributedText.DrawnWikilink(range: $0.range, noteID: resolveWikilink?($0.target) ?? "")
+        }
+        NoteAttributedText.styleWikilinks(links, in: storage, theme: theme, scale: textScale)
+        // Typing right after a link would otherwise carry its colour onto the
+        // next character until the following pass.
+        if textView.typingAttributes[NoteAttributedText.wikilinkKey] != nil,
+           let plain = NoteAttributedText.withoutWikilink(textView.typingAttributes, theme: theme, scale: textScale) {
+            textView.typingAttributes = plain
+        }
     }
 
     private func refreshState(document: NoteDocument? = nil) {

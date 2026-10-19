@@ -25,11 +25,9 @@ struct InsertWikilinkSheet: View {
     private var notes: [Note] { NotesStore.shared.notes }
 
     private var matches: [Note] {
-        NoteWikilinks.filterNotesForLinking(notes, query: debouncedQuery, excludeID: currentNoteID)
-            .sorted {
-                (NoteUtils.parseISO($0.updatedAt) ?? .distantPast)
-                    > (NoteUtils.parseISO($1.updatedAt) ?? .distantPast)
-            }
+        NoteWikilinks.sortedByRecentlyUpdated(
+            NoteWikilinks.filterNotesForLinking(notes, query: debouncedQuery, excludeID: currentNoteID)
+        )
     }
 
     private var newTarget: String { NoteWikilinks.sanitizeTarget(debouncedQuery) }

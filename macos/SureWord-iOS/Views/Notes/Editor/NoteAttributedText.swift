@@ -331,6 +331,73 @@ enum NoteAttributedText {
         return UIFont(descriptor: descriptor, size: base.pointSize)
     }
 
+    // MARK: - Wikilinks
+
+    /// Marks a drawn `[[wikilink]]`. The value is the note id it opens, or ""
+    /// while no note carries that name. Display only: `document(from:)` reads
+    /// nothing but the block and marks keys, so a drawn link saves as exactly
+    /// the plain text it is, which is what the server parses links from
+    /// (`src/lib/note-links.ts`).
+    static let wikilinkKey = NSAttributedString.Key("swNoteWikilink")
+
+    /// A link found in the text, with the note it opens ("" when unresolved).
+    struct DrawnWikilink: Equatable {
+        var range: NSRange
+        var noteID: String
+    }
+
+    /// Draws the links the way the web editor's `WikilinkDecoration` does:
+    /// accent when a note carries the name (a tap opens it), dimmed when
+    /// none does yet. The previous pass's characters first go back to the
+    /// styling their own block and marks give them, so an edit that breaks a
+    /// link leaves no colour behind. Unchanged links, which is most
+    /// keystrokes, touch nothing.
+    static func styleWikilinks(
+        _ links: [DrawnWikilink],
+        in storage: NSTextStorage,
+        theme: SureWordColors,
+        scale: CGFloat = 1
+    ) {
+        var drawn: [DrawnWikilink] = []
+        storage.enumerateAttribute(wikilinkKey, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
+            if let noteID = value as? String { drawn.append(DrawnWikilink(range: range, noteID: noteID)) }
+        }
+        guard drawn != links else { return }
+
+        storage.beginEditing()
+        for link in drawn {
+            storage.enumerateAttributes(in: link.range) { attributes, range, _ in
+                if let plain = withoutWikilink(attributes, theme: theme, scale: scale) {
+                    storage.setAttributes(plain, range: range)
+                } else {
+                    storage.removeAttribute(wikilinkKey, range: range)
+                }
+            }
+        }
+        for link in links {
+            storage.addAttributes(
+                [
+                    wikilinkKey: link.noteID,
+                    .foregroundColor: UIColor(link.noteID.isEmpty ? theme.textGhost : theme.accent),
+                ],
+                range: link.range
+            )
+        }
+        storage.endEditing()
+    }
+
+    /// `attributes` rebuilt from the block and marks they carry, which drops
+    /// any link styling. Nil for a run with no block (foreign text).
+    static func withoutWikilink(
+        _ attributes: [NSAttributedString.Key: Any],
+        theme: SureWordColors,
+        scale: CGFloat = 1
+    ) -> [NSAttributedString.Key: Any]? {
+        guard let block = (attributes[blockKey] as? BlockBox)?.block else { return nil }
+        let marks = (attributes[marksKey] as? MarksBox)?.marks ?? []
+        return runAttributes(block: block, marks: marks, theme: theme, scale: scale)
+    }
+
     // MARK: - List markers
 
     /// The marker string drawn in the gutter for each block, keyed by block

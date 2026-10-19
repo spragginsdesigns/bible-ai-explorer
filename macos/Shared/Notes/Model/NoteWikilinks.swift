@@ -59,6 +59,94 @@ enum NoteWikilinks {
         let resolved = link.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return resolved.isEmpty ? link.targetTitle : resolved
     }
+
+    /// Picker order: most recently updated first, as Android's
+    /// `InsertWikilinkSheet` and the web's `sortByRecentlyUpdated` sort.
+    static func sortedByRecentlyUpdated(_ notes: [Note]) -> [Note] {
+        notes.sorted {
+            (NoteUtils.parseISO($0.updatedAt) ?? .distantPast)
+                > (NoteUtils.parseISO($1.updatedAt) ?? .distantPast)
+        }
+    }
+
+    // MARK: - Links in the editor
+
+    /// One `[[...]]` in the editor's text: where it sits (UTF-16, the unit
+    /// `NSRange` and `NSTextStorage` count in) and the note title it targets.
+    struct Match: Sendable, Equatable {
+        var range: NSRange
+        var target: String
+    }
+
+    /// Every `[[...]]` in `text`, for drawing links in the editor - the Apple
+    /// side of the web's `WikilinkDecoration` (`src/components/notes/extensions/WikilinkDecoration.ts`).
+    ///
+    /// Same rule as the server's `/\[\[([^[\]]+?)\]\]/g` in
+    /// `src/lib/note-links.ts`: the inside holds no bracket, and the leftmost
+    /// match wins. Like the web, which decorates one text node at a time, a
+    /// link never runs across a paragraph (`\n`) or a hard break (U+2028).
+    /// `[[Target|display]]` and `[[Target#heading]]` both target "Target", and
+    /// a link whose target is blank (`[[ ]]`, `[[#x]]`) is skipped.
+    static func matches(in text: String) -> [Match] {
+        let units = Array(text.utf16)
+        let open = UInt16(UInt8(ascii: "["))
+        let close = UInt16(UInt8(ascii: "]"))
+        let newline = UInt16(UInt8(ascii: "\n"))
+        let hardBreak: UInt16 = 0x2028
+
+        var found: [Match] = []
+        var index = 0
+        while index + 1 < units.count {
+            guard units[index] == open, units[index + 1] == open else {
+                index += 1
+                continue
+            }
+            var end = index + 2
+            while end < units.count,
+                  units[end] != open, units[end] != close,
+                  units[end] != newline, units[end] != hardBreak {
+                end += 1
+            }
+            guard end > index + 2, end + 1 < units.count,
+                  units[end] == close, units[end + 1] == close
+            else {
+                index += 1
+                continue
+            }
+            let inner = String(decoding: units[(index + 2)..<end], as: UTF16.self)
+            let target = target(of: inner)
+            if !target.isEmpty {
+                found.append(Match(range: NSRange(location: index, length: end + 2 - index), target: target))
+            }
+            index = end + 2
+        }
+        return found
+    }
+
+    /// The note title inside a link: everything before the first `#` or `|`,
+    /// trimmed (`targetOf` on the web, the `cut` in the server's parser).
+    static func target(of inner: String) -> String {
+        let cut = inner.firstIndex { $0 == "#" || $0 == "|" } ?? inner.endIndex
+        return inner[..<cut].trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The note a link opens, or nil when none carries that name yet - the
+    /// web editor's `resolveTarget`, which mirrors the server's rule: titles
+    /// and aliases match case-insensitively, and the most recently updated
+    /// note wins a collision. Compared as ISO strings, as the web does.
+    static func resolve(_ target: String, in notes: [Note]) -> String? {
+        let key = target.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !key.isEmpty else { return nil }
+        var winner: Note?
+        for note in notes {
+            let names = [note.title] + note.aliases
+            guard names.contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == key })
+            else { continue }
+            if let current = winner, note.updatedAt <= current.updatedAt { continue }
+            winner = note
+        }
+        return winner?.id
+    }
 }
 
 // MARK: - Link graph wire types

@@ -32,6 +32,11 @@ final class NoteTextView: UITextView {
     /// Fired when the user taps a task checkbox in the gutter.
     var onToggleTask: ((Int) -> Void)?
 
+    /// Fired with the note id when the user taps a resolved `[[wikilink]]`.
+    var onOpenWikilink: ((String) -> Void)?
+    /// Holds the link tap's delegate, which the recognizer keeps only weakly.
+    private let wikilinkTapDelegate: WikilinkTapDelegate
+
     /// Hardware Tab / Shift-Tab. Both are always swallowed, even outside a
     /// list, for the reason the Mac gives: the alternative is a literal tab
     /// character in HTML the web and Android also read.
@@ -54,11 +59,16 @@ final class NoteTextView: UITextView {
     override var undoManager: UndoManager? { noteUndoManager }
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
+        wikilinkTapDelegate = WikilinkTapDelegate()
         super.init(frame: frame, textContainer: textContainer)
         observeKeyboard()
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (view: NoteTextView, _) in
             view.onContentSizeCategoryChange?()
         }
+        let wikilinkTap = UITapGestureRecognizer(target: self, action: #selector(openTappedWikilink(_:)))
+        wikilinkTapDelegate.textView = self
+        wikilinkTap.delegate = wikilinkTapDelegate
+        addGestureRecognizer(wikilinkTap)
     }
 
     @available(*, unavailable)
@@ -181,6 +191,40 @@ final class NoteTextView: UITextView {
         return hit
     }
 
+    // MARK: - Wikilinks
+
+    /// A tap on a resolved link opens its note, as a click does on the web.
+    /// A recognizer rather than `touchesBegan` (the checkbox's route) because
+    /// a tap fails as soon as the finger moves or holds, so scrolling or
+    /// long-pressing to place the caret over a link never navigates.
+    @objc private func openTappedWikilink(_ recognizer: UITapGestureRecognizer) {
+        guard let noteID = wikilinkNoteID(at: recognizer.location(in: self)) else { return }
+        // Editing may already be under way; the editor is about to be
+        // covered, so the keyboard should not stay up over the next note.
+        resignFirstResponder()
+        onOpenWikilink?(noteID)
+    }
+
+    /// The note behind the resolved `[[wikilink]]` under `point`, if any.
+    /// The glyph's own box must hold the point: the nearest character to a
+    /// tap past the end of a line is the line's last one, and that tap should
+    /// place the caret, not follow a link.
+    func wikilinkNoteID(at point: CGPoint) -> String? {
+        let storage = textStorage
+        guard storage.length > 0 else { return nil }
+        let local = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
+        var fraction: CGFloat = 0
+        let glyph = layoutManager.glyphIndex(for: local, in: textContainer, fractionOfDistanceThroughGlyph: &fraction)
+        let box = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: textContainer)
+        guard box.contains(local) else { return nil }
+        let index = layoutManager.characterIndexForGlyph(at: glyph)
+        guard index < storage.length,
+              let noteID = storage.attribute(NoteAttributedText.wikilinkKey, at: index, effectiveRange: nil) as? String,
+              !noteID.isEmpty
+        else { return nil }
+        return noteID
+    }
+
     // MARK: - Hardware keyboard
 
     /// Priority over the system so Tab nests a list item instead of moving
@@ -251,6 +295,33 @@ final class NoteTextView: UITextView {
         if selectedRange.location != NSNotFound {
             scrollRangeToVisible(selectedRange)
         }
+    }
+}
+
+/// Lets the link tap begin only over a resolved `[[wikilink]]`. The text
+/// view's own taps wait for it to fail, so a tap on a link opens the note
+/// without also placing the caret (the web prevents that default too), and a
+/// tap anywhere else fails it at once and edits as usual.
+private final class WikilinkTapDelegate: NSObject, UIGestureRecognizerDelegate {
+    weak var textView: NoteTextView?
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let textView else { return false }
+        return textView.wikilinkNoteID(at: gestureRecognizer.location(in: textView)) != nil
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        otherGestureRecognizer is UITapGestureRecognizer && otherGestureRecognizer.view === textView
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }
 
