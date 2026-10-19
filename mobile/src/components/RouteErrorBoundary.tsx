@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { ErrorBoundaryProps } from "expo-router";
+import { AppText as Text } from "@/components/AppText";
 import { darkColors as colors } from "@/theme";
 import { track } from "@/lib/analytics";
 
@@ -9,8 +10,8 @@ import { track } from "@/lib/analytics";
  *
  * Exported as `ErrorBoundary` from the route layouts, so expo-router catches
  * the throw and `retry` re-renders the route in place. It reads the fixed dark
- * palette and plain Text on purpose: the settings store and the bundled fonts
- * are among the things that could have thrown.
+ * palette on purpose: the settings store is among the things that could have
+ * thrown.
  */
 export function RouteErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 	useEffect(() => {
