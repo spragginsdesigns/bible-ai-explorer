@@ -417,15 +417,15 @@ outright.
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | Server-side events (turn answered/unanswered by model and platform, ratings, signups) | Covered from the API, no client work needed | Covered from the API | Covered from the API | Covered from the API | Production `$identify` and proxy 200s verified on sureword.app; 1127 web logic tests |
-| Client page/screen views and identity | 1.73.0 (80), `screen_viewed` from `useScreenTracking` (route patterns, no ids) | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | ❌ not implemented | ❌ not implemented | Web `/ingest/flags/` 200 in a real browser session. Android screen views did not exist before 1.73.0: `captureScreens` hooks a React Navigation container and expo-router owns its own below the provider, so 32 screens sent 0 events across 1.72.x |
-| App open / background lifecycle | 1.72.1 (79), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | ❌ | ❌ | Same |
-| Anonymous trail survives to the account (no reset on the signed-out state) | 1.73.0 (80) | Same fix, same release | n/a (server-side half only) | n/a | `tests/analytics-event-mirror.test.mjs` pins the previous-user ref on both clients |
+| Client page/screen views and identity | 1.73.0 (80), `screen_viewed` from `useScreenTracking` (route patterns, no ids) | `src/instrumentation-client.ts` + `AnalyticsProvider`, verified live | 🟡 source + tests, not compiled (LC-16619): `screen_viewed` with Android's route patterns (`AnalyticsScreen.swift`) for the sidebar sections, the Bible panes (chapters, chapter, plan, `/bible/timeline`, sermon studies and a chosen study), atlas entry, event and trace, the Reading log and the open note; search lives in the always-visible sidebar, so it is not a screen of its own; identify on sign-in, direct PostHog batch client with no SDK (`macos/Shared/Analytics/Analytics.swift`) | 🟡 source + tests, not compiled (LC-16619): every Android screen, including `/bible/timeline`, the four atlas pages, `/bible/history` and `/bible/sermon` | Web `/ingest/flags/` 200 in a real browser session. Android screen views did not exist before 1.73.0: `captureScreens` hooks a React Navigation container and expo-router owns its own below the provider, so 32 screens sent 0 events across 1.72.x |
+| App open / background lifecycle | 1.72.1 (79), `captureAppLifecycleEvents` | Browser equivalent is `$pageview` + `$pageleave` | 🟡 source + tests, not compiled (LC-16619): PostHog's four lifecycle names from `Analytics.start` and the scene phase | 🟡 source + tests, not compiled (LC-16619): same shared code | Same |
+| Anonymous trail survives to the account (no reset on the signed-out state) | 1.73.0 (80) | Same fix, same release | 🟡 source + tests, not compiled (LC-16619): `AnalyticsRules.identityAction` resets only after a real sign-out | 🟡 source + tests, not compiled (LC-16619): same shared code | `tests/analytics-event-mirror.test.mjs` pins the previous-user ref on both clients |
 | Internal and test traffic excluded | 1.73.0 (80): emulator and dev builds self-flag | Server flags `INTERNAL_USER_IDS` for every client | Covered from the API | Covered from the API | PostHog cohort 581124 on `$internal_or_test_user` plus an `is_test_client` event filter, both in the project's `test_account_filters`, default-checked |
-| Sign-in funnel (started / completed / failed, by method) | 1.73.0 (80), all three methods in `(auth)/sign-in.tsx` | 2026-10-04 `SignInAnalytics` on the sign-in page (Clerk listener; method + error code only) | ❌ not implemented | ❌ not implemented | 7 analytics-internal tests; method and Clerk error code only, never the identifier |
-| Failed requests (offline, timeout, HTTP status) | 1.73.0 (80), reported from `mobile/src/lib/api.ts` | 2026-10-04 one pass-through `window.fetch` observer for same-origin `/api/` (`src/components/analytics/fetchObserver.ts`), route shape only, throttled per route and cause | ❌ | ❌ | `routeShape` drops ids and query strings; throttled to one event per route and cause per 30s |
+| Sign-in funnel (started / completed / failed, by method) | 1.73.0 (80), all three methods in `(auth)/sign-in.tsx` | 2026-10-04 `SignInAnalytics` on the sign-in page (Clerk listener; method + error code only) | 🟡 source + tests, not compiled (LC-16619): `SignInAnalytics.swift`, a Clerk response middleware plus auth events, Android's method names, error code only | 🟡 source + tests, not compiled (LC-16619): same shared code | 7 analytics-internal tests; method and Clerk error code only, never the identifier |
+| Failed requests (offline, timeout, HTTP status) | 1.73.0 (80), reported from `mobile/src/lib/api.ts` | 2026-10-04 one pass-through `window.fetch` observer for same-origin `/api/` (`src/components/analytics/fetchObserver.ts`), route shape only, throttled per route and cause | 🟡 source + tests, not compiled (LC-16619): reported from `APIClient`; `routeShape` now masks personal card ids as Android and the server do | 🟡 source + tests, not compiled (LC-16619): same shared code | `routeShape` drops ids and query strings; throttled to one event per route and cause per 30s |
 | Provider failures (bad key, exhausted quota, missing model) | Covered from the API | Covered from the API | Covered from the API | Covered from the API | `provider_failed` from `recordTurnError` in `src/app/api/ask-question/route.ts`, classified by `codeForError` |
-| Send feedback | 1.72.1 (79), Settings -> Send feedback | Settings -> Send feedback | ❌ not implemented | ❌ not implemented | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
-| `x-sureword-client` request header | 1.72.1 (79), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | ❌ (falls back to user-agent sniffing) | ❌ (same fallback) | `platformFromHeaders` in `src/lib/analytics/events.ts` |
+| Send feedback | 1.72.1 (79), Settings -> Send feedback | Settings -> Send feedback | 🟡 source + tests, not compiled (LC-16619): a sheet over Settings, `macos/Shared/Settings/Feedback.swift`, same `POST /api/feedback`, categories, limits and copy | 🟡 source + tests, not compiled (LC-16619): pushed from Settings, same shared code | 7 route + rules tests, 2 mirror tests, `Feedback` table live in production |
+| `x-sureword-client` request header | 1.72.1 (79), set once in `mobile/src/lib/api.ts` | Set by the web feedback client | 🟡 source + tests, not compiled (LC-16619): `macos` on every `APIClient` request | 🟡 source + tests, not compiled (LC-16619): `ios` on every `APIClient` request | `platformFromHeaders` in `src/lib/analytics/events.ts` |
 
 **What the first two days of measurement actually showed, 2026-09-20.** PostHog
 reported four new users in one morning. There were none. Six app launches had
@@ -438,11 +438,19 @@ own phone, and four Google Play review devices signed in as the reviewer demo
 account. Neon confirmed zero new accounts on both days. Everything in the four
 new rows above exists because of that morning.
 
-**Apple gap, deliberate and tracked.** macOS and iOS are covered by the
-server-side half and carry neither the client SDK nor the feedback screen yet.
-Both need a Mac to build, so they are not claimed as verified here. The web
-client remains a superset (it also carries `$pageleave`), which the parity rule
-allows; no client lost a capability.
+**Apple, source and tests, waiting on the Mac gate (LC-16609).** macOS and iOS
+carry the client half in `macos/Shared/Analytics/` (a direct PostHog batch
+client with no SDK, so nothing is captured that `Analytics.swift` does not
+name, and every property passes an allowlist) and Send feedback in
+`macos/Shared/Settings/Feedback.swift`. `AnalyticsMirrorTests` pins the event
+names to the server and Android, the allowlist to every key Android's call
+sites send, and `routeShape` to fixtures generated from the TypeScript. On
+2026-10-18 (LC-16619) those tests compiled and passed against the
+Foundation-only sources with the Linux Swift 6.0.3 toolchain, and a batch
+built by that client was accepted by PostHog (200); the SwiftUI call sites are
+not compiled until the Mac gate. The web client remains a superset (it also
+carries `$pageleave`), which the parity rule allows; no client lost a
+capability.
 
 **Google Play Data Safety must be updated to declare app-activity collection
 before this build is promoted beyond internal testing.** The declaration on
