@@ -53,6 +53,7 @@ struct NoteEditorPane: View {
                 .popover(isPresented: $isLinkPopoverPresented) { linkPopover }
                 .popover(isPresented: $isWikilinkPickerPresented) {
                     InsertWikilinkPopover(currentNoteID: noteID) { title in
+                        isWikilinkPickerPresented = false
                         model.controller.insertText(NoteWikilinks.format(title))
                     }
                 }

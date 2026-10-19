@@ -122,7 +122,7 @@ struct NoteWikilinksTests {
 // against the server's `parseWikilinks` (`src/lib/note-links.ts`) on the same
 // strings and agree on every one but the cross-line case, where the server
 // still records a link and the editor, like the web's, draws none.
-@Suite("Wikilinks in the editor")
+@Suite("Wikilink matching")
 struct NoteWikilinkMatchTests {
 
     private func targets(_ text: String) -> [String] {

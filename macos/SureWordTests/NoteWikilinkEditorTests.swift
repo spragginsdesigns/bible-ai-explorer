@@ -103,12 +103,14 @@ struct NoteWikilinkEditorTests {
     @Test("The picker's insert writes the link at the caret and draws it")
     func pickerInsert() {
         let editor = makeEditor()
-        editor.controller.load(html: "<p>See </p>")
+        // A trailing space would not survive the parse (it collapses
+        // whitespace the way innerHTML does), so the caret sits before ".".
+        editor.controller.load(html: "<p>See .</p>")
         editor.textView.setSelectedRange(NSRange(location: 4, length: 0))
 
         editor.controller.insertText(NoteWikilinks.format("Romans study"))
 
-        #expect(editor.controller.html() == "<p>See [[Romans study]]</p>")
+        #expect(editor.controller.html() == "<p>See [[Romans study]].</p>")
         #expect(link(at: 4, in: editor) == "a")
     }
 
