@@ -80,9 +80,9 @@ final class AppModel {
     /// reader override and never mutates the account preference.
     var pendingVerseTranslation: TranslationID?
     /// Set when a chat note-receipt asks to open the note it wrote; consumed
-    /// by the Notes tab root, which pushes the editor. The iOS counterpart of
-    /// `pendingVerseReference` (macOS opens notes inside its own section and
-    /// never needs this).
+    /// by the Notes root, which opens the editor (the iOS tab pushes it, the
+    /// macOS section selects it). The notes counterpart of
+    /// `pendingVerseReference`.
     var pendingNoteID: String?
 
     /// `userID` is the Clerk id of the session this model is being built for.

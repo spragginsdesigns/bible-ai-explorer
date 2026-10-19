@@ -130,20 +130,6 @@ final class NotesLibraryModel {
 
     // MARK: Notes
 
-    @discardableResult
-    func createNote() async -> Note? {
-        do {
-            let note = try await api.createNote(title: "Untitled Note", folderId: activeFolderID)
-            store.upsert(note)
-            selectedNoteID = note.id
-            error = nil
-            return note
-        } catch {
-            self.error = (error as? APIError)?.message ?? "The note could not be created."
-            return nil
-        }
-    }
-
     /// "Start a note" with a template (PRD E1), Android's
     /// `CreateItemSheet.pickTemplate`: the sermon template asks `/api/church`
     /// for the saved church's name first (an unavailable Places key just

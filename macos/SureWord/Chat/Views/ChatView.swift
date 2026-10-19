@@ -6,7 +6,7 @@ struct ChatView: View {
     /// The picker writes the chosen model and effort straight into the store
     /// `ChatViewModel` reads on every send.
     @Environment(SettingsStore.self) private var settings
-    /// Only for a note receipt's hop to the Notes section. Injected on the
+    /// Only for a note receipt's hop into its note. Injected on the
     /// signed-in shell (`SureWord/App/SureWordApp.swift:134`), which is this
     /// pane's only parent (`MainWindow.swift:60`).
     @Environment(AppModel.self) private var app
@@ -285,12 +285,11 @@ struct ChatView: View {
     /// named rather than jumped to, because there is no cross-section hook.
     private func openReceipt(_ receipt: ChatReceipt) {
         switch receipt.target {
-        case .note:
-            // Selecting the section is the whole hop: `NotesSection` builds its
-            // own `NotesLibraryModel` on appear (`SureWord/Notes/Views/NotesSection.swift:24`)
-            // and owns `selectedNoteID`, so there is nothing here to preselect
-            // with. `AppModel.pendingNoteID` is the iOS-only route and says so
-            // (`Shared/App/AppModel.swift:78`).
+        case .note(let noteID):
+            // `NotesSection` builds its own `NotesLibraryModel` on appear and
+            // owns `selectedNoteID`, so the note is staged on `AppModel` and the
+            // section opens it in the editor, as iOS does.
+            app.pendingNoteID = noteID
             app.section = .notes
         case .memories:
             show(toast: ReceiptLine.settingsMessage(for: .memory))

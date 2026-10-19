@@ -8,10 +8,15 @@ import SwiftUI
 struct NotesListPane: View {
     @Environment(\.theme) private var theme
     @Bindable var library: NotesLibraryModel
+    /// For the sermon template's church name (`/api/church`).
+    let api: APIClient
 
     @State private var createKind: CreateKind?
-    @State private var isCreatingNote = false
+    /// "+" opens Android's "Start a note" template sheet (PRD E1).
+    @State private var isTemplatePickerPresented = false
     @State private var renamingFolder: Folder?
+    /// The note waiting on Android's "This cannot be undone" confirmation.
+    @State private var deletingNote: Note?
 
     enum CreateKind: String, Identifiable {
         case folder, tag
@@ -59,6 +64,28 @@ struct NotesListPane: View {
                 Task { await library.renameFolder(id: folder.id, name: name) }
             }
         }
+        .sheet(isPresented: $isTemplatePickerPresented) {
+            // `createNote(template:)` selects the new note, which opens it in
+            // the editor beside the list.
+            NoteTemplatePickerSheet { template in
+                _ = try await library.createNote(template: template) {
+                    switch try await api.fetchChurch() {
+                    case .unavailable: return nil
+                    case .ok(let church): return church?.name
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            deletingNote.map { NoteActionMenu.deletePrompt(for: $0) } ?? "",
+            isPresented: Binding(get: { deletingNote != nil }, set: { if !$0 { deletingNote = nil } }),
+            titleVisibility: .visible,
+            presenting: deletingNote
+        ) { note in
+            Button("Delete Note", role: .destructive) {
+                Task { await library.deleteNote(id: note.id) }
+            }
+        }
     }
 
     // MARK: Chrome
@@ -70,12 +97,11 @@ struct NotesListPane: View {
                 .foregroundStyle(theme.text)
             Spacer()
             Button {
-                createNote()
+                isTemplatePickerPresented = true
             } label: {
                 Image(systemName: "square.and.pencil")
             }
             .buttonStyle(SubtleButtonStyle())
-            .disabled(isCreatingNote)
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .help("New note (⇧⌘N)")
         }
@@ -220,21 +246,16 @@ struct NotesListPane: View {
         .refreshable { await library.refresh() }
     }
 
-    @ViewBuilder
+    /// The shared note menu with Android's card rows: the library long press
+    /// passes `NoteActionSheet` only pin, move and delete.
     private func menu(for note: Note) -> some View {
-        Button(note.isPinned ? "Unpin Note" : "Pin Note") {
-            Task { await library.togglePin(id: note.id) }
-        }
-        Menu("Move to Folder") {
-            Button("No Folder") { Task { await library.move(id: note.id, toFolder: nil) } }
-            ForEach(library.folders) { folder in
-                Button(folder.name) { Task { await library.move(id: note.id, toFolder: folder.id) } }
-            }
-        }
-        Divider()
-        Button("Delete Note", role: .destructive) {
-            Task { await library.deleteNote(id: note.id) }
-        }
+        NoteActionMenu(
+            note: note,
+            folders: library.folders,
+            onTogglePin: { Task { await library.togglePin(id: note.id) } },
+            onMoveToFolder: { folderID in Task { await library.move(id: note.id, toFolder: folderID) } },
+            onDelete: { deletingNote = note }
+        )
     }
 
     private var emptyState: some View {
@@ -253,15 +274,6 @@ struct NotesListPane: View {
         }
         .padding(.top, 60)
         .padding(.horizontal, Spacing.lg)
-    }
-
-    private func createNote() {
-        guard !isCreatingNote else { return }
-        isCreatingNote = true
-        Task {
-            await library.createNote()
-            isCreatingNote = false
-        }
     }
 }
 
@@ -369,6 +381,92 @@ struct Chip: View {
 }
 
 // MARK: - Sheets
+
+/// "Start a note" - Android's `CreateItemSheet` in its note mode (PRD E1), the
+/// Mac form of the iOS picker: the four templates with their descriptions, one
+/// click creates the note. While the create runs every row is disabled; a
+/// failure keeps the sheet open with Android's message, since the note may or
+/// may not exist.
+struct NoteTemplatePickerSheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    /// Creates the note; the sheet dismisses itself when this returns.
+    var onPick: (NoteTemplates.ID) async throws -> Void
+
+    @State private var isBusy = false
+    @State private var error: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Start a note")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(theme.text)
+
+            if let error {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.danger)
+            }
+            if isBusy {
+                Text("Creating your note...")
+                    .font(.system(size: 12))
+                    .foregroundStyle(theme.textMuted)
+            }
+
+            ForEach(NoteTemplates.options) { option in
+                Button {
+                    pick(option.id)
+                } label: {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(option.label)
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(theme.text)
+                        Text(option.description)
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.textMuted)
+                    }
+                    .padding(Spacing.md)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.surface, in: .rect(cornerRadius: Radius.md))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: Radius.md).strokeBorder(theme.border, lineWidth: 1)
+                    }
+                    .contentShape(.rect(cornerRadius: Radius.md))
+                }
+                .buttonStyle(.plain)
+                .disabled(isBusy)
+                .accessibilityLabel(option.label)
+                .accessibilityHint(option.description)
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isBusy)
+            }
+        }
+        .padding(Spacing.xl)
+        .frame(width: 380)
+        .interactiveDismissDisabled(isBusy)
+    }
+
+    private func pick(_ id: NoteTemplates.ID) {
+        guard !isBusy else { return }
+        isBusy = true
+        error = nil
+        Task {
+            do {
+                try await onPick(id)
+                isBusy = false
+                dismiss()
+            } catch {
+                isBusy = false
+                self.error = "Could not finish creating the note. Check your notes before trying again."
+            }
+        }
+    }
+}
 
 /// Create sheet shared by folders (name only) and tags (name + swatch), matching
 /// `mobile/src/features/notes/components/CreateItemSheet.tsx`.

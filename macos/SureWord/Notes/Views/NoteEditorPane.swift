@@ -2,10 +2,11 @@ import SwiftUI
 
 /// The note editor — a port of `mobile/app/(app)/notes/[id].tsx`.
 ///
-/// Top bar (title, saving state, pin, tags, AI), formatting toolbar, the rich
-/// text view, and the per-note AI conversation. Android presents the AI as a
-/// slide-up sheet because a phone has one column; here it is a trailing
-/// inspector, which is the same thing with room to type beside it.
+/// Android's calm editor bar (back, the title with its pin mark and saving
+/// state, AI, and the note menu), formatting toolbar, the rich text view, and
+/// the per-note AI conversation. Android presents the AI as a slide-up sheet
+/// because a phone has one column; here it is a trailing inspector, which is
+/// the same thing with room to type beside it.
 struct NoteEditorPane: View {
     @Environment(\.theme) private var theme
 
@@ -20,6 +21,12 @@ struct NoteEditorPane: View {
     @State private var draftTitle = ""
     @State private var linkTarget = ""
     @State private var isLinkPopoverPresented = false
+    // The note menu (PRD E2).
+    @State private var isInfoPresented = false
+    @State private var isDeleteConfirming = false
+    @State private var pendingShare: OutgoingShare?
+    @State private var exportError: String?
+    @State private var isCopiedVisible = false
 
     init(noteID: String, api: APIClient, library: NotesLibraryModel) {
         self.noteID = noteID
@@ -57,6 +64,44 @@ struct NoteEditorPane: View {
                     .frame(width: 380)
             }
         }
+        .overlay(alignment: .top) {
+            if isCopiedVisible {
+                Label("Copied as Markdown", systemImage: "checkmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.sm)
+                    .background(theme.glass, in: .capsule)
+                    .overlay { Capsule().strokeBorder(theme.border, lineWidth: 1) }
+                    .padding(.top, 56)
+                    .transition(.opacity)
+            }
+        }
+        .sheet(isPresented: $isInfoPresented) {
+            NoteInfoSheet(
+                model: model,
+                folderName: library.folders.first { $0.id == model.note?.folderId }?.name
+            )
+        }
+        .alert(
+            "Couldn't export this note",
+            isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
+        }
+        .confirmationDialog(
+            model.note.map { NoteActionMenu.deletePrompt(for: $0) } ?? "",
+            isPresented: $isDeleteConfirming,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Note", role: .destructive) {
+                Task {
+                    if await model.delete() { library.selectedNoteID = nil }
+                }
+            }
+        }
         .task {
             model.start()
             ai.onNoteAppended = { event in
@@ -77,14 +122,39 @@ struct NoteEditorPane: View {
 
     // MARK: Top bar
 
+    /// Android's editor bar (`NoteEditorTopBar`): back, the title with its pin
+    /// mark, the AI toggle and the note menu. Pin, tags and everything else
+    /// about the note live in that menu, so the bar stays calm.
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
+            // The list stays beside the editor on a Mac, so back closes the
+            // note instead of popping a screen; `onDisappear` flushes it.
+            Button {
+                library.selectedNoteID = nil
+            } label: {
+                Image(systemName: "chevron.left")
+                    .foregroundStyle(theme.textMuted)
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .help("Back to notes")
+            .accessibilityLabel("Back to notes")
+
             VStack(alignment: .leading, spacing: 0) {
-                TextField("Untitled Note", text: $draftTitle)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 16, weight: .semibold))
-                    .onSubmit(commitTitle)
-                    .onAppear { draftTitle = model.note?.title ?? "" }
+                HStack(spacing: 5) {
+                    // Pinning moved into the menu, so the state stays readable
+                    // at a glance without costing a button.
+                    if model.note?.isPinned == true {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.accent)
+                            .accessibilityLabel("Pinned")
+                    }
+                    TextField("Untitled Note", text: $draftTitle)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 16, weight: .semibold))
+                        .onSubmit(commitTitle)
+                        .onAppear { draftTitle = model.note?.title ?? "" }
+                }
 
                 if model.isSaving {
                     Text("Saving…")
@@ -101,48 +171,6 @@ struct NoteEditorPane: View {
             Spacer(minLength: Spacing.md)
 
             Button {
-                Task { await model.togglePin() }
-            } label: {
-                Image(systemName: model.note?.isPinned == true ? "pin.fill" : "pin")
-                    .foregroundStyle(model.note?.isPinned == true ? theme.accent : theme.textMuted)
-            }
-            .buttonStyle(SubtleButtonStyle())
-            .help(model.note?.isPinned == true ? "Unpin note" : "Pin note")
-
-            Button {
-                isTagPopoverPresented = true
-            } label: {
-                Image(systemName: "tag")
-                    .foregroundStyle(
-                        (model.note?.tagIds.isEmpty == false) ? theme.accent : theme.textMuted
-                    )
-            }
-            .buttonStyle(SubtleButtonStyle())
-            .help("Tags")
-            .popover(isPresented: $isTagPopoverPresented, arrowEdge: .bottom) {
-                NoteTagPopover(model: model)
-            }
-
-            Menu {
-                Button("No Folder") { Task { await model.move(toFolder: nil) } }
-                ForEach(library.folders) { folder in
-                    Button(folder.name) { Task { await model.move(toFolder: folder.id) } }
-                }
-                Divider()
-                Button("Delete Note", role: .destructive) {
-                    Task {
-                        if await model.delete() { library.selectedNoteID = nil }
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("Note actions")
-
-            Button {
                 toggleAI()
             } label: {
                 Image(systemName: "sparkles")
@@ -150,9 +178,43 @@ struct NoteEditorPane: View {
             }
             .buttonStyle(SubtleButtonStyle())
             .help("AI assistant")
+
+            Menu {
+                noteMenu
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Note menu")
+            .accessibilityLabel("Note menu")
+            .popover(isPresented: $isTagPopoverPresented, arrowEdge: .bottom) {
+                NoteTagPopover(model: model)
+            }
+            .background(SharingPicker(share: $pendingShare, matches: { _ in true }, onShared: { _ in }))
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
+    }
+
+    /// The shared note menu (`Shared/Notes/NoteActionMenu.swift`) with every
+    /// row, as Android's editor passes every handler to `NoteActionSheet`.
+    @ViewBuilder
+    private var noteMenu: some View {
+        if let note = model.note {
+            NoteActionMenu(
+                note: note,
+                folders: library.folders,
+                onTogglePin: { Task { await model.togglePin() } },
+                onMoveToFolder: { folderID in Task { await model.move(toFolder: folderID) } },
+                onDelete: { isDeleteConfirming = true },
+                onOpenTags: { isTagPopoverPresented = true },
+                onOpenInfo: openInfo,
+                onCopyMarkdown: copyMarkdown,
+                onShareMarkdown: shareMarkdown
+            )
+        }
     }
 
     private var linkPopover: some View {
@@ -179,6 +241,43 @@ struct NoteEditorPane: View {
             }
         }
         .padding(Spacing.lg)
+    }
+
+    private var noteTitle: String {
+        let title = model.note?.title ?? ""
+        return title.isEmpty ? "Untitled Note" : title
+    }
+
+    /// Flush first, as Android does before its info sheet, so the word count
+    /// is the one on screen.
+    private func openInfo() {
+        Task {
+            await model.flush()
+            isInfoPresented = true
+        }
+    }
+
+    private func copyMarkdown() {
+        do {
+            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+            withAnimation { isCopiedVisible = true }
+            Task {
+                try? await Task.sleep(for: .milliseconds(1200))
+                withAnimation { isCopiedVisible = false }
+            }
+        } catch {
+            exportError = error.localizedDescription
+        }
+    }
+
+    private func shareMarkdown() {
+        do {
+            pendingShare = OutgoingShare(
+                payload: .text(try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+            )
+        } catch {
+            exportError = error.localizedDescription
+        }
     }
 
     private func commitTitle() {

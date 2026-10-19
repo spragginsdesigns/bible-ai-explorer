@@ -8,6 +8,8 @@ import SwiftUI
 /// changes, the feature set does not.
 struct NotesSection: View {
     @Environment(\.theme) private var theme
+    /// Only for `pendingNoteID`, the chat note receipt's hop into a note.
+    @Environment(AppModel.self) private var app
     let api: APIClient
 
     @State private var library: NotesLibraryModel?
@@ -25,14 +27,26 @@ struct NotesSection: View {
             guard library == nil else { return }
             let model = NotesLibraryModel(api: NotesAPI(api: api))
             library = model
+            openPendingNote(in: model)
             await model.start()
         }
+        .onChange(of: app.pendingNoteID) { openPendingNote(in: library) }
+    }
+
+    /// A note receipt tapped in chat stages its note on `AppModel.pendingNoteID`
+    /// and selects this section. Consumed once, so coming back to Notes later
+    /// does not reopen it. The editor loads the note by id, so one the
+    /// assistant just created opens even before the list has fetched it.
+    private func openPendingNote(in library: NotesLibraryModel?) {
+        guard let library, let noteID = app.pendingNoteID else { return }
+        library.selectedNoteID = noteID
+        app.pendingNoteID = nil
     }
 
     @ViewBuilder
     private func content(_ library: NotesLibraryModel) -> some View {
         HStack(spacing: 0) {
-            NotesListPane(library: library)
+            NotesListPane(library: library, api: api)
                 .frame(width: 320)
             Divider().overlay(theme.border)
 

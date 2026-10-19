@@ -25,6 +25,8 @@ struct NotesLibraryView: View {
     @State private var noteToOpenAfterPicker: String?
     /// Drives the pin haptic; the trigger value itself carries no meaning.
     @State private var pinHapticTick = 0
+    /// The note waiting on Android's "This cannot be undone" confirmation.
+    @State private var deletingNote: Note?
 
     enum CreateKind: String, Identifiable {
         case folder, tag
@@ -104,6 +106,16 @@ struct NotesLibraryView: View {
                 Task { await library.renameFolder(id: folder.id, name: name) }
             }
             Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            deletingNote.map { NoteActionMenu.deletePrompt(for: $0) } ?? "",
+            isPresented: Binding(get: { deletingNote != nil }, set: { if !$0 { deletingNote = nil } }),
+            titleVisibility: .visible,
+            presenting: deletingNote
+        ) { note in
+            Button("Delete Note", role: .destructive) {
+                Task { await library.deleteNote(id: note.id) }
+            }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: pinHapticTick)
     }
@@ -255,11 +267,14 @@ struct NotesLibraryView: View {
                         .tint(Color(hex: 0xFBBF24))
                     }
                     .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            Task { await library.deleteNote(id: note.id) }
+                        // No destructive role: List would start removing the
+                        // row before the confirmation below is answered.
+                        Button {
+                            deletingNote = note
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
+                        .tint(theme.danger)
                     }
                     .contextMenu { menu(for: note) }
                 }
@@ -270,22 +285,19 @@ struct NotesLibraryView: View {
         .refreshable { await library.refresh() }
     }
 
-    @ViewBuilder
+    /// The shared note menu with Android's card rows: the library long press
+    /// passes `NoteActionSheet` only pin, move and delete.
     private func menu(for note: Note) -> some View {
-        Button(note.isPinned ? "Unpin Note" : "Pin Note") {
-            pinHapticTick += 1
-            Task { await library.togglePin(id: note.id) }
-        }
-        Menu("Move to Folder") {
-            Button("No Folder") { Task { await library.move(id: note.id, toFolder: nil) } }
-            ForEach(library.folders) { folder in
-                Button(folder.name) { Task { await library.move(id: note.id, toFolder: folder.id) } }
-            }
-        }
-        Divider()
-        Button("Delete Note", role: .destructive) {
-            Task { await library.deleteNote(id: note.id) }
-        }
+        NoteActionMenu(
+            note: note,
+            folders: library.folders,
+            onTogglePin: {
+                pinHapticTick += 1
+                Task { await library.togglePin(id: note.id) }
+            },
+            onMoveToFolder: { folderID in Task { await library.move(id: note.id, toFolder: folderID) } },
+            onDelete: { deletingNote = note }
+        )
     }
 
     private var emptyState: some View {

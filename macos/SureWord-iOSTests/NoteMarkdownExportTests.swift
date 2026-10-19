@@ -122,6 +122,44 @@ final class NoteMarkdownExportTests: XCTestCase {
         }
     }
 
+    /// Real notes, both encodings: every template note is stored with the HTML
+    /// the Apple editor loads and the Tiptap JSON Android's editor loads. The
+    /// Apple path (HTML, `NoteHTMLParser`, `NoteTiptapDocument`) must export
+    /// the Markdown Android exports from the JSON of the same note.
+    func testTemplateNotesExportFromTheirHTMLLikeAndroidExportsTheirJSON() throws {
+        let data = try Data(contentsOf: Self.fixtures.appending(path: "note-templates.json"))
+        let cases = try JSONDecoder().decode([TemplateCase].self, from: data)
+        var checked = 0
+        for item in cases {
+            guard let seed = item.seed else { continue }
+            let label = "\(item.id) church=\(item.churchName ?? "nil")"
+            let android = try NoteMarkdownExport.markdown(
+                title: seed.title,
+                document: JSONDecoder().decode(JSONValue.self, from: Data(seed.content.utf8))
+            )
+            let apple = try NoteMarkdownExport.markdown(
+                title: seed.title,
+                document: NoteTiptapDocument.json(from: NoteHTMLParser.parse(seed.html))
+            )
+            XCTAssertEqual(apple, android, label)
+            XCTAssertTrue(apple.hasPrefix("# \(seed.title)\n\n"), label)
+            checked += 1
+        }
+        XCTAssertEqual(checked, 10)
+    }
+
+    /// A note with no body yet (a fresh Blank note) exports just its heading,
+    /// and a blank title falls back to Android's "Untitled Note".
+    func testEmptyNoteHTMLExportsTheTitleOnly() throws {
+        for html in ["", "<p></p>"] {
+            let markdown = try NoteMarkdownExport.markdown(
+                title: "  ",
+                document: NoteTiptapDocument.json(from: NoteHTMLParser.parse(html))
+            )
+            XCTAssertEqual(markdown, "# Untitled Note\n", html)
+        }
+    }
+
     func testTemplateOptionsAreAndroidsInOrder() {
         XCTAssertEqual(NoteTemplates.options.map(\.id.rawValue), ["verse-study", "sermon", "prayer", "blank"])
         XCTAssertEqual(NoteTemplates.options.map(\.label), ["Verse study", "Sermon notes", "Prayer journal", "Blank note"])

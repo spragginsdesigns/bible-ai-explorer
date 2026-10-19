@@ -102,6 +102,9 @@ targets:
     platform: macOS
     sources:
       - path: SureWordTests
+      # Pure Shared/ logic behind the Mac note menu's Copy and Share as
+      # Markdown; it reads its fixtures by #filePath, so no resources needed.
+      - path: SureWord-iOSTests/NoteMarkdownExportTests.swift
     dependencies:
       - target: SureWord
     settings:

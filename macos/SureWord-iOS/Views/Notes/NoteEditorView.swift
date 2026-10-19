@@ -245,65 +245,25 @@ struct NoteEditorView: View {
         }
     }
 
+    /// The shared note menu (`Shared/Notes/NoteActionMenu.swift`) with every
+    /// row, as Android's editor passes every handler to `NoteActionSheet`.
     @ViewBuilder
     private var noteMenu: some View {
-        let isPinned = model.note?.isPinned == true
-        let tagCount = model.note?.tagIds.count ?? 0
-
-        Button {
-            pinHapticTick += 1
-            Task { await model.togglePin() }
-        } label: {
-            Label(isPinned ? "Unpin note" : "Pin note", systemImage: isPinned ? "pin.slash" : "pin")
-        }
-
-        Button {
-            isTagSheetPresented = true
-        } label: {
-            Label(tagCount > 0 ? "Tags (\(tagCount))" : "Tags", systemImage: "tag")
-        }
-
-        Button {
-            openInfo()
-        } label: {
-            Label("Note info", systemImage: "info.circle")
-        }
-
-        Button {
-            copyMarkdown()
-        } label: {
-            Label("Copy as Markdown", systemImage: "doc.on.doc")
-        }
-
-        Button {
-            shareMarkdown()
-        } label: {
-            Label("Share as Markdown", systemImage: "square.and.arrow.up")
-        }
-
-        Menu {
-            Button {
-                Task { await model.move(toFolder: nil) }
-            } label: {
-                Label("No folder", systemImage: model.note?.folderId == nil ? "checkmark" : "folder.badge.minus")
-            }
-            ForEach(NotesStore.shared.folders) { folder in
-                Button {
-                    Task { await model.move(toFolder: folder.id) }
-                } label: {
-                    Label(folder.name, systemImage: model.note?.folderId == folder.id ? "checkmark" : "folder")
-                }
-            }
-        } label: {
-            Label("Move to folder", systemImage: "folder")
-        }
-
-        Divider()
-
-        Button(role: .destructive) {
-            isDeleteConfirming = true
-        } label: {
-            Label("Delete note", systemImage: "trash")
+        if let note = model.note {
+            NoteActionMenu(
+                note: note,
+                folders: NotesStore.shared.folders,
+                onTogglePin: {
+                    pinHapticTick += 1
+                    Task { await model.togglePin() }
+                },
+                onMoveToFolder: { folderID in Task { await model.move(toFolder: folderID) } },
+                onDelete: { isDeleteConfirming = true },
+                onOpenTags: { isTagSheetPresented = true },
+                onOpenInfo: openInfo,
+                onCopyMarkdown: copyMarkdown,
+                onShareMarkdown: shareMarkdown
+            )
         }
     }
 
