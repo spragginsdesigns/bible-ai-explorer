@@ -50,7 +50,10 @@ struct TabShell: View {
         .tint(selectedTab == .chat ? ChatAppearance.colors(for: theme).accent : theme.accent)
     }
 
-    var body: some View {
+    /// The first half of the shell's modifiers. `body` continues the chain
+    /// from here: one chain this long is too much for the type checker to
+    /// solve in reasonable time (LC-16656).
+    private var shellLifecycle: some View {
         tabContent
         .task { app.bible.reading.setForeground(scenePhase == .active); await app.chat.loadConversations() }
         // First hydrate of the session: the server document replaces whatever
@@ -97,6 +100,10 @@ struct TabShell: View {
             if let permissionListener { NotificationPermissionMoments.shared.unsubscribe(permissionListener) }
             permissionListener = nil
         }
+    }
+
+    var body: some View {
+        shellLifecycle
         // Providers, church and the memory count, warmed for this account so
         // Settings opens on its real content (PRD B7).
         .task { await SettingsDataStore.shared.prefetch(.live(app.api)) }

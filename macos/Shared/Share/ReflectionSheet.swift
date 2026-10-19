@@ -197,7 +197,7 @@ struct ReflectionSheet: View {
             Text("\(model.reference) · \(model.translation)").font(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
             Text("Share how this verse speaks to your walk with God. Only the words you approve are shared.").font(.subheadline)
             Text("My reflection").font(.subheadline.weight(.semibold))
-            TextEditor(text: Binding(get: { model.text }, set: model.setText))
+            TextEditor(text: Binding(get: { model.text }, set: { model.setText($0) }))
                 .frame(minHeight: 110).padding(8).background(theme.bg)
                 .clipShape(.rect(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.borderStrong))
                 .disabled(model.locked).accessibilityLabel("My reflection")
@@ -206,12 +206,12 @@ struct ReflectionSheet: View {
                 .buttonStyle(GhostShareButtonStyle()).disabled(!model.opened || model.locked)
             Text("Uses your study to suggest a reflection without private details. Review and edit every word before sharing.")
                 .font(.caption).foregroundStyle(theme.textMuted)
-            TextField("Your name (optional)", text: Binding(get: { model.signature }, set: model.setSignature))
+            TextField("Your name (optional)", text: Binding(get: { model.signature }, set: { model.setSignature($0) }))
                 .textFieldStyle(.roundedBorder).disabled(model.locked).accessibilityLabel("Name on reflection, optional")
-            Picker("Reflection font", selection: Binding(get: { model.presentation.font }, set: model.setFont)) {
+            Picker("Reflection font", selection: Binding(get: { model.presentation.font }, set: { model.setFont($0) })) {
                 ForEach(ReflectionFont.allCases) { Text($0.label).tag($0) }
             }.pickerStyle(.segmented).disabled(model.locked)
-            Picker("Reflection placement", selection: Binding(get: { model.presentation.placement }, set: model.setPlacement)) {
+            Picker("Reflection placement", selection: Binding(get: { model.presentation.placement }, set: { model.setPlacement($0) })) {
                 ForEach(ReflectionPlacement.allCases) { Text($0.label).tag($0) }
             }.pickerStyle(.segmented).disabled(model.locked)
             ShareCardStyleChips(selected: model.prefs.style, onSelect: model.setStyle).disabled(model.locked)
