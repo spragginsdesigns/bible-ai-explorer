@@ -13,8 +13,6 @@ final class BibleModel {
     /// clients (`FONT_STEPS`).
     static let fontSteps: [CGFloat] = [17, 20, 24, 28]
     static let defaultFontStep = 1
-    static let searchLimit = KJVLibrary.defaultSearchLimit
-    static let searchDebounce = Duration.milliseconds(300)
     static let highlightDuration = Duration.milliseconds(2400)
 
     private enum Key {
@@ -75,10 +73,10 @@ final class BibleModel {
 
     // MARK: Searching
 
-    var query = ""
-    private(set) var searchHits: [KJVSearchHit] = []
-    /// The query `searchHits` answers; empty until a search has actually run.
-    private(set) var searchedQuery = ""
+    /// The Mac sidebar's translation-aware search (`search.tsx`). It lives
+    /// here, not in the sidebar, so a query survives a trip through chat the
+    /// way the book and chapter do. The iOS search screen keeps its own.
+    let search: BibleSearchModel
 
     // MARK: Collaborators
 
@@ -124,6 +122,7 @@ final class BibleModel {
         self.insight = insight
         sheet = VerseSheetModel(insight: insight)
         plan = ReadingPlanModel(api: api)
+        search = BibleSearchModel()
         lcGreekText = LCGreekProvider { [api] path in try await api.data(path) }
         let stored = defaults.object(forKey: Key.fontStep) as? Int
         fontStep = Self.clampFontStep(stored ?? Self.defaultFontStep)
@@ -153,17 +152,6 @@ final class BibleModel {
 
     var previousLocation: Bible.Location? { location.flatMap(Bible.previous(from:)) }
     var nextLocation: Bible.Location? { location.flatMap(Bible.next(from:)) }
-
-    /// The reference quick-jump offered above the search results.
-    var referenceJump: Reference? {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        return Bible.resolveReference(trimmed)
-    }
-
-    var isSearching: Bool {
-        !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 
     /// `lcGreek` is the LC Greek on screen over the KJV `translation` every
     /// study path reads, a different text with its own key.
@@ -315,41 +303,6 @@ final class BibleModel {
         if loadedKey == key {
             await highlights?.refresh(translation: translation, book: order, chapter: chapter)
         }
-    }
-
-    // MARK: - Searching
-
-    /// Run the offline search. Callers debounce by driving this from
-    /// `.task(id: query)`; a superseded run is dropped on cancellation.
-    func runSearch() async {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else {
-            searchHits = []
-            searchedQuery = ""
-            return
-        }
-        let results = await KJVLibrary.shared.search(trimmed, limit: Self.searchLimit)
-        guard !Task.isCancelled else { return }
-        searchHits = results
-        searchedQuery = trimmed
-    }
-
-    func clearSearch() {
-        query = ""
-        searchHits = []
-        searchedQuery = ""
-    }
-
-    /// The line shown above the results, matching the other clients word for word.
-    var searchSummary: String? {
-        guard !searchedQuery.isEmpty else { return nil }
-        if searchHits.isEmpty {
-            return referenceJump == nil ? "No verses found." : nil
-        }
-        if searchHits.count >= Self.searchLimit {
-            return "First \(Self.searchLimit) of many — refine your search"
-        }
-        return "\(searchHits.count) result\(searchHits.count == 1 ? "" : "s")"
     }
 
     // MARK: - Reading history

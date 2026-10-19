@@ -148,46 +148,85 @@ struct BibleModelTests {
     @Test("the reference quick-jump only appears for a resolvable reference")
     func referenceJump() {
         let model = Self.makeModel()
-        #expect(model.referenceJump == nil)
+        #expect(model.search.referenceJump == nil)
 
-        model.query = "John 3:16"
-        #expect(model.referenceJump == Reference(order: 43, chapter: 3, verse: 16))
+        model.search.query = "John 3:16"
+        #expect(model.search.referenceJump == Reference(order: 43, chapter: 3, verse: 16))
 
-        model.query = "love"
-        #expect(model.referenceJump == nil)
-        #expect(model.isSearching)
+        model.search.query = "love"
+        #expect(model.search.referenceJump == nil)
+        #expect(model.search.isSearching)
     }
 
-    @Test("search runs over the bundled text and summarises its results")
+    @Test("the sidebar search follows the account translation over the bundled text")
     func search() async {
         let model = Self.makeModel()
+        let search = model.search
 
         // Under two characters is not a search at all.
-        model.query = "a"
-        await model.runSearch()
-        #expect(model.searchHits.isEmpty)
-        #expect(model.searchSummary == nil)
+        search.query = "a"
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.hits.isEmpty)
+        #expect(search.status(account: .kjv) == nil)
 
-        model.query = "For God so loved the world"
-        await model.runSearch()
-        #expect(model.searchHits.count == 1)
-        #expect(model.searchHits.first?.order == 43)
-        #expect(model.searchSummary == "1 result")
+        search.query = "For God so loved the world"
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.hits.count == 1)
+        #expect(search.hits.first?.order == 43)
+        #expect(search.hits.first?.translation == .kjv)
+        #expect(search.status(account: .kjv) == "1 result")
 
-        model.query = "the"
-        await model.runSearch()
-        #expect(model.searchHits.count == BibleModel.searchLimit)
-        #expect(model.searchSummary == "First 100 of many — refine your search")
+        search.query = "the"
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.hits.count == BibleSearch.defaultLimit)
+        #expect(search.status(account: .kjv) == "First 100 results. Refine your search.")
 
-        model.query = "zzzznotinscripture"
-        await model.runSearch()
-        #expect(model.searchHits.isEmpty)
-        #expect(model.searchSummary == "No verses found.")
+        // A BSB reader searches the BSB wording first.
+        search.query = "one and only Son"
+        await search.run(account: .bsb, debounce: .zero)
+        #expect(search.resultTranslation == .bsb)
+        #expect(search.hits.contains { $0.order == 43 && $0.chapter == 3 && $0.verse == 16 })
+    }
 
-        model.clearSearch()
-        #expect(model.query.isEmpty)
-        #expect(model.searchedQuery.isEmpty)
-        #expect(!model.isSearching)
+    @Test("a miss falls back to the other wording and the status line says so")
+    func searchFallback() async {
+        let nkjv = Data(#"{"results":[{"translation":"NKJV","book":18,"chapter":1,"verse":1,"text":"that man was <mark>blameless and upright</mark>"}]}"#.utf8)
+        let search = BibleSearchModel(search: BibleSearch(fetch: { request in
+            (nkjv, HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!)
+        }))
+
+        // "blameless and upright" is NKJV wording the KJV never uses.
+        search.query = "blameless and upright"
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.resultTranslation == .nkjv)
+        #expect(search.hits == [BibleSearchHit(order: 18, chapter: 1, verse: 1, text: "that man was blameless and upright", translation: .nkjv)])
+        #expect(search.status(account: .kjv) == "1 result in NKJV. No phrase matches in KJV.")
+
+        // The chip overrides the account translation for this search only.
+        search.query = "only begotten Son"
+        search.selectedTranslation = .bsb
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.resultTranslation == .kjv)
+        #expect(search.status(account: .kjv)?.hasSuffix(" in KJV. No phrase matches in BSB.") == true)
+
+        search.clear()
+        #expect(search.query.isEmpty)
+        #expect(search.selectedTranslation == nil)
+        #expect(!search.isSearching)
+    }
+
+    @Test("an unreachable NKJV is the search error, and Retry runs it again")
+    func searchError() async {
+        let search = BibleSearchModel(search: BibleSearch(fetch: { _ in throw URLError(.notConnectedToInternet) }))
+        search.query = "zzzz qqqq"
+        let key = search.taskKey(account: .kjv)
+        await search.run(account: .kjv, debounce: .zero)
+        #expect(search.error == BibleSearch.error)
+        #expect(search.status(account: .kjv) == nil)
+        #expect(!search.loading)
+
+        search.retry()
+        #expect(search.taskKey(account: .kjv) != key)
     }
 
     @Test("loading a chapter fills the reader and builds the Ask-AI attachment")

@@ -12,9 +12,8 @@ struct LastRead: Sendable, Equatable {
     /// "Judges 7".
     var label: String { "\(bookName) \(chapter)" }
 
-    /// Android's `parseLastRead`, with one deliberate widening: BSB entries
-    /// are accepted (PRD C6). Android still rejects them and hides the row
-    /// after a BSB read; the server records whatever translation was read.
+    /// Android's `parseLastRead`: KJV, NKJV and BSB entries are accepted
+    /// (BSB since PRD C6, on Android and web since 2026-10-14).
     /// Fail-soft - anything malformed is nil and the row stays hidden.
     static func parse(_ value: Any?) -> LastRead? {
         guard let object = value as? [String: Any],

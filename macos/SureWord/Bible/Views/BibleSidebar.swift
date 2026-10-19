@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Book picker and offline search, ported from `mobile/app/(app)/bible/index.tsx`
-/// and `search.tsx`. Typing swaps the book list for results plus the
-/// reference quick-jump; clearing the field brings the books back.
+/// Book picker and translation-aware search, ported from
+/// `mobile/app/(app)/bible/index.tsx` and `search.tsx`. Typing swaps the book
+/// list for results plus the reference quick-jump; clearing the field brings
+/// the books back.
 struct BibleSidebar: View {
     @Environment(\.theme) private var theme
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(AppModel.self) private var app
     @Bindable var model: BibleModel
     let onShowAtlas: () -> Void
@@ -18,14 +20,26 @@ struct BibleSidebar: View {
     /// Whether this account's church has any sermon studies. The card stays
     /// hidden until it does, and on any error, as on Android and iOS.
     @State private var hasSermons = false
+    /// "Continue reading" - built on first appearance, once `app` exists.
+    @State private var continueReading: ContinueReadingModel?
+
+    private var search: BibleSearchModel { model.search }
+    private var account: TranslationID { app.settings.translation }
+    private var translation: TranslationID { search.translation(account: account) }
+
+    /// Android lists the search chips in this order.
+    private static let chips: [TranslationID] = [.kjv, .nkjv, .bsb]
 
     var body: some View {
         VStack(spacing: 0) {
             searchField
 
-            if model.isSearching {
+            if search.isSearching {
                 searchResults
             } else {
+                if let lastRead = continueReading?.lastRead {
+                    continueCard(lastRead)
+                }
                 planCard
                 if hasSermons { sermonsCard }
                 atlasCard
@@ -43,14 +57,70 @@ struct BibleSidebar: View {
             let studies = try? await SermonStudiesAPI.list(api: app.api)
             hasSermons = !(studies ?? []).isEmpty
         }
-        // Debounced in the task itself: a superseded run is cancelled during
-        // the sleep, so the first call — which parses every book's JSON — only
-        // happens once the typing stops.
-        .task(id: model.query) {
-            try? await Task.sleep(for: BibleModel.searchDebounce)
-            guard !Task.isCancelled else { return }
-            await model.runSearch()
+        // Fail-soft and refreshed whenever the section reappears or the app
+        // returns to the foreground, like Android's focus effect.
+        .task {
+            if continueReading == nil { continueReading = ContinueReadingModel(api: app.api) }
+            await continueReading?.refresh()
         }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await continueReading?.refresh() }
+        }
+        // Debounced inside `run`: a superseded search is cancelled during the
+        // sleep, so the first call, which parses every book's JSON, only
+        // happens once the typing stops. A chip or Retry restarts it.
+        .task(id: search.taskKey(account: account)) {
+            await search.run(account: account)
+        }
+    }
+
+    // MARK: - Continue reading
+
+    /// Android's B8 row: resume the last chapter read, in the translation it
+    /// was read in (a one-hop override, never a preference change).
+    private func continueCard(_ lastRead: LastRead) -> some View {
+        Button {
+            onShowBible()
+            model.open(
+                order: lastRead.order,
+                chapter: lastRead.chapter,
+                translationOverride: lastRead.translation == account ? nil : lastRead.translation
+            )
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Continue reading")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text(lastRead.label)
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help("Continue reading \(lastRead.label)")
+        .accessibilityLabel("Continue reading \(lastRead.label)")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
     }
 
     // MARK: - Reading plan
@@ -226,19 +296,20 @@ struct BibleSidebar: View {
     // MARK: - Search
 
     private var searchField: some View {
-        HStack(spacing: Spacing.sm) {
+        @Bindable var search = model.search
+        return HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12))
                 .foregroundStyle(theme.textGhost)
 
-            TextField("Search verses or \"John 3:16\"", text: $model.query)
+            TextField("Search verses or \"John 3:16\"", text: $search.query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(theme.text)
 
-            if !model.query.isEmpty {
+            if !search.query.isEmpty {
                 Button {
-                    model.clearSearch()
+                    search.clear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 12))
@@ -260,10 +331,11 @@ struct BibleSidebar: View {
     private var searchResults: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.sm) {
-                if let jump = model.referenceJump {
+                translationChips
+
+                if let jump = search.referenceJump {
                     Button {
-                        onShowBible()
-                        model.open(jump)
+                        open(jump, translation: translation)
                     } label: {
                         Text("Go to \(label(for: jump)) →")
                             .font(.system(size: 13, weight: .semibold))
@@ -280,27 +352,35 @@ struct BibleSidebar: View {
                     .buttonStyle(.plain)
                 }
 
-                if let summary = model.searchSummary {
-                    Text(summary)
+                if let error = search.error {
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .padding(.vertical, Spacing.xs)
+                    Button("Retry search") { search.retry() }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.accent)
+                        .buttonStyle(.plain)
+                } else if let status = search.status(account: account) {
+                    Text(status)
                         .font(.system(size: 11))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.xs)
-                } else if model.searchedQuery.isEmpty {
-                    // Shown whenever no search has run yet, reference or not —
+                } else if search.searched.isEmpty, !search.loading {
+                    // Shown whenever no search has run yet, reference or not:
                     // `search.tsx` renders the hint on the same condition.
-                    Text("Search the King James text by word or phrase.")
+                    Text(search.hint(account: account))
                         .font(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.md)
                 }
 
-                ForEach(model.searchHits) { hit in
+                ForEach(search.hits) { hit in
                     Button {
-                        onShowBible()
-                        model.open(order: hit.order, chapter: hit.chapter, verse: hit.verse)
+                        open(Reference(order: hit.order, chapter: hit.chapter, verse: hit.verse), translation: hit.translation)
                     } label: {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
-                            Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse)")
+                            Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse) \(hit.translation.label)")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundStyle(theme.accent)
                             Text(hit.text)
@@ -324,6 +404,40 @@ struct BibleSidebar: View {
             .padding(.horizontal, Spacing.md)
             .padding(.bottom, Spacing.lg)
         }
+    }
+
+    private var translationChips: some View {
+        HStack(spacing: Spacing.xs) {
+            ForEach(Self.chips, id: \.self) { id in
+                let active = translation == id
+                Button {
+                    search.selectedTranslation = id
+                } label: {
+                    Text(id.label)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(active ? theme.accent : theme.textMuted)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, 4)
+                        .background(active ? theme.accentSoft : theme.surface, in: .capsule)
+                        .overlay {
+                            Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
+                        }
+                        .contentShape(.capsule)
+                }
+                .buttonStyle(.plain)
+                .help("Search the \(id.label)")
+                .accessibilityLabel("Search \(id.label)")
+                .accessibilityAddTraits(active ? .isSelected : [])
+            }
+            Spacer()
+        }
+    }
+
+    /// A hit opens in the translation whose wording matched, a reference in
+    /// the chip's: a one-hop override that never changes the account translation.
+    private func open(_ reference: Reference, translation: TranslationID) {
+        onShowBible()
+        model.open(reference, translationOverride: translation == account ? nil : translation)
     }
 
     private func label(for reference: Reference) -> String {

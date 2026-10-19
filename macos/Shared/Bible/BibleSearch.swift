@@ -170,6 +170,9 @@ final class BibleSearchModel {
 
     var trimmed: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
+    /// The Mac sidebar swaps its book list for results while this is true.
+    var isSearching: Bool { !trimmed.isEmpty }
+
     var referenceJump: Reference? {
         trimmed.isEmpty ? nil : Bible.resolveReference(trimmed)
     }
@@ -182,6 +185,13 @@ final class BibleSearchModel {
     }
 
     func retry() { attempt += 1 }
+
+    /// The Mac sidebar's clear button: the same fresh start Android gets by
+    /// leaving the search screen, chip choice included.
+    func clear() {
+        query = ""
+        selectedTranslation = nil
+    }
 
     /// Debounced run, driven by `.task(id: taskKey)` so a superseded search is
     /// cancelled rather than raced.
