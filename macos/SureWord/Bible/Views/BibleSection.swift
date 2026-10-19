@@ -14,6 +14,7 @@ struct BibleSection: View {
     private var model: BibleModel { app.bible }
     @State private var showingAtlas = false
     @State private var showingPlan = false
+    @State private var showingSermons = false
     @State private var showingHistory = false
     @State private var atlasBook: Int?
     @State private var atlasChapter: Int?
@@ -26,13 +27,19 @@ struct BibleSection: View {
                     atlasBook = nil
                     atlasChapter = nil
                     showingPlan = false
+                    showingSermons = false
                     showingAtlas = true
                 },
                 onShowPlan: {
                     atlasBook = nil
                     atlasChapter = nil
                     showingAtlas = false
+                    showingSermons = false
                     showingPlan = true
+                },
+                onShowSermons: {
+                    showBible()
+                    showingSermons = true
                 },
                 onShowBible: { showBible() }
             )
@@ -93,13 +100,16 @@ struct BibleSection: View {
     private func showBible() {
         showingAtlas = false
         showingPlan = false
+        showingSermons = false
         atlasBook = nil
         atlasChapter = nil
     }
 
     @ViewBuilder
     private var detail: some View {
-        if showingPlan {
+        if showingSermons {
+            SermonStudiesPane(onDismiss: { showBible() })
+        } else if showingPlan {
             ReadingPlanPane(
                 model: model.plan,
                 onOpenReading: { reading in

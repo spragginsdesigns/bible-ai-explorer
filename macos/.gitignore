@@ -2,6 +2,7 @@
 # project.yml is the source of truth; tracking these invites drift.
 *.xcodeproj/
 SureWord/Info.plist
+SureWord/SureWord.entitlements
 SureWord-iOS/Info.plist
 SureWord-iOS/SureWord-iOS.entitlements
 SureWord-iOS-Share/Info.plist

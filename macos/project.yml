@@ -84,7 +84,18 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.spragginsdesigns.sureword
             CFBundleURLSchemes: [sureword]
-    # No entitlements file, and specifically NO App Sandbox.
+        # "Add to Apple Calendar" on a church event (sermon studies). macOS has
+        # no EventKitUI, so the app asks for write-only access and saves the
+        # event itself; without this string the request is refused.
+        NSCalendarsWriteOnlyAccessUsageDescription: "Allow SureWord to add events announced at your church to your calendar."
+    # Hardened Runtime resource access only, and specifically NO App Sandbox.
+    # The Hardened Runtime refuses calendar access to an app that lacks this
+    # entitlement, whatever the person answers; it needs no provisioning
+    # profile.
+    entitlements:
+      path: SureWord/SureWord.entitlements
+      properties:
+        com.apple.security.personal-information.calendars: true
     #
     # The sandbox is a Mac App Store requirement, and nothing here is distributed
     # that way. Enabling it costs an outage and buys nothing: a sandboxed app

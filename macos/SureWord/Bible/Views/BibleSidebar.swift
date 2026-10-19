@@ -9,11 +9,15 @@ struct BibleSidebar: View {
     @Bindable var model: BibleModel
     let onShowAtlas: () -> Void
     let onShowPlan: () -> Void
+    let onShowSermons: () -> Void
     let onShowBible: () -> Void
 
     /// Collapsed testaments, remembered for as long as the section is alive —
     /// the same scope as Android's module-level `sessionCollapsed`.
     @State private var collapsed: Set<Book.Testament> = []
+    /// Whether this account's church has any sermon studies. The card stays
+    /// hidden until it does, and on any error, as on Android and iOS.
+    @State private var hasSermons = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,6 +27,7 @@ struct BibleSidebar: View {
                 searchResults
             } else {
                 planCard
+                if hasSermons { sermonsCard }
                 atlasCard
                 crossCard
                 SendWordHomeCard()
@@ -34,6 +39,10 @@ struct BibleSidebar: View {
         // The card shows where the plan stands; the pane owns every action, so
         // this only ever needs the one load per session.
         .task { model.plan.loadIfNeeded() }
+        .task {
+            let studies = try? await SermonStudiesAPI.list(api: app.api)
+            hasSermons = !(studies ?? []).isEmpty
+        }
         // Debounced in the task itself: a superseded run is cancelled during
         // the sleep, so the first call — which parses every book's JSON — only
         // happens once the typing stops.
@@ -85,6 +94,48 @@ struct BibleSidebar: View {
         .buttonStyle(.plain)
         .help(plan == nil ? "Start a reading plan" : "Reading plan - today's reading")
         .accessibilityLabel(plan == nil ? "Start a reading plan" : "Reading plan, today's reading")
+        .padding(.horizontal, Spacing.md)
+        .padding(.bottom, Spacing.sm)
+    }
+
+    // MARK: - Sermon studies
+
+    /// The way in to the church's sermon studies, below the plan as the row
+    /// sits below it on the Android Bible tab (`/bible/sermons`).
+    private var sermonsCard: some View {
+        Button(action: onShowSermons) {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "building.columns")
+                    .font(.system(size: 16))
+                    .foregroundStyle(theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sermon studies")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                    Text("Walk through your church's latest message")
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.textMuted)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg)
+                    .strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .help("Walk through your church's latest message")
+        .accessibilityLabel("Sermon studies from your church")
         .padding(.horizontal, Spacing.md)
         .padding(.bottom, Spacing.sm)
     }
