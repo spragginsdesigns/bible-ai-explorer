@@ -8,10 +8,15 @@ import UIKit
 /// otherwise want to re-push the text on every body evaluation and fight the
 /// user's caret, so `updateUIView` only forwards the theme; content changes go
 /// through `NoteRichTextController.load(html:)`.
-struct NoteEditorTextView: UIViewRepresentable {
+///
+/// `accessory` rides on the keyboard as the text view's `inputAccessoryView`.
+/// SwiftUI's `.keyboard` toolbar only attaches to SwiftUI text inputs, so a
+/// formatting bar placed there never shows while this UIKit view is editing.
+struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
     @Environment(\.theme) private var theme
 
     let controller: NoteRichTextController
+    @ViewBuilder var accessory: () -> Accessory
 
     func makeCoordinator() -> Coordinator {
         Coordinator(controller: controller)
@@ -55,6 +60,13 @@ struct NoteEditorTextView: UIViewRepresentable {
             controller.onOpenWikilink?(noteID)
         }
 
+        let host = UIHostingController(rootView: accessoryView)
+        host.view.backgroundColor = .clear
+        host.view.frame = CGRect(x: 0, y: 0, width: 0, height: Self.accessoryHeight)
+        host.view.autoresizingMask = .flexibleWidth
+        context.coordinator.accessoryHost = host
+        textView.inputAccessoryView = host.view
+
         controller.textView = textView
         controller.theme = theme
         return textView
@@ -63,11 +75,25 @@ struct NoteEditorTextView: UIViewRepresentable {
     func updateUIView(_ textView: NoteTextView, context: Context) {
         if controller.textView !== textView { controller.textView = textView }
         if controller.theme != theme { controller.theme = theme }
+        context.coordinator.accessoryHost?.rootView = accessoryView
+    }
+
+    /// The bar's 32pt buttons plus breathing room above the keyboard.
+    private static var accessoryHeight: CGFloat { 48 }
+
+    private var accessoryView: AnyView {
+        AnyView(
+            accessory()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(theme.surface)
+                .environment(\.theme, theme)
+        )
     }
 
     @MainActor
     final class Coordinator: NSObject, UITextViewDelegate {
         private let controller: NoteRichTextController
+        var accessoryHost: UIHostingController<AnyView>?
 
         init(controller: NoteRichTextController) {
             self.controller = controller

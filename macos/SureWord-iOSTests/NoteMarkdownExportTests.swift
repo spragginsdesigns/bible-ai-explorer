@@ -160,6 +160,13 @@ final class NoteMarkdownExportTests: XCTestCase {
         }
     }
 
+    /// Copy and Share read the title being typed, not the last saved one.
+    func testExportTitleIsTheTypedTitle() {
+        XCTAssertEqual(NoteEditorMarkdown.exportTitle(draft: "Verse study ZZ parity test"), "Verse study ZZ parity test")
+        XCTAssertEqual(NoteEditorMarkdown.exportTitle(draft: "  Romans 8  "), "Romans 8")
+        XCTAssertEqual(NoteEditorMarkdown.exportTitle(draft: " \n "), "Untitled Note")
+    }
+
     func testTemplateOptionsAreAndroidsInOrder() {
         XCTAssertEqual(NoteTemplates.options.map(\.id.rawValue), ["verse-study", "sermon", "prayer", "blank"])
         XCTAssertEqual(NoteTemplates.options.map(\.label), ["Verse study", "Sermon notes", "Prayer journal", "Blank note"])

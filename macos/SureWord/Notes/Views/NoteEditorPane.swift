@@ -279,7 +279,7 @@ struct NoteEditorPane: View {
 
     private func copyMarkdown() {
         do {
-            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
             withAnimation { isCopiedVisible = true }
             Task {
                 try? await Task.sleep(for: .milliseconds(1200))
@@ -293,7 +293,7 @@ struct NoteEditorPane: View {
     private func shareMarkdown() {
         do {
             pendingShare = OutgoingShare(
-                payload: .text(try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+                payload: .text(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
             )
         } catch {
             exportError = error.localizedDescription

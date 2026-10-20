@@ -57,7 +57,16 @@ struct NoteEditorView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                NoteEditorTextView(controller: model.controller)
+                NoteEditorTextView(controller: model.controller) {
+                    NoteFormattingToolbar(
+                        controller: model.controller,
+                        onEditLink: {
+                            linkTarget = ""
+                            isLinkAlertPresented = true
+                        },
+                        onInsertWikilink: { isWikilinkPickerPresented = true }
+                    )
+                }
             }
         }
         .background(theme.bg.ignoresSafeArea())
@@ -65,18 +74,6 @@ struct NoteEditorView: View {
         .navigationTitle("")
         .navigationBarBackButtonHidden(false)
         .toolbar { toolbarItems }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                NoteFormattingToolbar(
-                    controller: model.controller,
-                    onEditLink: {
-                        linkTarget = ""
-                        isLinkAlertPresented = true
-                    },
-                    onInsertWikilink: { isWikilinkPickerPresented = true }
-                )
-            }
-        }
         .alert("Link", isPresented: $isLinkAlertPresented) {
             TextField("https://…", text: $linkTarget)
                 .keyboardType(.URL)
@@ -289,7 +286,7 @@ struct NoteEditorView: View {
 
     private func copyMarkdown() {
         do {
-            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller)
+            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller)
             copiedTick += 1
             withAnimation { isCopiedVisible = true }
             Task {
@@ -303,7 +300,7 @@ struct NoteEditorView: View {
 
     private func shareMarkdown() {
         do {
-            shareText = NoteShareText(text: try NoteEditorMarkdown.markdown(title: noteTitle, controller: model.controller))
+            shareText = NoteShareText(text: try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
         } catch {
             exportError = error.localizedDescription
         }

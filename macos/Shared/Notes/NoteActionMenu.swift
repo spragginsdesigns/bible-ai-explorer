@@ -92,4 +92,12 @@ enum NoteEditorMarkdown {
             document: NoteTiptapDocument.json(from: controller.currentDocument())
         )
     }
+
+    /// The title as typed, for export. The title field only renames the note
+    /// when it loses focus, and opening the note menu does not take focus, so
+    /// the saved title can still be the old one when Copy or Share runs.
+    static func exportTitle(draft: String) -> String {
+        let title = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? "Untitled Note" : title
+    }
 }
