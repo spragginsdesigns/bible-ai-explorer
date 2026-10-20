@@ -26,6 +26,57 @@ native sidebar and tab layouts with explicit receipt and verse destinations.
 See [navigation-overhaul.md](navigation-overhaul.md) for the complete destination
 map, account and consent behavior, artwork provenance and verification results.
 
+## What's new (release notes)
+
+Every SureWord update, newest first: the public journal at
+`sureword.app/whats-new` (a permalink per version, `/whats-new/1.96.0`),
+Settings -> What's new in each app, and once per release a "Since you were
+last here" sheet of up to three cards.
+
+**One source, and only the reader's half of it.** `mobile/CHANGELOG.md` is
+the record. `scripts/sync-whats-new.mjs` copies the `**What's new (Play):**`
+block of each entry into `src/content/whats-new/releases.json`; the Dev notes
+beside it name migrations, security fixes and internals and are never
+published. `src/content/whats-new/editorial.json` adds a title for every
+release, and for the larger ones a headline, a documented "why", a KJV verse
+(checked word for word against the bundled text) and a `target`, the feature
+a card's Try it opens. Targets are names, not paths, because each client
+places features differently (web `/sermons`, Android `/study/sermons`).
+Entries before 1.19.0 (versionCode 13) had no Play block and are one
+"Where it began" card. `tests/whats-new.test.mjs` fails on a stale JSON, a
+leaked Dev note, a release without a title, a dash, or a misquoted verse, and
+`push-phone.sh` refuses to publish while the JSON is behind the changelog.
+
+**The catch-up sheet.** `User.whatsNewSeenCode` (migration
+`20261020120000_whats_new_seen`) is the newest release the account has been
+shown. Rules live in `catchUpFor` (`src/lib/whats-new-rules.ts`):
+
+- A null value is an account that has never been asked. It is seeded to the
+  newest release with no cards, so nobody meets a backlog of ninety releases.
+  Existing accounts therefore first see the sheet at the release after this
+  one.
+- Only releases with a NEW section count; fixes alone never raise it.
+- `GET /api/whats-new/catch-up?upTo=<versionCode>` caps the cards at the
+  build the phone actually has, so it is never told about a feature it cannot
+  open. Web and Apple send no `upTo`.
+- Any close (a card, See all, Got it, Back or Escape) POSTs `seenUpTo`. The
+  value only moves forward and never past the newest release, so a second
+  device cannot replay the sheet.
+- Every client waits for the AI consent sheet to be answered first, so the
+  two never stack.
+
+The public page carries no price and no purchase link: the iPhone app opens
+it, under the same rule as `/support` and `/privacy`.
+
+| Piece | Where |
+|---|---|
+| Rules (pure, import-free) | `src/lib/whats-new-rules.ts` |
+| Sync and data | `scripts/sync-whats-new.mjs`, `src/content/whats-new/` |
+| Routes | `src/app/api/whats-new/route.ts` (public, cached), `src/app/api/whats-new/catch-up/route.ts` (signed in) |
+| Web | `src/app/whats-new/`, `src/components/whats-new/` (journal, catch-up dialog mounted in `src/app/layout.tsx`), sidebar and Settings -> About links |
+| Android | `mobile/app/(app)/settings/whats-new.tsx`, `mobile/src/features/whatsNew/` |
+| Apple | `macos/Shared/WhatsNew/` |
+
 ## Bible reader: sourced red letters and section headings
 
 Android 1.60.0 (62) and web source `f2245e5` add the Berean Standard Bible,

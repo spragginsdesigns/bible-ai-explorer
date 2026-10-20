@@ -2,6 +2,17 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.98.0 (versionCode 113) - 2026-10-20 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- What's new: every SureWord update in one place, newest first, with search and filters. Open it from Settings.
+- After an update, a short "Since you were last here" card shows what changed, with a Try it button for each new feature.
+- The same release notes are on the web at sureword.app/whats-new.
+
+**Dev notes:** Release notes overhaul. `scripts/sync-whats-new.mjs` turns the Play blocks of this file into `src/content/whats-new/releases.json` (Dev notes are never published; tests/whats-new.test.mjs fails if a Dev note leaks or the JSON is stale), joined with the hand-written `editorial.json`. Public, cached `GET /api/whats-new`; authed `GET/POST /api/whats-new/catch-up` backed by the new `User.whatsNewSeenCode` column (migration 20261020120000_whats_new_seen). A new account is seeded to the newest release so it never sees a backlog, the seen value only moves forward, and `?upTo=<versionCode>` keeps a phone from being told about a build it has not installed. Android: Settings -> What's new (`app/(app)/settings/whats-new.tsx`) and `features/whatsNew/WhatsNewPresenter.tsx`, mounted after the AI consent sheet. No native changes.
+
 ## 1.97.1 (versionCode 112) - 2026-10-19 - internal and closed testing
 
 **What's new (Play):**

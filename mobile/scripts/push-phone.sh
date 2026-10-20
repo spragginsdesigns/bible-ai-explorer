@@ -106,6 +106,18 @@ EOF
 fi
 log "Play notes for versionCode $TARGET_CODE from CHANGELOG.md ($(printf %s "$NOTES" | wc -c | tr -d ' ') chars)."
 
+# The web's What's new page and the in-app catch-up sheet read the same notes
+# from a committed JSON copy. A release whose entry is missing there would
+# reach phones without ever appearing on sureword.app/whats-new.
+if ! node "$REPO_ROOT/scripts/sync-whats-new.mjs" --check >/dev/null 2>&1; then
+  cat >&2 <<EOF
+[push-phone] BLOCKED: src/content/whats-new/releases.json is behind mobile/CHANGELOG.md.
+Run  node scripts/sync-whats-new.mjs  (and give the release a title in
+src/content/whats-new/editorial.json), commit both, push, then rerun.
+EOF
+  exit 1
+fi
+
 if [[ $SKIP_BUILD -eq 0 ]]; then
   if [[ ! -d "$MOBILE_DIR/node_modules" ]]; then
     log "Installing mobile dependencies..."

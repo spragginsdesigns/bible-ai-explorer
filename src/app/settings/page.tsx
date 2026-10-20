@@ -589,6 +589,13 @@ export default function SettingsPage() {
 								Version {WEB_VERSION} · A Bible study assistant rooted in the King
 								James Version.
 							</p>
+							<Link
+								href="/whats-new"
+								className="flex min-h-11 items-center justify-between rounded-xl border border-amber-700/20 px-3 text-sm font-semibold text-amber-700 hover:bg-amber-500/5 dark:border-amber-300/20 dark:text-amber-300"
+							>
+								What&apos;s new in SureWord
+								<ChevronRight size={16} aria-hidden />
+							</Link>
 							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
 								Why it&apos;s different: ask a generic AI if the Bible is really the Word of God
 								and you&apos;ll hear &ldquo;it depends on your viewpoint.&rdquo; SureWord never

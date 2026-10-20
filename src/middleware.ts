@@ -25,6 +25,12 @@ const isPublicRoute = createRouteMatcher([
 	"/privacy",
 	// Download cards render before sign-in and need current public app metadata.
 	"/api/native-releases",
+	// Release notes: a public page (linked from every client, signed in or out)
+	// and the same list as JSON for the native clients. Only the list is
+	// public; /api/whats-new/catch-up reads the account and stays behind it.
+	"/whats-new",
+	"/whats-new/(.*)",
+	"/api/whats-new",
 	"/api/webhooks(.*)",
 	// App Store Server Notifications V2 (SureWord's bundle only). Apple carries
 	// no session; the route verifies Apple's signature on the payload itself.

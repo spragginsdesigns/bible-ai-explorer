@@ -9,6 +9,7 @@ import ReadingLogSync from "../components/bible/readingLogClient";
 import PreferencesSync from "../components/PreferencesSync";
 import AnalyticsProvider from "../components/analytics/AnalyticsProvider";
 import AIConsentPresenter from "@/components/AIConsentPresenter";
+import WhatsNewPresenter from "@/components/whats-new/WhatsNewPresenter";
 import LaunchSplash from "@/components/LaunchSplash";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
@@ -171,6 +172,8 @@ export default function RootLayout({
 						    preferences and reports a write that did not stick. */}
 						<PreferencesSync />
 						<AIConsentPresenter />
+						{/* After the consent sheet is answered, at most once per release. */}
+						<WhatsNewPresenter />
 						<ReadingLogSync />
 						{/* Inside ClerkProvider: it identifies the reader from the
 						    session, and does nothing at all without a key. */}

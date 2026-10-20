@@ -1,0 +1,14 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "size": "1536x1024",
+  "quality": "high",
+  "crop": [
+    0,
+    40,
+    1536,
+    700
+  ],
+  "generated": "2026-10-20",
+  "usedBy": "src/app/whats-new (hero)",
+  "prompt": "Wide cinematic painted landscape for a website hero banner, textless. An open leather King James Bible rests on a weathered rock ledge in the right third of the frame, its pages catching warm light. Beyond it, layered misty mountain ridges and a golden sunrise; the sun sits low just above the far ridge, behind and to the left of the Bible, with soft rays. The entire left half is deep, quiet, near-black warm charcoal (#0a0a0a) shadow with only faint dark ridgelines, so large headline text can sit there. Lower edge fades smoothly into solid #0a0a0a. Palette: warm gold #E0A82E, amber, honey, deep charcoal; restrained, reverent, adult, premium. Painterly realism with fine detail. No text, no letters, no words, no logo, no people, no cross, no frame, no UI."
+}

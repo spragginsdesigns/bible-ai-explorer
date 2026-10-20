@@ -15,6 +15,7 @@ import {
 	Network,
 	Compass,
 	Brain,
+	Sparkles,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { PRIMARY_DESTINATIONS, primarySectionForPath, type PrimarySection } from "@/lib/primary-navigation";
@@ -219,6 +220,14 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 					>
 						<Smartphone className="w-4 h-4" />
 					</GetAppLink>
+					<Link
+						href="/whats-new"
+						title="What's new"
+						aria-label="What's new"
+						className="flex h-8 w-8 items-center justify-center rounded-lg text-neutral-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+					>
+						<Sparkles className="w-4 h-4" />
+					</Link>
 					<button
 						onClick={() => {
 							const isDark = document.documentElement.classList.contains("dark");

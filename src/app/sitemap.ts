@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { sharedAnswerUrl } from "@/lib/shared-answer";
+import { WHATS_NEW_ENTRIES } from "@/lib/whats-new";
 
 const SITE_URL = "https://sureword.app";
 
@@ -74,6 +75,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			changeFrequency: "monthly",
 			priority: 0.3,
 		},
+		// Release notes: the index changes with every release; a release's own page never does.
+		{
+			url: `${SITE_URL}/whats-new`,
+			lastModified: new Date(`${WHATS_NEW_ENTRIES[0]?.date ?? "2026-10-20"}T00:00:00.000Z`),
+			changeFrequency: "weekly",
+			priority: 0.6,
+		},
+		...WHATS_NEW_ENTRIES.map((entry) => ({
+			url: `${SITE_URL}/whats-new/${entry.version}`,
+			lastModified: new Date(`${entry.date}T00:00:00.000Z`),
+			changeFrequency: "yearly" as const,
+			priority: 0.3,
+		})),
 		...(await listedSharedAnswers()),
 	];
 }

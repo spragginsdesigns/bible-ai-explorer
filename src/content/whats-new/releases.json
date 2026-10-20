@@ -1,0 +1,1552 @@
+{
+	"releases": [
+		{
+			"version": "1.98.0",
+			"versionCode": 113,
+			"date": "2026-10-20",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"What's new: every SureWord update in one place, newest first, with search and filters. Open it from Settings.",
+						"After an update, a short \"Since you were last here\" card shows what changed, with a Try it button for each new feature.",
+						"The same release notes are on the web at sureword.app/whats-new."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.97.1",
+			"versionCode": 112,
+			"date": "2026-10-19",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Today keeps longer verse previews compact so Read today's word stays easy to reach. Open the devotional for the full passage and reflection.",
+						"Includes the new Today, Bible, Chat, Connections and Study navigation, with Notes in Study and clearer Back behavior."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.97.0",
+			"versionCode": 111,
+			"date": "2026-10-19",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Today brings your daily word, reading plan and verse practice together.",
+						"Five clear tabs: Today, Bible, Chat, Connections and Study.",
+						"Bible opens straight into reading. Find Notes, the timeline, atlas and sermon studies in Study.",
+						"Existing verse, devotional and note links keep working with clearer navigation and Back behavior."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.96.0",
+			"versionCode": 110,
+			"date": "2026-10-19",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Connections: a new tab that shows how Scripture is woven together, every book on one ring with a chapter's cross-references drawn across it.",
+						"Tap a verse to see its connected verses, tagged by part of the Bible, and filter by section.",
+						"Ask why these connect: a short explanation of how each passage ties to your verse.",
+						"Open it from the map button in the reader or from See also on any verse."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.95.0",
+			"versionCode": 109,
+			"date": "2026-10-18",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Starting SureWord without a connection no longer leaves Settings switches and requests stuck after you come back online.",
+						"If a screen hits a problem, you now get a Try again button instead of the app closing.",
+						"A reply whose formatting cannot be drawn now shows as plain text instead of breaking the chat.",
+						"Changing a setting no longer redraws the whole app, so the app stays smoother.",
+						"Lighter companion and logo images make the chat home load faster and use less memory."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.94.0",
+			"versionCode": 108,
+			"date": "2026-10-18",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Coming up at church: the events announced at your church's services, like a ladies' fellowship or a trustees' meeting, now appear in Sermon studies with the announcement in the church's own words.",
+						"Add any of them to Google Calendar or another calendar in one tap.",
+						"If the time was not clear in the recording, SureWord says so and links the church's app for the exact time.",
+						"Add a personal reflection when sharing a verse or today's word, and choose its font, card style and placement."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.93.0",
+			"versionCode": 107,
+			"date": "2026-10-18",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Add a personal reflection when sharing a verse or today's word. Write your own, or ask SureWord to connect the verse to your walk with God while keeping private details out.",
+						"Edit every word and choose its font, card style and placement before previewing and sharing."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.92.0",
+			"versionCode": 106,
+			"date": "2026-10-17",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Send a word to someone. Tell SureWord who it is for and what they are facing, and it finds a KJV verse and writes a few words just for them, ready to share as a card with your own message and name.",
+						"Find it on the Bible tab, or tap Send to someone when you share a verse or today's word.",
+						"See and take back the cards you sent in Settings, Shared answers."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.91.0",
+			"versionCode": 105,
+			"date": "2026-10-17",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Share beautiful cards. Share a verse, your Pick Up Your Cross day or an answer as an image in three styles, Dawn, Parchment and Sanctuary, sized for stories or posts.",
+						"Verse cards can carry a word of encouragement written for whoever reads it.",
+						"Every card links to a page where friends can read the verse and ask SureWord about it.",
+						"Pick Up Your Cross now has a Share button."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.90.0",
+			"versionCode": 104,
+			"date": "2026-10-16",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Scripture under an answer is now a short row of passages instead of a long list of verses. Tap a passage, or a verse reference in the answer, to read it in a sheet with Copy, Share, Save to note and Read in context.",
+						"Passages show in the order the answer cites them, and search results keep their own section."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.89.1",
+			"versionCode": 103,
+			"date": "2026-10-13",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Bible search responds more reliably and reuses repeated searches.",
+						"Note search keeps the newest edits and finds the best matches.",
+						"Verse explanations follow your current AI model.",
+						"Chat follows new answers with less motion."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.89.0",
+			"versionCode": 102,
+			"date": "2026-10-13",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"SureWord asks about AI once, the first time you open the app, and never again. If you say no, it checks once, since most of SureWord runs on AI, and then remembers your choice on every device.",
+						"Turn AI off or back on anytime in Settings, AI."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Pick Up Your Cross no longer shows a \"needs your permission\" card with a Try again button that did nothing."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.88.1",
+			"versionCode": 101,
+			"date": "2026-10-13",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"The questions on the Chat home are chosen from your own study again: your reading, questions, notes, memories, and today's verse. They had fallen back to the same six starter questions for everyone."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.88.0",
+			"versionCode": 100,
+			"date": "2026-10-12",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"A calmer Chat home with warm gold, ivory, and charcoal colors, a friendly study companion, and easy-to-read question cards.",
+						"Your companion reaches upward while preparing an answer and raises its arms in praise as the answer arrives.",
+						"All your study questions are still there. Tap the extra-questions button to see more."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Clearer Chat options, larger touch targets, and comfortable spacing for the keyboard and large text."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.87.1",
+			"versionCode": 99,
+			"date": "2026-10-11",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"The dawn welcome now plays only when you open SureWord fresh. Switching back to the app from another app or the home screen takes you straight to where you were."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.87.0",
+			"versionCode": 98,
+			"date": "2026-10-09",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Security update: files you share into SureWord from other apps are checked against the size limit before they are copied, and nothing is left behind in storage when a file is too large.",
+						"Your notification settings now stay tied to this phone, so another account cannot take over its reminders."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.86.0",
+			"versionCode": 97,
+			"date": "2026-10-09",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"A beautiful dawn welcome for your walk with God, with a short, silent reveal when you open SureWord or return to it.",
+						"Tap to skip. Reduced-motion and screen-reader settings take you straight into the app."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.85.0",
+			"versionCode": 96,
+			"date": "2026-10-09",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Your walk: the Reading log opens with a short reflection on your reading, tied to your questions, notes and prayers, with a KJV verse to carry and what to read next.",
+						"Your Bible: every book with the chapters you have read; open any chapter from there.",
+						"Listen now reads the whole Bible, Genesis to Malachi, with read-along and Listen from any verse."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Reading log stats in plain words, history grouped by day, and pull to refresh."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.84.1",
+			"versionCode": 95,
+			"date": "2026-10-08",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Returning to the reader after narration advances keeps the correct verse in view, including when the next chapter is shorter.",
+						"Stale reader scrolls no longer interrupt playback or close the app."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.84.0",
+			"versionCode": 94,
+			"date": "2026-10-08",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Copy, edit and resend your own questions. Long-press any question, or use the buttons under your newest one. An edit keeps its attachments and replaces the replies after it.",
+						"Try again on the newest answer to get a fresh one.",
+						"SureWord Pro can choose how hard SureWord thinks: Low, Medium or High."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Answers are fast again. Free accounts now see \"SureWord AI\" instead of a model name."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.83.0",
+			"versionCode": 93,
+			"date": "2026-10-08",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Listen to the narrated KJV New Testament in the Bible reader, follow each verse, skip verses, change speed and keep listening with the screen off.",
+						"Review how SureWord uses AI before your first AI request, and withdraw permission in Settings > AI."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.82.0",
+			"versionCode": 92,
+			"date": "2026-10-08",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The King James Bible in SureWord is now the standard 1769 text, checked word for word. Missing and misprinted words are restored (Mark 15:2 \"said unto him\", 1 Samuel 15:33 \"As thy sword\", and more), along with the KJV's own spellings and punctuation.",
+						"Psalm titles are no longer counted as verse 1.",
+						"Bible search finds names written either way, like Bethel or Beth-el."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.81.1",
+			"versionCode": 91,
+			"date": "2026-10-08",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Corrected misspellings in the Bible text, including Galatians 2:20 (\"nevertheless\"), Jonah 1:15 (\"took up Jonah\") and Genesis 47:4 (\"moreover\"). Malachi 4:6 no longer ends with a stray \"The New Testament\" heading."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.81.0",
+			"versionCode": 90,
+			"date": "2026-10-07",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"/verify checks a YouTube video or a web link against Scripture. Paste a link after /verify, or share a video from the YouTube app and tap \"Verify this video\". SureWord reads what was said, lists the claims with timestamps and weighs each one against the KJV, showing each step while it works."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.80.0",
+			"versionCode": 89,
+			"date": "2026-10-07",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Delete account: in Settings, Account, you can now permanently delete your SureWord account and everything in it. SureWord lists what goes and asks you to type DELETE before anything is removed."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Pick Up Your Cross: the Listen card now says plainly that Listen is included with SureWord Pro."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.79.0",
+			"versionCode": 88,
+			"date": "2026-10-07",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"/check weighs a claim, a screenshot or a voice message against Scripture.",
+						"/reply helps you answer someone gently from Scripture.",
+						"Voice messages: attach or share an audio clip and SureWord reads what was said.",
+						"Share into SureWord from Discord, Messages and other apps.",
+						"My testimony: tell SureWord privately how you came to faith (Settings, Memory)."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.78.0",
+			"versionCode": 87,
+			"date": "2026-10-01",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Pick Up Your Cross audio is now made when you ask. Choose a narrator, preview their voice, and pick Calm, Natural or Expressive delivery before generating.",
+						"Your audio is saved for repeat listening. Adjust playback speed and read along with the transcript."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.77.0",
+			"versionCode": 86,
+			"date": "2026-09-23",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Shared answers can now be shown in search. In Settings, Shared answers, turn on Show in search for any answer you have shared and people can find it on Google. Links stay unlisted unless you choose this, SureWord asks before turning it on, and your name is never shown. Revoking a link also takes it out of search."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.76.0",
+			"versionCode": 85,
+			"date": "2026-09-22",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Chat scrolls more smoothly through long conversations, and Bible verse links can open the reader from outside the app. Memories has more time to finish a summary. If deleting a chat fails, SureWord now tells you and restores it in your history."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.75.0",
+			"versionCode": 84,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"You can talk Sunday's message over with SureWord. Open a sermon study and tap Ask AI at the bottom, or just ask in Chat: \"what did we study Sunday?\", \"explain the second point\", \"help me live this out this week\". It reads the whole study, keeps the preacher's own words separate from its own teaching, and can point you at the moment in the recording. Watch the service now sits in the same bar."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.74.0",
+			"versionCode": 83,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Sermon studies. When your church streams a service, SureWord now turns it into a guided walk through the message: the preacher's own words with a link straight to that moment in the video, the passages in King James, an explanation of each point, a question to carry with you, and artwork along the way. Look for Sermon studies in the Bible tab. Also fixes a fresh install briefly signing itself out before the sign-in screen appeared."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.73.2",
+			"versionCode": 82,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Bug fixes and performance improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.73.1",
+			"versionCode": 81,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Bug fixes and performance improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.73.0",
+			"versionCode": 80,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Bug fixes and performance improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.72.1",
+			"versionCode": 79,
+			"date": "2026-09-20",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Fixes a crash that stopped SureWord from opening at all. 1.72.0 closed instantly on launch, before the splash screen even appeared. Everything is back, and nothing you saved was lost: Chat, Bible, Notes, Pick Up Your Cross and your memories are all where you left them."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.72.0",
+			"versionCode": 78,
+			"date": "2026-09-19",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Send feedback: Settings now has a place to tell us what is broken, what is missing, or what you want SureWord to do. Add your email only if you want a reply. A person reads every one.",
+						"SureWord now measures how the app is used, so we can fix what gets in the way: screens opened, whether an answer finished, how you rated it. Never the content of your study, and never your screen."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.71.0",
+			"versionCode": 77,
+			"date": "2026-09-18",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The AI model picker in Chat is redesigned: it now fills the screen with two tabs, Models and Options. Models gets the whole height for search and the list, and Options lays every Reasoning, Speed, Length and Mode choice out in a tidy grid, so nothing is cut off or hidden behind a sideways scroll.",
+						"\"Add an API key\" now sits at the end of the model list as a tappable row."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.70.3",
+			"versionCode": 76,
+			"date": "2026-09-18",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The SureWord icon in the status bar and notification shade is now full size, like every other app's, instead of a small mark floating in the middle of its tile."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.70.2",
+			"versionCode": 75,
+			"date": "2026-09-17",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"In the Words tab, the \"Ask about this word\" button now sits on one line beside \"Every verse\".",
+						"Studies mention how often a word recurs only when it is a true refrain of the book, instead of listing numbers for every word."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.70.1",
+			"versionCode": 74,
+			"date": "2026-09-17",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The Bible tab's header is tidy again. The lone clock icon that sat under the \"Bible\" title is now a labeled Reading log button beside the title, so it is clear what it opens."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.70.0",
+			"versionCode": 73,
+			"date": "2026-09-17",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The Words tab on a tapped verse is a real word study now. Every Hebrew or Greek word sits next to the King James wording it became, with a plain spelling and one line on what the original carries, followed by a short study of what the original says and one line to carry with you.",
+						"Tap any word for more: its grammar in plain words, the Strong's definition, other verses that use the same word, and buttons to ask about it in Chat or see every verse where it appears."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.69.0",
+			"versionCode": 72,
+			"date": "2026-09-17",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Settings is a short list now instead of one long scroll. Your account and Check for updates sit at the top, and every area (Appearance & reading, Highlight labels, My church, Memory, AI, Shared answers, Notifications, About) opens on its own page with a Back button.",
+						"Each row shows where things stand at a glance: your theme and translation, your church, whether memory is on and how many memories are saved, how many AI keys you have added, and when the daily verse arrives."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.68.0",
+			"versionCode": 71,
+			"date": "2026-09-17",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Copy any answer with one tap. The row under each answer is now a tidy set of icons: Copy, Add to notes, Helpful, Not helpful, Share.",
+						"When an answer misses the mark, tell us why in a tap: pick from Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, or Too long, and add a note if you like."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.67.0",
+			"versionCode": 70,
+			"date": "2026-09-16",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Chat opens as a chat now: the SureWord mark, your opening questions, and the message box right where your thumb is. The long welcome text is gone, and the box stays put when your first answer arrives.",
+						"Your opening questions show four at a time, with a tap to see the rest."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.66.0",
+			"versionCode": 69,
+			"date": "2026-09-16",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Highlight labels now ask why you reach for each color: give every color a name and a one-line meaning, or tap \"Use suggested labels\" for a ready-made set (Favorite, Promise, Command, Warning, Question and more). The assistant reads your meanings, so a marked verse carries your reasons into Chat.",
+						"New in Settings under Memory: \"About me\". Tell SureWord in your own words where you are in your walk and what you want from the app, and every conversation starts from that."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.65.0",
+			"versionCode": 68,
+			"date": "2026-09-16",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Notes got a cleaner look: a calmer editor bar with just the title, the AI assistant and a menu, and new icons throughout Notes.",
+						"Copy as Markdown and Share as Markdown now live in the note menu, alongside Pin, Tags, Note info, Move to folder and Delete."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.64.0",
+			"versionCode": 67,
+			"date": "2026-09-16",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"A calmer verse sheet: tap a verse and a small card slides up with the explanation, your highlight colors and one row of actions - Ask, Copy, Share, Note, Learn - while the chapter stays readable behind it. Drag up to study: Explain, Words (the Hebrew or Greek) and See also, one at a time.",
+						"Select a passage: keep tapping verses to grow the selection, then highlight, copy, share, save or learn all of them together.",
+						"Re-tap your highlight color to remove it."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.63.0",
+			"versionCode": 66,
+			"date": "2026-09-15",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Tell SureWord how an answer landed: thumbs up or down under any answer, with a line about what went wrong if you like.",
+						"Share an answer: one tap makes a link anyone can open, with a preview card; manage or revoke your links in Settings → Shared answers."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.62.0",
+			"versionCode": 65,
+			"date": "2026-09-15",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Prayer requests come back to you: the assistant gently asks how a request went, and Settings → Memory lets you mark one Answered, Close it or Reopen it in a tap.",
+						"Everything the assistant saves shows as one line of tappable receipts under its answer - notes, memories, highlights, your plan, today's cross, Learn - with Undo on a remembered memory.",
+						"Pick Up Your Cross: \"Stay with this\" takes today's theme further; \"Take me somewhere fresh\" moves to a different area of life."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.61.0",
+			"versionCode": 64,
+			"date": "2026-09-15",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Ask SureWord to teach you a verse: say \"learn John 3:16\" in chat and it joins your Learn queue, with a receipt that opens the Learn screen.",
+						"Say \"quiz me\" and the assistant quizzes you on your verses at your level, never revealing the hidden words before you answer.",
+						"Pro subscriptions stay active through renewals, and abandoned checkouts no longer appear in Membership.",
+						"Free study remains available with 10 included AI actions each day.",
+						"Pro membership can use Google Play billing when enabled for your account.",
+						"Restore a Google Play subscription on another device after Google confirms it.",
+						"Your Bible, notes, highlights and saved study remain available when AI limits are reached."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.60.0",
+			"versionCode": 62,
+			"date": "2026-09-13",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"A calmer Bible reader with more breathing room, simpler reading controls, and easier chapter navigation.",
+						"Jesus' words appear in red in KJV and BSB, with section headings to guide your reading.",
+						"Read and search the full Berean Standard Bible offline, alongside KJV.",
+						"Your highlights, notes, and reading history stay with you."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.59.0",
+			"versionCode": 61,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Follow SureWord's work in a new activity card, with helpful summaries as it researches and prepares your answer.",
+						"Expand “Worked for” to revisit the steps, passages, and sources behind an answer.",
+						"Smoother follow-ups and connection recovery, plus better hardware keyboard support."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.58.0",
+			"versionCode": 60,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Learn a verse now suggests what to learn. SureWord reads your own walk, the verses you marked, the chapters you read, what you asked about, and offers the ones Scripture itself leans on most, saying why it chose each.",
+						"Four ways to practise the same verse: fill the blanks, first letters, tap the words back into order, or write it out and have it checked word for word.",
+						"Which one you get follows how well you know the verse, and you can switch at any time."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.57.1",
+			"versionCode": 59,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Keep a lifetime reading log, including rereads and partial passages. Log physical Bible reading and correct entries in chat.",
+						"Reading stays saved through offline restarts and syncs when you reconnect. History loading now times out cleanly if your connection is unavailable.",
+						"Includes the latest offline Learn, note templates, highlight labels, and related-passage improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.57.0",
+			"versionCode": 58,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Offline Learn progress survives an app restart and syncs once when you reconnect.",
+						"Your reading log keeps lifetime sessions and partial passages. Log physical-Bible reading or correct entries in chat.",
+						"Note templates, Markdown copy, highlight labels, related passages, and continue-reading work together across your study screens.",
+						"Includes the reviewed conversation-history improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.56.0",
+			"versionCode": 57,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Learn a verse is ready. Tap a Bible verse, choose Learn this verse, and practice from the Bible tab.",
+						"Practice moves from the full verse to missing words, then recall from the reference. Tap blanks for help.",
+						"Downloaded verses support offline practice. Your saved schedule updates when you practice online.",
+						"Includes the integrated conversation history, note templates, highlight labels, related passages, and continue-reading improvements."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.55.1",
+			"versionCode": 56,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"SureWord knows your day: it greets you by name and sees today's cross, your week's reading and the verses you marked.",
+						"Short follow-ups get short answers.",
+						"Add to notes writes a real study note in your voice, not the chat reply.",
+						"Chats name themselves; history gains search, rename and a safer delete.",
+						"Tap a verse for related passages, name your highlight colours, continue where you left off, start notes from a template, and search either translation."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.55.0",
+			"versionCode": 55,
+			"date": "2026-09-12",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"SureWord knows your day: it greets you by name and sees today's cross, your week's reading and the verses you marked.",
+						"Short follow-ups get short answers.",
+						"Add to notes writes a real study note in your voice, not the chat reply.",
+						"Chats name themselves; history gains search, rename and a safer delete.",
+						"Tap a verse for related passages, name your highlight colours, continue where you left off, start notes from a template, and search either translation."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.54.0",
+			"versionCode": 54,
+			"date": "2026-09-11",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Settings no longer shifts under your thumb. The AI Providers, My church and Memory sections are ready the moment the screen opens, so a fast scroll down to Check for updates lands where you meant to tap instead of on an Add key or Remove button.",
+						"Settings stays ready between launches and refreshes quietly in the background."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.53.0",
+			"versionCode": 53,
+			"date": "2026-09-07",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Ask about the original Hebrew and Greek: SureWord can now find every verse where a Hebrew or Greek word appears, by the word itself, its Strong's number, or how it is spelled in English (hesed, agape, shalom).",
+						"The transcript shows \"Searching the Hebrew and Greek\" while it looks, and the verses land in the Retrieved Verses card."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.52.0",
+			"versionCode": 52,
+			"date": "2026-09-07",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Chat can now look up exact Bible wording instantly: quote a phrase or name a word and SureWord finds every verse that contains it.",
+						"The transcript shows \"Searching the Bible for those words\" while it looks, and the verses appear in the Retrieved Verses card."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.51.0",
+			"versionCode": 51,
+			"date": "2026-09-07",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Bible search no longer pauses on your first search.",
+						"Reading long chapters stays smooth while a verse explanation is loading.",
+						"Chat keeps up with long conversations while an answer is streaming.",
+						"Reading plan progress now updates everywhere at once: the Bible home card, the plan screen, and Pick Up Your Cross.",
+						"Photos attach faster: large pictures are sized down before sending.",
+						"Faster app launch."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.50.1",
+			"versionCode": 50,
+			"date": "2026-09-06",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Ask SureWord to remember, update, or forget something directly in chat, with clear progress while it works.",
+						"Requests to save both a note and a memory now do both. Memory actions respect your account and Memory setting."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.50.0",
+			"versionCode": 49,
+			"date": "2026-09-06",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Pick Up Your Cross now stays in Bible navigation: return from a study passage to your devotional, then to the Bible home.",
+						"Quick highlight color changes and removals save in the order you choose them.",
+						"Note autosaves keep newer edits from being overwritten; a failed save stays available to retry before leaving.",
+						"Larger touch targets make notification time and AI provider controls easier to use.",
+						"Fixed a black screen after Android recreates the devotional screen."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.49.0",
+			"versionCode": 48,
+			"date": "2026-09-04",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Your settings now follow your account: Bible translation, parchment page, Listen speed, model picks, Memory and Web Search sync across phone, web and Mac, and return on a fresh install.",
+						"Settings: a Web Search toggle on your phone."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Signing in with a different account no longer shows the previous account's cached notes, highlights or settings."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.48.0",
+			"versionCode": 47,
+			"date": "2026-09-03",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Chat: the model picker's search box is always there, finds models by any words in any order (\"gpt sol\", \"claude opus\", \"openrouter\"), ignores dots and dashes, and the keyboard's Search key picks the top match."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.47.0",
+			"versionCode": 46,
+			"date": "2026-09-03",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Chat: the model picker now shows what each model can do, with a search box, a short description and price per model, and Reasoning, Speed, Length and Mode options that only appear when the model supports them.",
+						"Chat: reasoning goes from Off to Max on models that allow it, Fast mode is available on OpenAI, Claude Opus and OpenRouter, Brief/Normal/Detailed controls answer length, and Pro mode unlocks deeper reasoning on GPT-5.6."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.46.0",
+			"versionCode": 45,
+			"date": "2026-09-02",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Headers separate cleanly from scrolling content, and the sign-in wordmark is easier to read."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Bible: the Ask AI button no longer sits on top of the verses, and the verse sheet's highlight colours are visible as soon as it opens.",
+						"Chat: the conversation list no longer cuts off its last chat, and long book names in suggestions no longer split mid-word.",
+						"Notes: long titles now read from the start in the editor.",
+						"Settings: removed a stray empty button from the header."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.45.0",
+			"versionCode": 44,
+			"date": "2026-09-02",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Tap-a-verse explanations open instantly for any verse someone has already tapped."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Bible: the verse sheet now scrolls, so Expand with AI, Highlight, Copy, Share and Save to note are reachable again under the original-language words."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.44.0",
+			"versionCode": 43,
+			"date": "2026-09-02",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Original language: tap any verse in Bible to see the Hebrew or Greek words behind it. Tap a word for its meaning, pronunciation, Strong's number and definition.",
+						"No API key needed: SureWord now answers every account with its built-in model, GPT-5.6 Luna. Add your own key in Settings to choose other models."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"The model picker only lists models you can actually use."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.43.1",
+			"versionCode": 42,
+			"date": "2026-08-31",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Restored the Bible reader's original Scripture spacing and rendering for comfortable chapter reading",
+						"Kept the new readable type system everywhere else in SureWord"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.43.0",
+			"versionCode": 41,
+			"date": "2026-08-30",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"A more readable Atkinson Hyperlegible type system across Chat, Bible, Notes, and Settings",
+						"Larger chat answers and clearer labels throughout SureWord",
+						"Scripture keeps its distinctive reading style, while code and technical text now use Hack"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.42.0",
+			"versionCode": 40,
+			"date": "2026-08-30",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Come hungry for the Word: a short, smooth Android opening now leads into SureWord's Scripture-centered welcome",
+						"Your suggested questions are now clearly chosen from your reading, questions, notes, and memories",
+						"1 Peter 2:2 now frames the study experience across Android, web, Mac, and iPhone",
+						"Returning from the background takes you straight back to where you left off without replaying the welcome"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.41.0",
+			"versionCode": 39,
+			"date": "2026-08-30",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Link notes together: type [[Note Title]] or use the link button in the editor toolbar",
+						"Linked mentions: the new info panel shows every note that links to the one you are reading",
+						"Note properties: give notes aliases and your own metadata (text, numbers, checkboxes, lists), plus creation date, word count and folder at a glance",
+						"Links to notes that do not exist yet can be created with one tap"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.40.0",
+			"versionCode": 38,
+			"date": "2026-08-28",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"The Chat question box now has balanced spacing above the navigation bar",
+						"A lighter surface and subtle glow make the question box easier to see"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.39.0",
+			"versionCode": 37,
+			"date": "2026-08-28",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord now has a custom AI guide across Chat and Notes"
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Thinking and tool activity now stay in one clearly labeled assistant row",
+						"Chat no longer shows duplicate AI avatars while an answer starts"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.38.1",
+			"versionCode": 36,
+			"date": "2026-08-28",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Connect your OpenRouter key in Settings → AI Providers",
+						"Choose compatible OpenRouter models from the Chat model picker",
+						"OpenRouter keys are validated and encrypted like your other AI provider keys"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.38.0",
+			"versionCode": 35,
+			"date": "2026-08-28",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"SureWord's AI answers now use the Bible translation you select",
+						"Bible history is now clearly labeled Timeline, People & Places",
+						"Listen clearly explains when self-service SureWord Pro access is not available yet"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.37.1",
+			"versionCode": 34,
+			"date": "2026-08-27",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Pick Up Your Cross no longer turns into an empty black screen while a different word is being prepared",
+						"Your current word stays visible with a clear progress message, then the screen moves to the new verse when it is ready"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.37.0",
+			"versionCode": 33,
+			"date": "2026-08-27",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Pick Up Your Cross now remembers what it has already covered and searches your current walk for a fresh, grounded direction",
+						"Going deeper in Chat is recognized as follow-up study instead of making tomorrow repeat today",
+						"Reopening Pick Up Your Cross refreshes the current day and its Listen transcript"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.36.0",
+			"versionCode": 32,
+			"date": "2026-08-27",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Tell SureWord where you worship: Settings now has My church",
+						"Search for your church by name or city and save it in a tap",
+						"Your church card keeps its address, phone, website and directions one tap away",
+						"Read your church's mission statement, taken from its own public website"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.35.0",
+			"versionCode": 31,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Browse Bible history through Timeline, People and Places",
+						"Open people and events, follow person journeys, and trace reviewed relationships to their exact Scripture references",
+						"Find the right Joseph, Mary, John or James with clearer search context"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Faster era navigation, grouped search results and clearer traditional chronology labels"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.34.0",
+			"versionCode": 30,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"The era buttons on Timeline & People (All, Patriarchs, Exodus, Judges, Kingdom and the rest) are no longer cut in half - the whole row shows, and scrolls sideways as it should",
+						"The folder and tag rows in Notes are protected from the same squeeze"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.33.0",
+			"versionCode": 29,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Listen keeps playing when your screen goes off. The spoken devotional now works like your music app: put the phone down and it keeps going. You'll see it on your lock screen and in your notifications with today's verse - play, pause, skip back and forward, and drag to any point. Your headphone and car controls work too."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.32.0",
+			"versionCode": 28,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Verses quoted in Chat always render as one Scripture card, with the reference inside it - no more split cards or stray symbols",
+						"Chat answers reflow to your screen width, lists and code stay tidy, and a missing space after a period no longer turns into a web link",
+						"Bible references tap through to the reader in more forms (Jn 3:16, Gen.1:1, John 3:16-4:2), and headings stay plain"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.31.0",
+			"versionCode": 27,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Timeline, People & Places: walk Bible history era by era and tap any event for what happened, in Scripture's own words",
+						"Look up any person or place, or tap the people icon in a chapter to see who is in it",
+						"Listen is ready when your day is: the spoken devotional is prepared with your Pick Up Your Cross (SureWord Pro)",
+						"Playback speed from 0.75x to 2x, remembered for next time"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.30.0",
+			"versionCode": 26,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Timeline, People & Places. Tap Timeline & People on the Bible tab and walk Bible history from Creation to Revelation, era by era",
+						"Tap any event for what happened, in the Bible's own words, with the verses one tap away",
+						"Look up any person or place: what Scripture says, the other names it uses, who they connect to",
+						"Reading a chapter? Tap the people icon to see who's in it",
+						"Ask SureWord \"/who Melchizedek\" and it answers from the King James text, not the web"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.29.0",
+			"versionCode": 25,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Reading plans. Tap Reading plan on the Bible tab: the Gospels in 30 days, Psalms & Proverbs in 31, the New Testament in 90, the whole Bible in a year - or say what you want and SureWord builds it",
+						"Progress fills itself in. Read the chapters in SureWord and the day ticks itself off; Mark read covers reading you did elsewhere",
+						"See your streak and how far through you are, and tap today's chapters to start",
+						"Pick Up Your Cross now follows today's plan reading"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.28.0",
+			"versionCode": 24,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Listen to today's Pick Up Your Cross. Tap Listen and SureWord prepares a spoken devotional on your verse - it reads the verse, why it was chosen for you today, what the passage opens up, your study path, a prayer, and the question to carry",
+						"Play, pause and scrub through it, and open Read along to follow the words"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.27.0",
+			"versionCode": 23,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Every question on the welcome screen now says where it came from - the passage it is about, or a tag like YOUR NOTES, TODAY'S VERSE or NEXT CHAPTER"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Scripture references on those questions read the same way every time"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.26.0",
+			"versionCode": 22,
+			"date": "2026-08-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Chat opens with a stained-glass Scripture welcome and a short animated launch",
+						"Your personalized study questions still come from your reading, chats, notes and memories"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Your strongest next study question is featured first, with every other generated question ready below it"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.25.0",
+			"versionCode": 21,
+			"date": "2026-08-25",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"When something goes wrong in Chat, SureWord now explains what happened in plain language and offers a Try again button when retrying can help - no more technical noise."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"A question could rarely fail to send without any message at all. You'll always see what happened and can retry."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.24.0",
+			"versionCode": 20,
+			"date": "2026-08-25",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord can tell you when an answer is ready if you left while it was thinking. Tap the notification to jump straight back to that conversation. Turn it off in Settings under Chat."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Leaving the app while SureWord is answering no longer loses the answer. Switch apps, lock your screen, or drop off Wi-Fi - the answer keeps being written and is waiting for you when you come back."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.23.0",
+			"versionCode": 19,
+			"date": "2026-08-24",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord can now see the verses you have highlighted. Ask \"what have I highlighted in Romans?\" and it will read your highlights, colors and all."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Attaching a PDF or image no longer breaks the chat. Whatever AI model you have picked, SureWord now reads your file - and if your model genuinely cannot, it tells you instead of failing the whole answer. Retrying a failed answer works again too."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.22.0",
+			"versionCode": 18,
+			"date": "2026-08-23",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord now shows you what it's doing while it works: \"Getting ready\", \"Reading your document\", \"Searching the Scriptures\" and more appear live from the moment you send, in Chat and in the Notes assistant - no more silent waiting dots"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Clearer messages when something goes wrong, without technical noise"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.21.0",
+			"versionCode": 17,
+			"date": "2026-08-22",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Highlight any verse in the Bible reader: tap a verse, pick one of 8 colors or choose any custom color, and it stays highlighted - synced across Android, web, and Mac"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.20.0",
+			"versionCode": 16,
+			"date": "2026-08-20",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord keeps itself up to date: new versions download from the Play Store automatically, and Settings gains a \"Check for updates\" button"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Solid bottom navigation bar - content no longer shows through it",
+						"Crisp new icons across Notes, Chat and Bible instead of emoji",
+						"Your personalized starting questions now load instantly, prepared fresh each morning"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.19.1",
+			"versionCode": 14,
+			"date": "2026-08-20",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Sign in with a password: accounts that have a password set are asked for it directly, with \"Email me a code instead\" as a fallback"
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"The sign-in button now reads \"Continue\" and picks the right next step for your account"
+					]
+				}
+			]
+		},
+		{
+			"version": "1.19.0",
+			"versionCode": 13,
+			"date": "2026-08-19",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"The Bible reads like a scroll: verses move over real parchment - aged golden paper in light mode, a deep leather-dark sheet in dark mode",
+						"Settings → Appearance → Parchment reader turns it off and returns the plain reader"
+					]
+				}
+			]
+		}
+	]
+}

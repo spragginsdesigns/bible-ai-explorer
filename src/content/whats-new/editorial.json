@@ -1,0 +1,189 @@
+{
+	"beginning": {
+		"title": "Where it began",
+		"dateRange": "August 9 to 19, 2026",
+		"summary": "SureWord, first called VerseMind, arrived on Android as a full native app on the same account as the web. These first eighteen releases came in ten days.",
+		"items": [
+			"Chat answers grounded in the King James Bible, with the verses they stand on.",
+			"Notes with folders, tags and a rich editor, and an assistant that can write into them.",
+			"The Bible tab: all 66 books of the KJV, offline, with tap-a-verse explanations.",
+			"The new name, SureWord, and the day star logo from 2 Peter 1:19.",
+			"Memory you control, attachments in chat, and your choice of AI model.",
+			"Pick Up Your Cross, the guided daily walk, with a reading history.",
+			"Hebrew and Greek word study and cross-references drawn from real texts."
+		]
+	},
+	"releases": {
+		"1.98.0": {
+			"title": "What's new",
+			"headline": "Every update, all in one place.",
+			"verse": {
+				"text": "I will remember the works of the LORD: surely I will remember thy wonders of old.",
+				"reference": "Psalm 77:11"
+			}
+		},
+		"1.97.1": {
+			"title": "Today stays clear",
+			"headline": "Read today's word, one tap away.",
+			"why": "On a narrow phone, a longer daily verse pushed the Read today's word button under the tab bar. The preview now stays at three lines, and the full passage is still in the devotional.",
+			"target": "today"
+		},
+		"1.97.0": {
+			"title": "Today and Study",
+			"headline": "A clearer way to begin each day in the Word.",
+			"target": "today",
+			"verse": { "text": "They are new every morning: great is thy faithfulness.", "reference": "Lamentations 3:23" }
+		},
+		"1.96.0": {
+			"title": "Connections",
+			"headline": "See how Scripture is woven together.",
+			"target": "connections",
+			"verse": {
+				"text": "Search the scriptures; for in them ye think ye have eternal life: and they are they which testify of me.",
+				"reference": "John 5:39"
+			}
+		},
+		"1.95.0": {
+			"title": "Smoother and steadier",
+			"headline": "A steadier SureWord.",
+			"why": "A full performance and stability pass across the app, so a dropped connection or a broken screen no longer stops your study."
+		},
+		"1.94.0": {
+			"title": "Coming up at church",
+			"headline": "Know what is happening at your church.",
+			"target": "sermons",
+			"verse": {
+				"text": "Not forsaking the assembling of ourselves together, as the manner of some is; but exhorting one another: and so much the more, as ye see the day approaching.",
+				"reference": "Hebrews 10:25"
+			}
+		},
+		"1.93.0": { "title": "Reflections on shared cards" },
+		"1.92.0": {
+			"title": "Send a word to someone",
+			"headline": "Send someone the word they need.",
+			"verse": { "text": "A word fitly spoken is like apples of gold in pictures of silver.", "reference": "Proverbs 25:11" }
+		},
+		"1.91.0": { "title": "Share cards", "headline": "Share the Word, beautifully." },
+		"1.90.0": { "title": "Scripture under answers" },
+		"1.89.1": { "title": "Faster search, calmer chat" },
+		"1.89.0": { "title": "AI, asked once" },
+		"1.88.1": {
+			"title": "Your own questions again",
+			"why": "The Chat home had fallen back to the same six starter questions for everyone. It reads your own study again."
+		},
+		"1.88.0": { "title": "A calmer Chat home", "target": "chat" },
+		"1.87.1": { "title": "Dawn welcome, only on launch" },
+		"1.87.0": { "title": "Security update" },
+		"1.86.0": { "title": "Dawn welcome" },
+		"1.85.0": {
+			"title": "Your walk",
+			"headline": "See your walk through the Word.",
+			"target": "history",
+			"verse": { "text": "Thy word is a lamp unto my feet, and a light unto my path.", "reference": "Psalm 119:105" }
+		},
+		"1.84.1": { "title": "Narration fixes" },
+		"1.84.0": { "title": "Edit and resend questions", "target": "chat" },
+		"1.83.0": {
+			"title": "Listen to the New Testament",
+			"headline": "Hear the Word read aloud.",
+			"target": "bible",
+			"verse": { "text": "So then faith cometh by hearing, and hearing by the word of God.", "reference": "Romans 10:17" }
+		},
+		"1.82.0": {
+			"title": "The 1769 King James text",
+			"headline": "Every word, checked.",
+			"verse": {
+				"text": "The words of the LORD are pure words: as silver tried in a furnace of earth, purified seven times.",
+				"reference": "Psalm 12:6"
+			}
+		},
+		"1.81.1": { "title": "Bible text corrections" },
+		"1.81.0": { "title": "Check a link with /verify" },
+		"1.80.0": { "title": "Delete account" },
+		"1.79.0": {
+			"title": "Check a claim with /check",
+			"verse": {
+				"text": "These were more noble than those in Thessalonica, in that they received the word with all readiness of mind, and searched the scriptures daily, whether those things were so.",
+				"reference": "Acts 17:11"
+			}
+		},
+		"1.78.0": { "title": "Choose your narrator", "target": "cross" },
+		"1.77.0": { "title": "Show answers in search" },
+		"1.76.0": { "title": "Smoother long chats" },
+		"1.75.0": { "title": "Talk over Sunday's message", "target": "sermons" },
+		"1.74.0": { "title": "Sermon studies", "target": "sermons" },
+		"1.73.2": { "title": "Fixes and performance" },
+		"1.73.1": { "title": "Fixes and performance" },
+		"1.73.0": { "title": "Fixes and performance" },
+		"1.72.1": { "title": "Launch crash fixed" },
+		"1.72.0": { "title": "Send feedback" },
+		"1.71.0": { "title": "A new model picker" },
+		"1.70.3": { "title": "Full-size notification icon" },
+		"1.70.2": { "title": "Word study layout" },
+		"1.70.1": { "title": "A tidier Bible header" },
+		"1.70.0": { "title": "A real word study" },
+		"1.69.0": { "title": "A shorter Settings" },
+		"1.68.0": { "title": "Copy any answer" },
+		"1.67.0": { "title": "Chat opens as a chat" },
+		"1.66.0": { "title": "What your highlights mean" },
+		"1.65.0": { "title": "Cleaner notes" },
+		"1.64.0": { "title": "A calmer verse sheet" },
+		"1.63.0": { "title": "Rate an answer" },
+		"1.62.0": { "title": "Prayer requests come back" },
+		"1.61.0": { "title": "Learn a verse in chat", "target": "learn" },
+		"1.60.0": { "title": "A calmer Bible reader" },
+		"1.59.0": { "title": "See SureWord work" },
+		"1.58.0": { "title": "What to learn next", "target": "learn" },
+		"1.57.1": { "title": "A lifetime reading log", "target": "history" },
+		"1.57.0": { "title": "Learn progress offline" },
+		"1.56.0": {
+			"title": "Learn a verse",
+			"headline": "Hide the Word in your heart.",
+			"target": "learn",
+			"verse": { "text": "Thy word have I hid in mine heart, that I might not sin against thee.", "reference": "Psalm 119:11" }
+		},
+		"1.55.1": { "title": "SureWord knows your day" },
+		"1.55.0": { "title": "SureWord knows your day" },
+		"1.54.0": { "title": "A steadier Settings" },
+		"1.53.0": { "title": "Hebrew and Greek search" },
+		"1.52.0": { "title": "Find exact Bible wording" },
+		"1.51.0": { "title": "Faster Bible search" },
+		"1.50.1": { "title": "Memory in chat" },
+		"1.50.0": { "title": "Easier Bible navigation" },
+		"1.49.0": { "title": "Settings follow your account" },
+		"1.48.0": { "title": "Find any model" },
+		"1.47.0": { "title": "Know each model" },
+		"1.46.0": { "title": "Cleaner headers" },
+		"1.45.0": { "title": "Instant verse explanations" },
+		"1.44.0": { "title": "The original languages" },
+		"1.43.1": { "title": "Reader spacing restored" },
+		"1.43.0": { "title": "Easier-to-read type" },
+		"1.42.0": { "title": "A new opening" },
+		"1.41.0": { "title": "Link your notes" },
+		"1.40.0": { "title": "Question box spacing" },
+		"1.39.0": { "title": "A custom AI guide" },
+		"1.38.1": { "title": "OpenRouter keys" },
+		"1.38.0": { "title": "Answers in your translation" },
+		"1.37.1": { "title": "Pick Up Your Cross fix" },
+		"1.37.0": { "title": "Fresher daily words" },
+		"1.36.0": { "title": "My church" },
+		"1.35.0": { "title": "Bible history to browse", "target": "timeline" },
+		"1.34.0": { "title": "Timeline buttons fixed" },
+		"1.33.0": { "title": "Listen with the screen off" },
+		"1.32.0": { "title": "One Scripture card" },
+		"1.31.0": { "title": "Walk Bible history", "target": "timeline" },
+		"1.30.0": { "title": "Timeline, People and Places", "target": "timeline" },
+		"1.29.0": { "title": "Reading plans", "target": "plan" },
+		"1.28.0": { "title": "Listen to today's cross", "target": "cross" },
+		"1.27.0": { "title": "Where questions come from" },
+		"1.26.0": { "title": "Stained-glass welcome" },
+		"1.25.0": { "title": "Plain-language errors" },
+		"1.24.0": { "title": "Answer-ready alerts" },
+		"1.23.0": { "title": "Highlights in chat" },
+		"1.22.0": { "title": "See what SureWord is doing" },
+		"1.21.0": { "title": "Highlight verses" },
+		"1.20.0": { "title": "Automatic updates" },
+		"1.19.1": { "title": "Password sign-in" },
+		"1.19.0": { "title": "The parchment reader" }
+	}
+}

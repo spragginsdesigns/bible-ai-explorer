@@ -75,6 +75,11 @@ model User {
   // a declined account is never asked again unless it turns AI on itself.
   // Cleared by agreeing.
   aiConsentDeclinedAt    DateTime?
+  // The newest release (Android versionCode) this account has been caught up
+  // on, for the once-per-release "Since you were last here" sheet
+  // (src/lib/whats-new-rules.ts). Null until the first read, which records
+  // the newest release so a new account is never shown a catch-up.
+  whatsNewSeenCode       Int?
   // When the in-chat "getting to know you" interview finished or was skipped
   // (src/lib/onboarding-tools.ts). Null means chat still runs it.
   onboardedAt            DateTime?

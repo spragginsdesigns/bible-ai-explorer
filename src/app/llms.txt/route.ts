@@ -84,6 +84,7 @@ ${getTheAppSection()}
 - [Home](${SITE_URL}): what SureWord is, plans and FAQ ([markdown](${SITE_URL}/index.md)).
 - [Privacy policy](${SITE_URL}/privacy): what SureWord collects and how it is used ([markdown](${SITE_URL}/privacy.md)).
 - [Terms of service](${SITE_URL}/terms): the terms for using SureWord ([markdown](${SITE_URL}/terms.md)).
+- [What's new](${SITE_URL}/whats-new): every SureWord update, what changed and why, with a permalink per release.
 - [Support](${SITE_URL}/support): contact, signing in, deleting an account, voice messages, and how answers are grounded in the KJV ([markdown](${SITE_URL}/support.md)).
 
 ## FAQ
