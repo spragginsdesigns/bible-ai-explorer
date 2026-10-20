@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var isConfirmingSignOut = false
     @State private var isMemoriesPresented = false
     @State private var isFeedbackPresented = false
+    @State private var isWhatsNewPresented = false
     /// Owned here rather than in the sheet so the saved count stays truthful
     /// after the sheet adds or deletes something.
     @State private var memory = MemoriesModel()
@@ -108,6 +109,9 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: Config.appVersion)
+                    LabeledContent("What's new") {
+                        Button("Release notes…") { isWhatsNewPresented = true }
+                    }
                     AboutLinkRows()
                     hint("A Bible study assistant rooted in the King James Version.")
                     hint(
@@ -173,6 +177,24 @@ struct SettingsView: View {
                 .padding(Spacing.md)
             }
             .frame(width: 460, height: 600)
+            .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
+        }
+        // Android's Settings -> APP -> What's new row; a sheet here for the
+        // same reason as Send feedback. "Try it" closes Settings first.
+        .sheet(isPresented: $isWhatsNewPresented) {
+            NavigationStack {
+                WhatsNewView(api: app.api) { destination in
+                    isWhatsNewPresented = false
+                    app.isSettingsPresented = false
+                    WhatsNewNavigation.open(destination, in: app)
+                }
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { isWhatsNewPresented = false }
+                    }
+                }
+            }
+            .frame(width: 560, height: 680)
             .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
         }
         .analyticsScreen(AnalyticsScreen.settings)

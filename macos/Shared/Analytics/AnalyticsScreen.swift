@@ -44,6 +44,7 @@ enum AnalyticsScreen {
     static let settingsShared = "/settings/shared"
     static let settingsNotifications = "/settings/notifications"
     static let settingsAbout = "/settings/about"
+    static let settingsWhatsNew = "/settings/whats-new"
 
     /// A primary section's route. The Daily Cross is `/bible/cross` on
     /// Android, where it is pushed from the Bible home.

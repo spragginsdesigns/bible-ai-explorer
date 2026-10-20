@@ -60,7 +60,7 @@ final class SettingsHubTests: XCTestCase {
             AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance,
             AnalyticsScreen.settingsHighlights, AnalyticsScreen.settingsChurch, AnalyticsScreen.settingsMemory,
             AnalyticsScreen.settingsAI, AnalyticsScreen.settingsShared, AnalyticsScreen.settingsNotifications,
-            AnalyticsScreen.settingsAbout, AnalyticsScreen.feedback,
+            AnalyticsScreen.settingsAbout, AnalyticsScreen.feedback, AnalyticsScreen.settingsWhatsNew,
         ]
         XCTAssertFalse(pages.isEmpty)
         for page in pages {

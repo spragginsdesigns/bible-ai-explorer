@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.22.0"
-    CURRENT_PROJECT_VERSION: "28"
+    MARKETING_VERSION: "1.23.0"
+    CURRENT_PROJECT_VERSION: "29"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -162,6 +162,9 @@ targets:
       - path: SureWord-iOSTests/LearnContractTests.swift
       - path: SureWord-iOSTests/LearnPracticeTests.swift
       - path: SureWord-iOSTests/LearnSyncTests.swift
+      # What's new, which the Mac shows too: filter, dates, months, targets
+      # and the tolerant decoders.
+      - path: SureWord-iOSTests/WhatsNewTests.swift
     dependencies:
       - target: SureWord
     settings:

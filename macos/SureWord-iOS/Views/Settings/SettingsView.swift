@@ -91,6 +91,12 @@ struct SettingsView: View {
                     FeedbackView(api: app.api)
                         .analyticsScreen(AnalyticsScreen.feedback)
                 }
+                row("What's new", symbol: "newspaper", subtitle: "Every update, newest first") {
+                    WhatsNewView(api: app.api) { destination in
+                        WhatsNewNavigation.open(destination, in: app)
+                    }
+                    .analyticsScreen(AnalyticsScreen.settingsWhatsNew)
+                }
                 row("About", symbol: "info.circle", subtitle: "Version \(Config.appVersion)") {
                     AboutSettingsPage()
                 }

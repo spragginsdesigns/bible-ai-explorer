@@ -177,7 +177,7 @@ struct RootView: View {
             } else if clerk.user == nil {
                 SignInView()
             } else if let app {
-                TabShell().environment(app).aiConsentPresenter(app.aiConsent)
+                TabShell().environment(app).aiConsentPresenter(app.aiConsent).whatsNewPresenter(app)
             } else {
                 ProgressView().controlSize(.small)
             }
