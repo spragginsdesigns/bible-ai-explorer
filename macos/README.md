@@ -326,26 +326,24 @@ note, and the DMG background bakes the same hint in.
 
 ## Status
 
-macOS 1.6.0 is the current native Mac version in this checkout. Its source and Apple test suite
-cover the current Android/web capability set: streaming chat and recovery,
-provider keys and the model/effort picker, live status labels, normalized
-Markdown, suggested-question labels, Reading Plans, Listen with playback speed,
-Now Playing and the Pro lock, the parchment reader, Daily Cross, atlas tools,
-Notes, Memories, Settings, and `/plan`/`/who`. Password sign-in for
-password-bearing accounts comes from ClerkKitUI's own `AuthView` (no app code),
-and "Your answer is ready" is a local notification posted while the app is in
-the background (LC-16620); neither has been run on a Mac yet. The last Mac
-release verification was for 1.5.0 and included its build, install, and signed-in
-product pass; 1.6.0 still requires the Mac/Xcode gate above before it can be
-called verified or shipped.
+macOS 1.21.0 is the current native Mac version, installed at
+`/Applications/SureWord.app` and published as `macos-v1.21.0` on GitHub
+Releases. It carries the eleven Apple parity issues (LC-16611 to LC-16621):
+sermon studies and Coming up at church with Google and Apple Calendar, chat
+history search, rename and confirmed delete, the two-tier verse sheet with See
+also, Learn a verse, BSB headings and red letters, Continue reading and
+translation-aware search, the note editor bar, menu, templates and Copy as
+Markdown, wikilinks, backlinks and properties, PostHog analytics, "Your answer
+is ready", and Share into SureWord from the Services menu, the window and the
+Dock. A signed-in pass on 2026-10-19 exercised these in the installed app;
+`docs/PARITY.md` says row by row what was seen and what still waits on Austin
+(password sign-in, the notification permission, clicking a wikilink, a
+Services pick from another app, a drop on the window, and PostHog arrival).
 
-iOS is a real source- and simulator-ready native target with its own tab, Bible, Chat, Notes,
-Cross, Settings, Church, and editor views, and its simulator test target is
-maintained alongside the Mac suite. It is not an iOS-distributed product yet:
-there is no IPA/TestFlight/App Store artifact or release workflow. The iOS
-parity tracker intentionally keeps the parchment reader and Reading Plans screen
-as gaps, and marks device/runtime-only behavior separately from source parity;
-see `docs/PARITY.md` before describing an iOS capability as shipped.
+iOS 1.21.0 is a native app distributed through TestFlight (`release-ios.sh`
+uploads it to App Store Connect). The App Store still holds 1.13.0 waiting for
+review. The iOS simulator suite runs alongside the Mac suite in CI; see
+`docs/PARITY.md` before describing an iOS capability as verified on a device.
 
 ### The reader is a layout minefield — read this before touching it
 
