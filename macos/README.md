@@ -342,7 +342,11 @@ Services pick from another app, a drop on the window, and PostHog arrival).
 
 iOS 1.21.0 is a native app distributed through TestFlight (`release-ios.sh`
 uploads it to App Store Connect). 1.21.0 (2) was submitted for App Store
-review on 2026-10-19, SureWord's first App Store release. The iOS simulator suite runs alongside the Mac suite in CI; see
+review on 2026-10-19, SureWord's first App Store release. A signed-in simulator
+pass the same day covered the reader, search, Learn, sermons and church events,
+chat history, notes and the share extension; its two note fixes (`fa88546`, the
+typed title in Markdown export and the body formatting bar) ship in the next iOS
+build. The iOS simulator suite runs alongside the Mac suite in CI; see
 `docs/PARITY.md` before describing an iOS capability as verified on a device.
 
 ### The reader is a layout minefield — read this before touching it
