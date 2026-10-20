@@ -109,4 +109,25 @@ control: removing only the new guard reproduced the old stale-error failure.
 
 Local raw evidence is in the gitignored `artifacts/nav-qa/` directory. The Android
 reviewer's `android-review/QA-REPORT.md` indexes all screenshots and UI trees.
-Play and Vercel publication results will be recorded after their live checks.
+
+## Publication results
+
+- Implementation commit: [cdaaabd](https://github.com/spragginsdesigns/bible-ai-explorer/commit/cdaaabd082acdae35f1db3533ed1c1c81bfdf698).
+- Play internal and closed testing (`alpha`) both contain completed release
+  1.97.0 (111), independently read through the Publisher API after publication.
+  Google's review can delay closed-testing availability. Both tracks reference
+  the same uploaded bundle, whose API-reported SHA-256 matches the tested AAB:
+  `cb6b7bcd88abcb24e69a6d01065eb227c495f9ea9d98ac910456c29cf1e80c5f`.
+- [GitHub Android release](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/android-v1.97.0)
+  points to the implementation commit. GitHub's APK digest matches the final
+  emulator-tested APK hash above. The fixed-name Mac DMG was carried forward;
+  it is the existing 1.21.0 build, not a new Mac release.
+- Vercel production deployment `dpl_2zt5pyYrRcGwEtA3J3CpGNo2tYvw` reached READY
+  with `sureword.app` and the legacy host assigned to the implementation commit.
+  Signed-in live Today on web and the final Android APK read their respective
+  account's existing stored devotional. Neither check opened generation. Anonymous
+  production preview requests returned HTTP 401.
+- The Mac checkout was synchronized to the implementation commit, preserving
+  its unrelated untracked Python cache. The installed Mac app remains 1.21.0
+  because signing is blocked. No TestFlight or new signed Apple release is
+  claimed. TickTick task `6ad6f16d8f08baf7cc1a284d` retains that remaining gate.
