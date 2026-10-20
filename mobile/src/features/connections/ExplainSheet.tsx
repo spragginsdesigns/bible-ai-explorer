@@ -5,7 +5,7 @@ import { AppText as Text } from "@/components/AppText";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { resolveReference } from "@/features/bible/books";
-import { connectionSectionOf, parseConnectionExplanation } from "@/features/bible/connectionsMap";
+import { connectionSectionOf, parseConnectionExplanation, sectionInk } from "@/features/bible/connectionsMap";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import type { ExplainStatus } from "./useConnectionsExplain";
 
@@ -39,7 +39,7 @@ export function ExplainSheet({
 	onOpenReference,
 	onContinueInChat,
 }: ExplainSheetProps) {
-	const { colors } = useTheme();
+	const { colors, isDark } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const parsed = useMemo(() => parseConnectionExplanation(text, status === "done"), [text, status]);
 	const busy = status === "loading" || status === "streaming";
@@ -83,7 +83,7 @@ export function ExplainSheet({
 								<Text style={styles.cardRef}>{item.reference}</Text>
 								{section ? (
 									<View style={[styles.tag, { borderColor: `${section.color}88` }]}>
-										<Text style={[styles.tagText, { color: section.color }]}>{section.label}</Text>
+										<Text style={[styles.tagText, { color: sectionInk(section.color, isDark) }]}>{section.label}</Text>
 									</View>
 								) : null}
 							</View>

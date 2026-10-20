@@ -10,6 +10,7 @@ import {
 	bookAtIndex,
 	chordPath,
 	connectionSectionOf,
+	sectionInk,
 	indexAtAngle,
 	pointAt,
 	ringArcPath,
@@ -38,8 +39,14 @@ interface ConnectionsRingProps {
 	onCenterPress: () => void;
 }
 
-/** Room outside the ring for the section labels. */
-const LABEL_ROOM = 34;
+/**
+ * Room outside the ring for the section labels. Side labels run outward
+ * horizontally, so this must fit the widest ("REVELATION", "GOSPELS") or
+ * they clip at the screen edge.
+ */
+const LABEL_ROOM = 64;
+/** Labels closer than this (px) are stacked apart; General and Revelation share twelve o'clock. */
+const LABEL_CLEARANCE = { x: 64, y: 11 };
 const BAND = 7;
 /** Chords stop this far inside the band so they read as leaving it. */
 const CHORD_INSET = BAND / 2 + 2;
@@ -121,20 +128,27 @@ export const ConnectionsRing = memo(function ConnectionsRing({
 		[books, frame]
 	);
 
-	const labels = useMemo(
-		() =>
-			// Without the books every span is [0, 0] and the labels would pile up at the top.
-			(books.length === 0 ? [] : CONNECTION_SECTIONS).map((section) => {
-				const [start, end] = sectionSpan(books, section);
-				const angle = angleOfIndex(frame, (start + end) / 2);
-				const p = pointAt(frame, angle, frame.r + BAND + 9);
-				const cos = Math.cos(angle);
-				const anchor: "start" | "end" | "middle" = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
-				const dy = Math.sin(angle) > 0.3 ? 8 : Math.sin(angle) < -0.3 ? -2 : 3;
-				return { section, x: p.x, y: p.y + dy, anchor };
-			}),
-		[books, frame]
-	);
+	const labels = useMemo(() => {
+		// Without the books every span is [0, 0] and the labels would pile up at the top.
+		if (books.length === 0) return [];
+		const placed: { section: (typeof CONNECTION_SECTIONS)[number]; x: number; y: number; anchor: "start" | "end" | "middle" }[] = [];
+		for (const section of CONNECTION_SECTIONS) {
+			const [start, end] = sectionSpan(books, section);
+			const angle = angleOfIndex(frame, (start + end) / 2);
+			const p = pointAt(frame, angle, frame.r + BAND + 9);
+			const cos = Math.cos(angle);
+			const sin = Math.sin(angle);
+			const anchor: "start" | "end" | "middle" = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
+			let y = p.y + (sin > 0.3 ? 8 : sin < -0.3 ? -2 : 3);
+			// Short neighbouring sections land on top of each other; step outward until clear.
+			const outward = sin < 0 ? -1 : 1;
+			while (placed.some((o) => Math.abs(o.x - p.x) < LABEL_CLEARANCE.x && Math.abs(o.y - y) < LABEL_CLEARANCE.y)) {
+				y += outward * LABEL_CLEARANCE.y;
+			}
+			placed.push({ section, x: p.x, y, anchor });
+		}
+		return placed;
+	}, [books, frame]);
 
 	const source = useMemo(() => {
 		if (books.length === 0 || chapterStart === null) return null;
@@ -245,7 +259,7 @@ export const ConnectionsRing = memo(function ConnectionsRing({
 						key={section.id}
 						x={x}
 						y={y}
-						fill={section.color}
+						fill={sectionInk(section.color, isDark)}
 						fillOpacity={sectionFilter && sectionFilter !== section.id ? 0.4 : 1}
 						fontSize={9}
 						fontFamily={fonts.bodyBold}

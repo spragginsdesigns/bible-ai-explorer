@@ -45,6 +45,18 @@ export function connectionSectionOf(order: number): ConnectionSection {
 	return CONNECTION_SECTIONS[CONNECTION_SECTIONS.length - 1];
 }
 
+/**
+ * A section colour readable as text. The palette is tuned for the dark ring;
+ * on a light background the pale ones (General's cyan, Poetry's gold) wash
+ * out, so text darkens them by mixing toward black.
+ */
+export function sectionInk(color: string, isDark: boolean): string {
+	if (isDark) return color;
+	const value = Number.parseInt(color.slice(1), 16);
+	const mix = (channel: number) => Math.round(channel * 0.62).toString(16).padStart(2, "0");
+	return `#${mix((value >> 16) & 255)}${mix((value >> 8) & 255)}${mix(value & 255)}`;
+}
+
 /** One book's run around the ring: [order, first global verse index, verse count]. */
 export type BaselineBook = [order: number, start: number, verses: number];
 

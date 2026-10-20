@@ -16,6 +16,7 @@ import { bookByOrder, resolveReference } from "@/features/bible/books";
 import {
 	CONNECTION_SECTIONS,
 	connectionSectionOf,
+	sectionInk,
 	connectionsAskPrompt,
 	sectionCounts,
 	type ChapterLink,
@@ -71,7 +72,7 @@ export default function ConnectionsScreen() {
 	const params = useLocalSearchParams<{ book?: string; chapter?: string; verse?: string; nonce?: string }>();
 	const router = useRouter();
 	const getToken = useStableGetToken();
-	const { colors } = useTheme();
+	const { colors, isDark } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const { width } = useWindowDimensions();
@@ -175,7 +176,8 @@ export default function ConnectionsScreen() {
 	);
 	const filteredTotal = sectionFilter ? (counts.get(sectionFilter) ?? 0) : scopeLinks.length;
 
-	const ringSize = Math.min(width - spacing.lg * 2, 460);
+	// Nearly full width: the section labels live inside the SVG, outside the ring.
+	const ringSize = Math.min(width - spacing.sm * 2, 480);
 	const ringTitle = place.verse !== null ? `${bookName} ${place.chapter}:${place.verse}` : `${bookName} ${place.chapter}`;
 	const ringSubtitle = data
 		? `${filteredTotal} ${filteredTotal === 1 ? "connection" : "connections"}`
@@ -398,7 +400,7 @@ export default function ConnectionsScreen() {
 								style={[styles.chip, active && { borderColor: section.color, backgroundColor: `${section.color}22` }]}
 							>
 								<View style={[styles.chipDot, { backgroundColor: section.color }]} />
-								<Text style={[styles.chipText, active && { color: section.color }]}>{`${section.label} ${count}`}</Text>
+								<Text style={[styles.chipText, active && { color: sectionInk(section.color, isDark) }]}>{`${section.label} ${count}`}</Text>
 							</Pressable>
 						);
 					})}
@@ -443,7 +445,7 @@ export default function ConnectionsScreen() {
 										<View style={[styles.chipDot, { backgroundColor: section.color }]} />
 										<Text style={styles.linkRef}>{reference}</Text>
 										<View style={[styles.tag, { borderColor: `${section.color}88` }]}>
-											<Text style={[styles.tagText, { color: section.color }]}>{section.label}</Text>
+											<Text style={[styles.tagText, { color: sectionInk(section.color, isDark) }]}>{section.label}</Text>
 										</View>
 										<Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
 									</View>
@@ -611,7 +613,8 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		askLabel: { color: c.accent, fontFamily: fonts.verse, fontSize: 20, lineHeight: 26 },
+		// The serif face measured short on Android and clipped "connect"; the UI face measures true.
+		askLabel: { flexShrink: 1, color: c.accent, ...typography.control, fontFamily: fonts.bodyBold },
 		verseRow: {
 			flexDirection: "row",
 			alignItems: "center",

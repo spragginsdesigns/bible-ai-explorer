@@ -16,6 +16,7 @@ import {
 	connectionSectionOf,
 	indexAtAngle,
 	parseConnectionExplanation,
+	sectionInk,
 	ringArcPath,
 	sectionSpan,
 } from "../src/lib/bible/connectionsMap.ts";
@@ -126,4 +127,9 @@ test("the explain answer splits into a summary and one card per passage", () => 
 	// Once the answer is complete, a wrapped last line is kept, not held back.
 	const done = parseConnectionExplanation("Thread.\nJohn 1:29 :: Behold the Lamb.\nwhich taketh away sin.", true);
 	assert.equal(done.items[0].text, "Behold the Lamb. which taketh away sin.");
+});
+
+test("section text darkens on a light background and keeps its colour on dark", () => {
+	assert.equal(sectionInk("#6fe3f5", true), "#6fe3f5");
+	assert.equal(sectionInk("#6fe3f5", false), "#458d98");
 });
