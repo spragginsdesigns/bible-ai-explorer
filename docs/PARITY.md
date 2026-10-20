@@ -22,11 +22,11 @@ the final iOS suite passed 365 XCTest cases (one skip) and 334 Swift tests
 with no failures. Signed macOS tests and installation are blocked by
 the login keychain returning `errSecInternalComponent`. No Apple release is
 claimed from an unsigned build. See [navigation-overhaul.md](navigation-overhaul.md)
-for the destination map and final publication evidence. Android 1.97.0 (111)
-is completed on Play internal and closed testing (`alpha`), with the same
-bundle hash on both tracks. The matching APK is published as `android-v1.97.0`.
-Vercel production `dpl_2zt5pyYrRcGwEtA3J3CpGNo2tYvw` is READY at sureword.app
-from `cdaaabd082acdae35f1db3533ed1c1c81bfdf698`. Live Today reads the existing
+for the destination map and final publication evidence. Final Android 1.97.1
+(112) is completed on Play internal and closed testing (`alpha`), with the
+same bundle hash on both tracks. The matching APK is `android-v1.97.1`.
+Vercel production `dpl_4atD66HSoPYnKYiHbgARtTgNLtfV` is READY at sureword.app
+from `6a37a1d84d9d4ecf44a5fc41a00989882700c53f`. Live Today reads the existing
 account's word on web and the final Android APK without entering generation.
 
 **2026-10-19 Apple parity release 1.21.0 (LC-16608, gate LC-16609):** the

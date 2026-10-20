@@ -1,6 +1,7 @@
 # Daily Walk navigation
 
-Approved by Austin on 2026-10-19. Android 1.97.0 (111), Apple 1.22.0 (28).
+Approved by Austin on 2026-10-19. Final Android release: 1.97.1 (112).
+The initial overhaul shipped as 1.97.0 (111). Apple source: 1.22.0 (28).
 
 ## Product contract
 
@@ -83,7 +84,7 @@ control: removing only the new guard reproduced the old stale-error failure.
   font scale 1.3 and explicit dark/light appearance. Original device settings
   were restored. No personal notes or memories were edited and no Chat message
   was sent. The existing word-study endpoint was exercised explicitly.
-- Final tested APK SHA-256:
+- Initial full-walkthrough APK (111) SHA-256:
   `4e654f553bfc96bffdb2582ae84d4ebd0da1339669f692d8dadf61428adc465f`.
 - Web: typecheck, lint and isolated production build pass. Logic tests: 1,658
   total, 1,641 passing, 17 optional skips, zero failures. Signed-in browser proof
@@ -131,3 +132,32 @@ reviewer's `android-review/QA-REPORT.md` indexes all screenshots and UI trees.
   its unrelated untracked Python cache. The installed Mac app remains 1.21.0
   because signing is blocked. No TestFlight or new signed Apple release is
   claimed. TickTick task `6ad6f16d8f08baf7cc1a284d` retains that remaining gate.
+
+### Final compact-preview release: 1.97.1 (112)
+
+The live owner's longer verse put the primary action 11 pixels under the dock at
+375 by 844. Only the home preview now shows at most three lines; the complete
+passage remains in the devotional and in the underlying preview value. The live
+repeat measured the button bottom at 709.94 pixels and the dock top at 763,
+leaving 53 pixels of clearance. The full longer verse remained present in the
+DOM. The final production screenshot and measured JSON are in `artifacts/nav-qa/`.
+
+- [Final implementation](https://github.com/spragginsdesigns/bible-ai-explorer/commit/6a37a1d84d9d4ecf44a5fc41a00989882700c53f).
+- Play internal and `alpha`: independently verified completed 1.97.1 (112).
+  API bundle SHA-256 matches the tested AAB:
+  `1db9a84bcf519cec4c2afcf36bfceafb8728cdc2bfd114eb8c7a1306b5c4f4c3`.
+- [Final Android release](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/android-v1.97.1)
+  points to that commit. GitHub's APK digest matches the final emulator-tested
+  APK: `3db5094d11a93f96e6b897e33ee73a0e9c5739b10a39ac230503d8fb66a6c01d`.
+- The final APK passed Today, the unchanged full devotional and Back, all five
+  tabs and font scale 1.3. The reviewer account had a shorter existing verse;
+  the owner's longer verse was exercised on the live web path, not claimed
+  as reproduced on the reviewer Android account.
+- Vercel `dpl_4atD66HSoPYnKYiHbgARtTgNLtfV` is READY at sureword.app from the
+  final implementation commit, and the live geometry check passed after reload.
+- All 1,077 mobile tests and 1,658 web tests (17 optional skips) passed again,
+  with typecheck and lint. Final shared Apple source compiled on both targets;
+  iOS tests passed again in
+  `macos/build-nav-ios.noindex/Logs/Test/Test-SureWord-iOS-2026.10.19_23-02-10--0700.xcresult`.
+  Mac signing remains blocked. The previous docs-only Vercel build was canceled
+  to prioritize this final UI release; no application code was omitted.
