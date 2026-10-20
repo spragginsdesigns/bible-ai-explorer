@@ -224,6 +224,12 @@ export default function SettingsScreen() {
 					onPress={() => router.push("/settings/feedback")}
 				/>
 				<SettingsRow
+					icon="newspaper-outline"
+					title="What's new"
+					subtitle="Every update, newest first"
+					onPress={() => router.push("/settings/whats-new")}
+				/>
+				<SettingsRow
 					icon="information-circle-outline"
 					title="About"
 					subtitle={`Version ${version}`}

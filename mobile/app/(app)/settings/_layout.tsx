@@ -36,6 +36,7 @@ export default function SettingsLayout() {
 			<Stack.Screen name="shared" />
 			<Stack.Screen name="account" />
 			<Stack.Screen name="about" />
+			<Stack.Screen name="whats-new" />
 		</Stack>
 	);
 }

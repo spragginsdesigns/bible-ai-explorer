@@ -12,6 +12,7 @@ import { chatColors } from "@/features/chat/chatAppearance";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { AIConsentPresenter } from "@/features/settings/AIConsentPresenter";
+import { WhatsNewPresenter } from "@/features/whatsNew/WhatsNewPresenter";
 import { usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useReadingLogSync } from "@/features/reading/readingLogStore";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
@@ -161,7 +162,9 @@ export default function AppLayout() {
 			<Tabs.Screen name="settings" options={{ href: null, popToTopOnBlur: true }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
-		</Tabs></AIConsentPresenter>
+		</Tabs>
+		{/* After the consent sheet is answered, at most once per release. */}
+		<WhatsNewPresenter /></AIConsentPresenter>
 	);
 }
 
