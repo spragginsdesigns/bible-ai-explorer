@@ -341,8 +341,8 @@ Dock. A signed-in pass on 2026-10-19 exercised these in the installed app;
 Services pick from another app, a drop on the window, and PostHog arrival).
 
 iOS 1.21.0 is a native app distributed through TestFlight (`release-ios.sh`
-uploads it to App Store Connect). The App Store still holds 1.13.0 waiting for
-review. The iOS simulator suite runs alongside the Mac suite in CI; see
+uploads it to App Store Connect). 1.21.0 (2) was submitted for App Store
+review on 2026-10-19, SureWord's first App Store release. The iOS simulator suite runs alongside the Mac suite in CI; see
 `docs/PARITY.md` before describing an iOS capability as verified on a device.
 
 ### The reader is a layout minefield — read this before touching it

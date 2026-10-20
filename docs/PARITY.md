@@ -18,8 +18,9 @@ on 2026-10-19 moved most macOS rows below to ✅; the 🟡 ones say what is left
 for Austin (clicking a wikilink, a Services pick from another app, a drop on
 the window, the "Your answer is ready" notification permission, password
 sign-in, and PostHog arrival). iOS 1.21.0 (2) is uploaded to App Store Connect
-for TestFlight from the same commit; the App Store still holds 1.13.0 waiting
-for review, so 1.21.0 is not submitted. The Mac and iOS suites pass locally
+for TestFlight from the same commit and is submitted for App Store review
+(Waiting for Review since 2026-10-19; 1.13.0 was developer-rejected first, and
+the store listing now matches `store-listing/app-store.md`). The Mac and iOS suites pass locally
 and GitHub CI's Apple job is green on `a174912`. iOS rows stay 🟡 until a
 signed-in pass on an iPhone through TestFlight.
 

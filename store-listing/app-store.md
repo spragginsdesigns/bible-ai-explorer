@@ -4,17 +4,13 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
-> **PENDING (2026-10-09): App Store Connect is behind this file.** The name,
-> subtitle, promotional text, description and keywords below were rewritten on 2026-10-09 but
-> could not be entered: 1.13.0 was Waiting for Review, which locks them, and
-> Austin chose not to pull it. As soon as that review finishes (approved or
-> rejected), on the Mac:
-> 1. Work through "Verify before submitting" under the description and cut
->    any line whose feature is not verified on the build being submitted.
-> 2. `uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply com.spragginsdesigns.sureword store-listing/app-store.md`
-> 3. `... asc.py listing check ...` must print "matches"; then delete this
->    block. TickTick task 6ac950948f089f376a25a421 tracks it, and
->    `macos/release-ios.sh` reports the drift on every run until it is done.
+Entered 2026-10-19: `asc.py listing apply` wrote this name, subtitle,
+promotional text, description and keywords to 1.21.0 and `listing check`
+matched. 1.21.0 (2) was submitted for review the same day with the full
+description, on Austin's go-ahead: every line's feature is in that build, but
+most rows in "Verify before submitting" were still `source` (not yet run by
+hand on an iPhone). If App Review finds a claimed feature missing or broken,
+cut that line here and in `play-store.md` together.
 
 Status: first entered in App Store Connect on 2026-10-07 (version 1.10.0,
 en-US) through the API. This file is the source of truth for the listing;
@@ -146,7 +142,7 @@ the day, daily devotional, Strong's concordance, Bible reading plans, prayer
 list, Scripture memory, Bible timeline, Bible study notes. Apple does not
 index the description for search (the name, subtitle and keywords do), but
 Play does, so the phrases earn their place there. Not yet entered in App
-Store Connect; see the PENDING block at the top.
+Store Connect on 2026-10-19 (1.21.0).
 
 Verify before submitting (delete a line from the description if its row is
 not `verified` for the build being submitted):
