@@ -7,6 +7,19 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+**2026-10-19 Apple parity release 1.21.0 (LC-16608, gate LC-16609):** the
+eleven Apple parity issues (LC-16611 to LC-16621) ship as macOS and iOS 1.21.0.
+macOS 1.21.0 (25) is installed at `/Applications/SureWord.app`, team-signed,
+and published as `macos-v1.21.0` (DMG) from `eb9a860`. iOS 1.21.0 (1) is
+uploaded to App Store Connect for TestFlight; the App Store still holds 1.13.0
+waiting for review, so 1.21.0 is not submitted. The iOS suite passed on the
+Mac's iPhone 18 Pro simulator (352 XCTest with 1 skip, 334 Swift Testing, 0
+failures) and GitHub CI's Apple job is green on both schemes. The simulator
+build launches to the sign-in screen. The rows below that say "not run in an
+installed app" stay 🟡 until a signed-in pass: on the Mac, the installed app
+was waiting on a login-keychain prompt for Austin; on iPhone, through
+TestFlight.
+
 **2026-10-18 church events (Coming up at church):** events announced at a
 service are pulled from the transcript, quote-verified, and shown on the sermon
 list and on that service's study with Add to Google Calendar and an Apple or
