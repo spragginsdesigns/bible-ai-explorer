@@ -12,7 +12,12 @@ import {
 	Moon,
 	Smartphone,
 	X,
+	Network,
+	Compass,
+	Brain,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { PRIMARY_DESTINATIONS, primarySectionForPath, type PrimarySection } from "@/lib/primary-navigation";
 import { useTheme } from "next-themes";
 import { UserButton, useUser } from "@clerk/nextjs";
 import GetAppLink from "./GetAppLink";
@@ -21,7 +26,7 @@ import { useModalFocus } from "./useModalFocus";
 /** Tailwind's `lg` breakpoint, above which the sidebar is static furniture. */
 const DESKTOP_QUERY = "(min-width: 1024px)";
 
-type SectionId = "chat" | "bible" | "notes" | "settings";
+type SectionId = PrimarySection | "notes" | "settings";
 
 interface AppSidebarProps {
 	/** Which primary section is active (highlights its nav pill). */
@@ -46,11 +51,12 @@ interface AppSidebarProps {
 	children?: React.ReactNode;
 }
 
-const NAV = [
-	{ id: "chat", href: "/", label: "Chat", Icon: MessageSquare },
-	{ id: "bible", href: "/bible", label: "Bible", Icon: BookMarked },
-	{ id: "notes", href: "/notes", label: "Notes", Icon: BookOpen },
-] as const;
+const ICONS = { today: Sun, bible: BookMarked, chat: MessageSquare, connections: Network, study: Compass };
+const CHILDREN = {
+	today: [{ href: "/cross", label: "Pick Up Your Cross" }, { href: "/bible/plan", label: "Reading plan" }, { href: "/bible/learn", label: "Learn a verse" }, { href: "/bible/history", label: "Your walk & reading log" }],
+	bible: [{ href: "/bible/search", label: "Search Scripture" }],
+	study: [{ href: "/notes", label: "Notes" }, { href: "/bible/timeline", label: "Timeline, people & places" }],
+};
 
 /**
  * The app-wide left sidebar (ChatGPT-style): brand, primary nav, a
@@ -68,6 +74,8 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
 	const { setTheme } = useTheme();
 	const { user } = useUser();
+	const pathname = usePathname();
+	const selectedSection = primarySectionForPath(pathname) ?? (active === "notes" ? "study" : active);
 
 	const name = user?.fullName ?? user?.username ?? "";
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
@@ -134,7 +142,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 						className="sidebar-brand-icon shrink-0"
 					/>
 					<Link
-						href="/"
+						href="/today"
 						className="sidebar-brand-wordmark text-[23px] leading-none font-normal text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]"
 					>
 						SureWord
@@ -151,12 +159,13 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 				</div>
 
 				{/* Primary nav */}
-				<nav className="flex flex-col gap-1 px-3 pb-3">
-					{NAV.map(({ id, href, label, Icon }) => {
-						const isActive = active === id;
+				<nav aria-label="Primary" className="flex max-h-[60dvh] shrink-0 flex-col gap-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+					{PRIMARY_DESTINATIONS.map(({ id, href, label }) => {
+						const Icon = ICONS[id];
+						const isActive = selectedSection === id;
 						return (
+							<div key={id}>
 							<Link
-								key={id}
 								href={href}
 								aria-current={isActive ? "page" : undefined}
 								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[14px] text-control font-medium border transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] ${
@@ -168,6 +177,10 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 								<Icon className="w-4 h-4" />
 								{label}
 							</Link>
+							{isActive && id in CHILDREN && <div className="ml-5 mt-1 border-l border-amber-700/15 pl-2 dark:border-amber-300/15">
+								{CHILDREN[id as keyof typeof CHILDREN].map(child => <Link key={child.href} href={child.href} onClick={onClose} aria-current={pathname === child.href ? "page" : undefined} className="flex min-h-10 items-center rounded-lg px-3 py-2 text-sm text-neutral-600 transition-colors hover:bg-black/5 hover:text-neutral-900 aria-[current=page]:font-bold aria-[current=page]:text-amber-700 dark:text-neutral-400 dark:hover:bg-white/5 dark:hover:text-neutral-100 dark:aria-[current=page]:text-amber-300">{child.label}</Link>)}
+							</div>}
+							</div>
 						);
 					})}
 				</nav>
@@ -181,6 +194,10 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 					}`}
 				>
 					{children}
+				</div>
+				<div className="flex items-center gap-1 px-4 pb-2 text-sm text-neutral-500 dark:text-neutral-400">
+					<Link href="/notes" className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><BookOpen size={16} aria-hidden /> Notes</Link>
+					<Link href="/settings#memory" className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><Brain size={16} aria-hidden /> Memories</Link>
 				</div>
 
 				{/* Footer: account + utilities */}

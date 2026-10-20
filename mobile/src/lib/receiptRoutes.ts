@@ -30,13 +30,13 @@ type ChapterRouteParams = {
  * the typecheck here instead of dead-ending on a tap.
  */
 export type ReceiptHref =
-	| { pathname: "/notes/[id]"; params: { id: string } }
+	| { pathname: "/study/notes/[id]"; params: { id: string } }
 	| { pathname: "/(app)/memories" }
 	| { pathname: "/bible/chapter"; params: ChapterRouteParams }
-	| { pathname: "/(app)/bible/plan" }
-	| { pathname: "/bible/history" }
-	| { pathname: "/(app)/bible/cross" }
-	| { pathname: "/(app)/bible/learn" }
+	| { pathname: "/(app)/today/plan" }
+	| { pathname: "/today/history" }
+	| { pathname: "/(app)/today/cross" }
+	| { pathname: "/(app)/today/learn" }
 	| { pathname: "/(app)/settings" }
 	| { pathname: "/(app)/settings/memory" }
 	| { pathname: "/(app)/settings/church" };
@@ -65,7 +65,7 @@ export interface ReceiptNavigation {
 export function receiptNavigation(target: ChatReceiptTarget): ReceiptNavigation {
 	switch (target.screen) {
 		case "note":
-			return { href: { pathname: "/notes/[id]", params: { id: target.noteId } } };
+			return { href: { pathname: "/study/notes/[id]", params: { id: target.noteId } } };
 		case "memories":
 			return { href: { pathname: "/(app)/memories" } };
 		case "chapter":
@@ -81,13 +81,13 @@ export function receiptNavigation(target: ChatReceiptTarget): ReceiptNavigation 
 				},
 			};
 		case "plan":
-			return { href: { pathname: "/(app)/bible/plan" } };
+			return { href: { pathname: "/(app)/today/plan" } };
 		case "readingHistory":
-			return { href: { pathname: "/bible/history" } };
+			return { href: { pathname: "/today/history" } };
 		case "cross":
-			return { href: { pathname: "/(app)/bible/cross" }, withAnchor: true };
+			return { href: { pathname: "/(app)/today/cross" }, withAnchor: true };
 		case "learn":
-			return { href: { pathname: "/(app)/bible/learn" } };
+			return { href: { pathname: "/(app)/today/learn" } };
 		case "settings":
 			switch (target.section) {
 				case "memory":

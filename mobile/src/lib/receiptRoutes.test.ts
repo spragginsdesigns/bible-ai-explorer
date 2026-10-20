@@ -16,7 +16,7 @@ const CASES: { name: string; target: ChatReceiptTarget; expected: ReceiptNavigat
 	{
 		name: "note opens the notes editor for that id",
 		target: { screen: "note", noteId: "note_123" },
-		expected: { href: { pathname: "/notes/[id]", params: { id: "note_123" } } },
+		expected: { href: { pathname: "/study/notes/[id]", params: { id: "note_123" } } },
 	},
 	{
 		name: "memories with an id opens the list (no row param exists)",
@@ -46,22 +46,22 @@ const CASES: { name: string; target: ChatReceiptTarget; expected: ReceiptNavigat
 	{
 		name: "plan opens the reading plan",
 		target: { screen: "plan" },
-		expected: { href: { pathname: "/(app)/bible/plan" } },
+		expected: { href: { pathname: "/(app)/today/plan" } },
 	},
 	{
 		name: "readingHistory opens the reading history",
 		target: { screen: "readingHistory" },
-		expected: { href: { pathname: "/bible/history" } },
+		expected: { href: { pathname: "/today/history" } },
 	},
 	{
 		name: "cross opens Pick Up Your Cross with the stack anchor",
 		target: { screen: "cross" },
-		expected: { href: { pathname: "/(app)/bible/cross" }, withAnchor: true },
+		expected: { href: { pathname: "/(app)/today/cross" }, withAnchor: true },
 	},
 	{
 		name: "learn opens Learn",
 		target: { screen: "learn" },
-		expected: { href: { pathname: "/(app)/bible/learn" } },
+		expected: { href: { pathname: "/(app)/today/learn" } },
 	},
 	{
 		name: "settings opens Settings",

@@ -251,6 +251,15 @@ struct ChapterReaderPane: View {
 
         if let book = model.selectedBook {
             Button {
+                app.openConnections(order: book, chapter: model.chapter, verse: model.sheet.selection?.start)
+            } label: {
+                Label("Connections", systemImage: AppSection.connections.symbol)
+                    .font(.system(size: 11, weight: .semibold)).lineLimit(1)
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .fixedSize()
+            .help("See this chapter's connections across the Bible")
+            Button {
                 showAtlas(book, model.chapter)
             } label: {
                 Label("Who's here", systemImage: "person.2")

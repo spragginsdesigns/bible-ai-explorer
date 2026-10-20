@@ -25,7 +25,6 @@ struct ChatTabView: View {
     @State private var studyRoute: StudyRoute?
 
     private enum StudyRoute: Hashable, Identifiable {
-        case plan, learn
         /// Android's receipt routes (`mobile/src/lib/receiptRoutes.ts`): a
         /// memory or settings receipt opens that screen, not a hint.
         case memories, settings
@@ -116,8 +115,6 @@ struct ChatTabView: View {
         }
         .navigationDestination(item: $studyRoute) { route in
             switch route {
-            case .plan: ReadingPlanView().analyticsScreen(AnalyticsScreen.plan)
-            case .learn: LearnView().analyticsScreen(AnalyticsScreen.learn)
             case .memories: ReceiptMemoriesScreen(api: app.api).analyticsScreen(AnalyticsScreen.memories)
             case .settings: SettingsView()
             }
@@ -277,16 +274,19 @@ struct ChatTabView: View {
             }
             openChapter(reference: reference, translation: translation)
         case .plan:
-            studyRoute = .plan
+            app.pendingDailyDestination = .plan
+            app.section = .today
         case .readingHistory:
-            isReadingHistoryPresented = true
+            app.pendingDailyDestination = .history
+            app.section = .today
         case .cross:
             // The day the assistant just replaced is stale in the cached model,
             // so force a reload on the way into the sheet.
             app.dailyCross.load(force: true)
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
         case .learn:
-            studyRoute = .learn
+            app.pendingDailyDestination = .learn
+            app.section = .today
         case .settings(let section):
             // Android opens settings/memory for a memory change and the hub
             // otherwise (church lives inside the hub on iOS).

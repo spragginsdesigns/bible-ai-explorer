@@ -1,98 +1,49 @@
 import { describe, expect, it } from "vitest";
 import { StackRouter } from "expo-router/build/react-navigation/routers/StackRouter";
 import { TabRouter } from "expo-router/build/react-navigation/routers/TabRouter";
+import { PRIMARY_TAB_ROUTES } from "@/lib/primaryTabs";
 
-const routeParamList = {};
+type State = { index: number; routes: Array<{ key: string; name: string; params?: Record<string, unknown> }> };
+const options = (routeNames: string[]) => ({ routeNames, routeParamList: {}, routeGetIdList: {} });
+const stateOf = (state: unknown) => state as State;
+const focused = (state: State) => state.routes[state.index]?.name;
 
-type RouterState = {
-	index: number;
-	routes: Array<{ key: string; name: string }>;
-	history?: Array<{ key: string }>;
-};
+describe("Daily Walk navigation", () => {
+ it.each(["today", "study"])("keeps a passage inside its %s context", (owner) => {
+  const router = StackRouter({ initialRouteName: "index" });
+  const opts = options(["index", "cross", "plan", "notes", "chapter"]);
+  let state = stateOf(router.getInitialState(opts));
+  const context = owner === "today" ? "cross" : "notes";
+  for (const name of [context, "chapter"]) {
+   state = stateOf(router.getStateForAction(state as never, { type: "PUSH", payload: { name, params: { book: "43", chapter: "3", verse: "16", translation: "KJV" } } }, opts));
+  }
+  expect(focused(state)).toBe("chapter");
+  expect(state.routes[state.index].params).toMatchObject({ book: "43", chapter: "3", verse: "16", translation: "KJV" });
+  state = stateOf(router.getStateForAction(state as never, { type: "GO_BACK" }, opts));
+  expect(focused(state)).toBe(context);
+  state = stateOf(router.getStateForAction(state as never, { type: "GO_BACK" }, opts));
+  expect(focused(state)).toBe("index");
+ });
 
-function stateOf<T extends RouterState>(value: unknown): T {
-	if (!value || typeof value !== "object") throw new Error("router returned no state");
-	return value as T;
-}
+ it("returns through actual tab history without a hidden feature tab", () => {
+  const router = TabRouter({ backBehavior: "history", initialRouteName: "today" });
+  const opts = options([...PRIMARY_TAB_ROUTES, "settings", "memories", "notes"]);
+  let state = stateOf(router.getInitialState(opts));
+  for (const name of ["bible", "connections", "study"]) {
+   state = stateOf(router.getStateForAction(state as never, { type: "JUMP_TO", payload: { name } }, opts));
+  }
+  for (const name of ["connections", "bible", "today"]) {
+   state = stateOf(router.getStateForAction(state as never, { type: "GO_BACK" }, opts));
+   expect(focused(state)).toBe(name);
+  }
+  expect(router.getStateForAction(state as never, { type: "GO_BACK" }, opts)).toBeNull();
+ });
 
-function routerOptions(routeNames: string[]) {
-	return { routeNames, routeParamList, routeGetIdList: {} };
-}
-
-function focusedTab(state: RouterState) {
-	return state.routes[state.index]?.name;
-}
-
-function historyNames(state: RouterState) {
-	return (state.history ?? []).map((item: { key: string }) =>
-		state.routes.find((route: { key: string }) => route.key === item.key)?.name
-	);
-}
-
-describe("Bible navigation contract", () => {
-	it("keeps Cross inside the Bible stack and returns Cross then Bible home", () => {
-		const tabs = TabRouter({ backBehavior: "history" });
-		const tabRoutes = ["index", "bible", "notes", "settings", "memories"];
-		let tabState = stateOf<RouterState>(tabs.getInitialState(routerOptions(tabRoutes)));
-		tabState = stateOf<RouterState>(tabs.getStateForAction(
-			tabState as never,
-			{ type: "JUMP_TO", payload: { name: "bible" } },
-			routerOptions(tabRoutes)
-		));
-
-		const bible = StackRouter({ initialRouteName: "index" });
-		const bibleRoutes = ["index", "cross", "chapter"];
-		let bibleState = stateOf<RouterState>(bible.getInitialState(routerOptions(bibleRoutes)));
-		bibleState = stateOf<RouterState>(bible.getStateForAction(bibleState as never, {
-			type: "PUSH",
-			payload: { name: "cross" },
-		}, routerOptions(bibleRoutes)));
-		bibleState = stateOf<RouterState>(bible.getStateForAction(bibleState as never, {
-			type: "PUSH",
-			payload: { name: "chapter", params: { book: "43", chapter: "3" } },
-		}, routerOptions(bibleRoutes)));
-
-		expect(focusedTab(tabState)).toBe("bible");
-		expect(bibleState.routes.map((route: { name: string }) => route.name)).toEqual([
-			"index",
-			"cross",
-			"chapter",
-		]);
-		bibleState = stateOf<RouterState>(bible.getStateForAction(bibleState as never, { type: "GO_BACK" }, routerOptions(bibleRoutes)));
-		expect(bibleState.routes[bibleState.index].name).toBe("cross");
-		bibleState = stateOf<RouterState>(bible.getStateForAction(bibleState as never, { type: "GO_BACK" }, routerOptions(bibleRoutes)));
-		expect(bibleState.routes[bibleState.index].name).toBe("index");
-	});
-
-	it("anchors a cold chapter deep link on Bible home", () => {
-		const bible = StackRouter({ initialRouteName: "index" });
-		const routes = ["chapter", "index", "cross"];
-		let state = stateOf<RouterState>(bible.getInitialState(routerOptions(routes)));
-		state = stateOf<RouterState>(bible.getStateForAction(state as never, {
-			type: "NAVIGATE",
-			payload: { name: "chapter", params: { book: "43", chapter: "3" } },
-		}, routerOptions(routes)));
-
-		expect(state.routes.map((route) => route.name)).toEqual(["index", "chapter"]);
-		expect(state.routes[state.index]?.name).toBe("chapter");
-	});
-
-	it("captures the old hidden-tab failure as a negative control", () => {
-		const tabs = TabRouter({ backBehavior: "history" });
-		const routes = ["index", "bible", "notes", "settings", "memories", "cross"];
-		let state = stateOf<RouterState>(tabs.getInitialState(routerOptions(routes)));
-		for (const name of ["bible", "cross", "bible"]) {
-			state = stateOf<RouterState>(tabs.getStateForAction(
-				state as never,
-				{ type: "JUMP_TO", payload: { name } },
-				routerOptions(routes)
-			));
-		}
-
-		expect(historyNames(state)).toEqual(["index", "cross", "bible"]);
-		state = stateOf<RouterState>(tabs.getStateForAction(state as never, { type: "GO_BACK" }, routerOptions(routes)));
-		expect(focusedTab(state)).toBe("cross");
-		state = stateOf<RouterState>(tabs.getStateForAction(state as never, { type: "GO_BACK" }, routerOptions(routes)));
-		expect(focusedTab(state)).toBe("index");
-	});
+ it.each(["cross", "plan", "notes", "chapter"])("anchors a cold %s destination above the owner's home", (name) => {
+  const router = StackRouter({ initialRouteName: "index" });
+  const opts = options([name, "index"]);
+  let state = stateOf(router.getInitialState(opts));
+  state = stateOf(router.getStateForAction(state as never, { type: "NAVIGATE", payload: { name } }, opts));
+  expect(state.routes.map((route) => route.name)).toEqual(["index", name]);
+ });
 });

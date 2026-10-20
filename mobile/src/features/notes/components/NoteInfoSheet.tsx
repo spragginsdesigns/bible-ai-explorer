@@ -114,7 +114,7 @@ export function NoteInfoSheet({
 	const openNote = useCallback(
 		(noteId: string) => {
 			onClose();
-			router.push(`/notes/${noteId}`);
+			router.push(`/study/notes/${noteId}`);
 		},
 		[onClose, router]
 	);

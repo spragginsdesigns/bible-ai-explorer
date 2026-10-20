@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { useChapterAudio } from "@/features/bible/useChapterAudio";
 import { ChapterAudioBar } from "@/features/bible/ChapterAudioBar";
 import {
@@ -248,6 +248,8 @@ const VerseRow = React.memo(function VerseRow({
  */
 export default function BibleChapterScreen() {
 	const router = useRouter();
+	const segments: readonly string[] = useSegments();
+	const chapterPath = segments.includes("today") ? "/today/chapter" : segments.includes("study") ? "/study/chapter" : "/bible/chapter";
 	const readingStatus = useReadingLogStatus();
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
@@ -609,7 +611,7 @@ export default function BibleChapterScreen() {
 		(target: CrossReferenceTarget) => {
 			closeSheet();
 			router.push({
-				pathname: "/bible/chapter",
+				pathname: chapterPath,
 				params: {
 					book: String(target.order),
 					chapter: String(target.chapter),
@@ -618,7 +620,7 @@ export default function BibleChapterScreen() {
 				},
 			});
 		},
-		[closeSheet, router, translation],
+		[closeSheet, router, translation, chapterPath],
 	);
 
 	// The Connections tab, opened on this chapter (and a verse, when one is
@@ -753,7 +755,7 @@ export default function BibleChapterScreen() {
 	const onLearn = useCallback(async () => {
 		if (!selection) return;
 		if (learnStatus === "added") {
-			router.push("/(app)/bible/learn");
+			router.push("/(app)/today/learn");
 			return;
 		}
 		if (learnStatus === "adding") return;
@@ -1017,7 +1019,7 @@ export default function BibleChapterScreen() {
 						onPress={() => {
 							setReaderOptionsVisible(false);
 							router.push({
-								pathname: "/bible/timeline",
+								pathname: "/study/timeline",
 								params: { book: String(order), chapter: String(chapter) },
 							});
 						}}
@@ -1089,7 +1091,7 @@ export default function BibleChapterScreen() {
 			{readingStatus.error ? (
 				<Pressable
 					accessibilityRole="button"
-					onPress={() => router.push("/bible/history")}
+					onPress={() => router.push("/today/history")}
 					style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.sm }}
 				>
 					<Text accessibilityRole="alert" style={{ color: colors.danger, ...typography.support }}>
@@ -1324,7 +1326,7 @@ export default function BibleChapterScreen() {
 									notes={selectionNotes}
 									onOpenNote={(noteId) => {
 										closeSheet();
-										router.push({ pathname: "/notes/[id]", params: { id: noteId } });
+										router.push({ pathname: "/study/notes/[id]", params: { id: noteId } });
 									}}
 									onAddToNote={onSaveVerse}
 								/>

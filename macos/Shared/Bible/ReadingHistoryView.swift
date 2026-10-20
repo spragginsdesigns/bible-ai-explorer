@@ -23,6 +23,9 @@ struct ReadingHistoryView: View {
     /// Opens chat: `nil` for "Talk to SureWord →", a prompt to prefill for
     /// "Talk it over →". Both links are hidden where the host has no chat route.
     var onTalk: ((String?) -> Void)? = nil
+    /// Embedded desktop panes provide their own back action; sheets and iOS
+    /// navigation continue to use the native environment dismissal.
+    var onClose: (() -> Void)? = nil
     @State private var showHelp = false
 
     var body: some View {
@@ -35,7 +38,9 @@ struct ReadingHistoryView: View {
                 Button { Task { await refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                     .disabled(model.loadingHistory)
                 #endif
-                Button("Done") { dismiss() }
+                Button("Done") {
+                    if let onClose { onClose() } else { dismiss() }
+                }
             }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.lg) {

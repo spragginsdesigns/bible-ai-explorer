@@ -7,7 +7,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
-import { ChevronDown, Copy, GraduationCap, Headphones, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
+import { ChevronDown, Copy, GraduationCap, Headphones, Network, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
@@ -687,6 +687,7 @@ const ChapterReader: React.FC = () => {
         onClick: () => void onCopySelection(),
       },
       { key: "share", icon: Share2, label: "Share", onClick: () => void onShareSelection() },
+      { key: "connections", icon: Network, label: "Connections", onClick: () => router.push(`/connections?book=${order}&chapter=${chapter}&verse=${selection?.start ?? 1}&translation=${translation}`) },
       {
         key: "note",
         icon: NotebookPen,
@@ -752,6 +753,10 @@ const ChapterReader: React.FC = () => {
     listenEditions,
     selection,
     closePanel,
+    router,
+    order,
+    chapter,
+    translation,
   ]);
 
   const barMessage: ActionMessage | null =
@@ -890,6 +895,7 @@ const ChapterReader: React.FC = () => {
         <p className="pb-2 text-center text-metadata text-neutral-500 dark:text-neutral-400">
           {lcGreek ? LC_GREEK.note : TRANSLATION_NOTES[translation]}
         </p>
+        <Link href={`/connections?book=${order}&chapter=${chapter}&translation=${translation}`} className="mx-auto mb-2 flex min-h-11 w-fit items-center gap-2 rounded-full px-4 text-sm font-bold text-amber-700 hover:bg-amber-500/5 dark:text-amber-300"><Network size={17} aria-hidden />Connections for this chapter</Link>
 
         {readingStatus.error ? (
           <p role="alert" className="mx-auto max-w-3xl px-4 py-2 text-red-600">

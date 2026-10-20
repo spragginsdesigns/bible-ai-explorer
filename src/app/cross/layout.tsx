@@ -1,8 +1,7 @@
-import AppSidebar from "@/components/AppSidebar";
+import SectionShell from "@/components/SectionShell";
 
 /**
- * Pick Up Your Cross lives under the Bible section: same docked-sidebar
- * shell as /bible so desktop navigation stays persistent.
+ * The legacy devotional URL keeps the Today section selected.
  */
 export default function CrossLayout({
 	children,
@@ -10,9 +9,6 @@ export default function CrossLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="min-h-[100dvh] gradient-mesh">
-			<AppSidebar active="bible" docked />
-			<div className="lg:pl-[268px]">{children}</div>
-		</div>
+		<SectionShell active="today">{children}</SectionShell>
 	);
 }

@@ -1,67 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, FlatList, Pressable, StyleSheet, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
-import { typography } from "@/theme";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useAuth } from "@clerk/expo";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
-import type { TranslationId } from "@/features/bible/translations";
-import { planCardSubtitle } from "@/features/plan/planView";
-import { useReadingPlan } from "@/features/plan/useReadingPlan";
-import { apiJson } from "@/lib/api";
-import { fetchSermonStudies } from "@/features/sermons/sermonApi";
-import { fonts, radius, spacing, type Colors } from "@/theme";
+import { SettingsButton } from "@/features/navigation/HubChrome";
+import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
-import { SendWordSheet } from "@/features/shareCards/SendWordSheet";
 
 /** Collapse state remembered for the app session, like the reader's font step. */
 let sessionCollapsed = { OT: false, NT: false };
-
-/**
- * The slice of GET /api/reading-events the continue-reading row needs.
- */
-interface LastRead {
-	book: string;
-	chapter: number;
-	translation: TranslationId;
-	readAt: string;
-}
-
-interface LastReadState {
-	userId: string;
-	value: LastRead | null;
-}
-
-const BOOK_BY_NAME = new Map(BOOKS.map((book) => [book.name, book]));
-
-export function parseLastRead(value: unknown): LastRead | null {
-	if (!value || typeof value !== "object") return null;
-	const candidate = value as Record<string, unknown>;
-	if (
-		typeof candidate.book !== "string" ||
-		typeof candidate.chapter !== "number" ||
-		!Number.isInteger(candidate.chapter) ||
-		(candidate.translation !== "KJV" &&
-			candidate.translation !== "NKJV" &&
-			candidate.translation !== "BSB") ||
-		typeof candidate.readAt !== "string"
-	) {
-		return null;
-	}
-	const book = BOOK_BY_NAME.get(candidate.book);
-	const chapter = candidate.chapter as number;
-	if (!book || chapter < 1 || chapter > book.chapters) return null;
-	return {
-		book: book.name,
-		chapter,
-		translation: candidate.translation,
-		readAt: candidate.readAt,
-	};
-}
 
 type Testament = "OT" | "NT";
 
@@ -111,85 +61,10 @@ function buildRows(collapsed: Record<Testament, boolean>): ListRow[] {
  */
 export default function BibleBooksScreen() {
 	const router = useRouter();
-	const [sendOpen, setSendOpen] = useState(false);
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
 	const tabBarSpace = useTabBarSpace();
 	const [collapsed, setCollapsed] = useState(sessionCollapsed);
-	// Read-only here: the card shows where the plan stands and hands the user
-	// on to the plan screen, which owns every action.
-	const { plan } = useReadingPlan();
-	const { isLoaded, isSignedIn, userId } = useAuth();
-
-	const getApiToken = useStableGetToken();
-
-	// The sermon-studies row appears only for an account whose church has
-	// ingest wired up, the same way Listen and My church stay invisible when
-	// they are unconfigured. Fail-soft: any error leaves the row hidden.
-	const [hasSermons, setHasSermons] = useState(false);
-	useEffect(() => {
-		if (!isLoaded || !isSignedIn) return;
-		let cancelled = false;
-		fetchSermonStudies(getApiToken)
-			.then((studies) => {
-				if (!cancelled) setHasSermons(studies.length > 0);
-			})
-			.catch(() => {
-				if (!cancelled) setHasSermons(false);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [getApiToken, isLoaded, isSignedIn]);
-
-	// B8: "Continue reading: Judges 7" from the reading-history route (A6).
-	// Fail-soft: signed out, no history, malformed data, or an error leaves it hidden.
-	const [lastRead, setLastRead] = useState<LastReadState | null>(null);
-	const requestId = useRef(0);
-	const loadLastRead = useCallback(() => {
-		const id = ++requestId.current;
-		if (!isLoaded || !isSignedIn || !userId) {
-			setLastRead(null);
-			return;
-		}
-		apiJson<{ lastRead?: unknown }>(getApiToken, "/api/reading-events")
-			.then((data) => {
-				if (requestId.current === id) {
-					setLastRead({ userId, value: parseLastRead(data.lastRead) });
-				}
-			})
-			.catch(() => {
-				if (requestId.current === id) setLastRead({ userId, value: null });
-			});
-	}, [getApiToken, isLoaded, isSignedIn, userId]);
-
-	useFocusEffect(
-		useCallback(() => {
-			loadLastRead();
-			const subscription = AppState.addEventListener("change", (state) => {
-				if (state === "active") loadLastRead();
-			});
-			return () => {
-				requestId.current += 1;
-				subscription.remove();
-			};
-		}, [loadLastRead])
-	);
-
-	const continueTarget = useMemo(() => {
-		if (!userId || lastRead?.userId !== userId || !lastRead.value) return null;
-		const book = BOOK_BY_NAME.get(lastRead.value.book);
-		if (!book) return null;
-		return {
-			label: `${book.name} ${lastRead.value.chapter}`,
-			params: {
-				book: String(book.order),
-				chapter: String(lastRead.value.chapter),
-				translation: lastRead.value.translation,
-			},
-		};
-	}, [lastRead, userId]);
-
 	const toggleTestament = (testament: Testament) => {
 		setCollapsed((prev) => {
 			const next = { ...prev, [testament]: !prev[testament] };
@@ -208,41 +83,13 @@ export default function BibleBooksScreen() {
 		router.push("/bible/search");
 	};
 
-	const openDailyCross = () => {
-		router.push("/bible/cross", { withAnchor: true });
-	};
-
-	const openReadingPlan = () => {
-		router.push("/bible/plan");
-	};
-
-	const openLearn = () => {
-		router.push("/(app)/bible/learn");
-	};
-
-	const openTimeline = () => {
-		router.push("/bible/timeline");
-	};
-
-	const openSermons = () => {
-		router.push("/bible/sermons");
-	};
 
 	return (
 		<Screen>
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
 					<Text style={styles.heading}>Bible</Text>
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Reading log"
-						onPress={() => router.push("/bible/history")}
-						hitSlop={8}
-						style={({ pressed }) => [styles.logPill, pressed && styles.bookRowPressed]}
-					>
-						<Ionicons name="time-outline" size={16} color={colors.accent} />
-						<Text style={styles.logText}>Reading log</Text>
-					</Pressable>
+					<SettingsButton />
 				</View>
 				<Pressable
 					accessibilityRole="button"
@@ -257,113 +104,7 @@ export default function BibleBooksScreen() {
 				data={rows}
 				keyExtractor={(row) => row.key}
 				contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
-				ListHeaderComponent={
-					<>
-						{continueTarget && (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel={`Continue reading ${continueTarget.label}`}
-								onPress={() =>
-									router.push({ pathname: "/bible/chapter", params: continueTarget.params })
-								}
-								style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-							>
-								<Text style={styles.planGlyph}>→</Text>
-								<View style={styles.crossCopy}>
-									<Text style={styles.planTitle}>Continue reading</Text>
-									<Text style={styles.crossSubtitle}>{continueTarget.label}</Text>
-								</View>
-								<Text style={styles.planChevron}>›</Text>
-							</Pressable>
-						)}
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Learn a verse"
-							onPress={openLearn}
-							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-						>
-							<Text style={styles.planGlyph}>✦</Text>
-							<View style={styles.crossCopy}>
-								<Text style={styles.planTitle}>Learn a verse</Text>
-								<Text style={styles.crossSubtitle}>Practice today&apos;s verses</Text>
-							</View>
-							<Text style={styles.planChevron}>›</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel={plan ? "Reading plan - today's reading" : "Start a reading plan"}
-							onPress={openReadingPlan}
-							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-						>
-							<Text style={styles.planGlyph}>◷</Text>
-							<View style={styles.crossCopy}>
-								<Text style={styles.planTitle}>
-									{plan ? plan.title : "Reading plan"}
-								</Text>
-								<Text style={styles.crossSubtitle}>{planCardSubtitle(plan)}</Text>
-							</View>
-							<Text style={styles.planChevron}>›</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Timeline, people and places of the Bible"
-							onPress={openTimeline}
-							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-						>
-							<Text style={styles.planGlyph}>◈</Text>
-							<View style={styles.crossCopy}>
-								<Text style={styles.planTitle}>Timeline &amp; People</Text>
-								<Text style={styles.crossSubtitle}>
-									When it happened, and who was there
-								</Text>
-							</View>
-							<Text style={styles.planChevron}>›</Text>
-						</Pressable>
-						{hasSermons ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Sermon studies from your church"
-								onPress={openSermons}
-								style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-							>
-								<Text style={styles.planGlyph}>❂</Text>
-								<View style={styles.crossCopy}>
-									<Text style={styles.planTitle}>Sermon studies</Text>
-									<Text style={styles.crossSubtitle}>
-										Walk through your church&apos;s latest message
-									</Text>
-								</View>
-								<Text style={styles.planChevron}>›</Text>
-							</Pressable>
-						) : null}
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Pick Up Your Cross - today's word"
-							onPress={openDailyCross}
-							style={({ pressed }) => [styles.crossCard, pressed && styles.bookRowPressed]}
-						>
-							<Text style={styles.crossGlyph}>✝</Text>
-							<View style={styles.crossCopy}>
-								<Text style={styles.crossTitle}>Pick Up Your Cross</Text>
-								<Text style={styles.crossSubtitle}>Today&apos;s word, chosen for your walk</Text>
-							</View>
-							<Text style={styles.crossChevron}>›</Text>
-						</Pressable>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Send a word to someone"
-							onPress={() => setSendOpen(true)}
-							style={({ pressed }) => [styles.planCard, pressed && styles.bookRowPressed]}
-						>
-							<Ionicons name="mail-outline" size={22} color={colors.textMuted} />
-							<View style={styles.crossCopy}>
-								<Text style={styles.planTitle}>Send a word to someone</Text>
-								<Text style={styles.crossSubtitle}>A verse and a few words for what they face</Text>
-							</View>
-							<Text style={styles.planChevron}>›</Text>
-						</Pressable>
-					</>
-				}
+
 				renderItem={({ item: row }) => {
 					if (row.type === "testament") {
 						return (
@@ -400,7 +141,6 @@ export default function BibleBooksScreen() {
 					);
 				}}
 			/>
-			<SendWordSheet visible={sendOpen} onClose={() => setSendOpen(false)} />
 		</Screen>
 	);
 }
@@ -422,17 +162,8 @@ const createStyles = (c: Colors) =>
 		// as a bare clock icon wrapped underneath the title.
 		titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
 		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
-		logPill: {
-			flexDirection: "row",
-			alignItems: "center",
-			gap: 6,
-			backgroundColor: c.accentSoft,
-			borderRadius: radius.full,
-			paddingHorizontal: spacing.md,
-			paddingVertical: 6,
-		},
-		logText: { color: c.accent, fontFamily: fonts.bodyBold, ...typography.meta },
 		searchPill: {
+			minHeight: 48,
 			flexDirection: "row",
 			alignItems: "center",
 			gap: spacing.sm,
@@ -446,40 +177,6 @@ const createStyles = (c: Colors) =>
 		},
 		searchText: { color: c.textMuted, ...typography.support },
 		listContent: { paddingHorizontal: spacing.lg },
-		crossCard: {
-			flexDirection: "row",
-			alignItems: "center",
-			gap: spacing.md,
-			marginTop: spacing.xs,
-			marginBottom: spacing.sm,
-			backgroundColor: c.accentSoft,
-			borderColor: c.accentBorder,
-			borderWidth: 1,
-			borderRadius: radius.lg,
-			paddingHorizontal: spacing.lg,
-			paddingVertical: spacing.md,
-		},
-		planCard: {
-			flexDirection: "row",
-			alignItems: "center",
-			gap: spacing.md,
-			marginTop: spacing.xs,
-			marginBottom: spacing.sm,
-			backgroundColor: c.surface,
-			borderColor: c.borderStrong,
-			borderWidth: StyleSheet.hairlineWidth,
-			borderRadius: radius.lg,
-			paddingHorizontal: spacing.lg,
-			paddingVertical: spacing.md,
-		},
-		planGlyph: { color: c.textMuted, ...typography.chat },
-		planTitle: { color: c.text, ...typography.control, fontWeight: "700" },
-		planChevron: { color: c.textFaint, ...typography.chat, fontWeight: "600" },
-		crossGlyph: { color: c.accent, ...typography.screenTitle },
-		crossCopy: { flex: 1, gap: 2 },
-		crossTitle: { color: c.accent, ...typography.control, fontWeight: "700" },
-		crossSubtitle: { color: c.textMuted, ...typography.meta },
-		crossChevron: { color: c.accent, ...typography.chat, fontWeight: "600" },
 		testamentHeader: {
 			flexDirection: "row",
 			alignItems: "center",

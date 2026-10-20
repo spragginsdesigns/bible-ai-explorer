@@ -55,8 +55,12 @@ export default function ChatScreen() {
 		attachTranslation?: string;
 		verseOfDayId?: string;
 		conversationId?: string;
+		clearAttachment?: string;
+		handoffId?: string;
 	}>();
 	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
+	const handoffIdParam = typeof params.handoffId === "string" ? params.handoffId : "";
+	const clearAttachmentParam = params.clearAttachment === "1";
 	const conversationIdParam =
 		typeof params.conversationId === "string" ? params.conversationId : "";
 	const attachRefParam = typeof params.attachRef === "string" ? params.attachRef : "";
@@ -141,19 +145,26 @@ export default function ChatScreen() {
 	// Ask-AI entry points (e.g. the Bible tab) push here with ?prompt= — prefill
 	// the input and focus it, but leave sending to the user.
 	useEffect(() => {
-		if (!promptParam || promptParam === lastSeededPrompt.current) return;
-		lastSeededPrompt.current = promptParam;
+		const key = `${handoffIdParam}:${promptParam}`;
+		if (!promptParam || key === lastSeededPrompt.current) return;
+		lastSeededPrompt.current = key;
 		leaveEdit(false);
 		chat.setInput(promptParam);
 		setFocusSignal((signal) => signal + 1);
-	}, [promptParam, chat.setInput, leaveEdit]);
+	}, [promptParam, handoffIdParam, chat.setInput, leaveEdit]);
 
 	// Verse/chapter attachments (?attachRef= etc.): pin the passage above the
 	// input and focus so the user can type their own question — the draft text
 	// they may have typed stays untouched.
 	useEffect(() => {
+		if (clearAttachmentParam && handoffIdParam) {
+			chat.clearAttachment();
+			lastSeededAttachment.current = "";
+			router.setParams({ clearAttachment: undefined });
+			return;
+		}
 		if (!attachRefParam) return;
-		const key = `${attachRefParam}${attachTranslationParam}${attachTextParam}${verseOfDayIdParam}`;
+		const key = `${handoffIdParam}${attachRefParam}${attachTranslationParam}${attachTextParam}${verseOfDayIdParam}`;
 		if (key === lastSeededAttachment.current) return;
 		lastSeededAttachment.current = key;
 		leaveEdit(true);
@@ -179,11 +190,15 @@ export default function ChatScreen() {
 		setFocusSignal((signal) => signal + 1);
 	}, [
 		attachRefParam,
+		clearAttachmentParam,
+		handoffIdParam,
 		attachTextParam,
 		attachTranslationParam,
 		verseOfDayIdParam,
 		defaultTranslation,
 		chat.setAttachment,
+		chat.clearAttachment,
+		router,
 		leaveEdit,
 	]);
 

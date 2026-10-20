@@ -1,22 +1,15 @@
 import SwiftUI
 
-/// Signed-in shell: the iOS 26 native tab bar (Liquid Glass comes free) with
-/// the three primary sections from Android's bottom tabs
-/// (`mobile/app/(app)/_layout.tsx`) — Chat (home), Bible, Notes. Settings and
-/// Memories are push-only routes reached from the toolbar gear, as on Android.
-/// The Daily Cross has no tab of its own (on Android it's the pushed `/cross`
-/// route inside Chat); here it's a sheet, opened from the morning
-/// notification, a `sureword://cross` deep link, or the Bible header card.
+/// Five native destinations, with independent stacks. Daily Cross opens over
+/// Today, Notes belongs to Study, and the reader retains Bible ownership.
 struct TabShell: View {
     @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
     @Environment(\.scenePhase) private var scenePhase
 
-    /// Home is Chat, matching Android's initial route.
+    /// Today is the daily landing page across clients.
     @State private var selectedTab: AppSection = UIEvidenceHarness.initialShellTab
-    /// The Daily Cross has no tab of its own (on Android it lives inside Chat
-    /// as the pushed `/cross` route); here it is a sheet over whichever tab is
-    /// frontmost, so the morning notification can open it from anywhere.
+    /// Legacy notifications and URLs still open the complete devotional.
     @State private var isCrossPresented = false
     /// A share is being read off disk; guards against a second read racing it.
     @State private var isOpeningShare = false
@@ -27,11 +20,8 @@ struct TabShell: View {
 
     private var tabContent: some View {
         TabView(selection: $selectedTab) {
-            Tab(AppSection.chat.title, systemImage: "bubble.left.and.bubble.right", value: .chat) {
-                NavigationStack {
-                    ChatTabView()
-                        .analyticsScreen(AnalyticsScreen.chat)
-                }
+            Tab(AppSection.today.title, systemImage: AppSection.today.symbol, value: .today) {
+                TodayTabView().analyticsScreen("/today")
             }
             Tab(AppSection.bible.title, systemImage: AppSection.bible.symbol, value: .bible) {
                 NavigationStack {
@@ -39,11 +29,19 @@ struct TabShell: View {
                         .analyticsScreen(AnalyticsScreen.bible)
                 }
             }
-            Tab(AppSection.notes.title, systemImage: AppSection.notes.symbol, value: .notes) {
+            Tab(AppSection.chat.title, systemImage: "bubble.left.and.bubble.right", value: .chat) {
                 NavigationStack {
-                    NotesTabView()
-                        .analyticsScreen(AnalyticsScreen.notes)
+                    ChatTabView()
+                        .analyticsScreen(AnalyticsScreen.chat)
                 }
+            }
+            Tab(AppSection.connections.title, systemImage: AppSection.connections.symbol, value: .connections) {
+                NavigationStack {
+                    ConnectionsMapView().settingsGearToolbar().analyticsScreen("/connections")
+                }
+            }
+            Tab(AppSection.study.title, systemImage: AppSection.study.symbol, value: .study) {
+                StudyTabView().analyticsScreen("/study")
             }
         }
         .tabViewStyle(.sidebarAdaptable)
@@ -59,7 +57,11 @@ struct TabShell: View {
         // First hydrate of the session: the server document replaces whatever
         // this phone had cached for the synced preferences.
         .task { app.preferences.refresh(force: true) }
-        .onChange(of: selectedTab) { _, tab in if tab != .bible { app.bible.reading.setReaderVisible(false) } }
+        .onChange(of: selectedTab) { _, tab in
+            app.section = tab
+            if tab != .bible { app.bible.reading.setReaderVisible(false) }
+        }
+        .onChange(of: app.section) { _, section in selectedTab = section.primary }
         .onChange(of: isCrossPresented) { _, visible in app.bible.reading.setObscured(visible, reason: "cross") }
         // Every way into the Daily Cross presents this sheet, so this is the
         // "first Cross visit" moment for the permission dialog.
@@ -164,7 +166,8 @@ struct TabShell: View {
         .onReceive(NotificationCenter.default.publisher(for: .openNote)) { note in
             guard let noteID = note.userInfo?["noteId"] as? String, !noteID.isEmpty else { return }
             app.pendingNoteID = noteID
-            selectedTab = .notes
+            app.section = .study
+            selectedTab = .study
         }
         // The reader's "Ask AI" / "Expand with AI" actions have already put the
         // passage on `app.chat.attachment`; the shell just switches tabs.
@@ -224,6 +227,8 @@ struct TabShell: View {
 
     private func openCross() {
         app.chapterAudio.close()
+        selectedTab = .today
+        app.section = .today
         isCrossPresented = true
         app.dailyCross.load(force: true)
     }

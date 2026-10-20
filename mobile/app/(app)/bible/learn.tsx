@@ -1,2 +1,6 @@
-import LearnScreen from "@/features/learn/LearnScreen";
-export default LearnScreen;
+import React from "react";
+import { LegacyRoute } from "@/features/navigation/LegacyRoute";
+
+export default function LegacyScreen() {
+	return <LegacyRoute pathname="/today/learn" />;
+}

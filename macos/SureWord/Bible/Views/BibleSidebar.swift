@@ -9,18 +9,11 @@ struct BibleSidebar: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppModel.self) private var app
     @Bindable var model: BibleModel
-    let onShowAtlas: () -> Void
-    let onShowPlan: () -> Void
-    let onShowLearn: () -> Void
-    let onShowSermons: () -> Void
     let onShowBible: () -> Void
 
     /// Collapsed testaments, remembered for as long as the section is alive —
     /// the same scope as Android's module-level `sessionCollapsed`.
     @State private var collapsed: Set<Book.Testament> = []
-    /// Whether this account's church has any sermon studies. The card stays
-    /// hidden until it does, and on any error, as on Android and iOS.
-    @State private var hasSermons = false
     /// "Continue reading" - built on first appearance, once `app` exists.
     @State private var continueReading: ContinueReadingModel?
 
@@ -41,23 +34,8 @@ struct BibleSidebar: View {
                 if let lastRead = continueReading?.lastRead {
                     continueCard(lastRead)
                 }
-                learnCard
-                planCard
-                if hasSermons { sermonsCard }
-                atlasCard
-                crossCard
-                SendWordHomeCard()
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.bottom, Spacing.sm)
                 bookList
             }
-        }
-        // The card shows where the plan stands; the pane owns every action, so
-        // this only ever needs the one load per session.
-        .task { model.plan.loadIfNeeded() }
-        .task {
-            let studies = try? await SermonStudiesAPI.list(api: app.api)
-            hasSermons = !(studies ?? []).isEmpty
         }
         // Fail-soft and refreshed whenever the section reappears or the app
         // returns to the foreground, like Android's focus effect.
@@ -125,217 +103,6 @@ struct BibleSidebar: View {
         .padding(.bottom, Spacing.sm)
     }
 
-    // MARK: - Learn a verse
-
-    /// Between Continue reading and the plan, where the Android Bible tab puts
-    /// its "Learn a verse" row (`mobile/app/(app)/bible/index.tsx`).
-    private var learnCard: some View {
-        Button(action: onShowLearn) {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "sparkle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Learn a verse")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("Practice today's verses")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .help("Practice today's verses")
-        .accessibilityLabel("Learn a verse")
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-    }
-
-    // MARK: - Reading plan
-
-    /// Top of the Bible screen on every client: today's reading, or an
-    /// invitation to start. Mirrors the Android Bible tab's plan card
-    /// (`mobile/app/(app)/bible/index.tsx`) and web's `BibleBookPicker`.
-    private var planCard: some View {
-        let plan = model.plan.plan
-        return Button(action: onShowPlan) {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "calendar.day.timeline.left")
-                    .font(.system(size: 16))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(plan?.title ?? "Reading plan")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                        .lineLimit(1)
-                    Text(PlanView.planCardSubtitle(plan))
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .help(plan == nil ? "Start a reading plan" : "Reading plan - today's reading")
-        .accessibilityLabel(plan == nil ? "Start a reading plan" : "Reading plan, today's reading")
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-    }
-
-    // MARK: - Sermon studies
-
-    /// The way in to the church's sermon studies, below the plan as the row
-    /// sits below it on the Android Bible tab (`/bible/sermons`).
-    private var sermonsCard: some View {
-        Button(action: onShowSermons) {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "building.columns")
-                    .font(.system(size: 16))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Sermon studies")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("Walk through your church's latest message")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .help("Walk through your church's latest message")
-        .accessibilityLabel("Sermon studies from your church")
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-    }
-
-    // MARK: - Daily Cross
-
-    private var atlasCard: some View {
-        Button(action: onShowAtlas) {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 17))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Timeline, People & Places")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("Explore Scripture's people and places")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .help("Explore Bible timeline, people and places")
-        .accessibilityLabel("Open Bible timeline, people and places")
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-    }
-
-    /// The ✝ way in to today's guided walk, sitting above the books exactly as
-    /// it does on the Android Bible tab and the web `/bible` page. It is also a
-    /// sidebar section of its own here — a Mac has room for both, and this is
-    /// the entry point someone reading their Bible will actually see.
-    private var crossCard: some View {
-        Button {
-            app.section = .cross
-        } label: {
-            HStack(spacing: Spacing.md) {
-                Text("✝")
-                    .font(.system(size: 18))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Pick Up Your Cross")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("Today's word, chosen for your walk")
-                        .font(.system(size: 11))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Text("›")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.md)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .help("Today's word, chosen for your walk")
-        .padding(.horizontal, Spacing.md)
-        .padding(.bottom, Spacing.sm)
-    }
 
     // MARK: - Search
 

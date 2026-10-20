@@ -247,10 +247,10 @@ const AtlasScreen: React.FC = () => {
         <main className="min-w-0">
           <div className="flex items-center gap-4 py-3 lg:py-6">
             <Link
-              href="/bible"
+              href="/study"
               className="min-h-[40px] pt-2 text-[15px] font-semibold text-amber-600 dark:text-amber-400"
             >
-              ‹ Bible
+              ‹ Study
             </Link>
             <h1 className="flex-1 truncate text-center font-[family-name:var(--font-pirata)] text-3xl lg:text-4xl text-neutral-900 dark:text-neutral-100">
               {chapterScope

@@ -229,7 +229,7 @@ function PassageBlock({
 			const noteId = await saveVerseToNote(getToken, source);
 			flash(setSaveStatus, "done");
 			onNavigate();
-			router.push({ pathname: "/notes/[id]", params: { id: noteId } });
+			router.push({ pathname: "/study/notes/[id]", params: { id: noteId } });
 		} catch {
 			flash(setSaveStatus, "error");
 		}

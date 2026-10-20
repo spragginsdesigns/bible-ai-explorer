@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.97.0 (versionCode 111) - 2026-10-19 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Today brings your daily word, reading plan and verse practice together.
+- Five clear tabs: Today, Bible, Chat, Connections and Study.
+- Bible opens straight into reading. Find Notes, the timeline, atlas and sermon studies in Study.
+- Existing verse, devotional and note links keep working with clearer navigation and Back behavior.
+
+**Dev notes:** Daily Walk navigation overhaul. Today uses an authenticated, read-only devotional preview, so opening home never generates or replaces a word. Daily and study screens have separate anchored stacks with compatibility routes for existing links. Compact local dawn artwork and native icons support dark and light appearance. Android release proof and cross-client status are recorded in docs/navigation-overhaul.md.
+
 ## 1.96.0 (versionCode 110) - 2026-10-19 - internal and closed testing
 
 **What's new (Play):**

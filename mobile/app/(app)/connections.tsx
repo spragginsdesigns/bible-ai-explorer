@@ -11,6 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { Screen } from "@/components/ui";
+import { SettingsButton } from "@/features/navigation/HubChrome";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder, resolveReference } from "@/features/bible/books";
 import {
@@ -305,6 +306,7 @@ export default function ConnectionsScreen() {
 				>
 					<Ionicons name="book-outline" size={21} color={colors.text} />
 				</Pressable>
+				<SettingsButton />
 			</View>
 			<ScrollView
 				ref={scrollRef}

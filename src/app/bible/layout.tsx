@@ -1,4 +1,4 @@
-import AppSidebar from "@/components/AppSidebar";
+import SectionShell from "@/components/SectionShell";
 
 /**
  * Bible section shell: the persistent app sidebar is fixed on desktop and
@@ -11,9 +11,6 @@ export default function BibleLayout({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="min-h-[100dvh] gradient-mesh">
-			<AppSidebar active="bible" docked />
-			<div className="lg:pl-[268px]">{children}</div>
-		</div>
+		<SectionShell active="bible">{children}</SectionShell>
 	);
 }

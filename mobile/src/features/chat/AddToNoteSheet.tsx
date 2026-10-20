@@ -131,7 +131,7 @@ export function AddToNoteSheet({
 	const openSavedNote = useCallback(() => {
 		if (!saved) return;
 		onClose();
-		router.push(`/notes/${saved.noteId}`);
+		router.push(`/study/notes/${saved.noteId}`);
 	}, [onClose, router, saved]);
 
 	const saving = pendingKey !== null;

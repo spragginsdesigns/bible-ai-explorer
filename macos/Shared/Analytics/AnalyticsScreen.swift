@@ -49,6 +49,9 @@ enum AnalyticsScreen {
     /// Android, where it is pushed from the Bible home.
     static func pattern(for section: AppSection) -> String {
         switch section {
+        case .today: "/today"
+        case .connections: "/connections"
+        case .study: "/study"
         case .chat: chat
         case .bible: bible
         case .notes: notes

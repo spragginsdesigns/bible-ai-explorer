@@ -188,13 +188,12 @@ export default function DailyCrossPage() {
 		<div className="min-h-[100dvh] gradient-mesh">
 			<div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-28 lg:pb-16">
 				<div className="flex items-center gap-4 py-3 lg:py-6">
-					<button
-						type="button"
-						onClick={() => router.back()}
+					<Link
+						href="/today"
 						className="text-control font-semibold text-amber-600 dark:text-amber-400"
 					>
-						‹ Back
-					</button>
+						‹ Today
+					</Link>
 					<h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100">
 						Pick Up Your Cross
 					</h1>

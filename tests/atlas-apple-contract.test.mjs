@@ -14,17 +14,19 @@ test("the shared Swift timeline decoder matches the API eras key", async () => {
 	assert.match(types, /case groups = "eras"/);
 });
 
-test("both Apple Bible readers expose native atlas entry points", async () => {
-	const [macSidebar, macReader, iosBible, iosReader] = await Promise.all([
-		read("macos/SureWord/Bible/Views/BibleSidebar.swift"),
+test("Apple Study owns atlas discovery and both readers retain contextual entry points", async () => {
+	const [studyHome, macStudy, macReader, iosStudy, iosReader] = await Promise.all([
+		read("macos/Shared/DailyCross/DailyWalkHome.swift"),
+		read("macos/SureWord/App/DailyWalkSections.swift"),
 		read("macos/SureWord/Bible/Views/ChapterReaderPane.swift"),
-		read("macos/SureWord-iOS/Views/Bible/BibleTabView.swift"),
+		read("macos/SureWord-iOS/Views/DailyWalkSections.swift"),
 		read("macos/SureWord-iOS/Views/Bible/ChapterReaderView.swift"),
 	]);
 
-	assert.match(macSidebar, /Timeline, People & Places/);
+	assert.match(studyHome, /Timeline, People & Places/);
+	assert.match(macStudy, /StudyHome/);
+	assert.match(iosStudy, /StudyHome/);
 	assert.match(macReader, /Who's in this chapter/);
-	assert.match(iosBible, /Timeline, People & Places/);
 	assert.match(iosReader, /Who's in this chapter/);
 });
 

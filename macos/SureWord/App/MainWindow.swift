@@ -114,6 +114,12 @@ struct MainWindow: View {
     @ViewBuilder
     private var detail: some View {
         switch app.section {
+        case .today:
+            TodaySection()
+        case .connections:
+            ConnectionsMapView()
+        case .study:
+            StudySection()
         case .chat:
             ChatView(
                 chat: app.chat,
@@ -136,8 +142,10 @@ struct MainWindow: View {
             BibleSection()
         case .notes:
             NotesSection(api: app.api)
+                .toolbar { Button("Back to Study", systemImage: "chevron.left") { app.section = .study } }
         case .cross:
             DailyCrossView()
+                .toolbar { Button("Back to Today", systemImage: "chevron.left") { app.section = .today } }
         }
     }
 
@@ -183,12 +191,17 @@ struct Sidebar: View {
         @Bindable var app = app
         let results = HistorySearch.filter(app.chat.conversations, query: query)
 
-        List(selection: $app.section) {
+        List(selection: Binding(get: { app.section.primary }, set: { app.section = $0 })) {
             Section {
                 ForEach(AppSection.allCases) { section in
                     Label(section.title, systemImage: section.symbol)
                         .tag(section)
                 }
+            }
+
+            Section("Study") {
+                Button { app.section = .notes } label: { Label("Notes", systemImage: "note.text") }
+                    .buttonStyle(.plain)
             }
 
             if !app.chat.conversations.isEmpty {

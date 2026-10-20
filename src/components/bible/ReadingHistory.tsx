@@ -150,10 +150,10 @@ export default function ReadingHistory() {
 		<main className="mx-auto w-full max-w-2xl px-4 pb-28 sm:px-5 lg:max-w-5xl lg:px-8 lg:pb-16">
 			<div className="flex items-center gap-4 py-3 lg:py-6">
 				<Link
-					href="/bible"
+					href="/today"
 					className="text-control font-semibold text-amber-600 dark:text-amber-400"
 				>
-					‹ Bible
+					‹ Today
 				</Link>
 				<h1 className="flex-1 truncate text-center text-control font-semibold text-neutral-900 dark:text-neutral-100 lg:text-screen-title">
 					Reading log

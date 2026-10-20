@@ -213,11 +213,11 @@ function LearnSession({ userId }: { userId: string }) {
 			<View style={styles.header}>
 				<Pressable
 					accessibilityRole="button"
-					accessibilityLabel="Back to Bible"
-					onPress={() => router.replace("/(app)/bible")}
+					accessibilityLabel="Back to Today"
+					onPress={() => router.canGoBack() ? router.back() : router.replace("/today")}
 					style={styles.back}
 				>
-					<Text style={styles.link}>‹ Bible</Text>
+					<Text style={styles.link}>‹ Today</Text>
 				</Pressable>
 				<Text style={styles.title}>Learn a verse</Text>
 				{today ? <Text style={styles.count}>{today.knownCount} verses you know</Text> : <View />}

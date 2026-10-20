@@ -13,7 +13,7 @@ export function NoteActionCard({ action }: { action: NoteAction }) {
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const openNotes = useCallback(
-		() => router.push(action.noteId ? `/notes/${action.noteId}` : "/notes"),
+		() => router.push(action.noteId ? `/study/notes/${action.noteId}` : "/study/notes"),
 		[router, action.noteId]
 	);
 

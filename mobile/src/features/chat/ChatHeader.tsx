@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
 import { BrandTitle } from "@/components/ui";
@@ -22,6 +22,7 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const { colors: theme } = useTheme();
 	const colors = chatColors(theme);
+	const { width } = useWindowDimensions();
 	const styles = useThemedStyles(createStyles);
 	useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 	const choose = (action: () => void) => {
@@ -32,13 +33,13 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 	const options = [
 		{ label: "Choose AI model", icon: "sparkles-outline" as const, action: onOpenModelPicker },
 		{ label: "Conversation history", icon: "time-outline" as const, action: onOpenHistory },
-		{ label: "Settings", icon: "settings-outline" as const, action: onOpenSettings },
+		{ label: "Settings and Memories", icon: "settings-outline" as const, action: onOpenSettings },
 	];
 	return <>
 		<View style={styles.header}>
-			<View style={styles.mark}>
+			{width >= 400 ? <View style={styles.mark}>
 				{phase === "idle" ? <Image accessible={false} source={require("../../../assets/chat-home/sureword-mark.png")} resizeMode="contain" style={[styles.markImage, { tintColor: colors.accent }]} /> : <SureWordGuideAvatar phase={phase} size={44} />}
-			</View>
+			</View> : null}
 			<View style={styles.title}>
 				<BrandTitle size={27} style={{ color: colors.text }} />
 				{title ? <Text style={styles.subtitle} numberOfLines={1}>{title}</Text> : null}
@@ -48,6 +49,9 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 			</Pressable>
 			<Pressable accessibilityRole="button" accessibilityLabel="Chat options" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(true)} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
 				<Ionicons name="ellipsis-vertical" size={21} color={colors.textMuted} />
+			</Pressable>
+			<Pressable accessibilityRole="button" accessibilityLabel="Settings and Memories" onPress={onOpenSettings} style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+				<Ionicons name="settings-outline" size={23} color={colors.textSecondary} />
 			</Pressable>
 		</View>
 		<BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Chat options">

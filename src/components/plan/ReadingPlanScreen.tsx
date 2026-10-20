@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { BOOKS } from "@/lib/bible/books";
 import { useReadingPlan } from "./useReadingPlan";
 import {
@@ -37,7 +36,6 @@ function chapterHref(reading: PlanReading): string | null {
  * mobile/app/(app)/bible/plan.tsx.
  */
 export default function ReadingPlanScreen() {
-	const router = useRouter();
 	const { plan, presets, loading, busy, error, reload, startPreset, startGoal, setDayDone, archive } =
 		useReadingPlan();
 
@@ -62,13 +60,12 @@ export default function ReadingPlanScreen() {
 		<div className="min-h-[100dvh] gradient-mesh">
 			<div className="mx-auto w-full max-w-2xl lg:max-w-3xl px-5 pb-28 lg:pb-16">
 				<div className="flex items-center gap-4 py-3 lg:py-6">
-					<button
-						type="button"
-						onClick={() => router.back()}
+					<Link
+						href="/today"
 						className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
 					>
-						‹ Back
-					</button>
+						‹ Today
+					</Link>
 					<h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
 						Reading plan
 					</h1>

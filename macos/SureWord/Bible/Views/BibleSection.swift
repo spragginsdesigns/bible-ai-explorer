@@ -24,27 +24,6 @@ struct BibleSection: View {
         HStack(spacing: 0) {
             BibleSidebar(
                 model: model,
-                onShowAtlas: {
-                    atlasBook = nil
-                    atlasChapter = nil
-                    showingPlan = false
-                    showingSermons = false
-                    showingLearn = false
-                    showingAtlas = true
-                },
-                onShowPlan: {
-                    atlasBook = nil
-                    atlasChapter = nil
-                    showingAtlas = false
-                    showingSermons = false
-                    showingLearn = false
-                    showingPlan = true
-                },
-                onShowLearn: { showLearn() },
-                onShowSermons: {
-                    showBible()
-                    showingSermons = true
-                },
                 onShowBible: { showBible() }
             )
                 .frame(width: 300)
@@ -101,13 +80,6 @@ struct BibleSection: View {
             }
             app.pendingVerseReference = nil
             app.pendingVerseTranslation = nil
-        }
-        // A chat "Learning John 3:16" receipt lands here, consumed once for
-        // the same reason as the verse reference above.
-        .onChange(of: app.pendingLearn, initial: true) { _, pending in
-            guard pending else { return }
-            showLearn()
-            app.pendingLearn = false
         }
     }
 

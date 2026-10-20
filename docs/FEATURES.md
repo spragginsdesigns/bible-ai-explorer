@@ -7,6 +7,25 @@ so they can be maintained without re-deriving the design.
 
 ---
 
+## Daily Walk navigation
+
+The primary destinations are Today, Bible, Chat, Connections and Study. Today
+holds the devotional, reading plans, Learn a verse, reading history and Send a
+word. Bible opens directly into reading and passage search. Study puts Notes
+first, followed by the timeline, atlas, original languages and church studies.
+Connections remains a separate cross-reference map, with native and web screens
+using the existing shared APIs. Chat remains a conversation screen.
+
+The home reads an existing devotional from authenticated
+`GET /api/verse-of-day/preview`; it never generates a word on mount. Android
+keeps legacy links as parameter-preserving aliases and uses contextual reader
+routes in Today and Study so Back returns to the initiating feature. Web keeps
+its existing URLs and adapts native links through section aliases. Apple uses
+native sidebar and tab layouts with explicit receipt and verse destinations.
+
+See [navigation-overhaul.md](navigation-overhaul.md) for the complete destination
+map, account and consent behavior, artwork provenance and verification results.
+
 ## Bible reader: sourced red letters and section headings
 
 Android 1.60.0 (62) and web source `f2245e5` add the Berean Standard Bible,

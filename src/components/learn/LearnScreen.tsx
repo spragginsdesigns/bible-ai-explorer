@@ -229,7 +229,7 @@ function LearnSession({ userId }: { userId: string }) {
 	return <main className="min-h-[100dvh] bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
 		<div className="mx-auto flex min-h-[100dvh] max-w-xl flex-col gap-6 px-5 py-6">
 			<header className="flex flex-wrap items-center justify-between gap-3">
-				<Link href="/bible" className="min-h-11 py-3 text-sm text-amber-700 dark:text-amber-400">‹ Bible</Link>
+				<Link href="/today" className="min-h-11 py-3 text-sm text-amber-700 dark:text-amber-400">‹ Today</Link>
 				<h1 className="text-sm font-semibold">Learn a verse</h1>
 				{today ? <span className="text-sm text-neutral-600 dark:text-neutral-400">{today.knownCount} verses you know</span> : <span />}
 			</header>
@@ -312,7 +312,7 @@ function LearnSession({ userId }: { userId: string }) {
 					/>
 					<div className="mt-8 grid grid-cols-2 gap-3">
 						<button disabled={disabled} onClick={() => void review("again")} className={buttonClass}>Practice again</button>
-						<button disabled={disabled || !typedReady} onClick={() => void review("good")} className={`${buttonClass} border-amber-500 bg-amber-400 font-semibold text-neutral-950`}>
+						<button disabled={disabled || !typedReady} onClick={() => void review("good")} className={`${buttonClass} border-amber-500 bg-amber-400 font-semibold text-[#1c2118]`}>
 							{interactionBusy ? "Saving..." : card.stage === 3 ? "I remembered" : "Continue"}
 						</button>
 					</div>

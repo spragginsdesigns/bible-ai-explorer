@@ -6,17 +6,14 @@ import XCTest
 /// the tab bar is driven from, and the IA it mirrors from Android.
 @MainActor
 final class TabShellTests: XCTestCase {
-    func testAppModelDefaultsToChatHome() {
-        // Android's bottom tabs land on Chat; TabShell's selection does too.
+    func testAppModelDefaultsToTodayHome() {
         let app = AppModel(settings: SettingsStore(), userID: nil)
-        XCTAssertEqual(app.section, .chat)
+        XCTAssertEqual(app.section, .today)
     }
 
     func testTabSectionsMatchAndroidIA() {
-        // Chat / Bible / Notes are the three iOS tabs; Daily Cross has no tab
-        // of its own (on Android it lives inside Chat).
-        XCTAssertEqual([AppSection.chat, .bible, .notes].map(\.title), ["Chat", "Bible", "Notes"])
-        XCTAssertEqual(AppSection.bible.symbol, "book.closed")
+        XCTAssertEqual(AppSection.allCases.map(\.title), ["Today", "Bible", "Chat", "Connections", "Study"])
+        XCTAssertEqual(AppSection.bible.symbol, "book")
         XCTAssertEqual(AppSection.notes.symbol, "note.text")
     }
 }

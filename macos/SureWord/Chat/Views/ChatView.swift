@@ -316,15 +316,16 @@ struct ChatView: View {
                 RetrievedVerse(reference: reference, similarity: 0, text: nil, translation: translation)
             )
         case .plan:
-            show(toast: "Your reading plan is in the Bible section.")
+            app.pendingDailyDestination = .plan
+            app.section = .today
         case .readingHistory:
-            show(toast: "Reading history is in the Bible section's toolbar.")
+            app.pendingDailyDestination = .history
+            app.section = .today
         case .cross:
             onOpenCross()
         case .learn:
-            // Learn is a pane of the Bible section, staged like the note above.
-            app.pendingLearn = true
-            app.section = .bible
+            app.pendingDailyDestination = .learn
+            app.section = .today
         case .settings(let section):
             show(toast: ReceiptLine.settingsMessage(for: section))
         }

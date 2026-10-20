@@ -44,7 +44,7 @@ function LearnAction({ onAdded, accessibilityLabel, ...verse }: AddLearnProps) {
 	};
 	useEffect(() => { if (status === "saved") onAddedRef.current?.(); }, [status]);
 	return <View style={styles.root}>
-		{status === "saved" ? <View><Text accessibilityLiveRegion="polite" style={styles.message}>Added to Learn.</Text><Pressable accessibilityRole="button" onPress={() => router.push("/(app)/bible/learn")} style={styles.button}><Text style={styles.label}>Open Learn</Text></Pressable></View> :
+		{status === "saved" ? <View><Text accessibilityLiveRegion="polite" style={styles.message}>Added to Learn.</Text><Pressable accessibilityRole="button" onPress={() => router.push("/(app)/today/learn")} style={styles.button}><Text style={styles.label}>Open Learn</Text></Pressable></View> :
 			<Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled: status === "saving" }} disabled={status === "saving"} onPress={() => void add()} style={[styles.button, status === "saving" && styles.disabled]}><Text style={styles.label}>{status === "saving" ? "Adding..." : "Learn this verse"}</Text></Pressable>}
 		{status === "error" && <Text accessibilityRole="alert" style={styles.error}>Could not add this verse. Check your connection and try again.</Text>}
 	</View>;

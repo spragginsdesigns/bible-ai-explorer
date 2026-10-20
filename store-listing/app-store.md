@@ -62,7 +62,7 @@ Come hungry for the Word.
 
 "Heaven and earth shall pass away, but my words shall not pass away." Matthew 24:35
 
-Nothing you read today matters more than the Word of God. SureWord is a KJV Bible app and personal Bible study companion with AI, made for Christians who believe the King James Bible is the inerrant, infallible Word of God. Read it, hear it, study it and live it every day, with a guide that learns where you are in your walk with the Lord and always points you back to Scripture.
+SureWord is a KJV Bible app and personal Bible study companion with AI for Christians who believe the King James Bible is the inerrant, infallible Word of God. Read, listen, study and grow with a guide that learns your walk and points you back to Scripture.
 
 ASK THE BIBLE ANYTHING
 • Answers that search the Scriptures first and quote the King James Version word for word, every verse one tap from the reader
@@ -93,6 +93,7 @@ DAILY DEVOTIONAL: PICK UP YOUR CROSS
 • A daily reminder at the hour you choose
 
 GROW IN YOUR WALK WITH GOD
+• Today for your daily walk; Study for notes, word study, timeline and sermons
 • Bible reading plans, guided or built around your own goal
 • Your walk: a reading log with your streak, a map of every book and a short reflection on what you have read
 • Scripture memory: learn a verse word by word until it is written on your heart
@@ -131,7 +132,7 @@ Terms of Use: https://sureword.app/terms
 Privacy Policy: https://sureword.app/privacy
 ```
 
-Measured length: 3834 characters (limit 4000), counted by code point.
+Measured length: 3952 characters (limit 4000), counted by code point.
 
 One description for both stores (Austin, 2026-10-09): this text is the Play
 full description in `store-listing/play-store.md` word for word, plus the App Store's

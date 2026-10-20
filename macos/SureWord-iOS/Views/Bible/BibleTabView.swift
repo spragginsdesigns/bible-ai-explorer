@@ -49,16 +49,6 @@ struct BibleTabView: View {
                 if let lastRead = continueReading?.lastRead {
                     continueCard(lastRead)
                 }
-                BibleHomeStudyCards()
-                crossCard
-                SendWordHomeCard(titleSize: 15, subtitleSize: 12)
-                    .padding(.bottom, Spacing.sm)
-                atlasCard
-                Button { showingHistory = true } label: {
-                    Label("Reading log", systemImage: "clock.arrow.circlepath")
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, Spacing.md)
-                }
-                .accessibilityLabel("Reading log")
 
                 ForEach(BibleBookList.rows(collapsed: collapsed)) { row in
                     switch row {
@@ -208,86 +198,6 @@ struct BibleTabView: View {
         .accessibilityLabel("Continue reading \(lastRead.label)")
     }
 
-    /// The way in to today's guided walk, sitting above the books exactly as it
-    /// does on the Android Bible tab. Posts the shared `.openDailyCross`
-    /// notification; TabShell observes it and presents Lane 5's Cross sheet.
-    private var crossCard: some View {
-        Button {
-            NotificationCenter.default.post(name: .openDailyCross, object: nil)
-        } label: {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "cross")
-                    .font(.system(size: 18))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Pick Up Your Cross")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("Today's word, chosen for your walk")
-                        .font(.system(size: 12))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .padding(.bottom, Spacing.sm)
-        .accessibilityLabel("Pick Up Your Cross — today's word")
-    }
-
-    /// KJV-grounded when/who/where reference, matching the Android Bible-tab
-    /// card. It pushes a native full-screen explorer inside this tab's stack.
-    private var atlasCard: some View {
-        NavigationLink {
-            AtlasExplorerView(model: app.atlas)
-        } label: {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .font(.system(size: 18))
-                    .foregroundStyle(theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Timeline, People & Places")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(theme.accent)
-                    Text("When it happened, who was there, and where")
-                        .font(.system(size: 12))
-                        .foregroundStyle(theme.textMuted)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.accent)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
-            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.lg)
-                    .strokeBorder(theme.accentBorder, lineWidth: 1)
-            }
-            .contentShape(.rect(cornerRadius: Radius.lg))
-        }
-        .buttonStyle(.plain)
-        .padding(.bottom, Spacing.sm)
-        .accessibilityLabel("Timeline, People & Places — when it happened, who was there, and where")
-    }
 
     // MARK: - Books
 

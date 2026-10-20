@@ -1,18 +1,27 @@
 import Foundation
 
-/// Primary sections, matching Android's bottom tab bar
-/// (`mobile/app/(app)/_layout.tsx`) — laid out as a sidebar on macOS and a tab
-/// bar on iOS, the platform idioms for the same thing.
-/// `cross` is declared last on purpose: the macOS `AppCommands` derives ⌘1…⌘n
-/// from this order, and inserting it next to `bible` would silently renumber
-/// shortcuts people already have in their fingers.
+/// Five destinations shared with Android. Legacy leaf destinations retain
+/// their identity while selection belongs to their owning primary section.
 enum AppSection: String, CaseIterable, Identifiable {
-    case chat, bible, notes, cross
+    case today, bible, chat, connections, study, notes, cross
+
+    /// Legacy destinations remain routable without adding overflow tabs.
+    static let allCases: [AppSection] = [.today, .bible, .chat, .connections, .study]
+    var primary: AppSection {
+        switch self {
+        case .notes: .study
+        case .cross: .today
+        default: self
+        }
+    }
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .today: "Today"
+        case .connections: "Connections"
+        case .study: "Study"
         case .chat: "Chat"
         case .bible: "Bible"
         case .notes: "Notes"
@@ -22,13 +31,18 @@ enum AppSection: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .chat: "sparkles"
-        case .bible: "book.closed"
+        case .today: "sun.max"
+        case .connections: "point.3.connected.trianglepath.dotted"
+        case .study: "safari"
+        case .chat: "bubble.left.and.bubble.right"
+        case .bible: "book"
         case .notes: "note.text"
         case .cross: "cross"
         }
     }
 }
+
+enum DailyWalkDestination: String, Hashable { case plan, learn, history }
 
 /// Root state for a signed-in session: the API client, the shared settings, and
 /// the chat and Bible models. Created once the user is signed in so the API
@@ -69,7 +83,14 @@ final class AppModel {
     let aiConsent: AIConsentStore
     let chapterAudio: ChapterAudioModel
 
-    var section: AppSection = .chat
+    var section: AppSection = .today
+    var connectionPlace = ConnectionsPlace(order: 43, chapter: 3, verse: 16)
+
+    func openConnections(order: Int, chapter: Int, verse: Int? = nil) {
+        guard let place = ConnectionsPlace.validated(order: order, chapter: chapter, verse: verse) else { return }
+        connectionPlace = place
+        section = .connections
+    }
     var isSettingsPresented = false {
         didSet { bible.reading.setObscured(isSettingsPresented, reason: "settings") }
     }
@@ -87,7 +108,7 @@ final class AppModel {
     /// Set when a chat "Learning John 3:16" receipt asks for Learn a verse on
     /// the Mac; consumed by the Bible section, which shows its Learn pane. iOS
     /// pushes `LearnView` from the chat stack instead and never sets it.
-    var pendingLearn = false
+    var pendingDailyDestination: DailyWalkDestination?
 
     /// `userID` is the Clerk id of the session this model is being built for.
     /// It is what tells the preference sync whether the persisted caches belong

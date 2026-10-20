@@ -94,10 +94,10 @@ export default function SermonsPage() {
 	return (
 		<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
 			<Link
-				href="/bible"
+				href="/study"
 				className="inline-block min-h-[40px] pt-2 text-[15px] font-semibold text-amber-600 dark:text-amber-400"
 			>
-				‹ Bible
+				‹ Study
 			</Link>
 			<header className="mt-2 mb-8">
 				<p className="text-metadata font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">

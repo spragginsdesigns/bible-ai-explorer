@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const source = readFileSync(resolve(process.cwd(), "app/(app)/bible/cross.tsx"), "utf8");
+const source = readFileSync(resolve(process.cwd(), "app/(app)/today/cross.tsx"), "utf8");
 const controls = readFileSync(
 	resolve(process.cwd(), "src/features/cross/DirectionControls.tsx"),
 	"utf8",

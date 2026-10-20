@@ -1,0 +1,294 @@
+import { useAuth } from "@clerk/expo";
+import React, { useCallback, useState } from "react";
+import {
+	ActivityIndicator,
+	FlatList,
+	Pressable,
+	RefreshControl,
+	ScrollView,
+	StyleSheet,
+	View,
+} from "react-native";
+import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
+import { typography } from "@/theme";
+import { useFocusEffect, useRouter } from "expo-router";
+import Plus from "lucide-react-native/icons/plus";
+import Search from "lucide-react-native/icons/search";
+import X from "lucide-react-native/icons/x";
+import { Screen } from "@/components/ui";
+import { fonts, radius, spacing, type Colors } from "@/theme";
+import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { CreateItemSheet } from "@/features/notes/components/CreateItemSheet";
+import type { NoteTemplateId, NoteTemplateSeed } from "@/features/notes/components/CreateItemSheet";
+import { NoteActionSheet } from "@/features/notes/components/NoteActionSheet";
+import { NoteCard } from "@/features/notes/components/NoteCard";
+import { Chip, GlyphButton, LUCIDE_STROKE } from "@/features/notes/components/primitives";
+import type { Note } from "@/features/notes/types";
+import { SORT_LABELS, nextSort, useNotesLibrary } from "@/features/notes/useNotesLibrary";
+import { useTabBarSpace } from "@/features/chat/layout";
+
+export default function NotesListScreen() {
+ const { userId, isLoaded } = useAuth();
+ if (!isLoaded || !userId) return <Screen><Text>Sign in to open your notes.</Text></Screen>;
+ return <NotesListSession key={userId} />;
+}
+function NotesListSession() {
+	const router = useRouter();
+	const tabBarSpace = useTabBarSpace();
+	const { colors } = useTheme();
+	const styles = useThemedStyles(createStyles);
+	const library = useNotesLibrary();
+
+	const [actionNote, setActionNote] = useState<Note | null>(null);
+	const [createKind, setCreateKind] = useState<"folder" | "tag" | "note" | null>(null);
+	const [isCreatingNote, setIsCreatingNote] = useState(false);
+
+	// Silently pick up edits made on the editor screen when coming back to the
+	// list; the store already reflects them, this only revalidates.
+	useFocusEffect(
+		useCallback(() => {
+			library.revalidate();
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		}, [library.revalidate])
+	);
+
+	// B7: "+" opens the template sheet; the choice below creates the note.
+	const handleNewNote = () => {
+		setCreateKind("note");
+	};
+
+	const handleTemplatePick = async (_id: NoteTemplateId, seed: NoteTemplateSeed | null) => {
+		if (isCreatingNote) return;
+		setIsCreatingNote(true);
+		try {
+			const note = await library.createNote(seed);
+			return () => router.push(`/study/notes/${note.id}`);
+		} catch (error) {
+            throw error;
+		} finally {
+			setIsCreatingNote(false);
+		}
+	};
+
+	return (
+		<Screen>
+			<Pressable accessibilityRole="button" accessibilityLabel="Back to Study" onPress={() => router.canGoBack() ? router.back() : router.replace("/study")} style={{ minHeight: 44, paddingHorizontal: spacing.lg, justifyContent: "center", alignSelf: "flex-start" }}><Text style={{ color: colors.accent, ...typography.support }}>‹ Study</Text></Pressable>
+			<View style={styles.header}>
+				<Text style={styles.heading}>Notes</Text>
+				<GlyphButton
+					Icon={Plus}
+					accessibilityLabel="New note"
+					onPress={handleNewNote}
+					disabled={isCreatingNote}
+					active
+					size={40}
+				/>
+			</View>
+
+			<View style={styles.searchWrap}>
+				<Search size={15} strokeWidth={LUCIDE_STROKE} color={colors.textFaint} />
+				<TextInput
+					value={library.searchQuery}
+					onChangeText={library.setSearchQuery}
+					placeholder="Search notes"
+					placeholderTextColor={colors.textGhost}
+					style={styles.searchInput}
+					returnKeyType="search"
+				/>
+				{library.searchQuery ? (
+					<GlyphButton
+						Icon={X}
+						accessibilityLabel="Clear search"
+						onPress={() => library.setSearchQuery("")}
+						size={28}
+					/>
+				) : null}
+			</View>
+
+			<ScrollView
+				horizontal
+				style={styles.chipScroll}
+				showsHorizontalScrollIndicator={false}
+				contentContainerStyle={styles.chipRow}
+				keyboardShouldPersistTaps="handled"
+			>
+				<Chip
+					label="All"
+					active={library.activeFolderId === null}
+					onPress={() => library.setActiveFolderId(null)}
+				/>
+				{library.folders.map((folder) => (
+					<Chip
+						key={folder.id}
+						label={folder.name}
+						active={library.activeFolderId === folder.id}
+						onPress={() =>
+							library.setActiveFolderId(
+								library.activeFolderId === folder.id ? null : folder.id
+							)
+						}
+					/>
+				))}
+				<Chip label="＋ Folder" active={false} onPress={() => setCreateKind("folder")} />
+			</ScrollView>
+
+			<ScrollView
+				horizontal
+				style={styles.chipScroll}
+				showsHorizontalScrollIndicator={false}
+				contentContainerStyle={styles.chipRow}
+				keyboardShouldPersistTaps="handled"
+			>
+				{library.tags.map((tag) => (
+					<Chip
+						key={tag.id}
+						label={tag.name}
+						dotColor={tag.color}
+						active={library.activeTagId === tag.id}
+						onPress={() =>
+							library.setActiveTagId(library.activeTagId === tag.id ? null : tag.id)
+						}
+					/>
+				))}
+				<Chip label="＋ Tag" active={false} onPress={() => setCreateKind("tag")} />
+			</ScrollView>
+
+			<View style={styles.metaRow}>
+				<Text style={styles.metaText}>
+					{library.notes.length} {library.notes.length === 1 ? "note" : "notes"}
+				</Text>
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Change sort order"
+					onPress={() => library.setSortBy(nextSort(library.sortBy))}
+					hitSlop={8}
+				>
+					<Text style={styles.metaText}>⇅  {SORT_LABELS[library.sortBy]}</Text>
+				</Pressable>
+			</View>
+
+			{library.error ? <Text style={styles.error}>{library.error}</Text> : null}
+
+			{library.isLoading ? (
+				<View style={styles.loading}>
+					<ActivityIndicator color={colors.accent} />
+				</View>
+			) : (
+				<FlatList
+					style={styles.list}
+					data={library.notes}
+					keyExtractor={(note) => note.id}
+					contentContainerStyle={[styles.listContent, { paddingBottom: tabBarSpace + spacing.lg }]}
+					keyboardShouldPersistTaps="handled"
+					refreshControl={
+						<RefreshControl
+							refreshing={library.isRefreshing}
+							onRefresh={() => void library.refresh()}
+							tintColor={colors.accent}
+							colors={[colors.accent]}
+							progressBackgroundColor={colors.bgElevated}
+						/>
+					}
+					ItemSeparatorComponent={() => <View style={styles.separator} />}
+					ListEmptyComponent={
+						<View style={styles.empty}>
+							<Text style={styles.emptyTitle}>
+								{library.totalNotes === 0 ? "No notes yet" : "Nothing matches"}
+							</Text>
+							<Text style={styles.emptyBody}>
+								{library.totalNotes === 0
+									? "Tap + to start your first Bible study note."
+									: "Try a different search or clear your filters."}
+							</Text>
+						</View>
+					}
+					renderItem={({ item }) => (
+						<NoteCard
+							note={item}
+							tags={library.tags}
+							onPress={() => router.push(`/study/notes/${item.id}`)}
+							onLongPress={() => setActionNote(item)}
+						/>
+					)}
+				/>
+			)}
+
+			<NoteActionSheet
+				note={actionNote}
+				folders={library.folders}
+				onClose={() => setActionNote(null)}
+				onTogglePin={(id) => void library.togglePin(id)}
+				onMoveToFolder={(id, folderId) => void library.moveNoteToFolder(id, folderId)}
+				onDelete={(id) => void library.deleteNote(id)}
+			/>
+
+			<CreateItemSheet
+				visible={createKind !== null}
+				kind={createKind ?? "folder"}
+				onClose={() => setCreateKind(null)}
+				onSubmit={(name, color) => {
+					if (createKind === "tag") void library.createTag(name, color);
+					else void library.createFolder(name);
+				}}
+				onSelectTemplate={handleTemplatePick}
+			/>
+		</Screen>
+	);
+}
+
+const createStyles = (c: Colors) =>
+	StyleSheet.create({
+		header: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.sm,
+			paddingBottom: spacing.md,
+		},
+		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
+
+		searchWrap: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			marginHorizontal: spacing.lg,
+			paddingLeft: spacing.md,
+			paddingRight: 6,
+			borderRadius: radius.lg,
+			backgroundColor: c.surface,
+			borderWidth: StyleSheet.hairlineWidth,
+			borderColor: c.border,
+		},
+		searchInput: { flex: 1, color: c.text, ...typography.control, paddingVertical: 11 },
+
+		// flexGrow: 0 alone does not save these rows: RN's baseHorizontal also
+		// sets flexShrink: 1, and the note list below overflows the column, so
+		// the chips get shrunk away rather than merely not grown.
+		chipScroll: { flexGrow: 0, flexShrink: 0 },
+		chipRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.md, alignItems: "center" },
+		list: { flex: 1 },
+
+		metaRow: {
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			paddingHorizontal: spacing.lg,
+			paddingTop: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
+		metaText: { color: c.textFaint, ...typography.meta },
+		error: {
+			color: c.danger,
+			...typography.support,
+			paddingHorizontal: spacing.lg,
+			paddingBottom: spacing.sm,
+		},
+
+		loading: { flex: 1, alignItems: "center", justifyContent: "center" },
+		listContent: { paddingHorizontal: spacing.lg },
+		separator: { height: spacing.sm },
+		empty: { alignItems: "center", paddingTop: 64, gap: 6 },
+		emptyTitle: { color: c.textMuted, ...typography.control, fontWeight: "600" },
+		emptyBody: { color: c.textGhost, ...typography.support, textAlign: "center", paddingHorizontal: spacing.xl },
+	});

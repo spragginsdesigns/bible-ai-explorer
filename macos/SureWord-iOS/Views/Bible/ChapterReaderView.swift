@@ -221,6 +221,13 @@ struct ChapterReaderView: View {
     private var fontControls: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: Spacing.sm) {
+                Button {
+                    app.openConnections(order: model.selectedBook ?? order, chapter: model.chapter,
+                                        verse: model.sheet.selection?.start)
+                } label: {
+                    Image(systemName: AppSection.connections.symbol).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Connections for this chapter")
                 NavigationLink {
                     AtlasExplorerView(
                         model: app.atlas,

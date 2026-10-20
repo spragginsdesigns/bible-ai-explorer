@@ -16,7 +16,7 @@ import { ANALYTICS_EVENTS, track } from "@/lib/analytics";
  * It reports the route PATTERN, never the resolved path, and that is a privacy
  * property rather than a convenience: `useSegments()` hands back the segments
  * as declared, so a chapter reads `/bible/chapter` and an atlas entry reads
- * `/bible/atlas/[id]`. The id never arrives to be dropped. Which book someone
+ * `/study/atlas/[id]`. The id never arrives to be dropped. Which book someone
  * opened is study content under the rule in src/lib/analytics/events.ts, and
  * this is the mechanism that keeps it out rather than a promise to be careful.
  *

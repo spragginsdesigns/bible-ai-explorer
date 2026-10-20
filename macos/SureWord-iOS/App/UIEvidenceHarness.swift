@@ -210,7 +210,7 @@ struct UIEvidenceHarness: View {
             return tab
         }
         #endif
-        return .chat
+        return .today
     }
 }
 

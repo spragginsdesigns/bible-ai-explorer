@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Redirect, Tabs } from "expo-router";
 import { useAuth } from "@clerk/expo";
@@ -22,10 +22,11 @@ import { afterTabDepartureGuard } from "@/lib/tabDeparture";
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
 
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
+	today: "Today",
 	index: "Chat",
 	bible: "Bible",
 	connections: "Connections",
-	notes: "Notes",
+	study: "Study",
 };
 
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -36,21 +37,22 @@ const TAB_ICONS: Record<
 	PrimaryTabRoute,
 	{ active: IoniconName; inactive: IoniconName }
 > = {
+	today: { active: "sunny", inactive: "sunny-outline" },
 	index: {
 		active: "chatbubble-ellipses",
 		inactive: "chatbubble-ellipses-outline",
 	},
 	bible: { active: "book", inactive: "book-outline" },
 	connections: { active: "git-network", inactive: "git-network-outline" },
-	notes: { active: "document-text", inactive: "document-text-outline" },
+	study: { active: "compass", inactive: "compass-outline" },
 };
 
 export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 	const departing = useRef(false);
 	const insets = useSafeAreaInsets();
+	const { fontScale } = useWindowDimensions();
 	const { colors: themeColors } = useTheme();
-	const chatSelected = state.routes[state.index]?.name === "index";
-	const colors = chatSelected ? chatColors(themeColors) : themeColors;
+	const colors = chatColors(themeColors);
 	const styles = useThemedStyles(createStyles);
 	const primaryRoutes: TabRouteEntry[] = state.routes
 		.map((route: TabRoute, index: number) => ({ route, index }))
@@ -91,7 +93,8 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							}}
 							style={({ pressed }) => [
 								styles.tabItem,
-								focused && !chatSelected && styles.tabItemActive,
+								routeName === "connections" && { flex: 1.4 },
+								focused && { backgroundColor: colors.accentSoft },
 								pressed && { opacity: 0.7 },
 							]}
 						>
@@ -101,11 +104,14 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 								color={focused ? colors.accent : colors.textMuted}
 							/>
 							<Text
+								numberOfLines={1}
+								adjustsFontSizeToFit
+								minimumFontScale={1 / Math.max(1, fontScale)}
 								style={[styles.tabLabel, { color: focused ? colors.accent : colors.textMuted }]}
 							>
 								{label}
 							</Text>
-							{chatSelected && focused ? <View style={[styles.chatIndicator, { backgroundColor: colors.accent }]} /> : null}
+							{focused ? <View style={[styles.chatIndicator, { backgroundColor: colors.accent }]} /> : null}
 						</Pressable>
 					);
 				})}
@@ -131,7 +137,8 @@ export default function AppLayout() {
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 
 	return (
-		<><Tabs
+		<AIConsentPresenter><Tabs
+			initialRouteName="today"
 			tabBar={(props) => <SolidTabBar {...props} />}
 			// Back returns to the previously focused screen instead of always
 			// falling out to the first tab (chat).
@@ -141,18 +148,20 @@ export default function AppLayout() {
 				sceneStyle: { backgroundColor: colors.bg },
 			}}
 		>
-			<Tabs.Screen name="index" />
+			<Tabs.Screen name="today" />
 			<Tabs.Screen name="bible" />
+			<Tabs.Screen name="index" />
 			<Tabs.Screen name="connections" />
-			{/* Reset the nested notes stack when leaving, so the tab always reopens on the hub. */}
-			<Tabs.Screen name="notes" options={{ popToTopOnBlur: true }} />
+			<Tabs.Screen name="study" />
+			{/* Legacy Notes URLs hand off to Study without appearing as a sixth tab. */}
+			<Tabs.Screen name="notes" options={{ href: null, popToTopOnBlur: true }} />
 			{/* Push-only nested stack: reachable from the chat header gear, hidden from
 			    the tab bar. Reset on blur so the gear always reopens on the hub rather
 			    than on whichever category page was open when the user left. */}
 			<Tabs.Screen name="settings" options={{ href: null, popToTopOnBlur: true }} />
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
-		</Tabs><AIConsentPresenter /></>
+		</Tabs></AIConsentPresenter>
 	);
 }
 
@@ -188,5 +197,5 @@ const createStyles = (c: Colors) =>
 		tabItemActive: {
 			backgroundColor: c.accentSoft,
 		},
-		tabLabel: { color: c.textFaint, ...typography.support, fontWeight: "400" },
+		tabLabel: { width: "100%", color: c.textFaint, ...typography.micro, fontWeight: "400", textAlign: "center" },
 	});

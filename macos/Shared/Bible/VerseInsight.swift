@@ -117,7 +117,7 @@ final class VerseInsightModel {
     /// through the actor thousands of times while the reader tries to re-lay
     /// out a full chapter of text on every update. `UIMessageStream.lines` is
     /// structured the same way, for the same reason.
-    private nonisolated static func snapshots(
+    nonisolated static func snapshots(
         from bytes: some AsyncSequence<UInt8, any Error> & Sendable
     ) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in

@@ -310,11 +310,10 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 						{/* Same back-link + centred-title header every other page
 						    uses; Notes was the only screen with no title at all. */}
 						<div className="mx-auto w-full max-w-5xl flex items-center gap-4 px-3 lg:px-8 pt-3 lg:pt-6">
-							{/* A Link, not router.back(): Notes is a root tab reachable
-							    from the bottom nav, so history-back can leave the app. */}
+							{/* A stable section link also works when Notes opens from a shared URL. */}
 							<Link
-								href="/"
-								aria-label="Back to chat"
+								href="/study"
+								aria-label="Back to Study"
 								className="text-control font-semibold text-amber-600 dark:text-amber-400"
 							>
 								‹ Back
