@@ -122,6 +122,16 @@ struct NoteFormattingToolbar: View {
         }
         .buttonStyle(.plain)
         .help(help)
+        // VoiceOver reads the name, not the SF Symbol ("Lyrics") or the
+        // shortcut in parentheses.
+        .accessibilityLabel(Self.spokenName(help))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    /// "Bold (⌘B)" -> "Bold".
+    static func spokenName(_ help: String) -> String {
+        guard let open = help.range(of: " (", options: .backwards), help.hasSuffix(")") else { return help }
+        return String(help[..<open.lowerBound])
     }
 
     private func markButton(_ symbol: String, _ kind: NoteMark.Kind, help: String) -> some View {

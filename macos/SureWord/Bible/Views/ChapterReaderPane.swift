@@ -166,14 +166,29 @@ struct ChapterReaderPane: View {
 
     // MARK: - Chrome
 
+    /// One row at any reader width. A narrow reader drops the Listen and
+    /// Who's here titles to their icons first, and every label holds one
+    /// line, so a chip never stacks "K/J/V" letter by letter.
     private var topBar: some View {
+        ViewThatFits(in: .horizontal) {
+            topBarRow(compact: false)
+            topBarRow(compact: true)
+        }
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.md)
+    }
+
+    private func topBarRow(compact: Bool) -> some View {
         HStack(spacing: Spacing.md) {
             Button {
                 model.showChapterGrid()
             } label: {
                 Label("Chapters", systemImage: "chevron.left")
+                    .labelStyle(.titleAndIcon)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
+                    .lineLimit(1)
+                    .fixedSize()
             }
             .buttonStyle(SubtleButtonStyle())
             .help("Back to the chapter list")
@@ -183,44 +198,12 @@ struct ChapterReaderPane: View {
                 .foregroundStyle(theme.text)
                 .lineLimit(1)
 
-            Spacer()
+            Spacer(minLength: 0)
 
-            if app.chapterAudio.editions.count > 1 {
-                // Mark has an Alive recording too (LC-15532): ask which one,
-                // Alive first and marked Recommended (LC-15842).
-                Menu {
-                    ForEach(app.chapterAudio.editions, id: \.self) { edition in
-                        Button {
-                            app.dailyCross.listen.pause()
-                            app.chapterAudio.start(edition: edition)
-                        } label: {
-                            Text(edition.label)
-                            Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail)" : edition.detail)
-                            if edition.isRecommended { Image(systemName: "star.fill") }
-                        }
-                    }
-                } label: {
-                    Label("Listen", systemImage: "headphones")
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-            } else if app.chapterAudio.available {
-                Button("Listen", systemImage: "headphones") {
-                    app.dailyCross.listen.pause()
-                    app.chapterAudio.start()
-                }.buttonStyle(SubtleButtonStyle())
-            }
-
-            if let book = model.selectedBook {
-                Button {
-                    showAtlas(book, model.chapter)
-                } label: {
-                    Label("Who's here", systemImage: "person.2")
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .buttonStyle(SubtleButtonStyle())
-                .help("Open the people, places and events in this chapter")
-                .accessibilityLabel("Who's in this chapter")
+            if compact {
+                chapterActions.labelStyle(.iconOnly)
+            } else {
+                chapterActions.labelStyle(.titleAndIcon)
             }
 
             translationChips
@@ -229,9 +212,56 @@ struct ChapterReaderPane: View {
                 fontButton("A−", size: 12, enabled: model.canShrinkFont) { model.stepFont(-1) }
                 fontButton("A+", size: 15, enabled: model.canGrowFont) { model.stepFont(1) }
             }
+            .fixedSize()
         }
-        .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, Spacing.md)
+    }
+
+    /// Listen and Who's here: titled when the row has room, icons when not.
+    @ViewBuilder
+    private var chapterActions: some View {
+        if app.chapterAudio.editions.count > 1 {
+            // Mark has an Alive recording too (LC-15532): ask which one,
+            // Alive first and marked Recommended (LC-15842).
+            Menu {
+                ForEach(app.chapterAudio.editions, id: \.self) { edition in
+                    Button {
+                        app.dailyCross.listen.pause()
+                        app.chapterAudio.start(edition: edition)
+                    } label: {
+                        Text(edition.label)
+                        Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail)" : edition.detail)
+                        if edition.isRecommended { Image(systemName: "star.fill") }
+                    }
+                }
+            } label: {
+                Label("Listen", systemImage: "headphones")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Listen to this chapter")
+        } else if app.chapterAudio.available {
+            Button("Listen", systemImage: "headphones") {
+                app.dailyCross.listen.pause()
+                app.chapterAudio.start()
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .fixedSize()
+            .help("Listen to this chapter")
+        }
+
+        if let book = model.selectedBook {
+            Button {
+                showAtlas(book, model.chapter)
+            } label: {
+                Label("Who's here", systemImage: "person.2")
+                    .font(.system(size: 11, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .fixedSize()
+            .help("Open the people, places and events in this chapter")
+            .accessibilityLabel("Who's in this chapter")
+        }
     }
 
     private var translationChips: some View {
@@ -258,6 +288,8 @@ struct ChapterReaderPane: View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 11, weight: .bold))
+                .lineLimit(1)
+                .fixedSize()
                 .foregroundStyle(isActive ? theme.accent : theme.textMuted)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 4)
