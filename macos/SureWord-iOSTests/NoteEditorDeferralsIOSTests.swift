@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 import UIKit
 @testable import SureWord
@@ -7,11 +8,14 @@ import UIKit
 /// undo/redo over one consistent history, hardware Tab / Shift-Tab list
 /// nesting, and Dynamic Type rescaling the canvas live - plus the caret
 /// insert the wikilink picker relies on.
+/// The coordinator does not depend on the accessory bar the view hosts.
+private typealias EditorCoordinator = NoteEditorTextView<EmptyView>.Coordinator
+
 @Suite("Note editor: undo, Tab, Dynamic Type, insert (iOS)")
 @MainActor
 struct NoteEditorDeferralsIOSTests {
 
-    private func makeEditor() -> (NoteRichTextController, NoteTextView, NoteEditorTextView.Coordinator) {
+    private func makeEditor() -> (NoteRichTextController, NoteTextView, EditorCoordinator) {
         let storage = NSTextStorage()
         let layoutManager = NSLayoutManager()
         storage.addLayoutManager(layoutManager)
@@ -21,7 +25,7 @@ struct NoteEditorDeferralsIOSTests {
         let textView = NoteTextView(frame: CGRect(x: 0, y: 0, width: 320, height: 480), textContainer: container)
         let controller = NoteRichTextController()
         controller.textView = textView
-        let coordinator = NoteEditorTextView.Coordinator(controller: controller)
+        let coordinator = EditorCoordinator(controller: controller)
         return (controller, textView, coordinator)
     }
 
@@ -29,7 +33,7 @@ struct NoteEditorDeferralsIOSTests {
     private func type(
         _ text: String,
         _ textView: NoteTextView,
-        _ coordinator: NoteEditorTextView.Coordinator
+        _ coordinator: EditorCoordinator
     ) {
         let range = textView.selectedRange
         guard coordinator.textView(textView, shouldChangeTextIn: range, replacementText: text) else { return }
