@@ -621,6 +621,24 @@ export default function BibleChapterScreen() {
 		[closeSheet, router, translation],
 	);
 
+	// The Connections tab, opened on this chapter (and a verse, when one is
+	// selected). The nonce lets a repeat tap on the same verse still land.
+	const openConnections = useCallback(
+		(verse?: number) => {
+			closeSheet();
+			router.navigate({
+				pathname: "/connections",
+				params: {
+					book: String(order),
+					chapter: String(chapter),
+					...(verse !== undefined ? { verse: String(verse) } : {}),
+					nonce: String(Date.now()),
+				},
+			});
+		},
+		[closeSheet, router, order, chapter],
+	);
+
 	// Tap-a-verse: a selection immediately starts streaming a short AI
 	// explanation (cached per reference for the session). The first tap asks
 	// at once; a tap that grows the range waits a beat in case another follows.
@@ -960,6 +978,14 @@ export default function BibleChapterScreen() {
 				{chapterAudio.available ? <Pressable accessibilityRole="button" accessibilityLabel="Listen to this chapter" onPress={() => listen()} style={styles.fontButton}><Ionicons name="headset-outline" size={22} color={colors.accent} /></Pressable> : chapterAudio.error ? <Pressable accessibilityRole="button" accessibilityLabel="Retry chapter narration" onPress={chapterAudio.retryLoad} style={styles.fontButton}><Ionicons name="refresh" size={22} color={colors.accent} /></Pressable> : null}
 				<Pressable
 					accessibilityRole="button"
+					accessibilityLabel="See this chapter on the Connections map"
+					onPress={() => openConnections()}
+					style={styles.fontButton}
+				>
+					<Ionicons name="git-network-outline" size={22} color={colors.text} />
+				</Pressable>
+				<Pressable
+					accessibilityRole="button"
 					accessibilityLabel={`Translation and reading settings, ${textLabel}`}
 					onPress={() => setReaderOptionsVisible(true)}
 					style={styles.translationChip}
@@ -1282,6 +1308,15 @@ export default function BibleChapterScreen() {
 										onNavigate={openCrossReference}
 										alwaysExpanded
 									/>
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel={`See every connection of verse ${activeSelection.start} on the Connections map`}
+										onPress={() => openConnections(activeSelection.start)}
+										style={styles.mapLink}
+									>
+										<Ionicons name="git-network-outline" size={18} color={colors.accent} />
+										<Text style={styles.mapLinkLabel}>See every connection on the map</Text>
+									</Pressable>
 								</>
 							) : (
 								<VerseNotesSection
@@ -1539,6 +1574,15 @@ const createStyles = (c: Colors) =>
 			paddingBottom: spacing.md,
 		},
 		studyBody: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.lg },
+		mapLink: {
+			flexDirection: "row",
+			alignItems: "center",
+			gap: spacing.sm,
+			minHeight: 44,
+			marginTop: spacing.sm,
+			paddingHorizontal: spacing.sm,
+		},
+		mapLinkLabel: { color: c.accent, ...typography.support, fontWeight: "700" },
 		studyNote: {
 			color: c.textFaint,
 			...typography.meta,

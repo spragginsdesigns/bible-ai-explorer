@@ -63,6 +63,10 @@ const isPublicRoute = createRouteMatcher([
 	"/api/bible/versions",
 	"/api/bible/original",
 	"/api/bible/crossrefs",
+	// The Connections ring: the same bundled cross-reference data, laid out.
+	// The explain route next to them is AI and stays behind the session.
+	"/api/bible/connections",
+	"/api/bible/connections/overview",
 	"/api/bible/strongs",
 	// The narrated KJV's chapter MP3 location and verse timings: the same
 	// public-domain, user-free class, so the reader's Listen works signed out.

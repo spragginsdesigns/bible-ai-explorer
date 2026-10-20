@@ -1,4 +1,4 @@
-export const PRIMARY_TAB_ROUTES = ["index", "bible", "notes"] as const;
+export const PRIMARY_TAB_ROUTES = ["index", "bible", "connections", "notes"] as const;
 
 export type PrimaryTabRoute = (typeof PRIMARY_TAB_ROUTES)[number];
 

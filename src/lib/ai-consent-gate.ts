@@ -28,7 +28,7 @@ export function consentPolicy(path: string, method: string, body?: unknown): "ta
   if (route === "/api/suggested-questions" || route === "/api/reading-log/reflection") return "automatic";
   if (write && (route === "/api/ask-question" || route === "/api/guest/ask" || route === "/api/note-ai" || /^\/api\/notes\/[^/]+\/ai$/.test(route)
     || route === "/api/memories/summary" || route === "/api/verse-of-day/today"
-    || route === "/api/verse-of-day/audio" || route === "/api/chat/attachments" || route === "/api/cards/encouragement" || route === "/api/cards/word"
+    || route === "/api/verse-of-day/audio" || route === "/api/chat/attachments" || route === "/api/cards/encouragement" || route === "/api/cards/word" || route === "/api/bible/connections/explain"
     || /^\/api\/chat\/attachments\/[^/]+\/complete$/.test(route))) return "tap";
   if (method.toUpperCase() === "GET" && route === "/api/verse-of-day/today") return "tap";
   return null;

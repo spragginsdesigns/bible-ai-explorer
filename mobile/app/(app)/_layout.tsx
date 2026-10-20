@@ -24,6 +24,7 @@ export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoun
 const TAB_LABELS: Record<PrimaryTabRoute, string> = {
 	index: "Chat",
 	bible: "Bible",
+	connections: "Connections",
 	notes: "Notes",
 };
 
@@ -40,6 +41,7 @@ const TAB_ICONS: Record<
 		inactive: "chatbubble-ellipses-outline",
 	},
 	bible: { active: "book", inactive: "book-outline" },
+	connections: { active: "git-network", inactive: "git-network-outline" },
 	notes: { active: "document-text", inactive: "document-text-outline" },
 };
 
@@ -141,6 +143,7 @@ export default function AppLayout() {
 		>
 			<Tabs.Screen name="index" />
 			<Tabs.Screen name="bible" />
+			<Tabs.Screen name="connections" />
 			{/* Reset the nested notes stack when leaving, so the tab always reopens on the hub. */}
 			<Tabs.Screen name="notes" options={{ popToTopOnBlur: true }} />
 			{/* Push-only nested stack: reachable from the chat header gear, hidden from

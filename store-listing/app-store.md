@@ -67,7 +67,7 @@ Nothing you read today matters more than the Word of God. SureWord is a KJV Bibl
 ASK THE BIBLE ANYTHING
 • Answers that search the Scriptures first and quote the King James Version word for word, every verse one tap from the reader
 • Find the verse you half remember, by meaning or by exact words
-• Cross-references that trace a verse through the whole Bible
+• Cross-reference map: trace any verse through the whole Bible
 • Hebrew and Greek word study with Strong's concordance numbers
 • Copy, edit and try again; share, save or rate any answer
 

@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.96.0 (versionCode 110) - 2026-10-19 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Connections: a new tab that shows how Scripture is woven together. Every book of the Bible sits around one ring, and a chapter's cross-references light up as lines to every passage they connect to.
+- Tap any verse to see its connected verses, each tagged with its part of the Bible (Law, Prophets, Gospels, Epistles and more). Filter by section to follow one thread.
+- Ask why these connect: a short explanation of how each passage ties to your verse, with a way to keep studying it in chat.
+- Open it from the new map button in the reader, or from See also when you tap a verse.
+
+**Dev notes:** Fourth primary tab `mobile/app/(app)/connections.tsx` (PRIMARY_TAB_ROUTES now index, bible, connections, notes). Ring drawn with react-native-svg in `mobile/src/features/connections/ConnectionsRing.tsx`, chords batched one path per colour; geometry, palette and the explain parser in `connectionsMap.ts`, byte-identical with `src/lib/bible/connectionsMap.ts` (tests/connections-map.test.mjs). Data from new public, edge-cached `GET /api/bible/connections` and `/api/bible/connections/overview`; the explain sheet streams `POST /api/bible/connections/explain` (session, consent tap, included AI request, cached in VerseInsight). Reader: network button in the header and a "See every connection on the map" link under See also, both via router.navigate with a nonce. No native changes.
+
 ## 1.95.0 (versionCode 109) - 2026-10-18 - internal and closed testing
 
 **What's new (Play):**

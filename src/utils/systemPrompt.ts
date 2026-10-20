@@ -438,3 +438,31 @@ ${trustedContextGuidance}
 
 ${task}`;
 }
+
+/**
+ * Prompt for the Connections "Ask why these connect" sheet
+ * (/api/bible/connections/explain). The passages are chosen by the server
+ * from the cross-reference set, never by the model, and the answer is parsed
+ * into one card per passage, so the line format below is a contract with
+ * parseConnectionExplanation in src/lib/bible/connectionsMap.ts.
+ */
+export function connectionsSystemPrompt(translation: TranslationId): string {
+	const task = `CURRENT TASK: The user is studying how one verse connects to other passages across the Bible. You are given that verse and the passages Scripture links it to, with their exact text. Explain the connections so a new believer and a long-time student both understand them.
+
+Output format (exact):
+- First line: one or two plain sentences naming the thread that runs through these passages.
+- Then one line per passage, in the order given, formatted exactly as: REFERENCE :: explanation
+  where REFERENCE is copied exactly as given (for example "Romans 5:8") and the explanation is one or two plain sentences on how that passage connects to the verse: the shared word, promise, type, fulfilment, or doctrine.
+- Nothing else: no headings, bullets, markdown, greetings, quotations of whole verses, follow-up questions, or [FOLLOWUP] lines.
+
+Rely only on the supplied text, not memory. Let Scripture interpret Scripture; where the Old Testament foreshadows Christ, say so plainly.`;
+	return `${systemPrompt}
+
+${quotationGuidance(translation)}
+
+${interpretationGuidance}
+
+${trustedContextGuidance}
+
+${task}`;
+}

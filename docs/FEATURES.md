@@ -1617,6 +1617,61 @@ and Greek**.
 
 ---
 
+## Connections map
+
+Added 2026-10-19 after a pastor shared trekhleb.dev/bible-cross-references
+with Austin. SureWord already bundled the same openbible.info set (the
+Treasury of Scripture Knowledge, CC-BY; we keep the top 10 per verse, 225,683
+links), so this is a new way to see data every client already had, plus an AI
+sheet that explains it.
+
+**What the reader sees.** A fourth tab, Connections (Android first; web and
+Apple follow for parity). Every verse of the Bible sits around one ring,
+clockwise from Genesis 1:1 at twelve o'clock to Revelation 22:21, with the 66
+books as segments coloured by ten sections (Law, History, Poetry & Wisdom,
+Major Prophets, Minor Prophets, Gospels, Acts, Pauline Epistles, General
+Epistles, Revelation). The current chapter's cross-references are chords
+across the ring, coloured by where they land, over a faint weave of the whole
+set. Below the ring: section chips with counts (tap one, or tap a book on the
+ring, to filter), then either the chapter's verse list with a link count per
+verse, or, once a verse is focused, the verse itself, its connected verses as
+cards tagged by section with their text, and **Ask why these connect**.
+
+**Ask why these connect** opens its own short sheet, not the chat: one line
+naming the thread through the passages, then one card per passage saying how
+it connects (shared word, promise, type, fulfilment, doctrine). The server
+picks the passages from the cross-reference set (optionally only the filtered
+section), never the model. From there the reader can open any passage in the
+reader or carry the study into chat with the verse attached.
+
+**Ways in.** The tab itself (opens on John 3:16), the reader header's network
+button (this chapter), and "See every connection on the map" under the verse
+sheet's See also tab (this verse). Search on the tab takes "John 3:16" or
+"Psalm 22".
+
+### API
+
+| Route | Auth | What |
+|---|---|---|
+| `GET /api/bible/connections?book=&chapter=` | public, edge-cached a week | Every ranked link out of the chapter as `[verse, toOrder, toChapter, toVerse, toIndex]`, plus `books` (`[order, start, verses]` x66), `chapterStart`, `total` (31,102) |
+| `GET /api/bible/connections/overview` | public, edge-cached a week | The whole set folded into 240 bins; the strongest 2,400 bin pairs `[a, b, weight]` (31 KB) and per-section totals |
+| `POST /api/bible/connections/explain` | session, consent `tap`, included AI request | `{ reference, translation, section?, modelId? }` streams plain text in the `REFERENCE :: explanation` contract of `connectionsSystemPrompt`. Cached and shared in the `VerseInsight` table under the reference `Connections <ref>` (bump `CACHE_TAG` in the route when the prompt changes) |
+
+Verse positions come from the KJV's own verse counts (`getVerseIndex` in
+`src/lib/bible/connections.ts`), so every translation shares one ring.
+
+### Drawing it
+
+`connectionsMap.ts` holds the palette, ring geometry (angles, chords bowed
+toward the centre, ring segments, tap-to-index) and the explain-answer parser.
+It has no imports and is pinned byte-identical between `src/lib/bible/` and
+`mobile/src/features/bible/` by `tests/connections-map.test.mjs`. Chords are
+batched into one SVG path per colour (`batchArcs`), so a chapter like Psalm
+119 with 1,573 links draws as a couple of dozen paths; the whole-Bible weave
+is three paths of tiered opacity. Android: `mobile/app/(app)/connections.tsx`
+with `mobile/src/features/connections/` (ring, explain sheet, data, stream
+hook).
+
 ## Timeline, People & Places
 
 A KJV-grounded reference for **when** things happened and **who** and **where** -

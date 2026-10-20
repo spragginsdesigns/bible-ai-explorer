@@ -82,7 +82,8 @@ const LOADERS: Record<number, () => Promise<RawBookRefs>> = {
 
 const bookCache = new Map<number, RawBookRefs>();
 
-async function getBookRefs(order: number): Promise<RawBookRefs> {
+/** A whole book's ranked edges, keyed "chapter:verse" (raw tuples, see above). */
+export async function getBookRefs(order: number): Promise<RawBookRefs> {
   const cached = bookCache.get(order);
   if (cached) return cached;
   const loader = LOADERS[order];
