@@ -25,7 +25,7 @@ struct DailyWalkHome: View {
                     Label("Pick Up Your Cross", systemImage: "cross")
                         .font(.custom(FontFamily.verse, size: 28)).foregroundStyle(theme.accent)
                     Text(preview?.text ?? "Thy word is a lamp unto my feet, and a light unto my path.")
-                        .font(.custom(FontFamily.verse, size: 22)).foregroundStyle(theme.textSecondary)
+                        .font(.custom(FontFamily.verse, size: 22)).foregroundStyle(theme.textSecondary).lineLimit(3)
                     Text("\((preview?.reference ?? "Psalm 119:105").uppercased()) · KJV").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(theme.textMuted)
                     Button(action: onCross) {
                         HStack { Text("Read today's word"); Spacer(); Image(systemName: "arrow.right") }

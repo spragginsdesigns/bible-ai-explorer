@@ -39,7 +39,7 @@ export default function TodayScreen() {
 				<Image source={require("../../../assets/daily-walk-dawn.jpg")} style={styles.art} resizeMode="cover" accessible={false} />
 				<View style={styles.heroCopy}>
 					<Text accessibilityRole="header" style={styles.heroTitle}>Pick Up Your Cross</Text>
-					<Text style={styles.verse}>{entry?.text ?? "Thy word is a lamp unto my feet, and a light unto my path."}</Text>
+					<Text numberOfLines={3} style={styles.verse}>{entry?.text ?? "Thy word is a lamp unto my feet, and a light unto my path."}</Text>
 					<Text style={styles.reference}>{entry ? `${entry.reference} · KJV` : "PSALM 119:105 · KJV"}</Text>
 					<Pressable accessibilityRole="button" onPress={() => router.push("/today/cross", { withAnchor: true })}
 						style={({ pressed }) => [styles.primary, pressed && { opacity: 0.8 }]}>

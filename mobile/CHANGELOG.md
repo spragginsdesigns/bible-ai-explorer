@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.97.1 (versionCode 112) - 2026-10-19 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Today keeps longer verse previews compact so Read today's word stays easy to reach. Open the devotional for the full passage and reflection.
+- Includes the new Today, Bible, Chat, Connections and Study navigation, with Notes in Study and clearer Back behavior.
+
+**Dev notes:** Live 375-pixel verification with a longer existing daily verse showed the primary button overlapping the fixed dock on the initial viewport. The home preview is limited to three visible lines across clients; full Scripture remains available in the existing devotional, with no text changes or extra AI request.
+
 ## 1.97.0 (versionCode 111) - 2026-10-19 - internal and closed testing
 
 **What's new (Play):**
