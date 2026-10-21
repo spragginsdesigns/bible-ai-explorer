@@ -20,10 +20,15 @@ against the final build and fix the wording here first.
   email code.
 - The account (applereviewer@icloud.com, Clerk `user_3KOBQzqtHTJT6xHN4xksvJBWBoK`)
   is a **free** account. It had Pro through `PRO_USER_IDS` (decision (d) in
-  `docs/ios/PROGRESS.md`), and that got 1.21.0 rejected under 2.1(b) on
-  2026-10-21: a Pro account sees "Pro is active on your account" and no
-  Subscribe button, so App Review could not find the in-app purchase.
-  `PRO_USER_IDS` was emptied the same day. Keep this account out of
+  `docs/ios/PROGRESS.md`); `PRO_USER_IDS` was emptied on 2026-10-21, because
+  a Pro account sees "Pro is active on your account" and no Subscribe button.
+  That was not what got 1.21.0 rejected under 2.1(b), though: the demo
+  account never signed in to production. App Review used Sign in with Apple
+  ("John Apple", a privaterelay.appleid.com address, free plan, created
+  during the review), so it reached the Subscribe screen, but the
+  subscription was "Developer Rejected" and not part of the submission, so
+  StoreKit had no product to load. A first subscription must be submitted
+  together with its group and the app version. Keep this account out of
   `PRO_USER_IDS` and `SERVER_CREDENTIAL_USER_IDS` for every review. It is a
   different account from the Google Play reviewer.
 - SureWord is not offered in China mainland (removed in Pricing and
