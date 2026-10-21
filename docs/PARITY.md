@@ -53,7 +53,11 @@ the window, the "Your answer is ready" notification permission, password
 sign-in, and PostHog arrival). iOS 1.21.0 (2) is uploaded to App Store Connect
 for TestFlight from the same commit and is submitted for App Store review
 (Waiting for Review since 2026-10-19; 1.13.0 was developer-rejected first, and
-the store listing now matches `store-listing/app-store.md`). The Mac and iOS suites pass locally
+the store listing now matches `store-listing/app-store.md`). Apple rejected
+it on 2026-10-21 (guideline 5 and 2.1 for China mainland, 2.1(b) because the
+Pro demo account hid Subscribe); China mainland was removed, `PRO_USER_IDS`
+emptied, and 1.21.0 (2) was resubmitted together with the SureWord Pro
+subscription and its group (see `docs/ios/review-notes.md`). The Mac and iOS suites pass locally
 and GitHub CI's Apple job is green on `a174912`. A signed-in iOS simulator pass
 on 2026-10-19 moved the exercised iOS rows to ✅ and found two bugs, both fixed in
 `fa88546` (Copy and Share as Markdown used the last saved title; the iOS formatting

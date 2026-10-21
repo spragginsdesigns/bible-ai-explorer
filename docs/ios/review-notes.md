@@ -1,6 +1,9 @@
 # App Review notes (PRD H6)
 
-Status: **entered in App Store Connect 2026-10-08** (Notes field). Was a template; Paste the block below into App Store Connect → App
+Status: **entered in App Store Connect 2026-10-08** (Notes field); DEMO
+ACCOUNT, IN-APP PURCHASE, CHINA MAINLAND and item 5 rewritten for the
+1.21.0 resubmission on 2026-10-20 after the 2026-10-21 rejection (submission
+6f4d1a78). The live ASC text is trimmed to stay under 4,000 characters. Was a template; Paste the block below into App Store Connect → App
 Review Information → Notes, after walking every path in it on the submission
 build as the demo account. Navigation labels follow the iOS source on
 2026-10-07; the Settings hub is being rebuilt (PRD B5), so re-check each path
@@ -15,9 +18,17 @@ against the final build and fix the wording here first.
 - The account is a Clerk password account (PRD A3 makes password sign-in work
   on iOS). Device Trust is off, so it signs in from a new device without an
   email code.
-- The account has SureWord Pro through the server allowlist `PRO_USER_IDS`
-  (decision (d) in `docs/ios/PROGRESS.md`), so every feature, including
-  Listen, is unlocked without a purchase.
+- The account (applereviewer@icloud.com, Clerk `user_3KOBQzqtHTJT6xHN4xksvJBWBoK`)
+  is a **free** account. It had Pro through `PRO_USER_IDS` (decision (d) in
+  `docs/ios/PROGRESS.md`), and that got 1.21.0 rejected under 2.1(b) on
+  2026-10-21: a Pro account sees "Pro is active on your account" and no
+  Subscribe button, so App Review could not find the in-app purchase.
+  `PRO_USER_IDS` was emptied the same day. Keep this account out of
+  `PRO_USER_IDS` and `SERVER_CREDENTIAL_USER_IDS` for every review. It is a
+  different account from the Google Play reviewer.
+- SureWord is not offered in China mainland (removed in Pricing and
+  Availability 2026-10-20) because of guideline 5 (OpenAI) and the China
+  Internet Publishing License required for book content.
 - Contact: Austin Spraggins, spragginsdesigns@gmail.com, phone: TODO (Austin
   fills in App Store Connect).
 
@@ -30,10 +41,13 @@ WHAT IT IS
 A Bible study app for Christians, made by LineCrush Inc. The Bible text is the King James Version (public domain), built in and readable offline. An AI assistant answers Bible questions by first searching the Scripture text, then quoting and citing it.
 
 DEMO ACCOUNT
-Use the Sign-in Information above: enter the email, tap Continue, then enter the password. The account has every feature unlocked, including Pro.
+Use the Sign-in Information above: enter the email, tap Continue, then enter the password. The demo account is now a normal free account (it no longer has Pro granted), so the SureWord Pro purchase screen shows the Subscribe button.
 
 IN-APP PURCHASE
-SureWord Pro is an optional monthly auto-renewing subscription (com.spragginsdesigns.sureword.pro.monthly), bought through StoreKit at Settings (gear, top right) > AI > SureWord Pro, with Restore Purchases on the same screen. It adds the spoken devotional (Listen) and unlimited voice-message transcription. The demo account already has Pro granted on our server; to test the purchase itself, use a Sandbox Apple Account on that screen. Free accounts get a daily allowance of AI answers.
+SureWord Pro (com.spragginsdesigns.sureword.pro.monthly), an optional monthly auto-renewing subscription sold with StoreKit 2, is submitted with this version. Find it at Settings (gear) > AI > SureWord Pro: price, Subscribe, Restore Purchases, terms, Privacy Policy and EULA. Use a Sandbox Apple Account to buy. Pro unlocks Listen (spoken devotional) and more daily AI messages.
+
+CHINA MAINLAND
+The app is no longer offered in China mainland (removed in Pricing and Availability), so the guideline 5 and publication permit items no longer apply.
 
 AI CONSENT
 Before the first AI request, a one-time sheet names the providers that receive requests (OpenAI or the user's own provider; Tavily for web search; ElevenLabs for spoken devotionals) and links to the privacy policy. Nothing is sent until the user taps Agree and continue.
@@ -43,7 +57,7 @@ MAIN FEATURES
 2. In the composer, "/check Jesus never claimed to be God" weighs a claim against Scripture; "/reply" drafts a gentle reply.
 3. The + button left of the text field attaches photos, documents or an audio file (e.g. a Voice Memos recording saved to Files); audio is transcribed with OpenAI and the chip shows the transcript.
 4. Bible tab: choose a book and chapter; tap a verse for an explanation, word study, highlights, copy, share and save to note.
-5. Pick Up Your Cross (a daily verse chosen for the user): the card at the top of the Bible tab. Its Listen card plays the devotional aloud (ElevenLabs), in the background with lock-screen controls.
+5. Pick Up Your Cross (a daily verse chosen for the user): the card at the top of the Bible tab. Its Listen card (Pro) plays the devotional aloud with lock-screen controls; on a free account it opens the SureWord Pro screen.
 6. Settings > My church: search e.g. "First Baptist Church Dallas". Details come from Google Places; no location permission is requested.
 7. Notes tab: create a note; the AI button helps compose it.
 
