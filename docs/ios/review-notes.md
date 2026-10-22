@@ -3,7 +3,13 @@
 Status: **entered in App Store Connect 2026-10-08** (Notes field); DEMO
 ACCOUNT, IN-APP PURCHASE, CHINA MAINLAND and item 5 rewritten for the
 1.21.0 resubmission on 2026-10-20 after the 2026-10-21 rejection (submission
-6f4d1a78). The live ASC text is trimmed to stay under 4,000 characters. Was a template; Paste the block below into App Store Connect → App
+6f4d1a78). Apple rejected again on 2026-10-22 (submission be22f349, 2.1(b)):
+the SureWord Pro IAP "could not be found in the submitted binary", and Apple
+asks for a new binary plus a screen recording on a physical device that starts
+at the Home Screen, signs in with the demo account and shows a successful
+sandbox purchase. On 2026-10-22 the rejected version was renamed 1.24.0 and
+pointed at build 1.24.0 (1), and the DEMO line now reads "tap Sign in" for
+the new welcome card; resubmitting waits on that recording. The live ASC text is trimmed to stay under 4,000 characters. Was a template; Paste the block below into App Store Connect → App
 Review Information → Notes, after walking every path in it on the submission
 build as the demo account. Navigation labels follow the iOS source on
 2026-10-07; the Settings hub is being rebuilt (PRD B5), so re-check each path

@@ -12,6 +12,9 @@ most rows in "Verify before submitting" were still `source` (not yet run by
 hand on an iPhone). If App Review finds a claimed feature missing or broken,
 cut that line here and in `play-store.md` together.
 
+2026-10-22: the rejected 1.21.0 version became 1.24.0 in App Store Connect and
+`listing apply` wrote this file to it; `listing check` matched.
+
 Status: first entered in App Store Connect on 2026-10-07 (version 1.10.0,
 en-US) through the API. This file is the source of truth for the listing;
 `asc.py listing check` compares it with App Store Connect. Copy follows the Mission in `CLAUDE.md`: SureWord

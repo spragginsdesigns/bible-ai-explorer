@@ -17,6 +17,8 @@ keeps the two identical.
 > The old live short description ("Bible study that stands on the Word -
 > KJV answers, notes, and a daily walk.") is replaced too. Delete this
 > block once the live listing matches.
+> Rechecked 2026-10-22: the API still shows the old title and text, a
+> patch of this file's text returned 200 and the commit 403 again.
 > TickTick task 6ac950948f089f376a25a421.
 
 ## Title (30 max)
