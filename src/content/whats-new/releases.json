@@ -1,6 +1,26 @@
 {
 	"releases": [
 		{
+			"version": "1.99.0",
+			"versionCode": 114,
+			"date": "2026-10-22",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Create an account right in the app with your email and a password. The first screen now offers Create an account and Sign in, with Continue with Google under both."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Signing in with an email that has no account now offers to create one instead of stopping at \"couldn't find your account\".",
+						"Google sign-in no longer returns you to the sign-in screen without saying why. If something is missing, it tells you what to do next."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.98.0",
 			"versionCode": 113,
 			"date": "2026-10-20",

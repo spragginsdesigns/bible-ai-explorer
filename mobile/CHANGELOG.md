@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.99.0 (versionCode 114) - 2026-10-22 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Create an account right in the app with your email and a password. The first screen now offers Create an account and Sign in, with Continue with Google under both.
+
+FIXED
+- Signing in with an email that has no account now offers to create one instead of stopping at "couldn't find your account".
+- Google sign-in no longer returns you to the sign-in screen without saying why. If something is missing, it tells you what to do next.
+
+**Dev notes:** Closed-testing feedback (2026-10-22): testers could not get past sign-in. PostHog for the 1.98.0 tester cohort showed 7 people hitting `form_identifier_not_found` on the email field (the app had no sign-up path at all, only `signIn.create`) and Google ending 86 times with no session, every one of them recorded as "abandoned" and shown as nothing. `app/(auth)/sign-in.tsx` is now a step machine: welcome (Create an account / Sign in / Google), sign-in email, password, code, sign-up (email + password via legacy `useSignUp`, then the emailed `email_code` through `prepareEmailAddressVerification`/`attemptEmailAddressVerification`). Google now separates a real cancel (`abandoned`) from `useSSO` returning before the browser opened (`not_loaded`) and from Clerk returning without a session (`incomplete_<status>`, with the missing fields shown). `session_exists` goes straight in instead of showing an error. Pure helpers and tests in `src/features/auth/authErrors.ts`. Sign-up analytics reuse the `sign_in_*` events with `method: email_signup`, so the server event mirror is unchanged. No native changes.
+
 ## 1.98.0 (versionCode 113) - 2026-10-20 - internal and closed testing
 
 **What's new (Play):**

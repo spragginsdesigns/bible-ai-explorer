@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.99.0": {
+			"title": "Easier sign-in",
+			"headline": "Create an account or sign in, your way.",
+			"why": "New testers typed their email and were told no account existed, with no way to make one. The first screen now offers Create an account and Sign in, with Google under both."
+		},
 		"1.98.0": {
 			"title": "What's new",
 			"headline": "Every update, all in one place.",
