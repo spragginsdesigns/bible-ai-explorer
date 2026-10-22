@@ -13,6 +13,7 @@ export default function SignUpPage() {
 		<div className="min-h-screen flex items-center justify-center gradient-mesh">
 			<SignUp
 				appearance={{
+					options: { socialButtonsPlacement: "bottom" },
 					variables: {
 						fontFamily: "var(--font-body), system-ui, sans-serif",
 					},

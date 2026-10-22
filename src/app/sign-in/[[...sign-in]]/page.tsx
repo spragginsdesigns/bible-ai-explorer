@@ -14,8 +14,14 @@ export default function SignInPage() {
 	return (
 		<div className="min-h-screen flex items-center justify-center gradient-mesh">
 			<SignInAnalytics />
+			{/* withSignUp: an email with no account yet carries on into creating
+			    one instead of stopping at "Couldn't find your account", the dead
+			    end closed testers hit on Android before 1.99.0. Google sits under
+			    the email form, the same order as every native client. */}
 			<SignIn
+				withSignUp
 				appearance={{
+					options: { socialButtonsPlacement: "bottom" },
 					variables: {
 						fontFamily: "var(--font-body), system-ui, sans-serif",
 					},

@@ -154,6 +154,28 @@ final class FeedbackAndSignInTests: XCTestCase {
         XCTAssertEqual(SignInAnalytics.completion(forStrategy: nil, openMethod: "google").properties, ["method": "google"])
         XCTAssertEqual(SignInAnalytics.completion(forStrategy: nil, openMethod: nil).event, "sign_in_completed")
     }
+
+    // MARK: Welcome card (Android 1.99.0 parity)
+
+    func testWelcomeCardOpensTheMatchingClerkFlow() {
+        XCTAssertEqual(AuthSheetMode.signUp.clerkMode, .signUp)
+        // Sign in carries an unknown email on into creating the account.
+        XCTAssertEqual(AuthSheetMode.signInOrUp.clerkMode, .signInOrUp)
+    }
+
+    func testProviderMessagesPointAtCreateAnAccount() {
+        XCTAssertTrue(AuthWelcomeCopy.providerIncomplete("Google").hasPrefix("Google signed you in"))
+        XCTAssertTrue(AuthWelcomeCopy.providerIncomplete("Apple").contains("Create an account"))
+        XCTAssertTrue(AuthWelcomeCopy.providerFailed("Google", error: URLError(.timedOut)).contains("Create an account"))
+        XCTAssertTrue(AuthWelcomeCopy.providerFootnote.contains("Apple"))
+    }
+
+    func testClosingTheProviderSheetIsNotAnError() {
+        XCTAssertTrue(AuthWelcomeCopy.isCancellation(CancellationError()))
+        XCTAssertTrue(AuthWelcomeCopy.isCancellation(NSError(domain: "com.apple.AuthenticationServices.WebAuthenticationSession", code: 1)))
+        XCTAssertTrue(AuthWelcomeCopy.isCancellation(NSError(domain: "com.apple.AuthenticationServices.AuthorizationError", code: 1001)))
+        XCTAssertFalse(AuthWelcomeCopy.isCancellation(URLError(.timedOut)))
+    }
 }
 
 private actor RecordingFeedbackTransport: FeedbackTransport {
