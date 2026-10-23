@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { answerFeedbackResponse, parseFeedbackPatch } from "@/lib/chat/answer-feedback";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 
 /**
@@ -42,38 +42,48 @@ export async function PATCH(
 			: {}) as { content?: unknown; metadata?: Prisma.InputJsonValue };
 		const editsRow = typeof patch.content === "string" || patch.metadata !== undefined;
 
-		if (feedback.data || editsRow) {
-			// Scoped to the conversation already proven to be theirs.
-			const target = await prisma.message.findFirst({
+		// Scoped to the conversation already proven to be theirs. Checked for
+		// every body, a no-op one included: without it a missing message reached
+		// the update below, which throws P2025 and answered 500 instead of 404.
+		const target = await prisma.message.findFirst({
+			where: { id: messageId, conversationId: id },
+			select: { role: true },
+		});
+		if (!target) {
+			return NextResponse.json({ error: "Not found" }, { status: 404 });
+		}
+		// A thumb is a judgment about an answer, so the user's own message is
+		// not rateable.
+		if (feedback.data && target.role !== "assistant") {
+			return NextResponse.json({ error: "Only an answer can be rated." }, { status: 400 });
+		}
+		// An answer's text and metadata (which carries its references) are
+		// written only by the server. Sharing publishes them as SureWord's
+		// words, so a client edit here would be a forged public answer.
+		if (editsRow && target.role === "assistant") {
+			return NextResponse.json({ error: "An answer cannot be edited." }, { status: 400 });
+		}
+		let message;
+		try {
+			message = await prisma.message.update({
 				where: { id: messageId, conversationId: id },
-				select: { role: true },
+				data: {
+					...(typeof patch.content === "string" && { content: patch.content }),
+					...(patch.metadata !== undefined && { metadata: patch.metadata }),
+					...(feedback.data ?? {}),
+					// A new or changed rating is a new report: it goes back into the
+					// owner's review queue (/admin/feedback) even if the old one was read.
+					...(feedback.data && { feedbackReviewedAt: null }),
+				},
 			});
-			if (!target) {
+		} catch (err) {
+			// Deleted between the check above and this write (the conversation
+			// was cleared on another device): still a 404, not a 500.
+			if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
 				return NextResponse.json({ error: "Not found" }, { status: 404 });
 			}
-			// A thumb is a judgment about an answer, so the user's own message is
-			// not rateable.
-			if (feedback.data && target.role !== "assistant") {
-				return NextResponse.json({ error: "Only an answer can be rated." }, { status: 400 });
-			}
-			// An answer's text and metadata (which carries its references) are
-			// written only by the server. Sharing publishes them as SureWord's
-			// words, so a client edit here would be a forged public answer.
-			if (editsRow && target.role === "assistant") {
-				return NextResponse.json({ error: "An answer cannot be edited." }, { status: 400 });
-			}
+			throw err;
 		}
-		const message = await prisma.message.update({
-			where: { id: messageId, conversationId: id },
-			data: {
-				...(typeof patch.content === "string" && { content: patch.content }),
-				...(patch.metadata !== undefined && { metadata: patch.metadata }),
-				...(feedback.data ?? {}),
-				// A new or changed rating is a new report: it goes back into the
-				// owner's review queue (/admin/feedback) even if the old one was read.
-				...(feedback.data && { feedbackReviewedAt: null }),
-			},
-		});
 
 		if (feedback.data) {
 			// The thumb and its chips, never the written reason: the reason is
@@ -91,7 +101,6 @@ export async function PATCH(
 						hasWrittenReason: Boolean(feedback.data.feedbackReason),
 					},
 				});
-				await flushAnalytics();
 			}
 			return NextResponse.json(answerFeedbackResponse(message));
 		}

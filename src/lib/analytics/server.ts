@@ -1,5 +1,6 @@
 import "server-only";
 
+import { waitUntil } from "@vercel/functions";
 import { PostHog } from "posthog-node";
 
 import type { AnalyticsEventName, AnalyticsPlatform } from "./events";
@@ -35,14 +36,35 @@ function internalUserIds(): string[] {
  *
  * Serverless flushing: a Vercel function can freeze the moment it responds, so
  * a batched queue would lose the event. `flushAt: 1` sends on capture, and
- * callers that can afford it await {@link flushAnalytics} before returning.
+ * every capture registers its own flush with `waitUntil`, so the send finishes
+ * after the response instead of in front of it. Routes no longer await
+ * {@link flushAnalytics}: that held each response open for up to 1.5 s, and a
+ * fire-and-forget capture with no `waitUntil` at all (preferences, push
+ * tokens) was frozen mid-request and surfaced its timeout as an error during
+ * some later, unrelated request on the same instance.
  */
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
 
-/** How long a flush may hold a response open before we give up on it. */
+/** How long an awaited flush may hold a response open before we give up on it. */
 const FLUSH_TIMEOUT_MS = 1500;
+
+/**
+ * One PostHog request's ceiling, and how often and how soon it is retried.
+ * The SDK defaults (10 s, three retries 3 s apart) let one slow send outlive
+ * the request that made it by most of a minute.
+ */
+const REQUEST_TIMEOUT_MS = 3000;
+const RETRY_COUNT = 1;
+const RETRY_DELAY_MS = 500;
+
+/**
+ * How long the after-response flush may run: long enough for the worst case
+ * above (two attempts plus the delay between them), so the send settles
+ * inside the request that made it rather than leaking into the next one.
+ */
+const DEFERRED_FLUSH_TIMEOUT_MS = REQUEST_TIMEOUT_MS * (RETRY_COUNT + 1) + RETRY_DELAY_MS * RETRY_COUNT + 500;
 
 let client: PostHog | null = null;
 
@@ -63,6 +85,9 @@ function getClient(): PostHog | null {
 		// Send immediately: the function may freeze right after the response.
 		flushAt: 1,
 		flushInterval: 0,
+		requestTimeout: REQUEST_TIMEOUT_MS,
+		fetchRetryCount: RETRY_COUNT,
+		fetchRetryDelay: RETRY_DELAY_MS,
 		// The only IP a server event carries is the Vercel function's own, so
 		// geolocating it is not merely useless, it is wrong: it stamped every
 		// backend event "Ashburn, Virginia" and would have overwritten each
@@ -85,9 +110,8 @@ export interface ServerEventInput {
 /**
  * Record one server-side event.
  *
- * Fire and forget by design. Await it only where the extra few milliseconds
- * genuinely do not matter; in a streaming route, call it inside the same
- * `waitUntil` that already covers persistence.
+ * Fire and forget by design: the send is flushed after the response through
+ * `waitUntil`, so callers neither await it nor flush it themselves.
  */
 export function captureServerEvent({ userId, event, properties, platform }: ServerEventInput): void {
 	const posthog = getClient();
@@ -118,6 +142,7 @@ export function captureServerEvent({ userId, event, properties, platform }: Serv
 				},
 			},
 		});
+		flushAfterResponse();
 	} catch (error) {
 		console.error("[analytics] capture failed:", error);
 	}
@@ -146,6 +171,7 @@ export function identifyServerUser(
 				[INTERNAL_PERSON_PROPERTY]: isInternalUserId(userId, internalUserIds()),
 			},
 		});
+		flushAfterResponse();
 	} catch (error) {
 		console.error("[analytics] identify failed:", error);
 	}
@@ -158,15 +184,29 @@ export function identifyServerUser(
  * most {@link FLUSH_TIMEOUT_MS}, never their answer. Losing an event is an
  * acceptable outcome here and a hung request is not.
  */
-export async function flushAnalytics(): Promise<void> {
+export async function flushAnalytics(timeoutMs = FLUSH_TIMEOUT_MS): Promise<void> {
 	const posthog = client;
 	if (!posthog) return;
+	let timer: ReturnType<typeof setTimeout> | undefined;
 	try {
 		await Promise.race([
 			posthog.flush(),
-			new Promise((resolve) => setTimeout(resolve, FLUSH_TIMEOUT_MS)),
+			new Promise((resolve) => {
+				timer = setTimeout(resolve, timeoutMs);
+			}),
 		]);
 	} catch (error) {
 		console.error("[analytics] flush failed:", error);
+	} finally {
+		clearTimeout(timer);
 	}
+}
+
+/**
+ * Keep the function alive after the response until the queued send settles.
+ * Outside a Vercel request (local dev, scripts) `waitUntil` is a no-op and the
+ * send simply runs on the live process.
+ */
+function flushAfterResponse(): void {
+	waitUntil(flushAnalytics(DEFERRED_FLUSH_TIMEOUT_MS));
 }

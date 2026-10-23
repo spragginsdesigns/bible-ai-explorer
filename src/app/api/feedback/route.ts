@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { createRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import { parseFeedbackSubmission } from "@/lib/feedback/in-app-feedback";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders, sizeBucket } from "@/lib/analytics/events";
 
 /**
@@ -74,7 +74,6 @@ export async function POST(req: Request): Promise<Response> {
 				appVersion: parsed.data.appVersion,
 			},
 		});
-		await flushAnalytics();
 
 		return NextResponse.json({ id: saved.id, createdAt: saved.createdAt.toISOString() });
 	} catch (err) {

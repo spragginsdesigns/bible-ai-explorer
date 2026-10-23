@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { LearnReviewConflict, reviewCardById, reviewCardOperation } from "@/lib/learn";
 
@@ -55,7 +55,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 				platform: platformFromHeaders(req.headers),
 				properties: { result: parsed.data.result },
 			});
-			await flushAnalytics();
 		}
 		return NextResponse.json(card);
 	} catch (error) {

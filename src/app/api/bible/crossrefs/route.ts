@@ -14,6 +14,14 @@ const cacheHeaders = {
 	"Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
 };
 
+// An answer that lost some verse text to a failed lookup (NKJV is fetched from
+// bolls.life) is still worth sending, but not worth keeping: cached for a week
+// it would show those rows reference-only to every reader long after the
+// source came back.
+const degradedCacheHeaders = {
+	"Cache-Control": "public, max-age=60, s-maxage=60",
+};
+
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;
 /** Longest same-chapter span quoted inline, matching the getCrossReferences tool. */
@@ -52,14 +60,18 @@ function referenceOf(ref: CrossReference): string {
 }
 
 /**
- * The text to show under an edge, or undefined for reference-only. A range
+ * The text to show under an edge (none for reference-only), and whether a
+ * lookup failed, which keeps the answer out of the long-lived cache. A range
  * that crosses a chapter is never quoted (the card would swallow a chapter
  * tail), and a translation that has to be fetched can fail without taking the
  * whole row down: NKJV comes from bolls.life, and a "See also" list of
  * references still answers the question when it is unreachable.
  */
-async function quote(ref: CrossReference, translation: TranslationId): Promise<string | undefined> {
-	if (ref.endChapter !== undefined && ref.endChapter !== ref.chapter) return undefined;
+async function quote(
+	ref: CrossReference,
+	translation: TranslationId
+): Promise<{ text?: string; failed: boolean }> {
+	if (ref.endChapter !== undefined && ref.endChapter !== ref.chapter) return { failed: false };
 	const last = Math.min(ref.endVerse ?? ref.verse, ref.verse + MAX_QUOTED_VERSES - 1);
 	const texts: string[] = [];
 	try {
@@ -69,10 +81,16 @@ async function quote(ref: CrossReference, translation: TranslationId): Promise<s
 			texts.push(text);
 		}
 	} catch (error) {
-		console.error("[api/bible/crossrefs] verse text lookup failed", error);
-		return undefined;
+		// The loader rethrows with a reader-facing message; the cause it carries
+		// (a timeout, a 5xx, a bad payload) is the part worth logging.
+		const cause = error instanceof Error && error.cause !== undefined ? error.cause : error;
+		console.error(
+			`[api/bible/crossrefs] ${translation} verse text lookup failed for ${ref.order}:${ref.chapter}`,
+			cause
+		);
+		return { failed: true };
 	}
-	return texts.length > 0 ? texts.join(" ") : undefined;
+	return texts.length > 0 ? { text: texts.join(" "), failed: false } : { failed: false };
 }
 
 /**
@@ -111,12 +129,12 @@ export async function GET(req: Request): Promise<Response> {
 			0,
 			limit
 		);
-		const crossReferences = await Promise.all(
-			refs.map(async (ref) => {
-				const text = await quote(ref, translation);
-				return { reference: referenceOf(ref), ...(text ? { text } : {}) };
-			})
-		);
+		const quoted = await Promise.all(refs.map((ref) => quote(ref, translation)));
+		const crossReferences = refs.map((ref, index) => {
+			const text = quoted[index].text;
+			return { reference: referenceOf(ref), ...(text ? { text } : {}) };
+		});
+		const degraded = quoted.some((result) => result.failed);
 
 		// A verse with no edges answers 200 with an empty list, not 404: "no
 		// cross-references" is a fact about this verse, and the card hides itself.
@@ -126,7 +144,7 @@ export async function GET(req: Request): Promise<Response> {
 				translation,
 				crossReferences,
 			},
-			{ headers: cacheHeaders }
+			{ headers: degraded ? degradedCacheHeaders : cacheHeaders }
 		);
 	} catch (error) {
 		console.error("[api/bible/crossrefs] request failed", error);

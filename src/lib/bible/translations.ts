@@ -17,7 +17,11 @@ export const TRANSLATIONS: Record<TranslationId, { id: TranslationId; label: str
 export const CHAPTER_LOAD_ERROR =
   "That chapter could not be loaded. Check your connection and try again.";
 
-const NKJV_TIMEOUT_MS = 15000;
+// The server reads NKJV inside API routes capped at 10 s (crossrefs), so its
+// fetch must give up well before the function does or the timeout never fires
+// and the request dies as a platform error. The browser reader has no such
+// ceiling and keeps the patient value for slow phone connections.
+const NKJV_TIMEOUT_MS = typeof window === "undefined" ? 6000 : 15000;
 
 const nkjvCache = new Map<string, string[]>();
 const nkjvPending = new Map<string, Promise<string[]>>();
@@ -59,8 +63,9 @@ async function loadNkjvChapter(order: number, chapter: number): Promise<string[]
       .map((row) => String(row.text ?? "").replace(/ {2,}/g, " ").trim());
     nkjvCache.set(key, verses);
     return verses;
-  } catch {
-    throw new Error(CHAPTER_LOAD_ERROR);
+  } catch (error) {
+    // The message is for the reader; the cause keeps the real failure for logs.
+    throw new Error(CHAPTER_LOAD_ERROR, { cause: error });
   } finally {
     clearTimeout(timer);
   }

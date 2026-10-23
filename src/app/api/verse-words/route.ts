@@ -1,7 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { NextResponse } from "next/server";
 import { AiCredentialError } from "@/lib/ai/provider";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import { withIncludedAiRequest } from "@/lib/billing/usage";
@@ -55,7 +55,6 @@ async function handlePost(req: Request): Promise<Response> {
 				platform,
 				properties: { book, chapter, verse, cacheHit: true },
 			});
-			await flushAnalytics();
 			return NextResponse.json(cached, { headers: { "X-Verse-Words-Cache": "hit" } });
 		}
 
@@ -89,7 +88,6 @@ async function handlePost(req: Request): Promise<Response> {
 			properties: { book, chapter, verse, cacheHit: false },
 		});
 		waitUntil(writeVerseWordStudy(study));
-		await flushAnalytics();
 		return NextResponse.json(study, { headers: { "X-Verse-Words-Cache": "miss" } });
 	} catch (error) {
 		if (error instanceof Response) return error;

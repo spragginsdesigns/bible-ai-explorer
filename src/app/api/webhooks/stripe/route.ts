@@ -1,8 +1,9 @@
 import type Stripe from "stripe";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { prisma } from "@/lib/prisma";
 import { stripeClient } from "@/lib/billing/stripe";
+import { reconcileStripeStatus } from "@/lib/billing/stripe-status";
 
 export const maxDuration = 60;
 
@@ -137,56 +138,49 @@ export async function POST(req: Request) {
           (item) => item.price.id === process.env.STRIPE_PRO_PRICE_ID,
         );
         const invoice = subscription.latest_invoice;
-        const paid =
-          invoice && typeof invoice !== "string" && invoice.status === "paid";
-        // Only the opening invoice gates activation. A renewal invoice sits in
-        // draft for about an hour before Stripe charges it, and a failed renewal
-        // moves the subscription itself to past_due, so gating on it would drop
-        // every paying member to Free at each renewal.
-        const renewal =
-          invoice &&
-          typeof invoice !== "string" &&
-          invoice.billing_reason !== "subscription_create";
-        let status: string = !item
-          ? "unrecognized_price"
-          : subscription.status === "active" && !paid && !renewal
-            ? "incomplete"
-            : subscription.status;
-        if (
-          billing.status === "payment_disputed" &&
-          subscription.status === "active"
-        )
-          status = "payment_disputed";
+        const expandedInvoice =
+          invoice && typeof invoice !== "string" ? invoice : null;
         const latestInvoiceId =
           typeof invoice === "string" ? invoice : invoice?.id;
-        if (
-          item &&
-          paymentChange &&
-          latestInvoiceId === paymentChange.invoiceId
-        ) {
-          const charge = await stripe.charges.retrieve(paymentChange.chargeId);
-          const dispute = paymentChange.disputeId
+        const onLatestInvoice = Boolean(
+          item && paymentChange && latestInvoiceId === paymentChange.invoiceId,
+        );
+        // The dispute is read even when it is about an older invoice, because
+        // a dispute closing in the member's favour must clear the sticky
+        // payment_disputed flag after a renewal moved latest_invoice on
+        // (reconcileStripeStatus). The charge only matters for the latest one.
+        const dispute =
+          item && paymentChange?.disputeId
             ? await stripe.disputes.retrieve(paymentChange.disputeId)
             : null;
-          const revoke = charge.refunded || dispute?.status === "lost";
-          if (revoke && subscription.status !== "canceled") {
-            subscription = await stripe.subscriptions.cancel(
-              subscription.id,
-              {},
-              { idempotencyKey: `sureword-revoke-${event.id}` },
-            );
-            status = "canceled";
-          } else if (
-            dispute?.status === "won" ||
-            dispute?.status === "warning_closed"
-          ) {
-            status =
-              subscription.status === "active" && paid
-                ? "active"
-                : subscription.status;
-          } else if (dispute && subscription.status === "active") {
-            status = "payment_disputed";
-          }
+        const charge =
+          onLatestInvoice && paymentChange
+            ? await stripe.charges.retrieve(paymentChange.chargeId)
+            : null;
+        const decision = reconcileStripeStatus({
+          priceRecognized: Boolean(item),
+          subscriptionStatus: subscription.status,
+          latestInvoicePaid: expandedInvoice?.status === "paid",
+          latestInvoiceIsRenewal: expandedInvoice
+            ? expandedInvoice.billing_reason !== "subscription_create"
+            : false,
+          storedStatus: billing.status,
+          payment:
+            item && paymentChange
+              ? {
+                  onLatestInvoice,
+                  refunded: charge?.refunded ?? false,
+                  disputeStatus: dispute?.status ?? null,
+                }
+              : null,
+        });
+        const status = decision.status;
+        if (decision.revoke) {
+          subscription = await stripe.subscriptions.cancel(
+            subscription.id,
+            {},
+            { idempotencyKey: `sureword-revoke-${event.id}` },
+          );
         }
         await tx.billingSubscription.update({
           where: { userId: billing.userId },
@@ -237,10 +231,9 @@ export async function POST(req: Request) {
           reason: event.type,
         },
       });
-      // Stripe retries on a non-2xx, so this must not be able to fail the
-      // webhook: flushAnalytics already swallows its own errors and is
-      // bounded, and a lost event is better than a redelivered charge.
-      await flushAnalytics();
+      // No flush here: captureServerEvent never throws and sends after the
+      // response through waitUntil, so analytics can neither fail this
+      // webhook (Stripe would redeliver it) nor hold its 200 open.
     }
     return Response.json({ received: true });
   } catch {

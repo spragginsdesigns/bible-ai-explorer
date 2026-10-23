@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import {
 	GUEST_COOKIE,
@@ -85,7 +85,6 @@ export async function POST(req: Request) {
 				event: ANALYTICS_EVENTS.guestClaimed,
 				platform: platformFromHeaders(req.headers),
 			});
-			await flushAnalytics();
 		}
 		return clear({ conversationId });
 	} catch (err) {

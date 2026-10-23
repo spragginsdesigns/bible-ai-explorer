@@ -5,6 +5,7 @@ import { useClerk } from "@clerk/nextjs";
 import { Loader2, Trash2 } from "lucide-react";
 import {
 	CONFIRMATION_WORD,
+	DELETE_APP_STORE_NOTICE,
 	DELETE_CONFIRM_MESSAGE,
 	DELETE_CONFIRM_TITLE,
 	DELETE_ERROR_TITLE,
@@ -105,6 +106,7 @@ export default function DeleteAccountSection() {
 						{DELETE_CONFIRM_TITLE}
 					</p>
 					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{DELETE_CONFIRM_MESSAGE}</p>
+					<p className="mt-2 text-[13px] text-neutral-500 dark:text-neutral-400">{DELETE_APP_STORE_NOTICE}</p>
 				</div>
 				<div className="flex gap-2">
 					<button type="button" onClick={() => setStep("closed")} className={cancelButton}>

@@ -6,11 +6,24 @@
  * rules are testable without a database. The route wires the real services in.
  *
  * Order matters and is the contract:
- *   1. cancel the Stripe subscription (a deleted user must not keep paying),
- *   2. collect the user's blob pathnames (needs the rows we are about to drop),
- *   3. delete every row in ONE transaction,
- *   4. best-effort delete the blobs (never blocks, never logs PII),
- *   5. delete the Clerk user LAST, only after the transaction committed.
+ *   1. stop Google Play renewal (before Stripe, because Play's cancel keeps
+ *      access to the period end while Stripe's ends it at once, so a later
+ *      step failing leaves the member least worse off),
+ *   2. cancel the Stripe subscription (a deleted user must not keep paying),
+ *   3. collect the user's blob pathnames (needs the rows we are about to drop),
+ *   4. delete every row in ONE transaction,
+ *   5. best-effort delete the blobs (never blocks, never logs PII),
+ *   6. delete the Clerk user LAST, only after the transaction committed.
+ * Steps 1-2 run before anything is deleted, so any failure there leaves the
+ * account whole and the member can simply retry.
+ *
+ * App Store subscriptions are deliberately not a step. No server API can
+ * cancel one, and refusing to delete until the member cancels it would break
+ * App Store 5.1.1(v), which expects deletion to go ahead with a notice that
+ * Apple billing continues (a reviewer buying sandbox Pro and then deleting
+ * would be refused). A missed DID_CHANGE_RENEWAL_STATUS notification could
+ * also have blocked deletion for up to 60 days. Instead every client warns
+ * before the request is sent.
  */
 
 export const ACCOUNT_DELETION_CONFIRMATION = "DELETE";
@@ -102,6 +115,8 @@ export function isClerkNotFound(error: unknown): boolean {
 }
 
 export interface AccountDeletionDeps {
+	/** Stop any Google Play renewal. Throw to abort before deleting. */
+	stopGooglePlayRenewal(userId: string): Promise<void>;
 	/** Cancel any live Stripe subscription. Throw to abort before deleting. */
 	cancelBilling(userId: string): Promise<void>;
 	/** Blob pathnames known from DB rows, plus anything under the prefixes. */
@@ -117,12 +132,19 @@ export interface AccountDeletionDeps {
 
 export type AccountDeletionResult =
 	| { ok: true; blobsDeleted: boolean }
-	| { ok: false; stage: "billing" | "collect" | "database" | "clerk"; databaseDeleted: boolean };
+	| { ok: false; stage: "google_play" | "billing" | "collect" | "database" | "clerk"; databaseDeleted: boolean };
 
 export async function runAccountDeletion(
 	userId: string,
 	deps: AccountDeletionDeps,
 ): Promise<AccountDeletionResult> {
+	try {
+		await deps.stopGooglePlayRenewal(userId);
+	} catch {
+		deps.log("account deletion: Google Play cancellation failed");
+		return { ok: false, stage: "google_play", databaseDeleted: false };
+	}
+
 	try {
 		await deps.cancelBilling(userId);
 	} catch {

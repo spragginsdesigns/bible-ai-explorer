@@ -46,6 +46,7 @@ const TRANSLATIONS = {
 
 const CACHE_CONTROL =
 	"public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+const DEGRADED_CACHE_CONTROL = "public, max-age=60, s-maxage=60";
 
 /** Edges for Romans 8:28, in the order the data ranks them. */
 const ROMANS_8_28 = [
@@ -181,6 +182,40 @@ test("an unreachable translation source costs the text, not the row", async () =
 		{ reference: "Romans 8:29" },
 		{ reference: "Ephesians 1:11" },
 	]);
+	// Cached for a week, the reference-only rows would outlive the outage.
+	assert.equal(response.headers.get("cache-control"), DEGRADED_CACHE_CONTROL);
+});
+
+test("one failed lookup among good ones still keeps the answer out of the long cache", async () => {
+	const { response, body } = await call("?reference=Romans+8:28&limit=2&translation=NKJV", {
+		verseText: async (translation, order, chapter, verse) => {
+			if (order === 49) throw new Error("That chapter could not be loaded.", { cause: new Error("timeout") });
+			return `text ${order}:${chapter}:${verse}`;
+		},
+	});
+	assert.deepEqual(body.crossReferences, [
+		{ reference: "Romans 8:29", text: "text 45:8:29" },
+		{ reference: "Ephesians 1:11" },
+	]);
+	assert.equal(response.headers.get("cache-control"), DEGRADED_CACHE_CONTROL);
+});
+
+test("a verse that is simply missing is not a failure and is cached as usual", async () => {
+	const { response } = await call("?reference=Romans+8:28&limit=1", {
+		verseText: async () => undefined,
+	});
+	assert.equal(response.headers.get("cache-control"), CACHE_CONTROL);
+});
+
+test("the server's NKJV fetch gives up well inside the route's time limit", () => {
+	const route = read("../src/app/api/bible/crossrefs/route.ts");
+	const maxDuration = Number(route.match(/export const maxDuration = (\d+);/)[1]);
+	const loader = read("../src/lib/bible/translations.ts");
+	const timeout = loader.match(
+		/const NKJV_TIMEOUT_MS = typeof window === "undefined" \? (\d+) : \d+;/
+	);
+	assert.ok(timeout, "translations.ts still sets a server-side NKJV timeout");
+	assert.ok(Number(timeout[1]) <= (maxDuration * 1000) / 1.5, `${timeout[1]} ms vs ${maxDuration} s`);
 });
 
 test("a verse with no cross-references answers an empty list, not a 404", async () => {

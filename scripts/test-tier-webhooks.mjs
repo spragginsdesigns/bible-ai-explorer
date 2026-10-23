@@ -104,6 +104,7 @@ function load(relative, mocks) {
 const { POST } = load("src/app/api/webhooks/stripe/route.ts", {
   "@/lib/prisma": { prisma },
   "@/lib/billing/stripe": { stripeClient: () => stripe },
+  "@/lib/billing/stripe-status": load("src/lib/billing/stripe-status.ts", {}),
 });
 let events = [];
 async function send(

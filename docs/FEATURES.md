@@ -3818,7 +3818,9 @@ exactly `{ "confirm": "DELETE" }`, else 400. Unauthenticated is 401.
 **Clients.** Every client has the UI: Settings -> Account -> Delete account,
 below Sign out, with the same copy and status handling everywhere. Two steps: a
 destructive dialog listing what goes, then a step that only enables its button
-once the user types `DELETE`. A 401 after an attempt that may already have gone
+once the user types `DELETE`. The first dialog also says "Subscribed through
+the App Store? Deleting your account does not cancel it. Cancel SureWord Pro in
+your Apple ID settings first." (web: `DELETE_APP_STORE_NOTICE`). A 401 after an attempt that may already have gone
 through (a 502 or a lost response) counts as done; 500 says nothing was
 removed; 502 or a lost response offers Try again; offline says SureWord could
 not be reached. On success each client runs its sign-out cache wipe, then signs
@@ -3844,7 +3846,11 @@ repeated call. A repeat inside the token's lifetime returns 200 (the Clerk 404
 is treated as success); after the Clerk user is gone the token fails and the
 caller sees 401.
 
-**Order** (`src/lib/account-deletion.ts`, `runAccountDeletion`): cancel the
+**Order** (`src/lib/account-deletion.ts`, `runAccountDeletion`): stop Google
+Play renewal (read the live state from Google, then
+`purchases.subscriptions.cancel` with the stored token unless it is already
+CANCELED, EXPIRED or an abandoned pending purchase; abort with 503
+`google_play_cancel_failed` on any failure, nothing deleted) -> cancel the
 Stripe subscription (abort with 500 on failure, nothing deleted) -> collect blob
 pathnames -> one Prisma transaction -> best-effort blob delete (logged without
 ids or paths, never blocks) -> delete the Clerk user last (502 and retryable
@@ -3875,12 +3881,17 @@ if Clerk fails after the commit).
 | LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
 | BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |
 
-Not covered by the database transaction: Stripe subscription (cancelled
-first), Google Play subscriptions (cannot be cancelled server-side; the user
-cancels in Play, and the client UI should say so), App Store subscriptions
-(likewise: the user cancels in iOS Settings, Apple Account, Subscriptions; the
-row cascades, so a later renewal notification finds nothing and is a no-op), and PostHog person
-profiles (not deleted by this route). A test keeps
+Not covered by the database transaction: Stripe and Google Play
+subscriptions (cancelled first; the store rows are the only link from a
+purchase to a person, so after the cascade nothing could cancel them), App
+Store subscriptions (no server API can cancel one, so every client warns in
+the first confirmation dialog and deletion still goes ahead, as 5.1.1(v)
+expects; the member cancels in iOS Settings, Apple Account, Subscriptions, and
+since the row cascades a later renewal notification finds nothing and is a
+no-op), and PostHog person profiles (not deleted by this route). A Play cancel
+failure answers 503, which every client shows as "Nothing was removed". Rules
+and tests: `src/lib/billing/store-cancellation.ts`,
+`tests/store-cancellation.test.mjs`. A test keeps
 `ACCOUNT_DATA_MODELS` in step with `prisma/schema.prisma`.
 
 

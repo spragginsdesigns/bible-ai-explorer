@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
+	DELETE_APP_STORE_NOTICE,
 	DELETE_CONFIRM_MESSAGE,
 	FAILED_NETWORK,
 	FAILED_NOTHING_REMOVED,
@@ -38,6 +39,15 @@ test("502 is retryable, and a 401 on the retry counts as done", () => {
 	assert.equal(reduceDeletion(partial, { kind: "status", status: 401 }).phase.kind, "deleted");
 });
 
+test("the confirmation warns that deleting does not cancel an App Store subscription", () => {
+	assert.equal(
+		DELETE_APP_STORE_NOTICE,
+		"Subscribed through the App Store? Deleting your account does not cancel it. Cancel SureWord Pro in your Apple ID settings first."
+	);
+	const section = readFileSync(new URL("../src/components/settings/DeleteAccountSection.tsx", import.meta.url), "utf8");
+	assert.match(section, /\{DELETE_APP_STORE_NOTICE\}/);
+});
+
 test("a first-attempt 401 is an expired session", () => {
 	assert.equal(failedWith(reduceDeletion(initialDeletionState, { kind: "status", status: 401 })), FAILED_SESSION);
 });
@@ -64,7 +74,8 @@ test("copy matches the Apple dialog word for word", () => {
 		DELETE_CONFIRM_MESSAGE,
 		"This permanently deletes your conversations, notes, highlights, memories, testimony, voice messages and your account. This can't be undone."
 	);
-	for (const message of [FAILED_NOTHING_REMOVED, FAILED_RETRYABLE, FAILED_NETWORK]) {
+	// The App Store notice is one Swift literal, so it must appear whole.
+	for (const message of [FAILED_NOTHING_REMOVED, FAILED_RETRYABLE, FAILED_NETWORK, DELETE_APP_STORE_NOTICE]) {
 		assert.ok(apple.includes(`"${message}"`), message);
 	}
 });

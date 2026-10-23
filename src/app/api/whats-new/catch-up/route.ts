@@ -9,8 +9,9 @@ import { catchUpFor } from "@/lib/whats-new-rules";
  *
  * GET `?upTo=<versionCode>` caps the cards at what the calling build has
  * installed (Android and Apple send their own code; web sends nothing). The
- * first read for an account records the newest release as seen, so a new
- * account is never shown a catch-up.
+ * first read for an account records the newest release that build has as
+ * seen, so a new account is never shown a catch-up, yet still gets the cards
+ * for releases it installs later.
  *
  * POST `{ versionCode }` records the sheet as dismissed. Seen only moves
  * forward and never past the newest published release.
@@ -35,13 +36,18 @@ export async function GET(req: Request) {
 		const user = await prisma.user.findUnique({ where: { id: userId }, select: { whatsNewSeenCode: true } });
 		const seen = user?.whatsNewSeenCode ?? null;
 		const result = catchUpFor(WHATS_NEW_ENTRIES, seen, upTo);
+		// Seeded with the capped value, never the newest release: an Android
+		// 1.98.0 first read recorded as 1.99.0 would never be shown the 1.99.0
+		// card once that update installed. seenUpTo is 0 only for a cap older
+		// than every published release, and then the cap itself is the truth.
+		const firstSeen = result.seenUpTo > 0 ? result.seenUpTo : (upTo ?? NEWEST_VERSION_CODE);
 		if (seen == null) {
 			await prisma.user.updateMany({
 				where: { id: userId, whatsNewSeenCode: null },
-				data: { whatsNewSeenCode: NEWEST_VERSION_CODE },
+				data: { whatsNewSeenCode: firstSeen },
 			});
 		}
-		return NextResponse.json({ ...result, seenCode: seen ?? NEWEST_VERSION_CODE }, { headers: { "Cache-Control": "no-store" } });
+		return NextResponse.json({ ...result, seenCode: seen ?? firstSeen }, { headers: { "Cache-Control": "no-store" } });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		console.error("[api/whats-new/catch-up] GET failed", err);

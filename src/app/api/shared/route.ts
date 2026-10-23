@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { createRateLimiter, rateLimitKey } from "@/lib/rateLimit";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import {
@@ -69,14 +69,13 @@ export async function POST(req: Request) {
 		// Three exits answer with a link: a fresh share, an already-shared answer
 		// tapped again, and the loser of a race. They are one user action with
 		// different costs, so they share an event and are told apart by newShare.
-		const captureShare = async (newShare: boolean) => {
+		const captureShare = (newShare: boolean) => {
 			captureServerEvent({
 				userId,
 				event: ANALYTICS_EVENTS.answerShared,
 				platform: platformFromHeaders(req.headers),
 				properties: { newShare },
 			});
-			await flushAnalytics();
 		};
 
 		const limit = shareRateLimiter.check(rateLimitKey(req, userId));
@@ -128,7 +127,7 @@ export async function POST(req: Request) {
 					data: { revokedAt: null },
 				});
 			}
-			await captureShare(false);
+			captureShare(false);
 			return shareResponse(existing);
 		}
 
@@ -175,7 +174,7 @@ export async function POST(req: Request) {
 				data: { id: createSharedAnswerId(), ...data },
 				select: { id: true, createdAt: true },
 			});
-			await captureShare(true);
+			captureShare(true);
 			return shareResponse(created);
 		} catch (error) {
 			// Two taps in flight at once: the unique messageId arbitrates and the
@@ -189,7 +188,7 @@ export async function POST(req: Request) {
 					select: { id: true, createdAt: true },
 				});
 				if (raced) {
-					await captureShare(false);
+					captureShare(false);
 					return shareResponse(raced);
 				}
 			}

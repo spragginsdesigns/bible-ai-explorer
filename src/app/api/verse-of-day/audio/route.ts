@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import {
@@ -56,7 +56,7 @@ export async function GET(req: Request): Promise<Response> {
 		// lands, so counting it would drown the event in one user's waiting.
 		// Every other status is where a poll comes to rest, once.
 		if (audio.status !== "pending") {
-			await captureListen(userId, req, audio, false);
+			captureListen(userId, req, audio, false);
 		}
 		return toResponse(audio);
 	} catch (error) {
@@ -69,19 +69,18 @@ export async function GET(req: Request): Promise<Response> {
  * "locked" and "unavailable" are the whole point of measuring this, because
  * they are the taps that got nothing.
  */
-async function captureListen(
+function captureListen(
 	userId: string,
 	req: Request,
 	audio: DailyCrossAudio,
 	manual: boolean
-): Promise<void> {
+): void {
 	captureServerEvent({
 		userId,
 		event: ANALYTICS_EVENTS.listenRequested,
 		platform: platformFromHeaders(req.headers),
 		properties: { status: audio.status, plan: audio.plan, manual },
 	});
-	await flushAnalytics();
 }
 
 /** Empty bodies remain valid for older clients requesting the default voice. */
@@ -96,7 +95,7 @@ export async function POST(req: Request): Promise<Response> {
 		const parsed = z.object({ voiceId: z.string().trim().min(1).max(100).optional(), style: z.enum(["calm", "natural", "expressive"]).optional() }).strict().safeParse(body);
 		if (!parsed.success) return NextResponse.json({ error: "Invalid audio options." }, { status: 400, headers: PRIVATE_NO_STORE });
 		const audio = await getOrCreateDailyCrossAudio(userId, parsed.data);
-		await captureListen(userId, req, audio, true);
+		captureListen(userId, req, audio, true);
 		return toResponse(audio);
 	} catch (error) {
 		return errorResponse(error);

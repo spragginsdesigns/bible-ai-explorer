@@ -1,6 +1,6 @@
 import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "./prisma";
-import { captureServerEvent, flushAnalytics } from "./analytics/server";
+import { captureServerEvent } from "./analytics/server";
 import { ANALYTICS_EVENTS } from "./analytics/events";
 
 export interface StoredProfile {
@@ -155,7 +155,6 @@ async function ensureUserRecord(userId: string): Promise<void> {
 	// fires exactly once per account rather than once per cold client.
 	if (created.count > 0) {
 		captureServerEvent({ userId, event: ANALYTICS_EVENTS.accountCreated });
-		await flushAnalytics();
 	}
 	rememberConfirmedUser(userId);
 }

@@ -72,6 +72,34 @@ export async function acknowledgeSubscription(productId: string, purchaseToken: 
   if (!response.ok && response.status !== 409) throw new Error("Google Play acknowledgement failed.");
 }
 
+/** 404 and 410: Google no longer knows the token (long expired or never valid). */
+const purchaseGone = (status: number) => status === 404 || status === 410;
+
+/** Live subscriptionState for account deletion, or null when the token is gone. */
+export async function readSubscriptionState(purchaseToken: string): Promise<string | null> {
+  const token = await googleAccessToken();
+  const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+  if (purchaseGone(response.status)) return null;
+  if (!response.ok) throw new Error(`Google Play subscription read failed (HTTP ${response.status}).`);
+  const purchase = (await response.json()) as PlaySubscription;
+  return purchase.subscriptionState ?? "SUBSCRIPTION_STATE_UNSPECIFIED";
+}
+
+/**
+ * Turn renewal off before the account (and with it the only copy of the
+ * purchase token) is deleted. purchases.subscriptions.cancel, not
+ * subscriptionsv2.revoke: cancel is the server-side twin of the member
+ * cancelling in Play (no further charges, nothing refunded), which matches the
+ * Stripe side of deletion; revoke ends access at once and requires choosing a
+ * refund, a money decision deletion should not make silently. It is the same
+ * v1 per-product token path acknowledgeSubscription already uses.
+ */
+export async function cancelSubscriptionRenewal(productId: string, purchaseToken: string): Promise<void> {
+  const token = await googleAccessToken();
+  const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:cancel`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
+  if (!response.ok && !purchaseGone(response.status)) throw new Error(`Google Play cancellation failed (HTTP ${response.status}).`);
+}
+
 type PreviousPeriod = Pick<GooglePlaySubscription, "periodStart" | "periodEnd"> & { latestSuccessfulOrderId?: string | null };
 
 function previousMonth(date: Date): Date {

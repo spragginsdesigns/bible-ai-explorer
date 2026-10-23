@@ -8,7 +8,10 @@ import {
 	uniquePathnames,
 	type AccountDeletionDeps,
 } from "@/lib/account-deletion";
+import { decryptSecret } from "@/lib/ai/crypto";
 import { forgetConfirmedUser } from "@/lib/auth";
+import { cancelSubscriptionRenewal, readSubscriptionState } from "@/lib/billing/google-play";
+import { stopPlayRenewal } from "@/lib/billing/store-cancellation";
 import { billingAvailable, stripeClient } from "@/lib/billing/stripe";
 import { prisma } from "@/lib/prisma";
 
@@ -28,6 +31,19 @@ async function listPrefix(prefix: string): Promise<string[]> {
 }
 
 const deps: AccountDeletionDeps = {
+	// Reads the row whether or not Play billing is switched on: a row means a
+	// real purchase, and it can outlive the flag.
+	async stopGooglePlayRenewal(userId) {
+		const row = await prisma.googlePlaySubscription.findUnique({
+			where: { userId },
+			select: { encryptedPurchaseToken: true, productId: true },
+		});
+		if (!row) return;
+		await stopPlayRenewal(decryptSecret(row.encryptedPurchaseToken), {
+			readState: readSubscriptionState,
+			cancel: (purchaseToken) => cancelSubscriptionRenewal(row.productId, purchaseToken),
+		});
+	},
 	async cancelBilling(userId) {
 		if (!billingAvailable()) return;
 		const row = await prisma.billingSubscription.findUnique({
@@ -102,6 +118,20 @@ export async function DELETE(request: Request) {
 
 	const result = await runAccountDeletion(userId, deps);
 	if (result.ok) return json({ success: true, deleted: true }, 200);
+	if (result.stage === "google_play") {
+		// 503, not 502: every client reads 502 as "the data may already be
+		// gone" and then treats a later 401 as a finished deletion. Here
+		// nothing was deleted, and any other 5xx reads "Nothing was removed".
+		return json(
+			{
+				error: "Couldn't cancel your Google Play subscription, so your account was not deleted. Nothing was removed; try again.",
+				code: "google_play_cancel_failed",
+				stage: result.stage,
+				databaseDeleted: false,
+			},
+			503,
+		);
+	}
 	return json(
 		{
 			error: "Account deletion did not finish. Nothing was lost; try again.",

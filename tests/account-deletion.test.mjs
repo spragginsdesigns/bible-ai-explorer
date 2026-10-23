@@ -15,6 +15,7 @@ function harness(overrides = {}) {
 	const calls = [];
 	const logs = [];
 	const deps = {
+		stopGooglePlayRenewal: async () => void calls.push("google_play"),
 		cancelBilling: async () => void calls.push("billing"),
 		collectBlobPathnames: async () => (calls.push("collect"), ["a", "b"]),
 		deleteDatabaseRows: async () => void calls.push("db"),
@@ -36,7 +37,14 @@ test("only an exact DELETE confirmation passes", () => {
 test("steps run in order and Clerk is last", async () => {
 	const { deps, calls } = harness();
 	assert.deepEqual(await runAccountDeletion("u1", deps), { ok: true, blobsDeleted: true });
-	assert.deepEqual(calls, ["billing", "collect", "db", "blobs", "clerk"]);
+	assert.deepEqual(calls, ["google_play", "billing", "collect", "db", "blobs", "clerk"]);
+});
+
+test("a failed Google Play cancel keeps the account and never reaches Stripe", async () => {
+	const { deps, calls, logs } = harness({ stopGooglePlayRenewal: async () => { throw new Error("HTTP 500 u1"); } });
+	assert.deepEqual(await runAccountDeletion("u1", deps), { ok: false, stage: "google_play", databaseDeleted: false });
+	assert.deepEqual(calls, []);
+	assert.deepEqual(logs, ["account deletion: Google Play cancellation failed"]);
 });
 
 test("billing or database failure aborts before Clerk and blobs", async () => {

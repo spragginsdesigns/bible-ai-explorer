@@ -233,7 +233,8 @@ export function joinEditorial(releases: WhatsNewRelease[], editorial: WhatsNewEd
  * What the catch-up sheet shows to someone who last saw `seenCode`.
  *
  * - `seenCode` null means a brand-new account: nothing to catch up on, and the
- *   caller records the newest release as seen so day one is never interrupted.
+ *   caller records `seenUpTo` (the newest release under the cap, not the
+ *   newest published) as seen so day one is never interrupted.
  * - `upToCode` caps the list at what this client actually has installed: an
  *   Android build that has not updated yet must not announce features it lacks.
  * - Only releases with a NEW section count; a fixes-only release never opens

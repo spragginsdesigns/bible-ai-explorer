@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser, getAuthUserId } from "@/lib/auth";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders, sizeBucket } from "@/lib/analytics/events";
 import { syncNoteEmbeddings } from "@/lib/note-embeddings";
 import { FolderNotFoundError, resolveOwnedFolderId } from "@/lib/notes-io";
@@ -119,7 +119,6 @@ export async function POST(req: Request) {
 			platform: platformFromHeaders(req.headers),
 			properties: { length: sizeBucket(note.plainText.length) },
 		});
-		await flushAnalytics();
 		return NextResponse.json(note, { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;

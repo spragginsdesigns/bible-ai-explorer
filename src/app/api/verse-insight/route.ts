@@ -3,7 +3,7 @@ import { createTextStreamResponse, streamText, toTextStream } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
 import { NextResponse } from "next/server";
 import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
-import { captureServerEvent, flushAnalytics } from "@/lib/analytics/server";
+import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
 import type { TranslationId } from "@/lib/bible/translations";
@@ -91,7 +91,6 @@ async function handlePost(req: Request): Promise<Response> {
 				platform,
 				properties: { translation, passage: isPassage, cacheHit: true },
 			});
-			await flushAnalytics();
 			return new Response(cached, {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
@@ -130,7 +129,6 @@ async function handlePost(req: Request): Promise<Response> {
 					},
 				});
 				waitUntil(writeVerseInsight(cacheKey, full, modelUsed));
-				waitUntil(flushAnalytics());
 			},
 		});
 		// Run to completion even if the reader closes the sheet, so the

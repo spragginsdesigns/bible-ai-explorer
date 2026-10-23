@@ -378,6 +378,46 @@ test("an edit naming a message outside the owned conversation is 404, not a writ
 	assert.ok(!names(route.calls).includes("message.update"));
 });
 
+test("a no-op body naming a missing message is 404, not a P2025 500", async () => {
+	const route = patchRoute({ exists: false });
+	const response = await route.send({});
+	assert.equal(response.status, 404);
+	assert.ok(!names(route.calls).includes("message.update"));
+});
+
+test("a message deleted between the check and the write is still 404", async () => {
+	class PrismaClientKnownRequestError extends Error {
+		constructor(message, { code }) {
+			super(message);
+			this.code = code;
+		}
+	}
+	const { PATCH } = loadModule(ROUTE, ["PATCH"], {
+		NextResponse,
+		Prisma: { PrismaClientKnownRequestError },
+		prisma: {
+			conversation: { findFirst: async () => ({ id: "convo-1" }) },
+			message: {
+				findFirst: async () => ({ role: "assistant" }),
+				update: async () => {
+					throw new PrismaClientKnownRequestError("No record was found for an update.", { code: "P2025" });
+				},
+			},
+		},
+		getAuthUser: async () => "user_alice",
+		parseFeedbackPatch: (body) => parseFeedbackPatch(body, NOW),
+		answerFeedbackResponse,
+		captureServerEvent: () => {},
+		ANALYTICS_EVENTS: { answerRated: "answer_rated" },
+		platformFromHeaders: () => "android",
+	});
+	const response = await PATCH(
+		{ json: async () => ({ feedback: "up" }), headers: new Headers() },
+		{ params: Promise.resolve({ id: "convo-1", messageId: "msg-1" }) }
+	);
+	assert.equal(response.status, 404);
+});
+
 test("no session is the 401 Response, re-returned rather than reported as a 500", async () => {
 	const route = patchRoute({ auth: async () => unauthorized() });
 	const response = await route.send({ feedback: "up" });
