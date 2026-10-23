@@ -326,6 +326,13 @@ note, and the DMG background bakes the same hint in.
 
 ## Status
 
+macOS 1.24.0 (31) is the current native Mac build, installed at
+`/Applications/SureWord.app` and published as `macos-v1.24.0` on GitHub
+Releases. It carries the 2026-10-23 bug hunt Apple fixes (`ecf4721`,
+LC-17262, LC-17264, LC-17265, LC-17278 under LC-17258); the same build number
+goes to TestFlight under iOS 1.24.0. The 1.21.0 notes below describe the
+parity release those builds grew from.
+
 macOS 1.21.0 is the current native Mac version, installed at
 `/Applications/SureWord.app` and published as `macos-v1.21.0` on GitHub
 Releases. It carries the eleven Apple parity issues (LC-16611 to LC-16621):
