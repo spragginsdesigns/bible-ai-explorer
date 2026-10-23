@@ -1,6 +1,23 @@
 {
 	"releases": [
 		{
+			"version": "1.99.1",
+			"versionCode": 115,
+			"date": "2026-10-23",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Signing in no longer runs twice when you press Enter, which could show an error after you were already in.",
+						"The Back button now steps back through sign-in instead of closing the app.",
+						"Choosing \"Use a different email\" clears the password you typed for the last one.",
+						"Listen, share cards and Add to calendar no longer spin forever when the phone starts offline.",
+						"Deleting your account now cancels a Google Play subscription for you, and reminds you to cancel an App Store one."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.99.0",
 			"versionCode": 114,
 			"date": "2026-10-22",

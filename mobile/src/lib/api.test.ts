@@ -6,7 +6,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 
 import { fetch as expoFetch } from "expo/fetch";
-import { ApiError, apiJson, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, setRequestFailureReporter, subscribeApiAvailability, type GetToken } from "./api";
+import { ApiError, apiJson, boundedToken, isOfflineMessage, makeAuthedFetch, setAuthFailureHandler, setRequestFailureReporter, subscribeApiAvailability, type GetToken } from "./api";
 
 const jsonResponse = (status: number, body: unknown) =>
 	new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -65,6 +65,27 @@ describe("makeAuthedFetch", () => {
 				expect(isOfflineMessage(error)).toBe(true);
 			}
 			expect(vi.mocked(expoFetch)).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("bounds a bare token mint for the native download callers", async () => {
+		vi.useFakeTimers();
+		try {
+			const hung: GetToken = () => new Promise(() => {});
+			const pending = boundedToken(hung, true, "/api/x").catch((e) => e);
+			await vi.advanceTimersByTimeAsync(15_000);
+			const error = await pending;
+			expect(error).toBeInstanceOf(ApiError);
+			expect(isOfflineMessage(error)).toBe(true);
+			let asked: { fresh?: boolean } | undefined;
+			const ok: GetToken = async (opts) => {
+				asked = opts;
+				return "tok";
+			};
+			await expect(boundedToken(ok, true, "/api/x")).resolves.toBe("tok");
+			expect(asked).toEqual({ fresh: true });
 		} finally {
 			vi.useRealTimers();
 		}

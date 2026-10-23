@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { API_URL, type GetToken } from "@/lib/api";
+import { API_URL, boundedToken, type GetToken } from "@/lib/api";
 
 /**
  * Share cards on Android: fetching the server's JPEG and handing it to the
@@ -42,7 +42,7 @@ export async function downloadCard(
 	const target = new File(directory, options.fileName ?? `card-${pathKey(path)}.jpg`);
 	let headers: Record<string, string> | undefined;
 	if (options.getToken) {
-		const token = await options.getToken();
+		const token = await boundedToken(options.getToken, false, path);
 		if (!token) throw new Error("Sign in again to share this card.");
 		headers = { Authorization: `Bearer ${token}` };
 	}

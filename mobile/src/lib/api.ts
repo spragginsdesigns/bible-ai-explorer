@@ -142,7 +142,13 @@ function reportRequestFailure(failure: RequestFailure): void {
 	requestFailureReporter?.(failure);
 }
 
-async function boundedToken(getToken: GetToken, fresh: boolean, path: string): Promise<string | null> {
+/**
+ * A Clerk token, or an {@link ApiError} timeout after {@link TOKEN_TIMEOUT_MS}.
+ * Exported for the callers that mint a token without going through
+ * {@link makeAuthedFetch} or {@link apiJson} (native file downloads and the
+ * audio player's headers); a bare `getToken()` there hangs forever offline.
+ */
+export async function boundedToken(getToken: GetToken, fresh: boolean, path: string): Promise<string | null> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const ceiling = new Promise<never>((_, reject) => {
 		timer = setTimeout(() => {
