@@ -14,8 +14,8 @@ SureWord Pro row always shows and the review notes point at it, LC-17265 the
 catch-up sheet sends `upTo=114`, LC-17278 Try it from iOS Settings What's new
 closes Settings first) ship as Apple 1.24.0 (31). macOS is installed to
 `/Applications/SureWord.app` and published as `macos-v1.24.0` by
-`install-mac.sh --release`; iOS goes to TestFlight through `release-ios.sh`
-under version 1.24.0, not submitted for review. Gate from `ecf4721`: unsigned
+`install-mac.sh --release`; iOS 1.24.0 (2) was uploaded to TestFlight by
+`release-ios.sh` the same day, not submitted for review. Gate from `ecf4721`: unsigned
 macOS and iOS builds, iOS unit tests 380 run with 0 failures and 1 skip; the
 macOS test suite was not run.
 
