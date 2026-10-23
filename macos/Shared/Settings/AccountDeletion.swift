@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 // MARK: - Request
@@ -10,6 +11,8 @@ import SwiftUI
 /// - 200: everything is gone (database rows, blobs, the Clerk user).
 /// - 500: aborted before the database transaction; nothing was removed.
 /// - 502: the data is gone but deleting the Clerk user failed; retrying is safe.
+/// - 503, and any other status: refused before anything ran; nothing was
+///   removed, so it reads like a 500.
 /// - 401: no session. After an attempt that may already have gone through (a
 ///   502, or a request whose answer was lost), this means the Clerk user is
 ///   gone, i.e. the deletion finished.
@@ -23,6 +26,18 @@ enum AccountDeletion {
 
     /// The word the second confirmation step asks the user to type.
     static let confirmationWord = "DELETE"
+
+    /// Deleting the account never touches an App Store subscription: Apple
+    /// bills it, and only the reader can cancel it. The server deliberately
+    /// does not refuse the deletion over it (App Review 5.1.1(v): deletion
+    /// must not be blocked), so the confirmation says it plainly instead.
+    /// One literal on purpose: a parity test reads this file and expects the
+    /// web and Android wording word for word.
+    static let appStoreNotice = "Subscribed through the App Store? Deleting your account does not cancel it. Cancel SureWord Pro in your Apple ID settings first."
+
+    /// Apple's subscription management page, for the Mac (iOS opens StoreKit's
+    /// own sheet instead).
+    static let manageSubscriptionsURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 }
 
 /// What the deletion flow needs from the network, so the model can be driven
@@ -127,6 +142,10 @@ struct DeleteAccountRow: View {
     @State private var isConfirming = false
     @State private var isTypingConfirmation = false
     @State private var typed = ""
+    #if os(iOS)
+    @State private var isManagingSubscription = false
+    #endif
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         Button(role: .destructive) {
@@ -152,13 +171,18 @@ struct DeleteAccountRow: View {
                 typed = ""
                 isTypingConfirmation = true
             }
+            Button("Manage subscription") { manageSubscription() }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
                 "This permanently deletes your conversations, notes, highlights, memories, "
-                    + "testimony, voice messages and your account. This can't be undone."
+                    + "testimony, voice messages and your account. This can't be undone.\n\n"
+                    + AccountDeletion.appStoreNotice
             )
         }
+        #if os(iOS)
+        .manageSubscriptionsSheet(isPresented: $isManagingSubscription)
+        #endif
         .alert("Type DELETE to confirm", isPresented: $isTypingConfirmation) {
             TextField(AccountDeletion.confirmationWord, text: $typed)
                 .autocorrectionDisabled()
@@ -186,6 +210,14 @@ struct DeleteAccountRow: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+    }
+
+    private func manageSubscription() {
+        #if os(iOS)
+        isManagingSubscription = true
+        #else
+        openURL(AccountDeletion.manageSubscriptionsURL)
+        #endif
     }
 
     private var isConfirmed: Bool {

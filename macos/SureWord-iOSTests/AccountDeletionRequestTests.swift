@@ -25,4 +25,30 @@ final class AccountDeletionRequestTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "x-sureword-client"), "ios")
         XCTAssertEqual(request.httpBody.map { String(decoding: $0, as: UTF8.self) }, #"{"confirm":"DELETE"}"#)
     }
+
+    /// A 503 is refused before anything ran, so it reads like a 500.
+    @MainActor
+    func testServiceUnavailableSaysNothingWasRemoved() async {
+        let model = AccountDeletionModel()
+        let deleted = await model.delete(using: FailingTransport(error: .server(status: 503)))
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(model.errorMessage, AccountDeletionModel.failedNothingRemoved)
+        XCTAssertFalse(model.mayHaveDeleted)
+    }
+
+    /// Deletion never cancels an App Store subscription, and the confirmation
+    /// says so (the server must not block deletion over it, 5.1.1(v)).
+    func testConfirmationWarnsThatAppStoreSubscriptionsStayActive() {
+        XCTAssertEqual(
+            AccountDeletion.appStoreNotice,
+            "Subscribed through the App Store? Deleting your account does not cancel it. "
+                + "Cancel SureWord Pro in your Apple ID settings first."
+        )
+        XCTAssertEqual(AccountDeletion.manageSubscriptionsURL.absoluteString, "https://apps.apple.com/account/subscriptions")
+    }
+}
+
+private struct FailingTransport: AccountDeletionTransport {
+    let error: APIError
+    func deleteAccount() async throws { throw error }
 }

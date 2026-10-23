@@ -58,7 +58,10 @@ shown. Rules live in `catchUpFor` (`src/lib/whats-new-rules.ts`):
 - Only releases with a NEW section count; fixes alone never raise it.
 - `GET /api/whats-new/catch-up?upTo=<versionCode>` caps the cards at the
   build the phone actually has, so it is never told about a feature it cannot
-  open. Web and Apple send no `upTo`.
+  open. Web sends no `upTo`. Apple builds number themselves, so they send
+  `WhatsNewRules.appleParityVersionCode` (`macos/Shared/WhatsNew/WhatsNew.swift`),
+  the newest Android versionCode whose features that Apple build carries;
+  raise it with every Apple release that catches up to a newer Android one.
 - Any close (a card, See all, Got it, Back or Escape) POSTs `seenUpTo`. The
   value only moves forward and never past the newest release, so a second
   device cannot replay the sheet.

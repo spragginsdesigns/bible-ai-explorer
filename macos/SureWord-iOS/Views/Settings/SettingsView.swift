@@ -18,6 +18,7 @@ struct SettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
     @Environment(Clerk.self) private var clerk
+    @Environment(\.dismiss) private var dismiss
 
     /// Every return from a category page reappears the hub, and the store only
     /// dedupes requests already in flight, so without a floor a walk through
@@ -93,6 +94,11 @@ struct SettingsView: View {
                 }
                 row("What's new", symbol: "newspaper", subtitle: "Every update, newest first") {
                     WhatsNewView(api: app.api) { destination in
+                        // Settings is pushed on the current tab's stack, so a
+                        // feature on this same tab would open underneath it
+                        // and "Try it" would look dead. Popping the hub pops
+                        // this page with it, as the Mac closes its sheet.
+                        dismiss()
                         WhatsNewNavigation.open(destination, in: app)
                     }
                     .analyticsScreen(AnalyticsScreen.settingsWhatsNew)

@@ -76,10 +76,12 @@ final class APIClient: Sendable {
         timeout: TimeInterval = defaultTimeout
     ) async throws -> Data {
         var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false)
+        var bothHadTokens = result.hadToken
         if result.status == 401 {
             result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true)
+            bothHadTokens = bothHadTokens && result.hadToken
         }
-        if result.status == 401 {
+        if result.status == 401 && bothHadTokens {
             await authFailure.report()
         }
 
@@ -105,10 +107,12 @@ final class APIClient: Sendable {
         timeout: TimeInterval = defaultTimeout
     ) async throws -> (status: Int, data: Data) {
         var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false)
+        var bothHadTokens = result.hadToken
         if result.status == 401 {
             result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true)
+            bothHadTokens = bothHadTokens && result.hadToken
         }
-        if result.status == 401 {
+        if result.status == 401 && bothHadTokens {
             await authFailure.report()
         }
         return (result.status, result.data)
@@ -173,30 +177,33 @@ final class APIClient: Sendable {
         _ path: String,
         body: some Encodable
     ) async throws -> URLSession.AsyncBytes {
-        func open(fresh: Bool) async throws -> (URLSession.AsyncBytes, HTTPURLResponse) {
+        func open(fresh: Bool) async throws -> (URLSession.AsyncBytes, HTTPURLResponse, Bool) {
             var request = try await makeRequest(path, method: "POST", fresh: fresh)
+            let hadToken = request.value(forHTTPHeaderField: "Authorization") != nil
             request.timeoutInterval = Self.streamTimeout
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
             request.httpBody = try JSONEncoder().encode(body)
             do {
                 let (bytes, response) = try await session.bytes(for: request)
-                return (bytes, (response as? HTTPURLResponse) ?? HTTPURLResponse())
+                return (bytes, (response as? HTTPURLResponse) ?? HTTPURLResponse(), hadToken)
             } catch {
                 throw Self.translate(error, reportingFor: path)
             }
         }
 
-        var (bytes, response) = try await open(fresh: false)
+        var (bytes, response, hadToken) = try await open(fresh: false)
+        var bothHadTokens = hadToken
         if response.statusCode == 401 {
-            (bytes, response) = try await open(fresh: true)
+            (bytes, response, hadToken) = try await open(fresh: true)
+            bothHadTokens = bothHadTokens && hadToken
         }
-        if response.statusCode == 401 {
+        if response.statusCode == 401 && bothHadTokens {
             await authFailure.report()
         }
 
         guard (200..<300).contains(response.statusCode) else {
-            Self.reportHTTPFailure(path: path, status: response.statusCode, hadToken: true)
+            Self.reportHTTPFailure(path: path, status: response.statusCode, hadToken: hadToken)
             // Drain the short error body so the message survives into the UI.
             var payload = Data()
             for try await byte in bytes { payload.append(byte) }
@@ -254,10 +261,30 @@ final class APIClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(Self.clientHeaderValue, forHTTPHeaderField: Self.clientHeaderName)
-        if let jwt = try? await token(fresh) {
+        if let jwt = try await bearer(fresh: fresh) {
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    /// The session token for one request. `nil` means signed out, and the
+    /// request goes out bare on purpose. A *failed* fetch is different: Clerk
+    /// could not refresh the token (usually a network blip), so the request is
+    /// not sent at all. Sending it bare used to earn two 401s in a row, which
+    /// the auth-failure handler reads as a dead session and signs the reader
+    /// out over a dropped connection. The account guard's own `APIError` and a
+    /// cancellation pass through unchanged.
+    private func bearer(fresh: Bool) async throws -> String? {
+        do {
+            return try await token(fresh)
+        } catch let error as APIError {
+            throw error
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let translated = Self.translate(error)
+            throw translated.isOffline ? translated : APIError.offline
+        }
     }
 
     /// `makeRequest` plus the JSON body, exactly as `data`/`json` send it.
