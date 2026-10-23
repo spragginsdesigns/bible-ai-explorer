@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.99.1 (versionCode 115) - 2026-10-23 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- Signing in no longer runs twice when you press Enter, which could show an error after you were already in.
+- The Back button now steps back through sign-in instead of closing the app.
+- Choosing "Use a different email" clears the password you typed for the last one.
+- Listen, share cards and Add to calendar no longer spin forever when the phone starts offline.
+- Deleting your account now cancels a Google Play subscription for you, and reminds you to cancel an App Store one.
+
+**Dev notes:** Bug hunt 2026-10-23 (Linear LC-17258; LC-17259, LC-17261, LC-17266, LC-17267, LC-17273, LC-17275). Account deletion: the server now cancels Google Play renewal before deleting (and refuses with 503, nothing removed, if Google cannot be reached); App Store subscriptions cannot be cancelled server-side, so the first confirmation shows `DELETE_APP_STORE_NOTICE`, word for word the web and Apple copy. PostHog showed `sign_in_completed` followed 0.4 to 1 s later by `sign_in_failed` (unknown, resource_not_found, authentication_invalid) and overlapping Google SSO starts, because no handler guarded re-entry and every `onSubmitEditing` still fired under the spinner. `singleFlight()` in `src/features/auth/authErrors.ts` now gates every submit (button, Enter, Google, resend), and `sign_in_completed` is tracked only after `setActive` resolves. Non-Clerk failures report a content-free class (`network`, `aborted`, `exception_<Name>`) instead of `unknown`. Hardware Back uses `previousAuthStep()` through a focused `BackHandler`. `boundedToken` in `src/lib/api.ts` is exported and now caps the Listen stream, share-card and calendar token mints at 15 s. The Google failure copy no longer names a Back button the welcome step does not have. No native changes.
+
 ## 1.99.0 (versionCode 114) - 2026-10-22 - internal and closed testing
 
 **What's new (Play):**

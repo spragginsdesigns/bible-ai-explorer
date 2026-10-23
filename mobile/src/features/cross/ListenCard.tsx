@@ -28,7 +28,7 @@ import {
 	type DailyCrossAudio,
 } from "@/features/notifications/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
-import { API_URL } from "@/lib/api";
+import { API_URL, boundedToken } from "@/lib/api";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import {
 	setListenRate,
@@ -203,7 +203,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 		}
 		let cancelled = false;
 		void (async () => {
-			const token = await getToken({ fresh: true }).catch(() => null);
+			const token = await boundedToken(getToken, true, streamUrl).catch(() => null);
 			if (cancelled) return;
 			setSource({
 				uri: `${API_URL}${streamUrl}`,

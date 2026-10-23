@@ -14,6 +14,7 @@ import { clearUserCaches } from "@/features/settings/cacheOwner";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import {
 	CONFIRMATION_WORD,
+	DELETE_APP_STORE_NOTICE,
 	DELETE_CONFIRM_MESSAGE,
 	DELETE_CONFIRM_TITLE,
 	DELETE_ERROR_TITLE,
@@ -93,7 +94,7 @@ export default function AccountSettingsScreen() {
 	};
 
 	const confirmDelete = () => {
-		Alert.alert(DELETE_CONFIRM_TITLE, DELETE_CONFIRM_MESSAGE, [
+		Alert.alert(DELETE_CONFIRM_TITLE, `${DELETE_CONFIRM_MESSAGE}\n\n${DELETE_APP_STORE_NOTICE}`, [
 			{ text: "Cancel", style: "cancel" },
 			{
 				text: "Continue",

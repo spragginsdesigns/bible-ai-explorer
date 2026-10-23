@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
+	BackHandler,
 	KeyboardAvoidingView,
 	ScrollView,
 	StyleSheet,
@@ -8,7 +9,7 @@ import {
 } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { typography } from "@/theme";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useAuth, useSSO } from "@clerk/expo";
@@ -21,10 +22,13 @@ import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { ANALYTICS_EVENTS, track } from "@/lib/analytics";
 import {
+	type AuthStep,
 	clerkErrorCode,
 	clerkErrorMessage,
 	googleIncompleteMessage,
 	MIN_PASSWORD_LENGTH,
+	previousAuthStep,
+	singleFlight,
 } from "@/features/auth/authErrors";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -40,13 +44,7 @@ WebBrowser.maybeCompleteAuthSession();
  * guessing that Google would do it. PostHog showed 7 of the first tester
  * cohort hitting exactly that.
  */
-type Step =
-	| "welcome"
-	| "signInEmail"
-	| "signInPassword"
-	| "signInCode"
-	| "signUp"
-	| "signUpCode";
+type Step = AuthStep;
 
 export default function SignInScreen() {
 	const { colors } = useTheme();
@@ -67,6 +65,9 @@ export default function SignInScreen() {
 	// create one with the address already typed.
 	const [offerSignUp, setOfferSignUp] = useState(false);
 	const [notice, setNotice] = useState<string | null>(null);
+	// Every submit (button, keyboard Enter, Google, resend) runs through this,
+	// so a second one while the first is in flight is dropped. See singleFlight.
+	const [runOnce] = useState(singleFlight);
 
 	// Any new message replaces the last one, whichever kind it was.
 	useEffect(() => {
@@ -86,8 +87,26 @@ export default function SignInScreen() {
 		setError(null);
 		setNotice(null);
 		setOfferSignUp(false);
-		if (next === "welcome") setPassword("");
+		// Leaving for the email step means a different address, so the old
+		// password must not ride along with it.
+		if (next === "welcome" || next === "signInEmail") setPassword("");
 	}, []);
+
+	// Android's hardware Back steps back through the card instead of leaving
+	// the app from the middle of a sign-in. On the first step it is not
+	// handled, so Back behaves as it does anywhere else. While a request is in
+	// flight it is swallowed, because the request would land on the wrong step.
+	useFocusEffect(
+		useCallback(() => {
+			const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+				const previous = previousAuthStep(step);
+				if (!previous) return false;
+				if (!pending) goTo(previous);
+				return true;
+			});
+			return () => sub.remove();
+		}, [step, pending, goTo])
+	);
 
 	/**
 	 * Clerk refuses to start a sign-in or sign-up while a session already
@@ -105,7 +124,7 @@ export default function SignInScreen() {
 		[router]
 	);
 
-	const onGoogle = useCallback(async () => {
+	const onGoogle = useCallback(() => runOnce(async () => {
 		setError(null);
 		setOfferSignUp(false);
 		setPending(true);
@@ -132,8 +151,8 @@ export default function SignInScreen() {
 				}),
 			});
 			if (createdSessionId && setActiveSSO) {
-				track(ANALYTICS_EVENTS.signInCompleted, { method: "google" });
 				await setActiveSSO({ session: createdSessionId });
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "google" });
 				router.replace("/");
 				return;
 			}
@@ -172,7 +191,7 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [startSSOFlow, router, enterIfSessionExists]);
+	}), [runOnce, startSSOFlow, router, enterIfSessionExists]);
 
 	// Sends the emailed one-time code for the account already looked up by
 	// onContinue. Also the fallback for password accounts ("email me a code").
@@ -193,7 +212,7 @@ export default function SignInScreen() {
 	// Sign in: an account with a password (every account made with Create an
 	// account, and the Play review demo account) is asked for it; one made
 	// through Google without a password gets an emailed one-time code.
-	const onContinue = useCallback(async () => {
+	const onContinue = useCallback(() => runOnce(async () => {
 		if (!isLoaded || !email.trim()) return;
 		setError(null);
 		setOfferSignUp(false);
@@ -226,9 +245,9 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [isLoaded, email, signIn, sendEmailCode, enterIfSessionExists]);
+	}), [runOnce, isLoaded, email, signIn, sendEmailCode, enterIfSessionExists]);
 
-	const onVerifyPassword = useCallback(async () => {
+	const onVerifyPassword = useCallback(() => runOnce(async () => {
 		if (!isLoaded || !password) return;
 		setError(null);
 		setPending(true);
@@ -238,8 +257,8 @@ export default function SignInScreen() {
 				password,
 			});
 			if (attempt.status === "complete") {
-				track(ANALYTICS_EVENTS.signInCompleted, { method: "password" });
 				await setActive({ session: attempt.createdSessionId });
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "password" });
 				router.replace("/");
 			} else {
 				track(ANALYTICS_EVENTS.signInFailed, {
@@ -258,9 +277,9 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [isLoaded, password, signIn, setActive, router, enterIfSessionExists]);
+	}), [runOnce, isLoaded, password, signIn, setActive, router, enterIfSessionExists]);
 
-	const onCodeInstead = useCallback(async () => {
+	const onCodeInstead = useCallback(() => runOnce(async () => {
 		setError(null);
 		setPending(true);
 		try {
@@ -270,9 +289,9 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [sendEmailCode]);
+	}), [runOnce, sendEmailCode]);
 
-	const onVerifyCode = useCallback(async () => {
+	const onVerifyCode = useCallback(() => runOnce(async () => {
 		if (!isLoaded || code.trim().length < 6) return;
 		setError(null);
 		setPending(true);
@@ -282,8 +301,8 @@ export default function SignInScreen() {
 				code: code.trim(),
 			});
 			if (attempt.status === "complete") {
-				track(ANALYTICS_EVENTS.signInCompleted, { method: "email_code" });
 				await setActive({ session: attempt.createdSessionId });
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "email_code" });
 				router.replace("/");
 			} else {
 				track(ANALYTICS_EVENTS.signInFailed, {
@@ -302,12 +321,12 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [isLoaded, code, signIn, setActive, router, enterIfSessionExists]);
+	}), [runOnce, isLoaded, code, signIn, setActive, router, enterIfSessionExists]);
 
 	// Create an account: email + password (the Clerk instance requires a
 	// password for email sign-ups), then the emailed 6-digit code proves the
 	// address. Same instance and allowlists as web's /sign-up.
-	const onCreateAccount = useCallback(async () => {
+	const onCreateAccount = useCallback(() => runOnce(async () => {
 		if (!signUpLoaded || !email.trim()) return;
 		if (password.length < MIN_PASSWORD_LENGTH) {
 			setError(`Choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
@@ -340,17 +359,17 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [signUpLoaded, email, password, signUp, enterIfSessionExists]);
+	}), [runOnce, signUpLoaded, email, password, signUp, enterIfSessionExists]);
 
-	const onVerifySignUpCode = useCallback(async () => {
+	const onVerifySignUpCode = useCallback(() => runOnce(async () => {
 		if (!signUpLoaded || code.trim().length < 6) return;
 		setError(null);
 		setPending(true);
 		try {
 			const attempt = await signUp.attemptEmailAddressVerification({ code: code.trim() });
 			if (attempt.status === "complete" && attempt.createdSessionId) {
-				track(ANALYTICS_EVENTS.signInCompleted, { method: "email_signup" });
 				await setActiveSignUp({ session: attempt.createdSessionId });
+				track(ANALYTICS_EVENTS.signInCompleted, { method: "email_signup" });
 				router.replace("/");
 			} else {
 				track(ANALYTICS_EVENTS.signInFailed, {
@@ -375,9 +394,9 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [signUpLoaded, code, signUp, setActiveSignUp, router, enterIfSessionExists]);
+	}), [runOnce, signUpLoaded, code, signUp, setActiveSignUp, router, enterIfSessionExists]);
 
-	const onResendSignUpCode = useCallback(async () => {
+	const onResendSignUpCode = useCallback(() => runOnce(async () => {
 		setError(null);
 		setPending(true);
 		try {
@@ -389,7 +408,7 @@ export default function SignInScreen() {
 		} finally {
 			setPending(false);
 		}
-	}, [signUp]);
+	}), [runOnce, signUp]);
 
 	if (authLoaded && isSignedIn) return <Redirect href="/" />;
 

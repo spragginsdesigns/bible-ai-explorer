@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
-import { API_URL, type GetToken } from "@/lib/api";
+import { API_URL, boundedToken, type GetToken } from "@/lib/api";
 import type { ChurchEvent } from "./sermonApi";
 
 /**
@@ -23,7 +23,7 @@ export async function shareEventFile(getToken: GetToken, event: ChurchEvent): Pr
 	if (!(await Sharing.isAvailableAsync())) {
 		throw new Error("Sharing isn't available on this device.");
 	}
-	const token = await getToken();
+	const token = await boundedToken(getToken, false, event.icsPath);
 	if (!token) throw new Error("Sign in again to add this event.");
 	const safeId = event.id.replace(/[^A-Za-z0-9_-]/g, "");
 	const target = new File(calendarDirectory(), `${safeId || "event"}.ics`);

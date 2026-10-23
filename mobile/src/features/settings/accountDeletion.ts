@@ -24,6 +24,15 @@ export const DELETE_CONFIRM_TITLE = "Delete your SureWord account?";
 export const DELETE_CONFIRM_MESSAGE =
 	"This permanently deletes your conversations, notes, highlights, memories, " +
 	"testimony, voice messages and your account. This can't be undone.";
+/**
+ * Shown with the first confirmation step, word for word the web and Apple
+ * copy. The server cancels Stripe and Google Play itself, but no server API
+ * can cancel an App Store subscription and deletion goes ahead regardless, so
+ * a member who also subscribed on an iPhone has to cancel it there.
+ */
+export const DELETE_APP_STORE_NOTICE =
+	"Subscribed through the App Store? Deleting your account does not cancel it. " +
+	"Cancel SureWord Pro in your Apple ID settings first.";
 export const DELETE_TYPE_TITLE = "Type DELETE to confirm";
 export const DELETE_TYPE_MESSAGE = "Your account and everything in it will be deleted for good.";
 export const DELETE_ERROR_TITLE = "Account not deleted";
