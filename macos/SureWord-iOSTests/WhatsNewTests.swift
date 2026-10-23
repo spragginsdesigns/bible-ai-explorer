@@ -60,6 +60,23 @@ final class WhatsNewTests: XCTestCase {
         XCTAssertEqual(WhatsNewTarget.allCases.count, 11)
     }
 
+    /// The catch-up is capped at the Android release this Apple build matches,
+    /// and that release must exist in the published notes: a typo too low
+    /// would hide every card, one too high would offer missing features.
+    func testCatchUpIsCappedAtAPublishedRelease() throws {
+        XCTAssertEqual(WhatsNewRules.catchUpPath, "/api/whats-new/catch-up?upTo=\(WhatsNewRules.appleParityVersionCode)")
+        let releasesURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../../src/content/whats-new/releases.json")
+            .standardizedFileURL
+        struct File: Decodable {
+            struct Release: Decodable { let versionCode: Int }
+            let releases: [Release]
+        }
+        let file = try JSONDecoder().decode(File.self, from: Data(contentsOf: releasesURL))
+        XCTAssertTrue(file.releases.contains { $0.versionCode == WhatsNewRules.appleParityVersionCode })
+    }
+
     func testDecodesServerDocumentAndToleratesNewerValues() throws {
         let json = """
         {"entries":[{"version":"1.98.0","versionCode":113,"date":"2026-10-20",

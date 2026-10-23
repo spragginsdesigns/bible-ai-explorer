@@ -156,6 +156,18 @@ enum WhatsNewDestination: Equatable {
 enum WhatsNewRules {
     static let pageSize = 12
 
+    /// The release notes are numbered by Android's versionCode, and Apple
+    /// builds number themselves, so each Apple release names the newest
+    /// Android release whose features it carries. The catch-up sends it as
+    /// `upTo`, the way Android sends its own code, so an Apple reader is never
+    /// shown (or marked as having seen) a feature this build does not have.
+    /// Raise it with every Apple release that catches up to a newer Android
+    /// one: 1.24.0 (30) carries Android 1.99.0 (114), Create an account.
+    static let appleParityVersionCode = 114
+
+    /// `GET /api/whats-new/catch-up`, capped at this build's features.
+    static var catchUpPath: String { "/api/whats-new/catch-up?upTo=\(appleParityVersionCode)" }
+
     static func destination(for target: WhatsNewTarget) -> WhatsNewDestination? {
         switch target {
         case .today: .section(.today)

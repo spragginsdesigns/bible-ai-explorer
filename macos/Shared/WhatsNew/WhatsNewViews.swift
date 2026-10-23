@@ -407,7 +407,7 @@ struct WhatsNewCatchUpPresenter: ViewModifier {
         guard consentSettled, let account = app.aiConsent.account, checkedFor != account else { return }
         checkedFor = account
         do {
-            let result = try await app.api.json("/api/whats-new/catch-up", as: WhatsNewCatchUp.self)
+            let result = try await app.api.json(WhatsNewRules.catchUpPath, as: WhatsNewCatchUp.self)
             if !result.cards.isEmpty, app.aiConsent.account == account {
                 lastSeen = result.seenUpTo
                 catchUp = result

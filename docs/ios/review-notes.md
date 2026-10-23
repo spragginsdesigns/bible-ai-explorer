@@ -68,9 +68,10 @@ MAIN FEATURES
 2. In the composer, "/check Jesus never claimed to be God" weighs a claim against Scripture; "/reply" drafts a gentle reply.
 3. The + button left of the text field attaches photos, documents or an audio file (e.g. a Voice Memos recording saved to Files); audio is transcribed with OpenAI and the chip shows the transcript.
 4. Bible tab: choose a book and chapter; tap a verse for an explanation, word study, highlights, copy, share and save to note.
-5. Pick Up Your Cross (a daily verse chosen for the user): the card at the top of the Bible tab. Its Listen card (Pro) plays the devotional aloud with lock-screen controls; on a free account it opens the SureWord Pro screen.
+5. Pick Up Your Cross (a daily verse chosen for the user): the first card on the Today tab (the first tab); tap Read today's word. Its Listen card (Pro) plays the devotional aloud with lock-screen controls; on a free account it opens the SureWord Pro screen.
 6. Settings > My church: search e.g. "First Baptist Church Dallas". Details come from Google Places; no location permission is requested.
-7. Notes tab: create a note; the AI button helps compose it.
+7. Study tab (the last tab) > Notes: create a note; the AI button helps compose it.
+8. SureWord Pro: on the Today tab, tap the gear at the top > AI > SureWord Pro. The row is always shown, even before the membership details load.
 
 OWN AI KEY (OPTIONAL)
 Settings > AI accepts the user's own OpenAI, Anthropic, Moonshot or OpenRouter key, billed by that provider. Keys are validated, encrypted at rest and never shown again. Not needed for review.

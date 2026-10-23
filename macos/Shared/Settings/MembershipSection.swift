@@ -39,11 +39,16 @@ struct MembershipSection: View {
         Section("Membership & included AI") {
             if let membership {
                 LabeledContent("Membership", value: membership.owner ? "Owner access" : membership.plan == "pro" ? "SureWord Pro" : "SureWord Free")
-                #if os(iOS)
-                // iOS only: Pro is sold in-app through StoreKit (App Review
-                // 3.1.3(b)). The Mac shows no purchase UI.
-                NavigationLink("SureWord Pro") { ProMembershipView() }
-                #endif
+            }
+            #if os(iOS)
+            // iOS only: Pro is sold in-app through StoreKit (App Review
+            // 3.1.3(b)). The Mac shows no purchase UI. Outside the membership
+            // check on purpose: a slow or failed /api/billing/status must
+            // never hide the way to buy, and ProMembershipView loads (and
+            // retries) the status itself.
+            NavigationLink("SureWord Pro") { ProMembershipView() }
+            #endif
+            if let membership {
                 if membership.owner {
                     Text("All paid benefits and configured models are available without a subscription.")
                         .font(.caption).foregroundStyle(.secondary)
