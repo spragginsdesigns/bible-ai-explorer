@@ -1,18 +1,24 @@
 import ClerkKit
 import SwiftUI
 
-/// Settings pane — the Mac form of `mobile/app/(app)/settings.tsx`, section for
-/// section: Appearance, Bible translation, Memory (enable + manage), Account and
-/// About.
+/// Settings, laid out like the Mac's own System Settings: a searchable sidebar
+/// of categories on the left and one page at a time on the right. The
+/// categories and what sits on each page follow Android's settings hub
+/// (`mobile/app/(app)/settings/index.tsx`): the account row on top, then Study,
+/// Assistant and App.
 struct SettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(Clerk.self) private var clerk
 
+    /// The page last opened, so Settings reopens where the reader left it.
+    @AppStorage("settings.mac.pane") private var savedPane = SettingsPane.appearance.rawValue
+    @State private var selection: SettingsPane? = nil
+    @State private var search = ""
+
     @State private var isConfirmingSignOut = false
     @State private var isMemoriesPresented = false
-    @State private var isFeedbackPresented = false
     @State private var isWhatsNewPresented = false
     /// Owned here rather than in the sheet so the saved count stays truthful
     /// after the sheet adds or deletes something.
@@ -30,111 +36,44 @@ struct SettingsView: View {
     @State private var sentCards = SentCardsModel()
 
     var body: some View {
-        @Bindable var settings = app.settings
-
         VStack(spacing: 0) {
-            Form {
-                Section("Appearance") {
-                    Picker("Theme", selection: $settings.appearance) {
-                        ForEach(AppearanceSetting.allCases, id: \.self) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    hint("System follows your Mac's dark or light mode.")
-                    Toggle("Parchment page", isOn: $settings.parchment)
-                    hint("Read Scripture on a parchment sheet, light or dark with the theme.")
-                }
-
-                Section("Bible") {
-                    Picker("Default translation", selection: $settings.translation) {
-                        ForEach(TranslationID.allCases, id: \.self) { option in
-                            Text(option.label).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    hint(
-                        "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
-                            + "SureWord's AI answers use the translation you select."
-                    )
-                }
-
-                HighlightLabelsSection(settings: app.settings, preferences: app.preferences)
-
-                chatNotificationSection
-
-                verseOfDaySection
-
-                providerSection
-
-                MembershipSection(api: app.api)
-
-                memorySection
-
-                AboutMeSection(settings: app.settings, preferences: app.preferences)
-
-                TestimonySection(settings: app.settings, preferences: app.preferences)
-
-                WebSearchSection(preferences: app.preferences)
-
-                AIConsentSettingsSection(store: app.aiConsent)
-
-                churchSection
-
-                sharedAnswersSection
-
-                SentCardsSectionView(model: sentCards)
-
-                Section("Account") {
-                    if let name = accountName {
-                        LabeledContent("Signed in as", value: name)
-                        if let email = clerk.user?.primaryEmailAddress?.emailAddress, email != name {
-                            LabeledContent("Email", value: email)
-                        }
-                    } else if let email = clerk.user?.primaryEmailAddress?.emailAddress {
-                        LabeledContent("Signed in as", value: email)
-                    }
-                    Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
-                    DeleteAccountRow(app: app) { dismiss() }
-                }
-
-                // Android's Settings -> APP -> Send feedback row; a sheet here,
-                // like Memories, because Settings is itself a sheet on the Mac.
-                Section {
-                    LabeledContent("Send feedback") {
-                        Button("Send feedback…") { isFeedbackPresented = true }
-                    }
-                    hint("Tell us what is broken or missing. A person reads every one of these.")
-                }
-
-                Section("About") {
-                    LabeledContent("Version", value: Config.appVersion)
-                    LabeledContent("What's new") {
-                        Button("Release notes…") { isWhatsNewPresented = true }
-                    }
-                    AboutLinkRows()
-                    hint("A Bible study assistant rooted in the King James Version.")
-                    hint(
-                        "Why it's different: ask a generic AI if the Bible is really the Word of God "
-                            + "and you'll hear \u{201C}it depends on your viewpoint.\u{201D} SureWord never "
-                            + "hedges — it answers as a Bible-believing Christian, standing on Scripture "
-                            + "as the inerrant, infallible, final authority for every answer. "
-                            + "\u{201C}All scripture is given by inspiration of God\u{201D} — 2 Timothy 3:16."
-                    )
-                }
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 236)
+                Divider().overlay(theme.border)
+                detail
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .formStyle(.grouped)
 
             Divider().overlay(theme.border)
 
             HStack {
+                Text("Changes save as you make them.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textFaint)
                 Spacer()
                 Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
-            .padding(Spacing.md)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
         }
-        .frame(width: 480, height: 560)
+        .frame(width: 860, height: 640)
+        .onAppear {
+            if selection == nil {
+                selection = SettingsPane(rawValue: savedPane) ?? .appearance
+            }
+        }
+        .onChange(of: selection) { _, pane in
+            if let pane { savedPane = pane.rawValue }
+        }
+        .onChange(of: search) { _, _ in
+            // Keep the page in view in step with the search: if the open page
+            // no longer matches, jump to the first one that does.
+            let matches = visiblePanes
+            if let selection, matches.contains(selection) { return }
+            if let first = matches.first { selection = first }
+        }
         .task {
             memory.configure(app.api)
             await memory.load()
@@ -165,22 +104,8 @@ struct SettingsView: View {
                 .analyticsScreen(AnalyticsScreen.memories)
                 .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
         }
-        .sheet(isPresented: $isFeedbackPresented) {
-            VStack(spacing: 0) {
-                FeedbackView(api: app.api)
-                Divider().overlay(theme.border)
-                HStack {
-                    Spacer()
-                    Button("Done") { isFeedbackPresented = false }
-                        .keyboardShortcut(.cancelAction)
-                }
-                .padding(Spacing.md)
-            }
-            .frame(width: 460, height: 600)
-            .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
-        }
-        // Android's Settings -> APP -> What's new row; a sheet here for the
-        // same reason as Send feedback. "Try it" closes Settings first.
+        // Android's Settings -> APP -> What's new row; a sheet here because
+        // Settings is itself a sheet on the Mac. "Try it" closes Settings first.
         .sheet(isPresented: $isWhatsNewPresented) {
             NavigationStack {
                 WhatsNewView(api: app.api) { destination in
@@ -214,6 +139,262 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You can sign back in at any time.")
+        }
+    }
+
+    // MARK: - Sidebar
+
+    /// Every page this account can open. My church drops out, like its
+    /// Android row, when the server has no Places key.
+    private var availablePanes: [SettingsPane] {
+        SettingsPane.allCases.filter { $0 != .church || church.state != .unavailable }
+    }
+
+    private var visiblePanes: [SettingsPane] {
+        availablePanes.filter { $0.matches(search) }
+    }
+
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.textFaint)
+                TextField("Search settings", text: $search)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .onSubmit {
+                        if let first = visiblePanes.first { selection = first }
+                    }
+                if !search.isEmpty {
+                    Button {
+                        search = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(theme.textFaint)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(theme.surfaceStrong, in: RoundedRectangle(cornerRadius: 7))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(theme.border))
+            .padding(.horizontal, Spacing.md)
+            .padding(.top, Spacing.md)
+            .padding(.bottom, Spacing.sm)
+
+            List(selection: $selection) {
+                let panes = visiblePanes
+                if panes.contains(.account) {
+                    accountRow.tag(SettingsPane.account)
+                }
+                ForEach(SettingsPane.Group.allCases, id: \.self) { group in
+                    let rows = panes.filter { $0.group == group }
+                    if !rows.isEmpty {
+                        Section(group.title) {
+                            ForEach(rows) { pane in
+                                SettingsSidebarRow(pane: pane).tag(pane)
+                            }
+                        }
+                    }
+                }
+                if panes.isEmpty {
+                    Text("No settings match \u{201C}\(search)\u{201D}.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textFaint)
+                        .selectionDisabled()
+                }
+            }
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+        }
+        .background(theme.bgElevated)
+    }
+
+    private var accountRow: some View {
+        HStack(spacing: 10) {
+            avatar(size: 34)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(accountName ?? accountEmail ?? "Signed in")
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+                Text(accountName == nil ? "SureWord account" : (accountEmail ?? "SureWord account"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 4)
+        .accessibilityIdentifier("settings.pane.account")
+    }
+
+    private func avatar(size: CGFloat) -> some View {
+        let initial = (accountName ?? accountEmail ?? "S").prefix(1).uppercased()
+        return ZStack {
+            Circle().fill(theme.accentSoft)
+            Text(initial)
+                .font(.system(size: size * 0.42, weight: .semibold))
+                .foregroundStyle(theme.accent)
+            if let url = clerk.user.flatMap({ URL(string: $0.imageUrl) }) {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color.clear
+                }
+                .clipShape(Circle())
+            }
+        }
+        .frame(width: size, height: size)
+        .overlay(Circle().strokeBorder(theme.accentBorder))
+        .accessibilityHidden(true)
+    }
+
+    // MARK: - Detail
+
+    @ViewBuilder
+    private var detail: some View {
+        let pane = selection ?? .appearance
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Spacing.md) {
+                if pane == .account {
+                    avatar(size: 44)
+                } else {
+                    SettingsIconTile(pane: pane, size: 36)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(pane.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(theme.text)
+                    Text(pane.summary)
+                        .font(.system(size: 12))
+                        .foregroundStyle(theme.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
+            .padding(.bottom, 4)
+
+            page(pane)
+                .id(pane)
+        }
+        .background(theme.bg)
+    }
+
+    @ViewBuilder
+    private func page(_ pane: SettingsPane) -> some View {
+        switch pane {
+        case .feedback:
+            // Its own Form, so it gets the page to itself.
+            FeedbackView(api: app.api)
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+        default:
+            Form {
+                sections(for: pane)
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    @ViewBuilder
+    private func sections(for pane: SettingsPane) -> some View {
+        @Bindable var settings = app.settings
+
+        switch pane {
+        case .account:
+            Section("Signed in") {
+                if let name = accountName {
+                    LabeledContent("Name", value: name)
+                }
+                if let email = accountEmail {
+                    LabeledContent("Email", value: email)
+                }
+            }
+            Section {
+                Button("Sign out", role: .destructive) { isConfirmingSignOut = true }
+                DeleteAccountRow(app: app) { dismiss() }
+            }
+
+        case .appearance:
+            Section("Appearance") {
+                Picker("Theme", selection: $settings.appearance) {
+                    ForEach(AppearanceSetting.allCases, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                hint("System follows your Mac's dark or light mode.")
+                Toggle("Parchment page", isOn: $settings.parchment)
+                hint("Read Scripture on a parchment sheet, light or dark with the theme.")
+            }
+
+            Section("Bible") {
+                Picker("Default translation", selection: $settings.translation) {
+                    ForEach(TranslationID.allCases, id: \.self) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                hint(
+                    "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
+                        + "SureWord's AI answers use the translation you select."
+                )
+            }
+
+        case .highlights:
+            HighlightLabelsSection(settings: app.settings, preferences: app.preferences)
+
+        case .church:
+            churchSection
+
+        case .memory:
+            memorySection
+            AboutMeSection(settings: app.settings, preferences: app.preferences)
+            TestimonySection(settings: app.settings, preferences: app.preferences)
+
+        case .ai:
+            providerSection
+            MembershipSection(api: app.api)
+            WebSearchSection(preferences: app.preferences)
+            AIConsentSettingsSection(store: app.aiConsent)
+
+        case .shared:
+            sharedAnswersSection
+            SentCardsSectionView(model: sentCards)
+
+        case .notifications:
+            chatNotificationSection
+            verseOfDaySection
+
+        case .feedback:
+            EmptyView()
+
+        case .about:
+            Section {
+                LabeledContent("Version", value: Config.appVersion)
+                LabeledContent("What's new") {
+                    Button("Release notes…") { isWhatsNewPresented = true }
+                }
+            }
+            Section("Links") {
+                AboutLinkRows()
+            }
+            Section("Why SureWord") {
+                Text("A Bible study assistant rooted in the King James Version.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.text)
+                hint(
+                    "Ask a generic AI if the Bible is really the Word of God "
+                        + "and you'll hear \u{201C}it depends on your viewpoint.\u{201D} SureWord never "
+                        + "hedges - it answers as a Bible-believing Christian, standing on Scripture "
+                        + "as the inerrant, infallible, final authority for every answer. "
+                        + "\u{201C}All scripture is given by inspiration of God\u{201D} - 2 Timothy 3:16."
+                )
+            }
         }
     }
 
@@ -356,10 +537,165 @@ struct SettingsView: View {
         return nil
     }
 
+    private var accountEmail: String? {
+        clerk.user?.primaryEmailAddress?.emailAddress
+    }
+
     private func hint(_ text: String) -> some View {
         Text(text)
             .font(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Categories
+
+/// One page of Settings. Grouped, named and ordered like Android's hub rows.
+enum SettingsPane: String, CaseIterable, Identifiable {
+    case account, appearance, highlights, church, memory, ai, shared, notifications, feedback, about
+
+    enum Group: CaseIterable {
+        case study, assistant, app
+
+        var title: String {
+            switch self {
+            case .study: "Study"
+            case .assistant: "Assistant"
+            case .app: "App"
+            }
+        }
+    }
+
+    var id: String { rawValue }
+
+    /// nil for the account row, which sits above the groups.
+    var group: Group? {
+        switch self {
+        case .account: nil
+        case .appearance, .highlights, .church: .study
+        case .memory, .ai, .shared: .assistant
+        case .notifications, .feedback, .about: .app
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .account: "Account"
+        case .appearance: "Appearance & reading"
+        case .highlights: "Highlight labels"
+        case .church: "My church"
+        case .memory: "Memory"
+        case .ai: "AI"
+        case .shared: "Shared answers"
+        case .notifications: "Notifications"
+        case .feedback: "Send feedback"
+        case .about: "About"
+        }
+    }
+
+    /// The line under the page title, saying what the page is for.
+    var summary: String {
+        switch self {
+        case .account: "Who is signed in, signing out, and deleting your account."
+        case .appearance: "Theme, the parchment page, and your default Bible translation."
+        case .highlights: "Names and meanings for your highlight colours."
+        case .church: "The congregation you belong to."
+        case .memory: "What SureWord remembers about you, and what you've told it."
+        case .ai: "Your own AI keys, SureWord Pro, web search and data sharing."
+        case .shared: "Public links to answers and verse cards you've sent."
+        case .notifications: "The daily verse reminder and answer-ready notices."
+        case .feedback: "Tell us what is broken or missing."
+        case .about: "Version, release notes and links."
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .account: "person.crop.circle"
+        case .appearance: "paintpalette.fill"
+        case .highlights: "highlighter"
+        case .church: "building.columns.fill"
+        case .memory: "sparkles"
+        case .ai: "cpu.fill"
+        case .shared: "square.and.arrow.up.fill"
+        case .notifications: "bell.badge.fill"
+        case .feedback: "bubble.left.and.text.bubble.right.fill"
+        case .about: "info.circle.fill"
+        }
+    }
+
+    /// System Settings-style tile colours, so a page is found by colour as
+    /// much as by name.
+    var tint: Color {
+        switch self {
+        case .account: .gray
+        case .appearance: .indigo
+        case .highlights: .orange
+        case .church: .brown
+        case .memory: .purple
+        case .ai: .teal
+        case .shared: .blue
+        case .notifications: .red
+        case .feedback: .green
+        case .about: .gray
+        }
+    }
+
+    /// Words a reader might search for that are on the page but not in its title.
+    private var keywords: [String] {
+        switch self {
+        case .account: ["sign out", "log out", "delete", "email", "profile"]
+        case .appearance: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible"]
+        case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
+        case .church: ["church", "congregation", "mission"]
+        case .memory: ["memories", "about me", "testimony", "personal", "remember"]
+        case .ai: ["api key", "provider", "model", "openai", "anthropic", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"]
+        case .shared: ["links", "share", "cards", "revoke", "privacy"]
+        case .notifications: ["verse of the day", "reminder", "daily", "chat", "alert"]
+        case .feedback: ["bug", "report", "suggestion", "contact"]
+        case .about: ["version", "what's new", "release notes", "privacy policy", "terms", "website"]
+        }
+    }
+
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespaces).lowercased()
+        if query.isEmpty { return true }
+        return title.lowercased().contains(query)
+            || summary.lowercased().contains(query)
+            || keywords.contains { $0.contains(query) }
+    }
+}
+
+/// A rounded, filled square holding the page's symbol, as in System Settings.
+struct SettingsIconTile: View {
+    let pane: SettingsPane
+    var size: CGFloat = 22
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: size * 0.27, style: .continuous)
+            .fill(pane.tint.gradient)
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: pane.symbol)
+                    .font(.system(size: size * 0.5, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .accessibilityHidden(true)
+    }
+}
+
+private struct SettingsSidebarRow: View {
+    let pane: SettingsPane
+
+    var body: some View {
+        Label {
+            Text(pane.title)
+                .font(.system(size: 13))
+        } icon: {
+            SettingsIconTile(pane: pane)
+        }
+        .padding(.vertical, 2)
+        .accessibilityIdentifier("settings.pane.\(pane.rawValue)")
     }
 }
