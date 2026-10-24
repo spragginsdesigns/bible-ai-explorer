@@ -52,7 +52,7 @@ WHAT IT IS
 A Bible study app for Christians, made by LineCrush Inc. The Bible text is the King James Version (public domain), built in and readable offline. An AI assistant answers Bible questions by first searching the Scripture text, then quoting and citing it.
 
 DEMO ACCOUNT
-Use the Sign-in Information above: enter the email, tap Continue, then enter the password. The demo account is now a normal free account (it no longer has Pro granted), so the SureWord Pro purchase screen shows the Subscribe button.
+Use the Sign-in Information above: on the welcome screen tap Sign in, enter the email, tap Continue, then enter the password. The demo account is now a normal free account (it no longer has Pro granted), so the SureWord Pro purchase screen shows the Subscribe button.
 
 IN-APP PURCHASE
 SureWord Pro (com.spragginsdesigns.sureword.pro.monthly), an optional monthly auto-renewing subscription sold with StoreKit 2, is submitted with this version. Find it at Settings (gear) > AI > SureWord Pro: price, Subscribe, Restore Purchases, terms, Privacy Policy and EULA. Use a Sandbox Apple Account to buy. Pro unlocks Listen (spoken devotional) and more daily AI messages.
