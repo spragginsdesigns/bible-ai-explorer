@@ -6,6 +6,7 @@ import { spacing } from "@/theme";
 import {
 	setBibleTranslation,
 	setParchmentEnabled,
+	setQuizOffer,
 	setThemeMode,
 	useSettings,
 } from "@/features/settings/settingsStore";
@@ -53,6 +54,12 @@ export default function AppearanceSettingsScreen() {
 					value={settings.parchment}
 					onValueChange={setParchmentEnabled}
 					accessibilityLabel="Parchment reader"
+				/>
+				<SettingsSwitchRow
+					title="Offer a quiz after each chapter"
+					hint="A short, optional quiz at the end of each chapter. Every answer comes with its verse."
+					value={settings.quizOffer}
+					onValueChange={setQuizOffer}
 				/>
 			</GlassCard>
 

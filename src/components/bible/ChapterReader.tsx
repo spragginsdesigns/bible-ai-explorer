@@ -49,6 +49,7 @@ import VerseNotesSection from "./VerseNotesSection";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
 import AddToNoteDialog from "../AddToNoteDialog";
+import QuizEntryCard from "../quiz/QuizEntryCard";
 import ShareCardDialog from "../share/ShareCardDialog";
 import type { ShareCardTarget } from "@/lib/share-cards/targets";
 import { useChapterAudio } from "./useChapterAudio";
@@ -1014,6 +1015,20 @@ const ChapterReader: React.FC = () => {
                   </div>
                 );
               })}
+
+              {/* Quiz me: offered at the end of the chapter to a signed-in
+                  reader; keyed so paging in place resets the card. */}
+              {user ? (
+                <QuizEntryCard
+                  key={`${order}:${chapter}`}
+                  book={order}
+                  chapter={chapter}
+                  bookName={book.name}
+                  notKjv={lcGreek || translation !== "KJV"}
+                  parchment={parchment}
+                  href={navHref({ order, chapter }).replace("/bible/chapter?", "/bible/quiz?")}
+                />
+              ) : null}
 
               {/* Footer */}
               <p

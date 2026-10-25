@@ -27,6 +27,8 @@ import {
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import {
 	readParchmentPref,
+	readQuizOfferPref,
+	writeQuizOfferPref,
 	readTranslationPref,
 	readMemoryEnabledPref,
 	writeMemoryEnabledPref,
@@ -86,6 +88,8 @@ export default function SettingsPage() {
 	// soon as the account document is hydrated.
 	const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
 	const parchmentEnabled = usePreference(readParchmentPref, true);
+	// Device-only (never synced): whether the reader offers a quiz at a chapter's end.
+	const quizOfferEnabled = usePreference(readQuizOfferPref, true);
 	const memoryEnabled = usePreference(readMemoryEnabledPref, null);
 	const webSearchEnabled = usePreference(readWebSearchEnabledPref, null);
 	const [memoryCount, setMemoryCount] = useState<number | null>(null);
@@ -249,6 +253,38 @@ export default function SettingsPage() {
 									<span
 										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
 											parchmentEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+										}`}
+									/>
+								</button>
+							</div>
+							<div className="flex items-center justify-between gap-4 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
+								<div>
+									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										Offer a quiz after each chapter
+									</p>
+									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+										A short, optional quiz at the end of each chapter. Every answer comes with its verse.
+									</p>
+								</div>
+								<button
+									type="button"
+									role="switch"
+									aria-checked={quizOfferEnabled}
+									aria-label="Offer a quiz after each chapter"
+									disabled={!mounted}
+									onClick={() => {
+										writeQuizOfferPref(!quizOfferEnabled);
+										notifyPreferencesChanged();
+									}}
+									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+										quizOfferEnabled
+											? "bg-amber-500 dark:bg-amber-400"
+											: "bg-black/[0.15] dark:bg-white/[0.15]"
+									}`}
+								>
+									<span
+										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+											quizOfferEnabled ? "translate-x-[22px]" : "translate-x-0.5"
 										}`}
 									/>
 								</button>

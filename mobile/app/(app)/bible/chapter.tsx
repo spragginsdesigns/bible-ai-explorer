@@ -88,6 +88,7 @@ import { VerseSheet, type VerseSheetTier } from "@/features/bible/verse-sheet/Ve
 import { VerseActionBar, type VerseAction } from "@/features/bible/verse-sheet/VerseActionBar";
 import { StudyTabs } from "@/features/bible/verse-sheet/StudyTabs";
 import { InsightTeaser } from "@/features/bible/verse-sheet/InsightTeaser";
+import { QuizOfferCard } from "@/features/quiz/QuizOfferCard";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import {
 	setBibleTranslation,
@@ -250,6 +251,7 @@ export default function BibleChapterScreen() {
 	const router = useRouter();
 	const segments: readonly string[] = useSegments();
 	const chapterPath = segments.includes("today") ? "/today/chapter" : segments.includes("study") ? "/study/chapter" : "/bible/chapter";
+	const quizPath = segments.includes("today") ? "/today/quiz" : segments.includes("study") ? "/study/quiz" : "/bible/quiz";
 	const readingStatus = useReadingLogStatus();
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
@@ -690,6 +692,21 @@ export default function BibleChapterScreen() {
 		},
 		[router, closeSheet, translation],
 	);
+
+	// "Quiz me" at the end of the chapter, pushed on this reader's own stack so
+	// closing it comes back here. A route translation override rides along so
+	// "Read in context" and "Continue" keep showing the same text.
+	const startQuiz = useCallback(() => {
+		closeSheet();
+		router.push({
+			pathname: quizPath,
+			params: {
+				book: String(order),
+				chapter: String(chapter),
+				...(sourceTranslationParam ? { translation: sourceTranslationParam } : {}),
+			},
+		});
+	}, [closeSheet, router, quizPath, order, chapter, sourceTranslationParam]);
 
 	// The Words tab's two buttons: both prefill the composer, but only a
 	// question about this verse pins the passage. A search across the whole
@@ -1162,6 +1179,14 @@ export default function BibleChapterScreen() {
 						}}
 						ListFooterComponent={
 							<View>
+								<QuizOfferCard
+									key={chapterKey}
+									book={order}
+									chapter={chapter}
+									bookName={book.name}
+									textOnScreen={textLabel}
+									onStart={startQuiz}
+								/>
 								<Text
 									style={[styles.copyright, !parchment && { color: colors.textGhost, opacity: 1 }]}
 								>

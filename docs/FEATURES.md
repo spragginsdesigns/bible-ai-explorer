@@ -1745,6 +1745,75 @@ is three paths of tiered opacity. Android: `mobile/app/(app)/connections.tsx`
 with `mobile/src/features/connections/` (ring, explain sheet, data, stream
 hook).
 
+## Quiz me
+
+Added 2026-10-25 from David Rowan's closed-testing suggestion ("why not add a
+Bible quiz feature that users can explore after their Bible studies?"). Plan,
+mockups and the reasoning behind every choice: [`quiz/PLAN.md`](quiz/PLAN.md).
+Free for everyone, and always optional.
+
+**What the reader sees.** At the end of every chapter, under the last verse,
+a card offers "Quiz me on John 3": five multiple-choice questions on that
+chapter. Each question names its verse first ("FROM VERSE 3"), and every
+answer, right or wrong, is followed by the KJV verse itself with Read in
+context and Ask about this. The results say "You remembered 4 of 5", show each
+miss with its verse and Learn this verse (Learn source `quiz`), and end with
+one reflection prompt that can be saved as a note. No streaks, hearts, XP,
+badges, confetti or scores out of 100. "Not now" hides the card for that
+chapter on that device, and Settings has "Offer a quiz after each chapter"
+(on by default, device-only, not synced).
+
+**Two depths.** *Foundations* (`seeking`: who, what, where, what Jesus said)
+and *Going deeper* (`growing`: what a verse teaches, how the chapter fits
+together). The default comes from the reader's own words (About me and, when
+memory is on, profile memories) through `defaultDepthFromProfile`; someone
+who says they are still seeking gets Foundations, everyone else Going deeper.
+The reader can switch before the first answer. The plan's third depth (cross
+references and original words), reading-plan quizzes and a chat `startQuiz`
+tool are not built yet.
+
+### The answer is always the verse
+
+The model writes eight drafts per chapter from the whole KJV chapter; each
+draft is checked mechanically in `src/lib/quiz-rules.ts` before it can reach
+anyone. A draft is dropped when its right answer is not words the cited verse
+says (`answerIsGrounded`, 5-letter stems so "believeth" meets "believes"),
+when a wrong answer is the verse's own words (`distractorContradictsVerse`),
+when the right answer is much longer than every wrong one
+(`answerStandsOut`), or for bad verse numbers, duplicate options or length.
+The verse text shown is always read from the bundled KJV, never from the
+model. Five survivors are picked one per verse first and put in chapter
+order; the answer position is seeded per question so a chapter reads the
+same for everyone. Fewer than three survivors is a 502.
+
+### API
+
+| Route | Auth | What |
+|---|---|---|
+| `POST /api/quiz` | session, consent `tap`, included AI request | `{ book, chapter, depth?, modelId? }` returns a `ChapterQuiz` (`src/lib/quiz-contract.ts`). A full set is stored in `QuizBank` per (book, chapter, depth, `QUIZ_PROMPT_VERSION`) and shared by every reader, so the second reader of a chapter gets it instantly (`X-Quiz-Cache: hit`). A short set is served but not stored. Errors: 400 bad reference, 403 consent or credential, 429 rate limited, 502 `code: "unavailable"` |
+| `POST /api/quiz/attempt` | session | `{ book, chapter, depth, total, correct, missedVerses }`, validated by `parseAttempt`; one `QuizAttempt` row per finished quiz, 201 `{ id }` |
+
+Bump `QUIZ_PROMPT_VERSION` in `src/lib/quiz.ts` when the prompt or the rules
+change, so old banks stop being served. Migration
+`20261025120000_chapter_quiz` (applied to production neondb 2026-10-25 through
+the Neon MCP). `QuizAttempt` cascades on account deletion.
+
+**Where it feeds back.** Missed verses from the last attempts reach the study
+context (`quizBlock` in `src/lib/study-context.ts`) and the reading reflection
+prompt as "worth returning to, never a failure". Analytics are server-only
+(`quiz_started`, `quiz_completed`: coordinates and counts, never question or
+answer text).
+
+### Clients
+
+The contract is mirrored by `mobile/src/features/quiz/quizContract.ts` and
+`macos/Shared/Quiz/QuizModels.swift`. Android: `mobile/src/features/quiz/` and
+the `quiz` route in the bible stack (today and study re-export it). Web:
+`src/components/quiz/` and `/bible/quiz?book=&chapter=` (two columns on wide
+screens: the chapter with the question's verse lit beside the quiz; A-D, 1-4
+and Enter on the keyboard). Apple: `macos/Shared/Quiz/`, used by the iOS
+`ChapterReaderView` and the macOS `ChapterReaderPane`.
+
 ## Timeline, People & Places
 
 A KJV-grounded reference for **when** things happened and **who** and **where** -

@@ -44,6 +44,11 @@ export interface Settings {
 	 * setting like `themeMode`: it never leaves the phone.
 	 */
 	lcGreek: boolean;
+	/**
+	 * Offer "Quiz me" at the end of each chapter in the reader. A device setting
+	 * like `lcGreek`: it never leaves the phone. Default on.
+	 */
+	quizOffer: boolean;
 	/** Chat model/effort picks, sent with every chat request. Null = server default. */
 	chatModelId: string | null;
 	chatEffort: string | null;
@@ -77,6 +82,7 @@ const STORAGE_KEY = "sureword.settings.v1";
 const DEFAULT_SETTINGS: Settings = {
 	themeMode: "system",
 	lcGreek: false,
+	quizOffer: true,
 	...DEFAULT_SYNCED_SETTINGS,
 };
 
@@ -113,6 +119,8 @@ export async function hydrateSettings(): Promise<void> {
 			translation: parsed.translation === "BSB" ? "BSB" : parsed.translation === "NKJV" ? "NKJV" : "KJV",
 			parchment: parsed.parchment !== false,
 			lcGreek: parsed.lcGreek === true,
+			// Default on, so a cache from before the setting existed keeps the offer.
+			quizOffer: parsed.quizOffer !== false,
 			chatModelId: typeof parsed.chatModelId === "string" ? parsed.chatModelId : null,
 			chatEffort: typeof parsed.chatEffort === "string" ? parsed.chatEffort : null,
 			// This list is a whitelist, not a merge: a run option missing here is
@@ -192,6 +200,11 @@ export function setThemeMode(themeMode: ThemeMode) {
 /** Device setting by decision, like the theme. */
 export function setLcGreek(lcGreek: boolean) {
 	setSnapshot({ ...snapshot, lcGreek });
+}
+
+/** Device setting by decision, like the theme. */
+export function setQuizOffer(quizOffer: boolean) {
+	setSnapshot({ ...snapshot, quizOffer });
 }
 
 export function setBibleTranslation(translation: TranslationId) {
@@ -320,11 +333,17 @@ export function applyServerPreferences(doc: PreferencesDocument) {
 
 /**
  * Drop the synced fields when the cache turns out to belong to another
- * account. `themeMode` and `lcGreek` survive: they are device settings, and
- * flipping the app to dark mid-session on a user switch would be startling and wrong.
+ * account. `themeMode`, `lcGreek` and `quizOffer` survive: they are device
+ * settings, and flipping the app to dark mid-session on a user switch would be
+ * startling and wrong.
  */
 export function resetSyncedSettings() {
-	setSnapshot({ ...DEFAULT_SETTINGS, themeMode: snapshot.themeMode, lcGreek: snapshot.lcGreek });
+	setSnapshot({
+		...DEFAULT_SETTINGS,
+		themeMode: snapshot.themeMode,
+		lcGreek: snapshot.lcGreek,
+		quizOffer: snapshot.quizOffer,
+	});
 }
 
 function subscribe(listener: () => void): () => void {

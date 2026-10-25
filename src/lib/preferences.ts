@@ -274,6 +274,31 @@ export function writeLcGreekPref(enabled: boolean) {
 }
 
 /**
+ * "Offer a quiz after each chapter" (Quiz me, docs/quiz/PLAN.md): the card at
+ * the end of a reader chapter. Kept on this device only, like the LC Greek
+ * chip, so it never reaches the account document. Default on.
+ */
+export const QUIZ_OFFER_PREF_KEY = "sureword-quiz-offer";
+
+export function readQuizOfferPref(): boolean {
+	if (typeof window === "undefined") return true;
+	try {
+		return window.localStorage.getItem(QUIZ_OFFER_PREF_KEY) !== "false";
+	} catch {
+		return true;
+	}
+}
+
+export function writeQuizOfferPref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	try {
+		window.localStorage.setItem(QUIZ_OFFER_PREF_KEY, String(enabled));
+	} catch {
+		// Blocked storage keeps the default for this visit.
+	}
+}
+
+/**
  * Chat model/effort picks. Sent with every chat request; the server persists
  * the last choice as the account default so other clients follow along.
  * Null means "no local pick" — the server falls back to the account default.
