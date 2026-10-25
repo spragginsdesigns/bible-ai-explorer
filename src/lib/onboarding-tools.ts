@@ -10,6 +10,7 @@ import {
 	APP_TARGETS,
 	APP_TARGET_KEYS,
 	ONBOARDING_STEPS,
+	STEP_CARDS,
 	TOUR_STOPS,
 	resolveChoiceCard,
 	type AppTarget,
@@ -49,7 +50,10 @@ export function buildOnboardingTools(userId: string, context: AgentActionContext
 				return { success: true as const };
 			};
 			const userText = context.userText?.() ?? "";
-			const explicitInitialSave = !existing && isInitialProfileSaveRequest(userText, field);
+			// Tapping "Yes, save it" on the About me card answers that card's own
+			// question, so it counts as the explicit ask; no second confirmation.
+			const tappedSave = field === "aboutMe" && userText.trim() === STEP_CARDS.aboutMe.options?.[0];
+			const explicitInitialSave = !existing && (tappedSave || isInitialProfileSaveRequest(userText, field));
 			return await (explicitInitialSave ? save() : executeApprovedAction(context, field === "testimony" ? "saveTestimony" : "saveAboutMe", { text }, save));
 		} catch (error) {
 			if (error instanceof AgentActionError) return { success: false as const, error: error.message };
