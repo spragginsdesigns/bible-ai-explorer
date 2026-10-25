@@ -220,8 +220,8 @@ export default function SettingsPage() {
 		memory: memorySubtitle,
 		ai:
 			webSearchEnabled === null
-				? "Membership, provider keys, web search"
-				: `Membership, provider keys · web search ${webSearchEnabled ? "on" : "off"}`,
+				? "Membership, keys, web search"
+				: `Membership, keys · web search ${webSearchEnabled ? "on" : "off"}`,
 		shared: "Links you have shared",
 		notifications: "Daily verse and answer-ready notices",
 		feedback: "Tell us what is broken or missing",
@@ -425,7 +425,7 @@ export default function SettingsPage() {
 										className="flex min-h-[56px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 									>
 										<span
-											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border font-[family-name:var(--font-pirata)] text-[15px] tracking-wide ${
+											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border text-[12px] font-extrabold tracking-wider ${
 												active
 													? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
 													: "border-black/[0.08] bg-black/[0.03] text-neutral-500 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-400"
