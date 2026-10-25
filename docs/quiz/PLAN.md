@@ -50,7 +50,10 @@ choice below follows from that.
 
 - **End of a chapter in the reader**, after the chapter counts as read (the
   existing ~5 s `POST /api/reading-events`). One card, dismissible, with "Not now"
-  remembered per chapter. Never a modal, never before reading.
+  remembered per chapter. Never a modal, never before reading. Always
+  optional: the card is an offer under the last verse, reading on to the next
+  chapter skips it, and Settings has "Offer a quiz after each chapter" (on by
+  default) for anyone who never wants to see it.
 - **A finished reading-plan day**: "Day 12 done. Quiz me on today's reading"
   covers the day's chapters (5 questions spread across them).
 - **Chat**: a `startQuiz` tool so "quiz me on what we just studied" renders the
@@ -116,8 +119,9 @@ stays visible beside the question), then macOS and iOS
    ladder, a quiz over a whole book, a quiz shared to a friend through the
    existing share links.
 
-## Open questions for Austin
+## Decisions (Austin, 2026-10-25)
 
-- Free for everyone, or the deep depth behind Pro?
-- Should the reader card appear after every chapter, or only when a plan or
-  study is active? (Recommendation: every chapter, dismissible, remembered.)
+- **Free for everyone**, every depth. No part of the quiz sits behind Pro.
+- **Offered after every chapter, always optional**: dismissible per chapter,
+  skipped by reading on, and switchable off in Settings. Never required to
+  finish a chapter or a plan day.
