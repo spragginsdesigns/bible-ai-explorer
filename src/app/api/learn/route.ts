@@ -8,7 +8,7 @@ const addSchema = z.object({
 	chapter: z.number().int().min(1).max(200),
 	verse: z.number().int().min(1).max(200),
 	translation: z.enum(["KJV", "NKJV", "BSB"]),
-	source: z.enum(["sheet", "highlight", "chat", "suggestion"]),
+	source: z.enum(["sheet", "highlight", "chat", "suggestion", "quiz"]),
 });
 
 /**
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
 			return NextResponse.json(
 				{
 					error:
-						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV, NKJV or BSB and a 'source' of sheet, highlight, chat or suggestion are required.",
+						"Invalid input: 'book' (1-66), 'chapter', 'verse', a 'translation' of KJV, NKJV or BSB and a 'source' of sheet, highlight, chat, suggestion or quiz are required.",
 				},
 				{ status: 400 }
 			);

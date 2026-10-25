@@ -109,6 +109,7 @@ model User {
   suggestedQuestionSets  SuggestedQuestionSet[]
   readingPlans           ReadingPlan[]
   verseMemories          VerseMemory[]
+  quizAttempts           QuizAttempt[]
   learnReviewReceipts    LearnReviewReceipt[]
   feedback               Feedback[]
   church                 UserChurch?
@@ -837,6 +838,42 @@ model VerseWordStudy {
   @@unique([book, chapter, verse, promptVersion])
 }
 
+/// "Quiz me" question bank for one chapter at one depth (docs/FEATURES.md,
+/// "Quiz me"), shared across every account like VerseWordStudy: the questions
+/// are written from the KJV chapter alone and validated against it, so one
+/// bank serves every reader. `data` is `{ questions, reflection }` as the
+/// /api/quiz route serves them. Bump `promptVersion` with the prompt wording.
+model QuizBank {
+  id            String   @id @default(cuid())
+  book          Int
+  chapter       Int
+  depth         String // "seeking" | "growing"
+  promptVersion Int
+  data          String   @db.Text
+  model         String?
+  createdAt     DateTime @default(now())
+
+  @@unique([book, chapter, depth, promptVersion])
+}
+
+/// One finished quiz. Coordinates and counts only, never the questions or the
+/// answers: the misses come back through the study context so the daily cross
+/// can return to a verse that did not stick.
+model QuizAttempt {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book         Int
+  chapter      Int
+  depth        String
+  total        Int
+  correct      Int
+  missedVerses Int[]
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
 /// The one line of encouragement a share card can carry under a verse
 /// (docs/FEATURES.md, "Share cards"), shared across every account like
 /// VerseInsight: it is written from the KJV text alone, so one line serves
@@ -921,7 +958,7 @@ model VerseMemory {
   chapter        Int
   verse          Int
   translation    String    @default("KJV") // "KJV" | "NKJV"
-  source         String // "sheet" | "highlight" | "chat" | "suggestion"
+  source         String // "sheet" | "highlight" | "chat" | "suggestion" | "quiz"
   stage          Int       @default(0) // 0-3
   revision       Int       @default(0)
   intervalDays   Int       @default(0)

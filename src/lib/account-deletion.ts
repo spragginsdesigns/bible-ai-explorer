@@ -82,6 +82,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "ReadingPlan", via: "cascade" },
 	{ model: "ReadingPlanCompletion", via: "cascade", parent: "ReadingPlan" },
 	{ model: "VerseMemory", via: "cascade" },
+	{ model: "QuizAttempt", via: "cascade" },
 	{ model: "LearnReviewReceipt", via: "cascade" },
 	{ model: "ReadingLogEntry", via: "cascade" },
 	{ model: "ReadingLogChapter", via: "cascade" },

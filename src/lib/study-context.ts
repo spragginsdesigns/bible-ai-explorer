@@ -2,6 +2,7 @@ import { recentReadingChapters } from "@/lib/reading-log";
 import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
 import { prisma } from "@/lib/prisma";
+import { recentQuizMisses } from "@/lib/quiz";
 import { getTodayPlanReading } from "@/lib/reading-plans";
 import {
 	PLACEHOLDER_NOTE_TITLE,
@@ -61,6 +62,12 @@ export interface StudyContext {
 	 */
 	churchBlock: string;
 	/**
+	 * Verses they recently got wrong in a chapter quiz ("John 3:14"), newest
+	 * first, or "(none)". A miss is a verse that did not stick, which is a
+	 * reason to come back to it, never a mark against them.
+	 */
+	quizBlock: string;
+	/**
 	 * Which memories (`id:` plus a content fingerprint) and notes the blocks
 	 * above were built from, so a stored artifact written from them (the reading
 	 * log reflection) can be retired once one is deleted or rewritten.
@@ -76,7 +83,7 @@ export interface StudyContext {
 
 export async function loadStudyContext(userId: string): Promise<StudyContext> {
 	const readingSince = new Date(Date.now() - READING_HISTORY_DAYS * 24 * 60 * 60 * 1000);
-	const [readingEvents, messages, notes, memories, recentPicks, planReading, church] = await Promise.all([
+	const [readingEvents, messages, notes, memories, recentPicks, planReading, church, quizMisses] = await Promise.all([
 		recentReadingChapters(userId, readingSince, 200),
 		prisma.message.findMany({
 			where: { role: "user", conversation: { userId } },
@@ -112,6 +119,11 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 		}),
 		// loadUserChurch never throws; it answers null when the read fails.
 		loadUserChurch(userId),
+		// Best effort, like the plan: a failed read only loses the quiz line.
+		recentQuizMisses(userId).catch((error: unknown) => {
+			console.error("[study-context] Quiz misses lookup failed:", error);
+			return [];
+		}),
 	]);
 
 	const readingCounts = new Map<string, number>();
@@ -145,6 +157,7 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 			? `${church.name}, ${church.address}` +
 				`${church.mission ? ` - their stated mission: ${church.mission.slice(0, CHURCH_MISSION_SNIPPET_LENGTH)}` : ""}`
 			: "(none)",
+		quizBlock: quizMisses.map((miss) => miss.reference).join(", ") || "(none)",
 		sources: {
 			memories: memories.map((memory) => memorySourceKey(memory.id, memory.content)),
 			notes: notes.map((note) => note.id),

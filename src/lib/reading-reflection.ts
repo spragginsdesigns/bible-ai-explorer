@@ -170,6 +170,7 @@ async function buildPrompt(
 		`Where they left off: ${latest ? `${bookByOrder(latest.book)?.name} ${latest.chapter}${latest.completed ? "" : " (part)"}` : "(none)"}. Natural next chapter: ${nextName}.`,
 		`Books they have read in:\n${formatBookCoverage(overview.books, BOOKS)}`,
 		`Their reading plan today:\n${study.planBlock}`,
+		`Verses they missed in a recent chapter quiz (worth returning to, never a failure):\n${study.quizBlock}`,
 		`Questions they have asked SureWord recently:\n${study.questionsBlock}`,
 		`Their notes:\n${study.notesBlock}`,
 		`What SureWord remembers about them (respecting their memory setting):\n${study.memoriesBlock}`,

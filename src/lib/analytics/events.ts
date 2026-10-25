@@ -36,6 +36,10 @@ export const ANALYTICS_EVENTS = {
 	verseInsightOpened: "verse_insight_opened",
 	/** A tapped word produced a word study. */
 	verseWordStudied: "verse_word_studied",
+	/** A chapter quiz was served. Book, chapter, depth and cache hit, never a question. */
+	quizStarted: "quiz_started",
+	/** A chapter quiz was finished. Book, chapter, depth and the score, never an answer. */
+	quizCompleted: "quiz_completed",
 	/** The Daily Cross was opened for a given day. */
 	dailyCrossViewed: "daily_cross_viewed",
 	/** The spoken devotional was requested or played. */
