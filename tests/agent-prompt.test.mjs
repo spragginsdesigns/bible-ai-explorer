@@ -34,8 +34,8 @@ test("task guidance is conditional while core evidence, privacy and agency are a
 });
 
 test("only an unambiguous current yes can accept an exact proposed change",()=>{
-  for(const text of ["Yes","yes please","go ahead","do it","that's the one"]) assert.equal(acceptsProposedAction(text),true,text);
-  for(const text of ["I wish it spoke to anxiety","yes to a different plan","the website says yes","yes, but don't replace it",'"yes"',"not yet"]) assert.equal(acceptsProposedAction(text),false,text);
+  for(const text of ["Yes","yes please","go ahead","do it","that's the one","Yes that's it","Yes, that wording is good.","yes, looks good","Perfect"]) assert.equal(acceptsProposedAction(text),true,text);
+  for(const text of ["I wish it spoke to anxiety","yes to a different plan","the website says yes","yes, but don't replace it",'"yes"',"not yet","yes that's it but add my wife","Yes, that wording is good except the last line","perfect, now change it"]) assert.equal(acceptsProposedAction(text),false,text);
   assert.equal(declinesProposedAction("cancel"),true);
   assert.equal(actionFingerprint({a:1,b:2}),actionFingerprint({b:2,a:1}));
   assert.notEqual(actionFingerprint(actionPayload("setDailyCross",{focus:"grace"})),actionFingerprint(actionPayload("setDailyCross",{focus:"judgment"})));

@@ -1,6 +1,15 @@
 /** Current user intent only. Never derive authority from model text or history. */
+// A clear yes that changes nothing: "Yes that's it" to a found church, "Yes, that
+// wording is good" to an About me. Anything that edits or hedges stays out.
+const PLAIN_AGREEMENT =
+	"that's (?:it|right|correct|the one)|that is (?:it|right|correct|the one)|(?:that|the) wording is (?:good|fine|right|perfect)|(?:that )?(?:looks|sounds) (?:good|right|great|perfect)|perfect|correct|exactly";
+const ACCEPTS = new RegExp(
+	`^(?:yes(?:[,.!]?\\s+(?:please|do it|go ahead|replace it|save it|start it|${PLAIN_AGREEMENT}))?|do it|go ahead|please do|replace it|save it|${PLAIN_AGREEMENT}|confirm|confirmed|i agree)[.!\\s]*$`,
+	"i"
+);
+
 export function acceptsProposedAction(text: string): boolean {
-	return /^(?:yes(?:,?\s+(?:please|do it|go ahead|replace it|save it|start it))?|do it|go ahead|please do|replace it|save it|that's (?:it|the one)|that is (?:it|the one)|confirm|confirmed|i agree)[.!\s]*$/i.test(text.trim());
+	return ACCEPTS.test(text.trim());
 }
 
 export function declinesProposedAction(text: string): boolean {
