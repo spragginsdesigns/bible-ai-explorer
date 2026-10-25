@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.100.0",
+			"versionCode": 116,
+			"date": "2026-10-25",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Quiz me: at the end of any chapter, take a short 5 question quiz on what you just read. Every answer comes with its verse, misses can go straight into Learn, and a closing reflection saves as a note. Free and always optional; turn the offer off in Settings, Appearance."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.99.1",
 			"versionCode": 115,
 			"date": "2026-10-23",

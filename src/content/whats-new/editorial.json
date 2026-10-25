@@ -14,6 +14,16 @@
 		]
 	},
 	"releases": {
+		"1.100.0": {
+			"title": "Quiz me",
+			"headline": "Hide the chapter you just read in your heart.",
+			"why": "A closed tester asked for a quiz after a study. At the end of any chapter you can now take five questions on it, and every answer, right or wrong, shows you the verse it came from.",
+			"target": "bible",
+			"verse": {
+				"text": "Thy word have I hid in mine heart, that I might not sin against thee.",
+				"reference": "Psalm 119:11"
+			}
+		},
 		"1.99.1": {
 			"title": "Smoother sign-in",
 			"headline": "Sign in once, and step back when you need to.",

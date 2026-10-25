@@ -98,8 +98,9 @@ DAILY DEVOTIONAL: PICK UP YOUR CROSS
 GROW IN YOUR WALK WITH GOD
 • Today for your daily walk; Study for notes, word study, timeline and sermons
 • Bible reading plans, guided or built around your own goal
-• Your walk: a reading log with your streak, a map of every book and a short reflection on what you have read
+• Your walk: a reading log, your streak, a map of every book and a reflection on your reading
 • Scripture memory: learn a verse word by word until it is written on your heart
+• Bible quiz after each chapter, every answer with its verse
 • Bible timeline, people and places, from Creation to Revelation
 • Sermon studies: your church's sermons as guided studies for the week, where available
 
@@ -135,7 +136,7 @@ Terms of Use: https://sureword.app/terms
 Privacy Policy: https://sureword.app/privacy
 ```
 
-Measured length: 3952 characters (limit 4000), counted by code point.
+Measured length: 3997 characters (limit 4000), counted by code point.
 
 One description for both stores (Austin, 2026-10-09): this text is the Play
 full description in `store-listing/play-store.md` word for word, plus the App Store's
@@ -168,6 +169,9 @@ not `verified` for the build being submitted):
 - "Delete your account ... from Settings": PROGRESS A1 client row.
 - "word study": PROGRESS C2.
 - "Bible timeline, people and places": PROGRESS C9 (`source` today).
+- "Bible quiz after each chapter" (added 2026-10-25, Apple 1.25.0): the
+  PARITY "Quiz me" iOS row. Not yet written to App Store Connect; run
+  `asc.py listing apply` with the next version that carries the quiz.
 
 ## Keywords (100 max, comma separated, no spaces)
 

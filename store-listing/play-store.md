@@ -78,8 +78,9 @@ DAILY DEVOTIONAL: PICK UP YOUR CROSS
 GROW IN YOUR WALK WITH GOD
 • Today for your daily walk; Study for notes, word study, timeline and sermons
 • Bible reading plans, guided or built around your own goal
-• Your walk: a reading log with your streak, a map of every book and a short reflection on what you have read
+• Your walk: a reading log, your streak, a map of every book and a reflection on your reading
 • Scripture memory: learn a verse word by word until it is written on your heart
+• Bible quiz after each chapter, every answer with its verse
 • Bible timeline, people and places, from Creation to Revelation
 • Sermon studies: your church's sermons as guided studies for the week, where available
 
@@ -110,7 +111,7 @@ One account on your phone, tablet, Mac and the web at sureword.app.
 Open the Word today. Come hungry.
 ```
 
-3615 characters. It is the App Store description word for word, minus
+3660 characters. It is the App Store description word for word, minus
 Apple's subscription terms footer (Austin, 2026-10-09: one description for
 both stores, every feature, written for search and to open with why the Word
 matters). Play indexes this text for search, so features are named in the

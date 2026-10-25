@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.100.0 (versionCode 116) - 2026-10-25 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Quiz me: at the end of any chapter, take a short 5 question quiz on what you just read. Every answer comes with its verse, misses can go straight into Learn, and a closing reflection saves as a note. Free and always optional; turn the offer off in Settings, Appearance.
+
+**Dev notes:** Suggested by the closed-testing coordinator (2026-10-23). Plan and mockups in `docs/quiz/PLAN.md`; architecture in `docs/FEATURES.md` under "Quiz me". Server: `POST /api/quiz` (consent `tap`, included AI request) writes eight drafts from the whole KJV chapter and keeps only questions whose right answer the cited verse actually says (`src/lib/quiz-rules.ts`), cached per chapter and depth in `QuizBank`; `POST /api/quiz/attempt` records `QuizAttempt` rows (migration `20261025120000_chapter_quiz`, applied to production). Android: `src/features/quiz/` (contract mirror, view model with tests, `useChapterQuiz`, screen, results, offer card), the `quiz` route in the bible stack with today/study re-exports, the offer card in the reader's list footer keyed on the chapter, the device-only `quizOffer` setting (default on, survives an account switch, never synced), "Not now" remembered per chapter on the device (200 at most), and Learn source `quiz`. Ask about this prefills the composer through the reader's existing Ask path. No native changes.
+
 ## 1.99.1 (versionCode 115) - 2026-10-23 - internal and closed testing
 
 **What's new (Play):**
