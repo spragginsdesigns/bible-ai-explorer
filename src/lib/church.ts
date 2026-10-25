@@ -324,10 +324,18 @@ export async function setUserChurch(userId: string, placeId: string, options: { 
 		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}), 8203)`;
 		const current = await tx.userChurch.findUnique({ where: { userId }, select: { placeId: true } });
 		if (options.expectedPlaceId !== undefined && (current?.placeId ?? null) !== options.expectedPlaceId) throw new Error("Your church changed while this profile was being prepared. Confirm the new choice again.");
+		// The sermon pipeline is keyed by the church's YouTube channel, which is
+		// linked by hand once per church. Every member of that place shares it,
+		// and choosing another church drops the old one's.
+		const linked = await tx.userChurch.findFirst({
+			where: { placeId, youtubeChannelId: { not: null } },
+			select: { youtubeChannelId: true },
+		});
+		const youtubeChannelId = linked?.youtubeChannelId ?? null;
 		return tx.userChurch.upsert({
 		where: { userId },
-		create: { userId, ...data },
-		update: data,
+		create: { userId, ...data, youtubeChannelId },
+		update: { ...data, youtubeChannelId },
 		select: PROFILE_SELECT,
 	});
 	});
