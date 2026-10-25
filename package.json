@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit --incremental false",
     "check:errors": "pnpm typecheck && pnpm lint",
     "test:logic": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test \"tests/*.test.mjs\"",
+    "models:check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/check-new-models.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

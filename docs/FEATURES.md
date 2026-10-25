@@ -639,6 +639,20 @@ their own keys keep the full picker, where GPT-6 Luna is now listed too. No
 client change: every client renders the label and chips from
 `GET /api/ai/models`.
 
+**Keeping the model list current (2026-10-25).** `pnpm models:check`
+(`scripts/check-new-models.mjs`) asks OpenAI, Anthropic and Moonshot (each
+when its key is set) and OpenRouter's public catalog for their live model
+lists, and prints the chat heads in SureWord's families that are neither in
+`MODELS` nor in the baseline `scripts/fixtures/known-provider-models.json`;
+it exits 2 when something is new. Curate each new head in `models.ts` (label,
+`CURATED_META` price, window and efforts from the vendor's model page), then
+run `pnpm models:check --accept` to fold the current lists into the baseline.
+The baseline was seeded on 2026-10-25 from the OpenAI and OpenRouter lists
+only, so the first run with an Anthropic or Moonshot key lists every head that
+provider serves. BYOK pickers already show any live model a key can reach;
+curation is what gives it a price, a tagline and a place in the order. The
+included plans never move on their own.
+
 ---
 
 ## Getting to know you (onboarding in chat)
