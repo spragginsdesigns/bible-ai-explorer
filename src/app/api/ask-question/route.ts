@@ -388,6 +388,20 @@ function replacedMessageIds(value: unknown): string[] | null {
 	return value.filter((id): id is string => typeof id === "string" && id.length > 0).slice(0, 500);
 }
 
+/** The step of the most recent presentChoices card in the thread, if any. */
+function lastPresentedStep(messages: SureWordUIMessage[]): OnboardingStep | null {
+	for (let m = messages.length - 1; m >= 0; m--) {
+		if (messages[m].role !== "assistant") continue;
+		for (let p = messages[m].parts.length - 1; p >= 0; p--) {
+			const part = messages[m].parts[p] as { type: string; input?: unknown };
+			if (part.type !== "tool-presentChoices") continue;
+			const step = (part.input as { step?: unknown } | undefined)?.step;
+			if (isOnboardingStep(step)) return step;
+		}
+	}
+	return null;
+}
+
 async function persistUserMessage(options: {
 	userId: string;
 	conversationId: string;
@@ -601,6 +615,7 @@ async function persistAssistantResponse(options: {
 
 import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 import { isOnboardingTurn } from "@/lib/onboarding";
+import { expectedStep, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
 export const POST = withIncludedAiRequest(handlePost, "ask-question");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -804,6 +819,11 @@ async function handlePost(req: Request): Promise<Response> {
 		const responseMessageId = generateMessageId();
 		currentUserText = extractText(lastMessage);
 		currentMessageId = lastMessage.id;
+		// The step of the last card SureWord showed in the welcome, so this turn
+		// can be told which card comes next and can add it if the model forgets.
+		const lastWelcomeStep = welcomeTurn ? lastPresentedStep(validatedMessages) : null;
+		const nextWelcomeStep = expectedStep(lastWelcomeStep, currentUserText);
+		const calledTools: string[] = [];
 		let duePrayers: ChatDayContext["prayers"] = [];
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
 			if (welcomeTurn) meterAsOnboarding();
@@ -1075,6 +1095,7 @@ async function handlePost(req: Request): Promise<Response> {
 						formatTodayBlock(dayContext),
 						onboarding ? `\n\n${onboardingGuidance}` : "",
 						welcomeTurn ? `\n\n${welcomeConversationGuidance}` : "",
+						nextWelcomeStep ? `\n\nNEXT IN THE WELCOME: respond to what they just said, then end this message with presentChoices step "${nextWelcomeStep}".` : "",
 						...promptHints.map((hint) => `\n\n${hint}`),
 						shapeHint ? `\n\n${shapeHint}` : "",
 						// Last on purpose: an instruction for this reply, nearest the answer.
@@ -1154,6 +1175,7 @@ async function handlePost(req: Request): Promise<Response> {
 							progress.toolStart(toolCall, toolActivityLabel(toolCall.toolName));
 						},
 						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
+							calledTools.push(toolCall.toolName);
 							legacyStatus("Thinking");
 							progress.toolEnd(toolCall, toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type === "tool-error");
 							// Name and outcome only. The arguments are somebody's
@@ -1196,6 +1218,19 @@ async function handlePost(req: Request): Promise<Response> {
 						})
 					);
 					await consumption;
+					// A welcome step answered with no card after it strands them with
+					// nothing to tap, so the expected card is added here instead.
+					const owed = welcomeTurn && metricError === null
+						? owedStep({ lastStep: lastWelcomeStep, reply: currentUserText, calledTools, answerText: await result.text })
+						: null;
+					if (owed) {
+						const toolCallId = `${responseMessageId}-card`;
+						const input = { step: owed, question: null, options: null, allowOther: null };
+						writer.write({ type: "start-step" });
+						writer.write({ type: "tool-input-available", toolCallId, toolName: "presentChoices", input });
+						writer.write({ type: "tool-output-available", toolCallId, output: resolveChoiceCard(input) });
+						writer.write({ type: "finish-step" });
+					}
 					const notice = incompleteAgentNotice(metricLastStepFinishReason, Date.now() - turnStartedAtMs);
 					if (notice) {
 						const textId = `${responseMessageId}-limit`;

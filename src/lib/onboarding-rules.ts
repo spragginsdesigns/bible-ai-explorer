@@ -75,6 +75,24 @@ export const DAILY_TIME_HOURS: Readonly<Record<string, number>> = {
 
 export const TEXT_SCALE_OPTIONS = ["Standard", "Large", "Largest"] as const;
 
+/** The stored `User.textScale` each text size chip means. */
+export const TEXT_SCALE_VALUES: Readonly<Record<(typeof TEXT_SCALE_OPTIONS)[number], "standard" | "large" | "largest">> = {
+	Standard: "standard",
+	Large: "large",
+	Largest: "largest",
+};
+
+/**
+ * How much bigger each text size draws everything, on every client. Applied
+ * on top of the system font scale, never instead of it (Apple maps these to
+ * Dynamic Type steps).
+ */
+export const TEXT_SCALE_FACTORS: Readonly<Record<"standard" | "large" | "largest", number>> = {
+	standard: 1,
+	large: 1.15,
+	largest: 1.3,
+};
+
 /** The scripted card for each step. `other` has no script: the model writes it. */
 export const STEP_CARDS: Readonly<Record<Exclude<OnboardingStep, "other">, StepCard>> = {
 	textScale: {
@@ -172,6 +190,52 @@ export function resolveChoiceCard(input: {
 		allowOther: card.allowOther,
 		skipLabel: card.skipLabel,
 	};
+}
+
+/** The scripted steps, in the order the welcome walks them. */
+export const WELCOME_STEP_ORDER: readonly Exclude<OnboardingStep, "other">[] = [
+	"textScale",
+	"name",
+	"faith",
+	"church",
+	"prayer",
+	"dailyTime",
+	"tour",
+	"aboutMe",
+];
+
+/**
+ * The card the welcome should show after they reply to `lastStep`'s card.
+ * A question from them gets the same card again once it is answered, since
+ * they have not answered the step yet. Null where no card is owed: after an
+ * `other` card, after the last step, and after "Still seeking", where the
+ * Gospel comes first and is never hurried toward the next step.
+ */
+export function expectedStep(lastStep: OnboardingStep | null, reply: string): Exclude<OnboardingStep, "other"> | null {
+	if (!lastStep || lastStep === "other") return null;
+	const text = reply.trim();
+	if (lastStep === "faith" && /^still seeking/i.test(text)) return null;
+	if (text.endsWith("?")) return lastStep;
+	const index = WELCOME_STEP_ORDER.indexOf(lastStep);
+	return index >= 0 && index < WELCOME_STEP_ORDER.length - 1 ? WELCOME_STEP_ORDER[index + 1] : null;
+}
+
+/**
+ * The card a welcome turn still owes when the model ended it without one. A
+ * step answered with nothing after it leaves the person with no button and
+ * no question (seen on the name step, 2026-10-25), so the server adds the
+ * expected card itself. Nothing is owed when the turn showed a card, finished
+ * the welcome, or ended by asking them something.
+ */
+export function owedStep(input: {
+	lastStep: OnboardingStep | null;
+	reply: string;
+	calledTools: readonly string[];
+	answerText: string;
+}): Exclude<OnboardingStep, "other"> | null {
+	if (input.calledTools.includes("presentChoices") || input.calledTools.includes("finishOnboarding")) return null;
+	if (/\?["'”’)]*$/.test(input.answerText.trim())) return null;
+	return expectedStep(input.lastStep, input.reply);
 }
 
 /**
