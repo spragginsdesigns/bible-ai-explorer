@@ -45,6 +45,8 @@ struct ChapterReaderPane: View {
     let showAtlas: (_ book: Int, _ chapter: Int) -> Void
     /// Open Learn a verse, as the Added chip does on Android and iOS.
     let showLearn: () -> Void
+    /// "Quiz me" on this chapter; the section shows it in front of the reader.
+    let startQuiz: (_ book: Int, _ chapter: Int) -> Void
 
     /// The LC Greek is on the page (LC-15842): the device choice is on, the
     /// book has it, and no chat source pinned a translation.
@@ -1011,6 +1013,19 @@ struct ChapterReaderPane: View {
 
     private var footer: some View {
         VStack(spacing: Spacing.xl) {
+            if let book = model.book {
+                QuizEntryCard(
+                    book: book.order,
+                    chapter: model.chapter,
+                    title: model.reference,
+                    showsKJVNote: lcGreek || translation != .kjv,
+                    onStart: { startQuiz(book.order, model.chapter) }
+                )
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity)
+                .id("quiz-\(book.order):\(model.chapter)")
+            }
+
             // An em dash, matching `TranslationID.copyright`'s own - so the
             // NKJV line does not read "NKJV - © Thomas Nelson - text via …"
             // with two different dashes in one sentence.

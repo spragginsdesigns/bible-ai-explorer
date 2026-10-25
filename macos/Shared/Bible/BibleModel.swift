@@ -99,6 +99,11 @@ final class BibleModel {
     /// model without one. A chapter load refreshes that chapter's slice.
     var highlights: HighlightsStore?
 
+    /// The "Quiz me" run in front of the reader, nil when none is open. Kept
+    /// here for the same reason the plan is: an "Ask about this" trip to Chat
+    /// must not throw away a half-finished quiz.
+    var quiz: QuizModel?
+
     private let api: APIClient
     private let lcGreekText: LCGreekProvider
     /// Where `fontStep` is persisted. Injected so the tests can hand in a
@@ -232,6 +237,20 @@ final class BibleModel {
             chapter: location.chapter,
             translationOverride: translationOverride
         )
+    }
+
+    /// Open "Quiz me" for a chapter, reusing a quiz already open on it.
+    func startQuiz(book: Int, chapter: Int) {
+        if let quiz, quiz.book == book, quiz.chapter == chapter { return }
+        quiz?.cancel()
+        let model = QuizModel(api: api, book: book, chapter: chapter)
+        quiz = model
+        model.start()
+    }
+
+    func closeQuiz() {
+        quiz?.cancel()
+        quiz = nil
     }
 
     func stepFont(_ delta: Int) {

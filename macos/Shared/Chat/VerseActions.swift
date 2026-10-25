@@ -102,6 +102,14 @@ enum VerseActions {
             + ((label ?? translation?.rawValue).map { "<p>(\(escapeHTML($0)))</p>" } ?? "")
             + "</blockquote>"
         let plainText = formatSource(reference: reference, text: text, translation: translation, label: label)
+        return try await createNote(api: api, title: reference, html: html, plainText: plainText)
+    }
+
+    /// Create a note and fill it: `POST /api/notes` then the content `PATCH`,
+    /// deleting the empty note again if the second call fails. Shared by the
+    /// verse "Save to note" above and the quiz's reflection note.
+    @discardableResult
+    static func createNote(api: APIClient, title: String, html: String, plainText: String) async throws -> String {
         let wordCount = plainText.split(whereSeparator: \.isWhitespace).count
 
         struct NewNote: Encodable {
@@ -118,7 +126,7 @@ enum VerseActions {
         let note = try await api.json(
             "/api/notes",
             method: "POST",
-            body: NewNote(title: reference, folderId: nil),
+            body: NewNote(title: title, folderId: nil),
             as: NoteRef.self
         )
         do {
@@ -129,7 +137,7 @@ enum VerseActions {
             )
         } catch {
             // Best-effort cleanup: without the content PATCH the note is an
-            // empty orphan titled by the reference, so remove it before
+            // empty orphan, so remove it before
             // reporting failure.
             try? await api.data("/api/notes/\(note.id)", method: "DELETE")
             throw error
@@ -158,7 +166,7 @@ enum VerseActions {
         )
     }
 
-    private static func escapeHTML(_ value: String) -> String {
+    static func escapeHTML(_ value: String) -> String {
         value
             .replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")

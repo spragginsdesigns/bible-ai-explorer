@@ -53,6 +53,17 @@ struct BibleSection: View {
         // The pane in front is the screen Android would have pushed.
         .onChange(of: detailScreen, initial: true) { _, screen in Analytics.shared.screen(screen) }
         .onChange(of: showingHistory) { _, visible in model.reading.setObscured(visible, reason: "history") }
+        // The quiz covers the chapter, so it is not being read meanwhile.
+        .onChange(of: model.quiz != nil) { _, visible in model.reading.setObscured(visible, reason: "quiz") }
+        // The sidebar moved the reader elsewhere: the quiz no longer belongs
+        // to what is selected.
+        .onChange(of: model.location) { _, location in
+            guard let quiz = model.quiz else { return }
+            if location != Bible.Location(order: quiz.book, chapter: quiz.chapter) { model.closeQuiz() }
+        }
+        .onChange(of: model.pane) { _, pane in
+            if pane != .reader { model.closeQuiz() }
+        }
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
                 Text(toast)
@@ -98,6 +109,7 @@ struct BibleSection: View {
 
     /// Back to the books, whichever pane was covering them.
     private func showBible() {
+        model.closeQuiz()
         showingAtlas = false
         showingPlan = false
         showingSermons = false
@@ -115,7 +127,9 @@ struct BibleSection: View {
 
     @ViewBuilder
     private var detail: some View {
-        if showingLearn {
+        if let quiz = model.quiz {
+            QuizScreen(model: quiz, actions: quizActions(quiz))
+        } else if showingLearn {
             LearnPane(onDismiss: { showBible() })
         } else if showingSermons {
             SermonStudiesPane(onDismiss: { showBible() })
@@ -166,7 +180,8 @@ struct BibleSection: View {
                         atlasChapter = chapter
                         showingAtlas = true
                     },
-                    showLearn: { showLearn() }
+                    showLearn: { showLearn() },
+                    startQuiz: { book, chapter in model.startQuiz(book: book, chapter: chapter) }
                 )
             }
         }
@@ -187,6 +202,33 @@ struct BibleSection: View {
                 .frame(maxWidth: 320)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// "Quiz me" hops: back to the reader, into Chat with the question, to a
+    /// saved reflection note, or on to the next chapter.
+    private func quizActions(_ quiz: QuizModel) -> QuizActions {
+        QuizActions(
+            close: { model.closeQuiz() },
+            readInContext: { verse in
+                model.closeQuiz()
+                model.open(order: quiz.book, chapter: quiz.chapter, verse: verse, translationOverride: model.translationOverride)
+            },
+            ask: { prompt, reference, text in
+                // The quiz lives on the model, so it is still open when the
+                // reader comes back from Chat.
+                app.chat.input = prompt
+                app.chat.attachment = VerseAttachment(reference: reference, text: text, translation: .kjv)
+                app.section = .chat
+            },
+            openNote: { noteID in
+                app.pendingNoteID = noteID
+                app.section = .notes
+            },
+            continueTo: { location in
+                model.closeQuiz()
+                model.go(to: location)
+            }
+        )
     }
 
     /// Attach the passage to the next question and switch to chat — the Mac

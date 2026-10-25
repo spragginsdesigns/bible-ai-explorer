@@ -54,6 +54,8 @@ final class SettingsStore {
         /// Android keeps in its settings store.
         static let listenRate = "settings.listen.rate"
         static let parchment = "settings.bible.parchment"
+        /// Device-only, like the other clients: never part of `/api/preferences`.
+        static let offerQuiz = "settings.bible.offerQuiz"
         /// `[String: String]` is a property-list type, so both colour maps go
         /// into `UserDefaults` whole with no JSON step.
         static let highlightLabels = "settings.highlight.labels"
@@ -348,6 +350,12 @@ final class SettingsStore {
         }
     }
 
+    /// "Offer a quiz after each chapter" (docs/quiz/PLAN.md). Kept on this
+    /// device only, the same as Android and web, so it has no write-through.
+    var offerQuiz: Bool {
+        didSet { UserDefaults.standard.set(offerQuiz, forKey: Key.offerQuiz) }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         appearance = AppearanceSetting(rawValue: defaults.string(forKey: Key.appearance) ?? "") ?? .system
@@ -377,6 +385,7 @@ final class SettingsStore {
         // Same reason as the reminder toggle: an unset key reads as false, and
         // would silently turn the parchment off for everyone.
         parchment = defaults.object(forKey: Key.parchment) as? Bool ?? true
+        offerQuiz = defaults.object(forKey: Key.offerQuiz) as? Bool ?? true
     }
 
     /// 0-23 → "8:00 AM" / "9:00 PM", matching `formatHour` on Android.

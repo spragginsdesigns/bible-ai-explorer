@@ -343,6 +343,8 @@ struct SettingsView: View {
                     "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
                         + "SureWord's AI answers use the translation you select."
                 )
+                Toggle("Offer a quiz after each chapter", isOn: $settings.offerQuiz)
+                hint("A short, optional quiz at the end of each chapter. Every answer comes with its verse.")
             }
 
         case .highlights:
@@ -646,7 +648,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     private var keywords: [String] {
         switch self {
         case .account: ["sign out", "log out", "delete", "email", "profile"]
-        case .appearance: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible"]
+        case .appearance: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz"]
         case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
         case .church: ["church", "congregation", "mission"]
         case .memory: ["memories", "about me", "testimony", "personal", "remember"]

@@ -7,6 +7,8 @@ enum LearnAPI {
     /// Where an add came from - the route's `source` enum. Recorded only.
     enum Source: String, Encodable, Sendable {
         case sheet, highlight, chat, suggestion
+        /// A verse missed in "Quiz me", added from the results screen.
+        case quiz
     }
 
     private struct AddBody: Encodable {

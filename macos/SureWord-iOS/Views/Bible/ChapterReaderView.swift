@@ -44,6 +44,10 @@ struct ChapterReaderView: View {
     @State private var seeded = false
     @State private var crossReferences = CrossReferencesModel()
     @State private var showingLearn = false
+    /// "Quiz me" is pushed from this reader. The quiz itself lives on
+    /// `BibleModel.quiz`; this flag keeps any other reader alive in another
+    /// tab's stack from pushing it too.
+    @State private var showingQuiz = false
     @State private var showingCustomColor = false
     /// The Share sheet (a card, or the words as text) for the selection.
     @State private var shareCard: ShareCardItem?
@@ -134,6 +138,13 @@ struct ChapterReaderView: View {
         // study view covers the text.
         .onChange(of: sheet.obscuresReader) { _, obscured in model.reading.setObscured(obscured) }
         .navigationDestination(isPresented: $showingLearn) { LearnView() }
+        .navigationDestination(isPresented: quizPresented) {
+            if let quiz = model.quiz {
+                QuizScreen(model: quiz, actions: quizActions(quiz))
+                    .toolbar(.hidden, for: .navigationBar)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+        }
         .sheet(isPresented: $showingCustomColor) {
             CustomHighlightSheet(color: Color(hex: selectionHex ?? HighlightColors.presets[0].hex) ?? .yellow) { hex in
                 applyHighlight(hex)
@@ -616,6 +627,20 @@ struct ChapterReaderView: View {
 
     private var footer: some View {
         VStack(spacing: Spacing.xl) {
+            if let book = model.book {
+                QuizEntryCard(
+                    book: book.order,
+                    chapter: model.chapter,
+                    title: model.reference,
+                    showsKJVNote: lcGreek || translation != .kjv,
+                    onStart: {
+                        model.startQuiz(book: book.order, chapter: model.chapter)
+                        showingQuiz = true
+                    }
+                )
+                .id("quiz-\(book.order):\(model.chapter)")
+            }
+
             Text(lcGreek ? "\(LCGreek.label) - \(LCGreek.copyright)" : "\(translation.name) - \(translation.copyright)")
                 .font(.system(size: 11))
                 .italic()
@@ -665,6 +690,53 @@ struct ChapterReaderView: View {
         .accessibilityHint(target.map { location in
             "\(Bible.book(order: location.order)?.name ?? "") \(location.chapter)"
         } ?? "")
+    }
+
+    // MARK: - Quiz me
+
+    private var quizPresented: Binding<Bool> {
+        Binding(
+            get: { showingQuiz && model.quiz != nil },
+            set: { presented in
+                guard !presented else { return }
+                closeQuiz()
+            }
+        )
+    }
+
+    private func quizActions(_ quiz: QuizModel) -> QuizActions {
+        QuizActions(
+            close: { closeQuiz() },
+            readInContext: { verse in
+                closeQuiz()
+                model.open(order: quiz.book, chapter: quiz.chapter, verse: verse, translationOverride: localTranslationOverride)
+            },
+            ask: { prompt, reference, text in
+                // The quiz stays pushed in this tab, so it is still there when
+                // the reader comes back from Chat.
+                app.chat.input = prompt
+                app.chat.attachment = model.attachment(reference: reference, text: text, translation: .kjv)
+                NotificationCenter.default.post(name: .openChatWithAttachment, object: nil)
+            },
+            openNote: { noteID in
+                NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["noteId": noteID])
+            },
+            continueTo: { location in
+                closeQuiz()
+                model.go(to: location)
+            }
+        )
+    }
+
+    /// Pop first and drop the quiz once the pop has finished, so the screen
+    /// sliding away is not emptied mid-animation.
+    private func closeQuiz() {
+        showingQuiz = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !showingQuiz else { return }
+            model.closeQuiz()
+        }
     }
 
     // MARK: - Verse sheet

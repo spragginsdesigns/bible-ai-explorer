@@ -89,6 +89,11 @@ struct AppearanceSettingsPage: View {
                         + "SureWord's AI answers use the translation you select."
                 )
             }
+
+            Section("Quiz") {
+                Toggle("Offer a quiz after each chapter", isOn: $settings.offerQuiz)
+                SettingsHint("A short, optional quiz at the end of each chapter. Every answer comes with its verse.")
+            }
         }
         .navigationTitle("Appearance & reading")
         .analyticsScreen(AnalyticsScreen.settingsAppearance)
