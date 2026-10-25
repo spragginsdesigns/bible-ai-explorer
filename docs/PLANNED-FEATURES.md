@@ -4,6 +4,10 @@ Product ideas that are worth preserving but are not part of the current
 implementation. An item moves out of this file only when its product contract,
 entitlements, data model and acceptance path are settled.
 
+## Quiz me (a short quiz after a study)
+
+**Status:** Planned 2026-10-25. Full plan and mockups: [quiz/PLAN.md](quiz/PLAN.md).
+
 ## Pro built-in AI identity
 
 **Status:** Pinned for product design
