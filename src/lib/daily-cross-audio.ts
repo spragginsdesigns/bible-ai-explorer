@@ -309,7 +309,8 @@ const TTS_TIMEOUT_MS = 90_000;
  * Paragraph breaks become `<break>` tags on the way out - see
  * `withSpokenPauses`.
  */
-export async function synthesizeSpeech(script: string, options: NarrationOptions = {}): Promise<ArrayBuffer> {
+/** `modelId` overrides the long-form model; the welcome's short replies use a faster, cheaper one. */
+export async function synthesizeSpeech(script: string, options: NarrationOptions & { modelId?: string } = {}): Promise<ArrayBuffer> {
 	const apiKey = process.env.ELEVENLABS_API_KEY;
 	if (!isSpeechConfigured(apiKey)) throw new Error("ELEVENLABS_API_KEY is not set");
 	const voiceId = options.voiceId || defaultNarrationVoiceId();
@@ -323,7 +324,7 @@ export async function synthesizeSpeech(script: string, options: NarrationOptions
 				"Content-Type": "application/json",
 				Accept: "audio/mpeg",
 			},
-			body: JSON.stringify({ text: withSpokenPauses(script), model_id: TTS_MODEL_ID, voice_settings: narrationSettings(options.style) }),
+			body: JSON.stringify({ text: withSpokenPauses(script), model_id: options.modelId || TTS_MODEL_ID, voice_settings: narrationSettings(options.style) }),
 			signal: AbortSignal.timeout(TTS_TIMEOUT_MS),
 		}
 	);

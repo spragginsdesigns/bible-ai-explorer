@@ -239,6 +239,8 @@ test("the document mirrors a stored row, with the tier passed in", () => {
 		translation: "NKJV",
 		parchment: false,
 		listenRate: 2,
+		textScale: "standard",
+		voiceMode: false,
 		highlightLabels: {},
 		highlightMeanings: {},
 		aboutMe: "",
@@ -264,6 +266,8 @@ test("an account with no row yet reads as every default", () => {
 		translation: "KJV",
 		parchment: true,
 		listenRate: 1,
+		textScale: "standard",
+		voiceMode: false,
 		highlightLabels: {},
 		highlightMeanings: {},
 		aboutMe: "",
@@ -304,4 +308,21 @@ test("a stored model id is returned verbatim, even one this account cannot run",
 	// against /api/ai/models - not this route's.
 	const doc = document(row({ defaultModelId: "anthropic/claude-retired-1" }), "free");
 	assert.equal(doc.chat.modelId, "anthropic/claude-retired-1");
+});
+
+test("text size and voice mode round-trip through the document (Walk with me)", () => {
+	assert.equal(parse({ textScale: "largest" }).ok, true);
+	assert.deepEqual(parse({ textScale: "large", voiceMode: true }).data, { textScale: "large", voiceMode: true });
+	for (const bad of ["huge", "", 2, null]) {
+		assert.equal(parse({ textScale: bad }).ok, false, `expected ${JSON.stringify(bad)} to be rejected`);
+	}
+	assert.equal(parse({ voiceMode: "yes" }).ok, false);
+	const fresh = document(row(), "free");
+	assert.equal(fresh.textScale, "standard");
+	assert.equal(fresh.voiceMode, false);
+	const set = document(row({ textScale: "largest", voiceMode: true }), "free");
+	assert.equal(set.textScale, "largest");
+	assert.equal(set.voiceMode, true);
+	// An unknown stored value reads as the default rather than leaking to clients.
+	assert.equal(document(row({ textScale: "giant" }), "free").textScale, "standard");
 });

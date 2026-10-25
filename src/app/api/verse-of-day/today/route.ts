@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { getAuthUser } from "@/lib/auth";
+import { stampFirstUse } from "@/lib/onboarding";
 import {
 	DailyCrossDirectionError,
 	DailyCrossReferenceError,
@@ -68,6 +70,8 @@ function toResponse(cross: DailyCross & { id?: string }, sentAt: Date) {
 export async function GET(): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
+		// Opening the day is what ticks "Your daily word" on Getting started.
+		waitUntil(stampFirstUse(userId, "firstCrossOpenedAt"));
 
 		const existing = await findTodayCross(userId);
 		if (existing) {

@@ -9,6 +9,7 @@ import { calendarMonthWindow, quotaDecision, utcDayWindow } from "./plans";
 import { IncludedAiLimitError } from "./usage-errors";
 import type { AiAccess } from "@/lib/ai/access";
 import { accountSubscription } from "./subscription";
+import { DEFAULT_ONBOARDING_TURN_CEILING, readCeiling } from "@/lib/onboarding-rules";
 
 type Scope = {
   id: string;
@@ -25,9 +26,32 @@ type Scope = {
   accessResolution?: Promise<AiAccess>;
   background?: boolean;
   plan?: { userId: string; value: Promise<UserPlan> };
+  /** Set when an onboarding turn found the account past its ceiling and fell back to the free cap. */
+  onboardingFallback?: boolean;
 };
 const scopes = new AsyncLocalStorage<Scope>();
 export const usageEnabled = () => process.env.SUREWORD_USAGE_ENABLED === "true";
+
+/**
+ * "Walk with me" turns (docs/onboarding/PLAN.md) ride their own surface: never
+ * counted against the daily allowance or the daily attempt cap, and capped
+ * instead per account, for life, by ONBOARDING_TURN_CEILING.
+ */
+export const ONBOARDING_SURFACE = "onboarding";
+const UNCOUNTED_SURFACES = ["background-utility", ONBOARDING_SURFACE];
+
+export function onboardingTurnCeiling(): number {
+  return readCeiling(process.env.ONBOARDING_TURN_CEILING, DEFAULT_ONBOARDING_TURN_CEILING);
+}
+
+/**
+ * Move this request onto the onboarding surface. Must run before the
+ * reservation (reserveIncludedRequest), which is where the surface is read.
+ */
+export function meterAsOnboarding(): void {
+  const scope = scopes.getStore();
+  if (scope && !scope.reservation) scope.surface = ONBOARDING_SURFACE;
+}
 
 /**
  * One plan lookup per metered request. Choosing the house model and reserving
@@ -69,7 +93,7 @@ export async function usageSnapshot(userId: string, now = new Date()) {
     prisma.aiUsageRequest.count({
       where: {
         userId,
-        surface: { not: "background-utility" },
+        surface: { notIn: UNCOUNTED_SURFACES },
         status: { not: "failed" },
         createdAt: { gte: day.start, lt: day.end },
       },
@@ -78,7 +102,7 @@ export async function usageSnapshot(userId: string, now = new Date()) {
       ? prisma.aiUsageRequest.count({
           where: {
             userId,
-            surface: { not: "background-utility" },
+            surface: { notIn: UNCOUNTED_SURFACES },
             status: { not: "failed" },
             createdAt: { gte: month.start, lt: month.end },
           },
@@ -147,6 +171,33 @@ async function reserve(scope: Scope, userId: string) {
           });
           return;
         }
+        if (scope.surface === ONBOARDING_SURFACE) {
+          // Lifetime, not daily: the welcome is a one-time thing, so its
+          // ceiling is too. Failed attempts count toward a looser bound so
+          // nobody can farm turns by aborting them.
+          const ceiling = onboardingTurnCeiling();
+          const [used, attempted] = await Promise.all([
+            tx.aiUsageRequest.count({
+              where: { userId, surface: ONBOARDING_SURFACE, status: { not: "failed" } },
+            }),
+            tx.aiUsageRequest.count({ where: { userId, surface: ONBOARDING_SURFACE } }),
+          ]);
+          if (used < ceiling && attempted < ceiling * 2) {
+            await tx.aiUsageRequest.create({
+              data: {
+                id: scope.id,
+                userId,
+                idempotencyKey: scope.idempotencyKey,
+                surface: ONBOARDING_SURFACE,
+              },
+            });
+            return;
+          }
+          // Past the ceiling the turn is an ordinary chat turn again: it is
+          // still answered while the free allowance lasts, never refused here.
+          scope.surface = "ask-question";
+          scope.onboardingFallback = true;
+        }
         const sub = pro
           ? await accountSubscription(userId, tx)
           : null;
@@ -157,7 +208,7 @@ async function reserve(scope: Scope, userId: string) {
         const daily = await tx.aiUsageRequest.count({
           where: {
             userId,
-            surface: { not: "background-utility" },
+            surface: { notIn: UNCOUNTED_SURFACES },
             status: { not: "failed" },
             createdAt: { gte: day.start, lt: day.end },
           },
@@ -165,7 +216,7 @@ async function reserve(scope: Scope, userId: string) {
         const attempts = await tx.aiUsageRequest.count({
           where: {
             userId,
-            surface: { not: "background-utility" },
+            surface: { notIn: UNCOUNTED_SURFACES },
             createdAt: { gte: day.start, lt: day.end },
           },
         });
@@ -179,7 +230,7 @@ async function reserve(scope: Scope, userId: string) {
           ? await tx.aiUsageRequest.count({
               where: {
                 userId,
-                surface: { not: "background-utility" },
+                surface: { notIn: UNCOUNTED_SURFACES },
                 status: { not: "failed" },
                 createdAt: { gte: month.start, lt: month.end },
               },
@@ -189,7 +240,9 @@ async function reserve(scope: Scope, userId: string) {
         if (!quota.allowed) {
           const reset = quota.monthlyRemaining === 0 ? month.end : day.end;
           throw new IncludedAiLimitError(
-            `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading, revisit saved study, or use your own API key.`,
+            scope.onboardingFallback
+              ? `We have covered a lot together, and you have used today's free messages too. Everything you shared is saved, and we can pick up right here at ${reset.toISOString()}. Until then the Bible, your notes and today's word are all yours.`
+              : `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading, revisit saved study, or use your own API key.`,
             429,
             reset,
           );

@@ -11,6 +11,7 @@ import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { verseInsightSystemPrompt } from "@/utils/systemPrompt";
 import { canonicalPassage } from "@/lib/bible/passage-context";
 import { formatVersesForModel } from "@/lib/scripture-search";
+import { stampFirstUse } from "@/lib/onboarding";
 
 export const maxDuration = 60;
 
@@ -91,6 +92,7 @@ async function handlePost(req: Request): Promise<Response> {
 				platform,
 				properties: { translation, passage: isPassage, cacheHit: true },
 			});
+			waitUntil(stampFirstUse(userId, "firstInsightAt"));
 			return new Response(cached, {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
@@ -129,6 +131,8 @@ async function handlePost(req: Request): Promise<Response> {
 					},
 				});
 				waitUntil(writeVerseInsight(cacheKey, full, modelUsed));
+				// Ticks "Tap a verse" on the Getting started card (Walk with me).
+				waitUntil(stampFirstUse(userId, "firstInsightAt"));
 			},
 		});
 		// Run to completion even if the reader closes the sheet, so the

@@ -36,6 +36,21 @@ export const LISTEN_RATES: readonly number[] = [0.75, 1, 1.25, 1.5, 2];
 export const DEFAULT_LISTEN_RATE = 1;
 
 /**
+ * App-wide text size ("Walk with me", step 1). Each client maps these to its
+ * own mechanism: Android multiplies its typography scale, web sets a root
+ * font-size class, Apple maps them to Dynamic Type sizes. Mirrored in
+ * `mobile/src/features/settings/textScale.ts`, `src/lib/text-scale.ts` and
+ * `macos/Shared/Onboarding/TextScale.swift`.
+ */
+export const TEXT_SCALES = ["standard", "large", "largest"] as const;
+export type TextScale = (typeof TEXT_SCALES)[number];
+export const DEFAULT_TEXT_SCALE: TextScale = "standard";
+
+export function isTextScale(value: unknown): value is TextScale {
+	return typeof value === "string" && (TEXT_SCALES as readonly string[]).includes(value);
+}
+
+/**
  * The eight preset hues a highlight can be, as lowercase ids. Duplicated from
  * `HIGHLIGHT_COLORS` in `src/lib/highlights.ts` for the same reason
  * `LISTEN_RATES` is duplicated: this module holds no runtime imports. The test
@@ -179,6 +194,10 @@ export interface PreferencesDocument {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	/** App-wide text size, chosen on the welcome's first card or in Settings. */
+	textScale: TextScale;
+	/** Voice mode ("Read it to me") for the welcome conversation. */
+	voiceMode: boolean;
 	highlightLabels: HighlightLabels;
 	highlightMeanings: HighlightMeanings;
 	/** "" until the user writes one; the column is null then. */
@@ -207,6 +226,9 @@ export interface PreferencesUserRow {
 	translation: string;
 	parchment: boolean;
 	listenRate: number;
+	/** Optional so an older select still builds a document. */
+	textScale?: string | null;
+	voiceMode?: boolean | null;
 	/**
 	 * The `highlightLabels` JSON column, unread. Optional so a caller that has
 	 * not selected it still builds a document - it reads as "no labels yet",
@@ -242,6 +264,8 @@ export interface PreferencesPatchData {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	textScale?: TextScale;
+	voiceMode?: boolean;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
 	/** null clears the column; that is what an empty "About me" saves as. */
@@ -491,6 +515,8 @@ export function toPreferencesDocument(
 		translation: isTranslationId(translation) ? translation : DEFAULT_TRANSLATION,
 		parchment: user?.parchment ?? true,
 		listenRate: isListenRate(listenRate) ? listenRate : DEFAULT_LISTEN_RATE,
+		textScale: isTextScale(user?.textScale) ? user.textScale : DEFAULT_TEXT_SCALE,
+		voiceMode: user?.voiceMode === true,
 		highlightLabels: readStoredHighlightLabels(user?.highlightLabels),
 		highlightMeanings: readStoredHighlightMeanings(user?.highlightMeanings),
 		aboutMe: readStoredAboutMe(user?.aboutMe),
@@ -544,7 +570,8 @@ export function parsePreferencesPatch(
 		switch (key) {
 			case "webSearchEnabled":
 			case "memoryEnabled":
-			case "parchment": {
+			case "parchment":
+			case "voiceMode": {
 				if (typeof value !== "boolean") {
 					return { ok: false, error: `${key} must be a boolean` };
 				}
@@ -569,6 +596,13 @@ export function parsePreferencesPatch(
 					};
 				}
 				data.listenRate = value;
+				break;
+			}
+			case "textScale": {
+				if (!isTextScale(value)) {
+					return { ok: false, error: `textScale must be one of: ${TEXT_SCALES.join(", ")}` };
+				}
+				data.textScale = value;
 				break;
 			}
 			case "highlightLabels": {

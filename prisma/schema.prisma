@@ -83,6 +83,27 @@ model User {
   // When the in-chat "getting to know you" interview finished or was skipped
   // (src/lib/onboarding-tools.ts). Null means chat still runs it.
   onboardedAt            DateTime?
+  // "Walk with me" (docs/onboarding/PLAN.md). The welcome conversation
+  // SureWord opened for this account (POST /api/onboarding/start); its turns
+  // ride the "onboarding" usage surface while onboardedAt is null. Not a
+  // relation: deleting the conversation simply leaves a dangling id that the
+  // start route treats as "no welcome".
+  onboardingConversationId String?
+  // App-wide text size: "standard" | "large" | "largest". Validated on read.
+  textScale              String                  @default("standard")
+  // Voice mode ("Read it to me"): every SureWord message in the welcome
+  // conversation is read aloud. Off by default.
+  voiceMode              Boolean                 @default(false)
+  // ElevenLabs characters billed to this account for onboarding narration
+  // (dynamic replies only; the shared scripted lines are not counted here).
+  // Capped by ONBOARDING_VOICE_CHAR_CEILING.
+  onboardingVoiceChars   Int                     @default(0)
+  // Getting started card ticks that no other table records: the first verse
+  // insight and the first open of Pick Up Your Cross. Stamped once.
+  firstInsightAt         DateTime?
+  firstCrossOpenedAt     DateTime?
+  // The Getting started card on Today was dismissed for good.
+  gettingStartedDismissedAt DateTime?
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]

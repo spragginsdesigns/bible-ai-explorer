@@ -470,7 +470,11 @@ test("onboarding answers first, asks who they are, saves as it goes, and never e
 	assert.ok(onboardingGuidance.length <= 6000, `${onboardingGuidance.length} chars`);
 	assert.match(onboardingGuidance, /answer it first/);
 	assert.match(onboardingGuidance, /A pastor, elder or preacher/);
-	assert.match(onboardingGuidance, /A saved believer growing in the Word/);
+	assert.match(onboardingGuidance, /Saved and growing in the Word/);
+	for (const name of ["presentChoices", "showInApp", "listSermonStudies", "getDailyCross", "study.sermons", "today.cross"]) {
+		assert.match(onboardingGuidance, new RegExp(name.replace(".", "\\.")), name);
+	}
+	assert.ok(onboardingGuidance.indexOf("Still seeking, or not sure") < onboardingGuidance.indexOf("A look around"), "the Gospel outranks the tour");
 	assert.match(onboardingGuidance, /Still seeking/);
 	for (const name of ["saveMemory", "findChurch", "setChurch", "saveTestimony", "saveAboutMe", "finishOnboarding"]) {
 		assert.match(onboardingGuidance, new RegExp(name), name);

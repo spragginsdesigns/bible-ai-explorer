@@ -121,6 +121,25 @@ export const ANALYTICS_EVENTS = {
 	/** An account was seen for the first time by the server. */
 	accountCreated: "account_created",
 	/**
+	 * "Walk with me" (docs/onboarding/PLAN.md): the welcome conversation was
+	 * opened. Server-side; `mode` is auto or manual, `created` false on a
+	 * resume. Never the conversation.
+	 */
+	onboardingStarted: "onboarding_started",
+	/** One welcome card was answered or skipped: the step name and the outcome, never the answer. */
+	onboardingStep: "onboarding_step",
+	/** The spotlight tour started, finished or was left early, with how many stops were seen. */
+	onboardingTour: "onboarding_tour",
+	/** finishOnboarding ran. Server-side; `outcome` is completed or skipped. */
+	onboardingFinished: "onboarding_finished",
+	/**
+	 * One welcome message was read aloud. `source` is shared (the cached
+	 * scripted lines), elevenlabs (generated now), cached (replayed) or
+	 * device (on-device speech), and `reason` says why when it fell back.
+	 * Character counts only, never the words.
+	 */
+	onboardingVoice: "onboarding_voice",
+	/**
 	 * A screen was opened in a native client. Web's equivalent is `$pageview`,
 	 * which the browser SDK sends for free; native has no URL to watch, so the
 	 * app says so itself. Mirrored in `mobile/src/lib/analytics.ts`.

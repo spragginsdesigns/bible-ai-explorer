@@ -69,7 +69,7 @@ import {
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance } from "@/utils/systemPrompt";
+import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import type { TranslationId } from "@/lib/bible/translations";
 import {
@@ -599,7 +599,8 @@ async function persistAssistantResponse(options: {
 	return persisted ? "persisted" : "persist_error";
 }
 
-import { withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
+import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
+import { isOnboardingTurn } from "@/lib/onboarding";
 export const POST = withIncludedAiRequest(handlePost, "ask-question");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -657,8 +658,12 @@ async function handlePost(req: Request): Promise<Response> {
 				aboutMe: true,
 				testimony: true,
 				onboardedAt: true,
+				onboardingConversationId: true,
 			},
 		});
+		// A turn in the welcome conversation ("Walk with me") is free: it rides
+		// the onboarding usage surface, with its own per-account ceiling.
+		const welcomeTurn = isOnboardingTurn(userPrefs, conversationId);
 		// Read leniently, the way the preferences document does: a label written
 		// by a newer build degrades to the hue name, never to an error.
 		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
@@ -801,6 +806,7 @@ async function handlePost(req: Request): Promise<Response> {
 		currentMessageId = lastMessage.id;
 		let duePrayers: ChatDayContext["prayers"] = [];
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
+			if (welcomeTurn) meterAsOnboarding();
 			await reserveIncludedRequest(userId);
 		}
 		const stream = createUIMessageStream<SureWordUIMessage>({
@@ -1047,9 +1053,11 @@ async function handlePost(req: Request): Promise<Response> {
 					const stableSystem = chatSystemPrompt(translation);
 					const previousUserMessage = validatedMessages.filter(message => message.role === "user").at(-2);
 					const turnGuidance = taskGuidance({ userText: currentUserText, previousUserText: previousUserMessage ? extractText(previousUserMessage) : "", hasAttachment: threadHasFiles });
-					// The getting-to-know-you interview runs until it is finished or
-					// skipped (finishOnboarding), and again on demand with /onboard.
-					const onboarding = !userPrefs?.onboardedAt || isOnboardCommand(extractText(lastMessage));
+					// The getting-to-know-you interview runs only inside the welcome
+					// conversation (Walk with me) until it is finished or skipped, and
+					// on demand with /onboard. An older account that never finished it
+					// is no longer interviewed in its ordinary chats (Austin, 2026-10-25).
+					const onboarding = welcomeTurn || isOnboardCommand(extractText(lastMessage));
 					// Per-user context only, all of it uncached. The onboarding block
 					// follows the profile blocks it reads from, and the shape hint goes
 					// last, nearest the answer.
@@ -1066,6 +1074,7 @@ async function handlePost(req: Request): Promise<Response> {
 						formatHighlightLegendBlock(legend),
 						formatTodayBlock(dayContext),
 						onboarding ? `\n\n${onboardingGuidance}` : "",
+						welcomeTurn ? `\n\n${welcomeConversationGuidance}` : "",
 						...promptHints.map((hint) => `\n\n${hint}`),
 						shapeHint ? `\n\n${shapeHint}` : "",
 						// Last on purpose: an instruction for this reply, nearest the answer.
@@ -1160,6 +1169,16 @@ async function handlePost(req: Request): Promise<Response> {
 									surface: "ask-question",
 								},
 							});
+							// The end of the welcome funnel, and whether it was finished or skipped.
+							const finished = toolOutput.type === "tool-result" ? (toolOutput.output as { success?: unknown; outcome?: unknown } | undefined) : undefined;
+							if (toolCall.toolName === "finishOnboarding" && finished?.success === true) {
+								captureServerEvent({
+									userId,
+									event: ANALYTICS_EVENTS.onboardingFinished,
+									platform,
+									properties: { outcome: finished.outcome === "skipped" ? "skipped" : "completed", inWelcome: welcomeTurn },
+								});
+							}
 						},
 					});
 

@@ -6,6 +6,16 @@ import { PlaceNotFoundError, PlacesNotConfiguredError, searchChurches } from "@/
 import { MAX_ABOUT_ME_LENGTH, MAX_TESTIMONY_LENGTH } from "@/lib/preferences-contract";
 import { AgentActionError, executeApprovedAction, type AgentActionContext } from "@/lib/agent-actions";
 import { isInitialProfileSaveRequest } from "@/lib/agent-intent";
+import {
+	APP_TARGETS,
+	APP_TARGET_KEYS,
+	ONBOARDING_STEPS,
+	TOUR_STOPS,
+	resolveChoiceCard,
+	type AppTarget,
+} from "@/lib/onboarding-rules";
+
+const targetList = APP_TARGET_KEYS.map((key) => `${key}: ${APP_TARGETS[key]}`).join(" ");
 
 /**
  * The tools behind "Getting to know you", the in-chat onboarding interview
@@ -110,9 +120,32 @@ export function buildOnboardingTools(userId: string, context: AgentActionContext
 			}),
 			execute: async ({ text, replaceExisting }) => savePersonalText("aboutMe", text, replaceExisting),
 		}),
+		presentChoices: tool({
+			description:
+				"Put big tap-to-answer buttons under your message, so they can answer with one tap instead of typing. Use it for every getting-to-know-you question, naming the step; the app fills in the scripted question and the fixed answers for each step, so keep your own text to a sentence or two and do not repeat the question in it. Step \"name\": options is one prefilled answer such as \"Call me Kim\" from the first name you know (or none). Step \"other\": any other question with two to six short answers you write. The tapped answer comes back to you as their next message. At most one per message, and always last.",
+			inputSchema: z.object({
+				step: z.enum(ONBOARDING_STEPS),
+				question: z.string().trim().max(300).nullable(),
+				options: z.array(z.string().trim().min(1).max(80)).max(6).nullable(),
+				allowOther: z.boolean().nullable(),
+			}),
+			execute: async (input) => resolveChoiceCard(input),
+		}),
+		showInApp: tool({
+			description: `Light up a part of the app on their screen: a "Show me" card under your message that takes them there and spotlights it with your caption. Use it whenever they ask how to do something or where something is, and when the welcome reaches a feature. One short caption in your own voice, under 140 characters. Targets: ${targetList}`,
+			inputSchema: z.object({
+				target: z.enum(APP_TARGET_KEYS as [AppTarget, ...AppTarget[]]),
+				caption: z.string().trim().min(1).max(200),
+			}),
+			execute: async ({ target, caption }) => ({
+				target,
+				caption,
+				...(target === "tour" ? { stops: TOUR_STOPS.map((stop) => ({ ...stop })) } : {}),
+			}),
+		}),
 		finishOnboarding: tool({
 			description:
-				"End the getting-to-know-you interview: outcome \"completed\" once you have covered the topics and saved what they shared, or \"skipped\" when they say they would rather not do it now. Afterwards the interview no longer runs in their chats.",
+				"End the getting-to-know-you welcome: outcome \"completed\" once you have covered the steps and saved what they shared, or \"skipped\" when they say they would rather not do it now (or skipped every step). Afterwards the welcome no longer runs in their chats; they can pick it up again from Settings with Walk me through SureWord.",
 			inputSchema: z.object({ outcome: z.enum(["completed", "skipped"]) }),
 			execute: async ({ outcome }) => {
 				try {
