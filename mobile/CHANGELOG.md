@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.100.1 (versionCode 117) - 2026-10-25 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- Quiz me keeps the question on screen after you answer. The verse card now slides up from the bottom instead of pushing the question off the top.
+
+**Dev notes:** Found in the 1.100.0 emulator proof: after Check answer, `QuizScreen` scrolled the verse card to the top of the column (`scrollTo(cardY - spacing.xl)`), so on a phone the prompt was cut off. The card is the last item in the column, so it now uses `scrollToEnd`, the least movement that shows it. The Apple quiz gets the same fix (`proxy.scrollTo("verse", anchor: .bottom)`); web already used `scrollIntoView({ block: "nearest" })`. No native changes.
+
 ## 1.100.0 (versionCode 116) - 2026-10-25 - internal and closed testing
 
 **What's new (Play):**

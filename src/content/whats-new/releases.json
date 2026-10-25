@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.100.1",
+			"versionCode": 117,
+			"date": "2026-10-25",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Quiz me keeps the question on screen after you answer. The verse card now slides up from the bottom instead of pushing the question off the top."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.100.0",
 			"versionCode": 116,
 			"date": "2026-10-25",

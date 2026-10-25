@@ -97,13 +97,15 @@ export default function QuizScreen() {
 		scrollRef.current?.scrollTo({ y: 0, animated: !reduceMotion.current });
 	}, []);
 
-	// The verse card is the reason for the question: bring it into view once it opens.
+	// The verse card is the reason for the question: bring it into view once it
+	// opens. It is the last thing in the column, so scrolling to the end reveals
+	// it with the least movement and keeps as much of the question in view as fits
+	// (pinning the card to the top pushed the question off screen).
 	const verseShown = run.checked || run.revealed;
 	useEffect(() => {
 		if (!verseShown) return;
 		const timer = setTimeout(() => {
-			const y = verseCardY.current;
-			if (y !== null) scrollRef.current?.scrollTo({ y: Math.max(0, y - spacing.xl), animated: !reduceMotion.current });
+			if (verseCardY.current !== null) scrollRef.current?.scrollToEnd({ animated: !reduceMotion.current });
 		}, 60);
 		return () => clearTimeout(timer);
 	}, [verseShown, run.index]);

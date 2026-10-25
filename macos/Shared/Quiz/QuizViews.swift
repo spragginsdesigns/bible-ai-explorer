@@ -394,8 +394,10 @@ private struct QuizQuestionView: View {
                     .id(question.id)
                     .onChange(of: model.showsVerse) { _, shown in
                         guard shown else { return }
-                        if reduceMotion { proxy.scrollTo("verse", anchor: .top) } else {
-                            withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("verse", anchor: .top) }
+                        // Bottom anchor reveals the card with the least movement, so the
+                        // question stays in view instead of scrolling off the top.
+                        if reduceMotion { proxy.scrollTo("verse", anchor: .bottom) } else {
+                            withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("verse", anchor: .bottom) }
                         }
                     }
                 }
