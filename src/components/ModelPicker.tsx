@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import Link from "next/link";
 import {
 	Check,
@@ -58,6 +59,27 @@ interface PickerProvider {
 
 /** The single model an account without its own API key is served on. */
 type HouseMode = PickerHouse;
+
+/**
+ * SureWord Pro's premium mark: the gold day star from the app's own logo,
+ * beside "SureWord AI" wherever Pro's AI is named (Austin, 2026-10-25). Free
+ * and Pro share the name, so the mark and its spoken "Pro" are the difference.
+ */
+function PremiumMark({ size = 14 }: { size?: number }) {
+	return (
+		<>
+			<Image
+				src="/chat-home/sureword-mark.png"
+				width={size}
+				height={size}
+				alt=""
+				aria-hidden
+				className="flex-shrink-0 object-contain"
+			/>
+			<span className="sr-only">Pro</span>
+		</>
+	);
+}
 
 interface ModelsResponse {
 	access: "house" | "keys";
@@ -445,6 +467,11 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		void setChatRunOptionPreference(key, value);
 	};
 
+	const premium = Boolean(house ? house.premium : selected?.premium);
+	// The owner's picker lists only SureWord's own plan rows; a key unlocks nothing there.
+	const listed = data?.models ?? [];
+	const ownerPlans = listed.length > 0 && listed.every((model) => model.provider === "sureword");
+
 	const activeLabel = !data
 		? loadFailed
 			? "Model"
@@ -512,6 +539,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 						>
 							{model.label}
 						</span>
+						{model.premium ? <PremiumMark /> : null}
 						{pills.map((pill) => (
 							<span
 								key={pill}
@@ -588,6 +616,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 							<span className="min-w-0 flex-1 truncate text-sm font-semibold text-amber-700 dark:text-amber-400">
 								{house.label}
 							</span>
+							{house.premium ? <PremiumMark /> : null}
 							<Check className="h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
 						</div>
 					</div>
@@ -707,7 +736,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 								);
 							})
 						)}
-						{!trimmedQuery ? addKeyRow : null}
+						{!trimmedQuery && !ownerPlans ? addKeyRow : null}
 					</div>
 					{/* Natural height, so the model list above is what gives way. The
 					    sections are kept to one chip row each (the seven reasoning
@@ -771,12 +800,21 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 				aria-haspopup="listbox"
 				aria-expanded={open}
 				aria-controls={menuId}
-				aria-label={`Choose AI model, currently ${activeLabel}`}
+				aria-label={`Choose AI model, currently ${activeLabel}${premium ? ", Pro" : ""}`}
 				title={activeLabel}
 				className="flex h-11 max-w-[240px] items-center gap-1 rounded-lg border border-black/[0.08] px-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:border-white/[0.08] dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
 			>
 				{!data && !loadFailed ? (
 					<Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+				) : premium ? (
+					<Image
+						src="/chat-home/sureword-mark.png"
+						width={14}
+						height={14}
+						alt=""
+						aria-hidden
+						className="h-3.5 w-3.5 flex-shrink-0 object-contain"
+					/>
 				) : (
 					<Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
 				)}

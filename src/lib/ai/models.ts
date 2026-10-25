@@ -520,6 +520,10 @@ export function sureWordPlanDefinition(plan: "free" | "pro"): ModelDefinition {
 		modes: ["standard"],
 		defaultEffort: null,
 		fastModeNote: null,
+		// The row would otherwise print the head's window and price under it.
+		tier: null,
+		contextWindow: null,
+		pricing: null,
 		tagline: plan === "pro" ? "Pro: thinks deeper" : "Free: quick answers",
 	};
 }

@@ -39,6 +39,8 @@ export interface PickerModel {
 	contextWindow?: number | null;
 	pricing?: PickerPricing | null;
 	fastModeNote?: string | null;
+	/** SureWord Pro's AI: drawn with the sunburst premium mark. Absent reads as false. */
+	premium?: boolean | null;
 }
 
 /** The four per-request options the picker owns, as stored locally. */
@@ -488,6 +490,8 @@ export function summaryLabel(
 export interface PickerHouse {
 	modelId: string;
 	label: string;
+	/** Pro's included AI, drawn with the sunburst premium mark. Absent reads as false. */
+	premium?: boolean | null;
 	effort: string | null;
 	note: string;
 	/**
