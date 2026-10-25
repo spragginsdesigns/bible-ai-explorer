@@ -9,6 +9,23 @@ struct SureWordApp: App {
     @State private var settings = SettingsStore()
     @State private var root = RootModel()
 
+    /// Debug builds keep their Clerk session under their own keychain service,
+    /// so they never read the installed app's items. Agent worktrees build
+    /// Debug, often unsigned (`CODE_SIGNING_ALLOWED=NO` test hosts), and every
+    /// such build that read the shared items raised a login-password prompt;
+    /// approving one rewrote the items' partition list and locked out
+    /// `/Applications/SureWord.app` until Austin typed his password again
+    /// (2026-10-25). ClerkKit only reads the bundle-id service as a legacy
+    /// fallback when shared session sync is on, which SureWord does not use.
+    private static let keychainService: String = {
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.spragginsdesigns.sureword"
+        #if DEBUG
+        return bundleID + ".debug"
+        #else
+        return bundleID
+        #endif
+    }()
+
     init() {
         Clerk.configure(
             publishableKey: Config.clerkPublishableKey,
@@ -26,6 +43,7 @@ struct SureWordApp: App {
                 // ACL is bound to the app's designated requirement, and an ad-hoc
                 // signature changes it on every build, which is what made
                 // `configure()` block on a consent prompt during development.
+                keychainConfig: .init(service: Self.keychainService),
                 // Clerk's default redirect is `{bundleID}://callback`, which is
                 // NOT on this instance's allowlist. Production Clerk rejects
                 // unlisted redirects *silently*, so leaving this at the default

@@ -182,6 +182,15 @@ Healthy output lists exactly `0: /Applications/SureWord.app (OK)` and
 4. Re-run the check, then quit and relaunch: it must open signed in with no
    prompt. Verified this way on 1.25.0 (33).
 
+Since 2026-10-25, Debug builds keep their Clerk session under the
+`com.spragginsdesigns.sureword.debug` service (`SureWordApp.keychainService`),
+so agent worktree builds and test hosts, signed or not, never read the
+installed app's items. It happened again that day before the split: two
+agents' unsigned macOS test hosts prompted, and approving them replaced the
+items' `teamid:389LLKGY3Y` partition with a cdhash, so `/Applications` asked
+for the login password on every launch. A Debug build starts signed out and
+needs its own sign-in once.
+
 To keep it from coming back: running unsigned or ad-hoc builds (for example
 `xcodebuild test ... CODE_SIGNING_ALLOWED=NO`, which hosts the tests inside
 the app) can read the same items and adds itself to their ACLs if anyone
