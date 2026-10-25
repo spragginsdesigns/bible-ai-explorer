@@ -170,8 +170,8 @@ not `verified` for the build being submitted):
 - "word study": PROGRESS C2.
 - "Bible timeline, people and places": PROGRESS C9 (`source` today).
 - "Bible quiz after each chapter" (added 2026-10-25, Apple 1.25.0): the
-  PARITY "Quiz me" iOS row. Not yet written to App Store Connect; run
-  `asc.py listing apply` with the next version that carries the quiz.
+  PARITY "Quiz me" iOS row. Written to App Store Connect 2026-10-25
+  with `asc.py listing apply`; `listing check` matches.
 
 ## Keywords (100 max, comma separated, no spaces)
 
