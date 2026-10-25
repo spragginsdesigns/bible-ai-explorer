@@ -121,10 +121,10 @@ function copyFor(code: ChatErrorCode, serverMessage: string | null): ClassifiedC
 		case "provider_key_missing":
 			return {
 				code,
-				title: "API key needed",
+				title: "AI unavailable",
 				message:
 					serverMessage ??
-					"Add your provider API key in Settings → AI Providers to use this model.",
+					"SureWord's AI is not available right now. Please try again shortly.",
 				retryable: false,
 			};
 		case "provider_error":

@@ -107,7 +107,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 				],
 				[
 					{ strong: "Settings." },
-					" Preferences such as theme, Bible translation, model choice, web search, memory, and notification delivery hour. If you add your own AI provider API key, it is encrypted at rest and never shown again after entry.",
+					" Preferences such as theme, Bible translation, model choice, web search, memory, and notification delivery hour.",
 				],
 				[
 					{ strong: "Notification data." },
@@ -279,13 +279,6 @@ export const MEMBERSHIP_TERMS: LegalDocument = {
 			type: "p",
 			content: [
 				"Subscriptions renew monthly until canceled. Checkout shows your price and any applicable taxes before payment. Manage billing allows you to cancel, update payment details and view invoices. Cancellation normally keeps paid access through the end of the current paid period. A subscription bought through Google Play is billed and managed by Google Play under its terms, and is canceled there. Failed payments, refunds or disputes may change access; saved study material remains available on Free. These terms do not limit rights available under applicable consumer law.",
-			],
-		},
-		{ type: "h2", text: "Personal API keys" },
-		{
-			type: "p",
-			content: [
-				"Personal API keys are optional and can be used on either plan. When you choose personal-key access, your AI provider bills the associated usage separately. Your provider's pricing, availability and terms apply, and your requests for that provider's models are sent to it as the Privacy Policy describes. A personal key does not remove SureWord's service or abuse limits.",
 			],
 		},
 		{ type: "h2", text: "Your account" },

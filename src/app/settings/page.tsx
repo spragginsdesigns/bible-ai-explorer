@@ -34,7 +34,6 @@ import {
 } from "@/lib/preferencesSync";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
 import MemoryManager from "@/components/MemoryManager";
-import ProviderSettings from "@/components/ProviderSettings";
 import AboutMeSection from "@/components/settings/AboutMeSection";
 import TestimonySection from "@/components/settings/TestimonySection";
 import ChurchSection from "@/components/settings/ChurchSection";
@@ -220,8 +219,8 @@ export default function SettingsPage() {
 		memory: memorySubtitle,
 		ai:
 			webSearchEnabled === null
-				? "Membership, keys, web search"
-				: `Membership, keys · web search ${webSearchEnabled ? "on" : "off"}`,
+				? "Membership, web search"
+				: `Membership · web search ${webSearchEnabled ? "on" : "off"}`,
 		shared: "Links you have shared",
 		notifications: "Daily verse and answer-ready notices",
 		feedback: "Tell us what is broken or missing",
@@ -537,12 +536,6 @@ export default function SettingsPage() {
 								Membership
 							</h2>
 							<MembershipSummary />
-						</section>
-						<section className="flex flex-col gap-2">
-							<h2 className="px-1 text-metadata font-bold uppercase tracking-[0.15em] text-neutral-500">
-								Your AI keys
-							</h2>
-							<ProviderSettings />
 						</section>
 						<SettingsGroup label="Web search">
 							<SettingsRow

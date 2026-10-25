@@ -222,7 +222,7 @@ async function reserve(scope: Scope, userId: string) {
         });
         if (attempts >= (pro ? 150 : 30))
           throw new IncludedAiLimitError(
-            "Too many AI attempts today. Please return after the daily reset or use a personal API key.",
+            "Too many AI attempts today. Please return after the daily reset.",
             429,
             day.end,
           );
@@ -242,7 +242,7 @@ async function reserve(scope: Scope, userId: string) {
           throw new IncludedAiLimitError(
             scope.onboardingFallback
               ? `We have covered a lot together, and you have used today's free messages too. Everything you shared is saved, and we can pick up right here at ${reset.toISOString()}. Until then the Bible, your notes and today's word are all yours.`
-              : `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading, revisit saved study, or use your own API key.`,
+              : `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading and revisit saved study.`,
             429,
             reset,
           );
@@ -367,7 +367,7 @@ export function withIncludedAiRequest<T extends unknown[]>(
   };
 }
 
-/** Meter only included inference. Personal keys and owner credentials never enter this wrapper. */
+/** Meter only included inference. The owner's server credentials never enter this wrapper. */
 export function meterIncludedModel(
   userId: string,
   model: Exclude<LanguageModel, string>,

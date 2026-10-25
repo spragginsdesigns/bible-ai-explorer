@@ -12,8 +12,6 @@ import {
 type Membership = {
   plan: "free" | "pro";
   owner: boolean;
-  access: "house" | "keys";
-  hasPersonalKeys: boolean;
   enabled: boolean;
   checkoutAvailable: boolean;
   subscription: {
@@ -96,26 +94,6 @@ export default function MembershipPage() {
       setBusy(false);
     }
   };
-  const chooseAccess = async (access: "house" | "keys") => {
-    setBusy(true);
-    setError("");
-    try {
-      const response = await fetch("/api/billing/status", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-      setData(result);
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Could not update AI choice.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <main className="min-h-[100dvh] gradient-mesh px-5 py-9 pb-28 text-neutral-900 dark:text-neutral-100">
       <div className="mx-auto max-w-3xl">
@@ -182,11 +160,7 @@ export default function MembershipPage() {
                       : "SureWord Free"}
                 </h2>
                 <span className="text-sm text-amber-600 dark:text-amber-400">
-                  {data.owner
-                    ? "Owner AI access"
-                    : data.access === "keys"
-                      ? "Personal API key"
-                      : "Included AI"}
+                  {data.owner ? "Owner AI access" : "Included AI"}
                 </span>
               </div>
               {data.owner ? (
@@ -248,37 +222,6 @@ export default function MembershipPage() {
                 </>
               )}
             </section>
-            {data.enabled && !data.owner && (
-              <section className="glass-card gradient-border mb-6 rounded-2xl p-6">
-                <h2 className="text-lg">Choose who pays for AI</h2>
-                <p className="mt-2 text-sm leading-6 text-neutral-500 dark:text-neutral-400">
-                  Included AI uses your SureWord allowance. A personal API key
-                  uses your provider account and keeps your included messages
-                  available.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {(["house", "keys"] as const).map((access) => (
-                    <button
-                      key={access}
-                      disabled={
-                        busy || (access === "keys" && !data.hasPersonalKeys)
-                      }
-                      aria-pressed={data.access === access}
-                      onClick={() => void chooseAccess(access)}
-                      className={`rounded-lg border px-4 py-3 text-sm disabled:opacity-40 ${data.access === access ? "border-amber-500 dark:border-amber-400 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300" : "border-black/[0.12] dark:border-white/20"}`}
-                    >
-                      {access === "house" ? "Included AI" : "My API key"}
-                    </button>
-                  ))}
-                </div>
-                <Link
-                  href="/settings"
-                  className="mt-4 inline-block text-sm text-amber-600 dark:text-amber-400 underline"
-                >
-                  Manage personal keys in Settings
-                </Link>
-              </section>
-            )}
             {!data.owner && data.plan !== "pro" && (
               <section className="glass-card rounded-2xl border border-amber-500/50 dark:border-amber-400/40 bg-amber-500/[0.06] dark:bg-amber-400/[0.05] p-7">
                 <p className="text-xs uppercase tracking-widest text-amber-600 dark:text-amber-400">
@@ -293,7 +236,6 @@ export default function MembershipPage() {
                     `${PRO_MONTHLY_MESSAGES} AI messages each billing month`,
                     `Up to ${PRO_DAILY_MESSAGES} messages per day`,
                     "Thoughtful, Scripture-grounded AI",
-                    "Keep using your personal keys whenever you prefer",
                   ].map((text) => (
                     <li key={text} className="flex items-center gap-2">
                       <Check size={16} className="text-amber-600 dark:text-amber-400" />

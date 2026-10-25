@@ -94,8 +94,8 @@ BIBLE STUDY NOTES
 • Notes with folders, tags, templates and linked notes
 • SureWord can find, read, add to and tidy your notes when you ask
 
-YOUR CHOICE OF AI
-• SureWord AI works the moment you sign in, or bring your own OpenAI, Anthropic, Moonshot or OpenRouter key
+SUREWORD AI
+• SureWord AI works the moment you sign in, with no setup and no API key
 
 SUREWORD PRO
 An optional monthly subscription adds Listen (the daily devotional read aloud), more AI messages each day, deeper reasoning and unlimited voice message transcription.

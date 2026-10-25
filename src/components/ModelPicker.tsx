@@ -468,9 +468,6 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	};
 
 	const premium = Boolean(house ? house.premium : selected?.premium);
-	// The owner's picker lists only SureWord's own plan rows; a key unlocks nothing there.
-	const listed = data?.models ?? [];
-	const ownerPlans = listed.length > 0 && listed.every((model) => model.provider === "sureword");
 
 	const activeLabel = !data
 		? loadFailed
@@ -479,31 +476,6 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 		: house
 			? houseSummaryLabel(house, effort)
 			: summaryLabel(selected, storedOptions);
-
-	/**
-	 * The way to more models, at the foot of the list for accounts that already
-	 * have a key (mirrors Android's AddKeyRow). House mode keeps its own link
-	 * under the note.
-	 */
-	const addKeyRow = (
-		<Link
-			href="/settings#providers"
-			onClick={() => setOpen(false)}
-			aria-label="Add an API key in Settings"
-			className="mt-1 flex w-full items-center gap-2 border-t border-black/[0.06] px-4 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:border-white/[0.06] dark:hover:bg-white/[0.05]"
-		>
-			<KeyRound className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
-			<span className="min-w-0 flex-1">
-				<span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
-					Add an API key
-				</span>
-				<span className="block text-xs text-neutral-400 dark:text-neutral-500">
-					Unlock more models in Settings
-				</span>
-			</span>
-			<ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400" />
-		</Link>
-	);
 
 	/**
 	 * One model row. `showProvider` is the flat search view, where a result
@@ -651,14 +623,6 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 						<p className="text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
 							{house.note}
 						</p>
-						<Link
-							href="/settings#providers"
-							onClick={() => setOpen(false)}
-							className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline dark:text-amber-400"
-						>
-							Add an API key
-							<ChevronRight className="h-3 w-3" />
-						</Link>
 					</div>
 				</>
 			) : (
@@ -736,7 +700,6 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 								);
 							})
 						)}
-						{!trimmedQuery && !ownerPlans ? addKeyRow : null}
 					</div>
 					{/* Natural height, so the model list above is what gives way. The
 					    sections are kept to one chip row each (the seven reasoning

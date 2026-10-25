@@ -391,17 +391,6 @@
 .plan > a {
   width: 100%;
 }
-.byok {
-  max-width: 650px;
-  margin: 25px auto 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.8;
-}
-.byok strong {
-  font-weight: 400;
-  color: #e8dfcd;
-}
 .mission {
   text-align: center;
   border-block: 1px solid #ffffff13;

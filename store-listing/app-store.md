@@ -15,6 +15,13 @@ cut that line here and in `play-store.md` together.
 2026-10-22: the rejected 1.21.0 version became 1.24.0 in App Store Connect and
 `listing apply` wrote this file to it; `listing check` matched.
 
+> **PENDING (2026-10-25): the live App Store description is behind this
+> file.** Bring-your-own API keys were removed, so the "YOUR CHOICE OF AI"
+> heading and its bring-your-own-key bullet became "SUREWORD AI" / "works the
+> moment you sign in, with no setup and no API key". `release-ios.sh` runs
+> `asc.py listing check`; apply it with the next iOS version and delete this
+> block once `check` matches.
+
 Status: first entered in App Store Connect on 2026-10-07 (version 1.10.0,
 en-US) through the API. This file is the source of truth for the listing;
 `asc.py listing check` compares it with App Store Connect. Copy follows the Mission in `CLAUDE.md`: SureWord
@@ -114,8 +121,8 @@ BIBLE STUDY NOTES
 • Notes with folders, tags, templates and linked notes
 • SureWord can find, read, add to and tidy your notes when you ask
 
-YOUR CHOICE OF AI
-• SureWord AI works the moment you sign in, or bring your own OpenAI, Anthropic, Moonshot or OpenRouter key
+SUREWORD AI
+• SureWord AI works the moment you sign in, with no setup and no API key
 
 SUREWORD PRO
 An optional monthly subscription adds Listen (the daily devotional read aloud), more AI messages each day, deeper reasoning and unlimited voice message transcription.

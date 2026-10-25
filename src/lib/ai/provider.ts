@@ -6,9 +6,8 @@ import type { AiProvider } from "@prisma/client";
 import type { JSONValue, LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
-import { decryptSecret } from "./crypto";
 import { houseKeyFor } from "./house-key";
-import { meterIncludedModel, usageEnabled, resolveRequestAccess, reserveIncludedRequest, requestUserPlan } from "@/lib/billing/usage";
+import { meterIncludedModel, resolveRequestAccess, reserveIncludedRequest, requestUserPlan } from "@/lib/billing/usage";
 import { decideAccess, houseEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
 import {
@@ -51,10 +50,10 @@ export const DB_PROVIDER: Record<ProviderId, AiProvider> = {
 	openrouter: "OPENROUTER",
 };
 
-/** Thrown when the user picked a model they have no working credentials for. */
+/** Thrown when a call needs a provider the server holds no key for. */
 export class AiCredentialError extends Error {
 	constructor(public provider: ProviderId, public providerLabel: string) {
-		super(`Add your ${providerLabel} API key in Settings → AI Providers to use this model.`);
+		super(`${providerLabel} is not configured on this server.`);
 		this.name = "AiCredentialError";
 	}
 }
@@ -95,24 +94,19 @@ function serverKeyFor(provider: ProviderId): string | undefined {
 }
 
 /**
- * Only allowlisted accounts (Austin's) may run on the server's own API keys.
- * Everyone else brings their own key — the app never foots their LLM bill.
+ * Only allowlisted accounts (Austin's) may run on the server's own API keys
+ * unmetered. Everyone else is Free or Pro on included AI.
  */
 export function isServerCredentialUser(userId: string): boolean {
 	return parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS).includes(userId);
 }
 
-async function userKeyFor(userId: string, provider: ProviderId): Promise<string | null> {
-	const credential = await prisma.providerCredential.findUnique({
-		where: { userId_provider: { userId, provider: DB_PROVIDER[provider] } },
-		select: { encryptedKey: true },
-	});
-	return credential ? decryptSecret(credential.encryptedKey) : null;
-}
-
+/**
+ * The key a `keys` call runs on. Only the owner reaches this path, and only on
+ * the server's keys: stored personal keys stopped being read when BYOK was
+ * removed (2026-10-25).
+ */
 async function apiKeyFor(userId: string, provider: ProviderId): Promise<string> {
-	const userKey = await userKeyFor(userId, provider);
-	if (userKey) return userKey;
 	if (isServerCredentialUser(userId)) {
 		const serverKey = serverKeyFor(provider);
 		if (serverKey) return serverKey;
@@ -121,20 +115,12 @@ async function apiKeyFor(userId: string, provider: ProviderId): Promise<string> 
 }
 
 /**
- * Whether this account runs on SureWord's own key (house) or on credentials of
- * its own (keys). One count answers it: owning any key at all, or being
- * allowlisted, means the user picks their models and pays their own bills.
+ * Whether this account runs on SureWord's included AI (house) or is the owner
+ * on the server's keys (keys). Every other account is Free or Pro on included
+ * AI; there are no personal keys any more.
  */
 export async function aiAccessFor(userId: string): Promise<AiAccess> {
-	return resolveRequestAccess(userId, async () => {
-	const allowlisted = isServerCredentialUser(userId);
-	if (!allowlisted && usageEnabled()) {
-		const user = await prisma.aiPreference.findUnique({ where: { userId }, select: { includedAiPreferred: true } });
-		return decideAccess({ allowlisted, ownKeyCount: 0, includedPreference: user?.includedAiPreferred ?? null });
-	}
-	const ownKeyCount = await prisma.providerCredential.count({ where: { userId } });
-	return decideAccess({ allowlisted, ownKeyCount });
-	});
+	return resolveRequestAccess(userId, async () => decideAccess({ allowlisted: isServerCredentialUser(userId) }));
 }
 
 /**
@@ -635,18 +621,11 @@ export async function resolveModel(options: {
 export async function availableProviders(
 	userId: string,
 ): Promise<Record<ProviderId, { available: boolean; source: "user-key" | "server" | null }>> {
-	const credentials = await prisma.providerCredential.findMany({
-		where: { userId },
-		select: { provider: true },
-	});
-	const owned = new Set(credentials.map((credential) => credential.provider));
 	const allowlisted = isServerCredentialUser(userId);
 
 	const result = {} as Record<ProviderId, { available: boolean; source: "user-key" | "server" | null }>;
 	for (const provider of Object.keys(DB_PROVIDER) as ProviderId[]) {
-		if (owned.has(DB_PROVIDER[provider])) {
-			result[provider] = { available: true, source: "user-key" };
-		} else if (allowlisted && serverKeyFor(provider)) {
+		if (allowlisted && serverKeyFor(provider)) {
 			result[provider] = { available: true, source: "server" };
 		} else {
 			result[provider] = { available: false, source: null };

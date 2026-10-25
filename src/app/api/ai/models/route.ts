@@ -2,30 +2,18 @@ import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-	DEFAULT_MODEL_ID,
-	isReasoningEffort,
-	isReasoningMode,
-	isSpeed,
-	isVerbosity,
-	PROVIDERS,
-	resolveDefinition,
 	SUREWORD_AI_LABEL,
 	SUREWORD_PLAN_MODEL_IDS,
 	sureWordPlanDefinition,
 	sureWordPlanForModelId,
 	toModelPayload,
-	type ModelDefinition,
 } from "@/lib/ai/models";
-import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
-import { aiAccessFor, apiKeyOrNull, availableProviders, houseChatModel, isServerCredentialUser } from "@/lib/ai/provider";
+import { aiAccessFor, houseChatModel, isServerCredentialUser } from "@/lib/ai/provider";
 import { houseEffortFor, houseEffortsFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
 
-const HOUSE_NOTE =
-	process.env.SUREWORD_USAGE_ENABLED === "true"
-		? "Included with SureWord. Use Membership in Settings to switch to a personal API key and choose other models."
-		: "Included with SureWord. Add your own API key in Settings to choose other models.";
+const HOUSE_NOTE = "Included with SureWord.";
 
 /**
  * The single source every client (web, Android, macOS) renders its model
@@ -35,11 +23,8 @@ const HOUSE_NOTE =
  * key, on one model, and the response says so with a single-entry list and no
  * providers, so a picker has nothing to render but the house note.
  *
- * An account with keys gets only what it can actually reach. For each unlocked
- * provider the model list comes live from that provider's own /models endpoint
- * (whatever the key can reach), with the curated registry as label source and
- * outage fallback. Locked providers are omitted entirely rather than shown as
- * unavailable, so no client can present a model it cannot run.
+ * The owner gets the two plans' SureWord AIs. Personal API keys, and the full
+ * provider model list they unlocked, were removed on 2026-10-25.
  */
 export async function GET(): Promise<Response> {
 	try {
@@ -48,13 +33,7 @@ export async function GET(): Promise<Response> {
 			aiAccessFor(userId),
 			prisma.user.findUnique({
 				where: { id: userId },
-				select: {
-					defaultModelId: true,
-					defaultEffort: true,
-					defaultSpeed: true,
-					defaultVerbosity: true,
-					defaultMode: true,
-				},
+				select: { defaultModelId: true },
 			}),
 		]);
 
@@ -113,54 +92,10 @@ export async function GET(): Promise<Response> {
 			});
 		}
 
-		const providers = await availableProviders(userId);
-		const unlocked = PROVIDERS.filter((provider) => providers[provider.id].available);
-
-		const catalogs = await Promise.all(
-			unlocked.map(async (provider) => {
-				const apiKey = await apiKeyOrNull(userId, provider.id);
-				const models: ModelDefinition[] = apiKey
-					? await listProviderModels(provider.id, apiKey)
-					: curatedModelsFor(provider.id);
-				return { provider, models };
-			}),
-		);
-
-		const models = catalogs.flatMap(({ models: definitions }) =>
-			definitions.map((model) => toModelPayload(model)),
-		);
-
-		const storedDefault = user?.defaultModelId ? resolveDefinition(user.defaultModelId) : undefined;
-		// Never name a model the picker did not list: a selected-but-locked id is
-		// what made a picker show a model the user could not actually run. The
-		// registry default is the last resort for the degenerate case of an
-		// allowlisted account whose server keys are all unset.
-		const storedIsListed =
-			storedDefault !== undefined && models.some((model) => model.id === storedDefault.id);
-		const defaultModelId = storedIsListed
-			? storedDefault.id
-			: (models[0]?.id ?? DEFAULT_MODEL_ID);
-
-		return NextResponse.json({
-			access,
-			providers: unlocked.map((provider) => ({
-				id: provider.id,
-				label: provider.label,
-				available: true,
-			})),
-			models,
-			// A stored value the selected model does not offer is still returned:
-			// the client renders it as the default chip without erasing it, so
-			// switching back to a model that does offer it restores the choice.
-			defaults: {
-				modelId: defaultModelId,
-				effort: isReasoningEffort(user?.defaultEffort) ? user.defaultEffort : null,
-				speed: isSpeed(user?.defaultSpeed) ? user.defaultSpeed : null,
-				verbosity: isVerbosity(user?.defaultVerbosity) ? user.defaultVerbosity : null,
-				mode: isReasoningMode(user?.defaultMode) ? user.defaultMode : null,
-			},
-			house: null,
-		});
+		// Unreachable today: the owner is the only `keys` account. Kept as a
+		// plain answer rather than a model list so a misconfigured allowlist
+		// can never resurrect the old provider picker.
+		return NextResponse.json({ error: "No AI plan is available for this account." }, { status: 409 });
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("[api/ai/models] GET failed", error);

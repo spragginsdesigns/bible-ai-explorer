@@ -44,13 +44,9 @@ test("OpenRouter live metadata filters non-chat rows and drives vision and effor
 	assert.match(catalog, /row\.efforts && row\.efforts\.length > 0/);
 });
 
-test("OpenRouter keys use the authenticated /key probe and the official adapter", async () => {
-	const [route, provider] = await Promise.all([
-		readFile("src/app/api/providers/route.ts", "utf8"),
-		readFile("src/lib/ai/provider.ts", "utf8"),
-	]);
+test("OpenRouter runs through the official adapter", async () => {
+	const provider = await readFile("src/lib/ai/provider.ts", "utf8");
 
-	assert.match(route, /openrouter:[\s\S]*https:\/\/openrouter\.ai\/api\/v1\/key/);
 	assert.match(provider, /createOpenRouter\(\{/);
 	assert.match(provider, /appName: "SureWord"/);
 	assert.match(provider, /appUrl: "https:\/\/sureword\.app"/);

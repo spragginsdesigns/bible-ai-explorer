@@ -3,8 +3,9 @@
  *
  * - `house`: SureWord runs the answer on its own OpenAI key, on one fixed
  *   model at one fixed effort. No picker, no choice, nothing persisted.
- * - `keys`: the account brings its own credentials (or is allowlisted onto the
- *   server's), and keeps the full model and effort picker.
+ * - `keys`: the owner's account (SERVER_CREDENTIAL_USER_IDS), which runs on
+ *   the server's keys unmetered. Nobody else: personal API keys were removed
+ *   on 2026-10-25 (Austin: "no more BYOK, its either free or pay for pro").
  *
  * Kept pure - no Prisma, no `server-only`, no env reads - so the rule itself is
  * unit-testable (`tests/ai-access.test.mjs`) and can be imported from anywhere.
@@ -44,14 +45,6 @@ export function houseEffortFor(
 export function decideAccess(options: {
 	/** On SERVER_CREDENTIAL_USER_IDS: may spend the server's keys freely. */
 	allowlisted: boolean;
-	/** How many provider keys this account has stored of its own. */
-	ownKeyCount: number;
-	/** Undefined preserves legacy behavior; null means a new account defaults to included AI. */
-	includedPreference?: boolean | null;
 }): AiAccess {
-	if (options.allowlisted) return "keys";
-	if (options.includedPreference !== undefined) return options.includedPreference === false ? "keys" : "house";
-	// One key is enough to leave the house: the picker still lists only the
-	// providers that key unlocks, so there is nothing to fall back to.
-	return options.allowlisted || options.ownKeyCount > 0 ? "keys" : "house";
+	return options.allowlisted ? "keys" : "house";
 }

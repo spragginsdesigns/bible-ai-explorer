@@ -107,10 +107,10 @@ export const SETTINGS_PANES: SettingsPane[] = [
 		id: "ai",
 		group: "assistant",
 		title: "AI",
-		summary: "Your own AI keys, SureWord Pro, web search and data sharing.",
+		summary: "SureWord Pro, web search and data sharing.",
 		Icon: Cpu,
 		tile: "from-teal-400 to-teal-600",
-		keywords: ["api key", "provider", "model", "openai", "anthropic", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"],
+		keywords: ["model", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"],
 	},
 	{
 		id: "shared",

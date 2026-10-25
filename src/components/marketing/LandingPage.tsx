@@ -285,11 +285,6 @@ export default function LandingPage({
               </p>
             </article>
           </div>
-          <p className={styles.byok}>
-            Already have an AI API key? <strong>Bring it with you.</strong>{" "}
-            Personal keys work on Free or Pro, with usage billed by your
-            provider.
-          </p>
         </section>
         <section className={styles.mission}>
           <span className={styles.eyebrow}>Why we built SureWord</span>

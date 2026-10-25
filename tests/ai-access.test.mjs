@@ -17,21 +17,14 @@ import {
 	houseChatModelId,
 } from "../src/lib/ai/models.ts";
 
-test("an account with no key of its own runs on the house model", () => {
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 0 }), "house");
+test("every account but the owner runs on included AI", () => {
+	// Personal API keys were removed on 2026-10-25 ("no more BYOK, its either
+	// free or pay for pro"): there is no fact left that moves a reader off it.
+	assert.equal(decideAccess({ allowlisted: false }), "house");
 });
 
-test("one stored key is enough to leave the house", () => {
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 1 }), "keys");
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 4 }), "keys");
-});
-
-test("an allowlisted account keeps the picker even with no stored key", () => {
-	// SERVER_CREDENTIAL_USER_IDS exists to let Austin spend the server's keys on
-	// any provider. Dropping him into the single-model house would be a
-	// regression, not a simplification.
-	assert.equal(decideAccess({ allowlisted: true, ownKeyCount: 0 }), "keys");
-	assert.equal(decideAccess({ allowlisted: true, ownKeyCount: 2 }), "keys");
+test("the owner stays on the server's keys, unmetered", () => {
+	assert.equal(decideAccess({ allowlisted: true }), "keys");
 });
 
 test("the house model is a real registry entry that takes the house effort", () => {
@@ -117,9 +110,3 @@ test("neither plan gets Reasoning chips on included AI", () => {
 	assert.deepEqual([...houseEffortsFor("free")], []);
 });
 
-test("adding or deleting a key does not silently change the selected payer", () => {
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 1, includedPreference: null }), "house");
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 1, includedPreference: true }), "house");
-	assert.equal(decideAccess({ allowlisted: false, ownKeyCount: 0, includedPreference: false }), "keys");
-	assert.equal(decideAccess({ allowlisted: true, ownKeyCount: 0, includedPreference: true }), "keys");
-});

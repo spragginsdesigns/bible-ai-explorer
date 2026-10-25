@@ -75,7 +75,6 @@ Last reviewed: ${LAST_REVIEWED}
 
 - Free: ${freePlan} Reading, notes, highlights, memories and saved study stay available after the daily allowance runs out.
 - SureWord Pro: ${proPrice} a month, up to ${PRO_DAILY_MESSAGES} AI messages a day and ${PRO_MONTHLY_MESSAGES} a month. Pro is ${proPlan}
-- Bring your own key: people with their own OpenAI, Anthropic, Moonshot (Kimi) or OpenRouter key can add it in Settings to use those models, billed by their provider. Works on the Free plan.
 
 ${getTheAppSection()}
 

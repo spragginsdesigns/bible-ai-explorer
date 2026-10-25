@@ -8,8 +8,6 @@ interface Membership {
 	plan: "free" | "pro";
 	owner: boolean;
 	enabled: boolean;
-	access: "house" | "keys";
-	hasPersonalKeys: boolean;
 	usage: {
 		dailyRemaining: number;
 		monthlyRemaining: number | null;
@@ -24,15 +22,15 @@ async function readMembership(response: Response): Promise<Membership> {
 }
 
 /**
- * Settings -> AI PROVIDERS, above the provider keys: plan, what is left of the
- * included allowance, when it resets, and who pays for AI. Mirrors Android's
- * MembershipSection (same /api/billing/status reads and PATCH, same copy);
- * purchasing and billing management stay on /membership.
+ * Settings -> MEMBERSHIP & AI: plan, what is left of the included allowance
+ * and when it resets. Mirrors Android's MembershipSection (same
+ * /api/billing/status read, same copy); purchasing and billing management stay
+ * on /membership. Every account is Free or Pro on included AI (personal API
+ * keys were removed on 2026-10-25), so there is no payer choice.
  */
 const MembershipSummary: React.FC = () => {
 	const [data, setData] = useState<Membership | null>(null);
 	const [error, setError] = useState("");
-	const [busy, setBusy] = useState(false);
 	// Each request bumps this, so a slow load cannot overwrite a newer choice.
 	const generation = useRef(0);
 
@@ -55,35 +53,14 @@ const MembershipSummary: React.FC = () => {
 		// still in flight.
 		const counter = generation;
 		load();
-		// Adding a personal key below (or paying on /membership in another tab)
-		// changes what this card shows; refresh when the page regains focus.
+		// Paying on /membership in another tab changes what this card shows;
+		// refresh when the page regains focus.
 		window.addEventListener("focus", load);
 		return () => {
 			window.removeEventListener("focus", load);
 			counter.current++;
 		};
 	}, [load]);
-
-	const choose = async (access: "house" | "keys") => {
-		if (busy) return;
-		const current = ++generation.current;
-		setBusy(true);
-		setError("");
-		try {
-			const value = await fetch("/api/billing/status", {
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ access }),
-			}).then(readMembership);
-			if (generation.current === current) setData(value);
-		} catch (cause) {
-			if (generation.current === current) {
-				setError(cause instanceof Error ? cause.message : "Could not change AI choice.");
-			}
-		} finally {
-			if (generation.current === current) setBusy(false);
-		}
-	};
 
 	const title = data?.owner
 		? "Owner membership"
@@ -125,36 +102,6 @@ const MembershipSummary: React.FC = () => {
 						Daily reset: {new Date(data.usage.day.end).toLocaleString()}
 					</p>
 				</div>
-			) : null}
-
-			{data?.enabled && !data.owner ? (
-				<>
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
-						Included AI uses your SureWord allowance. Personal keys are billed by your provider.
-					</p>
-					<div className="flex flex-wrap gap-2" role="group" aria-label="Who pays for AI">
-						{(["house", "keys"] as const).map((access) => {
-							const disabled = busy || (access === "keys" && !data.hasPersonalKeys);
-							const selected = data.access === access;
-							return (
-								<button
-									key={access}
-									type="button"
-									disabled={disabled}
-									aria-pressed={selected}
-									onClick={() => void choose(access)}
-									className={`min-h-11 rounded-lg border px-4 text-sm font-semibold transition-colors disabled:opacity-45 ${
-										selected
-											? "border-amber-500/60 dark:border-amber-400/50 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300"
-											: "border-black/[0.12] dark:border-white/[0.15] text-neutral-700 dark:text-neutral-200 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]"
-									}`}
-								>
-									{access === "house" ? "Included AI" : "My API key"}
-								</button>
-							);
-						})}
-					</div>
-				</>
 			) : null}
 
 			<p className="text-[13px] text-neutral-500 dark:text-neutral-400">

@@ -649,8 +649,7 @@ for latency (tap-a-verse, word study, connections) keeps low. A Pro pick
 stored in `User.defaultEffort` while the chips existed is ignored on included
 AI. Because the chat head is no longer `HOUSE_MODEL_ID`, `houseChatModel()`
 bills it to `OPENAI_API_KEY` (the owner key); GPT-5.6 Luna on the free-tier
-key still runs utility work, status lines and signed-out guests. Accounts with
-their own keys keep the full picker, where GPT-6 Luna is now listed too. No
+key still runs utility work, status lines and signed-out guests. No
 client change: every client renders the label and chips from
 `GET /api/ai/models`.
 
@@ -664,9 +663,26 @@ it exits 2 when something is new. Curate each new head in `models.ts` (label,
 run `pnpm models:check --accept` to fold the current lists into the baseline.
 The baseline was seeded on 2026-10-25 from the OpenAI and OpenRouter lists
 only, so the first run with an Anthropic or Moonshot key lists every head that
-provider serves. BYOK pickers already show any live model a key can reach;
-curation is what gives it a price, a tagline and a place in the order. The
-included plans never move on their own.
+provider serves. Curation is what gives a head a price, a tagline and a place
+in the order. The included plans never move on their own.
+
+**No more personal API keys (2026-10-25).** Austin: "no more BYOK, its either
+free or pay for pro. make it simple". Every account is Free or Pro on included
+AI; the owner (`SERVER_CREDENTIAL_USER_IDS`) is the only `keys` account and
+runs on the server's keys. `decideAccess()` takes only `allowlisted`, and
+`apiKeyFor()` / `availableProviders()` never read `ProviderCredential`, so a
+key stored before the change does nothing. For installed older clients:
+`GET /api/providers` answers an empty list, `POST` answers 410, `DELETE`
+still erases a stored key (no provider in the body erases all of them);
+`PATCH /api/billing/status` (the old "Included AI / My API key" switch)
+answers 410 and `hasPersonalKeys` is always false; `GET /api/ai/models` never
+returns the provider model list. Web lost Settings -> AI Providers (the
+section is now "Membership & AI", same `#providers` anchor), the Membership
+payer choice, the picker's "Add an API key" rows, the landing page's "Bring it
+with you" line, the Terms' "Personal API keys" section and the llms.txt line.
+The house note is just "Included with SureWord." The `ProviderCredential`
+table and its two accounts' rows (Austin's four, one Free tester's OpenAI
+key) are left in place, unread; drop them in a later migration.
 
 ---
 
