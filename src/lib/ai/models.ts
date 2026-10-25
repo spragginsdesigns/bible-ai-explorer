@@ -478,6 +478,53 @@ export const HOUSE_CHAT_MODEL_IDS: Record<"pro" | "free", string> = {
 };
 
 /**
+ * What included AI is called on every surface, on both plans (Austin,
+ * 2026-10-25): "SureWord AI", with a sunburst premium mark beside it for Pro
+ * (`premium` on the picker payload) rather than a second name. No included
+ * surface names the model underneath.
+ */
+export const SUREWORD_AI_LABEL = "SureWord AI";
+
+/**
+ * The two SureWord AIs the owner account picks between instead of the raw
+ * model list (Austin, 2026-10-25), so he sees and tests exactly what each plan
+ * gets. Ids outside every provider namespace, so `resolveDefinition` and the
+ * BYOK catalogs never see them; only `resolveModel`'s owner branch and
+ * GET /api/ai/models read them.
+ */
+export const SUREWORD_PLAN_MODEL_IDS = { free: "sureword/free", pro: "sureword/pro" } as const;
+
+export function sureWordPlanForModelId(modelId: string | null | undefined): "free" | "pro" | null {
+	if (modelId === SUREWORD_PLAN_MODEL_IDS.free) return "free";
+	if (modelId === SUREWORD_PLAN_MODEL_IDS.pro) return "pro";
+	return null;
+}
+
+/**
+ * The picker row for one plan's SureWord AI: the included chat head under a
+ * plan id and the SureWord name, offering no run options because the plan
+ * fixes them (`houseEffortFor`). Display only; calls are built from the head's
+ * own definition so the effort is not clamped away.
+ */
+export function sureWordPlanDefinition(plan: "free" | "pro"): ModelDefinition {
+	const head = getModel(HOUSE_CHAT_MODEL_ID);
+	if (!head) throw new Error(`The included chat model ${HOUSE_CHAT_MODEL_ID} is not registered.`);
+	return {
+		...head,
+		id: SUREWORD_PLAN_MODEL_IDS[plan],
+		label: SUREWORD_AI_LABEL,
+		efforts: [],
+		speeds: ["standard"],
+		verbosities: [],
+		verbosityMechanism: null,
+		modes: ["standard"],
+		defaultEffort: null,
+		fastModeNote: null,
+		tagline: plan === "pro" ? "Pro: thinks deeper" : "Free: quick answers",
+	};
+}
+
+/**
  * The included chat model for a plan, given which server credentials exist.
  * A deploy missing the OpenRouter key would otherwise turn every answer on an
  * OpenRouter head into a configuration error, so that falls back to the
@@ -696,6 +743,8 @@ export interface ModelPayload {
 	contextWindow: number | null;
 	pricing: ModelPricing | null;
 	fastModeNote: string | null;
+	/** SureWord Pro's AI: clients draw the sunburst premium mark beside the label. */
+	premium?: boolean;
 }
 
 /**

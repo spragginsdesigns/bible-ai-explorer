@@ -9,21 +9,18 @@ import {
 	isVerbosity,
 	PROVIDERS,
 	resolveDefinition,
+	SUREWORD_AI_LABEL,
+	SUREWORD_PLAN_MODEL_IDS,
+	sureWordPlanDefinition,
+	sureWordPlanForModelId,
 	toModelPayload,
 	type ModelDefinition,
 } from "@/lib/ai/models";
 import { curatedModelsFor, listProviderModels } from "@/lib/ai/modelCatalog";
-import { aiAccessFor, apiKeyOrNull, availableProviders, houseChatModel } from "@/lib/ai/provider";
+import { aiAccessFor, apiKeyOrNull, availableProviders, houseChatModel, isServerCredentialUser } from "@/lib/ai/provider";
 import { houseEffortFor, houseEffortsFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
-
-/**
- * What each plan's included AI is called in every picker. Neither names the
- * head (Austin, 2026-10-25): it is SureWord's AI, and the model underneath can
- * change without anyone's chat changing name.
- */
-const HOUSE_LABELS = { free: "SureWord AI", pro: "SureWord Pro AI" } as const;
 
 const HOUSE_NOTE =
 	process.env.SUREWORD_USAGE_ENABLED === "true"
@@ -68,7 +65,10 @@ export async function GET(): Promise<Response> {
 			const efforts = houseEffortsFor(plan).filter((effort) => house.efforts.includes(effort));
 			const preferred = houseEffortFor(null, plan);
 			const houseEffort = house.efforts.includes(preferred) ? preferred : null;
-			const label = HOUSE_LABELS[plan];
+			// Both plans read "SureWord AI"; Pro carries the premium mark instead
+			// of a second name, so no included surface names the head.
+			const label = SUREWORD_AI_LABEL;
+			const premium = plan === "pro";
 			// The house entry carries the same capability fields as any other. A
 			// client renders the Reasoning chips from `house.efforts` (empty for both
 			// plans since 2026-10-25, absent on servers before 2026-10-08) and no
@@ -76,7 +76,7 @@ export async function GET(): Promise<Response> {
 			return NextResponse.json({
 				access,
 				providers: [],
-				models: [{ ...toModelPayload(house), label }],
+				models: [{ ...toModelPayload(house), label, premium }],
 				defaults: {
 					modelId: house.id,
 					effort: houseEffort,
@@ -87,10 +87,29 @@ export async function GET(): Promise<Response> {
 				house: {
 					modelId: house.id,
 					label,
+					premium,
 					effort: houseEffort,
 					efforts,
 					note: HOUSE_NOTE,
 				},
+			});
+		}
+
+		// The owner chooses between the two plans' SureWord AIs, not models
+		// (Austin, 2026-10-25), under one "SureWord" provider header. Neither
+		// row offers run options; resolveModel's owner branch runs the pick.
+		if (isServerCredentialUser(userId)) {
+			const plan = sureWordPlanForModelId(user?.defaultModelId) ?? "pro";
+			return NextResponse.json({
+				access,
+				providers: [{ id: "sureword", label: "SureWord", available: true }],
+				models: (["free", "pro"] as const).map((rowPlan) => ({
+					...toModelPayload(sureWordPlanDefinition(rowPlan)),
+					provider: "sureword",
+					premium: rowPlan === "pro",
+				})),
+				defaults: { modelId: SUREWORD_PLAN_MODEL_IDS[plan], effort: null, speed: null, verbosity: null, mode: null },
+				house: null,
 			});
 		}
 

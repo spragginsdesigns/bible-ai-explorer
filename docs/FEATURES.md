@@ -625,9 +625,24 @@ Austin: "there shouldn't be a model picker for regular users." Included chat
 moved to `HOUSE_CHAT_MODEL_ID` (`openai/gpt-6-luna`, $0.10/$0.50 per 1M
 tokens, half of GPT-5.6 Luna; probed against the live API with the owner key:
 text, PDF input, low/medium/high effort, verbosity). **Free** answers on
-**low**, labelled "SureWord AI"; **Pro** answers on **high**, labelled
-**"SureWord Pro AI"** (`HOUSE_LABELS` in `src/app/api/ai/models/route.ts`), so
-no included surface names a model. `houseEffortsFor()` is now `[]` for both
+**low** and **Pro** on **high**. Both are labelled **"SureWord AI"**
+(`SUREWORD_AI_LABEL`); Pro is told apart by `premium: true` on the `house`
+block and its model entry, which clients draw as the gold sunburst mark (the
+`sureword-mark.png` / `BrandMark` artwork every client already ships) beside
+the name, so no included surface names a model. Servers before this send no
+`premium`, which reads as false.
+
+**The owner picks a plan, not a model.** An account on
+`SERVER_CREDENTIAL_USER_IDS` no longer gets the raw model list: `GET
+/api/ai/models` answers one provider `{ id: "sureword", label: "SureWord" }`
+and two rows, `sureword/free` and `sureword/pro` (`sureWordPlanDefinition()`
+in `src/lib/ai/models.ts`), both "SureWord AI" with no run options, the Pro
+row premium. `resolveModel()`'s owner branch runs the pick on the included
+head at that plan's effort (`houseEffortFor`), on the server key and
+unmetered; the default is Pro. The ids sit outside every provider namespace,
+so `resolveDefinition` and the BYOK catalogs never return them, and
+`PATCH /api/preferences` accepts them as a stored `chat.modelId`. Owner
+utility work stays on the keys path. `houseEffortsFor()` is now `[]` for both
 plans, so no client draws Reasoning chips, and `houseEffortFor(requested,
 plan)` is low for Free and high for Pro, except that a call site pinning low
 for latency (tap-a-verse, word study, connections) keeps low. A Pro pick

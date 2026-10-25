@@ -16,9 +16,12 @@ import {
 	buildProviderOptions,
 	decideStructuredProvider,
 	DEFAULT_MODEL_ID,
+	HOUSE_CHAT_MODEL_ID,
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
 	houseChatModelId,
+	sureWordPlanDefinition,
+	sureWordPlanForModelId,
 	isReasoningEffort,
 	isReasoningMode,
 	isSpeed,
@@ -449,6 +452,38 @@ export async function resolveModel(options: {
 			defaultMode: true,
 		},
 	});
+
+	// The owner picks a plan's SureWord AI, not a model (Austin, 2026-10-25):
+	// the included head at that plan's effort, on the server key, unmetered.
+	// Utility work keeps the keys path below.
+	if (!options.utility && isServerCredentialUser(options.userId)) {
+		const plan =
+			sureWordPlanForModelId(options.modelId) ?? sureWordPlanForModelId(user?.defaultModelId) ?? "pro";
+		const head = resolveDefinition(HOUSE_CHAT_MODEL_ID);
+		if (!head) throw new Error(`The included chat model ${HOUSE_CHAT_MODEL_ID} is not registered.`);
+		const apiKey = await apiKeyFor(options.userId, head.provider);
+		const effort = houseEffortFor(options.effort, plan);
+		return {
+			model: buildModel(head.provider, head.providerModelId, apiKey, structuredCall),
+			providerOptions: buildProviderOptions(
+				head.provider,
+				{ ...NO_RUN_OPTIONS, effort },
+				Boolean(options.attachments) && head.supportsAttachments,
+				head,
+			),
+			definition: sureWordPlanDefinition(plan),
+			effort,
+			speed: null,
+			verbosity: null,
+			mode: null,
+			promptHints: [],
+			access,
+			attachmentFallbackFrom: null,
+			attachmentsUnsupported: false,
+			structuredFallbackFrom: null,
+			structuredOutputUnsupported: false,
+		};
+	}
 
 	const picked =
 		(options.modelId ? resolveDefinition(options.modelId) : undefined) ??

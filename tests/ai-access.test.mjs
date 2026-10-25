@@ -7,7 +7,12 @@ import {
 	HOUSE_CHAT_MODEL_IDS,
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
+	SUREWORD_AI_LABEL,
+	SUREWORD_PLAN_MODEL_IDS,
 	getModel,
+	resolveDefinition,
+	sureWordPlanDefinition,
+	sureWordPlanForModelId,
 	DEFAULT_MODEL_ID,
 	houseChatModelId,
 } from "../src/lib/ai/models.ts";
@@ -65,6 +70,27 @@ test("included chat runs on GPT-6 Luna for both plans", () => {
 		// Every effort the plan rule can produce is one the head takes.
 		for (const effort of ["low", "high"]) assert.ok(model.efforts.includes(effort));
 	}
+});
+
+test("the owner's two SureWord AIs run the included head and offer no run options", () => {
+	assert.equal(SUREWORD_AI_LABEL, "SureWord AI");
+	for (const plan of ["free", "pro"]) {
+		const row = sureWordPlanDefinition(plan);
+		assert.equal(row.id, SUREWORD_PLAN_MODEL_IDS[plan]);
+		assert.equal(row.label, "SureWord AI");
+		assert.equal(row.provider, "openai");
+		assert.equal(row.providerModelId, "gpt-6-luna");
+		assert.deepEqual([...row.efforts], []);
+		assert.deepEqual([...row.speeds], ["standard"]);
+		assert.deepEqual([...row.verbosities], []);
+		assert.deepEqual([...row.modes], ["standard"]);
+		assert.equal(row.supportsAttachments, true);
+		assert.equal(sureWordPlanForModelId(row.id), plan);
+		// Outside every provider namespace, so no BYOK path can resolve one.
+		assert.equal(resolveDefinition(row.id), undefined);
+	}
+	assert.equal(sureWordPlanForModelId("openai/gpt-6-luna"), null);
+	assert.equal(sureWordPlanForModelId(null), null);
 });
 
 test("Free answers on low whatever it asks for", () => {

@@ -12,6 +12,7 @@ import {
 	REASONING_MODES,
 	resolveDefinition,
 	SPEEDS,
+	sureWordPlanForModelId,
 	VERBOSITIES,
 } from "@/lib/ai/models";
 
@@ -38,7 +39,8 @@ import {
  * than imported there so the validator stays loadable by the logic test suite.
  */
 const MODEL_VOCABULARY: ModelVocabulary = {
-	knowsModel: (modelId) => resolveDefinition(modelId) !== undefined,
+	// The owner's picker stores a plan's SureWord AI id, which no provider resolves.
+	knowsModel: (modelId) => resolveDefinition(modelId) !== undefined || sureWordPlanForModelId(modelId) !== null,
 	efforts: REASONING_EFFORTS,
 	speeds: SPEEDS,
 	verbosities: VERBOSITIES,
