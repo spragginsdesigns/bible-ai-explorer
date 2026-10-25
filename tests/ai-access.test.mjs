@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { decideAccess, houseEffortFor, houseEffortsFor } from "../src/lib/ai/access.ts";
 import {
+	HOUSE_CHAT_MODEL_ID,
 	HOUSE_CHAT_MODEL_IDS,
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
@@ -47,44 +48,47 @@ test("the registry default is the house model, so both worlds open on the same h
 	assert.equal(DEFAULT_MODEL_ID, HOUSE_MODEL_ID);
 });
 
-test("included chat runs on GPT-5.6 Luna at medium for both plans", () => {
+test("included chat runs on GPT-6 Luna for both plans", () => {
+	assert.equal(HOUSE_CHAT_MODEL_ID, "openai/gpt-6-luna");
+	// Not the background house id, so houseChatModel bills the owner's
+	// OPENAI_API_KEY rather than the dedicated free-tier credential.
+	assert.notEqual(HOUSE_CHAT_MODEL_ID, HOUSE_MODEL_ID);
 	for (const plan of ["pro", "free"]) {
 		for (const openrouter of [true, false]) {
-			assert.equal(houseChatModelId(plan, { openrouter }), "openai/gpt-5.6-luna");
+			assert.equal(houseChatModelId(plan, { openrouter }), HOUSE_CHAT_MODEL_ID);
 		}
 		const model = getModel(HOUSE_CHAT_MODEL_IDS[plan]);
 		assert.ok(model, `the ${plan} house model must be curated`);
-		assert.ok(model.efforts.includes(HOUSE_EFFORT));
+		assert.equal(model.providerModelId, "gpt-6-luna");
 		assert.equal(model.supportsAttachments, true);
-		assert.ok(model.pricing, "metering needs the house model's price");
+		assert.deepEqual(model.pricing, { input: 0.1, output: 0.5 }, "metering needs the house model's price");
+		// Every effort the plan rule can produce is one the head takes.
+		for (const effort of ["low", "high"]) assert.ok(model.efforts.includes(effort));
 	}
 });
 
-test("house effort is a medium ceiling: low passes through, nothing above medium is honoured", () => {
-	assert.equal(houseEffortFor("low"), "low");
-	assert.equal(houseEffortFor("medium"), "medium");
-	assert.equal(houseEffortFor("high"), "medium");
-	assert.equal(houseEffortFor(null), "medium");
-	assert.equal(houseEffortFor(undefined), "medium");
-	assert.equal(houseEffortFor("max"), "medium");
+test("Free answers on low whatever it asks for", () => {
+	for (const requested of ["low", "medium", "high", "xhigh", "max", null, undefined]) {
+		assert.equal(houseEffortFor(requested, "free"), "low");
+		assert.equal(houseEffortFor(requested), "low");
+	}
 });
 
-test("Pro picks low, medium or high on included chat; Free has no choice", () => {
-	assert.deepEqual([...houseEffortsFor("pro")], ["low", "medium", "high"]);
-	assert.deepEqual([...houseEffortsFor("free")], []);
+test("Pro answers on high, and a call site's low pin is kept", () => {
+	assert.equal(houseEffortFor(null, "pro"), "high");
+	assert.equal(houseEffortFor(undefined, "pro"), "high");
+	assert.equal(houseEffortFor("medium", "pro"), "high");
 	assert.equal(houseEffortFor("high", "pro"), "high");
-	assert.equal(houseEffortFor("low", "pro"), "low");
-	assert.equal(houseEffortFor(null, "pro"), "medium");
 	// Past high is clamped, so a hand-crafted request cannot buy a long answer.
-	assert.equal(houseEffortFor("xhigh", "pro"), "medium");
-	assert.equal(houseEffortFor("max", "pro"), "medium");
-	// Free stays capped at medium whatever it sends.
-	assert.equal(houseEffortFor("high", "free"), "medium");
-	assert.equal(houseEffortFor("max"), "medium");
-	assert.equal(houseEffortFor("low"), "low");
-	// Every Pro choice is one the included model actually takes.
-	const luna = getModel(HOUSE_CHAT_MODEL_IDS.pro);
-	for (const effort of houseEffortsFor("pro")) assert.ok(luna.efforts.includes(effort));
+	assert.equal(houseEffortFor("xhigh", "pro"), "high");
+	assert.equal(houseEffortFor("max", "pro"), "high");
+	// Tap-a-verse, word study and connections pin low for latency.
+	assert.equal(houseEffortFor("low", "pro"), "low");
+});
+
+test("neither plan gets Reasoning chips on included AI", () => {
+	assert.deepEqual([...houseEffortsFor("pro")], []);
+	assert.deepEqual([...houseEffortsFor("free")], []);
 });
 
 test("adding or deleting a key does not silently change the selected payer", () => {

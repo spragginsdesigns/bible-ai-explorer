@@ -18,8 +18,12 @@ import { houseEffortFor, houseEffortsFor } from "@/lib/ai/access";
 
 export const maxDuration = 30;
 
-/** What a Free account's included AI is called in every picker. */
-const HOUSE_FREE_LABEL = "SureWord AI";
+/**
+ * What each plan's included AI is called in every picker. Neither names the
+ * head (Austin, 2026-10-25): it is SureWord's AI, and the model underneath can
+ * change without anyone's chat changing name.
+ */
+const HOUSE_LABELS = { free: "SureWord AI", pro: "SureWord Pro AI" } as const;
 
 const HOUSE_NOTE =
 	process.env.SUREWORD_USAGE_ENABLED === "true"
@@ -59,18 +63,16 @@ export async function GET(): Promise<Response> {
 
 		if (access === "house") {
 			const { definition: house, plan } = await houseChatModel(userId);
-			// Pro chooses how hard Luna thinks; Free has no choice. Only efforts the
-			// head actually takes are offered, and the stored pick is clamped the
-			// same way the chat route clamps it.
+			// The plan sets the effort and neither plan chooses it, so `efforts` is
+			// empty and clients render no Reasoning chips.
 			const efforts = houseEffortsFor(plan).filter((effort) => house.efforts.includes(effort));
-			const preferred = houseEffortFor(plan === "pro" ? user?.defaultEffort : null, plan);
+			const preferred = houseEffortFor(null, plan);
 			const houseEffort = house.efforts.includes(preferred) ? preferred : null;
-			// Free never sees a model name: it is SureWord's included AI, and naming
-			// the head only invites comparisons with the Pro picker.
-			const label = plan === "pro" ? house.label : HOUSE_FREE_LABEL;
+			const label = HOUSE_LABELS[plan];
 			// The house entry carries the same capability fields as any other. A
-			// client renders the Reasoning chips from `house.efforts` (empty for
-			// Free, and absent on servers before 2026-10-08) and no other options.
+			// client renders the Reasoning chips from `house.efforts` (empty for both
+			// plans since 2026-10-25, absent on servers before 2026-10-08) and no
+			// other options.
 			return NextResponse.json({
 				access,
 				providers: [],

@@ -306,6 +306,12 @@ const CURATED_META: Record<string, CuratedMeta> = {
 	"openai/gpt-6-astra": {
 		efforts: ["low", "medium", "high", "xhigh", "max"],
 	},
+	"openai/gpt-6-luna": {
+		tagline: "Newest fast Luna",
+		tier: "fast",
+		contextWindow: 1_050_000,
+		pricing: { input: 0.1, output: 0.5 },
+	},
 	"openai/gpt-5.6-luna": {
 		tagline: "Fastest and lowest cost",
 		tier: "fast",
@@ -408,6 +414,7 @@ export function buildDefinition(options: {
 // provider's list endpoint is unreachable or the user hasn't unlocked it yet.
 export const MODELS: readonly ModelDefinition[] = [
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-luna", label: "GPT-5.6 Luna" }),
+	buildDefinition({ provider: "openai", providerModelId: "gpt-6-luna", label: "GPT-6 Luna" }),
 	buildDefinition({ provider: "openai", providerModelId: "gpt-6.1-sol", label: "GPT-6.1 Sol" }),
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-sol", label: "GPT-5.6 Sol" }),
 	buildDefinition({ provider: "openai", providerModelId: "gpt-5.6-terra", label: "GPT-5.6 Terra" }),
@@ -454,14 +461,20 @@ export const HOUSE_EFFORT: ReasoningEffort = "medium";
 /**
  * The chat model each plan's included AI answers on. Those accounts have no
  * picker, so this is the whole of their configuration and nothing about it is
- * written back to the user row. Both plans are back on Luna at medium (Austin,
- * 2026-10-08): the same morning's split (GPT-6.1 Sol for Pro, GLM 5.3 Flash for
- * Free) made a free answer take ~3 minutes (GLM streamed at ~8 tokens/s after a
- * 13 s first token) and testers found Sol's prose weaker.
+ * written back to the user row. Both plans chat on GPT-6 Luna (Austin,
+ * 2026-10-25): Free at low effort, Pro ("SureWord Pro AI") at high, see
+ * `houseEffortFor`. The plan changes how hard it thinks, not the head: the
+ * 2026-10-08 split (GPT-6.1 Sol for Pro, GLM 5.3 Flash for Free) made a free
+ * answer take ~3 minutes and testers found Sol's prose weaker.
+ *
+ * Not `HOUSE_MODEL_ID`, so `houseChatModel` bills it to the owner's
+ * `OPENAI_API_KEY`; the dedicated free-tier credential stays on the GPT-5.6
+ * Luna background paths it was provisioned for.
  */
+export const HOUSE_CHAT_MODEL_ID = "openai/gpt-6-luna";
 export const HOUSE_CHAT_MODEL_IDS: Record<"pro" | "free", string> = {
-	pro: HOUSE_MODEL_ID,
-	free: HOUSE_MODEL_ID,
+	pro: HOUSE_CHAT_MODEL_ID,
+	free: HOUSE_CHAT_MODEL_ID,
 };
 
 /**

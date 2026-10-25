@@ -402,13 +402,9 @@ export async function resolveModel(options: {
 
 		const { definition: houseDefinition, apiKey: houseChatKey, plan } = await houseChatModel(options.userId);
 		if (!options.deferReservation) await reserveIncludedRequest(options.userId);
-		// A Pro request with no effort of its own runs the account's stored pick,
-		// the same one GET /api/ai/models reports; an explicit Auto does not.
-		const storedHouseEffort =
-			plan === "pro" && !options.effort && !options.ignoreStoredEffort
-				? (await prisma.user.findUnique({ where: { id: options.userId }, select: { defaultEffort: true } }))?.defaultEffort
-				: null;
-		const preferredHouseEffort = houseEffortFor(options.effort ?? storedHouseEffort, plan);
+		// The plan sets the effort; a pick stored while Pro still had Reasoning
+		// chips is ignored, or an old "low" would hold Pro answers below high.
+		const preferredHouseEffort = houseEffortFor(options.effort, plan);
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
 			? preferredHouseEffort
 			: null;

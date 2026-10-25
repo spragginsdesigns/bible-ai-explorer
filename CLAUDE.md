@@ -10,7 +10,7 @@ SureWord is a Bible study assistant for Christians. It MUST emulate a saved, bor
 
 ## Project Context
 
-**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (GPT-5.6 Luna house default, BYOK model picker) + Neon Postgres/Prisma (app data AND pgvector embeddings) + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
+**Stack:** Next.js 15 (App Router) + TypeScript + Vercel AI SDK v7 (included chat on GPT-6 Luna: Free low, Pro high, no picker; GPT-5.6 Luna for background work; BYOK model picker) + Neon Postgres/Prisma (app data AND pgvector embeddings) + Clerk + Tavily Search; native Android app in `mobile/` (Expo SDK 57 / React Native)
 **Repo:** https://github.com/spragginsdesigns/bible-ai-explorer
 
 ## Development Priorities (IMPORTANT)

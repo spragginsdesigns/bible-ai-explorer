@@ -620,6 +620,25 @@ when `house.efforts` is non-empty, a Reasoning chip group (Low / Medium / High,
 no Auto) under it; the house pin keeps a pick the server offers instead of
 snapping it to `house.effort`.
 
+**Both plans chat on GPT-6 Luna, and the plan sets the effort (2026-10-25).**
+Austin: "there shouldn't be a model picker for regular users." Included chat
+moved to `HOUSE_CHAT_MODEL_ID` (`openai/gpt-6-luna`, $0.10/$0.50 per 1M
+tokens, half of GPT-5.6 Luna; probed against the live API with the owner key:
+text, PDF input, low/medium/high effort, verbosity). **Free** answers on
+**low**, labelled "SureWord AI"; **Pro** answers on **high**, labelled
+**"SureWord Pro AI"** (`HOUSE_LABELS` in `src/app/api/ai/models/route.ts`), so
+no included surface names a model. `houseEffortsFor()` is now `[]` for both
+plans, so no client draws Reasoning chips, and `houseEffortFor(requested,
+plan)` is low for Free and high for Pro, except that a call site pinning low
+for latency (tap-a-verse, word study, connections) keeps low. A Pro pick
+stored in `User.defaultEffort` while the chips existed is ignored on included
+AI. Because the chat head is no longer `HOUSE_MODEL_ID`, `houseChatModel()`
+bills it to `OPENAI_API_KEY` (the owner key); GPT-5.6 Luna on the free-tier
+key still runs utility work, status lines and signed-out guests. Accounts with
+their own keys keep the full picker, where GPT-6 Luna is now listed too. No
+client change: every client renders the label and chips from
+`GET /api/ai/models`.
+
 ---
 
 ## Getting to know you (onboarding in chat)
