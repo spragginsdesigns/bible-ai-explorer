@@ -5,17 +5,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useClerk, useUser } from "@clerk/nextjs";
-import {
-	ArrowLeft,
-	BookMarked,
-	Brain,
-	ChevronRight,
-	Globe,
-	LogOut,
-	Monitor,
-	Moon,
-	Sun,
-} from "lucide-react";
+import { Brain, Check, ChevronRight, Globe, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { AndroidLogo, AppleLogo } from "@/components/icons/BrandIcons";
 import {
 	ANDROID_APK_URL,
@@ -56,31 +46,65 @@ import MembershipSummary from "@/components/settings/MembershipSummary";
 import { AIConsentSettingsSection } from "@/components/AIConsentPresenter";
 import NotificationsSection from "@/components/settings/NotificationsSection";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
+import { AccountAvatar, PaneTile } from "@/components/settings/SettingsSectionNav";
+import { SETTINGS_CARD, SettingsGroup, SettingsRow, Switch } from "@/components/settings/SettingsPrimitives";
+import {
+	SETTINGS_GROUPS,
+	SETTINGS_PANES,
+	paneById,
+	useSettingsPane,
+	type SettingsPaneId,
+} from "@/components/settings/settingsPanes";
 
 const THEME_OPTIONS = [
 	{ id: "system", label: "System", Icon: Monitor },
-	{ id: "dark", label: "Dark", Icon: Moon },
 	{ id: "light", label: "Light", Icon: Sun },
+	{ id: "dark", label: "Dark", Icon: Moon },
 ] as const;
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+const TRANSLATION_DETAILS: Record<TranslationId, { name: string; note: string }> = {
+	KJV: { name: "King James Version", note: "Public domain · works offline" },
+	BSB: { name: "Berean Standard Bible", note: "Public domain · works offline" },
+	NKJV: { name: "New King James Version", note: "© Thomas Nelson · fetched when needed" },
+};
+
+const ICON_BUBBLE =
+	"flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400";
+
+/** A miniature window in the theme it names, so the choice is seen, not read. */
+function ThemePreview({ id }: { id: (typeof THEME_OPTIONS)[number]["id"] }) {
+	const half = (dark: boolean) => (
+		<div className={`flex h-full flex-1 flex-col gap-1 p-1.5 ${dark ? "bg-neutral-900" : "bg-[#f7f3ea]"}`}>
+			<div className={`h-1.5 w-2/3 rounded-full ${dark ? "bg-amber-400/80" : "bg-amber-600/80"}`} />
+			<div className={`h-1 w-full rounded-full ${dark ? "bg-white/20" : "bg-black/15"}`} />
+			<div className={`h-1 w-5/6 rounded-full ${dark ? "bg-white/20" : "bg-black/15"}`} />
+			<div className={`mt-auto h-2.5 w-full rounded ${dark ? "bg-white/10" : "bg-black/[0.06]"}`} />
+		</div>
+	);
 	return (
-		<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
-			{children}
-		</h2>
+		<div className="flex h-14 w-full overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+			{id === "light" ? half(false) : id === "dark" ? half(true) : (
+				<>
+					{half(false)}
+					{half(true)}
+				</>
+			)}
+		</div>
 	);
 }
 
 /**
- * Settings: appearance (system/dark/light via next-themes), the default Bible
- * translation for the reader and verse attachments (mirrors the Android
- * settings screen), memory (enable toggle + manage dialog), and account
- * (profile, sign out and delete account).
+ * Settings, organised the way the apps are: on a phone a hub of categories
+ * (Android's settings hub), each opening its own page; on a desktop the
+ * sidebar lists the categories (as the Mac's Settings does) and one page sits
+ * beside it. The open page is the URL hash, so every old `/settings#section`
+ * link still lands on the page that holds that section.
  */
 export default function SettingsPage() {
 	const { theme, setTheme } = useTheme();
 	const { user, isLoaded: userLoaded } = useUser();
 	const { signOut } = useClerk();
+	const [pane, openPane] = useSettingsPane();
 	const [mounted, setMounted] = useState(false);
 	const [confirmSignOut, setConfirmSignOut] = useState(false);
 	// Every synced value is read from the shared cache rather than held here, so
@@ -130,13 +154,16 @@ export default function SettingsPage() {
 		void loadPreferences();
 		// A memory receipt (or any deep link) to /settings#memory lands on the
 		// list itself, the way Android goes straight to its Memories screen.
-		// Only on arrival: the section nav's in-page #memory jump just scrolls.
+		// Only on arrival: picking Memory in the sidebar just opens the page.
 		if (window.location.hash === "#memory") setMemoryManagerOpen(true);
 	}, []);
 
-	const pickTranslation = (id: TranslationId) => {
-		void setTranslationPreference(id);
-	};
+	// Each page starts at its top. The browser would otherwise scroll to the
+	// section element whose id matches the hash, hiding the page header.
+	useEffect(() => {
+		window.scrollTo({ top: 0 });
+		setConfirmSignOut(false);
+	}, [pane]);
 
 	// Optimistic toggle; reverts and surfaces the server error on failure.
 	const toggleMemory = async (next: boolean) => {
@@ -172,39 +199,162 @@ export default function SettingsPage() {
 
 	const email = user?.primaryEmailAddress?.emailAddress ?? "";
 	const name = user?.fullName ?? user?.username ?? "";
-	const initial = (name || email || "✝").trim().charAt(0).toUpperCase();
 
-	// No page-level min-h or background here: SettingsShell already wraps this
-	// in the identical `min-h-[100dvh] gradient-mesh`, and stacking the two made
-	// mobile Settings a full 56px taller than the viewport.
-	return (
-		<div>
-			<div className="mx-auto w-full max-w-xl lg:max-w-5xl px-5 lg:px-8 pb-28 lg:pb-16">
-				{/* Top bar */}
-				{/* Mobile gets this bar from SettingsShell (with a hamburger);
-				    desktop keeps the page title row. */}
-				<div className="hidden lg:flex items-center gap-4 py-4 lg:py-6">
-					<Link
-						href="/"
-						className="flex min-w-[44px] min-h-[44px] items-center justify-center rounded-full text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
-						aria-label="Back"
-					>
-						<ArrowLeft className="w-5 h-5" />
-					</Link>
-					<h1 className="flex-1 text-center lg:text-left text-screen-title font-bold text-neutral-900 dark:text-neutral-100">
-						Settings
-					</h1>
-					<span className="min-w-[44px]" aria-hidden />
-				</div>
+	// The hub rows answer the common question ("is memory on?") without a tap,
+	// as Android's hub does.
+	const themeLabel = mounted
+		? (THEME_OPTIONS.find((option) => option.id === theme)?.label ?? "System")
+		: "…";
+	const memorySubtitle =
+		memoryEnabled === null
+			? "…"
+			: memoryEnabled
+				? memoryCount === null
+					? "On"
+					: `On · ${memoryCount} saved`
+				: "Off";
+	const hubSubtitles: Partial<Record<SettingsPaneId, string>> = {
+		appearance: [themeLabel, parchmentEnabled ? "Parchment" : "Plain reader", translation].join(" · "),
+		highlights: "Names and meanings for your colours",
+		church: "The congregation you belong to",
+		memory: memorySubtitle,
+		ai:
+			webSearchEnabled === null
+				? "Membership, provider keys, web search"
+				: `Membership, provider keys · web search ${webSearchEnabled ? "on" : "off"}`,
+		shared: "Links you have shared",
+		notifications: "Daily verse and answer-ready notices",
+		feedback: "Tell us what is broken or missing",
+		about: `Version ${WEB_VERSION}`,
+	};
 
-				{/* One column on phones; two balanced column stacks on desktop */}
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-					<div className="flex flex-col gap-6 min-w-0">
-					{/* Appearance */}
-					<section id="appearance" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>APPEARANCE</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-							<div className="grid grid-cols-3 gap-2">
+	const getTheApp = (
+		<SettingsGroup label="Get the app">
+			<a
+				href={ANDROID_APK_URL}
+				onClick={() => trackNativeDownload("android", "settings")}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="flex items-center gap-3 px-4 py-3.5 transition-colors first:rounded-t-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+			>
+				<span className={ICON_BUBBLE}>
+					<AndroidLogo className="w-5 h-5" />
+				</span>
+				<span className="min-w-0 flex-1">
+					<span className="flex items-baseline gap-2">
+						<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+							SureWord for Android
+						</span>
+						<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
+							{ANDROID_VERSION}
+						</span>
+					</span>
+					<span className="block text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">
+						Offline KJV reading, tap a verse for an explanation, and your
+						daily walk in Pick Up Your Cross.
+					</span>
+				</span>
+				<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+			</a>
+			<a
+				href={MACOS_DMG_URL}
+				onClick={() => trackNativeDownload("macos", "settings")}
+				target="_blank"
+				rel="noopener noreferrer"
+				className="flex items-center gap-3 px-4 py-3.5 transition-colors last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+			>
+				<span className={ICON_BUBBLE}>
+					<AppleLogo className="w-5 h-5" />
+				</span>
+				<span className="min-w-0 flex-1">
+					<span className="flex items-baseline gap-2">
+						<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+							SureWord for macOS
+						</span>
+						<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
+							{MACOS_VERSION}
+						</span>
+					</span>
+					<span className="block text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">
+						Native Mac app (macOS 15+), now with tap-a-verse explanations
+						and Pick Up Your Cross. The DMG is not notarized: on first launch,
+						open System Settings → Privacy &amp; Security and choose Open Anyway.
+					</span>
+				</span>
+				<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+			</a>
+		</SettingsGroup>
+	);
+
+	const renderPane = (id: SettingsPaneId) => {
+		switch (id) {
+			case "account":
+				return (
+					<>
+						<div className={`${SETTINGS_CARD} flex items-center gap-4 p-5`}>
+							<AccountAvatar size={56} />
+							<div className="min-w-0 flex-1">
+								<p className="truncate text-lg font-bold text-neutral-900 dark:text-neutral-100">
+									{name || "Signed in"}
+								</p>
+								<p className="truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+									{email || "SureWord account"}
+								</p>
+							</div>
+						</div>
+						<SettingsGroup label="Session">
+							<div className="flex flex-col gap-3 p-4">
+								{confirmSignOut ? (
+									<>
+										<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+											Sign out? You can sign back in at any time.
+										</p>
+										<div className="flex gap-2">
+											<button
+												type="button"
+												onClick={() => setConfirmSignOut(false)}
+												className="flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-black/[0.1] dark:border-white/[0.08] text-sm font-bold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+											>
+												Cancel
+											</button>
+											<button
+												type="button"
+												onClick={() => void signOut({ redirectUrl: "/sign-in" })}
+												className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
+											>
+												<LogOut className="w-4 h-4" />
+												Sign out
+											</button>
+										</div>
+									</>
+								) : (
+									<button
+										type="button"
+										onClick={() => setConfirmSignOut(true)}
+										className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
+									>
+										<LogOut className="w-4 h-4" />
+										Sign out
+									</button>
+								)}
+							</div>
+						</SettingsGroup>
+						<SettingsGroup label="Danger zone">
+							<div className="p-4">
+								<DeleteAccountSection />
+							</div>
+						</SettingsGroup>
+					</>
+				);
+
+			case "appearance":
+				return (
+					<>
+						<SettingsGroup
+							label="Theme"
+							footer="System follows your device's dark or light mode."
+						>
+							<div className="grid grid-cols-3 gap-2.5 p-3 sm:gap-3 sm:p-4">
 								{THEME_OPTIONS.map(({ id, label, Icon }) => {
 									const active = mounted && theme === id;
 									return (
@@ -213,171 +363,136 @@ export default function SettingsPage() {
 											type="button"
 											aria-pressed={active}
 											onClick={() => setTheme(id)}
-											className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border text-[13px] font-bold transition-colors ${
+											className={`flex flex-col gap-2 rounded-xl border p-2 text-[13px] font-bold transition-colors ${
 												active
-													? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
-													: "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+													? "border-amber-500/60 dark:border-amber-400/50 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20"
+													: "border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] text-neutral-600 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
 											}`}
 										>
-											<Icon className="w-3.5 h-3.5" />
-											{label}
+											<ThemePreview id={id} />
+											<span className="flex items-center justify-center gap-1.5 pb-0.5">
+												<Icon className="w-3.5 h-3.5" />
+												{label}
+											</span>
 										</button>
 									);
 								})}
 							</div>
-							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								System follows your device&apos;s dark or light mode.
-							</p>
-							<div className="flex items-center justify-between gap-4 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
-								<div>
-									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										Parchment reader
-									</p>
-									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
-										Read the Bible on aged scroll paper. Off returns the plain reader.
-									</p>
-								</div>
-								<button
-									type="button"
-									role="switch"
-									aria-checked={parchmentEnabled}
-									aria-label="Parchment reader"
-									disabled={!mounted}
-									onClick={() => void setParchmentPreference(!parchmentEnabled)}
-									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-										parchmentEnabled
-											? "bg-amber-500 dark:bg-amber-400"
-											: "bg-black/[0.15] dark:bg-white/[0.15]"
-									}`}
-								>
-									<span
-										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-											parchmentEnabled ? "translate-x-[22px]" : "translate-x-0.5"
-										}`}
-									/>
-								</button>
-							</div>
-							<div className="flex items-center justify-between gap-4 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
-								<div>
-									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										Offer a quiz after each chapter
-									</p>
-									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
-										A short, optional quiz at the end of each chapter. Every answer comes with its verse.
-									</p>
-								</div>
-								<button
-									type="button"
-									role="switch"
-									aria-checked={quizOfferEnabled}
-									aria-label="Offer a quiz after each chapter"
-									disabled={!mounted}
-									onClick={() => {
-										writeQuizOfferPref(!quizOfferEnabled);
-										notifyPreferencesChanged();
-									}}
-									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-										quizOfferEnabled
-											? "bg-amber-500 dark:bg-amber-400"
-											: "bg-black/[0.15] dark:bg-white/[0.15]"
-									}`}
-								>
-									<span
-										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-											quizOfferEnabled ? "translate-x-[22px]" : "translate-x-0.5"
-										}`}
-									/>
-								</button>
-							</div>
-						</div>
-					</section>
+						</SettingsGroup>
 
-					{/* Bible translation */}
-					<section id="translation" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>BIBLE TRANSLATION</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-							<div className="grid grid-cols-2 gap-2">
-								{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => {
-									const active = mounted && translation === id;
-									return (
-										<button
-											key={id}
-											type="button"
-											aria-pressed={active}
-											onClick={() => pickTranslation(id)}
-											className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border text-[13px] font-bold transition-colors ${
+						<SettingsGroup label="Reading">
+							<SettingsRow
+								title="Parchment reader"
+								description="Read the Bible on aged scroll paper. Off returns the plain reader."
+								control={
+									<Switch
+										checked={parchmentEnabled}
+										label="Parchment reader"
+										disabled={!mounted}
+										onChange={(next) => void setParchmentPreference(next)}
+									/>
+								}
+							/>
+							<SettingsRow
+								title="Offer a quiz after each chapter"
+								description="A short, optional quiz at the end of each chapter. Every answer comes with its verse."
+								control={
+									<Switch
+										checked={quizOfferEnabled}
+										label="Offer a quiz after each chapter"
+										disabled={!mounted}
+										onChange={(next) => {
+											writeQuizOfferPref(next);
+											notifyPreferencesChanged();
+										}}
+									/>
+								}
+							/>
+						</SettingsGroup>
+
+						<SettingsGroup
+							label="Bible translation"
+							footer="Used by the Bible reader and verse attachments. SureWord's AI answers use the translation you select."
+						>
+							{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => {
+								const active = mounted && translation === id;
+								return (
+									<button
+										key={id}
+										type="button"
+										aria-pressed={active}
+										onClick={() => void setTranslationPreference(id)}
+										className="flex min-h-[56px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+									>
+										<span
+											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border font-[family-name:var(--font-pirata)] text-[15px] tracking-wide ${
 												active
-													? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
-													: "border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+													? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
+													: "border-black/[0.08] bg-black/[0.03] text-neutral-500 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-400"
 											}`}
 										>
-											<BookMarked className="w-3.5 h-3.5" />
 											{id}
-										</button>
-									);
-								})}
-							</div>
-							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								Used by the Bible reader and verse attachments. KJV and BSB work fully offline; NKJV
-								is fetched when needed. SureWord&apos;s AI answers use the translation you select.
-							</p>
-						</div>
-					</section>
+										</span>
+										<span className="min-w-0 flex-1">
+											<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+												{TRANSLATION_DETAILS[id].name}
+											</span>
+											<span className="block text-[13px] text-neutral-500 dark:text-neutral-400">
+												{TRANSLATION_DETAILS[id].note}
+											</span>
+										</span>
+										{active ? (
+											<Check className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+										) : null}
+									</button>
+								);
+							})}
+						</SettingsGroup>
+					</>
+				);
 
-					{/* Keyed by account so a new sign-in never inherits the previous
-					    draft, but only once Clerk has loaded: keying on a value that
-					    flips during the first client render remounted the section and
-					    left the first copy in the DOM (two Highlight labels cards, the
-					    first one dead). Same for About me below. */}
-					{userLoaded ? <HighlightLabelsSection key={user?.id ?? "signed-out"} /> : null}
+			case "highlights":
+				// Keyed by account so a new sign-in never inherits the previous
+				// draft, but only once Clerk has loaded: keying on a value that
+				// flips during the first client render remounted the section and
+				// left the first copy in the DOM. Same for the other keyed sections.
+				return userLoaded ? <HighlightLabelsSection key={user?.id ?? "signed-out"} /> : null;
 
-					{/* Memory */}
-					<section id="memory" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>MEMORY</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-							<div className="flex items-center gap-3">
-								<span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-									<Brain className="w-5 h-5" />
-								</span>
-								<div className="min-w-0 flex-1">
-									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										Enable memory
-									</p>
-									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
-										When off, SureWord won&apos;t use or save memories. Your saved
-										memories are kept.
-									</p>
-								</div>
-								<button
-									type="button"
-									role="switch"
-									aria-checked={memoryEnabled ?? false}
-									aria-label="Enable memory"
-									disabled={
-										!mounted || memoryEnabled === null || memoryLoadFailed || memoryTogglePending
-									}
-									onClick={() => {
-										if (memoryEnabled !== null) void toggleMemory(!memoryEnabled);
-									}}
-									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-										memoryEnabled
-											? "bg-amber-500 dark:bg-amber-400"
-											: "bg-black/[0.15] dark:bg-white/[0.15]"
-									}`}
-								>
-									<span
-										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-											memoryEnabled ? "translate-x-[22px]" : "translate-x-0.5"
-										}`}
+			case "church":
+				return <ChurchSection />;
+
+			case "memory":
+				return (
+					<>
+						<SettingsGroup label="Memory">
+							<SettingsRow
+								icon={
+									<span className={ICON_BUBBLE}>
+										<Brain className="w-5 h-5" />
+									</span>
+								}
+								title="Enable memory"
+								description="When off, SureWord won't use or save memories. Your saved memories are kept."
+								control={
+									<Switch
+										checked={memoryEnabled ?? false}
+										label="Enable memory"
+										disabled={
+											!mounted || memoryEnabled === null || memoryLoadFailed || memoryTogglePending
+										}
+										onChange={(next) => {
+											if (memoryEnabled !== null) void toggleMemory(next);
+										}}
 									/>
-								</button>
-							</div>
-							{memoryToggleError && (
-								<p className="text-xs text-red-600 dark:text-red-400">{memoryToggleError}</p>
-							)}
+								}
+							>
+								{memoryToggleError ? (
+									<p className="text-xs text-red-600 dark:text-red-400">{memoryToggleError}</p>
+								) : null}
+							</SettingsRow>
 							{memoryLoadFailed ? (
-								<div className="flex items-center justify-between gap-3">
-									<p className="text-xs text-neutral-400 dark:text-neutral-500">
+								<div className="flex items-center justify-between gap-3 px-4 py-3.5">
+									<p className="text-xs text-neutral-500 dark:text-neutral-400">
 										Couldn&apos;t load memory settings.
 									</p>
 									<button
@@ -392,258 +507,215 @@ export default function SettingsPage() {
 								<button
 									type="button"
 									onClick={() => setMemoryManagerOpen(true)}
-									className="flex min-h-[44px] items-center gap-3 rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3.5 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors"
+									className="flex min-h-[56px] items-center gap-3 rounded-b-2xl px-4 py-3 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 								>
-									<span className="min-w-0 flex-1 text-left">
+									<span className="min-w-0 flex-1">
 										<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
 											Manage memories
 										</span>
-										<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
+										<span className="block text-[13px] text-neutral-500 dark:text-neutral-400">
 											{memoryCount === null ? "…" : `${memoryCount} saved`}
 										</span>
 									</span>
 									<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
 								</button>
 							)}
-						</div>
-					</section>
+						</SettingsGroup>
+						{/* About me and the testimony sit with Memory because all three
+						    are what the assistant knows about this person before a
+						    conversation starts. */}
+						{userLoaded ? <AboutMeSection key={user?.id ?? "signed-out"} /> : null}
+						{userLoaded ? <TestimonySection key={user?.id ?? "signed-out"} /> : null}
+					</>
+				);
 
-					{/* About me: sits with Memory because both are what the assistant
-					    knows about this person before a conversation starts. */}
-					{userLoaded ? <AboutMeSection key={user?.id ?? "signed-out"} /> : null}
-					{userLoaded ? <TestimonySection key={user?.id ?? "signed-out"} /> : null}
-
-					{/* Web search */}
-					<section id="web-search" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>WEB SEARCH</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-							<div className="flex items-center gap-3">
-								<span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-									<Globe className="w-5 h-5" />
-								</span>
-								<div className="min-w-0 flex-1">
-									<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										Enable web search
-									</p>
-									<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
-										Lets SureWord look up supplementary material online (church
-										history, archaeology, current events). Scripture stays the
-										final authority.
-									</p>
-								</div>
-								<button
-									type="button"
-									role="switch"
-									aria-checked={webSearchEnabled ?? false}
-									aria-label="Enable web search"
-									disabled={
-										!mounted || webSearchEnabled === null || webSearchLoadFailed || webSearchTogglePending
-									}
-									onClick={() => {
-										if (webSearchEnabled !== null) void toggleWebSearch(!webSearchEnabled);
-									}}
-									className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-										webSearchEnabled
-											? "bg-amber-500 dark:bg-amber-400"
-											: "bg-black/[0.15] dark:bg-white/[0.15]"
-									}`}
-								>
-									<span
-										className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-											webSearchEnabled ? "translate-x-[22px]" : "translate-x-0.5"
-										}`}
+			case "ai":
+				return (
+					<>
+						<section className="flex flex-col gap-2">
+							<h2 className="px-1 text-metadata font-bold uppercase tracking-[0.15em] text-neutral-500">
+								Membership
+							</h2>
+							<MembershipSummary />
+						</section>
+						<section className="flex flex-col gap-2">
+							<h2 className="px-1 text-metadata font-bold uppercase tracking-[0.15em] text-neutral-500">
+								Your AI keys
+							</h2>
+							<ProviderSettings />
+						</section>
+						<SettingsGroup label="Web search">
+							<SettingsRow
+								icon={
+									<span className={ICON_BUBBLE}>
+										<Globe className="w-5 h-5" />
+									</span>
+								}
+								title="Enable web search"
+								description="Lets SureWord look up supplementary material online (church history, archaeology, current events). Scripture stays the final authority."
+								control={
+									<Switch
+										checked={webSearchEnabled ?? false}
+										label="Enable web search"
+										disabled={
+											!mounted || webSearchEnabled === null || webSearchLoadFailed || webSearchTogglePending
+										}
+										onChange={(next) => {
+											if (webSearchEnabled !== null) void toggleWebSearch(next);
+										}}
 									/>
-								</button>
-							</div>
-							{webSearchToggleError && (
-								<p className="text-xs text-red-600 dark:text-red-400">{webSearchToggleError}</p>
-							)}
-							{webSearchLoadFailed && (
-								<div className="flex items-center justify-between gap-3">
-									<p className="text-xs text-neutral-400 dark:text-neutral-500">
-										Couldn&apos;t load web search settings.
-									</p>
-									<button
-										type="button"
-										onClick={() => void loadPreferences()}
-										className="text-xs font-bold text-amber-600 dark:text-amber-400"
-									>
-										Retry
-									</button>
-								</div>
-							)}
-						</div>
-					</section>
-
-					{/* Notifications: the morning verse and "your answer is ready",
-					    delivered to this browser by Web Push. */}
-					<NotificationsSection />
-
-					{/* My church */}
-					<ChurchSection />
-
-					{/* Shared answers: the links this account has handed out, and
-					    the Revoke that takes one back. */}
-					{userLoaded ? <SharedAnswersSection key={user?.id ?? "signed-out"} /> : null}
-					{userLoaded ? <SentCardsSection key={`sent-${user?.id ?? "signed-out"}`} /> : null}
-
-					{/* Send feedback: the one place a person can answer back in
-					    their own words. */}
-					<FeedbackSection />
-
-					</div>
-
-					<div className="flex flex-col gap-6 min-w-0">
-					{/* AI providers */}
-					<section id="providers" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>AI PROVIDERS</SectionLabel>
-						<MembershipSummary />
-						<AIConsentSettingsSection />
-						<ProviderSettings />
-					</section>
-
-					{/* Account */}
-					<section id="account" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>ACCOUNT</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-4">
-							<div className="flex items-center gap-3">
-								<span className="flex h-11 w-11 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-lg font-bold text-amber-600 dark:text-amber-400">
-									{initial}
-								</span>
-								<div className="min-w-0 flex-1">
-									{name && (
-										<p className="truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-											{name}
+								}
+							>
+								{webSearchToggleError ? (
+									<p className="text-xs text-red-600 dark:text-red-400">{webSearchToggleError}</p>
+								) : null}
+								{webSearchLoadFailed ? (
+									<div className="flex items-center justify-between gap-3">
+										<p className="text-xs text-neutral-500 dark:text-neutral-400">
+											Couldn&apos;t load web search settings.
 										</p>
-									)}
-									<p className="truncate text-[13px] text-neutral-400 dark:text-neutral-500">
-										{email || "Signed in"}
-									</p>
-								</div>
-							</div>
-							{confirmSignOut ? (
-								<div className="flex flex-col gap-3">
-									<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
-										Sign out? You can sign back in at any time.
-									</p>
-									<div className="flex gap-2">
 										<button
 											type="button"
-											onClick={() => setConfirmSignOut(false)}
-											className="flex min-h-[44px] flex-1 items-center justify-center rounded-xl border border-black/[0.1] dark:border-white/[0.08] text-sm font-bold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+											onClick={() => void loadPreferences()}
+											className="text-xs font-bold text-amber-600 dark:text-amber-400"
 										>
-											Cancel
-										</button>
-										<button
-											type="button"
-											onClick={() => void signOut({ redirectUrl: "/sign-in" })}
-											className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
-										>
-											<LogOut className="w-4 h-4" />
-											Sign out
+											Retry
 										</button>
 									</div>
-								</div>
-							) : (
-								<button
-									type="button"
-									onClick={() => setConfirmSignOut(true)}
-									className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-red-500/25 dark:border-red-400/20 bg-red-500/10 dark:bg-red-400/10 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-500/20 dark:hover:bg-red-400/20 transition-colors"
-								>
-									<LogOut className="w-4 h-4" />
-									Sign out
-								</button>
-							)}
-							<DeleteAccountSection />
-						</div>
-					</section>
+								) : null}
+							</SettingsRow>
+						</SettingsGroup>
+						<section className="flex flex-col gap-2">
+							<h2 className="px-1 text-metadata font-bold uppercase tracking-[0.15em] text-neutral-500">
+								Data sharing
+							</h2>
+							<AIConsentSettingsSection />
+						</section>
+					</>
+				);
 
-					{/* Get the app */}
-					<section id="get-the-app" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>GET THE APP</SectionLabel>
-						<a
-							href={ANDROID_APK_URL}
-							onClick={() => trackNativeDownload("android", "settings")}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
-						>
-							<span className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-								<AndroidLogo className="w-5 h-5" />
-							</span>
-							<span className="min-w-0 flex-1">
-								<span className="flex items-baseline gap-2">
-									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										SureWord for Android
-									</span>
-									<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
-										{ANDROID_VERSION}
-									</span>
-								</span>
-								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
-									Offline KJV reading, tap a verse for an explanation, and your
-									daily walk in Pick Up Your Cross.
-								</span>
-							</span>
-						</a>
-						<a
-							href={MACOS_DMG_URL}
-							onClick={() => trackNativeDownload("macos", "settings")}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="glass-card gradient-border rounded-2xl p-4 flex items-center gap-3 hover:border-amber-500/40 dark:hover:border-amber-400/30 transition-colors"
-						>
-							<span className="flex h-11 w-11 items-center justify-center rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] text-amber-600 dark:text-amber-400">
-								<AppleLogo className="w-5 h-5" />
-							</span>
-							<span className="min-w-0 flex-1">
-								<span className="flex items-baseline gap-2">
-									<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
-										SureWord for macOS
-									</span>
-									<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
-										{MACOS_VERSION}
-									</span>
-								</span>
-								<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
-									Native Mac app (macOS 15+), now with tap-a-verse explanations
-									and Pick Up Your Cross. The DMG is not notarized: on first launch,
-									open System Settings → Privacy &amp; Security and choose Open Anyway.
-								</span>
-							</span>
-						</a>
-					</section>
+			case "shared":
+				return userLoaded ? (
+					<>
+						<SharedAnswersSection key={user?.id ?? "signed-out"} />
+						<SentCardsSection key={`sent-${user?.id ?? "signed-out"}`} />
+					</>
+				) : null;
 
-					{/* About */}
-					<section id="about" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
-						<SectionLabel>ABOUT</SectionLabel>
-						<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-2">
-							<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+			case "notifications":
+				return <NotificationsSection />;
+
+			case "feedback":
+				return <FeedbackSection />;
+
+			case "about":
+				return (
+					<>
+						<div className={`${SETTINGS_CARD} flex flex-col items-center gap-2 px-6 py-7 text-center`}>
+							{/* eslint-disable-next-line @next/next/no-img-element */}
+							<img src="/favicon-96x96.png" alt="" width={64} height={64} className="sidebar-brand-icon" />
+							<p className="text-[26px] leading-none text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]">
 								SureWord
 							</p>
-							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								Version {WEB_VERSION} · A Bible study assistant rooted in the King
-								James Version.
-							</p>
-							<Link
-								href="/whats-new"
-								className="flex min-h-11 items-center justify-between rounded-xl border border-amber-700/20 px-3 text-sm font-semibold text-amber-700 hover:bg-amber-500/5 dark:border-amber-300/20 dark:text-amber-300"
-							>
-								What&apos;s new in SureWord
-								<ChevronRight size={16} aria-hidden />
-							</Link>
-							<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
-								Why it&apos;s different: ask a generic AI if the Bible is really the Word of God
-								and you&apos;ll hear &ldquo;it depends on your viewpoint.&rdquo; SureWord never
-								hedges — it answers as a Bible-believing Christian, standing on Scripture as the
-								inerrant, infallible, final authority for every answer. &ldquo;All scripture is
-								given by inspiration of God&rdquo; — 2 Timothy 3:16.
+							<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+								Version {WEB_VERSION} · A Bible study assistant rooted in the King James Version.
 							</p>
 						</div>
-					</section>
-					</div>
+						<SettingsGroup>
+							<Link
+								href="/whats-new"
+								className="flex min-h-[52px] items-center justify-between gap-3 rounded-2xl px-4 text-[15px] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/[0.03]"
+							>
+								What&apos;s new in SureWord
+								<ChevronRight className="w-4 h-4 text-neutral-400 dark:text-neutral-600" aria-hidden />
+							</Link>
+						</SettingsGroup>
+						{getTheApp}
+						<SettingsGroup label="Why SureWord">
+							<div className="flex flex-col gap-3 p-4">
+								<p className="text-[13px] leading-[20px] text-neutral-600 dark:text-neutral-300">
+									Ask a generic AI if the Bible is really the Word of God and you&apos;ll hear
+									&ldquo;it depends on your viewpoint.&rdquo; SureWord never hedges - it answers
+									as a Bible-believing Christian, standing on Scripture as the inerrant,
+									infallible, final authority for every answer.
+								</p>
+								<blockquote className="border-l-2 border-amber-500/50 pl-3 text-[13px] italic text-amber-700 dark:text-amber-300">
+									&ldquo;All scripture is given by inspiration of God&rdquo; - 2 Timothy 3:16
+								</blockquote>
+							</div>
+						</SettingsGroup>
+					</>
+				);
+		}
+	};
+
+	const current = pane ? paneById(pane) : null;
+
+	// No page-level min-h or background here: SettingsShell already wraps this
+	// in `min-h-[100dvh] gradient-mesh`.
+	return (
+		<div>
+			{current ? (
+				<div key={current.id} className="mx-auto w-full max-w-2xl px-5 pb-28 pt-5 lg:px-8 lg:pb-16 lg:pt-10 animate-in fade-in duration-200">
+					<header className="mb-6 flex items-center gap-4 lg:mb-8">
+						{current.id === "account" ? <AccountAvatar size={44} /> : <PaneTile pane={current} size="lg" />}
+						<div className="min-w-0">
+							<h1 className="text-screen-title font-bold text-neutral-900 dark:text-neutral-100">
+								{current.title}
+							</h1>
+							<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{current.summary}</p>
+						</div>
+					</header>
+					<div className="flex flex-col gap-6">{renderPane(current.id)}</div>
 				</div>
-			</div>
+			) : (
+				// The hub: phones only. A desktop always has a page open (the
+				// hook restores the last one), so this never paints there.
+				<div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-5 pb-28 pt-5 lg:hidden">
+					<button
+						type="button"
+						onClick={() => openPane("account")}
+						className={`${SETTINGS_CARD} flex items-center gap-3.5 p-4 text-left transition-colors hover:bg-black/[0.02] dark:hover:bg-white/[0.02]`}
+					>
+						<AccountAvatar size={48} />
+						<span className="min-w-0 flex-1">
+							<span className="block truncate text-[16px] font-bold text-neutral-900 dark:text-neutral-100">
+								{name || "Signed in"}
+							</span>
+							<span className="block truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+								{email || "SureWord account"}
+							</span>
+						</span>
+						<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+					</button>
+
+					{SETTINGS_GROUPS.map((group) => (
+						<SettingsGroup key={group.id} label={group.title}>
+							{SETTINGS_PANES.filter((item) => item.group === group.id).map((item) => (
+								<button
+									key={item.id}
+									type="button"
+									onClick={() => openPane(item.id)}
+									className="flex min-h-[60px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] active:bg-black/[0.05] dark:hover:bg-white/[0.03] dark:active:bg-white/[0.05]"
+								>
+									<PaneTile pane={item} size="md" />
+									<span className="min-w-0 flex-1">
+										<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+											{item.title}
+										</span>
+										<span className="block truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+											{hubSubtitles[item.id]}
+										</span>
+									</span>
+									<ChevronRight className="w-4 h-4 flex-shrink-0 text-neutral-400 dark:text-neutral-600" />
+								</button>
+							))}
+						</SettingsGroup>
+					))}
+
+					{getTheApp}
+				</div>
+			)}
 
 			{memoryManagerOpen && (
 				<MemoryManager

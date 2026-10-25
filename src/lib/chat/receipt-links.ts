@@ -7,7 +7,8 @@
  * already exists in the app: the chapter shape mirrors
  * `chapterHrefForReference` in src/lib/chat/verseActions.ts, and the settings
  * anchors are the section ids listed in
- * src/components/settings/SettingsSectionNav.tsx.
+ * src/components/settings/settingsPanes.ts (old
+ * section anchors map to the page that now holds them).
  */
 import type { ChatReceiptTarget } from "./receipts";
 

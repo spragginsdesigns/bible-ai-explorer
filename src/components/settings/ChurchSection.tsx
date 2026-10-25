@@ -191,7 +191,7 @@ const ChurchSection: React.FC = () => {
 	return (
 		<section id="church" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
-				MY CHURCH
+				YOUR CHURCH
 			</h2>
 			<div className={CARD_CLASS}>
 				<div className="flex items-center gap-3">

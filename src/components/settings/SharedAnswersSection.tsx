@@ -134,7 +134,7 @@ export default function SharedAnswersSection() {
 	return (
 		<section id="shared" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
-				SHARED ANSWERS
+				ANSWER LINKS
 			</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">

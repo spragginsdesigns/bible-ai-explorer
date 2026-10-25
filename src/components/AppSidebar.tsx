@@ -198,7 +198,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 				</div>
 				<div className="flex items-center gap-1 px-4 pb-2 text-sm text-neutral-500 dark:text-neutral-400">
 					<Link href="/notes" className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><BookOpen size={16} aria-hidden /> Notes</Link>
-					<Link href="/settings#memory" className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><Brain size={16} aria-hidden /> Memories</Link>
+					{/* On Settings itself a plain anchor, so the hash change reaches the
+					    page switcher (a Next Link would change it without a hashchange). */}
+					{active === "settings"
+						? <a href="#memory" onClick={onClose} className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><Brain size={16} aria-hidden /> Memories</a>
+						: <Link href="/settings#memory" className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:text-amber-700 dark:hover:text-amber-300"><Brain size={16} aria-hidden /> Memories</Link>}
 				</div>
 
 				{/* Footer: account + utilities */}

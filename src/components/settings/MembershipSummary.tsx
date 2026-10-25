@@ -92,7 +92,7 @@ const MembershipSummary: React.FC = () => {
 			: "Membership & included AI";
 
 	return (
-		<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3 mb-4">
+		<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
 			<div className="flex items-center gap-3">
 				<span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400">
 					<Sparkles className="w-5 h-5" />
