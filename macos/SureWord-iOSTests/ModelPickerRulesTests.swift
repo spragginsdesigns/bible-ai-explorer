@@ -394,13 +394,13 @@ final class ModelPickerRulesTests: XCTestCase {
         XCTAssertEqual(Rules.title(house: housePayload().house), "Your model")
         XCTAssertEqual(Rules.summaryLine("GPT-5.6 Luna \u{00B7} High"), "Using GPT-5.6 Luna \u{00B7} High")
         XCTAssertNil(Rules.summaryLine(""))
-        XCTAssertEqual(Rules.addKeyTitle, "Add an API key")
-        XCTAssertEqual(Rules.addKeyDetail, "Unlock more models in Settings")
     }
 
     func testHouseNoteFallsBackOnlyWhenTheServerSendsNone() {
-        XCTAssertEqual(Rules.houseNote(housePayload().house!), "Included with SureWord.")
+        XCTAssertEqual(Rules.houseNote(housePayload(note: "Served note.").house!), "Served note.")
         XCTAssertEqual(Rules.houseNote(housePayload(note: "  ").house!), Rules.fallbackHouseNote)
+        // Bring-your-own-key ended 2026-10-25: the fallback no longer mentions keys.
+        XCTAssertEqual(Rules.fallbackHouseNote, "Included with SureWord.")
     }
 
     // MARK: Store adoption (seedRunOptions + house-mode pinning)
@@ -498,5 +498,63 @@ final class ModelPickerRulesTests: XCTestCase {
         Rules.pinHouseMode(from: keysPayload(), into: settings)
         XCTAssertEqual(settings.chatModelId, "gpt-5.6-mini")
         XCTAssertEqual(settings.chatSpeed, "fast")
+    }
+
+    // MARK: SureWord plans (2026-10-25)
+
+    /// The owner account's list: SureWord's own two plans, both "SureWord AI",
+    /// no run options, `premium` on Pro.
+    private func ownerPayload() -> AIModelsResponse {
+        func plan(_ id: String, _ tagline: String, premium: Bool) -> AIModel {
+            AIModel(
+                id: id,
+                label: "SureWord AI",
+                provider: "sureword",
+                efforts: [],
+                available: true,
+                tagline: tagline,
+                premium: premium
+            )
+        }
+        return AIModelsResponse(
+            access: "keys",
+            providers: [AIProviderSummary(id: "sureword", label: "SureWord", available: true)],
+            models: [
+                plan("sureword/free", "Free: quick answers", premium: false),
+                plan("sureword/pro", "Pro: thinks deeper", premium: true),
+            ],
+            defaults: .init(modelId: "sureword/free", effort: nil),
+            house: nil
+        )
+    }
+
+    func testOwnerPlansRenderAsOneProviderWithNoOptions() {
+        let data = ownerPayload()
+        XCTAssertEqual(Rules.visibleProviders(data).map(\.id), ["sureword"])
+        XCTAssertEqual(Rules.providerLabel(in: data, provider: "sureword"), "SureWord")
+        XCTAssertEqual(ids(Rules.models(in: data, provider: "sureword")), ["sureword/free", "sureword/pro"])
+        // Neither plan offers a run option, so the sheet has no OPTIONS tab.
+        for model in data.models {
+            XCTAssertFalse(Rules.hasOptions(model))
+            XCTAssertEqual(Rules.summaryLabel(model: model, effort: "high", speed: "fast", verbosity: "high", mode: "pro"), "SureWord AI")
+        }
+        XCTAssertEqual(Rules.metaLine(for: data.models[1]), "Pro: thinks deeper")
+    }
+
+    func testPremiumIsSpokenAsPro() {
+        let data = ownerPayload()
+        XCTAssertEqual(
+            Rules.modelAccessibilityLabel(data.models[1], providerName: nil, pills: [], meta: "Pro: thinks deeper"),
+            "SureWord AI, Pro, Pro: thinks deeper"
+        )
+        XCTAssertEqual(
+            Rules.modelAccessibilityLabel(data.models[0], providerName: "SureWord", pills: [], meta: nil),
+            "SureWord, SureWord AI"
+        )
+
+        var house = AIModelsResponse.HouseModel(modelId: "openai/gpt-6-luna", label: "SureWord AI", effort: "high", note: nil)
+        XCTAssertEqual(Rules.houseAccessibilityLabel(house), "SureWord AI, selected model")
+        house.premium = true
+        XCTAssertEqual(Rules.houseAccessibilityLabel(house), "SureWord AI, Pro, selected model")
     }
 }

@@ -149,7 +149,7 @@ struct SettingsView: View {
     }
 
     private var aiSubtitle: String {
-        SettingsHubSubtitles.ai(connectedKeys: data.providers.data?.providers.filter(\.connected).count ?? 0)
+        SettingsHubSubtitles.ai
     }
 
     private var notificationsSubtitle: String {
@@ -225,11 +225,8 @@ enum SettingsHubSubtitles {
         return "On · \(count) saved"
     }
 
-    static func ai(connectedKeys: Int) -> String {
-        let base = "Membership, provider keys, web search"
-        guard connectedKeys > 0 else { return base }
-        return "\(base) · \(connectedKeys) \(connectedKeys == 1 ? "key" : "keys")"
-    }
+    /// No key count since bring-your-own-key ended (2026-10-25).
+    static let ai = "Membership, web search"
 
     static func notifications(enabled: Bool, hour: Int) -> String {
         enabled ? "Daily verse \(SettingsStore.formatHour(hour))" : "Daily verse off"

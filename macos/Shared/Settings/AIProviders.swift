@@ -44,11 +44,15 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
     var pricing: Pricing?
     /// Caveat shown next to the Fast chip, e.g. "About 2x the standard price".
     var fastModeNote: String?
+    /// SureWord Pro's row (2026-10-25): both plans are labelled "SureWord AI",
+    /// and this flag is what earns the Pro one its premium mark. Absent from
+    /// older servers, which reads as false.
+    var premium: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case id, label, provider, supportsAttachments, efforts, available
         case speeds, verbosities, modes, defaultEffort, tagline, tier
-        case contextWindow, pricing, fastModeNote
+        case contextWindow, pricing, fastModeNote, premium
     }
 
     /// Written out rather than synthesized: Swift's `Codable` synthesis ignores
@@ -77,6 +81,7 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
         contextWindow = try container.decodeIfPresent(Int.self, forKey: .contextWindow)
         pricing = try container.decodeIfPresent(Pricing.self, forKey: .pricing)
         fastModeNote = try container.decodeIfPresent(String.self, forKey: .fastModeNote)
+        premium = try container.decodeIfPresent(Bool.self, forKey: .premium) ?? false
     }
 
     init(
@@ -94,7 +99,8 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
         tier: String? = nil,
         contextWindow: Int? = nil,
         pricing: Pricing? = nil,
-        fastModeNote: String? = nil
+        fastModeNote: String? = nil,
+        premium: Bool = false
     ) {
         self.id = id
         self.label = label
@@ -111,6 +117,7 @@ struct AIModel: Sendable, Equatable, Identifiable, Decodable {
         self.contextWindow = contextWindow
         self.pricing = pricing
         self.fastModeNote = fastModeNote
+        self.premium = premium
     }
 }
 
@@ -144,7 +151,8 @@ struct AIModelsResponse: Sendable, Equatable, Decodable {
     /// never a locked provider the user cannot act on from there.
     struct HouseModel: Sendable, Equatable, Decodable {
         var modelId: String
-        /// "SureWord AI" on Free, the model's own name on Pro (2026-10-08).
+        /// "SureWord AI" on both plans since 2026-10-25; `premium` tells Pro
+        /// apart.
         var label: String
         /// The effort the next answer runs at: the account's stored pick on Pro,
         /// `"medium"` on Free.
@@ -155,11 +163,19 @@ struct AIModelsResponse: Sendable, Equatable, Decodable {
         /// before 2026-10-08, which read as "no choice". `= nil` keeps the
         /// existing memberwise `.init(modelId:label:effort:note:)` calls valid.
         var efforts: [String]? = nil
+        /// True on SureWord Pro, which draws the premium mark beside the label.
+        /// Absent from servers before 2026-10-25. Optional so the synthesized
+        /// decoder reads it with `decodeIfPresent`; read through `isPremium`,
+        /// so absence means Free.
+        var premium: Bool? = nil
+
+        var isPremium: Bool { premium ?? false }
     }
 
-    /// `"house"` while the account has no API keys of its own, `"keys"` once
-    /// it has one. Absent from older servers, which only ever spoke the keys
-    /// shape - so its absence must keep meaning "keys", not "unknown".
+    /// `"house"` for every account on included AI, `"keys"` for the owner's
+    /// list of SureWord plans (bring-your-own-key ended 2026-10-25). Absent
+    /// from older servers, which only ever spoke the keys shape, so its
+    /// absence must keep meaning "keys", not "unknown".
     var access: String? = nil
     /// Absent from older servers; the picker derives rows from `models` then.
     var providers: [AIProviderSummary]? = nil
@@ -179,178 +195,13 @@ enum AIModelsAPI {
         "anthropic": "Anthropic",
         "moonshot": "Moonshot",
         "openrouter": "OpenRouter",
+        "sureword": "SureWord",
     ]
-}
 
-// MARK: - Bring your own key
-
-/// One bring-your-own-key provider row, as served by `GET /api/providers`.
-///
-/// Port of `ProviderStatus` in `mobile/src/features/settings/aiApi.ts`. The key
-/// itself never comes back from the server — only its last four characters,
-/// which is all the UI is allowed to show.
-struct AIProviderStatus: Codable, Equatable, Sendable, Identifiable {
-    let id: String
-    let label: String
-    /// Where the user can mint a key, opened in Safari ("Get a key").
-    let keyURL: URL?
-    let connected: Bool
-    let last4: String?
-    let validatedAt: String?
-
-    /// The status line under the provider name — Android's
-    /// `Key ending in ${last4}` / `Not connected`.
-    var statusLine: String {
-        if connected, let last4 { return "Key ending in \(last4)" }
-        return "Not connected"
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case id, label, connected, last4, validatedAt
-        case keyURL = "keyUrl"
-    }
-}
-
-/// Codable rather than Decodable so `SettingsDataStore` can persist it.
-struct AIProvidersResponse: Codable, Equatable, Sendable {
-    /// True when the account can also use SureWord's built-in keys; adding a
-    /// personal key then overrides them per provider.
-    let serverCredentials: Bool
-    let providers: [AIProviderStatus]
-}
-
-enum AIProviderAPI {
-    static func fetch(api: APIClient) async throws -> AIProvidersResponse {
-        try await api.json("/api/providers", as: AIProvidersResponse.self)
-    }
-
-    /// Validates the key against the provider before storing it; the server
-    /// rejects a bad key with a message, which is surfaced verbatim.
-    static func save(api: APIClient, provider: String, apiKey: String) async throws {
-        struct Body: Encodable { let provider: String; let apiKey: String }
-        struct Response: Decodable { let ok: Bool; let last4: String }
-        try await api.json(
-            "/api/providers",
-            method: "POST",
-            body: Body(provider: provider, apiKey: apiKey),
-            as: Response.self
-        )
-    }
-
-    static func remove(api: APIClient, provider: String) async throws {
-        struct Body: Encodable { let provider: String }
-        struct Response: Decodable { let ok: Bool }
-        try await api.json(
-            "/api/providers",
-            method: "DELETE",
-            body: Body(provider: provider),
-            as: Response.self
-        )
-    }
-}
-
-/// Drives the Settings → AI Provider section (Android's
-/// `ProviderSettingsSection`): list, add/replace with server-side validation,
-/// and remove. Follows the `MemoriesModel` pattern — the view owns the
-/// instance and calls `configure` once it has the session's API client.
-@MainActor
-@Observable
-final class AIProviderSettingsModel {
-    private(set) var response: AIProvidersResponse?
-    private(set) var loadFailed = false
-
-    /// The provider whose inline editor is open, if any.
-    private(set) var editingProviderID: String?
-    var keyInput = ""
-    /// True while a save or remove round-trip is in flight.
-    private(set) var isPending = false
-    private(set) var error: String?
-
-    private var api: APIClient?
-    /// The persisted per-account list (PRD B7): painted on the first frame,
-    /// revalidated in place, and never replaced by a spinner once present.
-    private var cache: SettingsDataStore?
-
-    func configure(_ api: APIClient, cache: SettingsDataStore = .shared) {
-        self.api = api
-        self.cache = cache
-        cache.hydrate()
-        if response == nil, let cached = cache.providers.data { response = cached }
-    }
-
-    func load() async {
-        guard let api else { return }
-        loadFailed = false
-        guard let cache else {
-            do { response = try await AIProviderAPI.fetch(api: api) } catch { loadFailed = true }
-            return
-        }
-        do {
-            try await cache.refreshProviders(.live(api))
-            if let fresh = cache.providers.data { response = fresh }
-        } catch {
-            // A failed revalidation keeps the cached list; the Retry row is
-            // only for a section that has nothing to show.
-            loadFailed = response == nil
-        }
-    }
-
-    /// A direct read rather than `load()`: a revalidation already in flight was
-    /// issued before this save or removal, and joining it would bring back the
-    /// list as it was.
-    private func reloadAfterMutation(_ api: APIClient) async {
-        do {
-            let fresh = try await AIProviderAPI.fetch(api: api)
-            response = fresh
-            loadFailed = false
-            cache?.noteProviders(fresh)
-        } catch {
-            loadFailed = response == nil
-        }
-    }
-
-    func beginEditing(_ providerID: String) {
-        editingProviderID = providerID
-        keyInput = ""
-        error = nil
-    }
-
-    func cancelEditing() {
-        editingProviderID = nil
-        keyInput = ""
-        error = nil
-    }
-
-    /// Validate & save the pasted key. Empty input is a no-op, matching the
-    /// Android button's disabled state.
-    func save() async {
-        guard let api, let providerID = editingProviderID, !isPending else { return }
-        let key = keyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else { return }
-
-        isPending = true
-        error = nil
-        defer { isPending = false }
-        do {
-            try await AIProviderAPI.save(api: api, provider: providerID, apiKey: key)
-            editingProviderID = nil
-            keyInput = ""
-            await reloadAfterMutation(api)
-        } catch {
-            self.error = (error as? APIError)?.message ?? "Could not save the key."
-        }
-    }
-
-    func remove(_ providerID: String) async {
-        guard let api, !isPending else { return }
-        isPending = true
-        error = nil
-        defer { isPending = false }
-        do {
-            try await AIProviderAPI.remove(api: api, provider: providerID)
-            await reloadAfterMutation(api)
-        } catch {
-            self.error = (error as? APIError)?.message ?? "Could not remove the key."
-        }
+    /// Whether the current pick is SureWord Pro: the house block's flag in
+    /// house mode, else the selected model row's.
+    static func isPremium(house: AIModelsResponse.HouseModel?, selected: AIModel?) -> Bool {
+        if let house { return house.isPremium }
+        return selected?.premium ?? false
     }
 }

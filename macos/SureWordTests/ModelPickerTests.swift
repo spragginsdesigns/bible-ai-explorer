@@ -899,6 +899,120 @@ struct ModelPickerRulesTests {
         #expect(decoded.house?.efforts == nil)
         #expect(ModelPickerRules.isHouse(decoded))
         #expect(ModelPickerRules.providers(in: decoded).isEmpty)
+        // Servers before 2026-10-25 send no `premium`: Free, no mark.
+        #expect(decoded.house?.premium == nil)
+        #expect(decoded.house?.isPremium == false)
+        #expect(decoded.models.first?.premium == false)
+        #expect(!ModelPickerRules.isPremium(in: decoded, stored: nil))
+    }
+
+    @Test("Decodes Pro's premium flag on the house block and its model row")
+    func decodesPremiumHousePayload() throws {
+        let json = """
+        {
+          "access": "house",
+          "providers": [],
+          "models": [
+            {
+              "id": "openai/gpt-6-luna",
+              "label": "SureWord AI",
+              "provider": "openai",
+              "available": true,
+              "premium": true
+            }
+          ],
+          "defaults": { "modelId": "openai/gpt-6-luna", "effort": "high" },
+          "house": {
+            "modelId": "openai/gpt-6-luna",
+            "label": "SureWord AI",
+            "effort": "high",
+            "efforts": [],
+            "premium": true
+          }
+        }
+        """
+        let decoded = try JSONDecoder().decode(AIModelsResponse.self, from: Data(json.utf8))
+        #expect(decoded.house?.isPremium == true)
+        #expect(decoded.models.first?.premium == true)
+        #expect(ModelPickerRules.isPremium(in: decoded, stored: "openai/anything-else"))
+        #expect(ModelPickerRules.buttonLabel(in: decoded, stored: nil) == "SureWord AI")
+        // `efforts: []` is no choice: no REASONING section under the row.
+        #expect(ModelPickerRules.houseEfforts(decoded.house).isEmpty)
+    }
+
+    @Test("A Free house block says premium false and draws no mark")
+    func decodesFreeHousePremiumFalse() throws {
+        let json = """
+        {
+          "access": "house",
+          "models": [
+            { "id": "openai/gpt-6-luna", "label": "SureWord AI", "provider": "openai", "available": true, "premium": false }
+          ],
+          "defaults": { "modelId": "openai/gpt-6-luna" },
+          "house": { "modelId": "openai/gpt-6-luna", "label": "SureWord AI", "efforts": [], "premium": false }
+        }
+        """
+        let decoded = try JSONDecoder().decode(AIModelsResponse.self, from: Data(json.utf8))
+        #expect(decoded.house?.premium == false)
+        #expect(!ModelPickerRules.isPremium(in: decoded, stored: nil))
+    }
+
+    @Test("The owner's two SureWord plans: one provider row, no options")
+    func decodesOwnerPlansPayload() throws {
+        let json = """
+        {
+          "access": "keys",
+          "providers": [{ "id": "sureword", "label": "SureWord", "available": true }],
+          "models": [
+            {
+              "id": "sureword/free", "label": "SureWord AI", "provider": "sureword",
+              "available": true, "efforts": [], "speeds": ["standard"],
+              "verbosities": [], "modes": ["standard"], "tagline": "Free: quick answers"
+            },
+            {
+              "id": "sureword/pro", "label": "SureWord AI", "provider": "sureword",
+              "available": true, "efforts": [], "speeds": ["standard"],
+              "verbosities": [], "modes": ["standard"], "tagline": "Pro: thinks deeper",
+              "premium": true
+            }
+          ],
+          "defaults": { "modelId": "sureword/pro" }
+        }
+        """
+        let decoded = try JSONDecoder().decode(AIModelsResponse.self, from: Data(json.utf8))
+        #expect(!ModelPickerRules.isHouse(decoded))
+        #expect(decoded.models.map(\.premium) == [false, true])
+        #expect(ModelPickerRules.providers(in: decoded).map(\.id) == ["sureword"])
+        #expect(ModelPickerRules.models(ofProvider: "sureword", in: decoded).count == 2)
+        #expect(ModelPickerRules.initialExpandedProvider(in: decoded, stored: nil) == "sureword")
+
+        // The account default is Pro; a stored Free pick drops the mark.
+        #expect(ModelPickerRules.isPremium(in: decoded, stored: nil))
+        #expect(!ModelPickerRules.isPremium(in: decoded, stored: "sureword/free"))
+        #expect(ModelPickerRules.buttonLabel(in: decoded, stored: "sureword/free") == "SureWord AI")
+
+        // Option-less rows: no REASONING / SPEED / LENGTH / MODE section at all.
+        for stored in ["sureword/free", "sureword/pro"] {
+            #expect(ModelPickerRules.efforts(in: decoded, stored: stored).isEmpty)
+            #expect(ModelPickerRules.speeds(in: decoded, stored: stored).isEmpty)
+            #expect(ModelPickerRules.verbosities(in: decoded, stored: stored).isEmpty)
+            #expect(ModelPickerRules.modes(in: decoded, stored: stored).isEmpty)
+            #expect(
+                ModelPickerRules.summaryLabel(
+                    in: decoded, stored: stored, effort: "high", speed: "fast",
+                    verbosity: "high", mode: "pro"
+                ) == "SureWord AI"
+            )
+        }
+        #expect(ModelPickerRules.metaLine(for: decoded.models[1]) == "Pro: thinks deeper")
+        #expect(ModelPickerRules.pills(for: decoded.models[1]).isEmpty)
+        #expect(ModelPickerRules.providerLabel(for: decoded.models[0]) == "SureWord")
+    }
+
+    @Test("The house note never points at API keys any more")
+    func houseNoteHasNoKeyCopy() {
+        #expect(ModelPickerRules.fallbackHouseNote == "Included with SureWord.")
+        #expect(!ModelPickerRules.fallbackHouseNote.lowercased().contains("key"))
     }
 
     @Test("Decodes the Pro house payload with its reasoning choices")
@@ -1095,114 +1209,6 @@ struct ModelPickerRulesTests {
         #expect(decoded.access == nil)
         #expect(decoded.house == nil)
         #expect(!ModelPickerRules.isHouse(decoded))
-    }
-}
-
-/// Settings → AI Providers. Decoding and the status line are the whole of the
-/// section's pure logic: everything else is a round-trip to `/api/providers`.
-@Suite("AI provider settings")
-struct AIProviderSettingsTests {
-
-    @Test("Only the last four characters of a key are ever shown")
-    func statusLine() throws {
-        let connected = try JSONDecoder().decode(
-            AIProviderStatus.self,
-            from: Data(
-                """
-                { "id": "openai", "label": "OpenAI", "keyUrl": "https://platform.openai.com/api-keys",
-                  "connected": true, "last4": "aB3z", "validatedAt": "2026-08-27T00:00:00.000Z" }
-                """.utf8
-            )
-        )
-        #expect(connected.statusLine == "Key ending in aB3z")
-        #expect(connected.keyURL?.host() == "platform.openai.com")
-    }
-
-    @Test("A provider with no key reads as not connected")
-    func notConnected() throws {
-        let status = try JSONDecoder().decode(
-            AIProviderStatus.self,
-            from: Data(
-                """
-                { "id": "anthropic", "label": "Anthropic", "keyUrl": null,
-                  "connected": false, "last4": null, "validatedAt": null }
-                """.utf8
-            )
-        )
-        #expect(status.statusLine == "Not connected")
-        #expect(status.keyURL == nil)
-    }
-
-    @Test("A connected provider with no last4 does not claim a key ending in nothing")
-    func connectedWithoutLast4() throws {
-        let status = try JSONDecoder().decode(
-            AIProviderStatus.self,
-            from: Data(
-                """
-                { "id": "moonshot", "label": "Moonshot", "keyUrl": null,
-                  "connected": true, "last4": null, "validatedAt": null }
-                """.utf8
-            )
-        )
-        #expect(status.statusLine == "Not connected")
-    }
-
-    @Test("Decodes the /api/providers envelope")
-    func decodesEnvelope() throws {
-        let json = """
-        { "serverCredentials": true,
-          "providers": [
-            { "id": "openai", "label": "OpenAI", "keyUrl": "https://platform.openai.com/api-keys",
-              "connected": false, "last4": null, "validatedAt": null }
-          ] }
-        """
-        let decoded = try JSONDecoder().decode(AIProvidersResponse.self, from: Data(json.utf8))
-        #expect(decoded.serverCredentials)
-        #expect(decoded.providers.map(\.id) == ["openai"])
-    }
-
-    @Test("Whitespace is not a key: Save stays disabled for it")
-    func saveGate() {
-        #expect(!ProviderSettingsSection.canSave(""))
-        #expect(!ProviderSettingsSection.canSave("   "))
-        #expect(!ProviderSettingsSection.canSave("\n\t "))
-        #expect(ProviderSettingsSection.canSave("sk-live-abc"))
-        #expect(ProviderSettingsSection.canSave("  sk-live-abc  "))
-    }
-
-    @MainActor
-    @Test("Editing state opens and closes without touching the network")
-    func editingState() {
-        let model = AIProviderSettingsModel()
-        #expect(model.editingProviderID == nil)
-
-        model.keyInput = "leftover"
-        model.beginEditing("openai")
-        #expect(model.editingProviderID == "openai")
-        // Opening the editor must never carry another provider's typed key in.
-        #expect(model.keyInput.isEmpty)
-
-        model.keyInput = "sk-live-abc"
-        model.cancelEditing()
-        #expect(model.editingProviderID == nil)
-        #expect(model.keyInput.isEmpty)
-        #expect(model.error == nil)
-    }
-
-    @MainActor
-    @Test("An unconfigured model is inert rather than crashing")
-    func unconfiguredIsInert() async {
-        let model = AIProviderSettingsModel()
-        await model.load()
-        #expect(model.response == nil)
-        #expect(!model.loadFailed)
-
-        model.beginEditing("openai")
-        model.keyInput = "sk-live-abc"
-        await model.save()
-        // No API client, so nothing was sent and the editor stays as it was.
-        #expect(model.editingProviderID == "openai")
-        #expect(!model.isPending)
     }
 }
 

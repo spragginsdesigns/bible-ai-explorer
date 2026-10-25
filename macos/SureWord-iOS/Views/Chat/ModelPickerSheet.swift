@@ -11,9 +11,11 @@ import SwiftUI
 /// `mobile/src/features/chat/ModelPickerSheet.tsx` (Android is the source of
 /// truth).
 ///
-/// Two shapes, decided by the server's `access` field. **House** (no keys on
-/// the account): "Your model", the one model, its note, and the way into the
-/// AI settings - nothing to choose. **Keys**: "Choose a model" over a summary
+/// Two shapes, decided by the server's `access` field. **House** (every
+/// account on included AI): "Your model", the one "SureWord AI" row (the
+/// premium mark on Pro) and its note - nothing to choose, and no API-key row,
+/// since bring-your-own-key ended on 2026-10-25. **Keys** (the owner's two
+/// SureWord plans): "Choose a model" over a summary
 /// of what the next message runs with, then two panes. MODELS holds the
 /// search (whenever there is more than one model) and the provider groups -
 /// a lone provider is a plain header, several fold. OPTIONS holds the run
@@ -170,16 +172,13 @@ struct ModelPickerSheet: View {
                     if let effort { settings.chatEffort = effort }
                 }
             }
-            Section {
-                addKeyRow
-            }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.bgElevated)
     }
 
-    /// What a keyless account sees: the one model it has, said plainly. No
+    /// What an included-AI account sees: the one model it has, said plainly. No
     /// disclosure chevrons; the only choice (Pro's reasoning) sits below it.
     private func houseRow(_ house: AIModelsResponse.HouseModel) -> some View {
         HStack {
@@ -187,13 +186,14 @@ struct ModelPickerSheet: View {
                 .font(.system(size: 14.5, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .lineLimit(1)
+            if house.isPremium { PremiumMark(size: 16) }
             Spacer()
             Image(systemName: "checkmark")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(house.label), selected model")
+        .accessibilityLabel(Self.houseAccessibilityLabel(house))
         .accessibilityAddTraits(.isSelected)
     }
 
@@ -237,9 +237,6 @@ struct ModelPickerSheet: View {
             } else {
                 ForEach(providers) { provider in
                     providerSection(provider)
-                }
-                Section {
-                    addKeyRow
                 }
             }
         }
@@ -309,30 +306,6 @@ struct ModelPickerSheet: View {
         .contentShape(.rect)
     }
 
-    /// The way to more models, in both modes: straight to the AI provider
-    /// settings, since the Settings hub would leave the user one tap short.
-    /// A push, not a sheet: this sheet owns its own `NavigationStack`.
-    private var addKeyRow: some View {
-        NavigationLink {
-            Form { ProviderSettingsSection() }
-                .navigationTitle("AI Provider")
-        } label: {
-            HStack(spacing: Spacing.md) {
-                Image(systemName: "key")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.textMuted)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Self.addKeyTitle)
-                        .font(.system(size: 14.5, weight: .semibold))
-                        .foregroundStyle(theme.textSecondary)
-                    Text(Self.addKeyDetail)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(theme.textFaint)
-                }
-            }
-        }
-        .accessibilityLabel("Add an API key in Settings")
-    }
 
     /// One model. The label with up to three capability pills, then the
     /// curated tagline or the hard numbers the server sent.
@@ -359,24 +332,24 @@ struct ModelPickerSheet: View {
                             .font(.system(size: 13.5, weight: active ? .bold : .semibold))
                             .foregroundStyle(active ? theme.accent : theme.text)
                             .lineLimit(1)
+                        // Label, then Pro's mark, then the pills on the same
+                        // line: the approved web row (2026-10-25).
+                        if model.premium { PremiumMark(size: 16) }
+                        ForEach(pills, id: \.self) { pill in
+                            Text(pill)
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .foregroundStyle(theme.textMuted)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
+                                .fixedSize()
+                        }
                     }
                     if let meta {
                         Text(meta)
                             .font(.system(size: 11.5))
                             .foregroundStyle(theme.textFaint)
                             .lineLimit(1)
-                    }
-                    if !pills.isEmpty {
-                        HStack(spacing: Spacing.xs) {
-                            ForEach(pills, id: \.self) { pill in
-                                Text(pill)
-                                    .font(.system(size: 10.5, weight: .semibold))
-                                    .foregroundStyle(theme.textMuted)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 1)
-                                    .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
-                            }
-                        }
                     }
                 }
                 Spacer(minLength: Spacing.xs)
@@ -389,7 +362,7 @@ struct ModelPickerSheet: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            ([providerName, model.label] + pills + [meta]).compactMap { $0 }.joined(separator: ", ")
+            Self.modelAccessibilityLabel(model, providerName: providerName, pills: pills, meta: meta)
         )
         .accessibilityAddTraits(active ? [.isButton, .isSelected] : [.isButton])
     }

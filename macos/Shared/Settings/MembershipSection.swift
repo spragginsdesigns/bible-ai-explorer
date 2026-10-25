@@ -10,8 +10,9 @@ struct MembershipResponse: Decodable, Sendable {
     let plan: String
     let owner: Bool
     let enabled: Bool
-    let access: String
-    let hasPersonalKeys: Bool
+    // `access` and `hasPersonalKeys` are no longer read: since 2026-10-25
+    // every account runs on included AI (no bring-your-own-key), so there is
+    // no payer choice to draw.
     let usage: Usage?
     /// Absent on servers older than StoreKit billing; read as nil/false.
     let subscription: Subscription?
@@ -26,7 +27,7 @@ struct MembershipResponse: Decodable, Sendable {
     }
 }
 
-/// Shared account balances and payer choice. On iOS it links to
+/// Shared account balances. On iOS it links to
 /// `ProMembershipView`, where Pro is bought through StoreKit; macOS has no
 /// purchase UI.
 struct MembershipSection: View {
@@ -60,18 +61,6 @@ struct MembershipSection: View {
                     Text("Daily reset: \(localReset(usage.day.end))")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if membership.enabled && !membership.owner && membership.hasPersonalKeys {
-                    Picker("AI payment", selection: Binding(
-                        get: { membership.access },
-                        set: { access in Task { await choose(access) } }
-                    )) {
-                        Text("Included AI").tag("house")
-                        Text("My API key").tag("keys")
-                    }
-                    .disabled(isPending)
-                    Text("Included AI uses your SureWord allowance. Personal keys are billed by your provider.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
             } else if isPending {
                 ProgressView("Loading membership")
             }
@@ -103,19 +92,6 @@ struct MembershipSection: View {
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = "Membership details are temporarily unavailable."
-        }
-    }
-
-    @MainActor private func choose(_ access: String) async {
-        guard let api, !isPending else { return }
-        struct Choice: Encodable { let access: String }
-        isPending = true
-        defer { isPending = false }
-        do {
-            membership = try await api.json("/api/billing/status", method: "PATCH", body: Choice(access: access), as: MembershipResponse.self)
-            errorMessage = nil
-        } catch {
-            errorMessage = "Could not update your AI payment choice. Please try again."
         }
     }
 }

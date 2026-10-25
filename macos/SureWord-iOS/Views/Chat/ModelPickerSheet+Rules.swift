@@ -47,12 +47,9 @@ extension ModelPickerSheet {
 
     /// Copy under the house model when the server sends no `note` of its own.
     /// Kept in step with `ModelPickerRules.fallbackHouseNote` on macOS.
-    static let fallbackHouseNote =
-        "Included with SureWord. Add your own API key to choose other models."
+    static let fallbackHouseNote = "Included with SureWord."
 
     static let emptySearchText = "No models match that."
-    static let addKeyTitle = "Add an API key"
-    static let addKeyDetail = "Unlock more models in Settings"
 
     // MARK: - Labels
 
@@ -446,6 +443,28 @@ extension ModelPickerSheet {
             if settings.chatVerbosity != nil { settings.chatVerbosity = nil }
             if settings.chatMode != nil { settings.chatMode = nil }
         }
+    }
+
+    // MARK: - Plans
+
+    /// VoiceOver for the house row: "SureWord AI, Pro, selected model" on Pro,
+    /// since the mark is a picture and the label alone matches Free.
+    static func houseAccessibilityLabel(_ house: AIModelsResponse.HouseModel) -> String {
+        house.isPremium ? "\(house.label), Pro, selected model" : "\(house.label), selected model"
+    }
+
+    /// VoiceOver for one model row: provider (search results only), label,
+    /// "Pro" for the premium plan, pills, then the meta line.
+    static func modelAccessibilityLabel(
+        _ model: AIModel,
+        providerName: String?,
+        pills: [String],
+        meta: String?
+    ) -> String {
+        let premium: String? = model.premium ? "Pro" : nil
+        return ([providerName, model.label, premium] + pills + [meta])
+            .compactMap { $0 }
+            .joined(separator: ", ")
     }
 
     // MARK: - Model rows

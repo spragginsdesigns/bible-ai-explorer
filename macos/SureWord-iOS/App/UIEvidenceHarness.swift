@@ -18,7 +18,7 @@ import SwiftUI
 ///     -evidence.screen settings | settings-<page>   (the Settings hub, or one
 ///         of its pages: account, appearance, highlights, church, memory, ai,
 ///         shared, notifications, feedback, about). The hub's per-account
-///         cache is seeded with a sample church, key and memory count, so the
+///         cache is seeded with a sample church and memory count, so the
 ///         rows and pages show the cached, offline-first state (PRD B7).
 ///
 /// With fixtures installed (`EvidenceFixtures`, written into the app's
@@ -155,13 +155,6 @@ struct UIEvidenceHarness: View {
             missionSource: nil,
             updatedAt: "2026-10-07T08:00:00.000Z"
         )))
-        store.noteProviders(AIProvidersResponse(
-            serverCredentials: false,
-            providers: [
-                AIProviderStatus(id: "openai", label: "OpenAI", keyURL: nil, connected: true, last4: "9f2c", validatedAt: nil),
-                AIProviderStatus(id: "anthropic", label: "Anthropic", keyURL: nil, connected: false, last4: nil, validatedAt: nil),
-            ]
-        ))
         store.noteMemoryCount(12)
         store.noteMemoryEnabled(true)
     }

@@ -478,6 +478,37 @@ final class ModelPickerSheetRulesTests: XCTestCase {
         XCTAssertNil(decoded.defaults.speed)
         XCTAssertNil(decoded.defaults.verbosity)
         XCTAssertNil(decoded.defaults.mode)
+        // Servers before 2026-10-25 send no `premium`: Free, no mark.
+        XCTAssertFalse(model.premium)
+    }
+
+    /// `premium` on both the house block and the model row, present and absent.
+    func testDecodesThePremiumFlag() throws {
+        let pro = """
+        { "access": "house",
+          "models": [{ "id": "openai/gpt-6-luna", "label": "SureWord AI", "provider": "openai",
+                       "available": true, "premium": true }],
+          "defaults": { "modelId": "openai/gpt-6-luna", "effort": "high" },
+          "house": { "modelId": "openai/gpt-6-luna", "label": "SureWord AI", "effort": "high",
+                     "efforts": [], "premium": true } }
+        """
+        let decodedPro = try JSONDecoder().decode(AIModelsResponse.self, from: Data(pro.utf8))
+        XCTAssertEqual(decodedPro.house?.premium, true)
+        XCTAssertEqual(decodedPro.house?.isPremium, true)
+        XCTAssertEqual(decodedPro.models.first?.premium, true)
+        XCTAssertEqual(decodedPro.house?.label, "SureWord AI")
+
+        let older = """
+        { "access": "house",
+          "models": [{ "id": "openai/gpt-6-luna", "label": "SureWord AI", "provider": "openai",
+                       "available": true }],
+          "defaults": { "modelId": "openai/gpt-6-luna" },
+          "house": { "modelId": "openai/gpt-6-luna", "label": "SureWord AI" } }
+        """
+        let decodedOlder = try JSONDecoder().decode(AIModelsResponse.self, from: Data(older.utf8))
+        XCTAssertNil(decodedOlder.house?.premium)
+        XCTAssertEqual(decodedOlder.house?.isPremium, false)
+        XCTAssertEqual(decodedOlder.models.first?.premium, false)
     }
 
     func testDecodesTheRunOptionsPayload() throws {

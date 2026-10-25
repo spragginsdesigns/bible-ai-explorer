@@ -1,7 +1,8 @@
 import Foundation
 
-/// The Settings data that used to load on every open: AI Providers, My church
-/// and the saved-memory count. The Apple port of
+/// The Settings data that used to load on every open: My church and the
+/// saved-memory count (the AI Providers section went with bring-your-own-key
+/// on 2026-10-25). The Apple port of
 /// `mobile/src/features/settings/settingsData.ts` (Android 1.54.0, PRD B7).
 ///
 /// Each section used to sit on a spinner and then grow to its real height when
@@ -40,13 +41,11 @@ final class SettingsDataStore {
 
     /// The network half, injectable so the tests can drive every timing.
     struct Loader: Sendable {
-        var providers: @Sendable () async throws -> AIProvidersResponse
         var church: @Sendable () async throws -> ChurchResponse
         var memories: @Sendable () async throws -> MemoryCount
 
         static func live(_ api: APIClient) -> Loader {
             Loader(
-                providers: { try await AIProviderAPI.fetch(api: api) },
                 church: { try await api.fetchChurch() },
                 memories: {
                     let response = try await api.fetchMemories()
@@ -73,7 +72,6 @@ final class SettingsDataStore {
     /// real fetch timeout still surfaces with its own message.
     static let defaultRefreshTimeout: Duration = .seconds(35)
 
-    private(set) var providers = Slice<AIProvidersResponse>()
     private(set) var church = Slice<ChurchResponse>()
     private(set) var memories = Slice<MemoryCount>()
     /// True once the persisted cache has been read (or found absent).
@@ -84,15 +82,16 @@ final class SettingsDataStore {
     /// Bumped by every clear. A request or a cache read issued before a
     /// sign-out is still in flight after it, and would otherwise resolve
     /// straight into the store and hand the next account the previous
-    /// account's providers.
+    /// account's church.
     @ObservationIgnored private(set) var generation = 0
     /// One request per section at a time; a second caller joins the first.
     @ObservationIgnored private var inflight: [Section: (id: UUID, task: Task<Void, any Error>)] = [:]
 
-    private enum Section: Hashable { case providers, church, memories }
+    private enum Section: Hashable { case church, memories }
 
+    /// A blob written before 2026-10-25 also holds a `providers` key; decoding
+    /// ignores it and the next write drops it.
     private struct Persisted: Codable {
-        var providers: AIProvidersResponse?
         var church: ChurchResponse?
         var memories: MemoryCount?
     }
@@ -113,7 +112,6 @@ final class SettingsDataStore {
         guard let raw = defaults.data(forKey: Self.storageKey),
               let parsed = try? JSONDecoder().decode(Persisted.self, from: raw)
         else { return }
-        if providers.data == nil, let value = parsed.providers { providers.data = value }
         if church.data == nil, let value = parsed.church { church.data = value }
         if memories.data == nil, let value = parsed.memories { memories.data = value }
     }
@@ -126,7 +124,6 @@ final class SettingsDataStore {
         generation += 1
         for entry in inflight.values { entry.task.cancel() }
         inflight.removeAll()
-        providers = Slice()
         church = Slice()
         memories = Slice()
         hydrated = true
@@ -137,7 +134,7 @@ final class SettingsDataStore {
         // A write that beats the first read must not replace the sections it
         // did not touch with nothing: read them in first (only empty ones fill).
         hydrate()
-        let blob = Persisted(providers: providers.data, church: church.data, memories: memories.data)
+        let blob = Persisted(church: church.data, memories: memories.data)
         guard let data = try? JSONEncoder().encode(blob) else { return }
         defaults.set(data, forKey: Self.storageKey)
     }
@@ -146,10 +143,6 @@ final class SettingsDataStore {
 
     /// Throws on failure so a section can show its Retry row; the cached data
     /// stays in place either way.
-    func refreshProviders(_ loader: Loader) async throws {
-        try await refresh(.providers, \.providers, load: loader.providers)
-    }
-
     func refreshChurch(_ loader: Loader) async throws {
         try await refresh(.church, \.church, load: loader.church)
     }
@@ -164,10 +157,9 @@ final class SettingsDataStore {
     /// through its own `failed` flag.
     func prefetch(_ loader: Loader) async {
         hydrate()
-        async let providers: Void? = try? refreshProviders(loader)
         async let church: Void? = try? refreshChurch(loader)
         async let memories: Void? = try? refreshMemories(loader)
-        _ = await (providers, church, memories)
+        _ = await (church, memories)
     }
 
     private func refresh<Value: Equatable & Sendable>(
@@ -250,12 +242,6 @@ final class SettingsDataStore {
         guard var current = memories.data, current.enabled != enabled else { return }
         current.enabled = enabled
         memories.data = current
-        persist()
-    }
-
-    /// A key save or removal re-reads the list; the page hands it over.
-    func noteProviders(_ response: AIProvidersResponse) {
-        providers = Slice(data: response, loading: providers.loading, failed: false)
         persist()
     }
 }

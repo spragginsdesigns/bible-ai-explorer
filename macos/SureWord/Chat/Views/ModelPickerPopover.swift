@@ -49,8 +49,7 @@ enum ModelPickerRules {
     static let searchThreshold = 8
 
     /// Copy under the house model when the server sends no `note` of its own.
-    static let fallbackHouseNote =
-        "Included with SureWord. Add your own API key to choose other models."
+    static let fallbackHouseNote = "Included with SureWord."
 
     /// The house block, and only when the server actually said `access:
     /// "house"`. An older payload has neither field and stays in keys mode,
@@ -316,6 +315,18 @@ enum ModelPickerRules {
                 settings.chatMode = mode
             }
         }
+    }
+
+    // MARK: Plans
+
+    /// True when the current pick is SureWord Pro, which swaps the toolbar
+    /// button's sparkles for the premium mark. Both plans read "SureWord AI",
+    /// so this flag is the only thing that tells them apart.
+    static func isPremium(in data: AIModelsResponse?, stored: String?) -> Bool {
+        AIModelsAPI.isPremium(
+            house: house(in: data),
+            selected: selectedModel(in: data, stored: stored)
+        )
     }
 
     // MARK: Labels
@@ -601,17 +612,16 @@ final class ModelPickerModel {
 /// Model + reasoning-effort picker for the chat header - the Mac form of the
 /// iOS `ModelPickerSheet` and of the web `ModelPicker` dropdown.
 ///
-/// Two shapes, decided by the server's `access` field. **House** (no keys on
-/// the account): one model, its effort pinned server-side, a one-line note,
-/// and a link into Settings. **Keys**: providers first, click one to see every
-/// model it unlocks - and only providers the account can actually reach, since
-/// a locked row is an advert, not a choice.
+/// Two shapes, decided by the server's `access` field. **House** (every
+/// account on included AI): the one "SureWord AI" row, the premium mark on
+/// Pro, and its note. **Keys** (the owner): the "SureWord" provider and its
+/// two plan rows. There is no API-key pointer: bring-your-own-key ended on
+/// 2026-10-25.
 ///
 /// The pick persists in `SettingsStore` and rides every `/api/ask-question`
 /// request, and the server records it as the account default.
 struct ModelPickerPopover: View {
     @Environment(\.theme) private var theme
-    @Environment(AppModel.self) private var app
 
     let models: ModelPickerModel
     let settings: SettingsStore
@@ -646,8 +656,6 @@ struct ModelPickerPopover: View {
                     modelList(data)
                     optionSections(data)
                 }
-                Divider().overlay(theme.border)
-                settingsLink(isHouse: ModelPickerRules.isHouse(data))
             } else if models.loadFailed, !models.isLoading {
                 // A load in flight outranks a past failure: a stale
                 // `loadFailed` must never draw Retry over a running request.
@@ -799,6 +807,7 @@ struct ModelPickerPopover: View {
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
+                if house.isPremium { PremiumMark() }
                 Spacer(minLength: Spacing.xs)
                 Image(systemName: "checkmark")
                     .font(.system(size: 10, weight: .bold))
@@ -934,6 +943,7 @@ struct ModelPickerPopover: View {
                             .foregroundStyle(active ? theme.accent : theme.textSecondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        if model.premium { PremiumMark() }
                         ForEach(pills, id: \.self) { pill in
                             Text(pill)
                                 .font(.system(size: 9, weight: .semibold))
@@ -1098,37 +1108,7 @@ struct ModelPickerPopover: View {
         }
     }
 
-    // MARK: Footer
-
-    /// The one pointer at Settings. In house mode it is the whole call to
-    /// action, so it names the act ("Add an API key") rather than describing a
-    /// benefit.
-    private func settingsLink(isHouse: Bool) -> some View {
-        Button {
-            openProviderSettings()
-        } label: {
-            HStack(spacing: Spacing.xs) {
-                Text(
-                    isHouse
-                        ? "Add an API key to unlock more models"
-                        : "Unlock more models with your own API keys"
-                )
-                    .font(.system(size: 11))
-                    .foregroundStyle(isHouse ? theme.accent : theme.textFaint)
-                    // The popover is narrower than this line's ideal width;
-                    // without wrapping the tail is clipped at the popover edge.
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer(minLength: Spacing.xs)
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(theme.textGhost)
-            }
-        }
-        .buttonStyle(PickerRowStyle())
-        .padding(.vertical, Spacing.xs)
-    }
+    // MARK: Failure
 
     private var failure: some View {
         HStack(spacing: Spacing.sm) {
@@ -1139,11 +1119,6 @@ struct ModelPickerPopover: View {
             Button("Retry") { Task { await models.load() } }
         }
         .padding(Spacing.md)
-    }
-
-    private func openProviderSettings() {
-        isPresented = false
-        app.isSettingsPresented = true
     }
 }
 

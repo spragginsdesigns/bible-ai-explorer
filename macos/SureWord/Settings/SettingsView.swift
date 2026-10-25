@@ -26,10 +26,7 @@ struct SettingsView: View {
     /// Owned here for the same reason as `memory`: the section is drawn inline,
     /// but the model must outlive a redraw so a save or removal is not re-run.
     @State private var church = ChurchModel()
-    /// Same reason again - a redraw mid-save must not restart the round-trip,
-    /// and the open key editor has to survive one.
-    @State private var providers = AIProviderSettingsModel()
-    /// And again: a revoke in flight must survive a redraw, or the optimistic
+    /// Same reason again: a revoke in flight must survive a redraw, or the optimistic
     /// row would snap back while its DELETE is still going.
     @State private var shares = SharedAnswersModel()
     /// Cards you sent, owned here for the same reason as `shares`.
@@ -86,10 +83,6 @@ struct SettingsView: View {
         .task {
             church.configure(app.api)
             await church.load()
-        }
-        .task {
-            providers.configure(app.api)
-            await providers.load()
         }
         .task {
             shares.configure(app.api)
@@ -359,7 +352,6 @@ struct SettingsView: View {
             TestimonySection(settings: app.settings, preferences: app.preferences)
 
         case .ai:
-            providerSection
             MembershipSection(api: app.api)
             WebSearchSection(preferences: app.preferences)
             AIConsentSettingsSection(store: app.aiConsent)
@@ -498,15 +490,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - AI Providers
-
-    /// Mirrors Android's AI PROVIDER card and the web settings section: the
-    /// bring-your-own-key list that unlocks each provider's models in the chat
-    /// header's model picker.
-    private var providerSection: some View {
-        ProviderSettingsSection(model: providers)
-    }
-
     // MARK: - My church
 
     /// Mirrors Android's MY CHURCH card and the web settings section. The view
@@ -604,7 +587,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .highlights: "Names and meanings for your highlight colours."
         case .church: "The congregation you belong to."
         case .memory: "What SureWord remembers about you, and what you've told it."
-        case .ai: "Your own AI keys, SureWord Pro, web search and data sharing."
+        case .ai: "SureWord Pro, web search and data sharing."
         case .shared: "Public links to answers and verse cards you've sent."
         case .notifications: "The daily verse reminder and answer-ready notices."
         case .feedback: "Tell us what is broken or missing."
@@ -652,7 +635,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
         case .church: ["church", "congregation", "mission"]
         case .memory: ["memories", "about me", "testimony", "personal", "remember"]
-        case .ai: ["api key", "provider", "model", "openai", "anthropic", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"]
+        case .ai: ["model", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"]
         case .shared: ["links", "share", "cards", "revoke", "privacy"]
         case .notifications: ["verse of the day", "reminder", "daily", "chat", "alert"]
         case .feedback: ["bug", "report", "suggestion", "contact"]

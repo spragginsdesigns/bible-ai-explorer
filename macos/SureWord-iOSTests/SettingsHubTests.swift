@@ -37,9 +37,8 @@ final class SettingsHubTests: XCTestCase {
     }
 
     func testAISubtitle() {
-        XCTAssertEqual(SettingsHubSubtitles.ai(connectedKeys: 0), "Membership, provider keys, web search")
-        XCTAssertEqual(SettingsHubSubtitles.ai(connectedKeys: 1), "Membership, provider keys, web search · 1 key")
-        XCTAssertEqual(SettingsHubSubtitles.ai(connectedKeys: 2), "Membership, provider keys, web search · 2 keys")
+        // No provider keys and no key count: every account is on included AI.
+        XCTAssertEqual(SettingsHubSubtitles.ai, "Membership, web search")
     }
 
     func testNotificationsSubtitle() {

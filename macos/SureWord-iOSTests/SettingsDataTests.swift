@@ -9,7 +9,9 @@ import XCTest
 /// leaves nothing of the previous account behind.
 ///
 /// Runs on the iOS target like `PreferencesSyncTests`; the code under test is
-/// all in `Shared/`, so the Mac is covered by the same assertions.
+/// all in `Shared/`, so the Mac is covered by the same assertions. The church
+/// section carries the generic slice tests since the AI Providers section went
+/// with bring-your-own-key (2026-10-25).
 @MainActor
 final class SettingsDataTests: XCTestCase {
     private var suiteName = ""
@@ -23,20 +25,6 @@ final class SettingsDataTests: XCTestCase {
     override func tearDown() async throws {
         defaults.removePersistentDomain(forName: suiteName)
     }
-
-    private static let providers = AIProvidersResponse(
-        serverCredentials: false,
-        providers: [
-            AIProviderStatus(
-                id: "openai",
-                label: "OpenAI",
-                keyURL: URL(string: "https://example.com"),
-                connected: true,
-                last4: "abcd",
-                validatedAt: nil
-            ),
-        ]
-    )
 
     private static let church = ChurchResponse.ok(
         church: ChurchProfile(
@@ -58,17 +46,14 @@ final class SettingsDataTests: XCTestCase {
 
     /// A loader whose every call answers from the queue given, in order.
     private func loader(
-        providers: [Result<AIProvidersResponse, any Error>] = [],
         church: [Result<ChurchResponse, any Error>] = [],
         memories: [Result<SettingsDataStore.MemoryCount, any Error>] = [],
         calls: CallCounter = CallCounter()
     ) -> SettingsDataStore.Loader {
-        let providerQueue = Queue(providers)
         let churchQueue = Queue(church)
         let memoryQueue = Queue(memories)
         return SettingsDataStore.Loader(
-            providers: { await calls.bump(); return try await providerQueue.next() },
-            church: { try await churchQueue.next() },
+            church: { await calls.bump(); return try await churchQueue.next() },
             memories: { try await memoryQueue.next() }
         )
     }
@@ -86,7 +71,6 @@ final class SettingsDataTests: XCTestCase {
 
     func testHydrateFillsOnlyTheSectionsThatAreStillEmpty() throws {
         let seed = SettingsDataStore(defaults: defaults)
-        seed.noteProviders(Self.providers)
         seed.noteChurch(Self.church)
         seed.noteMemoryCount(3)
 
@@ -97,104 +81,115 @@ final class SettingsDataTests: XCTestCase {
         fresh.noteMemoryCount(7)
         fresh.hydrate()
         XCTAssertTrue(fresh.hydrated)
-        XCTAssertEqual(fresh.providers.data, Self.providers)
         XCTAssertEqual(fresh.church.data, Self.church)
         XCTAssertEqual(fresh.memories.data, .init(count: 7, enabled: nil))
     }
 
+    /// A blob written by a build that still had the AI Providers section
+    /// carries a `providers` key. It must still hydrate the other sections.
+    func testABlobFromBeforeBringYourOwnKeyEndedStillHydrates() throws {
+        let legacy: [String: Any] = [
+            "providers": ["serverCredentials": false, "providers": []],
+            "memories": ["count": 4, "enabled": true],
+        ]
+        defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: SettingsDataStore.storageKey)
+        let fresh = store()
+        fresh.hydrate()
+        XCTAssertEqual(fresh.memories.data, .init(count: 4, enabled: true))
+        // The next write drops the dead key.
+        fresh.noteChurch(Self.church)
+        let blob = try XCTUnwrap(try persisted())
+        XCTAssertNil(blob["providers"])
+    }
+
     func testPersistsASuccessfulRefreshAndClearsTheFailedFlag() async throws {
         let store = store()
-        try await store.refreshProviders(loader(providers: [.success(Self.providers)]))
-        XCTAssertEqual(store.providers, .init(data: Self.providers, loading: false, failed: false))
+        try await store.refreshChurch(loader(church: [.success(Self.church)]))
+        XCTAssertEqual(store.church, .init(data: Self.church, loading: false, failed: false))
         let blob = try XCTUnwrap(try persisted())
-        XCTAssertNotNil(blob["providers"] as? [String: Any])
+        XCTAssertNotNil(blob["church"])
     }
 
     func testKeepsTheCachedDataAndFlagsTheFailureWhenARefreshFails() async throws {
         let store = store()
-        let loader = loader(providers: [.success(Self.providers), .failure(Offline())])
-        try await store.refreshProviders(loader)
+        let loader = loader(church: [.success(Self.church), .failure(Offline())])
+        try await store.refreshChurch(loader)
         do {
-            try await store.refreshProviders(loader)
+            try await store.refreshChurch(loader)
             XCTFail("the second refresh should throw")
         } catch {}
-        XCTAssertEqual(store.providers, .init(data: Self.providers, loading: false, failed: true))
+        XCTAssertEqual(store.church, .init(data: Self.church, loading: false, failed: true))
     }
 
     func testSharesOneInFlightRequestPerSection() async throws {
         let store = store()
-        let gate = Gate<AIProvidersResponse>()
+        let gate = Gate<ChurchResponse>()
         let calls = CallCounter()
         let loader = SettingsDataStore.Loader(
-            providers: { await calls.bump(); return try await gate.wait() },
-            church: { throw Offline() },
+            church: { await calls.bump(); return try await gate.wait() },
             memories: { throw Offline() }
         )
-        async let first: Void = store.refreshProviders(loader)
-        async let second: Void = store.refreshProviders(loader)
+        async let first: Void = store.refreshChurch(loader)
+        async let second: Void = store.refreshChurch(loader)
         await Self.settle()
-        XCTAssertTrue(store.providers.loading)
-        await gate.open(Self.providers)
+        XCTAssertTrue(store.church.loading)
+        await gate.open(Self.church)
         _ = try await (first, second)
         let count = await calls.value
         XCTAssertEqual(count, 1)
-        XCTAssertFalse(store.providers.loading)
-        XCTAssertEqual(store.providers.data, Self.providers)
+        XCTAssertFalse(store.church.loading)
+        XCTAssertEqual(store.church.data, Self.church)
     }
 
     func testGivesUpOnARequestThatNeverSettlesSoTheNextRefreshCanStart() async throws {
         // A Clerk token step that hangs offline never reaches the fetch timeout.
         let store = store(timeout: .milliseconds(150))
         let calls = CallCounter()
-        let eventually = Self.providers
+        let eventually = Self.church
         let hung = SettingsDataStore.Loader(
-            providers: {
+            church: {
                 await calls.bump()
                 try? await Task.sleep(for: .seconds(3600))
                 return eventually
             },
-            church: { throw Offline() },
             memories: { throw Offline() }
         )
         do {
-            try await store.refreshProviders(hung)
+            try await store.refreshChurch(hung)
             XCTFail("the ceiling should have thrown")
         } catch {
             XCTAssertTrue(error is SettingsDataStore.RefreshTimeout)
         }
-        XCTAssertEqual(store.providers, .init(data: nil, loading: false, failed: true))
+        XCTAssertEqual(store.church, .init(data: nil, loading: false, failed: true))
 
-        try await store.refreshProviders(loader(providers: [.success(Self.providers)], calls: calls))
+        try await store.refreshChurch(loader(church: [.success(Self.church)], calls: calls))
         let count = await calls.value
         XCTAssertEqual(count, 2)
-        XCTAssertEqual(store.providers.data, Self.providers)
+        XCTAssertEqual(store.church.data, Self.church)
     }
 
     func testDropsAResponseThatLandsAfterTheCachesChangedHands() async throws {
         let store = store()
-        let gate = Gate<AIProvidersResponse>()
+        let gate = Gate<ChurchResponse>()
         let loader = SettingsDataStore.Loader(
-            providers: { try await gate.wait() },
-            church: { throw Offline() },
+            church: { try await gate.wait() },
             memories: { throw Offline() }
         )
-        async let request: Void = store.refreshProviders(loader)
+        async let request: Void = store.refreshChurch(loader)
         await Self.settle()
         store.clear()
-        await gate.open(Self.providers)
+        await gate.open(Self.church)
         try await request
-        XCTAssertNil(store.providers.data)
+        XCTAssertNil(store.church.data)
         XCTAssertNil(defaults.data(forKey: SettingsDataStore.storageKey))
     }
 
     func testPrefetchWarmsEverySectionAndNeverThrows() async {
         let store = store()
         await store.prefetch(loader(
-            providers: [.success(Self.providers)],
             church: [.failure(Offline())],
             memories: [.success(.init(count: 2, enabled: false))]
         ))
-        XCTAssertEqual(store.providers.data, Self.providers)
         XCTAssertEqual(store.church, .init(data: nil, loading: false, failed: true))
         XCTAssertEqual(store.memories.data, .init(count: 2, enabled: false))
     }
@@ -218,15 +213,15 @@ final class SettingsDataTests: XCTestCase {
 
     func testClearEmptiesMemoryAndDisk() async throws {
         let store = store()
-        try await store.refreshProviders(loader(providers: [.success(Self.providers)]))
+        try await store.refreshChurch(loader(church: [.success(Self.church)]))
         XCTAssertNotNil(defaults.data(forKey: SettingsDataStore.storageKey))
         store.clear()
-        XCTAssertNil(store.providers.data)
+        XCTAssertNil(store.church.data)
         XCTAssertTrue(store.hydrated)
         XCTAssertNil(defaults.data(forKey: SettingsDataStore.storageKey))
         // The hydrate after a clear must not resurrect anything.
         store.hydrate()
-        XCTAssertNil(store.providers.data)
+        XCTAssertNil(store.church.data)
     }
 
     // MARK: Wire shapes survive the round trip
@@ -236,8 +231,6 @@ final class SettingsDataTests: XCTestCase {
             let data = try JSONEncoder().encode(response)
             XCTAssertEqual(try JSONDecoder().decode(ChurchResponse.self, from: data), response)
         }
-        let providers = try JSONEncoder().encode(Self.providers)
-        XCTAssertEqual(try JSONDecoder().decode(AIProvidersResponse.self, from: providers), Self.providers)
     }
 
     // MARK: cacheOwner.ts - per-account hygiene

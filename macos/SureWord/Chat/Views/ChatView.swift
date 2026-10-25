@@ -109,6 +109,10 @@ struct ChatView: View {
 
     /// Model + reasoning picker, the Mac form of the web dropdown and the iOS
     /// sheet: a sparkles button in the window toolbar opening a native popover.
+    private var isPremiumModel: Bool {
+        ModelPickerRules.isPremium(in: models.data, stored: settings.chatModelId)
+    }
+
     @ToolbarContentBuilder
     private var modelPickerItem: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
@@ -116,7 +120,13 @@ struct ChatView: View {
                 isModelPickerPresented.toggle()
             } label: {
                 HStack(spacing: Spacing.xs) {
-                    Image(systemName: "sparkles")
+                    // Pro's premium mark replaces the sparkles: both plans are
+                    // captioned "SureWord AI", so the mark is the difference.
+                    if isPremiumModel {
+                        PremiumMark()
+                    } else {
+                        Image(systemName: "sparkles")
+                    }
                     Text(
                         ModelPickerRules.buttonLabel(
                             in: models.data,
@@ -136,7 +146,7 @@ struct ChatView: View {
                 }
             }
             .help("Choose the AI model and reasoning effort")
-            .accessibilityLabel("Choose AI model")
+            .accessibilityLabel(isPremiumModel ? "Choose AI model, Pro" : "Choose AI model")
             .popover(isPresented: $isModelPickerPresented, arrowEdge: .bottom) {
                 ModelPickerPopover(
                     models: models,

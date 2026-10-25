@@ -210,14 +210,14 @@ struct MemorySettingsPage: View {
 // MARK: - AI
 
 /// `settings/ai.tsx`: membership (including the StoreKit SureWord Pro
-/// screen), bring-your-own provider keys and web search.
+/// screen), web search and AI consent. Provider keys went with
+/// bring-your-own-key on 2026-10-25: every account runs on included AI.
 struct AISettingsPage: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
         Form {
             MembershipSection(api: app.api)
-            ProviderSettingsSection()
             WebSearchSection(preferences: app.preferences)
             AIConsentSettingsSection(store: app.aiConsent)
         }

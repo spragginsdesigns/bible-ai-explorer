@@ -89,3 +89,23 @@ struct BrandMark: View {
             .foregroundStyle(theme.accent)
     }
 }
+
+/// SureWord Pro's premium mark: the gold day star from the app's own logo
+/// (`sureword-mark`, the same artwork web's `PremiumMark` draws), set small
+/// beside a "SureWord AI" label that both plans share. Spoken as "Pro", since
+/// the picture is the only thing that tells the two plans apart.
+struct PremiumMark: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        ChatArtwork.image("sureword-mark")
+            // A toolbar button would otherwise tint the bitmap as a template
+            // and lose the gold.
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityElement()
+            .accessibilityLabel("Pro")
+    }
+}
