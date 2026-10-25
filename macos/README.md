@@ -150,6 +150,45 @@ thread — then clear them and relaunch:
 while security delete-generic-password -s "com.spragginsdesigns.sureword"; do :; done
 ```
 
+### Austin should never type a keychain password for SureWord
+
+The other symptom of the same problem is a **"SureWord wants to access key
+com.spragginsdesigns.sureword in your keychain"** password prompt that keeps
+coming back, even after Austin clicks **Always Allow** every time. That is a
+bug to fix, not something to ask Austin to put up with.
+
+The cause found on 2026-10-25: ClerkKit's four items (`clerkDeviceToken`,
+`cachedClient`, `cachedClientServerDate`, `cachedEnvironment`) were created
+months earlier, and their ACLs had piled up only Debug, worktree and unsigned
+test builds (cdhash-pinned entries). `/Applications/SureWord.app` was never on
+the list, and Always Allow never managed to add it, so every read prompted.
+Inspect the ACLs (no secrets are printed):
+
+```bash
+security dump-keychain -a ~/Library/Keychains/login.keychain-db 2>/dev/null \
+  | awk 'BEGIN{RS="keychain: "} /"svce"<blob>="com.spragginsdesigns.sureword"/' \
+  | grep -E '"acct"|^ +[0-9]+: /|description: teamid'
+```
+
+Healthy output lists exactly `0: /Applications/SureWord.app (OK)` and
+`teamid:389LLKGY3Y` for each of the four items. Anything else (build dirs,
+`cdhash` entries, missing `/Applications`) needs the fix:
+
+1. Quit SureWord (`kill -TERM <pid>`).
+2. Delete the items with the loop above. This signs the Mac app out.
+3. Open `/Applications/SureWord.app` and have Austin sign in once with Google
+   (never click the Google consent yourself). ClerkKit recreates the items with
+   the installed app as their owner.
+4. Re-run the check, then quit and relaunch: it must open signed in with no
+   prompt. Verified this way on 1.25.0 (33).
+
+To keep it from coming back: running unsigned or ad-hoc builds (for example
+`xcodebuild test ... CODE_SIGNING_ALLOWED=NO`, which hosts the tests inside
+the app) can read the same items and adds itself to their ACLs if anyone
+approves its prompt. Deny those prompts, and prefer signed test runs. The
+lasting fix would be the data-protection keychain, which needs the
+`keychain-access-groups` entitlement and a provisioning profile (see above).
+
 To notarize and distribute later, enrol in the Apple Developer Program, set
 `CODE_SIGN_STYLE: Automatic`, and re-add the sandbox entitlements
 (`app-sandbox`, `network.client`, `files.user-selected.read-only`) via a
