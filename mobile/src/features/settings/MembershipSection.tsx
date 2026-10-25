@@ -14,8 +14,6 @@ type Membership = {
   plan: "free" | "pro";
   owner: boolean;
   enabled: boolean;
-  access: "house" | "keys";
-  hasPersonalKeys: boolean;
   playCheckoutAvailable?: boolean;
   playSubscriptionManagementUrl?: string | null;
   subscription?: { provider?: string; status?: string; cancelAtPeriodEnd?: boolean } | null;
@@ -31,12 +29,10 @@ export function MembershipSection({ getToken }: { getToken: GetToken }) {
   const styles = useThemedStyles(createStyles);
   const [data, setData] = useState<Membership | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
   const generation = useRef(0);
   useFocusEffect(
     useCallback(() => {
       const current = ++generation.current;
-      setBusy(false);
       void apiJson<Membership>(getToken, "/api/billing/status")
         .then((value) => {
           if (generation.current === current) {
@@ -53,28 +49,6 @@ export function MembershipSection({ getToken }: { getToken: GetToken }) {
       };
     }, [getToken]),
   );
-  const choose = async (access: "house" | "keys") => {
-    if (busy) return;
-    const current = ++generation.current;
-    setBusy(true);
-    setError("");
-    try {
-      const value = await apiJson<Membership>(getToken, "/api/billing/status", {
-        method: "PATCH",
-        body: { access },
-      });
-      if (generation.current === current) setData(value);
-    } catch (error) {
-      if (generation.current === current)
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Could not change AI choice.",
-        );
-    } finally {
-      if (generation.current === current) setBusy(false);
-    }
-  };
   return (
     <GlassCard>
       <View style={styles.content}>
@@ -83,12 +57,13 @@ export function MembershipSection({ getToken }: { getToken: GetToken }) {
             ? "Owner membership"
             : data?.plan === "pro"
               ? "SureWord Pro"
-              : "Membership & included AI"}
+              : data
+                ? "SureWord Free"
+                : "Membership"}
         </Text>
         {data?.owner ? (
           <Text style={styles.body}>
-            All paid benefits and configured models are available without a
-            subscription.
+            All of SureWord Pro is available without a subscription.
           </Text>
         ) : data?.usage ? (
           <>
@@ -110,41 +85,6 @@ export function MembershipSection({ getToken }: { getToken: GetToken }) {
               ? "Continue studying free. Pro memberships are coming soon."
               : "Loading membership…"}
           </Text>
-        )}
-        {data?.enabled && !data.owner && (
-          <>
-            <Text style={styles.body}>
-              Included AI uses your SureWord allowance. Personal keys are billed
-              by your provider.
-            </Text>
-            <View style={styles.options}>
-              {(["house", "keys"] as const).map((access) => (
-                <Pressable
-                  key={access}
-                  disabled={
-                    busy || (access === "keys" && !data.hasPersonalKeys)
-                  }
-                  accessibilityRole="button"
-                  accessibilityState={{
-                    selected: data.access === access,
-                    disabled:
-                      busy || (access === "keys" && !data.hasPersonalKeys),
-                  }}
-                  onPress={() => void choose(access)}
-                  style={[
-                    styles.option,
-                    data.access === access && styles.selected,
-                    (busy || (access === "keys" && !data.hasPersonalKeys)) &&
-                      styles.disabled,
-                  ]}
-                >
-                  <Text style={styles.optionText}>
-                    {access === "house" ? "Included AI" : "My API key"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
         )}
         {Platform.OS === "android" && data?.playCheckoutAvailable && !data.owner ? (
           <AndroidPlayBilling getToken={getToken} canBuy={data.plan !== "pro"} onVerified={() => {
@@ -336,7 +276,6 @@ const createStyles = (c: Colors) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.borderStrong,
     },
-    selected: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
     optionText: { ...typography.support, color: c.text, fontWeight: "600" },
     disabled: { opacity: 0.45 },
     error: { ...typography.support, color: c.danger },

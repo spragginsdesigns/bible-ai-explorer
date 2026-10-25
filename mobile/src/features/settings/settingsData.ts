@@ -4,21 +4,20 @@ import type { GetToken } from "@/lib/api";
 import type { ChurchResponse } from "@/features/church/church";
 import { fetchChurch } from "@/features/church/api";
 import { fetchMemories } from "@/features/memories/api";
-import { fetchProviders, type ProvidersResponse } from "./aiApi";
 
 /**
- * The three Settings sections that used to fetch on mount: AI Providers, My
- * church, and the saved-memory count.
+ * The Settings sections that used to fetch on mount: My church and the
+ * saved-memory count (AI Providers was the third until bring-your-own keys
+ * were removed on 2026-10-25).
  *
  * Each rendered a small spinner card and then grew to its real height when
- * its request landed, a few hundred points for the providers card. Someone
+ * its request landed, a few hundred points for the old providers card. Someone
  * flinging the screen to "Check for updates" would have that row slide out
- * from under their thumb and land on a provider's Add key / Remove button
- * instead. This store fixes that at the source rather than in the layout:
+ * from under their thumb and land on the wrong button instead. This store fixes that at the source rather than in the layout:
  *
  * - the last response for each section is persisted, so the screen paints its
  *   real content on the first frame of every later launch;
- * - all three are prefetched at sign-in, so even the first open after a fresh
+ * - all of them are prefetched at sign-in, so even the first open after a fresh
  *   install usually finds them here;
  * - sections revalidate in place (stale-while-revalidate) and never fall back
  *   to a spinner once they have data.
@@ -51,21 +50,19 @@ export interface Slice<T> {
 }
 
 export interface SettingsDataSnapshot {
-	providers: Slice<ProvidersResponse>;
 	church: Slice<ChurchResponse>;
 	memories: Slice<MemorySummary>;
 	/** True once the persisted cache has been read (or found absent). */
 	hydrated: boolean;
 }
 
-type SliceKey = "providers" | "church" | "memories";
+type SliceKey = "church" | "memories";
 type SliceData<K extends SliceKey> = NonNullable<SettingsDataSnapshot[K]["data"]>;
 
 const EMPTY_SLICE = { data: null, loading: false, failed: false } as const;
 
 function emptySnapshot(): SettingsDataSnapshot {
 	return {
-		providers: { ...EMPTY_SLICE },
 		church: { ...EMPTY_SLICE },
 		memories: { ...EMPTY_SLICE },
 		hydrated: false,
@@ -100,7 +97,6 @@ function persist() {
 	AsyncStorage.setItem(
 		STORAGE_KEY,
 		JSON.stringify({
-			providers: snapshot.providers.data,
 			church: snapshot.church.data,
 			memories: snapshot.memories.data,
 		})
@@ -119,7 +115,7 @@ function setSlice<K extends SliceKey>(key: K, changes: Partial<Slice<SliceData<K
 /**
  * Bumped by every clear. A request or a cache read issued before a sign-out is
  * still in flight after it, and would otherwise resolve straight into the
- * snapshot and hand the next account the previous account's providers.
+ * snapshot and hand the next account the previous account's data.
  */
 let generation = 0;
 
@@ -139,7 +135,6 @@ const inflight = new Map<SliceKey, Promise<void>>();
 export const REFRESH_TIMEOUT_MS = 35_000;
 
 interface PersistedShape {
-	providers?: ProvidersResponse | null;
 	church?: ChurchResponse | null;
 	memories?: MemorySummary | null;
 }
@@ -158,9 +153,6 @@ export function hydrateSettingsData(): Promise<void> {
 				if (generation !== startedAt) return;
 				if (raw) {
 					const parsed = JSON.parse(raw) as PersistedShape;
-					if (!snapshot.providers.data && parsed.providers) {
-						setSlice("providers", { data: parsed.providers });
-					}
 					if (!snapshot.church.data && parsed.church) {
 						setSlice("church", { data: parsed.church });
 					}
@@ -235,10 +227,6 @@ function refresh<K extends SliceKey>(key: K, load: () => Promise<SliceData<K>>):
 }
 
 /** Rejects on failure so a section can show its Retry row. */
-export function refreshProviders(getToken: GetToken): Promise<void> {
-	return refresh("providers", () => fetchProviders(getToken));
-}
-
 export function refreshChurch(getToken: GetToken): Promise<void> {
 	return refresh("church", () => fetchChurch(getToken));
 }
@@ -259,7 +247,6 @@ export function refreshMemories(getToken: GetToken): Promise<void> {
 export async function prefetchSettingsData(getToken: GetToken): Promise<void> {
 	await hydrateSettingsData();
 	await Promise.allSettled([
-		refreshProviders(getToken),
 		refreshChurch(getToken),
 		refreshMemories(getToken),
 	]);

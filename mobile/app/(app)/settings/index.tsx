@@ -28,7 +28,7 @@ const contentStyle = { paddingTop: spacing.xl };
 /**
  * Every return from a category page refocuses the hub, and the store only
  * dedupes requests already in flight, so without a floor a walk through four
- * categories would refetch providers, church and memories five times over.
+ * categories would refetch church and memories five times over.
  * The pages that change those values write the store directly on success.
  */
 const PREFETCH_MIN_INTERVAL_MS = 15_000;
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
 	// subtitles paint their real values on the first frame instead of sitting
 	// on an ellipsis until their own request lands.
 	const preferences = usePreferencesToggles();
-	// Providers, church and the memory count: prefetched at sign-in and
+	// Church and the memory count: prefetched at sign-in and
 	// persisted, so every subtitle below is final on the first frame and
 	// revalidates in place.
 	const settingsData = useSettingsData();
@@ -147,12 +147,7 @@ export default function SettingsScreen() {
 					: `On · ${memoryCount} saved`
 				: "Off";
 
-	const connectedKeys =
-		settingsData.providers.data?.providers.filter((provider) => provider.connected).length ?? 0;
-	const aiSubtitle =
-		connectedKeys > 0
-			? `Membership, provider keys, web search · ${connectedKeys} ${connectedKeys === 1 ? "key" : "keys"}`
-			: "Membership, provider keys, web search";
+	const aiSubtitle = "Membership, web search";
 
 	const checking = updateState === "checking";
 

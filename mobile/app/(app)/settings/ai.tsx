@@ -15,12 +15,12 @@ import {
 } from "@/features/settings/preferencesSync";
 import { MembershipSection } from "@/features/settings/MembershipSection";
 import { AIConsentSettingsRow } from "@/features/settings/AIConsentPresenter";
-import { ProviderSettingsSection } from "@/features/settings/ProviderSettingsSection";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 
 /**
- * Settings -> AI: what plan this account is on, the per-provider API keys that
- * unlock extra models, and whether the assistant may search the web.
+ * Settings -> AI: what plan this account is on and whether the assistant may
+ * search the web. Every account runs on SureWord AI, Free or Pro; bring-your-own
+ * API keys were removed on 2026-10-25.
  */
 export default function AiSettingsScreen() {
 	const styles = useSettingsStyles();
@@ -66,9 +66,6 @@ export default function AiSettingsScreen() {
 			<GlassCard style={styles.card}><AIConsentSettingsRow /></GlassCard>
 			<SectionLabel label="MEMBERSHIP" />
 			<MembershipSection getToken={getToken} />
-
-			<SectionLabel label="API KEYS" />
-			<ProviderSettingsSection getToken={getToken} />
 
 			<SectionLabel label="WEB SEARCH" />
 			<GlassCard style={styles.card}>

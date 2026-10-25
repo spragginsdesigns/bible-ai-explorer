@@ -9,6 +9,8 @@ import type { AiModel, AiModelsResponse } from "@/features/settings/aiApi";
 import {
 	AUTO_EFFORT_SENTINEL,
 	activeOptionId,
+	composerChip,
+	composerChipAccessibilityLabel,
 	effortForRequest,
 	effortLabel,
 	effortsFor,
@@ -18,12 +20,16 @@ import {
 	houseEffortSection,
 	houseEffortToPin,
 	houseMode,
+	houseRowAccessibilityLabel,
+	isPremium,
 	modelMeta,
 	modelPills,
+	modelRowAccessibilityLabel,
 	modelsForProvider,
 	modesFor,
 	optionGridColumns,
 	optionSections,
+	ownerPlansOnly,
 	providerLabel,
 	seedRunOptions,
 	selectModelId,
@@ -668,5 +674,142 @@ describe("summaryLabel", () => {
 
 	it("is empty before a model is resolved", () => {
 		expect(summaryLabel(null, { effort: "high" })).toBe("");
+	});
+});
+
+/** The owner account's Free / Pro plan picker, as the server sends it since 2026-10-25. */
+const ownerPayload = (): AiModelsResponse => {
+	const plan = (id: string, tagline: string, premium?: boolean): AiModel => ({
+		id,
+		label: "SureWord AI",
+		provider: "sureword",
+		supportsAttachments: true,
+		efforts: [],
+		speeds: ["standard"],
+		verbosities: [],
+		modes: ["standard"],
+		tagline,
+		available: true,
+		...(premium ? { premium } : {}),
+	});
+	return {
+		access: "keys",
+		providers: [{ id: "sureword", label: "SureWord", available: true }],
+		models: [plan("sureword/free", "Free: quick answers"), plan("sureword/pro", "Pro: thinks deeper", true)],
+		defaults: { modelId: "sureword/pro", effort: null },
+		house: null,
+	};
+};
+
+describe("premium mark (SureWord AI, 2026-10-25)", () => {
+	it("reads premium only when the server says true", () => {
+		expect(isPremium({ premium: true })).toBe(true);
+		expect(isPremium({ premium: false })).toBe(false);
+		expect(isPremium({ premium: null })).toBe(false);
+		// Servers before the flag omit it.
+		expect(isPremium({})).toBe(false);
+		expect(isPremium(null)).toBe(false);
+		expect(isPremium(undefined)).toBe(false);
+	});
+
+	it("marks the Pro house row and says Pro to screen readers", () => {
+		const free = { ...housePayload().house!, label: "SureWord AI" };
+		expect(isPremium(free)).toBe(false);
+		expect(houseRowAccessibilityLabel(free)).toBe("SureWord AI, selected model");
+		const pro = { ...free, premium: true };
+		expect(isPremium(pro)).toBe(true);
+		expect(houseRowAccessibilityLabel(pro)).toBe("SureWord AI, Pro, selected model");
+	});
+
+	it("says Pro on a premium model row and not on a plain one", () => {
+		const [free, pro] = ownerPayload().models;
+		expect(modelRowAccessibilityLabel(free)).toBe("SureWord AI, Files, Free: quick answers");
+		expect(modelRowAccessibilityLabel(pro)).toBe("SureWord AI, Pro, Files, Pro: thinks deeper");
+		expect(modelRowAccessibilityLabel(pro, "SureWord")).toBe(
+			"SureWord, SureWord AI, Pro, Files, Pro: thinks deeper",
+		);
+	});
+});
+
+describe("owner plan picker", () => {
+	it("hides the add-a-key row only when every model is a SureWord plan", () => {
+		expect(ownerPlansOnly(ownerPayload())).toBe(true);
+		expect(ownerPlansOnly(keysPayload())).toBe(false);
+		const mixed = ownerPayload();
+		mixed.models = [...mixed.models, model("openai/gpt-6", "openai")];
+		expect(ownerPlansOnly(mixed)).toBe(false);
+		expect(ownerPlansOnly({ ...ownerPayload(), models: [] })).toBe(false);
+		expect(ownerPlansOnly(housePayload())).toBe(false);
+		expect(ownerPlansOnly(null)).toBe(false);
+	});
+
+	it("draws one static SureWord section holding both plans", () => {
+		const data = ownerPayload();
+		expect(visibleProviders(data)).toEqual([{ id: "sureword", label: "SureWord", available: true }]);
+		expect(modelsForProvider(data, "sureword").map((entry) => entry.id)).toEqual([
+			"sureword/free",
+			"sureword/pro",
+		]);
+		expect(providerLabel(data, "sureword")).toBe("SureWord");
+		// A server without the providers array still labels it.
+		const bare = { ...data, providers: undefined };
+		expect(visibleProviders(bare)).toEqual([{ id: "sureword", label: "SureWord", available: true }]);
+		expect(providerLabel(bare, "sureword")).toBe("SureWord");
+	});
+
+	it("offers no run options on either plan, so there is no Options tab", () => {
+		for (const plan of ownerPayload().models) {
+			expect(optionSections(plan)).toEqual([]);
+			expect(modelPills(plan)).toEqual(["Files"]);
+			expect(summaryLabel(plan, { effort: "high", speed: "fast", verbosity: "high", mode: "pro" })).toBe(
+				"SureWord AI",
+			);
+		}
+	});
+
+	it("selects the server default plan and keeps a stored plan pick", () => {
+		const data = ownerPayload();
+		expect(selectModelId(null, data)).toBe("sureword/pro");
+		expect(selectModelId("sureword/free", data)).toBe("sureword/free");
+		expect(isPremium(selectedModel(data, null))).toBe(true);
+		expect(isPremium(selectedModel(data, "sureword/free"))).toBe(false);
+	});
+});
+
+describe("composerChip", () => {
+	const run = { effort: null, speed: null, verbosity: null, mode: null };
+
+	it("is null until the list loads", () => {
+		expect(composerChip(null, null, run)).toBeNull();
+	});
+
+	it("names the house model and marks Pro's", () => {
+		const free = housePayload();
+		free.house = { ...free.house!, label: "SureWord AI" };
+		expect(composerChip(free, null, run)).toEqual({ label: "SureWord AI", premium: false });
+		const pro = housePayload();
+		pro.house = { ...pro.house!, label: "SureWord AI", premium: true };
+		expect(composerChip(pro, null, run)).toEqual({ label: "SureWord AI", premium: true });
+		expect(composerChipAccessibilityLabel({ label: "SureWord AI", premium: true })).toBe(
+			"Choose AI model, currently SureWord AI, Pro",
+		);
+		expect(composerChipAccessibilityLabel({ label: "SureWord AI", premium: false })).toBe(
+			"Choose AI model, currently SureWord AI",
+		);
+	});
+
+	it("follows the owner's plan pick", () => {
+		expect(composerChip(ownerPayload(), null, run)).toEqual({ label: "SureWord AI", premium: true });
+		expect(composerChip(ownerPayload(), "sureword/free", run)).toEqual({
+			label: "SureWord AI",
+			premium: false,
+		});
+	});
+
+	it("summarises a key-holder's model without a mark", () => {
+		expect(composerChip(keysPayload(), "gpt-5.6", { ...run, effort: "high" })).toEqual({
+			label: "gpt-5.6 · High",
+			premium: false,
+		});
 	});
 });

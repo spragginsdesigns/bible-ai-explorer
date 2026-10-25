@@ -195,7 +195,7 @@ export function visibleProviders(data: AiModelsResponse | null): AiProviderSumma
 		if (!model.available || derived.has(model.provider)) continue;
 		derived.set(model.provider, {
 			id: model.provider,
-			label: PROVIDER_LABELS[model.provider] ?? model.provider,
+			label: fallbackProviderLabel(model.provider),
 			available: true,
 		});
 	}
@@ -211,7 +211,78 @@ export function modelsForProvider(data: AiModelsResponse | null, providerId: str
 /** Display name for a provider id: the server's label, else our own, else the id. */
 export function providerLabel(data: AiModelsResponse | null, providerId: string): string {
 	const fromServer = data?.providers?.find((provider) => provider.id === providerId)?.label;
-	return fromServer ?? PROVIDER_LABELS[providerId] ?? providerId;
+	return fromServer ?? fallbackProviderLabel(providerId);
+}
+
+/**
+ * The owner account's plan rows (`sureword/free`, `sureword/pro`) come under
+ * this provider id. It is not a key anyone can add, so it lives here rather
+ * than in PROVIDER_LABELS, which Settings lists as the providers to key.
+ */
+export const SUREWORD_PROVIDER_ID = "sureword";
+
+function fallbackProviderLabel(providerId: string): string {
+	if (providerId === SUREWORD_PROVIDER_ID) return "SureWord";
+	return PROVIDER_LABELS[providerId] ?? providerId;
+}
+
+/**
+ * SureWord Pro's AI, drawn with the gold sunburst premium mark (2026-10-25).
+ * Free and Pro share the name "SureWord AI", so this is the difference. A
+ * server that predates the flag omits it, which reads as false.
+ */
+export function isPremium(entry: { premium?: boolean | null } | null | undefined): boolean {
+	return entry?.premium === true;
+}
+
+/**
+ * True when every listed model is one of SureWord's own plan rows - the
+ * owner's Free / Pro picker. A key unlocks nothing there, so the "Add an API
+ * key" row is hidden, as on web.
+ */
+export function ownerPlansOnly(data: AiModelsResponse | null): boolean {
+	if (!data || houseMode(data)) return false;
+	return data.models.length > 0 && data.models.every((model) => model.provider === SUREWORD_PROVIDER_ID);
+}
+
+/** What a screen reader hears for a model row; a premium row says "Pro". */
+export function modelRowAccessibilityLabel(model: AiModel, providerName?: string): string {
+	return [providerName, model.label, isPremium(model) ? "Pro" : null, ...modelPills(model), modelMeta(model)]
+		.filter(Boolean)
+		.join(", ");
+}
+
+export interface ComposerChip {
+	label: string;
+	premium: boolean;
+}
+
+/**
+ * The composer's model chip, mirroring the web trigger: the house label (or
+ * the picked model's summary) and whether to draw the premium mark in place
+ * of the sparkles icon. Null until the model list has loaded.
+ */
+export function composerChip(
+	data: AiModelsResponse | null,
+	stored: string | null,
+	run: RunOptions,
+): ComposerChip | null {
+	if (!data) return null;
+	const house = houseMode(data);
+	if (house) return { label: house.label, premium: isPremium(house) };
+	const model = selectedModel(data, stored);
+	if (!model) return null;
+	return { label: summaryLabel(model, run), premium: isPremium(model) };
+}
+
+/** What a screen reader hears for the composer chip; a premium pick says "Pro". */
+export function composerChipAccessibilityLabel(chip: ComposerChip): string {
+	return `Choose AI model, currently ${chip.label}${chip.premium ? ", Pro" : ""}`;
+}
+
+/** What a screen reader hears for the house row; Pro's says so. */
+export function houseRowAccessibilityLabel(house: AiHouseMode): string {
+	return `${house.label}${isPremium(house) ? ", Pro" : ""}, selected model`;
 }
 
 /** True once the account can see enough models that scanning them is a chore. */

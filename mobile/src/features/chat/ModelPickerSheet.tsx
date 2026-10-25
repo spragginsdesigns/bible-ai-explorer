@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppText as Text, AppTextInput as TextInput } from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { BottomSheet } from "@/features/notes/components/primitives";
 import { StudyTabs } from "@/features/bible/verse-sheet/StudyTabs";
 import { radius, spacing, typography, type Colors } from "@/theme";
@@ -21,18 +20,23 @@ import {
 	useTheme,
 	useThemedStyles,
 } from "@/features/settings/settingsStore";
-import { fetchAiModels, type AiModel, type AiModelsResponse } from "@/features/settings/aiApi";
+import type { AiModel, AiModelsResponse } from "@/features/settings/aiApi";
+import { PremiumMark } from "./PremiumMark";
 import {
 	activeOptionId,
 	filterModels,
 	houseEffortSection,
 	houseEffortToPin,
 	houseMode,
+	houseRowAccessibilityLabel,
+	isPremium,
 	modelMeta,
 	modelPills,
+	modelRowAccessibilityLabel,
 	modelsForProvider,
 	optionGridColumns,
 	optionSections,
+	ownerPlansOnly,
 	providerLabel,
 	seedRunOptions,
 	selectModelId,
@@ -43,12 +47,14 @@ import {
 	type OptionKind,
 	type OptionSection,
 } from "./modelPickerRules";
-import type { GetToken } from "@/lib/api";
 
 interface ModelPickerSheetProps {
 	visible: boolean;
 	onClose: () => void;
-	getToken: GetToken;
+	/** `/api/ai/models`, owned by the chat screen (`useAiModels`) so the composer chip shares it. */
+	data: AiModelsResponse | null;
+	loadFailed: boolean;
+	onReload: () => void | Promise<void>;
 }
 
 type Pane = "models" | "options";
@@ -59,13 +65,14 @@ const SHEET_HEIGHT_RATIO = 0.86;
 /**
  * Model + run-options picker, mirroring the web chat's picker.
  *
- * Two shapes, decided by the server: an account with no provider key of its
- * own gets "house mode" - the one included model, everything pinned, nothing
- * to choose - while an account with keys gets its unlocked providers and every
- * model each key lists live. Locked providers are never rendered; the way in
- * is the "Add an API key" row, not a dead row with a padlock.
+ * Since 2026-10-25 every account runs on SureWord AI, Free or Pro, with no
+ * bring-your-own keys. Two shapes, decided by the server: an ordinary account
+ * gets "house mode" - its one "SureWord AI" row (with Pro's premium mark),
+ * everything pinned, nothing else - while the owner account gets a list of
+ * SureWord's two plan rows (`ownerPlansOnly`) in a short sheet with no
+ * search. The general list below is what the owner list renders through.
  *
- * Keys mode is a fixed-height sheet split into two panes. MODELS holds the
+ * A longer list is a fixed-height sheet split into two panes. MODELS holds the
  * search box and the grouped list, and gets the whole height, so seven models
  * or seventy scan the same way. OPTIONS holds the run options the selected
  * model actually offers - reasoning effort, speed, answer length, reasoning
@@ -76,29 +83,22 @@ const SHEET_HEIGHT_RATIO = 0.86;
  * Picks persist locally and ride every chat request; the server stores the
  * last pick as the account default and enforces house mode regardless.
  */
-export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerSheetProps) {
+export function ModelPickerSheet({ visible, onClose, data, loadFailed, onReload }: ModelPickerSheetProps) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
-	const router = useRouter();
 	const { chatModelId, chatEffort, chatSpeed, chatVerbosity, chatMode } = useSettings();
-	const [data, setData] = useState<AiModelsResponse | null>(null);
-	const [loadFailed, setLoadFailed] = useState(false);
 	const [expanded, setExpanded] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
 	const [pane, setPane] = useState<Pane>("models");
+	const load = useCallback(() => void onReload(), [onReload]);
 
-	const load = useCallback(async () => {
-		setLoadFailed(false);
-		try {
-			setData(await fetchAiModels(getToken));
-		} catch {
-			setLoadFailed(true);
-		}
-	}, [getToken]);
-
+	// Each open revalidates in place, so a plan bought since launch (or a load
+	// that failed offline) catches up; the chip reads the same data. A failure
+	// with nothing cached waits for Retry.
 	useEffect(() => {
-		if (visible && !data) void load();
-	}, [visible, data, load]);
+		if (visible) load();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [visible]);
 
 	const house = houseMode(data);
 	const selectedId = selectModelId(chatModelId, data);
@@ -161,13 +161,6 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 		if (seed.mode) setChatModeLocal(seed.mode);
 	}, [data, house, chatEffort, chatSpeed, chatVerbosity, chatMode]);
 
-	const openProviderSettings = useCallback(() => {
-		onClose();
-		// Straight to the AI page: this is the "add a key" escape hatch, and the
-		// hub would leave the user one tap short of the provider list.
-		router.push("/settings/ai");
-	}, [onClose, router]);
-
 	// Each open lands on the MODELS pane, on the provider of the current model,
 	// with a clean search.
 	const selectedProvider = data?.models.find((entry) => entry.id === selectedId)?.provider ?? null;
@@ -208,6 +201,8 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 	};
 
 	const keysMode = Boolean(data) && !loadFailed && !house;
+	// The owner's Free / Pro plan rows: a short, content-sized sheet with no search.
+	const ownerPlans = ownerPlansOnly(data);
 	const tabs = useMemo(
 		() =>
 			sections.length > 0
@@ -223,15 +218,19 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 		<BottomSheet
 			visible={visible}
 			onClose={onClose}
-			heightRatio={keysMode ? SHEET_HEIGHT_RATIO : undefined}
+			// The owner's two plan rows need no full-height list.
+			heightRatio={keysMode && !ownerPlans ? SHEET_HEIGHT_RATIO : undefined}
 		>
 			<View style={styles.header}>
 				<View style={styles.headerCopy}>
 					<Text style={styles.title}>{house ? "Your model" : "Choose a model"}</Text>
 					{summary ? (
-						<Text style={styles.summary} numberOfLines={1}>
-							{`Using ${summary}`}
-						</Text>
+						<View style={styles.summaryRow}>
+							<Text style={styles.summary} numberOfLines={1}>
+								{`Using ${summary}`}
+							</Text>
+							{isPremium(model) ? <PremiumMark size={15} /> : null}
+						</View>
 					) : null}
 				</View>
 				<Pressable
@@ -247,7 +246,7 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 			{loadFailed ? (
 				<View style={styles.centerBox}>
 					<Text style={styles.subtitle}>Couldn&apos;t load the model list.</Text>
-					<Pressable accessibilityRole="button" onPress={() => void load()} hitSlop={8}>
+					<Pressable accessibilityRole="button" onPress={load} hitSlop={8}>
 						<Text style={styles.retry}>Retry</Text>
 					</Pressable>
 				</View>
@@ -261,12 +260,15 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 						accessible
 						accessibilityRole="text"
 						accessibilityState={{ selected: true }}
-						accessibilityLabel={`${house.label}, selected model`}
+						accessibilityLabel={houseRowAccessibilityLabel(house)}
 						style={[styles.row, styles.rowActive, styles.houseRow]}
 					>
-						<Text style={[styles.rowLabel, styles.houseLabel]} numberOfLines={1}>
-							{house.label}
-						</Text>
+						<View style={styles.houseTitle}>
+							<Text style={[styles.rowLabel, styles.houseLabel]} numberOfLines={1}>
+								{house.label}
+							</Text>
+							{isPremium(house) ? <PremiumMark /> : null}
+						</View>
 						<Ionicons name="checkmark" size={16} color={colors.accent} />
 					</View>
 					{houseSection ? (
@@ -276,11 +278,11 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 							onSelect={(id) => setChatEffort(id)}
 						/>
 					) : null}
-					<Text style={[styles.subtitle, styles.houseNote]}>{house.note}</Text>
-					<AddKeyRow onPress={openProviderSettings} />
+					{/* One row and nothing else (Austin, 2026-10-25: "no more
+					    complicated model picker"). */}
 				</View>
 			) : (
-				<View style={styles.body}>
+				<View style={ownerPlans ? undefined : styles.body}>
 					{tabs.length > 0 ? (
 						<StudyTabs
 							tabs={tabs}
@@ -313,7 +315,7 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 						</ScrollView>
 					) : (
 						<>
-							{searchable ? (
+							{searchable && !ownerPlans ? (
 								<View style={styles.search}>
 									<Ionicons name="search" size={15} color={colors.textFaint} />
 									<TextInput
@@ -347,7 +349,9 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 							) : null}
 
 							<ScrollView
-								style={styles.pane}
+								// Content-sized for the owner's two rows: a flex:1 pane
+								// inside a content-sized sheet would measure zero.
+								style={ownerPlans ? styles.paneNatural : styles.pane}
 								contentContainerStyle={styles.paneContent}
 								keyboardShouldPersistTaps="handled"
 								showsVerticalScrollIndicator={false}
@@ -414,41 +418,12 @@ export function ModelPickerSheet({ visible, onClose, getToken }: ModelPickerShee
 										);
 									})
 								)}
-								{!searching ? <AddKeyRow onPress={openProviderSettings} /> : null}
 							</ScrollView>
 						</>
 					)}
 				</View>
 			)}
 		</BottomSheet>
-	);
-}
-
-/**
- * The way to more models. In keys mode it closes the list; in house mode it is
- * the only action there is.
- */
-function AddKeyRow({ onPress }: { onPress: () => void }) {
-	const { colors } = useTheme();
-	const styles = useThemedStyles(createStyles);
-	return (
-		<Pressable
-			accessibilityRole="button"
-			accessibilityLabel="Add an API key in Settings"
-			onPress={onPress}
-			style={({ pressed }) => [
-				styles.row,
-				styles.addKeyRow,
-				pressed && { backgroundColor: colors.surfacePressed },
-			]}
-		>
-			<Ionicons name="key-outline" size={16} color={colors.textMuted} />
-			<View style={styles.rowCopy}>
-				<Text style={styles.rowLabel}>Add an API key</Text>
-				<Text style={styles.rowDetail}>Unlock more models in Settings</Text>
-			</View>
-			<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-		</Pressable>
 	);
 }
 
@@ -477,9 +452,7 @@ function ModelRow({
 		<Pressable
 			accessibilityRole="button"
 			accessibilityState={{ selected: active }}
-			accessibilityLabel={[providerName, model.label, ...pills, meta]
-				.filter(Boolean)
-				.join(", ")}
+			accessibilityLabel={modelRowAccessibilityLabel(model, providerName)}
 			onPress={onPress}
 			style={({ pressed }) => [
 				styles.modelRow,
@@ -500,20 +473,18 @@ function ModelRow({
 					>
 						{model.label}
 					</Text>
+					{isPremium(model) ? <PremiumMark /> : null}
+					{/* Pills sit on the label line after the mark, as on web. */}
+					{pills.map((pill) => (
+						<View key={pill} style={styles.pill}>
+							<Text style={styles.pillLabel}>{pill}</Text>
+						</View>
+					))}
 				</View>
 				{meta ? (
 					<Text style={styles.modelMeta} numberOfLines={1}>
 						{meta}
 					</Text>
-				) : null}
-				{pills.length > 0 ? (
-					<View style={styles.pillRow}>
-						{pills.map((pill) => (
-							<View key={pill} style={styles.pill}>
-								<Text style={styles.pillLabel}>{pill}</Text>
-							</View>
-						))}
-					</View>
 				) : null}
 			</View>
 			<View style={styles.modelCheck}>
@@ -600,7 +571,8 @@ const createStyles = (c: Colors) =>
 		},
 		headerCopy: { flex: 1, minWidth: 0 },
 		title: { color: c.text, fontSize: 20, lineHeight: 26, fontWeight: "700" },
-		summary: { ...typography.meta, color: c.textMuted, marginTop: 2 },
+		summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 2 },
+		summary: { ...typography.meta, color: c.textMuted, flexShrink: 1 },
 		subtitle: { ...typography.support, color: c.textFaint, marginTop: 3 },
 		close: {
 			width: 38,
@@ -618,6 +590,7 @@ const createStyles = (c: Colors) =>
 		body: { flex: 1, minHeight: 0 },
 		tabs: { marginHorizontal: 0, marginBottom: spacing.md },
 		pane: { flex: 1, minHeight: 0 },
+		paneNatural: { flexGrow: 0 },
 		paneContent: { paddingBottom: spacing.lg },
 		search: {
 			flexDirection: "row",
@@ -660,16 +633,13 @@ const createStyles = (c: Colors) =>
 			marginBottom: spacing.sm,
 		},
 		rowActive: { borderColor: c.accentBorder, backgroundColor: c.accentSoft },
-		rowCopy: { flex: 1, minWidth: 0 },
-		houseBlock: { paddingBottom: spacing.sm },
+		houseBlock: { paddingBottom: spacing.lg },
 		// The house row is a status, not a choice, so it carries no chevron and
 		// the label takes the space a provider row gives its disclosure icon.
 		houseRow: { marginBottom: 0 },
-		houseLabel: { flex: 1, minWidth: 0, color: c.accent, fontWeight: "700" },
-		houseNote: { marginTop: spacing.sm, marginBottom: spacing.md },
-		addKeyRow: { marginTop: spacing.xs, marginBottom: 0 },
+		houseTitle: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: spacing.xs },
+		houseLabel: { flexShrink: 1, color: c.accent, fontWeight: "700" },
 		rowLabel: { color: c.textSecondary, fontSize: 14.5, fontWeight: "600" },
-		rowDetail: { ...typography.meta, color: c.textFaint, marginTop: 2 },
 		group: { marginBottom: spacing.md },
 		groupHeader: {
 			flexDirection: "row",
@@ -705,8 +675,8 @@ const createStyles = (c: Colors) =>
 		modelProvider: { ...typography.micro, color: c.textFaint, flexShrink: 0 },
 		modelLabel: { flexShrink: 1, color: c.text, ...typography.control, fontWeight: "600" },
 		modelMeta: { ...typography.meta, color: c.textFaint },
-		pillRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: 2 },
 		pill: {
+			flexShrink: 0,
 			paddingHorizontal: 7,
 			paddingVertical: 2,
 			borderRadius: radius.sm,

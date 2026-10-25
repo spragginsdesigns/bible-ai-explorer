@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.102.0 (versionCode 119) - 2026-10-25 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- One name for SureWord's AI on every plan: SureWord AI. With SureWord Pro, the gold day star beside the name shows you are on Pro's deeper thinking.
+- The AI you are using now shows above the message box. Tap it to see your plan.
+
+CHANGED
+- Bring-your-own API keys are gone: every account is Free or Pro.
+
+**Dev notes:** Android parity for cf9595f0 and 5e7a15d7 plus the no-BYOK direction (Austin, 2026-10-25: no model picker for regular users, Free and Pro are both "SureWord AI" on GPT-6 Luna, low and high effort, and the web picker is the design for every platform). `GET /api/ai/models` sends `premium` on the house block and model rows (absent on older servers, read as false). The payload now loads once on the chat screen (`useAiModels`) and feeds both the new composer model chip in `ChatInputBar` (sparkles + label, or the premium mark in place of the sparkles for Pro; `composerChip`) and `ModelPickerSheet`. The sheet draws `assets/chat-home/sureword-mark.png` (`PremiumMark`, tinted `colors.accent`) after a premium label and before its pills, which now sit on the label line as on web; screen readers hear "Pro". House mode is the single "SureWord AI" row and nothing else (the note and the add-a-key row are gone). The owner's two plan rows (`sureword/free`, `sureword/pro`) render under one static "SureWord" header in a content-sized sheet with no search and no Options tab (`ownerPlansOnly`). BYOK removed from the client: `ProviderSettingsSection.tsx` deleted, the API KEYS section left Settings > AI, the hub's AI subtitle no longer counts keys, the providers slice left `settingsData.ts` (no client calls `/api/providers` any more), and Membership shows only the plan (the Included AI / My API key choice is gone). The consent text change is the Apple lane's commit. No native changes.
+
 ## 1.101.0 (versionCode 118) - 2026-10-25 - internal and closed testing
 
 **What's new (Play):**

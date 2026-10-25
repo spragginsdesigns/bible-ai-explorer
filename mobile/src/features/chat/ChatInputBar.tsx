@@ -35,6 +35,8 @@ import type { PastedImageFile } from "./pastedImages";
 import { FileAttachmentCards } from "./FileAttachmentCards";
 import { AttachmentSourceSheet } from "./AttachmentSourceSheet";
 import { ErrorCard } from "./ErrorCard";
+import { PremiumMark } from "./PremiumMark";
+import { composerChipAccessibilityLabel, type ComposerChip } from "./modelPickerRules";
 
 interface ChatInputBarProps {
 	onSend: (text: string) => void;
@@ -73,6 +75,11 @@ interface ChatInputBarProps {
 	 * message being edited carries files of its own.
 	 */
 	editing?: { allowEmpty: boolean; onCancel: () => void } | null;
+	/**
+	 * The model chip above the composer, as on web: the model's name, with
+	 * Pro's premium mark in place of the sparkles icon. Tapping opens the picker.
+	 */
+	modelChip?: (ComposerChip & { onPress: () => void }) | null;
 }
 
 export function ChatInputBar({
@@ -101,6 +108,7 @@ export function ChatInputBar({
 	focusSignal,
 	prominent = false,
 	editing = null,
+	modelChip = null,
 }: ChatInputBarProps) {
 	const { colors: themeColors } = useTheme();
 	const colors = chatColors(themeColors);
@@ -289,6 +297,26 @@ export function ChatInputBar({
 				</View>
 			)}
 
+			{modelChip ? (
+				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel={composerChipAccessibilityLabel(modelChip)}
+					onPress={modelChip.onPress}
+					hitSlop={6}
+					style={({ pressed }) => [styles.modelChip, pressed && { backgroundColor: colors.surfacePressed }]}
+				>
+					{modelChip.premium ? (
+						<PremiumMark size={15} />
+					) : (
+						<Ionicons name="sparkles-outline" size={14} color={colors.textMuted} />
+					)}
+					<Text style={styles.modelChipLabel} numberOfLines={1}>
+						{modelChip.label}
+					</Text>
+					<Ionicons name="chevron-down" size={13} color={colors.textFaint} />
+				</Pressable>
+			) : null}
+
 			<View style={[styles.bar, prominent && styles.barProminent]}>
 				<Pressable
 					accessibilityRole="button"
@@ -402,6 +430,21 @@ const createStyles = (theme: Colors) => {
 			paddingHorizontal: 2,
 		},
 		files: { marginBottom: spacing.sm },
+		modelChip: {
+			flexDirection: "row",
+			alignItems: "center",
+			alignSelf: "flex-start",
+			maxWidth: "100%",
+			minHeight: 32,
+			gap: spacing.xs,
+			marginBottom: spacing.sm,
+			paddingHorizontal: spacing.md,
+			borderRadius: radius.full,
+			backgroundColor: c.surface,
+			borderColor: c.border,
+			borderWidth: StyleSheet.hairlineWidth,
+		},
+		modelChipLabel: { ...typography.meta, flexShrink: 1, color: c.textMuted, fontWeight: "600" },
 		uploading: {
 			flexDirection: "row",
 			alignItems: "center",

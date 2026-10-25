@@ -14,6 +14,8 @@ import { useAuth } from "@clerk/expo";
 import { Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
 import { ModelPickerSheet } from "@/features/chat/ModelPickerSheet";
+import { composerChip } from "@/features/chat/modelPickerRules";
+import { useAiModels } from "@/features/chat/useAiModels";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { ErrorCard } from "@/features/chat/ErrorCard";
 import { HistoryModal } from "@/features/chat/HistoryModal";
@@ -53,7 +55,14 @@ export default function ChatScreen() {
 	const styles = useThemedStyles(createStyles);
 	const { colors: themeColors } = useTheme();
 	const colors = chatColors(themeColors);
-	const { translation: defaultTranslation } = useSettings();
+	const {
+		translation: defaultTranslation,
+		chatModelId,
+		chatEffort,
+		chatSpeed,
+		chatVerbosity,
+		chatMode,
+	} = useSettings();
 	const [historyOpen, setHistoryOpen] = useState(false);
 	const [modelPickerOpen, setModelPickerOpen] = useState(false);
 	const getToken = useStableGetToken();
@@ -99,6 +108,13 @@ export default function ChatScreen() {
 		suppressPassivePermissionMoments(inWelcome);
 		return () => suppressPassivePermissionMoments(false);
 	}, [inWelcome]);
+	const aiModels = useAiModels(getToken, Boolean(isSignedIn));
+	const chip = composerChip(aiModels.data, chatModelId, {
+		effort: chatEffort,
+		speed: chatSpeed,
+		verbosity: chatVerbosity,
+		mode: chatMode,
+	});
 	const pendingShare = usePendingShare();
 	/** Set while a chat opened from "Share into SureWord" has not been sent yet. */
 	const [shareNotices, setShareNotices] = useState<string[] | null>(null);
@@ -452,6 +468,7 @@ export default function ChatScreen() {
 			focusSignal={focusSignal}
 			prominent={showWelcome}
 			editing={editing ? { allowEmpty: editing.allowEmpty, onCancel: cancelEdit } : null}
+			modelChip={chip ? { ...chip, onPress: () => setModelPickerOpen(true) } : null}
 		/>
 	);
 
@@ -541,7 +558,9 @@ export default function ChatScreen() {
 			<ModelPickerSheet
 				visible={modelPickerOpen}
 				onClose={() => setModelPickerOpen(false)}
-				getToken={getToken}
+				data={aiModels.data}
+				loadFailed={aiModels.loadFailed}
+				onReload={aiModels.reload}
 			/>
 
 			<HistoryModal

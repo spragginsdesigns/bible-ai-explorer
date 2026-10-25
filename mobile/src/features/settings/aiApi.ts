@@ -1,8 +1,9 @@
 import { apiJson, type GetToken } from "@/lib/api";
 
 /**
- * AI model picker + provider-key (BYOK) endpoints. The server is the single
- * source of truth for which models this account has unlocked — the same
+ * AI model picker endpoint. Every account runs on SureWord AI, Free or Pro
+ * (bring-your-own keys and the /api/providers client were removed on
+ * 2026-10-25). The server is the single source of truth for what this account runs — the same
  * /api/ai/models payload drives the web and macOS pickers.
  */
 
@@ -34,6 +35,11 @@ export interface AiModel {
 	pricing?: { input: number; output: number } | null;
 	/** Caveat shown beside the Fast chip. */
 	fastModeNote?: string | null;
+	/**
+	 * SureWord Pro's AI, drawn with the gold sunburst premium mark. Absent on
+	 * servers before 2026-10-25, which reads as false.
+	 */
+	premium?: boolean | null;
 }
 
 export interface AiProviderSummary {
@@ -53,6 +59,11 @@ export type AiAccess = "house" | "keys";
 export interface AiHouseMode {
 	modelId: string;
 	label: string;
+	/**
+	 * Pro's included AI. Free and Pro are both named "SureWord AI" since
+	 * 2026-10-25, so this mark is the difference. Absent reads as false.
+	 */
+	premium?: boolean | null;
 	/** Pinned by the server; the client stores it so requests agree. */
 	effort: string;
 	/**
@@ -84,20 +95,6 @@ export interface AiModelsResponse {
 	house?: AiHouseMode | null;
 }
 
-export interface ProviderStatus {
-	id: string;
-	label: string;
-	keyUrl: string;
-	connected: boolean;
-	last4: string | null;
-	validatedAt: string | null;
-}
-
-export interface ProvidersResponse {
-	serverCredentials: boolean;
-	providers: ProviderStatus[];
-}
-
 export const PROVIDER_LABELS: Record<string, string> = {
 	openai: "OpenAI",
 	anthropic: "Anthropic",
@@ -109,21 +106,3 @@ export function fetchAiModels(getToken: GetToken) {
 	return apiJson<AiModelsResponse>(getToken, "/api/ai/models");
 }
 
-export function fetchProviders(getToken: GetToken) {
-	return apiJson<ProvidersResponse>(getToken, "/api/providers");
-}
-
-/** Validates against the provider before storing; rejects bad keys with a message. */
-export function saveProviderKey(getToken: GetToken, provider: string, apiKey: string) {
-	return apiJson<{ ok: boolean; last4: string }>(getToken, "/api/providers", {
-		method: "POST",
-		body: { provider, apiKey },
-	});
-}
-
-export function removeProviderKey(getToken: GetToken, provider: string) {
-	return apiJson<{ ok: boolean }>(getToken, "/api/providers", {
-		method: "DELETE",
-		body: { provider },
-	});
-}

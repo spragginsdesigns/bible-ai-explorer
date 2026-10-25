@@ -14,11 +14,9 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 	},
 }));
 
-const fetchProviders = vi.fn();
 const fetchChurch = vi.fn();
 const fetchMemories = vi.fn();
 
-vi.mock("./aiApi", () => ({ fetchProviders: (...args: unknown[]) => fetchProviders(...args) }));
 vi.mock("@/features/church/api", () => ({
 	fetchChurch: (...args: unknown[]) => fetchChurch(...args),
 }));
@@ -35,26 +33,12 @@ import {
 	noteMemoryCount,
 	noteMemoryEnabled,
 	prefetchSettingsData,
+	refreshChurch,
 	refreshMemories,
-	refreshProviders,
 } from "./settingsData";
 
 const STORAGE_KEY = "sureword.settings-data.v1";
 const getToken = async () => "token";
-
-const PROVIDERS = {
-	serverCredentials: false,
-	providers: [
-		{
-			id: "openai",
-			label: "OpenAI",
-			keyUrl: "https://example.com",
-			connected: true,
-			last4: "abcd",
-			validatedAt: null,
-		},
-	],
-};
 
 const CHURCH = {
 	status: "ok" as const,
@@ -90,7 +74,6 @@ async function flush() {
 
 beforeEach(async () => {
 	storage.clear();
-	fetchProviders.mockReset();
 	fetchChurch.mockReset();
 	fetchMemories.mockReset();
 	// Each test starts from an empty, un-hydrated store; clear() marks it
@@ -105,7 +88,7 @@ describe("settingsData", () => {
 		vi.resetModules();
 		storage.set(
 			STORAGE_KEY,
-			JSON.stringify({ providers: PROVIDERS, church: CHURCH, memories: { count: 3 } })
+			JSON.stringify({ church: CHURCH, memories: { count: 3 } })
 		);
 		const fresh = await import("./settingsData");
 		// A prefetch that lands while the disk read is still in flight must not
@@ -115,86 +98,83 @@ describe("settingsData", () => {
 		await hydrate;
 		const snap = fresh.getSettingsData();
 		expect(snap.hydrated).toBe(true);
-		expect(snap.providers.data).toEqual(PROVIDERS);
 		expect(snap.church.data).toEqual(CHURCH);
 		expect(snap.memories.data).toEqual({ count: 7 });
 	});
 
 	it("persists a successful refresh and clears the failed flag", async () => {
-		fetchProviders.mockResolvedValueOnce(PROVIDERS);
-		await refreshProviders(getToken);
-		expect(getSettingsData().providers).toEqual({
-			data: PROVIDERS,
+		fetchChurch.mockResolvedValueOnce(CHURCH);
+		await refreshChurch(getToken);
+		expect(getSettingsData().church).toEqual({
+			data: CHURCH,
 			loading: false,
 			failed: false,
 		});
-		expect(JSON.parse(storage.get(STORAGE_KEY) ?? "{}").providers).toEqual(PROVIDERS);
+		expect(JSON.parse(storage.get(STORAGE_KEY) ?? "{}").church).toEqual(CHURCH);
 	});
 
 	it("keeps the cached data and flags the failure when a refresh rejects", async () => {
-		fetchProviders.mockResolvedValueOnce(PROVIDERS);
-		await refreshProviders(getToken);
-		fetchProviders.mockRejectedValueOnce(new Error("offline"));
-		await expect(refreshProviders(getToken)).rejects.toThrow("offline");
-		expect(getSettingsData().providers).toEqual({
-			data: PROVIDERS,
+		fetchChurch.mockResolvedValueOnce(CHURCH);
+		await refreshChurch(getToken);
+		fetchChurch.mockRejectedValueOnce(new Error("offline"));
+		await expect(refreshChurch(getToken)).rejects.toThrow("offline");
+		expect(getSettingsData().church).toEqual({
+			data: CHURCH,
 			loading: false,
 			failed: true,
 		});
 	});
 
 	it("shares one in-flight request per section", async () => {
-		const pending = deferred<typeof PROVIDERS>();
-		fetchProviders.mockReturnValueOnce(pending.promise);
-		const first = refreshProviders(getToken);
-		const second = refreshProviders(getToken);
+		const pending = deferred<typeof CHURCH>();
+		fetchChurch.mockReturnValueOnce(pending.promise);
+		const first = refreshChurch(getToken);
+		const second = refreshChurch(getToken);
 		expect(second).toBe(first);
-		expect(getSettingsData().providers.loading).toBe(true);
-		pending.resolve(PROVIDERS);
+		expect(getSettingsData().church.loading).toBe(true);
+		pending.resolve(CHURCH);
 		await first;
-		expect(fetchProviders).toHaveBeenCalledTimes(1);
-		expect(getSettingsData().providers.loading).toBe(false);
+		expect(fetchChurch).toHaveBeenCalledTimes(1);
+		expect(getSettingsData().church.loading).toBe(false);
 	});
 
 	it("gives up on a request that never settles so the next refresh can start", async () => {
 		vi.useFakeTimers();
 		try {
 			// A Clerk getToken that hangs offline never reaches the fetch timeout.
-			fetchProviders.mockReturnValueOnce(new Promise(() => {}));
-			const hung = refreshProviders(getToken);
+			fetchChurch.mockReturnValueOnce(new Promise(() => {}));
+			const hung = refreshChurch(getToken);
 			const rejected = expect(hung).rejects.toThrow(/could not be refreshed/);
 			await vi.advanceTimersByTimeAsync(REFRESH_TIMEOUT_MS);
 			await rejected;
-			expect(getSettingsData().providers).toEqual({ data: null, loading: false, failed: true });
+			expect(getSettingsData().church).toEqual({ data: null, loading: false, failed: true });
 
-			fetchProviders.mockResolvedValueOnce(PROVIDERS);
-			await refreshProviders(getToken);
-			expect(fetchProviders).toHaveBeenCalledTimes(2);
-			expect(getSettingsData().providers.data).toEqual(PROVIDERS);
+			fetchChurch.mockResolvedValueOnce(CHURCH);
+			await refreshChurch(getToken);
+			expect(fetchChurch).toHaveBeenCalledTimes(2);
+			expect(getSettingsData().church.data).toEqual(CHURCH);
 		} finally {
 			vi.useRealTimers();
 		}
 	});
 
 	it("drops a response that lands after the caches changed hands", async () => {
-		const pending = deferred<typeof PROVIDERS>();
-		fetchProviders.mockReturnValueOnce(pending.promise);
-		const request = refreshProviders(getToken);
+		const pending = deferred<typeof CHURCH>();
+		fetchChurch.mockReturnValueOnce(pending.promise);
+		const request = refreshChurch(getToken);
 		await clearSettingsData();
-		pending.resolve(PROVIDERS);
+		pending.resolve(CHURCH);
 		await request;
 		await flush();
-		expect(getSettingsData().providers.data).toBeNull();
+		expect(getSettingsData().church.data).toBeNull();
 		expect(storage.has(STORAGE_KEY)).toBe(false);
 	});
 
 	it("prefetch warms every section and never rejects", async () => {
-		fetchProviders.mockResolvedValueOnce(PROVIDERS);
 		fetchChurch.mockRejectedValueOnce(new Error("boom"));
 		fetchMemories.mockResolvedValueOnce({ enabled: false, memories: [{}, {}] });
 		await expect(prefetchSettingsData(getToken)).resolves.toBeUndefined();
 		const snap = getSettingsData();
-		expect(snap.providers.data).toEqual(PROVIDERS);
 		expect(snap.church).toEqual({ data: null, loading: false, failed: true });
 		expect(snap.memories.data).toEqual({ count: 2, enabled: false });
 	});
@@ -217,15 +197,15 @@ describe("settingsData", () => {
 	});
 
 	it("clear empties memory and disk", async () => {
-		fetchProviders.mockResolvedValueOnce(PROVIDERS);
-		await refreshProviders(getToken);
+		fetchChurch.mockResolvedValueOnce(CHURCH);
+		await refreshChurch(getToken);
 		expect(storage.has(STORAGE_KEY)).toBe(true);
 		await clearSettingsData();
-		expect(getSettingsData().providers.data).toBeNull();
+		expect(getSettingsData().church.data).toBeNull();
 		expect(getSettingsData().hydrated).toBe(true);
 		expect(storage.has(STORAGE_KEY)).toBe(false);
 		// The hydrate after a clear must not read the file being deleted.
 		await hydrateSettingsData();
-		expect(getSettingsData().providers.data).toBeNull();
+		expect(getSettingsData().church.data).toBeNull();
 	});
 });

@@ -32,7 +32,7 @@ async function clearCaches(scope: Exclude<CacheDiscard, "none">): Promise<void> 
 	if (scope === "all") resetSyncedSettings();
 	// The plan store is memory-only, so clearing it is synchronous.
 	clearPlanStore();
-	// The settings-data cache (provider keys, church, memory count) is account
+	// The settings-data cache (church, memory count) is account
 	// data like the notes, so it goes in both scopes.
 	await Promise.all([clearNotesCache(), clearHighlightsCache(), clearSettingsData()]);
 }
