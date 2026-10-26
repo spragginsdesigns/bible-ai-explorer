@@ -162,10 +162,19 @@ extension ModelPickerSheet {
 
     // MARK: - Search
 
-    /// True whenever there is more than one runnable model to choose between.
+    /// True whenever there is more than one runnable model to choose between,
+    /// except the owner's two SureWord plan rows, which never need a search
+    /// field (Android hides it with `ownerPlansOnly`; web and macOS do too).
     static func showsSearch(_ data: AIModelsResponse?) -> Bool {
-        guard let data, houseMode(data) == nil else { return false }
+        guard let data, houseMode(data) == nil, !ownerPlansOnly(data) else { return false }
         return data.models.filter(\.available).count > searchThreshold
+    }
+
+    /// Every listed model is one of SureWord's own plan rows (Android
+    /// `ownerPlansOnly`).
+    static func ownerPlansOnly(_ data: AIModelsResponse?) -> Bool {
+        guard let data, houseMode(data) == nil else { return false }
+        return !data.models.isEmpty && data.models.allSatisfy { $0.provider == "sureword" }
     }
 
     /// Characters the compact form drops, so "gpt56" and "gpt 5.6" both find

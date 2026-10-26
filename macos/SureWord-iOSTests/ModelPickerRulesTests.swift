@@ -541,6 +541,13 @@ final class ModelPickerRulesTests: XCTestCase {
         XCTAssertEqual(Rules.metaLine(for: data.models[1]), "Pro: thinks deeper")
     }
 
+    func testOwnerPlansHaveNoSearchField() {
+        XCTAssertTrue(Rules.ownerPlansOnly(ownerPayload()))
+        XCTAssertFalse(Rules.showsSearch(ownerPayload()))
+        XCTAssertFalse(Rules.ownerPlansOnly(many(2)))
+        XCTAssertFalse(Rules.ownerPlansOnly(housePayload()))
+    }
+
     func testPremiumIsSpokenAsPro() {
         let data = ownerPayload()
         XCTAssertEqual(
