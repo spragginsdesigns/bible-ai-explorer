@@ -179,12 +179,24 @@ export default function ChatScreen() {
 		if (autoSendParam) {
 			// A fresh chat, so the help answer never lands inside the welcome or another thread.
 			chat.newConversation();
-			void chat.sendMessage(promptParam);
+			setPendingHelp(promptParam);
 			return;
 		}
 		chat.setInput(promptParam);
 		setFocusSignal((signal) => signal + 1);
-	}, [promptParam, handoffIdParam, autoSendParam, chat.setInput, chat.newConversation, chat.sendMessage, leaveEdit]);
+	}, [promptParam, handoffIdParam, autoSendParam, chat.setInput, chat.newConversation, leaveEdit]);
+
+	// newConversation abandons the running answer and clears attachments in
+	// state, so a send in the same tick would still see the old answer
+	// streaming (and be dropped) or carry the old pinned passage. Help waits
+	// for the fresh chat to render.
+	const [pendingHelp, setPendingHelp] = useState<string | null>(null);
+	useEffect(() => {
+		if (!pendingHelp || chat.loading || chat.isStreaming || chat.activeConversationId || chat.messages.length > 0) return;
+		if (chat.attachment || chat.fileAttachments.length > 0) return;
+		setPendingHelp(null);
+		void chat.sendMessage(pendingHelp);
+	}, [pendingHelp, chat.loading, chat.isStreaming, chat.activeConversationId, chat.messages.length, chat.attachment, chat.fileAttachments.length, chat.sendMessage]);
 
 	// Verse/chapter attachments (?attachRef= etc.): pin the passage above the
 	// input and focus so the user can type their own question — the draft text
@@ -461,7 +473,7 @@ export default function ChatScreen() {
 					onOpenSettings={() => router.push("/settings")}
 					onHelp={() => {
 						onNewChat();
-						void sendMessage(HELP_SCREENS.chat);
+						setPendingHelp(HELP_SCREENS.chat);
 					}}
 				/>
 				{inWelcome ? <WelcomeVoiceBar /> : null}

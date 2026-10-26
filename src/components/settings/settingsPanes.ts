@@ -74,7 +74,7 @@ export const SETTINGS_PANES: SettingsPane[] = [
 		summary: "Theme, the parchment page, and your default Bible translation.",
 		Icon: Palette,
 		tile: "from-indigo-400 to-indigo-600",
-		keywords: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz"],
+		keywords: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz", "text size", "font", "larger"],
 	},
 	{
 		id: "highlights",
@@ -146,7 +146,7 @@ export const SETTINGS_PANES: SettingsPane[] = [
 		summary: "Version, release notes, the apps, and why SureWord.",
 		Icon: Info,
 		tile: "from-neutral-400 to-neutral-500",
-		keywords: ["version", "what's new", "release notes", "android", "mac", "macos", "download", "apk", "get the app"],
+		keywords: ["version", "what's new", "release notes", "android", "mac", "macos", "download", "apk", "get the app", "walk me through", "tour", "welcome"],
 	},
 ];
 

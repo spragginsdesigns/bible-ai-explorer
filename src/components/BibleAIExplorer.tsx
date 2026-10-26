@@ -232,6 +232,7 @@ const BibleAIExplorerInner: React.FC = () => {
 	// way, never text from the URL itself, and the param is dropped first so a
 	// reload does not ask again.
 	const lastHelp = useRef("");
+	const [pendingHelp, setPendingHelp] = useState<string | null>(null);
 	useEffect(() => {
 		if (!helpParam || helpParam === lastHelp.current) return;
 		lastHelp.current = helpParam;
@@ -240,13 +241,23 @@ const BibleAIExplorerInner: React.FC = () => {
 		window.history.replaceState(window.history.state, "", url.toString());
 		if (!Object.prototype.hasOwnProperty.call(HELP_SCREENS, helpParam)) return;
 		newConversation();
-		handleSend(HELP_SCREENS[helpParam as HelpScreen]);
-	}, [helpParam, newConversation, handleSend]);
+		setPendingHelp(HELP_SCREENS[helpParam as HelpScreen]);
+	}, [helpParam, newConversation]);
 
 	const askChatHelp = useCallback(() => {
 		newConversation();
-		handleSend(HELP_SCREENS.chat);
-	}, [newConversation, handleSend]);
+		setPendingHelp(HELP_SCREENS.chat);
+	}, [newConversation]);
+
+	// newConversation stops the stream and clears attachments in state, so a
+	// send in the same tick would still see the old answer streaming (and be
+	// dropped) or carry the old pinned passage. Help waits for the fresh chat.
+	useEffect(() => {
+		if (!pendingHelp || loading || isStreaming || activeConversationId || messages.length > 0) return;
+		if (attachment || fileAttachments.length > 0) return;
+		setPendingHelp(null);
+		sendMessage(pendingHelp);
+	}, [pendingHelp, loading, isStreaming, activeConversationId, messages.length, attachment, fileAttachments.length, sendMessage]);
 
 	const focusComposer = useCallback(() => setFocusSignal((signal) => signal + 1), []);
 

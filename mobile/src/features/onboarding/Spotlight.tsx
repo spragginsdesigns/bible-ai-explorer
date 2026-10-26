@@ -356,7 +356,18 @@ export function SpotlightOverlay() {
 					</View>
 				</>
 			) : (
-				<View style={[styles.dim, StyleSheet.absoluteFill]} />
+				<>
+					<View style={[styles.dim, StyleSheet.absoluteFill]} />
+					{/* While a slow place is still being found the dim swallows every
+					    touch, so it always carries a way out. */}
+					<View style={[styles.bubble, { bottom: spacing.xl * 3 }]}>
+						<View style={styles.bubbleActions}>
+							<Pressable accessibilityRole="button" onPress={() => finish(false)} style={styles.quiet}>
+								<Text style={styles.quietText}>Close</Text>
+							</Pressable>
+						</View>
+					</View>
+				</>
 			)}
 		</Modal>
 	);
