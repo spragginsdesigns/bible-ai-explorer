@@ -7,6 +7,12 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+> **Actionable checklist:** see [PARITY-TODO.md](PARITY-TODO.md) for the
+> requested web/Android/iOS inventory of remaining capability gaps, release
+> blockers, runtime proof, and deliberate platform differences. This file
+> remains the historical evidence ledger; the TODO is the current work queue
+> for those three clients and does not certify macOS parity.
+
 **2026-10-23 bug hunt Apple fixes (macOS and TestFlight, LC-17258):** the
 Apple fixes from `ecf4721` (LC-17262 a failed Clerk token fetch reads as
 offline instead of sending the request unauthenticated, LC-17264 the iOS
