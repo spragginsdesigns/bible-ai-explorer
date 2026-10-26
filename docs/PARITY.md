@@ -23,9 +23,13 @@ the same bundle and on GitHub as `android-v1.103.0`, proven on the signed APK
 against production: Settings, Language, Español, then an English question
 answered in Spanish quoting "Efesios 2:8, RV1909" with working links. Web
 Settings, Language is built and tested but not yet exercised in a browser
-against production. Apple (macOS and iOS) is not shipped: the Mac compiles,
-but `LanguagesTests.testSearchFindsAccentedWordsWithoutTheAccents` fails, so
-Apple stays unverified. Known gap on every client: the "Scripture in this
+against production. Apple 1.27.0 (36) has the same capability (Language page
+on iOS, Language pane on the Mac, both Bibles, Spanish and German links,
+Learn cards on all five Bibles): macOS and iOS compile on the MacBook and the
+iOS suites pass (413 XCTest with 1 skip and 0 failures, 353 Swift Testing),
+but the macOS suite did not run (runner hangs over SSH) and nothing has been
+exercised in a running Apple app, signed, installed or released, so Apple is
+compiled and unit-tested only. Known gap on every client: the "Scripture in this
 answer" sheet titles references in English ("Ephesians 2:8") above the
 Spanish text, and the app's own interface text is English. Plan:
 `docs/languages/PLAN.md`.

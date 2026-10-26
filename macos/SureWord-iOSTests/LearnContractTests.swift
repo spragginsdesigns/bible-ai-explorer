@@ -88,6 +88,14 @@ final class LearnContractTests: XCTestCase {
         XCTAssertEqual(unavailable.textUnavailable, true)
     }
 
+    func testAcceptsCardsKeptInTheSpanishAndGermanBibles() throws {
+        XCTAssertEqual(LearnTranslations.all, ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"])
+        for translation in ["RV1909", "LUT1912"] {
+            let card = try decode(LearnCard.self, json(Self.card(translation: translation)))
+            XCTAssertEqual(card.translation, translation)
+        }
+    }
+
     func testRejectsMalformedAndDuplicateCards() throws {
         let card = json(Self.card())
         XCTAssertThrowsError(try decode(LearnToday.self, #"{"cards":[\#(card),\#(card)],"knownCount":0,"queueCount":2}"#))

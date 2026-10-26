@@ -37,6 +37,7 @@ enum AnalyticsScreen {
     // The Settings hub's category pages (Android 1.69.0 nested stack).
     static let settingsAccount = "/settings/account"
     static let settingsAppearance = "/settings/appearance"
+    static let settingsLanguage = "/settings/language"
     static let settingsHighlights = "/settings/highlights"
     static let settingsChurch = "/settings/church"
     static let settingsMemory = "/settings/memory"

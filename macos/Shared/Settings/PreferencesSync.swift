@@ -131,6 +131,8 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     var textScale: String? = nil
     /// Walk with me's "Read it to me".
     var voiceMode: Bool? = nil
+    /// "auto", "en", "es" or "de". Nil from a server that predates the column.
+    var answerLanguage: String? = nil
 
     init(
         plan: String? = nil,
@@ -181,6 +183,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     var chat: ChatPreferences?
     var textScale: String?
     var voiceMode: Bool?
+    var answerLanguage: String?
 
     init(
         webSearchEnabled: Bool? = nil,
@@ -194,10 +197,12 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         testimony: String? = nil,
         chat: ChatPreferences? = nil,
         textScale: String? = nil,
-        voiceMode: Bool? = nil
+        voiceMode: Bool? = nil,
+        answerLanguage: String? = nil
     ) {
         self.textScale = textScale
         self.voiceMode = voiceMode
+        self.answerLanguage = answerLanguage
         self.webSearchEnabled = webSearchEnabled
         self.memoryEnabled = memoryEnabled
         self.translation = translation
@@ -213,7 +218,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case webSearchEnabled, memoryEnabled, translation, parchment, listenRate
         case highlightLabels, highlightMeanings, aboutMe, testimony, chat
-        case textScale, voiceMode
+        case textScale, voiceMode, answerLanguage
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -232,6 +237,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         try container.encodeIfPresent(testimony, forKey: .testimony)
         try container.encodeIfPresent(textScale, forKey: .textScale)
         try container.encodeIfPresent(voiceMode, forKey: .voiceMode)
+        try container.encodeIfPresent(answerLanguage, forKey: .answerLanguage)
         // An empty chat block would be a body with no recognised keys, which
         // the server answers with a 400.
         if let chat, !chat.isEmpty {
@@ -251,6 +257,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
             && testimony == nil
             && textScale == nil
             && voiceMode == nil
+            && answerLanguage == nil
             && (chat?.isEmpty ?? true)
     }
 }
@@ -803,6 +810,9 @@ final class PreferencesSyncModel {
             }
             if let voiceMode = document.voiceMode {
                 settings.voiceMode = voiceMode
+            }
+            if let answerLanguage = document.answerLanguage {
+                settings.answerLanguage = AnswerLanguageSetting.normalize(answerLanguage)
             }
             guard let chat = document.chat else { return }
             if let modelId = chat.modelId {

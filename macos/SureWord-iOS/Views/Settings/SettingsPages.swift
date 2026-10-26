@@ -51,6 +51,40 @@ struct AccountSettingsPage: View {
     }
 }
 
+// MARK: - Language
+
+/// `settings/language.tsx`: the language SureWord answers in. "Follow my
+/// device" names what the device resolved to; a specific language also opens
+/// that language's Bible when the current one is in another language.
+struct LanguageSettingsPage: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        @Bindable var settings = app.settings
+
+        Form {
+            Section("SureWord answers in") {
+                Picker(
+                    "SureWord answers in",
+                    selection: Binding(
+                        get: { settings.answerLanguage },
+                        set: { settings.chooseAnswerLanguage($0) }
+                    )
+                ) {
+                    ForEach(AnswerLanguageSetting.allCases) { option in
+                        Text(option.label()).tag(option)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+                SettingsHint(AnswerLanguageSetting.hint)
+            }
+        }
+        .navigationTitle("Language")
+        .analyticsScreen(AnalyticsScreen.settingsLanguage)
+    }
+}
+
 // MARK: - Appearance & reading
 
 /// `settings/appearance.tsx`: theme, the parchment reader and the default
@@ -78,17 +112,20 @@ struct AppearanceSettingsPage: View {
             }
 
             Section("Bible translation") {
+                // A menu, not segments: the Spanish and German Bibles show
+                // their full name and language, which five segments cannot fit.
                 Picker("Default translation", selection: $settings.translation) {
                     ForEach(TranslationID.allCases, id: \.self) { option in
-                        Text(option.label).tag(option)
+                        Text(option.pickerLabel).tag(option)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 SettingsHint(
                     "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
                         + "SureWord's AI answers use the translation you select."
                 )
             }
+
 
             Section("Quiz") {
                 Toggle("Offer a quiz after each chapter", isOn: $settings.offerQuiz)

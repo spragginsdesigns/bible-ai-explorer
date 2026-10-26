@@ -922,7 +922,8 @@ final class ChatViewModel {
             speed: settings.chatSpeed,
             verbosity: settings.chatVerbosity,
             mode: settings.chatMode,
-            replaces: replaces
+            replaces: replaces,
+            language: settings.effectiveAnswerLanguage.rawValue
         )
     }
 

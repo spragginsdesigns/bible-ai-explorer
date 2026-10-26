@@ -13,8 +13,8 @@ struct BibleSearchView: View {
     /// Non-nil pushes the reader with the chosen hit or reference.
     @State private var readerRequest: BibleReaderRequest?
 
-    /// Android lists the search chips in this order.
-    private static let chips: [TranslationID] = [.kjv, .nkjv, .bsb]
+    /// Android lists the search chips in this order: `TRANSLATIONS`' order.
+    private static let chips: [TranslationID] = TranslationID.allCases
 
     private var account: TranslationID { app.settings.translation }
     private var translation: TranslationID { search.translation(account: account) }
@@ -88,28 +88,30 @@ struct BibleSearchView: View {
     }
 
     private var translationChips: some View {
-        HStack(spacing: Spacing.sm) {
-            ForEach(Self.chips, id: \.self) { id in
-                let active = translation == id
-                Button {
-                    search.selectedTranslation = id
-                } label: {
-                    Text(id.label)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(active ? theme.accent : theme.textMuted)
-                        .padding(.horizontal, Spacing.md)
-                        .frame(minHeight: 32)
-                        .background(active ? theme.accentSoft : theme.surface, in: .capsule)
-                        .overlay {
-                            Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
-                        }
-                        .contentShape(.capsule)
+        // Five Bibles outgrow the row, so it scrolls sideways when it must.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Spacing.sm) {
+                ForEach(Self.chips, id: \.self) { id in
+                    let active = translation == id
+                    Button {
+                        search.selectedTranslation = id
+                    } label: {
+                        Text(id.label)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(active ? theme.accent : theme.textMuted)
+                            .padding(.horizontal, Spacing.md)
+                            .frame(minHeight: 32)
+                            .background(active ? theme.accentSoft : theme.surface, in: .capsule)
+                            .overlay {
+                                Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
+                            }
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Search \(id.label)")
+                    .accessibilityAddTraits(active ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Search \(id.label)")
-                .accessibilityAddTraits(active ? .isSelected : [])
             }
-            Spacer()
         }
         .padding(.top, Spacing.sm)
     }

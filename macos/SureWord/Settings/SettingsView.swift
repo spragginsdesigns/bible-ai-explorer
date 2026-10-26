@@ -349,18 +349,35 @@ struct SettingsView: View {
             }
 
             Section("Bible") {
+                // A menu, not segments: the Spanish and German Bibles show
+                // their full name and language, which five segments cannot fit.
                 Picker("Default translation", selection: $settings.translation) {
                     ForEach(TranslationID.allCases, id: \.self) { option in
-                        Text(option.label).tag(option)
+                        Text(option.pickerLabel).tag(option)
                     }
                 }
-                .pickerStyle(.segmented)
                 hint(
                     "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
                         + "SureWord's AI answers use the translation you select."
                 )
                 Toggle("Offer a quiz after each chapter", isOn: $settings.offerQuiz)
                 hint("A short, optional quiz at the end of each chapter. Every answer comes with its verse.")
+            }
+
+        case .language:
+            Section("SureWord answers in") {
+                Picker(
+                    "SureWord answers in",
+                    selection: Binding(
+                        get: { settings.answerLanguage },
+                        set: { settings.chooseAnswerLanguage($0) }
+                    )
+                ) {
+                    ForEach(AnswerLanguageSetting.allCases) { option in
+                        Text(option.label()).tag(option)
+                    }
+                }
+                hint(AnswerLanguageSetting.hint)
             }
 
         case .highlights:
@@ -570,7 +587,7 @@ struct SettingsView: View {
 
 /// One page of Settings. Grouped, named and ordered like Android's hub rows.
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case account, appearance, highlights, church, memory, ai, shared, notifications, feedback, about
+    case account, appearance, language, highlights, church, memory, ai, shared, notifications, feedback, about
 
     enum Group: CaseIterable {
         case study, assistant, app
@@ -590,7 +607,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     var group: Group? {
         switch self {
         case .account: nil
-        case .appearance, .highlights, .church: .study
+        case .appearance, .language, .highlights, .church: .study
         case .memory, .ai, .shared: .assistant
         case .notifications, .feedback, .about: .app
         }
@@ -600,6 +617,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .account: "Account"
         case .appearance: "Appearance & reading"
+        case .language: "Language"
         case .highlights: "Highlight labels"
         case .church: "My church"
         case .memory: "Memory"
@@ -616,6 +634,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .account: "Who is signed in, signing out, and deleting your account."
         case .appearance: "Theme, the parchment page, and your default Bible translation."
+        case .language: "The language SureWord answers in, and its Bible."
         case .highlights: "Names and meanings for your highlight colours."
         case .church: "The congregation you belong to."
         case .memory: "What SureWord remembers about you, and what you've told it."
@@ -631,6 +650,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .account: "person.crop.circle"
         case .appearance: "paintpalette.fill"
+        case .language: "globe"
         case .highlights: "highlighter"
         case .church: "building.columns.fill"
         case .memory: "sparkles"
@@ -648,6 +668,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .account: .gray
         case .appearance: .indigo
+        case .language: .cyan
         case .highlights: .orange
         case .church: .brown
         case .memory: .purple
@@ -664,6 +685,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         switch self {
         case .account: ["sign out", "log out", "delete", "email", "profile"]
         case .appearance: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz"]
+        case .language: ["spanish", "german", "espa\u{00F1}ol", "espanol", "deutsch", "reina-valera", "luther", "answers"]
         case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
         case .church: ["church", "congregation", "mission"]
         case .memory: ["memories", "about me", "testimony", "personal", "remember"]

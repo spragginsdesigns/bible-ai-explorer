@@ -66,6 +66,15 @@ struct BibleSearch: Sendable {
             } catch {
                 throw BibleError(message: Self.error)
             }
+        case .rv1909, .lut1912:
+            guard let library = BundledBible.library(translation) else { return [] }
+            do {
+                return try await library.search(query, limit: limit).map { Self.hit($0, translation) }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                throw BibleError(message: Self.error)
+            }
         case .kjv:
             return await KJVLibrary.shared.search(query, limit: limit).map { Self.hit($0, .kjv) }
         case .nkjv:

@@ -21,8 +21,8 @@ struct BibleSidebar: View {
     private var account: TranslationID { app.settings.translation }
     private var translation: TranslationID { search.translation(account: account) }
 
-    /// Android lists the search chips in this order.
-    private static let chips: [TranslationID] = [.kjv, .nkjv, .bsb]
+    /// Android lists the search chips in this order: `TRANSLATIONS`' order.
+    private static let chips: [TranslationID] = TranslationID.allCases
 
     var body: some View {
         VStack(spacing: 0) {
@@ -218,29 +218,31 @@ struct BibleSidebar: View {
     }
 
     private var translationChips: some View {
-        HStack(spacing: Spacing.xs) {
-            ForEach(Self.chips, id: \.self) { id in
-                let active = translation == id
-                Button {
-                    search.selectedTranslation = id
-                } label: {
-                    Text(id.label)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(active ? theme.accent : theme.textMuted)
-                        .padding(.horizontal, Spacing.sm)
-                        .padding(.vertical, 4)
-                        .background(active ? theme.accentSoft : theme.surface, in: .capsule)
-                        .overlay {
-                            Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
-                        }
-                        .contentShape(.capsule)
+        // Five Bibles outgrow the row, so it scrolls sideways when it must.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Spacing.xs) {
+                ForEach(Self.chips, id: \.self) { id in
+                    let active = translation == id
+                    Button {
+                        search.selectedTranslation = id
+                    } label: {
+                        Text(id.label)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(active ? theme.accent : theme.textMuted)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, 4)
+                            .background(active ? theme.accentSoft : theme.surface, in: .capsule)
+                            .overlay {
+                                Capsule().strokeBorder(active ? theme.accentBorder : theme.borderStrong, lineWidth: 1)
+                            }
+                            .contentShape(.capsule)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Search the \(id.label)")
+                    .accessibilityLabel("Search \(id.label)")
+                    .accessibilityAddTraits(active ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .help("Search the \(id.label)")
-                .accessibilityLabel("Search \(id.label)")
-                .accessibilityAddTraits(active ? .isSelected : [])
             }
-            Spacer()
         }
     }
 

@@ -1,8 +1,8 @@
 import Foundation
 
-/// Chapter loading for the Bible reader. KJV and BSB are bundled; NKJV is
-/// fetched from bolls.life per chapter with a timeout and cached in memory for
-/// the session.
+/// Chapter loading for the Bible reader. KJV, BSB, Reina-Valera 1909 and
+/// Lutherbibel 1912 are bundled; NKJV is fetched from bolls.life per chapter
+/// with a timeout and cached in memory for the session.
 ///
 /// Port of `mobile/src/features/bible/translations.ts`. `TranslationID` itself
 /// already lives in `Settings/SettingsStore.swift` (chat needs it too), so only
@@ -36,7 +36,111 @@ enum BibleTranslations {
             } catch {
                 throw BibleError(message: chapterLoadError)
             }
+        case .rv1909, .lut1912:
+            guard let library = BundledBible.library(translation) else {
+                throw BibleError(message: chapterLoadError)
+            }
+            do {
+                return try await library.chapter(order: order, chapter: chapter)
+            } catch {
+                throw BibleError(message: chapterLoadError)
+            }
         }
+    }
+}
+
+/// The plain-text Bibles bundled as `[[String]]` per book, the KJV shape:
+/// `Bible/Data/rv1909/NN.json` and `Bible/Data/lut1912/NN.json`, written by
+/// `scripts/bible/build-ebible.py`. Port of `src/lib/bible/ebible.ts`.
+enum BundledBible {
+    static let rv1909 = BundledBibleLibrary(directory: "rv1909")
+    static let lut1912 = BundledBibleLibrary(directory: "lut1912")
+
+    static func library(_ translation: TranslationID) -> BundledBibleLibrary? {
+        switch translation {
+        case .rv1909: rv1909
+        case .lut1912: lut1912
+        case .kjv, .nkjv, .bsb: nil
+        }
+    }
+}
+
+/// Lazy, cached access to one bundled plain-text Bible - a book is parsed on
+/// first use, like `KJVLibrary`, and for the same off-main-actor reason.
+///
+/// The two folders are folder references in `project.yml`, so they keep their
+/// directory in the bundle: both hold `01.json` ... `66.json`, which the flat
+/// copy the rest of `Bible/Data/` gets would collide.
+actor BundledBibleLibrary {
+    private let directory: String
+    private var cache: [Int: [[String]]] = [:]
+    private var folded: [Int: [[String]]] = [:]
+
+    init(directory: String) {
+        self.directory = directory
+    }
+
+    /// All verses of a chapter, 1-indexed by chapter number.
+    func chapter(order: Int, chapter: Int) throws -> [String] {
+        guard let meta = Bible.book(order: order), chapter >= 1, chapter <= meta.chapters else {
+            throw BibleError(message: "Invalid Bible reference")
+        }
+        let chapters = try book(order)
+        guard chapter <= chapters.count else { throw BibleError(message: "Invalid Bible reference") }
+        return chapters[chapter - 1]
+    }
+
+    /// Case- and accent-insensitive phrase match over every verse in canonical
+    /// order, capped at `limit`: "senor" finds "Señor", "konig" finds "König".
+    func search(_ needle: String, limit: Int) throws -> [KJVSearchHit] {
+        let folded = Self.fold(needle)
+        guard !folded.isEmpty, limit > 0 else { return [] }
+        var hits: [KJVSearchHit] = []
+        for meta in Bible.books {
+            try Task.checkCancellation()
+            let chapters = try book(meta.order)
+            let haystack = try foldedBook(meta.order)
+            for (chapterIndex, verses) in haystack.enumerated() {
+                for (verseIndex, text) in verses.enumerated() where text.contains(folded) {
+                    hits.append(
+                        KJVSearchHit(
+                            order: meta.order,
+                            chapter: chapterIndex + 1,
+                            verse: verseIndex + 1,
+                            text: chapters[chapterIndex][verseIndex]
+                        )
+                    )
+                    if hits.count >= limit { return hits }
+                }
+            }
+        }
+        return hits
+    }
+
+    static func fold(_ text: String) -> String {
+        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+    }
+
+    // MARK: - Loading
+
+    private func foldedBook(_ order: Int) throws -> [[String]] {
+        if let cached = folded[order] { return cached }
+        let lowered = try book(order).map { $0.map(Self.fold) }
+        folded[order] = lowered
+        return lowered
+    }
+
+    private func book(_ order: Int) throws -> [[String]] {
+        if let cached = cache[order] { return cached }
+        let name = String(format: "%02d", order)
+        guard let url = BibleBundle.resources.url(forResource: name, withExtension: "json", subdirectory: directory),
+              let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode([[String]].self, from: data)
+        else {
+            throw BibleError(message: "\(directory)/\(name).json is missing from the app bundle")
+        }
+        cache[order] = decoded
+        return decoded
     }
 }
 

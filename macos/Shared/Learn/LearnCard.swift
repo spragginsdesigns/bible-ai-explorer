@@ -21,11 +21,12 @@ enum LearnResult: String, Codable, Sendable, Equatable {
     case again, good
 }
 
-/// The three translations a card may be kept in. A raw string on the card
-/// (validated against this set) so a client that has no BSB reader yet can
-/// still practise a BSB card the server already resolved.
+/// The translations a card may be kept in: every Bible the reader has. A raw
+/// string on the card (validated against this set) so a client that has no
+/// reader for a translation yet can still practise a card the server already
+/// resolved.
 enum LearnTranslations {
-    static let all = ["KJV", "NKJV", "BSB"]
+    static let all = TranslationID.allCases.map(\.rawValue)
 }
 
 struct LearnCard: Codable, Sendable, Equatable, Identifiable {

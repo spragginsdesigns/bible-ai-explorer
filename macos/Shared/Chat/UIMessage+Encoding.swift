@@ -117,9 +117,14 @@ struct AskQuestionRequest: Encodable {
     /// conversation changed on another device"). Nil, for an ordinary send,
     /// omits the key: nothing is deleted.
     var replaces: [String]? = nil
+    /// The language the answer is written in ("en", "es" or "de"), the
+    /// effective `answerLanguage`. Nil omits the key, which the server reads
+    /// as English.
+    var language: String? = nil
 
     private enum CodingKeys: String, CodingKey {
         case messages, conversationId, translation, modelId, effort, speed, verbosity, mode, timezone, replaces
+        case language
     }
 
     /// Written out rather than synthesized for exactly one reason: `effort`
@@ -142,5 +147,6 @@ struct AskQuestionRequest: Encodable {
         try container.encodeIfPresent(verbosity, forKey: .verbosity)
         try container.encodeIfPresent(mode, forKey: .mode)
         try container.encodeIfPresent(replaces, forKey: .replaces)
+        try container.encodeIfPresent(language, forKey: .language)
     }
 }

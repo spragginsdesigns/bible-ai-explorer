@@ -327,13 +327,35 @@ enum VersePassages {
     // Hyphen, en dash and em dash all separate a range; written as ICU escapes
     // so this file stays ASCII.
     private static let rangeDashes = "[-\\u2013\\u2014]"
-    private static let translations = "(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)"
+    private static let translations = "(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP|RV1909|LUT1912)"
+
+    /// Spanish and German book names ("Juan", "Johannes", "Apostelgeschichte")
+    /// with any leading volume number taken off, since the branch below
+    /// matches "1 ", "1. " or "1" itself. Each name is listed as written and
+    /// with its accents folded, so an answer that drops an accent still links.
+    /// Longest first, so "Hechos de los Apostoles" wins over "Hechos".
+    static let localizedBookStems: [String] = {
+        var seen = Set<String>()
+        var stems: [String] = []
+        for (name, _) in BookNames.shared.allNames {
+            let stem = name.replacing(/^[123]\.?\s*/, with: "")
+            for variant in [stem, stem.folding(options: .diacriticInsensitive, locale: nil)]
+            where seen.insert(variant.lowercased()).inserted {
+                stems.append(variant)
+            }
+        }
+        return stems.sorted { $0.count > $1.count }
+    }()
 
     private static let citationRegex: NSRegularExpression? = {
         let numberedPrefix = "(?:[123]\\s?)?"
         let fullNameBranch = "\(numberedPrefix)(?:\(fullBookNames.joined(separator: "|")))\\s+"
         let abbreviationBranch = "\(numberedPrefix)(?:\(bookAbbreviations.joined(separator: "|")))(?:\\.\\s*|\\s+)"
-        let book = "(?:\(fullNameBranch)|\(abbreviationBranch))"
+        let localizedNames = localizedBookStems.map(NSRegularExpression.escapedPattern(for:))
+        let localizedBranch = localizedNames.isEmpty
+            ? ""
+            : "|(?:[123]\\.?\\s?)?(?:\(localizedNames.joined(separator: "|")))\\s+"
+        let book = "(?:\(fullNameBranch)|\(abbreviationBranch)\(localizedBranch))"
         let reference = "\\d{1,3}:\\d{1,3}(?:\\s*\(rangeDashes)\\s*\\d{1,3}(?::\\d{1,3})?)?"
         let boundary = "(?!\\d)(?!:\\d)"
         let translation = "(?:\\s+\(translations))?"

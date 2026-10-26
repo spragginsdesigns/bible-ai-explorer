@@ -76,6 +76,55 @@ enum BibleBundle {
     }
 }
 
+/// Spanish and German book names (`Bible/Data/book-names.json`, mirrored
+/// byte for byte from `src/data/book-names.json`): display names in canonical
+/// order, plus aliases mapped to a 1-based book order.
+struct BookNames: Sendable, Decodable {
+    struct Language: Sendable, Decodable {
+        let names: [String]
+        let aliases: [String: Int]
+    }
+
+    let es: Language
+    let de: Language
+
+    static let shared: BookNames = load()
+
+    static let empty = BookNames(
+        es: Language(names: [], aliases: [:]),
+        de: Language(names: [], aliases: [:])
+    )
+
+    /// The display names of a language, index 0 = Genesis. Empty for English,
+    /// whose names live in `books.json`.
+    func names(_ language: AnswerLanguage) -> [String] {
+        switch language {
+        case .en: []
+        case .es: es.names
+        case .de: de.names
+        }
+    }
+
+    /// Every Spanish and German name and alias with its 1-based book order.
+    var allNames: [(name: String, order: Int)] {
+        [es, de].flatMap { language in
+            language.names.enumerated().map { (name: $1, order: $0 + 1) }
+                + language.aliases.sorted { $0.key < $1.key }.map { (name: $0.key, order: $0.value) }
+        }
+    }
+
+    private static func load() -> BookNames {
+        guard let url = BibleBundle.url(json: "book-names", subdirectory: "Data"),
+              let data = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode(BookNames.self, from: data)
+        else {
+            assertionFailure("book-names.json is missing from the app bundle")
+            return .empty
+        }
+        return decoded
+    }
+}
+
 enum Bible {
     /// All 66 books in canonical order.
     static let books: [Book] = loadBooks()
@@ -154,21 +203,32 @@ enum Bible {
                 map[normalize(alias)] = book
             }
         }
+        // Spanish and German names ("Juan", "1. Johannes") come after the
+        // English ones and never replace them, so an English name always
+        // resolves the way it did before.
+        for (name, order) in BookNames.shared.allNames {
+            let key = normalize(name)
+            if map[key] == nil, let match = Bible.book(order: order) {
+                map[key] = match
+            }
+        }
         return map
     }()
 
-    /// Lowercase, drop punctuation, collapse whitespace: "1 Sam." → "1 sam".
+    /// Lowercase, fold accents, drop punctuation, collapse whitespace:
+    /// "1 Sam." to "1 sam", "1. Könige" to "1 konige", "Génesis" to "genesis".
     private static func normalize(_ value: String) -> String {
-        value.lowercased()
+        value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .filter { $0 != "." && $0 != "," }
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
     }
 
     /// Parse "John 3:16", "1 Samuel 2:1-10", "Psalm 23", "Gen 1"
-    /// (case-insensitive, full names and abbreviations) into a location. A verse
-    /// range resolves to its start verse. Returns nil when the input cannot be
-    /// resolved.
+    /// (case-insensitive, full names and abbreviations) into a location, and
+    /// the Spanish and German names the same way ("Juan 3:16", "1. Johannes
+    /// 1:9", accents and the German "1." optional). A verse range resolves to
+    /// its start verse. Returns nil when the input cannot be resolved.
     ///
     /// Hand-written rather than a `Regex`, which is not `Sendable` and so cannot
     /// be hoisted into a `static let`; the grammar below is the TypeScript
@@ -236,9 +296,10 @@ enum Bible {
         return Reference(order: book.order, chapter: chapter, verse: verse)
     }
 
-    /// `[a-zA-Z. ]`
+    /// `[a-zA-Z. ]`, widened to every letter so accented Spanish and German
+    /// names ("Génesis", "Römer") parse.
     private static func isNameCharacter(_ character: Character) -> Bool {
-        (character.isLetter && character.isASCII) || character == "." || character == " "
+        character.isLetter || character == "." || character == " "
     }
 
     private static func skipWhitespace(_ characters: [Character], _ index: inout Int) {

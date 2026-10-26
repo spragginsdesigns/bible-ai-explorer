@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.26.0"
-    CURRENT_PROJECT_VERSION: "35"
+    MARKETING_VERSION: "1.27.0"
+    CURRENT_PROJECT_VERSION: "36"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -50,6 +50,21 @@ targets:
     sources:
       - path: SureWord
       - path: Shared
+        # The Spanish and German Bibles both name their books 01.json ...
+        # 66.json, so they cannot join the flat copy the rest of Bible/Data/
+        # gets. They ship as folder references instead (Resources/rv1909/,
+        # Resources/lut1912/), read by `BundledBibleLibrary`.
+        excludes:
+          - "Bible/Data/rv1909"
+          - "Bible/Data/rv1909/**"
+          - "Bible/Data/lut1912"
+          - "Bible/Data/lut1912/**"
+      - path: Shared/Bible/Data/rv1909
+        type: folder
+        buildPhase: resources
+      - path: Shared/Bible/Data/lut1912
+        type: folder
+        buildPhase: resources
       # "Share into SureWord": the Services menu entry and drops on the window
       # or Dock icon write the same inbox the iOS share extension does
       # (`SureWord/App/MacShareInbox.swift`), under Application Support.
@@ -171,6 +186,9 @@ targets:
       # Walk with me, which the Mac runs too: the rules mirror, the card and
       # tool part parsing, the voice queue rules and the text size mapping.
       - path: SureWord-iOSTests/OnboardingTests.swift
+      # Spanish and German: the bundled Bibles, their book names, the answer
+      # language and the requests that carry it.
+      - path: SureWord-iOSTests/LanguagesTests.swift
     dependencies:
       - target: SureWord
     settings:
@@ -186,6 +204,21 @@ targets:
     platform: iOS
     sources:
       - path: Shared
+        # The Spanish and German Bibles both name their books 01.json ...
+        # 66.json, so they cannot join the flat copy the rest of Bible/Data/
+        # gets. They ship as folder references instead (Resources/rv1909/,
+        # Resources/lut1912/), read by `BundledBibleLibrary`.
+        excludes:
+          - "Bible/Data/rv1909"
+          - "Bible/Data/rv1909/**"
+          - "Bible/Data/lut1912"
+          - "Bible/Data/lut1912/**"
+      - path: Shared/Bible/Data/rv1909
+        type: folder
+        buildPhase: resources
+      - path: Shared/Bible/Data/lut1912
+        type: folder
+        buildPhase: resources
       - path: SureWord-iOS
       # The share-extension inbox, compiled into both sides of the hand-off.
       - path: ShareInbox

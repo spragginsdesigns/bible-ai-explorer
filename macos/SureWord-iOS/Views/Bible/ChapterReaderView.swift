@@ -176,25 +176,33 @@ struct ChapterReaderView: View {
 
     private var translationChips: some View {
         @Bindable var settings = app.settings
+        let chips = HStack(spacing: Spacing.xs) {
+            ForEach(TranslationID.allCases, id: \.self) { id in
+                // A chip is an explicit preference choice: it clears a
+                // chat source's one-hop override and persists.
+                translationChip(id.label, name: id.name, isActive: !lcGreek && translation == id) {
+                    localTranslationOverride = nil
+                    model.lcGreek = false
+                    settings.translation = id
+                }
+            }
+            // The LC Greek (LC-15842) joins the row only on a book that has it.
+            if LCGreek.has(model.selectedBook ?? order) {
+                translationChip(LCGreek.label, name: LCGreek.label, isActive: lcGreek) {
+                    localTranslationOverride = nil
+                    model.lcGreek = true
+                }
+            }
+        }
         return VStack(alignment: .trailing, spacing: 2) {
-            HStack(spacing: Spacing.xs) {
-                Spacer()
-                ForEach(TranslationID.allCases, id: \.self) { id in
-                    // A chip is an explicit preference choice: it clears a
-                    // chat source's one-hop override and persists.
-                    translationChip(id.label, name: id.name, isActive: !lcGreek && translation == id) {
-                        localTranslationOverride = nil
-                        model.lcGreek = false
-                        settings.translation = id
-                    }
+            // Five Bibles plus the LC Greek outgrow a small iPhone's width, so
+            // the row scrolls sideways when it no longer fits.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    chips
                 }
-                // The LC Greek (LC-15842) joins the row only on a book that has it.
-                if LCGreek.has(model.selectedBook ?? order) {
-                    translationChip(LCGreek.label, name: LCGreek.label, isActive: lcGreek) {
-                        localTranslationOverride = nil
-                        model.lcGreek = true
-                    }
-                }
+                ScrollView(.horizontal, showsIndicators: false) { chips }
             }
             // The line under the chips on web and in Android's reader options:
             // what the LC Greek is, or where the red letters and headings

@@ -198,7 +198,7 @@ final class AnalyticsMirrorTests: XCTestCase {
             AnalyticsScreen.history, AnalyticsScreen.learn,
             AnalyticsScreen.plan, AnalyticsScreen.sermons, AnalyticsScreen.sermon, AnalyticsScreen.cross, AnalyticsScreen.notes,
             AnalyticsScreen.note, AnalyticsScreen.memories, AnalyticsScreen.settings, AnalyticsScreen.feedback,
-            AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance,
+            AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance, AnalyticsScreen.settingsLanguage,
             AnalyticsScreen.settingsHighlights, AnalyticsScreen.settingsChurch, AnalyticsScreen.settingsMemory,
             AnalyticsScreen.settingsAI, AnalyticsScreen.settingsShared, AnalyticsScreen.settingsNotifications,
             AnalyticsScreen.settingsAbout, AnalyticsScreen.settingsWhatsNew,

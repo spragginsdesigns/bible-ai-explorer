@@ -56,7 +56,7 @@ final class SettingsHubTests: XCTestCase {
             .filter { $0.hasSuffix(".tsx") && !$0.hasPrefix("_") && $0 != "index.tsx" }
             .map { "/settings/" + $0.dropLast(4) }
         let ios: Set<String> = [
-            AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance,
+            AnalyticsScreen.settingsAccount, AnalyticsScreen.settingsAppearance, AnalyticsScreen.settingsLanguage,
             AnalyticsScreen.settingsHighlights, AnalyticsScreen.settingsChurch, AnalyticsScreen.settingsMemory,
             AnalyticsScreen.settingsAI, AnalyticsScreen.settingsShared, AnalyticsScreen.settingsNotifications,
             AnalyticsScreen.settingsAbout, AnalyticsScreen.feedback, AnalyticsScreen.settingsWhatsNew,

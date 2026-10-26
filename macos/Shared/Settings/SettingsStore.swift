@@ -11,26 +11,55 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
     /// Berean Standard Bible, bundled for offline reading (Android 1.60.0).
     /// The server accepts it on every route that takes a translation.
     case bsb = "BSB"
+    /// Reina-Valera 1909, the Spanish Bible, bundled like BSB
+    /// (docs/languages/PLAN.md).
+    case rv1909 = "RV1909"
+    /// Lutherbibel 1912, the German Bible, bundled like BSB.
+    case lut1912 = "LUT1912"
 
     /// The short id the chips, attachment pills and share text show.
     var label: String { rawValue }
 
     /// The edition's name on the reader's copyright line - Android's
-    /// `TRANSLATIONS[id].label`, which spells BSB out and keeps the other two
-    /// as their abbreviations.
+    /// `TRANSLATIONS[id].label`, which spells BSB and the two non-English
+    /// Bibles out and keeps KJV and NKJV as their abbreviations.
     var name: String {
         switch self {
         case .bsb: "Berean Standard Bible"
+        case .rv1909: "Reina-Valera 1909"
+        case .lut1912: "Lutherbibel 1912"
         case .kjv, .nkjv: rawValue
         }
     }
 
     var copyright: String {
         switch self {
-        case .kjv: "Public domain"
+        case .kjv, .rv1909, .lut1912: "Public domain"
         case .nkjv: "© Thomas Nelson - text via bolls.life"
         case .bsb: "Public domain · BSB Publishing"
         }
+    }
+
+    /// The language the edition is written in - `TRANSLATIONS[id].language`.
+    var language: AnswerLanguage {
+        switch self {
+        case .kjv, .nkjv, .bsb: .en
+        case .rv1909: .es
+        case .lut1912: .de
+        }
+    }
+
+    /// What the Bible pickers show: the bare id for the English editions, and
+    /// the name with its language for the others ("Reina-Valera 1909 · Español").
+    var pickerLabel: String {
+        language == .en ? label : "\(name) · \(language.name)"
+    }
+
+    /// The editions that carry SureWord's KJV-only and BSB-sourced reader
+    /// extras (section headings). Red letters and Strong's stay KJV-only on top
+    /// of this; the Spanish and German Bibles are plain text, as NKJV is.
+    var hasSectionHeadings: Bool {
+        self == .kjv || self == .bsb
     }
 }
 
@@ -64,6 +93,7 @@ final class SettingsStore {
         static let testimony = "settings.testimony"
         static let textScale = "settings.textScale"
         static let voiceMode = "settings.voiceMode"
+        static let answerLanguage = "settings.answerLanguage"
     }
 
     /// Matches `DEFAULT_SETTINGS` in
@@ -103,6 +133,7 @@ final class SettingsStore {
             settings.parchment = true
             settings.textScale = .default
             settings.voiceMode = false
+            settings.answerLanguage = .default
             settings.listenRate = Listen.defaultRate
             settings.highlightLabels = [:]
             settings.highlightMeanings = [:]
@@ -366,6 +397,37 @@ final class SettingsStore {
         }
     }
 
+    /// The language SureWord answers in ("SureWord answers in" in Settings).
+    /// Synced with the account like `textScale`; `auto` follows the device.
+    var answerLanguage: AnswerLanguageSetting {
+        didSet {
+            UserDefaults.standard.set(answerLanguage.rawValue, forKey: Key.answerLanguage)
+            guard answerLanguage != oldValue else { return }
+            var previous = AccountPreferences()
+            previous.answerLanguage = oldValue.rawValue
+            writeThrough(PreferencesPatch(answerLanguage: answerLanguage.rawValue), previous: previous)
+        }
+    }
+
+    /// The language chat and verse-insight requests carry.
+    var effectiveAnswerLanguage: AnswerLanguage { answerLanguage.effective() }
+
+    /// Read at the start of a verse request, the way `selectedChatModelId()`
+    /// is, by models that hold no `SettingsStore`.
+    static func selectedAnswerLanguage() -> AnswerLanguage {
+        AnswerLanguageSetting.normalize(UserDefaults.standard.string(forKey: Key.answerLanguage)).effective()
+    }
+
+    /// Pick the answer language from Settings. A specific language also moves
+    /// the reader to that language's Bible when the current one is in another
+    /// language (English goes back to KJV); NKJV or BSB stay put for English.
+    func chooseAnswerLanguage(_ setting: AnswerLanguageSetting) {
+        answerLanguage = setting
+        if let language = setting.language, translation.language != language {
+            translation = language.bible
+        }
+    }
+
     /// "Read it to me" in the welcome conversation. Off by default.
     var voiceMode: Bool {
         didSet {
@@ -415,6 +477,7 @@ final class SettingsStore {
         offerQuiz = defaults.object(forKey: Key.offerQuiz) as? Bool ?? true
         textScale = TextScale.normalize(defaults.string(forKey: Key.textScale))
         voiceMode = defaults.bool(forKey: Key.voiceMode)
+        answerLanguage = AnswerLanguageSetting.normalize(defaults.string(forKey: Key.answerLanguage))
     }
 
     /// 0-23 → "8:00 AM" / "9:00 PM", matching `formatHour` on Android.

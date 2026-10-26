@@ -25,6 +25,7 @@ final class PreferencesSyncTests: XCTestCase {
         "settings.chat.mode",
         "settings.account.userId",
         "settings.preferences.adopted",
+        "settings.answerLanguage",
     ]
 
     /// Everything at its column default, which is what a brand-new account's
@@ -520,6 +521,75 @@ final class PreferencesSyncTests: XCTestCase {
         XCTAssertEqual(settings.translation, .nkjv)
         XCTAssertNil(UserDefaults.standard.string(forKey: "settings.preferences.adopted"))
         XCTAssertNil(sync.errorAlert)
+    }
+
+    // MARK: - Answer language (docs/languages/PLAN.md)
+
+    func testAnswerLanguageRoundTripsThroughTheWire() throws {
+        let json = try Self.object(encoding: PreferencesPatch(answerLanguage: "es"))
+        XCTAssertEqual(json["answerLanguage"] as? String, "es")
+        XCTAssertEqual(Set(json.keys), ["answerLanguage"])
+        XCTAssertFalse(PreferencesPatch(answerLanguage: "de").isEmpty)
+
+        let document = try JSONDecoder().decode(
+            AccountPreferences.self,
+            from: Data(#"{"translation":"KJV","answerLanguage":"de"}"#.utf8)
+        )
+        XCTAssertEqual(document.answerLanguage, "de")
+
+        let settings = SettingsStore()
+        let sync = PreferencesSyncModel(transport: FakeTransport(), settings: settings)
+        sync.apply(document, fromServer: true)
+        XCTAssertEqual(settings.answerLanguage, .de)
+        XCTAssertEqual(SettingsStore.selectedAnswerLanguage(), .de)
+
+        // A server that predates the column says nothing, and the local
+        // choice stays; a value this build does not know reads as auto.
+        sync.apply(AccountPreferences(translation: "KJV"), fromServer: true)
+        XCTAssertEqual(settings.answerLanguage, .de)
+        var unknown = AccountPreferences()
+        unknown.answerLanguage = "fr"
+        sync.apply(unknown, fromServer: true)
+        XCTAssertEqual(settings.answerLanguage, .auto)
+    }
+
+    func testChoosingAnAnswerLanguagePatchesItAndSwitchesTheBible() async {
+        let fake = FakeTransport()
+        let settings = SettingsStore()
+        let sync = PreferencesSyncModel(transport: fake, settings: settings)
+
+        settings.chooseAnswerLanguage(.es)
+
+        let arrived = await Self.wait { await fake.patches.count == 2 }
+        XCTAssertTrue(arrived)
+        let patches = await fake.patches
+        XCTAssertTrue(patches.contains(PreferencesPatch(answerLanguage: "es")))
+        XCTAssertTrue(patches.contains(PreferencesPatch(translation: "RV1909")))
+        XCTAssertEqual(settings.translation, .rv1909)
+        XCTAssertNil(sync.errorAlert)
+    }
+
+    func testEnglishKeepsAnEnglishBibleAndLeavesAForeignOne() {
+        let settings = SettingsStore()
+        settings.applyRemote { $0.translation = .bsb }
+        settings.chooseAnswerLanguage(.en)
+        XCTAssertEqual(settings.translation, .bsb)
+
+        settings.applyRemote { $0.translation = .lut1912 }
+        settings.chooseAnswerLanguage(.en)
+        XCTAssertEqual(settings.translation, .kjv)
+
+        // Following the device never moves the Bible.
+        settings.applyRemote { $0.translation = .lut1912 }
+        settings.chooseAnswerLanguage(.auto)
+        XCTAssertEqual(settings.translation, .lut1912)
+    }
+
+    func testResetPutsTheAnswerLanguageBackToAuto() {
+        let settings = SettingsStore()
+        settings.applyRemote { $0.answerLanguage = .de }
+        settings.resetSyncedPreferences()
+        XCTAssertEqual(settings.answerLanguage, .auto)
     }
 
     // MARK: - Helpers

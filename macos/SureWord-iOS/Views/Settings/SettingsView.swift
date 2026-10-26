@@ -56,6 +56,9 @@ struct SettingsView: View {
                 row("Appearance & reading", symbol: "paintpalette", subtitle: appearanceSubtitle) {
                     AppearanceSettingsPage()
                 }
+                row("Language", symbol: "globe", subtitle: app.settings.answerLanguage.label()) {
+                    LanguageSettingsPage()
+                }
                 textSizeRow
                     .spotlightTarget(.settingsTextSize)
                 row("Highlight labels", symbol: "paintbrush", subtitle: "Names and meanings for your colours") {

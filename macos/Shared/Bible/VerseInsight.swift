@@ -29,15 +29,21 @@ final class VerseInsightModel {
 
     private let api: APIClient
     private let selectedModel: @MainActor () -> String?
+    private let selectedLanguage: @MainActor () -> AnswerLanguage
     private var task: Task<Void, Never>?
     /// Guards every state write: only the most recent `start()`/`reset()` may
     /// touch state, so a slow stream for verse A can never bleed into a row
     /// that has already moved to verse B.
     private var runID = 0
 
-    init(api: APIClient, selectedModel: @escaping @MainActor () -> String? = { SettingsStore.selectedChatModelId() }) {
+    init(
+        api: APIClient,
+        selectedModel: @escaping @MainActor () -> String? = { SettingsStore.selectedChatModelId() },
+        selectedLanguage: @escaping @MainActor () -> AnswerLanguage = { SettingsStore.selectedAnswerLanguage() }
+    ) {
         self.api = api
         self.selectedModel = selectedModel
+        self.selectedLanguage = selectedLanguage
     }
 
     func reset() {
@@ -58,6 +64,7 @@ final class VerseInsightModel {
         task = nil
 
         let modelId = selectedModel()
+        let language = selectedLanguage()
         text = ""
         error = nil
         status = .loading
@@ -70,7 +77,7 @@ final class VerseInsightModel {
                 return
             }
             do {
-                let bytes = try await api.stream("/api/verse-insight", body: Request(target, modelId: modelId))
+                let bytes = try await api.stream("/api/verse-insight", body: Request(target, modelId: modelId, language: language))
                 var full = ""
                 var lastPublished: ContinuousClock.Instant?
 
@@ -137,17 +144,21 @@ final class VerseInsightModel {
         }
     }
 
-    private struct Request: Encodable {
+    /// Internal so the tests can pin the wire shape.
+    struct Request: Encodable {
         let reference: String
         let text: String
         let translation: String
         let modelId: String?
+        /// The effective answer language, next to `translation`.
+        let language: String
 
-        init(_ target: Target, modelId: String?) {
+        init(_ target: Target, modelId: String?, language: AnswerLanguage) {
             reference = target.reference
             text = target.text
             translation = target.translation.rawValue
             self.modelId = modelId
+            self.language = language.rawValue
         }
     }
 }

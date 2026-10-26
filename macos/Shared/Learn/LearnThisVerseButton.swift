@@ -14,7 +14,7 @@ struct LearnThisVerseButton: View {
     let book: Int
     let chapter: Int
     let verse: Int
-    /// "KJV", "NKJV" or "BSB" - the translation the card should be kept in.
+    /// A `TranslationID` wire id - the translation the card should be kept in.
     let translation: String
     let source: LearnAPI.Source
     /// Overrides the spoken label where the surrounding text does not name the verse.

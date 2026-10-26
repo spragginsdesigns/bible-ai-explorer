@@ -80,7 +80,7 @@ struct BibleTextTests {
 
     @Test("BSB carries a name and copyright for the reader footer")
     func translationMetadata() {
-        #expect(TranslationID.allCases == [.kjv, .nkjv, .bsb])
+        #expect(TranslationID.allCases == [.kjv, .nkjv, .bsb, .rv1909, .lut1912])
         #expect(TranslationID.bsb.name == "Berean Standard Bible")
         #expect(TranslationID.bsb.copyright == "Public domain · BSB Publishing")
         #expect(TranslationID(rawValue: "BSB") == .bsb)
