@@ -11,18 +11,16 @@ store listing in a console without changing these files in the same session.
 
 ## Status
 
-Both stores are **behind** these files right now. Each file opens with a
-**PENDING** block that says exactly what is missing and how to clear it. While
-a PENDING block exists, the job is not done. TickTick task
-`6ac950948f089f376a25a421` tracks it.
+Whenever a store falls behind these files, that file opens with a **PENDING**
+block that says exactly what is missing and how to clear it. While a PENDING
+block exists, the job is not done.
 
-- **App Store:** the 2026-10-09 rename and new copy wait on Apple's review of
-  1.13.0, which locks the listing. Afterwards, on the Mac:
+- **App Store:** check or apply on the Mac:
   `uv run -q --with pyjwt --with cryptography --with requests python macos/scripts/asc.py listing apply com.spragginsdesigns.sureword store-listing/app-store.md`
   (`listing check` reports drift; `macos/release-ios.sh` runs it on every
   release).
-- **Play:** the same copy is saved as a draft in the Play Console and goes live
-  when the draft is sent for review.
+- **Play:** live since 2026-10-25. `node mobile/scripts/play-listing.mjs check`
+  reports drift and `apply` publishes this file's text by API.
 
 ## Rules (Austin, 2026-10-09)
 

@@ -5,21 +5,8 @@ The exact text for SureWord's Play Store page. Start at
 [`app-store.md`](app-store.md), and `tests/store-listing-parity.test.mjs`
 keeps the two identical.
 
-> **PENDING (2026-10-09): Play's live listing is behind this file.** The
-> new App name, short description and full description in this file are saved as a **draft** on
-> the Play Console default store listing but are not live (the API showed
-> the old "SureWord" title afterwards). The Publishing overview offered no
-> "send for review" while SureWord has no production or closed-testing
-> release, so send the draft whenever the console offers it, at the latest
-> with the first closed-testing/production release. The publisher service
-> account can patch listings but gets 403 on the commit; granting it Store
-> presence in Users and permissions would let an agent publish it by API.
-> The old live short description ("Bible study that stands on the Word -
-> KJV answers, notes, and a daily walk.") is replaced too. Delete this
-> block once the live listing matches.
-> Rechecked 2026-10-22: the API still shows the old title and text, a
-> patch of this file's text returned 200 and the commit 403 again.
-> TickTick task 6ac950948f089f376a25a421.
+Live on Play since 2026-10-25 (published by API). Check or publish with
+`node mobile/scripts/play-listing.mjs check|apply`.
 
 ## Title (30 max)
 
