@@ -8,6 +8,11 @@ entitlements, data model and acceptance path are settled.
 
 **Status:** Planned 2026-10-25. Full plan and mockups: [quiz/PLAN.md](quiz/PLAN.md).
 
+## Other languages (Bibles, answers, then the app itself)
+
+**Status:** Planned 2026-10-26. Spanish (Reina-Valera 1909) and German (Luther
+1912) first. Full plan: [languages/PLAN.md](languages/PLAN.md).
+
 ## Pro built-in AI identity
 
 **Status:** Pinned for product design
