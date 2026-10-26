@@ -3,7 +3,10 @@
 Status: **entered in App Store Connect 2026-10-08** (Notes field); DEMO
 ACCOUNT, IN-APP PURCHASE, CHINA MAINLAND and item 5 rewritten for the
 1.21.0 resubmission on 2026-10-20 after the 2026-10-21 rejection (submission
-6f4d1a78). Apple rejected again on 2026-10-22 (submission be22f349, 2.1(b)):
+6f4d1a78). OWN AI KEY section and the "user's own provider" consent clause
+removed on 2026-10-25 (personal API keys are gone), in this file and in the
+live ASC Notes; the version is now 1.26.0 on build 1.26.0 (2). Resubmitting
+still waits on the physical-device sandbox purchase recording. Apple rejected again on 2026-10-22 (submission be22f349, 2.1(b)):
 the SureWord Pro IAP "could not be found in the submitted binary", and Apple
 asks for a new binary plus a screen recording on a physical device that starts
 at the Home Screen, signs in with the demo account and shows a successful
@@ -61,7 +64,7 @@ CHINA MAINLAND
 The app is no longer offered in China mainland (removed in Pricing and Availability), so the guideline 5 and publication permit items no longer apply.
 
 AI CONSENT
-Before the first AI request, a one-time sheet names the providers that receive requests (OpenAI or the user's own provider; Tavily for web search; ElevenLabs for spoken devotionals) and links to the privacy policy. Nothing is sent until the user taps Agree and continue.
+Before the first AI request, a one-time sheet names the providers that receive requests (OpenAI; Tavily for web search; ElevenLabs for spoken devotionals) and links to the privacy policy. Nothing is sent until the user taps Agree and continue.
 
 MAIN FEATURES
 1. Chat tab: ask e.g. "What does John 3:16 mean?". Verse references open the reader.
@@ -73,8 +76,6 @@ MAIN FEATURES
 7. Study tab (the last tab) > Notes: create a note; the AI button helps compose it.
 8. SureWord Pro: on the Today tab, tap the gear at the top > AI > SureWord Pro. The row is always shown, even before the membership details load.
 
-OWN AI KEY (OPTIONAL)
-Settings > AI accepts the user's own OpenAI, Anthropic, Moonshot or OpenRouter key, billed by that provider. Keys are validated, encrypted at rest and never shown again. Not needed for review.
 
 REPORTING AND MODERATION
 The thumbs-down under every answer reports it with a reason (Not KJV, Doctrinally off, Missed my question, Wrong or missing verse, Too long). Settings > Send feedback messages the developer. Every report and message is read and marked reviewed by the developer in a private review queue.

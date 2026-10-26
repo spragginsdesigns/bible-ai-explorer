@@ -71,7 +71,7 @@ Pro demo account hid Subscribe); China mainland was removed, `PRO_USER_IDS`
 emptied, and 1.21.0 (2) was resubmitted together with the SureWord Pro
 subscription and its group (see `docs/ios/review-notes.md`). Apple rejected it again on 2026-10-22 (2.1(b): the IAP was not found in
 the binary; a physical-device recording of a sandbox purchase is required); the
-version is now 1.24.0 on build 1.24.0 (1), awaiting that recording before resubmission. The Mac and iOS suites pass locally
+version was 1.24.0 on build 1.24.0 (1); on 2026-10-25 it became 1.26.0 on build 1.26.0 (2) (SureWord AI picker, no personal API keys, owner picker without search) and the review notes lost the personal-key section. Resubmission still waits on that physical-device recording. The Mac and iOS suites pass locally
 and GitHub CI's Apple job is green on `a174912`. A signed-in iOS simulator pass
 on 2026-10-19 moved the exercised iOS rows to ✅ and found two bugs, both fixed in
 `fa88546` (Copy and Share as Markdown used the last saved title; the iOS formatting
