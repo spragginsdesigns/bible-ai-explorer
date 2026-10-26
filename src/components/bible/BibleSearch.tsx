@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { bookByOrder, resolveReference, type Reference } from "@/lib/bible/books";
 import { searchBible, BIBLE_SEARCH_ERROR, type BibleSearchHit } from "@/lib/bible/search";
-import type { TranslationId } from "@/lib/bible/translations";
+import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readTranslationPref } from "@/lib/preferences";
 import { usePreference } from "@/lib/preferencesSync";
 
@@ -118,6 +118,8 @@ const BibleSearch: React.FC = () => {
             <option value="KJV">KJV</option>
             <option value="NKJV">NKJV</option>
             <option value="BSB">BSB</option>
+            <option value="RV1909">Reina-Valera 1909</option>
+            <option value="LUT1912">Lutherbibel 1912</option>
           </select>
         </div>
 
@@ -142,7 +144,9 @@ const BibleSearch: React.FC = () => {
             {hits.length === 0
               ? reference
                 ? ""
-                : "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
+                : TRANSLATIONS[translation].language === "en"
+                  ? "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
+                  : `No phrase matches in ${translation}. Try fewer words or a reference like Job 1:8.`
               : hits.length >= SEARCH_LIMIT
                 ? `First ${SEARCH_LIMIT} results. Refine your search.`
                 : `${hits.length} result${hits.length === 1 ? "" : "s"}`}
@@ -150,7 +154,10 @@ const BibleSearch: React.FC = () => {
           </p>
         ) : (
           <p className="py-5 text-center text-metadata text-neutral-400 dark:text-neutral-500">
-            Search {translation} by word or phrase. If there are no matches, we check {translation === "KJV" ? "NKJV" : "KJV"} too. NKJV requires a connection.
+            Search {translation} by word or phrase.{" "}
+            {TRANSLATIONS[translation].language === "en"
+              ? `If there are no matches, we check ${translation === "KJV" ? "NKJV" : "KJV"} too. NKJV requires a connection.`
+              : "Accents are optional."}
           </p>
         )}
 

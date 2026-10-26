@@ -57,6 +57,8 @@ export function readerVerseSegments(
 
 /** Publisher-authored editorial headings, separate from translation text. */
 export function readerSectionHeadings(translation: TranslationId, book: number, chapter: number, verse: number): string[] {
- if (translation === "NKJV") return [];
+ // The headings are English editorial text, so only the English Bibles they
+ // were written against carry them.
+ if (translation !== "KJV" && translation !== "BSB") return [];
  return (sectionHeadings as Record<string, string[]>)[`${book}:${chapter}:${verse}`] ?? [];
 }

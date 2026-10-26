@@ -153,6 +153,77 @@ follows the account across devices. New fields: `answerLanguage`, `appLanguage`.
 5. **Layer 3** (app strings), Spanish first.
 6. **Italian** (Diodati, read by hand), then a Portuguese source search.
 
+## Implementation contract (v1, Spanish + German, built 2026-10-26)
+
+Decisions Austin made on 2026-10-26: build it, and default the language from
+the device ("English by default, they can change it in settings").
+
+Changed from the sections above: the Bibles are **bundled** on every client
+(lazy-loaded per book, like BSB), not downloaded on demand. Plain-text JSON
+compresses to about 1-2 MB each in the APK, works offline from day one, and
+needs no download UI.
+
+**Bible data.** `scripts/bible/build-ebible.py` writes `string[][]` per book
+(chapters of verses, the KJV shape) to `src/data/{rv1909,lut1912}/NN.json`,
+`mobile/src/features/bible/data/{rv1909,lut1912}/NN.json` and
+`macos/Shared/Bible/Data/{rv1909,lut1912}/NN.json` (`NN` = 01-66). Every one
+of the 31,102 KJV slots is filled; the build aborts otherwise.
+
+**Translation ids.** `RV1909` (label "Reina-Valera 1909", language `es`) and
+`LUT1912` (label "Lutherbibel 1912", language `de`), alongside `KJV`, `NKJV`,
+`BSB` (all `en`). Each client keeps ONE list (`TRANSLATIONS`, now with a
+`language` field) and one `isTranslationId`/`parseTranslationId`; every other
+place that hard-coded `"KJV" | "NKJV" | "BSB"` uses those. Copyright line for
+both new editions: "Public domain".
+
+**Answer language.** Languages: `en`, `es`, `de`. Account preference
+`answerLanguage` = `"auto" | "en" | "es" | "de"`, default `"auto"`, synced
+through `/api/preferences` like `textScale` (Prisma `User.answerLanguage`,
+default `"auto"`). `"auto"` means follow the device: each client resolves the
+**effective language** = the explicit choice, else the device's first preferred
+language if it is `es` or `de`, else `en`.
+
+**Chat requests** (`POST /api/ask-question`) send `language: "en" | "es" |
+"de"` (the effective language) next to `translation`; the clients also send it
+with `POST /api/verse-insight`, where the server does not need it (below). The
+server writes the answer in that
+language and **quotes the reader's Bible only when it is in that language**;
+otherwise it quotes the language's own Bible: `en` KJV, `es` RV1909, `de`
+LUT1912 (`quotationTranslation()` in `src/lib/bible/translations.ts`).
+A missing or unknown `language` falls back to the account's stored choice
+when that is a language, then `en`, so older app builds behave exactly as
+before. The language is part of the answer cache key.
+
+**Verse insight and Connections explanations** follow the language of the
+Bible being read: a verse tapped in the Reina-Valera is explained in Spanish.
+Their caches are keyed by translation, so English rows are untouched and no
+prompt version bump was needed. (Connections explanations are still English in
+v1.)
+
+**Settings.** A **Language** section on every client: "SureWord answers in":
+Follow my device (shows what it resolved to, e.g. "Follow my device
+(Español)") / English / Español / Deutsch. Choosing a specific language also
+switches the reader's Bible to that language's Bible when the current Bible is
+in another language (English goes back to KJV; a BSB or NKJV reader who
+picks English keeps their Bible). "Follow my device" leaves the Bible alone. The Bible picker lists the two
+new Bibles with their language ("Reina-Valera 1909 · Español").
+
+**References.** Answers in Spanish or German write references with that
+language's book names and a colon ("Juan 3:16", "Johannes 3:16"). The names
+live in `src/data/book-names.json` (mirrored to mobile and macOS), and every
+client's reference resolver and chat link detector accept them (accents and
+the German "1." optional).
+
+Not in v1: menus and buttons stay English (Layer 3); the Audio Bible, Listen,
+daily devotional and memory extraction stay English; the KJV word index
+(`findVerses`) stays English.
+
+**Known text difference.** The Lutherbibel 1912 omits 1 John 5:7 as the KJV
+reads it ("three that bear record in heaven", the Comma Johanneum); the
+Reina-Valera 1909 includes it. Austin decides whether that is acceptable for a
+KJV-rooted app; every Luther-tradition German Bible that includes the verse is
+still under copyright.
+
 ## Open questions for Austin
 
 - Is Reina-Valera 1909 acceptable as *the* Spanish Bible, given most Spanish

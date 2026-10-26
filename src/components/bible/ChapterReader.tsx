@@ -13,7 +13,7 @@ import { useUser } from "@clerk/nextjs";
 import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
 import { loadLcGreekChapter } from "@/lib/bible/lcGreek";
-import { CHAPTER_LOAD_ERROR, getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { CHAPTER_LOAD_ERROR, getChapter, isTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { formatVerseNoteMarkdown, saveVerseToNote } from "@/lib/bible/verseActions";
 import { notesForSelection } from "@/lib/bible/chapterNotes";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
@@ -74,6 +74,8 @@ const TRANSLATION_NOTES: Record<TranslationId, string> = {
   KJV: "KJV words of Jesus · eBible edition. Editorial headings · BSB.",
   BSB: "Section headings and words of Jesus · Berean Standard Bible",
   NKJV: "Red letters aren't available from our NKJV text provider yet.",
+  RV1909: "Reina-Valera 1909 · Español. Red letters and section headings are not available in this edition yet.",
+  LUT1912: "Lutherbibel 1912 · Deutsch. Red letters and section headings are not available in this edition yet.",
 };
 
 interface ActionMessage {
@@ -173,7 +175,7 @@ const ChapterReader: React.FC = () => {
   // text. This is a local route override; the account preference changes only
   // when the user explicitly taps a reader translation chip.
   const routeTranslation = searchParams.get("translation");
-  const routeTranslationSet = routeTranslation === "NKJV" || routeTranslation === "KJV" || routeTranslation === "BSB";
+  const routeTranslationSet = isTranslationId(routeTranslation);
   // The LC Greek chip (LC-15842) is kept on this device; a source translation
   // from chat still wins. While the LC Greek is on screen, `translation` is
   // the KJV, which every study tool reads (see readChapterTexts).
@@ -776,7 +778,7 @@ const ChapterReader: React.FC = () => {
   // Android and Apple; without it Next silently flips back to the account default.
   const navHref = (target: { order: number; chapter: number }) =>
     `/bible/chapter?book=${target.order}&chapter=${target.chapter}${
-      routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB" ? `&translation=${routeTranslation}` : ""
+      isTranslationId(routeTranslation) ? `&translation=${routeTranslation}` : ""
     }`;
 
   if (!book) {

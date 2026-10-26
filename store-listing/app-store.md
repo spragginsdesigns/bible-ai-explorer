@@ -75,6 +75,7 @@ ASK THE BIBLE ANYTHING
 • Cross-reference map: trace any verse through the whole Bible
 • Hebrew and Greek word study with Strong's concordance numbers
 • Copy, edit and try again; share, save or rate any answer
+• Answers in English, Spanish or German
 
 TEST EVERYTHING BY SCRIPTURE
 • /check weighs a claim, a message or a screenshot against the Bible
@@ -83,7 +84,7 @@ TEST EVERYTHING BY SCRIPTURE
 • Ask with a photo, PDF, text file or voice message, or share one in from any app
 
 READ AND LISTEN TO THE KJV BIBLE
-• The complete King James Bible offline, plus the NKJV and the Berean Standard Bible
+• The whole King James Bible offline, plus the NKJV, BSB, Reina-Valera and Luther
 • Audio Bible: the whole KJV narrated, Genesis to Revelation, verse by verse
 • Words of Christ in red on a parchment page, in light or dark mode
 • Tap any verse for a clear explanation, word study and related passages

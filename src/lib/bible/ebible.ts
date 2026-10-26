@@ -1,0 +1,169 @@
+/**
+ * Lazy access to the bundled Reina-Valera 1909 and Lutherbibel 1912
+ * (data/{rv1909,lut1912}/NN.json, chapters of verses, the KJV shape). Built by
+ * scripts/bible/build-ebible.py. Webpack needs literal import paths, so every
+ * book is listed by hand; a book is parsed on first access and cached.
+ */
+type RawBook = string[][];
+
+export type EbibleId = "RV1909" | "LUT1912";
+
+const RV1909_LOADERS: Record<number, () => Promise<RawBook>> = {
+	1: async () => (await import("@/data/rv1909/01.json")).default as RawBook,
+	2: async () => (await import("@/data/rv1909/02.json")).default as RawBook,
+	3: async () => (await import("@/data/rv1909/03.json")).default as RawBook,
+	4: async () => (await import("@/data/rv1909/04.json")).default as RawBook,
+	5: async () => (await import("@/data/rv1909/05.json")).default as RawBook,
+	6: async () => (await import("@/data/rv1909/06.json")).default as RawBook,
+	7: async () => (await import("@/data/rv1909/07.json")).default as RawBook,
+	8: async () => (await import("@/data/rv1909/08.json")).default as RawBook,
+	9: async () => (await import("@/data/rv1909/09.json")).default as RawBook,
+	10: async () => (await import("@/data/rv1909/10.json")).default as RawBook,
+	11: async () => (await import("@/data/rv1909/11.json")).default as RawBook,
+	12: async () => (await import("@/data/rv1909/12.json")).default as RawBook,
+	13: async () => (await import("@/data/rv1909/13.json")).default as RawBook,
+	14: async () => (await import("@/data/rv1909/14.json")).default as RawBook,
+	15: async () => (await import("@/data/rv1909/15.json")).default as RawBook,
+	16: async () => (await import("@/data/rv1909/16.json")).default as RawBook,
+	17: async () => (await import("@/data/rv1909/17.json")).default as RawBook,
+	18: async () => (await import("@/data/rv1909/18.json")).default as RawBook,
+	19: async () => (await import("@/data/rv1909/19.json")).default as RawBook,
+	20: async () => (await import("@/data/rv1909/20.json")).default as RawBook,
+	21: async () => (await import("@/data/rv1909/21.json")).default as RawBook,
+	22: async () => (await import("@/data/rv1909/22.json")).default as RawBook,
+	23: async () => (await import("@/data/rv1909/23.json")).default as RawBook,
+	24: async () => (await import("@/data/rv1909/24.json")).default as RawBook,
+	25: async () => (await import("@/data/rv1909/25.json")).default as RawBook,
+	26: async () => (await import("@/data/rv1909/26.json")).default as RawBook,
+	27: async () => (await import("@/data/rv1909/27.json")).default as RawBook,
+	28: async () => (await import("@/data/rv1909/28.json")).default as RawBook,
+	29: async () => (await import("@/data/rv1909/29.json")).default as RawBook,
+	30: async () => (await import("@/data/rv1909/30.json")).default as RawBook,
+	31: async () => (await import("@/data/rv1909/31.json")).default as RawBook,
+	32: async () => (await import("@/data/rv1909/32.json")).default as RawBook,
+	33: async () => (await import("@/data/rv1909/33.json")).default as RawBook,
+	34: async () => (await import("@/data/rv1909/34.json")).default as RawBook,
+	35: async () => (await import("@/data/rv1909/35.json")).default as RawBook,
+	36: async () => (await import("@/data/rv1909/36.json")).default as RawBook,
+	37: async () => (await import("@/data/rv1909/37.json")).default as RawBook,
+	38: async () => (await import("@/data/rv1909/38.json")).default as RawBook,
+	39: async () => (await import("@/data/rv1909/39.json")).default as RawBook,
+	40: async () => (await import("@/data/rv1909/40.json")).default as RawBook,
+	41: async () => (await import("@/data/rv1909/41.json")).default as RawBook,
+	42: async () => (await import("@/data/rv1909/42.json")).default as RawBook,
+	43: async () => (await import("@/data/rv1909/43.json")).default as RawBook,
+	44: async () => (await import("@/data/rv1909/44.json")).default as RawBook,
+	45: async () => (await import("@/data/rv1909/45.json")).default as RawBook,
+	46: async () => (await import("@/data/rv1909/46.json")).default as RawBook,
+	47: async () => (await import("@/data/rv1909/47.json")).default as RawBook,
+	48: async () => (await import("@/data/rv1909/48.json")).default as RawBook,
+	49: async () => (await import("@/data/rv1909/49.json")).default as RawBook,
+	50: async () => (await import("@/data/rv1909/50.json")).default as RawBook,
+	51: async () => (await import("@/data/rv1909/51.json")).default as RawBook,
+	52: async () => (await import("@/data/rv1909/52.json")).default as RawBook,
+	53: async () => (await import("@/data/rv1909/53.json")).default as RawBook,
+	54: async () => (await import("@/data/rv1909/54.json")).default as RawBook,
+	55: async () => (await import("@/data/rv1909/55.json")).default as RawBook,
+	56: async () => (await import("@/data/rv1909/56.json")).default as RawBook,
+	57: async () => (await import("@/data/rv1909/57.json")).default as RawBook,
+	58: async () => (await import("@/data/rv1909/58.json")).default as RawBook,
+	59: async () => (await import("@/data/rv1909/59.json")).default as RawBook,
+	60: async () => (await import("@/data/rv1909/60.json")).default as RawBook,
+	61: async () => (await import("@/data/rv1909/61.json")).default as RawBook,
+	62: async () => (await import("@/data/rv1909/62.json")).default as RawBook,
+	63: async () => (await import("@/data/rv1909/63.json")).default as RawBook,
+	64: async () => (await import("@/data/rv1909/64.json")).default as RawBook,
+	65: async () => (await import("@/data/rv1909/65.json")).default as RawBook,
+	66: async () => (await import("@/data/rv1909/66.json")).default as RawBook,
+};
+
+const LUT1912_LOADERS: Record<number, () => Promise<RawBook>> = {
+	1: async () => (await import("@/data/lut1912/01.json")).default as RawBook,
+	2: async () => (await import("@/data/lut1912/02.json")).default as RawBook,
+	3: async () => (await import("@/data/lut1912/03.json")).default as RawBook,
+	4: async () => (await import("@/data/lut1912/04.json")).default as RawBook,
+	5: async () => (await import("@/data/lut1912/05.json")).default as RawBook,
+	6: async () => (await import("@/data/lut1912/06.json")).default as RawBook,
+	7: async () => (await import("@/data/lut1912/07.json")).default as RawBook,
+	8: async () => (await import("@/data/lut1912/08.json")).default as RawBook,
+	9: async () => (await import("@/data/lut1912/09.json")).default as RawBook,
+	10: async () => (await import("@/data/lut1912/10.json")).default as RawBook,
+	11: async () => (await import("@/data/lut1912/11.json")).default as RawBook,
+	12: async () => (await import("@/data/lut1912/12.json")).default as RawBook,
+	13: async () => (await import("@/data/lut1912/13.json")).default as RawBook,
+	14: async () => (await import("@/data/lut1912/14.json")).default as RawBook,
+	15: async () => (await import("@/data/lut1912/15.json")).default as RawBook,
+	16: async () => (await import("@/data/lut1912/16.json")).default as RawBook,
+	17: async () => (await import("@/data/lut1912/17.json")).default as RawBook,
+	18: async () => (await import("@/data/lut1912/18.json")).default as RawBook,
+	19: async () => (await import("@/data/lut1912/19.json")).default as RawBook,
+	20: async () => (await import("@/data/lut1912/20.json")).default as RawBook,
+	21: async () => (await import("@/data/lut1912/21.json")).default as RawBook,
+	22: async () => (await import("@/data/lut1912/22.json")).default as RawBook,
+	23: async () => (await import("@/data/lut1912/23.json")).default as RawBook,
+	24: async () => (await import("@/data/lut1912/24.json")).default as RawBook,
+	25: async () => (await import("@/data/lut1912/25.json")).default as RawBook,
+	26: async () => (await import("@/data/lut1912/26.json")).default as RawBook,
+	27: async () => (await import("@/data/lut1912/27.json")).default as RawBook,
+	28: async () => (await import("@/data/lut1912/28.json")).default as RawBook,
+	29: async () => (await import("@/data/lut1912/29.json")).default as RawBook,
+	30: async () => (await import("@/data/lut1912/30.json")).default as RawBook,
+	31: async () => (await import("@/data/lut1912/31.json")).default as RawBook,
+	32: async () => (await import("@/data/lut1912/32.json")).default as RawBook,
+	33: async () => (await import("@/data/lut1912/33.json")).default as RawBook,
+	34: async () => (await import("@/data/lut1912/34.json")).default as RawBook,
+	35: async () => (await import("@/data/lut1912/35.json")).default as RawBook,
+	36: async () => (await import("@/data/lut1912/36.json")).default as RawBook,
+	37: async () => (await import("@/data/lut1912/37.json")).default as RawBook,
+	38: async () => (await import("@/data/lut1912/38.json")).default as RawBook,
+	39: async () => (await import("@/data/lut1912/39.json")).default as RawBook,
+	40: async () => (await import("@/data/lut1912/40.json")).default as RawBook,
+	41: async () => (await import("@/data/lut1912/41.json")).default as RawBook,
+	42: async () => (await import("@/data/lut1912/42.json")).default as RawBook,
+	43: async () => (await import("@/data/lut1912/43.json")).default as RawBook,
+	44: async () => (await import("@/data/lut1912/44.json")).default as RawBook,
+	45: async () => (await import("@/data/lut1912/45.json")).default as RawBook,
+	46: async () => (await import("@/data/lut1912/46.json")).default as RawBook,
+	47: async () => (await import("@/data/lut1912/47.json")).default as RawBook,
+	48: async () => (await import("@/data/lut1912/48.json")).default as RawBook,
+	49: async () => (await import("@/data/lut1912/49.json")).default as RawBook,
+	50: async () => (await import("@/data/lut1912/50.json")).default as RawBook,
+	51: async () => (await import("@/data/lut1912/51.json")).default as RawBook,
+	52: async () => (await import("@/data/lut1912/52.json")).default as RawBook,
+	53: async () => (await import("@/data/lut1912/53.json")).default as RawBook,
+	54: async () => (await import("@/data/lut1912/54.json")).default as RawBook,
+	55: async () => (await import("@/data/lut1912/55.json")).default as RawBook,
+	56: async () => (await import("@/data/lut1912/56.json")).default as RawBook,
+	57: async () => (await import("@/data/lut1912/57.json")).default as RawBook,
+	58: async () => (await import("@/data/lut1912/58.json")).default as RawBook,
+	59: async () => (await import("@/data/lut1912/59.json")).default as RawBook,
+	60: async () => (await import("@/data/lut1912/60.json")).default as RawBook,
+	61: async () => (await import("@/data/lut1912/61.json")).default as RawBook,
+	62: async () => (await import("@/data/lut1912/62.json")).default as RawBook,
+	63: async () => (await import("@/data/lut1912/63.json")).default as RawBook,
+	64: async () => (await import("@/data/lut1912/64.json")).default as RawBook,
+	65: async () => (await import("@/data/lut1912/65.json")).default as RawBook,
+	66: async () => (await import("@/data/lut1912/66.json")).default as RawBook,
+};
+
+const LOADERS: Record<EbibleId, Record<number, () => Promise<RawBook>>> = {
+	RV1909: RV1909_LOADERS,
+	LUT1912: LUT1912_LOADERS,
+};
+
+const cache = new Map<string, RawBook>();
+
+/** A chapter of plain verse text; throws when the book or chapter is out of range. */
+export async function getEbibleChapter(id: EbibleId, order: number, chapter: number): Promise<string[]> {
+	const key = `${id}:${order}`;
+	let book = cache.get(key);
+	if (!book) {
+		const load = LOADERS[id][order];
+		if (!load) throw new Error(`No book ${order} in ${id}`);
+		book = await load();
+		cache.set(key, book);
+	}
+	const verses = book[chapter - 1];
+	if (!verses) throw new Error(`No chapter ${chapter} in ${id} book ${order}`);
+	return verses;
+}

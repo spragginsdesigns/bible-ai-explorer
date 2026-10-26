@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CHAPTER_LOAD_ERROR, getChapter } from "./translations";
+import {
+	CHAPTER_LOAD_ERROR,
+	LANGUAGE_BIBLES,
+	TRANSLATIONS,
+	TRANSLATION_IDS,
+	getChapter,
+	isTranslationId,
+	parseTranslationId,
+	translationPickerLabel,
+} from "./translations";
 
 // bolls.life responses carry extra fields (pk, comment); only verse and text
 // are mapped, with stray double spaces collapsed.
@@ -63,5 +72,54 @@ describe("getChapter (NKJV)", () => {
 		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Network request failed")));
 
 		await expect(getChapter("NKJV", 43, 5)).rejects.toThrow(CHAPTER_LOAD_ERROR);
+	});
+});
+
+describe("translation list", () => {
+	it("holds every id exactly once, each entry keyed by its own id", () => {
+		expect(TRANSLATION_IDS).toEqual(["KJV", "NKJV", "BSB", "RV1909", "LUT1912"]);
+		expect(Object.keys(TRANSLATIONS).sort()).toEqual([...TRANSLATION_IDS].sort());
+		for (const id of TRANSLATION_IDS) expect(TRANSLATIONS[id].id).toBe(id);
+	});
+
+	it("labels the Bibles in other languages with their language", () => {
+		expect(TRANSLATIONS.RV1909).toMatchObject({ label: "Reina-Valera 1909", language: "es", copyright: "Public domain" });
+		expect(TRANSLATIONS.LUT1912).toMatchObject({ label: "Lutherbibel 1912", language: "de", copyright: "Public domain" });
+		expect(translationPickerLabel("RV1909")).toBe("Reina-Valera 1909 · Español");
+		expect(translationPickerLabel("LUT1912")).toBe("Lutherbibel 1912 · Deutsch");
+		expect(translationPickerLabel("KJV")).toBe("KJV");
+		for (const id of ["KJV", "NKJV", "BSB"] as const) expect(TRANSLATIONS[id].language).toBe("en");
+	});
+
+	it("maps each language to its own Bible", () => {
+		expect(LANGUAGE_BIBLES).toEqual({ en: "KJV", es: "RV1909", de: "LUT1912" });
+	});
+
+	it("parses only known ids", () => {
+		expect(isTranslationId("RV1909")).toBe(true);
+		expect(parseTranslationId("LUT1912")).toBe("LUT1912");
+		expect(parseTranslationId("rv1909")).toBeNull();
+		expect(parseTranslationId("ESV")).toBeNull();
+		expect(parseTranslationId(undefined)).toBeNull();
+	});
+});
+
+describe("getChapter (bundled Bibles in other languages)", () => {
+	it("reads Reina-Valera 1909 and Lutherbibel 1912 offline, verse for verse with the KJV", async () => {
+		const fetchSpy = vi.fn();
+		vi.stubGlobal("fetch", fetchSpy);
+		const kjv = await getChapter("KJV", 43, 3);
+		const rv = await getChapter("RV1909", 43, 3);
+		const lut = await getChapter("LUT1912", 43, 3);
+		expect(rv).toHaveLength(kjv.length);
+		expect(lut).toHaveLength(kjv.length);
+		expect(rv[15]).toMatch(/^Porque de tal manera amó Dios al mundo/);
+		expect(lut[15]).toMatch(/^Also hat Gott die Welt geliebt/);
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it("fails an out-of-range chapter with the reader's load error", async () => {
+		await expect(getChapter("RV1909", 43, 22)).rejects.toThrow(CHAPTER_LOAD_ERROR);
+		await expect(getChapter("LUT1912", 67, 1)).rejects.toThrow(CHAPTER_LOAD_ERROR);
 	});
 });

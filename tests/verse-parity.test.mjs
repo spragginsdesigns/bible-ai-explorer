@@ -41,15 +41,18 @@ function loadModule(relativePath, exportNames, injected = {}) {
 
 /** Web: src/utils/verseParser.ts validating through src/lib/bible/books.ts. */
 const webRefs = (() => {
-	const { resolveReference } = loadModule(
+	const { resolveReference, LOCALIZED_BOOK_PATTERN } = loadModule(
 		"../src/lib/bible/books.ts",
-		["resolveReference"],
-		{ booksJson: JSON.parse(read("../src/data/books.json")) }
+		["resolveReference", "LOCALIZED_BOOK_PATTERN"],
+		{
+			booksJson: JSON.parse(read("../src/data/books.json")),
+			bookNamesJson: JSON.parse(read("../src/data/book-names.json")),
+		}
 	);
 	const { parseVerseReferences } = loadModule(
 		"../src/utils/verseParser.ts",
 		["parseVerseReferences"],
-		{ resolveReference }
+		{ resolveReference, LOCALIZED_BOOK_PATTERN }
 	);
 	return (text) =>
 		parseVerseReferences(text)
@@ -64,19 +67,22 @@ const webRefs = (() => {
  * is a parity failure too and this test should be the thing that says so.
  */
 const androidRefs = (() => {
-	const { resolveReference } = loadModule(
+	const { resolveReference, LOCALIZED_BOOK_PATTERN } = loadModule(
 		"../mobile/src/features/bible/books.ts",
-		["resolveReference"],
+		["resolveReference", "LOCALIZED_BOOK_PATTERN"],
 		{
 			booksJson: JSON.parse(
 				read("../mobile/src/features/bible/data/books.json")
+			),
+			bookNamesJson: JSON.parse(
+				read("../mobile/src/features/bible/data/book-names.json")
 			),
 		}
 	);
 	const { segmentVerseReferences } = loadModule(
 		"../mobile/src/features/chat/verseLinks.ts",
 		["segmentVerseReferences"],
-		{ resolveReference }
+		{ resolveReference, LOCALIZED_BOOK_PATTERN }
 	);
 	return (text) =>
 		segmentVerseReferences(text)
@@ -163,6 +169,35 @@ const KNOWN_DIVERGENCES = [
 		android: [],
 	},
 ];
+
+/**
+ * Spanish and German answers cite books by their own names (systemPrompt.ts,
+ * languageGuidance). Accented letters are written as escapes so the vectors
+ * survive tooling that flattens non-ASCII. Each entry: sentence, the
+ * references both clients must link.
+ */
+const LOCALIZED_SWEEP = [
+	["Porque de tal manera amó Dios al mundo, Juan 3:16.", ["Juan 3:16"]],
+	["Lee 1 Juan 5:7 y 2 Corintios 5:17.", ["1 Juan 5:7", "2 Corintios 5:17"]],
+	["Éxodo 20:3 y Isaías 53:5 RV1909.", ["Éxodo 20:3", "Isaías 53:5 RV1909"]],
+	["Sin acento: Isaias 53:5 y Filemon 1:6.", ["Isaias 53:5", "Filemon 1:6"]],
+	["Hechos de los Apóstoles 2:38 y Salmo 23:1-6.", ["Hechos de los Apóstoles 2:38", "Salmo 23:1-6"]],
+	["Santiago 1:5 y Apocalipsis 22:21.", ["Santiago 1:5", "Apocalipsis 22:21"]],
+	["Also hat Gott die Welt geliebt, Johannes 3:16.", ["Johannes 3:16"]],
+	["Siehe 1. Mose 1:1 und 2. Mose 20:3.", ["1. Mose 1:1", "2. Mose 20:3"]],
+	["Römer 8:28 und Hebräer 11:1 LUT1912.", ["Römer 8:28", "Hebräer 11:1 LUT1912"]],
+	["Matthäus 5:8, Offenbarung 21:1 und Psalm 23:1.", ["Matthäus 5:8", "Offenbarung 21:1", "Psalm 23:1"]],
+	// Must stay prose: no such chapter, and a name glued to the chapter.
+	["Juan 25:1 no existe.", []],
+	["Johannes3:16 ohne Leerzeichen.", []],
+];
+
+test("both clients link Spanish and German references the same way", () => {
+	for (const [input, expected] of LOCALIZED_SWEEP) {
+		assert.deepEqual(webRefs(input), expected, `web on ${JSON.stringify(input)}`);
+		assert.deepEqual(androidRefs(input), expected, `Android on ${JSON.stringify(input)}`);
+	}
+});
 
 test("both clients link the same references across a 40-sentence sweep", () => {
 	assert.equal(SWEEP.length, 40, "the sweep must stay 40 sentences wide");

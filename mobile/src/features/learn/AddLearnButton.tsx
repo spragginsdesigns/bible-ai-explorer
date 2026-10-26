@@ -6,11 +6,12 @@ import { AppText as Text } from "@/components/AppText";
 import { apiJson, type GetToken } from "@/lib/api";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import { radius, spacing, type Colors } from "@/theme";
+import type { TranslationId } from "@/features/bible/translations";
 import { parseCard } from "./learn";
 
 export interface AddLearnProps {
 	book: number; chapter: number; verse: number;
-	translation: "KJV" | "NKJV" | "BSB";
+	translation: TranslationId;
 	source: "sheet" | "highlight" | "suggestion" | "quiz";
 	/** Set where the surrounding text alone does not name the verse being added. */
 	accessibilityLabel?: string;

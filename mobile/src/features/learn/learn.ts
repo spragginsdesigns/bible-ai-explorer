@@ -1,3 +1,11 @@
+// Inline rather than imported: node tests load this file directly, without the @/ alias.
+const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+export type TranslationId = (typeof TRANSLATION_IDS)[number];
+
+function isTranslationId(value: unknown): value is TranslationId {
+	return typeof value === "string" && (TRANSLATION_IDS as readonly string[]).includes(value);
+}
+
 export type LearnStage = 0 | 1 | 2 | 3;
 export type LearnResult = "again" | "good";
 
@@ -7,7 +15,7 @@ export interface LearnCard {
 	book: number;
 	chapter: number;
 	verse: number;
-	translation: "KJV" | "NKJV" | "BSB";
+	translation: TranslationId;
 	reference: string;
 	text: string;
 	textUnavailable?: true;
@@ -73,7 +81,7 @@ export function parseCard(value: unknown): LearnCard {
 		!Number.isInteger(card.book) || card.book! < 1 || card.book! > 66 ||
 		!Number.isInteger(card.chapter) || card.chapter! < 1 ||
 		!Number.isInteger(card.verse) || card.verse! < 1 ||
-		!["KJV", "NKJV", "BSB"].includes(card.translation!) ||
+		!isTranslationId(card.translation) ||
 		typeof card.reference !== "string" || !card.reference.trim() ||
 		typeof card.text !== "string" ||
 		!(textUnavailable === undefined || textUnavailable === true) ||

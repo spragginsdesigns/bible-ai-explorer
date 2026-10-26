@@ -28,6 +28,7 @@ export default function SettingsLayout() {
 		>
 			<Stack.Screen name="index" />
 			<Stack.Screen name="appearance" />
+			<Stack.Screen name="language" />
 			<Stack.Screen name="memory" />
 			<Stack.Screen name="highlights" />
 			<Stack.Screen name="ai" />

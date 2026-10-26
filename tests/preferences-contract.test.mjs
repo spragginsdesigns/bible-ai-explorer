@@ -56,7 +56,7 @@ test("the listen rates the server accepts are the ones the card offers", () => {
 });
 
 test("the translations the server accepts are the translations the reader offers", () => {
-	assert.deepEqual(TRANSLATION_IDS, ["KJV", "NKJV", "BSB"]);
+	assert.deepEqual(TRANSLATION_IDS, ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"]);
 	assert.equal(DEFAULT_TRANSLATION, "KJV");
 });
 
@@ -100,7 +100,7 @@ test("translation must be a supported translation", () => {
 	for (const bad of ["ESV", "kjv", "", null, 1]) {
 		const result = parse({ translation: bad });
 		assert.equal(result.ok, false, `expected ${JSON.stringify(bad)} to be rejected`);
-		assert.equal(result.error, "translation must be one of: KJV, NKJV, BSB");
+		assert.equal(result.error, "translation must be one of: KJV, NKJV, BSB, RV1909, LUT1912");
 	}
 });
 
@@ -240,6 +240,7 @@ test("the document mirrors a stored row, with the tier passed in", () => {
 		parchment: false,
 		listenRate: 2,
 		textScale: "standard",
+		answerLanguage: "auto",
 		voiceMode: false,
 		highlightLabels: {},
 		highlightMeanings: {},
@@ -267,6 +268,7 @@ test("an account with no row yet reads as every default", () => {
 		parchment: true,
 		listenRate: 1,
 		textScale: "standard",
+		answerLanguage: "auto",
 		voiceMode: false,
 		highlightLabels: {},
 		highlightMeanings: {},
@@ -325,4 +327,17 @@ test("text size and voice mode round-trip through the document (Walk with me)", 
 	assert.equal(set.voiceMode, true);
 	// An unknown stored value reads as the default rather than leaking to clients.
 	assert.equal(document(row({ textScale: "giant" }), "free").textScale, "standard");
+});
+
+test("answerLanguage is auto, English, Spanish or German, and auto by default", () => {
+	for (const language of ["auto", "en", "es", "de"]) {
+		assert.deepEqual(parse({ answerLanguage: language }), { ok: true, data: { answerLanguage: language } });
+	}
+	for (const bad of ["fr", "ES", "", null, 1, true]) {
+		assert.equal(parse({ answerLanguage: bad }).ok, false, `expected ${JSON.stringify(bad)} to be rejected`);
+	}
+	assert.equal(document(null, "free").answerLanguage, "auto");
+	assert.equal(document(row({ answerLanguage: "es" }), "free").answerLanguage, "es");
+	// A value this build does not know reads as never chosen, never as an error.
+	assert.equal(document(row({ answerLanguage: "fr" }), "free").answerLanguage, "auto");
 });

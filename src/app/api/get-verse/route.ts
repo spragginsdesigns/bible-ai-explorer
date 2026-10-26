@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
-import { getChapter, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, parseTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { stripTranslationTag } from "@/utils/verseParser";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -46,8 +46,7 @@ export async function POST(req: Request) {
 	try {
 		const body: unknown = await req.json();
 		const reference = isRecord(body) ? body.reference : undefined;
-		const translation: TranslationId =
-			isRecord(body) && (body.translation === "BSB" || body.translation === "NKJV") ? body.translation : "KJV";
+		const translation: TranslationId = parseTranslationId(isRecord(body) ? body.translation : undefined);
 
 		if (!reference || typeof reference !== "string") {
 			return NextResponse.json(

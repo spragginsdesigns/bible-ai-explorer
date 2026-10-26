@@ -7,7 +7,7 @@ import { reserveIncludedRequest, withIncludedAiRequest } from "@/lib/billing/usa
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
 import { connectionSectionOf, CONNECTION_SECTIONS } from "@/lib/bible/connectionsMap";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
-import { getVerseText, type TranslationId } from "@/lib/bible/translations";
+import { getVerseText, parseTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { getAuthUser } from "@/lib/auth";
 import { connectionsSystemPrompt } from "@/utils/systemPrompt";
@@ -45,8 +45,7 @@ async function handlePost(req: Request): Promise<Response> {
 		if (!target || target.verse === undefined || !book) {
 			return NextResponse.json({ error: "Choose a single verse to explain its connections." }, { status: 400 });
 		}
-		const translation: TranslationId =
-			data.translation === "BSB" ? "BSB" : data.translation === "NKJV" ? "NKJV" : "KJV";
+		const translation: TranslationId = parseTranslationId(data.translation);
 		const section =
 			typeof data.section === "string" ? CONNECTION_SECTIONS.find((s) => s.id === data.section) ?? null : null;
 		const modelId = typeof data.modelId === "string" ? data.modelId : null;

@@ -38,7 +38,7 @@ import {
 	composeMessageWithAttachment,
 	type VerseAttachment,
 } from "./verseActions";
-import { getSettings } from "@/features/settings/settingsStore";
+import { getEffectiveAnswerLanguage, getSettings } from "@/features/settings/settingsStore";
 import { effortForRequest } from "./modelPickerRules";
 import {
 	MAX_ATTACHMENTS_PER_MESSAGE,
@@ -378,6 +378,9 @@ export function useSureWordChat(): SureWordChat {
 							messages: withoutClientOnlyMetadata(messages),
 							conversationId: conversationIdRef.current,
 							translation: settings.translation,
+							// The effective language (the account choice, or the device
+							// language under "auto"), so the server never guesses it.
+							language: getEffectiveAnswerLanguage(),
 							modelId: settings.chatModelId,
 							...(effort === undefined ? {} : { effort }),
 							// The other run options carry their default explicitly, so

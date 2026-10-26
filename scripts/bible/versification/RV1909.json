@@ -1,0 +1,31 @@
+{
+  "about": "eBible's RV1909 folds 18 KJV verse slots into neighbouring verses. Each span takes the source verses in `src` (empty ones skipped), splits the named verses before each literal phrase, and assigns the pieces in order to the KJV slots in `kjv`. Checked by hand against the KJV on 2026-10-26.",
+  "spans": [
+    { "kjv": "NUM 12:16-13:33", "src": "NUM 13:1-13:33", "split": { "NUM 13:33": ["También vimos allí gigantes"] } },
+    { "kjv": "NUM 29:40-30:16", "src": "NUM 30:1-30:16", "split": { "NUM 30:16": ["Estas son las ordenanzas"] } },
+    { "kjv": "1SA 23:29-24:22", "src": "1SA 24:1-24:22", "split": { "1SA 24:22": ["Entonces David juró"] } },
+    { "kjv": "2SA 20:25-26", "src": "2SA 20:25-25", "split": { "2SA 20:25": ["é Ira Jaireo"] } },
+    { "kjv": "2CH 33:10-25", "src": "2CH 33:10-24", "split": { "2CH 33:10": ["por lo cual Jehová trajo"] } },
+    { "kjv": "JOB 35:15-16", "src": "JOB 35:15-15", "split": { "JOB 35:15": ["por eso Job abrió"] } },
+    {
+      "kjv": "JOB 38:39-40:24",
+      "src": "JOB 39:1-40:19",
+      "split": {
+        "JOB 39:30": [
+          "Ella habita y está",
+          "Desde allí acecha",
+          "Sus pollos chupan",
+          "A más de eso respondió",
+          "¿Es sabiduría contender",
+          "Y respondió Job",
+          "He aquí que yo soy vil",
+          "Una vez hablé"
+        ]
+      }
+    },
+    { "kjv": "HOS 11:12-12:14", "src": "HOS 12:1-12:14", "split": { "HOS 12:14": ["Enojado ha Ephraim"] } },
+    { "kjv": "JON 1:17-2:10", "src": "JON 2:1-2:10", "split": { "JON 2:10": ["Y mandó Jehová al pez"] } },
+    { "kjv": "ACT 19:40-41", "src": "ACT 19:40-40", "split": { "ACT 19:40": ["Y habiendo dicho esto"] } },
+    { "kjv": "2CO 13:12-14", "src": "2CO 13:12-13", "split": { "2CO 13:12": ["Todos los santos"] } }
+  ]
+}

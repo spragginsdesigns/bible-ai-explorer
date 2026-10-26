@@ -80,6 +80,37 @@ it, under the same rule as `/support` and `/privacy`.
 | Android | `mobile/app/(app)/settings/whats-new.tsx`, `mobile/src/features/whatsNew/` |
 | Apple | `macos/Shared/WhatsNew/` |
 
+## Spanish and German: Bibles and answers
+
+Added 2026-10-26 (Android 1.103.0). Full design, sources and the
+versification work: `docs/languages/PLAN.md`, "Implementation contract".
+
+- **Two more bundled Bibles.** Reina-Valera 1909 (`RV1909`, Spanish) and
+  Lutherbibel 1912 (`LUT1912`, German), public domain, from eBible.org. Built
+  by `scripts/bible/build-ebible.py` into KJV verse slots on every client
+  (`src/data/`, `mobile/src/features/bible/data/`, `macos/Shared/Bible/Data/`),
+  so highlights, notes, Learn cards, cross-references and the reader all work
+  by the same book/chapter/verse. The Spanish source merges some verses; the
+  table in `scripts/bible/versification/RV1909.json` splits them back out.
+  No red letters or section headings yet for either.
+- **Answers in the reader's language.** Settings, Language: Follow my device
+  (the default), English, Español, Deutsch, synced as `User.answerLanguage`
+  (`"auto"` by default). Each client sends the resolved `language` with chat;
+  the server answers in it and quotes `quotationTranslation(translation,
+  language)`: the reader's Bible when it is in that language, otherwise that
+  language's own Bible. Choosing a language also opens its Bible. The KJV
+  stays the doctrinal foundation in every language (`languageGuidance` in
+  `src/utils/systemPrompt.ts`).
+- **References in other languages link.** "Juan 3:16", "1. Mose 1:1" and
+  unaccented spellings resolve and become tappable on web and Android
+  (`src/data/book-names.json`, `LOCALIZED_BOOK_PATTERN` in both `books.ts`;
+  `tests/verse-parity.test.mjs` holds the Spanish and German sweep).
+- **Search** in RV1909 and LUT1912 is a local accent-folding phrase search;
+  the KJV word index (`findVerses`) stays English, and its hits are quoted in
+  the reader's Bible.
+- **Not yet:** menus and buttons in Spanish or German, the Audio Bible,
+  Listen, the daily devotional and Connections explanations (all English).
+
 ## Bible reader: sourced red letters and section headings
 
 Android 1.60.0 (62) and web source `f2245e5` add the Berean Standard Bible,

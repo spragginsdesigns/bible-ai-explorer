@@ -91,6 +91,9 @@ model User {
   onboardingConversationId String?
   // App-wide text size: "standard" | "large" | "largest". Validated on read.
   textScale              String                  @default("standard")
+  // The language SureWord answers in (docs/languages/PLAN.md): "auto" (follow
+  // the device) | "en" | "es" | "de". Validated on read.
+  answerLanguage         String                  @default("auto")
   // Voice mode ("Read it to me"): every SureWord message in the welcome
   // conversation is read aloud. Off by default.
   voiceMode              Boolean                 @default(false)

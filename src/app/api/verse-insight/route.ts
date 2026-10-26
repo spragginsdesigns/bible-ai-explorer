@@ -6,7 +6,7 @@ import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
-import type { TranslationId } from "@/lib/bible/translations";
+import { parseTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { verseInsightSystemPrompt } from "@/utils/systemPrompt";
 import { canonicalPassage } from "@/lib/bible/passage-context";
@@ -58,7 +58,9 @@ async function handlePost(req: Request): Promise<Response> {
 				{ status: 400 }
 			);
 		}
-		const translation: TranslationId = data.translation === "BSB" ? "BSB" : data.translation === "NKJV" ? "NKJV" : "KJV";
+		// The explanation is written in the language of this Bible (see
+		// verseInsightSystemPrompt), so the request's `language` is not needed here.
+		const translation: TranslationId = parseTranslationId(data.translation);
 		const modelId = typeof data.modelId === "string" ? data.modelId : null;
 
 		const isPassage = RANGE_REFERENCE.test(reference);

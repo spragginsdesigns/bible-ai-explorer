@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, makeAuthedFetch, type GetToken } from "@/lib/api";
-import { getSettings } from "@/features/settings/settingsStore";
+import { getEffectiveAnswerLanguage, getSettings } from "@/features/settings/settingsStore";
 import type { TranslationId } from "@/features/bible/translations";
 
 export type VerseInsightStatus = "idle" | "loading" | "streaming" | "done" | "error";
@@ -43,6 +43,7 @@ export function useVerseInsight(getToken: GetToken) {
 			abortRef.current?.abort();
 
 			const modelId = getSettings().chatModelId;
+			const language = getEffectiveAnswerLanguage();
 			const controller = new AbortController();
 			abortRef.current = controller;
 			setText("");
@@ -59,6 +60,7 @@ export function useVerseInsight(getToken: GetToken) {
 							reference: target.reference,
 							text: target.text,
 							translation: target.translation,
+							language,
 							modelId,
 						}),
 						signal: controller.signal,

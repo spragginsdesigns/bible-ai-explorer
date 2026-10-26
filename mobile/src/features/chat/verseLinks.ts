@@ -7,7 +7,7 @@
  * the wrong book.
  */
 import type { useRouter } from "expo-router";
-import { resolveReference, type Reference } from "@/features/bible/books";
+import { LOCALIZED_BOOK_PATTERN, resolveReference, type Reference } from "@/features/bible/books";
 
 /** Full book names. Order matters - longer first to avoid partial matches. */
 const FULL_BOOK_NAMES = [
@@ -62,7 +62,10 @@ const numberedPrefix = `(?:[123]\\s?)?`;
 // ("Gen.1:1"), which is how several models emit them.
 const fullNameBranch = `${numberedPrefix}(?:${FULL_BOOK_NAMES.join("|")})\\s+`;
 const abbreviationBranch = `${numberedPrefix}(?:${BOOK_ABBREVIATIONS.join("|")})(?:\\.\\s*|\\s+)`;
-const bookPattern = `(?:${fullNameBranch}|${abbreviationBranch})`;
+// Spanish and German names ("Juan 3:16", "1. Mose 1:1"), for answers written
+// in those languages. Tried last, so English always wins. Mirrors web.
+const localizedBranch = `(?:${LOCALIZED_BOOK_PATTERN})\\s+`;
+const bookPattern = `(?:${fullNameBranch}|${abbreviationBranch}|${localizedBranch})`;
 // Hyphen, en dash (U+2013) and em dash (U+2014) all separate a range. Written as
 // escapes rather than literals so the source file stays ASCII-safe.
 const rangeDashes = `[-\\u2013\\u2014]`;
@@ -75,7 +78,7 @@ const refPattern = `\\d{1,3}:\\d{1,3}(?:\\s*${rangeDashes}\\s*\\d{1,3}(?::\\d{1,
 // 3:14:"), so only a colon that starts another number is rejected.
 const referenceBoundary = `(?!\\d)(?!:\\d)`;
 // Optional trailing translation tag (KJV, NIV, ESV, etc.)
-const translationPattern = `(?:\\s+(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP))?`;
+const translationPattern = `(?:\\s+(?:BSB|KJV|NKJV|RV1909|LUT1912|NIV|ESV|NASB|NLT|RSV|ASV|AMP))?`;
 
 const REFERENCE_REGEX_SOURCE = `(${bookPattern}${refPattern}${referenceBoundary}${translationPattern})`;
 
@@ -88,7 +91,7 @@ const REFERENCE_REGEX_SOURCE = `(${bookPattern}${refPattern}${referenceBoundary}
  */
 export const VERSE_REFERENCE_REGEX = new RegExp(REFERENCE_REGEX_SOURCE, "gi");
 
-const TRAILING_TRANSLATION = /\s+(?:BSB|KJV|NKJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i;
+const TRAILING_TRANSLATION = /\s+(?:BSB|KJV|NKJV|RV1909|LUT1912|NIV|ESV|NASB|NLT|RSV|ASV|AMP)$/i;
 /** "John 3:16-4:2" and an en-dashed "1 John 5:1-4" both open at their first verse. */
 const TRAILING_RANGE = new RegExp(`\\s*${rangeDashes}\\s*\\d{1,3}(?::\\d{1,3})?$`);
 /** "Gen.1:1" -> "Gen. 1:1": resolveReference requires whitespace before the chapter. */

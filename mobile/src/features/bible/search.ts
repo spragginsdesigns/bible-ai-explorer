@@ -1,6 +1,7 @@
 import { searchKjv, type KjvSearchHit } from "./kjv";
 import { getBsbChapter } from "./bsb";
-import { BOOKS, bookByOrder } from "./books";
+import { BOOKS, bookByOrder, foldAccents } from "./books";
+import { getForeignBibleChapter } from "./ebible";
 import type { TranslationId } from "./translations";
 
 export interface BibleSearchHit extends KjvSearchHit {
@@ -10,6 +11,16 @@ export interface BibleSearchHit extends KjvSearchHit {
 export interface BibleSearchResult {
   hits: BibleSearchHit[];
   translation: TranslationId;
+}
+
+/** The translations phrase search covers: every one the reader offers. */
+export const SEARCH_TRANSLATIONS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+export type SearchTranslationId = (typeof SEARCH_TRANSLATIONS)[number];
+
+export function searchTranslationFor(translation: TranslationId): SearchTranslationId {
+  return (SEARCH_TRANSLATIONS as readonly TranslationId[]).includes(translation)
+    ? (translation as SearchTranslationId)
+    : "KJV";
 }
 
 export const BIBLE_SEARCH_ERROR = "Search could not finish. Check your connection and try again.";
@@ -26,7 +37,7 @@ function plainText(text: string): string {
     }).replace(/\s+/g, " ").trim();
 }
 
-async function searchTranslation(query: string, translation: TranslationId, limit: number, signal?: AbortSignal): Promise<BibleSearchHit[]> {
+async function searchTranslation(query: string, translation: SearchTranslationId, limit: number, signal?: AbortSignal): Promise<BibleSearchHit[]> {
   if (signal?.aborted) throw new Error(BIBLE_SEARCH_ERROR);
   if (translation === "BSB") {
     const hits: BibleSearchHit[] = [];
@@ -42,6 +53,21 @@ async function searchTranslation(query: string, translation: TranslationId, limi
   }
   if (translation === "KJV") {
     return (await searchKjv(query, limit)).map((hit) => ({ ...hit, translation }));
+  }
+  if (translation === "RV1909" || translation === "LUT1912") {
+    // Accent-insensitive, so "jehova" finds "Jehová" as typed on any keyboard.
+    const fold = (text: string) => foldAccents(text.toLowerCase());
+    const needle = fold(query);
+    const hits: BibleSearchHit[] = [];
+    for (const book of BOOKS) for (let chapter = 1; chapter <= book.chapters; chapter++) {
+      if (signal?.aborted) throw new Error(BIBLE_SEARCH_ERROR);
+      const verses = getForeignBibleChapter(translation, book.order, chapter);
+      for (let index = 0; index < verses.length; index++) {
+        if (fold(verses[index]).includes(needle)) hits.push({ order: book.order, chapter, verse: index + 1, text: verses[index], translation });
+        if (hits.length >= limit) return hits;
+      }
+    }
+    return hits;
   }
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -75,12 +101,14 @@ async function searchTranslation(query: string, translation: TranslationId, limi
 }
 
 /** Keep KJV available offline; check the other supported translation on a miss. */
-export async function searchBible(query: string, translation: TranslationId, limit = 100, signal?: AbortSignal): Promise<BibleSearchResult> {
+export async function searchBible(query: string, translation: SearchTranslationId, limit = 100, signal?: AbortSignal): Promise<BibleSearchResult> {
   const normalized = query.trim().replace(/\s+/g, " ");
   if (normalized.length < 2) return { hits: [], translation };
   const cap = Math.max(1, Math.min(100, Math.floor(limit) || 100));
   const hits = await searchTranslation(normalized, translation, cap, signal);
   if (hits.length) return { hits, translation };
+  // A Spanish or German search has no other Bible in its language to try.
+  if (translation === "RV1909" || translation === "LUT1912") return { hits, translation };
   const alternate = translation === "KJV" ? "NKJV" : "KJV";
   return { hits: await searchTranslation(normalized, alternate, cap, signal), translation: alternate };
 }

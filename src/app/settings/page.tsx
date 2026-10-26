@@ -14,17 +14,21 @@ import {
 	MACOS_VERSION,
 	WEB_VERSION,
 } from "@/lib/constants";
-import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { LANGUAGE_NAMES, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { ANSWER_LANGUAGE_PREFS, type AnswerLanguagePref } from "@/lib/preferences-contract";
 import {
 	readParchmentPref,
 	readQuizOfferPref,
 	writeQuizOfferPref,
 	readTranslationPref,
+	readAnswerLanguagePref,
+	deviceAnswerLanguage,
 	readMemoryEnabledPref,
 	writeMemoryEnabledPref,
 	readWebSearchEnabledPref,
 } from "@/lib/preferences";
 import {
+	chooseAnswerLanguage,
 	hydratePreferences,
 	notifyPreferencesChanged,
 	setParchmentPreference,
@@ -63,10 +67,12 @@ const THEME_OPTIONS = [
 	{ id: "dark", label: "Dark", Icon: Moon },
 ] as const;
 
-const TRANSLATION_DETAILS: Record<TranslationId, { name: string; note: string }> = {
-	KJV: { name: "King James Version", note: "Public domain · works offline" },
-	BSB: { name: "Berean Standard Bible", note: "Public domain · works offline" },
-	NKJV: { name: "New King James Version", note: "© Thomas Nelson · fetched when needed" },
+const TRANSLATION_DETAILS: Record<TranslationId, { badge: string; name: string; note: string }> = {
+	KJV: { badge: "KJV", name: "King James Version", note: "Public domain · works offline" },
+	BSB: { badge: "BSB", name: "Berean Standard Bible", note: "Public domain · works offline" },
+	NKJV: { badge: "NKJV", name: "New King James Version", note: "© Thomas Nelson · fetched when needed" },
+	RV1909: { badge: "RV", name: "Reina-Valera 1909 · Español", note: "Public domain · works offline" },
+	LUT1912: { badge: "LUT", name: "Lutherbibel 1912 · Deutsch", note: "Public domain · works offline" },
 };
 
 const ICON_BUBBLE =
@@ -113,6 +119,7 @@ export default function SettingsPage() {
 	// soon as the account document is hydrated.
 	const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
 	const parchmentEnabled = usePreference(readParchmentPref, true);
+	const answerLanguage = usePreference<AnswerLanguagePref>(readAnswerLanguagePref, "auto");
 	// Device-only (never synced): whether the reader offers a quiz at a chapter's end.
 	const quizOfferEnabled = usePreference(readQuizOfferPref, true);
 	const memoryEnabled = usePreference(readMemoryEnabledPref, null);
@@ -215,7 +222,12 @@ export default function SettingsPage() {
 					: `On · ${memoryCount} saved`
 				: "Off";
 	const hubSubtitles: Partial<Record<SettingsPaneId, string>> = {
-		appearance: [themeLabel, parchmentEnabled ? "Parchment" : "Plain reader", translation].join(" · "),
+		appearance: [
+			themeLabel,
+			parchmentEnabled ? "Parchment" : "Plain reader",
+			translation,
+			...(mounted && answerLanguage !== "auto" ? [LANGUAGE_NAMES[answerLanguage]] : []),
+		].join(" · "),
 		highlights: "Names and meanings for your colours",
 		church: "The congregation you belong to",
 		memory: memorySubtitle,
@@ -416,8 +428,37 @@ export default function SettingsPage() {
 						</SettingsGroup>
 
 						<SettingsGroup
+							label="Language"
+							footer="Answers are written in this language and quote its Bible: the KJV in English, the Reina-Valera 1909 in Español, the Lutherbibel 1912 in Deutsch. Choosing a language also opens its Bible in the reader. Saved to your account."
+						>
+							{ANSWER_LANGUAGE_PREFS.map((choice) => {
+								const active = mounted && answerLanguage === choice;
+								const label =
+									choice === "auto"
+										? `Follow my device${mounted ? ` (${LANGUAGE_NAMES[deviceAnswerLanguage()]})` : ""}`
+										: LANGUAGE_NAMES[choice];
+								return (
+									<button
+										key={choice}
+										type="button"
+										aria-pressed={active}
+										onClick={() => void chooseAnswerLanguage(choice)}
+										className="flex min-h-[48px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+									>
+										<span className="min-w-0 flex-1 text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+											{label}
+										</span>
+										{active ? (
+											<Check className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+										) : null}
+									</button>
+								);
+							})}
+						</SettingsGroup>
+
+						<SettingsGroup
 							label="Bible translation"
-							footer="Used by the Bible reader and verse attachments. SureWord's AI answers use the translation you select."
+							footer="Used by the Bible reader and verse attachments. Every translation but NKJV works offline. SureWord's AI answers quote the translation you select when it is in the language they are written in."
 						>
 							{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => {
 								const active = mounted && translation === id;
@@ -430,13 +471,13 @@ export default function SettingsPage() {
 										className="flex min-h-[56px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 									>
 										<span
-											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border text-[12px] font-extrabold tracking-wider ${
+											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border text-[13px] font-extrabold tracking-wider ${
 												active
 													? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
 													: "border-black/[0.08] bg-black/[0.03] text-neutral-500 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-400"
 											}`}
 										>
-											{id}
+											{TRANSLATION_DETAILS[id].badge}
 										</span>
 										<span className="min-w-0 flex-1">
 											<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">

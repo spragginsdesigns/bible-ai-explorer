@@ -64,3 +64,23 @@ NKJV would still require permission from its rights holder.
 KJV section headings are an editorial aid extracted from the BSB source and
 credited separately. They do not claim to be part of the original KJV text,
 are not used as speech markers, and never enter copied Scripture.
+
+## Reina-Valera 1909 and Lutherbibel 1912
+
+`build-ebible.py RV1909|LUT1912 <vpl.zip>` turns eBible.org's verse-per-line
+download (`spaRV1909_vpl.zip`, `deu1912_vpl.zip`) into one `string[][]` JSON
+per book, in KJV verse slots, for web (`src/data/rv1909`, `src/data/lut1912`),
+Android and Apple, plus a `src/data/<id>-source.json` with the source's sha256.
+Run it with `python -I` and keep the download in its own folder.
+
+- Luther 1912 already uses KJV numbering.
+- The Spanish source merges a few verses into their neighbours, the same way in
+  every RV1909 edition we found. `versification/RV1909.json` lists each span
+  and the opening words of every verse to split back out, so all 31,102 KJV
+  slots get their own text. The build aborts if any slot is empty or any text
+  falls outside a slot.
+- Spanish cleanup: Psalm 119 acrostic labels, drop capitals on verse 1 and
+  after Psalm and Proverbs titles, and the epistle subscriptions after the
+  final "Amén." are removed.
+- Luther 1912 does not contain 1 John 5:7 as the KJV reads it; the slot holds
+  Luther's own wording of that verse.

@@ -34,6 +34,7 @@ function loadModule(relativePath, exportNames, injected = {}) {
 
 const { bookByOrder } = loadModule("../src/lib/bible/books.ts", ["bookByOrder"], {
 	booksJson: JSON.parse(read("../src/data/books.json")),
+	bookNamesJson: JSON.parse(read("../src/data/book-names.json")),
 });
 
 // The day block prints a service date with the sermon lib's own formatter, so

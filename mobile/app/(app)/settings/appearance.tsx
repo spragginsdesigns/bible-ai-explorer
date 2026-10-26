@@ -13,7 +13,7 @@ import {
 } from "@/features/settings/settingsStore";
 import { TEXT_SCALES, TEXT_SCALE_LABELS } from "@/features/settings/textScale";
 import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
-import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
+import { TRANSLATIONS, translationPickerLabel, type TranslationId } from "@/features/bible/translations";
 import {
 	OptionChip,
 	SectionLabel,
@@ -25,6 +25,16 @@ import {
 
 /** The first card carries no label, so it needs the label's own top offset. */
 const contentStyle = { paddingTop: spacing.xl };
+
+/**
+ * English translations share one row of short chips; a Bible in another
+ * language gets a row of its own, since its label names the language too.
+ */
+const ALL_TRANSLATIONS = Object.keys(TRANSLATIONS) as TranslationId[];
+const TRANSLATION_ROWS: TranslationId[][] = [
+	ALL_TRANSLATIONS.filter((id) => TRANSLATIONS[id].language === "en"),
+	...ALL_TRANSLATIONS.filter((id) => TRANSLATIONS[id].language !== "en").map((id) => [id]),
+];
 
 /**
  * How the app looks and which translation the reader, verse attachments and
@@ -88,19 +98,24 @@ export default function AppearanceSettingsScreen() {
 
 			<SectionLabel label="BIBLE TRANSLATION" />
 			<GlassCard style={styles.card}>
-				<View style={styles.chipRow}>
-					{(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => (
-						<OptionChip
-							key={id}
-							label={id}
-							selected={settings.translation === id}
-							onPress={() => setBibleTranslation(id)}
-						/>
+				<View style={{ gap: spacing.sm }}>
+					{TRANSLATION_ROWS.map((row) => (
+						<View key={row.join(":")} style={styles.chipRow}>
+							{row.map((id) => (
+								<OptionChip
+									key={id}
+									label={translationPickerLabel(id)}
+									selected={settings.translation === id}
+									onPress={() => setBibleTranslation(id)}
+								/>
+							))}
+						</View>
 					))}
 				</View>
 				<Text style={styles.hint}>
-					Used by the Bible reader and verse attachments. KJV and BSB work fully offline; NKJV is
-					fetched when needed. SureWord&apos;s AI answers use the translation you select.
+					Used by the Bible reader and verse attachments. Every translation but NKJV works fully
+					offline; NKJV is fetched when needed. SureWord&apos;s AI answers quote the translation you
+					select when it is in the language they are written in (Settings, Language).
 				</Text>
 			</GlassCard>
 		</SettingsSubScreen>

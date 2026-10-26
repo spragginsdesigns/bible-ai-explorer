@@ -8,6 +8,7 @@
  * target shape is asserted in receiptRoutes.test.ts without a renderer. The
  * caller (ReceiptLine) does the one impure thing, `router.push`.
  */
+import type { TranslationId } from "@/features/bible/translations";
 import type { ChatReceiptTarget } from "@/lib/receipts";
 
 /**
@@ -21,7 +22,7 @@ type ChapterRouteParams = {
 	book: string;
 	chapter: string;
 	verse?: string;
-	translation?: "KJV" | "NKJV" | "BSB";
+	translation?: TranslationId;
 };
 
 /**

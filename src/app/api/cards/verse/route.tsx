@@ -1,5 +1,5 @@
 import { canonicalPassage } from "@/lib/bible/passage-context";
-import { getChapter, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, TRANSLATION_IDS, type TranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import {
 	MAX_CARD_VERSES,
@@ -34,7 +34,7 @@ import { CardTooLongError, renderShareCard } from "@/lib/share-cards/render";
  */
 export const runtime = "nodejs";
 
-const TRANSLATIONS: readonly TranslationId[] = ["KJV", "BSB", "NKJV"];
+const TRANSLATIONS: readonly TranslationId[] = TRANSLATION_IDS;
 
 const IMMUTABLE_CACHE = "public, max-age=86400, s-maxage=31536000, immutable";
 /** A redirect may point at an old design version, so it is kept only a day. */

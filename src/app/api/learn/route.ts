@@ -7,7 +7,7 @@ const addSchema = z.object({
 	book: z.number().int().min(1).max(66), // canonical order, 1-66
 	chapter: z.number().int().min(1).max(200),
 	verse: z.number().int().min(1).max(200),
-	translation: z.enum(["KJV", "NKJV", "BSB"]),
+	translation: z.enum(["KJV", "NKJV", "BSB", "RV1909", "LUT1912"]),
 	source: z.enum(["sheet", "highlight", "chat", "suggestion", "quiz"]),
 });
 

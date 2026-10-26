@@ -54,6 +54,7 @@ const PREFERENCE_SELECT = {
 	parchment: true,
 	listenRate: true,
 	textScale: true,
+	answerLanguage: true,
 	voiceMode: true,
 	highlightLabels: true,
 	highlightMeanings: true,

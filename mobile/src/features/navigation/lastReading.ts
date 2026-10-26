@@ -1,5 +1,5 @@
 import { BOOKS } from "@/features/bible/books";
-import type { TranslationId } from "@/features/bible/translations";
+import { isTranslationId, type TranslationId } from "@/features/bible/translations";
 
 export interface LastRead {
 	book: string;
@@ -14,7 +14,7 @@ export function parseLastRead(value: unknown): LastRead | null {
 	if (typeof candidate.book !== "string" || typeof candidate.chapter !== "number"
 		|| !Number.isInteger(candidate.chapter) || typeof candidate.readAt !== "string"
 		|| !Number.isFinite(Date.parse(candidate.readAt))
-		|| (candidate.translation !== "KJV" && candidate.translation !== "NKJV" && candidate.translation !== "BSB")) return null;
+		|| !isTranslationId(candidate.translation)) return null;
 	const book = BOOKS.find((item) => item.name === candidate.book);
 	if (!book || candidate.chapter < 1 || candidate.chapter > book.chapters) return null;
 	return { book: book.name, chapter: candidate.chapter, translation: candidate.translation, readAt: candidate.readAt };

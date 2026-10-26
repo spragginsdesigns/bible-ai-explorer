@@ -23,6 +23,7 @@ import { parseVerseReferences, stripTranslationTag } from "@/utils/verseParser";
 import { useModalFocus } from "./useModalFocus";
 import ShareCardDialog from "./share/ShareCardDialog";
 import type { ShareCardTarget } from "@/lib/share-cards/targets";
+import { isTranslationId, type TranslationId } from "@/lib/bible/translations";
 
 interface RetrievedVersesCollapsibleProps {
 	verses: RetrievedVerse[];
@@ -105,9 +106,8 @@ function ActionChip({
 	);
 }
 
-function translationOf(passage: VersePassage): "KJV" | "NKJV" | "BSB" | undefined {
-	const t = passage.translation;
-	return t === "KJV" || t === "NKJV" || t === "BSB" ? t : undefined;
+function translationOf(passage: VersePassage): TranslationId | undefined {
+	return isTranslationId(passage.translation) ? passage.translation : undefined;
 }
 
 function PassageActions({ passage, onNavigate }: { passage: VersePassage; onNavigate: () => void }) {

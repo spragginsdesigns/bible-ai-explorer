@@ -71,7 +71,13 @@ import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
 import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
-import type { TranslationId } from "@/lib/bible/translations";
+import {
+	isAnswerLanguage,
+	parseTranslationId,
+	quotationTranslation,
+	type AnswerLanguage,
+	type TranslationId,
+} from "@/lib/bible/translations";
 import {
 	readStoredAboutMe,
 	readStoredHighlightLabels,
@@ -656,11 +662,6 @@ async function handlePost(req: Request): Promise<Response> {
 				: null;
 		const replaces = replacedMessageIds(requestData.replaces);
 
-		// The client sends the Bible translation chosen in settings; the system
-		// prompt and Scripture tools quote that translation instead of the KJV.
-		const translation: TranslationId =
-			requestData.translation === "BSB" ? "BSB" : requestData.translation === "NKJV" ? "NKJV" : "KJV";
-
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
 			select: {
@@ -674,8 +675,20 @@ async function handlePost(req: Request): Promise<Response> {
 				testimony: true,
 				onboardedAt: true,
 				onboardingConversationId: true,
+				answerLanguage: true,
 			},
 		});
+		// The answer language: the client sends the one it resolved (the explicit
+		// setting, else the device language); an older build sends none, so the
+		// account setting decides, else English. The Bible quoted is the reader's
+		// own when it is in that language, otherwise that language's Bible, so a
+		// Spanish answer quotes Reina-Valera rather than the KJV.
+		const language: AnswerLanguage = isAnswerLanguage(requestData.language)
+			? requestData.language
+			: isAnswerLanguage(userPrefs?.answerLanguage)
+				? userPrefs.answerLanguage
+				: "en";
+		const translation: TranslationId = quotationTranslation(parseTranslationId(requestData.translation), language);
 		// A turn in the welcome conversation ("Walk with me") is free: it rides
 		// the onboarding usage surface, with its own per-account ceiling.
 		const welcomeTurn = isOnboardingTurn(userPrefs, conversationId);
@@ -1070,7 +1083,7 @@ async function handlePost(req: Request): Promise<Response> {
 					// The task blocks are chosen from this turn's wording, so they ride the
 					// uncached half. Left in the stable half they split the cache key per
 					// message, and almost no first step reused another turn's prefix.
-					const stableSystem = chatSystemPrompt(translation);
+					const stableSystem = chatSystemPrompt(translation, {}, language);
 					const previousUserMessage = validatedMessages.filter(message => message.role === "user").at(-2);
 					const turnGuidance = taskGuidance({ userText: currentUserText, previousUserText: previousUserMessage ? extractText(previousUserMessage) : "", hasAttachment: threadHasFiles });
 					// The getting-to-know-you interview runs only inside the welcome
@@ -1109,7 +1122,7 @@ async function handlePost(req: Request): Promise<Response> {
 						stableSystem,
 						volatileSystem,
 						providerOptions,
-						cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${userPrefs?.webSearchEnabled ?? true}`,
+						cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${language}:${userPrefs?.webSearchEnabled ?? true}`,
 					});
 					progress.enableNarrator(createProgressSummarizer(userId, definition.provider), extractText(lastMessage));
 					const result = streamText({

@@ -1,17 +1,14 @@
 import * as Clipboard from "expo-clipboard";
 import type { GetToken } from "@/lib/api";
 import type { RetrievedVerse } from "@/lib/chatView";
-import type { TranslationId } from "@/features/bible/translations";
+import { parseTranslationId, type TranslationId } from "@/features/bible/translations";
 import { createNote, deleteNote, patchNote } from "@/features/notes/api";
 
 type VerseActionSource = Pick<RetrievedVerse, "reference" | "text"> & {
 	translation?: TranslationId;
 };
 
-/** Parse a route value without allowing an arbitrary string to change reader state. */
-export function parseTranslationId(value: unknown): TranslationId | null {
-	return value === "KJV" || value === "NKJV" || value === "BSB" ? value : null;
-}
+export { parseTranslationId };
 
 /** A source-card translation wins only for that reader route, never globally. */
 export function readerTranslation(

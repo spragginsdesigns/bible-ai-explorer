@@ -14,6 +14,16 @@
 		]
 	},
 	"releases": {
+		"1.103.0": {
+			"title": "Spanish and German",
+			"headline": "The Word, in your own language.",
+			"why": "A closed tester asked for more languages. SureWord now answers in Spanish and German, following your phone's language unless you choose another in Settings, and the Reina-Valera 1909 and the Lutherbibel 1912 are in the Bible tab, free and offline.",
+			"target": "bible",
+			"verse": {
+				"text": "Now when this was noised abroad, the multitude came together, and were confounded, because that every man heard them speak in his own language.",
+				"reference": "Acts 2:6"
+			}
+		},
 		"1.102.0": { "title": "SureWord AI" },
 		"1.101.0": {
 			"title": "Walk with me",

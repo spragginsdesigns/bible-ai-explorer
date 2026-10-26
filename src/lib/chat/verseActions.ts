@@ -6,7 +6,7 @@
  * re-exported here so chat code has a single import point.
  */
 import { resolveReference } from "@/lib/bible/books";
-import type { TranslationId } from "@/lib/bible/translations";
+import { isTranslationId, type TranslationId } from "@/lib/bible/translations";
 import {
 	formatVerseForSharing,
 	saveVerseToNote,
@@ -42,7 +42,7 @@ export function composeMessageWithAttachment(
 }
 
 export async function copyVerse(
-	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: "KJV" | "NKJV" | "BSB" }
+	verse: Pick<RetrievedVerse, "reference" | "text"> & { translation?: TranslationId }
 ): Promise<void> {
 	await navigator.clipboard.writeText(formatVerseForSharing(verse));
 }
@@ -69,6 +69,6 @@ export function chapterHrefForReference(
 	});
 	if (target.verse) params.set("verse", String(target.verse));
 	const label = sourceTranslation({ reference }, translation);
-	if (label === "KJV" || label === "NKJV" || label === "BSB") params.set("translation", label);
+	if (isTranslationId(label)) params.set("translation", label);
 	return `/bible/chapter?${params.toString()}`;
 }

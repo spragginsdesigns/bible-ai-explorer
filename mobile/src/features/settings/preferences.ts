@@ -1,6 +1,7 @@
-import type { TranslationId } from "@/features/bible/translations";
+import { parseTranslationId, type TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
 import { DEFAULT_TEXT_SCALE, normalizeTextScale, type TextScale } from "./textScale";
+import { DEFAULT_ANSWER_LANGUAGE, normalizeAnswerLanguage, type AnswerLanguage } from "./answerLanguage";
 
 export const HIGHLIGHT_LABEL_IDS = [
 	"yellow",
@@ -172,6 +173,8 @@ export interface PreferencesDocument {
 	listenRate: number;
 	/** App-wide text size. */
 	textScale: TextScale;
+	/** The language SureWord answers in; "auto" follows the device. */
+	answerLanguage: AnswerLanguage;
 	/** Walk with me reads SureWord's messages aloud. */
 	voiceMode: boolean;
 	/** null only when this build is talking to an older response with no field. */
@@ -193,6 +196,7 @@ export interface PreferencesPatch {
 	parchment?: boolean;
 	listenRate?: number;
 	textScale?: TextScale;
+	answerLanguage?: AnswerLanguage;
 	voiceMode?: boolean;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
@@ -209,6 +213,7 @@ export interface SyncedSettingsFields {
 	parchment: boolean;
 	listenRate: number;
 	textScale: TextScale;
+	answerLanguage: AnswerLanguage;
 	voiceMode: boolean;
 	highlightLabels: HighlightLabels | null;
 	highlightMeanings: HighlightMeanings | null;
@@ -231,6 +236,7 @@ export const DEFAULT_SYNCED_SETTINGS: SyncedSettingsFields = {
 	parchment: true,
 	listenRate: DEFAULT_LISTEN_RATE,
 	textScale: DEFAULT_TEXT_SCALE,
+	answerLanguage: DEFAULT_ANSWER_LANGUAGE,
 	voiceMode: false,
 	highlightLabels: null,
 	highlightMeanings: null,
@@ -275,6 +281,7 @@ export function overridesToPush(
 	if (pushable("parchment")) patch.parchment = local.parchment;
 	if (pushable("listenRate")) patch.listenRate = local.listenRate;
 	if (pushable("textScale")) patch.textScale = local.textScale;
+	if (pushable("answerLanguage")) patch.answerLanguage = local.answerLanguage;
 	if (pushable("voiceMode")) patch.voiceMode = local.voiceMode;
 
 	const chat: Partial<PreferencesChat> = {};
@@ -335,12 +342,14 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 		plan: doc.plan === "pro" ? "pro" : "free",
 		webSearchEnabled: doc.webSearchEnabled !== false,
 		memoryEnabled: doc.memoryEnabled !== false,
-		translation: doc.translation === "BSB" ? "BSB" : doc.translation === "NKJV" ? "NKJV" : "KJV",
+		translation: parseTranslationId(doc.translation) ?? DEFAULT_SYNCED_SETTINGS.translation,
 		parchment: doc.parchment !== false,
 		// Normalized rather than trusted: a rate this build no longer offers
 		// would leave the Listen speed chip outside its own cycle.
 		listenRate: normalizeListenRate(doc.listenRate),
 		textScale: normalizeTextScale(doc.textScale),
+		// An older deploy sends no key, which reads as "auto": follow the device.
+		answerLanguage: normalizeAnswerLanguage(doc.answerLanguage),
 		voiceMode: doc.voiceMode === true,
 		highlightLabels:
 			Object.prototype.hasOwnProperty.call(doc, "highlightLabels") && asRecord(doc.highlightLabels)
@@ -370,6 +379,7 @@ export function settingsFromDocument(doc: PreferencesDocument): SyncedSettingsFi
 		parchment: doc.parchment,
 		listenRate: doc.listenRate,
 		textScale: doc.textScale,
+		answerLanguage: doc.answerLanguage,
 		voiceMode: doc.voiceMode,
 		highlightLabels: doc.highlightLabels,
 		highlightMeanings: doc.highlightMeanings,

@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import { fonts, spacing, type Colors } from "@/theme";
+import type { TranslationId } from "@/features/bible/translations";
 import { AddLearnButton } from "./AddLearnButton";
 import { suggestionKey, type LearnSuggestion, type LearnSuggestionsView } from "./suggestions";
 
 export interface SuggestedVersesProps {
 	view: LearnSuggestionsView;
-	translation: "KJV" | "NKJV" | "BSB";
+	translation: TranslationId;
 	/** Stands in for the row that was just added, so the confirmation outlives it. */
 	confirmation: string | null;
 	onAdded: (suggestion: LearnSuggestion) => void;

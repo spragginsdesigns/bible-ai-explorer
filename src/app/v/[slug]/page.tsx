@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { BookOpen, ArrowUpRight } from "lucide-react";
 import { canonicalPassage } from "@/lib/bible/passage-context";
-import type { TranslationId } from "@/lib/bible/translations";
+import { parseTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import { sharedPassageLink } from "@/lib/shared-passage";
 import { readEncouragement } from "@/lib/share-cards/encouragement";
@@ -33,11 +33,8 @@ interface VersePageProps {
 	searchParams: Promise<{ t?: string }>;
 }
 
-const TRANSLATIONS: readonly TranslationId[] = ["KJV", "BSB", "NKJV"];
-
 function parseTranslation(value: string | undefined): TranslationId {
-	const upper = value?.toUpperCase();
-	return TRANSLATIONS.find((id) => id === upper) ?? "KJV";
+	return parseTranslationId(value?.toUpperCase());
 }
 
 const loadVerse = cache(async (slug: string, translation: TranslationId) => {

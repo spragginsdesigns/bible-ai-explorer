@@ -52,8 +52,9 @@ export function readerVerseSegments(
 	return result;
 }
 
-/** Publisher-authored editorial headings, separate from translation text. */
+/** Publisher-authored editorial headings, separate from translation text.
+ * They are English (BSB), so only the KJV and BSB readers show them. */
 export function readerSectionHeadings(translation: TranslationId, book: number, chapter: number, verse: number): string[] {
- if (translation === "NKJV") return [];
+ if (translation !== "KJV" && translation !== "BSB") return [];
  return (sectionHeadings as Record<string, string[]>)[`${book}:${chapter}:${verse}`] ?? [];
 }

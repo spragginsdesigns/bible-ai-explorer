@@ -4,7 +4,9 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useUser } from "@clerk/expo";
 import Constants from "expo-constants";
 import { spacing } from "@/theme";
+import { useLocales } from "expo-localization";
 import { useSettings, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { answerLanguageOptionLabel } from "@/features/settings/answerLanguage";
 import { hydratePreferences, usePreferencesToggles } from "@/features/settings/preferencesSync";
 import { prefetchSettingsData, useSettingsData } from "@/features/settings/settingsData";
 import { useNotificationSettings } from "@/features/notifications/notificationSettings";
@@ -121,6 +123,8 @@ export default function SettingsScreen() {
 						? "Update found - installing through the Play Store."
 						: `Version ${version}. Updates also download automatically when the app opens.`;
 
+	const deviceLanguage = useLocales()[0]?.languageCode;
+
 	const themeLabel =
 		THEME_OPTIONS.find((option) => option.id === settings.themeMode)?.label ?? settings.themeMode;
 	const appearanceSubtitle = [
@@ -186,6 +190,12 @@ export default function SettingsScreen() {
 					title="Appearance & reading"
 					subtitle={appearanceSubtitle}
 					onPress={() => router.push("/settings/appearance")}
+				/>
+				<SettingsRow
+					icon="language-outline"
+					title="Language"
+					subtitle={answerLanguageOptionLabel(settings.answerLanguage, deviceLanguage)}
+					onPress={() => router.push("/settings/language")}
 				/>
 				<SettingsRow
 					icon="brush-outline"

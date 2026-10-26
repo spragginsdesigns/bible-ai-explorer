@@ -1,6 +1,7 @@
 import { searchKjv, type KjvSearchHit } from "./kjv";
 import { loadBsbChapter } from "./bsb";
-import { BOOKS, bookByOrder } from "./books";
+import { getEbibleChapter } from "./ebible";
+import { BOOKS, bookByOrder, foldAccents } from "./books";
 import type { TranslationId } from "./translations";
 
 export interface BibleSearchHit extends KjvSearchHit {
@@ -43,6 +44,21 @@ async function searchTranslation(query: string, translation: TranslationId, limi
   if (translation === "KJV") {
     return (await searchKjv(query, limit)).map((hit) => ({ ...hit, translation }));
   }
+  if (translation === "RV1909" || translation === "LUT1912") {
+    // Accent-insensitive, so "jehova" finds "Jehová" as typed on any keyboard.
+    const fold = (text: string) => foldAccents(text.toLowerCase());
+    const needle = fold(query);
+    const hits: BibleSearchHit[] = [];
+    for (const book of BOOKS) for (let chapter = 1; chapter <= book.chapters; chapter++) {
+      if (signal?.aborted) throw new Error(BIBLE_SEARCH_ERROR);
+      const verses = await getEbibleChapter(translation, book.order, chapter);
+      for (let index = 0; index < verses.length; index++) {
+        if (fold(verses[index]).includes(needle)) hits.push({ order: book.order, chapter, verse: index + 1, text: verses[index], translation });
+        if (hits.length >= limit) return hits;
+      }
+    }
+    return hits;
+  }
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
@@ -81,6 +97,8 @@ export async function searchBible(query: string, translation: TranslationId, lim
   const cap = Math.max(1, Math.min(100, Math.floor(limit) || 100));
   const hits = await searchTranslation(normalized, translation, cap, signal);
   if (hits.length) return { hits, translation };
+  // A Spanish or German search has no other Bible in its language to try.
+  if (translation === "RV1909" || translation === "LUT1912") return { hits, translation };
   const alternate = translation === "KJV" ? "NKJV" : "KJV";
   return { hits: await searchTranslation(normalized, alternate, cap, signal), translation: alternate };
 }

@@ -2,7 +2,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { BOOKS } from "@/lib/bible/books";
-import type { TranslationId } from "@/lib/bible/translations";
+import { isTranslationId, type TranslationId } from "@/lib/bible/translations";
 
 /**
  * The slice of GET /api/reading-events the continue-reading row needs.
@@ -28,7 +28,7 @@ export function parseLastRead(value: unknown): LastRead | null {
     typeof candidate.book !== "string" ||
     typeof candidate.chapter !== "number" ||
     !Number.isInteger(candidate.chapter) ||
-    (candidate.translation !== "KJV" && candidate.translation !== "NKJV" && candidate.translation !== "BSB") ||
+    !isTranslationId(candidate.translation) ||
     typeof candidate.readAt !== "string"
   ) {
     return null;

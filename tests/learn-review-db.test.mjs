@@ -27,6 +27,7 @@ const dates = load("../src/lib/reading-history.ts", ["localDayKey", "resolveRead
 const schedule = load("../src/lib/learn-schedule.ts", ["LEARN_DAILY_LIMIT", "reviewCard", "startOfToday", "startOfTomorrow", "toLearnStage"], dates);
 const loadLearn = (db) => load("../src/lib/learn.ts", ["reviewCardOperation", "reviewCardById", "addCard", "removeCard", "todayCards"], {
  prisma: db, createHash, ...schedule,
+ parseTranslationId: (value) => (["KJV", "NKJV", "BSB", "RV1909", "LUT1912"].includes(value) ? value : "KJV"),
  bookByOrder: () => ({name: "John"}), getKjvChapter: async () => Array(40).fill("Matching KJV text"),
  getChapter: async () => { throw new Error("Unavailable NKJV"); },
 });

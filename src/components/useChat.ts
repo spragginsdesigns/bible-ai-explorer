@@ -18,6 +18,7 @@ import { rememberAttachmentDetails, withAttachmentDetails } from "@/lib/chat/att
 import { completedHistory } from "@/lib/chat/answerRecovery";
 import { prepareFilesForUpload } from "@/lib/chat/imageDownscale";
 import { notifyAnswerReady } from "@/lib/web-notifications";
+import { isTranslationId, type TranslationId } from "@/lib/bible/translations";
 import {
 	isRenderableChatMessage,
 	streamingAssistantId,
@@ -49,6 +50,7 @@ import {
 	readModePref,
 	readModelPref,
 	readSpeedPref,
+	readEffectiveAnswerLanguage,
 	readTranslationPref,
 	readVerbosityPref,
 } from "@/lib/preferences";
@@ -62,7 +64,7 @@ export interface RetrievedVerse {
 	similarity: number;
 	text?: string;
 	/** Translation that produced this text; absent on legacy/history rows. */
-	translation?: "KJV" | "NKJV" | "BSB";
+	translation?: TranslationId;
 	/**
 	 * Rows with no real score: "passage" for getPassage lookups, "exact" for
 	 * word-match tools (findVerses, searchOriginalLanguage). Absent for scored
@@ -210,9 +212,7 @@ function parseVerses(value: unknown): RetrievedVerse[] {
 			reference: verse.reference,
 			similarity: verse.similarity,
 			...(typeof verse.text === "string" ? { text: verse.text } : {}),
-			...(verse.translation === "KJV" || verse.translation === "NKJV" || verse.translation === "BSB"
-				? { translation: verse.translation }
-				: {}),
+			...(isTranslationId(verse.translation) ? { translation: verse.translation } : {}),
 		}];
 	});
 }
@@ -639,6 +639,9 @@ export const useChat = () => {
 						// Read per request so a settings change applies to the next
 						// message without remounting the hook.
 						translation: readTranslationPref(),
+						// The language answers are written in: the Settings choice, else
+						// the browser's language when SureWord speaks it, else English.
+						language: readEffectiveAnswerLanguage(),
 						modelId: readModelPref(),
 						// Undefined when this browser has never picked an effort, so
 						// JSON.stringify drops the key and the server keeps the

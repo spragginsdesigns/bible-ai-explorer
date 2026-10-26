@@ -27,11 +27,13 @@ function loadModule(relativePath, exportNames, injected = {}) {
 	return factory(...names.map((name) => injected[name]));
 }
 
-const { resolveReference } = loadModule("../src/lib/bible/books.ts", ["resolveReference"], {
+const { resolveReference, LOCALIZED_BOOK_PATTERN } = loadModule("../src/lib/bible/books.ts", ["resolveReference", "LOCALIZED_BOOK_PATTERN"], {
 	booksJson: JSON.parse(read("../src/data/books.json")),
+	bookNamesJson: JSON.parse(read("../src/data/book-names.json")),
 });
 const { parseVerseReferences } = loadModule("../src/utils/verseParser.ts", ["parseVerseReferences"], {
 	resolveReference,
+	LOCALIZED_BOOK_PATTERN,
 });
 const { turnShapeHint, SHORT_FOLLOW_UP_HINT, SHORT_FOLLOW_UP_MAX_CHARS } = loadModule(
 	"../src/lib/turn-shape.ts",

@@ -1,0 +1,41 @@
+{
+  "about": "Book names per language, in canonical order (index 0 = Genesis). Display names first; `aliases` adds other common spellings that resolve to the same book. Mirrored byte-for-byte to mobile/src/features/bible/data/book-names.json and macos/Shared/Bible/Data/book-names.json.",
+  "es": {
+    "names": [
+      "Génesis", "Éxodo", "Levítico", "Números", "Deuteronomio", "Josué", "Jueces", "Rut",
+      "1 Samuel", "2 Samuel", "1 Reyes", "2 Reyes", "1 Crónicas", "2 Crónicas", "Esdras", "Nehemías",
+      "Ester", "Job", "Salmos", "Proverbios", "Eclesiastés", "Cantares", "Isaías", "Jeremías",
+      "Lamentaciones", "Ezequiel", "Daniel", "Oseas", "Joel", "Amós", "Abdías", "Jonás",
+      "Miqueas", "Nahúm", "Habacuc", "Sofonías", "Hageo", "Zacarías", "Malaquías",
+      "Mateo", "Marcos", "Lucas", "Juan", "Hechos", "Romanos", "1 Corintios", "2 Corintios",
+      "Gálatas", "Efesios", "Filipenses", "Colosenses", "1 Tesalonicenses", "2 Tesalonicenses",
+      "1 Timoteo", "2 Timoteo", "Tito", "Filemón", "Hebreos", "Santiago", "1 Pedro", "2 Pedro",
+      "1 Juan", "2 Juan", "3 Juan", "Judas", "Apocalipsis"
+    ],
+    "aliases": {
+      "Salmo": 19,
+      "Cantar de los Cantares": 22,
+      "Hechos de los Apóstoles": 44
+    }
+  },
+  "de": {
+    "names": [
+      "1. Mose", "2. Mose", "3. Mose", "4. Mose", "5. Mose", "Josua", "Richter", "Rut",
+      "1. Samuel", "2. Samuel", "1. Könige", "2. Könige", "1. Chronik", "2. Chronik", "Esra", "Nehemia",
+      "Ester", "Hiob", "Psalmen", "Sprüche", "Prediger", "Hoheslied", "Jesaja", "Jeremia",
+      "Klagelieder", "Hesekiel", "Daniel", "Hosea", "Joel", "Amos", "Obadja", "Jona",
+      "Micha", "Nahum", "Habakuk", "Zefanja", "Haggai", "Sacharja", "Maleachi",
+      "Matthäus", "Markus", "Lukas", "Johannes", "Apostelgeschichte", "Römer", "1. Korinther", "2. Korinther",
+      "Galater", "Epheser", "Philipper", "Kolosser", "1. Thessalonicher", "2. Thessalonicher",
+      "1. Timotheus", "2. Timotheus", "Titus", "Philemon", "Hebräer", "Jakobus", "1. Petrus", "2. Petrus",
+      "1. Johannes", "2. Johannes", "3. Johannes", "Judas", "Offenbarung"
+    ],
+    "aliases": {
+      "Psalm": 19,
+      "Esther": 17,
+      "Ruth": 8,
+      "Zephanja": 36,
+      "Apg": 44
+    }
+  }
+}

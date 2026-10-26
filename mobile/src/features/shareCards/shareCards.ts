@@ -53,12 +53,13 @@ export type ShareCardTarget =
 			messageId: string;
 	  };
 
-/** The translations the server can look up and draw. */
-export type CardTranslation = "KJV" | "BSB" | "NKJV";
+/** The translations the server can look up and draw: every one we serve. */
+const CARD_TRANSLATIONS = ["KJV", "BSB", "NKJV", "RV1909", "LUT1912"] as const;
+export type CardTranslation = (typeof CARD_TRANSLATIONS)[number];
 
 export function cardTranslation(label: string): CardTranslation | null {
 	const upper = label.trim().toUpperCase();
-	return upper === "KJV" || upper === "BSB" || upper === "NKJV" ? upper : null;
+	return (CARD_TRANSLATIONS as readonly string[]).includes(upper) ? (upper as CardTranslation) : null;
 }
 
 /** Mirrors MAX_CARD_VERSES on the server: the reader's selection limit. */

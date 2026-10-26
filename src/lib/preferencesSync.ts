@@ -3,11 +3,16 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { AUTO_EFFORT_SENTINEL } from "@/components/modelPickerRules";
 import { DEFAULT_LISTEN_RATE, LISTEN_RATE_PREF_KEY } from "@/components/cross/listen";
-import type { TranslationId } from "@/lib/bible/translations";
-import type { PreferencesDocument } from "@/lib/preferences-contract";
+import { quotationTranslation, type TranslationId } from "@/lib/bible/translations";
+import {
+	isAnswerLanguagePref,
+	type AnswerLanguagePref,
+	type PreferencesDocument,
+} from "@/lib/preferences-contract";
 import { isTextScale, type TextScale } from "@/lib/text-scale";
 import {
 	ABOUT_ME_PREF_KEY,
+	ANSWER_LANGUAGE_PREF_KEY,
 	EFFORT_PREF_KEY,
 	EMPTY_HIGHLIGHT_LABELS,
 	HIGHLIGHT_LABELS_PREF_KEY,
@@ -31,6 +36,7 @@ import {
 	normalizeHighlightLabels,
 	normalizeHighlightMeanings,
 	readAboutMePref,
+	readAnswerLanguagePref,
 	readEffortPref,
 	readHighlightLabelsPref,
 	readHighlightMeaningsPref,
@@ -46,6 +52,7 @@ import {
 	readVoiceModePref,
 	readWebSearchEnabledPref,
 	writeAboutMePref,
+	writeAnswerLanguagePref,
 	writeEffortPref,
 	writeHighlightLabelsPref,
 	writeHighlightMeaningsPref,
@@ -90,6 +97,7 @@ const ADOPTED_KEY = "sureword-preferences-adopted";
 /** Every synced key, for the discard-on-account-change rule. */
 const SYNCED_KEYS = [
 	TRANSLATION_PREF_KEY,
+	ANSWER_LANGUAGE_PREF_KEY,
 	PARCHMENT_PREF_KEY,
 	LISTEN_RATE_PREF_KEY,
 	TEXT_SCALE_PREF_KEY,
@@ -117,6 +125,7 @@ interface PreferencesPatchBody {
 	parchment?: boolean;
 	listenRate?: number;
 	textScale?: TextScale;
+	answerLanguage?: AnswerLanguagePref;
 	voiceMode?: boolean;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
@@ -323,6 +332,8 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
 	// Checked rather than trusted: a server behind this build sends neither,
 	// and an absent size must not reset a reader who already chose Largest.
 	if (isTextScale(document.textScale)) writeTextScalePref(document.textScale);
+	// Same for the answer language: absent from an older server, never a reset.
+	if (isAnswerLanguagePref(document.answerLanguage)) writeAnswerLanguagePref(document.answerLanguage);
 	if (typeof document.voiceMode === "boolean") writeVoiceModePref(document.voiceMode);
 	writeMemoryEnabledPref(document.memoryEnabled);
 	writeWebSearchEnabledPref(document.webSearchEnabled);
@@ -414,6 +425,11 @@ function collectLocalOverrides(server: PreferencesDocument): PreferencesPatchBod
 	const translation = readTranslationPref();
 	if (translation !== "KJV" && server.translation === "KJV") {
 		patch.translation = translation;
+		found = true;
+	}
+	const answerLanguage = readAnswerLanguagePref();
+	if (answerLanguage !== "auto" && server.answerLanguage === "auto") {
+		patch.answerLanguage = answerLanguage;
 		found = true;
 	}
 	if (!readParchmentPref() && server.parchment) {
@@ -715,6 +731,35 @@ export function setTranslationPreference(
 		"Couldn't save your translation.",
 		options
 	);
+}
+
+export function setAnswerLanguagePreference(
+	answerLanguage: AnswerLanguagePref,
+	options: WriteThroughOptions = {}
+): Promise<string | null> {
+	const previous = readAnswerLanguagePref();
+	return writeThrough(
+		() => writeAnswerLanguagePref(answerLanguage),
+		() => writeAnswerLanguagePref(previous),
+		() => readAnswerLanguagePref() === answerLanguage,
+		{ answerLanguage },
+		"Couldn't save your language.",
+		options
+	);
+}
+
+/**
+ * Settings → Language. A specific language also opens that language's Bible
+ * when the reader's current one is in another language (a BSB reader who
+ * picks English keeps the BSB); "Follow my device" leaves the Bible alone.
+ * Mirrors Android's `chooseAnswerLanguage`.
+ */
+export async function chooseAnswerLanguage(answerLanguage: AnswerLanguagePref): Promise<string | null> {
+	const error = await setAnswerLanguagePreference(answerLanguage);
+	if (error || answerLanguage === "auto") return error;
+	const current = readTranslationPref();
+	const bible = quotationTranslation(current, answerLanguage);
+	return bible === current ? null : setTranslationPreference(bible);
 }
 
 export function setParchmentPreference(

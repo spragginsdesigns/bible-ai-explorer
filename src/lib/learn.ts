@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { bookByOrder } from "@/lib/bible/books";
 import { getKjvChapter } from "@/lib/bible/kjv";
-import { getChapter, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, parseTranslationId, type TranslationId } from "@/lib/bible/translations";
 import {
 	LEARN_DAILY_LIMIT,
 	reviewCard,
@@ -93,7 +93,7 @@ interface CardRow {
 }
 
 function toTranslation(value: string): TranslationId {
-	return value === "BSB" ? "BSB" : value === "NKJV" ? "NKJV" : "KJV";
+	return parseTranslationId(value);
 }
 
 /** "John 3:16", or "43 3:16" for a book order the metadata does not know. */

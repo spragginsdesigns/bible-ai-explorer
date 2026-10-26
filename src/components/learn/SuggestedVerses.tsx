@@ -1,11 +1,12 @@
 "use client";
 
 import { AddLearnButton } from "./AddLearnButton";
+import type { TranslationId } from "./learn";
 import { suggestionKey, type LearnSuggestion, type LearnSuggestionsView } from "./suggestions";
 
 export interface SuggestedVersesProps {
 	view: LearnSuggestionsView;
-	translation: "KJV" | "NKJV" | "BSB";
+	translation: TranslationId;
 	/** Stands in for the row that was just added, so the confirmation outlives it. */
 	confirmation: string | null;
 	onAdded: (suggestion: LearnSuggestion) => void;

@@ -35,6 +35,7 @@ const FULL_DOCUMENT = {
 	aboutMe: "Saved in 2019, studying Romans.",
 	testimony: "Raised in church, but the Lord saved me at 30.",
 	textScale: "largest",
+	answerLanguage: "es",
 	voiceMode: true,
 	chat: {
 		modelId: "openai/gpt-5.6-luna",
@@ -59,6 +60,7 @@ describe("parsePreferencesDocument", () => {
 			aboutMe: "Saved in 2019, studying Romans.",
 			testimony: "Raised in church, but the Lord saved me at 30.",
 			textScale: "largest",
+			answerLanguage: "es",
 			voiceMode: true,
 			chat: {
 				modelId: "openai/gpt-5.6-luna",
@@ -83,6 +85,7 @@ describe("parsePreferencesDocument", () => {
 			aboutMe: null,
 			testimony: null,
 			textScale: "standard",
+			answerLanguage: "auto",
 			voiceMode: false,
 			chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 		});
@@ -95,6 +98,20 @@ describe("parsePreferencesDocument", () => {
 
 	it("keeps an unknown translation on KJV", () => {
 		expect(parsePreferencesDocument({ translation: "ESV" })?.translation).toBe("KJV");
+	});
+
+	it("reads the Bibles in other languages", () => {
+		expect(parsePreferencesDocument({ translation: "RV1909" })?.translation).toBe("RV1909");
+		expect(parsePreferencesDocument({ translation: "LUT1912" })?.translation).toBe("LUT1912");
+	});
+
+	it("reads the answer language, and anything unknown or missing as auto", () => {
+		expect(parsePreferencesDocument({ answerLanguage: "de" })?.answerLanguage).toBe("de");
+		expect(parsePreferencesDocument({ answerLanguage: "en" })?.answerLanguage).toBe("en");
+		expect(parsePreferencesDocument({ answerLanguage: "fr" })?.answerLanguage).toBe("auto");
+		expect(parsePreferencesDocument({ answerLanguage: 7 })?.answerLanguage).toBe("auto");
+		// A deploy that predates the column sends no key.
+		expect(parsePreferencesDocument({})?.answerLanguage).toBe("auto");
 	});
 
 	it("reads a non-string chat value as never chosen", () => {
@@ -179,6 +196,7 @@ describe("settingsFromDocument", () => {
 			chatVerbosity: "low",
 			chatMode: "pro",
 			textScale: "largest",
+			answerLanguage: "es",
 			voiceMode: true,
 		});
 	});
@@ -315,6 +333,15 @@ describe("overridesToPush", () => {
 
 	it("lets an established account win over a stale local default", () => {
 		expect(overridesToPush(defaults, { ...defaults, translation: "NKJV" })).toBeNull();
+	});
+
+	it("seeds an answer language chosen offline, and never overwrites one the account chose", () => {
+		expect(overridesToPush({ ...defaults, answerLanguage: "es" }, defaults)).toEqual({
+			answerLanguage: "es",
+		});
+		expect(
+			overridesToPush({ ...defaults, answerLanguage: "es" }, { ...defaults, answerLanguage: "de" })
+		).toBeNull();
 	});
 
 	it("pushes only the columns the account has not written", () => {

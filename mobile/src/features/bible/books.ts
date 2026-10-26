@@ -4,6 +4,7 @@
  * links can turn "John 3:16"-style strings into a book/chapter/verse location.
  */
 import booksJson from "./data/books.json";
+import bookNamesJson from "./data/book-names.json";
 
 export interface Book {
 	order: number;
@@ -65,10 +66,79 @@ export function bookGroup(order: number): BookGroup | null {
 	return null;
 }
 
+/**
+ * Spanish and German book names and common spellings (data/book-names.json),
+ * each paired with its canonical order, so a reference in an answer written in
+ * Spanish or German ("Juan 3:16", "1. Mose 1:1") resolves and links like an
+ * English one. English names win wherever a spelling is shared.
+ */
+export const LOCALIZED_BOOK_NAMES: ReadonlyArray<readonly [string, number]> = (() => {
+	const entries: [string, number][] = [];
+	for (const language of ["es", "de"] as const) {
+		const { names, aliases } = bookNamesJson[language] as { names: string[]; aliases: Record<string, number> };
+		names.forEach((name, index) => entries.push([name, index + 1]));
+		for (const [alias, order] of Object.entries(aliases)) entries.push([alias, order]);
+	}
+	return entries;
+})();
+
+/**
+ * Accented letters fold to their base letter for lookups, so a model that
+ * writes "Isaias" or "Filemon" still resolves. Written as escapes because
+ * tooling on this machine flattens some non-ASCII literals.
+ */
+const ACCENT_FOLDS: ReadonlyArray<readonly [RegExp, string]> = [
+	[/[\u00e0-\u00e5]/g, "a"],
+	[/[\u00e8-\u00eb]/g, "e"],
+	[/[\u00ec-\u00ef]/g, "i"],
+	[/[\u00f2-\u00f6]/g, "o"],
+	[/[\u00f9-\u00fc]/g, "u"],
+	[/\u00f1/g, "n"],
+];
+
+export function foldAccents(value: string): string {
+	return ACCENT_FOLDS.reduce((text, [pattern, base]) => text.replace(pattern, base), value);
+}
+
+/** Regex source matching a folded letter in either form: "i" also matches an accented i. */
+const ACCENT_CLASSES: Record<string, string> = {
+	a: "[a\\u00e0-\\u00e5]",
+	e: "[e\\u00e8-\\u00eb]",
+	i: "[i\\u00ec-\\u00ef]",
+	o: "[o\\u00f2-\\u00f6]",
+	u: "[u\\u00f9-\\u00fc]",
+	n: "[n\\u00f1]",
+};
+
+/** One localized name as regex source: "1. Mose" accepts "1 Mose" and "1Mose". */
+function localizedNamePattern(name: string): string {
+	const volume = name.match(/^([1-3])\.? /);
+	const rest = volume ? name.slice(volume[0].length) : name;
+	const body = Array.from(rest)
+		.map((char) => {
+			if (char === " ") return "\\s+";
+			const lower = char.toLowerCase();
+			const base = foldAccents(lower);
+			return base !== lower ? (ACCENT_CLASSES[base] ?? char) : char;
+		})
+		.join("");
+	return volume ? `${volume[1]}\\.?\\s?${body}` : body;
+}
+
+/**
+ * Regex alternation (source text) of every localized name, longest first, for
+ * the chat link detectors. An accented letter also matches its plain form.
+ * Each name must still be followed by whitespace before the chapter, as an
+ * English full name is.
+ */
+export const LOCALIZED_BOOK_PATTERN = LOCALIZED_BOOK_NAMES.map(([name]) => name)
+	.sort((a, b) => b.length - a.length)
+	.map(localizedNamePattern)
+	.join("|");
+
 /** Lowercase, drop punctuation, collapse whitespace: "1 Sam." → "1 sam". */
 function normalizeName(value: string): string {
-	return value
-		.toLowerCase()
+	return foldAccents(value.toLowerCase())
 		.replace(/[.,]/g, "")
 		.replace(/\s+/g, " ")
 		.trim();
@@ -90,11 +160,16 @@ const NAME_TO_BOOK = (() => {
 		const book = BOOKS.find((b) => b.name === name);
 		if (book) map.set(normalizeName(alias), book);
 	}
+	for (const [name, order] of LOCALIZED_BOOK_NAMES) {
+		const key = normalizeName(name);
+		const book = bookByOrder(order);
+		if (book && !map.has(key)) map.set(key, book);
+	}
 	return map;
 })();
 
 const REFERENCE_PATTERN =
-	/^([1-3])?\s*([a-zA-Z. ]+?)\s+(\d+)(?:\s*:\s*(\d+)(?:\s*[-–—]\s*\d+)?)?$/;
+	/^([1-3])?\s*([a-zA-Z\u00c0-\u00ff. ]+?)\s+(\d+)(?:\s*:\s*(\d+)(?:\s*[-–—]\s*\d+)?)?$/;
 
 /**
  * Parse "John 3:16", "1 Samuel 2:1-10", "Psalm 23", "Gen 1" (case-insensitive,

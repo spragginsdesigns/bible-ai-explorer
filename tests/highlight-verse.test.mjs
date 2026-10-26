@@ -27,7 +27,10 @@ function loadModule(relativePath, exportNames, injected = {}) {
 }
 
 const booksJson = JSON.parse(read("../src/data/books.json"));
-const { resolveReference } = loadModule("../src/lib/bible/books.ts", ["resolveReference"], { booksJson });
+const { resolveReference } = loadModule("../src/lib/bible/books.ts", ["resolveReference"], {
+	booksJson,
+	bookNamesJson: JSON.parse(read("../src/data/book-names.json")),
+});
 
 // Real verse counts from the bundled KJV, so a clamp or a missing verse is
 // checked against the Bible the reader shows.

@@ -1,7 +1,7 @@
 import { progressFromParts, type ChatProgress } from "./chatProgress";
 import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
-import type { TranslationId } from "@/features/bible/translations";
+import { isTranslationId, type TranslationId } from "@/features/bible/translations";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "./assistantMarkdown";
 import { buildReceipts, type ChatReceipt } from "./receipts";
 
@@ -277,9 +277,7 @@ function parseVerses(value: unknown): RetrievedVerse[] {
 			reference: verse.reference,
 			similarity: verse.similarity,
 			...(typeof verse.text === "string" ? { text: verse.text } : {}),
-			...(verse.translation === "KJV" || verse.translation === "NKJV" || verse.translation === "BSB"
-				? { translation: verse.translation }
-				: {}),
+			...(isTranslationId(verse.translation) ? { translation: verse.translation } : {}),
 		}];
 	});
 }

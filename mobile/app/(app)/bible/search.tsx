@@ -7,8 +7,15 @@ import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { bookByOrder, resolveReference, type Reference } from "@/features/bible/books";
 import { warmAllKjvBooks } from "@/features/bible/kjv";
-import { searchBible, BIBLE_SEARCH_ERROR, type BibleSearchHit } from "@/features/bible/search";
-import type { TranslationId } from "@/features/bible/translations";
+import {
+	searchBible,
+	searchTranslationFor,
+	BIBLE_SEARCH_ERROR,
+	SEARCH_TRANSLATIONS,
+	type BibleSearchHit,
+	type SearchTranslationId,
+} from "@/features/bible/search";
+import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useSettings, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -28,8 +35,8 @@ export default function BibleSearchScreen() {
 	const [hits, setHits] = useState<BibleSearchHit[]>([]);
 	const [searched, setSearched] = useState("");
 	const { translation: accountTranslation } = useSettings();
-	const [selectedTranslation, setSelectedTranslation] = useState<TranslationId | null>(null);
-	const translation = selectedTranslation ?? accountTranslation;
+	const [selectedTranslation, setSelectedTranslation] = useState<SearchTranslationId | null>(null);
+	const translation = selectedTranslation ?? searchTranslationFor(accountTranslation);
 	const [resultTranslation, setResultTranslation] = useState<TranslationId>(translation);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -110,14 +117,19 @@ export default function BibleSearchScreen() {
 					{hits.length === 0
 						? reference
 							? ""
-							: "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
+							: TRANSLATIONS[translation].language === "en"
+								? "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
+								: `No phrase matches in ${translation}. Try fewer words or a reference like Job 1:8.`
 						: hits.length >= SEARCH_LIMIT
 							? `First ${SEARCH_LIMIT} results. Refine your search.`
 							: `${hits.length} result${hits.length === 1 ? "" : "s"}`}
 					{hits.length > 0 && resultTranslation !== translation && ` in ${resultTranslation}. No phrase matches in ${translation}.`}
 				</Text>
 			) : (
-				<Text style={styles.hint}>Search {translation} by word or phrase. If there are no matches, we check {translation === "KJV" ? "NKJV" : "KJV"} too. NKJV requires a connection.</Text>
+				<Text style={styles.hint}>Search {translation} by word or phrase.{" "}
+					{TRANSLATIONS[translation].language === "en"
+						? `If there are no matches, we check ${translation === "KJV" ? "NKJV" : "KJV"} too. NKJV requires a connection.`
+						: "Accents are optional."}</Text>
 			)}
 		</View>
 	);
@@ -160,8 +172,8 @@ export default function BibleSearchScreen() {
 				) : null}
 			</View>
 
-			<View style={{ flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg }}>
-				{(["KJV", "NKJV", "BSB"] as const).map((id) => (
+			<View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.lg }}>
+				{SEARCH_TRANSLATIONS.map((id) => (
 					<Pressable key={id} accessibilityRole="button" accessibilityLabel={`Search ${id}`} accessibilityState={{ selected: translation === id }} onPress={() => setSelectedTranslation(id)} style={[styles.jumpRow, { opacity: translation === id ? 1 : 0.6 }]}>
 						<Text style={styles.jumpLabel}>{id}</Text>
 					</Pressable>

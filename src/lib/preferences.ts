@@ -3,7 +3,17 @@ import {
 	LISTEN_RATE_PREF_KEY,
 	normalizeListenRate,
 } from "@/components/cross/listen";
-import type { TranslationId } from "@/lib/bible/translations";
+import {
+	isAnswerLanguage,
+	parseTranslationId,
+	type AnswerLanguage,
+	type TranslationId,
+} from "@/lib/bible/translations";
+import {
+	DEFAULT_ANSWER_LANGUAGE,
+	isAnswerLanguagePref,
+	type AnswerLanguagePref,
+} from "@/lib/preferences-contract";
 import {
 	DEFAULT_TEXT_SCALE,
 	TEXT_SCALE_PREF_KEY,
@@ -241,12 +251,46 @@ export function writeTestimonyPref(testimony: string): void {
 export function readTranslationPref(): TranslationId {
 	if (typeof window === "undefined") return "KJV";
 	const saved = window.localStorage.getItem(TRANSLATION_PREF_KEY);
-	return saved === "BSB" || saved === "NKJV" ? saved : "KJV";
+	return parseTranslationId(saved);
 }
 
 export function writeTranslationPref(translation: TranslationId) {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(TRANSLATION_PREF_KEY, translation);
+}
+
+/**
+ * The language SureWord answers in (Settings → Appearance → Language). Synced
+ * with the account; "auto" follows the browser's first preferred language.
+ */
+export const ANSWER_LANGUAGE_PREF_KEY = "sureword-answer-language";
+
+export function readAnswerLanguagePref(): AnswerLanguagePref {
+	if (typeof window === "undefined") return DEFAULT_ANSWER_LANGUAGE;
+	const saved = window.localStorage.getItem(ANSWER_LANGUAGE_PREF_KEY);
+	return isAnswerLanguagePref(saved) ? saved : DEFAULT_ANSWER_LANGUAGE;
+}
+
+export function writeAnswerLanguagePref(pref: AnswerLanguagePref) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(ANSWER_LANGUAGE_PREF_KEY, pref);
+}
+
+/**
+ * The language the browser's first preferred locale asks for, when SureWord
+ * speaks it; English otherwise, so a French browser gets English answers.
+ * Mirrors Android's `deviceAnswerLanguage`.
+ */
+export function deviceAnswerLanguage(): AnswerLanguage {
+	if (typeof navigator === "undefined") return "en";
+	const code = (navigator.languages?.[0] ?? navigator.language ?? "").split("-")[0].trim().toLowerCase();
+	return isAnswerLanguage(code) ? code : "en";
+}
+
+/** The language a request asks answers in: the account choice, else the browser's language. */
+export function readEffectiveAnswerLanguage(): AnswerLanguage {
+	const pref = readAnswerLanguagePref();
+	return pref === "auto" ? deviceAnswerLanguage() : pref;
 }
 
 /** Bible reader parchment page surface (Settings → Appearance). Default on. */

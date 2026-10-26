@@ -2,9 +2,11 @@ import { useSyncExternalStore } from "react";
 import { useColorScheme } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { meshGradients, palettes, type Colors, type ResolvedTheme } from "@/theme";
-import type { TranslationId } from "@/features/bible/translations";
+import { parseTranslationId, type BibleLanguage, type TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
 import { TEXT_SCALE_FACTORS, normalizeTextScale, type TextScale } from "./textScale";
+import { bibleForLanguage, normalizeAnswerLanguage, type AnswerLanguage } from "./answerLanguage";
+import { effectiveAnswerLanguage } from "./effectiveLanguage";
 import {
 	DEFAULT_SYNCED_SETTINGS,
 	settingsFromDocument,
@@ -68,6 +70,8 @@ export interface Settings {
 	listenRate: number;
 	/** App-wide text size, applied by AppText. Synced with the account. */
 	textScale: TextScale;
+	/** The language SureWord answers in; "auto" follows the device. Synced with the account. */
+	answerLanguage: AnswerLanguage;
 	/** Walk with me reads SureWord's messages aloud. Synced with the account. */
 	voiceMode: boolean;
 	/** Account highlight names. Null until this account has hydrated. */
@@ -121,7 +125,7 @@ export async function hydrateSettings(): Promise<void> {
 				parsed.themeMode === "dark" || parsed.themeMode === "light" || parsed.themeMode === "system"
 					? parsed.themeMode
 					: DEFAULT_SETTINGS.themeMode,
-			translation: parsed.translation === "BSB" ? "BSB" : parsed.translation === "NKJV" ? "NKJV" : "KJV",
+			translation: parseTranslationId(parsed.translation) ?? DEFAULT_SETTINGS.translation,
 			parchment: parsed.parchment !== false,
 			lcGreek: parsed.lcGreek === true,
 			// Default on, so a cache from before the setting existed keeps the offer.
@@ -137,6 +141,7 @@ export async function hydrateSettings(): Promise<void> {
 			// would leave the speed chip outside its own cycle.
 			listenRate: normalizeListenRate(parsed.listenRate),
 			textScale: normalizeTextScale(parsed.textScale),
+			answerLanguage: normalizeAnswerLanguage(parsed.answerLanguage),
 			voiceMode: parsed.voiceMode === true,
 			highlightLabels:
 				parsed.highlightLabels && typeof parsed.highlightLabels === "object"
@@ -281,6 +286,24 @@ export function setTextScale(textScale: TextScale) {
 	writeThrough({ textScale }, revertIfUnchanged("textScale", textScale, previous));
 }
 
+export function setAnswerLanguage(answerLanguage: AnswerLanguage) {
+	const previous = snapshot.answerLanguage;
+	setSnapshot({ ...snapshot, answerLanguage });
+	writeThrough({ answerLanguage }, revertIfUnchanged("answerLanguage", answerLanguage, previous));
+}
+
+/**
+ * Settings > Language. A specific language also opens that language's Bible
+ * when the reader's current one is in another language; "Follow my device"
+ * leaves the Bible alone.
+ */
+export function chooseAnswerLanguage(answerLanguage: AnswerLanguage) {
+	setAnswerLanguage(answerLanguage);
+	if (answerLanguage === "auto") return;
+	const bible = bibleForLanguage(snapshot.translation, answerLanguage);
+	if (bible !== snapshot.translation) setBibleTranslation(bible);
+}
+
 export function setVoiceMode(voiceMode: boolean) {
 	const previous = snapshot.voiceMode;
 	setSnapshot({ ...snapshot, voiceMode });
@@ -404,6 +427,14 @@ export function useHighlightLabels(): HighlightLabels {
 /** Non-reactive read of the current settings, for one-shot request bodies. */
 export function getSettings(): Settings {
 	return snapshot;
+}
+
+/**
+ * The language a request asks answers in: the account choice, or the device's
+ * language under "auto". Read at send time, for one-shot request bodies.
+ */
+export function getEffectiveAnswerLanguage(): BibleLanguage {
+	return effectiveAnswerLanguage(snapshot.answerLanguage);
 }
 
 /** The theme the app should actually render, resolving "system" via the OS. */

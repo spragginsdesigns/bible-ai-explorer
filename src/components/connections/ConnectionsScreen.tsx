@@ -8,7 +8,7 @@ import { useAuth } from "@clerk/nextjs";
 import { ArrowLeft, ArrowRight, BookOpen, ChevronRight, Loader2, MessageCircle, Search, Sparkles } from "lucide-react";
 import { BOOKS, bookByOrder, resolveReference } from "@/lib/bible/books";
 import { CONNECTION_SECTIONS, connectionSectionOf, connectionsAskPrompt, sectionCounts, sectionInk, type ChapterLink } from "@/lib/bible/connectionsMap";
-import { getChapter, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
+import { getChapter, parseTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import { readTranslationPref } from "@/lib/preferences";
 import { usePreference } from "@/lib/preferencesSync";
@@ -33,7 +33,7 @@ function ConnectionsContent() {
   const isDark = resolvedTheme === "dark";
   const accountTranslation = usePreference<TranslationId>(readTranslationPref, "KJV");
   const routeTranslation = params.get("translation");
-  const translation: TranslationId = routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB" ? routeTranslation : accountTranslation;
+  const translation: TranslationId = parseTranslationId(routeTranslation, accountTranslation);
   const paramBook = positive(params.get("book"));
   const paramChapter = positive(params.get("chapter"));
   const scopedBook = paramBook ? bookByOrder(paramBook) : null;

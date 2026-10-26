@@ -33,15 +33,15 @@ function loadModule(relativePath, exportNames, injected = {}) {
 	return factory(...names.map((name) => injected[name]));
 }
 
-const { resolveReference } = loadModule(
+const { resolveReference, LOCALIZED_BOOK_PATTERN } = loadModule(
 	"../src/lib/bible/books.ts",
-	["resolveReference"],
-	{ booksJson: JSON.parse(read("../src/data/books.json")) }
+	["resolveReference", "LOCALIZED_BOOK_PATTERN"],
+	{ booksJson: JSON.parse(read("../src/data/books.json")), bookNamesJson: JSON.parse(read("../src/data/book-names.json")) }
 );
 const { parseVerseReferences } = loadModule(
 	"../src/utils/verseParser.ts",
 	["parseVerseReferences"],
-	{ resolveReference }
+	{ resolveReference, LOCALIZED_BOOK_PATTERN }
 );
 
 /**

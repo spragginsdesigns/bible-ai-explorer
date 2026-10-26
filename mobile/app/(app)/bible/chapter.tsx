@@ -52,7 +52,7 @@ import {
 	setHighlight,
 	useChapterHighlights,
 } from "@/features/bible/highlightsStore";
-import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
+import { TRANSLATIONS, translationPickerLabel, type TranslationId } from "@/features/bible/translations";
 import { bibleVersePlainText } from "@/features/bible/verseMarkup";
 import { getBsbChapter } from "@/features/bible/bsb";
 import {
@@ -1080,6 +1080,7 @@ export default function BibleChapterScreen() {
 							<Pressable
 								key={id}
 								accessibilityRole="button"
+								accessibilityLabel={translationPickerLabel(id)}
 								accessibilityState={{ selected }}
 								onPress={() => setTranslation(id)}
 								style={[styles.translationChip, selected && styles.translationChipActive]}
@@ -1110,7 +1111,9 @@ export default function BibleChapterScreen() {
 							? "KJV words of Jesus · eBible edition. Editorial headings · BSB."
 							: translation === "BSB"
 								? "Section headings and words of Jesus · Berean Standard Bible"
-								: "Red letters aren't available from our NKJV text provider yet."}
+								: TRANSLATIONS[translation].language !== "en"
+									? `${translationPickerLabel(translation)}. Red letters and section headings are not available in this edition yet.`
+									: "Red letters aren't available from our NKJV text provider yet."}
 				</Text>
 			</BottomSheet>
 

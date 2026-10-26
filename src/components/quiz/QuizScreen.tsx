@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { BookOpen, Check, ChevronDown, ChevronRight, MessageCircle, X } from "lucide-react";
 import { bookByOrder } from "@/lib/bible/books";
-import { getChapter } from "@/lib/bible/translations";
+import { getChapter, isTranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import type { ChapterQuiz, QuizDepth, QuizQuestion, QuizReflection } from "@/lib/quiz-contract";
 import { AddLearnButton } from "@/components/learn/AddLearnButton";
@@ -83,7 +83,7 @@ export default function QuizScreen() {
 	// to the same text; the quiz itself is always the KJV.
 	const routeTranslation = searchParams.get("translation");
 	const translationSuffix =
-		routeTranslation === "KJV" || routeTranslation === "NKJV" || routeTranslation === "BSB"
+		isTranslationId(routeTranslation)
 			? `&translation=${routeTranslation}`
 			: "";
 

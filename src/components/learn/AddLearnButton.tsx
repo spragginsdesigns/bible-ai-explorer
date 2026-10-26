@@ -3,13 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { parseCard } from "./learn";
+import { parseCard, type TranslationId } from "./learn";
 
 export interface AddLearnProps {
 	book: number;
 	chapter: number;
 	verse: number;
-	translation: "KJV" | "NKJV" | "BSB";
+	translation: TranslationId;
 	source: "sheet" | "highlight" | "suggestion" | "quiz";
 	/** Set where the surrounding text alone does not name the verse being added. */
 	accessibilityLabel?: string;

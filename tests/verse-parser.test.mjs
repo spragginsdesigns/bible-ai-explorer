@@ -33,10 +33,10 @@ function loadModule(relativePath, exportNames, injected = {}) {
 	return factory(...names.map((name) => injected[name]));
 }
 
-const { resolveReference } = loadModule(
+const { resolveReference, LOCALIZED_BOOK_PATTERN } = loadModule(
 	"../src/lib/bible/books.ts",
-	["resolveReference"],
-	{ booksJson: JSON.parse(read("../src/data/books.json")) }
+	["resolveReference", "LOCALIZED_BOOK_PATTERN"],
+	{ booksJson: JSON.parse(read("../src/data/books.json")), bookNamesJson: JSON.parse(read("../src/data/book-names.json")) }
 );
 
 /**
@@ -62,7 +62,7 @@ const {
 		"parseVerseReferences",
 		"stripTranslationTag",
 	],
-	{ resolveReference }
+	{ resolveReference, LOCALIZED_BOOK_PATTERN }
 );
 
 /** The references parseVerseReferences pulled out of a string, in order. */

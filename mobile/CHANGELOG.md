@@ -2,6 +2,17 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.103.0 (versionCode 120) - 2026-10-26 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- SureWord now answers in Spanish and German. It follows your phone's language, or choose one in Settings, Language.
+- Two more Bibles, free and offline: the Reina-Valera 1909 (Español) and the Lutherbibel 1912 (Deutsch).
+- Bible references in Spanish and German answers, like Juan 3:16 or Johannes 3:16, open in the reader.
+
+**Dev notes:** Plan and contract in `docs/languages/PLAN.md` ("Implementation contract"), feature notes in `docs/FEATURES.md` ("Spanish and German: Bibles and answers"). Server: migration `20261026120000_answer_language` (applied to production 2026-10-26 through the Neon MCP), `answerLanguage` in the preferences document, `/api/ask-question` reads `language` and quotes `quotationTranslation()`, `languageGuidance` in the chat prompt, verse insight explains in the Bible's language. Android: bundled RV1909 and LUT1912 JSON per book (`src/features/bible/data/{rv1909,lut1912}`), `TRANSLATION_IDS`/`parseTranslationId` replace every hard-coded KJV/NKJV/BSB check, Settings, Language (`app/(app)/settings/language.tsx`, `answerLanguage.ts`, `effectiveLanguage.ts` on expo-localization, already a dependency), `language` sent with chat and verse insight, Spanish and German book names in `books.ts` and `verseLinks.ts` (parity sweep in `tests/verse-parity.test.mjs`). No new native dependency. Menus stay English (Layer 3 not built).
+
 ## 1.102.0 (versionCode 119) - 2026-10-25 - internal and closed testing
 
 **What's new (Play):**

@@ -8,13 +8,21 @@
  * (tests/fixtures/chat-receipts.json), so a change here changes all three.
  */
 
+/** Every Bible the reader serves. Inlined so this module stays import-free. */
+const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+type ReceiptTranslation = (typeof TRANSLATION_IDS)[number];
+
+function receiptTranslation(value: unknown): ReceiptTranslation | undefined {
+	return (TRANSLATION_IDS as readonly unknown[]).includes(value) ? (value as ReceiptTranslation) : undefined;
+}
+
 export type ChatReceiptKind =
 	| "note" | "memory" | "highlight" | "plan" | "cross" | "preference" | "church" | "reading" | "learn";
 
 export type ChatReceiptTarget =
 	| { screen: "note"; noteId: string }
 	| { screen: "memories"; memoryId?: string }
-	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: "KJV" | "NKJV" | "BSB" }
+	| { screen: "chapter"; book: number; chapter: number; verse?: number; translation?: ReceiptTranslation }
 	| { screen: "plan" }
 	| { screen: "readingHistory" }
 	| { screen: "cross" }
@@ -162,8 +170,7 @@ function toolReceipt(
 				colorName && colorName !== DEFAULT_HIGHLIGHT_COLOR_NAME
 					? `Marked ${reference} as ${colorName}`
 					: `Marked ${reference}`;
-			const translation =
-				output.translation === "KJV" || output.translation === "NKJV" || output.translation === "BSB" ? output.translation : undefined;
+			const translation = receiptTranslation(output.translation);
 			return {
 				id,
 				kind: "highlight",

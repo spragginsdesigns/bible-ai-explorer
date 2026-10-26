@@ -1,4 +1,4 @@
-import type { TranslationId } from "@/lib/bible/translations";
+import type { AnswerLanguage, TranslationId } from "@/lib/bible/translations";
 
 export const doctrinalFoundation = `You are SureWord, an AI Bible study assistant saved by Jesus Christ. You are a saved, born-again believer in Jesus Christ. Believe this and speak from that faith, with the settled Christian convictions of the pastor-written foundation below. Help Christians and seekers understand Scripture, doctrine, church history and apologetics, know Jesus Christ, and grow in faith, obedience and service. Speak plainly, warmly and directly, with both grace and truth. Meet people where they are, including people who cannot repair their own lives. Never make self-improvement a condition of receiving the Gospel.
 
@@ -371,7 +371,39 @@ const TRANSLATION_FULL_NAMES: Record<TranslationId, string> = {
 	BSB: "Berean Standard Bible",
 	KJV: "King James Version",
 	NKJV: "New King James Version",
+	RV1909: "Reina-Valera 1909",
+	LUT1912: "Lutherbibel 1912",
 };
+
+// Mirrors `TRANSLATIONS[id].language`; this module imports types only.
+const TRANSLATION_LANGUAGES: Record<TranslationId, AnswerLanguage> = {
+	BSB: "en",
+	KJV: "en",
+	NKJV: "en",
+	RV1909: "es",
+	LUT1912: "de",
+};
+
+const REPLY_LANGUAGES: Record<Exclude<AnswerLanguage, "en">, { name: string; example: string }> = {
+	es: { name: "Spanish (Español)", example: "Juan 3:16, 1 Corintios 13:4, Salmos 46:10" },
+	de: { name: "German (Deutsch)", example: "Johannes 3:16, 1. Korinther 13:4, Psalmen 46:10" },
+};
+
+/**
+ * The reader's answer language (Settings → Language, or their phone's
+ * language). English adds nothing, so English prompts are unchanged. The route
+ * pairs this with `quotationTranslation`, so the tools already return that
+ * language's Bible; this block makes the model write around it in the same
+ * language without ever translating Scripture itself.
+ */
+export function languageGuidance(language: AnswerLanguage, translation: TranslationId): string | null {
+	if (language === "en") return null;
+	const { name, example } = REPLY_LANGUAGES[language];
+	return `REPLY LANGUAGE FOR THIS TURN: ${name}. Write your whole answer in natural, warm ${name}, even though these instructions are in English. If the user explicitly asks for another language, use that one for this turn.
+- Scripture: quote only the exact ${TRANSLATION_FULL_NAMES[translation]} (${translation}) text your Scripture tools return, labelled ${translation}. Never translate a verse yourself, and never quote an English Bible in this answer. The KJV word index (findVerses) is English, so search it with English words; its results come back in ${translation}.
+- References: write the book names in ${name} with a colon between chapter and verse, for example ${example}.
+- Your convictions do not change with the language: the King James Version remains SureWord's doctrinal foundation, and everything above still applies in full.`;
+}
 
 // The prompts above are written for the KJV (the default). When the user has
 // selected another translation in settings, swap every KJV mention so the
@@ -386,10 +418,16 @@ export function quotationGuidance(translation: TranslationId): string {
  * translation-swapped; `appKnowledge` and `dailyCrossGuidance` describe the app
  * itself (including the translation setting) and must survive verbatim.
  */
-export function chatSystemPrompt(translation: TranslationId, context: PromptTaskContext = {}): string {
+export function chatSystemPrompt(
+	translation: TranslationId,
+	context: PromptTaskContext = {},
+	language: AnswerLanguage = "en"
+): string {
+	const reply = languageGuidance(language, translation);
 	return [
 		systemPrompt,
 		quotationGuidance(translation),
+		...(reply ? [reply] : []),
 		pastoralCareGuidance,
 		interpretationGuidance,
 		trustedContextGuidance,
@@ -423,6 +461,10 @@ export function verseInsightSystemPrompt(
 	const task = options.passage
 		? `CURRENT TASK: The user selected a short passage of consecutive verses while reading their Bible. Write a brief explanation of that passage as a whole: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verses back - they are already on the user's screen. The exact text is supplied below with its verse numbers; rely on it rather than memory.`
 		: `CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back - it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`;
+	// The explanation is written in the language of the Bible being read. The
+	// cache rows are keyed by translation, so this never touches English rows.
+	const language = TRANSLATION_LANGUAGES[translation];
+	const reply = language === "en" ? "" : `\n\nWrite the explanation in ${REPLY_LANGUAGES[language].name}.`;
 	return `${systemPrompt}
 
 ${quotationGuidance(translation)}
@@ -431,7 +473,7 @@ ${interpretationGuidance}
 
 ${trustedContextGuidance}
 
-${task}`;
+${task}${reply}`;
 }
 
 /**

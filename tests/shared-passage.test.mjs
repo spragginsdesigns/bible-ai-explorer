@@ -15,8 +15,8 @@ function load(path, exports, deps = {}) {
   const source = read(path).replace(/^import\s[^;]*?;\s*$/gm, "").replace(/^export /gm, "");
   return new Function(...Object.keys(deps), `${stripTypeScriptTypes(source)}\nreturn {${exports.join(",")}}`)(...Object.values(deps));
 }
-const { resolveReference } = load("../src/lib/bible/books.ts", ["resolveReference"], { booksJson: JSON.parse(read("../src/data/books.json")) });
-const { stripTranslationTag, TRANSLATION_TAGS, parseVerseReferences } = load("../src/utils/verseParser.ts", ["stripTranslationTag", "TRANSLATION_TAGS", "parseVerseReferences"], { resolveReference });
+const { resolveReference, LOCALIZED_BOOK_PATTERN } = load("../src/lib/bible/books.ts", ["resolveReference", "LOCALIZED_BOOK_PATTERN"], { booksJson: JSON.parse(read("../src/data/books.json")), bookNamesJson: JSON.parse(read("../src/data/book-names.json")) });
+const { stripTranslationTag, TRANSLATION_TAGS, parseVerseReferences } = load("../src/utils/verseParser.ts", ["stripTranslationTag", "TRANSLATION_TAGS", "parseVerseReferences"], { resolveReference, LOCALIZED_BOOK_PATTERN });
 const { sharedPassageLink } = load("../src/lib/shared-passage.ts", ["sharedPassageLink"], { resolveReference, stripTranslationTag, TRANSLATION_TAGS });
 
 test("public passage links retain the snapshot translation and complete range", () => {

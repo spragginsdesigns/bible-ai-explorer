@@ -19,8 +19,25 @@ import type { UserPlan } from "./entitlements-rules";
 import type { TranslationId } from "./bible/translations";
 import type { ReasoningEffort, ReasoningMode, Speed, Verbosity } from "./ai/models";
 
-/** The translations the reader can be set to. Mirrors `TRANSLATIONS`. */
-export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV", "BSB"];
+/**
+ * The translations the reader can be set to. Mirrors `TRANSLATIONS` in
+ * `src/lib/bible/translations.ts` (this module holds no runtime imports; the
+ * test asserts the two lists match).
+ */
+export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"];
+
+/**
+ * The language SureWord answers in (docs/languages/PLAN.md). "auto" follows the
+ * device: each client resolves it to en/es/de and sends that with every chat.
+ * Mirrors `ANSWER_LANGUAGES` in `src/lib/bible/translations.ts` plus "auto".
+ */
+export const ANSWER_LANGUAGE_PREFS = ["auto", "en", "es", "de"] as const;
+export type AnswerLanguagePref = (typeof ANSWER_LANGUAGE_PREFS)[number];
+export const DEFAULT_ANSWER_LANGUAGE: AnswerLanguagePref = "auto";
+
+export function isAnswerLanguagePref(value: unknown): value is AnswerLanguagePref {
+	return typeof value === "string" && (ANSWER_LANGUAGE_PREFS as readonly string[]).includes(value);
+}
 
 export const DEFAULT_TRANSLATION: TranslationId = "KJV";
 
@@ -198,6 +215,8 @@ export interface PreferencesDocument {
 	textScale: TextScale;
 	/** Voice mode ("Read it to me") for the welcome conversation. */
 	voiceMode: boolean;
+	/** The language SureWord answers in; "auto" follows the device. */
+	answerLanguage: AnswerLanguagePref;
 	highlightLabels: HighlightLabels;
 	highlightMeanings: HighlightMeanings;
 	/** "" until the user writes one; the column is null then. */
@@ -229,6 +248,7 @@ export interface PreferencesUserRow {
 	/** Optional so an older select still builds a document. */
 	textScale?: string | null;
 	voiceMode?: boolean | null;
+	answerLanguage?: string | null;
 	/**
 	 * The `highlightLabels` JSON column, unread. Optional so a caller that has
 	 * not selected it still builds a document - it reads as "no labels yet",
@@ -266,6 +286,7 @@ export interface PreferencesPatchData {
 	listenRate?: number;
 	textScale?: TextScale;
 	voiceMode?: boolean;
+	answerLanguage?: AnswerLanguagePref;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
 	/** null clears the column; that is what an empty "About me" saves as. */
@@ -517,6 +538,7 @@ export function toPreferencesDocument(
 		listenRate: isListenRate(listenRate) ? listenRate : DEFAULT_LISTEN_RATE,
 		textScale: isTextScale(user?.textScale) ? user.textScale : DEFAULT_TEXT_SCALE,
 		voiceMode: user?.voiceMode === true,
+		answerLanguage: isAnswerLanguagePref(user?.answerLanguage) ? user.answerLanguage : DEFAULT_ANSWER_LANGUAGE,
 		highlightLabels: readStoredHighlightLabels(user?.highlightLabels),
 		highlightMeanings: readStoredHighlightMeanings(user?.highlightMeanings),
 		aboutMe: readStoredAboutMe(user?.aboutMe),
@@ -603,6 +625,13 @@ export function parsePreferencesPatch(
 					return { ok: false, error: `textScale must be one of: ${TEXT_SCALES.join(", ")}` };
 				}
 				data.textScale = value;
+				break;
+			}
+			case "answerLanguage": {
+				if (!isAnswerLanguagePref(value)) {
+					return { ok: false, error: `answerLanguage must be one of: ${ANSWER_LANGUAGE_PREFS.join(", ")}` };
+				}
+				data.answerLanguage = value;
 				break;
 			}
 			case "highlightLabels": {

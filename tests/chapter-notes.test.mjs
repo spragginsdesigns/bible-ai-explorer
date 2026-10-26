@@ -146,9 +146,9 @@ test("formatVerseNoteMarkdown formats clean Scripture blockquote and strips mark
 	);
 });
 
-test("Android and web parseLastRead both accept KJV, NKJV, and BSB", () => {
+test("Android and web parseLastRead both accept every translation the reader offers", () => {
 	const webBookPicker = read("../src/components/daily/useContinueReading.ts");
 	const androidBookPicker = read("../mobile/src/features/navigation/lastReading.ts");
-	assert.match(webBookPicker, /candidate\.translation !== "BSB"/);
-	assert.match(androidBookPicker, /candidate\.translation !== "BSB"/);
+	assert.match(webBookPicker, /!isTranslationId\(candidate\.translation\)/);
+	assert.match(androidBookPicker, /!isTranslationId\(candidate\.translation\)/);
 });

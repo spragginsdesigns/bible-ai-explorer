@@ -29,7 +29,7 @@
  * branch never matched there ("Genesis" is not a numbered book), not because
  * anything backtracked.
  */
-import { resolveReference } from "@/lib/bible/books";
+import { LOCALIZED_BOOK_PATTERN, resolveReference } from "@/lib/bible/books";
 
 /**
  * Books that exist only as a numbered volume, written WITHOUT the numeral.
@@ -96,7 +96,7 @@ export const SINGLE_ABBREVIATIONS = [
 ];
 
 /** Translation tags the model may append to a reference. */
-export const TRANSLATION_TAGS = "BSB|NKJV|KJV|NIV|ESV|NASB|NLT|RSV|ASV|AMP";
+export const TRANSLATION_TAGS = "BSB|NKJV|KJV|RV1909|LUT1912|NIV|ESV|NASB|NLT|RSV|ASV|AMP";
 
 // The numeral of a numbered book, with the space the model may omit ("2Cor").
 const volumeNumber = `[123]\\s?`;
@@ -109,6 +109,9 @@ const bookPattern =
 	`|${volumeNumber}(?:${NUMBERED_ABBREVIATIONS.join("|")})${afterAbbreviation}` +
 	`|(?:${SINGLE_BOOK_NAMES.join("|")})\\s+` +
 	`|(?:${SINGLE_ABBREVIATIONS.join("|")})${afterAbbreviation}` +
+	// Spanish and German names ("Juan 3:16", "1. Mose 1:1"), for answers
+	// written in those languages. Tried last, so English always wins.
+	`|(?:${LOCALIZED_BOOK_PATTERN})\\s+` +
 	`)`;
 // Chapter:Verse with an optional range end that may cross a chapter boundary
 // (3:16, 1:1-3, 23:1-6, 3:16-4:2). The dash class carries U+2013 and U+2014 as
@@ -131,8 +134,10 @@ const referenceBoundary = `(?!\\d)(?!:\\d)`;
  * enough that a case-sensitive list quietly dropped them, and the validator
  * below is what keeps the looser match honest.
  */
+// `\b` treats an accented capital as a non-word character, so "Éxodo 20:3"
+// never has a boundary before it; such a name may start at the letter itself.
 export const VERSE_REFERENCE_REGEX = new RegExp(
-	`\\b(${bookPattern}${refPattern}${referenceBoundary}${translationPattern})`,
+	`(?:\\b|(?=[\\u00c0-\\u00de]))(${bookPattern}${refPattern}${referenceBoundary}${translationPattern})`,
 	"gi"
 );
 

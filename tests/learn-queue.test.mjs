@@ -172,6 +172,7 @@ function loadLearn(prisma, overrides = {}) {
 		{
 			prisma,
 			createHash,
+			parseTranslationId: (value) => (["KJV", "NKJV", "BSB", "RV1909", "LUT1912"].includes(value) ? value : "KJV"),
 			bookByOrder: (order) => (order === 43 ? { name: "John" } : null),
 			getKjvChapter: async (book, chapter) => {
 				if (book !== 43 || chapter !== 3) throw new Error("no such chapter");

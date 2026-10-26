@@ -1,6 +1,21 @@
 {
 	"releases": [
 		{
+			"version": "1.103.0",
+			"versionCode": 120,
+			"date": "2026-10-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"SureWord now answers in Spanish and German. It follows your phone's language, or choose one in Settings, Language.",
+						"Two more Bibles, free and offline: the Reina-Valera 1909 (Español) and the Lutherbibel 1912 (Deutsch).",
+						"Bible references in Spanish and German answers, like Juan 3:16 or Johannes 3:16, open in the reader."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.102.0",
 			"versionCode": 119,
 			"date": "2026-10-25",
