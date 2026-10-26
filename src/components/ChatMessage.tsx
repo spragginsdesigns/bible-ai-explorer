@@ -36,6 +36,9 @@ import {
 import { shareSheetText } from "@/lib/chat/share-client";
 import ShareCardDialog from "./share/ShareCardDialog";
 import type { ShareCardTarget } from "@/lib/share-cards/targets";
+import type { CardState } from "@/lib/guide-cards";
+import ChoiceCard from "./walk/ChoiceCard";
+import ShowMeCard from "./walk/ShowMeCard";
 
 interface ChatMessageProps {
 	message: ChatMessageType;
@@ -51,6 +54,12 @@ interface ChatMessageProps {
 	 * message keeps it on screen so the actions are findable.
 	 */
 	userActionsVisible?: boolean;
+	/** The welcome card's state in this thread; absent when the message has none. */
+	cardState?: CardState;
+	/** Send a card's answer as the next message. */
+	onAnswerCard?: (text: string) => void;
+	/** A card's "Type my own": focus the composer. */
+	onTypeOwn?: () => void;
 }
 
 /**
@@ -78,6 +87,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 	onEdit,
 	onRetry,
 	userActionsVisible = false,
+	cardState,
+	onAnswerCard,
+	onTypeOwn,
 }) => {
 	const [addToNoteOpen, setAddToNoteOpen] = useState(false);
 	/**
@@ -304,6 +316,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-2 h-4 bg-neutral-500 dark:bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
+				{doneStreaming && message.choiceCard && cardState && onAnswerCard && (
+					<ChoiceCard
+						card={message.choiceCard}
+						conversationId={conversationId}
+						state={cardState}
+						onAnswer={onAnswerCard}
+						onTypeOwn={onTypeOwn ?? (() => undefined)}
+					/>
+				)}
+				{doneStreaming && message.showInApp?.map((card, index) => (
+					<ShowMeCard key={`${card.target}-${index}`} card={card} conversationId={conversationId} />
+				))}
 				{doneStreaming && message.content && (
 					<div className="mt-2 flex flex-wrap items-center gap-1">
 						{/* Copy asks nothing of the server, so it is offered on the note

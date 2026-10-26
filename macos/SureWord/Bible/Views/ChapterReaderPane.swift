@@ -142,6 +142,12 @@ struct ChapterReaderPane: View {
             })
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { ChapterAudioBar() }
+        .spotlightHost()
+        // The lit verse has done its job once it is clicked.
+        .onChange(of: sheet.selection != nil) { _, open in
+            guard open, let lit = app.onboarding.spotlight, lit.target == .readerVerse else { return }
+            app.onboarding.closeSpotlight(completed: lit.isLastStop)
+        }
         .onAppear {
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
@@ -548,6 +554,7 @@ struct ChapterReaderPane: View {
                     .accessibilityAddTraits(.isHeader)
             }
             verseRow(verse)
+                .spotlightTarget(.readerVerse, isActive: app.onboarding.spotlightVerse == verse.number)
         }
     }
 

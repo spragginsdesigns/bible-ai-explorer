@@ -56,6 +56,8 @@ struct SettingsView: View {
                 row("Appearance & reading", symbol: "paintpalette", subtitle: appearanceSubtitle) {
                     AppearanceSettingsPage()
                 }
+                textSizeRow
+                    .spotlightTarget(.settingsTextSize)
                 row("Highlight labels", symbol: "paintbrush", subtitle: "Names and meanings for your colours") {
                     HighlightLabelsPage()
                 }
@@ -65,6 +67,7 @@ struct SettingsView: View {
                     row("My church", symbol: "building.columns", subtitle: churchSubtitle) {
                         ChurchSettingsPage()
                     }
+                    .spotlightTarget(.settingsChurch)
                 }
             }
 
@@ -81,6 +84,7 @@ struct SettingsView: View {
             }
 
             Section("App") {
+                walkWithMeRow
                 row("Notifications", symbol: "bell", subtitle: notificationsSubtitle) {
                     NotificationSettingsPage()
                 }
@@ -108,9 +112,61 @@ struct SettingsView: View {
                 }
             }
         }
+        .spotlightHost()
         .navigationTitle("Settings")
         .analyticsScreen(AnalyticsScreen.settings)
         .onAppear(perform: revalidate)
+    }
+
+    // MARK: - Walk with me
+
+    /// App-wide text size, the same three sizes as Walk with me's first card.
+    private var textSizeRow: some View {
+        @Bindable var settings = app.settings
+        return Picker(selection: $settings.textScale) {
+            ForEach(TextScale.allCases) { scale in
+                Text(scale.label).tag(scale)
+            }
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "textformat.size")
+                    .font(.body)
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                Text("Text size")
+                    .foregroundStyle(theme.text)
+            }
+        }
+        .accessibilityIdentifier("settings.row.Text size")
+    }
+
+    /// Picks the welcome conversation back up where it was left.
+    private var walkWithMeRow: some View {
+        Button {
+            Task { await app.onboarding.startManually(app: app) }
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "figure.walk")
+                    .font(.body)
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Walk me through SureWord")
+                        .foregroundStyle(theme.text)
+                    Text(app.onboarding.startError ?? "A short guided start, any time")
+                        .font(.footnote)
+                        .foregroundStyle(theme.textFaint)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                if app.onboarding.isStarting { ProgressView() }
+            }
+            .padding(.vertical, 2)
+        }
+        .disabled(app.onboarding.isStarting)
+        .accessibilityIdentifier("settings.row.Walk me through SureWord")
     }
 
     // MARK: - Revalidation

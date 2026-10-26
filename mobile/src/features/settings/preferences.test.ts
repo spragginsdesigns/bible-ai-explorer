@@ -34,6 +34,8 @@ const FULL_DOCUMENT = {
 	highlightMeanings: { blue: "Something God said He will do" },
 	aboutMe: "Saved in 2019, studying Romans.",
 	testimony: "Raised in church, but the Lord saved me at 30.",
+	textScale: "largest",
+	voiceMode: true,
 	chat: {
 		modelId: "openai/gpt-5.6-luna",
 		effort: "high",
@@ -56,6 +58,8 @@ describe("parsePreferencesDocument", () => {
 			highlightMeanings: { blue: "Something God said He will do" },
 			aboutMe: "Saved in 2019, studying Romans.",
 			testimony: "Raised in church, but the Lord saved me at 30.",
+			textScale: "largest",
+			voiceMode: true,
 			chat: {
 				modelId: "openai/gpt-5.6-luna",
 				effort: "high",
@@ -78,6 +82,8 @@ describe("parsePreferencesDocument", () => {
 			highlightMeanings: null,
 			aboutMe: null,
 			testimony: null,
+			textScale: "standard",
+			voiceMode: false,
 			chat: { modelId: null, effort: null, speed: null, verbosity: null, mode: null },
 		});
 	});
@@ -172,6 +178,8 @@ describe("settingsFromDocument", () => {
 			chatSpeed: "fast",
 			chatVerbosity: "low",
 			chatMode: "pro",
+			textScale: "largest",
+			voiceMode: true,
 		});
 	});
 

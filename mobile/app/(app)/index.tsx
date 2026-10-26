@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -31,7 +31,18 @@ import { takePendingShare, usePendingShare } from "@/features/share/shareInbox";
 import { shareActionMessage, shareActionsFor, type ShareAction } from "@/features/share/shareIntake";
 import { TRANSLATIONS, type TranslationId } from "@/features/bible/translations";
 import { spacing, type Colors } from "@/theme";
-import { useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
+import { setTextScale, useSettings, useThemedStyles, useTheme } from "@/features/settings/settingsStore";
+import { textScaleForLabel } from "@/features/settings/textScale";
+import { setVerseOfDayEnabled, setVerseOfDayHour } from "@/features/notifications/notificationSettings";
+import { signalNotificationPermissionMoment, suppressPassivePermissionMoments } from "@/features/notifications/permissionPrompt";
+import { OnboardingChatContext, type OnboardingChatActions } from "@/features/onboarding/OnboardingChatContext";
+import { HELP_SCREENS, TOUR_STOPS } from "@/features/onboarding/onboardingRules";
+import { hourForLabel } from "@/features/onboarding/dailyTime";
+import { SpotlightAnchor, startSpotlight } from "@/features/onboarding/Spotlight";
+import { useWelcomeConversationId } from "@/features/onboarding/onboardingStore";
+import { useWelcomeVoice } from "@/features/onboarding/useWelcomeVoice";
+import { WelcomeVoiceBar } from "@/features/onboarding/WelcomeVoiceBar";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 // A render crash shows a Try again screen in place of this route instead of closing the app.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
@@ -57,12 +68,19 @@ export default function ChatScreen() {
 		conversationId?: string;
 		clearAttachment?: string;
 		handoffId?: string;
+		autoSend?: string;
+		opened?: string;
 	}>();
 	const promptParam = typeof params.prompt === "string" ? params.prompt : "";
 	const handoffIdParam = typeof params.handoffId === "string" ? params.handoffId : "";
+	// A header "?" asks straight away; every other hand-off only prefills.
+	const autoSendParam = params.autoSend === "1";
 	const clearAttachmentParam = params.clearAttachment === "1";
 	const conversationIdParam =
 		typeof params.conversationId === "string" ? params.conversationId : "";
+	// Settings "Walk me through SureWord" stamps each open, so reopening the
+	// same welcome after leaving it for another chat still switches back.
+	const openedParam = typeof params.opened === "string" ? params.opened : "";
 	const attachRefParam = typeof params.attachRef === "string" ? params.attachRef : "";
 	const attachTextParam = typeof params.attachText === "string" ? params.attachText : "";
 	const attachTranslationParam =
@@ -72,7 +90,15 @@ export default function ChatScreen() {
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
 	const lastOpenedConversation = useRef("");
-	const { isSignedIn } = useAuth();
+	const { isSignedIn, userId } = useAuth();
+	const { voiceMode } = useSettings();
+	const welcomeId = useWelcomeConversationId(userId);
+	const inWelcome = welcomeId !== null && chat.activeConversationId === welcomeId;
+	// The welcome's daily-time step asks for notifications; nothing earlier should.
+	useEffect(() => {
+		suppressPassivePermissionMoments(inWelcome);
+		return () => suppressPassivePermissionMoments(false);
+	}, [inWelcome]);
 	const pendingShare = usePendingShare();
 	/** Set while a chat opened from "Share into SureWord" has not been sent yet. */
 	const [shareNotices, setShareNotices] = useState<string[] | null>(null);
@@ -137,10 +163,11 @@ export default function ChatScreen() {
 	// conversation it belongs to - open it rather than whatever was last on
 	// screen.
 	useEffect(() => {
-		if (!conversationIdParam || conversationIdParam === lastOpenedConversation.current) return;
-		lastOpenedConversation.current = conversationIdParam;
+		const key = `${conversationIdParam}:${openedParam}`;
+		if (!conversationIdParam || key === lastOpenedConversation.current) return;
+		lastOpenedConversation.current = key;
 		void chat.switchConversation(conversationIdParam);
-	}, [conversationIdParam, chat.switchConversation]);
+	}, [conversationIdParam, openedParam, chat.switchConversation]);
 
 	// Ask-AI entry points (e.g. the Bible tab) push here with ?prompt= — prefill
 	// the input and focus it, but leave sending to the user.
@@ -149,9 +176,15 @@ export default function ChatScreen() {
 		if (!promptParam || key === lastSeededPrompt.current) return;
 		lastSeededPrompt.current = key;
 		leaveEdit(false);
+		if (autoSendParam) {
+			// A fresh chat, so the help answer never lands inside the welcome or another thread.
+			chat.newConversation();
+			void chat.sendMessage(promptParam);
+			return;
+		}
 		chat.setInput(promptParam);
 		setFocusSignal((signal) => signal + 1);
-	}, [promptParam, handoffIdParam, chat.setInput, leaveEdit]);
+	}, [promptParam, handoffIdParam, autoSendParam, chat.setInput, chat.newConversation, chat.sendMessage, leaveEdit]);
 
 	// Verse/chapter attachments (?attachRef= etc.): pin the passage above the
 	// input and focus so the user can type their own question — the draft text
@@ -253,6 +286,59 @@ export default function ChatScreen() {
 		},
 		[leaveEdit, sendMessage]
 	);
+
+	// Walk with me: a tapped card does its device-side half (text size, the
+	// daily reminder, the tour) here, then answers SureWord with its label.
+	const onboardingActions = useMemo<OnboardingChatActions>(
+		() => ({
+			answer: (card, label) => {
+				const skipped = label === card.skipLabel;
+				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: skipped ? "skipped" : "answered" });
+				if (!skipped && card.step === "textScale") {
+					const scale = textScaleForLabel(label);
+					if (scale) setTextScale(scale);
+				}
+				if (!skipped && card.step === "dailyTime") {
+					const hour = hourForLabel(label);
+					if (hour !== null) {
+						setVerseOfDayHour(hour);
+						setVerseOfDayEnabled(true);
+						// Choosing a time is the clearest yes there is, so ask for the OS permission now.
+						signalNotificationPermissionMoment("settings-enabled");
+					}
+				}
+				if (!skipped && card.step === "tour") {
+					startSpotlight([...TOUR_STOPS], "tour", () => send(label));
+					return;
+				}
+				send(label);
+			},
+			typeOwn: (card) => {
+				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: "own" });
+				leaveEdit(true);
+				setFocusSignal((signal) => signal + 1);
+			},
+			showMe: (card) => {
+				if (card.target === "tour") startSpotlight([...TOUR_STOPS], "tour");
+				else startSpotlight(card.stops ?? [{ target: card.target, caption: card.caption }], "show");
+			},
+		}),
+		[send, leaveEdit]
+	);
+
+	const voiceMessages = useMemo(
+		() =>
+			messages.map((message) => ({
+				id: message.id,
+				role: message.role,
+				isStreaming: message.isStreaming,
+				step: message.choiceCard?.step,
+			})),
+		[messages]
+	);
+	// Not while the history loads: switching clears the list first, and a
+	// voice enabled over that empty list would read every old message aloud.
+	useWelcomeVoice({ enabled: inWelcome && voiceMode && !historyLoading, messages: voiceMessages, getToken });
 
 	// Only the composer sends an edit. One that could not go out (an answer
 	// still running) keeps its words and stays open.
@@ -358,6 +444,7 @@ export default function ChatScreen() {
 	);
 
 	return (
+		<OnboardingChatContext.Provider value={onboardingActions}>
 		<Screen style={styles.screen}>
 			<KeyboardAvoidingView
 				style={styles.fill}
@@ -372,7 +459,12 @@ export default function ChatScreen() {
 					onOpenModelPicker={() => setModelPickerOpen(true)}
 					onOpenHistory={openHistory}
 					onOpenSettings={() => router.push("/settings")}
+					onHelp={() => {
+						onNewChat();
+						void sendMessage(HELP_SCREENS.chat);
+					}}
 				/>
+				{inWelcome ? <WelcomeVoiceBar /> : null}
 
 				{historyLoading ? (
 					<View style={styles.center}>
@@ -430,7 +522,7 @@ export default function ChatScreen() {
 							onDismiss={() => setShareNotices(null)}
 						/>
 					)}
-					{inputBar}
+					<SpotlightAnchor target="chat.mic">{inputBar}</SpotlightAnchor>
 				</View>
 			</KeyboardAvoidingView>
 
@@ -455,6 +547,7 @@ export default function ChatScreen() {
 				onClearAll={() => void chat.clearAllConversations()}
 			/>
 		</Screen>
+		</OnboardingChatContext.Provider>
 	);
 }
 

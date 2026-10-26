@@ -1,7 +1,6 @@
 import React from "react";
 import {
 	Pressable,
-	ScrollView,
 	StyleSheet,
 	Switch,
 	View,
@@ -14,6 +13,7 @@ import { AppText as Text } from "@/components/AppText";
 import { GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles, type ThemeMode } from "@/features/settings/settingsStore";
+import { SpotlightScrollView } from "@/features/onboarding/Spotlight";
 
 /**
  * The chrome every Settings screen shares: the hub (`app/(app)/settings/index`)
@@ -92,7 +92,7 @@ export function SettingsSubScreen({
 	return (
 		<Screen>
 			<SettingsTopBar title={title} />
-			<ScrollView
+			<SpotlightScrollView
 				contentContainerStyle={[styles.content, contentStyle]}
 				showsVerticalScrollIndicator={false}
 				keyboardShouldPersistTaps="handled"
@@ -103,7 +103,7 @@ export function SettingsSubScreen({
 				maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
 			>
 				{children}
-			</ScrollView>
+			</SpotlightScrollView>
 		</Screen>
 	);
 }

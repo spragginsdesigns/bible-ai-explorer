@@ -186,9 +186,14 @@ struct ChatView: View {
         // answer offers Try again.
         let newestUserID = chat.messages.last { $0.role == .user }?.id
         let retryableID = chat.retryableAnswerID
+        let cardStates = app.onboarding.cardStates(for: chat)
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                    if app.onboarding.isWelcome(chat) {
+                        GuideVoiceToggle()
+                            .frame(maxWidth: 720, alignment: .leading)
+                    }
                     ForEach(chat.messages) { message in
                         MessageBubble(
                             message: message,
@@ -240,7 +245,8 @@ struct ChatView: View {
                             onRetry: message.id == retryableID
                                 ? { Task { await chat.retryAnswer() } }
                                 : nil,
-                            showsUserActions: message.id == newestUserID
+                            showsUserActions: message.id == newestUserID,
+                            cardState: cardStates[message.id]
                         )
                         .id(message.id)
                     }
@@ -254,6 +260,7 @@ struct ChatView: View {
                 .padding(Spacing.xl)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .guideVoice(chat: chat, app: app)
             // Follow the answer as it streams - deliberately *unanimated*.
             //
             // This used to be `withAnimation(.easeOut(duration: 0.15)) { … }`,

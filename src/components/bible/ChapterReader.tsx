@@ -1,6 +1,7 @@
 "use client";
 
 import { getBsbChapter } from "@/lib/bible/bsb";
+import { TEXT_SCALE_CSS_VAR } from "@/lib/text-scale";
 import { readerVerseSegments, readerSectionHeadings } from "@/lib/bible/redLetters";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -56,6 +57,7 @@ import { useChapterAudio } from "./useChapterAudio";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useChapterNotes } from "./useChapterNotes";
 import { useVerseInsight } from "./useVerseInsight";
+import { spotlightTarget } from "@/lib/spotlight";
 
 const FONT_STEPS = [17, 20, 24, 28] as const;
 const FONT_STEP_KEY = "bible-reader-font-step";
@@ -952,6 +954,8 @@ const ChapterReader: React.FC = () => {
                     type="button"
                     id={`bible-verse-${verseNumber}`}
                     data-reading-verse={verseNumber}
+                    // The verse "Walk with me" lights up: the deep-linked one, or the first.
+                    {...(verseNumber === (verseParam ?? 1) ? spotlightTarget("reader.verse") : {})}
                     // The panel, insight request, clipboard and Ask AI all want
                     // the verse without bolls.life markup (NKJV), as on
                     // Android; display rendering keeps its own parsed segments,
@@ -974,7 +978,12 @@ const ChapterReader: React.FC = () => {
                       className={`font-[family-name:var(--font-cormorant)]${
                         parchment ? "" : " text-neutral-700 dark:text-neutral-300"
                       }`}
-                      style={{ fontSize, lineHeight: `${lineHeight}px` }}
+                      // The reader's own steps are px, which the rem-based app text
+                      // size cannot reach, so the account size multiplies them here.
+                      style={{
+                        fontSize: `calc(${fontSize}px * var(${TEXT_SCALE_CSS_VAR}, 1))`,
+                        lineHeight: `calc(${lineHeight}px * var(${TEXT_SCALE_CSS_VAR}, 1))`,
+                      }}
                     >
                       <span
                         className={`mr-1 align-super font-sans text-xs font-bold small-caps ${

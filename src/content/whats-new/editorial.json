@@ -14,6 +14,16 @@
 		]
 	},
 	"releases": {
+		"1.101.0": {
+			"title": "Walk with me",
+			"headline": "SureWord welcomes you in, one tap at a time.",
+			"why": "New accounts are now welcomed by SureWord itself, with big cards to tap instead of type, a gold spotlight that shows each part of the app, and Read it to me for anyone who would rather listen. Text size and a help button on every screen are there for everyone.",
+			"target": "chat",
+			"verse": {
+				"text": "I will instruct thee and teach thee in the way which thou shalt go: I will guide thee with mine eye.",
+				"reference": "Psalm 32:8"
+			}
+		},
 		"1.100.1": { "title": "Quiz me fix" },
 		"1.100.0": {
 			"title": "Quiz me",

@@ -60,6 +60,8 @@ struct ChatTabView: View {
         }
         .frame(maxWidth: 820)
         .frame(maxWidth: .infinity)
+        .spotlightTarget(.tabChat)
+        .spotlightHost()
         // A share opens over whatever was up; the picker would hide it.
         .onChange(of: chat.shareNotices != nil) { _, opened in
             if opened { isModelPickerPresented = false }
@@ -83,6 +85,9 @@ struct ChatTabView: View {
                         }
                     }
                 }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                GuideHelpButton(screen: .chat)
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { chat.newConversation() } label: { Image(systemName: "plus") }

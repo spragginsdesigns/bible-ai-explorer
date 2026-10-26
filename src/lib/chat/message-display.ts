@@ -16,6 +16,9 @@ export interface RenderableChatMessage extends MessageIdentity {
 	retrievedVerses?: readonly unknown[];
 	tavilyResults?: readonly unknown[];
 	followUps?: readonly unknown[];
+	/** A welcome card or "Show me" card is something to tap, even under no text. */
+	choiceCard?: unknown;
+	showInApp?: readonly unknown[];
 }
 
 /** Only a trailing assistant turn can belong to the request in flight. */
@@ -45,6 +48,8 @@ export function isRenderableChatMessage(message: RenderableChatMessage): boolean
 		message.receipts?.length ||
 		message.retrievedVerses?.length ||
 		message.tavilyResults?.length ||
-		message.followUps?.length
+		message.followUps?.length ||
+		message.choiceCard ||
+		message.showInApp?.length
 	);
 }

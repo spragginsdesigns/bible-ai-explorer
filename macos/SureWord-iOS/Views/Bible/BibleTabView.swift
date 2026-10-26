@@ -65,8 +65,10 @@ struct BibleTabView: View {
             .padding(.bottom, Spacing.xl)
         }
         .background { MeshBackground() }
+        .spotlightTarget(.tabBible)
+        .spotlightHost()
         .navigationTitle("Bible")
-        .settingsGearToolbar()
+        .settingsGearToolbar(help: .bible)
         .sheet(isPresented: $showingHistory) {
             // Android opens the chapter at the reading's first verse, in the
             // translation it was read in.

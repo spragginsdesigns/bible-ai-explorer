@@ -141,7 +141,11 @@ final class BibleModel {
         return "\(book.name) \(chapter)"
     }
 
-    var fontSize: CGFloat { Self.fontSteps[fontStep] }
+    /// The account's text size (`TextScale.factor`), set by the app root. It
+    /// multiplies the reader's own A-/A+ steps rather than replacing them.
+    var textScaleFactor: CGFloat = 1
+
+    var fontSize: CGFloat { (Self.fontSteps[fontStep] * textScaleFactor).rounded() }
     var lineHeight: CGFloat { (fontSize * 1.55).rounded() }
 
     var canShrinkFont: Bool { fontStep > 0 }

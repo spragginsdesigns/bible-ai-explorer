@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.25.1"
-    CURRENT_PROJECT_VERSION: "34"
+    MARKETING_VERSION: "1.26.0"
+    CURRENT_PROJECT_VERSION: "35"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -168,6 +168,9 @@ targets:
       # Quiz me, which the Mac shows too: the contract mirror, the decoders
       # and the pure rules behind both apps' quiz screens.
       - path: SureWord-iOSTests/QuizTests.swift
+      # Walk with me, which the Mac runs too: the rules mirror, the card and
+      # tool part parsing, the voice queue rules and the text size mapping.
+      - path: SureWord-iOSTests/OnboardingTests.swift
     dependencies:
       - target: SureWord
     settings:

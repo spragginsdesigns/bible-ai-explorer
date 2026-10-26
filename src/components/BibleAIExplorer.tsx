@@ -12,7 +12,11 @@ import WelcomeScreen from "./WelcomeScreen";
 import { useChat } from "./useChat";
 import { CHAT_SLASH_COMMANDS, type LocalCommandAction } from "@/lib/chat/slashCommands";
 import { TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
-import { readTranslationPref } from "@/lib/preferences";
+import { readTranslationPref, readVoiceModePref } from "@/lib/preferences";
+import { usePreference } from "@/lib/preferencesSync";
+import { HELP_SCREENS, type HelpScreen } from "@/lib/onboarding-rules";
+import VoiceModeToggle from "./walk/VoiceModeToggle";
+import { useWelcomeVoice } from "./walk/useWelcomeVoice";
 import { claimGuestTurnsOnce, guestClaimOpened, markGuestClaimOpened } from "@/lib/guest-client";
 import { OPEN_CONVERSATION_EVENT } from "@/lib/web-notifications";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
@@ -95,6 +99,7 @@ const BibleAIExplorerInner: React.FC = () => {
 	const attachTranslationParam = searchParams.get("attachTranslation") ?? "";
 	const verseOfDayIdParam = searchParams.get("verseOfDayId") ?? "";
 	const conversationIdParam = searchParams.get("conversationId") ?? "";
+	const helpParam = searchParams.get("help") ?? "";
 	const [focusSignal, setFocusSignal] = useState(0);
 	const lastSeededPrompt = useRef("");
 	const lastSeededAttachment = useRef("");
@@ -222,6 +227,35 @@ const BibleAIExplorerInner: React.FC = () => {
 	};
 
 	// startEditing reads the draft, so it changes on every keystroke; the ref keeps this handler fixed.
+	// A screen's "?" help button (docs/onboarding/PLAN.md) lands here with
+	// ?help=<screen>. Only the fixed HELP_SCREENS sentences can be sent this
+	// way, never text from the URL itself, and the param is dropped first so a
+	// reload does not ask again.
+	const lastHelp = useRef("");
+	useEffect(() => {
+		if (!helpParam || helpParam === lastHelp.current) return;
+		lastHelp.current = helpParam;
+		const url = new URL(window.location.href);
+		url.searchParams.delete("help");
+		window.history.replaceState(window.history.state, "", url.toString());
+		if (!Object.prototype.hasOwnProperty.call(HELP_SCREENS, helpParam)) return;
+		newConversation();
+		handleSend(HELP_SCREENS[helpParam as HelpScreen]);
+	}, [helpParam, newConversation, handleSend]);
+
+	const askChatHelp = useCallback(() => {
+		newConversation();
+		handleSend(HELP_SCREENS.chat);
+	}, [newConversation, handleSend]);
+
+	const focusComposer = useCallback(() => setFocusSignal((signal) => signal + 1), []);
+
+	// "Read it to me" belongs to the welcome conversation only, which its
+	// seeded first message identifies.
+	const isWelcome = messages[0]?.welcome === true;
+	const voiceMode = usePreference(readVoiceModePref, false);
+	useWelcomeVoice(isWelcome && voiceMode && !historyLoading, activeConversationId, messages);
+
 	const startEditingRef = useRef(startEditing);
 	startEditingRef.current = startEditing;
 	const handleEditMessage = useCallback((messageId: string) => {
@@ -316,6 +350,7 @@ const BibleAIExplorerInner: React.FC = () => {
 					title={title}
 					onToggleSidebar={toggleSidebar}
 					onNewChat={newConversation}
+					onHelp={askChatHelp}
 				/>
 				{historyActionError && (
 					<p role="alert" className="mx-4 mt-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-sm text-red-700 dark:text-red-400">
@@ -373,6 +408,8 @@ const BibleAIExplorerInner: React.FC = () => {
 						onSelectQuestion={handleSend}
 					/>
 				) : (
+					<>
+					{isWelcome && <VoiceModeToggle />}
 					<MessageList
 						messages={messages}
 						onFollowUp={handleSend}
@@ -380,7 +417,10 @@ const BibleAIExplorerInner: React.FC = () => {
 						busy={isStreaming || loading}
 						onEditMessage={handleEditMessage}
 						onRetryAnswer={retryAnswer}
+						onAnswerCard={handleSend}
+						onTypeOwn={focusComposer}
 					/>
+					</>
 				)}
 
 				{renderChatInput("above")}

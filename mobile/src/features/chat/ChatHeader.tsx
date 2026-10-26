@@ -10,13 +10,15 @@ import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { spacing, typography, type Colors } from "@/theme";
 import { chatColors } from "./chatAppearance";
 
-export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker, onOpenHistory, onOpenSettings }: {
+export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker, onOpenHistory, onOpenSettings, onHelp }: {
 	title?: string;
 	phase?: GuidePhase;
 	onNewChat: () => void;
 	onOpenModelPicker: () => void;
 	onOpenHistory: () => void;
 	onOpenSettings: () => void;
+	/** Ask SureWord how Chat works (Walk with me's per-screen help). */
+	onHelp?: () => void;
 }) {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,6 +36,7 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 		{ label: "Choose AI model", icon: "sparkles-outline" as const, action: onOpenModelPicker },
 		{ label: "Conversation history", icon: "time-outline" as const, action: onOpenHistory },
 		{ label: "Settings and Memories", icon: "settings-outline" as const, action: onOpenSettings },
+		...(onHelp ? [{ label: "Help with Chat", icon: "help-circle-outline" as const, action: onHelp }] : []),
 	];
 	return <>
 		<View style={styles.header}>

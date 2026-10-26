@@ -18,6 +18,8 @@ import { useReadingLogSync } from "@/features/reading/readingLogStore";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 import { afterTabDepartureGuard } from "@/lib/tabDeparture";
+import { SpotlightAnchor, SpotlightOverlay } from "@/features/onboarding/Spotlight";
+import { WelcomeLauncher } from "@/features/onboarding/WelcomeLauncher";
 
 // A render crash shows a Try again screen in place of this route instead of closing the app.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
@@ -33,6 +35,15 @@ const TAB_LABELS: Record<PrimaryTabRoute, string> = {
 type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 type TabRoute = { key: string; name: string };
 type TabRouteEntry = { route: TabRoute; index: number };
+
+/** The spotlight's name for each tab (the Walk with me tour). */
+const TAB_TARGETS: Record<PrimaryTabRoute, string> = {
+	today: "tab.today",
+	index: "tab.chat",
+	bible: "tab.bible",
+	connections: "tab.connections",
+	study: "tab.study",
+};
 
 const TAB_ICONS: Record<
 	PrimaryTabRoute,
@@ -74,8 +85,12 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 					const label = TAB_LABELS[routeName];
 					const icon = TAB_ICONS[routeName];
 					return (
-						<Pressable
+						<SpotlightAnchor
 							key={route.key}
+							target={TAB_TARGETS[routeName]}
+							style={[styles.tabSlot, routeName === "connections" && { flex: 1.4 }]}
+						>
+						<Pressable
 							accessibilityRole="tab"
 							accessibilityLabel={`${label} tab`}
 							accessibilityState={{ selected: focused }}
@@ -94,7 +109,6 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							}}
 							style={({ pressed }) => [
 								styles.tabItem,
-								routeName === "connections" && { flex: 1.4 },
 								focused && { backgroundColor: colors.accentSoft },
 								pressed && { opacity: 0.7 },
 							]}
@@ -114,6 +128,7 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							</Text>
 							{focused ? <View style={[styles.chatIndicator, { backgroundColor: colors.accent }]} /> : null}
 						</Pressable>
+						</SpotlightAnchor>
 					);
 				})}
 			</View>
@@ -164,7 +179,10 @@ export default function AppLayout() {
 			<Tabs.Screen name="memories" options={{ href: null }} />
 		</Tabs>
 		{/* After the consent sheet is answered, at most once per release. */}
-		<WhatsNewPresenter /></AIConsentPresenter>
+		<WhatsNewPresenter />
+		{/* Walk with me: a brand-new account lands in its welcome; the spotlight draws over every tab. */}
+		<WelcomeLauncher />
+		<SpotlightOverlay /></AIConsentPresenter>
 	);
 }
 
@@ -188,6 +206,7 @@ const createStyles = (c: Colors) =>
 			paddingHorizontal: spacing.sm,
 			gap: spacing.xs,
 		},
+		tabSlot: { flex: 1 },
 		tabItem: {
 			flex: 1,
 			alignItems: "center",

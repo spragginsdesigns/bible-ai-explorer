@@ -39,6 +39,8 @@ struct ChatMessageBubble: View {
     /// Draws Copy and Edit under the bubble rather than only in its long-press
     /// menu - the newest question, where a long press is least discoverable.
     var showsUserActions: Bool = false
+    /// Walk with me: whether this message's choice card still takes a tap.
+    var cardState: OnboardingRules.CardState? = nil
 
     /// The "What went wrong?" panel, raised by a thumbs down from either the
     /// inline row or the context menu, so both share one presentation. The draft
@@ -298,6 +300,10 @@ struct ChatMessageBubble: View {
             } else if message.isStreaming, message.activity == nil, message.progress == nil {
                 TypingDots()
             }
+
+            // Walk with me's card belongs to the question it asks, so it sits
+            // right under the message, above the answer actions.
+            GuideMessageCards(message: message, state: cardState)
 
             // Only on a settled answer - mid-stream the markdown is a fragment.
             // The thumbs repeat the context menu on purpose: a long press is

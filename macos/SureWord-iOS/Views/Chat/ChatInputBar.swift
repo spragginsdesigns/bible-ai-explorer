@@ -14,6 +14,7 @@ struct ChatInputBar: View {
     @Bindable var chat: ChatViewModel
 
     @FocusState private var isFocused: Bool
+    @Environment(AppModel.self) private var app
     @State private var isSourceSheetPresented = false
     @State private var photoSelection: [PhotosPickerItem] = []
     @State private var isPhotoPickerPresented = false
@@ -141,6 +142,8 @@ struct ChatInputBar: View {
                     .strokeBorder(isFocused ? theme.accentBorder : theme.border, lineWidth: 1)
             }
         }
+        // Walk with me's "Type my own".
+        .onChange(of: app.onboarding.composerFocusRequest) { isFocused = true }
         .sheet(isPresented: $isSourceSheetPresented, onDismiss: presentPendingSource) {
             AttachmentSourceSheet(options: sourceOptions) { option in
                 pendingSource = option

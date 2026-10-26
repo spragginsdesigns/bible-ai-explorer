@@ -5,6 +5,7 @@ import { AUTO_EFFORT_SENTINEL } from "@/components/modelPickerRules";
 import { DEFAULT_LISTEN_RATE, LISTEN_RATE_PREF_KEY } from "@/components/cross/listen";
 import type { TranslationId } from "@/lib/bible/translations";
 import type { PreferencesDocument } from "@/lib/preferences-contract";
+import { isTextScale, type TextScale } from "@/lib/text-scale";
 import {
 	ABOUT_ME_PREF_KEY,
 	EFFORT_PREF_KEY,
@@ -19,8 +20,10 @@ import {
 	PARCHMENT_PREF_KEY,
 	SPEED_PREF_KEY,
 	TESTIMONY_PREF_KEY,
+	TEXT_SCALE_PREF_KEY,
 	TRANSLATION_PREF_KEY,
 	VERBOSITY_PREF_KEY,
+	VOICE_MODE_PREF_KEY,
 	WEB_SEARCH_ENABLED_PREF_KEY,
 	highlightLabelFor,
 	mergeHighlightLabelEdits,
@@ -37,8 +40,10 @@ import {
 	readParchmentPref,
 	readSpeedPref,
 	readTestimonyPref,
+	readTextScalePref,
 	readTranslationPref,
 	readVerbosityPref,
+	readVoiceModePref,
 	readWebSearchEnabledPref,
 	writeAboutMePref,
 	writeEffortPref,
@@ -51,8 +56,10 @@ import {
 	writeParchmentPref,
 	writeSpeedPref,
 	writeTestimonyPref,
+	writeTextScalePref,
 	writeTranslationPref,
 	writeVerbosityPref,
+	writeVoiceModePref,
 	writeWebSearchEnabledPref,
 	type HighlightLabelId,
 	type HighlightLabels,
@@ -85,6 +92,8 @@ const SYNCED_KEYS = [
 	TRANSLATION_PREF_KEY,
 	PARCHMENT_PREF_KEY,
 	LISTEN_RATE_PREF_KEY,
+	TEXT_SCALE_PREF_KEY,
+	VOICE_MODE_PREF_KEY,
 	HIGHLIGHT_LABELS_PREF_KEY,
 	HIGHLIGHT_MEANINGS_PREF_KEY,
 	ABOUT_ME_PREF_KEY,
@@ -107,6 +116,8 @@ interface PreferencesPatchBody {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	textScale?: TextScale;
+	voiceMode?: boolean;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
 	aboutMe?: string;
@@ -309,6 +320,10 @@ export function applyPreferencesDocument(document: PreferencesDocument): void {
 	writeTranslationPref(document.translation);
 	writeParchmentPref(document.parchment);
 	writeListenRatePref(document.listenRate);
+	// Checked rather than trusted: a server behind this build sends neither,
+	// and an absent size must not reset a reader who already chose Largest.
+	if (isTextScale(document.textScale)) writeTextScalePref(document.textScale);
+	if (typeof document.voiceMode === "boolean") writeVoiceModePref(document.voiceMode);
 	writeMemoryEnabledPref(document.memoryEnabled);
 	writeWebSearchEnabledPref(document.webSearchEnabled);
 	const highlightLabels = labelsFromDocument(document);
@@ -728,6 +743,36 @@ export function setListenRatePreference(
 		() => readListenRatePref() === listenRate,
 		{ listenRate },
 		"Couldn't save the playback speed.",
+		options
+	);
+}
+
+export function setTextScalePreference(
+	scale: TextScale,
+	options: WriteThroughOptions = {}
+): Promise<string | null> {
+	const previous = readTextScalePref();
+	return writeThrough(
+		() => writeTextScalePref(scale),
+		() => writeTextScalePref(previous),
+		() => readTextScalePref() === scale,
+		{ textScale: scale },
+		"Couldn't save the text size.",
+		options
+	);
+}
+
+export function setVoiceModePreference(
+	enabled: boolean,
+	options: WriteThroughOptions = {}
+): Promise<string | null> {
+	const previous = readVoiceModePref();
+	return writeThrough(
+		() => writeVoiceModePref(enabled),
+		() => writeVoiceModePref(previous),
+		() => readVoiceModePref() === enabled,
+		{ voiceMode: enabled },
+		"Couldn't save Read it to me.",
 		options
 	);
 }

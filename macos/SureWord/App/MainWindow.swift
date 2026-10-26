@@ -21,6 +21,23 @@ struct MainWindow: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detail
+                .spotlightTarget(app.section.primary.tabTarget)
+                .spotlightHost()
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        GuideHelpButton(screen: app.section.primary.helpScreen)
+                    }
+                }
+        }
+        .onChange(of: app.settings.textScale, initial: true) { _, scale in
+            app.bible.textScaleFactor = scale.factor
+        }
+        // Walk with me starts itself once the AI consent sheet is settled.
+        .task(id: app.aiConsent.isCurrent && app.aiConsent.prompt == nil) {
+            await app.onboarding.autoStartIfNeeded(
+                consentSettled: app.aiConsent.isCurrent && app.aiConsent.prompt == nil,
+                app: app
+            )
         }
         .task { await app.chat.loadConversations() }
         // First hydrate of the session: the server document replaces whatever

@@ -108,3 +108,46 @@ test("onboarding turns and reads are metered off the free daily cap", () => {
 	assert.ok(counted.length >= 3, `expected the daily, attempts and monthly counts, got ${counted.length}`);
 	assert.ok(!/surface: \{ not: "background-utility" \}/.test(usage), "a count still only excludes background work");
 });
+
+test("the onboarding ceiling counts every reservation, failed ones included", () => {
+	const usage = read("../src/lib/billing/usage.ts");
+	// A turn that ends on a card settles as "failed" although it was answered.
+	assert.match(usage, /count\(\{\s*where: \{ userId, surface: ONBOARDING_SURFACE \},\s*\}\);\s*if \(attempted < ceiling\)/);
+	assert.ok(!/surface: ONBOARDING_SURFACE, status:/.test(usage), "the ceiling still skips failed rows");
+});
+
+test("Android carries the same rules, byte for byte", () => {
+	assert.equal(
+		read("../mobile/src/features/onboarding/onboardingRules.ts").replaceAll("\r", ""),
+		read("../src/lib/onboarding-rules.ts").replaceAll("\r", ""),
+	);
+});
+
+test("Android text sizes match the server's", async () => {
+	const mobile = await import("../mobile/src/features/settings/textScale.ts");
+	const { TEXT_SCALES } = await import("../src/lib/preferences-contract.ts");
+	const { TEXT_SCALE_FACTORS, TEXT_SCALE_VALUES } = await import("../src/lib/onboarding-rules.ts");
+	assert.deepEqual([...mobile.TEXT_SCALES], [...TEXT_SCALES]);
+	assert.deepEqual(mobile.TEXT_SCALE_FACTORS, TEXT_SCALE_FACTORS);
+	for (const [label, scale] of Object.entries(TEXT_SCALE_VALUES)) assert.equal(mobile.textScaleForLabel(label), scale);
+});
+
+test("the welcome owes the next card when a turn ends without one", async () => {
+	const { expectedStep, owedStep, WELCOME_STEP_ORDER } = await import("../src/lib/onboarding-rules.ts");
+	// The 2026-10-25 stall: the name was saved, the reply ended, no faith card.
+	assert.equal(
+		owedStep({ lastStep: "name", reply: "Call me Walker", calledTools: ["saveMemory"], answerText: "Now let's take the next step together." }),
+		"faith",
+	);
+	assert.equal(owedStep({ lastStep: "name", reply: "Call me Walker", calledTools: ["saveMemory", "presentChoices"], answerText: "Good to meet you." }), null);
+	assert.equal(owedStep({ lastStep: "aboutMe", reply: "Yes, save it", calledTools: [], answerText: "Saved." }), null);
+	assert.equal(owedStep({ lastStep: "tour", reply: "Later", calledTools: ["finishOnboarding"], answerText: "Done." }), null);
+	assert.equal(owedStep({ lastStep: "prayer", reply: "Not today", calledTools: [], answerText: "Would you like a verse for that?" }), null);
+	// Still seeking gets the Gospel first, never a hurried church card.
+	assert.equal(expectedStep("faith", "Still seeking, or not sure where I stand with God"), null);
+	// A question in place of an answer gets the same card again.
+	assert.equal(expectedStep("church", "Why do you need my church?"), "church");
+	assert.equal(expectedStep("other", "Yes"), null);
+	assert.equal(expectedStep(null, "hello"), null);
+	for (let i = 0; i < WELCOME_STEP_ORDER.length - 1; i++) assert.equal(expectedStep(WELCOME_STEP_ORDER[i], "ok"), WELCOME_STEP_ORDER[i + 1]);
+});

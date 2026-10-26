@@ -10,6 +10,8 @@ import { planCardSubtitle } from "@/components/plan/planView";
 import SendWordDialog from "@/components/share/SendWordDialog";
 import DestinationCard, { destinationClass } from "./DestinationCard";
 import { useContinueReading } from "./useContinueReading";
+import GettingStartedCard from "@/components/walk/GettingStartedCard";
+import { spotlightTarget } from "@/lib/spotlight";
 
 export default function TodayScreen() {
   const { userId } = useAuth();
@@ -46,8 +48,9 @@ function TodayContent() {
   }, [userId]);
   return <main className="mx-auto w-full max-w-5xl px-5 pb-28 pt-6 lg:px-8 lg:pb-16 lg:pt-10">
     <header className="mb-6"><p className="text-xs font-bold uppercase tracking-[.28em] text-neutral-600 dark:text-[#b3ad9e]">Your daily walk</p><h1 className="mt-3 text-[clamp(2rem,6vw,3.25rem)] font-bold leading-[1.1] tracking-[-.035em]">Begin with the Word.</h1></header>
+    <GettingStartedCard />
     <div className="grid gap-7 lg:grid-cols-[1.08fr_1fr] lg:items-start lg:gap-8">
-      <section aria-labelledby="daily-cross-title" className="overflow-hidden rounded-[28px] border border-amber-900/10 bg-white/25 dark:border-amber-200/10 dark:bg-white/[.015]">
+      <section aria-labelledby="daily-cross-title" {...spotlightTarget("today.cross")} className="overflow-hidden rounded-[28px] border border-amber-900/10 bg-white/25 dark:border-amber-200/10 dark:bg-white/[.015]">
         <div className="relative h-40 overflow-hidden sm:h-44 lg:h-56"><Image src="/daily-walk-dawn.jpg" alt="Sunrise over a quiet valley, with a wooden cross on the hillside" fill priority sizes="(min-width: 1024px) 420px, 100vw" className="object-cover object-[65%_52%]" /><div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" /></div>
         <div className="p-5 sm:p-6"><h2 id="daily-cross-title" className="font-[family-name:var(--font-cormorant)] text-[35px] font-semibold leading-tight text-amber-900 dark:text-[#efc574]">Pick Up Your Cross</h2>
           <p className="mt-4 text-xs font-bold uppercase tracking-[.15em] text-neutral-600 dark:text-[#b3ad9e]">{preview ? "Today’s word" : "A light for your walk"}</p>
@@ -59,8 +62,8 @@ function TodayContent() {
       </section>
       <section aria-label="Continue your daily walk" className="flex flex-col gap-3">
         <DestinationCard href={continueTarget?.href ?? "/bible"} title={continueTarget ? "Continue reading" : "Open your Bible"} description={continueTarget?.label ?? "Find a book and spend time in Scripture"} Icon={BookOpen} />
-        <DestinationCard href="/bible/plan" title={plan?.title ?? "Reading plan"} description={loading ? "Open your reading plan" : error ? "Choose or continue a reading plan" : planCardSubtitle(plan)} Icon={CalendarDays} />
-        <DestinationCard href="/bible/learn" title="Learn a verse" description="Keep Scripture in your heart, one verse at a time" Icon={Layers} />
+        <DestinationCard href="/bible/plan" title={plan?.title ?? "Reading plan"} description={loading ? "Open your reading plan" : error ? "Choose or continue a reading plan" : planCardSubtitle(plan)} Icon={CalendarDays} spotlight="today.plan" />
+        <DestinationCard href="/bible/learn" title="Learn a verse" description="Keep Scripture in your heart, one verse at a time" Icon={Layers} spotlight="today.learn" />
         <Link href="/bible/history" className="flex min-h-14 items-center gap-3 rounded-xl px-2 text-amber-900 transition-colors hover:bg-amber-500/5 dark:text-[#e5b664]"><Footprints size={23} aria-hidden /><span className="flex-1 font-bold">Your walk &amp; reading log</span><ChevronRight size={20} aria-hidden /></Link>
         <div className="border-t border-black/10 pt-3 dark:border-white/10"><button type="button" onClick={() => setSendOpen(true)} className={destinationClass}><Mail size={27} strokeWidth={1.5} className="shrink-0 text-amber-800 dark:text-[#e5b664]" aria-hidden /><span className="flex-1"><span className="block text-lg font-bold">Send a word</span><span className="mt-1 block text-sm text-neutral-600 dark:text-[#bbb3a7]">Encourage someone with Scripture</span></span><ChevronRight size={22} className="shrink-0 text-neutral-500" aria-hidden /></button></div>
       </section>

@@ -11,7 +11,9 @@ struct TodayTabView: View {
                 onLearn: { path.append(.learn) },
                 onHistory: { path.append(.history) }
             )
-            .settingsGearToolbar()
+            .spotlightTarget(.tabToday)
+            .spotlightHost()
+            .settingsGearToolbar(help: .today)
             .navigationDestination(for: DailyWalkDestination.self) { destination in
                 switch destination {
                 case .plan: ReadingPlanView().analyticsScreen(AnalyticsScreen.plan)
@@ -31,6 +33,10 @@ struct TodayTabView: View {
         .onChange(of: app.pendingDailyDestination, initial: true) { _, pending in
             if let pending { path = [pending]; app.pendingDailyDestination = nil }
         }
+        // Walk with me lights a Today card: back to the root first.
+        .onChange(of: app.onboarding.pendingRootReset.contains(.today), initial: true) { _, pending in
+            if pending, app.onboarding.consumeRootReset(.today) { path = [] }
+        }
     }
 }
 
@@ -43,7 +49,9 @@ struct StudyTabView: View {
         NavigationStack(path: $path) {
             StudyHome(onNotes: { path.append(.notes) }, onAtlas: { path.append(.atlas) },
                       onSermons: { path.append(.sermons) }, onWords: { path.append(.words) })
-                .settingsGearToolbar()
+                .spotlightTarget(.tabStudy)
+                .spotlightHost()
+                .settingsGearToolbar(help: .study)
                 .navigationDestination(for: StudyDestination.self) { destination in
                     switch destination {
                     case .notes: NotesTabView().analyticsScreen(AnalyticsScreen.notes)
@@ -58,6 +66,10 @@ struct StudyTabView: View {
             // A receipt always opens Notes inside Study, even when another
             // Study tool is currently pushed.
             path = [.notes]
+        }
+        // Walk with me lights a Study row: back to the root first.
+        .onChange(of: app.onboarding.pendingRootReset.contains(.study), initial: true) { _, pending in
+            if pending, app.onboarding.consumeRootReset(.study) { path = [] }
         }
     }
 }

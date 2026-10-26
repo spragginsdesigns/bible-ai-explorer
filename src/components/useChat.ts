@@ -53,6 +53,8 @@ import {
 	readVerbosityPref,
 } from "@/lib/preferences";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
+import { isAppTarget, isOnboardingStep, type ChoiceCardOutput } from "@/lib/onboarding-rules";
+import { isWelcomeToolCallId, parseChoiceCard, parseShowInApp, type ShowInAppCard } from "@/lib/guide-cards";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 
 export interface RetrievedVerse {
@@ -106,6 +108,15 @@ export interface ChatMessage {
 	 * renders receipts.
 	 */
 	receipts?: ChatReceipt[];
+	/**
+	 * Big tap-to-answer buttons under the message ("Walk with me",
+	 * presentChoices). At most one per message; the last one wins.
+	 */
+	choiceCard?: ChoiceCardOutput;
+	/** "Show me" cards (showInApp): each lights up a place in the app. */
+	showInApp?: ShowInAppCard[];
+	/** SureWord's seeded first message of the welcome conversation. */
+	welcome?: boolean;
 	/**
 	 * The reader's own thumb on this answer (docs/FEATURES.md, Answer feedback).
 	 * Replayed from the persisted row on history load; the rating control owns
@@ -258,6 +269,9 @@ export function toViewMessage(
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
 	const noteActions: NoteAction[] = [];
 	const crossActions: CrossAction[] = [];
+	let choiceCard: ChoiceCardOutput | undefined;
+	const showInApp: ShowInAppCard[] = [];
+	let welcome = false;
 	const fileParts = message.parts.filter((part) => part.type === "file");
 	const fileIds = Array.isArray(message.metadata?.attachmentIds)
 		? message.metadata.attachmentIds
@@ -294,6 +308,7 @@ export function toViewMessage(
 			type: string;
 			state: string;
 			output?: unknown;
+			toolCallId?: unknown;
 		};
 
 		if (toolPart.state === "input-streaming" || toolPart.state === "input-available") {
@@ -333,6 +348,12 @@ export function toViewMessage(
 					created: output.created === true,
 				});
 			}
+		} else if (part.type === "tool-presentChoices") {
+			choiceCard = parseChoiceCard(output, isOnboardingStep) ?? choiceCard;
+			if (isWelcomeToolCallId(toolPart.toolCallId)) welcome = true;
+		} else if (part.type === "tool-showInApp") {
+			const card = parseShowInApp(output, isAppTarget);
+			if (card) showInApp.push(card);
 		} else if (part.type === "tool-setDailyCross") {
 			// Only the write shows a receipt; reading the day is silent.
 			if (typeof output.reference === "string" && typeof output.text === "string") {
@@ -389,6 +410,9 @@ export function toViewMessage(
 		...(noteActions.length > 0 ? { noteActions } : {}),
 		...(crossActions.length > 0 ? { crossActions } : {}),
 		...(receipts.length > 0 ? { receipts } : {}),
+		...(choiceCard ? { choiceCard } : {}),
+		...(showInApp.length > 0 ? { showInApp } : {}),
+		...(welcome ? { welcome } : {}),
 		...(options.conversationId ? { conversationId: options.conversationId } : {}),
 		...(options.feedback ? { feedback: options.feedback } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),

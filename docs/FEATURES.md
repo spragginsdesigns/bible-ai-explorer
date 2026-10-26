@@ -724,6 +724,159 @@ Follow-ups: `/onboard` is typed, not yet in the slash menus; Android's
 `mobile/src/lib/chatView.ts` label copy lacks the five new tool labels (it
 falls back to a generic label) until the next Android release.
 
+Superseded on 2026-10-25 by Walk with me (below): the interview now runs only
+inside the welcome conversation or on `/onboard`, never in an ordinary chat.
+
+## Walk with me (the guided first run)
+
+*Shipped 2026-10-25 · server, Android 1.101.0 (117), web; Apple in the same
+cycle. Plan and Austin's four decisions: [onboarding/PLAN.md](onboarding/PLAN.md).*
+
+A brand-new account is welcomed by SureWord itself, in a real conversation,
+with big tap-to-answer cards so nobody has to type. In about five minutes it
+sets text size, name, where they are in the faith, church, a prayer request
+and a daily time, gives them their first Pick Up Your Cross, and lights up
+each tab once.
+
+### Who gets it
+
+- `POST /api/onboarding/start` with `mode: "auto"` runs once per launch, after
+  sign-in and after the AI consent sheet. It opens a welcome only for an
+  account with `onboardedAt` null and no conversation of its own (guest chats
+  claimed at sign-up do not count). Existing members are never pushed into it
+  and see no card (decision 3).
+- `mode: "manual"` comes from Settings, "Walk me through SureWord", for
+  anyone: it reopens the account's welcome (clearing `onboardedAt`) or creates
+  one. It replaces typing `/onboard`.
+- The call locks the `User` row, so two devices or a double mount get the same
+  conversation. `User.onboardingConversationId` remembers it, and the first
+  message (`WELCOME_TEXT` plus the text size card) is written by the server, so
+  it costs no AI turn.
+
+### The cards
+
+Two AI tools, built in `src/lib/onboarding-tools.ts`, ride on every chat turn
+(`showInApp` answers "where is..." questions anywhere; the welcome guidance
+that asks for cards rides only on welcome turns). Their parts persist in
+`Message.metadata.parts` like every tool part:
+
+- `presentChoices` returns one step's card from `STEP_CARDS`
+  (`src/lib/onboarding-rules.ts`): textScale, name, faith, church, prayer,
+  dailyTime, tour, aboutMe. The model picks the step; the question, options and
+  skip label come from the rules file, so they read the same on every client.
+- `showInApp` returns a "Show me" card naming one `APP_TARGETS` place (or the
+  whole tour). Its button works in any conversation, not only the welcome.
+
+The model sometimes ends a step with no card (seen on the name step,
+2026-10-25), which leaves the reader nothing to tap. Each welcome turn
+therefore names the expected next card in the prompt (`expectedStep`), and
+when a turn still ends with no card, no `finishOnboarding` and no question
+for the reader, the route appends that card itself (`owedStep`). "Still
+seeking" is exempt, so the Gospel is never hurried, and a question from the
+reader gets the same card again once it is answered.
+
+Clients render the last `presentChoices` card under its message, with options
+at least 56dp tall, "Type my own" and the mic where the step allows free text,
+and the skip label. A tap does the device half of the step first (text size;
+the daily reminder hour, enabling it and asking for the notification
+permission right then), then sends the option's label as the reader's answer.
+The church step embeds the same My church search as Settings and answers with
+the church it saved ("I saved ... as my home church."), which the prompt
+treats as done, so SureWord never searches or confirms it again. Saving a
+church copies the `youtubeChannelId` any other member's row for the same
+`placeId` already has (`setUserChurch`), so a new member of a church with
+sermon studies sees them at once; before e366db71 the channel was set by hand
+on one row and every later member of FMBC had none. A church or About me typed
+in words is saved by one plain yes: the prompt prepares the approval in the
+same turn it finds the church, and `acceptsProposedAction` takes "Yes that's
+it", "Yes, that wording is good" and "Perfect" but not a yes that edits or
+hedges ("yes, but add my wife"). "Still seeking, or not sure" gets the Gospel before the
+tour (`welcomeConversationGuidance`).
+
+### The spotlight
+
+A dimmed overlay with a gold ring around one named place and a sentence from
+SureWord. Places register by name (`SpotlightAnchor` on Android,
+`anchorPreference` on Apple, a ref registry on web); the tour walks
+`TOUR_STOPS` in order and ends on John 3:16 in the reader. A place this build
+cannot find is skipped, never ringed empty. Reduce motion swaps the pulse for
+a still ring.
+
+On Android a place below the fold is scrolled into the upper third first.
+Today, Study and the Settings sub screens use `SpotlightScrollView`, which
+records its scroll offset; an anchor inside one scrolls by `offset + box.y -
+0.3 * height`, because scrolling by d moves the target's window position by
+exactly d. The scroll view itself is never measured, because on the new
+architecture its content container can be flattened away. A tab that is
+already mounted is first measured from its stale layout: on the cross "Show
+me" from the welcome under Largest text, the button read y=616 (on screen, so
+no scroll) and settled a moment later at y=1006 in a 914-high window, so the
+ring sat off screen. The overlay therefore keeps measuring every 400 ms,
+reveals the target whenever a measurement finds it off screen (up to four
+times), and follows it while the stop is open (the reader jumps to John 3:16
+after it mounts). Proved on the emulator 2026-10-25: the page scrolled to
+y=274 and the ring was drawn, with and without animations.
+
+### Help and Getting started
+
+- A "?" on each tab's header (Chat: "Help with Chat" in its menu) opens a
+  fresh chat that asks SureWord about that screen (`HELP_SCREENS`).
+- A Getting started card on Today, for accounts that came through the welcome,
+  lists five things (`GETTING_STARTED_ITEMS`). Each ticks only when the server
+  sees the real thing (`GET /api/onboarding/progress`): a `ReadingLogChapter`
+  row, a completed verse insight or `User.firstInsightAt`,
+  `User.firstCrossOpenedAt` (stamped by `GET /api/verse-of-day/today`), a
+  `VerseMemory` row, a `UserChurch` row. Dismissing it sets
+  `gettingStartedDismissedAt` (`PATCH`).
+
+### Text size
+
+`User.textScale` (`standard` / `large` / `largest`, factors 1, 1.15, 1.3 on
+top of the system font scale) is part of the account preferences document, so
+it follows the reader to every device. Android applies it in `AppText`, the
+one text primitive; web sets a root class; Apple maps it onto Dynamic Type.
+It is also in Settings, Appearance.
+
+### Read it to me (voice mode)
+
+Off by default, saved as `User.voiceMode`, and only shown inside the welcome.
+When it is on, each new SureWord message in the welcome is read aloud, then the
+card's question. `POST /api/onboarding/audio` takes `{ messageId }` or
+`{ step }` and answers either `ready` (a same-origin stream URL,
+`/api/onboarding/audio/stream`, from a private Blob) or `device` (the words to
+speak with expo-speech, Web Speech or AVSpeechSynthesizer). Cost controls
+(`src/lib/onboarding-voice.ts`):
+
+- Scripted lines (the welcome and every card question) are narrated once with
+  `eleven_multilingual_v2` and shared by every account; a new welcome warms
+  them in the background.
+- SureWord's replies are narrated only when a client asks, with
+  `eleven_flash_v2_5`, cached per message, and counted in
+  `User.onboardingVoiceChars` against `ONBOARDING_VOICE_CHAR_CEILING`
+  (default 12,000).
+- `ONBOARDING_ELEVENLABS_DISABLED=true`, a missing `ELEVENLABS_API_KEY`, the
+  ceiling or any failure answers `device`.
+
+### Metering
+
+Welcome turns ride their own usage surface, `onboarding`, which the 20 a day
+free cap does not count. Each account has `ONBOARDING_TURN_CEILING` welcome
+turns (default 60, at least twice the chattiest measured run: 16 typed turns
+on web, 8 for a tap-only run). Every reservation counts toward it, whatever
+it settled as: a turn that ends on a card has no closing text, so the usage
+row settles as `failed` although the reader saw the answer (12 of the first
+21 production rows). Past it, turns fall back to the normal free cap and
+are still answered; only when that cap is spent too does SureWord give the
+kind "We have covered a lot together" line instead of the usual limit error.
+
+### Analytics
+
+Server: `onboarding_started` (`mode`, `created`), `onboarding_voice`
+(`source` or `reason`, `characters`, `kind`), `onboarding_finished`. Clients:
+`onboarding_step` (`step`, `answered` or `skipped`) and `onboarding_tour`
+(`started`, `completed` or `closed`, stops reached). No study content in any
+of them.
+
 ---
 
 ## Pick Up Your Cross

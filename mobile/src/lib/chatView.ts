@@ -40,6 +40,47 @@ export interface CrossAction {
 	previousReference: string | null;
 }
 
+/** The card the server resolved (src/lib/onboarding-rules.ts ChoiceCardOutput). */
+export interface ChoiceCardView {
+	step: string;
+	question: string;
+	options: string[];
+	allowOther: boolean;
+	skipLabel: string;
+}
+
+export interface ShowMeView {
+	target: string;
+	caption: string;
+	/** Present only for the whole tour. */
+	stops?: { target: string; caption: string }[];
+}
+
+function parseChoiceCard(output: Record<string, unknown>): ChoiceCardView | null {
+	if (typeof output.step !== "string" || typeof output.question !== "string") return null;
+	return {
+		step: output.step,
+		question: output.question,
+		options: Array.isArray(output.options)
+			? output.options.filter((option): option is string => typeof option === "string")
+			: [],
+		allowOther: output.allowOther === true,
+		skipLabel: typeof output.skipLabel === "string" && output.skipLabel ? output.skipLabel : "Skip for now",
+	};
+}
+
+function parseShowMe(output: Record<string, unknown>): ShowMeView | null {
+	if (typeof output.target !== "string" || typeof output.caption !== "string") return null;
+	const stops = Array.isArray(output.stops)
+		? output.stops.flatMap((stop) =>
+			isRecord(stop) && typeof stop.target === "string" && typeof stop.caption === "string"
+				? [{ target: stop.target, caption: stop.caption }]
+				: []
+		)
+		: [];
+	return { target: output.target, caption: output.caption, ...(stops.length > 0 ? { stops } : {}) };
+}
+
 export interface ChatViewMessage {
 	id: string;
 	role: "user" | "assistant";
@@ -57,6 +98,10 @@ export interface ChatViewMessage {
 	 */
 	receipts?: ChatReceipt[];
 	attachments?: ChatAttachmentDescriptor[];
+	/** A presentChoices card from Walk with me: tap-to-answer buttons under the message. */
+	choiceCard?: ChoiceCardView;
+	/** showInApp cards: "Show me" buttons that light up a place in the app. */
+	showMe?: ShowMeView[];
 	/**
 	 * The user's own thumb on this answer, replayed from the `Message` columns
 	 * on load and updated locally after a PATCH. The literal union is written
@@ -91,6 +136,8 @@ export function isRenderableChatViewMessage(message: ChatViewMessage): boolean {
 		message.crossActions?.length ||
 		// A turn whose only visible output is a receipt line still renders.
 		message.receipts?.length ||
+		message.choiceCard ||
+		message.showMe?.length ||
 		message.retrievedVerses?.length ||
 		message.tavilyResults?.length ||
 		message.followUps?.length
@@ -265,6 +312,8 @@ export function toViewMessage(
 	const tavilyResults: TavilyResult[] = parseTavilyResults(legacy.tavilyResults);
 	const noteActions: NoteAction[] = [];
 	const crossActions: CrossAction[] = [];
+	let choiceCard: ChoiceCardView | null = null;
+	const showMe: ShowMeView[] = [];
 	const fileParts = message.parts.filter((part) => part.type === "file");
 	const fileIds = Array.isArray(legacy.attachmentIds)
 		? legacy.attachmentIds.filter((id): id is string => typeof id === "string")
@@ -338,6 +387,12 @@ export function toViewMessage(
 					created: output.created === true,
 				});
 			}
+		} else if (toolPart.type === "tool-presentChoices") {
+			// One card per message: the last one is the question being asked.
+			choiceCard = parseChoiceCard(output) ?? choiceCard;
+		} else if (toolPart.type === "tool-showInApp") {
+			const card = parseShowMe(output);
+			if (card) showMe.push(card);
 		} else if (toolPart.type === "tool-setDailyCross") {
 			// Only the write shows a receipt; reading the day is silent.
 			if (typeof output.reference === "string" && typeof output.text === "string") {
@@ -402,6 +457,8 @@ export function toViewMessage(
 		...(crossActions.length > 0 ? { crossActions } : {}),
 		...(receipts.length > 0 ? { receipts } : {}),
 		...(attachments.length > 0 ? { attachments } : {}),
+		...(choiceCard ? { choiceCard } : {}),
+		...(showMe.length > 0 ? { showMe } : {}),
 		...(feedback && message.role !== "user" ? { feedback } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(progress ? { progress } : {}),

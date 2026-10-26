@@ -59,6 +59,7 @@ final class AnalyticsMirrorTests: XCTestCase {
                 "method", "reason", "step",
                 "route", "kind", "status", "app_state",
                 "style", "format",
+                "outcome", "stage", "stops_seen", "stops",
                 "version", "build", "previous_version", "previous_build", "from_background",
             ]
         )

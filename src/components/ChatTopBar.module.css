@@ -4,6 +4,8 @@
 .title > span { display:block; font-size:27px; line-height:32px; }
 .title small { display:block; font-size:11px; color:var(--chat-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .newChat { display:flex; justify-content:center; align-items:center; width:48px; height:48px; color:var(--chat-accent); border-radius:50%; }
+.help { display:flex; justify-content:center; align-items:center; width:48px; height:48px; color:var(--chat-muted); border-radius:50%; }
+.help:hover { color:var(--chat-accent); }
 .newChat svg { border:1px solid var(--chat-border); border-radius:50%; width:36px; height:36px; padding:5px; }
 .options summary { display:flex; justify-content:center; align-items:center; width:48px; height:48px; cursor:pointer; list-style:none; color:var(--chat-muted); }
 .options summary::-webkit-details-marker { display:none; }

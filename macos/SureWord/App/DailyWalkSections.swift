@@ -34,6 +34,10 @@ struct TodaySection: View {
         .onChange(of: app.pendingDailyDestination, initial: true) { _, pending in
             if let pending { destination = pending; app.pendingDailyDestination = nil }
         }
+        // Walk with me lights a Today card: back to the home first.
+        .onChange(of: app.onboarding.pendingRootReset.contains(.today), initial: true) { _, pending in
+            if pending, app.onboarding.consumeRootReset(.today) { destination = nil }
+        }
     }
 }
 
@@ -62,6 +66,10 @@ struct StudySection: View {
                 StudyHome(onNotes: { app.section = .notes }, onAtlas: { destination = .atlas },
                           onSermons: { destination = .sermons }, onWords: { destination = .words })
             }
+        }
+        // Walk with me lights a Study row: back to the home first.
+        .onChange(of: app.onboarding.pendingRootReset.contains(.study), initial: true) { _, pending in
+            if pending, app.onboarding.consumeRootReset(.study) { destination = nil }
         }
     }
 }

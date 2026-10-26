@@ -48,6 +48,16 @@ type TriggerListener = (trigger: PermissionTrigger) => void;
 
 let listener: TriggerListener | null = null;
 let pending: PermissionTrigger | null = null;
+let passiveSuppressed = false;
+
+/**
+ * Walk with me asks at its daily-time step, where the reason is plain, so
+ * the passive moments (first answer, cross visit) hold off while the welcome
+ * is on screen. An explicit request still goes through.
+ */
+export function suppressPassivePermissionMoments(suppressed: boolean): void {
+	passiveSuppressed = suppressed;
+}
 
 /**
  * Report a moment when asking would make sense. Cheap and safe to call on
@@ -59,6 +69,7 @@ let pending: PermissionTrigger | null = null;
  * notification tap that cold-opens Pick Up Your Cross would otherwise be lost.
  */
 export function signalNotificationPermissionMoment(trigger: PermissionTrigger): void {
+	if (passiveSuppressed && trigger !== "settings-enabled") return;
 	if (listener) {
 		listener(trigger);
 		return;

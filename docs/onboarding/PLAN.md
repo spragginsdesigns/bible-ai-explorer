@@ -187,17 +187,34 @@ dismissed. Nothing ticks itself.
    straight into the welcome after sign-up.
 4. **macOS / iOS**: cards first, spotlight second, on a Mac runner.
 
-## Open decisions for Austin
+## Decisions (Austin, 2026-10-25)
 
-1. **Landing.** Recommendation: new accounts land in the welcome conversation
-   (Chat), returning ones on Today. Alternative: Today with a big "Meet
-   SureWord" card.
-2. **Voice.** Should the first message also be spoken (ElevenLabs, the Listen
-   narrator) for people who would rather listen? It is Pro-priced today, so
-   free onboarding audio is a cost decision.
-3. **Existing members.** Offer the walkthrough once to the 41 of 73 accounts with
-   `onboardedAt` null (24 of them have chatted), or only to new sign-ups?
-4. **Free ceiling.** Is 60 onboarding turns per account the right abuse cap?
+These were the open decisions; Austin settled all four before the build.
+
+1. **Landing: decided.** A brand-new account (`onboardedAt` null and no
+   earlier conversations of its own) lands in the welcome conversation on Chat,
+   after sign-in and after the AI consent sheet. Returning accounts keep
+   today's landing.
+2. **Voice: decided.** "Read it to me" is optional and off by default. When it
+   is on, every SureWord message in the welcome is read aloud. It can be
+   switched at any point and is saved to the account (`User.voiceMode`). It is
+   free during onboarding and uses the Listen narrator (ElevenLabs,
+   `ELEVENLABS_VOICE_ID`). Cost controls: the fixed scripted lines are
+   generated once and cached for every account; dynamic replies are generated
+   only when they are about to be read; each account has a character ceiling
+   (`ONBOARDING_VOICE_CHAR_CEILING`, default 12,000) and there is an env kill
+   switch (`ONBOARDING_ELEVENLABS_DISABLED=true`). Past the ceiling, with the switch off, or on any failure, the client
+   falls back to on-device speech (expo-speech on Android, Web Speech on web,
+   AVSpeechSynthesizer on Apple).
+3. **Existing members: decided.** The welcome is for new sign-ups only. It is
+   never pushed, and no card is shown, to existing accounts that never
+   finished onboarding. A quiet "Walk me through SureWord" row in Settings
+   replaces typing /onboard, for anyone who wants it.
+4. **Free ceiling: decided.** Welcome turns are exempt from the 20 a day free
+   cap and have their own per-account ceiling (`ONBOARDING_TURN_CEILING`,
+   default 60), which must stay at least twice the chattiest measured run.
+   Reaching it falls back to the normal free cap with a kind message and never
+   dead-ends anyone.
 
 ## Acceptance
 

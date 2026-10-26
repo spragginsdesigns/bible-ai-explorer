@@ -62,6 +62,8 @@ final class SettingsStore {
         static let highlightMeanings = "settings.highlight.meanings"
         static let aboutMe = "settings.aboutMe"
         static let testimony = "settings.testimony"
+        static let textScale = "settings.textScale"
+        static let voiceMode = "settings.voiceMode"
     }
 
     /// Matches `DEFAULT_SETTINGS` in
@@ -99,6 +101,8 @@ final class SettingsStore {
         applyRemote { settings in
             settings.translation = .kjv
             settings.parchment = true
+            settings.textScale = .default
+            settings.voiceMode = false
             settings.listenRate = Listen.defaultRate
             settings.highlightLabels = [:]
             settings.highlightMeanings = [:]
@@ -350,6 +354,29 @@ final class SettingsStore {
         }
     }
 
+    /// App-wide text size (Walk with me's first card, and Settings). Synced
+    /// with the account, so a size picked on the phone is the size here.
+    var textScale: TextScale {
+        didSet {
+            UserDefaults.standard.set(textScale.rawValue, forKey: Key.textScale)
+            guard textScale != oldValue else { return }
+            var previous = AccountPreferences()
+            previous.textScale = oldValue.rawValue
+            writeThrough(PreferencesPatch(textScale: textScale.rawValue), previous: previous)
+        }
+    }
+
+    /// "Read it to me" in the welcome conversation. Off by default.
+    var voiceMode: Bool {
+        didSet {
+            UserDefaults.standard.set(voiceMode, forKey: Key.voiceMode)
+            guard voiceMode != oldValue else { return }
+            var previous = AccountPreferences()
+            previous.voiceMode = oldValue
+            writeThrough(PreferencesPatch(voiceMode: voiceMode), previous: previous)
+        }
+    }
+
     /// "Offer a quiz after each chapter" (docs/quiz/PLAN.md). Kept on this
     /// device only, the same as Android and web, so it has no write-through.
     var offerQuiz: Bool {
@@ -386,6 +413,8 @@ final class SettingsStore {
         // would silently turn the parchment off for everyone.
         parchment = defaults.object(forKey: Key.parchment) as? Bool ?? true
         offerQuiz = defaults.object(forKey: Key.offerQuiz) as? Bool ?? true
+        textScale = TextScale.normalize(defaults.string(forKey: Key.textScale))
+        voiceMode = defaults.bool(forKey: Key.voiceMode)
     }
 
     /// 0-23 → "8:00 AM" / "9:00 PM", matching `formatHour` on Android.

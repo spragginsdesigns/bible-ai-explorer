@@ -1,5 +1,6 @@
 import type { TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
+import { DEFAULT_TEXT_SCALE, normalizeTextScale, type TextScale } from "./textScale";
 
 export const HIGHLIGHT_LABEL_IDS = [
 	"yellow",
@@ -169,6 +170,10 @@ export interface PreferencesDocument {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	/** App-wide text size. */
+	textScale: TextScale;
+	/** Walk with me reads SureWord's messages aloud. */
+	voiceMode: boolean;
 	/** null only when this build is talking to an older response with no field. */
 	highlightLabels: HighlightLabels | null;
 	/** Why the user reaches for each colour. Null like the labels above. */
@@ -187,6 +192,8 @@ export interface PreferencesPatch {
 	translation?: TranslationId;
 	parchment?: boolean;
 	listenRate?: number;
+	textScale?: TextScale;
+	voiceMode?: boolean;
 	highlightLabels?: HighlightLabels;
 	highlightMeanings?: HighlightMeanings;
 	/** "" clears the column, which is how the server reads an emptied box. */
@@ -201,6 +208,8 @@ export interface SyncedSettingsFields {
 	translation: TranslationId;
 	parchment: boolean;
 	listenRate: number;
+	textScale: TextScale;
+	voiceMode: boolean;
 	highlightLabels: HighlightLabels | null;
 	highlightMeanings: HighlightMeanings | null;
 	aboutMe: string | null;
@@ -221,6 +230,8 @@ export const DEFAULT_SYNCED_SETTINGS: SyncedSettingsFields = {
 	translation: "KJV",
 	parchment: true,
 	listenRate: DEFAULT_LISTEN_RATE,
+	textScale: DEFAULT_TEXT_SCALE,
+	voiceMode: false,
 	highlightLabels: null,
 	highlightMeanings: null,
 	aboutMe: null,
@@ -263,6 +274,8 @@ export function overridesToPush(
 	if (pushable("translation")) patch.translation = local.translation;
 	if (pushable("parchment")) patch.parchment = local.parchment;
 	if (pushable("listenRate")) patch.listenRate = local.listenRate;
+	if (pushable("textScale")) patch.textScale = local.textScale;
+	if (pushable("voiceMode")) patch.voiceMode = local.voiceMode;
 
 	const chat: Partial<PreferencesChat> = {};
 	if (pushable("chatModelId")) chat.modelId = local.chatModelId;
@@ -327,6 +340,8 @@ export function parsePreferencesDocument(raw: unknown): PreferencesDocument | nu
 		// Normalized rather than trusted: a rate this build no longer offers
 		// would leave the Listen speed chip outside its own cycle.
 		listenRate: normalizeListenRate(doc.listenRate),
+		textScale: normalizeTextScale(doc.textScale),
+		voiceMode: doc.voiceMode === true,
 		highlightLabels:
 			Object.prototype.hasOwnProperty.call(doc, "highlightLabels") && asRecord(doc.highlightLabels)
 				? normalizeHighlightLabels(doc.highlightLabels)
@@ -354,6 +369,8 @@ export function settingsFromDocument(doc: PreferencesDocument): SyncedSettingsFi
 		translation: doc.translation,
 		parchment: doc.parchment,
 		listenRate: doc.listenRate,
+		textScale: doc.textScale,
+		voiceMode: doc.voiceMode,
 		highlightLabels: doc.highlightLabels,
 		highlightMeanings: doc.highlightMeanings,
 		aboutMe: doc.aboutMe,

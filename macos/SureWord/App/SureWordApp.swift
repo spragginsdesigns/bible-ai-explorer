@@ -199,6 +199,8 @@ struct RootView: View {
             Analytics.shared.sessionChanged(userID: userID)
         }
         .task { await Analytics.shared.observeSignIns() }
+        // The account's text size, on top of the system's (Walk with me).
+        .textScaled(settings.textScale)
         .sureWordTheme(for: scheme)
         .preferredColorScheme(settings.appearance.colorScheme)
         .environment(\.clerkTheme, .sureWord(scheme: scheme))

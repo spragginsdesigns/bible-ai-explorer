@@ -23,6 +23,7 @@ import { useTheme } from "next-themes";
 import { UserButton, useUser } from "@clerk/nextjs";
 import GetAppLink from "./GetAppLink";
 import { useModalFocus } from "./useModalFocus";
+import { spotlightTarget } from "@/lib/spotlight";
 
 /** Tailwind's `lg` breakpoint, above which the sidebar is static furniture. */
 const DESKTOP_QUERY = "(min-width: 1024px)";
@@ -168,6 +169,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 							<div key={id}>
 							<Link
 								href={href}
+								{...spotlightTarget(`tab.${id}` as const)}
 								aria-current={isActive ? "page" : undefined}
 								className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[14px] text-control font-medium border transition-[color,background-color,border-color,box-shadow,transform] duration-200 active:scale-[0.985] ${
 									isActive

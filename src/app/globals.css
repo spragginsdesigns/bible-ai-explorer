@@ -66,6 +66,11 @@
 		@apply border-border;
 		touch-action: manipulation;
 	}
+	/* App-wide text size (src/lib/text-scale.ts). A multiple of 100% rather
+	   than a fixed px, so it stacks on the reader's own browser font size. */
+	html {
+		font-size: calc(100% * var(--sw-text-scale, 1));
+	}
 	body {
 		@apply bg-background text-foreground font-body text-body;
 		font-family: var(--font-body), system-ui, sans-serif;
@@ -549,6 +554,37 @@
 	.animate-page-turn,
 	.animate-page-content {
 		animation: none;
+	}
+}
+
+/* The "Walk with me" spotlight ring (src/components/walk/SpotlightOverlay.tsx):
+   the shared pulse-glow class, retuned to the logo's gold. The selectors
+   carry one class more than the neutral glow's so they win in both themes. */
+@keyframes spotlight-pulse {
+	0%, 100% {
+		box-shadow:
+			0 0 0 3px rgba(229, 182, 100, 0.55),
+			0 0 18px 4px rgba(229, 182, 100, 0.25);
+	}
+	50% {
+		box-shadow:
+			0 0 0 5px rgba(229, 182, 100, 0.85),
+			0 0 34px 10px rgba(229, 182, 100, 0.4);
+	}
+}
+
+.spotlight-ring.animate-pulse-glow,
+.dark .spotlight-ring.animate-pulse-glow {
+	animation: spotlight-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spotlight-ring.animate-pulse-glow,
+	.dark .spotlight-ring.animate-pulse-glow {
+		animation: none;
+		box-shadow:
+			0 0 0 4px rgba(229, 182, 100, 0.8),
+			0 0 24px 6px rgba(229, 182, 100, 0.3);
 	}
 }
 

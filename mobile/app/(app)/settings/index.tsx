@@ -10,6 +10,9 @@ import { prefetchSettingsData, useSettingsData } from "@/features/settings/setti
 import { useNotificationSettings } from "@/features/notifications/notificationSettings";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
+import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
+import { startOnboarding } from "@/features/onboarding/api";
+import { rememberWelcomeConversation } from "@/features/onboarding/onboardingStore";
 import {
 	SettingsAvatar,
 	SettingsGroup,
@@ -57,6 +60,26 @@ export default function SettingsScreen() {
 	// persisted, so every subtitle below is final on the first frame and
 	// revalidates in place.
 	const settingsData = useSettingsData();
+
+	const [walkStarting, setWalkStarting] = useState(false);
+	const [walkError, setWalkError] = useState<string | null>(null);
+	const startWalk = useCallback(() => {
+		if (walkStarting || !user?.id) return;
+		const userId = user.id;
+		setWalkStarting(true);
+		setWalkError(null);
+		startOnboarding(getToken, "manual")
+			.then((result) => {
+				if (result.status !== "active") {
+					setWalkError("Could not start the walk. Please try again.");
+					return;
+				}
+				rememberWelcomeConversation(userId, result.conversationId);
+				router.navigate({ pathname: "/", params: { conversationId: result.conversationId, opened: String(Date.now()) } });
+			})
+			.catch(() => setWalkError("You look offline. Try again when you are connected."))
+			.finally(() => setWalkStarting(false));
+	}, [walkStarting, user?.id, getToken, router]);
 
 	// Revalidated on focus so the subtitles stay fresh after returning from a
 	// page. A failure leaves whatever was cached in place rather than breaking
@@ -176,12 +199,14 @@ export default function SettingsScreen() {
 					onPress={() => router.push("/settings/highlights")}
 				/>
 				{churchAvailable ? (
-					<SettingsRow
-						icon="business-outline"
-						title="My church"
-						subtitle={churchSubtitle}
-						onPress={() => router.push("/settings/church")}
-					/>
+					<SpotlightAnchor target="settings.church">
+						<SettingsRow
+							icon="business-outline"
+							title="My church"
+							subtitle={churchSubtitle}
+							onPress={() => router.push("/settings/church")}
+						/>
+					</SpotlightAnchor>
 				) : null}
 			</SettingsGroup>
 
@@ -216,6 +241,15 @@ export default function SettingsScreen() {
 							: "Daily verse off"
 					}
 					onPress={() => router.push("/settings/notifications")}
+				/>
+				{/* The quiet way back into the welcome (Austin, 2026-10-25): never pushed at anyone. */}
+				<SettingsRow
+					icon="compass-outline"
+					title="Walk me through SureWord"
+					subtitle={walkError ?? "A short guided tour, led by SureWord"}
+					disabled={walkStarting}
+					onPress={startWalk}
+					trailing={walkStarting ? <ActivityIndicator size="small" color={colors.accent} /> : undefined}
 				/>
 				<SettingsRow
 					icon="chatbubble-ellipses-outline"

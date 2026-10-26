@@ -45,6 +45,8 @@ import MembershipSummary from "@/components/settings/MembershipSummary";
 import { AIConsentSettingsSection } from "@/components/AIConsentPresenter";
 import NotificationsSection from "@/components/settings/NotificationsSection";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
+import TextSizeControl from "@/components/walk/TextSizeControl";
+import WalkMeThroughButton from "@/components/walk/WalkMeThroughButton";
 import { AccountAvatar, PaneTile } from "@/components/settings/SettingsSectionNav";
 import { SETTINGS_CARD, SettingsGroup, SettingsRow, Switch } from "@/components/settings/SettingsPrimitives";
 import {
@@ -379,6 +381,10 @@ export default function SettingsPage() {
 							</div>
 						</SettingsGroup>
 
+						<SettingsGroup label="Text size">
+							<TextSizeControl mounted={mounted} />
+						</SettingsGroup>
+
 						<SettingsGroup label="Reading">
 							<SettingsRow
 								title="Parchment reader"
@@ -622,6 +628,7 @@ export default function SettingsPage() {
 								What&apos;s new in SureWord
 								<ChevronRight className="w-4 h-4 text-neutral-400 dark:text-neutral-600" aria-hidden />
 							</Link>
+							<WalkMeThroughButton />
 						</SettingsGroup>
 						{getTheApp}
 						<SettingsGroup label="Why SureWord">

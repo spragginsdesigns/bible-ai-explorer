@@ -37,7 +37,11 @@ struct TabShell: View {
             }
             Tab(AppSection.connections.title, systemImage: AppSection.connections.symbol, value: .connections) {
                 NavigationStack {
-                    ConnectionsMapView().settingsGearToolbar().analyticsScreen("/connections")
+                    ConnectionsMapView()
+                        .spotlightTarget(.tabConnections)
+                        .spotlightHost()
+                        .settingsGearToolbar(help: .connections)
+                        .analyticsScreen("/connections")
                 }
             }
             Tab(AppSection.study.title, systemImage: AppSection.study.symbol, value: .study) {
@@ -105,7 +109,7 @@ struct TabShell: View {
     }
 
     var body: some View {
-        shellLifecycle
+        shellGuide
         // Providers, church and the memory count, warmed for this account so
         // Settings opens on its real content (PRD B7).
         .task { await SettingsDataStore.shared.prefetch(.live(app.api)) }
@@ -204,6 +208,38 @@ struct TabShell: View {
         }
     }
 
+    /// Walk with me's half of the shell, split out for the type checker like
+    /// `shellLifecycle`.
+    private var shellGuide: some View {
+        shellLifecycle
+        // Walk with me lights Settings rows (text size, My church) over the
+        // tab it was asked from; every other way into Settings is the gear.
+        .sheet(isPresented: Binding(
+            get: { app.isSettingsPresented },
+            set: { app.isSettingsPresented = $0 }
+        )) {
+            NavigationStack {
+                SettingsView()
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { app.isSettingsPresented = false }
+                        }
+                    }
+            }
+            .presentationDragIndicator(.visible)
+        }
+        .onChange(of: app.settings.textScale, initial: true) { _, scale in
+            app.bible.textScaleFactor = scale.factor
+        }
+        // Walk with me starts itself once the AI consent sheet is settled.
+        .task(id: app.aiConsent.isCurrent && app.aiConsent.prompt == nil) {
+            await app.onboarding.autoStartIfNeeded(
+                consentSettled: app.aiConsent.isCurrent && app.aiConsent.prompt == nil,
+                app: app
+            )
+        }
+    }
+
     /// Open the waiting share, if any, as a new chat on the Chat tab. The read
     /// (up to five files, photos re-encoded) runs off the main actor; taking it
     /// empties the inbox, so it is applied once.
@@ -265,8 +301,14 @@ extension View {
     /// The push-only route into Settings, mirrored on every tab root's toolbar.
     /// Later lanes replacing the placeholder tab views should keep this
     /// modifier on their own roots so the gear stays reachable everywhere.
-    func settingsGearToolbar() -> some View {
+    /// `help` adds Walk with me's "?" beside the gear, for the main screens.
+    func settingsGearToolbar(help: HelpScreen? = nil) -> some View {
         toolbar {
+            if let help {
+                ToolbarItem(placement: .topBarTrailing) {
+                    GuideHelpButton(screen: help)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     SettingsView()

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
@@ -7,6 +7,8 @@ import { Screen } from "@/components/ui";
 import { chatColors } from "@/features/chat/chatAppearance";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { HubHeader, HubRow } from "@/features/navigation/HubChrome";
+import { SpotlightAnchor, SpotlightScrollView } from "@/features/onboarding/Spotlight";
+import { GettingStartedCard } from "@/features/onboarding/GettingStartedCard";
 import { useLastReading } from "@/features/navigation/useLastReading";
 import { useDailyPreview } from "@/features/navigation/useDailyPreview";
 import { BOOKS } from "@/features/bible/books";
@@ -32,8 +34,9 @@ export default function TodayScreen() {
 		router.push({ pathname: "/bible/chapter", params: { book: String(book.order), chapter: String(lastRead.chapter), translation: lastRead.translation } }, { withAnchor: true });
 	};
 	return <Screen style={{ backgroundColor: colors.bg }}>
-		<HubHeader title="SureWord" brand />
-		<ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + spacing.xl }]} showsVerticalScrollIndicator={false}>
+		<HubHeader title="SureWord" brand help="today" />
+		<SpotlightScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + spacing.xl }]} showsVerticalScrollIndicator={false}>
+			<GettingStartedCard />
 			<View style={styles.intro}><Text style={styles.eyebrow}>YOUR DAILY WALK</Text><Text accessibilityRole="header" style={styles.heading}>Begin with the Word.</Text></View>
 			<View style={styles.hero}>
 				<Image source={require("../../../assets/daily-walk-dawn.jpg")} style={styles.art} resizeMode="cover" accessible={false} />
@@ -41,22 +44,24 @@ export default function TodayScreen() {
 					<Text accessibilityRole="header" style={styles.heroTitle}>Pick Up Your Cross</Text>
 					<Text numberOfLines={3} style={styles.verse}>{entry?.text ?? "Thy word is a lamp unto my feet, and a light unto my path."}</Text>
 					<Text style={styles.reference}>{entry ? `${entry.reference} · KJV` : "PSALM 119:105 · KJV"}</Text>
+					<SpotlightAnchor target="today.cross">
 					<Pressable accessibilityRole="button" onPress={() => router.push("/today/cross", { withAnchor: true })}
 						style={({ pressed }) => [styles.primary, pressed && { opacity: 0.8 }]}>
 						<Text style={styles.primaryText}>Read today&apos;s word</Text><Ionicons name="arrow-forward" size={21} color={colors.bg} />
 					</Pressable>
+					</SpotlightAnchor>
 				</View>
 			</View>
 			<HubRow icon="book-outline" title={lastRead ? "Continue reading" : "Open your Bible"}
 				subtitle={lastRead ? `${lastRead.book} ${lastRead.chapter} · ${lastRead.translation}` : "Choose a book and begin wherever you are"} onPress={openReader} />
-			<HubRow icon="albums-outline" title="Learn a verse" subtitle="Keep Scripture close, at your own pace" onPress={() => router.push("/today/learn")} />
-			<HubRow icon="calendar-outline" title={plan?.title ?? "Reading plan"}
+			<HubRow spotlight="today.learn" icon="albums-outline" title="Learn a verse" subtitle="Keep Scripture close, at your own pace" onPress={() => router.push("/today/learn")} />
+			<HubRow spotlight="today.plan" icon="calendar-outline" title={plan?.title ?? "Reading plan"}
 				subtitle={loading ? "Loading your plan..." : error ? "Open your plan to reconnect" : planCardSubtitle(plan)} onPress={() => router.push("/today/plan")} />
 			<View style={styles.section}><Text style={styles.sectionTitle}>Along the way</Text></View>
 			<HubRow icon="footsteps-outline" title="Your walk" subtitle="Your reading history and time in the Word" onPress={() => router.push("/today/history")} />
 			<HubRow icon="mail-outline" title="Send a word" subtitle="Share a verse for what someone is facing" onPress={() => setSendOpen(true)} />
 			<Pressable accessibilityRole="button" onPress={() => router.navigate("/study/notes")} style={styles.notesLink}><Ionicons name="document-text-outline" size={17} color={colors.accent} /><Text style={styles.link}>Your notes in Study</Text><Ionicons name="arrow-forward" size={16} color={colors.accent} /></Pressable>
-		</ScrollView>
+		</SpotlightScrollView>
 		<SendWordSheet visible={sendOpen} onClose={() => setSendOpen(false)} />
 	</Screen>;
 }

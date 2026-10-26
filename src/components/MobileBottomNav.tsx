@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { MessageCircle, BookOpen, Sun, Network, Compass } from "lucide-react";
 import { PRIMARY_DESTINATIONS, primarySectionForPath } from "@/lib/primary-navigation";
+import { spotlightTarget } from "@/lib/spotlight";
 import styles from "./MobileBottomNav.module.css";
 const ICONS = { today: Sun, bible: BookOpen, chat: MessageCircle, connections: Network, study: Compass };
 /** Pure presentation shared with local UI fixtures. The real shell retains its session guard. */
@@ -13,7 +14,7 @@ export function PrimaryNavigation({ pathname }: { pathname: string }) {
     <div className={styles.tabs}>{PRIMARY_DESTINATIONS.map(({ id, href, label }) => {
       const Icon = ICONS[id];
       const active = primarySectionForPath(pathname) === id;
-      return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={active ? styles.active : undefined}>
+      return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={active ? styles.active : undefined} {...spotlightTarget(`tab.${id}` as const)}>
         <Icon size={24} strokeWidth={1.7} aria-hidden="true" /><span>{label}</span>
       </Link>;
     })}</div>

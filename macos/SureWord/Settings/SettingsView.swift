@@ -56,10 +56,21 @@ struct SettingsView: View {
             .padding(.vertical, Spacing.md)
         }
         .frame(width: 860, height: 640)
+        .spotlightHost()
         .onAppear {
             if selection == nil {
                 selection = SettingsPane(rawValue: savedPane) ?? .appearance
             }
+        }
+        // Walk with me asked for a place in Settings: open its page.
+        .onChange(of: app.onboarding.pendingSettingsTarget, initial: true) { _, target in
+            switch target {
+            case .settingsChurch: selection = .church
+            case .settingsTextSize: selection = .appearance
+            default: return
+            }
+            search = ""
+            app.onboarding.consumeSettingsTarget()
         }
         .onChange(of: selection) { _, pane in
             if let pane { savedPane = pane.rawValue }
@@ -269,6 +280,7 @@ struct SettingsView: View {
             .padding(.horizontal, 28)
             .padding(.top, 22)
             .padding(.bottom, 4)
+            .spotlightTarget(.settingsChurch, isActive: pane == .church)
 
             page(pane)
                 .id(pane)
@@ -325,6 +337,17 @@ struct SettingsView: View {
                 hint("Read Scripture on a parchment sheet, light or dark with the theme.")
             }
 
+            Section("Text size") {
+                Picker("Text size", selection: $settings.textScale) {
+                    ForEach(TextScale.allCases) { scale in
+                        Text(scale.label).tag(scale)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .spotlightTarget(.settingsTextSize)
+                hint("Makes chat answers, the Bible reader and Walk with me easier to read, on every device you use.")
+            }
+
             Section("Bible") {
                 Picker("Default translation", selection: $settings.translation) {
                     ForEach(TranslationID.allCases, id: \.self) { option in
@@ -373,6 +396,15 @@ struct SettingsView: View {
                 LabeledContent("What's new") {
                     Button("Release notes…") { isWhatsNewPresented = true }
                 }
+            }
+            Section("Walk with me") {
+                LabeledContent("A short guided start, any time") {
+                    Button(app.onboarding.isStarting ? "Starting…" : "Walk me through SureWord") {
+                        Task { await app.onboarding.startManually(app: app) }
+                    }
+                    .disabled(app.onboarding.isStarting)
+                }
+                if let error = app.onboarding.startError { hint(error) }
             }
             Section("Links") {
                 AboutLinkRows()

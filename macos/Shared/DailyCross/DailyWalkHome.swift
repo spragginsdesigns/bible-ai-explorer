@@ -16,6 +16,7 @@ struct DailyWalkHome: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                GettingStartedCard()
                 Text("YOUR DAILY WALK").font(.caption.weight(.semibold)).tracking(3).foregroundStyle(theme.textMuted)
                 Text("Begin with the Word.")
                     .font(.custom(FontFamily.verse, size: 34)).foregroundStyle(theme.text)
@@ -33,13 +34,19 @@ struct DailyWalkHome: View {
                     }
                     .buttonStyle(.borderedProminent).padding(.top, Spacing.sm)
                 }
+                .spotlightTarget(.todayCross)
+                .id(AppTarget.todayCross)
                 if let last = reading?.lastRead {
                     DailyWalkRow(symbol: "book", title: "Continue reading", detail: last.label) { open(last) }
                 } else {
                     DailyWalkRow(symbol: "book", title: "Open the Bible", detail: "A quiet place to read") { app.section = .bible }
                 }
                 DailyWalkRow(symbol: "calendar", title: app.bible.plan.plan?.title ?? "Reading plan", detail: PlanView.planCardSubtitle(app.bible.plan.plan), action: onPlan)
+                    .spotlightTarget(.todayPlan)
+                    .id(AppTarget.todayPlan)
                 DailyWalkRow(symbol: "square.stack.3d.up", title: "Learn a verse", detail: "Carry Scripture with you", action: onLearn)
+                    .spotlightTarget(.todayLearn)
+                    .id(AppTarget.todayLearn)
                 DailyWalkRow(symbol: "clock.arrow.circlepath", title: "Your walk", detail: "Your reading log and reflections", action: onHistory)
                 SendWordHomeCard(titleSize: 16, subtitleSize: 13)
             }
@@ -47,6 +54,7 @@ struct DailyWalkHome: View {
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
+        .spotlightScroll(to: [.todayCross, .todayPlan, .todayLearn])
         .background { MeshBackground() }
         .navigationTitle("Today")
         .task {
@@ -55,6 +63,9 @@ struct DailyWalkHome: View {
             app.bible.plan.loadIfNeeded()
             await refreshPreview()
         }
+        // Here rather than on the card: an empty card has no view to hang a
+        // task on, so it would never load in the first place.
+        .task { await app.onboarding.loadProgress() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await reading?.refresh(); await refreshPreview() } }
         }
@@ -144,11 +155,17 @@ struct StudyHome: View {
                 Text("Keep what you discover. Explore the people, places, and words of Scripture.")
                     .font(.body).foregroundStyle(theme.textMuted)
                 DailyWalkRow(symbol: "note.text", title: "Notes", detail: "Your thoughts, linked verses, and study notebooks", action: onNotes)
+                    .spotlightTarget(.studyNotes)
+                    .id(AppTarget.studyNotes)
                 DailyWalkRow(symbol: "globe.europe.africa", title: "Timeline, People & Places", detail: "The Bible atlas, journeys, and history", action: onAtlas)
                 DailyWalkRow(symbol: "building.columns", title: "Sermon studies & church", detail: "Messages, study guides, and church announcements", action: onSermons)
+                    .spotlightTarget(.studySermons)
+                    .id(AppTarget.studySermons)
                 DailyWalkRow(symbol: "character.book.closed", title: "Original languages", detail: "Explore Hebrew, Greek, and Strong's word studies", action: onWords)
             }.padding(Spacing.lg).frame(maxWidth: 680).frame(maxWidth: .infinity)
-        }.background { MeshBackground() }.navigationTitle("Study")
+        }
+        .spotlightScroll(to: [.studyNotes, .studySermons])
+        .background { MeshBackground() }.navigationTitle("Study")
     }
 }
 

@@ -46,6 +46,9 @@ export const ANALYTICS_EVENTS = {
 	signInFailed: "sign_in_failed",
 	requestFailed: "request_failed",
 	shareCardShared: "share_card_shared",
+	// Walk with me: which card was answered how (never what was typed), and the tour.
+	onboardingStep: "onboarding_step",
+	onboardingTour: "onboarding_tour",
 } as const;
 
 /**

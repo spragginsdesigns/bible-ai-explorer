@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { meshGradients, palettes, type Colors, type ResolvedTheme } from "@/theme";
 import type { TranslationId } from "@/features/bible/translations";
 import { DEFAULT_LISTEN_RATE, normalizeListenRate } from "@/features/cross/listen";
+import { TEXT_SCALE_FACTORS, normalizeTextScale, type TextScale } from "./textScale";
 import {
 	DEFAULT_SYNCED_SETTINGS,
 	settingsFromDocument,
@@ -65,6 +66,10 @@ export interface Settings {
 	chatMode: string | null;
 	/** Playback speed for the Listen devotional. Synced with the account. */
 	listenRate: number;
+	/** App-wide text size, applied by AppText. Synced with the account. */
+	textScale: TextScale;
+	/** Walk with me reads SureWord's messages aloud. Synced with the account. */
+	voiceMode: boolean;
 	/** Account highlight names. Null until this account has hydrated. */
 	highlightLabels: HighlightLabels | null;
 	/** What each colour means to the user. Null until this account has hydrated. */
@@ -131,6 +136,8 @@ export async function hydrateSettings(): Promise<void> {
 			// Normalized rather than trusted: a rate this build no longer offers
 			// would leave the speed chip outside its own cycle.
 			listenRate: normalizeListenRate(parsed.listenRate),
+			textScale: normalizeTextScale(parsed.textScale),
+			voiceMode: parsed.voiceMode === true,
 			highlightLabels:
 				parsed.highlightLabels && typeof parsed.highlightLabels === "object"
 					? normalizeHighlightLabels(parsed.highlightLabels)
@@ -266,6 +273,25 @@ export function setListenRate(listenRate: number) {
 	const next = normalizeListenRate(listenRate);
 	setSnapshot({ ...snapshot, listenRate: next });
 	writeThrough({ listenRate: next }, revertIfUnchanged("listenRate", next, previous));
+}
+
+export function setTextScale(textScale: TextScale) {
+	const previous = snapshot.textScale;
+	setSnapshot({ ...snapshot, textScale });
+	writeThrough({ textScale }, revertIfUnchanged("textScale", textScale, previous));
+}
+
+export function setVoiceMode(voiceMode: boolean) {
+	const previous = snapshot.voiceMode;
+	setSnapshot({ ...snapshot, voiceMode });
+	writeThrough({ voiceMode }, revertIfUnchanged("voiceMode", voiceMode, previous));
+}
+
+const selectTextScale = (settings: Settings) => settings.textScale;
+
+/** How much bigger AppText draws, from the account's text size. */
+export function useTextScaleFactor(): number {
+	return TEXT_SCALE_FACTORS[useSettingsSelector(selectTextScale)] ?? 1;
 }
 
 /**

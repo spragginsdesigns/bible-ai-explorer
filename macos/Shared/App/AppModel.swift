@@ -82,6 +82,9 @@ final class AppModel {
     /// entry point passes, and the Settings → AI row.
     let aiConsent: AIConsentStore
     let chapterAudio: ChapterAudioModel
+    /// Walk with me, the guided first run: its start, cards, spotlight,
+    /// Getting started card and voice mode, for this account.
+    let onboarding: OnboardingModel
 
     var section: AppSection = .today
     var connectionPlace = ConnectionsPlace(order: 43, chapter: 3, verse: 16)
@@ -142,6 +145,7 @@ final class AppModel {
         preferences = PreferencesSyncModel(transport: api, settings: settings)
         aiConsent = AIConsentStore(account: userID, transport: api, askOnLaunch: true)
         chapterAudio = ChapterAudioModel(api: api, settings: settings)
+        onboarding = OnboardingModel(api: api, account: userID)
         preferences.aiConsent = aiConsent
         AIConsentGate.install(aiConsent)
         // Account-guarded like the reading journal's client: a queued review
@@ -177,7 +181,9 @@ final class AppModel {
         let reading = bible.reading
         let consent = aiConsent
         let chapterAudio = chapterAudio
+        let onboarding = onboarding
         Task { @MainActor in
+            onboarding.teardown()
             consent.cancelPending()
             chapterAudio.close()
             chat.teardown()

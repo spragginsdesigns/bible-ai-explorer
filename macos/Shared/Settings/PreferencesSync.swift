@@ -126,6 +126,11 @@ struct AccountPreferences: Codable, Sendable, Equatable {
     /// nil from a server that predates recording a no.
     var aiConsentDeclined: Bool? = nil
     var aiConsentRequired: Int? = nil
+    /// App-wide text size: "standard", "large" or "largest". Nil from a
+    /// server that predates the column.
+    var textScale: String? = nil
+    /// Walk with me's "Read it to me".
+    var voiceMode: Bool? = nil
 
     init(
         plan: String? = nil,
@@ -174,6 +179,8 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     /// Same rule as `aboutMe`, capped at 2000 characters server-side.
     var testimony: String?
     var chat: ChatPreferences?
+    var textScale: String?
+    var voiceMode: Bool?
 
     init(
         webSearchEnabled: Bool? = nil,
@@ -185,8 +192,12 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         highlightMeanings: [String: String]? = nil,
         aboutMe: String? = nil,
         testimony: String? = nil,
-        chat: ChatPreferences? = nil
+        chat: ChatPreferences? = nil,
+        textScale: String? = nil,
+        voiceMode: Bool? = nil
     ) {
+        self.textScale = textScale
+        self.voiceMode = voiceMode
         self.webSearchEnabled = webSearchEnabled
         self.memoryEnabled = memoryEnabled
         self.translation = translation
@@ -202,6 +213,7 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case webSearchEnabled, memoryEnabled, translation, parchment, listenRate
         case highlightLabels, highlightMeanings, aboutMe, testimony, chat
+        case textScale, voiceMode
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -218,6 +230,8 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
         try container.encodeIfPresent(highlightMeanings, forKey: .highlightMeanings)
         try container.encodeIfPresent(aboutMe, forKey: .aboutMe)
         try container.encodeIfPresent(testimony, forKey: .testimony)
+        try container.encodeIfPresent(textScale, forKey: .textScale)
+        try container.encodeIfPresent(voiceMode, forKey: .voiceMode)
         // An empty chat block would be a body with no recognised keys, which
         // the server answers with a 400.
         if let chat, !chat.isEmpty {
@@ -235,6 +249,8 @@ struct PreferencesPatch: Encodable, Sendable, Equatable {
             && highlightMeanings == nil
             && aboutMe == nil
             && testimony == nil
+            && textScale == nil
+            && voiceMode == nil
             && (chat?.isEmpty ?? true)
     }
 }
@@ -781,6 +797,12 @@ final class PreferencesSyncModel {
             }
             if let testimony = document.testimony {
                 settings.testimony = testimony
+            }
+            if let textScale = document.textScale {
+                settings.textScale = TextScale.normalize(textScale)
+            }
+            if let voiceMode = document.voiceMode {
+                settings.voiceMode = voiceMode
             }
             guard let chat = document.chat else { return }
             if let modelId = chat.modelId {

@@ -107,6 +107,12 @@ struct ChapterReaderView: View {
             }
         }
         .background { MeshBackground() }
+        .spotlightHost()
+        // The lit verse has done its job once it is tapped.
+        .onChange(of: sheet.selection != nil) { _, open in
+            guard open, let lit = app.onboarding.spotlight, lit.target == .readerVerse else { return }
+            app.onboarding.closeSpotlight(completed: lit.isLastStop)
+        }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { fontControls }
@@ -357,6 +363,7 @@ struct ChapterReaderView: View {
                         }
                         ForEach(model.readerVerses, id: \.number) { verse in
                             verseRow(verse)
+                                .spotlightTarget(.readerVerse, isActive: app.onboarding.spotlightVerse == verse.number)
                                 .id(verse.number)
                                 .onGeometryChange(for: CGRect.self) { proxy in
                                     proxy.frame(in: .named(Self.contentSpace))

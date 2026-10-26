@@ -11,6 +11,7 @@ struct ChatInputBar: View {
     @Bindable var chat: ChatViewModel
 
     @FocusState private var isFocused: Bool
+    @Environment(AppModel.self) private var app
     @State private var selectedCommandIndex = 0
     @State private var isImporting = false
     @State private var isDropTargeted = false
@@ -102,6 +103,8 @@ struct ChatInputBar: View {
             installPasteMonitor()
         }
         .onDisappear(perform: removePasteMonitor)
+        // Walk with me's "Type my own".
+        .onChange(of: app.onboarding.composerFocusRequest) { isFocused = true }
         .onChange(of: chat.input) { selectedCommandIndex = 0 }
         .fileImporter(
             isPresented: $isImporting,

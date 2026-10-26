@@ -128,6 +128,34 @@ export function trackSignIn(
 	}
 }
 
+/**
+ * One "Walk with me" card was answered (docs/onboarding/PLAN.md). The step's
+ * name and how it went, never the answer: a tapped option can be a prayer
+ * request or where somebody stands with God.
+ */
+export function trackOnboardingStep(step: string, outcome: "answered" | "skipped" | "own"): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.onboardingStep, { step, outcome, platform: "web", source: "client" });
+	} catch {
+		// A dropped event is never worth a lost answer.
+	}
+}
+
+/** The spotlight tour started, finished or was left early, with counts only. */
+export function trackOnboardingTour(stage: "started" | "finished" | "left", stopsSeen: number, stops: number): void {
+	try {
+		posthog.capture(ANALYTICS_EVENTS.onboardingTour, {
+			stage,
+			stops_seen: stopsSeen,
+			stops,
+			platform: "web",
+			source: "client",
+		});
+	} catch {
+		// Never worth interrupting the tour.
+	}
+}
+
 /** Same quiet window as Android's `trackRequestFailure`. */
 const FAILURE_QUIET_MS = 30_000;
 const shouldReportFailure = createFailureThrottle(FAILURE_QUIET_MS);

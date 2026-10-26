@@ -173,16 +173,15 @@ async function reserve(scope: Scope, userId: string) {
         }
         if (scope.surface === ONBOARDING_SURFACE) {
           // Lifetime, not daily: the welcome is a one-time thing, so its
-          // ceiling is too. Failed attempts count toward a looser bound so
-          // nobody can farm turns by aborting them.
+          // ceiling is too. Every reservation counts, whatever its status: a
+          // turn that ends on a card has no closing text and settles as
+          // "failed" although the reader saw it (12 of 21 rows in the first
+          // week), so counting only "completed" rows let the ceiling double.
           const ceiling = onboardingTurnCeiling();
-          const [used, attempted] = await Promise.all([
-            tx.aiUsageRequest.count({
-              where: { userId, surface: ONBOARDING_SURFACE, status: { not: "failed" } },
-            }),
-            tx.aiUsageRequest.count({ where: { userId, surface: ONBOARDING_SURFACE } }),
-          ]);
-          if (used < ceiling && attempted < ceiling * 2) {
+          const attempted = await tx.aiUsageRequest.count({
+            where: { userId, surface: ONBOARDING_SURFACE },
+          });
+          if (attempted < ceiling) {
             await tx.aiUsageRequest.create({
               data: {
                 id: scope.id,
@@ -241,7 +240,7 @@ async function reserve(scope: Scope, userId: string) {
           const reset = quota.monthlyRemaining === 0 ? month.end : day.end;
           throw new IncludedAiLimitError(
             scope.onboardingFallback
-              ? `We have covered a lot together, and you have used today's free messages too. Everything you shared is saved, and we can pick up right here at ${reset.toISOString()}. Until then the Bible, your notes and today's word are all yours.`
+              ? "We have covered a lot together, and you have used today's free messages too. Everything you shared is saved, and we can pick up right here when your free messages reset. Until then the Bible, your notes and today's word are all yours."
               : `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading and revisit saved study.`,
             429,
             reset,

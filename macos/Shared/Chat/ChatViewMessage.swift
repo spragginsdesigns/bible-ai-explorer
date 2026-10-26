@@ -150,6 +150,13 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     var activity: String?
     var progress: ChatProgress?
     var isStreaming = false
+    /// Walk with me: the last presentChoices card under this message.
+    var choiceCard: OnboardingChoiceCard? = nil
+    /// Walk with me: every showInApp "Show me" card, in part order.
+    var showMe: [ShowInAppCard] = []
+    /// The seeded first message of the welcome conversation (its card's tool
+    /// call id starts `welcome-`).
+    var isWelcome = false
 
     var matchStrength: MatchStrength? {
         averageSimilarity.map(MatchStrength.init(average:))
@@ -183,6 +190,8 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
             // A "Remembered" line with no prose is still an answer the user must see.
             || !receipts.isEmpty
             || !attachments.isEmpty
+            || choiceCard != nil
+            || !showMe.isEmpty
     }
 }
 
@@ -269,6 +278,9 @@ extension ChatViewMessage {
         var progress: ChatProgress?
         // A tool that is running right now; it outranks the status line.
         var toolActivity: String?
+        var choiceCard: OnboardingChoiceCard?
+        var showMe: [ShowInAppCard] = []
+        var isWelcome = false
 
         // Attachment ids live in metadata, parallel to the message's file parts.
         let fileParts = message.parts.compactMap(\.filePart)
@@ -329,6 +341,13 @@ extension ChatViewMessage {
                     tagged.source = .passage
                     return tagged
                 })
+            case "tool-presentChoices":
+                if let card = OnboardingRules.parseChoiceCard(tool.output) {
+                    choiceCard = card
+                    if OnboardingRules.isWelcomeToolCallID(tool.toolCallId) { isWelcome = true }
+                }
+            case "tool-showInApp":
+                if let card = OnboardingRules.parseShowInApp(tool.output) { showMe.append(card) }
             case "tool-webSearch":
                 tavilyResults.append(contentsOf: Self.parseTavilyResults(output["results"]))
             case "tool-addToNote":
@@ -411,7 +430,10 @@ extension ChatViewMessage {
             feedback: message.feedback.flatMap(AnswerFeedback.init(rawValue:)),
             activity: isStreaming ? (progress?.state == "running" ? progress?.label : activity) : nil,
             progress: progress,
-            isStreaming: isStreaming
+            isStreaming: isStreaming,
+            choiceCard: choiceCard,
+            showMe: showMe,
+            isWelcome: isWelcome
         )
     }
 

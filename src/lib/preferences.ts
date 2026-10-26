@@ -5,6 +5,12 @@ import {
 } from "@/components/cross/listen";
 import type { TranslationId } from "@/lib/bible/translations";
 import {
+	DEFAULT_TEXT_SCALE,
+	TEXT_SCALE_PREF_KEY,
+	normalizeTextScale,
+	type TextScale,
+} from "@/lib/text-scale";
+import {
 	HIGHLIGHT_COLOR_IDS,
 	HIGHLIGHT_LABEL_PRESETS as HIGHLIGHT_LABEL_PRESET_ROWS,
 	MAX_ABOUT_ME_LENGTH,
@@ -418,4 +424,34 @@ export function readListenRatePref(): number {
 export function writeListenRatePref(rate: number) {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(LISTEN_RATE_PREF_KEY, String(normalizeListenRate(rate)));
+}
+
+/**
+ * App-wide text size ("Walk with me" step 1, Settings → Appearance). Synced
+ * with the account; `TextScaleRoot` applies it to <html>, and the inline boot
+ * script in the root layout reads this same key before the first paint.
+ */
+export { TEXT_SCALE_PREF_KEY };
+
+export function readTextScalePref(): TextScale {
+	if (typeof window === "undefined") return DEFAULT_TEXT_SCALE;
+	return normalizeTextScale(window.localStorage.getItem(TEXT_SCALE_PREF_KEY));
+}
+
+export function writeTextScalePref(scale: TextScale) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(TEXT_SCALE_PREF_KEY, normalizeTextScale(scale));
+}
+
+/** Voice mode ("Read it to me") for the welcome conversation. Synced; default off. */
+export const VOICE_MODE_PREF_KEY = "sureword-voice-mode";
+
+export function readVoiceModePref(): boolean {
+	if (typeof window === "undefined") return false;
+	return window.localStorage.getItem(VOICE_MODE_PREF_KEY) === "true";
+}
+
+export function writeVoiceModePref(enabled: boolean) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(VOICE_MODE_PREF_KEY, String(enabled));
 }

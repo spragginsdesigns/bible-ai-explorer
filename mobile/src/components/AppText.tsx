@@ -8,6 +8,7 @@ import {
 	type TextStyle,
 } from "react-native";
 import { fonts, typography, type TypographyVariant } from "@/theme";
+import { useTextScaleFactor } from "@/features/settings/settingsStore";
 
 /**
  * Shared text primitives. Native text remains the implementation so callers
@@ -51,7 +52,21 @@ function fontFor(style: TextStyle, italic: boolean): string | undefined {
 	return bold ? fonts.bodyBold : fonts.body;
 }
 
-function textStyle(style: TextProps["style"], variant?: TypographyVariant, root = false): TextStyle {
+/**
+ * The account's text size (Settings > Appearance, Walk with me) grows the
+ * explicit sizes; the system font scale still applies on top through
+ * allowFontScaling, so this never replaces the reader's accessibility setting.
+ */
+function scaled(style: TextStyle, factor: number): TextStyle {
+	if (factor === 1) return style;
+	return {
+		...style,
+		...(typeof style.fontSize === "number" ? { fontSize: Math.round(style.fontSize * factor) } : {}),
+		...(typeof style.lineHeight === "number" ? { lineHeight: Math.round(style.lineHeight * factor) } : {}),
+	};
+}
+
+function textStyle(style: TextProps["style"], variant?: TypographyVariant, root = false, factor = 1): TextStyle {
 	const flattened = flattenStyle(style);
 	const token = variant ? typography[variant] : root ? typography.body : undefined;
 	if (
@@ -60,24 +75,25 @@ function textStyle(style: TextProps["style"], variant?: TypographyVariant, root 
 		!flattened.fontWeight &&
 		!flattened.fontStyle
 	) {
-		return flattened;
+		return scaled(flattened, factor);
 	}
 	const italic = flattened.fontStyle === "italic";
-	return {
+	return scaled({
 		...(token ?? {}),
 		...flattened,
 		fontFamily: fontFor({ ...(token ?? {}), ...flattened }, italic),
-	};
+	}, factor);
 }
 
 export const AppText = React.forwardRef<React.ElementRef<typeof NativeText>, AppTextProps>(
 	function AppText({ variant, style, ...props }, ref) {
 		const nested = useContext(NestedTextContext);
+		const factor = useTextScaleFactor();
 		// A root text gets the body token. Descendant spans inherit their native
 		// parent size/line height unless they explicitly opt into a variant.
 		return (
 			<NestedTextContext.Provider value>
-				<NativeText ref={ref} {...props} style={textStyle(style, variant, !nested)} />
+				<NativeText ref={ref} {...props} style={textStyle(style, variant, !nested, factor)} />
 			</NestedTextContext.Provider>
 		);
 	}
@@ -87,5 +103,6 @@ export const AppTextInput = React.forwardRef<
 	React.ElementRef<typeof NativeTextInput>,
 	AppTextInputProps
 >(function AppTextInput({ variant = "control", style, ...props }, ref) {
-	return <NativeTextInput ref={ref} {...props} style={textStyle(style, variant)} />;
+	const factor = useTextScaleFactor();
+	return <NativeTextInput ref={ref} {...props} style={textStyle(style, variant, false, factor)} />;
 });

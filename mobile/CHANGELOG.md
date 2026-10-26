@@ -2,6 +2,17 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.101.0 (versionCode 118) - 2026-10-25 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Walk with me: new accounts are welcomed by SureWord with big tap-to-answer cards, so you can set up without typing: text size, your name, your church, a prayer request and a daily time. Then SureWord lights up each part of the app with a gold spotlight.
+- Read it to me: turn it on in the welcome to hear each message aloud.
+- Text size: Standard, Large or Largest, in Settings, Appearance.
+- A "?" on each screen asks SureWord how it works, and Settings has "Walk me through SureWord".
+
+**Dev notes:** Plan and Austin's four decisions in `docs/onboarding/PLAN.md`; architecture in `docs/FEATURES.md` under "Walk with me". Server (868e1bec, migration `20261025150000_walk_with_me` applied to production): `POST /api/onboarding/start` (auto for brand-new accounts only, manual from Settings), `GET/PATCH /api/onboarding/progress`, `POST /api/onboarding/audio` + `/stream`, the `presentChoices` and `showInApp` tools, the `onboarding` usage surface and turn ceiling, `textScale` and `voiceMode` in the preferences document. Android: `src/features/onboarding/` (byte copy of `src/lib/onboarding-rules.ts`, checked by `tests/onboarding-rules.test.mjs`; ChoiceCard, ShowMeCard, the Reanimated spotlight with `SpotlightAnchor` + `measureInWindow` in a transparent Modal, `useWelcomeVoice` on expo-audio with expo-speech as the free fallback, WelcomeLauncher after the consent sheet, GettingStartedCard on Today), `AppText` scaling by `textScale`, the Read it to me bar in the welcome only, header "?" buttons that open a fresh chat, and anchors on the tabs, Today, Study, Settings, the composer and the reader's verse. New native dependency: `expo-speech` (~57.0.3), so this build needs a prebuild. Fixes from the production proof runs (three brand-new accounts on the emulator, signed up through mail.tm): the spotlight reveals an off-screen target whenever a measurement finds it there, because an already-mounted tab is first measured from stale layout (`SpotlightScrollView` on Today, Study and the Settings sub screens); WelcomeLauncher re-checks when a dependency changes mid-request, instead of leaving the launch marked as checked; the church step saves through a plain yes and inherits the matched church's YouTube channel (3f544429, e366db71). Metering: a tap-only run is 8 onboarding turns and the chattiest typed run was 16, so the ceiling of 60 is more than 3x; the ceiling counts every reservation, because a turn that ends on a card settles as "failed" (12 of 21 production rows). Read it to me bills 1,281 to 1,643 reply characters per account on eleven_flash_v2_5; the scripted lines are narrated once and shared.
 ## 1.100.1 (versionCode 117) - 2026-10-25 - internal and closed testing
 
 **What's new (Play):**

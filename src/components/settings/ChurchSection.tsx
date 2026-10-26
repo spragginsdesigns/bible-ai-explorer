@@ -23,6 +23,7 @@ import {
 	type ChurchSearchResult,
 } from "@/lib/church-client";
 import { cn } from "@/lib/utils";
+import { spotlightTarget } from "@/lib/spotlight";
 
 type LoadState = "loading" | "unavailable" | "ready" | "failed";
 
@@ -189,7 +190,7 @@ const ChurchSection: React.FC = () => {
 	const showPhoto = church?.photoUrl != null && failedPhotoUrl !== church.photoUrl;
 
 	return (
-		<section id="church" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
+		<section id="church" {...spotlightTarget("settings.church")} className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">
 				YOUR CHURCH
 			</h2>

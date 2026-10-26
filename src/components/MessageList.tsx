@@ -6,6 +6,7 @@ import ChatMessage from "./ChatMessage";
 import type { ChatMessage as ChatMessageType } from "./useChat";
 import { retryableAnswerId } from "@/lib/chat/message-edit";
 import { latestMessageIds } from "@/lib/chat/message-view-cache";
+import { cardStates, type CardState } from "@/lib/guide-cards";
 
 interface MessageListProps {
 	messages: ChatMessageType[];
@@ -18,17 +19,28 @@ interface MessageListProps {
 	onEditMessage?: (messageId: string) => void;
 	/** Replace the newest answer with a fresh one. */
 	onRetryAnswer?: () => void;
+	/** A welcome card's tap: send its answer through the normal chat send. */
+	onAnswerCard?: (text: string) => void;
+	/** A welcome card's "Type my own". */
+	onTypeOwn?: () => void;
 }
 
 const SCROLL_THRESHOLD = 100; // px from bottom to count as "at bottom"
 
-const MessageRow = React.memo(function MessageRow({ message, onFollowUp, conversationTitle, editable, onEditMessage, onRetry, userActionsVisible }: {
+const MessageRow = React.memo(function MessageRow({ message, onFollowUp, conversationTitle, editable, onEditMessage, onRetry, userActionsVisible, cardActive, cardAnswer, onAnswerCard, onTypeOwn }: {
 	message: ChatMessageType; onFollowUp?: (question: string) => void; conversationTitle?: string;
 	editable: boolean; onEditMessage: (id: string) => void; onRetry?: () => void; userActionsVisible: boolean;
+	cardActive?: boolean; cardAnswer?: string | null; onAnswerCard: (text: string) => void; onTypeOwn: () => void;
 }) {
 	const edit = useCallback(() => onEditMessage(message.id), [onEditMessage, message.id]);
+	// Primitives in, one object out, so the memo above still holds across streaming frames.
+	const cardState = useMemo<CardState | undefined>(
+		() => (cardActive === undefined ? undefined : { active: cardActive, answer: cardAnswer ?? null }),
+		[cardActive, cardAnswer]
+	);
 	return <ChatMessage message={message} onFollowUp={onFollowUp} conversationTitle={conversationTitle}
-		onEdit={editable ? edit : undefined} onRetry={onRetry} userActionsVisible={userActionsVisible} />;
+		onEdit={editable ? edit : undefined} onRetry={onRetry} userActionsVisible={userActionsVisible}
+		cardState={cardState} onAnswerCard={onAnswerCard} onTypeOwn={onTypeOwn} />;
 });
 
 const MessageList: React.FC<MessageListProps> = ({
@@ -38,6 +50,8 @@ const MessageList: React.FC<MessageListProps> = ({
 	busy = false,
 	onEditMessage,
 	onRetryAnswer,
+	onAnswerCard,
+	onTypeOwn,
 }) => {
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 	const isNearBottomRef = useRef(true);
@@ -45,6 +59,13 @@ const MessageList: React.FC<MessageListProps> = ({
 	const editRef = useRef(onEditMessage);
 	editRef.current = onEditMessage;
 	const editMessage = useCallback((id: string) => editRef.current?.(id), []);
+	const answerRef = useRef(onAnswerCard);
+	answerRef.current = onAnswerCard;
+	const answerCard = useCallback((text: string) => answerRef.current?.(text), []);
+	const typeOwnRef = useRef(onTypeOwn);
+	typeOwnRef.current = onTypeOwn;
+	const typeOwn = useCallback(() => typeOwnRef.current?.(), []);
+	const cards = useMemo(() => cardStates(messages, busy), [messages, busy]);
 	const [showJump, setShowJump] = useState(false);
 	const { assistant: latestAssistantId, user: latestUserId } = useMemo(() => latestMessageIds(messages), [messages]);
 	const retryId = onRetryAnswer ? retryableAnswerId(messages, busy) : null;
@@ -103,6 +124,10 @@ const MessageList: React.FC<MessageListProps> = ({
 						onEditMessage={editMessage}
 						onRetry={msg.id === retryId ? onRetryAnswer : undefined}
 						userActionsVisible={msg.id === latestUserId}
+						cardActive={cards[msg.id]?.active}
+						cardAnswer={cards[msg.id]?.answer}
+						onAnswerCard={answerCard}
+						onTypeOwn={typeOwn}
 					/>
 				))}
 			</div>

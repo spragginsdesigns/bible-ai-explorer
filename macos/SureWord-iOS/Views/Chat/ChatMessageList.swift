@@ -4,6 +4,7 @@ import SwiftUI
 /// follow-the-stream scroll behaviour. iOS port of the list half of
 /// `macos/SureWord/Chat/Views/ChatView.swift`.
 struct ChatMessageList: View {
+    @Environment(AppModel.self) private var app
     @Bindable var chat: ChatViewModel
     /// Handed to each bubble for the receipts line's undo fragment.
     let api: APIClient
@@ -26,9 +27,13 @@ struct ChatMessageList: View {
         // settled answer offers Try again.
         let newestUserID = chat.messages.last { $0.role == .user }?.id
         let retryableID = chat.retryableAnswerID
+        let cardStates = app.onboarding.cardStates(for: chat)
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.xl) {
+                    if app.onboarding.isWelcome(chat) {
+                        GuideVoiceToggle()
+                    }
                     ForEach(chat.messages) { message in
                         ChatMessageBubble(
                             message: message,
@@ -53,7 +58,8 @@ struct ChatMessageList: View {
                             onRetry: message.id == retryableID
                                 ? { Task { await chat.retryAnswer() } }
                                 : nil,
-                            showsUserActions: message.id == newestUserID
+                            showsUserActions: message.id == newestUserID,
+                            cardState: cardStates[message.id]
                         )
                         .id(message.id)
                     }
@@ -69,6 +75,7 @@ struct ChatMessageList: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollDismissesKeyboard(.interactively)
+            .guideVoice(chat: chat, app: app)
             // Follow the answer as it streams.
             .onChange(of: chat.messages.last?.content) {
                 guard let id = chat.messages.last?.id else { return }

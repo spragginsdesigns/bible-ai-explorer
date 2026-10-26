@@ -11,6 +11,10 @@ import AnalyticsProvider from "../components/analytics/AnalyticsProvider";
 import AIConsentPresenter from "@/components/AIConsentPresenter";
 import WhatsNewPresenter from "@/components/whats-new/WhatsNewPresenter";
 import LaunchSplash from "@/components/LaunchSplash";
+import TextScaleRoot from "@/components/walk/TextScaleRoot";
+import SpotlightOverlay from "@/components/walk/SpotlightOverlay";
+import WalkWithMeLauncher from "@/components/walk/WalkWithMeLauncher";
+import { TEXT_SCALE_BOOT_SCRIPT } from "@/lib/text-scale";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
 	subsets: ["latin"],
@@ -150,6 +154,8 @@ export default function RootLayout({
 				<meta name="google-site-verification" content="Oz-B3ljjCVJn4t_50kIHVJxEct57K1FqysvU8ZU3beI" />
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+				{/* The account's text size before the first paint (src/lib/text-scale.ts). */}
+				<script dangerouslySetInnerHTML={{ __html: TEXT_SCALE_BOOT_SCRIPT }} />
 			</head>
 			<body className={`${atkinsonHyperlegible.variable} ${pirataOne.variable} ${cormorantGaramond.variable} ${hack.variable} font-body text-body`}>
 				<ClerkProvider
@@ -175,6 +181,11 @@ export default function RootLayout({
 						{/* After the consent sheet is answered, at most once per release. */}
 						<WhatsNewPresenter />
 						<ReadingLogSync />
+						{/* Walk with me: app-wide text size, the welcome for a brand-new
+						    account, and the spotlight its cards and tour light up. */}
+						<TextScaleRoot />
+						<WalkWithMeLauncher />
+						<SpotlightOverlay />
 						{/* Inside ClerkProvider: it identifies the reader from the
 						    session, and does nothing at all without a key. */}
 						<AnalyticsProvider />

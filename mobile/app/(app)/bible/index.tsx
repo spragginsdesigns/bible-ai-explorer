@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Screen } from "@/components/ui";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { BOOKS, bookGroup, type Book, type BookGroup } from "@/features/bible/books";
-import { SettingsButton } from "@/features/navigation/HubChrome";
+import { HelpButton, SettingsButton } from "@/features/navigation/HubChrome";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
@@ -89,7 +89,10 @@ export default function BibleBooksScreen() {
 			<View style={styles.header}>
 				<View style={styles.titleRow}>
 					<Text style={styles.heading}>Bible</Text>
-					<SettingsButton />
+					<View style={styles.headerActions}>
+						<HelpButton screen="bible" />
+						<SettingsButton />
+					</View>
 				</View>
 				<Pressable
 					accessibilityRole="button"
@@ -161,6 +164,7 @@ const createStyles = (c: Colors) =>
 		// Title and the reading-log pill share one row; the pill used to render
 		// as a bare clock icon wrapped underneath the title.
 		titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+		headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 		heading: { fontFamily: fonts.brand, fontSize: 34, color: c.text },
 		searchPill: {
 			minHeight: 48,

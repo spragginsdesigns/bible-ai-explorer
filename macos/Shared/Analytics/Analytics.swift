@@ -38,6 +38,10 @@ enum AnalyticsEvents {
     /// Something left a Share sheet: a verse, a Pick Up Your Cross day or an
     /// answer, as a card image, text or a link. Kind and method only.
     static let shareCardShared = "share_card_shared"
+    /// Walk with me: one card answered or skipped (the step and the outcome,
+    /// never what was typed), and the tour started, finished or left.
+    static let onboardingStep = "onboarding_step"
+    static let onboardingTour = "onboarding_tour"
 
     /// Key to name, exactly as `ANALYTICS_EVENTS` in `mobile/src/lib/analytics.ts`
     /// spells it. The mirror test compares this table against both TS files.
@@ -49,6 +53,8 @@ enum AnalyticsEvents {
         "signInFailed": signInFailed,
         "requestFailed": requestFailed,
         "shareCardShared": shareCardShared,
+        "onboardingStep": onboardingStep,
+        "onboardingTour": onboardingTour,
     ]
 
     /// The PostHog mobile SDKs' lifecycle names (`captureAppLifecycleEvents`
@@ -95,6 +101,8 @@ enum AnalyticsRules {
     /// - sign-in: `method`, `reason` (Clerk error code), `step`
     /// - failures: `route` (a route shape), `kind`, `status`, `app_state`
     /// - shares: `kind`, `method`, `style`, `format` (fixed card options)
+    /// - Walk with me: `step`, `outcome` (answered or skipped), and the
+    ///   tour's `stage`, `stops_seen`, `stops` (counts)
     /// - lifecycle: `version`, `build`, `previous_version`, `previous_build`,
     ///   `from_background`
     static let allowedPropertyKeys: Set<String> = [
@@ -103,6 +111,7 @@ enum AnalyticsRules {
         "method", "reason", "step",
         "route", "kind", "status", "app_state",
         "style", "format",
+        "outcome", "stage", "stops_seen", "stops",
         "version", "build", "previous_version", "previous_build", "from_background",
     ]
 

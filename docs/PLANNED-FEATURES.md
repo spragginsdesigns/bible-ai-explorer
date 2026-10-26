@@ -8,10 +8,6 @@ entitlements, data model and acceptance path are settled.
 
 **Status:** Planned 2026-10-25. Full plan and mockups: [quiz/PLAN.md](quiz/PLAN.md).
 
-## Walk with me (guided first run, led by SureWord)
-
-**Status:** Planned 2026-10-25. Full plan: [onboarding/PLAN.md](onboarding/PLAN.md).
-
 ## Pro built-in AI identity
 
 **Status:** Pinned for product design

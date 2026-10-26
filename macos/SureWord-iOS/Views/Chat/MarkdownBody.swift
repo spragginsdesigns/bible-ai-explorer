@@ -8,6 +8,9 @@ import SwiftUI
 /// with phone-sized metrics.
 struct ChatMarkdownBody: View {
     @Environment(\.theme) private var theme
+    /// The account's text size; these point sizes are fixed, so Dynamic Type
+    /// alone would leave an answer at its standard size.
+    @Environment(\.textScaleFactor) private var scale
     let text: String
     /// True while the answer is still arriving. Mid-stream the buffer ends in
     /// half-typed markup, so the normalizer closes what the model has opened
@@ -34,15 +37,15 @@ struct ChatMarkdownBody: View {
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case .paragraph(let source):
-            Text(MarkdownInline.render(source, style: .body(theme)))
-                .font(.system(size: 15))
-                .lineSpacing(5)
+            Text(MarkdownInline.render(source, style: .body(theme, size: 15 * scale)))
+                .font(.system(size: 15 * scale))
+                .lineSpacing(5 * scale)
                 .bodyText(theme)
 
         case .heading(let level, let source):
             let style = headingStyle(level)
-            Text(MarkdownInline.render(source, style: .body(theme, size: style.size)))
-                .font(.system(size: style.size, weight: style.weight))
+            Text(MarkdownInline.render(source, style: .body(theme, size: style.size * scale)))
+                .font(.system(size: style.size * scale, weight: style.weight))
                 .foregroundStyle(style.color)
                 .padding(.top, level <= 2 ? Spacing.xs : 0)
                 .textSelection(.enabled)
@@ -96,13 +99,14 @@ struct ChatMarkdownBody: View {
 
 private struct BlockquoteView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.textScaleFactor) private var scale
     let paragraphs: [String]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                Text(MarkdownInline.render(paragraph, style: .verse(theme)))
-                    .font(.custom(FontFamily.verse, size: 18))
+                Text(MarkdownInline.render(paragraph, style: .verse(theme, scale: scale)))
+                    .font(.custom(FontFamily.verse, size: 18 * scale))
                     .lineSpacing(4)
                     .foregroundStyle(theme.textSecondary)
                     .textSelection(.enabled)
@@ -124,6 +128,7 @@ private struct BlockquoteView: View {
 
 private struct ListView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.textScaleFactor) private var scale
     let ordered: Bool
     let start: Int
     let items: [MarkdownListItem]
@@ -143,11 +148,11 @@ private struct ListView: View {
     private func row(marker: String, text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
             Text(marker)
-                .font(.system(size: 15, weight: ordered ? .medium : .regular))
+                .font(.system(size: 15 * scale, weight: ordered ? .medium : .regular))
                 .foregroundStyle(theme.accent)
-                .frame(minWidth: ordered ? 18 : 0, alignment: .trailing)
-            Text(MarkdownInline.render(text, style: .body(theme)))
-                .font(.system(size: 15))
+                .frame(minWidth: ordered ? 18 * scale : 0, alignment: .trailing)
+            Text(MarkdownInline.render(text, style: .body(theme, size: 15 * scale)))
+                .font(.system(size: 15 * scale))
                 .lineSpacing(4)
                 .bodyText(theme)
         }
@@ -225,14 +230,14 @@ enum MarkdownInline {
             )
         }
 
-        static func verse(_ theme: SureWordColors) -> Style {
+        static func verse(_ theme: SureWordColors, scale: CGFloat = 1) -> Style {
             Style(
                 baseColor: theme.textSecondary,
                 strongColor: theme.text,
                 accent: theme.accent,
                 codeBackground: theme.surfaceStrong,
-                size: 18,
-                verseItalicFont: .custom(FontFamily.verseItalic, size: 18)
+                size: 18 * scale,
+                verseItalicFont: .custom(FontFamily.verseItalic, size: 18 * scale)
             )
         }
     }

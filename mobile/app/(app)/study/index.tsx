@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { AppText as Text } from "@/components/AppText";
 import { Screen } from "@/components/ui";
 import { HubHeader, HubRow } from "@/features/navigation/HubChrome";
+import { SpotlightScrollView } from "@/features/onboarding/Spotlight";
 import { chatColors } from "@/features/chat/chatAppearance";
 import { useTabBarSpace } from "@/features/chat/layout";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
@@ -27,11 +28,11 @@ export default function StudyScreen() {
 	}, [getToken]));
 	const atlas = (mode: "timeline" | "people" | "places") => router.push({ pathname: "/study/timeline", params: { mode } });
 	return <Screen style={{ backgroundColor: c.bg }}>
-		<HubHeader title="Study" />
-		<ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + spacing.xl }]} showsVerticalScrollIndicator={false}>
+		<HubHeader title="Study" help="study" />
+		<SpotlightScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + spacing.xl }]} showsVerticalScrollIndicator={false}>
 			<View style={styles.intro}><Text accessibilityRole="header" style={[styles.heading, { color: c.text }]}>Go deeper in the Word.</Text>
 				<Text style={[styles.body, { color: c.textMuted }]}>Keep what you learn. Explore the people, places, and words of Scripture.</Text></View>
-			<HubRow prominent icon="document-text-outline" title="Notes" subtitle="Your notes, folders, and Scripture connections" onPress={() => router.push("/study/notes", { withAnchor: true })} />
+			<HubRow spotlight="study.notes" prominent icon="document-text-outline" title="Notes" subtitle="Your notes, folders, and Scripture connections" onPress={() => router.push("/study/notes", { withAnchor: true })} />
 			<Text style={[styles.section, { color: c.textMuted }]}>EXPLORE SCRIPTURE</Text>
 			<HubRow icon="time-outline" title="Bible timeline" subtitle="Follow the events of Scripture through time" onPress={() => atlas("timeline")} />
 			<HubRow icon="people-outline" title="People of the Bible" subtitle="Lives, families, and where their stories meet" onPress={() => atlas("people")} />
@@ -39,10 +40,10 @@ export default function StudyScreen() {
 			<HubRow icon="language-outline" title="Original languages" subtitle="Hebrew, Greek, and Strong's word studies" onPress={() => router.push("/study/words")} />
 			{church.studies || church.events ? <>
 				<Text style={[styles.section, { color: c.textMuted }]}>YOUR CHURCH</Text>
-				<HubRow icon="mic-outline" title="Sermon studies" subtitle="Walk through your church's recorded messages" onPress={() => router.push("/study/sermons")} />
+				<HubRow spotlight="study.sermons" icon="mic-outline" title="Sermon studies" subtitle="Walk through your church's recorded messages" onPress={() => router.push("/study/sermons")} />
 				{church.events ? <HubRow icon="megaphone-outline" title="Church announcements" subtitle="Coming up at your church, with calendar links" onPress={() => router.push("/study/sermons")} /> : null}
 			</> : null}
-		</ScrollView>
+		</SpotlightScrollView>
 	</Screen>;
 }
 

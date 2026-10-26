@@ -38,6 +38,8 @@ import { openReferenceInReader, resolveVerseReference, segmentVerseReferences } 
 import { findPassageForReference, groupRetrievedVerses } from "@/lib/versePassages";
 import { WebResultsCard } from "./WebResultsCard";
 import { FileAttachmentCards } from "./FileAttachmentCards";
+import { ChoiceCard } from "@/features/onboarding/ChoiceCard";
+import { ShowMeCard } from "@/features/onboarding/ShowMeCard";
 
 interface MessageBubbleProps {
 	message: ChatViewMessage;
@@ -404,6 +406,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 				{message.crossActions?.map((action, index) => (
 					<CrossActionCard key={`${action.reference}-${index}`} action={action} />
 				))}
+
+				{/* Walk with me. Only the newest settled card answers taps (onFollowUp marks the newest). */}
+				{settled && message.showMe?.map((card, index) => (
+					<ShowMeCard key={`${card.target}-${index}`} card={card} />
+				))}
+				{settled && message.choiceCard ? (
+					<ChoiceCard card={message.choiceCard} live={Boolean(onFollowUp)} />
+				) : null}
 
 				{settled && groupedVerses && (
 					<RetrievedVersesCard

@@ -84,6 +84,7 @@ import {
 	toggleVerse,
 	type VerseSelection,
 } from "@/features/bible/verseSelection";
+import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
 import { VerseSheet, type VerseSheetTier } from "@/features/bible/verse-sheet/VerseSheet";
 import { VerseActionBar, type VerseAction } from "@/features/bible/verse-sheet/VerseActionBar";
 import { StudyTabs } from "@/features/bible/verse-sheet/StudyTabs";
@@ -140,6 +141,8 @@ interface VerseRowProps {
 	flashed: boolean;
 	/** Part of the verse sheet's current selection. */
 	selected: boolean;
+	/** The verse Walk with me's spotlight rings (the ?verse= one, else verse 1). */
+	spotlight: boolean;
 	parchment: boolean;
 	fontSize: number;
 	lineHeight: number;
@@ -166,6 +169,7 @@ const VerseRow = React.memo(function VerseRow({
 	hasNote,
 	flashed,
 	selected,
+	spotlight,
 	parchment,
 	fontSize,
 	lineHeight,
@@ -184,13 +188,7 @@ const VerseRow = React.memo(function VerseRow({
 
 	const formatted =
 		translation === "BSB" ? getBsbChapter(bookOrder, chapterNumber)[verseNumber - 1] : null;
-	return (
-		<View>
-			{readerSectionHeadings(translation, bookOrder, chapterNumber, verseNumber).map((heading, index) => (
-				<Text key={`${index}:${heading}`} accessibilityRole="header" style={styles.sectionHeading}>
-					{heading}
-				</Text>
-			))}
+	const row = (
 			<Pressable
 				accessibilityRole="button"
 				accessibilityState={{ selected }}
@@ -238,6 +236,15 @@ const VerseRow = React.memo(function VerseRow({
 					))}
 				</ScriptureText>
 			</Pressable>
+	);
+	return (
+		<View>
+			{readerSectionHeadings(translation, bookOrder, chapterNumber, verseNumber).map((heading, index) => (
+				<Text key={`${index}:${heading}`} accessibilityRole="header" style={styles.sectionHeading}>
+					{heading}
+				</Text>
+			))}
+			{spotlight ? <SpotlightAnchor target="reader.verse">{row}</SpotlightAnchor> : row}
 		</View>
 	);
 });
@@ -933,6 +940,7 @@ export default function BibleChapterScreen() {
 				hasNote={chapterNotes.notedVerses.has(index + 1)}
 				flashed={highlighted === index + 1 || (chapterAudio.playing && chapterAudio.verse === index + 1)}
 				selected={selectionIncludes(selection, index + 1)}
+				spotlight={index + 1 === (verseParam ?? 1)}
 				parchment={parchment}
 				fontSize={fontSize}
 				lineHeight={lineHeight}
@@ -959,6 +967,7 @@ export default function BibleChapterScreen() {
 			translation,
 			lcGreek,
 			isDark,
+			verseParam,
 		],
 	);
 

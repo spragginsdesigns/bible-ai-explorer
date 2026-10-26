@@ -1,6 +1,22 @@
 {
 	"releases": [
 		{
+			"version": "1.101.0",
+			"versionCode": 118,
+			"date": "2026-10-25",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Walk with me: new accounts are welcomed by SureWord with big tap-to-answer cards, so you can set up without typing: text size, your name, your church, a prayer request and a daily time. Then SureWord lights up each part of the app with a gold spotlight.",
+						"Read it to me: turn it on in the welcome to hear each message aloud.",
+						"Text size: Standard, Large or Largest, in Settings, Appearance.",
+						"A \"?\" on each screen asks SureWord how it works, and Settings has \"Walk me through SureWord\"."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.100.1",
 			"versionCode": 117,
 			"date": "2026-10-25",

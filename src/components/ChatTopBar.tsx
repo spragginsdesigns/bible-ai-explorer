@@ -2,13 +2,13 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Brain, Clock, Sun, Moon, Plus, Smartphone, Settings, MoreVertical } from "lucide-react";
+import { Brain, CircleHelp, Clock, Sun, Moon, Plus, Smartphone, Settings, MoreVertical } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
 import GetAppLink from "./GetAppLink";
 import styles from "./ChatTopBar.module.css";
-interface ChatTopBarProps { title: string; onToggleSidebar: () => void; onNewChat: () => void }
-const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewChat }) => {
+interface ChatTopBarProps { title: string; onToggleSidebar: () => void; onNewChat: () => void; onHelp?: () => void }
+const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewChat, onHelp }) => {
   const { setTheme } = useTheme();
   return <header className={styles.header}>
     <Image src="/chat-home/sureword-mark.png" width={48} height={48} alt="" className={styles.mark} />
@@ -16,6 +16,8 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
       <span className="font-[family-name:var(--font-pirata)]">SureWord</span>
       {title !== "New Chat" && <small>{title}</small>}
     </div>
+    {/* The screen's "?" (Walk with me): a fresh chat that asks SureWord about Chat itself. */}
+    {onHelp && <button type="button" className={styles.help} onClick={onHelp} aria-label="Help with Chat" title="Help"><CircleHelp size={24} /></button>}
     <button type="button" className={styles.newChat} onClick={onNewChat} aria-label="New chat"><Plus size={24} /></button>
     <details className={styles.options}>
       <summary aria-label="Chat options"><MoreVertical size={22} /></summary>

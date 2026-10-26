@@ -34,6 +34,8 @@ struct MessageBubble: View {
     /// Keeps Copy / Edit drawn under the newest question; every other one
     /// shows them on hover.
     var showsUserActions: Bool = false
+    /// Walk with me: whether this message's choice card still takes a tap.
+    var cardState: OnboardingRules.CardState? = nil
 
     /// True while the pointer is over a question, which reveals its actions.
     @State private var isHovering = false
@@ -264,6 +266,10 @@ struct MessageBubble: View {
             } else if message.isStreaming, message.activity == nil, message.progress == nil {
                 TypingDots()
             }
+
+            // Walk with me's card belongs to the question it asks, so it sits
+            // right under the message, above the answer actions.
+            GuideMessageCards(message: message, state: cardState)
 
             // Only on a settled answer - mid-stream the markdown is a fragment,
             // and a half-written answer is not one there is anything to judge.
