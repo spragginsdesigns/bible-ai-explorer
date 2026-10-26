@@ -13,6 +13,23 @@ Update this file whenever a feature changes on any client.
 > remains the historical evidence ledger; the TODO is the current work queue
 > for those three clients and does not certify macOS parity.
 
+**2026-10-26 Spanish and German (Android and web released, Apple in progress):**
+answers in Spanish (quoting the Reina-Valera 1909) or German (quoting the
+Lutherbibel 1912), following the device language and changeable in Settings,
+Language; both Bibles readable and searchable offline; Spanish and German
+references link in answers. Server and web shipped in b040080a (deployed with
+66763313). Android 1.103.0 (120) is on Play internal and closed testing with
+the same bundle and on GitHub as `android-v1.103.0`, proven on the signed APK
+against production: Settings, Language, Español, then an English question
+answered in Spanish quoting "Efesios 2:8, RV1909" with working links. Web
+Settings, Language is built and tested but not yet exercised in a browser
+against production. Apple (macOS and iOS) is not shipped: the Mac compiles,
+but `LanguagesTests.testSearchFindsAccentedWordsWithoutTheAccents` fails, so
+Apple stays unverified. Known gap on every client: the "Scripture in this
+answer" sheet titles references in English ("Ephesians 2:8") above the
+Spanish text, and the app's own interface text is English. Plan:
+`docs/languages/PLAN.md`.
+
 **2026-10-23 bug hunt Apple fixes (macOS and TestFlight, LC-17258):** the
 Apple fixes from `ecf4721` (LC-17262 a failed Clerk token fetch reads as
 offline instead of sending the request unauthenticated, LC-17264 the iOS
