@@ -15,12 +15,7 @@ cut that line here and in `play-store.md` together.
 2026-10-22: the rejected 1.21.0 version became 1.24.0 in App Store Connect and
 `listing apply` wrote this file to it; `listing check` matched.
 
-> **PENDING (2026-10-25): the live App Store description is behind this
-> file.** Bring-your-own API keys were removed, so the "YOUR CHOICE OF AI"
-> heading and its bring-your-own-key bullet became "SUREWORD AI" / "works the
-> moment you sign in, with no setup and no API key". `release-ios.sh` runs
-> `asc.py listing check`; apply it with the next iOS version and delete this
-> block once `check` matches.
+2026-10-25: the SUREWORD AI wording (no bring-your-own keys) is live; `listing check` matched.
 
 Status: first entered in App Store Connect on 2026-10-07 (version 1.10.0,
 en-US) through the API. This file is the source of truth for the listing;
