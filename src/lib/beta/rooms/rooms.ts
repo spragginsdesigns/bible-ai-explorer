@@ -32,6 +32,7 @@ import {
 	storedPassage,
 	threadPosts,
 	canDeletePost,
+	checkAssignableRole,
 	type MemberProgressView,
 	type MemberView,
 	type PassageView,
@@ -51,6 +52,12 @@ import {
  * private data this module ever reads is (a) a note its owner is sharing,
  * looked up by that owner's id, and (b) a following member's reading-plan day
  * count, through getActivePlan, reduced to five numbers by progressView.
+ *
+ * Every room has a purpose, and every function here takes one (Study Rooms'
+ * "study" by default): a room of another purpose is a 404 here, exactly like
+ * a missing one, so each product's routes see only its own rooms. Together's
+ * products (SureWord Groups first) reuse these functions for members, invites
+ * and the plan, and keep their own shared objects through `openModuleRoom`.
  */
 
 export class RoomError extends Error {
@@ -71,13 +78,13 @@ function mintInviteToken(): string {
 	return randomBytes(12).toString("base64url");
 }
 
-async function requireMembership(userId: string, roomId: string) {
+async function requireMembership(userId: string, roomId: string, purpose: RoomPurpose = "study") {
 	if (!isRoomId(roomId)) return null;
-	return prisma.betaRoomMember.findUnique({ where: { roomId_userId: { roomId, userId } }, include: { room: true } });
+	return prisma.betaRoomMember.findFirst({ where: { roomId, userId, room: { purpose } }, include: { room: true } });
 }
 
-async function requireOwner(userId: string, roomId: string) {
-	const me = await requireMembership(userId, roomId);
+async function requireOwner(userId: string, roomId: string, purpose: RoomPurpose = "study") {
+	const me = await requireMembership(userId, roomId, purpose);
 	if (!me) throw notFound();
 	if (asRole(me.role) !== "owner") throw new RoomError("Only the room's owner can do that.", 403);
 	return me;
@@ -115,7 +122,7 @@ const RANGE_END = /:\s*\d+\s*[-–—]\s*(\d+)\s*$/;
 const CROSS_CHAPTER = /:\s*\d+\s*[-–—]\s*\d+\s*:/;
 
 /** "Romans 5", "Rom 5:1", "Romans 5:1-11", within one chapter, or a 400. */
-async function parsePassage(text: string): Promise<RoomPassage> {
+export async function parsePassage(text: string): Promise<RoomPassage> {
 	if (CROSS_CHAPTER.test(text)) throw new RoomError("Share one chapter at a time, for example Romans 5:1-11.");
 	const ref = resolveReference(text);
 	if (!ref) throw new RoomError(`"${text}" is not a passage we recognize. Try Romans 5 or John 3:16.`);
@@ -130,7 +137,7 @@ async function parsePassage(text: string): Promise<RoomPassage> {
 }
 
 /** Verse text is read from the bundled KJV every time, never stored or typed. */
-async function passageView(stored: RoomPassage, withText: boolean, chapters: Map<string, Promise<string[]>>): Promise<PassageView | null> {
+export async function passageView(stored: RoomPassage, withText: boolean, chapters: Map<string, Promise<string[]>>): Promise<PassageView | null> {
 	const book = bookByOrder(stored.book);
 	if (!book) return null;
 	const key = `${stored.book}.${stored.chapter}`;
@@ -225,8 +232,8 @@ export interface RoomView {
 }
 
 /** The room as the caller sees it, or null when they are not in it. */
-export async function getRoomView(userId: string, roomId: string, now = new Date()): Promise<RoomView | null> {
-	const me = await requireMembership(userId, roomId);
+export async function getRoomView(userId: string, roomId: string, now = new Date(), purpose: RoomPurpose = "study"): Promise<RoomView | null> {
+	const me = await requireMembership(userId, roomId, purpose);
 	if (!me) return null;
 	const room = me.room;
 	const viewer = { userId, role: asRole(me.role) };
@@ -301,8 +308,8 @@ export async function getRoomView(userId: string, roomId: string, now = new Date
 }
 
 /** The owner renames, describes, archives or restores the room, or sets its plan. */
-export async function updateRoom(userId: string, roomId: string, input: unknown): Promise<void> {
-	const me = await requireOwner(userId, roomId);
+export async function updateRoom(userId: string, roomId: string, input: unknown, purpose: RoomPurpose = "study"): Promise<void> {
+	const me = await requireOwner(userId, roomId, purpose);
 	const checked = checkRoomPatch(input, READING_PLAN_PRESETS.map((preset) => preset.key));
 	if (!checked.ok) throw new RoomError(checked.error);
 	const patch = checked.value;
@@ -338,8 +345,8 @@ export async function updateRoom(userId: string, roomId: string, input: unknown)
 }
 
 /** The owner turns the invite link on (a fresh slug every time) or off. */
-export async function setInvite(userId: string, roomId: string, on: boolean): Promise<string | null> {
-	const me = await requireOwner(userId, roomId);
+export async function setInvite(userId: string, roomId: string, on: boolean, purpose: RoomPurpose = "study"): Promise<string | null> {
+	const me = await requireOwner(userId, roomId, purpose);
 	if (me.room.archivedAt) throw archivedError();
 	const token = on ? mintInviteToken() : null;
 	await prisma.betaRoom.update({ where: { id: me.room.id }, data: { inviteToken: token } });
@@ -358,10 +365,10 @@ export interface InvitePreview {
 }
 
 /** What an invite link opens onto, or null once it is revoked, rotated or archived. */
-export async function previewInvite(userId: string, token: string, now = new Date()): Promise<InvitePreview | null> {
+export async function previewInvite(userId: string, token: string, now = new Date(), purpose: RoomPurpose = "study"): Promise<InvitePreview | null> {
 	if (!isRoomInviteToken(token)) return null;
 	const room = await prisma.betaRoom.findFirst({
-		where: { inviteToken: token, archivedAt: null },
+		where: { inviteToken: token, archivedAt: null, purpose },
 		include: { members: { select: { userId: true, role: true, displayName: true } } },
 	});
 	if (!room) return null;
@@ -379,12 +386,12 @@ export async function previewInvite(userId: string, token: string, now = new Dat
 }
 
 /** Joins through a live invite link; joining twice is the same as once. */
-export async function joinRoom(userId: string, token: string, input: unknown): Promise<string> {
+export async function joinRoom(userId: string, token: string, input: unknown, purpose: RoomPurpose = "study"): Promise<string> {
 	if (!isRoomInviteToken(token)) throw notFound();
 	const name = checkDisplayName((input as { displayName?: unknown } | null)?.displayName);
 	if (!name.ok) throw new RoomError(name.error);
 	const room = await prisma.betaRoom.findFirst({
-		where: { inviteToken: token, archivedAt: null },
+		where: { inviteToken: token, archivedAt: null, purpose },
 		select: { id: true, _count: { select: { members: true } } },
 	});
 	if (!room) throw notFound();
@@ -469,8 +476,8 @@ export async function deletePost(userId: string, roomId: string, postId: string)
  * transaction. Removal also replaces a live invite link, since the removed
  * member holds it and could otherwise walk straight back in.
  */
-export async function removeMember(userId: string, roomId: string, memberId: string): Promise<"remove" | "leave"> {
-	const me = await requireMembership(userId, roomId);
+export async function removeMember(userId: string, roomId: string, memberId: string, purpose: RoomPurpose = "study"): Promise<"remove" | "leave"> {
+	const me = await requireMembership(userId, roomId, purpose);
 	if (!me || !isRoomId(memberId)) throw notFound();
 	const target = await prisma.betaRoomMember.findFirst({ where: { id: memberId, roomId }, select: { id: true, userId: true, role: true } });
 	if (!target) throw notFound();
@@ -478,7 +485,7 @@ export async function removeMember(userId: string, roomId: string, memberId: str
 	if (!action) {
 		throw target.userId === userId
 			? new RoomError("You own this room. Archive it instead of leaving.", 409)
-			: new RoomError("Only the room's owner can remove members.", 403);
+			: new RoomError(asRole(me.role) === "leader" ? "Only the owner can remove a leader." : purpose === "study" ? "Only the room's owner can remove members." : "Only the owner or a leader can remove members.", 403);
 	}
 	await prisma.$transaction([
 		prisma.betaRoomPost.deleteMany({ where: { roomId, authorId: target.userId } }),
@@ -494,8 +501,8 @@ export async function removeMember(userId: string, roomId: string, memberId: str
  * A different plan they are partway through is only replaced once they have
  * confirmed it by id (`replacePlanId`).
  */
-export async function followPlan(userId: string, roomId: string, input: unknown): Promise<void> {
-	const me = await requireMembership(userId, roomId);
+export async function followPlan(userId: string, roomId: string, input: unknown, purpose: RoomPurpose = "study"): Promise<void> {
+	const me = await requireMembership(userId, roomId, purpose);
 	if (!me) throw notFound();
 	if (me.room.archivedAt) throw archivedError();
 	const plan = roomPlan(me.room, new Date());
@@ -521,8 +528,149 @@ export async function followPlan(userId: string, roomId: string, input: unknown)
 }
 
 /** Stop sharing progress. The reading plan itself stays the caller's. */
-export async function unfollowPlan(userId: string, roomId: string): Promise<void> {
-	const me = await requireMembership(userId, roomId);
+export async function unfollowPlan(userId: string, roomId: string, purpose: RoomPurpose = "study"): Promise<void> {
+	const me = await requireMembership(userId, roomId, purpose);
 	if (!me) throw notFound();
 	await prisma.betaRoomMember.update({ where: { id: me.id }, data: { planId: null } });
+}
+
+/**
+ * The owner names a leader, or makes a leader an ordinary member again.
+ * Ownership never moves, and nobody changes their own role.
+ */
+export async function setMemberRole(userId: string, roomId: string, memberId: string, input: unknown, purpose: RoomPurpose = "study"): Promise<void> {
+	const me = await requireOwner(userId, roomId, purpose);
+	if (me.room.archivedAt) throw archivedError();
+	const role = checkAssignableRole((input as { role?: unknown } | null)?.role);
+	if (!role) throw new RoomError("role must be leader or member.");
+	if (!isRoomId(memberId)) throw notFound();
+	const target = await prisma.betaRoomMember.findFirst({ where: { id: memberId, roomId }, select: { id: true, role: true } });
+	if (!target) throw notFound();
+	if (asRole(target.role) === "owner") throw new RoomError("The owner's role does not change.", 409);
+	await prisma.betaRoomMember.update({ where: { id: target.id }, data: { role } });
+}
+
+// ---------------------------------------------------------------------------
+// Another module's shared objects in a room
+// ---------------------------------------------------------------------------
+
+/** One of another module's shared objects in a room. */
+export interface ModulePostRow {
+	id: string;
+	kind: string;
+	authorId: string;
+	parentId: string | null;
+	title: string | null;
+	body: string;
+	data: unknown;
+	createdAt: Date;
+}
+
+/** The room's members as the server sees them; their account ids never leave the server. */
+export interface ModuleMemberRow {
+	id: string;
+	userId: string;
+	role: RoomRole;
+	displayName: string;
+}
+
+export interface ModulePostInput {
+	kind: string;
+	parentId?: string | null;
+	title?: string | null;
+	body: string;
+	data: Record<string, unknown>;
+	/** Write it under the room's owner: the room's own structure, which outlives any one member. */
+	asRoom?: boolean;
+}
+
+/**
+ * A room as another module (SureWord Groups, then Family and Churches) works
+ * in it: the caller's membership, and that module's own posts, scoped to this
+ * room and that module's slug. Study Rooms' own kinds are not reachable here,
+ * and which member may do what is the calling module's rule to check first.
+ * Leaving, removal and account deletion already take a member's posts of every
+ * module (removeMember above), and a post's replies go with it.
+ */
+export interface ModuleRoom {
+	room: { id: string; name: string; ownerId: string; archived: boolean; planPresetKey: string | null; planStartDate: Date | null };
+	me: { memberId: string; userId: string; role: RoomRole; displayName: string };
+	members(): Promise<ModuleMemberRow[]>;
+	/** This module's posts in the room, oldest first. */
+	posts(): Promise<ModulePostRow[]>;
+	post(postId: string): Promise<ModulePostRow | null>;
+	/** Adds a post (409 while archived or full; a parent must be this module's, in this room). Returns its id. */
+	create(input: ModulePostInput): Promise<string>;
+	/** Changes a post's title, body or data (409 while archived). False when it is gone. */
+	update(postId: string, patch: { title?: string | null; body?: string; data?: Record<string, unknown> }): Promise<boolean>;
+	/** Removes a post and everything under it. False when it was already gone. */
+	remove(postId: string): Promise<boolean>;
+}
+
+const MODULE_POST_SELECT = { id: true, kind: true, authorId: true, parentId: true, title: true, body: true, data: true, createdAt: true } as const;
+
+/** The caller's room of that purpose, opened for one module, or null when they are not in it. */
+export async function openModuleRoom(userId: string, roomId: string, purpose: RoomPurpose, module: string): Promise<ModuleRoom | null> {
+	if (module === ROOMS_MODULE) throw new Error("Study Rooms' own posts go through addPost and deletePost.");
+	const me = await requireMembership(userId, roomId, purpose);
+	if (!me) return null;
+	const room = me.room;
+	const scope = { roomId: room.id, module };
+	return {
+		room: { id: room.id, name: room.name, ownerId: room.ownerId, archived: Boolean(room.archivedAt), planPresetKey: room.planPresetKey, planStartDate: room.planStartDate },
+		me: { memberId: me.id, userId, role: asRole(me.role), displayName: me.displayName },
+		members: async () =>
+			(
+				await prisma.betaRoomMember.findMany({
+					where: { roomId: room.id },
+					orderBy: { joinedAt: "asc" },
+					take: ROOM_MEMBERS_MAX * 2,
+					select: { id: true, userId: true, role: true, displayName: true },
+				})
+			).map((member) => ({ id: member.id, userId: member.userId, role: asRole(member.role), displayName: member.displayName })),
+		posts: () => prisma.betaRoomPost.findMany({ where: scope, orderBy: { createdAt: "asc" }, take: ROOM_POSTS_MAX, select: MODULE_POST_SELECT }),
+		post: async (postId) => (isRoomId(postId) ? prisma.betaRoomPost.findFirst({ where: { ...scope, id: postId }, select: MODULE_POST_SELECT }) : null),
+		create: async (input) => {
+			if (room.archivedAt) throw archivedError();
+			if ((await prisma.betaRoomPost.count({ where: { roomId: room.id } })) >= ROOM_POSTS_MAX) {
+				throw new RoomError(`This room holds ${ROOM_POSTS_MAX.toLocaleString("en-US")} posts. Remove some to add more.`, 409);
+			}
+			if (input.parentId) {
+				const parent = isRoomId(input.parentId) ? await prisma.betaRoomPost.findFirst({ where: { ...scope, id: input.parentId }, select: { id: true } }) : null;
+				if (!parent) throw new RoomError("That is no longer in the room.", 409);
+			}
+			const created = await prisma.betaRoomPost.create({
+				data: {
+					roomId: room.id,
+					authorId: input.asRoom ? room.ownerId : userId,
+					module,
+					kind: input.kind,
+					parentId: input.parentId ?? null,
+					title: input.title ?? null,
+					body: input.body,
+					data: input.data as Prisma.InputJsonObject,
+				},
+				select: { id: true },
+			});
+			return created.id;
+		},
+		update: async (postId, patch) => {
+			if (room.archivedAt) throw archivedError();
+			if (!isRoomId(postId)) return false;
+			const result = await prisma.betaRoomPost.updateMany({
+				where: { ...scope, id: postId },
+				data: {
+					...(patch.title !== undefined && { title: patch.title }),
+					...(patch.body !== undefined && { body: patch.body }),
+					...(patch.data !== undefined && { data: patch.data as Prisma.InputJsonObject }),
+				},
+			});
+			return result.count > 0;
+		},
+		remove: async (postId) => {
+			if (!isRoomId(postId)) return false;
+			const result = await prisma.betaRoomPost.deleteMany({ where: { ...scope, id: postId } });
+			return result.count > 0;
+		},
+	};
 }

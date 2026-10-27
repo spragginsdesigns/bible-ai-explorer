@@ -39,10 +39,26 @@ export type RoomPurpose = "study" | "family" | "group" | "church";
 export const ROOMS_MODULE = "rooms";
 
 /**
- * "owner" | "member" today. A role this module does not know (a church's
- * "leader", added by the module that needs it) counts as a member here.
+ * Where each purpose's rooms live: Study Rooms here, and Together's products
+ * at their own registry paths, so an invite link opens the product it belongs
+ * to and each product's routes see only its own rooms.
  */
-export type RoomRole = "owner" | "member";
+export const ROOM_PURPOSE_PATHS: Readonly<Record<RoomPurpose, { page: string; api: string }>> = {
+	study: { page: "/beta/study/rooms", api: "/api/beta/rooms" },
+	group: { page: "/beta/together/groups", api: "/api/beta/groups" },
+	family: { page: "/beta/together/family", api: "/api/beta/family" },
+	church: { page: "/beta/together/churches", api: "/api/beta/churches" },
+};
+
+/**
+ * "owner" | "leader" | "member". Study Rooms makes owners and members only;
+ * SureWord Groups (LC-17656) names leaders, who may remove members but never
+ * the owner or another leader. A role this module does not know (a family's
+ * "parent", added by the module that needs it) counts as a member here.
+ */
+export type RoomRole = "owner" | "leader" | "member";
+/** The roles an owner can give a member; ownership never moves. */
+export const ASSIGNABLE_ROOM_ROLES: readonly RoomRole[] = ["leader", "member"];
 export type RoomPostKind = "passage" | "question" | "note" | "reply";
 export const ROOM_POST_KINDS: readonly RoomPostKind[] = ["passage", "question", "note", "reply"];
 
@@ -59,8 +75,8 @@ export function isRoomInviteToken(value: unknown): value is string {
 	return typeof value === "string" && INVITE_TOKEN_PATTERN.test(value);
 }
 
-export function roomInvitePath(token: string): string {
-	return `/beta/study/rooms/join/${token}`;
+export function roomInvitePath(token: string, purpose: RoomPurpose = "study"): string {
+	return `${ROOM_PURPOSE_PATHS[purpose].page}/join/${token}`;
 }
 
 /** One line: trimmed, inner whitespace collapsed. Null when empty or too long. */
@@ -283,15 +299,22 @@ export function canDeletePost(post: { authorId: string }, viewer: { userId: stri
 
 /**
  * What the viewer may do to a member: remove them (the owner, anyone but
- * themself), leave (anyone but the owner, themself), or nothing.
+ * themself; a leader, an ordinary member), leave (anyone but the owner,
+ * themself), or nothing.
  */
 export function memberAction(viewer: { userId: string; role: RoomRole }, target: { userId: string; role: RoomRole }): "remove" | "leave" | null {
 	if (viewer.userId === target.userId) return viewer.role === "owner" ? null : "leave";
-	return viewer.role === "owner" && target.role !== "owner" ? "remove" : null;
+	if (viewer.role === "owner") return target.role !== "owner" ? "remove" : null;
+	return viewer.role === "leader" && target.role === "member" ? "remove" : null;
 }
 
 export function asRole(value: string): RoomRole {
-	return value === "owner" ? "owner" : "member";
+	return value === "owner" ? "owner" : value === "leader" ? "leader" : "member";
+}
+
+/** A role the owner may give a member, or null. */
+export function checkAssignableRole(value: unknown): RoomRole | null {
+	return typeof value === "string" && (ASSIGNABLE_ROOM_ROLES as readonly string[]).includes(value) ? (value as RoomRole) : null;
 }
 
 // ---------------------------------------------------------------------------

@@ -3,22 +3,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, Link2, Loader2, NotebookPen, Search, Share2 } from "lucide-react";
 import type { RoomView } from "@/lib/beta/rooms/rooms";
-import { roomInvitePath } from "@/lib/beta/rooms/rooms-rules";
+import { ROOM_PURPOSE_PATHS, roomInvitePath, type RoomPurpose } from "@/lib/beta/rooms/rooms-rules";
+import type { RoomResult } from "./room-client";
 import type { RoomAct } from "./RoomScreen";
-import { ErrorNote, Sheet, field, primaryButton, quietButton, secondaryButton, timeAgo } from "./room-ui";
+import { ErrorNote, ROOM_COPY, Sheet, field, primaryButton, quietButton, secondaryButton, timeAgo } from "./room-ui";
 
-export function InviteSheet({ room, act, busy, onClose }: { room: RoomView; act: RoomAct; busy: string | null; onClose: () => void }) {
+/** The invite link, for Study Rooms and for any Together product that keeps its members in a room. */
+export function InviteSheet({
+	room,
+	act,
+	busy,
+	onClose,
+	purpose = "study",
+}: {
+	room: Pick<RoomView, "id" | "name" | "inviteToken">;
+	act: (key: string, path: string, init?: { method?: string; body?: unknown }) => Promise<RoomResult<unknown>>;
+	busy: string | null;
+	onClose: () => void;
+	purpose?: RoomPurpose;
+}) {
+	const { noun } = ROOM_COPY[purpose];
 	const [copied, setCopied] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [canShare, setCanShare] = useState(false);
 	useEffect(() => setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function"), []);
 	const token = room.inviteToken ?? null;
-	const link = token ? `${window.location.origin}${roomInvitePath(token)}` : null;
+	const link = token ? `${window.location.origin}${roomInvitePath(token, purpose)}` : null;
 
 	const change = async (on: boolean) => {
 		setError(null);
 		setCopied(false);
-		const result = await act(on ? "invite-on" : "invite-off", `/api/beta/rooms/${room.id}/invite`, { method: on ? "POST" : "DELETE" });
+		const result = await act(on ? "invite-on" : "invite-off", `${ROOM_PURPOSE_PATHS[purpose].api}/${room.id}/invite`, { method: on ? "POST" : "DELETE" });
 		if (!result.ok) setError(result.error);
 	};
 	const copy = async () => {
@@ -32,9 +47,9 @@ export function InviteSheet({ room, act, busy, onClose }: { room: RoomView; act:
 	};
 
 	return (
-		<Sheet title="Invite to the room" onClose={onClose}>
+		<Sheet title={`Invite to the ${noun}`} onClose={onClose}>
 			<p className="leading-7 text-neutral-700 dark:text-[#d9d1c3]">
-				Anyone on the SureWord Beta list who opens this link can join {room.name}. Making a new link or turning it off stops the old one from working; people already in the room stay in.
+				Anyone on the SureWord Beta list who opens this link can join {room.name}. Making a new link or turning it off stops the old one from working; people already in the {noun} stay in.
 			</p>
 			{link ? (
 				<>
