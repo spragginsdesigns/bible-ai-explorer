@@ -70,12 +70,13 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		status: "live",
 		issue: "LC-17655",
 		summary:
-			"An immersive map and timeline of Scripture. Play Paul's three journeys and the voyage to Rome, the Exodus, Abraham's travels and the Gospels' ministry stop by stop, scrub the centuries with the kings of Israel and Judah side by side, and open any place or event for its passages in the KJV.",
+			"An immersive map and timeline of Scripture. Play Paul's three journeys and the voyage to Rome, the Exodus, Abraham's travels and the Gospels' ministry stop by stop, scrub the centuries with the kings of Israel and Judah side by side, follow one person's life event by event with your own studies of it, and open any place or event for its passages in the KJV.",
 		capabilities: [
 			"Play seven journeys stop by stop on the map, each stop with its verses from the KJV and a short note",
 			"Scrub a timeline from Creation to Patmos, with patriarchs, judges, kings, prophets, the exile and the early church in lanes, every date labelled by its source",
 			"Compare the kings of Israel and Judah side by side in any year, and zoom the timeline to one era",
 			"Tap any place or event for its passages, how sure its site is, and a way into the reader",
+			"Find a person by any name Scripture uses and play their life in order, each event with its places on the map, its KJV verses, and your own studies of those passages",
 			"From a verse in the reader, open the places it names in the atlas",
 		],
 		builtOn: ["The atlas and timeline corpus (people, places, events)", "The Ussher dating of the KJV margins", "The Bible reader"],

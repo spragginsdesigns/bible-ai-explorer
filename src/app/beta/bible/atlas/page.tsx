@@ -25,6 +25,7 @@ export default async function BetaAtlasPage({ searchParams }: Props) {
 		regions: ATLAS_REGIONS.map((region) => region.id),
 		places: new Set([...index.places.map((place) => place.id), ...Object.keys(index.sameSite), ...index.places.flatMap((place) => place.alsoHere.map((entry) => entry.id))]),
 		events: new Map(index.events.map((event) => [event.id, event.dated ? event.start : null])),
+		people: new Map(index.people.map((person) => [person.id, person.events.length])),
 		defaultJourney: "paul-2",
 		defaultYear: -975,
 	});

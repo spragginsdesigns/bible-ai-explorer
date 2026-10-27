@@ -30,6 +30,7 @@ import {
 	formatYearSpan,
 	interpolateCamera,
 	labelBox,
+	lifeChapters,
 	minScale,
 	nameTokens,
 	nearestDated,
@@ -438,12 +439,13 @@ test("the atlas URL: unknown values fall back, and a state survives a round trip
 		regions: ["world", "jerusalem"],
 		places: new Set(["ephesus", "rome"]),
 		events: new Map([["the-flood", -2348], ["the-trial-of-job", null]]),
+		people: new Map([["david", 14], ["noah", 2]]),
 		defaultJourney: "paul-2",
 		defaultYear: -975,
 	};
 	const fallback = parseAtlasUrl({}, known);
-	assert.deepEqual(fallback, { mode: "journeys", journey: "paul-2", stop: 0, year: -975, era: null, region: null, selection: null });
-	const junk = parseAtlasUrl({ journey: "paul-9", stop: "999", year: "0", era: "nope", region: "mars", place: "atlantis", mode: "maps" }, known);
+	assert.deepEqual(fallback, { mode: "journeys", journey: "paul-2", stop: 0, year: -975, era: null, region: null, person: null, step: 0, selection: null });
+	const junk = parseAtlasUrl({ journey: "paul-9", stop: "999", year: "0", era: "nope", region: "mars", place: "atlantis", mode: "maps", person: "goliath-of-ur", step: "3" }, known);
 	assert.deepEqual(junk, fallback);
 	const fromReader = parseAtlasUrl({ place: "ephesus" }, known);
 	assert.equal(fromReader.mode, "places");
@@ -456,6 +458,8 @@ test("the atlas URL: unknown values fall back, and a state survives a round trip
 		{ mode: "journeys", journey: "rome", stop: 7, year: -975, era: null, region: null, selection: { kind: "place", id: "rome" } },
 		{ mode: "timeline", journey: "paul-2", stop: 0, year: -760, era: "Divided Kingdom", region: null, selection: { kind: "event", id: "the-flood" } },
 		{ mode: "places", journey: "paul-2", stop: 0, year: -975, era: null, region: "jerusalem", selection: null },
+		{ mode: "people", journey: "paul-2", stop: 0, year: -975, era: null, region: null, person: "david", step: 13, selection: { kind: "place", id: "rome" } },
+		{ mode: "people", journey: "paul-2", stop: 0, year: -975, era: null, region: null, person: null, step: 0, selection: null },
 	]) {
 		const query = Object.fromEntries(new URLSearchParams(atlasUrlQuery(state)));
 		const back = parseAtlasUrl(query, known);
@@ -464,8 +468,56 @@ test("the atlas URL: unknown values fall back, and a state survives a round trip
 		if (state.mode === "journeys") assert.deepEqual([back.journey, back.stop], [state.journey, state.stop]);
 		if (state.mode === "timeline") assert.deepEqual([back.year, back.era], [state.year, state.era]);
 		if (state.mode === "places") assert.equal(back.region, state.region);
+		if (state.mode === "people") assert.deepEqual([back.person, back.step], [state.person, state.step]);
 	}
+	// People (LC-17725): a person opens People at the first event; a step past the life, or one on no person, falls back.
+	assert.deepEqual(pick(parseAtlasUrl({ person: "david" }, known)), ["people", "david", 0]);
+	assert.deepEqual(pick(parseAtlasUrl({ mode: "people", person: "david", step: "15" }, known)), ["people", "david", 0]);
+	assert.deepEqual(pick(parseAtlasUrl({ mode: "people", person: "noah", step: "2" }, known)), ["people", "noah", 1]);
+	assert.deepEqual(pick(parseAtlasUrl({ mode: "people", step: "4" }, known)), ["people", null, 0]);
+	assert.deepEqual(pick(parseAtlasUrl({ mode: "journeys", person: "david", step: "4" }, known)), ["journeys", null, 0], "another mode carries no person");
+	assert.deepEqual(pick(parseAtlasUrl({ person: "David" }, known)), ["journeys", null, 0], "ids are exact");
 	assert.equal(eraSlug("Creation & the Patriarchs"), "creation-the-patriarchs");
+});
+
+function pick(state) {
+	return [state.mode, state.person, state.step];
+}
+
+test("People: every person has a life of corpus events, in the corpus's order", () => {
+	const order = new Map(events.map((event, index) => [event.id, index]));
+	for (const person of people) {
+		const life = events.filter((event) => event.people.includes(person.id));
+		assert.ok(life.length > 0, `${person.id} has no events to play`);
+		const indexes = life.map((event) => order.get(event.id));
+		assert.deepEqual(indexes, [...indexes].sort((a, b) => a - b), `${person.id}: the life plays in corpus order`);
+	}
+	const david = events.filter((event) => event.people.includes("david")).map((event) => event.id);
+	assert.equal(david[0], "david-anointed");
+	assert.equal(david.at(-1), "solomon-made-king");
+});
+
+test("People: a life's chapters are each chapter its events and the person cite, once, in life order", () => {
+	const spans = (refs) => refs.map((ref) => parseAtlasRef(books, ref)).filter(Boolean);
+	const life = (id) => events.filter((event) => event.people.includes(id));
+	const david = people.find((person) => person.id === "david");
+	const chapters = lifeChapters(life("david").map((event) => spans(event.refs)), spans(david.refs));
+	assert.equal(chapters[0].key, "9.16");
+	assert.equal(chapters[0].label, "1 Samuel 16");
+	const elah = chapters.find((chapter) => chapter.label === "1 Samuel 17");
+	assert.deepEqual(elah.events, [1], "David and Goliath is the life's second event");
+	assert.equal(new Set(chapters.map((chapter) => chapter.key)).size, chapters.length, "each chapter once");
+	// "Genesis 6-9" covers four chapters; the flood names Noah.
+	const noah = lifeChapters(life("noah").map((event) => spans(event.refs)), []).map((chapter) => chapter.label);
+	for (const label of ["Genesis 7", "Genesis 8"]) assert.ok(noah.includes(label), `Noah's life touches ${label}`);
+	const range = lifeChapters([[parseAtlasRef(books, "Genesis 6-9")]], []);
+	assert.deepEqual(range.map((chapter) => chapter.key), ["1.6", "1.7", "1.8", "1.9"]);
+	assert.deepEqual(lifeChapters([], []), []);
+	for (const person of people) {
+		for (const chapter of lifeChapters(life(person.id).map((event) => spans(event.refs)), spans(person.refs))) {
+			assert.match(chapter.key, /^\d{1,2}\.\d{1,3}$/, `${person.id}: ${chapter.key}`);
+		}
+	}
 });
 
 test("every region preset is framed by places on the map", async () => {

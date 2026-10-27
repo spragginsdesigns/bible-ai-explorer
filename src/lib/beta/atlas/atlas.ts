@@ -12,8 +12,11 @@ import { BETA_ATLAS_GEO, BETA_ATLAS_SAME_SITE, BETA_ATLAS_UNMAPPED, BETA_ATLAS_W
 import type {
 	AtlasEventCard,
 	AtlasJourneyView,
+	AtlasLifeEvent,
 	AtlasMapPlace,
 	AtlasPassage,
+	AtlasPersonEntry,
+	AtlasPersonLife,
 	AtlasPlaceCard,
 	AtlasTimelineEvent,
 	BetaAtlasIndex,
@@ -158,6 +161,16 @@ export async function getBetaAtlasIndex(): Promise<BetaAtlasIndex> {
 			undated: (lane.undated ?? []).map((entry) => ({ label: entry.label, refs: [...entry.refs] })),
 		})),
 		sameSite: Object.fromEntries(Object.entries(BETA_ATLAS_SAME_SITE).map(([id, entry]) => [id, entry.at])),
+		people: atlas.people.map(
+			(person): AtlasPersonEntry => ({
+				id: person.id,
+				name: person.name,
+				disambiguator: person.disambiguator ?? null,
+				alsoCalled: person.alsoCalled ?? [],
+				era: person.era,
+				events: atlas.events.filter((event) => event.people.includes(person.id)).map((event) => event.id),
+			})
+		),
 	};
 }
 
@@ -266,6 +279,52 @@ export async function getEventCard(id: string): Promise<AtlasEventCard | null> {
 			const stop = journey.stops.findIndex((entry) => entry.event === id);
 			return stop === -1 ? [] : [{ id: journey.id, title: journey.title, stop }];
 		}),
+	};
+}
+
+/* ------------------------------------------------------------------ people */
+
+/** The marker a corpus place is drawn at, or null when it is not on the map. */
+function markerOf(id: string): string | null {
+	return BETA_ATLAS_GEO[id] ? id : BETA_ATLAS_SAME_SITE[id]?.at ?? null;
+}
+
+/**
+ * A person's life in order (LC-17725): the corpus person and every corpus
+ * event that names them, in the corpus's own chronological order, each with
+ * its places and its verses from the bundled KJV. Null for an unknown id.
+ */
+export async function getPersonLife(id: string): Promise<AtlasPersonLife | null> {
+	const atlas = await getAtlas();
+	const person = atlas.people.find((entry) => entry.id === id);
+	if (!person) return null;
+	const placeName = new Map(atlas.places.map((place) => [place.id, place.name]));
+	const personName = new Map(atlas.people.map((entry) => [entry.id, entry.name]));
+	const events: AtlasLifeEvent[] = [];
+	for (const event of atlas.events) {
+		if (!event.people.includes(id)) continue;
+		events.push({
+			id: event.id,
+			title: event.title,
+			era: event.era,
+			label: event.yearLabel,
+			dated: eventYears(event).dated,
+			summary: event.summary,
+			refs: [...event.refs],
+			passages: await getPassages(event.refs.slice(0, PASSAGES_PER_CARD)),
+			places: event.places.map((place) => ({ id: place, name: placeName.get(place) ?? place, marker: markerOf(place) })),
+			people: event.people.filter((other) => other !== id && personName.has(other)).map((other) => ({ id: other, name: personName.get(other) as string })),
+		});
+	}
+	return {
+		id: person.id,
+		name: person.name,
+		disambiguator: person.disambiguator ?? null,
+		alsoCalled: person.alsoCalled ?? [],
+		description: person.description,
+		era: person.era,
+		refs: [...person.refs],
+		events,
 	};
 }
 

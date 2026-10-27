@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarRange, MapPinned, Route } from "lucide-react";
+import { ArrowLeft, CalendarRange, MapPinned, Route, UsersRound } from "lucide-react";
 import { atlasUrlQuery, nearestDated, type AtlasMode, type AtlasUrlState, type MapPoint } from "@/lib/beta/atlas/atlas-rules";
 import type { BetaAtlasIndex } from "@/lib/beta/atlas/types";
 import AtlasMap, { type AtlasFocus, type AtlasRoute } from "./AtlasMap";
 import AtlasCardView from "./AtlasCardView";
 import JourneyPanel from "./JourneyPanel";
+import PeoplePanel from "./PeoplePanel";
 import PlacesPanel from "./PlacesPanel";
 import { ATLAS_REGIONS } from "@/lib/beta/atlas/regions";
 import TimelinePanel from "./TimelinePanel";
@@ -23,14 +24,16 @@ const MODES: readonly { id: AtlasMode; label: string; Icon: typeof Route }[] = [
 	{ id: "journeys", label: "Journeys", Icon: Route },
 	{ id: "timeline", label: "Timeline", Icon: CalendarRange },
 	{ id: "places", label: "Places", Icon: MapPinned },
+	{ id: "people", label: "People", Icon: UsersRound },
 ];
 
 /**
  * SureWord Beta's Atlas & Timeline (LC-17655, docs/beta/atlas.md): one map,
- * and three ways through it. Journeys play stop by stop with the map
+ * and four ways through it. Journeys play stop by stop with the map
  * following, the timeline scrubs the centuries with the two kingdoms side by
- * side, and Places explores every site. Any place or event opens a card with
- * its passages from the bundled KJV and a way into the reader.
+ * side, Places explores every site, and People (LC-17725) plays one person's
+ * life event by event. Any place or event opens a card with its passages from
+ * the bundled KJV and a way into the reader.
  *
  * The state lives in the URL (replaceState, no navigation), so a refresh,
  * Back, or a link from the reader returns to the same study.
@@ -43,6 +46,8 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 	const [year, setYear] = useState(initial.year);
 	const [era, setEra] = useState<string | null>(initial.era);
 	const [region, setRegion] = useState<string | null>(initial.region);
+	const [person, setPerson] = useState<string | null>(initial.person);
+	const [step, setStep] = useState(initial.step);
 	const [selection, setSelection] = useState<AtlasSelection | null>(initial.selection);
 	// Bumped whenever something asks the map to fly, so it flies even to the same place again.
 	const [focusNonce, setFocusNonce] = useState(0);
@@ -50,6 +55,8 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 	const placeById = useMemo(() => new Map(index.places.map((place) => [place.id, place])), [index.places]);
 	const eventById = useMemo(() => new Map(index.events.map((event) => [event.id, event])), [index.events]);
 	const journey = index.journeys.find((entry) => entry.id === journeyId) ?? index.journeys[0];
+	const personEntry = person ? index.people.find((entry) => entry.id === person) ?? null : null;
+	const lifeLength = personEntry?.events.length ?? 0;
 	const markerFor = useCallback((id: string) => (placeById.has(id) ? id : index.sameSite[id] ?? null), [placeById, index.sameSite]);
 	const pointOf = useCallback(
 		(id: string): MapPoint[] => {
@@ -61,7 +68,7 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 
 	/* --------------------------------------------------------- the URL */
 	useEffect(() => {
-		const query = atlasUrlQuery({ mode, journey: journey.id, stop, year, era, region, selection });
+		const query = atlasUrlQuery({ mode, journey: journey.id, stop, year, era, region, person: personEntry?.id ?? null, step, selection });
 		const next = `${window.location.pathname}?${query}`;
 		if (`${window.location.pathname}${window.location.search}` === next) return;
 		/* A scrub changes the year on every pointermove and WebKit throws past ~100 replaceState calls in 30 s,
@@ -74,18 +81,20 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 			}
 		}, 250);
 		return () => window.clearTimeout(timer);
-	}, [mode, journey.id, stop, year, era, region, selection]);
+	}, [mode, journey.id, stop, year, era, region, personEntry?.id, step, selection]);
 
 	/* -------------------------------------------------------- playing */
 	useEffect(() => {
-		if (!playing || mode !== "journeys") return;
-		if (stop >= journey.stops.length - 1) {
+		if (!playing || (mode !== "journeys" && mode !== "people")) return;
+		const length = mode === "people" ? lifeLength : journey.stops.length;
+		const advance = mode === "people" ? setStep : setStop;
+		if ((mode === "people" ? step : stop) >= length - 1) {
 			setPlaying(false);
 			return;
 		}
-		const timer = window.setTimeout(() => setStop((current) => Math.min(current + 1, journey.stops.length - 1)), STOP_MS);
+		const timer = window.setTimeout(() => advance((current) => Math.min(current + 1, length - 1)), STOP_MS);
 		return () => window.clearTimeout(timer);
-	}, [playing, stop, mode, journey.stops.length]);
+	}, [playing, stop, step, mode, journey.stops.length, lifeLength]);
 
 	const open = useCallback((next: AtlasSelection) => {
 		setPlaying(false);
@@ -102,17 +111,29 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 		setFocusNonce((n) => n + 1);
 	}, []);
 
+	const choosePerson = useCallback((id: string | null) => {
+		setMode("people");
+		setPerson(id);
+		setStep(0);
+		setSelection(null);
+		setPlaying(false);
+		setFocusNonce((n) => n + 1);
+	}, []);
+
 	/* ------------------------------------------------- what the map shows */
+	const lifeMarkers = useCallback((eventId: string | undefined) => (eventId ? eventById.get(eventId)?.places ?? [] : []), [eventById]);
 	const nearby = useMemo(() => nearestDated(index.events.filter((event) => event.dated), year, 4), [index.events, year]);
 
 	const emphasis = useMemo(() => {
 		if (mode === "journeys") return new Set(journey.stops.map((entry) => entry.place));
 		if (mode === "timeline") return new Set(nearby.flatMap((event) => event.places));
+		if (mode === "people" && personEntry) return new Set(personEntry.events.flatMap((id) => lifeMarkers(id)));
 		return new Set<string>();
-	}, [mode, journey, nearby]);
+	}, [mode, journey, nearby, personEntry, lifeMarkers]);
 
 	const selectedMarker = selection?.kind === "place" ? markerFor(selection.id) : null;
-	const current = selectedMarker ?? (mode === "journeys" ? journey.stops[stop].place : null);
+	const current =
+		selectedMarker ?? (mode === "journeys" ? journey.stops[stop].place : mode === "people" && personEntry ? lifeMarkers(personEntry.events[step])[0] ?? null : null);
 
 	const route: AtlasRoute | null = useMemo(() => {
 		if (mode !== "journeys") return null;
@@ -140,12 +161,19 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 			const preset = ATLAS_REGIONS.find((entry) => entry.id === (region ?? "world")) ?? ATLAS_REGIONS[0];
 			return { key: `region:${preset.id}:${focusNonce}`, points: preset.places.flatMap((id) => pointOf(id)), maxScale: preset.maxScale ?? 0.2 };
 		}
+		if (mode === "people" && personEntry) {
+			const here = lifeMarkers(personEntry.events[step]).flatMap((id) => pointOf(id));
+			// The life opens on every place in it; once moving, the map follows each event that names a place.
+			return (step === 0 && !playing) || here.length === 0
+				? { key: `life:${personEntry.id}:${focusNonce}`, points: personEntry.events.flatMap((id) => lifeMarkers(id).flatMap((marker) => pointOf(marker))), maxScale: 0.14 }
+				: { key: `event:${personEntry.id}:${step}:${focusNonce}`, points: here, maxScale: 0.18 };
+		}
 		if (mode === "timeline" && era) {
 			const points = index.events.filter((event) => event.era === era).flatMap((event) => event.places.flatMap((id) => pointOf(id)));
 			return { key: `era:${era}:${focusNonce}`, points };
 		}
 		return null;
-	}, [selection, mode, journey, stop, playing, region, era, focusNonce, pointOf, eventById, index.events]);
+	}, [selection, mode, journey, stop, playing, region, era, personEntry, step, lifeMarkers, focusNonce, pointOf, eventById, index.events]);
 
 	const onMapSelect = (id: string) => open({ kind: "place", id });
 
@@ -157,7 +185,7 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 						<ArrowLeft size={18} aria-hidden /> Bible
 					</Link>
 					<h1 className={`${atlasHeading} mt-1 text-[clamp(2.2rem,8vw,2.8rem)]`}>Atlas &amp; Timeline</h1>
-					<div role="group" aria-label="View" className="mt-3 grid grid-cols-3 gap-1 rounded-full border border-black/10 bg-white/40 p-1 dark:border-white/10 dark:bg-white/[.03]">
+					<div role="group" aria-label="View" className="mt-3 grid grid-cols-4 gap-1 rounded-full border border-black/10 bg-white/40 p-1 dark:border-white/10 dark:bg-white/[.03]">
 						{MODES.map(({ id, label, Icon }) => (
 							<button
 								key={id}
@@ -168,9 +196,9 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 									setSelection(null);
 									setPlaying(false);
 								}}
-								className={`flex min-h-11 items-center justify-center gap-1.5 rounded-full text-sm font-bold transition-colors ${mode === id ? "bg-[#24281f] text-[#f6f2e9] dark:bg-[#e5b664] dark:text-[#1c2118]" : "text-neutral-700 hover:bg-black/5 dark:text-[#d9d1c3] dark:hover:bg-white/5"}`}
+								className={`flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-full text-sm font-bold transition-colors ${mode === id ? "bg-[#24281f] text-[#f6f2e9] dark:bg-[#e5b664] dark:text-[#1c2118]" : "text-neutral-700 hover:bg-black/5 dark:text-[#d9d1c3] dark:hover:bg-white/5"}`}
 							>
-								<Icon size={16} aria-hidden /> {label}
+								<Icon size={16} aria-hidden className="max-[400px]:hidden" /> {label}
 							</button>
 						))}
 					</div>
@@ -184,7 +212,15 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 						route={route}
 						focus={focus}
 						onSelect={onMapSelect}
-						label={mode === "journeys" ? `Map of ${journey.title}` : mode === "timeline" ? "Map of the events nearest the year" : "Map of the places of the Bible"}
+						label={
+							mode === "journeys"
+								? `Map of ${journey.title}`
+								: mode === "timeline"
+									? "Map of the events nearest the year"
+									: mode === "people" && personEntry
+										? `Map of the places in the life of ${personEntry.name}`
+										: "Map of the places of the Bible"
+						}
 					/>
 				</div>
 
@@ -196,6 +232,7 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 							onClose={() => setSelection(null)}
 							onOpen={open}
 							onPlayJourney={playJourney}
+							onPerson={choosePerson}
 						/>
 					) : null}
 
@@ -230,6 +267,20 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 							}}
 							onOpen={open}
 							onJourney={(id) => playJourney(id, 0)}
+						/>
+					) : mode === "people" ? (
+						<PeoplePanel
+							people={index.people}
+							person={personEntry?.id ?? null}
+							step={step}
+							playing={playing}
+							onPerson={choosePerson}
+							onStep={(next) => {
+								setSelection(null);
+								setStep(next);
+							}}
+							onPlaying={setPlaying}
+							onOpen={open}
 						/>
 					) : (
 						<PlacesPanel

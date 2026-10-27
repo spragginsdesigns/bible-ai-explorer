@@ -6,7 +6,7 @@ founders only. **Status:** live.
 An immersive map and chronology of Scripture, inspired by Google Earth and
 historical timelines, built on SureWord's existing atlas corpus (the people,
 places and events behind `/bible/timeline`) and the bundled KJV. One map and
-three ways through it:
+four ways through it:
 
 - **Journeys** play stop by stop while the map follows: Paul's first, second
   and third journeys, the voyage to Rome, the Exodus, Abraham's travels and
@@ -26,6 +26,19 @@ three ways through it:
   Bible's world, the Holy Land, Jerusalem, Galilee, Paul's world, Egypt &
   Sinai, Mesopotamia) and a search by any name Scripture uses (Sichem finds
   Shechem, Olivet the mount of Olives).
+- **People** (LC-17725, Jay's "select David, and explore his life
+  chronologically") finds any of the corpus's 186 people by any name
+  Scripture uses (the corpus's own ranking, so Elias finds Elijah and Cephas
+  Peter), then plays that life event by event like a journey: Previous,
+  Play/Pause (8 seconds an event) and Next, and every event in a list. The
+  life is every corpus event that names the person, in the corpus's own
+  chronological order (David: 14, from his anointing at Bethlehem to Solomon
+  made king). Each event shows its places on the map (the map opens on every
+  place in the life, then follows each event that names one), its verses from
+  the bundled KJV under the corpus summary, the others it names (each opens
+  their own life), and "Ask about this". The person's card shows the corpus
+  description, their references and **your studies on these passages** (below).
+  An event card's "Who" opens People on that person too.
 
 Any place or event opens a **card**: what the corpus says, how sure the site
 is, its passages from the bundled KJV with links into the reader, what
@@ -41,8 +54,28 @@ API for anyone off the list.
 
 The page keeps its state in the URL (`?mode=journeys&journey=paul-2&stop=9`,
 `?mode=timeline&year=-760&era=divided-kingdom`, `?place=ephesus`,
-`?event=the-flood`), so refresh, Back and shared links return to the same
-study; anything unknown falls back to the defaults.
+`?event=the-flood`, `?mode=people&person=david&step=2`), so refresh, Back and
+shared links return to the same study; anything unknown falls back to the
+defaults (an unknown person opens the People search, a step past the life its
+first event).
+
+### Your studies on a person's passages
+
+The person card lists the founder's own studies that touch the life, through
+the Knowledge Vault's passage search (`searchVault` with `passage`, the same
+read as `/beta/library/vault?passage=1 Samuel 17`, `docs/beta/vault.md`).
+`src/lib/beta/atlas/studies.ts` gathers every chapter the life cites (each
+event's references, then the person's own; `lifeChapters` in
+`atlas-rules.ts`) and runs one passage search per chapter, four at a time,
+words only (no meaning search, so no embedding or AI call). A chapter is the
+unit because an event's references are the verses that tell it, and a note on
+1 Samuel 17:4-11 is a study of David and Goliath even though the event cites
+17:45 and 17:50. Results are merged, newest first, up to 24 (and the card says
+"the newest" when a chapter had more than its 12), each in the Vault's own
+card (`VaultEntryCard`) with the life events it touches, each a tap to that
+event. Kinds: notes, highlights, chats, verses being learned and beta studies;
+reading days, memories and the church's sermon studies stay in the Vault.
+Private beta items keep their words out exactly as the Vault keeps them.
 
 ## Data: extending the corpus, not forking it
 
@@ -127,24 +160,28 @@ site is (solid, ringed, dashed). No blur and no animation on any marker.
 | `GET /api/beta/atlas/card?place=<id>` / `?event=<id>` | One place or event for its card, with up to four passages of KJV text |
 | `GET /api/beta/atlas/journey?id=<journey>` | Every stop's verses for one journey, fetched once when it is chosen |
 | `GET /api/beta/atlas/verse?book=&chapter=&verse=&end=` | The atlas places those KJV verses name, for the reader |
+| `GET /api/beta/atlas/person?id=<person>` | One person's life in order: every event with its places and up to four passages of KJV text, fetched once when the person is chosen |
+| `GET /api/beta/atlas/studies?person=<person>` | The signed-in founder's own studies on that life's chapters, through the Knowledge Vault (the one atlas route that reads the database, only `gate.userId`'s rows) |
 
 Each starts with `requireBetaApi()`, so anyone off `BETA_USER_IDS` gets the
 ordinary 404, and answers `private, no-store`. Bad input is a 400, an unknown
 id a 404. The page builds its index (markers, journeys, events, eras, lanes)
 on the server after `requireBetaPage()`.
 
-No database, no AI calls, no paid services, nothing scheduled. "Ask about this"
-only prefills the chat.
+No AI calls, no paid services, nothing scheduled, nothing written. The only
+database read is the studies route, through the Vault's own owner-scoped
+search. "Ask about this" only prefills the chat.
 
 ## Files
 
 - `src/app/beta/bible/atlas/page.tsx`
 - `src/components/beta/atlas/`: `AtlasExplorer`, `AtlasMap`, `JourneyPanel`,
-  `TimelinePanel`, `PlacesPanel`, `AtlasCardView`, `VerseAtlasLinks`,
-  `atlasUi`, `useAtlasData`
-- `src/lib/beta/atlas/`: `atlas.ts` (server), `atlas-rules.ts` (pure rules),
-  `places.ts`, `journeys.ts`, `lanes.ts`, `regions.ts`, `types.ts`, `basemap.ts`
-- `src/app/api/beta/atlas/{card,journey,verse}/route.ts`
+  `TimelinePanel`, `PlacesPanel`, `PeoplePanel`, `AtlasCardView`,
+  `VerseAtlasLinks`, `atlasUi`, `useAtlasData`
+- `src/lib/beta/atlas/`: `atlas.ts` (server), `studies.ts` (server, the
+  Vault read), `atlas-rules.ts` (pure rules), `places.ts`, `journeys.ts`,
+  `lanes.ts`, `regions.ts`, `types.ts`, `basemap.ts`
+- `src/app/api/beta/atlas/{card,journey,verse,person,studies}/route.ts`
 - `scripts/beta-atlas-basemap.mjs`, `tests/beta-atlas.test.mjs`
 - The reader's hook: one row in `ChapterReader.tsx`'s verse-sheet peek.
 

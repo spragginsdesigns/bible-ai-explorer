@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Route, X } from "lucide-react";
+import { MapPin, Route, UserRound, X } from "lucide-react";
 import type { AtlasCard } from "@/lib/beta/atlas/types";
 import { useAtlasCard, type AtlasSelection } from "./useAtlasData";
 import { AskLink, CertaintyChip, CERTAINTY_HINT, EVENT_DATE_NOTE, Passages, ReaderLink, RefChips, atlasCard, atlasChip, atlasEyebrow, atlasHeading } from "./atlasUi";
@@ -10,6 +10,8 @@ interface AtlasCardViewProps {
 	onClose: () => void;
 	onOpen: (selection: AtlasSelection) => void;
 	onPlayJourney: (journeyId: string, stop: number) => void;
+	/** Open a person's life in People (LC-17725). */
+	onPerson: (personId: string) => void;
 }
 
 /**
@@ -17,7 +19,7 @@ interface AtlasCardViewProps {
  * says, how sure the site is, its passages from the bundled KJV, and the ways
  * on (the reader, chat, its events, the journeys through it).
  */
-export default function AtlasCardView({ selection, onClose, onOpen, onPlayJourney }: AtlasCardViewProps) {
+export default function AtlasCardView({ selection, onClose, onOpen, onPlayJourney, onPerson }: AtlasCardViewProps) {
 	const card = useAtlasCard(selection);
 	return (
 		<section aria-label={selection.kind === "place" ? "Place" : "Event"} aria-live="polite" className={`${atlasCard} relative p-5`}>
@@ -31,13 +33,23 @@ export default function AtlasCardView({ selection, onClose, onOpen, onPlayJourne
 					{card.message}
 				</p>
 			) : (
-				<CardBody card={card.data} onOpen={onOpen} onPlayJourney={onPlayJourney} />
+				<CardBody card={card.data} onOpen={onOpen} onPlayJourney={onPlayJourney} onPerson={onPerson} />
 			)}
 		</section>
 	);
 }
 
-function CardBody({ card, onOpen, onPlayJourney }: { card: AtlasCard; onOpen: AtlasCardViewProps["onOpen"]; onPlayJourney: AtlasCardViewProps["onPlayJourney"] }) {
+function CardBody({
+	card,
+	onOpen,
+	onPlayJourney,
+	onPerson,
+}: {
+	card: AtlasCard;
+	onOpen: AtlasCardViewProps["onOpen"];
+	onPlayJourney: AtlasCardViewProps["onPlayJourney"];
+	onPerson: AtlasCardViewProps["onPerson"];
+}) {
 	const firstRef = card.refs[0];
 	const moreRefs = card.refs.slice(card.passages.length);
 	if (card.kind === "place") {
@@ -139,7 +151,20 @@ function CardBody({ card, onOpen, onPlayJourney }: { card: AtlasCard; onOpen: At
 					</ul>
 				</>
 			) : null}
-			{card.people.length ? <p className="mt-4 text-sm text-neutral-700 dark:text-[#d9d1c3]">Who: {card.people.map((person) => person.name).join(", ")}</p> : null}
+			{card.people.length ? (
+				<>
+					<h3 className={`${atlasEyebrow} mt-6`}>Who</h3>
+					<ul className="mt-3 flex flex-wrap gap-2">
+						{card.people.map((person) => (
+							<li key={person.id}>
+								<button type="button" onClick={() => onPerson(person.id)} className={atlasChip} aria-label={`${person.name}'s life`}>
+									<UserRound size={15} aria-hidden /> {person.name}
+								</button>
+							</li>
+						))}
+					</ul>
+				</>
+			) : null}
 
 			{card.journeys.length ? (
 				<ul className="mt-4 flex flex-wrap gap-2">

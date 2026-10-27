@@ -370,9 +370,48 @@ export function placesNamedIn(text: string, places: readonly NamedPlace[]): stri
 	return found;
 }
 
+/* ------------------------------------------------------------------ people */
+
+/** A reference reduced to the chapters it covers (atlas-core's `AtlasRef` satisfies it). */
+export interface ChapterSpan {
+	order: number;
+	book: string;
+	chapter: number;
+	endChapter: number;
+}
+
+export interface LifeChapter {
+	/** The Vault's chapter key, "9.17". */
+	key: string;
+	/** "1 Samuel 17". */
+	label: string;
+	/** The life events (by index) with a reference in this chapter. */
+	events: number[];
+}
+
+/**
+ * Every chapter a person's life touches (LC-17725): each event's references
+ * in life order, then the person's own, each chapter once. The Vault's
+ * passage search runs once per chapter, so a study on any of them is found.
+ */
+export function lifeChapters(events: readonly (readonly ChapterSpan[])[], own: readonly ChapterSpan[]): LifeChapter[] {
+	const chapters = new Map<string, LifeChapter>();
+	const add = (ref: ChapterSpan, event: number | null) => {
+		for (let chapter = ref.chapter; chapter <= ref.endChapter; chapter++) {
+			const key = `${ref.order}.${chapter}`;
+			const entry = chapters.get(key) ?? { key, label: `${ref.book} ${chapter}`, events: [] };
+			if (event !== null && !entry.events.includes(event)) entry.events.push(event);
+			chapters.set(key, entry);
+		}
+	};
+	events.forEach((refs, index) => refs.forEach((ref) => add(ref, index)));
+	own.forEach((ref) => add(ref, null));
+	return [...chapters.values()];
+}
+
 /* ---------------------------------------------------------------- the URL */
 
-export type AtlasMode = "journeys" | "timeline" | "places";
+export type AtlasMode = "journeys" | "timeline" | "places" | "people";
 
 /** "Divided Kingdom" -> "divided-kingdom", for the `era` query parameter. */
 export function eraSlug(era: string): string {
@@ -387,6 +426,10 @@ export interface AtlasUrlState {
 	year: number;
 	era: string | null;
 	region: string | null;
+	/** People mode (LC-17725): the person whose life is open, or null for the search. */
+	person: string | null;
+	/** Zero-based event in that life; the URL carries it one-based. */
+	step: number;
 	selection: { kind: "place" | "event"; id: string } | null;
 }
 
@@ -396,6 +439,8 @@ export interface AtlasUrlKnown {
 	regions: readonly string[];
 	places: ReadonlySet<string>;
 	events: ReadonlyMap<string, number | null>;
+	/** Each person's id and how many events their life has. */
+	people: ReadonlyMap<string, number>;
 	defaultJourney: string;
 	defaultYear: number;
 }
@@ -433,16 +478,23 @@ export function parseAtlasUrl(params: Readonly<Record<string, string | string[] 
 	const yearParam = Number.parseInt(one("year") ?? "", 10);
 	const eventYear = selection?.kind === "event" ? known.events.get(selection.id) ?? null : null;
 	const year = Number.isInteger(yearParam) && yearParam !== 0 && yearParam >= YEAR_MIN && yearParam <= YEAR_MAX ? yearParam : eventYear ?? known.defaultYear;
+	const personParam = one("person");
+	const lifeLength = personParam ? known.people.get(personParam) : undefined;
+	const person = lifeLength === undefined ? null : personParam;
+	const stepParam = Number.parseInt(one("step") ?? "", 10);
+	const step = lifeLength !== undefined && Number.isInteger(stepParam) && stepParam >= 1 && stepParam <= lifeLength ? stepParam - 1 : 0;
 	const modeParam = one("mode");
 	const mode: AtlasMode =
-		modeParam === "journeys" || modeParam === "timeline" || modeParam === "places"
+		modeParam === "journeys" || modeParam === "timeline" || modeParam === "places" || modeParam === "people"
 			? modeParam
-			: selection?.kind === "event"
-				? "timeline"
-				: selection?.kind === "place"
-					? "places"
-					: "journeys";
-	return { mode, journey: journey.id, stop, year, era, region, selection };
+			: person
+				? "people"
+				: selection?.kind === "event"
+					? "timeline"
+					: selection?.kind === "place"
+						? "places"
+						: "journeys";
+	return { mode, journey: journey.id, stop, year, era, region, person: mode === "people" ? person : null, step: mode === "people" && person ? step : 0, selection };
 }
 
 /** The query string for a state, carrying only what that mode uses. */
@@ -458,6 +510,10 @@ export function atlasUrlQuery(state: AtlasUrlState): string {
 		if (state.era) params.set("era", eraSlug(state.era));
 	}
 	if (state.mode === "places" && state.region) params.set("region", state.region);
+	if (state.mode === "people" && state.person) {
+		params.set("person", state.person);
+		if (state.step > 0) params.set("step", String(state.step + 1));
+	}
 	if (state.selection) params.set(state.selection.kind, state.selection.id);
 	return params.toString();
 }

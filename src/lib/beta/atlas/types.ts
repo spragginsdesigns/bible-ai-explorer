@@ -4,6 +4,7 @@
  */
 import type { BetaAtlasCertainty, BetaAtlasFeature } from "./places";
 import type { BetaLaneSource } from "./lanes";
+import type { VaultEntry } from "@/lib/beta/vault/vault-rules";
 
 export interface AtlasMapPlace {
 	id: string;
@@ -87,12 +88,25 @@ export interface AtlasLaneView {
 	undated: { label: string; refs: string[] }[];
 }
 
+/** A person in the People view's search (LC-17725): enough to find them and play their life. */
+export interface AtlasPersonEntry {
+	id: string;
+	name: string;
+	disambiguator: string | null;
+	/** The other names Scripture uses, for search. */
+	alsoCalled: string[];
+	era: string;
+	/** Their corpus events, in the corpus's chronological order. */
+	events: string[];
+}
+
 export interface BetaAtlasIndex {
 	places: AtlasMapPlace[];
 	journeys: AtlasJourneyView[];
 	events: AtlasTimelineEvent[];
 	eras: AtlasEraView[];
 	lanes: AtlasLaneView[];
+	people: AtlasPersonEntry[];
 	/** Corpus places drawn at another place's marker: id -> marker id. */
 	sameSite: Record<string, string>;
 }
@@ -141,3 +155,47 @@ export interface AtlasEventCard {
 }
 
 export type AtlasCard = AtlasPlaceCard | AtlasEventCard;
+
+/** One event in a person's life (LC-17725), with its verses from the bundled KJV. */
+export interface AtlasLifeEvent {
+	id: string;
+	title: string;
+	era: string;
+	label: string;
+	dated: boolean;
+	summary: string;
+	refs: string[];
+	passages: AtlasPassage[];
+	places: { id: string; name: string; marker: string | null }[];
+	/** The others the event names. */
+	people: { id: string; name: string }[];
+}
+
+/** A person's life in order, for the People view: GET /api/beta/atlas/person. */
+export interface AtlasPersonLife {
+	id: string;
+	name: string;
+	disambiguator: string | null;
+	alsoCalled: string[];
+	description: string;
+	era: string;
+	refs: string[];
+	events: AtlasLifeEvent[];
+}
+
+/** One of the founder's own studies on a person's passages, as the Knowledge Vault found it. */
+export interface AtlasPersonStudy {
+	entry: VaultEntry;
+	/** The life's events whose chapters it touches, in life order. */
+	events: { id: string; title: string }[];
+}
+
+/** GET /api/beta/atlas/studies?person=<id>. */
+export interface AtlasPersonStudies {
+	person: string;
+	/** The chapters searched, "1 Samuel 17". */
+	chapters: string[];
+	studies: AtlasPersonStudy[];
+	/** True when more studies touched the life than are listed. */
+	more: boolean;
+}
