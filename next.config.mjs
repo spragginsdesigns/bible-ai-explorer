@@ -16,10 +16,16 @@ const nextConfig = {
 		// extract.ts). Next traces a route's chunks but not its workers' chunks.
 		"/api/beta/projects/*/upload": [`./${distDir}/server/chunks/pdf-worker.js`],
 	},
-	// A server worker's URL is otherwise built on publicPath ("/_next/"), which
-	// is no path on disk; "./" finds the worker beside the server's chunks.
-	webpack(config, { isServer, nextRuntime }) {
+	webpack(config, { dev, isServer, nextRuntime }) {
+		// A server worker's URL is otherwise built on publicPath ("/_next/"), which
+		// is no path on disk; "./" finds the worker beside the server's chunks.
 		if (isServer && nextRuntime === "nodejs") config.output.workerPublicPath = "./";
+		// Vercel restores .next/cache before every build, and loading and
+		// re-saving webpack's persistent cache is what still pushed the server
+		// compile past 8 GB with the build worker on (LC-17693). Production
+		// compiles keep the cache in memory instead, as Next's memory guide
+		// suggests; dev keeps the persistent cache.
+		if (config.cache && !dev) config.cache = Object.freeze({ type: "memory" });
 		return config;
 	},
 	// Analytics ingestion, served from our own origin so an ad blocker cannot
@@ -56,6 +62,15 @@ const nextConfig = {
 		];
 	},
 	skipTrailingSlashRedirect: true,
+	// Vercel builds on 4 cores and 8 GB, and the Groups tree was OOM-killed
+	// there (LC-17693). Any webpack function (the one above, and next-pwa's)
+	// switches Next's build worker off, so server, edge and client all
+	// compiled in one process. The worker gives each compile its own
+	// process that exits when it finishes.
+	experimental: {
+		webpackBuildWorker: true,
+		webpackMemoryOptimizations: true,
+	},
 };
 
 // withBotId adds the rewrites Vercel BotID's client challenge talks through;
