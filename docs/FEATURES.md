@@ -29,11 +29,15 @@ map, account and consent behavior, artwork provenance and verification results.
 ## SureWord Beta (founders only, web)
 
 A private preview at `/beta` where the study platform from LC-17631 is being
-built: Home, Bible, Study, Library and Learn, with fourteen modules (Study
-Projects, Scripture Check, the Knowledge Vault, Learning Paths and the rest)
+built: Home, Bible, Study, Library, Learn and Together, with fourteen modules
+(Study Projects, Scripture Check, the Knowledge Vault, Learning Paths and the
+rest) and the six SureWord products from LC-17639 (Family, Kids, Groups,
+Churches, Pastor and Academy; [docs/beta/expansion.md](beta/expansion.md))
 added one at a time. Only `BETA_USER_IDS` (Austin and Jay) can open it;
-everyone else gets the ordinary 404 and never sees the way in, a "SureWord
-Beta" row at the bottom of the settings menu. Web only for now. Home greets
+everyone else gets the ordinary 404 and never sees the way in, a
+**SureWord | Beta** switch under "Version" at the bottom of the settings menu.
+The same switch in the beta's rail and phone header leads back. Web only for
+now. Home greets
 the founder, hands a question to chat (`/?prompt=`), continues their last
 chapter (`GET /api/reading-events`), shows today's word
 (`GET /api/verse-of-day/preview`) and lists every module with its status.

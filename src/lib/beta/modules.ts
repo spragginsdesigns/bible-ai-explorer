@@ -1,6 +1,8 @@
 /**
- * SureWord Beta's map (LC-17631, docs/beta/README.md): the five destinations
- * of the founders-only beta and every module being built into them.
+ * SureWord Beta's map (LC-17631, docs/beta/README.md): the six destinations
+ * of the founders-only beta and every module being built into them. Together
+ * and the six SureWord products (Family, Kids, Groups, Churches, Pastor,
+ * Academy) came with LC-17639 (docs/beta/expansion.md).
  *
  * This file is the beta's single source of truth. The shell's navigation, the
  * destination pages, Home's "In the workshop" list and the placeholder page a
@@ -13,7 +15,7 @@
  * Node's type stripping, which cannot resolve `@/` paths.
  */
 
-export type BetaDestinationId = "bible" | "study" | "library" | "learn";
+export type BetaDestinationId = "bible" | "study" | "library" | "learn" | "together";
 export type BetaSectionId = "home" | BetaDestinationId;
 export type BetaModuleStatus = "planned" | "building" | "live";
 export type BetaPriority = "P0" | "P1" | "P2" | "P3";
@@ -34,6 +36,7 @@ export const BETA_DESTINATIONS: readonly BetaDestination[] = [
 	{ id: "study", href: "/beta/study", label: "Study", blurb: "AI and study projects" },
 	{ id: "library", href: "/beta/library", label: "Library", blurb: "Notes and connections" },
 	{ id: "learn", href: "/beta/learn", label: "Learn", blurb: "Courses and review" },
+	{ id: "together", href: "/beta/together", label: "Together", blurb: "Family, groups and church" },
 ];
 
 export interface BetaModule {
@@ -309,6 +312,120 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		],
 		builtOn: ["Your walk and reading log", "Reading plans", "Prayer requests", "Learn a verse"],
 	},
+	// The six SureWord products from LC-17639 (docs/beta/expansion.md): one app
+	// with many experiences, each built by its own run on the modules above.
+	{
+		slug: "family",
+		destination: "together",
+		title: "SureWord Family",
+		tagline: "Grow in the Word together as a household",
+		inspiredBy: "Family discipleship and shared family plans",
+		priority: "P1",
+		status: "planned",
+		summary:
+			"One space for a household: a family devotion for the day explained for every age at the table, a family memory verse, shared prayer requests, and guidance for parents from Scripture. Each person's own chats, notes and prayer journal stay private unless they choose to share.",
+		capabilities: [
+			"Start a family, invite the other parent, and add your children as profiles you manage",
+			"Read a family devotion together, explained for little ones, children, teens and adults",
+			"Learn a family memory verse each week and see who has it by heart",
+			"Keep a family prayer list and mark prayers answered together",
+			"Ask for parenting guidance rooted in Scripture",
+		],
+		builtOn: ["Study Rooms (members and invites)", "SureWord Kids (child profiles)", "Learn a verse", "Prayer requests", "Today's word"],
+	},
+	{
+		slug: "kids",
+		destination: "together",
+		title: "SureWord Kids",
+		tagline: "Bible adventures for children, guided by a parent",
+		inspiredBy: "Children's Bible apps with parental controls",
+		priority: "P2",
+		status: "planned",
+		summary:
+			"A child-safe space a parent opens on their own device: Bible adventures read aloud from the KJV, questions and quizzes pitched to the child's age, and a verse to learn, with a star for each one finished. Children never get an account or chat freely with the assistant, and a child's profile holds only a first name and an age band.",
+		capabilities: [
+			"Add a child profile, just a first name and an age band, on a parent's account",
+			"Go on Bible adventures: the story read aloud from the KJV, with a simple retelling beside it",
+			"Answer questions and quizzes made for the child's age, with the answer always in the verse",
+			"Learn a short verse with a memory game made for children",
+			"Leave Kids only after a parent's check",
+		],
+		builtOn: ["The audio Bible", "Quiz me", "Learn a verse"],
+	},
+	{
+		slug: "groups",
+		destination: "together",
+		title: "SureWord Groups",
+		tagline: "Study, pray and grow as a small group",
+		inspiredBy: "Small-group study guides and group chats",
+		priority: "P1",
+		status: "planned",
+		summary:
+			"A home for a small group or Bible class: a shared reading plan with each week's passage, discussion questions, guided sessions a leader can run, and a prayer circle. One member can bring a whole group into SureWord, and everyone keeps a private study of their own.",
+		capabilities: [
+			"Start a group, invite members with a link, and name its leaders",
+			"Follow a group reading plan and see where the group is",
+			"Discuss each week's passage around questions SureWord helps the leader prepare",
+			"Run a guided session step by step: read, observe, discuss, pray",
+			"Share prayer requests in a prayer circle and mark them answered",
+		],
+		builtOn: ["Study Rooms", "Reading plans", "Prayer requests"],
+	},
+	{
+		slug: "churches",
+		destination: "together",
+		title: "SureWord Churches",
+		tagline: "A discipleship home for a church and its groups",
+		inspiredBy: "Church discipleship platforms, not church management",
+		priority: "P3",
+		status: "planned",
+		summary:
+			"A church space where pastors assign study journeys, share sermon follow-up and resources, and support the church's small groups. Members keep their private prayers and conversations their own. Scheduling, attendance and giving stay with the church's own management software.",
+		capabilities: [
+			"Set up a church space from My church, with pastors and group leaders",
+			"Assign a study journey to the whole church or one group, and see who has started it",
+			"Share each Sunday's sermon follow-up: the passages, questions and a study to keep",
+			"Gather the church's small groups in one place",
+		],
+		builtOn: ["SureWord Groups", "My church", "Sermon studies", "SureWord Pastor"],
+	},
+	{
+		slug: "pastor",
+		destination: "study",
+		title: "SureWord Pastor",
+		tagline: "Prepare sermons and teaching from the text out",
+		inspiredBy: "Sermon-preparation software such as Logos",
+		priority: "P2",
+		status: "planned",
+		summary:
+			"A preparation workspace for pastors and teachers: research a passage in its context and original languages, build an outline, plan a teaching series, gather references, and turn the finished sermon into study material for the congregation. Every quotation comes from the KJV text, and interpretation stays labelled as interpretation.",
+		capabilities: [
+			"Research a passage: its context, cross-references, Hebrew and Greek words, and other passages on the theme",
+			"Build a sermon outline point by point, each point tied to its verses",
+			"Plan a teaching series across weeks and books",
+			"Turn a finished sermon into a study guide and discussion questions to share",
+		],
+		builtOn: ["Study Projects", "Words: Hebrew & Greek", "Cross-references", "Scripture Check"],
+	},
+	{
+		slug: "academy",
+		destination: "learn",
+		title: "SureWord Academy",
+		tagline: "Courses that teach the Bible and its doctrine",
+		inspiredBy: "Online course platforms and Duolingo",
+		priority: "P2",
+		status: "planned",
+		summary:
+			"Courses with a beginning and an end: surveys of the Old and New Testaments, the doctrines of the faith, and how to study the Bible, taught in lessons that combine reading, the Socratic tutor, quizzes and Scripture memory, with milestones along the way. A course is a longer, deeper learning path, not a second learning engine.",
+		capabilities: [
+			"Enroll in a course and follow its lessons week by week",
+			"Read each lesson, then work through it with the tutor and a short quiz",
+			"Memorize each course's key verses along the way",
+			"Reach milestones and keep a record of what you have completed",
+			"Take a course together with your group or church class",
+		],
+		builtOn: ["Learning Paths", "Socratic Tutor", "Scripture Memory", "Quiz me"],
+	},
 ];
 
 /** Features that already ship in SureWord, listed on each destination. */
@@ -335,6 +452,10 @@ export const BETA_CLASSIC_LINKS: Readonly<Record<BetaDestinationId, readonly { h
 		{ href: "/bible/quiz", label: "Quiz me" },
 		{ href: "/bible/plan", label: "Reading plan" },
 	],
+	together: [
+		{ href: "/settings#church", label: "My church" },
+		{ href: "/sermons", label: "Sermon studies from your church" },
+	],
 };
 
 export function betaModuleHref(entry: Pick<BetaModule, "destination" | "slug">): string {
@@ -342,7 +463,7 @@ export function betaModuleHref(entry: Pick<BetaModule, "destination" | "slug">):
 }
 
 export function isBetaDestinationId(value: string): value is BetaDestinationId {
-	return value === "bible" || value === "study" || value === "library" || value === "learn";
+	return value === "bible" || value === "study" || value === "library" || value === "learn" || value === "together";
 }
 
 export function betaModulesFor(destination: BetaDestinationId): BetaModule[] {

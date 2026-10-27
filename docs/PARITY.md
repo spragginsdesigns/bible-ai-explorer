@@ -18,8 +18,9 @@ founders-only preview where the study platform is built module by module
 (`docs/beta/README.md`). It is web only by Jay's direction ("just for webview
 is fine for now"), so it is a deliberate web superset: Android, macOS and iOS
 have no beta and need none until the founders say so. Nothing outside `/beta`
-changes for anyone but the founders, who also see a "SureWord Beta" row in the
-web settings menu.
+changes for anyone but the founders, who also see a SureWord | Beta switch in
+the web settings menu (LC-17639, which also added the Together destination and
+the six SureWord products, `docs/beta/expansion.md`; still web only).
 
 **2026-10-26 Spanish and German (Android and web released, Apple in progress):**
 answers in Spanish (quoting the Reina-Valera 1909) or German (quoting the

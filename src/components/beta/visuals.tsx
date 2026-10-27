@@ -1,11 +1,15 @@
 import {
 	Archive,
 	AudioLines,
+	Blocks,
 	BookOpen,
 	Brain,
+	Church,
 	FolderOpen,
 	GraduationCap,
+	HandHeart,
 	Headphones,
+	HeartHandshake,
 	House,
 	LibraryBig,
 	MapPinned,
@@ -13,23 +17,27 @@ import {
 	Mic,
 	Network,
 	Route,
+	School,
+	ScrollText,
 	ShieldCheck,
 	Sparkles,
 	Sprout,
 	Users,
+	UsersRound,
 	Workflow,
 	type LucideIcon,
 } from "lucide-react";
 import type { BetaDestinationId, BetaModuleStatus, BetaSectionId } from "@/lib/beta/modules";
 import { BETA_STATUS_LABEL } from "@/lib/beta/modules";
 
-/** Icons for the beta's five tabs. */
+/** Icons for the beta's six tabs. */
 export const SECTION_ICONS: Record<BetaSectionId, LucideIcon> = {
 	home: House,
 	bible: BookOpen,
 	study: Sparkles,
 	library: LibraryBig,
 	learn: GraduationCap,
+	together: HandHeart,
 };
 
 /** One icon per module slug; a module without one falls back to its destination's. */
@@ -48,6 +56,12 @@ const MODULE_ICONS: Record<string, LucideIcon> = {
 	paths: Route,
 	memory: Brain,
 	growth: Sprout,
+	family: HeartHandshake,
+	kids: Blocks,
+	groups: UsersRound,
+	churches: Church,
+	pastor: ScrollText,
+	academy: School,
 };
 
 export function moduleIcon(slug: string, destination: BetaDestinationId): LucideIcon {
@@ -63,6 +77,7 @@ export const DESTINATION_TILE: Record<BetaDestinationId, string> = {
 	study: "bg-sky-500/[.13] text-sky-800 dark:bg-sky-300/[.12] dark:text-sky-200",
 	library: "bg-emerald-500/[.13] text-emerald-800 dark:bg-emerald-300/[.12] dark:text-emerald-200",
 	learn: "bg-rose-500/[.12] text-rose-800 dark:bg-rose-300/[.12] dark:text-rose-200",
+	together: "bg-violet-500/[.12] text-violet-800 dark:bg-violet-300/[.12] dark:text-violet-200",
 };
 
 const STATUS_CHIP: Record<BetaModuleStatus, string> = {

@@ -42,6 +42,8 @@ function filesUnder(relativeDir, name) {
 }
 
 const FOUNDER = "user_founder";
+/** Every beta destination except Home, which is /beta itself. */
+const DESTINATION_IDS = ["bible", "study", "library", "learn", "together"];
 const OTHER = "user_someone_else";
 
 test("only ids on BETA_USER_IDS are let in", () => {
@@ -70,7 +72,7 @@ test("a missing or blank session id is never a founder", () => {
 });
 
 test("the registry covers every destination with unique, routable modules", () => {
-	assert.deepEqual(BETA_DESTINATIONS.map((item) => item.id), ["home", "bible", "study", "library", "learn"]);
+	assert.deepEqual(BETA_DESTINATIONS.map((item) => item.id), ["home", "bible", "study", "library", "learn", "together"]);
 	const keys = new Set();
 	for (const entry of BETA_MODULES) {
 		const key = `${entry.destination}/${entry.slug}`;
@@ -87,12 +89,22 @@ test("the registry covers every destination with unique, routable modules", () =
 		assert.equal(betaModuleHref(entry), `/beta/${key}`);
 		assert.equal(findBetaModule(entry.destination, entry.slug), entry);
 	}
-	for (const id of ["bible", "study", "library", "learn"]) {
+	for (const id of DESTINATION_IDS) {
 		assert.ok(betaModulesFor(id).length >= 1, `${id} has no modules`);
 		assert.ok(BETA_CLASSIC_LINKS[id].length >= 1, `${id} has no classic links`);
 	}
 	assert.equal(findBetaModule("study", "nope"), null);
 	assert.equal(findBetaModule("learn", "projects"), null, "a slug only exists under its own destination");
+	assert.equal(findBetaModule("together", "academy"), null, "a slug only exists under its own destination");
+});
+
+test("the six SureWord products live where LC-17639 put them", () => {
+	const where = Object.fromEntries(
+		["family", "kids", "groups", "churches", "pastor", "academy"].map((slug) => [slug, BETA_MODULES.find((entry) => entry.slug === slug)?.destination]),
+	);
+	assert.deepEqual(where, { family: "together", kids: "together", groups: "together", churches: "together", pastor: "study", academy: "learn" });
+	assert.equal(betaSectionForPath("/beta/together/family"), "together");
+	assert.equal(isBetaDestinationId("together"), true);
 });
 
 test("modules are ordered live, then building, then planned, by priority", () => {
@@ -130,7 +142,7 @@ test("every beta page and the layout turn away anyone off the list before render
 	assert.match(layout, /await requireBetaPage\(\)/);
 	assert.match(layout, /robots: \{ index: false, follow: false, nocache: true \}/);
 	const pages = filesUnder("src/app/beta", "page.tsx");
-	assert.ok(pages.length >= 9, "home, four destinations and four module placeholders");
+	assert.ok(pages.length >= 11, "home, five destinations and five module placeholders");
 	for (const page of pages) {
 		assert.match(read(page), /await requireBetaPage\(\)/, `${page} must call requireBetaPage() itself`);
 	}
@@ -169,7 +181,7 @@ test("signed-out visitors meet the same redirect or 401 as any unknown path, and
 });
 
 test("a live module has its own route, and every static beta route belongs to a module", () => {
-	for (const destination of ["bible", "study", "library", "learn"]) {
+	for (const destination of DESTINATION_IDS) {
 		const dir = join(repoRoot, "src/app/beta", destination);
 		assert.ok(existsSync(join(dir, "page.tsx")), `${destination} page`);
 		assert.ok(existsSync(join(dir, "[slug]", "page.tsx")), `${destination} placeholder`);

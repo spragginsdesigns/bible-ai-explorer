@@ -20,7 +20,7 @@ function BetaPill() {
 /**
  * The founders-only beta's frame (docs/beta/README.md): a left rail on
  * desktop, a header and the same tab bar as the main app on mobile, with
- * Home, Bible, Study, Library and Learn. Only rendered after
+ * Home, Bible, Study, Library, Learn and Together. Only rendered after
  * `requireBetaPage()` has passed in the layout.
  */
 export default function BetaShell({ children }: { children: React.ReactNode }) {

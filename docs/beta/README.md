@@ -16,6 +16,12 @@ Personal Growth) is the visual direction.
 This folder is the contract every module run follows. Each module also gets
 its own `docs/beta/<slug>.md` written by the run that builds it.
 
+**The six SureWord products (Jay, LC-17639).** Family, Kids, Groups, Churches,
+Pastor and Academy are built into the same beta as experiences of one app, not
+separate apps, on the modules below. Their brainstorm, privacy model and build
+order are in [expansion.md](expansion.md), which their runs read before this
+file.
+
 ## Who can open it
 
 - **`BETA_USER_IDS`**: comma-separated Clerk ids, the same parser as
@@ -43,8 +49,9 @@ its own `docs/beta/<slug>.md` written by the run that builds it.
 
 ## The map
 
-Five destinations, from the concept board: **Home** (`/beta`), **Bible**,
-**Study**, **Library** and **Learn** (`/beta/<destination>`). Every module
+Six destinations: **Home** (`/beta`), **Bible**, **Study**, **Library** and
+**Learn** from the concept board, and **Together** (family, groups and church,
+LC-17639) (`/beta/<destination>`). Every module
 lives at `/beta/<destination>/<slug>`. `src/lib/beta/modules.ts` is the single
 source of truth: the shell's tabs, the destination pages, Home's "In the
 workshop" list and each module's placeholder page all read it.
@@ -65,6 +72,12 @@ workshop" list and each module's placeholder page all read it.
 | Learn | Learning Paths (`paths`), with the personal theology curriculum | P1 |
 | Learn | Scripture Memory (`memory`) | P1 |
 | Learn | Habits & Reflection (`growth`) | P2 |
+| Together | SureWord Family (`family`) | P1 |
+| Together | SureWord Groups (`groups`) | P1 |
+| Together | SureWord Kids (`kids`) | P2 |
+| Together | SureWord Churches (`churches`) | P3 |
+| Study | SureWord Pastor (`pastor`) | P2 |
+| Learn | SureWord Academy (`academy`) | P2 |
 
 Each entry's `issue` field names the Linear issue building it.
 
