@@ -25,12 +25,8 @@ const WEB_ROUTES: Record<WhatsNewTarget, string> = {
 	timeline: "/bible/timeline",
 };
 
-/**
- * Public pages, and the release notes themselves, never carry the sheet. Nor
- * does SureWord Kids mode: its links would be a way out of Kids for a child
- * (docs/beta/kids.md).
- */
-const QUIET_PATHS = /^\/(whats-new|privacy|terms|support|sign-in|sign-up|share|shared|v|beta\/together\/kids\/play)(\/|$)/;
+/** Public pages, and the release notes themselves, never carry the sheet. */
+const QUIET_PATHS = /^\/(whats-new|privacy|terms|support|sign-in|sign-up|share|shared|v)(\/|$)/;
 
 /**
  * "Since you were last here": once per release, after an update brought

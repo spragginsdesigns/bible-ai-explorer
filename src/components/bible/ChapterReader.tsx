@@ -49,7 +49,6 @@ import VerseActionBar, { type VerseAction } from "./VerseActionBar";
 import VerseNotesSection from "./VerseNotesSection";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
-import VerseAtlasLinks from "../beta/atlas/VerseAtlasLinks";
 import AddToNoteDialog from "../AddToNoteDialog";
 import QuizEntryCard from "../quiz/QuizEntryCard";
 import ShareCardDialog from "../share/ShareCardDialog";
@@ -1119,17 +1118,13 @@ const ChapterReader: React.FC = () => {
           title={selectionRef}
           subtitle={isRange ? `${selectionCount(selection)} verses` : undefined}
           peek={
-            <>
-              <InsightTeaser
-                status={insightStatus}
-                text={insightText}
-                error={insightError}
-                onPress={() => openStudy("explain")}
-                onRetry={retryInsight}
-              />
-              {/* Founders only (SureWord Beta, LC-17655): the places these verses name, into the atlas. */}
-              <VerseAtlasLinks order={order} chapter={chapter} start={selection.start} end={selection.end} />
-            </>
+            <InsightTeaser
+              status={insightStatus}
+              text={insightText}
+              error={insightError}
+              onPress={() => openStudy("explain")}
+              onRetry={retryInsight}
+            />
           }
           footer={
             <VerseActionBar

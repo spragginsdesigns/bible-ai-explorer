@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
@@ -10,7 +10,6 @@ import { planCardSubtitle } from "@/components/plan/planView";
 import SendWordDialog from "@/components/share/SendWordDialog";
 import DestinationCard, { destinationClass } from "./DestinationCard";
 import { useContinueReading } from "./useContinueReading";
-import { useVerseOfDayPreview } from "./useVerseOfDayPreview";
 import GettingStartedCard from "@/components/walk/GettingStartedCard";
 import { spotlightTarget } from "@/lib/spotlight";
 
@@ -21,10 +20,32 @@ export default function TodayScreen() {
 }
 
 function TodayContent() {
+  const { userId } = useAuth();
   const continueTarget = useContinueReading();
   const { plan, loading, error } = useReadingPlan();
   const [sendOpen, setSendOpen] = useState(false);
-  const preview = useVerseOfDayPreview();
+  const [preview, setPreview] = useState<{ reference: string; text: string } | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let current: AbortController | null = null;
+    const load = async () => {
+      current?.abort();
+      const controller = new AbortController();
+      current = controller;
+      try {
+        const response = await fetch("/api/verse-of-day/preview", { cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!controller.signal.aborted) setPreview(typeof data?.cross?.reference === "string" && typeof data.cross.text === "string" ? data.cross : null);
+      } catch { /* The devotional remains directly reachable when its preview is offline. */ }
+    };
+    void load();
+    const wake = () => { if (document.visibilityState === "visible") void load(); };
+    window.addEventListener("focus", wake);
+    document.addEventListener("visibilitychange", wake);
+    const timer = window.setInterval(wake, 15 * 60 * 1000);
+    return () => { current?.abort(); window.clearInterval(timer); window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); };
+  }, [userId]);
   return <main className="mx-auto w-full max-w-5xl px-5 pb-28 pt-6 lg:px-8 lg:pb-16 lg:pt-10">
     <header className="mb-6"><p className="text-xs font-bold uppercase tracking-[.28em] text-neutral-600 dark:text-[#b3ad9e]">Your daily walk</p><h1 className="mt-3 text-[clamp(2rem,6vw,3.25rem)] font-bold leading-[1.1] tracking-[-.035em]">Begin with the Word.</h1></header>
     <GettingStartedCard />

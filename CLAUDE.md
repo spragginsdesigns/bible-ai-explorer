@@ -59,7 +59,9 @@ IPA all live on GitHub Releases.
 
 - **Remote:** `bible-ai-explorer` → `https://github.com/spragginsdesigns/bible-ai-explorer.git`
 - **Production branch:** `main` — auto-deploys to Vercel on every push
-- **Legacy branch:** `master` — unused, do not push here
+- **Legacy branch:** `master` - unused, do not push here
+- **SureWord Beta lives ONLY on the `founders-beta` branch, never on `main`** (Austin, 2026-10-27). The founders beta (`/beta`, `/api/beta`, `src/lib/beta`, LC-176xx module runs) was moved off `main` after it OOM-killed the production build and started changing doctrine (contested themes shown as competing readings). Every beta commit goes to `founders-beta`; never merge, cherry-pick or rebuild beta code onto `main`. Its `Beta*`/`VaultEmbedding` tables stay in `prisma/schema.prisma` on `main` only because the migrations are already applied to production. Only Jay's account is on its allowlist.
+- **Doctrine is Austin's.** `doctrinalFoundation` in `src/utils/systemPrompt.ts` was written with four pastors. No agent changes it, or adds prompts that present the KJV's teaching as one view among several, without Austin's explicit approval in that conversation.
 - **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
 - **Deploy workflow:** commit to `main` → push → Vercel auto-builds and deploys to production at https://sureword.app (legacy host https://bible-ai-explorer.vercel.app serves the same deployment). The Android app calls `https://sureword.app/api/*`, so server-side changes reach the phone only through this deploy — `/push-phone` alone never updates the API.
 - **Every Android release goes to BOTH Play internal testing and closed testing, with the same bundle** (Austin, 2026-10-09; replaces the 2026-09-20 internal-only rule). `push-phone.sh` uploads the AAB to `internal` (the only track that skips review, so the phone has it in minutes), then promotes that exact versionCode to closed testing (`alpha`) with `play-promote.mjs`, so the two tracks never drift. Closed testing goes through Play review, so its testers (the 12+ opted-in testers Play requires for 14 days before production access) see the build later. If the closed promotion fails, the script still finishes internal and GitHub, then exits non-zero with the rerun command; a release is not done until both tracks show the same versionCode.
@@ -314,11 +316,6 @@ Also required in `.env.local`:
   `PRO_USER_IDS`. Unset means nobody: the page and `/api/admin/feedback`
   answer 404 to everyone else, signed in or out. See `docs/FEATURES.md` →
   "Reviewing reports".
-- `BETA_USER_IDS` - comma-separated Clerk ids allowed into SureWord Beta at
-  `/beta` (Austin and Jay; LC-17631). Same shared parser as `PRO_USER_IDS`.
-  Unset means nobody: every beta page and `/api/beta` route answers the
-  ordinary 404 to everyone else. Set in all three Vercel scopes. See
-  `docs/beta/README.md`.
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
   it the audio routes answer `status: "unavailable"` and every client hides the

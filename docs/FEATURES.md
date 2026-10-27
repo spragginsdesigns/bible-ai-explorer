@@ -26,25 +26,6 @@ native sidebar and tab layouts with explicit receipt and verse destinations.
 See [navigation-overhaul.md](navigation-overhaul.md) for the complete destination
 map, account and consent behavior, artwork provenance and verification results.
 
-## SureWord Beta (founders only, web)
-
-A private preview at `/beta` where the study platform from LC-17631 is being
-built: Home, Bible, Study, Library, Learn and Together, with fourteen modules
-(Study Projects, Scripture Check, the Knowledge Vault, Learning Paths and the
-rest) and the six SureWord products from LC-17639 (Family, Kids, Groups,
-Churches, Pastor and Academy; [docs/beta/expansion.md](beta/expansion.md))
-added one at a time. Only `BETA_USER_IDS` (Austin and Jay) can open it;
-everyone else gets the ordinary 404 and never sees the way in, a
-**SureWord | Beta** switch under "Version" at the bottom of the settings menu.
-The same switch in the beta's rail and phone header leads back. Web only for
-now. Home greets
-the founder, hands a question to chat (`/?prompt=`), continues their last
-chapter (`GET /api/reading-events`), shows today's word
-(`GET /api/verse-of-day/preview`) and lists every module with its status.
-Modules keep their objects in one shared study store (`BetaItem`,
-`BetaLink`). The contract every module run follows, the map, the store and
-how to prove a module: [docs/beta/README.md](beta/README.md).
-
 ## What's new (release notes)
 
 Every SureWord update, newest first: the public journal at
@@ -2178,12 +2159,6 @@ Exodus 14.
 - **macOS and iOS use the same authenticated API contract** through
   `macos/Shared/Atlas/AtlasModel.swift`, with platform-native explorer views.
 
-SureWord Beta's **Atlas & Timeline** (`/beta/bible/atlas`, founders only,
-LC-17655) is a map and scrubbable timeline over this same corpus: it keys
-coordinates, seven journeys and the kings' and prophets' lanes to the corpus
-ids rather than copying the corpus, and keeps the 47 journey stops the corpus
-lacks beside it in the corpus's own place shape. [docs/beta/atlas.md](beta/atlas.md).
-
 ### API
 
 | Route | What it answers |
@@ -4222,9 +4197,6 @@ if Clerk fails after the commit).
 | ReadingLogEntry, Chapter, Day, Session, Totals, ChapterDay, Streak | userId | cascade |
 | SharedAnswer | userId | cascade (public share link stops resolving) |
 | SharedCard (sent words and their drafts) | userId | cascade (the `/c/{id}` link and its card image stop resolving) |
-| BetaItem, BetaLink (SureWord Beta's study store, `docs/beta/README.md`) | userId | cascade |
-| VaultEmbedding (SureWord Beta Knowledge Vault's meaning-search vectors, `docs/beta/vault.md`) | userId | cascade |
-| BetaRoom, BetaRoomMember, BetaRoomPost (SureWord Beta's Study Rooms, `docs/beta/rooms.md`) | ownerId / userId / authorId | cascade (rooms they own go with everything in them; in other rooms their membership, posts and the replies under their posts go) |
 | GuestTurn | plain `claimedByUserId`, no FK | deleted explicitly |
 | LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
 | BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |

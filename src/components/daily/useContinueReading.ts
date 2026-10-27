@@ -46,20 +46,8 @@ export function parseLastRead(value: unknown): LastRead | null {
 
 
 
-export interface ContinueTarget {
-  label: string;
-  href: string;
-  /** When the chapter was last read (ISO). */
-  readAt: string;
-}
-
-/**
- * Account keyed, abortable reads keep another reader's chapter out of the home.
- * `undefined` while the first read is in flight, `null` when there is nothing
- * to continue (or the history could not be read), so a screen can tell a
- * loading row from an empty one.
- */
-export function useContinueReading(): ContinueTarget | null | undefined {
+/** Account keyed, abortable reads keep another reader's chapter out of the home. */
+export function useContinueReading() {
   const { isLoaded, isSignedIn, userId } = useAuth();
   const [lastRead, setLastRead] = useState<LastReadState | null>(null);
   useEffect(() => {
@@ -83,10 +71,8 @@ export function useContinueReading(): ContinueTarget | null | undefined {
     document.addEventListener("visibilitychange", wake);
     return () => { current?.abort(); window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); };
   }, [isLoaded, isSignedIn, userId]);
-  if (!userId) return null;
-  if (lastRead?.userId !== userId) return undefined;
-  if (!lastRead.value) return null;
+  if (!userId || lastRead?.userId !== userId || !lastRead.value) return null;
   const book = BOOK_BY_NAME.get(lastRead.value.book);
   if (!book) return null;
-  return { label: `${book.name} ${lastRead.value.chapter}`, href: `/bible/chapter?book=${book.order}&chapter=${lastRead.value.chapter}&translation=${lastRead.value.translation}`, readAt: lastRead.value.readAt };
+  return { label: `${book.name} ${lastRead.value.chapter}`, href: `/bible/chapter?book=${book.order}&chapter=${lastRead.value.chapter}&translation=${lastRead.value.translation}` };
 }
