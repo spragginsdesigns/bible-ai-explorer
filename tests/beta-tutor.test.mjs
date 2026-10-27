@@ -121,6 +121,16 @@ test("the next question's stage follows the verdict, never the model's say-so", 
 	assert.equal(nextStageOptions(stuck.slice(0, -1), "growing").ifNot, "interpretation");
 });
 
+test("a harder level never sends the founder back a stage they already moved past", () => {
+	// Reached application at Growing (2 interpretation answers), then went Deep (which wants 3).
+	const turns = [];
+	for (const stage of ["observation", "observation", "interpretation", "interpretation"]) turns.push(q(stage), answer(), fb("affirm"));
+	turns.push(q("application"));
+	assert.equal(plannedStage(turns, "deep"), "interpretation", "from the start, Deep would still want interpretation");
+	assert.deepEqual(nextStageOptions(turns, "deep"), { ifCredited: "conclusion", ifNot: "application" });
+	assert.equal(plannedStage([...turns, answer(), fb("affirm"), q("conclusion")], "deep", "conclusion"), "conclusion");
+});
+
 test("the level goes deeper only on a clean run, easier only on real struggle, never within the cooldown", () => {
 	const base = { level: "growing", answersSinceLevelChange: TUTOR_ADAPT_COOLDOWN, hintsUsed: 0, hintsBefore: 0 };
 	assert.equal(adaptLevel({ ...base, verdicts: ["affirm", "affirm"], signal: "deeper" }), "deep");

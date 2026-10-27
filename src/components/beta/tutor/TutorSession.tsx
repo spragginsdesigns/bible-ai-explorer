@@ -56,7 +56,8 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 	const checkedSinceQuestion = Boolean(check && open && view.turns.indexOf(check) > view.turns.indexOf(open));
 	const conclusionMode = concluding || !open || open.stage === "conclusion" || checkedSinceQuestion;
 	const focus = new Set(open && !checkedSinceQuestion ? open.focus : []);
-	const stageIndex = view.finished ? TUTOR_STAGES.length : TUTOR_STAGES.indexOf(view.stage);
+	// A conclusion checked early ends the guided questions, so only the stages actually reached show as done.
+	const stageIndex = TUTOR_STAGES.indexOf(view.stage);
 	const working = pending !== null || busy;
 
 	// Bring each new reply into view, without animation for anyone who asked for less motion.
@@ -194,7 +195,7 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 							value={view.level}
 							disabled={working}
 							onChange={(event) => void changeLevel(event.target.value as TutorLevel)}
-							className="min-h-11 rounded-full bg-transparent pr-1 font-bold outline-none dark:bg-[#0d100d]"
+							className="min-h-11 rounded-full bg-transparent pr-1 text-base font-bold outline-none dark:bg-[#0d100d] lg:text-sm"
 						>
 							{TUTOR_LEVELS.map((level) => (
 								<option key={level} value={level}>
@@ -221,8 +222,8 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 
 			<ol className="mt-4 grid grid-cols-4 gap-1.5" aria-label="Where you are in the study">
 				{TUTOR_STAGES.map((stage, index) => {
-					const done = index < stageIndex;
-					const now = index === stageIndex;
+					const done = index < stageIndex || (view.finished && stage === "conclusion");
+					const now = !view.finished && index === stageIndex;
 					return (
 						<li key={stage} aria-current={now ? "step" : undefined} className="flex flex-col gap-1.5">
 							<span className={`h-1.5 rounded-full ${done ? "bg-emerald-600/70 dark:bg-emerald-300/60" : now ? "bg-[#e5b664]" : "bg-black/[.08] dark:bg-white/[.08]"}`} />
@@ -286,15 +287,15 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 						ref={composerRef}
 						className="sticky bottom-[calc(var(--sureword-mobile-tab-clearance)+8px)] z-10 rounded-[22px] border border-black/[.09] bg-[#f6f2e9] p-3 shadow-[0_-12px_24px_-12px_rgba(36,40,31,.18)] dark:border-white/[.09] dark:bg-[#121612] dark:shadow-[0_-12px_24px_-12px_rgba(0,0,0,.6)] lg:bottom-4"
 					>
+						{error ? (
+							<p role="alert" className="mb-2 rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
+								{error}
+							</p>
+						) : null}
 						{view.full ? (
 							<p className="px-1 py-2 text-sm leading-6">This session is full. Save it as a note, then start a fresh close reading of {view.passage.reference}.</p>
 						) : (
 							<>
-								{error ? (
-									<p role="alert" className="mb-2 rounded-xl bg-rose-500/10 px-3 py-2 text-sm text-rose-800 dark:text-rose-200">
-										{error}
-									</p>
-								) : null}
 								<label htmlFor="tutor-answer" className="sr-only">
 									{conclusionMode ? "Your conclusion" : "Your answer"}
 								</label>

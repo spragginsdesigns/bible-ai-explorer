@@ -161,7 +161,7 @@ export default function TutorPicker({
 						value={browse.book}
 						disabled={disabled}
 						onChange={(event) => browseTo(Number(event.target.value), 1)}
-						className="min-h-11 min-w-0 flex-1 rounded-xl border border-black/10 bg-white/80 px-2 text-[15px] dark:border-white/10 dark:bg-[#151915]"
+						className="min-h-11 min-w-0 flex-1 rounded-xl border border-black/10 bg-white/80 px-2 text-base dark:border-white/10 dark:bg-[#151915]"
 					>
 						<optgroup label="Old Testament">
 							{BOOKS.filter((book) => book.testament === "OT").map((book) => (
@@ -186,7 +186,7 @@ export default function TutorPicker({
 						value={browse.chapter}
 						disabled={disabled}
 						onChange={(event) => browseTo(browse.book, Number(event.target.value))}
-						className="min-h-11 w-24 rounded-xl border border-black/10 bg-white/80 px-2 text-[15px] dark:border-white/10 dark:bg-[#151915]"
+						className="min-h-11 w-24 rounded-xl border border-black/10 bg-white/80 px-2 text-base dark:border-white/10 dark:bg-[#151915]"
 					>
 						{Array.from({ length: meta?.chapters ?? 1 }, (_, index) => (
 							<option key={index + 1} value={index + 1}>

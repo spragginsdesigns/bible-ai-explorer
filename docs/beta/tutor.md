@@ -40,7 +40,10 @@ Live at `/beta/study/tutor` for the founders only (`docs/beta/README.md`).
   tutor asks for it, and see it checked against the text as supported, partly
   supported or "the text says otherwise", with what supports it, what corrects
   or completes it, the wider context (the chapter before and the
-  cross-references), and what the study shows.
+  cross-references), and what the study shows. A checked conclusion closes
+  the guided questions: after it the founder can restate the conclusion for a
+  fresh check or ask for the tutor's reading, and the progress bar marks only
+  the stages actually reached.
 - **Study at their level**: Beginner, Growing or Deep study, chosen at the
   start and changeable in the session. The tutor adapts as they answer (below).
 - **Pause and pick up**: every turn is saved as it happens; Pause returns to
@@ -86,12 +89,16 @@ context the conclusion check draws on.
 only verses that were in the grounding (anything else is dropped, never
 invented), holds a range to 4 verses, and takes the text from the bundled KJV.
 Each citation is labelled with where it came from: in the passage, same
-chapter, the chapter before, cross-reference, or elsewhere in Scripture.
+chapter, the chapter before, cross-reference, or elsewhere in Scripture. The
+reference that ends each "what I learned" line goes through the same check,
+and is dropped (the sentence kept) when it names a verse outside the
+grounding.
 
 **One question at a time.** Questions ask about one thing; anything after a
 second question mark is cut, question sentences are dropped from the tutor's
-response to an answer, and the tutor's reading ends by repeating the open
-question rather than asking its own, so only one question is ever open.
+response to an answer and from its reading, and the reading ends by repeating
+the open question rather than asking its own, so only one question is ever
+open.
 
 ### Stages and adapting
 
@@ -101,7 +108,12 @@ supports (affirm or partly): Beginner 3, 2, 1; Growing 2, 2, 1; Deep study
 2, 3, 1. A corrected answer holds the stage for a look-again question, but a
 stage moves on anyway after two extra questions so nobody is stuck. The model
 is told which stage each verdict leads to; the server files the question by
-the verdict, never by the stage the model claims.
+the verdict, never by the stage the model claims. A stage already passed is
+never reopened, so moving to a harder level mid-session (by the founder or the
+tutor) raises what the stages ahead ask, not the ones behind. The conclusion
+question is always the same ask ("In a sentence or two of your own, what does
+Romans 5:1-11 teach?"), never one the model writes, because its answer is
+checked as the founder's conclusion.
 
 The level steps **deeper** after two answers in a row the text fully supports,
 with no hints, when the model also reads the answer as close reading beyond

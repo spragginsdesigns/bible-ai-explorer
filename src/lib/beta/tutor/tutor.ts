@@ -14,7 +14,7 @@ import { BETA_DATA_MAX_BYTES, BETA_REFS_MAX } from "@/lib/beta/store-rules";
 import { appendMarkdownToNote } from "@/lib/notes-io";
 import { searchScripture } from "@/lib/scripture-search";
 import { doctrinalFoundation, interpretationGuidance } from "@/utils/systemPrompt";
-import { parsePassageInput } from "./passage";
+import { parsePassageInput, type ParsedPassageInput } from "./passage";
 import {
 	TUTOR_MODULE,
 	TUTOR_SESSION_KIND,
@@ -81,6 +81,8 @@ const REFS_MAX = Math.floor(BETA_REFS_MAX / 2);
 /** A session this close to the store's data cap takes no new turn; one turn adds far less. */
 const DATA_HEADROOM_BYTES = 32 * 1024;
 const TOPICS_MAX = 8;
+/** The note holds the whole session: a session stops taking turns well under the data cap, so in practice its markdown fits under the same cap. */
+const NOTE_MARKDOWN_MAX = BETA_DATA_MAX_BYTES;
 
 /* -------------------------------------------------------------------------
  * Scripture
@@ -263,15 +265,20 @@ interface RawCitation {
  * "Romans 5:8", "Rom 4:3-5", "5:8" and "verse 8" (the passage's chapter) are
  * read; anything outside the grounding is dropped, never invented.
  */
-function resolveCitation(raw: RawCitation, grounding: Grounding): TutorCitation | null {
-	let text = raw.ref.replace(/[[\]()]/g, "").trim();
+function parseCitedRef(ref: string, grounding: Grounding): ParsedPassageInput | null {
+	let text = ref.replace(/[[\]()]/g, "").trim();
 	const bareVerse = /^(?:verses?|vv?\.?)\s*(\d+)(?:\s*[-–—]\s*(\d+))?$/i.exec(text);
 	if (bareVerse) text = `${grounding.bookName} ${grounding.passage.chapter}:${bareVerse[1]}${bareVerse[2] ? `-${bareVerse[2]}` : ""}`;
 	else if (/^\d+\s*:\s*\d+/.test(text)) text = `${grounding.bookName} ${text}`;
 	// A whole chapter is not a citation; the tutor must point to verses.
 	if (!text.includes(":")) return null;
 	const parsed = parsePassageInput(text);
-	if ("error" in parsed) return null;
+	return "error" in parsed ? null : parsed;
+}
+
+function resolveCitation(raw: RawCitation, grounding: Grounding): TutorCitation | null {
+	const parsed = parseCitedRef(raw.ref, grounding);
+	if (!parsed) return null;
 	const end = Math.min(parsed.end ?? parsed.start, parsed.start + CITATION_MAX_VERSES - 1);
 	const kept: { verse: number; row: GroundVerse }[] = [];
 	for (let verse = parsed.start; verse <= end; verse++) {
@@ -302,6 +309,31 @@ function resolveCitations(raw: readonly RawCitation[], grounding: Grounding, max
 		if (out.length >= max) break;
 	}
 	return out;
+}
+
+/** True when every verse a reference names ("Romans 5:1-11", "5:8") was in the grounding. */
+function groundedReference(ref: string, grounding: Grounding): boolean {
+	const parsed = parseCitedRef(ref, grounding);
+	if (!parsed) return false;
+	for (let verse = parsed.start; verse <= (parsed.end ?? parsed.start); verse++) {
+		if (!grounding.allowed.has(key(parsed.book, parsed.chapter, verse))) return false;
+	}
+	return true;
+}
+
+/**
+ * A takeaway ends with the reference the model wrote in parentheses. It stands only if every
+ * verse it names was in the grounding; otherwise the reference is dropped and the sentence kept.
+ * A parenthesis that is not a reference ("(that is, by faith)") is left alone; a takeaway that
+ * was nothing but an ungrounded reference is dropped.
+ */
+function checkedTakeaway(text: string, grounding: Grounding): string {
+	const match = /\s*\(([^()]+)\)\s*\.?$/.exec(text);
+	if (!match || !/\d+\s*:\s*\d+|^\s*(?:verses?|vv?\.?)\s*\d/i.test(match[1])) return text;
+	if (match[1].split(/;\s*/).every((ref) => groundedReference(ref, grounding))) return text;
+	const head = text.slice(0, match.index).trimEnd().replace(/[,;:]+$/, "");
+	if (!head) return "";
+	return /[.!?]$/.test(head) ? head : `${head}.`;
 }
 
 /* -------------------------------------------------------------------------
@@ -468,6 +500,12 @@ function focusWithin(passage: TutorPassage, verses: readonly number[]): number[]
 }
 
 function questionTurn(raw: z.infer<typeof questionSchema>, stage: TutorStage, grounding: Grounding, at: string): TutorTurn {
+	// The answer to the conclusion question is checked as the founder's conclusion, so it is always this ask,
+	// never whatever question the model happened to write for it.
+	if (stage === "conclusion") {
+		const text = `In a sentence or two of your own, what does ${grounding.passage.reference} teach? I will check it against the text.`;
+		return { id: newId(), at, role: "tutor", kind: "question", stage, text, lead: null, focus: [] };
+	}
 	const text = oneQuestion(raw.text);
 	if (!text) throw new TutorUnavailableError("The model wrote an empty question.");
 	const lead = raw.lead ? plain(raw.lead) : "";
@@ -705,7 +743,7 @@ Ask no question of your own: the app hands them back to the question still open.
 			),
 			promptFor(grounding, data.turns, "The learner asked for your reading."),
 		);
-		const reading = plain(output.reading);
+		const reading = withoutQuestions(plain(output.reading));
 		if (!reading) throw new TutorUnavailableError("The model wrote an empty reading.");
 		// One question at a time: the reading ends by handing back the question still open, never a new one.
 		const stillOpen = open && !latestCheckAfterOpen(data) ? open : null;
@@ -752,7 +790,7 @@ Ask no question of your own: the app hands them back to the question still open.
 			context: resolveCitations(output.context, grounding, 3).filter(
 				(citation) => ![...output.supports, ...output.corrects].some((other) => resolveCitation(other, grounding)?.reference === citation.reference),
 			),
-			takeaways: output.takeaways.map(plain).filter(Boolean).slice(0, 4),
+			takeaways: output.takeaways.map((takeaway) => checkedTakeaway(plain(takeaway), grounding)).filter(Boolean).slice(0, 4),
 		});
 		finished = true;
 		topics = [...topics, ...cleanTopics(output.topics)];
@@ -837,7 +875,7 @@ export async function saveSessionNote(userId: string, id: string): Promise<NoteO
 			markdown: sessionNoteMarkdown({ data, verses, takeaways, dateLabel, fromTurn }),
 			noteId,
 			title: sessionTitle(data.passage),
-			maxLength: 60_000,
+			maxLength: NOTE_MARKDOWN_MAX,
 		});
 	};
 	let result;
@@ -874,6 +912,6 @@ async function summaryTakeaways(userId: string, data: TutorSessionData, turns: r
 		),
 		promptFor(grounding, turns, "Write the takeaways now."),
 	);
-	return output.takeaways.map(plain).filter(Boolean).slice(0, 5);
+	return output.takeaways.map((takeaway) => checkedTakeaway(plain(takeaway), grounding)).filter(Boolean).slice(0, 5);
 }
 

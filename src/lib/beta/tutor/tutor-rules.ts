@@ -270,11 +270,13 @@ export function stageProgress(turns: readonly TutorTurn[]): Record<TutorStage, S
  * The stage the next question belongs to: the first stage not yet answered
  * well often enough for this level, unless it has already taken every
  * look-again follow-up it is allowed; after application, the conclusion.
+ * Stages before `from` (where the founder already is) are never reopened, so
+ * a move to a harder level does not send them back a stage.
  */
-export function plannedStage(turns: readonly TutorTurn[], level: TutorLevel): TutorStage {
+export function plannedStage(turns: readonly TutorTurn[], level: TutorLevel, from: TutorStage = "observation"): TutorStage {
 	const tally = stageProgress(turns);
 	const targets = TUTOR_STAGE_TARGETS[level];
-	for (const stage of ["observation", "interpretation", "application"] as const) {
+	for (const stage of (["observation", "interpretation", "application"] as const).slice(Math.max(0, TUTOR_STAGES.indexOf(from)))) {
 		const { asked, done } = tally[stage];
 		if (done < targets[stage] && asked < targets[stage] + TUTOR_STAGE_EXTRA) return stage;
 	}
@@ -293,7 +295,7 @@ export function nextStageOptions(
 		...turns,
 		{ id: "_", at: "", role: "tutor", kind: "feedback", verdict: "affirm", text: "", citations: [] },
 	];
-	const ifCredited = plannedStage(credited, level);
+	const ifCredited = plannedStage(credited, level, current);
 	const tally = stageProgress(turns);
 	const target = current === "conclusion" ? 1 : TUTOR_STAGE_TARGETS[level][current];
 	const ifNot = current !== "conclusion" && tally[current].asked >= target + TUTOR_STAGE_EXTRA ? ifCredited : current;
