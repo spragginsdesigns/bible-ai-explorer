@@ -8,6 +8,10 @@
 # make-dmg-background.py + tiffutil) and SureWord.icns (volume icon, from the
 # appiconset via iconutil).
 #
+# Set SUREWORD_DMG_BACKEND=headless for unattended builds. This uses pinned
+# dmgbuild 1.6.7 through uv and writes the same layout without Finder automation.
+# The default Finder-backed create-dmg path stays available for interactive use.
+#
 # The icon coordinates here and the arrow in the background art were tuned
 # together — if one moves, move both. Requires `brew install create-dmg`.
 #
@@ -35,6 +39,14 @@ trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
 
 rm -f "$OUT" "$OUT.provenance" "$OUT.sources"
+case "${SUREWORD_DMG_BACKEND:-finder}" in
+headless)
+  command -v uv >/dev/null 2>&1 || { echo "uv is required for headless DMG packaging" >&2; exit 1; }
+  uv run --with dmgbuild==1.6.7 dmgbuild \
+    -s "$ROOT/scripts/dmg-settings.py" -D "app=$STAGE/SureWord.app" \
+    "SureWord" "$OUT"
+  ;;
+finder)
 create-dmg \
   --volname "SureWord" \
   --volicon "$DMGDIR/SureWord.icns" \
@@ -47,6 +59,9 @@ create-dmg \
   --app-drop-link 495 235 \
   --no-internet-enable \
   "$OUT" "$STAGE"
+  ;;
+*) echo "Unknown SUREWORD_DMG_BACKEND (use finder or headless)" >&2; exit 1 ;;
+esac
 
 cp "$APP.sources" "$OUT.sources"
 printf 'version=%s\ndmgSha256=%s\nappCdhash=%s\nsourceCommit=%s\nsourceDirtyFiles=%s\nsourceSha256=%s\n' \
