@@ -256,7 +256,9 @@ function resumeOf(def: PathDef, data: EnrollmentData): PathCardView["resume"] {
 			? lessonsOf(def).find((lesson) => lesson.id === session.target)?.title ?? "Lesson"
 			: session.kind === "checkpoint"
 				? `${def.units.find((unit) => unit.id === session.target)?.title ?? "Unit"} checkpoint`
-				: "Review";
+				: session.kind === "final"
+					? "Final review"
+					: "Review";
 	const of = new Set(session.queue).size;
 	const answered = session.answers.filter((answer) => !answer.retry).length;
 	return { kind: session.kind, target: session.target, title, at: Math.min(answered + 1, of), of };
@@ -398,7 +400,7 @@ async function sessionView(loaded: LoadedPath, data: EnrollmentData, resumed: bo
 		sessionId: session.id,
 		kind: session.kind,
 		target: session.target,
-		title: lesson?.title ?? (unit ? `${unit.title} checkpoint` : "Review what you missed"),
+		title: lesson?.title ?? (unit ? `${unit.title} checkpoint` : session.kind === "final" ? "Final review" : "Review what you missed"),
 		queue: session.queue,
 		index: session.index,
 		total: new Set(session.queue).size,
@@ -430,7 +432,8 @@ async function sessionView(loaded: LoadedPath, data: EnrollmentData, resumed: bo
 export async function startSession(userId: string, pathId: string, kind: SessionKind, rawTarget: string, restart: boolean): Promise<SessionView | PathsError> {
 	const loaded = await loadPath(userId, pathId);
 	if (!loaded) return { error: "Not found", status: 404 };
-	const target = kind === "review" ? "" : rawTarget;
+	const target = kind === "review" || kind === "final" ? "" : rawTarget;
+	if (kind === "final" && !loaded.def.course) return { error: "Not found", status: 404 };
 	if (kind === "lesson") {
 		if (!lessonsOf(loaded.def).some((lesson) => lesson.id === target)) return { error: "Not found", status: 404 };
 		if (!loaded.written.has(target)) return { error: "This lesson has not been written yet.", status: 409 };
@@ -446,7 +449,8 @@ export async function startSession(userId: string, pathId: string, kind: Session
 		return sessionView(loaded, data, active.answers.length > 0);
 	}
 	if (!canStart(pathProgress(loaded.def, data), kind, target)) {
-		return { error: kind === "review" ? "There is nothing to review." : "Finish the lessons before this one first.", status: 409 };
+		const error = kind === "review" ? "There is nothing to review." : kind === "final" ? "The final review opens once every unit checkpoint is done." : "Finish the lessons before this one first.";
+		return { error, status: 409 };
 	}
 	const session = buildSession({ id: randomUUID(), now, path: loaded.def, kind, target, learner: learner.data, enrollment: data });
 	if (!session) return { error: "There is nothing to ask here yet.", status: 409 };

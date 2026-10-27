@@ -11,7 +11,7 @@
  * which are passed in as `ContentDeps` so this file needs no imports and the
  * tests load it with Node's type stripping.
  */
-import type { BlankExercise, ChoiceExercise, MatchExercise, OrderExercise, PathDef, PathExercise, PathLesson, PathLevel, PathUnit } from "./paths-types";
+import type { BlankExercise, ChoiceExercise, CourseLessonParts, MatchExercise, OrderExercise, PathDef, PathExercise, PathLesson, PathLevel, PathUnit } from "./paths-types";
 
 export interface BookInfo {
 	order: number;
@@ -58,6 +58,24 @@ export const PATH_LIMITS = {
 	poolMax: 10,
 	lessonsMin: 10,
 	lessonsMax: 12,
+} as const;
+
+/**
+ * SureWord Academy courses (LC-17660): the tutor's passage fits a close
+ * reading (the Socratic Tutor takes up to 30 verses of one chapter) and a
+ * memory verse fits one Scripture Memory card (up to six verses).
+ */
+export const COURSE_LIMITS = {
+	tutorMinVerses: 3,
+	tutorMaxVerses: 30,
+	focus: 220,
+	focusMin: 30,
+	memoryMin: 1,
+	memoryMax: 3,
+	memoryVerses: 6,
+	outcomesMin: 3,
+	outcomesMax: 5,
+	outcome: 160,
 } as const;
 
 const PASSAGE_PATTERN = /^((?:[1-3] )?[A-Z][A-Za-z]*(?: [A-Za-z]+)*) (\d{1,3}):(\d{1,3})(?:-(\d{1,3}))?$/;
@@ -357,6 +375,45 @@ export function lessonProblems(lesson: PathLesson, deps: ContentDeps, options: L
 	return out;
 }
 
+/**
+ * Every problem with what a course lesson adds (LC-17660): the tutor's
+ * passage, what to look for in it, and the verses to memorize, one of which
+ * holds the lesson's key verse.
+ */
+export function courseLessonProblems(lesson: PathLesson, deps: ContentDeps): string[] {
+	const out: string[] = [];
+	const at = typeof lesson?.id === "string" ? lesson.id : "a lesson";
+	const parts: CourseLessonParts | undefined = lesson?.course;
+	if (!parts || typeof parts !== "object") return [`${at}: a course lesson needs its tutor passage and memory verses`];
+	const tutor = resolveAnswer(`${at} tutor passage`, parts.tutor, deps, COURSE_LIMITS.tutorMaxVerses);
+	if ("problem" in tutor) out.push(tutor.problem);
+	else if (passageLength(tutor.passage) < COURSE_LIMITS.tutorMinVerses) out.push(`${at}: the tutor passage needs at least ${COURSE_LIMITS.tutorMinVerses} verses to read closely`);
+	const focus = textProblem(`${at} tutor focus`, parts.focus, COURSE_LIMITS.focus, COURSE_LIMITS.focusMin);
+	if (focus) out.push(focus);
+	const memory = Array.isArray(parts.memory) ? parts.memory : [];
+	if (memory.length < COURSE_LIMITS.memoryMin || memory.length > COURSE_LIMITS.memoryMax) {
+		out.push(`${at}: needs ${COURSE_LIMITS.memoryMin} to ${COURSE_LIMITS.memoryMax} memory verses, has ${memory.length}`);
+	}
+	const ranges: Passage[] = [];
+	memory.forEach((ref, index) => {
+		const resolved = resolveAnswer(`${at} memory verse ${index + 1}`, ref, deps, COURSE_LIMITS.memoryVerses);
+		if ("problem" in resolved) {
+			out.push(resolved.problem);
+			return;
+		}
+		const overlaps = ranges.some(
+			(other) => other.book === resolved.passage.book && other.chapter === resolved.passage.chapter && other.start <= resolved.passage.end && resolved.passage.start <= other.end
+		);
+		if (overlaps) out.push(`${at}: memory verse "${ref}" overlaps another one`);
+		ranges.push(resolved.passage);
+	});
+	const key = parsePassage(lesson.keyVerse, deps.resolveBook);
+	if (key && ranges.length && !ranges.some((range) => range.book === key.book && range.chapter === key.chapter && range.start <= key.start && key.end <= range.end)) {
+		out.push(`${at}: the key verse ${lesson.keyVerse} must be one of the memory verses`);
+	}
+	return out;
+}
+
 /** Every problem with a written path; empty when it can ship. */
 export function pathProblems(path: PathDef, deps: ContentDeps): string[] {
 	const out: string[] = [];
@@ -390,7 +447,19 @@ export function pathProblems(path: PathDef, deps: ContentDeps): string[] {
 		const expected = `${path.id}-${String(index + 1).padStart(2, "0")}`;
 		if (lesson.id !== expected) out.push(`${lesson.id}: lessons are numbered in order, expected ${expected}`);
 		out.push(...lessonProblems(lesson, deps));
+		if (path.course) out.push(...courseLessonProblems(lesson, deps));
+		else if (lesson.course) out.push(`${lesson.id}: only a course lesson has a tutor passage and memory verses`);
 	});
+	if (path.course) {
+		const outcomes = Array.isArray(path.course.outcomes) ? path.course.outcomes : [];
+		if (outcomes.length < COURSE_LIMITS.outcomesMin || outcomes.length > COURSE_LIMITS.outcomesMax) {
+			out.push(`${path.id}: a course needs ${COURSE_LIMITS.outcomesMin} to ${COURSE_LIMITS.outcomesMax} outcomes`);
+		}
+		outcomes.forEach((outcome, index) => {
+			const problem = textProblem(`${path.id} outcome ${index + 1}`, outcome, COURSE_LIMITS.outcome);
+			if (problem) out.push(problem);
+		});
+	}
 	if (path.readAlong) {
 		const problem = textProblem(`${path.id} read-along label`, path.readAlong.label, PATH_LIMITS.title);
 		if (problem) out.push(problem);

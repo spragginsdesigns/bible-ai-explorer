@@ -34,28 +34,37 @@ export const CONCEPT_LABEL: Record<"new" | "learning" | "growing" | "mastered", 
 	mastered: "Mastered",
 };
 
+/** Where Learning Paths' pages live. SureWord Academy (LC-17660) serves its courses from /beta/learn/academy. */
+export const PATHS_BASE = "/beta/learn/paths";
+
 /** "Lesson 4", "the Romans checkpoint" and so on in URLs. */
-export function lessonHref(pathId: string, lessonId: string): string {
-	return `/beta/learn/paths/${pathId}/${lessonId}`;
+export function lessonHref(pathId: string, lessonId: string, base = PATHS_BASE): string {
+	return `${base}/${pathId}/${lessonId}`;
 }
 
-export function reviewHref(pathId: string): string {
-	return `/beta/learn/paths/${pathId}/review`;
+export function reviewHref(pathId: string, base = PATHS_BASE): string {
+	return `${base}/${pathId}/review`;
 }
 
-export function checkpointHref(pathId: string, unitId: string): string {
-	return `/beta/learn/paths/${pathId}/checkpoint?unit=${encodeURIComponent(unitId)}`;
+export function checkpointHref(pathId: string, unitId: string, base = PATHS_BASE): string {
+	return `${base}/${pathId}/checkpoint?unit=${encodeURIComponent(unitId)}`;
 }
 
-export function pathHref(pathId: string): string {
-	return `/beta/learn/paths/${pathId}`;
+/** A course's final review (LC-17660). */
+export function finalHref(pathId: string, base = PATHS_BASE): string {
+	return `${base}/${pathId}/final`;
+}
+
+export function pathHref(pathId: string, base = PATHS_BASE): string {
+	return `${base}/${pathId}`;
 }
 
 /** Where "Continue" goes: the session under way, else the next lesson, else the path. */
-export function continueHref(card: { id: string; resume: { kind: string; target: string } | null; next: { id: string } | null }): string {
-	if (card.resume?.kind === "lesson") return lessonHref(card.id, card.resume.target);
-	if (card.resume?.kind === "checkpoint") return checkpointHref(card.id, card.resume.target);
-	if (card.resume?.kind === "review") return reviewHref(card.id);
-	if (card.next) return lessonHref(card.id, card.next.id);
-	return pathHref(card.id);
+export function continueHref(card: { id: string; resume: { kind: string; target: string } | null; next: { id: string } | null }, base = PATHS_BASE): string {
+	if (card.resume?.kind === "lesson") return lessonHref(card.id, card.resume.target, base);
+	if (card.resume?.kind === "checkpoint") return checkpointHref(card.id, card.resume.target, base);
+	if (card.resume?.kind === "review") return reviewHref(card.id, base);
+	if (card.resume?.kind === "final") return finalHref(card.id, base);
+	if (card.next) return lessonHref(card.id, card.next.id, base);
+	return pathHref(card.id, base);
 }

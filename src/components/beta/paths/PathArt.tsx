@@ -18,6 +18,10 @@ const PALETTES: Record<string, Palette> = {
 	romans: { sky: ["#e7a77b", "#f8dcc0"], sun: "#ffeccf", hills: ["#c08a62", "#94613f", "#5f3c27"], road: "#f3d7b2", mark: "arch" },
 	"reading-scripture": { sky: ["#2e3659", "#d39a62"], sun: "#ffe2a6", hills: ["#525a7d", "#363e60", "#222842"], road: "#e8c48a", mark: "lamp" },
 	"life-of-paul": { sky: ["#8fbcd6", "#eef2ec"], sun: "#fff8e6", hills: ["#9bb08c", "#4f88a6", "#2f6382"], road: "#e9e2cf", mark: "sail" },
+	// SureWord Academy's courses (LC-17660).
+	"ot-survey": { sky: ["#d9a36a", "#f6e3c4"], sun: "#fff1d2", hills: ["#b39a6b", "#8a7148", "#5b4a2e"], road: "#f1dcb4", mark: "arch" },
+	"nt-survey": { sky: ["#9fb7d9", "#f3ecdf"], sun: "#fff7e4", hills: ["#94ad86", "#64886a", "#3e5f4a"], road: "#efe3c8", mark: "cross" },
+	doctrines: { sky: ["#3b3f63", "#c99a6a"], sun: "#ffe4ad", hills: ["#5b5f86", "#3d4166", "#262a47"], road: "#e6c592", mark: "star" },
 };
 
 const PERSONAL: Palette[] = [

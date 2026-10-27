@@ -42,6 +42,8 @@ export const REVIEW_IN_LESSON = 2;
 export const CHECKPOINT_SIZE = 8;
 /** Questions in one review session. */
 export const REVIEW_SESSION_SIZE = 8;
+/** Questions in a course's final review (SureWord Academy, LC-17660), shared out across its units. */
+export const FINAL_SIZE = 12;
 /** Misses kept on the review list, oldest dropped first. */
 export const REVIEW_MAX = 60;
 export const MAX_STRENGTH = 5;
@@ -159,12 +161,20 @@ export function buildSession(options: {
 		const unit = path.units.find((entry) => entry.id === target);
 		if (!unit) return null;
 		queue = selectExercises(unit.lessons.flatMap((lesson) => lesson.exercises), learner.concepts, CHECKPOINT_SIZE).map((ex) => ex.id);
+	} else if (kind === "final") {
+		// A course's final review asks from every unit, the first units taking any remainder.
+		if (!path.course || path.units.length === 0) return null;
+		const share = Math.floor(FINAL_SIZE / path.units.length);
+		const extra = FINAL_SIZE % path.units.length;
+		queue = path.units.flatMap((unit, place) =>
+			selectExercises(unit.lessons.flatMap((lesson) => lesson.exercises), learner.concepts, share + (place < extra ? 1 : 0)).map((ex) => ex.id)
+		);
 	} else {
 		fromReview = reviewPicks(enrollment.review, "", REVIEW_SESSION_SIZE, (id) => index.has(id));
 	}
 	const all = [...queue, ...fromReview];
 	if (all.length === 0) return null;
-	return { id: options.id, kind, target: kind === "review" ? "" : target, queue: all, fromReview, index: 0, answers: [], startedAt: options.now };
+	return { id: options.id, kind, target: kind === "review" || kind === "final" ? "" : target, queue: all, fromReview, index: 0, answers: [], startedAt: options.now };
 }
 
 /* -------------------------------------------------------------------------
@@ -290,6 +300,7 @@ export function recordAnswer(options: {
 			lessons: session.kind === "lesson" ? { ...next.lessons, [session.target]: score } : next.lessons,
 			checkpoints: session.kind === "checkpoint" ? { ...next.checkpoints, [session.target]: score } : next.checkpoints,
 			lastLesson: session.kind === "lesson" ? session.target : next.lastLesson,
+			...(session.kind === "final" ? { final: score } : {}),
 		};
 	}
 	return { learner: { ...learner, concepts }, enrollment: next, finished, retry, again };
@@ -329,6 +340,9 @@ export interface PathProgress {
 	/** The next lesson to take, or null when every lesson is done. */
 	next: LessonNode | null;
 	reviewCount: number;
+	/** A course's final review (LC-17660): "none" on a path; it opens once every unit checkpoint is done. */
+	final: "none" | "locked" | "open" | "done";
+	finalScore: SessionScore | null;
 }
 
 /**
@@ -357,6 +371,8 @@ export function pathProgress(path: PathDef, enrollment: EnrollmentData | null): 
 	const total = number;
 	const index = exerciseIndex(path);
 	const doneCount = units.reduce((sum, unit) => sum + unit.lessons.filter((lesson) => lesson.state === "done").length, 0);
+	const finalScore = path.course ? (enrollment?.final ?? null) : null;
+	const final = !path.course ? "none" : finalScore ? "done" : units.length > 0 && units.every((unit) => unit.checkpoint === "done") ? "open" : "locked";
 	return {
 		units,
 		done: doneCount,
@@ -364,12 +380,15 @@ export function pathProgress(path: PathDef, enrollment: EnrollmentData | null): 
 		percent: total ? Math.round((doneCount / total) * 100) : 0,
 		next,
 		reviewCount: enrollment?.review.filter((entry) => index.has(entry.ex)).length ?? 0,
+		final,
+		finalScore,
 	};
 }
 
 /** Whether a session of this kind may start now. */
 export function canStart(progress: PathProgress, kind: SessionKind, target: string): boolean {
 	if (kind === "review") return progress.reviewCount > 0;
+	if (kind === "final") return progress.final === "open" || progress.final === "done";
 	if (kind === "checkpoint") return progress.units.some((unit) => unit.id === target && unit.checkpoint !== "locked");
 	return progress.units.some((unit) => unit.lessons.some((lesson) => lesson.id === target && lesson.state !== "locked"));
 }
@@ -408,7 +427,7 @@ function readScores(value: unknown): Record<string, SessionScore> {
 function readSession(value: unknown): ActiveSession | null {
 	if (!isRecord(value)) return null;
 	const kind = value.kind;
-	if (kind !== "lesson" && kind !== "review" && kind !== "checkpoint") return null;
+	if (kind !== "lesson" && kind !== "review" && kind !== "checkpoint" && kind !== "final") return null;
 	if (!isString(value.id) || !isString(value.target) || !isString(value.startedAt) || !Number.isInteger(value.index)) return null;
 	if (!Array.isArray(value.queue) || !value.queue.every(isString) || !Array.isArray(value.fromReview) || !value.fromReview.every(isString)) return null;
 	if (!Array.isArray(value.answers)) return null;
@@ -428,6 +447,7 @@ export function readEnrollment(value: unknown, pathId: string, now: string): Enr
 	const review = Array.isArray(value.review)
 		? value.review.filter((entry): entry is ReviewEntry => isRecord(entry) && isString(entry.ex) && isString(entry.lesson) && isString(entry.at) && Number.isInteger(entry.misses))
 		: [];
+	const final = readScore(value.final);
 	return {
 		v: 1,
 		pathId,
@@ -437,6 +457,7 @@ export function readEnrollment(value: unknown, pathId: string, now: string): Enr
 		review,
 		active: readSession(value.active),
 		lastLesson: isString(value.lastLesson) ? value.lastLesson : null,
+		...(final ? { final } : {}),
 	};
 }
 

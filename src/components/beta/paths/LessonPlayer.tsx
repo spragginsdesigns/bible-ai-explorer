@@ -11,7 +11,7 @@ import { answeredCount, conceptTitle, draftResponse, emptyDraft, isRetry, localG
 import type { AnswerResult, ExerciseView, SessionSummary, SessionView } from "@/lib/beta/paths/view-types";
 import { BlankExercise, ChoiceExercise, FeedbackPanel, MatchExercise, OrderExercise, type Feedback } from "./ExerciseViews";
 import { PathsRequestError, postAnswer, startSession, writeCurriculumLesson } from "./pathsClient";
-import { CARD, CONCEPT_LABEL, EYEBROW, FOCUS, GOLD_BUTTON, MUTED, QUIET_BUTTON, SERIF, TEXT_LINK, lessonHref, pathHref, reviewHref } from "./ui";
+import { CARD, CONCEPT_LABEL, EYEBROW, FOCUS, GOLD_BUTTON, MUTED, PATHS_BASE, QUIET_BUTTON, SERIF, TEXT_LINK, lessonHref, pathHref, reviewHref } from "./ui";
 
 type Phase =
 	| { name: "loading"; message: string }
@@ -45,6 +45,12 @@ export interface LessonPlayerProps {
 	/** A personal curriculum lesson whose questions are written the first time it is opened. */
 	needsWriting: boolean;
 	reading: string | null;
+	/** Where this path's pages live; SureWord Academy (LC-17660) serves courses from /beta/learn/academy. */
+	base?: string;
+	/** Where leaving goes; the path's map by default. */
+	leaveHref?: string;
+	/** After a lesson's questions, the next step of a course lesson (its tutor and memory parts) instead of the next lesson. */
+	continueTo?: { href: string; label: string };
 }
 
 /**
@@ -54,7 +60,8 @@ export interface LessonPlayerProps {
  * answer, so leaving and coming back picks up at the same question.
  */
 export default function LessonPlayer(props: LessonPlayerProps) {
-	const { pathId, pathTitle, kind, target, title, needsWriting, reading } = props;
+	const { pathId, pathTitle, kind, target, title, needsWriting, reading, base = PATHS_BASE, continueTo } = props;
+	const leaveHref = props.leaveHref ?? pathHref(pathId, base);
 	const router = useRouter();
 	const [phase, setPhase] = useState<Phase>({ name: "loading", message: "Opening your lesson..." });
 	const [session, setSession] = useState<SessionView | null>(null);
@@ -174,7 +181,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 
 	if (phase.name === "loading") {
 		return (
-			<Frame pathId={pathId} done={0} total={0} title={title}>
+			<Frame leaveHref={leaveHref} done={0} total={0} title={title}>
 				<div role="status" aria-live="polite" className="flex flex-col items-center gap-4 py-24 text-center">
 					<span className="h-8 w-8 rounded-full border-2 border-amber-500/30 border-t-amber-600 motion-safe:animate-spin dark:border-t-amber-300" aria-hidden />
 					<p className="max-w-sm text-[16px] leading-6">{phase.message}</p>
@@ -185,7 +192,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 
 	if (phase.name === "error") {
 		return (
-			<Frame pathId={pathId} done={0} total={0} title={title}>
+			<Frame leaveHref={leaveHref} done={0} total={0} title={title}>
 				<div role="alert" className="flex flex-col items-center gap-4 py-20 text-center">
 					<p className="max-w-sm text-[16px] leading-6">{phase.message}</p>
 					<div className="flex flex-wrap justify-center gap-3">
@@ -194,7 +201,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 								Try again
 							</button>
 						)}
-						<Link href={pathHref(pathId)} className={QUIET_BUTTON}>
+						<Link href={pathHref(pathId, base)} className={QUIET_BUTTON}>
 							Back to {pathTitle}
 						</Link>
 					</div>
@@ -207,7 +214,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 
 	if (phase.name === "reading" && session.reading) {
 		return (
-			<Frame pathId={pathId} done={0} total={total} title={session.title}>
+			<Frame leaveHref={leaveHref} done={0} total={total} title={session.title}>
 				<p className={EYEBROW}>Read · {session.pathTitle}</p>
 				<h1 className={`${SERIF} mt-1 text-[clamp(2rem,7vw,2.7rem)] font-semibold leading-[1.05]`}>{session.title}</h1>
 				<Passage reading={session.reading} />
@@ -224,7 +231,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 
 	if (phase.name === "reflection" && session.reflection) {
 		return (
-			<Frame pathId={pathId} done={total} total={total} title={session.title}>
+			<Frame leaveHref={leaveHref} done={total} total={total} title={session.title}>
 				<Reflection session={session} onDone={() => setPhase({ name: "summary" })} />
 			</Frame>
 		);
@@ -232,12 +239,14 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 
 	if ((phase.name === "summary" || phase.name === "reflection") && summary) {
 		return (
-			<Frame pathId={pathId} done={total} total={total} title={session.title}>
+			<Frame leaveHref={leaveHref} done={total} total={total} title={session.title}>
 				<Summary
 					session={session}
 					summary={summary}
 					onAgain={() => void load(true)}
-					onNext={(lessonId) => router.push(lessonHref(pathId, lessonId))}
+					onNext={(lessonId) => router.push(lessonHref(pathId, lessonId, base))}
+					base={base}
+					continueTo={continueTo}
 				/>
 			</Frame>
 		);
@@ -246,7 +255,7 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 	if (!exercise || !draft) return null;
 
 	return (
-		<Frame pathId={pathId} done={done} total={total} title={session.title}>
+		<Frame leaveHref={leaveHref} done={done} total={total} title={session.title}>
 			{notice && (
 				<p role="status" className="mb-4 rounded-2xl bg-amber-500/[.1] px-4 py-3 text-sm font-bold dark:bg-amber-300/[.08]">
 					{notice}
@@ -308,11 +317,11 @@ export default function LessonPlayer(props: LessonPlayerProps) {
 }
 
 /** The session's frame: leave, the progress bar, and the count. */
-function Frame({ pathId, done, total, title, children }: { pathId: string; done: number; total: number; title: string; children: React.ReactNode }) {
+function Frame({ leaveHref, done, total, title, children }: { leaveHref: string; done: number; total: number; title: string; children: React.ReactNode }) {
 	return (
 		<main className="mx-auto w-full max-w-2xl px-5 pb-[calc(var(--sureword-mobile-tab-clearance)+24px)] pt-3 lg:pb-16 lg:pt-8">
 			<div className="mb-5 flex items-center gap-3">
-				<Link href={pathHref(pathId)} aria-label={`Leave ${title}. Your place is saved.`} className={`-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 ${FOCUS}`}>
+				<Link href={leaveHref} aria-label={`Leave ${title}. Your place is saved.`} className={`-ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/5 ${FOCUS}`}>
 					<X size={24} aria-hidden />
 				</Link>
 				<div className="flex flex-1 gap-1.5" aria-hidden>
@@ -426,14 +435,31 @@ function Reflection({ session, onDone }: { session: SessionView; onDone: () => v
 	);
 }
 
-function Summary({ session, summary, onAgain, onNext }: { session: SessionView; summary: SessionSummary; onAgain: () => void; onNext: (lessonId: string) => void }) {
-	const heading = summary.kind === "lesson" ? "Lesson complete" : summary.kind === "checkpoint" ? "Checkpoint complete" : "Review complete";
+function Summary({
+	session,
+	summary,
+	onAgain,
+	onNext,
+	base,
+	continueTo,
+}: {
+	session: SessionView;
+	summary: SessionSummary;
+	onAgain: () => void;
+	onNext: (lessonId: string) => void;
+	base: string;
+	continueTo?: { href: string; label: string };
+}) {
+	const heading =
+		summary.kind === "lesson" ? (continueTo ? "Questions complete" : "Lesson complete") : summary.kind === "checkpoint" ? "Checkpoint complete" : summary.kind === "final" ? "Final review complete" : "Review complete";
+	// A course lesson goes on to its tutor and memory parts rather than straight to the next lesson.
+	const next = summary.kind === "lesson" && !continueTo ? summary.next : null;
 	return (
 		<div className="text-center">
 			<svg viewBox="0 0 32 32" aria-hidden className="mx-auto h-10 w-10 text-[#e5b664]">
 				<path d="M16 1 C17 11 21 15 31 16 C21 17 17 21 16 31 C15 21 11 17 1 16 C11 15 15 11 16 1 Z" fill="currentColor" />
 			</svg>
-			<h1 className={`${SERIF} mt-3 text-[clamp(2.2rem,8vw,3rem)] font-semibold leading-tight`}>{summary.pathDone && summary.kind === "lesson" ? `You finished ${session.pathTitle}` : heading}</h1>
+			<h1 className={`${SERIF} mt-3 text-[clamp(2.2rem,8vw,3rem)] font-semibold leading-tight`}>{summary.pathDone && summary.kind === "lesson" && !continueTo ? `You finished ${session.pathTitle}` : heading}</h1>
 			<p className={`mt-2 text-[17px] ${MUTED}`}>
 				You answered {summary.score.right} of {summary.score.total} from the Word the first time.
 			</p>
@@ -453,24 +479,29 @@ function Summary({ session, summary, onAgain, onNext }: { session: SessionView; 
 				</p>
 			)}
 			<div className="mx-auto mt-8 flex max-w-md flex-col gap-3">
-				{summary.next && summary.kind === "lesson" && (
-					<button type="button" onClick={() => onNext(summary.next!.id)} className={GOLD_BUTTON}>
-						Next: {summary.next.title} <ArrowRight size={18} aria-hidden />
+				{continueTo && summary.kind === "lesson" && (
+					<Link href={continueTo.href} className={GOLD_BUTTON}>
+						{continueTo.label} <ArrowRight size={18} aria-hidden />
+					</Link>
+				)}
+				{next && (
+					<button type="button" onClick={() => onNext(next.id)} className={GOLD_BUTTON}>
+						Next: {next.title} <ArrowRight size={18} aria-hidden />
 					</button>
 				)}
 				{summary.reviewCount > 0 && summary.kind !== "review" && (
-					<Link href={reviewHref(session.pathId)} className={QUIET_BUTTON}>
+					<Link href={reviewHref(session.pathId, base)} className={QUIET_BUTTON}>
 						<RotateCcw size={16} aria-hidden /> Review what you missed
 					</Link>
 				)}
 				{/* A review that cleared the list has nothing to go again on. */}
-				{(summary.kind === "checkpoint" || (summary.kind === "review" && summary.reviewCount > 0)) && (
+				{(summary.kind === "checkpoint" || summary.kind === "final" || (summary.kind === "review" && summary.reviewCount > 0)) && (
 					<button type="button" onClick={onAgain} className={QUIET_BUTTON}>
 						Go again
 					</button>
 				)}
-				<Link href={pathHref(session.pathId)} className={summary.next && summary.kind === "lesson" ? TEXT_LINK + " justify-center" : GOLD_BUTTON}>
-					Back to the path
+				<Link href={pathHref(session.pathId, base)} className={next || (continueTo && summary.kind === "lesson") ? TEXT_LINK + " justify-center" : GOLD_BUTTON}>
+					{base === PATHS_BASE ? "Back to the path" : "Back to the course"}
 				</Link>
 			</div>
 		</div>

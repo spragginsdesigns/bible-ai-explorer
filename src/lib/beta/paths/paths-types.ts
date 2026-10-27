@@ -88,6 +88,28 @@ export interface PathLesson {
 	reflection: { prompt: string; answer: string };
 	/** Personal curricula only: the concept the lesson teaches, known before its questions are written. */
 	concept?: string;
+	/** Courses only (SureWord Academy, LC-17660): what a course lesson adds to a path lesson. */
+	course?: CourseLessonParts;
+}
+
+/**
+ * What a SureWord Academy lesson (LC-17660, docs/beta/academy.md) adds to a
+ * path lesson: a close reading with the Socratic Tutor and the verses to
+ * memorize in Scripture Memory. Both are references, never Scripture text.
+ */
+export interface CourseLessonParts {
+	/** The passage the tutor reads closely with the founder: one chapter, 3 to 30 verses ("Genesis 3:1-15"). */
+	tutor: string;
+	/** One sentence on what to look for in it, shown as teaching, never as Scripture. */
+	focus: string;
+	/** One to three verses or short passages (up to six verses of one chapter) to memorize; one holds the key verse. */
+	memory: string[];
+}
+
+/** SureWord Academy (LC-17660): a course is a path with these, a part on every lesson, and a final review. */
+export interface CourseInfo {
+	/** Three to five plain lines on what the course teaches, shown on its page. Teaching, not Scripture. */
+	outcomes: string[];
 }
 
 export interface PathUnit {
@@ -116,6 +138,8 @@ export interface PathDef {
 	topics: string[];
 	readAlong: PathReadAlong | null;
 	units: PathUnit[];
+	/** Set on SureWord Academy courses (LC-17660); a course has a final review after its unit checkpoints. */
+	course?: CourseInfo;
 }
 
 /* -------------------------------------------------------------------------
@@ -151,7 +175,8 @@ export interface ReviewEntry {
 	misses: number;
 }
 
-export type SessionKind = "lesson" | "review" | "checkpoint";
+/** "final" is a course's final review (SureWord Academy, LC-17660), across every unit. */
+export type SessionKind = "lesson" | "review" | "checkpoint" | "final";
 
 export interface SessionAnswer {
 	ex: string;
@@ -164,7 +189,7 @@ export interface SessionAnswer {
 export interface ActiveSession {
 	id: string;
 	kind: SessionKind;
-	/** Lesson id, unit id (checkpoint) or "" (review). */
+	/** Lesson id, unit id (checkpoint) or "" (review, final). */
 	target: string;
 	/** Exercise ids in the order they are asked; a miss is asked again once at the end. */
 	queue: string[];
@@ -185,4 +210,6 @@ export interface EnrollmentData {
 	review: ReviewEntry[];
 	active: ActiveSession | null;
 	lastLesson: string | null;
+	/** A course's final review, once taken (LC-17660). Absent on paths and on enrollments written before it. */
+	final?: SessionScore;
 }

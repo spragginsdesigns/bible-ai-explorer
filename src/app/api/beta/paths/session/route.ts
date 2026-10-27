@@ -7,14 +7,15 @@ export const dynamic = "force-dynamic";
 
 const startSchema = z.object({
 	pathId: z.string().min(1).max(60),
-	kind: z.enum(["lesson", "review", "checkpoint"]),
+	kind: z.enum(["lesson", "review", "checkpoint", "final"]),
 	target: z.string().max(60).default(""),
 	restart: z.boolean().optional(),
 });
 
 /**
  * POST /api/beta/paths/session (Learning Paths, LC-17648): start a lesson, a
- * unit checkpoint or a review, or pick up the one under way where it stopped.
+ * unit checkpoint, a review or a course's final review (SureWord Academy,
+ * LC-17660), or pick up the one under way where it stopped.
  * Body `{ pathId, kind, target, restart? }`; answers the session view.
  */
 export async function POST(req: Request) {

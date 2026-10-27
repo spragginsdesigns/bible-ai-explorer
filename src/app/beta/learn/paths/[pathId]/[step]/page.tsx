@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import LessonPlayer from "@/components/beta/paths/LessonPlayer";
 import { betaMetadata, requireBetaPage } from "@/lib/beta/access";
 import { writtenPath } from "@/lib/beta/paths/catalog";
@@ -26,6 +26,8 @@ export default async function LearningPathStepPage({ params, searchParams }: Pro
 	const { pathId, step } = await params;
 	const loaded = await loadPath(userId, pathId);
 	if (!loaded) notFound();
+	// A course's lessons and reviews live in SureWord Academy (LC-17660).
+	if (loaded.def.course) redirect(`/beta/learn/academy/${loaded.def.id}`);
 	let kind: SessionKind;
 	let target = "";
 	let title: string;
