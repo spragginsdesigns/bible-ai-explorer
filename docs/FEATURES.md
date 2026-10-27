@@ -2178,6 +2178,12 @@ Exodus 14.
 - **macOS and iOS use the same authenticated API contract** through
   `macos/Shared/Atlas/AtlasModel.swift`, with platform-native explorer views.
 
+SureWord Beta's **Atlas & Timeline** (`/beta/bible/atlas`, founders only,
+LC-17655) is a map and scrubbable timeline over this same corpus: it keys
+coordinates, seven journeys and the kings' and prophets' lanes to the corpus
+ids rather than copying the corpus, and keeps the 47 journey stops the corpus
+lacks beside it in the corpus's own place shape. [docs/beta/atlas.md](beta/atlas.md).
+
 ### API
 
 | Route | What it answers |
