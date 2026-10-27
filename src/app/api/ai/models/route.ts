@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { getAuthUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
+	OWNER_SOL_MODEL_ID,
+	ownerPickForModelId,
+	ownerSolDefinition,
 	SUREWORD_AI_LABEL,
 	SUREWORD_PLAN_MODEL_IDS,
 	sureWordPlanDefinition,
-	sureWordPlanForModelId,
 	toModelPayload,
 } from "@/lib/ai/models";
 import { aiAccessFor, houseChatModel, isServerCredentialUser } from "@/lib/ai/provider";
@@ -78,16 +80,25 @@ export async function GET(): Promise<Response> {
 		// (Austin, 2026-10-25), under one "SureWord" provider header. Neither
 		// row offers run options; resolveModel's owner branch runs the pick.
 		if (isServerCredentialUser(userId)) {
-			const plan = sureWordPlanForModelId(user?.defaultModelId) ?? "pro";
+			const pick = ownerPickForModelId(user?.defaultModelId) ?? "pro";
 			return NextResponse.json({
 				access,
 				providers: [{ id: "sureword", label: "SureWord", available: true }],
-				models: (["free", "pro"] as const).map((rowPlan) => ({
-					...toModelPayload(sureWordPlanDefinition(rowPlan)),
-					provider: "sureword",
-					premium: rowPlan === "pro",
-				})),
-				defaults: { modelId: SUREWORD_PLAN_MODEL_IDS[plan], effort: null, speed: null, verbosity: null, mode: null },
+				models: [
+					...(["free", "pro"] as const).map((rowPlan) => ({
+						...toModelPayload(sureWordPlanDefinition(rowPlan)),
+						provider: "sureword",
+						premium: rowPlan === "pro",
+					})),
+					{ ...toModelPayload(ownerSolDefinition()), provider: "sureword", premium: false },
+				],
+				defaults: {
+					modelId: pick === "sol" ? OWNER_SOL_MODEL_ID : SUREWORD_PLAN_MODEL_IDS[pick],
+					effort: null,
+					speed: null,
+					verbosity: null,
+					mode: null,
+				},
 				house: null,
 			});
 		}

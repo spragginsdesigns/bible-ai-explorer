@@ -529,6 +529,38 @@ export function sureWordPlanDefinition(plan: "free" | "pro"): ModelDefinition {
 }
 
 /**
+ * A third row on the owner's picker only (Austin, 2026-10-27): GPT-6.1 Sol at
+ * high effort, for hard questions. No plan ever gets it. A real model id, so
+ * the preferences route accepts it as a stored default.
+ */
+export const OWNER_SOL_MODEL_ID = "openai/gpt-6.1-sol";
+
+/** Which owner picker row an id names, or null when it names none. */
+export function ownerPickForModelId(modelId: string | null | undefined): "free" | "pro" | "sol" | null {
+	return modelId === OWNER_SOL_MODEL_ID ? "sol" : sureWordPlanForModelId(modelId);
+}
+
+/** The owner's Sol row: the real head, with run options hidden like the plan rows. */
+export function ownerSolDefinition(): ModelDefinition {
+	const head = getModel(OWNER_SOL_MODEL_ID);
+	if (!head) throw new Error(`The owner model ${OWNER_SOL_MODEL_ID} is not registered.`);
+	return {
+		...head,
+		efforts: [],
+		speeds: ["standard"],
+		verbosities: [],
+		verbosityMechanism: null,
+		modes: ["standard"],
+		defaultEffort: null,
+		fastModeNote: null,
+		tier: null,
+		contextWindow: null,
+		pricing: null,
+		tagline: "Owner only: high effort",
+	};
+}
+
+/**
  * The included chat model for a plan, given which server credentials exist.
  * A deploy missing the OpenRouter key would otherwise turn every answer on an
  * OpenRouter head into a configuration error, so that falls back to the

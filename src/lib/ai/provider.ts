@@ -19,8 +19,9 @@ import {
 	HOUSE_EFFORT,
 	HOUSE_MODEL_ID,
 	houseChatModelId,
+	OWNER_SOL_MODEL_ID,
+	ownerPickForModelId,
 	sureWordPlanDefinition,
-	sureWordPlanForModelId,
 	isReasoningEffort,
 	isReasoningMode,
 	isSpeed,
@@ -443,12 +444,12 @@ export async function resolveModel(options: {
 	// the included head at that plan's effort, on the server key, unmetered.
 	// Utility work keeps the keys path below.
 	if (!options.utility && isServerCredentialUser(options.userId)) {
-		const plan =
-			sureWordPlanForModelId(options.modelId) ?? sureWordPlanForModelId(user?.defaultModelId) ?? "pro";
-		const head = resolveDefinition(HOUSE_CHAT_MODEL_ID);
-		if (!head) throw new Error(`The included chat model ${HOUSE_CHAT_MODEL_ID} is not registered.`);
+		const pick = ownerPickForModelId(options.modelId) ?? ownerPickForModelId(user?.defaultModelId) ?? "pro";
+		const headId = pick === "sol" ? OWNER_SOL_MODEL_ID : HOUSE_CHAT_MODEL_ID;
+		const head = resolveDefinition(headId);
+		if (!head) throw new Error(`The owner chat model ${headId} is not registered.`);
 		const apiKey = await apiKeyFor(options.userId, head.provider);
-		const effort = houseEffortFor(options.effort, plan);
+		const effort = pick === "sol" ? "high" : houseEffortFor(options.effort, pick);
 		return {
 			model: buildModel(head.provider, head.providerModelId, apiKey, structuredCall),
 			providerOptions: buildProviderOptions(
@@ -457,7 +458,7 @@ export async function resolveModel(options: {
 				Boolean(options.attachments) && head.supportsAttachments,
 				head,
 			),
-			definition: sureWordPlanDefinition(plan),
+			definition: pick === "sol" ? head : sureWordPlanDefinition(pick),
 			effort,
 			speed: null,
 			verbosity: null,
