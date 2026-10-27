@@ -1,20 +1,22 @@
 import "server-only";
 
-import { extractText, getResolvedPDFJS } from "unpdf";
+import { Worker } from "node:worker_threads";
 import { normalizeSourceText, titleFromFilename } from "@/lib/beta/projects/projects-rules";
+import type { PdfWorkerInput, PdfWorkerResult } from "@/lib/beta/projects/pdf-worker";
 
 /**
  * Text from a file a founder uploads into a study project, read on the server
  * (docs/beta/projects.md). PDFs go through unpdf, the serverless build of
- * Mozilla's PDF.js with its worker inlined (no native dependency); text and
- * Markdown are read as UTF-8. Only the text is kept, as the source's body; the
- * file itself is not stored anywhere.
+ * Mozilla's PDF.js with its worker inlined (no native dependency), on a worker
+ * thread of their own (pdf-worker.ts); text and Markdown are read as UTF-8.
+ * Only the text is kept, as the source's body; the file itself is not stored
+ * anywhere.
  */
 
 /** Under Vercel's 4.5 MB request body limit, with room for the form encoding. */
 export const UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 export const PDF_MAX_PAGES = 400;
-/** The serverless PDF.js parses on the event loop, so an untrusted file gets a deadline. */
+/** Well inside the upload route's 60 s maxDuration. */
 const PDF_TIMEOUT_MS = 25_000;
 
 export class UploadError extends Error {}
@@ -37,41 +39,43 @@ export interface ExtractedSource {
 	pages: number | null;
 }
 
-/** Race `promise` against a deadline; on the deadline, `onTimeout` stops the work behind it. */
-function withDeadline<T>(promise: Promise<T>, ms: number, onTimeout: () => void): Promise<T> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	return Promise.race([
-		promise,
-		new Promise<never>((_, reject) => {
-			timer = setTimeout(() => {
-				onTimeout();
-				reject(new UploadError("This PDF took too long to read. Try a smaller file, or paste the part you need."));
-			}, ms);
-		}),
-	]).finally(() => clearTimeout(timer));
+/**
+ * PDF.js parses as one unbroken chain of promise callbacks, so on the request's
+ * own thread no timer fires until it ends (LC-17642 review: a 150 KB file whose
+ * page inflates to 150 MB ran 50 s). It runs in a worker thread instead, which
+ * the deadline terminates, stopping the parse wherever it is.
+ */
+function pdfText(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
+	if (new TextDecoder("latin1").decode(bytes.slice(0, 1024)).indexOf("%PDF-") < 0) {
+		return Promise.reject(new UploadError("That file is not a PDF."));
+	}
+	return new Promise((resolve, reject) => {
+		// Keep the URL literal and the chunk name: webpack bundles the worker
+		// from it, and next.config.mjs traces chunks/pdf-worker.js by that name.
+		const worker = new Worker(/* webpackChunkName: "pdf-worker" */ new URL("./pdf-worker", import.meta.url), {
+			workerData: { bytes, maxPages: PDF_MAX_PAGES } satisfies PdfWorkerInput,
+		});
+		const timer = setTimeout(() => settle(new UploadError("This PDF took too long to read. Try a smaller file, or paste the part you need.")), PDF_TIMEOUT_MS);
+		// The first outcome wins, and the worker is stopped whichever it is.
+		function settle(outcome: Error | { text: string; pages: number }) {
+			clearTimeout(timer);
+			void worker.terminate();
+			if (outcome instanceof Error) reject(outcome);
+			else resolve(outcome);
+		}
+		worker.once("message", (result: PdfWorkerResult) => settle(result.ok ? { text: result.text, pages: result.pages } : new UploadError(refusal(result))));
+		// The worker itself failing (it could not load, say) is not the file's
+		// fault, so it stays a plain error that projectError logs as a 500. `on`,
+		// not `once`: an 'error' with no listener would throw on this thread.
+		worker.on("error", settle);
+		worker.once("exit", () => settle(new UploadError("This PDF could not be read.")));
+	});
 }
 
-async function pdfText(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
-	if (new TextDecoder("latin1").decode(bytes.slice(0, 1024)).indexOf("%PDF-") < 0) {
-		throw new UploadError("That file is not a PDF.");
-	}
-	// The loading task is held here (unpdf's getDocumentProxy hides it) so a
-	// deadline can destroy it, which stops PDF.js instead of leaving it parsing.
-	const { getDocument } = await getResolvedPDFJS();
-	const task = getDocument({ data: bytes, useSystemFonts: true });
-	const stop = () => void task.destroy().catch(() => undefined);
-	try {
-		const pdf = await withDeadline(task.promise, PDF_TIMEOUT_MS, stop);
-		if (pdf.numPages > PDF_MAX_PAGES) throw new UploadError(`This PDF has ${pdf.numPages} pages. Upload up to ${PDF_MAX_PAGES} pages, or just the chapter you need.`);
-		const { text } = await withDeadline(extractText(pdf, { mergePages: false }), PDF_TIMEOUT_MS, stop);
-		return { text: text.map((page) => page.trim()).filter(Boolean).join("\n\n"), pages: pdf.numPages };
-	} catch (error) {
-		if (error instanceof UploadError) throw error;
-		const name = error instanceof Error ? error.name : "";
-		throw new UploadError(name === "PasswordException" ? "This PDF is password protected. Open it and paste the text instead." : "This PDF could not be read.");
-	} finally {
-		stop();
-	}
+function refusal(result: Exclude<PdfWorkerResult, { ok: true }>): string {
+	if (result.reason === "pages") return `This PDF has ${result.pages} pages. Upload up to ${PDF_MAX_PAGES} pages, or just the chapter you need.`;
+	if (result.reason === "password") return "This PDF is password protected. Open it and paste the text instead.";
+	return "This PDF could not be read.";
 }
 
 /** Read an uploaded file's text. Throws UploadError with a message for the founder. */

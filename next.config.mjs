@@ -1,15 +1,26 @@
 import withPWA from "next-pwa";
 import { withBotId } from "botid/next/config";
 
+// An isolated QA build can coexist with the normal local server.
+const distDir = process.env.SUREWORD_BUILD_DIR || ".next";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-	// An isolated QA build can coexist with the normal local server.
-	distDir: process.env.SUREWORD_BUILD_DIR || ".next",
+	distDir,
 	outputFileTracingIncludes: {
 		"/api/**": ["./src/data/kjv/*.json"],
 		// Share-card fonts and art, read from disk by src/lib/share-cards/render.tsx.
 		"/api/cards/**": ["./src/assets/share-cards/**/*"],
 		"/api/shared/*/image": ["./src/assets/share-cards/**/*"],
+		// The worker thread Study Projects reads PDFs in (src/lib/beta/projects/
+		// extract.ts). Next traces a route's chunks but not its workers' chunks.
+		"/api/beta/projects/*/upload": [`./${distDir}/server/chunks/pdf-worker.js`],
+	},
+	// A server worker's URL is otherwise built on publicPath ("/_next/"), which
+	// is no path on disk; "./" finds the worker beside the server's chunks.
+	webpack(config, { isServer, nextRuntime }) {
+		if (isServer && nextRuntime === "nodejs") config.output.workerPublicPath = "./";
+		return config;
 	},
 	// Analytics ingestion, served from our own origin so an ad blocker cannot
 	// silently delete half the numbers. The two asset rewrites must stay above

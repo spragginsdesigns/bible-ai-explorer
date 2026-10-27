@@ -35,7 +35,15 @@ every claim. Founders only, web only, at `/beta/study/projects`.
     PDF.js with its worker inlined, no native dependency) and kept as the
     source's body, cut at the store's 200,000 characters and marked when cut.
     The file itself is not stored anywhere. Scanned PDFs with no text layer
-    are refused with a message to paste instead;
+    are refused with a message to paste instead. PDF.js parses as one
+    unbroken chain of promise callbacks that no timer on the request's thread
+    can interrupt (a 150 KB file whose one page inflates to 150 MB ran 50
+    seconds), so each PDF is read on a worker thread of its own
+    (`pdf-worker.ts`, LC-17680), which the route terminates after 25 seconds
+    with "This PDF took too long to read". Webpack bundles that worker as its
+    own server chunk, `chunks/pdf-worker.js`; `next.config.mjs` adds it to the
+    upload route's output trace (Next traces a route's chunks, not its
+    workers') and sets `output.workerPublicPath` so the server finds it;
   - **questions**, open or answered, with the founder's own answer.
 - **Ask** (the AI chat). Answers come only from the project: gathered passages,
   highlighted verses, the chapters of a book study (or a topic study's section
