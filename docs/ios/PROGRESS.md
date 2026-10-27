@@ -12,8 +12,11 @@ has the shared Standard / Large / Largest controls and typography changes.
 macOS compiles and its four native sizing tests pass; iOS compiles for both
 simulator architectures and its focused sizing/onboarding suites pass 25
 tests. Real iOS DEBUG screens were captured at Largest, maximum system text
-and reader step 3. Signed release remains blocked by `errSecInternalComponent`;
-no installed Mac update, DMG or TestFlight release is claimed. See the current
+and reader step 3. Signed macOS build 37 is installed, launched and passes
+strict signature verification. Signed iOS 1.28.0 (1) is uploaded and VALID in
+App Store Connect, internally READY_FOR_BETA_TESTING, with en-US testing notes
+written and read back. No external beta review, App Store release or new
+physical iPhone/iPad pass is claimed. See the current
 [evidence ledger](../accessibility-text-size-2026-10-27.md) for proof limits.
 
 ## Step 0 decisions (defaults in force until Austin objects)

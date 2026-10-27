@@ -24,7 +24,7 @@ the note's content, markup or saved formatting.
 
 - The text-size control is reachable in Appearance & reading, with a live
   Scripture preview and labeled decrease, increase and reset controls.
-- Chat offers a direct Text size route. Native Apple entry points follow
+- Chat offers a direct Text size control. Native Apple entry points follow
   the existing settings and menu patterns.
 - Navigation labels may wrap. Navigation height must reserve matching space
   for content and the composer.
@@ -131,10 +131,44 @@ Standard state had decrease and Reset disabled. A production capture is saved
 as `artifacts/text-size/web-production-controls.jpg`. Android was left at its
 original Standard app size and 1.0 system size, and the emulator remains
 running. The iOS simulator system text category was restored to Large.
-Apple 1.28.0 (macOS build 37): source, builds and the scoped native tests above
-complete. Signed delivery is blocked. `install-mac.sh --no-launch` failed at
-CodeSign with `errSecInternalComponent`; the Apple Distribution key dry-run
-failed with the same error. A one-shot GUI-context retry could not access the
-Documents checkout under macOS privacy controls and was unloaded. No keychain
-password, ACL or privacy setting was changed. The installed Mac app/DMG was
-not replaced, and no iOS archive or TestFlight upload is claimed.
+The final in-place web dialog shipped in `0c9abb9`, production deployment
+`dpl_FER347GZ5qgduLj6GA4EMbv9yKVo`, observed READY with the sureword.app alias.
+A real production chat draft survived opening and closing the dialog; its URL
+stayed unchanged and Escape restored focus to Chat options. The sample draft
+was cleared after verification. Capture: `artifacts/text-size/web-production-dialog.jpg`.
+
+Apple 1.28.0: macOS build 37 is signed, installed at
+`/Applications/SureWord.app` and launched. Its strict signature verifies.
+Signed iOS build 1 uploaded successfully, and a separate App Store Connect
+readback returned `VALID`, build ID `b73b196f-becb-44f0-89ba-a45a381e0dbb`.
+Its beta detail reports `READY_FOR_BETA_TESTING` internally and
+`READY_FOR_BETA_SUBMISSION` externally. The en-US What to Test field was
+written and read back. The existing external Friends and Church group does
+not contain this build; external beta review, App Store release and physical
+iPhone/iPad verification are not claimed.
+
+The SSH signing error was resolved by running the normal release scripts in
+the logged-in Aqua session against a clean clone at
+`/Users/Shared/SureWord-TextSize-Release-20261027`. The earlier Documents clone
+was blocked by macOS privacy controls. No keychain password, ACL or privacy
+setting changed. The one-shot LaunchAgent was unloaded after both scripts
+finished. Mac installation now matches only the installed app process, so it
+preserves other agents' running iOS simulator processes.
+
+Finder automation timed out while styling the DMG. The optional
+`SUREWORD_DMG_BACKEND=headless` path uses pinned dmgbuild 1.6.7 via uv, retaining
+the artwork, icon coordinates and window dimensions. Settings receive explicit
+root/app paths because dmgbuild does not define `__file__`. It deliberately
+does not set hide_extensions on the app, because that writes FinderInfo and
+breaks strict signature verification. The canonical release verifier mounts
+the finished image and checks its signature, team, bundle ID, version, CDHash
+and source fingerprint before publication. The signed app's macOS source
+fingerprint is `b0af7222a374153c78fd355274b6782f52f8c589b594c07dd5156fdfe54e24a4`.
+
+GitHub release `macos-v1.28.0` is published. Its 46,337,461-byte SureWord.dmg
+asset digest matches the locally verified image:
+`3a8ef32676704c0d9b3b21309457047fbd062aa8b392475145dfdb9448d831ab`.
+The canonical script carried forward the newest Android APK, whose digest is
+`6b7d5348bad749eec4558816fae0f19ac534a9f41a081f1792eeecf4ffa1bf25`.
+That is the concurrent Android 1.106.0 release, not the earlier 1.105.0 text-size
+acceptance binary; the script preserved it rather than rolling Android back.

@@ -9,10 +9,10 @@ The exact text for SureWord's App Store page. Start at
 text. Clear this by running `listing apply` on the Mac with the next iOS
 version that ships Ways to Serve, then `listing check`.
 
-> **PENDING (2026-10-27): text-size copy is waiting for Apple 1.28.0.**
+> **PENDING (2026-10-27): text-size copy awaits the combined Apple listing gate.**
 > The shared description now names adjustable text across chat, Scripture,
-> notes and menus. Signed Apple delivery is blocked by the Mac's
-> `errSecInternalComponent` signing error. Both pending gates apply: publish
+> notes and menus. iOS 1.28.0 (1) containing text sizing is uploaded and VALID.
+> The Ways to Serve gate above remains open: publish
 > the full description only when its Apple version includes both features,
 > then remove this block after `asc.py listing check` matches.
 

@@ -13,7 +13,7 @@ Update this file whenever a feature changes on any client.
 > remains the historical evidence ledger; the TODO is the current work queue
 > for those three clients and does not certify macOS parity.
 
-**2026-10-27 bounded text sizing (web and Android released, Apple signing blocked):**
+**2026-10-27 bounded text sizing (web, Android and signed Apple builds):**
 The existing Standard / Large / Largest account preference stays at factors
 1 / 1.15 / 1.3. Labeled decrease and increase controls stop at the endpoints,
 Reset restores Standard, and a live Scripture preview shows the chosen size.
@@ -26,11 +26,16 @@ Reset, restart persistence, quick access and whole-label layouts were exercised,
 including 2x system text. Web passed its final build, 1,747 logic tests and
 320px layout/keyboard stress checks using shipping components. Production
 `dpl_2nx2U2BtmqswWcqaGP44nBLccXG1` is READY for `a24e58b`, with the live
-controls observed in a signed-in browser on sureword.app. Apple 1.28.0
-(37) compiles; macOS native sizing tests pass 4/4 and iOS focused suites pass
+controls observed in a signed-in browser on sureword.app. The in-place dialog
+follow-up `0c9abb9` is also READY in production and preserves unsent drafts;
+the integrated web suite passes 1,765 tests. Apple 1.28.0
+compiles; macOS native sizing tests pass 4/4 and iOS focused suites pass
 25/25, with real iOS debug captures at Largest, maximum system text and reader
-step 3. Signed Apple delivery is blocked by `errSecInternalComponent`; no
-installed Mac update or TestFlight delivery is claimed. Platform proof limits
+step 3. Signed macOS build 37 is installed and launched with strict signature
+verification. GitHub release `macos-v1.28.0` contains the verified DMG and preserves the
+newest Android APK. Signed iOS build 1 is VALID in App Store Connect and ready for
+internal beta testing, with testing notes read back. External beta review,
+App Store release and new physical iPhone/iPad proof are not claimed. Platform proof limits
 and release receipts are recorded separately in
 [the sizing evidence ledger](accessibility-text-size-2026-10-27.md).
 
