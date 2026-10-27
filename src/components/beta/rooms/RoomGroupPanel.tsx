@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { BookOpen, Lock, NotebookPen, UserPlus } from "lucide-react";
 import type { RoomView } from "@/lib/beta/rooms/rooms";
-import { ROOM_DESCRIPTION_MAX, ROOM_NAME_MAX, ROOM_PURPOSE_PATHS, type MemberView, type RoomPurpose } from "@/lib/beta/rooms/rooms-rules";
-import type { RoomResult } from "./room-client";
+import { ROOM_DESCRIPTION_MAX, ROOM_NAME_MAX, type MemberView } from "@/lib/beta/rooms/rooms-rules";
 import type { RoomAct } from "./RoomScreen";
-import { Avatar, LocalDate, ROOM_COPY, card, dangerButton, eyebrow, field, primaryButton, quietButton, secondaryButton } from "./room-ui";
+import { Avatar, LocalDate, card, dangerButton, eyebrow, field, primaryButton, quietButton, secondaryButton } from "./room-ui";
 
 interface Props {
 	room: RoomView;
@@ -24,7 +23,7 @@ export default function RoomGroupPanel(props: Props) {
 	const { room } = props;
 	return (
 		<div className="space-y-4">
-			<ReadingTogether room={room} act={props.act} busy={props.busy} onFollow={props.onFollow} onError={props.onError} />
+			<ReadingTogether {...props} />
 			<Members {...props} />
 			<section aria-labelledby="room-private" className={`${card} p-5`}>
 				<h2 id="room-private" className={`${eyebrow} flex items-center gap-2`}>
@@ -44,44 +43,21 @@ export default function RoomGroupPanel(props: Props) {
 					</Link>
 				</div>
 			</section>
-			{room.isOwner && <RoomSettings room={room} act={props.act} busy={props.busy} onError={props.onError} />}
+			{room.isOwner && <OwnerSettings {...props} />}
 		</div>
 	);
 }
 
-/**
- * The room's reading plan: today's chapters, following it, where everyone is,
- * and the owner's choice of plan. Together's products reuse it for their
- * rooms, adding their own view of the plan through `children`.
- */
-export function ReadingTogether({
-	room,
-	act,
-	busy,
-	onFollow,
-	onError,
-	purpose = "study",
-	children,
-}: {
-	room: Omit<RoomView, "posts">;
-	act: (key: string, path: string, init?: { method?: string; body?: unknown }) => Promise<RoomResult<unknown>>;
-	busy: string | null;
-	onFollow: () => void;
-	onError: (message: string) => void;
-	purpose?: RoomPurpose;
-	children?: ReactNode;
-}) {
-	const { noun } = ROOM_COPY[purpose];
-	const path = `${ROOM_PURPOSE_PATHS[purpose].api}/${room.id}`;
+function ReadingTogether({ room, act, busy, onFollow, onError }: Props) {
 	const [choosing, setChoosing] = useState(false);
 	const plan = room.plan;
 	const setPlan = async (planPresetKey: string | null) => {
-		const result = await act(`plan-${planPresetKey ?? "none"}`, path, { method: "PATCH", body: { planPresetKey } });
+		const result = await act(`plan-${planPresetKey ?? "none"}`, `/api/beta/rooms/${room.id}`, { method: "PATCH", body: { planPresetKey } });
 		if (result.ok) setChoosing(false);
 		else onError(result.error);
 	};
 	const unfollow = async () => {
-		const result = await act("unfollow", `${path}/plan`, { method: "DELETE" });
+		const result = await act("unfollow", `/api/beta/rooms/${room.id}/plan`, { method: "DELETE" });
 		if (!result.ok) onError(result.error);
 	};
 	const followers = room.members.filter((member) => member.plan.following);
@@ -96,7 +72,7 @@ export function ReadingTogether({
 				<>
 					<p className="mt-2 font-[family-name:var(--font-cormorant)] text-[25px] font-semibold leading-tight">{plan.title}</p>
 					<p className="text-sm text-neutral-600 dark:text-[#bbb3a7]">
-						Day {plan.todayDay} of {plan.dayCount} for the {noun}
+						Day {plan.todayDay} of {plan.dayCount} for the room
 					</p>
 					<div className="mt-3 rounded-2xl bg-black/[.035] px-4 py-3 dark:bg-white/[.04]">
 						<p className="text-xs font-bold uppercase tracking-[.16em] text-neutral-600 dark:text-[#b3ad9e]">Today</p>
@@ -108,7 +84,6 @@ export function ReadingTogether({
 							</Link>
 						)}
 					</div>
-					{children}
 
 					{room.you.following ? (
 						<p className="mt-4 text-sm leading-6 text-neutral-700 dark:text-[#d9d1c3]">
@@ -123,9 +98,7 @@ export function ReadingTogether({
 								<button type="button" onClick={onFollow} disabled={busy !== null} className={primaryButton}>
 									{busy === "follow" ? "Starting…" : "Follow this plan"}
 								</button>
-								<p className="mt-2 text-xs leading-5 text-neutral-600 dark:text-[#bbb3a7]">
-									It becomes your reading plan from the {noun}&rsquo;s day 1. The {noun} sees only which day you are on and how many days you have read.
-								</p>
+								<p className="mt-2 text-xs leading-5 text-neutral-600 dark:text-[#bbb3a7]">It becomes your reading plan from the room&rsquo;s day 1. The room sees only which day you are on and how many days you have read.</p>
 							</div>
 						)
 					)}
@@ -203,7 +176,7 @@ export function ReadingTogether({
 				</>
 			) : (
 				<p className="mt-2 text-sm leading-6 text-neutral-700 dark:text-[#d9d1c3]">
-					No plan yet. {room.members.find((member) => member.role === "owner")?.displayName ?? "The owner"} can choose one for the {noun}.
+					No plan yet. {room.members.find((member) => member.role === "owner")?.displayName ?? "The owner"} can choose one for the room.
 				</p>
 			)}
 		</section>
@@ -286,35 +259,19 @@ function Members(props: Props) {
 	);
 }
 
-/** The owner's settings: rename and describe, archive and restore. Together's products reuse it for their rooms. */
-export function RoomSettings({
-	room,
-	act,
-	busy,
-	onError,
-	purpose = "study",
-}: {
-	room: Pick<RoomView, "id" | "name" | "description" | "archived">;
-	act: (key: string, path: string, init?: { method?: string; body?: unknown }) => Promise<RoomResult<unknown>>;
-	busy: string | null;
-	onError: (message: string) => void;
-	purpose?: RoomPurpose;
-}) {
-	const { noun } = ROOM_COPY[purpose];
-	const Noun = `${noun[0].toUpperCase()}${noun.slice(1)}`;
-	const path = `${ROOM_PURPOSE_PATHS[purpose].api}/${room.id}`;
+function OwnerSettings({ room, act, busy, onError }: Props) {
 	const [editing, setEditing] = useState(false);
 	const [name, setName] = useState(room.name);
 	const [description, setDescription] = useState(room.description ?? "");
 	const [confirmArchive, setConfirmArchive] = useState(false);
 	const save = async (event: FormEvent) => {
 		event.preventDefault();
-		const result = await act("rename", path, { method: "PATCH", body: { name, description } });
+		const result = await act("rename", `/api/beta/rooms/${room.id}`, { method: "PATCH", body: { name, description } });
 		if (result.ok) setEditing(false);
 		else onError(result.error);
 	};
 	const archive = async (archived: boolean) => {
-		const result = await act("archive", path, { method: "PATCH", body: { archived } });
+		const result = await act("archive", `/api/beta/rooms/${room.id}`, { method: "PATCH", body: { archived } });
 		if (result.ok) setConfirmArchive(false);
 		else onError(result.error);
 	};
@@ -322,19 +279,19 @@ export function RoomSettings({
 	return (
 		<section aria-labelledby="room-settings" className={`${card} p-5`}>
 			<h2 id="room-settings" className={eyebrow}>
-				{Noun} settings
+				Room settings
 			</h2>
 			{room.archived ? (
 				<>
-					<p className="mt-2 text-sm leading-6 text-neutral-700 dark:text-[#d9d1c3]">Restoring opens the {noun} to new posts again. The invite link stays off until you make a new one.</p>
+					<p className="mt-2 text-sm leading-6 text-neutral-700 dark:text-[#d9d1c3]">Restoring opens the room to new posts again. The invite link stays off until you make a new one.</p>
 					<button type="button" onClick={() => void archive(false)} disabled={busy !== null} className={`${primaryButton} mt-3`}>
-						{busy === "archive" ? "Restoring…" : `Restore the ${noun}`}
+						{busy === "archive" ? "Restoring…" : "Restore the room"}
 					</button>
 				</>
 			) : editing ? (
 				<form onSubmit={save} className="mt-3 space-y-3">
 					<label className="block">
-						<span className="mb-1.5 block text-sm font-bold">{Noun} name</span>
+						<span className="mb-1.5 block text-sm font-bold">Room name</span>
 						<input value={name} onChange={(event) => setName(event.target.value)} maxLength={ROOM_NAME_MAX} required className={field} />
 					</label>
 					<label className="block">
@@ -358,13 +315,13 @@ export function RoomSettings({
 						</button>
 						{!confirmArchive && (
 							<button type="button" onClick={() => setConfirmArchive(true)} className={quietButton}>
-								Archive the {noun}
+								Archive the room
 							</button>
 						)}
 					</div>
 					{confirmArchive && (
 						<div className="mt-2 rounded-2xl bg-black/[.035] px-4 py-3 text-sm leading-6 dark:bg-white/[.04]">
-							<p>Archive this {noun}? Everyone can still read it, but nothing new can be added and the invite link stops working. You can restore it later.</p>
+							<p>Archive this room? Everyone can still read it, but nothing new can be added and the invite link stops working. You can restore it later.</p>
 							<div className="mt-2 flex flex-wrap gap-2">
 								<button type="button" onClick={() => void archive(true)} disabled={busy !== null} className={dangerButton}>
 									{busy === "archive" ? "Archiving…" : "Archive"}

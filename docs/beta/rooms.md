@@ -130,24 +130,10 @@ Rooms is the one membership layer for Together's products
   member's posts of every module. (A shared family prayer is one its author
   posts into the room on purpose; a person's own prayer requests stay private
   as they are here.)
-- **Roles.** `role` is a plain string: `owner`, `member`, and `leader` since
-  SureWord Groups (LC-17656). A leader may remove members, never the owner or
-  another leader, and only the owner names leaders (`setMemberRole`). Study
-  Rooms itself never makes one. A product that needs a parent adds the value
-  and its rules; until then `asRole` treats an unknown role as a member, so
-  nothing gains rights by accident.
-- **Each product sees its own rooms (LC-17656).** Every function here takes an
-  optional `purpose` (default `study`) and looks membership and invites up by
-  it, so a group is the ordinary 404 at Study Rooms' routes and a study room is
-  one at Groups'. `ROOM_PURPOSE_PATHS` and `roomInvitePath(token, purpose)`
-  place each purpose's pages, and `InviteSheet`, `JoinRoom`, `ReadingTogether`
-  and `RoomSettings` take a `purpose` for their paths and copy.
-- **Another module's shared objects (LC-17656).** `openModuleRoom(userId,
-  roomId, purpose, module)` is the one way another module reads and writes a
-  room's posts: membership first, then that module's own posts, list, find,
-  create (optionally as the room's owner, for structure that outlives a
-  member), update and remove. It refuses `module = "rooms"`. SureWord Groups
-  ([groups.md](groups.md)) is the first user.
+- **Roles.** `role` is a plain string, `owner` or `member` today. A product
+  that needs a leader or a parent adds the value and its rules; until then
+  `asRole` treats an unknown role as a member, so nothing gains rights by
+  accident.
 - **A room inside a room** (a small group in a church) is not built; a
   nullable parent column added by the product that needs it fits without
   touching anything here.
