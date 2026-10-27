@@ -94,13 +94,26 @@ export function listBetaItems(userId: string, query: BetaItemQuery = {}): Promis
 	});
 }
 
-/** The updated item, or null when the owner has no item with that id. */
-export async function updateBetaItem(userId: string, id: string, patch: BetaItemPatch): Promise<BetaItem | null> {
+/**
+ * The updated item, or null when the owner has no item with that id.
+ *
+ * `ifUpdatedAt` makes the write conditional (LC-17650): it only lands if the
+ * item still has the `updatedAt` its caller read, so two read-modify-write
+ * requests cannot silently overwrite each other. The check and the write are
+ * one statement. A lost race also returns null; the caller tells it from a
+ * missing item by reading the item again.
+ */
+export async function updateBetaItem(
+	userId: string,
+	id: string,
+	patch: BetaItemPatch,
+	options: { ifUpdatedAt?: Date } = {},
+): Promise<BetaItem | null> {
 	const checked = checkBetaItemPatch(patch);
 	if (!checked.ok) fail(checked.error);
 	const change = checked.value;
 	const result = await prisma.betaItem.updateMany({
-		where: { id, userId },
+		where: { id, userId, ...(options.ifUpdatedAt && { updatedAt: options.ifUpdatedAt }) },
 		data: {
 			...(change.title !== undefined && { title: change.title }),
 			...(change.body !== undefined && { body: change.body }),
