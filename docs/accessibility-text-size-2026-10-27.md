@@ -43,6 +43,10 @@ current main. The original edits remain owned by their existing agent.
 
 ## Verification ledger
 
+These results cover the text-sizing release commit `a24e58b`. The receipts
+were later rebased over a concurrent Ways to Serve feature without changing
+that feature; no extra runtime or release proof is claimed for its changes.
+
 Android typecheck and all 1,163 tests in 89 files pass. The upload-signed
 1.105.0 (122) APK is installed on the sole emulator, emulator-5554. The real
 Chat options, Text size route opens Appearance & reading. Standard, Large and
@@ -88,8 +92,27 @@ logs remain in this QA checkout's ignored `artifacts/text-size/` directory.
 ## Release status
 
 Android 1.105.0 (122): matching signed AAB/APK built and emulator verification
-complete; Play internal/closed and GitHub publication pending the release step.
-Web: final build and local UI proof complete; production receipt pending push.
+complete. `push-phone.sh --skip-build` published the bundle to Play internal
+and closed testing and the APK to GitHub. A separate Publisher API readback
+returned `completed`, versionCodes `[122]`, name `1.105.0` on both `internal`
+and `alpha`; closed testers remain subject to Google's review timing. The
+Play listing was applied and a separate check matched the text-sizing copy
+from `a24e58b`, before the concurrent Ways to Serve listing update.
+GitHub release `android-v1.105.0` carries `SureWord.apk` and the existing Mac
+DMG unchanged. GitHub's APK digest matches the local build manifest:
+`006db69e7f4b5ce13d1e1a7e3faa351cb38960e8f527866e66bf8db6cceace8a`.
+The corresponding mobile source digest is
+`351186d251b3f7a2d4bd6e15d80362ffaa85f4e7df4d6739a4d601cce8b996fa`.
+Code is committed and pushed as `a24e58ba2ea009e5ae8eb0831d4e77e219ea8682`.
+Web: final build and local UI proof complete. Production deployment
+`dpl_2nx2U2BtmqswWcqaGP44nBLccXG1` is READY for that exact commit and owns the
+`sureword.app` alias. A fresh signed-in browser tab at
+`https://sureword.app/settings#text-size` rendered the deployed decrease,
+increase, Reset, three preset choices and live Scripture preview. The live
+Standard state had decrease and Reset disabled. A production capture is saved
+as `artifacts/text-size/web-production-controls.jpg`. Android was left at its
+original Standard app size and 1.0 system size, and the emulator remains
+running. The iOS simulator system text category was restored to Large.
 Apple 1.28.0 (macOS build 37): source, builds and the scoped native tests above
 complete. Signed delivery is blocked. `install-mac.sh --no-launch` failed at
 CodeSign with `errSecInternalComponent`; the Apple Distribution key dry-run

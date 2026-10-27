@@ -7,6 +7,15 @@ linked), `device` (verified in simulator, device gate still open), `deferred`
 (only with Austin's written approval). Baseline 2026-10-07: iOS 1.9.0 (10),
 Android bar 1.79.0 (88).
 
+**2026-10-27 maintenance, bounded text sizing:** Apple 1.28.0 (macOS build 37)
+has the shared Standard / Large / Largest controls and typography changes.
+macOS compiles and its four native sizing tests pass; iOS compiles for both
+simulator architectures and its focused sizing/onboarding suites pass 25
+tests. Real iOS DEBUG screens were captured at Largest, maximum system text
+and reader step 3. Signed release remains blocked by `errSecInternalComponent`;
+no installed Mac update, DMG or TestFlight release is claimed. See the current
+[evidence ledger](../accessibility-text-size-2026-10-27.md) for proof limits.
+
 ## Step 0 decisions (defaults in force until Austin objects)
 
 | Question | Status |

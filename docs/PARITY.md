@@ -13,16 +13,20 @@ Update this file whenever a feature changes on any client.
 > remains the historical evidence ledger; the TODO is the current work queue
 > for those three clients and does not certify macOS parity.
 
-**2026-10-27 bounded text sizing (verified source, delivery receipts pending):**
+**2026-10-27 bounded text sizing (web and Android released, Apple signing blocked):**
 The existing Standard / Large / Largest account preference stays at factors
 1 / 1.15 / 1.3. Labeled decrease and increase controls stop at the endpoints,
 Reset restores Standard, and a live Scripture preview shows the chosen size.
 This pass extends consistent sizing to text paths that bypassed the shared
 primitives and adapts navigation, composer and passage-preview layouts.
-Android 1.105.0 (122) is signed and installed on emulator-5554: endpoints,
+Android 1.105.0 (122) is on Play internal and closed testing and GitHub as
+`android-v1.105.0`. Both Play tracks were read back at 122 and GitHub's APK
+digest matches the tested binary. It is signed and installed on emulator-5554: endpoints,
 Reset, restart persistence, quick access and whole-label layouts were exercised,
 including 2x system text. Web passed its final build, 1,747 logic tests and
-320px layout/keyboard stress checks using shipping components. Apple 1.28.0
+320px layout/keyboard stress checks using shipping components. Production
+`dpl_2nx2U2BtmqswWcqaGP44nBLccXG1` is READY for `a24e58b`, with the live
+controls observed in a signed-in browser on sureword.app. Apple 1.28.0
 (37) compiles; macOS native sizing tests pass 4/4 and iOS focused suites pass
 25/25, with real iOS debug captures at Largest, maximum system text and reader
 step 3. Signed Apple delivery is blocked by `errSecInternalComponent`; no
