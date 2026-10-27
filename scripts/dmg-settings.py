@@ -1,7 +1,7 @@
 """The committed SureWord installer layout, written without Finder automation."""
 from pathlib import Path
 
-root = Path(__file__).resolve().parent.parent
+root = Path(defines["root"])
 files = [(defines["app"], "SureWord.app")]
 symlinks = {"Applications": "/Applications"}
 hide_extensions = ["SureWord.app"]

@@ -43,7 +43,7 @@ case "${SUREWORD_DMG_BACKEND:-finder}" in
 headless)
   command -v uv >/dev/null 2>&1 || { echo "uv is required for headless DMG packaging" >&2; exit 1; }
   uv run --with dmgbuild==1.6.7 dmgbuild \
-    -s "$ROOT/scripts/dmg-settings.py" -D "app=$STAGE/SureWord.app" \
+    -s "$ROOT/scripts/dmg-settings.py" -D "root=$ROOT" -D "app=$STAGE/SureWord.app" \
     "SureWord" "$OUT"
   ;;
 finder)
