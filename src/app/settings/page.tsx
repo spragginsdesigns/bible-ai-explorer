@@ -68,7 +68,7 @@ const THEME_OPTIONS = [
 ] as const;
 
 const TRANSLATION_DETAILS: Record<TranslationId, { badge: string; name: string; note: string }> = {
-	KJV: { badge: "KJV", name: "King James Version", note: "Public domain · works offline" },
+	KJV: { badge: "KJV", name: "King James Version", note: "1769 edition · public domain · works offline" },
 	BSB: { badge: "BSB", name: "Berean Standard Bible", note: "Public domain · works offline" },
 	NKJV: { badge: "NKJV", name: "New King James Version", note: "© Thomas Nelson · fetched when needed" },
 	RV1909: { badge: "RV", name: "Reina-Valera 1909 · Español", note: "Public domain · works offline" },
