@@ -140,6 +140,13 @@ and `noindex`.
 end of `src/lib/beta/store.ts`, and the `VaultEmbedding` block at the end of
 `prisma/schema.prisma`.
 
+## Read by Voice Study
+
+Voice Study's `recallStudy` (LC-17724, [`voice.md`](voice.md)) reads
+`vaultTimeline` for "continue our conversation about James", newest first,
+drops private items whole (`privateBetaItemIds` in the store) and hands a few
+dated entries to the realtime model. Same consent rule as Ask.
+
 ## For the Living Study Graph
 
 `searchVault`, `vaultTimeline`, the `VaultEntry` shape and the meaning index are

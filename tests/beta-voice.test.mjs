@@ -11,6 +11,8 @@ import test from "node:test";
 import {
 	EMPTY_VOICE_USAGE,
 	READ_SCRIPTURE_TOOL,
+	RECALL_ENTRIES_MAX,
+	RECALL_STUDY_TOOL,
 	VOICE_MODEL,
 	VOICE_SCRIPTURE_TOOLS,
 	VOICE_TRANSCRIPTION_MODEL,
@@ -24,6 +26,8 @@ import {
 	isWorthKeeping,
 	narrationClip,
 	parseVoiceUsage,
+	recallWhen,
+	studyRecallOutput,
 	verseAtTime,
 	voiceCostUsd,
 	voiceSessionTitle,
@@ -169,7 +173,7 @@ test("the key stays on the server and every voice route is gated", () => {
 		const source = read(route);
 		const gate = source.indexOf("await requireBetaApi()");
 		assert.ok(gate > 0, `${route} is gated`);
-		for (const call of ["createVoiceCall(", "runVoiceScriptureTool(", "planVoiceReading(", "saveVoiceSession(", "listVoiceSessions(", "getVoiceSession(", "deleteVoiceSession(", "saveVoiceSessionNote(", "req.text()"]) {
+		for (const call of ["createVoiceCall(", "runVoiceScriptureTool(", "planVoiceReading(", "saveVoiceSession(", "listVoiceSessions(", "getVoiceSession(", "deleteVoiceSession(", "saveVoiceSessionNote(", "recallStudy(", "req.text()"]) {
 			const at = source.indexOf(call);
 			if (at !== -1) assert.ok(at > gate, `${route}: ${call} runs only after the gate`);
 		}
@@ -192,4 +196,93 @@ test("the registry entry says what shipped", () => {
 	assert.equal(entry.status, "live");
 	assert.equal(entry.issue, "LC-17653");
 	assert.equal(entry.destination, "study");
+});
+
+// ---------------------------------------------------------------- past study (LC-17724)
+
+const NOW = new Date("2026-10-27T12:00:00Z");
+const entry = (over) => ({ kind: "note", title: "James 1", excerpt: "Trials work patience.", date: "2026-10-20T09:00:00Z", passages: [{ label: "James 1:2-4" }], ...over });
+
+test("recallStudy is its own server tool, not one of the chat tools", () => {
+	assert.equal(RECALL_STUDY_TOOL, "recallStudy");
+	assert.equal(isVoiceScriptureTool(RECALL_STUDY_TOOL), false);
+	const tools = read("src/lib/beta/voice/tools.ts");
+	assert.match(tools, /READ_SCRIPTURE_DEFINITION, RECALL_STUDY_DEFINITION\]/, "the session offers recallStudy");
+	const prompt = read("src/lib/beta/voice/prompt.ts");
+	assert.match(prompt, /call \$\{RECALL_STUDY_TOOL\}/);
+	assert.match(prompt, /Never invent a past conversation/);
+	assert.match(prompt, /Quiz me/);
+	assert.match(prompt, /questions for my pastor/);
+	assert.match(prompt, /You cannot save anything yourself/, "the model never offers a save it cannot do");
+	assert.match(prompt, /Before \$\{RECALL_STUDY_TOOL\}, never assume there is anything to find/, "a preamble never promises a past study that may not exist");
+});
+
+test("recall reads the Vault's study memory, drops private items and needs AI consent", () => {
+	const recall = read("src/lib/beta/voice/recall.ts");
+	assert.match(recall, /import "server-only"/);
+	assert.match(recall, /vaultTimeline\(userId/, "it reads through the Vault, not a parallel index");
+	assert.doesNotMatch(recall, /\$queryRaw|VaultEmbedding|embed\(/, "no index or query of its own");
+	assert.match(recall, /privateBetaItemIds\(userId/);
+	assert.match(recall, /hasCurrentAiConsent\(/);
+	const consent = recall.indexOf("hasCurrentAiConsent(");
+	assert.ok(consent > 0 && consent < recall.indexOf("vaultTimeline(userId"), "consent is checked before any study is read");
+	const store = read("src/lib/beta/store.ts");
+	assert.match(store, /export async function privateBetaItemIds[\s\S]*"userId" = \$\{userId\}[\s\S]*->>'private'/);
+	const route = read("src/app/api/beta/voice/tool/route.ts");
+	assert.match(route, /body\.name === RECALL_STUDY_TOOL/);
+	assert.doesNotMatch(route, /console\.(info|error)\([^)]*excerpt/, "the log never carries study words");
+});
+
+test("a found study is dated, newest first as given, capped, and ends with the last conversation", () => {
+	const entries = Array.from({ length: 11 }, (_, i) => entry({ title: `Note ${i}`, date: new Date(Date.UTC(2026, 9, 26 - i)).toISOString() }));
+	entries[0] = { kind: "study", module: "voice", title: "What does James teach about trials?", excerpt: "You: What does James teach about trials?", date: "2026-10-26T18:00:00Z", passages: [{ label: "James 1:2-4" }] };
+	const out = JSON.parse(
+		studyRecallOutput(
+			{
+				status: "found",
+				subject: { kind: "passage", label: "James" },
+				entries,
+				lastConversation: {
+					date: "2026-10-26T18:00:00Z",
+					turns: [
+						{ role: "user", text: "What does James teach about trials?" },
+						{ role: "assistant", text: "That trials work patience, James 1:3." },
+						{ role: "reading", text: "James 1:2-4" },
+					],
+				},
+			},
+			NOW,
+		),
+	);
+	assert.equal(out.status, "found");
+	assert.equal(out.subject, "James");
+	assert.equal(out.itemsFound, 11);
+	assert.equal(out.items.length, RECALL_ENTRIES_MAX);
+	assert.equal(out.items[0].what, "A Voice Study conversation with you");
+	assert.equal(out.items[0].when, "October 26, 2026 (yesterday)");
+	assert.equal(out.items[1].what, "Your note");
+	assert.equal(out.firstStudied, "October 16, 2026 (11 days ago)");
+	assert.deepEqual(out.lastVoiceConversation.howItEnded.map((t) => t.speaker), ["Listener", "SureWord", "Read aloud"]);
+	assert.match(out.note, /not Scripture/);
+	assert.equal("foundBy" in out.items[1], false);
+});
+
+test("nothing studied says so plainly, and loose meaning matches are flagged", () => {
+	const none = JSON.parse(studyRecallOutput({ status: "nothing_yet", subject: { kind: "passage", label: "Obadiah" }, entries: [] }, NOW));
+	assert.equal(none.status, "nothing_yet");
+	assert.match(none.note, /nothing from them on it yet/);
+	assert.equal("items" in none, false);
+	// "found" with no entries can never pass as a memory.
+	assert.equal(JSON.parse(studyRecallOutput({ status: "found", subject: { kind: "topic", label: "grace" }, entries: [] }, NOW)).status, "nothing_yet");
+	const loose = JSON.parse(studyRecallOutput({ status: "found", subject: { kind: "topic", label: "the tabernacle" }, entries: [entry({ matched: ["meaning"] })] }, NOW));
+	assert.equal(loose.items[0].foundBy, "meaning only");
+	assert.match(loose.note, /loosely related/);
+	assert.equal(JSON.parse(studyRecallOutput({ status: "consent_needed" }, NOW)).status, "consent_needed");
+	assert.equal(JSON.parse(studyRecallOutput({ status: "not_understood", subject: "" }, NOW)).status, "not_understood");
+});
+
+test("recall dates read the way a person says them", () => {
+	assert.equal(recallWhen("2026-10-27T01:00:00Z", NOW), "October 27, 2026 (today)");
+	assert.equal(recallWhen("2026-03-04T10:00:00Z", NOW), "March 4, 2026 (237 days ago)");
+	assert.equal(recallWhen("not a date", NOW), "at an unknown date");
 });

@@ -283,3 +283,17 @@ export function listOwnerBetaLinks(userId: string): Promise<BetaLink[]> {
 export function getBetaLink(userId: string, id: string): Promise<BetaLink | null> {
 	return prisma.betaLink.findFirst({ where: { id, userId } });
 }
+
+/**
+ * Which of these items are private (`data.private: true`, docs/beta/README.md),
+ * so a reader that hands study to an AI can drop them whole. Owner-scoped;
+ * reads only the flag, never the data.
+ */
+export async function privateBetaItemIds(userId: string, ids: readonly string[]): Promise<Set<string>> {
+	if (ids.length === 0) return new Set();
+	const rows = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+		SELECT i."id" FROM "BetaItem" i
+		WHERE i."userId" = ${userId} AND i."id" = ANY(${[...ids]}::text[]) AND coalesce(i."data"->>'private', '') = 'true'
+	`);
+	return new Set(rows.map((row) => row.id));
+}

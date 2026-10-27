@@ -16,6 +16,7 @@ const TRY_SAYING = [
 	"Read me Psalm 23.",
 	"Say that another way.",
 	"Who was Melchizedek?",
+	"Can we continue our conversation about James?",
 ];
 
 const PROBLEMS: Record<MicProblem, { title: string; body: string; steps?: string[] }> = {

@@ -41,7 +41,7 @@ GET  /api/bible/audio      ← readScripture plays the narrated KJV chapter MP3
   (`src/lib/beta/voice/prompt.ts`). The tools are chat's own Scripture tools
   from `buildSureWordTools`: `searchScripture`, `findVerses`, `getPassage`,
   `getCrossReferences`, run on the server by `/api/beta/voice/tool` with their
-  own schemas and exact KJV text.
+  own schemas and exact KJV text, plus `recallStudy` (below).
 - **Scripture is never synthesized.** The model is told never to read or
   recite a verse. When a passage should be heard it calls `readScripture`, which
   the browser answers itself: the server resolves the passage
@@ -51,6 +51,24 @@ GET  /api/bible/audio      ← readScripture plays the narrated KJV chapter MP3
   exactly those verses (`narrationClip`), highlighting the verse being read. If a
   chapter had no recording, the words are shown and the model is told not to
   read them.
+- **Picking up past study (LC-17724).** "Can we continue our conversation
+  about James?" makes the model call `recallStudy` with the passage or topic
+  as it was said. The server (`src/lib/beta/voice/recall.ts`) reads the
+  founder's own study through the Knowledge Vault's study memory,
+  `vaultTimeline` (notes, highlights, chat turns, reading, Learn a verse,
+  memories, sermon studies and every beta item, earlier Voice Study
+  conversations included; a topic is also found by meaning), never a second
+  index. Private items (`data.private: true`) are dropped whole before
+  anything is sent, and like the Vault's Ask it runs only for an account that
+  has agreed to AI. The model gets the newest eight entries, each dated, plus
+  the closing turns of the newest Voice Study conversation on the subject
+  (`studyRecallOutput`), and recaps what was last discussed, then asks where
+  to pick up. "Quiz me" and "help me prepare questions for my pastor" work on
+  the same recalled study. Nothing found comes back as `nothing_yet`, and the
+  model says so plainly instead of inventing a memory; entries found only by
+  meaning are marked, so a loose match is not taken for real study. The tool
+  route logs the status, a passage subject (never a topic's words) and the
+  count, never the study itself.
 - **Barge-in.** While SureWord speaks, semantic VAD cancels the reply the
   moment the founder talks; over WebRTC the API drops the unheard audio from
   the conversation (`output_audio_buffer.cleared`), and the transcript marks
@@ -109,7 +127,7 @@ reading and two interruptions (each session's `costUsd`).
 - Components: `src/components/beta/voice/` (`VoiceStudy`, `VoiceTranscript`,
   `VoiceSessions`, `useVoiceStudy`, `voiceEngine`)
 - Logic: `src/lib/beta/voice/` (`voice-rules.ts` pure, `prompt.ts`,
-  `session.ts`, `tools.ts`, `sessions.ts`)
+  `session.ts`, `tools.ts`, `sessions.ts`, `recall.ts`)
 - API: `src/app/api/beta/voice/{call,tool,sessions,sessions/[id],sessions/[id]/note}/route.ts`,
   all gated by `requireBetaApi()`
 - Tests: `tests/beta-voice.test.mjs`

@@ -175,8 +175,9 @@ export const BETA_MODULES: readonly BetaModule[] = [
 			"Ask it to read any chapter or verses, played from the narrated KJV, never a synthetic voice",
 			"Get answers grounded in SureWord's Scripture search, with the references said and linked on screen",
 			"Keep every conversation and save it as a note with the passages quoted in full",
+			"Pick up a past study by name (\"continue our conversation about James\"), get quizzed on it or prepare questions for your pastor",
 		],
-		builtOn: ["The study assistant's Scripture tools", "The narrated KJV (Audio Bible)", "Notes"],
+		builtOn: ["The study assistant's Scripture tools", "The narrated KJV (Audio Bible)", "Notes", "Knowledge Vault"],
 	},
 	{
 		slug: "audio",

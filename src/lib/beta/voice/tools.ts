@@ -4,7 +4,7 @@ import { asSchema, type Tool } from "ai";
 import { buildSureWordTools } from "@/lib/ai-tools";
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
 import { getChapter } from "@/lib/bible/translations";
-import { READ_MAX_VERSES, READ_SCRIPTURE_TOOL, isVoiceScriptureTool } from "@/lib/beta/voice/voice-rules";
+import { READ_MAX_VERSES, READ_SCRIPTURE_TOOL, RECALL_STUDY_TOOL, isVoiceScriptureTool } from "@/lib/beta/voice/voice-rules";
 
 /**
  * Voice Study's tools (docs/beta/voice.md). The four Scripture tools are the
@@ -43,11 +43,30 @@ const READ_SCRIPTURE_DEFINITION = {
 	},
 } as const;
 
+/** recallStudy (LC-17724): the founder's own past study, run on the server by `recallStudy` in recall.ts. */
+const RECALL_STUDY_DEFINITION = {
+	type: "function",
+	name: RECALL_STUDY_TOOL,
+	description:
+		"Look up the listener's own past study in SureWord on one passage or topic: earlier voice conversations with you, chats, notes, highlights, reading and beta studies, newest first, with what was last discussed. Use it when they ask to continue, pick up or go back to something they studied before, or to be quizzed on it or to prepare questions about it.",
+	parameters: {
+		type: "object",
+		properties: {
+			subject: {
+				type: "string",
+				description: 'The passage or topic as they named it: a book ("James"), a chapter or verses ("Romans 8", "John 3:16"), or a topic ("forgiveness", "the armor of God").',
+			},
+		},
+		required: ["subject"],
+		additionalProperties: false,
+	},
+} as const;
+
 async function functionDefinition<INPUT, OUTPUT>(name: string, tool: Tool<INPUT, OUTPUT>): Promise<Record<string, unknown>> {
 	return { type: "function", name, description: tool.description, parameters: await asSchema(tool.inputSchema).jsonSchema };
 }
 
-/** The realtime session's `tools`: the chat Scripture tools plus readScripture. */
+/** The realtime session's `tools`: the chat Scripture tools, readScripture and recallStudy. */
 export async function voiceToolDefinitions(): Promise<Record<string, unknown>[]> {
 	// The definitions do not depend on who is asking; any id builds them.
 	const tools = scriptureTools("definitions");
@@ -57,7 +76,7 @@ export async function voiceToolDefinitions(): Promise<Record<string, unknown>[]>
 		functionDefinition("getPassage", tools.getPassage),
 		functionDefinition("getCrossReferences", tools.getCrossReferences),
 	]);
-	return [...definitions, READ_SCRIPTURE_DEFINITION];
+	return [...definitions, READ_SCRIPTURE_DEFINITION, RECALL_STUDY_DEFINITION];
 }
 
 export class VoiceToolInputError extends Error {}

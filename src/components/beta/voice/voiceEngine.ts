@@ -104,6 +104,7 @@ const ACTIVITY: Record<string, string> = {
 	findVerses: "Finding the verse",
 	getPassage: "Opening the passage",
 	getCrossReferences: "Following the cross-references",
+	recallStudy: "Looking through your past study",
 };
 
 /** A twentieth of a second of silence, played once inside the start tap so iOS lets the narration play later. */
