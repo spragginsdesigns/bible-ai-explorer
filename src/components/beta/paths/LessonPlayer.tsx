@@ -463,7 +463,8 @@ function Summary({ session, summary, onAgain, onNext }: { session: SessionView; 
 						<RotateCcw size={16} aria-hidden /> Review what you missed
 					</Link>
 				)}
-				{summary.kind !== "lesson" && (
+				{/* A review that cleared the list has nothing to go again on. */}
+				{(summary.kind === "checkpoint" || (summary.kind === "review" && summary.reviewCount > 0)) && (
 					<button type="button" onClick={onAgain} className={QUIET_BUTTON}>
 						Go again
 					</button>
