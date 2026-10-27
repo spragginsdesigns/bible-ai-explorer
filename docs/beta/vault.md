@@ -34,6 +34,9 @@ contract in [`README.md`](README.md); founders only, web only.
   notes, Learn a verse and every beta module (Study Projects, Learning Paths and
   the rest), with the latest of each of the others beside it. The reader target
   is the same `lastRead` Today continues from.
+  Beta Home shows this same card (`VaultResume`) in place of its old
+  reader-only "Continue reading" row (LC-17689), so opening the beta continues
+  the last study wherever it was.
 - **Export** the whole vault as Markdown or JSON.
 
 ## Read in place, never copied

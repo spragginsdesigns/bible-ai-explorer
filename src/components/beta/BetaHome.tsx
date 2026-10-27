@@ -5,11 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
-import { ArrowRight, ArrowUp, BookOpen, Layers, NotebookPen, Sun, type LucideIcon } from "lucide-react";
-import { useContinueReading } from "@/components/daily/useContinueReading";
+import { ArrowUp, BookOpen, Layers, NotebookPen, Sun, type LucideIcon } from "lucide-react";
 import { useVerseOfDayPreview } from "@/components/daily/useVerseOfDayPreview";
 import { BETA_MODULES, betaModulesByProgress } from "@/lib/beta/modules";
 import BetaModuleCard from "./BetaModuleCard";
+import VaultResume from "./vault/VaultResume";
 
 const card = "rounded-[22px] border border-black/[.09] bg-white/35 dark:border-white/[.09] dark:bg-white/[.025]";
 const eyebrow = "text-xs font-bold uppercase tracking-[.2em] text-neutral-600 dark:text-[#b3ad9e]";
@@ -20,18 +20,6 @@ function partOfDay(hour: number): string {
 	if (hour < 12) return "Good morning";
 	if (hour < 17) return "Good afternoon";
 	return "Good evening";
-}
-
-/** "today", "yesterday", "3 days ago", or a date for anything older than a week. */
-function readAgo(readAt: string, now: Date): string | null {
-	const then = new Date(readAt);
-	if (Number.isNaN(then.getTime())) return null;
-	const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-	const days = Math.round((day(now) - day(then)) / 86_400_000);
-	if (days <= 0) return "Read today";
-	if (days === 1) return "Read yesterday";
-	if (days < 7) return `Read ${days} days ago`;
-	return `Read ${then.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
 function Shortcut({ href, label, Icon }: { href: string; label: string; Icon: LucideIcon }) {
@@ -52,7 +40,6 @@ export default function BetaHome() {
 function BetaHomeContent() {
 	const router = useRouter();
 	const { user } = useUser();
-	const continueTarget = useContinueReading();
 	const preview = useVerseOfDayPreview();
 	const [now, setNow] = useState<Date | null>(null);
 	const [question, setQuestion] = useState("");
@@ -119,36 +106,8 @@ function BetaHomeContent() {
 						<Shortcut href="/notes" label="Notes" Icon={NotebookPen} />
 					</nav>
 
-					<section aria-label="Pick up where you left off">
-						{continueTarget === undefined ? (
-							<div className={`${card} flex min-h-24 items-center gap-3 px-4 py-4 sm:gap-4`} aria-busy="true">
-								<span className="h-12 w-12 shrink-0 sm:h-14 sm:w-14 animate-pulse rounded-2xl bg-black/[.06] dark:bg-white/[.06]" />
-								<span className="flex-1 space-y-2">
-									<span className="block h-3 w-28 animate-pulse rounded bg-black/[.06] dark:bg-white/[.06]" />
-									<span className="block h-5 w-36 animate-pulse rounded bg-black/[.06] dark:bg-white/[.06]" />
-								</span>
-							</div>
-						) : (
-							<Link
-								href={continueTarget?.href ?? "/bible/chapter?book=43&chapter=1&translation=KJV"}
-								className={`${card} group flex min-h-24 items-center gap-3 px-4 py-4 transition-colors sm:gap-4 hover:border-amber-700/30 hover:bg-white/70 focus-visible:outline-amber-600 dark:hover:border-amber-300/30 dark:hover:bg-white/[.05]`}
-							>
-								<span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl bg-amber-500/[.14] sm:h-14 sm:w-14 text-amber-900 dark:bg-amber-300/[.12] dark:text-amber-200" aria-hidden>
-									<BookOpen size={24} strokeWidth={1.6} />
-								</span>
-								<span className="min-w-0 flex-1">
-									<span className="block whitespace-nowrap text-xs font-bold uppercase tracking-[.14em] text-neutral-600 dark:text-[#b3ad9e]">{continueTarget ? "Continue reading" : "Begin here"}</span>
-									<span className="mt-1 block font-[family-name:var(--font-cormorant)] text-[26px] font-semibold leading-tight">{continueTarget?.label ?? "The Gospel of John"}</span>
-									<span className="block text-sm text-neutral-600 dark:text-[#bbb3a7]">
-										{continueTarget ? (now && readAgo(continueTarget.readAt, now)) ?? "Continue reading" : "In the beginning was the Word. Start with John 1."}
-									</span>
-								</span>
-								<span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-black/10 text-neutral-700 transition-transform group-hover:translate-x-0.5 dark:border-white/15 dark:text-neutral-200" aria-hidden>
-									<ArrowRight size={20} />
-								</span>
-							</Link>
-						)}
-					</section>
+					{/* The newest study anywhere in SureWord (reader, chat, note, Learn a verse or a beta module), the Knowledge Vault's own study memory. */}
+					<VaultResume />
 
 					<section aria-labelledby="beta-invitation" className={`${card} px-5 py-5`}>
 						<h2 id="beta-invitation" className={eyebrow}>{preview ? "Today's invitation" : "A light for your walk"}</h2>
