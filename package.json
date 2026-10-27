@@ -60,6 +60,7 @@
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
     "turndown": "^7.2.2",
+    "unpdf": "1.9.1",
     "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
