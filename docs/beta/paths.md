@@ -147,6 +147,16 @@ come with it. Extend the shapes backwards-compatibly (an optional field on
 `PathLesson` or `PathDef`), keep `progress-rules.ts` pure, and keep exercise ids
 unique across every course.
 
+Academy did exactly that ([academy.md](academy.md)): its three courses are
+`PathDef` files listed in `WRITTEN_COURSES` (served by `loadPath` and the
+session and answer routes, not listed on this hub), with optional `course`
+fields on the path and its lessons, a `"final"` session kind for a course's
+final review, and `base`, `leaveHref` and `continueTo` on `LessonPlayer` so the
+same player runs under `/beta/learn/academy`. Paths' own behaviour is
+unchanged. A course's path pages redirect to Academy, and
+`DELETE /api/beta/paths/enrollment` answers 404 for a course: it is started
+over in Academy, which clears its milestones with its progress.
+
 ## Proof (LC-17648, 2026-10-27)
 
 A production build on a Neon branch of `versemind`, signed in with Clerk

@@ -173,7 +173,10 @@ it. Link to `/beta/study/tutor?passage=<reference>`, or start one on the
 server with `resolvePassage` and `startSession` from `src/lib/beta/tutor/tutor.ts`
 and send the founder to `/beta/study/tutor/<id>`. If a module needs sessions
 nested under its own items, extend `startSession` with a `parentId`
-backwards-compatibly.
+backwards-compatibly. SureWord Academy (LC-17660, [academy.md](academy.md))
+starts a lesson's close reading through `POST /api/beta/tutor/sessions` and
+shows the tutor's own `TutorSession` inside the lesson, with its optional
+`back` prop pointing at the lesson (the tutor's list by default).
 
 ## Proof
 

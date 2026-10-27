@@ -22,6 +22,8 @@ const card = "rounded-[22px] border border-black/[.09] bg-white/35 dark:border-w
 const quietButton =
 	"inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-black/10 px-3.5 text-sm font-bold transition-colors hover:bg-black/[.04] disabled:opacity-40 dark:border-white/10 dark:hover:bg-white/[.05]";
 
+const TUTOR_HOME = { href: "/beta/study/tutor", label: "Socratic Tutor" };
+
 const PENDING_LABEL: Record<TutorAction, string> = {
 	answer: "The tutor is reading your answer against the text",
 	hint: "Finding a hint",
@@ -34,8 +36,11 @@ const PENDING_LABEL: Record<TutorAction, string> = {
  * conversation on desktop (above it on a phone), the tutor's one open
  * question, and the founder's answer, hint, reading and conclusion actions.
  * Every change is saved as it happens, so leaving is pausing.
+ *
+ * `back` is where leaving and pausing go: the tutor's own list by default, or
+ * the SureWord Academy lesson (LC-17660) whose close reading this is.
  */
-export default function TutorSession({ initial }: { initial: TutorSessionView }) {
+export default function TutorSession({ initial, back = TUTOR_HOME }: { initial: TutorSessionView; back?: { href: string; label: string } }) {
 	const router = useRouter();
 	const [view, setView] = useState(initial);
 	const [draft, setDraft] = useState("");
@@ -149,7 +154,7 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 		} catch {
 			/* Every turn is already saved; pausing only stamps the time. */
 		}
-		router.push("/beta/study/tutor");
+		router.push(back.href);
 	}
 
 	async function saveNote() {
@@ -179,8 +184,8 @@ export default function TutorSession({ initial }: { initial: TutorSessionView })
 
 	return (
 		<main className="mx-auto w-full max-w-6xl px-5 pb-[calc(var(--sureword-mobile-tab-clearance)+24px)] pt-4 lg:px-8 lg:pb-16 lg:pt-8">
-			<Link href="/beta/study/tutor" className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-neutral-600 hover:bg-black/5 dark:text-[#bbb3a7] dark:hover:bg-white/5">
-				<ArrowLeft size={18} aria-hidden /> Socratic Tutor
+			<Link href={back.href} className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-neutral-600 hover:bg-black/5 dark:text-[#bbb3a7] dark:hover:bg-white/5">
+				<ArrowLeft size={18} aria-hidden /> {back.label}
 			</Link>
 
 			<header className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
