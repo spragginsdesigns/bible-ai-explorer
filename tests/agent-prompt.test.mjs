@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
-import { chatSystemPrompt, doctrinalFoundation, interpretationGuidance, noteAISystemPrompt, agentGuidance, trustedContextGuidance, savedIdentityGuidance, nextStepGuidance } from "../src/utils/systemPrompt.ts";
+import { chatSystemPrompt, doctrinalFoundation, interpretationGuidance, noteAISystemPrompt, agentGuidance, trustedContextGuidance, savedIdentityGuidance, nextStepGuidance, discernmentGuidance } from "../src/utils/systemPrompt.ts";
 import { actionFingerprint, actionPayload } from "../src/lib/agent-action-rules.ts";
 import { acceptsProposedAction, declinesProposedAction, isStudyWorkRequest, isInitialProfileSaveRequest } from "../src/lib/agent-intent.ts";
 import { deliveredPrayerFollowUps } from "../src/lib/prayer-follow-up-rules.ts";
@@ -26,10 +26,11 @@ test("the saved-by-Jesus identity and doctrinal foundation survive every quotati
 test("task guidance is conditional while core evidence, privacy and agency are always present",()=>{
   const ordinary=chatSystemPrompt("KJV",{userText:"What is grace?"});
   const verification=chatSystemPrompt("KJV",{userText:"/verify https://example.org",hasAttachment:true});
-  assert.ok(ordinary.split(/\s+/).length<4000);
-  assert.doesNotMatch(ordinary,/YOUTUBE VIDEO TRANSCRIPT|stage 1 quote it back/);
+  // No word budget (Austin, 2026-10-27): the discernment guidance, /verify
+  // included, rides every answer so it always speaks as a saved believer.
+  assert.doesNotMatch(ordinary,/stage 1 quote it back/);
   assert.match(verification,/YOUTUBE VIDEO TRANSCRIPT/);
-  for(const block of [interpretationGuidance,agentGuidance,trustedContextGuidance]) assert.ok(ordinary.includes(block));
+  for(const block of [interpretationGuidance,agentGuidance,trustedContextGuidance,discernmentGuidance]) assert.ok(ordinary.includes(block));
   assert.ok(noteAISystemPrompt("Study","My note.").includes(agentGuidance));
 });
 

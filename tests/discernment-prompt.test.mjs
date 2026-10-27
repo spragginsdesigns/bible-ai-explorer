@@ -15,6 +15,7 @@ import {
 	chatSystemPrompt,
 	discernmentGuidance,
 	slashCommandGuidance,
+	taskGuidance,
 } from "../src/utils/systemPrompt.ts";
 import { CHAT_SLASH_COMMANDS } from "../src/lib/chat/slashCommands.ts";
 
@@ -26,6 +27,31 @@ test("chat prompt carries the discernment guidance in every translation", () => 
 		assert.ok(prompt.includes(discernmentGuidance));
 		assert.match(prompt, /never concede that the KJV is wrong/);
 		assert.doesNotMatch(prompt, /never concede that the (?:NKJV|BSB) is wrong/);
+	}
+});
+
+test("every chat answer carries the discernment guidance, with no trigger words", () => {
+	// Austin, 2026-10-27: this question matched none of the old keywords, so
+	// the model never saw the guidance and answered like a neutral scholar.
+	const question =
+		"why did the bible keep changing? the original bible for Christians didn't have the old testament, and they constantly have been adding and removing books and verses, like the apocrypha. why, if we're told the bible never changes?";
+	// The route caches chatSystemPrompt(translation, {}) as the stable prefix,
+	// so the guidance has to be in it with no user text at all.
+	assert.ok(chatSystemPrompt("KJV", {}).includes(discernmentGuidance));
+	assert.ok(chatSystemPrompt("KJV", { userText: question }).includes(discernmentGuidance));
+	assert.equal(taskGuidance({ userText: "Does the KJV mistranslate this?" }).includes(discernmentGuidance), false, "sent twice");
+	assert.equal(chatSystemPrompt("KJV", {}).split(discernmentGuidance).length, 2, "exactly once");
+});
+
+test("the foundation makes every answer a saved believer's, Scripture the only truth", async () => {
+	const { doctrinalFoundation } = await import("../src/utils/systemPrompt.ts");
+	assert.match(doctrinalFoundation, /ALWAYS ANSWER AS A SAVED BELIEVER WHERE SCRIPTURE IS THE ONLY TRUTH/);
+	assert.ok(chatSystemPrompt("KJV", {}).startsWith(doctrinalFoundation));
+});
+
+test("guidance answers whether the Bible changed as a believer", () => {
+	for (const pattern of [/Psalm 12:6-7/, /Romans 3:2/, /Apocrypha/, /Received Text/, /their omissions, not KJV additions/, /Isaiah 40:8/, /not "one position"/]) {
+		assert.match(discernmentGuidance, pattern);
 	}
 });
 
