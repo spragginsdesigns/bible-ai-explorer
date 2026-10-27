@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { Brain, FlaskConical, Moon, Settings, Smartphone, Sun } from "lucide-react";
+import { Brain, Moon, Settings, Smartphone, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import BetaVersionSwitch from "./beta/BetaVersionSwitch";
 import GetAppLink from "./GetAppLink";
 
 /**
@@ -52,7 +53,10 @@ export default function AppOptions() {
       <Link href="/settings#memory" className={row}><Brain size={19} aria-hidden /> Memories</Link>
       <button type="button" className={`${row} w-full`} onClick={() => setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark")}><Sun size={19} className="hidden dark:block" aria-hidden /><Moon size={19} className="dark:hidden" aria-hidden /> Toggle theme</button>
       <GetAppLink source="daily-walk-options" className={row}><Smartphone size={19} aria-hidden /> Get the app</GetAppLink>
-      {userId && betaAccess.get(userId) && <Link href="/beta" className={row}><FlaskConical size={19} aria-hidden /> SureWord Beta</Link>}
+      {userId && betaAccess.get(userId) && <div className="mt-1 border-t border-black/10 px-1 pb-1 pt-2 dark:border-white/10">
+        <p className="px-2 pb-1.5 text-xs font-bold uppercase tracking-[.16em] text-neutral-500 dark:text-neutral-400">Version</p>
+        <BetaVersionSwitch current="regular" className="w-full" />
+      </div>}
     </div>
   </details>;
 }

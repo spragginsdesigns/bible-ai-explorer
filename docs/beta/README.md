@@ -27,12 +27,16 @@ its own `docs/beta/<slug>.md` written by the run that builds it.
   the middleware's redirect to `/sign-in` (pages) or `401` (API); signed in and
   not on the list, the ordinary `404`, with the root title and nothing about the
   beta in the HTML. Not 403: a beta page looks like any page that does not
-  exist. That keeps the beta out of sight, not secret (the menu row's code ships
+  exist. That keeps the beta out of sight, not secret (the switch's code ships
   in the app bundle like any other); the gate is what protects it.
-- **The way in** is a "SureWord Beta" row at the bottom of the settings menu
-  (`AppOptions`) on Today, Bible, Study, Connections and Notes. The menu asks
-  `GET /api/beta/access` (`{ beta: boolean }`, the one beta route open to every
-  account) only when it is first opened, once per account per session.
+- **The toggle** (LC-17639) is one two-way switch, **SureWord | Beta**
+  (`src/components/beta/BetaVersionSwitch.tsx`). In regular SureWord it sits
+  under "Version" at the bottom of the settings menu (`AppOptions`) on Today,
+  Bible, Study, Connections and Notes; inside the beta it sits at the foot of
+  the desktop rail and in the phone header. The version you are in is marked
+  and is not a link. The menu asks `GET /api/beta/access` (`{ beta: boolean }`,
+  the one beta route open to every account) only when it is first opened, once
+  per account per session, and shows the switch only to founders.
 - **Web only.** Android, macOS and iOS are out of scope until the founders say
   otherwise; `docs/PARITY.md` records that. Never touch `mobile/` or `macos/`
   for a beta module.

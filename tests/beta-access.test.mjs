@@ -184,6 +184,19 @@ test("a live module has its own route, and every static beta route belongs to a 
 	}
 });
 
+test("the founders' SureWord | Beta switch shows in the menu only after the access probe, and is the beta's only way out", () => {
+	const options = read("src/components/AppOptions.tsx");
+	assert.match(options, /\{userId && betaAccess\.get\(userId\) && <div[^>]*>\s*<p[^>]*>Version<\/p>\s*<BetaVersionSwitch current="regular"/);
+	assert.equal((options.match(/BetaVersionSwitch current=/g) ?? []).length, 1);
+	const shell = read("src/components/beta/BetaShell.tsx");
+	assert.equal((shell.match(/<BetaVersionSwitch current="beta"/g) ?? []).length, 2, "the desktop rail and the phone header");
+	assert.equal(shell.includes('href="/today"'), false, "the switch is the one way back to regular SureWord");
+	const toggle = read("src/components/beta/BetaVersionSwitch.tsx");
+	assert.match(toggle, /\{ id: "regular", href: "\/today", label: "SureWord" \}/);
+	assert.match(toggle, /\{ id: "beta", href: "\/beta", label: "Beta" \}/);
+	assert.match(toggle, /id === current \? \(\s*<span key=\{id\} aria-current="true"/, "the version you are in is marked and is not a link");
+});
+
 test("every module has its own icon, and the main tab bar steps aside inside the beta", () => {
 	const visuals = read("src/components/beta/visuals.tsx");
 	for (const entry of BETA_MODULES) assert.match(visuals, new RegExp(`\\n\\t${entry.slug}: [A-Z]`), `${entry.slug} icon`);

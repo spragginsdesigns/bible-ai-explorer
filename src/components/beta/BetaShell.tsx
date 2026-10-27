@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { BETA_DESTINATIONS, betaSectionForPath } from "@/lib/beta/modules";
+import BetaVersionSwitch from "./BetaVersionSwitch";
 import { SECTION_ICONS } from "./visuals";
 import tabStyles from "../MobileBottomNav.module.css";
 
@@ -62,21 +62,17 @@ export default function BetaShell({ children }: { children: React.ReactNode }) {
 				</nav>
 				<div className="mt-auto border-t border-black/[0.06] px-3 py-4 dark:border-white/[0.06]">
 					<p className="px-3 pb-2 text-xs leading-5 text-neutral-500 dark:text-neutral-400">A private preview for the SureWord founders.</p>
-					<Link href="/today" className="flex min-h-11 items-center gap-2.5 rounded-[14px] px-3 text-sm font-bold text-neutral-700 hover:bg-black/[0.04] dark:text-neutral-200 dark:hover:bg-white/[0.04]">
-						<LogOut size={17} aria-hidden /> Back to SureWord
-					</Link>
+					<BetaVersionSwitch current="beta" className="w-full" />
 				</div>
 			</aside>
 
 			<div className="lg:pl-[248px]">
 				<header className="relative z-30 mx-auto flex w-full max-w-6xl items-center justify-between px-5 pt-3 lg:hidden">
-					<Link href="/beta" className="flex items-center gap-2.5" aria-label="SureWord Beta home">
+					<Link href="/beta" className="flex min-h-12 items-center gap-2.5" aria-label="SureWord Beta home">
 						<span className="font-[family-name:var(--font-pirata)] text-[30px] leading-none text-neutral-900 dark:text-[#f1eadc]">SureWord</span>
-						<BetaPill />
 					</Link>
-					<Link href="/today" aria-label="Back to SureWord" className="flex h-12 w-12 items-center justify-center rounded-full text-neutral-600 hover:bg-black/5 dark:text-neutral-300 dark:hover:bg-white/5">
-						<LogOut size={22} aria-hidden />
-					</Link>
+					{/* The switch says which SureWord this is, so the phone header drops the Beta pill. */}
+					<BetaVersionSwitch current="beta" compact />
 				</header>
 				{children}
 			</div>
