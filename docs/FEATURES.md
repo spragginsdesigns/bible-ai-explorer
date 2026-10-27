@@ -4349,3 +4349,72 @@ identity, grace, context, study creation/resume, proposals/decisions, private
 reply drafting and canonical verse insight. Neither script prints credentials.
 The answer fixture catalog contains 56 cases; doctrinal and application
 quality remain a human review alongside mechanical checks.
+
+## Ways to Serve
+
+Optional, free ways to put faith into action (GitHub issue #28, Austin
+2026-10-27). Salvation is by grace through faith, not of works (Ephesians
+2:8-9); serving is the fruit of that faith, never its root (Ephesians 2:10).
+Austin: "it shouldn't be mandatory, faith is always first not works". So the
+screen opens by saying serving never saves anyone, nothing is required, and
+nothing counts, scores, streaks or badges what a reader does
+(`tests/serve-rules.test.mjs` fails on that vocabulary).
+
+### The reader's choice
+
+- **Off, Nearby, Online or Both** (`User.serveMode`, null reads as Online).
+  Online is the default because it needs no location, and it exists for
+  people who cannot get out: send a verse, pray for someone by name, check on
+  someone, call someone who is alone, thank someone, share a testimony,
+  forgive. Nearby adds food banks, shelter meals, care-home visits, a
+  neighbor, and asking your own church where they need hands.
+- **"I already give to my church"** (`User.givesToChurch`). Austin gives
+  monthly. When it is on, "Give to your church" disappears, and no giving way
+  is ever today's suggestion; "Give where there's real need" stays in the
+  list for the reader to ignore, only as they purpose in their heart
+  (2 Corinthians 9:7).
+- Church ways appear only when My church has a church saved, and giving to
+  the church opens the church's own website (its giving page lives there).
+
+### The ways are written, not generated
+
+`src/lib/serve-rules.ts` holds a fixed, hand-written list, each way with one
+KJV verse filled in from the bundled KJV. No model call: no consent gate, no
+cost per reader, and the wording cannot drift toward works. Today's way is
+`pickToday(userId, day, context)`: the same on every device that day, walking
+a per-reader shuffled order so nothing repeats until the list has gone round.
+
+### The journal ("What I did")
+
+A private list under Matthew 25:40 of moments God gave the reader to love
+someone. Never counted or shown to anyone. `ServiceEntry` rows (migration
+`20261027220000_ways_to_serve`, applied to production 2026-10-27), deleted
+with the account.
+
+### API
+
+- `GET /api/serve` returns the whole view (title, faith-first intro with
+  Ephesians 2:8-10, settings, today, ways, church, nearby availability,
+  journal heading); `PATCH /api/serve` `{mode?, givesToChurch?}`.
+- `GET /api/serve/nearby?location=&kind=food|shelter|care`: Google Places
+  text search near a city or ZIP the reader typed. Never device location,
+  nothing stored. Answers `status: "unavailable"` without
+  `GOOGLE_PLACES_API_KEY`, and `nearby.available` is false unless the mode
+  includes Nearby. Rate limited.
+- `GET/POST /api/serve/journal`, `DELETE /api/serve/journal/[id]`.
+
+### Chat
+
+`getWaysToServe`, `saveServeEntry` (only when the reader asks to write
+something down) and `listServeEntries` in `src/lib/serve-tools.ts`. The
+system prompt knows the feature (`appKnowledge`) and the always-on
+discernment guidance says serving and giving are the fruit of faith, never
+its root, and never presses someone who already gives to their church.
+
+### Surfaces
+
+A Ways to Serve screen (intro, mode, the switch, Today, the ways with their
+actions, nearby search, journal), a compact card on Today showing today's way
+(hidden when Off), and a Settings entry on Android, web, macOS and iOS.
+Actions: share a verse, pray or reach out (opens chat with a starter
+message), nearby search, My church, the church website, the journal.

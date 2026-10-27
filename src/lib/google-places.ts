@@ -138,6 +138,60 @@ export async function searchChurches(query: string): Promise<PlaceSummary[]> {
 	});
 }
 
+/** A place to serve near the reader (Ways to Serve). Nothing about it is stored. */
+export interface ServePlace {
+	placeId: string;
+	name: string;
+	address: string;
+	phone: string | null;
+	website: string | null;
+	mapsUrl: string | null;
+}
+
+/**
+ * Ways to Serve: food banks, shelters and care homes near a place the reader
+ * typed ("Fresno, CA", a ZIP). Any type, unlike `searchChurches`; the text
+ * query carries what kind of place it is.
+ */
+export async function searchServePlaces(query: string): Promise<ServePlace[]> {
+	const apiKey = requireApiKey();
+
+	const response = await fetch(PLACES_SEARCH_URL, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			"X-Goog-Api-Key": apiKey,
+			"X-Goog-FieldMask": SEARCH_FIELD_MASK,
+		},
+		body: JSON.stringify({ textQuery: query, maxResultCount: MAX_SEARCH_RESULTS }),
+		signal: AbortSignal.timeout(PLACES_TIMEOUT_MS),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Google Places search failed (${response.status}): ${await response.text()}`);
+	}
+
+	const places = asRecord(await response.json()).places;
+	if (!Array.isArray(places)) return [];
+
+	return places.flatMap((place): ServePlace[] => {
+		const record = asRecord(place);
+		const placeId = asString(record.id);
+		const name = displayName(record.displayName);
+		if (!placeId || !name) return [];
+		return [
+			{
+				placeId,
+				name,
+				address: asString(record.formattedAddress) ?? "",
+				phone: asString(record.nationalPhoneNumber),
+				website: asString(record.websiteUri),
+				mapsUrl: asString(record.googleMapsUri),
+			},
+		];
+	});
+}
+
 export async function getPlaceDetails(placeId: string): Promise<PlaceDetails> {
 	const apiKey = requireApiKey();
 

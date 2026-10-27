@@ -14,6 +14,16 @@
 		]
 	},
 	"releases": {
+		"1.106.0": {
+			"title": "Ways to Serve",
+			"headline": "Let God's love reach someone.",
+			"why": "Free, optional ways to serve, online or near you, each with a verse, and a private journal of what you did. Serving never saves anyone: we are saved by grace through faith, and then walk in the good works He prepared for us.",
+			"target": "today",
+			"verse": {
+				"text": "For we are his workmanship, created in Christ Jesus unto good works, which God hath before ordained that we should walk in them.",
+				"reference": "Ephesians 2:10"
+			}
+		},
 		"1.105.0": {
 			"title": "Comfortable text sizes",
 			"headline": "Make SureWord easier to read.",

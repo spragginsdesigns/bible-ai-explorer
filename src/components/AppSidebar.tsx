@@ -55,7 +55,7 @@ interface AppSidebarProps {
 
 const ICONS = { today: Sun, bible: BookMarked, chat: MessageSquare, connections: Network, study: Compass };
 const CHILDREN = {
-	today: [{ href: "/cross", label: "Pick Up Your Cross" }, { href: "/bible/plan", label: "Reading plan" }, { href: "/bible/learn", label: "Learn a verse" }, { href: "/bible/history", label: "Your walk & reading log" }],
+	today: [{ href: "/cross", label: "Pick Up Your Cross" }, { href: "/bible/plan", label: "Reading plan" }, { href: "/bible/learn", label: "Learn a verse" }, { href: "/bible/history", label: "Your walk & reading log" }, { href: "/serve", label: "Ways to Serve" }],
 	bible: [{ href: "/bible/search", label: "Search Scripture" }],
 	study: [{ href: "/notes", label: "Notes" }, { href: "/bible/timeline", label: "Timeline, people & places" }],
 };

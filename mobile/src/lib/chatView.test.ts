@@ -334,6 +334,22 @@ describe("toViewMessage", () => {
 		}
 	});
 
+	it("shows distinct activity labels for the Ways to Serve tools", () => {
+		const labels = [
+			["tool-getWaysToServe", "Looking at ways to serve"],
+			["tool-saveServeEntry", "Writing it in your journal"],
+			["tool-listServeEntries", "Reading your journal"],
+		] as const;
+		for (const [type, label] of labels) {
+			const message = {
+				id: `serve-${type}`,
+				role: "assistant",
+				parts: [{ type, state: "input-available" }],
+			} as never;
+			expect(toViewMessage(message, { isStreaming: true }).activity).toBe(label);
+		}
+	});
+
 	it("says it is reading the link while /verify reads a page", () => {
 		const message = {
 			id: "verify-link",

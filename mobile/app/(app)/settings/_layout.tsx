@@ -33,6 +33,7 @@ export default function SettingsLayout() {
 			<Stack.Screen name="highlights" />
 			<Stack.Screen name="ai" />
 			<Stack.Screen name="church" />
+			<Stack.Screen name="serve" />
 			<Stack.Screen name="notifications" />
 			<Stack.Screen name="shared" />
 			<Stack.Screen name="account" />

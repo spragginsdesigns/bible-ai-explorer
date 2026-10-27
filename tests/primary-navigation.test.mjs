@@ -9,7 +9,7 @@ test("every primary destination has exactly one owner in the five-section readin
 });
 
 test("daily practice keeps Today selected on old and new URLs", () => {
-  for (const path of ["/today", "/cross", "/bible/cross", "/bible/plan", "/bible/learn", "/bible/history", "/bible/learn/card-1", "/cross?notification=1", "/bible/history#walk"]) {
+  for (const path of ["/today", "/cross", "/bible/cross", "/bible/plan", "/bible/learn", "/bible/history", "/bible/learn/card-1", "/cross?notification=1", "/bible/history#walk", "/serve", "/serve#journal"]) {
     assert.equal(primarySectionForPath(path), "today", path);
   }
 });

@@ -1,6 +1,22 @@
 {
 	"releases": [
 		{
+			"version": "1.106.0",
+			"versionCode": 123,
+			"date": "2026-10-27",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Ways to Serve: free, optional ways to let God's love reach someone, online or near you, each with a verse. Serving never saves; we are saved by grace through faith (Ephesians 2:8-10).",
+						"Choose Off, Nearby, Online or Both. Tell SureWord you already give to your church and it never asks you to give there.",
+						"What I did: a private journal of moments God gave you to love someone, never counted.",
+						"Open it from Today or Settings."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.105.0",
 			"versionCode": 122,
 			"date": "2026-10-27",

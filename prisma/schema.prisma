@@ -107,6 +107,12 @@ model User {
   firstCrossOpenedAt     DateTime?
   // The Getting started card on Today was dismissed for good.
   gettingStartedDismissedAt DateTime?
+  // Ways to Serve (docs/FEATURES.md): "off" | "nearby" | "online" | "both".
+  // Null means never chosen, read as the default (src/lib/serve-rules.ts).
+  serveMode              String?
+  // "I already give to my church": never suggest giving there again, and keep
+  // giving elsewhere rare (2 Corinthians 9:7).
+  givesToChurch          Boolean                 @default(false)
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]
@@ -138,6 +144,7 @@ model User {
   feedback               Feedback[]
   church                 UserChurch?
   churchSaves            ChurchSaveEvent[]
+  serviceEntries         ServiceEntry[]
   agentStudies           AgentStudy[]
   agentActions           AgentAction[]
   // SureWord Beta's shared study store (docs/beta/README.md).
@@ -903,6 +910,19 @@ model QuizAttempt {
   correct      Int
   missedVerses Int[]
   createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Ways to Serve journal: a private note of something done in love, in the
+/// reader's own words. Never counted, scored or shown to anyone else.
+model ServiceEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  verseRef  String?
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
 }

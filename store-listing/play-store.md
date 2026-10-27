@@ -39,7 +39,7 @@ ASK THE BIBLE ANYTHING
 • Find the verse you half remember, by meaning or by exact words
 • Cross-reference map: trace any verse through the whole Bible
 • Hebrew and Greek word study with Strong's concordance numbers
-• Copy, edit and try again; share, save or rate any answer
+• Copy, edit, retry, share, save or rate any answer
 • Answers in English, Spanish or German
 
 TEST EVERYTHING BY SCRIPTURE
@@ -51,11 +51,11 @@ TEST EVERYTHING BY SCRIPTURE
 READ AND LISTEN TO THE KJV BIBLE
 • The whole King James Bible offline, plus the NKJV, BSB, Reina-Valera and Luther
 • Audio Bible: the whole KJV narrated, Genesis to Revelation, verse by verse
-• Words of Christ in red on a parchment page, in light or dark mode
+• Words of Christ in red, on parchment, light or dark
 • Adjustable text size across chat, Scripture, notes and menus
 • Tap any verse for a clear explanation, word study and related passages
 • Highlight verses in eight colors and name what each color means
-• Share verse cards with AI or your own words, fonts and placement
+• Share verse cards with AI or your own words and fonts
 • Send a verse and a word of encouragement to someone you love
 
 DAILY DEVOTIONAL: PICK UP YOUR CROSS
@@ -71,12 +71,13 @@ GROW IN YOUR WALK WITH GOD
 • Scripture memory: learn a verse word by word until it is written on your heart
 • Bible quiz after each chapter, every answer with its verse
 • Bible timeline, people and places, from Creation to Revelation
-• Sermon studies: your church's sermons as guided studies for the week, where available
+• Sermon studies: your church's sermons as guided weekly studies, where available
 
 A BIBLE GUIDE THAT KNOWS YOU
 • Share your testimony and where you are in your faith, privately, so answers meet you there
 • Prayer list: requests that come back to you, so you can mark how God answered
 • My church: save your congregation, and SureWord keeps it in mind
+• Ways to Serve: optional ways to love others
 • Memory you control: see, add or delete everything SureWord remembers
 
 BIBLE STUDY NOTES
@@ -84,7 +85,7 @@ BIBLE STUDY NOTES
 • SureWord can find, read, add to and tidy your notes when you ask
 
 SUREWORD AI
-• SureWord AI works the moment you sign in, with no setup and no API key
+• SureWord AI works the moment you sign in, no setup needed
 
 SUREWORD PRO
 An optional monthly subscription adds Listen (the daily devotional read aloud), more AI messages each day, deeper reasoning and unlimited voice message transcription.
@@ -100,7 +101,7 @@ One account on your phone, tablet, Mac and the web at sureword.app.
 Open the Word today. Come hungry.
 ```
 
-3660 characters. It is the App Store description word for word, minus
+3634 characters. It is the App Store description word for word, minus
 Apple's subscription terms footer (Austin, 2026-10-09: one description for
 both stores, every feature, written for search and to open with why the Word
 matters). Play indexes this text for search, so features are named in the

@@ -11,6 +11,7 @@ import SendWordDialog from "@/components/share/SendWordDialog";
 import DestinationCard, { destinationClass } from "./DestinationCard";
 import { useContinueReading } from "./useContinueReading";
 import GettingStartedCard from "@/components/walk/GettingStartedCard";
+import ServeTodayCard from "@/components/serve/ServeTodayCard";
 import { spotlightTarget } from "@/lib/spotlight";
 
 export default function TodayScreen() {
@@ -64,6 +65,7 @@ function TodayContent() {
         <DestinationCard href={continueTarget?.href ?? "/bible"} title={continueTarget ? "Continue reading" : "Open your Bible"} description={continueTarget?.label ?? "Find a book and spend time in Scripture"} Icon={BookOpen} />
         <DestinationCard href="/bible/plan" title={plan?.title ?? "Reading plan"} description={loading ? "Open your reading plan" : error ? "Choose or continue a reading plan" : planCardSubtitle(plan)} Icon={CalendarDays} spotlight="today.plan" />
         <DestinationCard href="/bible/learn" title="Learn a verse" description="Keep Scripture in your heart, one verse at a time" Icon={Layers} spotlight="today.learn" />
+        <ServeTodayCard />
         <Link href="/bible/history" className="flex min-h-14 items-center gap-3 rounded-xl px-2 text-amber-900 transition-colors hover:bg-amber-500/5 dark:text-[#e5b664]"><Footprints size={23} aria-hidden /><span className="flex-1 font-bold">Your walk &amp; reading log</span><ChevronRight size={20} aria-hidden /></Link>
         <div className="border-t border-black/10 pt-3 dark:border-white/10"><button type="button" onClick={() => setSendOpen(true)} className={destinationClass}><Mail size={27} strokeWidth={1.5} className="shrink-0 text-amber-800 dark:text-[#e5b664]" aria-hidden /><span className="flex-1"><span className="block text-lg font-bold">Send a word</span><span className="mt-1 block text-sm text-neutral-600 dark:text-[#bbb3a7]">Encourage someone with Scripture</span></span><ChevronRight size={22} className="shrink-0 text-neutral-500" aria-hidden /></button></div>
       </section>

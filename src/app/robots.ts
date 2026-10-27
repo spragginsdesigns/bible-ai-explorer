@@ -32,6 +32,7 @@ export default function robots(): MetadataRoute.Robots {
 					"/notes",
 					"/bible",
 					"/cross",
+					"/serve",
 					"/membership",
 				],
 			},

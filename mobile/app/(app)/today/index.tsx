@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
 import { Screen } from "@/components/ui";
@@ -15,6 +15,8 @@ import { BOOKS } from "@/features/bible/books";
 import { useReadingPlan } from "@/features/plan/useReadingPlan";
 import { planCardSubtitle } from "@/features/plan/planView";
 import { SendWordSheet } from "@/features/shareCards/SendWordSheet";
+import { useServe } from "@/features/serve/useServe";
+import { todayCardWay } from "@/features/serve/serveRules";
 import { useTheme } from "@/features/settings/settingsStore";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 
@@ -28,6 +30,11 @@ export default function TodayScreen() {
 	const { plan, loading, error } = useReadingPlan();
 	const [sendOpen, setSendOpen] = useState(false);
 	const entry = useDailyPreview();
+	const serve = useServe();
+	const serveWay = todayCardWay(serve.view);
+	const { revalidate: revalidateServe } = serve;
+	// The tab stays mounted for days; today's way should not.
+	useFocusEffect(useCallback(() => { revalidateServe(); }, [revalidateServe]));
 	const openReader = () => {
 		const book = BOOKS.find((item) => item.name === lastRead?.book);
 		if (!book || !lastRead) { router.navigate("/bible"); return; }
@@ -57,6 +64,9 @@ export default function TodayScreen() {
 			<HubRow spotlight="today.learn" icon="albums-outline" title="Learn a verse" subtitle="Keep Scripture close, at your own pace" onPress={() => router.push("/today/learn")} />
 			<HubRow spotlight="today.plan" icon="calendar-outline" title={plan?.title ?? "Reading plan"}
 				subtitle={loading ? "Loading your plan..." : error ? "Open your plan to reconnect" : planCardSubtitle(plan)} onPress={() => router.push("/today/plan")} />
+			{/* Hidden when Ways to Serve is off; Settings keeps the way back in. */}
+			{serveWay ? <HubRow icon="heart-outline" title={serve.view?.title ?? "Ways to Serve"}
+				subtitle={`${serveWay.title} · ${serveWay.verse.reference}`} onPress={() => router.push("/today/serve")} /> : null}
 			<View style={styles.section}><Text style={styles.sectionTitle}>Along the way</Text></View>
 			<HubRow icon="footsteps-outline" title="Your walk" subtitle="Your reading history and time in the Word" onPress={() => router.push("/today/history")} />
 			<HubRow icon="mail-outline" title="Send a word" subtitle="Share a verse for what someone is facing" onPress={() => setSendOpen(true)} />

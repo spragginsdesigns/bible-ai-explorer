@@ -14,7 +14,7 @@ const within = (path: string, root: string) => path === root || path.startsWith(
 export function primarySectionForPath(pathname: string): PrimarySection | null {
   const path = pathname.split(/[?#]/)[0];
   if (path === "/") return "chat";
-  if (["/today", "/cross", "/bible/cross", "/bible/plan", "/bible/learn", "/bible/history"].some(root => within(path, root))) return "today";
+  if (["/today", "/cross", "/bible/cross", "/bible/plan", "/bible/learn", "/bible/history", "/serve"].some(root => within(path, root))) return "today";
   if (["/study", "/notes", "/sermons", "/bible/timeline", "/bible/atlas"].some(root => within(path, root))) return "study";
   if (within(path, "/connections")) return "connections";
   if (within(path, "/bible")) return "bible";

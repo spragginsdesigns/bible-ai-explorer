@@ -14,6 +14,8 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { checkForUpdate, type UpdateCheckResult } from "@/features/updates/inAppUpdates";
 import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
 import { startOnboarding } from "@/features/onboarding/api";
+import { useServe } from "@/features/serve/useServe";
+import { SERVE_MODE_LABELS } from "@/features/serve/serveRules";
 import { rememberWelcomeConversation } from "@/features/onboarding/onboardingStore";
 import {
 	SettingsAvatar,
@@ -62,6 +64,7 @@ export default function SettingsScreen() {
 	// persisted, so every subtitle below is final on the first frame and
 	// revalidates in place.
 	const settingsData = useSettingsData();
+	const serve = useServe();
 
 	const [walkStarting, setWalkStarting] = useState(false);
 	const [walkError, setWalkError] = useState<string | null>(null);
@@ -213,6 +216,13 @@ export default function SettingsScreen() {
 						/>
 					</SpotlightAnchor>
 				) : null}
+				{/* Always listed, even when off: this is the way back to turning it on. */}
+				<SettingsRow
+					icon="heart-outline"
+					title="Ways to Serve"
+					subtitle={serve.view ? SERVE_MODE_LABELS[serve.view.settings.mode] : serve.error ? "Open to retry" : "…"}
+					onPress={() => router.push("/settings/serve")}
+				/>
 			</SettingsGroup>
 
 			<SettingsGroup label="ASSISTANT">

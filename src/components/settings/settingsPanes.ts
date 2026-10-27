@@ -92,7 +92,7 @@ export const SETTINGS_PANES: SettingsPane[] = [
 		summary: "The congregation you belong to.",
 		Icon: Church,
 		tile: "from-amber-600 to-amber-800",
-		keywords: ["church", "congregation", "mission"],
+		keywords: ["church", "congregation", "mission", "ways to serve", "serve", "volunteer", "give"],
 	},
 	{
 		id: "memory",

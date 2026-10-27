@@ -70,6 +70,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "AiUsageRequest", via: "cascade" },
 	{ model: "UserChurch", via: "cascade" },
 	{ model: "ChurchSaveEvent", via: "cascade" },
+	{ model: "ServiceEntry", via: "cascade" },
 	{ model: "ProviderCredential", via: "cascade" },
 	{ model: "UserMemory", via: "cascade" },
 	{ model: "Conversation", via: "cascade" },

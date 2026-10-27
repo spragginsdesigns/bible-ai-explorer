@@ -505,7 +505,22 @@ export default function SettingsPage() {
 				return userLoaded ? <HighlightLabelsSection key={user?.id ?? "signed-out"} /> : null;
 
 			case "church":
-				return <ChurchSection />;
+				// Ways to Serve sits with My church: its church ways and "I already
+				// give to my church" both read the church saved here.
+				return (
+					<>
+						<ChurchSection />
+						<SettingsGroup>
+							<Link
+								href="/serve"
+								className="flex min-h-[52px] items-center justify-between gap-3 rounded-2xl px-4 text-[15px] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/[0.03]"
+							>
+								Ways to Serve
+								<ChevronRight className="w-4 h-4 text-neutral-400 dark:text-neutral-600" aria-hidden />
+							</Link>
+						</SettingsGroup>
+					</>
+				);
 
 			case "memory":
 				return (

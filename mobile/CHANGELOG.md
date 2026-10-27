@@ -2,6 +2,18 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.106.0 (versionCode 123) - 2026-10-27 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Ways to Serve: free, optional ways to let God's love reach someone, online or near you, each with a verse. Serving never saves; we are saved by grace through faith (Ephesians 2:8-10).
+- Choose Off, Nearby, Online or Both. Tell SureWord you already give to your church and it never asks you to give there.
+- What I did: a private journal of moments God gave you to love someone, never counted.
+- Open it from Today or Settings.
+
+**Dev notes:** Ways to Serve (GitHub issue #28, 2026-10-27). Server: `src/lib/serve-rules.ts` (hand-written ways with KJV verses, `pickToday` stable per reader per day, giving never today's way for someone who gives to their church), `src/lib/serve.ts`, `/api/serve`, `/api/serve/nearby` (Places text search near a typed city or ZIP, never GPS), `/api/serve/journal`, chat tools in `src/lib/serve-tools.ts`, migration `20261027220000_ways_to_serve` (applied to production 2026-10-27). Android: `src/features/serve/*` (parser, action mapping, shared `useServe` store, `ServeScreen`), routes `today/serve` and `settings/serve`, Today row and Settings STUDY row, chat activity labels. No native changes.
+
 ## 1.105.0 (versionCode 122) - 2026-10-27 - internal and closed testing
 
 **What's new (Play):**
