@@ -144,3 +144,25 @@ export async function unlinkBetaItems(userId: string, linkId: string): Promise<b
 	const result = await prisma.betaLink.deleteMany({ where: { id: linkId, userId } });
 	return result.count > 0;
 }
+
+/**
+ * When the owner's items were made and last changed since `since`, newest
+ * change first: timestamps only, never titles, bodies or data. Habits &
+ * Reflection counts a "study" day from these (docs/beta/growth.md).
+ */
+export function listBetaActivity(
+	userId: string,
+	query: { since: Date; excludeModule?: string },
+): Promise<{ module: string; kind: string; createdAt: Date; updatedAt: Date }[]> {
+	return prisma.betaItem.findMany({
+		where: {
+			userId,
+			// updatedAt is never before createdAt, so this also covers everything made since.
+			updatedAt: { gte: query.since },
+			...(query.excludeModule !== undefined && { module: { not: query.excludeModule } }),
+		},
+		select: { module: true, kind: true, createdAt: true, updatedAt: true },
+		orderBy: { updatedAt: "desc" },
+		take: LIST_MAX * 4,
+	});
+}

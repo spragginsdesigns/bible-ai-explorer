@@ -135,6 +135,13 @@ behaves like a missing one.
 - `parentId` nests items (sources in a project); deleting a parent deletes its
   children and every link touching them. Account deletion cascades.
 
+**Private items.** An item whose `data` has `private: true` (the Habits &
+Reflection journal and its "put into practice" items, `docs/beta/growth.md`)
+keeps its words in `data` only, under a fixed `title` and no `body`. Another
+module may count, list or link it by its `title`, `refs` and dates, but never
+reads, indexes, shows or sends its `data` to an AI. Check it before passing
+any item's `data` anywhere.
+
 **Reuse what SureWord already owns** instead of copying it into the store:
 notes are `Note` (with wikilinks, backlinks and embeddings), memory cards are
 Learn a verse (`VerseMemory`), plans are `ReadingPlan`, highlights are

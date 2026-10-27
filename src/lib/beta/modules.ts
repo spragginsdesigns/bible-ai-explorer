@@ -302,16 +302,18 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		tagline: "Small steps, lasting impact",
 		inspiredBy: "Todoist and habit trackers",
 		priority: "P2",
-		status: "planned",
+		status: "live",
+		issue: "LC-17652",
 		summary:
-			"Habits you choose for time with God (Bible reading, prayer and reflection, Scripture memory) with gentle reminders, a private reflection journal, and follow-ups on the insights you chose to put into practice. Never a score for your walk with God.",
+			"Habits you choose for time with God (Bible reading, prayer and reflection, Scripture memory, study, or your own) with a weekly target; the ones SureWord can see are counted from what you already do, the rest you mark. A private reflection journal, and follow-ups on the insights you chose to put into practice. Never a streak or a score for your walk with God.",
 		capabilities: [
-			"Set your own reading, prayer and memory habits",
-			"See a simple week view of what you kept",
-			"Write private reflections, and get a follow-up when you ask for one",
-			"Revisit what you decided to put into practice",
+			"Choose your own habits and how many days a week, with an optional in-app reminder time",
+			"See the week at a glance: reading counted from your reading log, memory from Learn a verse, study from your Beta studies, the rest marked by you",
+			"Look back over earlier weeks, gently: what you kept, never what you missed",
+			"Write private reflections, with optional prompts, that no AI sees unless you choose Talk it over",
+			"Put an insight into practice and get a follow-up when you asked for one",
 		],
-		builtOn: ["Your walk and reading log", "Reading plans", "Prayer requests", "Learn a verse"],
+		builtOn: ["Your walk and reading log", "Learn a verse", "SureWord Beta's study store", "Ask SureWord (Talk it over)"],
 	},
 	// The six SureWord products from LC-17639 (docs/beta/expansion.md): one app
 	// with many experiences, each built by its own run on the modules above.
