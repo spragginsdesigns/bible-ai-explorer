@@ -3,7 +3,15 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { useModalFocus } from "@/components/useModalFocus";
-import { initialsOf } from "@/lib/beta/rooms/rooms-rules";
+import { initialsOf, type RoomPurpose } from "@/lib/beta/rooms/rooms-rules";
+
+/** What each purpose calls a room in its copy ("Invite to the group"), and the product it belongs to. */
+export const ROOM_COPY: Readonly<Record<RoomPurpose, { noun: string; product: string; one: string }>> = {
+	study: { noun: "room", product: "Study Rooms", one: "a Study Room" },
+	group: { noun: "group", product: "SureWord Groups", one: "a SureWord Group" },
+	family: { noun: "family", product: "SureWord Family", one: "a family on SureWord" },
+	church: { noun: "church", product: "SureWord Churches", one: "a church on SureWord" },
+};
 
 /** SureWord Beta's surfaces (docs/beta/README.md, Look and feel). */
 export const card = "rounded-[22px] border border-black/[.09] bg-white/35 dark:border-white/[.09] dark:bg-white/[.025]";
