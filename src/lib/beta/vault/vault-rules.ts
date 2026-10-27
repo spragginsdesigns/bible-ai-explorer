@@ -142,16 +142,27 @@ export function scanPassageKeys(text: string, resolve: VaultResolver, limit = 40
 	const add = (book: number, chapter: number, verse?: number) => {
 		keys.set(vaultRefKey(book, chapter, verse), [book, chapter, verse ?? 0]);
 	};
-	for (const match of text.matchAll(CANDIDATE)) {
+	const candidates = new RegExp(CANDIDATE.source, "g");
+	for (let match = candidates.exec(text); match !== null; match = candidates.exec(text)) {
 		if (keys.size >= limit) break;
 		const [, digit, name, chapterText, verseText, endText] = match;
-		if (verseText === undefined && !/^[A-Z]/.test(name)) continue;
+		// A candidate that is no reference gives back all but its first word: in "In 1 Samuel 17:45"
+		// the words "In 1" are tried first, and the 1 still begins the book.
+		const firstGap = match[0].search(/\s/);
+		const resumeAt = firstGap > 0 ? match.index + firstGap : candidates.lastIndex;
+		if (verseText === undefined && !/^[A-Z]/.test(name)) {
+			candidates.lastIndex = resumeAt;
+			continue;
+		}
 		const place = `${chapterText}${verseText === undefined ? "" : `:${verseText}`}`;
 		// "the Gospel of John 3:16": when "Gospel of John" is no book, the last word may be.
 		const names = [`${digit ? `${digit.trim()} ` : ""}${name}`];
 		if (/\sof\s/.test(name)) names.push(name.split(/\s+/).pop()!);
 		const location = names.map((book) => resolve(`${book} ${place}`)).find((hit) => hit !== null) ?? null;
-		if (!location) continue;
+		if (!location) {
+			candidates.lastIndex = resumeAt;
+			continue;
+		}
 		add(location.order, location.chapter);
 		if (location.verse === undefined) continue;
 		add(location.order, location.chapter, location.verse);

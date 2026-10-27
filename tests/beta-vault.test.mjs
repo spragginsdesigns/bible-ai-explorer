@@ -60,6 +60,12 @@ test("passages are found in prose: verses, chapters, ranges, numbered books and 
 	assert.deepEqual(scanPassageKeys("For God so loved the world (John 3:16).", resolve), ["43.3", "43.3.16"]);
 	assert.deepEqual(scanPassageKeys("Romans 8:28-30 and then Romans 9", resolve), ["45.8", "45.8.28", "45.8.29", "45.8.30", "45.9"]);
 	assert.deepEqual(scanPassageKeys("1 John 4:8 says God is love", resolve), ["62.4", "62.4.8"]);
+	// LC-17725: a numbered book after a word. "In 1" was read first and took the 1 from the book.
+	assert.deepEqual(scanPassageKeys("In 1 Samuel 17:45 David comes in the name of the LORD", resolve), ["9.17", "9.17.45"]);
+	assert.deepEqual(scanPassageKeys("in 1 Samuel 17:45 he ran", resolve), ["9.17", "9.17.45"], "lowercase before it too");
+	assert.deepEqual(scanPassageKeys("Read 2 Kings 2:11 and then see 1 John 4:8", resolve), ["12.2", "12.2.11", "62.4", "62.4.8"]);
+	assert.deepEqual(scanPassageKeys("David and Goliath, told in 1 Samuel 17", resolve), ["9.17"], "a chapter-only numbered book after a word");
+	assert.deepEqual(scanPassageKeys("Chapter 2 Kings? No: page 12 and 3 days", resolve), [], "giving back words finds no new false reference");
 	assert.deepEqual(scanPassageKeys("Song of Solomon 2:4", resolve), ["22.2", "22.2.4"]);
 	assert.deepEqual(scanPassageKeys("the Gospel of John 3:16", resolve), ["43.3", "43.3.16"], "'Gospel of John' falls back to John");
 	assert.deepEqual(scanPassageKeys("compare Psalm 23 with Ps 91:1", resolve), ["19.23", "19.91", "19.91.1"]);
