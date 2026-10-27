@@ -89,6 +89,24 @@ Independent source reviews passed after correcting the identified toolbar,
 keyboard-focus, native pending-format and layout findings. Raw captures and
 logs remain in this QA checkout's ignored `artifacts/text-size/` directory.
 
+## Follow-up: keep web drafts mounted
+
+A final route trace found the quick Text size links could leave the chat page
+while `useChat` keeps its unsent input in page state. Both chat and reading
+menus now open the same in-place `TextSizeDialog` instead. Settings navigation
+remains available separately. The dialog reuses the bounded preference control
+and the shared modal focus helper, and gives scrolling and fixed-size chrome
+room at narrow widths.
+
+The real local chat page was exercised with an unsent draft. Opening the quick
+dialog, choosing Large, and closing with Escape left both the URL and draft
+unchanged. Focus returned to Chat options. At 320x640 with Largest, the panel
+was 304px wide and 564px high, entirely within the viewport; document scroll
+width equaled client width. This is UI/state proof, not local account-save
+proof, because of the local database limitation above. The follow-up passed
+independent source review, TypeScript and targeted ESLint; the full integrated
+web logic suite passed 1,765 tests with 17 existing skips.
+
 ## Release status
 
 Android 1.105.0 (122): matching signed AAB/APK built and emulator verification
