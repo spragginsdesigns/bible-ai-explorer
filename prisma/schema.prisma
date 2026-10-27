@@ -143,6 +143,8 @@ model User {
   // SureWord Beta's shared study store (docs/beta/README.md).
   betaItems              BetaItem[]
   betaLinks              BetaLink[]
+  // Beta module: vault (docs/beta/vault.md).
+  vaultEmbeddings        VaultEmbedding[]
 }
 
 /// Private, resumable study work. Separate from personal memories and chat history.
@@ -1351,3 +1353,29 @@ model BetaLink {
 // headed "// Beta module: <slug>", with any User back-relation in its own
 // commented slot at the end of the User model, so modules built in parallel
 // never edit the same lines.
+
+// Beta module: vault (LC-17645, docs/beta/vault.md).
+
+/// The Knowledge Vault's meaning-search index over the study sources that have
+/// no vectors of their own: chats, memories, the church's sermon studies and
+/// beta items (notes keep NoteEmbedding, verses VerseEmbedding). Vectors only:
+/// the words stay in their source and are re-read on every hit, so nothing is
+/// copied. `sourceHash` fingerprints the source as indexed; a changed or
+/// deleted source is re-indexed or dropped the next time the owner searches.
+/// Written only when the owner searches or asks (src/lib/beta/vault/meaning.ts),
+/// never by a job.
+model VaultEmbedding {
+  userId     String
+  user       User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "chat" | "memory" | "sermon" | "study"
+  kind       String
+  sourceId   String
+  chunk      Int
+  sourceHash String
+  embedding  Unsupported("halfvec(3072)")
+  modelId    String                       @default("text-embedding-3-large")
+  dimensions Int                          @default(3072)
+  createdAt  DateTime                     @default(now())
+
+  @@id([userId, kind, sourceId, chunk])
+}

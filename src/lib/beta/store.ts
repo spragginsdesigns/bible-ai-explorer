@@ -1,7 +1,8 @@
 import "server-only";
 
-import type { BetaItem, BetaLink, Prisma } from "@prisma/client";
+import { Prisma, type BetaItem, type BetaLink } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { searchQuery } from "@/lib/search-query";
 import { BETA_MODULES } from "@/lib/beta/modules";
 import {
 	betaRefKey,
@@ -165,4 +166,65 @@ export function listBetaActivity(
 		orderBy: { updatedAt: "desc" },
 		take: LIST_MAX * 4,
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Reads for the Knowledge Vault (LC-17645, docs/beta/vault.md), which searches
+// every module's items: words, dates and passages beyond what listBetaItems
+// filters on. Owner-scoped like everything above.
+// ---------------------------------------------------------------------------
+
+export interface BetaItemSearch {
+	ids?: readonly string[];
+	since?: Date | null;
+	until?: Date | null;
+	/** Postgres full-text: a websearch query, or a prepared `to_tsquery` OR expression. */
+	words?: { kind: "web" | "or"; value: string } | null;
+	/** A topic label, matched as a label or as a phrase in the words. */
+	topic?: string | null;
+	/** "45" (any chapter of the book) or "45.8": items whose refs touch it. */
+	refPrefix?: string | null;
+	take?: number;
+}
+
+export type BetaItemHit = Pick<BetaItem, "id" | "module" | "kind" | "title" | "body" | "refs" | "topics" | "createdAt" | "updatedAt"> & { rank: number };
+
+/** The owner's items matching words, a topic, a passage and a date range; best match first, else newest. */
+export async function searchBetaItems(userId: string, query: BetaItemSearch = {}): Promise<BetaItemHit[]> {
+	const take = Math.min(Math.max(Math.trunc(query.take ?? 50), 1), LIST_MAX);
+	const vector = Prisma.sql`to_tsvector('english', i."title" || ' ' || coalesce(i."body", '') || ' ' || array_to_string(i."topics", ' '))`;
+	const tsquery = query.words
+		? query.words.kind === "web"
+			? Prisma.sql`websearch_to_tsquery('english', ${query.words.value})`
+			: Prisma.sql`to_tsquery('english', ${query.words.value})`
+		: null;
+	const topic = query.topic ? normalizeBetaTopics([query.topic])?.[0] ?? null : null;
+	const prefix = query.refPrefix?.trim() || null;
+	const conditions: Prisma.Sql[] = [Prisma.sql`i."userId" = ${userId}`];
+	if (query.ids) conditions.push(Prisma.sql`i."id" = ANY(${[...query.ids]}::text[])`);
+	if (query.since) conditions.push(Prisma.sql`i."updatedAt" >= ${query.since}`);
+	if (query.until) conditions.push(Prisma.sql`i."updatedAt" <= ${query.until}`);
+	if (tsquery) conditions.push(Prisma.sql`${vector} @@ ${tsquery}`);
+	if (topic) conditions.push(Prisma.sql`(${topic} = ANY(i."topics") OR ${vector} @@ phraseto_tsquery('english', ${topic}))`);
+	if (prefix) {
+		conditions.push(
+			prefix.includes(".")
+				? Prisma.sql`${prefix} = ANY(i."refs")`
+				: Prisma.sql`EXISTS (SELECT 1 FROM unnest(i."refs") r WHERE r LIKE ${`${prefix}.%`})`,
+		);
+	}
+	const rank = tsquery ? Prisma.sql`ts_rank_cd(${vector}, ${tsquery})` : Prisma.sql`0`;
+	const rows = await searchQuery<BetaItemHit>(Prisma.sql`
+		SELECT i."id", i."module", i."kind", i."title", left(i."body", 20000) AS "body", i."refs", i."topics", i."createdAt", i."updatedAt", (${rank})::float8 AS "rank"
+		FROM "BetaItem" i
+		WHERE ${Prisma.join(conditions, " AND ")}
+		ORDER BY "rank" DESC, i."updatedAt" DESC
+		LIMIT ${take}
+	`);
+	return rows.map((row) => ({ ...row, rank: Number(row.rank) || 0 }));
+}
+
+/** Every item's id and last change, for the Vault's meaning-search index to see what moved. */
+export function betaItemVersions(userId: string): Promise<{ id: string; updatedAt: Date }[]> {
+	return prisma.betaItem.findMany({ where: { userId }, select: { id: true, updatedAt: true }, orderBy: { updatedAt: "desc" }, take: 5000 });
 }

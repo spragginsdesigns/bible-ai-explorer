@@ -56,6 +56,8 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	// SureWord Beta's shared study store (docs/beta/README.md).
 	{ model: "BetaItem", via: "cascade" },
 	{ model: "BetaLink", via: "cascade" },
+	// Beta module: vault (docs/beta/vault.md), its meaning-search vectors.
+	{ model: "VaultEmbedding", via: "cascade" },
 	{ model: "User", via: "explicit" },
 	{ model: "AiPreference", via: "cascade" },
 	{ model: "BillingSubscription", via: "cascade" },
