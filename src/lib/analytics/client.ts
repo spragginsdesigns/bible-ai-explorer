@@ -133,7 +133,7 @@ export function trackSignIn(
  * name and how it went, never the answer: a tapped option can be a prayer
  * request or where somebody stands with God.
  */
-export function trackOnboardingStep(step: string, outcome: "answered" | "skipped" | "own"): void {
+export function trackOnboardingStep(step: string, outcome: "answered" | "skipped" | "own" | "asked"): void {
 	try {
 		posthog.capture(ANALYTICS_EVENTS.onboardingStep, { step, outcome, platform: "web", source: "client" });
 	} catch {

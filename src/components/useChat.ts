@@ -55,7 +55,7 @@ import {
 	readVerbosityPref,
 } from "@/lib/preferences";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
-import { isAppTarget, isOnboardingStep, type ChoiceCardOutput } from "@/lib/onboarding-rules";
+import { isAppTarget, isGlossaryTerm, isOnboardingStep, type ChoiceCardOutput } from "@/lib/onboarding-rules";
 import { isWelcomeToolCallId, parseChoiceCard, parseShowInApp, type ShowInAppCard } from "@/lib/guide-cards";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 
@@ -349,7 +349,7 @@ export function toViewMessage(
 				});
 			}
 		} else if (part.type === "tool-presentChoices") {
-			choiceCard = parseChoiceCard(output, isOnboardingStep) ?? choiceCard;
+			choiceCard = parseChoiceCard(output, isOnboardingStep, isGlossaryTerm) ?? choiceCard;
 			if (isWelcomeToolCallId(toolPart.toolCallId)) welcome = true;
 		} else if (part.type === "tool-showInApp") {
 			const card = parseShowInApp(output, isAppTarget);

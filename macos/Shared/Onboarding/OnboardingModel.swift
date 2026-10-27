@@ -212,6 +212,17 @@ final class OnboardingModel {
         }
     }
 
+    /// "Talk with SureWord about this" from a glossary sheet: their question
+    /// answers the card, so SureWord explains and asks the step again.
+    func ask(_ question: String, card: OnboardingChoiceCard, messageID: String, app: AppModel) {
+        guard answered[messageID] == nil else { return }
+        answered[messageID] = question
+        Analytics.shared.track(AnalyticsEvents.onboardingStep, [
+            "step": .string(card.step.rawValue), "outcome": "asked",
+        ])
+        Task { await send(question, chat: app.chat) }
+    }
+
     /// "Type my own": put the cursor in the composer. Counted as `own`, as
     /// web does, since the typed reply is an ordinary message.
     func typeOwn(_ card: OnboardingChoiceCard) {

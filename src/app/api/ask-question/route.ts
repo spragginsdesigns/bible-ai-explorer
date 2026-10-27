@@ -5,6 +5,7 @@ import {
 	createIdGenerator,
 	createUIMessageStream,
 	createUIMessageStreamResponse,
+	hasToolCall,
 	isStepCount,
 	streamText,
 	toUIMessageStream,
@@ -69,7 +70,7 @@ import {
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
+import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, textInterviewGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import {
 	isAnswerLanguage,
@@ -620,7 +621,7 @@ async function persistAssistantResponse(options: {
 }
 
 import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
-import { isOnboardingTurn } from "@/lib/onboarding";
+import { isOnboardingTurn, needsTextInterview } from "@/lib/onboarding";
 import { expectedStep, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
 export const POST = withIncludedAiRequest(handlePost, "ask-question");
 
@@ -676,6 +677,7 @@ async function handlePost(req: Request): Promise<Response> {
 				onboardedAt: true,
 				onboardingConversationId: true,
 				answerLanguage: true,
+				createdAt: true,
 			},
 		});
 		// The answer language: the client sends the one it resolved (the explicit
@@ -692,6 +694,9 @@ async function handlePost(req: Request): Promise<Response> {
 		// A turn in the welcome conversation ("Walk with me") is free: it rides
 		// the onboarding usage surface, with its own per-account ceiling.
 		const welcomeTurn = isOnboardingTurn(userPrefs, conversationId);
+		// A new sign-up on a build that cannot open the welcome still gets to
+		// know SureWord, in words, in its ordinary chats.
+		const textInterview = needsTextInterview(userPrefs, welcomeTurn);
 		// Read leniently, the way the preferences document does: a label written
 		// by a newer build degrades to the hue name, never to an error.
 		const highlightLabels = readStoredHighlightLabels(userPrefs?.highlightLabels);
@@ -719,7 +724,8 @@ async function handlePost(req: Request): Promise<Response> {
 		let userLinks: string[] = [];
 		let currentUserText = "";
 		let currentMessageId = "";
-		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt };
+		let answeredWelcomeStep: OnboardingStep | null = null;
+		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt, welcomeStep: () => answeredWelcomeStep };
 		const knownStudyIds = new Set<string>();
 		const readStudyIds = new Set<string>();
 		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks });
@@ -835,7 +841,9 @@ async function handlePost(req: Request): Promise<Response> {
 		// The step of the last card SureWord showed in the welcome, so this turn
 		// can be told which card comes next and can add it if the model forgets.
 		const lastWelcomeStep = welcomeTurn ? lastPresentedStep(validatedMessages) : null;
-		const nextWelcomeStep = expectedStep(lastWelcomeStep, currentUserText);
+		answeredWelcomeStep = lastWelcomeStep;
+		const knownProfile = { testimony: Boolean(testimony) };
+		const nextWelcomeStep = expectedStep(lastWelcomeStep, currentUserText, knownProfile);
 		const calledTools: string[] = [];
 		let duePrayers: ChatDayContext["prayers"] = [];
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
@@ -1090,7 +1098,7 @@ async function handlePost(req: Request): Promise<Response> {
 					// conversation (Walk with me) until it is finished or skipped, and
 					// on demand with /onboard. An older account that never finished it
 					// is no longer interviewed in its ordinary chats (Austin, 2026-10-25).
-					const onboarding = welcomeTurn || isOnboardCommand(extractText(lastMessage));
+					const onboarding = welcomeTurn || textInterview || isOnboardCommand(extractText(lastMessage));
 					// Per-user context only, all of it uncached. The onboarding block
 					// follows the profile blocks it reads from, and the shape hint goes
 					// last, nearest the answer.
@@ -1107,6 +1115,7 @@ async function handlePost(req: Request): Promise<Response> {
 						formatHighlightLegendBlock(legend),
 						formatTodayBlock(dayContext),
 						onboarding ? `\n\n${onboardingGuidance}` : "",
+						textInterview ? `\n\n${textInterviewGuidance}` : "",
 						welcomeTurn ? `\n\n${welcomeConversationGuidance}` : "",
 						nextWelcomeStep ? `\n\nNEXT IN THE WELCOME: respond to what they just said, then end this message with presentChoices step "${nextWelcomeStep}".` : "",
 						...promptHints.map((hint) => `\n\n${hint}`),
@@ -1133,11 +1142,16 @@ async function handlePost(req: Request): Promise<Response> {
 						prepareStep: ({ stepNumber }) => {
 							if (finishAgentWork(stepNumber, turnStartedAtMs)) return { toolChoice: "none" as const, activeTools: [], system: `${stableSystem}${volatileSystem}\n\nFinish now from the successful evidence already gathered. Verify the requested outcome, give the useful result, and state any remaining gap. No further tool calls.` };
 							if (mustReadStudy(isStudyWorkRequest(currentUserText), knownStudyIds, readStudyIds)) return { activeTools: ["readStudy"], toolChoice: { type: "tool" as const, toolName: "readStudy" as const } };
-							return { activeTools: Object.keys(tools).filter(name => name !== "readStudy" || knownStudyIds.size > 0) as (keyof SureWordTools)[] };
+							// A card outside the welcome has no one to answer it, and an older
+							// build in the plain-words interview cannot draw either card.
+							return { activeTools: Object.keys(tools).filter(name => (name !== "readStudy" || knownStudyIds.size > 0) && (name !== "presentChoices" || welcomeTurn) && (name !== "showInApp" || !textInterview)) as (keyof SureWordTools)[] };
 						},
 						// Either limit ends the loop cleanly, so the answer is streamed,
 						// persisted and measured. Only the platform timeout loses a turn.
-						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS)],
+						// A welcome card ends the message. Another step after it rewrote
+						// the same sentences and sometimes drew the card twice (every
+						// test welcome on 2026-10-26 had replies that said it all twice).
+						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS), hasToolCall("presentChoices")],
 						// Runs on the text deltas before the UI stream and before onEnd
 						// sees the final text, so the client and the persisted Message
 						// row agree and neither carries an em dash.
@@ -1234,7 +1248,7 @@ async function handlePost(req: Request): Promise<Response> {
 					// A welcome step answered with no card after it strands them with
 					// nothing to tap, so the expected card is added here instead.
 					const owed = welcomeTurn && metricError === null
-						? owedStep({ lastStep: lastWelcomeStep, reply: currentUserText, calledTools, answerText: await result.text })
+						? owedStep({ lastStep: lastWelcomeStep, reply: currentUserText, calledTools, answerText: await result.text, known: knownProfile })
 						: null;
 					if (owed) {
 						const toolCallId = `${responseMessageId}-card`;

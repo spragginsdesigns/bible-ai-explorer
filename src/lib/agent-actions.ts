@@ -14,6 +14,8 @@ export interface AgentActionContext {
 	messageId?: () => string;
 	/** Server receipt time, preserved from the original message on retries. */
 	messageReceivedAt?: () => Date;
+	/** The Walk with me card this message answers, when it answers one. */
+	welcomeStep?: () => string | null;
 }
 
 export class AgentActionError extends Error {}

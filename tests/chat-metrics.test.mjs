@@ -207,10 +207,12 @@ test("both chat routes run the tool loop under the same wall-clock budget", asyn
 	for (const route of ["../src/app/api/ask-question/route.ts", "../src/app/api/note-ai/route.ts"]) {
 		const source = read(route);
 		assert.match(source, /export const maxDuration = 300;/, route);
+		// The chat route also stops at a welcome card, which ends the message.
 		assert.match(
 			source,
-			/stopWhen: \[isStepCount\(8\), isOverTimeBudget\(turnStartedAtMs, TOOL_LOOP_BUDGET_MS\)\]/,
+			/stopWhen: \[isStepCount\(8\), isOverTimeBudget\(turnStartedAtMs, TOOL_LOOP_BUDGET_MS\)(, hasToolCall\("presentChoices"\))?\]/,
 			route,
 		);
 	}
+	assert.match(read("../src/app/api/ask-question/route.ts"), /hasToolCall\("presentChoices"\)\]/);
 });

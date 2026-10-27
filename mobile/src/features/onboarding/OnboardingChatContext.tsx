@@ -12,6 +12,8 @@ export interface OnboardingChatActions {
 	answer: (card: ChoiceCardView, label: string) => void;
 	/** "Type my own" or Speak: focus the composer. */
 	typeOwn: (card: ChoiceCardView) => void;
+	/** Send a question as their reply ("What does it mean to be saved?"). */
+	ask: (card: ChoiceCardView, question: string) => void;
 	/** Light up a place in the app, or run the whole tour. */
 	showMe: (card: ShowMeView) => void;
 }

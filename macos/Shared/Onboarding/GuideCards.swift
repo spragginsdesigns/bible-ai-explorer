@@ -20,7 +20,8 @@ struct GuideMessageCards: View {
                 isActive: state?.active == true,
                 chosen: state?.answer,
                 answer: { label in app.onboarding.answer(card, with: label, messageID: message.id, app: app) },
-                typeOwn: { app.onboarding.typeOwn(card) }
+                typeOwn: { app.onboarding.typeOwn(card) },
+                ask: { question in app.onboarding.ask(question, card: card, messageID: message.id, app: app) }
             )
         }
         if !message.isStreaming {
@@ -43,16 +44,37 @@ struct GuideChoiceCard: View {
     var chosen: String? = nil
     let answer: (String) -> Void
     let typeOwn: () -> Void
+    /// "Talk with SureWord about this" in a glossary sheet: their question as the answer.
+    var ask: (String) -> Void = { _ in }
 
     @State private var pickingHour = false
     @State private var speakHint = false
+    @State private var openTerm: GlossaryTerm?
+
+    /// Tapped words travel as links in this scheme and never leave the app.
+    private static let glossaryScheme = "sureword-glossary"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text(card.question)
+            Text(questionText)
                 .font(.system(size: 17 * textScale, weight: .semibold))
                 .foregroundStyle(theme.text)
+                .tint(theme.accent)
                 .fixedSize(horizontal: false, vertical: true)
+                .environment(\.openURL, OpenURLAction { url in
+                    guard url.scheme == Self.glossaryScheme, let term = url.host().flatMap(GlossaryTerm.init(rawValue:)) else {
+                        return .systemAction
+                    }
+                    openTerm = term
+                    return .handled
+                })
+                .sheet(item: $openTerm) { term in
+                    GuideGlossarySheet(term: term, onAsk: isActive ? { question in
+                        openTerm = nil
+                        ask(question)
+                    } : nil) { openTerm = nil }
+                    .environment(\.theme, theme)
+                }
 
             if card.step == .church, isActive {
                 GuideChurchStep { name in answer("I saved \(name) as my home church.") }
@@ -119,6 +141,22 @@ struct GuideChoiceCard: View {
     #else
     private static let speakHint = "Press the dictation key (or Fn twice) and say your answer."
     #endif
+
+    /// The question with each glossary word underlined as a link, split the
+    /// same way on every client (`OnboardingRules.questionSegments`).
+    private var questionText: AttributedString {
+        var text = AttributedString()
+        for segment in OnboardingRules.questionSegments(card.question, terms: card.terms) {
+            var run = AttributedString(segment.text)
+            if let term = segment.term {
+                run.link = URL(string: "\(Self.glossaryScheme)://\(term.rawValue)")
+                run.underlineStyle = .single
+                run.foregroundColor = theme.accent
+            }
+            text += run
+        }
+        return text
+    }
 
     private var footer: some View {
         HStack(spacing: Spacing.sm) {
@@ -189,6 +227,82 @@ struct GuideChoiceCard: View {
         .disabled(!isActive)
         .opacity(isActive || isChosen ? 1 : 0.55)
         .accessibilityValue(isChosen ? "Your answer" : "")
+    }
+}
+
+/// A tapped word on a welcome card ("saved"), explained plainly from the KJV.
+/// Instant and free: the words are fixed in `OnboardingRules.glossary`, not
+/// generated. The port of `mobile/src/features/onboarding/GlossarySheet.tsx`.
+struct GuideGlossarySheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(\.textScaleFactor) private var textScale
+    let term: GlossaryTerm
+    /// Nil once the card has been answered: the sheet only explains.
+    let onAsk: ((String) -> Void)?
+    let onClose: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if let entry = OnboardingRules.glossary[term] {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
+                        ForEach(entry.sections, id: \.text) { section in
+                            VStack(alignment: .leading, spacing: Spacing.sm) {
+                                Text(section.text)
+                                    .font(.system(size: 17 * textScale))
+                                    .foregroundStyle(theme.text)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                ForEach(section.verses, id: \.reference) { verse in
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(verse.text)
+                                            .font(.custom(FontFamily.verse, size: 20 * textScale, relativeTo: .title3))
+                                            .foregroundStyle(theme.text)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        Text("\(verse.reference) (KJV)")
+                                            .font(.system(size: 14 * textScale, weight: .semibold))
+                                            .foregroundStyle(theme.accent)
+                                    }
+                                    .padding(Spacing.md)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(theme.surface, in: .rect(cornerRadius: Radius.md))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: Radius.md).strokeBorder(theme.borderStrong, lineWidth: 0.5)
+                                    }
+                                }
+                            }
+                        }
+                        if let onAsk {
+                            Button {
+                                onAsk(entry.ask)
+                            } label: {
+                                Label("Talk with SureWord about this", systemImage: "bubble.left.and.text.bubble.right")
+                                    .font(.system(size: 16 * textScale, weight: .semibold))
+                                    .foregroundStyle(theme.accent)
+                                    .frame(maxWidth: .infinity, minHeight: 52)
+                                    .background(theme.accentSoft, in: .capsule)
+                                    .overlay { Capsule().strokeBorder(theme.accentBorder, lineWidth: 1) }
+                                    .contentShape(.capsule)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(Spacing.lg)
+                    .navigationTitle(entry.title)
+                }
+            }
+            .background(theme.bgElevated)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: onClose)
+                }
+            }
+        }
+        #if os(macOS)
+        .frame(width: 520, height: 620)
+        #else
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        #endif
     }
 }
 

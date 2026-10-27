@@ -21,6 +21,8 @@ export const ONBOARDING_STEPS = [
 	"textScale",
 	"name",
 	"faith",
+	"walk",
+	"testimony",
 	"church",
 	"prayer",
 	"dailyTime",
@@ -34,9 +36,13 @@ export function isOnboardingStep(value: unknown): value is OnboardingStep {
 	return typeof value === "string" && (ONBOARDING_STEPS as readonly string[]).includes(value);
 }
 
-/** SureWord's first message, seeded by POST /api/onboarding/start. */
+/**
+ * SureWord's first message, seeded by POST /api/onboarding/start. It says why
+ * the welcome is worth five minutes, because a welcome that only asked
+ * questions was skipped by nearly everyone (Austin, 2026-10-26).
+ */
 export const WELCOME_TEXT =
-	"Welcome to SureWord. I'm here to walk with you in God's Word, wherever you are with Him. This takes about five minutes, and you can skip anything. If you would rather listen, turn on Read it to me at the top, and I will read each message to you.";
+	"Welcome to SureWord. I'm here to walk with you in God's Word, wherever you are with Him. First, I would like to get to know you: your name, where you are with the Lord, your church and what is on your heart. It matters, because everything I do for you grows from it: how I answer your questions, how I pray with you, and the verse and devotional I prepare for you each morning. It takes about five minutes, and you can skip anything. If you would rather listen, turn on Read it to me at the top, and I will read each message to you.";
 
 /** The conversation's title in history. */
 export const WELCOME_TITLE = "Welcome to SureWord";
@@ -49,7 +55,108 @@ export interface StepCard {
 	allowOther: boolean;
 	/** The quiet way past the card. Always present: nothing is required. */
 	skipLabel: string;
+	/** Words in the question that open their GLOSSARY explanation when tapped. */
+	terms?: readonly GlossaryTerm[];
 }
+
+/**
+ * A word in a card's question that the reader can tap for a plain, Scripture
+ * explanation (Austin, 2026-10-26: tap "saved" to learn what it means). The
+ * key is the exact word as it appears in the question.
+ */
+export type GlossaryTerm = "saved";
+
+export interface GlossaryVerse {
+	reference: string;
+	/** KJV, copied from src/data/kjv; `tests/onboarding-rules.test.mjs` checks it. */
+	text: string;
+}
+
+export interface GlossaryEntry {
+	title: string;
+	sections: readonly { text: string; verses: readonly GlossaryVerse[] }[];
+	/** The question "Talk with SureWord about this" sends as their answer. */
+	ask: string;
+}
+
+export function isGlossaryTerm(value: unknown): value is GlossaryTerm {
+	return typeof value === "string" && Object.prototype.hasOwnProperty.call(GLOSSARY, value);
+}
+
+/**
+ * The question split around its tappable words, so every client draws the
+ * same link in the same place. Only a term's first whole-word match is linked.
+ */
+export function questionSegments(question: string, terms: readonly GlossaryTerm[]): { text: string; term?: GlossaryTerm }[] {
+	const segments: { text: string; term?: GlossaryTerm }[] = [];
+	let rest = question;
+	const pending = [...terms];
+	while (rest) {
+		let best: { index: number; term: GlossaryTerm } | null = null;
+		for (const term of pending) {
+			const match = new RegExp(`\\b${term}\\b`, "i").exec(rest);
+			if (match && (!best || match.index < best.index)) best = { index: match.index, term };
+		}
+		if (!best) {
+			segments.push({ text: rest });
+			break;
+		}
+		if (best.index > 0) segments.push({ text: rest.slice(0, best.index) });
+		segments.push({ text: rest.slice(best.index, best.index + best.term.length), term: best.term });
+		rest = rest.slice(best.index + best.term.length);
+		pending.splice(pending.indexOf(best.term), 1);
+	}
+	return segments;
+}
+
+export const GLOSSARY: Readonly<Record<GlossaryTerm, GlossaryEntry>> = {
+	saved: {
+		title: "What does it mean to be saved?",
+		sections: [
+			{
+				text: "To be saved is to be rescued by God from the penalty of your sin and given eternal life through Jesus Christ. The Bible also calls it being born again.",
+				verses: [
+					{ reference: "John 3:3", text: "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God." },
+				],
+			},
+			{
+				text: "Every one of us has sinned, and sin separates us from a holy God.",
+				verses: [
+					{ reference: "Romans 3:23", text: "For all have sinned, and come short of the glory of God;" },
+					{ reference: "Romans 6:23", text: "For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord." },
+				],
+			},
+			{
+				text: "But God loved us first. Jesus Christ, His Son, died on the cross for our sins and rose again the third day.",
+				verses: [
+					{ reference: "Romans 5:8", text: "But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us." },
+					{ reference: "John 3:16", text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life." },
+				],
+			},
+			{
+				text: "Salvation is a gift. Nobody earns it by good works, by being a good person or by joining a church. It is received by faith, trusting Christ alone.",
+				verses: [
+					{ reference: "Ephesians 2:8-9", text: "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God: Not of works, lest any man should boast." },
+				],
+			},
+			{
+				text: "Whoever turns to Him, believing in their heart that God raised Him from the dead, and calls on His name, is saved.",
+				verses: [
+					{ reference: "Romans 10:9", text: "That if thou shalt confess with thy mouth the Lord Jesus, and shalt believe in thine heart that God hath raised him from the dead, thou shalt be saved." },
+					{ reference: "Romans 10:13", text: "For whosoever shall call upon the name of the Lord shall be saved." },
+				],
+			},
+			{
+				text: "A saved person is a new creature in Christ, and can know for certain that they have eternal life. If you are not sure where you stand, that is all right. We can look at it together in God's Word.",
+				verses: [
+					{ reference: "2 Corinthians 5:17", text: "Therefore if any man be in Christ, he is a new creature: old things are passed away; behold, all things are become new." },
+					{ reference: "1 John 5:13", text: "These things have I written unto you that believe on the name of the Son of God; that ye may know that ye have eternal life, and that ye may believe on the name of the Son of God." },
+				],
+			},
+		],
+		ask: "What does it mean to be saved?",
+	},
+};
 
 /** The faith step's six answers, from the original "Getting to know you" list. */
 export const FAITH_OPTIONS = [
@@ -108,10 +215,23 @@ export const STEP_CARDS: Readonly<Record<Exclude<OnboardingStep, "other">, StepC
 		skipLabel: "Skip for now",
 	},
 	faith: {
-		question: "Which of these sounds most like you?",
+		question: "Where are you with the Lord, and have you been saved? Pick the one that sounds most like you.",
 		options: FAITH_OPTIONS,
 		allowOther: true,
 		skipLabel: "Skip for now",
+		terms: ["saved"],
+	},
+	walk: {
+		question: "How long have you walked with the Lord?",
+		options: ["Less than a year", "A few years", "Ten years or more", "Most of my life"],
+		allowOther: true,
+		skipLabel: "Skip for now",
+	},
+	testimony: {
+		question: "Would you tell me how you came to know the Lord? Type it or speak it in your own words. I will keep it as your testimony, and you can change it any time in Settings.",
+		options: [],
+		allowOther: true,
+		skipLabel: "Not now",
 	},
 	church: {
 		question: "Do you have a home church? Search for it here, and I will remember it.",
@@ -152,6 +272,8 @@ export interface ChoiceCardOutput {
 	options: string[];
 	allowOther: boolean;
 	skipLabel: string;
+	/** Tappable words in the question (GLOSSARY keys). Older clients ignore it. */
+	terms: GlossaryTerm[];
 }
 
 const MAX_OPTION_LENGTH = 80;
@@ -180,6 +302,7 @@ export function resolveChoiceCard(input: {
 			options: cleanOptions,
 			allowOther: input.allowOther !== false,
 			skipLabel: "Skip for now",
+			terms: [],
 		};
 	}
 	const card = STEP_CARDS[input.step];
@@ -189,6 +312,7 @@ export function resolveChoiceCard(input: {
 		options: card.options ? [...card.options] : cleanOptions.slice(0, 2),
 		allowOther: card.allowOther,
 		skipLabel: card.skipLabel,
+		terms: [...(card.terms ?? [])],
 	};
 }
 
@@ -197,6 +321,8 @@ export const WELCOME_STEP_ORDER: readonly Exclude<OnboardingStep, "other">[] = [
 	"textScale",
 	"name",
 	"faith",
+	"walk",
+	"testimony",
 	"church",
 	"prayer",
 	"dailyTime",
@@ -210,14 +336,24 @@ export const WELCOME_STEP_ORDER: readonly Exclude<OnboardingStep, "other">[] = [
  * they have not answered the step yet. Null where no card is owed: after an
  * `other` card, after the last step, and after "Still seeking", where the
  * Gospel comes first and is never hurried toward the next step.
+ *
+ * The newly saved skip "how long" (under a year by definition) and go
+ * straight to how it happened. A testimony they already wrote is never asked
+ * for again.
  */
-export function expectedStep(lastStep: OnboardingStep | null, reply: string): Exclude<OnboardingStep, "other"> | null {
+export function expectedStep(
+	lastStep: OnboardingStep | null,
+	reply: string,
+	known: { testimony?: boolean } = {},
+): Exclude<OnboardingStep, "other"> | null {
 	if (!lastStep || lastStep === "other") return null;
 	const text = reply.trim();
 	if (lastStep === "faith" && /^still seeking/i.test(text)) return null;
 	if (text.endsWith("?")) return lastStep;
-	const index = WELCOME_STEP_ORDER.indexOf(lastStep);
-	return index >= 0 && index < WELCOME_STEP_ORDER.length - 1 ? WELCOME_STEP_ORDER[index + 1] : null;
+	let next: Exclude<OnboardingStep, "other"> | null =
+		lastStep === "faith" && /^newly saved/i.test(text) ? "testimony" : WELCOME_STEP_ORDER[WELCOME_STEP_ORDER.indexOf(lastStep) + 1] ?? null;
+	if (next === "testimony" && known.testimony) next = "church";
+	return next;
 }
 
 /**
@@ -232,10 +368,11 @@ export function owedStep(input: {
 	reply: string;
 	calledTools: readonly string[];
 	answerText: string;
+	known?: { testimony?: boolean };
 }): Exclude<OnboardingStep, "other"> | null {
 	if (input.calledTools.includes("presentChoices") || input.calledTools.includes("finishOnboarding")) return null;
 	if (/\?["'”’)]*$/.test(input.answerText.trim())) return null;
-	return expectedStep(input.lastStep, input.reply);
+	return expectedStep(input.lastStep, input.reply, input.known);
 }
 
 /**

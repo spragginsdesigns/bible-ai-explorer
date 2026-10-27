@@ -7,8 +7,11 @@ import {
 	TEXT_SCALE_FACTORS,
 	TEXT_SCALE_VALUES,
 	TOUR_STOPS,
+	questionSegments,
 	type ChoiceCardOutput,
+	type GlossaryTerm,
 } from "@/lib/onboarding-rules";
+import GlossaryDialog from "./GlossaryDialog";
 import type { CardState } from "@/lib/guide-cards";
 import { trackOnboardingStep } from "@/lib/analytics/client";
 import { setTextScalePreference } from "@/lib/preferencesSync";
@@ -76,6 +79,7 @@ export default function ChoiceCard({ card, conversationId, state, onAnswer, onTy
 	const [sent, setSent] = useState(false);
 	const [picking, setPicking] = useState(false);
 	const [pickHour, setPickHour] = useState(() => getWebNotificationSettings().hour);
+	const [openTerm, setOpenTerm] = useState<GlossaryTerm | null>(null);
 	const live = state.active && !sent;
 
 	const answer = (text: string, outcome: "answered" | "skipped") => {
@@ -118,7 +122,39 @@ export default function ChoiceCard({ card, conversationId, state, onAnswer, onTy
 
 	return (
 		<div className="mt-4 flex flex-col gap-3" aria-label={card.question} role="group">
-			<p className="text-lg font-semibold leading-snug text-neutral-900 dark:text-neutral-100">{card.question}</p>
+			<p className="text-lg font-semibold leading-snug text-neutral-900 dark:text-neutral-100">
+				{questionSegments(card.question, card.terms).map((segment, index) =>
+					segment.term ? (
+						<button
+							key={index}
+							type="button"
+							onClick={() => setOpenTerm(segment.term ?? null)}
+							aria-haspopup="dialog"
+							className="font-semibold text-amber-700 underline decoration-2 underline-offset-4 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200"
+						>
+							{segment.text}
+						</button>
+					) : (
+						<React.Fragment key={index}>{segment.text}</React.Fragment>
+					),
+				)}
+			</p>
+			{openTerm && (
+				<GlossaryDialog
+					term={openTerm}
+					onClose={() => setOpenTerm(null)}
+					onAsk={
+						live
+							? (question) => {
+									setOpenTerm(null);
+									setSent(true);
+									trackOnboardingStep(card.step, "asked");
+									onAnswer(question);
+								}
+							: undefined
+					}
+				/>
+			)}
 
 			{options.length > 0 && (
 				<div className="flex flex-col gap-2">

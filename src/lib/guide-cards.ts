@@ -1,4 +1,4 @@
-import type { AppTarget, ChoiceCardOutput, OnboardingStep, TourStop } from "./onboarding-rules";
+import type { AppTarget, ChoiceCardOutput, GlossaryTerm, OnboardingStep, TourStop } from "./onboarding-rules";
 
 /**
  * The web half of "Walk with me" (docs/onboarding/PLAN.md) that has no React
@@ -28,6 +28,7 @@ function stringList(value: unknown): string[] {
 export function parseChoiceCard(
 	output: unknown,
 	isStep: (value: unknown) => value is OnboardingStep,
+	isTerm: (value: unknown) => value is GlossaryTerm = (_value): _value is GlossaryTerm => false,
 ): ChoiceCardOutput | null {
 	if (!isRecord(output) || !isStep(output.step) || typeof output.question !== "string") return null;
 	return {
@@ -36,6 +37,8 @@ export function parseChoiceCard(
 		options: stringList(output.options),
 		allowOther: output.allowOther === true,
 		skipLabel: typeof output.skipLabel === "string" && output.skipLabel.trim() ? output.skipLabel : "Skip for now",
+		// A card stored before tappable words existed has none.
+		terms: stringList(output.terms).filter(isTerm),
 	};
 }
 

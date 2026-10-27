@@ -11,7 +11,7 @@ import Foundation
 /// knows how to draw a card, what each tap does on this device, and how to
 /// light up its own screens.
 enum OnboardingStep: String, CaseIterable, Sendable, Equatable {
-    case textScale, name, faith, church, prayer, dailyTime, tour, aboutMe, other
+    case textScale, name, faith, walk, testimony, church, prayer, dailyTime, tour, aboutMe, other
 }
 
 /// One scripted card. `options == nil` means the model supplies them (the
@@ -23,6 +23,8 @@ struct OnboardingStepCard: Sendable, Equatable {
     var allowOther: Bool
     /// The quiet way past the card. Always present: nothing is required.
     var skipLabel: String
+    /// Words in the question that open their glossary explanation when tapped.
+    var terms: [GlossaryTerm] = []
 }
 
 /// What a presentChoices card resolves to, after the server fills in the script.
@@ -32,6 +34,40 @@ struct OnboardingChoiceCard: Sendable, Equatable {
     var options: [String]
     var allowOther: Bool
     var skipLabel: String
+    var terms: [GlossaryTerm] = []
+}
+
+/// A word in a card's question the reader can tap for a plain, Scripture
+/// explanation (Austin, 2026-10-26: tap "saved" to learn what it means). The
+/// raw value is the exact word as it appears in the question.
+enum GlossaryTerm: String, CaseIterable, Sendable, Equatable, Identifiable {
+    case saved
+
+    var id: String { rawValue }
+}
+
+struct GlossaryVerse: Sendable, Equatable {
+    var reference: String
+    /// KJV, word for word (`tests/onboarding-rules.test.mjs` checks the web copy).
+    var text: String
+}
+
+struct GlossarySection: Sendable, Equatable {
+    var text: String
+    var verses: [GlossaryVerse]
+}
+
+struct GlossaryEntry: Sendable, Equatable {
+    var title: String
+    var sections: [GlossarySection]
+    /// The question "Talk with SureWord about this" sends as their answer.
+    var ask: String
+}
+
+/// One run of a card's question: plain words, or a tappable glossary word.
+struct QuestionSegment: Sendable, Equatable {
+    var text: String
+    var term: GlossaryTerm?
 }
 
 /// The places SureWord can light up, by stable name. A client that cannot
@@ -136,7 +172,7 @@ enum HelpScreen: String, CaseIterable, Sendable {
 enum OnboardingRules {
     /// SureWord's first message, seeded by POST /api/onboarding/start.
     static let welcomeText =
-        "Welcome to SureWord. I'm here to walk with you in God's Word, wherever you are with Him. This takes about five minutes, and you can skip anything. If you would rather listen, turn on Read it to me at the top, and I will read each message to you."
+        "Welcome to SureWord. I'm here to walk with you in God's Word, wherever you are with Him. First, I would like to get to know you: your name, where you are with the Lord, your church and what is on your heart. It matters, because everything I do for you grows from it: how I answer your questions, how I pray with you, and the verse and devotional I prepare for you each morning. It takes about five minutes, and you can skip anything. If you would rather listen, turn on Read it to me at the top, and I will read each message to you."
 
     /// The conversation's title in history.
     static let welcomeTitle = "Welcome to SureWord"
@@ -183,10 +219,23 @@ enum OnboardingRules {
             skipLabel: "Skip for now"
         ),
         .faith: OnboardingStepCard(
-            question: "Which of these sounds most like you?",
+            question: "Where are you with the Lord, and have you been saved? Pick the one that sounds most like you.",
             options: faithOptions,
             allowOther: true,
+            skipLabel: "Skip for now",
+            terms: [.saved]
+        ),
+        .walk: OnboardingStepCard(
+            question: "How long have you walked with the Lord?",
+            options: ["Less than a year", "A few years", "Ten years or more", "Most of my life"],
+            allowOther: true,
             skipLabel: "Skip for now"
+        ),
+        .testimony: OnboardingStepCard(
+            question: "Would you tell me how you came to know the Lord? Type it or speak it in your own words. I will keep it as your testimony, and you can change it any time in Settings.",
+            options: [],
+            allowOther: true,
+            skipLabel: "Not now"
         ),
         .church: OnboardingStepCard(
             question: "Do you have a home church? Search for it here, and I will remember it.",
@@ -252,8 +301,103 @@ enum OnboardingRules {
             question: card.question,
             options: card.options ?? Array(cleanOptions.prefix(2)),
             allowOther: card.allowOther,
-            skipLabel: card.skipLabel
+            skipLabel: card.skipLabel,
+            terms: card.terms
         )
+    }
+
+    /// `GLOSSARY`: the words a card can explain, fixed and free, never generated.
+    static let glossary: [GlossaryTerm: GlossaryEntry] = [
+        .saved: GlossaryEntry(
+            title: "What does it mean to be saved?",
+            sections: [
+                GlossarySection(
+                    text: "To be saved is to be rescued by God from the penalty of your sin and given eternal life through Jesus Christ. The Bible also calls it being born again.",
+                    verses: [
+                        GlossaryVerse(reference: "John 3:3", text: "Jesus answered and said unto him, Verily, verily, I say unto thee, Except a man be born again, he cannot see the kingdom of God."),
+                    ]
+                ),
+                GlossarySection(
+                    text: "Every one of us has sinned, and sin separates us from a holy God.",
+                    verses: [
+                        GlossaryVerse(reference: "Romans 3:23", text: "For all have sinned, and come short of the glory of God;"),
+                        GlossaryVerse(reference: "Romans 6:23", text: "For the wages of sin is death; but the gift of God is eternal life through Jesus Christ our Lord."),
+                    ]
+                ),
+                GlossarySection(
+                    text: "But God loved us first. Jesus Christ, His Son, died on the cross for our sins and rose again the third day.",
+                    verses: [
+                        GlossaryVerse(reference: "Romans 5:8", text: "But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us."),
+                        GlossaryVerse(reference: "John 3:16", text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life."),
+                    ]
+                ),
+                GlossarySection(
+                    text: "Salvation is a gift. Nobody earns it by good works, by being a good person or by joining a church. It is received by faith, trusting Christ alone.",
+                    verses: [
+                        GlossaryVerse(reference: "Ephesians 2:8-9", text: "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God: Not of works, lest any man should boast."),
+                    ]
+                ),
+                GlossarySection(
+                    text: "Whoever turns to Him, believing in their heart that God raised Him from the dead, and calls on His name, is saved.",
+                    verses: [
+                        GlossaryVerse(reference: "Romans 10:9", text: "That if thou shalt confess with thy mouth the Lord Jesus, and shalt believe in thine heart that God hath raised him from the dead, thou shalt be saved."),
+                        GlossaryVerse(reference: "Romans 10:13", text: "For whosoever shall call upon the name of the Lord shall be saved."),
+                    ]
+                ),
+                GlossarySection(
+                    text: "A saved person is a new creature in Christ, and can know for certain that they have eternal life. If you are not sure where you stand, that is all right. We can look at it together in God's Word.",
+                    verses: [
+                        GlossaryVerse(reference: "2 Corinthians 5:17", text: "Therefore if any man be in Christ, he is a new creature: old things are passed away; behold, all things are become new."),
+                        GlossaryVerse(reference: "1 John 5:13", text: "These things have I written unto you that believe on the name of the Son of God; that ye may know that ye have eternal life, and that ye may believe on the name of the Son of God."),
+                    ]
+                ),
+            ],
+            ask: "What does it mean to be saved?"
+        ),
+    ]
+
+    /// The question split around its tappable words (`questionSegments`), so
+    /// every client links the same word. Only a term's first whole-word match.
+    static func questionSegments(_ question: String, terms: [GlossaryTerm]) -> [QuestionSegment] {
+        var segments: [QuestionSegment] = []
+        var rest = Substring(question)
+        var pending = terms
+        while !rest.isEmpty {
+            var best: (range: Range<Substring.Index>, term: GlossaryTerm)?
+            for term in pending {
+                guard let range = wholeWord(term.rawValue, in: rest) else { continue }
+                if let current = best, current.range.lowerBound <= range.lowerBound { continue }
+                best = (range, term)
+            }
+            guard let found = best else {
+                segments.append(QuestionSegment(text: String(rest)))
+                break
+            }
+            if found.range.lowerBound > rest.startIndex {
+                segments.append(QuestionSegment(text: String(rest[rest.startIndex..<found.range.lowerBound])))
+            }
+            segments.append(QuestionSegment(text: String(rest[found.range]), term: found.term))
+            rest = rest[found.range.upperBound...]
+            pending.removeAll { $0 == found.term }
+        }
+        return segments
+    }
+
+    /// The first case-insensitive match of `word` with no letter, digit or
+    /// underscore on either side (the web's `\b`).
+    private static func wholeWord(_ word: String, in text: Substring) -> Range<Substring.Index>? {
+        func isWordCharacter(_ character: Character?) -> Bool {
+            guard let character else { return false }
+            return character.isLetter || character.isNumber || character == "_"
+        }
+        var searchStart = text.startIndex
+        while let range = text.range(of: word, options: .caseInsensitive, range: searchStart..<text.endIndex) {
+            let before = range.lowerBound > text.startIndex ? text[text.index(before: range.lowerBound)] : nil
+            let after = range.upperBound < text.endIndex ? text[range.upperBound] : nil
+            if !isWordCharacter(before), !isWordCharacter(after) { return range }
+            searchStart = range.upperBound
+        }
+        return nil
     }
 
     /// The tour, in order, in SureWord's voice. Every client plays these stops.
@@ -291,9 +435,12 @@ enum OnboardingRules {
     /// shape is checked again rather than assumed (`parseChoiceCard`).
     static func parseChoiceCard(_ output: JSONValue?) -> OnboardingChoiceCard? {
         guard let output, output.objectValue != nil,
-              let step = output["step"]?.stringValue.flatMap(OnboardingStep.init(rawValue:)),
+              let rawStep = output["step"]?.stringValue,
               let question = output["question"]?.stringValue
         else { return nil }
+        // A step newer than this build still draws, as a card the model wrote,
+        // so a server that adds a step never strands an older app.
+        let step = OnboardingStep(rawValue: rawStep) ?? .other
         let options = (output["options"]?.arrayValue ?? []).compactMap(\.stringValue)
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         let skip = output["skipLabel"]?.stringValue ?? ""
@@ -302,7 +449,9 @@ enum OnboardingRules {
             question: question,
             options: options,
             allowOther: output["allowOther"]?.boolValue == true,
-            skipLabel: skip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Skip for now" : skip
+            skipLabel: skip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Skip for now" : skip,
+            // A card stored before tappable words existed has none.
+            terms: (output["terms"]?.arrayValue ?? []).compactMap { $0.stringValue.flatMap(GlossaryTerm.init(rawValue:)) }
         )
     }
 

@@ -105,10 +105,22 @@ describe("Walk with me cards in chat", () => {
 			options: ["One", "Two"],
 			allowOther: true,
 			skipLabel: "Later",
+			terms: [],
 		});
 		expect(view.showMe).toEqual([
 			{ target: "tab.bible", caption: "Here is the Bible.", stops: [{ target: "tab.today", caption: "Today." }] },
 		]);
+	});
+
+	it("keeps only the glossary words it knows", () => {
+		const view = message([
+			{
+				type: "tool-presentChoices",
+				state: "output-available",
+				output: { step: "faith", question: "Have you been saved?", options: ["One"], terms: ["saved", "grace", 3] },
+			},
+		]);
+		expect(view.choiceCard?.terms).toEqual(["saved"]);
 	});
 
 	it("a card alone still renders, and a malformed one is dropped", () => {

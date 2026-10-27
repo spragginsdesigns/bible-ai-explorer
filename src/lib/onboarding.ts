@@ -26,6 +26,34 @@ export type OnboardingStartResult =
 	/** An existing member: the welcome is for new sign-ups only. */
 	| { status: "not_eligible" };
 
+/**
+ * When Walk with me reached production. An account created after it is a new
+ * sign-up by definition, even if it chatted before any welcome opened: Kim
+ * (Android 1.100.0, 2026-10-25) and an iOS 1.24.0 reader (2026-10-26) both
+ * signed up on builds that never ask for a welcome, sent a first message, and
+ * were then refused one forever as "existing members".
+ */
+export const WALK_WITH_ME_LAUNCHED_AT = new Date("2026-10-25T00:00:00Z");
+
+/** Signed up since the welcome existed, so it is meant for them. */
+function isNewSignUp(createdAt: Date | null | undefined): boolean {
+	return Boolean(createdAt && createdAt >= WALK_WITH_ME_LAUNCHED_AT);
+}
+
+/**
+ * A new sign-up chatting in an ordinary conversation with no welcome open:
+ * the build in their hand cannot open one (Android before 1.101.0, iOS
+ * before 1.26.0), or opening it failed offline. Rather than leave them with
+ * no getting to know you at all, those chats run the interview in plain words
+ * (`textInterviewGuidance`), as every account had before Walk with me.
+ */
+export function needsTextInterview(
+	user: { onboardedAt: Date | null; onboardingConversationId: string | null; createdAt: Date } | null | undefined,
+	welcomeTurn: boolean,
+): boolean {
+	return Boolean(user && !welcomeTurn && !user.onboardedAt && !user.onboardingConversationId && isNewSignUp(user.createdAt));
+}
+
 /** SureWord's first message, with the text size card under it, as stored parts. */
 function welcomeParts() {
 	const card = resolveChoiceCard({ step: "textScale" });
@@ -45,10 +73,11 @@ function welcomeParts() {
  * Open (or return) the welcome conversation.
  *
  * `auto` is what every client calls after sign-in and the consent sheet. It
- * opens a welcome only for a brand-new account: `onboardedAt` null and no
- * conversation of its own yet. A web guest's claimed turns do not count, so a
- * guest who signs up still walks straight into the welcome. An existing
- * member never gets one pushed at them (Austin, 2026-10-25).
+ * opens a welcome only for a brand-new account: `onboardedAt` null and
+ * either created since Walk with me launched or with no conversation of its
+ * own yet. A web guest's claimed turns do not count, so a guest who signs up
+ * still walks straight into the welcome. An existing member never gets one
+ * pushed at them (Austin, 2026-10-25).
  *
  * `manual` is "Walk me through SureWord" in Settings: anyone, any time. It
  * reopens the welcome conversation when there is one, so it picks up where it
@@ -64,7 +93,7 @@ export async function startOnboarding(userId: string, mode: OnboardingStartMode)
 			await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
 			const user = await tx.user.findUnique({
 				where: { id: userId },
-				select: { onboardedAt: true, onboardingConversationId: true },
+				select: { onboardedAt: true, onboardingConversationId: true, createdAt: true },
 			});
 			if (!user) return { status: "not_eligible" as const };
 
@@ -78,12 +107,14 @@ export async function startOnboarding(userId: string, mode: OnboardingStartMode)
 			if (mode === "auto") {
 				if (user.onboardedAt) return { status: "done" as const };
 				if (existing) return { status: "active" as const, conversationId: existing.id, created: false };
-				const own = await tx.conversation.count({
-					where: {
-						userId,
-						messages: { none: { metadata: { path: ["source"], equals: "guest" } } },
-					},
-				});
+				const own = isNewSignUp(user.createdAt)
+					? 0
+					: await tx.conversation.count({
+							where: {
+								userId,
+								messages: { none: { metadata: { path: ["source"], equals: "guest" } } },
+							},
+						});
 				if (own > 0) return { status: "not_eligible" as const };
 			} else if (existing) {
 				if (user.onboardedAt) await tx.user.update({ where: { id: userId }, data: { onboardedAt: null } });

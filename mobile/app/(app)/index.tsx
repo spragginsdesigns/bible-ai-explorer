@@ -346,6 +346,10 @@ export default function ChatScreen() {
 				leaveEdit(true);
 				setFocusSignal((signal) => signal + 1);
 			},
+			ask: (card, question) => {
+				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: "asked" });
+				send(question);
+			},
 			showMe: (card) => {
 				if (card.target === "tour") startSpotlight([...TOUR_STOPS], "tour");
 				else startSpotlight(card.stops ?? [{ target: card.target, caption: card.caption }], "show");

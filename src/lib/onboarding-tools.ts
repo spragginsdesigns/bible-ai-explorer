@@ -53,7 +53,10 @@ export function buildOnboardingTools(userId: string, context: AgentActionContext
 			// Tapping "Yes, save it" on the About me card answers that card's own
 			// question, so it counts as the explicit ask; no second confirmation.
 			const tappedSave = field === "aboutMe" && userText.trim() === STEP_CARDS.aboutMe.options?.[0];
-			const explicitInitialSave = !existing && (tappedSave || isInitialProfileSaveRequest(userText, field));
+			// The testimony card says their words will be kept as their testimony,
+			// so sharing the story in answer to it is the explicit ask.
+			const answeredTestimonyCard = field === "testimony" && context.welcomeStep?.() === "testimony";
+			const explicitInitialSave = !existing && (tappedSave || answeredTestimonyCard || isInitialProfileSaveRequest(userText, field));
 			return await (explicitInitialSave ? save() : executeApprovedAction(context, field === "testimony" ? "saveTestimony" : "saveAboutMe", { text }, save));
 		} catch (error) {
 			if (error instanceof AgentActionError) return { success: false as const, error: error.message };

@@ -39,10 +39,51 @@ struct OnboardingTests {
             allowOther: false
         )
         #expect(card.step == .faith)
-        #expect(card.question == "Which of these sounds most like you?")
+        #expect(card.question == "Where are you with the Lord, and have you been saved? Pick the one that sounds most like you.")
         #expect(card.options == OnboardingRules.faithOptions)
         #expect(card.allowOther)
         #expect(card.skipLabel == "Skip for now")
+        #expect(card.terms == [.saved])
+    }
+
+    @Test("Walk and testimony follow faith with their own scripts")
+    func walkAndTestimonySteps() {
+        let steps = OnboardingStep.allCases
+        #expect(steps.firstIndex(of: .walk) == steps.firstIndex(of: .faith).map { $0 + 1 })
+        #expect(steps.firstIndex(of: .testimony) == steps.firstIndex(of: .walk).map { $0 + 1 })
+        let walk = OnboardingRules.resolveChoiceCard(step: .walk)
+        #expect(walk.options == ["Less than a year", "A few years", "Ten years or more", "Most of my life"])
+        let testimony = OnboardingRules.resolveChoiceCard(step: .testimony, options: ["Model words"])
+        #expect(testimony.options.isEmpty)
+        #expect(testimony.allowOther)
+        #expect(testimony.skipLabel == "Not now")
+        #expect(OnboardingRules.welcomeText.contains("It matters, because everything I do for you grows from it"))
+    }
+
+    @Test("The faith question links its first whole word \"saved\", and only that")
+    func questionSegments() {
+        let segments = OnboardingRules.questionSegments(Self.faithCard.question, terms: Self.faithCard.terms)
+        #expect(segments.map(\.text).joined() == Self.faithCard.question)
+        #expect(segments.compactMap(\.term) == [.saved])
+        #expect(segments.first { $0.term != nil }?.text == "saved")
+        #expect(segments.first?.text == "Where are you with the Lord, and have you been ")
+        // "unsaved" is not "saved", and a card without terms is one plain run.
+        #expect(OnboardingRules.questionSegments("Are you unsaved?", terms: [.saved]).compactMap(\.term).isEmpty)
+        #expect(OnboardingRules.questionSegments("Saved? Saved!", terms: [.saved]).map(\.text) == ["Saved", "? Saved!"])
+        #expect(OnboardingRules.questionSegments("Plain", terms: []) == [QuestionSegment(text: "Plain")])
+    }
+
+    @Test("The saved explanation quotes the KJV and asks the same question as the web")
+    func glossaryEntry() throws {
+        let entry = try #require(OnboardingRules.glossary[.saved])
+        #expect(entry.ask == "What does it mean to be saved?")
+        let references = entry.sections.flatMap(\.verses).map(\.reference)
+        #expect(references == [
+            "John 3:3", "Romans 3:23", "Romans 6:23", "Romans 5:8", "John 3:16",
+            "Ephesians 2:8-9", "Romans 10:9", "Romans 10:13", "2 Corinthians 5:17", "1 John 5:13",
+        ])
+        #expect(entry.sections.flatMap(\.verses).first { $0.reference == "Romans 10:13" }?.text
+            == "For whosoever shall call upon the name of the Lord shall be saved.")
     }
 
     @Test("The name step keeps up to two of the model's options, trimmed and unique")
@@ -145,7 +186,14 @@ struct OnboardingTests {
         #expect(card.options == ["6 am", "Noon"])
         #expect(card.allowOther)
         #expect(card.skipLabel == "Skip for now")
-        #expect(OnboardingRules.parseChoiceCard(try Self.decode(#"{"step": "dance", "question": "Q"}"#)) == nil)
+        // A step newer than this build still draws, as a card the model wrote.
+        let newer = try #require(OnboardingRules.parseChoiceCard(try Self.decode(#"{"step": "dance", "question": "Q", "options": ["A"]}"#)))
+        #expect(newer.step == .other)
+        #expect(newer.question == "Q")
+        #expect(newer.options == ["A"])
+        let faith = try #require(OnboardingRules.parseChoiceCard(try Self.decode(#"{"step": "faith", "question": "Q", "terms": ["saved", "grace", 3]}"#)))
+        #expect(faith.terms == [.saved])
+        #expect(card.terms.isEmpty)
         #expect(OnboardingRules.parseChoiceCard(try Self.decode(#"{"step": "faith"}"#)) == nil)
         #expect(OnboardingRules.parseChoiceCard(try Self.decode(#"["faith"]"#)) == nil)
         #expect(OnboardingRules.parseChoiceCard(nil) == nil)

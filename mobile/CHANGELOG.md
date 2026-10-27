@@ -2,6 +2,20 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.104.0 (versionCode 121) - 2026-10-26 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Getting to know you now asks whether you have been saved. Tap the word "saved" to read what it means, straight from the King James Bible.
+- SureWord now asks how long you have walked with the Lord, and invites you to share your testimony in your own words.
+
+IMPROVED
+- The welcome explains why it asks: every answer, every prayer and each morning's verse is shaped by what you share.
+- Each welcome message ends with one card, never two.
+
+**Dev notes:** Walk with me audit from production data (2026-10-26). Server, shared by every client: `walk` and `testimony` steps after `faith` in `src/lib/onboarding-rules.ts` (the newly saved skip walk, seekers skip both, testimony skipped when one exists), faith question "have you been saved?" with `terms: ["saved"]` and the fixed `GLOSSARY.saved` text (KJV quotes checked word for word against `src/data/kjv` in `tests/onboarding-rules.test.mjs`), new `WELCOME_TEXT`, `hasToolCall("presentChoices")` in the chat route's `stopWhen` (the doubled sentences and double cards), the faith answer filed as a profile memory and never as prayer, testimony card answers saved by `saveTestimony` without a second yes. Welcome eligibility now goes by sign-up date (`WALK_WITH_ME_LAUNCHED_AT`, `isNewSignUp`), so a new account that chatted first on an older build still gets the welcome after updating, and until then an ordinary chat on a pre-1.101 build runs the interview in words (`needsTextInterview`, `textInterviewGuidance`). Android: underlined "saved" in `ChoiceCard` opens `GlossarySheet` (BottomSheet primitive); its Talk with SureWord button sends the question through the new `ask` action and tracks `onboarding_step` outcome `asked`. `chatView.parseChoiceCard` reads `terms`. The new steps need no client code (unknown steps already draw generically). No native changes.
+
 ## 1.103.0 (versionCode 120) - 2026-10-26 - internal and closed testing
 
 **What's new (Play):**

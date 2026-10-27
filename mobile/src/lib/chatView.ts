@@ -4,6 +4,7 @@ import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
 import { isTranslationId, type TranslationId } from "@/features/bible/translations";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "./assistantMarkdown";
 import { buildReceipts, type ChatReceipt } from "./receipts";
+import { isGlossaryTerm, type GlossaryTerm } from "@/features/onboarding/onboardingRules";
 
 /** View-model types ported from the web app (src/components/useChat.ts). */
 export interface RetrievedVerse {
@@ -47,6 +48,8 @@ export interface ChoiceCardView {
 	options: string[];
 	allowOther: boolean;
 	skipLabel: string;
+	/** Words in the question that open their explanation (GLOSSARY keys). */
+	terms: GlossaryTerm[];
 }
 
 export interface ShowMeView {
@@ -66,6 +69,8 @@ function parseChoiceCard(output: Record<string, unknown>): ChoiceCardView | null
 			: [],
 		allowOther: output.allowOther === true,
 		skipLabel: typeof output.skipLabel === "string" && output.skipLabel ? output.skipLabel : "Skip for now",
+		// A card stored before tappable words existed has none.
+		terms: Array.isArray(output.terms) ? output.terms.filter(isGlossaryTerm) : [],
 	};
 }
 

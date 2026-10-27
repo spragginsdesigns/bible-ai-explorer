@@ -14,6 +14,7 @@ import {
 	DEFAULT_ONBOARDING_TURN_CEILING,
 	FAITH_OPTIONS,
 	GETTING_STARTED_ITEMS,
+	GLOSSARY,
 	ONBOARDING_STEPS,
 	SCRIPTED_LINES,
 	STEP_CARDS,
@@ -150,4 +151,54 @@ test("the welcome owes the next card when a turn ends without one", async () => 
 	assert.equal(expectedStep("other", "Yes"), null);
 	assert.equal(expectedStep(null, "hello"), null);
 	for (let i = 0; i < WELCOME_STEP_ORDER.length - 1; i++) assert.equal(expectedStep(WELCOME_STEP_ORDER[i], "ok"), WELCOME_STEP_ORDER[i + 1]);
+});
+
+test("the welcome learns their walk: how long, then how they came to Christ", async () => {
+	const { expectedStep, owedStep } = await import("../src/lib/onboarding-rules.ts");
+	assert.equal(expectedStep("faith", "Saved and growing in the Word"), "walk");
+	assert.equal(expectedStep("faith", "A pastor, elder or preacher"), "walk");
+	assert.equal(expectedStep("walk", "Ten years or more"), "testimony");
+	assert.equal(expectedStep("testimony", "I was saved at a revival in 1998."), "church");
+	// The newly saved are under a year by definition: straight to how it happened.
+	assert.equal(expectedStep("faith", "Newly saved"), "testimony");
+	// A testimony already written is never asked for again.
+	assert.equal(expectedStep("walk", "A few years", { testimony: true }), "church");
+	assert.equal(expectedStep("faith", "Newly saved", { testimony: true }), "church");
+	assert.equal(owedStep({ lastStep: "walk", reply: "A few years", calledTools: ["saveMemory"], answerText: "Thank you.", known: { testimony: true } }), "church");
+});
+
+test("the faith card's \"saved\" opens its explanation, linked in one place", async () => {
+	const { GLOSSARY, STEP_CARDS, questionSegments } = await import("../src/lib/onboarding-rules.ts");
+	assert.deepEqual(resolveChoiceCard({ step: "faith" }).terms, ["saved"]);
+	assert.deepEqual(resolveChoiceCard({ step: "walk" }).terms, []);
+	const segments = questionSegments(STEP_CARDS.faith.question, ["saved"]);
+	assert.equal(segments.map((segment) => segment.text).join(""), STEP_CARDS.faith.question);
+	assert.deepEqual(segments.filter((segment) => segment.term).map((segment) => segment.text), ["saved"]);
+	// Whole words only, and a question without the word is left alone.
+	assert.deepEqual(questionSegments("Unsaved? No.", ["saved"]), [{ text: "Unsaved? No." }]);
+	for (const [term, entry] of Object.entries(GLOSSARY)) {
+		for (const card of Object.values(STEP_CARDS)) {
+			if (card.terms?.includes(term)) assert.match(card.question, new RegExp(`\\b${term}\\b`), term);
+		}
+		for (const line of [entry.title, entry.ask, ...entry.sections.map((section) => section.text)]) {
+			assert.ok(!/[--]/.test(line), line);
+		}
+	}
+});
+
+test("every glossary verse is the KJV, word for word", () => {
+	const books = { John: "43-john", Romans: "45-romans", Ephesians: "49-ephesians", "2 Corinthians": "47-2-corinthians", "1 John": "62-1-john" };
+	for (const entry of Object.values(GLOSSARY)) {
+		for (const section of entry.sections) {
+			for (const verse of section.verses) {
+				const match = /^(.+) (\d+):(\d+)(?:-(\d+))?$/.exec(verse.reference);
+				assert.ok(match, verse.reference);
+				const [, book, chapter, first, last] = match;
+				assert.ok(books[book], `no KJV file mapped for ${book}`);
+				const chapterVerses = JSON.parse(read(`../src/data/kjv/${books[book]}.json`))[Number(chapter) - 1];
+				const expected = chapterVerses.slice(Number(first) - 1, Number(last ?? first)).join(" ");
+				assert.equal(verse.text, expected, verse.reference);
+			}
+		}
+	}
 });

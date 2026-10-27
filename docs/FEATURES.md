@@ -765,17 +765,33 @@ cycle. Plan and Austin's four decisions: [onboarding/PLAN.md](onboarding/PLAN.md
 
 A brand-new account is welcomed by SureWord itself, in a real conversation,
 with big tap-to-answer cards so nobody has to type. In about five minutes it
-sets text size, name, where they are in the faith, church, a prayer request
-and a daily time, gives them their first Pick Up Your Cross, and lights up
-each tab once.
+sets text size, name, where they are in the faith (and whether they are
+saved), how long they have walked with the Lord, their testimony, church, a
+prayer request and a daily time, gives them their first Pick Up Your Cross,
+and lights up each tab once. The first message says why it is worth the five
+minutes: every answer, prayer and morning verse grows from knowing them.
 
 ### Who gets it
 
 - `POST /api/onboarding/start` with `mode: "auto"` runs once per launch, after
-  sign-in and after the AI consent sheet. It opens a welcome only for an
-  account with `onboardedAt` null and no conversation of its own (guest chats
+  sign-in and after the AI consent sheet. It opens a welcome for an account
+  with `onboardedAt` null and no welcome yet that either signed up on or after
+  the launch (`WALK_WITH_ME_LAUNCHED_AT`, 2026-10-25, `isNewSignUp` in
+  `src/lib/onboarding.ts`) or has no conversation of its own (guest chats
   claimed at sign-up do not count). Existing members are never pushed into it
   and see no card (decision 3).
+- Why the launch date (2026-10-26 audit): both real sign-ups after launch
+  (one on Android 1.99/1.100, one on App Store 1.24.0) were on builds older
+  than Walk with me, chatted first, and were then locked out of the welcome
+  forever by the "no conversation of its own" rule. A new sign-up now gets the
+  welcome as soon as they update, however much they chatted first.
+- Until then, an older build has no cards to draw, so a new sign-up's ordinary
+  chat runs the same interview in words (`needsTextInterview` in
+  `src/lib/onboarding.ts`, `textInterviewGuidance` in
+  `src/utils/systemPrompt.ts`): numbered choices instead of cards, no text
+  size or tour step, `presentChoices` and `showInApp` withheld, and one
+  sentence on why it matters. It stops as soon as `onboardedAt` or a welcome
+  conversation exists.
 - `mode: "manual"` comes from Settings, "Walk me through SureWord", for
   anyone: it reopens the account's welcome (clearing `onboardedAt`) or creates
   one. It replaces typing `/onboard`.
@@ -792,9 +808,37 @@ that asks for cards rides only on welcome turns). Their parts persist in
 `Message.metadata.parts` like every tool part:
 
 - `presentChoices` returns one step's card from `STEP_CARDS`
-  (`src/lib/onboarding-rules.ts`): textScale, name, faith, church, prayer,
-  dailyTime, tour, aboutMe. The model picks the step; the question, options and
-  skip label come from the rules file, so they read the same on every client.
+  (`src/lib/onboarding-rules.ts`): textScale, name, faith, walk, testimony,
+  church, prayer, dailyTime, tour, aboutMe. The model picks the step; the
+  question, options and skip label come from the rules file, so they read the
+  same on every client. A client that does not know a step draws it as a
+  plain card with the server's question and options (Android since 1.101,
+  Apple since this change), so a new step never needs an app update.
+- The faith question asks "have you been saved?", and the word "saved" is a
+  link (`terms: ["saved"]` on the card, split by `questionSegments`). Tapping
+  it opens "What does it mean to be saved?" (`GLOSSARY.saved`): six short
+  sections, born again, all have sinned, God's love in Christ, a gift by
+  faith and not of works, call on His name, and the assurance of 1 John 5:13,
+  each with its verse quoted from the KJV word for word
+  (`tests/onboarding-rules.test.mjs` checks every quote against
+  `src/data/kjv`). It is fixed text, so it is instant and free. "Talk with
+  SureWord about this" sends "What does it mean to be saved?" as their
+  answer; SureWord explains from Scripture and shows the faith card again.
+  Web `GlossaryDialog`, Android `GlossarySheet`, Apple `GuideGlossarySheet`.
+- The faith answer is saved as a `profile` memory (a seeker was once filed
+  under `prayer`), and the walk answer is folded into that same memory
+  ("A saved believer growing in the Word, walking with the Lord ten years or
+  more"). The newly saved skip the walk step and go straight to testimony;
+  seekers skip both.
+- The testimony card says their words will be kept, so a story typed or
+  spoken on it is saved with `saveTestimony` in the same turn without a
+  separate yes (`welcomeStep` on the action context marks it an explicit
+  save). The step is skipped when a testimony already exists
+  (`expectedStep(..., { testimony })`).
+- A card ends its message: the route stops the tool loop at `presentChoices`
+  (`hasToolCall("presentChoices")` in `stopWhen`). Before that, the model
+  sometimes kept writing after the card, and the welcome showed doubled
+  sentences and two cards in one message.
 - `showInApp` returns a "Show me" card naming one `APP_TARGETS` place (or the
   whole tour). Its button works in any conversation, not only the welcome.
 

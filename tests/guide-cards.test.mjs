@@ -10,6 +10,7 @@ import {
 	APP_TARGET_KEYS,
 	TOUR_STOPS,
 	isAppTarget,
+	isGlossaryTerm,
 	isOnboardingStep,
 	resolveChoiceCard,
 } from "../src/lib/onboarding-rules.ts";
@@ -34,7 +35,15 @@ test("a card with an unknown step or no question is dropped, and junk options ar
 	assert.equal(parseChoiceCard({ step: "faith", options: [] }, isOnboardingStep), null);
 	assert.equal(parseChoiceCard(null, isOnboardingStep), null);
 	const card = parseChoiceCard({ step: "other", question: "Q", options: ["A", 3, "", "B"], allowOther: "yes" }, isOnboardingStep);
-	assert.deepEqual(card, { step: "other", question: "Q", options: ["A", "B"], allowOther: false, skipLabel: "Skip for now" });
+	assert.deepEqual(card, { step: "other", question: "Q", options: ["A", "B"], allowOther: false, skipLabel: "Skip for now", terms: [] });
+});
+
+test("only known glossary words survive parsing, and older stored cards have none", () => {
+	const faith = { step: "faith", question: "Have you been saved?", options: [], terms: ["saved", "bogus", 4] };
+	assert.deepEqual(parseChoiceCard(faith, isOnboardingStep, isGlossaryTerm).terms, ["saved"]);
+	assert.deepEqual(parseChoiceCard({ step: "faith", question: "Q", options: [] }, isOnboardingStep, isGlossaryTerm).terms, []);
+	// A caller that cannot draw tappable words gets none.
+	assert.deepEqual(parseChoiceCard(faith, isOnboardingStep).terms, []);
 });
 
 test("a Show me card keeps only real targets, and a tour keeps its valid stops", () => {

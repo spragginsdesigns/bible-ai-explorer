@@ -11,6 +11,8 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { TEXT_SCALE_FACTORS, textScaleForLabel } from "@/features/settings/textScale";
 import { useOnboardingChat } from "./OnboardingChatContext";
 import { hourLabel } from "./dailyTime";
+import { GlossarySheet } from "./GlossarySheet";
+import { questionSegments, type GlossaryTerm } from "./onboardingRules";
 
 /** Big enough for any thumb and any eyes (docs/onboarding/PLAN.md: at least 56dp). */
 const MIN_TAP_HEIGHT = 56;
@@ -34,6 +36,7 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 	const interactive = live && actions !== null && !answered;
 	const [pickingHour, setPickingHour] = useState(false);
 	const [speakHint, setSpeakHint] = useState(false);
+	const [openTerm, setOpenTerm] = useState<GlossaryTerm | null>(null);
 	// The church search can be unavailable (no Places key), so typing the name is always offered.
 	const allowOther = card.allowOther || card.step === "church";
 
@@ -45,7 +48,37 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 
 	return (
 		<View style={styles.card} accessibilityRole="none">
-			<Text style={styles.question}>{card.question}</Text>
+			<Text style={styles.question}>
+				{questionSegments(card.question, card.terms).map((segment, index) =>
+					segment.term ? (
+						<Text
+							key={index}
+							accessibilityRole="link"
+							accessibilityHint="Explains what this means from Scripture"
+							onPress={() => setOpenTerm(segment.term ?? null)}
+							suppressHighlighting={false}
+							style={styles.term}
+						>
+							{segment.text}
+						</Text>
+					) : (
+						segment.text
+					)
+				)}
+			</Text>
+			<GlossarySheet
+				term={openTerm}
+				onClose={() => setOpenTerm(null)}
+				onAsk={
+					interactive
+						? (question) => {
+								setOpenTerm(null);
+								setAnswered(true);
+								actions.ask(card, question);
+							}
+						: undefined
+				}
+			/>
 
 			{card.step === "church" && interactive ? <ChurchStep onSaved={(name) => answer(`I saved ${name} as my home church.`)} /> : null}
 
@@ -198,6 +231,7 @@ const createStyles = (c: Colors) =>
 			borderRadius: radius.lg,
 		},
 		question: { ...typography.body, color: c.text, fontWeight: "600" },
+		term: { color: c.accent, textDecorationLine: "underline" },
 		options: { gap: spacing.sm },
 		option: {
 			minHeight: MIN_TAP_HEIGHT,
