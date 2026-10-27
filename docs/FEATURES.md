@@ -26,6 +26,21 @@ native sidebar and tab layouts with explicit receipt and verse destinations.
 See [navigation-overhaul.md](navigation-overhaul.md) for the complete destination
 map, account and consent behavior, artwork provenance and verification results.
 
+## SureWord Beta (founders only, web)
+
+A private preview at `/beta` where the study platform from LC-17631 is being
+built: Home, Bible, Study, Library and Learn, with fourteen modules (Study
+Projects, Scripture Check, the Knowledge Vault, Learning Paths and the rest)
+added one at a time. Only `BETA_USER_IDS` (Austin and Jay) can open it;
+everyone else gets the ordinary 404 and never sees the way in, a "SureWord
+Beta" row at the bottom of the settings menu. Web only for now. Home greets
+the founder, hands a question to chat (`/?prompt=`), continues their last
+chapter (`GET /api/reading-events`), shows today's word
+(`GET /api/verse-of-day/preview`) and lists every module with its status.
+Modules keep their objects in one shared study store (`BetaItem`,
+`BetaLink`). The contract every module run follows, the map, the store and
+how to prove a module: [docs/beta/README.md](beta/README.md).
+
 ## What's new (release notes)
 
 Every SureWord update, newest first: the public journal at
@@ -4197,6 +4212,7 @@ if Clerk fails after the commit).
 | ReadingLogEntry, Chapter, Day, Session, Totals, ChapterDay, Streak | userId | cascade |
 | SharedAnswer | userId | cascade (public share link stops resolving) |
 | SharedCard (sent words and their drafts) | userId | cascade (the `/c/{id}` link and its card image stop resolving) |
+| BetaItem, BetaLink (SureWord Beta's study store, `docs/beta/README.md`) | userId | cascade |
 | GuestTurn | plain `claimedByUserId`, no FK | deleted explicitly |
 | LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
 | BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |

@@ -53,6 +53,9 @@ export interface AccountDataModel {
 export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "AgentStudy", via: "cascade" },
 	{ model: "AgentAction", via: "cascade" },
+	// SureWord Beta's shared study store (docs/beta/README.md).
+	{ model: "BetaItem", via: "cascade" },
+	{ model: "BetaLink", via: "cascade" },
 	{ model: "User", via: "explicit" },
 	{ model: "AiPreference", via: "cascade" },
 	{ model: "BillingSubscription", via: "cascade" },

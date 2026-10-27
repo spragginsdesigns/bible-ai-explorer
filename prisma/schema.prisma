@@ -140,6 +140,9 @@ model User {
   churchSaves            ChurchSaveEvent[]
   agentStudies           AgentStudy[]
   agentActions           AgentAction[]
+  // SureWord Beta's shared study store (docs/beta/README.md).
+  betaItems              BetaItem[]
+  betaLinks              BetaLink[]
 }
 
 /// Private, resumable study work. Separate from personal memories and chat history.
@@ -1278,3 +1281,73 @@ model ChurchEvent {
   @@index([channelId, startsAt])
   @@index([studyId])
 }
+
+// ---------------------------------------------------------------------------
+// SureWord Beta (LC-17631, docs/beta/README.md): founders-only, web only.
+// ---------------------------------------------------------------------------
+
+/// The beta's shared study store. Every beta module keeps its own objects here
+/// (a study project, a source, a path enrollment, a habit) instead of adding a
+/// table, keyed by the module's registry slug (src/lib/beta/modules.ts) and a
+/// module-defined kind, with the passages and topics each one touches. That
+/// one shape is what lets the Knowledge Vault search and the Living Study
+/// Graph connect every module's work. Rules in src/lib/beta/store-rules.ts;
+/// reads and writes only through src/lib/beta/store.ts, always by owner.
+model BetaItem {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Registry slug of the module that owns it, e.g. "projects".
+  module    String
+  /// Module-defined, e.g. "project" or "source".
+  kind      String
+  /// Optional containment (a source inside a project); deleting the parent deletes it.
+  parentId  String?
+  parent    BetaItem?  @relation("BetaItemTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  BetaItem[] @relation("BetaItemTree")
+  title     String
+  /// Plain text a person reads and searches (a pasted source, a transcript).
+  body      String?    @db.Text
+  /// The module's own structured fields, validated by the module.
+  data      Json       @default("{}")
+  /// Passage keys "book.chapter" and "book.chapter.verse" (43.3, 43.3.16).
+  refs      String[]   @default([])
+  /// Lowercase topic labels, e.g. "justification".
+  topics    String[]   @default([])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  linksFrom BetaLink[] @relation("BetaLinkFrom")
+  linksTo   BetaLink[] @relation("BetaLinkTo")
+
+  @@index([userId, module, kind, updatedAt])
+  @@index([parentId])
+  @@index([refs], type: Gin)
+  @@index([topics], type: Gin)
+}
+
+/// A connection between two of one person's beta items: made by the person,
+/// or suggested by SureWord with its reason (the Living Study Graph).
+model BetaLink {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromId    String
+  from      BetaItem @relation("BetaLinkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        BetaItem @relation("BetaLinkTo", fields: [toId], references: [id], onDelete: Cascade)
+  /// e.g. "related", "builds-on", "contrasts".
+  kind      String
+  reason    String?  @db.Text
+  /// "user" or "suggested".
+  origin    String   @default("user")
+  createdAt DateTime @default(now())
+
+  @@unique([fromId, toId, kind])
+  @@index([userId])
+  @@index([toId])
+}
+
+// A beta module that needs a table of its own adds it below, in its own block
+// headed "// Beta module: <slug>", with any User back-relation in its own
+// commented slot at the end of the User model, so modules built in parallel
+// never edit the same lines.

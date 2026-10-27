@@ -314,6 +314,11 @@ Also required in `.env.local`:
   `PRO_USER_IDS`. Unset means nobody: the page and `/api/admin/feedback`
   answer 404 to everyone else, signed in or out. See `docs/FEATURES.md` →
   "Reviewing reports".
+- `BETA_USER_IDS` - comma-separated Clerk ids allowed into SureWord Beta at
+  `/beta` (Austin and Jay; LC-17631). Same shared parser as `PRO_USER_IDS`.
+  Unset means nobody: every beta page and `/api/beta` route answers the
+  ordinary 404 to everyone else. Set in all three Vercel scopes. See
+  `docs/beta/README.md`.
 - `ELEVENLABS_API_KEY` - ElevenLabs text-to-speech, for the "Listen" spoken
   devotional on Pick Up Your Cross. **Required for that feature only**; without
   it the audio routes answer `status: "unavailable"` and every client hides the

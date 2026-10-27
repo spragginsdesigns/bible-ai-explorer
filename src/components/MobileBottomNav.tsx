@@ -24,5 +24,7 @@ export default function MobileBottomNav() {
   const pathname = usePathname();
   const { isSignedIn } = useAuth();
   if (!isSignedIn || pathname === "/terms" || ["/sign-in", "/sign-up"].some(prefix => pathname.startsWith(prefix))) return null;
+  // SureWord Beta draws its own tab bar (components/beta/BetaShell.tsx).
+  if (pathname === "/beta" || pathname.startsWith("/beta/")) return null;
   return <PrimaryNavigation pathname={pathname} />;
 }
