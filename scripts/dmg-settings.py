@@ -4,7 +4,8 @@ from pathlib import Path
 root = Path(defines["root"])
 files = [(defines["app"], "SureWord.app")]
 symlinks = {"Applications": "/Applications"}
-hide_extensions = ["SureWord.app"]
+# Setting hide_extensions writes FinderInfo onto the signed app bundle and
+# makes codesign --verify --deep --strict reject the mounted installer.
 icon = str(root / "macos/dmg/SureWord.icns")
 background = str(root / "macos/dmg/background.tiff")
 format = "UDZO"
