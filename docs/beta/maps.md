@@ -88,20 +88,32 @@ map's own page (and so to the ordinary 404 for anyone else's id).
 
 1. **Plan** (the house utility model): the searches the theme needs and the
    books it is about ("the Holy Spirit in Acts" means Acts). It writes no map
-   content, and may decline a theme Scripture does not speak to (422).
+   content, and may decline a theme Scripture does not speak to (422). It
+   also decides whether faithful Christians genuinely read the theme
+   differently (faith and works, the millennium, election, baptism, the gifts
+   in Acts) and, when they do, names the question and two or three readings,
+   each with its own search (LC-17678). A theme limited to one book still
+   counts ("baptism in Acts"); a broader one ("the Holy Spirit in Acts") does
+   not. Most themes get none.
 2. **Retrieve**: `searchScripture` (pgvector plus keyword blending) for the
    theme and each search, and the KJV full-text index inside each named book,
    merged round robin into a pool of up to 96 verses whose text comes from the
-   bundled KJV.
+   bundled KJV. Each named reading's search is one more list, so the verses
+   its holders cite sit in the pool beside the others'.
 3. **Build** (the house chat model, at the founder's plan effort): the model
    draws the map citing pool ids (`V12`) only, under SureWord's system prompt,
    interpretation guidance and a task that forbids leaning on remembered
-   verses and keeps every reading inside the foundation.
+   verses and keeps every reading inside the foundation. The plan's answer is
+   in the prompt: one question with those readings side by side, or no
+   question at all. (Left to choose for itself, the model skipped the question
+   on faith and works, or set out the two books as its "readings".)
 4. **Assemble and check** (`assembleGeneratedMap`, then `checkMapAgainstKjv`):
    ids outside the pool are dropped, an idea left with no verse is removed (its
    children move up), consecutive verses merge into ranges, and structural
    mistakes are repaired (a second root, a loop, a lone reading, a question with
-   one reading). Only a map that passes every check reaches the founder.
+   one reading). A flagged theme keeps its first question only and any other
+   theme keeps none (`maxQuestions`), so no question is invented. Only a map
+   that passes every check reaches the founder.
 
 The route is wrapped in `withIncludedAiRequest(..., "beta-maps")`, so it is
 metered like any included AI call. There is no pre-generation, backfill or

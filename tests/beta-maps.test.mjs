@@ -411,6 +411,56 @@ test("a generated draft cites only retrieved verses, and its mistakes are repair
 	assert.equal(assembleGeneratedMap({ ...draft, nodes: [draftNode("a", null, "topic", ["V404"])] }, pool, index, "x"), null);
 });
 
+test("a generated map keeps one question only for a theme the plan found contested (LC-17678)", () => {
+	const draft = {
+		title: "Faith and works",
+		summary: "How faith and works fit.",
+		topics: ["faith"],
+		nodes: [
+			draftNode("n1", null, "topic", ["V1"]),
+			draftNode("n2", "n1", "topic", ["V2"]),
+			draftNode("q1", "n1", "question", ["V3"]),
+			draftNode("r1", "q1", "reading", ["V3"]),
+			draftNode("r2", "q1", "reading", ["V4"]),
+			draftNode("q2", "n2", "question", ["V5"]),
+			draftNode("r3", "q2", "reading", ["V5"]),
+			draftNode("r4", "q2", "reading", ["V6"]),
+		],
+		links: [],
+	};
+	const kinds = (max) => {
+		const result = checkConceptMap(assembleGeneratedMap(draft, pool, index, "faith and works", max), context);
+		assert.ok(result.ok, result.error);
+		return Object.fromEntries(result.value.nodes.map((node) => [node.id, node.kind]));
+	};
+	assert.deepEqual(kinds(1), { n1: "topic", n2: "topic", q1: "question", r1: "reading", r2: "reading", q2: "topic", r3: "topic", r4: "topic" }, "a contested theme keeps its first question only");
+	assert.equal(Object.values(kinds(0)).every((kind) => kind === "topic"), true, "an uncontested theme gains no question");
+	assert.deepEqual(kinds(undefined), kinds(2), "without a cap every well-formed question stays");
+	assert.equal(kinds(undefined).q2, "question");
+	// A question that only looks sound while the draft is being repaired must not take the one place.
+	const tangled = {
+		...draft,
+		nodes: [
+			draftNode("n1", null, "topic", ["V1"]),
+			draftNode("t", "n1", "topic", ["V2"]),
+			draftNode("x", "rb", "topic", ["V2"]),
+			draftNode("qa", "t", "question", ["V3"]),
+			draftNode("ra", "qa", "reading", ["V3"]),
+			draftNode("qb", "qa", "question", ["V4"]),
+			draftNode("rb", "qb", "reading", ["V4"]),
+			draftNode("rc", "qb", "reading", ["V5"]),
+			draftNode("q2", "n1", "question", ["V5"]),
+			draftNode("r5", "q2", "reading", ["V5"]),
+			draftNode("r6", "q2", "reading", ["V6"]),
+		],
+	};
+	const tangledResult = checkConceptMap(assembleGeneratedMap(tangled, pool, index, "faith and works", 1), context);
+	assert.ok(tangledResult.ok, tangledResult.error);
+	const kept = tangledResult.value.nodes.filter((node) => node.kind === "question");
+	assert.equal(kept.length, 1, "a contested theme keeps one sound question");
+	assert.equal(tangledResult.value.nodes.filter((node) => node.parentId === kept[0].id && node.kind === "reading").length >= 2, true);
+});
+
 /* ------------------------------------------------------- source contracts */
 
 test("generation is founder-only, metered, and grounded in retrieval", () => {
@@ -423,6 +473,7 @@ test("generation is founder-only, metered, and grounded in retrieval", () => {
 	assert.match(generate, /searchScripture\(/);
 	assert.match(generate, /findVersesFullText\(/);
 	assert.match(generate, /never lean on a verse you remember/);
+	assert.match(generate, /disagreement \? 1 : 0/, "the plan's disagreement flag decides whether a question may stay");
 	assert.match(generate, /assembleGeneratedMap\(/);
 	assert.match(generate, /checkMapAgainstKjv\(/);
 	assert.match(generate, /systemPrompt/);

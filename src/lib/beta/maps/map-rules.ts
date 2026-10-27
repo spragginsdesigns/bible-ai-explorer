@@ -881,8 +881,11 @@ function clip(text: unknown, max: number): string {
  * wrong is repaired rather than rejected: a second root, a loop or an orphan
  * hangs from the root, a question with fewer than two readings becomes an
  * ordinary node, and a reading outside a question becomes one too.
+ * `maxQuestions` keeps the first that many questions and makes the rest
+ * ordinary nodes: 1 for a theme the plan found Christians read differently,
+ * 0 for any other, so no question is invented (LC-17678).
  */
-export function assembleGeneratedMap(draft: GeneratedDraft, pool: readonly PoolVerse[], books: MapBookIndex, theme: string): Record<string, unknown> | null {
+export function assembleGeneratedMap(draft: GeneratedDraft, pool: readonly PoolVerse[], books: MapBookIndex, theme: string, maxQuestions = Number.POSITIVE_INFINITY): Record<string, unknown> | null {
 	const byPoolId = new Map(pool.map((verse) => [verse.id.toUpperCase(), verse]));
 	const passagesFor = (ids: readonly unknown[], max: number): string[] => {
 		const verses = ids.flatMap((id) => {
@@ -995,6 +998,13 @@ export function assembleGeneratedMap(draft: GeneratedDraft, pool: readonly PoolV
 			}
 		}
 		if (!changed) break;
+	}
+	// Only once the structure is settled, so a question still being repaired cannot take the place of a sound one.
+	let questions = 0;
+	for (const node of nodes) {
+		if (node.kind !== "question" || questions++ < maxQuestions) continue;
+		node.kind = "topic";
+		for (const reading of nodes.filter((child) => child.parent === node.id)) reading.kind = "topic";
 	}
 
 	// Pre-order from the root, so the map reads top to bottom as it was meant.

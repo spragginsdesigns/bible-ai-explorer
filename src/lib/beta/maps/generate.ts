@@ -19,12 +19,16 @@ import { checkMapAgainstKjv, MAP_BOOKS } from "./passages";
  * retrieved verses, never from the model's memory:
  *
  * 1. Plan: the model names the searches the theme needs and the books it is
- *    about. It writes no content here.
+ *    about, and whether faithful Christians genuinely read the theme
+ *    differently (the question and its readings, each with its own search,
+ *    LC-17678). It writes no content here.
  * 2. Retrieve: SureWord's own retrieval (`searchScripture`, pgvector plus
  *    keyword blending) for each search, and the KJV full-text index inside
  *    each named book. Every verse's text comes from the bundled KJV.
  * 3. Build: the model draws the map citing only pool ids ("V12"). A citation
  *    outside the pool is dropped, and a node left with no verse is removed.
+ *    A theme the plan flagged keeps one question of readings; any other keeps
+ *    none.
  * 4. Check: the assembled map passes `checkConceptMap` with every verse
  *    checked against the bundled KJV before anyone sees it.
  */
@@ -63,6 +67,22 @@ const planSchema = z.object({
 		)
 		.min(3)
 		.max(8),
+	disagreement: z
+		.object({
+			question: z.string().describe("The question faithful Christians answer differently, as one short plain question of at most 7 words, e.g. \"What are the thousand years of Revelation 20?\""),
+			readings: z
+				.array(
+					z.object({
+						reading: z.string().describe("One reading, stated fairly in one plain sentence as its holders would put it"),
+						meaning: z.string().describe("What the verses its holders cite say, as a plain phrase, for a search by meaning over the whole KJV"),
+						words: z.string().describe("Two to four distinctive words those KJV verses use, for an exact word search inside the named books"),
+					}),
+				)
+				.min(2)
+				.max(3),
+		})
+		.nullable()
+		.describe("Only when faithful Christians genuinely read this theme's passages differently; otherwise null"),
 });
 
 const draftSchema = z.object({
@@ -101,6 +121,7 @@ const PLAN_TASK = `CURRENT TASK: A founder asked SureWord to build a concept map
 - answerable: false only when Scripture does not speak to the theme at all, or the request is harmful. Then reason says why in one plain sentence. A narrow, hard or disputed biblical theme is still answerable.
 - books: the books the theme names or clearly means ("the Holy Spirit in Acts" means Acts; "faith and works in James and Romans" means James and Romans). Empty when the theme spans the Bible.
 - searches: three to eight searches that together cover the theme's main parts, each different. When the theme is about particular books, cover each major passage or episode in those books where the theme appears, in the order they come, so none is missed. When the theme sets passages or books side by side, one search must find the verses where they seem to pull against each other most sharply, so the map can face them. "meaning" describes what the wanted verses say, for a search by meaning over the whole KJV. "words" gives two to four distinctive words the KJV itself uses in those verses (its own forms: "Holy Ghost", "justified", "faith without works"), for an exact word search inside the named books.
+- disagreement: whether faithful, Bible-believing Christians genuinely read the passages at the heart of this theme differently, so that a fair map must set more than one reading side by side. Decide from the theme's own words. Give a disagreement when they name a matter Christians read differently, for example: faith and works, or James's "justified by works" beside Paul's "justified by faith"; the millennium or the thousand years of Revelation 20; election or predestination; baptism; the gifts of the Spirit, tongues or prophecy, and whether they continue; whether a believer can fall away. A theme that names one of these matters gets a disagreement even when it is limited to a book ("baptism in Acts", "the gifts of the Spirit in Acts", "election in Romans"), because those are the very passages Christians read differently. Then give the question plainly and two or three readings, each a fair statement its own holders would accept (what they conclude, not merely what one book says), with a search for the verses they cite. Every reading stays inside SureWord's foundation (one God in three persons, the deity of Christ, salvation by grace through faith and not by works, His bodily resurrection and return); never make the foundation itself the question. Null when the theme's words name something broader (the Holy Spirit in Acts, the church in Acts, the book of Revelation, the life of Paul, the work of Christ), even when a disputed question sits inside it, because the founder can map the narrower theme. Null for most themes. Never invent a disagreement to fill the field.
 - Plain text, no markdown.`;
 
 const BUILD_TASK = `CURRENT TASK: Build a concept map of the theme below from the numbered King James verses supplied, and from nothing else. A founder will explore it by tapping each idea to read its verses, so every node must be true to the verses it cites.
@@ -108,13 +129,22 @@ const BUILD_TASK = `CURRENT TASK: Build a concept map of the theme below from th
 RULES:
 - Cite verses only by their supplied ids (V1, V2, ...). Every node cites one to five of them. Never cite a verse that was not supplied and never lean on a verse you remember but were not given. If the supplied verses do not cover part of the theme, leave that part out rather than filling it from memory.
 - Shape: one root (parent null) naming the theme, with three to six main branches under it, each holding two to five children; about 15 to 30 nodes in all. Order the branches the way the theme unfolds: the order of events for a story or a book, a logical order for a doctrine.
-- label: at most 7 plain words, no verse numbers. note: one or two plain sentences, at most 40 words, explaining the idea as the cited verses state it. A note is your explanation, never Scripture, so put no words in quotation marks. When a note says who speaks or acts, name the person the cited verse itself names; never move words from one speaker to another.
+- label: at most 7 plain words, no verse numbers. note: one or two plain sentences, at most 40 words, explaining the idea as the cited verses state it. A note is your explanation, never Scripture, so put no words in quotation marks, and it speaks of the passages themselves, never of the supplied list, its ids or these instructions (never write "supplied"). When a note says who speaks or acts, name the person the cited verse itself names; never move words from one speaker to another.
 - Where the supplied verses seem to pull against each other within the theme, cite both and show how they fit together; never leave the harder verse out.
 - connection: two to four plain words a reader would use for how a node follows from its parent ("fulfilled in", "the sign", "for example", "then"), or an empty string when the line needs no label; connectionVerses: ids that show that relation, or an empty list.
 - links: up to four cross-links between nodes in different branches, only where the supplied verses connect them, each with a short label and its verse ids.
-- Interpretations: only where faithful, Bible-believing Christians genuinely read a passage in this theme differently, and the supplied verses show it, add one node of kind "question" phrased as the question, with two or three children of kind "reading", each a fair, plain statement of one reading with the verses its holders cite. Never present a reading as settled, and never set SureWord's foundation (one God in three persons, the deity of Christ, salvation by grace through faith and not by works, His bodily resurrection and return) as one reading among others; every reading stays inside it. Where there is no genuine disagreement, add no question. Every other node is kind "topic".
+- Interpretations: the prompt says whether faithful, Bible-believing Christians read this theme differently. When it names a question, add exactly one node of kind "question" whose label asks that question in at most 7 words, under the branch it belongs to or under the root, with one child of kind "reading" for each reading named. The question's note says plainly what its passages say and where readers part ways. A reading's label names what its holders conclude, never just a book or a speaker; its note states that reading fairly and plainly, as its holders would; it cites the supplied verses its holders lean on. Give every reading the same care, and never present one as settled. Never set SureWord's foundation (one God in three persons, the deity of Christ, salvation by grace through faith and not by works, His bodily resurrection and return) as one reading among others; every reading stays inside it. When the prompt says there is no such question, add no question and no reading. Every other node is kind "topic".
 - topics: three to six short lowercase labels.
 - Plain text everywhere: no markdown, no dashes.`;
+
+type Disagreement = z.infer<typeof planSchema>["disagreement"];
+
+/** The plan's answer to "do Christians read this theme differently?", as the build step's instruction. */
+function readingsBrief(disagreement: Disagreement): string {
+	if (!disagreement) return "WHERE CHRISTIANS READ THIS THEME DIFFERENTLY: no such question. Add no question and no reading.";
+	const readings = disagreement.readings.map((reading, index) => `${index + 1}. ${reading.reading}`).join("\n");
+	return `WHERE CHRISTIANS READ THIS THEME DIFFERENTLY: ${disagreement.question}\nTHE READINGS TO SET SIDE BY SIDE:\n${readings}`;
+}
 
 function instructions(task: string): string {
 	return [systemPrompt, quotationGuidance("KJV"), interpretationGuidance, trustedContextGuidance, task].join("\n\n");
@@ -145,7 +175,7 @@ function scopedBooks(names: readonly string[]): number[] {
 	return orders;
 }
 
-async function retrievePool(theme: string, searches: { meaning: string; words: string }[], books: number[], signal: AbortSignal): Promise<{ pool: PoolEntry[]; degraded: boolean }> {
+async function retrievePool(theme: string, searches: readonly { meaning: string; words: string }[], books: number[], signal: AbortSignal): Promise<{ pool: PoolEntry[]; degraded: boolean }> {
 	let degraded = false;
 	const coordinates = (reference: string) => {
 		const resolved = resolveReference(reference);
@@ -221,8 +251,10 @@ export async function generateConceptMap(userId: string, rawTheme: string, signa
 	}
 
 	const books = scopedBooks(plan.books);
+	const disagreement = plan.disagreement;
 	const retrievalSignal = within(45_000);
-	const { pool, degraded } = await retrievePool(theme, plan.searches, books, retrievalSignal);
+	// Each reading gets its own search, so the verses its holders cite are in the pool beside the others'.
+	const { pool, degraded } = await retrievePool(theme, [...plan.searches, ...(disagreement?.readings ?? [])], books, retrievalSignal);
 	if (pool.length < 6) throw new MapGenerationError("Too few verses came back for that theme to build a map. Try wording it another way.", 422);
 
 	const buildModel = await resolveModel({ userId, structured: true });
@@ -232,7 +264,7 @@ export async function generateConceptMap(userId: string, rawTheme: string, signa
 		providerOptions: buildModel.providerOptions,
 		output: Output.object({ schema: draftSchema }),
 		instructions: instructions(BUILD_TASK),
-		prompt: `THEME: ${theme}${scope}\nSUGGESTED TITLE: ${plan.title}\n\nSUPPLIED VERSES (KJV), id | reference | text:\n${pool.map((verse) => `${verse.id} | ${verse.reference} | ${verse.text}`).join("\n")}`,
+		prompt: `THEME: ${theme}${scope}\nSUGGESTED TITLE: ${plan.title}\n${readingsBrief(disagreement)}\n\nSUPPLIED VERSES (KJV), id | reference | text:\n${pool.map((verse) => `${verse.id} | ${verse.reference} | ${verse.text}`).join("\n")}`,
 		abortSignal: within(BUILD_TIMEOUT_MS),
 	});
 
@@ -244,7 +276,7 @@ export async function generateConceptMap(userId: string, rawTheme: string, signa
 		nodes: draft.nodes.map((node) => ({ ...node, label: plain(node.label), note: plain(node.note), connection: plain(node.connection) })),
 		links: draft.links.map((link) => ({ ...link, label: plain(link.label) })),
 	};
-	const raw = assembleGeneratedMap(cleaned, pool, MAP_BOOKS, theme);
+	const raw = assembleGeneratedMap(cleaned, pool, MAP_BOOKS, theme, disagreement ? 1 : 0);
 	if (!raw) throw new MapGenerationError("The map came back without enough verses behind it. Please try again.", 502);
 	const checked = await checkMapAgainstKjv(raw);
 	if (!checked.ok) {
