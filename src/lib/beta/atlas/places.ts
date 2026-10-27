@@ -301,7 +301,7 @@ export const BETA_ATLAS_WAYPOINTS: readonly BetaAtlasWaypoint[] = [
 	{
 		id: "fair-havens",
 		name: "The fair havens",
-		alsoCalled: ["fair havens", "Lasea"],
+		alsoCalled: ["fair havens"],
 		description: "The harbour of Crete, nigh unto the city of Lasea, where Paul warned that the voyage would be with hurt and much damage, but the centurion believed the master of the ship more than Paul.",
 		refs: ["Acts 27:8", "Acts 27:9", "Acts 27:10"],
 	},

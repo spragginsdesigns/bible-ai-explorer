@@ -149,6 +149,7 @@ function Scrubber({
 }) {
 	const trackRef = useRef<HTMLDivElement>(null);
 	const dragging = useRef(false);
+	const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 	const pct = (value: number) => `${(scale.toPosition(value) * 100).toFixed(3)}%`;
 	const width = (start: number, end: number) => `max(3px, ${((scale.toPosition(end) - scale.toPosition(start)) * 100).toFixed(3)}%)`;
 	const inView = (start: number, end: number) => end >= scale.min && start <= scale.max;
@@ -203,18 +204,37 @@ function Scrubber({
 				aria-valuetext={`c. ${formatYear(year)}${erasNow.length ? `, ${erasNow.map((entry) => entry.era).join(" and ")}` : ""}`}
 				onKeyDown={onKeyDown}
 				onPointerDown={(event) => {
-					dragging.current = true;
-					event.currentTarget.setPointerCapture(event.pointerId);
-					onYear(yearAt(event.clientX));
+					/* A mouse sets the year at once. A finger may be starting a page scroll (touch-pan-y hands vertical
+					   moves to the browser, which then cancels), so touch scrubs only once it moves sideways, and a
+					   still tap sets the year when it lifts. */
+					press.current = { x: event.clientX, y: event.clientY, moved: false };
+					if (event.pointerType === "mouse") {
+						dragging.current = true;
+						event.currentTarget.setPointerCapture(event.pointerId);
+						onYear(yearAt(event.clientX));
+					}
 				}}
 				onPointerMove={(event) => {
+					const start = press.current;
+					if (!dragging.current && start && !start.moved) {
+						const dx = Math.abs(event.clientX - start.x);
+						const dy = Math.abs(event.clientY - start.y);
+						if (dx > 6 || dy > 6) start.moved = true;
+						if (dx > 6 && dx > dy) {
+							dragging.current = true;
+							event.currentTarget.setPointerCapture(event.pointerId);
+						}
+					}
 					if (dragging.current) onYear(yearAt(event.clientX));
 				}}
-				onPointerUp={() => {
+				onPointerUp={(event) => {
+					if (!dragging.current && press.current && !press.current.moved) onYear(yearAt(event.clientX));
 					dragging.current = false;
+					press.current = null;
 				}}
 				onPointerCancel={() => {
 					dragging.current = false;
+					press.current = null;
 				}}
 				className="relative cursor-ew-resize touch-pan-y select-none rounded-[14px] pb-12 pt-[3px] outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
 			>

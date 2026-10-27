@@ -271,8 +271,8 @@ export async function getEventCard(id: string): Promise<AtlasEventCard | null> {
 
 /* ------------------------------------------------------- the reader's link */
 
-/** Places whose names would mislead in a verse (Dan is far more often the tribe than the city). */
-const NOT_FROM_VERSES = new Set(["dan"]);
+/** Places whose names would mislead in a verse (Dan is far more often the tribe than the city; Succoth is nearly always Jacob's, east of Jordan, not the camp in Egypt). */
+const NOT_FROM_VERSES = new Set(["dan", "succoth-of-egypt"]);
 
 /**
  * The atlas places a passage of the KJV names, for the reader's "In the atlas"

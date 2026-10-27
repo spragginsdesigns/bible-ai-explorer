@@ -63,7 +63,17 @@ export default function AtlasExplorer({ index, initial }: { index: BetaAtlasInde
 	useEffect(() => {
 		const query = atlasUrlQuery({ mode, journey: journey.id, stop, year, era, region, selection });
 		const next = `${window.location.pathname}?${query}`;
-		if (`${window.location.pathname}${window.location.search}` !== next) window.history.replaceState(window.history.state, "", next);
+		if (`${window.location.pathname}${window.location.search}` === next) return;
+		/* A scrub changes the year on every pointermove and WebKit throws past ~100 replaceState calls in 30 s,
+		   so write the settled state only. Null state is Next's documented form: it keeps its router in step. */
+		const timer = window.setTimeout(() => {
+			try {
+				window.history.replaceState(null, "", next);
+			} catch {
+				/* The address is a convenience; a refused write must not take the atlas down. */
+			}
+		}, 250);
+		return () => window.clearTimeout(timer);
 	}, [mode, journey.id, stop, year, era, region, selection]);
 
 	/* -------------------------------------------------------- playing */

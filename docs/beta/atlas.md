@@ -10,7 +10,7 @@ three ways through it:
 
 - **Journeys** play stop by stop while the map follows: Paul's first, second
   and third journeys, the voyage to Rome, the Exodus, Abraham's travels and
-  the Gospels' ministry (seven journeys, 124 stops). Each stop shows its verses
+  the Gospels' ministry (seven journeys, 126 stops). Each stop shows its verses
   from the bundled KJV and a short note that says only what those verses say,
   with Previous, Play/Pause (8 seconds a stop) and Next, and every stop in a
   list. Legs Scripture says were sailed are drawn dashed.
