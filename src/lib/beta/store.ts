@@ -228,3 +228,45 @@ export async function searchBetaItems(userId: string, query: BetaItemSearch = {}
 export function betaItemVersions(userId: string): Promise<{ id: string; updatedAt: Date }[]> {
 	return prisma.betaItem.findMany({ where: { userId }, select: { id: true, updatedAt: true }, orderBy: { updatedAt: "desc" }, take: 5000 });
 }
+
+// ---------------------------------------------------------------------------
+// Reads for the Living Study Graph (LC-17646, docs/beta/graph.md), which draws
+// every module's items and every link between them. Owner-scoped like
+// everything above. `private` reports an item whose `data` is private, so the
+// graph can keep it to its title, passages and dates; the data never leaves.
+// ---------------------------------------------------------------------------
+
+export interface BetaGraphItem {
+	id: string;
+	module: string;
+	kind: string;
+	title: string;
+	parentId: string | null;
+	refs: string[];
+	topics: string[];
+	private: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+/** The owner's items as graph nodes, newest change first: never `body` or `data`. */
+export async function betaGraphItems(userId: string, take = LIST_MAX): Promise<BetaGraphItem[]> {
+	const limit = Math.min(Math.max(Math.trunc(take), 1), LIST_MAX);
+	const rows = await prisma.$queryRaw<BetaGraphItem[]>(Prisma.sql`
+		SELECT i."id", i."module", i."kind", i."title", i."parentId", i."refs", i."topics",
+			coalesce(i."data"->>'private', '') = 'true' AS "private", i."createdAt", i."updatedAt"
+		FROM "BetaItem" i WHERE i."userId" = ${userId}
+		ORDER BY i."updatedAt" DESC LIMIT ${limit}
+	`);
+	return rows.map((row) => ({ ...row, private: row.private === true }));
+}
+
+/** Every one of the owner's links, newest first. */
+export function listOwnerBetaLinks(userId: string): Promise<BetaLink[]> {
+	return prisma.betaLink.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: LIST_MAX * 4 });
+}
+
+/** One of the owner's links, or null when it is missing or someone else's. */
+export function getBetaLink(userId: string, id: string): Promise<BetaLink | null> {
+	return prisma.betaLink.findFirst({ where: { id, userId } });
+}
